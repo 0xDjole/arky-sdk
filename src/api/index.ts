@@ -10,6 +10,8 @@ export { createRoleApi } from './role';
 export { createNotificationApi } from './notification';
 export { createPromoCodeApi } from './promoCode';
 export { createAnalyticsApi } from './analytics';
+export { createPaymentApi } from './payment';
+export { createBootApi } from './boot';
 
 // Re-export types from individual files for better compatibility
 export type { ApiResponse } from '../types/index';

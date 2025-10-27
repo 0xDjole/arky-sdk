@@ -1,28 +1,87 @@
 import type { ApiConfig } from '../index';
 import type {
-    GetServicesParams,
+    CreateReservationParams,
+    UpdateReservationParams,
     ReservationCheckoutParams,
-    GetReservationQuoteParams,
+    GetReservationParams,
+    GetReservationPartsParams,
+    SearchReservationsParams,
+    SearchMyReservationsParams,
+    CreateServiceParams,
+    UpdateServiceParams,
+    DeleteServiceParams,
+    GetServiceParams,
+    GetServicesParams,
+    GetAllServicesParams,
+    CreateProviderParams,
+    UpdateProviderParams,
+    DeleteProviderParams,
+    GetProviderParams,
+    GetProvidersParams,
+    GetBusinessServiceWorkingTimeParams,
     GetAvailableSlotsParams,
+    GetReservationQuoteParams,
     RequestOptions
 } from '../types/api';
 
 export const createReservationApi = (apiConfig: ApiConfig) => {
     return {
-        async getServices(params?: GetServicesParams, options?: RequestOptions) {
-            const queryParams = params ? { ...params } : {};
+        // ===== RESERVATIONS =====
 
-            return apiConfig.httpClient.get(
-                `/v1/businesses/${apiConfig.businessId}/services`,
-                {
-                    ...options,
-                    params: queryParams
-                }
-            );
+        async createReservation(params: CreateReservationParams, options?: RequestOptions) {
+            return apiConfig.httpClient.post(`/v1/reservations`, params, options);
         },
 
+        async updateReservation(params: UpdateReservationParams, options?: RequestOptions) {
+            const { id, ...payload } = params;
+            return apiConfig.httpClient.put(`/v1/reservations/${id}`, payload, options);
+        },
+
+        async checkout(params: ReservationCheckoutParams, options?: RequestOptions) {
+            const payload = {
+                businessId: apiConfig.businessId,
+                blocks: params.blocks || [],
+                market: params.market || 'US',
+                parts: params.parts,
+                ...(params.paymentMethod && { paymentMethod: params.paymentMethod }),
+                ...(params.promoCode && { promoCode: params.promoCode })
+            };
+
+            return apiConfig.httpClient.post(`/v1/reservations/checkout`, payload, options);
+        },
+
+        async getReservation(params: GetReservationParams, options?: RequestOptions) {
+            return apiConfig.httpClient.get(`/v1/reservations/${params.id}`, {
+                ...options,
+                params: params.businessId ? { businessId: params.businessId } : {}
+            });
+        },
+
+        async getReservationParts(params?: GetReservationPartsParams, options?: RequestOptions) {
+            return apiConfig.httpClient.get(`/v1/reservations/parts`, {
+                ...options,
+                params: params || {}
+            });
+        },
+
+        async searchReservations(params: SearchReservationsParams, options?: RequestOptions) {
+            return apiConfig.httpClient.get(`/v1/reservations/search`, {
+                ...options,
+                params
+            });
+        },
+
+        async searchMyReservations(params?: SearchMyReservationsParams, options?: RequestOptions) {
+            return apiConfig.httpClient.get(`/v1/reservations`, {
+                ...options,
+                params: params || {}
+            });
+        },
+
+        // ===== QUOTES =====
+
         async getQuote(params: GetReservationQuoteParams, options?: RequestOptions) {
-            const lines = params.parts.map((part) => ({
+            const lines = params.parts.map((part: any) => ({
                 type: 'SERVICE',
                 serviceId: part.serviceId,
                 quantity: 1
@@ -40,24 +99,48 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
             return apiConfig.httpClient.post(`/v1/payments/quote`, payload, options);
         },
 
-        async checkout(params: ReservationCheckoutParams, options?: RequestOptions) {
-            const payload = {
-                businessId: apiConfig.businessId,
-                blocks: params.blocks || [],
-                market: params.market || 'US',
-                parts: params.parts.map((p) => ({
-                    serviceId: p.serviceId,
-                    from: p.from,
-                    to: p.to,
-                    blocks: p.blocks,
-                    reservationMethod: p.reservationMethod,
-                    providerId: p.providerId
-                })),
-                ...(params.paymentMethod && { paymentMethod: params.paymentMethod }),
-                ...(params.promoCode && { promoCode: params.promoCode })
-            };
+        // ===== SERVICES =====
 
-            return apiConfig.httpClient.post(`/v1/reservations/checkout`, payload, options);
+        async createService(params: CreateServiceParams, options?: RequestOptions) {
+            return apiConfig.httpClient.post(
+                `/v1/businesses/${apiConfig.businessId}/services`,
+                params,
+                options
+            );
+        },
+
+        async updateService(params: UpdateServiceParams, options?: RequestOptions) {
+            return apiConfig.httpClient.put(
+                `/v1/businesses/${apiConfig.businessId}/services/${params.id}`,
+                params,
+                options
+            );
+        },
+
+        async deleteService(params: DeleteServiceParams, options?: RequestOptions) {
+            return apiConfig.httpClient.delete(
+                `/v1/businesses/${apiConfig.businessId}/services/${params.id}`,
+                options
+            );
+        },
+
+        async getService(params: GetServiceParams, options?: RequestOptions) {
+            return apiConfig.httpClient.get(
+                `/v1/businesses/${apiConfig.businessId}/services/${params.id}`,
+                options
+            );
+        },
+
+        async getServices(params?: GetServicesParams, options?: RequestOptions) {
+            const queryParams = params ? { ...params } : {};
+
+            return apiConfig.httpClient.get(
+                `/v1/businesses/${apiConfig.businessId}/services`,
+                {
+                    ...options,
+                    params: queryParams
+                }
+            );
         },
 
         async getAvailableSlots(params: GetAvailableSlotsParams, options?: RequestOptions) {
@@ -71,6 +154,60 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
                         ...queryParams,
                         limit: queryParams.limit || 1000
                     }
+                }
+            );
+        },
+
+        // ===== PROVIDERS =====
+
+        async createProvider(params: CreateProviderParams, options?: RequestOptions) {
+            return apiConfig.httpClient.post(
+                `/v1/businesses/${apiConfig.businessId}/providers`,
+                params,
+                options
+            );
+        },
+
+        async updateProvider(params: UpdateProviderParams, options?: RequestOptions) {
+            return apiConfig.httpClient.put(
+                `/v1/businesses/${apiConfig.businessId}/providers/${params.id}`,
+                params,
+                options
+            );
+        },
+
+        async deleteProvider(params: DeleteProviderParams, options?: RequestOptions) {
+            return apiConfig.httpClient.delete(
+                `/v1/businesses/${apiConfig.businessId}/providers/${params.id}`,
+                options
+            );
+        },
+
+        async getProvider(params: GetProviderParams, options?: RequestOptions) {
+            return apiConfig.httpClient.get(
+                `/v1/businesses/${apiConfig.businessId}/providers/${params.id}`,
+                options
+            );
+        },
+
+        async getProviders(params: GetProvidersParams, options?: RequestOptions) {
+            const { businessId, ...queryParams } = params;
+            return apiConfig.httpClient.get(
+                `/v1/businesses/${apiConfig.businessId}/providers`,
+                {
+                    ...options,
+                    params: queryParams
+                }
+            );
+        },
+
+        async getProviderWorkingTime(params: GetBusinessServiceWorkingTimeParams, options?: RequestOptions) {
+            const { businessId, providerId, ...queryParams } = params;
+            return apiConfig.httpClient.get(
+                `/v1/businesses/${apiConfig.businessId}/providers/${providerId}/working-time`,
+                {
+                    ...options,
+                    params: queryParams
                 }
             );
         }

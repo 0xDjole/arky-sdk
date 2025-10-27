@@ -1,12 +1,48 @@
 import type { ApiConfig } from '../index';
 import type {
-    GetCollectionEntriesParams,
-    CreateCollectionEntryParams,
+    CreateCollectionParams,
+    UpdateCollectionParams,
+    DeleteCollectionParams,
+    GetCollectionParams,
+    GetCollectionsParams,
+    GetEntriesParams,
+    CreateEntryParams,
+    UpdateEntryParams,
+    DeleteEntryParams,
+    GetEntryParams,
+    GenerateBlocksParams,
+    GetVariableMetadataParams,
+    SendEntryParams,
     RequestOptions
 } from '../types/api';
 
 export const createCmsApi = (apiConfig: ApiConfig) => {
     return {
+        // ===== COLLECTIONS =====
+
+        async createCollection(params: CreateCollectionParams, options?: RequestOptions) {
+            return apiConfig.httpClient.post(
+                `/v1/businesses/${apiConfig.businessId}/collections`,
+                params,
+                options
+            );
+        },
+
+        async updateCollection(params: UpdateCollectionParams, options?: RequestOptions) {
+            return apiConfig.httpClient.put(
+                `/v1/businesses/${apiConfig.businessId}/collections/${params.id}`,
+                params,
+                options
+            );
+        },
+
+        async deleteCollection(params: DeleteCollectionParams, options?: RequestOptions) {
+            return apiConfig.httpClient.delete(
+                `/v1/businesses/${apiConfig.businessId}/collections/${params.id}`,
+                options
+            );
+        },
+
         async getCollection(id: string, options?: RequestOptions) {
             return apiConfig.httpClient.get(
                 `/v1/businesses/${apiConfig.businessId}/collections/${id}`,
@@ -14,51 +50,108 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
             );
         },
 
-        async getCollections(params?: { name?: string; ids?: string[] }, options?: RequestOptions) {
-            const queryParams = params ? { ...params } : {};
-
+        async getCollections(params?: GetCollectionsParams, options?: RequestOptions) {
             return apiConfig.httpClient.get(
                 `/v1/businesses/${apiConfig.businessId}/collections`,
                 {
                     ...options,
-                    params: queryParams
+                    params: params || {}
                 }
             );
         },
 
-        async getCollectionEntries(params: GetCollectionEntriesParams, options?: RequestOptions) {
-            const { collectionId, ...queryParams } = params;
-
-            return apiConfig.httpClient.get(
-                `/v1/businesses/${apiConfig.businessId}/collections/${collectionId}/entries`,
-                {
-                    ...options,
-                    params: queryParams
-                }
-            );
-        },
-
-        async getCollectionEntry(params: { collectionId: string; id: string }, options?: RequestOptions) {
-            const { collectionId, id } = params;
-
-            return apiConfig.httpClient.get(
-                `/v1/businesses/${apiConfig.businessId}/collections/${collectionId}/entries/${id}`,
+        async generateBlocks(params: any, options?: RequestOptions) {
+            return apiConfig.httpClient.post(
+                `/v1/businesses/${apiConfig.businessId}/collections/blocks/generate`,
+                params,
                 options
             );
         },
 
-        async createCollectionEntry(params: CreateCollectionEntryParams, options?: RequestOptions) {
-            const { collectionId, blocks, status } = params;
+        // ===== ENTRIES =====
+        // Note: Backend uses /entries NOT /collections/{id}/entries
 
+        async getCollectionEntries(params?: GetEntriesParams, options?: RequestOptions) {
+            const { collectionId, ...queryParams } = params || {};
+
+            // Convert collectionId to owner format if provided
+            const finalParams = collectionId
+                ? { ...queryParams, owner: `collection:${collectionId}` }
+                : queryParams;
+
+            return apiConfig.httpClient.get(
+                `/v1/businesses/${apiConfig.businessId}/entries`,
+                {
+                    ...options,
+                    params: finalParams
+                }
+            );
+        },
+
+        async createCollectionEntry(params: CreateEntryParams, options?: RequestOptions) {
+            const { collectionId, owner, ...rest } = params;
+
+            // Convert collectionId to owner format if provided
             const payload = {
-                businessId: apiConfig.businessId,
-                blocks,
-                ...(status && { status })
+                ...rest,
+                owner: owner || (collectionId ? `collection:${collectionId}` : undefined)
             };
 
             return apiConfig.httpClient.post(
-                `/v1/businesses/${apiConfig.businessId}/collections/${collectionId}/entries`,
+                `/v1/businesses/${apiConfig.businessId}/entries`,
                 payload,
+                options
+            );
+        },
+
+        async updateCollectionEntry(params: UpdateEntryParams, options?: RequestOptions) {
+            const { id, collectionId, owner, ...rest } = params;
+
+            // Convert collectionId to owner format if provided
+            const payload = {
+                ...rest,
+                owner: owner || (collectionId ? `collection:${collectionId}` : undefined)
+            };
+
+            return apiConfig.httpClient.put(
+                `/v1/businesses/${apiConfig.businessId}/entries/${id}`,
+                payload,
+                options
+            );
+        },
+
+        async deleteCollectionEntry(id: string, options?: RequestOptions) {
+            return apiConfig.httpClient.delete(
+                `/v1/businesses/${apiConfig.businessId}/entries/${id}`,
+                options
+            );
+        },
+
+        async getCollectionEntry(id: string, options?: RequestOptions) {
+            return apiConfig.httpClient.get(
+                `/v1/businesses/${apiConfig.businessId}/entries/${id}`,
+                options
+            );
+        },
+
+        async sendEntry(params: SendEntryParams, options?: RequestOptions) {
+            const { entryId, scheduledAt } = params;
+            return apiConfig.httpClient.post(
+                `/v1/businesses/${apiConfig.businessId}/entries/${entryId}/send`,
+                {
+                    businessId: apiConfig.businessId,
+                    entryId,
+                    scheduledAt: scheduledAt || Date.now()
+                },
+                options
+            );
+        },
+
+        // ===== VARIABLES / METADATA =====
+
+        async getVariableMetadata(params: GetVariableMetadataParams, options?: RequestOptions) {
+            return apiConfig.httpClient.get(
+                `/v1/collections/entry-types/${params.entryType}/variables`,
                 options
             );
         }

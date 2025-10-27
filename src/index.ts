@@ -48,6 +48,8 @@ import { createCmsApi } from './api/cms';
 import { createEshopApi } from './api/eshop';
 import { createReservationApi } from './api/reservation';
 import { createNewsletterApi } from './api/newsletter';
+import { createPaymentApi } from './api/payment';
+import { createBootApi } from './api/boot';
 import { getImageUrl, thumbnailUrl, getGalleryThumbnail } from './utils/blocks';
 import { getMarketPrice, getPriceAmount, formatPayment, formatMinor, createPaymentForCheckout } from './utils/price';
 import { getCurrencySymbol } from './utils/currency';
@@ -98,6 +100,8 @@ export async function createArkySDK(config: HttpClientConfig & { market?: string
         eshop: createEshopApi(apiConfig),
         reservation: createReservationApi(apiConfig),
         newsletter: createNewsletterApi(apiConfig),
+        payment: createPaymentApi(apiConfig),
+        boot: createBootApi(apiConfig),
 
         utils: {
             getImageUrl: (imageBlock: any, isBlock = true) => getImageUrl(imageBlock, isBlock, storageUrl),

@@ -1,161 +1,146 @@
 import type { ApiConfig } from '../index';
+import type {
+	CreateBusinessParams,
+	UpdateBusinessParams,
+	DeleteBusinessParams,
+	GetBusinessParams,
+	GetBusinessParentsParams,
+	TriggerBuildsParams,
+	GetSubscriptionParams,
+	CreateSubscriptionParams,
+	UpdateSubscriptionParams,
+	CancelSubscriptionParams,
+	ReactivateSubscriptionParams,
+	CreatePortalSessionParams,
+	InviteUserParams,
+	HandleInvitationParams,
+	TestWebhookParams,
+	RequestOptions
+} from '../types/api';
 
 export const createBusinessApi = (apiConfig: ApiConfig) => {
-	const { httpClient } = apiConfig;
-
 	return {
-		async createBusiness(businessData: any, options?: any): Promise<any> {
-		return httpClient.post(`/v1/businesses`, businessData, options);
-	},
+		async createBusiness(params: CreateBusinessParams, options?: RequestOptions) {
+			return apiConfig.httpClient.post(`/v1/businesses`, params, options);
+		},
 
-	async updateBusiness(businessData: any, options?: any) {
-		return httpClient.put(`/v1/businesses/${businessData.id}`, businessData, options);
-	},
+		async updateBusiness(params: UpdateBusinessParams, options?: RequestOptions) {
+			return apiConfig.httpClient.put(`/v1/businesses/${params.id}`, params, options);
+		},
 
-	async deleteBusiness({ id }: { id: string }, options?: any) {
-		return httpClient.delete(`/v1/businesses/${id}`, options);
-	},
+		async deleteBusiness(params: DeleteBusinessParams, options?: RequestOptions) {
+			return apiConfig.httpClient.delete(`/v1/businesses/${params.id}`, options);
+		},
 
-	async getBusiness({ id }: { id: string }) {
-		return httpClient.get(`/v1/businesses/${id}`);
-	},
+		async getBusiness(params: GetBusinessParams, options?: RequestOptions) {
+			return apiConfig.httpClient.get(`/v1/businesses/${params.id}`, options);
+		},
 
-	async getBusinesses() {
-		return httpClient.get(`/v1/businesses`);
-	},
+		async getBusinesses(options?: RequestOptions) {
+			return apiConfig.httpClient.get(`/v1/businesses`, options);
+		},
 
-	async getBusinessParents({ businessId }: { businessId: string }) {
-		return httpClient.get(`/v1/businesses/${businessId}/parents`);
-	},
+		async getBusinessParents(params: GetBusinessParentsParams, options?: RequestOptions) {
+			return apiConfig.httpClient.get(`/v1/businesses/${params.businessId}/parents`, options);
+		},
 
-	async triggerBuilds({ id }: { id: string }, options?: any) {
-		return httpClient.post(`/v1/businesses/${id}/trigger-builds`, {}, options);
-	},
+		async triggerBuilds(params: TriggerBuildsParams, options?: RequestOptions) {
+			return apiConfig.httpClient.post(`/v1/businesses/${params.id}/trigger-builds`, {}, options);
+		},
 
-	async getSubscriptionPlans() {
-		return httpClient.get('/v1/businesses/plans');
-	},
+		async getSubscriptionPlans(options?: RequestOptions) {
+			return apiConfig.httpClient.get('/v1/businesses/plans', options);
+		},
 
-	async getSubscription({ businessId }: { businessId: string }) {
-		return httpClient.get(`/v1/businesses/${businessId}/subscription`);
-	},
+		async getSubscription(params: GetSubscriptionParams, options?: RequestOptions) {
+			return apiConfig.httpClient.get(`/v1/businesses/${params.businessId}/subscription`, options);
+		},
 
-	async createSubscription({
-		businessId,
-		planId,
-		successUrl,
-		cancelUrl
-	}: {
-		businessId: string;
-		planId: string;
-		successUrl: string;
-		cancelUrl: string;
-	}, options?: any) {
-		return httpClient.post(
-			`/v1/businesses/${businessId}/subscription`,
-			{
-				businessId,
-				planId,
-				successUrl,
-				cancelUrl
-			},
-			options
-		);
-	},
+		async createSubscription(params: CreateSubscriptionParams, options?: RequestOptions) {
+			return apiConfig.httpClient.post(
+				`/v1/businesses/${params.businessId}/subscription`,
+				params,
+				options
+			);
+		},
 
-	async updateSubscription({
-		businessId,
-		planId,
-		successUrl,
-		cancelUrl
-	}: {
-		businessId: string;
-		planId: string;
-		successUrl: string;
-		cancelUrl: string;
-	}, options?: any) {
-		return httpClient.put(
-			`/v1/businesses/${businessId}/subscription`,
-			{
-				businessId,
-				planId,
-				successUrl,
-				cancelUrl
-			},
-			options
-		);
-	},
+		async updateSubscription(params: UpdateSubscriptionParams, options?: RequestOptions) {
+			return apiConfig.httpClient.put(
+				`/v1/businesses/${params.businessId}/subscription`,
+				params,
+				options
+			);
+		},
 
-	async cancelSubscription({
-		businessId,
-		immediately = false
-	}: {
-		businessId: string;
-		immediately?: boolean;
-	}, options?: any) {
-		return httpClient.delete(`/v1/businesses/${businessId}/subscription`, {
-			params: { immediately },
-			...options
-		});
-	},
+		async cancelSubscription(params: CancelSubscriptionParams, options?: RequestOptions) {
+			return apiConfig.httpClient.delete(`/v1/businesses/${params.businessId}/subscription`, {
+				...options,
+				params: { immediately: params.immediately || false }
+			});
+		},
 
-	async reactivateSubscription({ businessId }: { businessId: string }, options?: any) {
-		return httpClient.post(
-			`/v1/businesses/${businessId}/subscription/reactivate`,
-			{
-				businessId
-			},
-			options
-		);
-	},
+		async reactivateSubscription(params: ReactivateSubscriptionParams, options?: RequestOptions) {
+			return apiConfig.httpClient.post(
+				`/v1/businesses/${params.businessId}/subscription/reactivate`,
+				params,
+				options
+			);
+		},
 
-	async createPortalSession({
-		businessId,
-		returnUrl
-	}: {
-		businessId: string;
-		returnUrl: string;
-	}, options?: any) {
-		return httpClient.post(
-			`/v1/businesses/${businessId}/subscription/portal`,
-			{
-				businessId,
-				returnUrl
-			},
-			options
-		);
-	},
+		async createPortalSession(params: CreatePortalSessionParams, options?: RequestOptions) {
+			return apiConfig.httpClient.post(
+				`/v1/businesses/${params.businessId}/subscription/portal`,
+				params,
+				options
+			);
+		},
 
-	async inviteUser({
-		businessId,
-		email,
-		roleIds = null
-	}: {
-		businessId: string;
-		email: string;
-		roleIds?: string[] | null;
-	}, options?: any) {
-		return httpClient.post(
-			`/v1/businesses/${businessId}/invitation`,
-			{ email, roleIds },
-			options
-		);
-	},
+		async inviteUser(params: InviteUserParams, options?: RequestOptions) {
+			const { businessId, ...payload } = params;
+			return apiConfig.httpClient.post(
+				`/v1/businesses/${businessId}/invitation`,
+				payload,
+				options
+			);
+		},
 
-	async handleInvitation({
-		businessId,
-		token,
-		action
-	}: {
-		businessId: string;
-		token: string;
-		action: string;
-	}) {
-		return httpClient.put(`/v1/businesses/${businessId}/invitation`, { token, action });
-	},
+		async handleInvitation(params: HandleInvitationParams, options?: RequestOptions) {
+			const { businessId, ...payload } = params;
+			return apiConfig.httpClient.put(
+				`/v1/businesses/${businessId}/invitation`,
+				payload,
+				options
+			);
+		},
 
-	async testWebhook({ businessId, webhook }: { businessId: string; webhook: any }, options?: any) {
-		return httpClient.post(`/v1/businesses/${businessId}/webhooks/test`, webhook, options);
-	}
+		async testWebhook(params: TestWebhookParams, options?: RequestOptions) {
+			return apiConfig.httpClient.post(
+				`/v1/businesses/${params.businessId}/webhooks/test`,
+				params.webhook,
+				options
+			);
+		},
+
+		async getBusinessMedia(params: { id: string; cursor?: string | null; limit?: number }, options?: RequestOptions) {
+			return apiConfig.httpClient.get(
+				`/v1/businesses/${params.id}/media`,
+				{
+					...options,
+					params: {
+						cursor: params.cursor,
+						limit: params.limit || 20
+					}
+				}
+			);
+		},
+
+		async setProviderSchedule(params: { id: string; workingTime: any; serviceIds: string[]; providerIds: string[] }, options?: RequestOptions) {
+			const { id, ...payload } = params;
+			return apiConfig.httpClient.put(
+				`/v1/businesses/${id}/schedules`,
+				payload,
+				options
+			);
+		}
 	};
 };

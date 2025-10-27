@@ -1,26 +1,39 @@
 import type { ApiConfig } from '../index';
+import type {
+	GetNotificationsParams,
+	TrackEmailOpenParams,
+	GetDeliveryStatsParams,
+	RequestOptions
+} from '../types/api';
 
 export const createNotificationApi = (apiConfig: ApiConfig) => {
-	const { httpClient } = apiConfig;
-
 	return {
-		async getNotifications({
-			previous_id,
-			limit
-		}: {
-			previous_id?: string;
-			limit: number;
-		}) {
-			return httpClient.get(`/v1/notifications`, {
+		async getNotifications(params: GetNotificationsParams, options?: RequestOptions) {
+			return apiConfig.httpClient.get(`/v1/notifications`, {
+				...options,
 				params: {
-					limit,
-					previous_id
+					limit: params.limit,
+					previous_id: params.previous_id
 				}
 			});
 		},
 
-		async updateNotifications() {
-			return httpClient.put(`/v1/notifications`, { seen: true });
+		async updateNotifications(options?: RequestOptions) {
+			return apiConfig.httpClient.put(`/v1/notifications`, { seen: true }, options);
+		},
+
+		async trackEmailOpen(params: TrackEmailOpenParams, options?: RequestOptions) {
+			return apiConfig.httpClient.get(
+				`/v1/notifications/track/email/${params.trackingPixelId}`,
+				options
+			);
+		},
+
+		async getDeliveryStats(params: GetDeliveryStatsParams, options?: RequestOptions) {
+			return apiConfig.httpClient.get(
+				`/v1/notifications/track/stats/${apiConfig.businessId}`,
+				options
+			);
 		}
 	};
 };

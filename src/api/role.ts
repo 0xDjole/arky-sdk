@@ -1,58 +1,44 @@
 import type { ApiConfig } from '../index';
+import type {
+	CreateRoleParams,
+	UpdateRoleParams,
+	DeleteRoleParams,
+	GetRoleParams,
+	GetRolesParams,
+	GetRoleParentsParams,
+	GetInvoiceParams,
+	RequestOptions
+} from '../types/api';
 
 export const createRoleApi = (apiConfig: ApiConfig) => {
-	const { httpClient } = apiConfig;
-
 	return {
-		async createRole(roleData: any, options?: any): Promise<void> {
-		return httpClient.post(`/v1/roles`, roleData, options);
-	},
+		async createRole(params: CreateRoleParams, options?: RequestOptions): Promise<void> {
+			return apiConfig.httpClient.post(`/v1/roles`, params, options);
+		},
 
-	async updateRole(roleData: any, options?: any) {
-		return httpClient.put(`/v1/roles/${roleData.id}`, roleData, options);
-	},
+		async updateRole(params: UpdateRoleParams, options?: RequestOptions) {
+			return apiConfig.httpClient.put(`/v1/roles/${params.id}`, params, options);
+		},
 
-	async deleteRole({ id }: { id: string }, options?: any) {
-		return httpClient.delete(`/v1/roles/${id}`, options);
-	},
+		async deleteRole(params: DeleteRoleParams, options?: RequestOptions) {
+			return apiConfig.httpClient.delete(`/v1/roles/${params.id}`, options);
+		},
 
-	async getRole({ id }: { id: string }) {
-		return httpClient.get(`/v1/roles/${id}`);
-	},
+		async getRole(params: GetRoleParams, options?: RequestOptions) {
+			return apiConfig.httpClient.get(`/v1/roles/${params.id}`, options);
+		},
 
-	async getRoles({
-		businessId,
-		action = 'READ'
-	}: {
-		businessId?: string;
-		action?: string;
-	} = {}) {
-		return httpClient.get(`/v1/roles`, {
-			params: {
-				businessId: businessId || undefined,
-				action: action || undefined
-			}
-		});
-	},
-
-	async getRoleParents({ roleId }: { roleId: string }) {
-		return httpClient.get(`/v1/roles/${roleId}/parents`);
-	},
-
-	async getInvoice({
-		roleId,
-		from,
-		to,
-		language
-	}: {
-		roleId: string;
-		from: string;
-		to: string;
-		language: string;
-	}) {
-		return httpClient.get(`/v1/roles/${roleId}/generate-invoice`, {
-			params: { from, to, language }
-		});
-	}
+		async getRoles(params?: GetRolesParams, options?: RequestOptions) {
+			return apiConfig.httpClient.get(`/v1/roles`, {
+				...options,
+				params: params ? {
+					businessId: apiConfig.businessId,
+					action: params.action || 'READ'
+				} : {
+					businessId: apiConfig.businessId,
+					action: 'READ'
+				}
+			});
+		}
 	};
 };

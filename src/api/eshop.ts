@@ -1,14 +1,53 @@
 import type { ApiConfig } from '../index';
 import type {
-    GetQuoteParams,
-    CheckoutParams,
+    CreateProductParams,
+    UpdateProductParams,
     GetProductsParams,
     GetProductBySlugParams,
+    GetQuoteParams,
+    CheckoutParams,
+    CreateOrderParams,
+    UpdateOrderParams,
+    GetOrdersParams,
+    UpdateOrderStatusParams,
+    UpdateOrderPaymentStatusParams,
     RequestOptions
 } from '../types/api';
 
 export const createEshopApi = (apiConfig: ApiConfig) => {
     return {
+        // ===== PRODUCTS =====
+
+        async createProduct(params: CreateProductParams, options?: RequestOptions) {
+            return apiConfig.httpClient.post(
+                `/v1/businesses/${apiConfig.businessId}/products`,
+                params,
+                options
+            );
+        },
+
+        async updateProduct(params: UpdateProductParams, options?: RequestOptions) {
+            return apiConfig.httpClient.put(
+                `/v1/businesses/${apiConfig.businessId}/products/${params.id}`,
+                params,
+                options
+            );
+        },
+
+        async deleteProduct(id: string, options?: RequestOptions) {
+            return apiConfig.httpClient.delete(
+                `/v1/businesses/${apiConfig.businessId}/products/${id}`,
+                options
+            );
+        },
+
+        async getProduct(id: string, options?: RequestOptions) {
+            return apiConfig.httpClient.get(
+                `/v1/businesses/${apiConfig.businessId}/products/${id}`,
+                options
+            );
+        },
+
         async getProducts(params?: GetProductsParams, options?: RequestOptions) {
             const queryParams = params ? { ...params } : {};
 
@@ -29,6 +68,59 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
                 options
             );
         },
+
+        // ===== ORDERS =====
+
+        async createOrder(params: CreateOrderParams, options?: RequestOptions) {
+            return apiConfig.httpClient.post(
+                `/v1/businesses/${apiConfig.businessId}/orders`,
+                params,
+                options
+            );
+        },
+
+        async updateOrder(params: UpdateOrderParams, options?: RequestOptions) {
+            return apiConfig.httpClient.put(
+                `/v1/businesses/${apiConfig.businessId}/orders/update`,
+                params,
+                options
+            );
+        },
+
+        async getOrder(id: string, options?: RequestOptions) {
+            return apiConfig.httpClient.get(
+                `/v1/businesses/${apiConfig.businessId}/orders/${id}`,
+                options
+            );
+        },
+
+        async getOrders(params?: GetOrdersParams, options?: RequestOptions) {
+            return apiConfig.httpClient.get(
+                `/v1/businesses/${apiConfig.businessId}/orders`,
+                {
+                    ...options,
+                    params: params || {}
+                }
+            );
+        },
+
+        async updateOrderStatus(params: UpdateOrderStatusParams, options?: RequestOptions) {
+            return apiConfig.httpClient.put(
+                `/v1/businesses/${apiConfig.businessId}/orders/${params.id}/status`,
+                params,
+                options
+            );
+        },
+
+        async updateOrderPaymentStatus(params: UpdateOrderPaymentStatusParams, options?: RequestOptions) {
+            return apiConfig.httpClient.put(
+                `/v1/businesses/${apiConfig.businessId}/orders/${params.id}/payment-status`,
+                params,
+                options
+            );
+        },
+
+        // ===== PAYMENTS =====
 
         async getQuote(params: GetQuoteParams, options?: RequestOptions) {
             const lines = params.items.map(item => ({
