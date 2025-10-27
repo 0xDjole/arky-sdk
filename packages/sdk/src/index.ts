@@ -1,10 +1,14 @@
 // Main export file for @arky/sdk
 
-// Configuration
+// ========================================
+// CONFIGURATION
+// ========================================
 export * from './config';
 export type { ArkyConfig } from './config';
 
-// Types
+// ========================================
+// TYPES
+// ========================================
 export * from './types';
 export type {
     ApiResponse,
@@ -17,87 +21,48 @@ export type {
     Price
 } from './types';
 
+// ========================================
 // APIs
+// ========================================
 export * from './api';
 
-// Services
-export * from './services/auth';
-export { default as httpClient } from './services/http';
-
-// NOTE: Stores are exported via separate entry point: @arky/sdk/stores
-// This keeps the main bundle small for API-only users
-
-// Utilities
-export * from './utils/blocks';
-export * from './utils/errors';
-export * from './utils/price';
-export * from './utils/svg';
-export * from './utils/text';
-export * from './utils/timezone';
-export * from './utils/validation';
-
-// Re-export commonly used functions for convenience
-
-export { 
-    // Validation utilities
-    validatePhoneNumber,
-    validateEmail,
-    validateVerificationCode,
-    validateRequired
-} from './utils/validation';
-
-export { 
-    // Block utilities
-    getBlockLabel,
-    getBlockTextValue,
-    getBlockValue,
-    getBlockValues,
-    getImageUrl,
-    thumbnailUrl
-} from './utils/blocks';
-
-export { 
-    // Auth utilities
+// ========================================
+// SERVICES
+// ========================================
+export {
     getGuestToken,
     updateProfilePhone,
     verifyPhoneCode,
     getBusinessConfig
 } from './services/auth';
 
-export { 
-    // SVG utilities
-    fetchSvgContent,
-    getSvgContentForAstro,
-    injectSvgIntoElement
-} from './utils/svg';
+export { default as httpClient } from './services/http';
 
-export { 
-    // Text utilities
-    slugify,
-    humanize,
-    categorify,
-    formatDate
-} from './utils/text';
+// ========================================
+// UTILITIES
+// ========================================
 
-export { 
-    // Timezone utilities
-    findTimeZone,
-    tzGroups
-} from './utils/timezone';
+// Export all utilities via wildcard
+export * from './utils/blocks';
+export * from './utils/currency';
+export * from './utils/errors';
+export * from './utils/i18n';
+export * from './utils/price';
+export * from './utils/queryParams';
+export * from './utils/svg';
+export * from './utils/text';
+export * from './utils/timezone';
+export * from './utils/validation';
 
-export { 
-    // Error utilities
-    getErrorMessage,
-    isErrorCode,
-    ERROR_CODES,
-    ERROR_CONSTANTS
-} from './utils/errors';
-
-// SDK Version
+// ========================================
+// SDK METADATA
+// ========================================
 export const SDK_VERSION = '0.3.0';
 export const SUPPORTED_FRAMEWORKS = ['astro', 'react', 'vue', 'svelte', 'vanilla'] as const;
 
-// SDK initialization function
+// ========================================
+// INITIALIZATION
+// ========================================
 import { setGlobalConfig, type ArkyConfig } from './config';
 
 export function initArky(config: ArkyConfig): ArkyConfig {
@@ -111,3 +76,6 @@ export function initArky(config: ArkyConfig): ArkyConfig {
     setGlobalConfig(config);
     return config;
 }
+
+// NOTE: Stores are exported via separate entry point: @arky/sdk/stores
+// This keeps the main bundle small for API-only users

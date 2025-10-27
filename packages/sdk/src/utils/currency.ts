@@ -87,18 +87,13 @@ export function getCurrencySymbol(currency: string): string {
 }
 
 /**
- * Formats a price with the appropriate currency symbol
+ * List of currencies where the symbol appears after the amount
  */
-export function formatCurrencyAmount(amount: number, currency: string): string {
-    const symbol = getCurrencySymbol(currency);
-    const formattedAmount = (amount / 100).toFixed(2);
+export const SYMBOL_AFTER_CURRENCIES = ['SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'BGN', 'HRK'];
 
-    // For some currencies, symbol goes after the amount
-    const symbolAfterCurrencies = ['SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'BGN', 'HRK'];
-
-    if (symbolAfterCurrencies.includes(currency.toUpperCase())) {
-        return `${formattedAmount} ${symbol}`;
-    }
-
-    return `${symbol}${formattedAmount}`;
+/**
+ * Check if currency symbol should be placed after the amount
+ */
+export function isSymbolAfterCurrency(currency: string): boolean {
+    return SYMBOL_AFTER_CURRENCIES.includes(currency.toUpperCase());
 }

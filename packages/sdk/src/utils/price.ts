@@ -1,15 +1,6 @@
 // Price formatting utilities - Centralized currency and price operations
 import type { Payment, PaymentMethod, Price } from '../types';
-import { getCurrencySymbol } from './currency';
-
-// Market-based currency symbols mapping
-const CURRENCY_SYMBOLS = {
-    'USD': '$',
-    'EUR': '€',
-    'GBP': '£',
-    'CAD': 'C$',
-    'AUD': 'A$'
-} as const;
+import { getCurrencySymbol, isSymbolAfterCurrency } from './currency';
 
 const MARKET_CURRENCIES = {
     'US': 'USD',
@@ -29,17 +20,12 @@ export function convertToMinor(majorAmount: number): number {
     return Math.round((majorAmount ?? 0) * 100);
 }
 
-// Get currency symbol from currency code
-export function getSymbol(currency: string): string {
-    return CURRENCY_SYMBOLS[currency as keyof typeof CURRENCY_SYMBOLS] || '$';
-}
-
 // Get currency from market ID
 export function getCurrencyFromMarket(marketId: string): string {
     return MARKET_CURRENCIES[marketId as keyof typeof MARKET_CURRENCIES] || 'USD';
 }
 
-// Format currency amount with symbol
+// Format currency amount with symbol (locale-aware positioning)
 export function formatCurrencyAmount(
     amount: number,
     currency: string,
@@ -56,7 +42,13 @@ export function formatCurrencyAmount(
         return `${roundedAmount} ${currency}`;
     }
 
-    const symbol = customSymbol || getSymbol(currency);
+    const symbol = customSymbol || getCurrencySymbol(currency);
+
+    // Use locale-specific symbol positioning
+    if (isSymbolAfterCurrency(currency)) {
+        return `${roundedAmount} ${symbol}`;
+    }
+
     return `${symbol}${roundedAmount}`;
 }
 
@@ -145,11 +137,11 @@ export function getMarketPrice(
             symbol = getCurrencySymbol(currency);
         } else {
             currency = getCurrencyFromMarket(price.market);
-            symbol = getSymbol(currency);
+            symbol = getCurrencySymbol(currency);
         }
     } else {
         currency = getCurrencyFromMarket(price.market);
-        symbol = getSymbol(currency);
+        symbol = getCurrencySymbol(currency);
     }
 
     // Format price with custom symbol
