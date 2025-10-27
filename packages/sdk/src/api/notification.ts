@@ -1,24 +1,26 @@
-export const createNotificationApi = (httpClient: any) => ({
-	async getNotifications({
-		previous_id,
-		limit
-	}: {
-		previous_id?: string;
-		limit: number;
-	}) {
-		const response = await httpClient.get(`/v1/notifications`, {
-			params: {
-				limit,
-				previous_id
-			}
-		});
-		return {
-			items: []
-		};
-	},
+import type { ApiConfig } from '../index';
 
-	async updateNotifications() {
-		const response = await httpClient.put(`/v1/notifications`, { seen: true });
-		return false;
-	}
-});
+export const createNotificationApi = (apiConfig: ApiConfig) => {
+	const { httpClient } = apiConfig;
+
+	return {
+		async getNotifications({
+			previous_id,
+			limit
+		}: {
+			previous_id?: string;
+			limit: number;
+		}) {
+			return httpClient.get(`/v1/notifications`, {
+				params: {
+					limit,
+					previous_id
+				}
+			});
+		},
+
+		async updateNotifications() {
+			return httpClient.put(`/v1/notifications`, { seen: true });
+		}
+	};
+};

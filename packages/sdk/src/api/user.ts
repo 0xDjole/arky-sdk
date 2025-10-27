@@ -1,17 +1,20 @@
-export const createUserApi = (httpClient: any) => ({
-	async updateUser({
+import type { ApiConfig } from '../index';
+
+export const createUserApi = (apiConfig: ApiConfig) => {
+	const { httpClient, setTokens } = apiConfig;
+
+	return {
+		async updateUser({
 		name,
 		phoneNumbers = [],
 		addresses = [],
-		apiTokens = null,
-		showSuccessMessage = true
+		apiTokens = null
 	}: {
 		name: string;
 		phoneNumbers?: any[];
 		addresses?: any[];
 		apiTokens?: any;
-		showSuccessMessage?: boolean;
-	}) {
+	}, options?: any) {
 		const url = `/v1/users/update`;
 
 		const body: any = {
@@ -21,14 +24,6 @@ export const createUserApi = (httpClient: any) => ({
 			addresses,
 			apiTokens
 		};
-
-		const options: any = {
-			errorMessage: 'Failed to update profile'
-		};
-
-		if (showSuccessMessage) {
-			options.successMessage = 'Profile updated';
-		}
 
 		const response = await httpClient.put(url, body, options);
 		return response;
@@ -107,7 +102,7 @@ export const createUserApi = (httpClient: any) => ({
 		return response;
 	},
 
-	async loginUser({ email, password }: { email: string; password: string }) {
+	async loginUser({ email, password }: { email: string; password: string }, options?: any) {
 		const result = await httpClient.post(
 			`/v1/users/login`,
 			{
@@ -115,9 +110,7 @@ export const createUserApi = (httpClient: any) => ({
 				password,
 				provider: 'EMAIL'
 			},
-			{
-				errorMessage: 'Failed to login'
-			}
+			options
 		);
 
 		return result;
@@ -158,7 +151,7 @@ export const createUserApi = (httpClient: any) => ({
 		return result;
 	},
 
-	async registerUser({ email, password }: { email: string; password: string }) {
+	async registerUser({ email, password }: { email: string; password: string }, options?: any) {
 		const result = await httpClient.post(
 			'/v1/users/register',
 			{
@@ -166,9 +159,7 @@ export const createUserApi = (httpClient: any) => ({
 				password,
 				provider: 'EMAIL_REGISTER'
 			},
-			{
-				errorMessage: 'Failed to register'
-			}
+			options
 		);
 
 		return result;
@@ -183,37 +174,30 @@ export const createUserApi = (httpClient: any) => ({
 			const result = await httpClient.post('/v1/users/login', {
 				provider: 'GUEST'
 			}, options);
-			return result.accessToken || result.token || '';
+			const token = result.accessToken || result.token || '';
+			if (token) {
+				setTokens(result);
+			}
+			return token;
 		} catch (error) {
 			console.error('Failed to get guest token:', error);
 			return '';
 		}
 	},
 
-	async updateProfilePhone({ token, phoneNumber }: { token: string; phoneNumber: string }, options?: any) {
+	async updateProfilePhone({ phoneNumber }: { phoneNumber: string }, options?: any) {
 		return httpClient.put('/v1/users/update', {
 			phoneNumber,
 			phoneNumbers: [],
 			addresses: []
-		}, {
-			...options,
-			headers: {
-				...(options?.headers || {}),
-				'Authorization': `Bearer ${token}`
-			}
-		});
+		}, options);
 	},
 
-	async verifyPhoneCode({ token, phoneNumber, code }: { token: string; phoneNumber: string; code: string }, options?: any) {
+	async verifyPhoneCode({ phoneNumber, code }: { phoneNumber: string; code: string }, options?: any) {
 		return httpClient.put('/v1/users/confirm/phone-number', {
 			phoneNumber,
 			code
-		}, {
-			...options,
-			headers: {
-				...(options?.headers || {}),
-				'Authorization': `Bearer ${token}`
-			}
-		});
+		}, options);
 	}
-});
+	};
+};

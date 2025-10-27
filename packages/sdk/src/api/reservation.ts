@@ -1,5 +1,10 @@
-export const createReservationApi = (httpClient: any, businessId: string) => ({
-	async getQuote(params: {
+import type { ApiConfig } from '../index';
+
+export const createReservationApi = (apiConfig: ApiConfig) => {
+	const { httpClient, businessId } = apiConfig;
+
+	return {
+		async getQuote(params: {
 		market: string;
 		currency: string;
 		userId: string;
@@ -121,4 +126,5 @@ export const createReservationApi = (httpClient: any, businessId: string) => ({
 
 		return httpClient.post(`/v1/reservations/checkout`, payload, options);
 	}
-});
+	};
+};

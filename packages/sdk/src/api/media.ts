@@ -1,14 +1,19 @@
-export const createMediaApi = (httpClient: any, config: { baseUrl: string; getTokens: () => any }) => ({
-	async uploadBusinessMedia({
-		businessId,
-		files = [],
-		urls = []
-	}: {
-		businessId: string;
-		files?: File[];
-		urls?: string[];
-	}) {
-		const url = `${config.baseUrl}/v1/businesses/${businessId}/upload`;
+import type { ApiConfig } from '../index';
+
+export const createMediaApi = (apiConfig: ApiConfig) => {
+	const { httpClient, baseUrl, getTokens } = apiConfig;
+
+	return {
+		async uploadBusinessMedia({
+			businessId,
+			files = [],
+			urls = []
+		}: {
+			businessId: string;
+			files?: File[];
+			urls?: string[];
+		}) {
+			const url = `${baseUrl}/v1/businesses/${businessId}/upload`;
 
 		const formData = new FormData();
 
@@ -21,7 +26,7 @@ export const createMediaApi = (httpClient: any, config: { baseUrl: string; getTo
 		});
 
 		try {
-			const tokens = await config.getTokens();
+			const tokens = await getTokens();
 			const response = await fetch(url, {
 				method: 'POST',
 				body: formData,
@@ -42,11 +47,10 @@ export const createMediaApi = (httpClient: any, config: { baseUrl: string; getTo
 		}
 	},
 
-	async deleteBusinessMedia({ id, mediaId }: { id: string; mediaId: string }) {
+	async deleteBusinessMedia({ id, mediaId }: { id: string; mediaId: string }, options?: any) {
 		return httpClient.delete(`/v1/businesses/${id}/upload`, {
 			params: { mediaId },
-			successMessage: 'Media deleted successfully',
-			errorMessage: 'Failed to delete media'
+			...options
 		});
 	},
 
@@ -59,7 +63,7 @@ export const createMediaApi = (httpClient: any, config: { baseUrl: string; getTo
 		cursor?: string | null;
 		limit?: number;
 	}) {
-		const url = `${config.baseUrl}/v1/businesses/${businessId}/media`;
+		const url = `${baseUrl}/v1/businesses/${businessId}/media`;
 
 		try {
 			const params: any = { limit };
@@ -81,4 +85,5 @@ export const createMediaApi = (httpClient: any, config: { baseUrl: string; getTo
 			throw error;
 		}
 	}
-});
+	};
+};

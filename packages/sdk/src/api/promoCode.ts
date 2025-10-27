@@ -1,27 +1,23 @@
-export const createPromoCodeApi = (httpClient: any) => ({
-	async createPromoCode(promoCodeData: any) {
-		return httpClient.post(`/v1/businesses/${promoCodeData.businessId}/promo-codes`, promoCodeData, {
-			successMessage: 'Promo code created successfully',
-			errorMessage: 'Failed to create promo code'
-		});
+import type { ApiConfig } from '../index';
+
+export const createPromoCodeApi = (apiConfig: ApiConfig) => {
+	const { httpClient } = apiConfig;
+
+	return {
+		async createPromoCode(promoCodeData: any, options?: any) {
+		return httpClient.post(`/v1/businesses/${promoCodeData.businessId}/promo-codes`, promoCodeData, options);
 	},
 
-	async updatePromoCode(promoCodeData: any) {
+	async updatePromoCode(promoCodeData: any, options?: any) {
 		return httpClient.put(
 			`/v1/businesses/${promoCodeData.businessId}/promo-codes/${promoCodeData.id}`,
 			promoCodeData,
-			{
-				successMessage: 'Promo code updated successfully',
-				errorMessage: 'Failed to update promo code'
-			}
+			options
 		);
 	},
 
-	async deletePromoCode({ id, businessId }: { id: string; businessId: string }) {
-		return httpClient.delete(`/v1/businesses/${businessId}/promo-codes/${id}`, {
-			successMessage: 'Promo code deleted successfully',
-			errorMessage: 'Failed to delete promo code'
-		});
+	async deletePromoCode({ id, businessId }: { id: string; businessId: string }, options?: any) {
+		return httpClient.delete(`/v1/businesses/${businessId}/promo-codes/${id}`, options);
 	},
 
 	async getPromoCode({ id, businessId }: { id: string; businessId: string }) {
@@ -57,14 +53,11 @@ export const createPromoCodeApi = (httpClient: any) => ({
 		businessId: string;
 		status: string;
 		reason?: string;
-	}) {
+	}, options?: any) {
 		return httpClient.put(
 			`/v1/businesses/${statusData.businessId}/promo-codes/${statusData.id}/status`,
 			statusData,
-			{
-				successMessage: 'Promo code status updated',
-				errorMessage: 'Failed to update promo code status'
-			}
+			options
 		);
 	},
 
@@ -78,13 +71,11 @@ export const createPromoCodeApi = (httpClient: any) => ({
 		code: string;
 		orderTotal?: number;
 		userId?: string;
-	}) {
+	}, options?: any) {
 		return httpClient.post(
 			`/v1/businesses/${businessId}/promo-codes/validate`,
 			{ code, orderTotal, userId },
-			{
-				errorMessage: 'Failed to validate promo code'
-			}
+			options
 		);
 	},
 
@@ -98,14 +89,12 @@ export const createPromoCodeApi = (httpClient: any) => ({
 		code: string;
 		orderId: string;
 		userId: string;
-	}) {
+	}, options?: any) {
 		return httpClient.post(
 			`/v1/businesses/${businessId}/promo-codes/apply`,
 			{ code, orderId, userId },
-			{
-				successMessage: 'Promo code applied successfully',
-				errorMessage: 'Failed to apply promo code'
-			}
+			options
 		);
 	}
-});
+	};
+};

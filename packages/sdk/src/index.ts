@@ -1,8 +1,3 @@
-// Main export file for @arky/sdk
-
-// ========================================
-// TYPES
-// ========================================
 export * from './types';
 export type {
     ApiResponse,
@@ -15,16 +10,8 @@ export type {
     Price
 } from './types';
 
-// ========================================
-// APIs
-// ========================================
 export * from './api';
 
-// ========================================
-// UTILITIES
-// ========================================
-
-// Export all utilities via wildcard
 export * from './utils/blocks';
 export * from './utils/currency';
 export * from './utils/errors';
@@ -36,15 +23,18 @@ export * from './utils/text';
 export * from './utils/timezone';
 export * from './utils/validation';
 
-// ========================================
-// SDK METADATA
-// ========================================
 export const SDK_VERSION = '0.3.0';
 export const SUPPORTED_FRAMEWORKS = ['astro', 'react', 'vue', 'svelte', 'vanilla'] as const;
 
-// ========================================
-// INITIALIZATION
-// ========================================
+export interface ApiConfig {
+    httpClient: any;
+    businessId: string;
+    storageUrl: string;
+    baseUrl: string;
+    setTokens: (tokens: any) => void;
+    getTokens: () => Promise<any> | any;
+}
+
 import { createHttpClient, type HttpClientConfig } from './services/createHttpClient';
 import { createUserApi } from './api/user';
 import { createBusinessApi } from './api/business';
@@ -53,7 +43,6 @@ import { createRoleApi } from './api/role';
 import { createNotificationApi } from './api/notification';
 import { createPromoCodeApi } from './api/promoCode';
 import { createAnalyticsApi } from './api/analytics';
-import { createBootApi } from './api/boot';
 import { createCmsApi } from './api/cms';
 import { createEshopApi } from './api/eshop';
 import { createReservationApi } from './api/reservation';
@@ -64,43 +53,63 @@ import { getCurrencySymbol } from './utils/currency';
 import { validatePhoneNumber } from './utils/validation';
 import { tzGroups, findTimeZone } from './utils/timezone';
 
-export function createArkySDK(config: HttpClientConfig) {
+export async function createArkySDK(config: HttpClientConfig) {
     const httpClient = createHttpClient(config);
     const storageUrl = config.storageUrl || 'https://storage.arky.io/dev';
-    const businessId = config.businessId;
+
+    const apiConfig: ApiConfig = {
+        httpClient,
+        businessId: config.businessId,
+        storageUrl,
+        baseUrl: config.baseUrl,
+        setTokens: config.setTokens,
+        getTokens: config.getTokens
+    };
+
+    const userApi = createUserApi(apiConfig);
+
+    const autoGuest = config.autoGuest !== undefined ? config.autoGuest : true;
+
+    if (autoGuest) {
+        try {
+            const tokens = await config.getTokens();
+            if (!tokens.accessToken && !tokens.refreshToken) {
+                const guestToken = await userApi.getGuestToken({});
+                console.log('[SDK Init] Created guest token:', guestToken ? 'Success' : 'Failed');
+            } else {
+                console.log('[SDK Init] Using existing token from storage');
+            }
+        } catch (error) {
+            console.error('[SDK Init] Failed to initialize auth:', error);
+        }
+    }
 
     return {
-        user: createUserApi(httpClient),
-        business: createBusinessApi(httpClient),
-        media: createMediaApi(httpClient, { baseUrl: config.baseUrl, getTokens: config.getTokens }),
-        role: createRoleApi(httpClient),
-        notification: createNotificationApi(httpClient),
-        promoCode: createPromoCodeApi(httpClient),
-        analytics: createAnalyticsApi(httpClient),
-        boot: createBootApi(httpClient),
-        cms: createCmsApi(httpClient, businessId),
-        eshop: createEshopApi(httpClient, businessId),
-        reservation: createReservationApi(httpClient, businessId),
-        newsletter: createNewsletterApi(httpClient, businessId),
+        user: userApi,
+        business: createBusinessApi(apiConfig),
+        media: createMediaApi(apiConfig),
+        role: createRoleApi(apiConfig),
+        notification: createNotificationApi(apiConfig),
+        promoCode: createPromoCodeApi(apiConfig),
+        analytics: createAnalyticsApi(apiConfig),
+        cms: createCmsApi(apiConfig),
+        eshop: createEshopApi(apiConfig),
+        reservation: createReservationApi(apiConfig),
+        newsletter: createNewsletterApi(apiConfig),
 
-        // All utility functions
         utils: {
-            // Image utilities
             getImageUrl: (imageBlock: any, isBlock = true) => getImageUrl(imageBlock, isBlock, storageUrl),
             thumbnailUrl: (service: any) => thumbnailUrl(service, storageUrl),
             getGalleryThumbnail,
 
-            // Price utilities
             getMarketPrice,
             getPriceAmount,
             formatPayment,
             formatMinor,
             createPaymentForCheckout,
 
-            // Currency utilities
             getCurrencySymbol,
 
-            // Validation utilities
             validatePhoneNumber,
             tzGroups,
             findTimeZone
@@ -109,6 +118,3 @@ export function createArkySDK(config: HttpClientConfig) {
 }
 
 export type { HttpClientConfig } from './services/createHttpClient';
-
-// NOTE: Stores are exported via separate entry point: @arky/sdk/stores
-// This keeps the main bundle small for API-only users

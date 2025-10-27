@@ -1,5 +1,10 @@
-export const createCmsApi = (httpClient: any, businessId: string) => ({
-	async getCollection(id: string, options?: any) {
+import type { ApiConfig } from '../index';
+
+export const createCmsApi = (apiConfig: ApiConfig) => {
+	const { httpClient, businessId } = apiConfig;
+
+	return {
+		async getCollection(id: string, options?: any) {
 		return httpClient.get(`/v1/businesses/${businessId}/collections/${id}`, options);
 	},
 
@@ -29,11 +34,8 @@ export const createCmsApi = (httpClient: any, businessId: string) => ({
 		return httpClient.post(
 			`/v1/businesses/${businessId}/collections/${params.collectionId}/entries`,
 			payload,
-			{
-				successMessage: 'Created successfully',
-				errorMessage: 'Failed to create collection',
-				...options
-			}
+			options
 		);
 	}
-});
+	};
+};

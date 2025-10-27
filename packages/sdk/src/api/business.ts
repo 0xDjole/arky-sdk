@@ -1,22 +1,19 @@
-export const createBusinessApi = (httpClient: any) => ({
-	async createBusiness(businessData: any): Promise<any> {
-		return httpClient.post(`/v1/businesses`, businessData, {
-			errorMessage: 'Failed to create business'
-		});
+import type { ApiConfig } from '../index';
+
+export const createBusinessApi = (apiConfig: ApiConfig) => {
+	const { httpClient } = apiConfig;
+
+	return {
+		async createBusiness(businessData: any, options?: any): Promise<any> {
+		return httpClient.post(`/v1/businesses`, businessData, options);
 	},
 
-	async updateBusiness(businessData: any) {
-		return httpClient.put(`/v1/businesses/${businessData.id}`, businessData, {
-			successMessage: 'Updated successfully',
-			errorMessage: 'Failed to update business'
-		});
+	async updateBusiness(businessData: any, options?: any) {
+		return httpClient.put(`/v1/businesses/${businessData.id}`, businessData, options);
 	},
 
-	async deleteBusiness({ id }: { id: string }) {
-		return httpClient.delete(`/v1/businesses/${id}`, {
-			successMessage: 'Deleted successfully',
-			errorMessage: 'Failed to delete business'
-		});
+	async deleteBusiness({ id }: { id: string }, options?: any) {
+		return httpClient.delete(`/v1/businesses/${id}`, options);
 	},
 
 	async getBusiness({ id }: { id: string }) {
@@ -31,11 +28,8 @@ export const createBusinessApi = (httpClient: any) => ({
 		return httpClient.get(`/v1/businesses/${businessId}/parents`);
 	},
 
-	async triggerBuilds({ id }: { id: string }) {
-		return httpClient.post(`/v1/businesses/${id}/trigger-builds`, {}, {
-			successMessage: 'Build hooks triggered successfully',
-			errorMessage: 'Failed to trigger builds'
-		});
+	async triggerBuilds({ id }: { id: string }, options?: any) {
+		return httpClient.post(`/v1/businesses/${id}/trigger-builds`, {}, options);
 	},
 
 	async getSubscriptionPlans() {
@@ -56,7 +50,7 @@ export const createBusinessApi = (httpClient: any) => ({
 		planId: string;
 		successUrl: string;
 		cancelUrl: string;
-	}) {
+	}, options?: any) {
 		return httpClient.post(
 			`/v1/businesses/${businessId}/subscription`,
 			{
@@ -65,10 +59,7 @@ export const createBusinessApi = (httpClient: any) => ({
 				successUrl,
 				cancelUrl
 			},
-			{
-				successMessage: 'Redirecting to checkout...',
-				errorMessage: 'Failed to start subscription process'
-			}
+			options
 		);
 	},
 
@@ -82,7 +73,7 @@ export const createBusinessApi = (httpClient: any) => ({
 		planId: string;
 		successUrl: string;
 		cancelUrl: string;
-	}) {
+	}, options?: any) {
 		return httpClient.put(
 			`/v1/businesses/${businessId}/subscription`,
 			{
@@ -91,9 +82,7 @@ export const createBusinessApi = (httpClient: any) => ({
 				successUrl,
 				cancelUrl
 			},
-			{
-				errorMessage: 'Failed to update subscription'
-			}
+			options
 		);
 	},
 
@@ -103,26 +92,20 @@ export const createBusinessApi = (httpClient: any) => ({
 	}: {
 		businessId: string;
 		immediately?: boolean;
-	}) {
+	}, options?: any) {
 		return httpClient.delete(`/v1/businesses/${businessId}/subscription`, {
 			params: { immediately },
-			successMessage: immediately
-				? 'Subscription canceled'
-				: 'Subscription will cancel at period end',
-			errorMessage: 'Failed to cancel subscription'
+			...options
 		});
 	},
 
-	async reactivateSubscription({ businessId }: { businessId: string }) {
+	async reactivateSubscription({ businessId }: { businessId: string }, options?: any) {
 		return httpClient.post(
 			`/v1/businesses/${businessId}/subscription/reactivate`,
 			{
 				businessId
 			},
-			{
-				successMessage: 'Subscription reactivated successfully',
-				errorMessage: 'Failed to reactivate subscription'
-			}
+			options
 		);
 	},
 
@@ -132,17 +115,14 @@ export const createBusinessApi = (httpClient: any) => ({
 	}: {
 		businessId: string;
 		returnUrl: string;
-	}) {
+	}, options?: any) {
 		return httpClient.post(
 			`/v1/businesses/${businessId}/subscription/portal`,
 			{
 				businessId,
 				returnUrl
 			},
-			{
-				successMessage: 'Redirecting to billing portal...',
-				errorMessage: 'Failed to access billing portal'
-			}
+			options
 		);
 	},
 
@@ -154,14 +134,11 @@ export const createBusinessApi = (httpClient: any) => ({
 		businessId: string;
 		email: string;
 		roleIds?: string[] | null;
-	}) {
+	}, options?: any) {
 		return httpClient.post(
 			`/v1/businesses/${businessId}/invitation`,
 			{ email, roleIds },
-			{
-				successMessage: 'Invitation sent successfully',
-				errorMessage: 'Failed to send invitation'
-			}
+			options
 		);
 	},
 
@@ -177,10 +154,8 @@ export const createBusinessApi = (httpClient: any) => ({
 		return httpClient.put(`/v1/businesses/${businessId}/invitation`, { token, action });
 	},
 
-	async testWebhook({ businessId, webhook }: { businessId: string; webhook: any }) {
-		return httpClient.post(`/v1/businesses/${businessId}/webhooks/test`, webhook, {
-			successMessage: 'Webhook test triggered successfully',
-			errorMessage: 'Failed to test webhook'
-		});
+	async testWebhook({ businessId, webhook }: { businessId: string; webhook: any }, options?: any) {
+		return httpClient.post(`/v1/businesses/${businessId}/webhooks/test`, webhook, options);
 	}
-});
+	};
+};

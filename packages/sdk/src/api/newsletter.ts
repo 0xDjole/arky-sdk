@@ -1,19 +1,15 @@
-export const createNewsletterApi = (httpClient: any, businessId: string) => ({
-	async find(options?: any) {
-		const response = await httpClient.get(`/v1/newsletters`, {
-			params: { businessId },
-			...options
-		});
+import type { ApiConfig } from '../index';
 
-		return {
-			data: response.items || [],
-			meta: {
-				total: response.items?.length || 0,
-				page: 1,
-				per_page: response.items?.length || 0
-			}
-		};
-	},
+export const createNewsletterApi = (apiConfig: ApiConfig) => {
+	const { httpClient, businessId } = apiConfig;
+
+	return {
+		async find(options?: any) {
+			return httpClient.get(`/v1/newsletters`, {
+				params: { businessId },
+				...options
+			});
+		},
 
 	async get(params: { id: string }, options?: any) {
 		return httpClient.get(`/v1/newsletters/${params.id}`, options);
@@ -33,4 +29,5 @@ export const createNewsletterApi = (httpClient: any, businessId: string) => ({
 			...(params.payment && { payment: params.payment })
 		}, options);
 	}
-});
+	};
+};

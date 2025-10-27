@@ -10,6 +10,7 @@ export interface AuthTokens {
 	refreshToken?: string;
 	provider?: string;
 	expiresAt?: number;
+	userId?: string;
 }
 
 export interface HttpClientConfig {
@@ -22,6 +23,8 @@ export interface HttpClientConfig {
 	getTokens: () => Promise<AuthTokens> | AuthTokens;
 
 	setTokens: (tokens: AuthTokens) => void;
+
+	autoGuest?: boolean;
 
 	onAuthFailure: () => void;
 

@@ -1,23 +1,19 @@
-export const createRoleApi = (httpClient: any) => ({
-	async createRole(roleData: any): Promise<void> {
-		return httpClient.post(`/v1/roles`, roleData, {
-			successMessage: 'Created successfully',
-			errorMessage: 'Failed to create role'
-		});
+import type { ApiConfig } from '../index';
+
+export const createRoleApi = (apiConfig: ApiConfig) => {
+	const { httpClient } = apiConfig;
+
+	return {
+		async createRole(roleData: any, options?: any): Promise<void> {
+		return httpClient.post(`/v1/roles`, roleData, options);
 	},
 
-	async updateRole(roleData: any) {
-		return httpClient.put(`/v1/roles/${roleData.id}`, roleData, {
-			successMessage: 'Updated successfully',
-			errorMessage: 'Failed to update role'
-		});
+	async updateRole(roleData: any, options?: any) {
+		return httpClient.put(`/v1/roles/${roleData.id}`, roleData, options);
 	},
 
-	async deleteRole({ id }: { id: string }) {
-		return httpClient.delete(`/v1/roles/${id}`, {
-			successMessage: 'Deleted successfully',
-			errorMessage: 'Failed to delete role'
-		});
+	async deleteRole({ id }: { id: string }, options?: any) {
+		return httpClient.delete(`/v1/roles/${id}`, options);
 	},
 
 	async getRole({ id }: { id: string }) {
@@ -58,4 +54,5 @@ export const createRoleApi = (httpClient: any) => ({
 			params: { from, to, language }
 		});
 	}
-});
+	};
+};
