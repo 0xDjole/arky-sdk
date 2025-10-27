@@ -81,19 +81,18 @@ export const ERROR_CONSTANTS = {
 };
 
 export type ServerError = {
+    message: string;
     error: string;
-    reason: string;
-    code: string;
     statusCode: number;
     validationErrors: {
         field: string;
-        code: string;
+        error: string;
     }[];
 };
 
 export type ValidationError = {
     field: string;
-    message: string;
+    error: string;
 };
 
 export type RequestError = {
@@ -146,7 +145,7 @@ export const convertServerErrorToRequestError = (
 
             return {
                 field: field,
-                message: ERROR_CODES[validationError.code as keyof typeof ERROR_CODES] || "Unknown error",
+                error: validationError.error || "GENERAL.VALIDATION_ERROR",
             };
         }),
     };

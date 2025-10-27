@@ -55,7 +55,7 @@ export const reservationApi = {
             if (!res.ok) {
                 try {
                     const json = JSON.parse(text);
-                    return { success: false, error: json.reason || json.error || 'Failed to fetch quote', code: json.code };
+                    return { success: false, error: json.message || json.error || 'Failed to fetch quote' };
                 } catch {
                     return { success: false, error: text || 'Failed to fetch quote' };
                 }

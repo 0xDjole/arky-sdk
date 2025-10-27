@@ -126,7 +126,7 @@ export const eshopApi = {
             if (!res.ok) {
                 try {
                     const json = JSON.parse(text);
-                    return { success: false, error: json.reason || json.error || res.statusText, code: json.code };
+                    return { success: false, error: json.message || json.error || res.statusText };
                 } catch {
                     return { success: false, error: text || res.statusText };
                 }
@@ -191,7 +191,7 @@ export const eshopApi = {
             if (!res.ok) {
                 try {
                     const json = JSON.parse(text);
-                    return { success: false, error: json.reason || json.error || res.statusText, code: json.code };
+                    return { success: false, error: json.message || json.error || res.statusText };
                 } catch {
                     return { success: false, error: text || res.statusText };
                 }
