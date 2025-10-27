@@ -828,11 +828,6 @@ export interface LogoutParams {
     // No params needed
 }
 
-// Boot API Types
-export interface BootParams {
-    // No params needed
-}
-
 // Payment API Types
 export interface HandleStripeWebhookParams {
     // Webhook payload handled in body
