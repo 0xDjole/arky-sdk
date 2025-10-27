@@ -1,7 +1,7 @@
 // E-shop store with TypeScript - Simplified with Business Store
 import { atom, computed, deepMap } from "nanostores";
 import { persistentAtom } from "@nanostores/persistent";
-import { BUSINESS_ID } from "../config";
+import { getGlobalConfig } from "../config";
 import { eshopApi } from "../api/eshop";
 import { createPaymentForCheckout, getPriceAmount, formatPayment, formatMinor } from "../utils/price";
 import * as authService from "../services/auth";
@@ -32,7 +32,6 @@ export const quoteAtom = atom<Quote | null>(null);
 
 // Simplified store for cart-specific state only
 export const store = deepMap({
-    businessId: BUSINESS_ID,
     selectedShippingMethodId: null, // Selected shipping method ID
     shippingLocation: null, // Deprecated; kept for backward compat
     userToken: null,
@@ -227,10 +226,11 @@ export const actions = {
                 throw new Error("No shipping method available");
             }
 
+            const config = getGlobalConfig();
             const promo = promoCode !== undefined ? promoCode : promoCodeAtom.get();
             const response = await eshopApi.checkout({
                 token,
-                businessId: BUSINESS_ID,
+                businessId: config.businessId,
                 items: orderItems,
                 paymentMethod: paymentMethod,
                 blocks,
@@ -356,12 +356,13 @@ export const actions = {
             store.setKey('fetchingQuote', true);
             store.setKey('quoteError', null);
 
+            const config = getGlobalConfig();
             const token = await this.getGuestToken();
             const shippingMethodId = state.selectedShippingMethodId || undefined;
 
             const response = await eshopApi.getQuote({
                 token,
-                businessId: BUSINESS_ID,
+                businessId: config.businessId,
                 items: items.map(item => ({
                     productId: item.productId,
                     variantId: item.variantId,

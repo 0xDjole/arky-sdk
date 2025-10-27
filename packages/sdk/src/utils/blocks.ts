@@ -1,5 +1,5 @@
 // Block utilities (extracted from index.ts)
-import { STORAGE_URL } from '../config';
+import { getGlobalConfig } from '../config';
 
 export interface Block {
     id: string;
@@ -210,7 +210,8 @@ export const getBlockFromArray = (entry: any, blockKey: string, locale = "en") =
 export const getImageUrl = (imageBlock: any, isBlock = true) => {
     if (!imageBlock) return null;
 
-    const storageUrl = "https://storage.arky.io/dev"; // STORAGE_URL || "https://storage.arky.io/dev";
+    const config = getGlobalConfig();
+    const storageUrl = config.storageUrl || "https://storage.arky.io/dev";
 
     // Helper to check if URL is external
     const isExternalUrl = (url: string) => {
@@ -278,7 +279,8 @@ export function getGalleryThumbnail(gallery: any) {
 
 // full URL or null
 export function thumbnailUrl(service: any) {
-    const storageUrl = STORAGE_URL || "";
+    const config = getGlobalConfig();
+    const storageUrl = config.storageUrl || "";
     const path = getGalleryThumbnail(service.gallery);
     return path ? `${storageUrl}/${path}` : null;
 }

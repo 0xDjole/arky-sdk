@@ -1,5 +1,5 @@
 import { reservationApi } from "../api/reservation";
-import { API_URL } from "../config";
+import { getGlobalConfig } from "../config";
 
 // Shared guest token management
 export async function getGuestToken(currentToken: string | null = null): Promise<string> {
@@ -44,7 +44,8 @@ export async function verifyPhoneCode(token: string, phoneNumber: string, code: 
 // Shared business configuration fetching
 export async function getBusinessConfig(businessId: string) {
 	try {
-		const response = await fetch(`${API_URL}/v1/businesses/${businessId}`, {
+		const config = getGlobalConfig();
+		const response = await fetch(`${config.apiUrl}/v1/businesses/${businessId}`, {
 			method: "GET",
 			headers: {
 				"Content-Type": "application/json",

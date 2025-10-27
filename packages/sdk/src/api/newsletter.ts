@@ -1,5 +1,4 @@
-// Use direct fetch instead of httpClient to avoid module issues
-// import httpClient from '../services/http';
+import { getGlobalConfig } from '../config';
 import type { Newsletter, PaginatedResponse, Payment } from '../types';
 
 export interface NewsletterFindPayload {
@@ -24,13 +23,12 @@ export interface NewsletterSubscribePayload {
 
 export const newsletterApi = {
 	async find(payload: NewsletterFindPayload): Promise<PaginatedResponse<Newsletter>> {
+		const config = getGlobalConfig();
 		const params = new URLSearchParams({
 			businessId: payload.business_id,
 		});
 
-		// Get the backend API URL from config
-		const { API_URL } = await import('../config');
-		const url = `${API_URL}/v1/newsletters?${params.toString()}`;
+		const url = `${config.apiUrl}/v1/newsletters?${params.toString()}`;
 
 		const response = await fetch(url);
 		
@@ -52,9 +50,8 @@ export const newsletterApi = {
 	},
 
 	async get(id: string): Promise<Newsletter> {
-		// Get the backend API URL from config
-		const { API_URL } = await import('../config');
-		const url = `${API_URL}/v1/newsletters/${id}`;
+		const config = getGlobalConfig();
+		const url = `${config.apiUrl}/v1/newsletters/${id}`;
 
 		const response = await fetch(url);
 		
@@ -68,9 +65,8 @@ export const newsletterApi = {
 
 	async subscribe(payload: NewsletterSubscribePayload) {
 		try {
-			// Get the backend API URL from config
-			const { API_URL } = await import('../config');
-			const url = `${API_URL}/v1/newsletters/${payload.newsletterId}/subscribe`;
+			const config = getGlobalConfig();
+			const url = `${config.apiUrl}/v1/newsletters/${payload.newsletterId}/subscribe`;
 
 			const response = await fetch(url, {
 				method: 'POST',

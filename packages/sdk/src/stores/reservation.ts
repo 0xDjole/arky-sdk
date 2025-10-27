@@ -2,7 +2,7 @@
 import { computed, deepMap } from "nanostores";
 import { persistentAtom } from "@nanostores/persistent";
 import { getLocalizedString, getLocale, getLocaleFromUrl } from "../utils/i18n";
-import { API_URL, BUSINESS_ID, STORAGE_URL } from "../config";
+import { getGlobalConfig } from "../config";
 import { reservationApi } from "../api/reservation";
 import { getMarketPrice, getPriceAmount, createPaymentForCheckout } from "../utils/price";
 import * as authService from "../services/auth";
@@ -74,9 +74,6 @@ export const store = deepMap({
     // Service & config
     guestToken: null,
     service: null,
-    apiUrl: API_URL,
-    businessId: BUSINESS_ID,
-    storageUrl: STORAGE_URL,
     timezone: findTimeZone(tzGroups),
     tzGroups,
     parts: [],
@@ -380,8 +377,9 @@ export const actions = {
         store.setKey("providers", []);
 
         try {
-            const { businessId, service } = store.get();
-            const res = await reservationApi.getProviders({ businessId, serviceId: service.id });
+            const config = getGlobalConfig();
+            const { service } = store.get();
+            const res = await reservationApi.getProviders({ businessId: config.businessId, serviceId: service.id });
             store.setKey("providers", res.success ? res.data : []);
         } catch (e) {
             console.error("Error loading providers:", e);
@@ -437,7 +435,8 @@ export const actions = {
                 return;
             }
 
-            const params: any = { businessId: state.businessId, serviceId: state.service.id, from, to, limit };
+            const config = getGlobalConfig();
+            const params: any = { businessId: config.businessId, serviceId: state.service.id, from, to, limit };
             if (state.selectedProvider) params.providerId = state.selectedProvider.id;
 
             const result = await reservationApi.getAvailableSlots(params);
@@ -758,10 +757,11 @@ export const actions = {
 
         try {
             const token = await this.getGuestToken();
+            const config = getGlobalConfig();
 
             const result = await reservationApi.checkout({
                 token,
-                businessId: state.businessId,
+                businessId: config.businessId,
                 blocks: reservationBlocks || [],
                 parts: state.parts,
                 paymentMethod,
@@ -810,9 +810,10 @@ export const actions = {
 
             console.log('Calling reservationApi.getQuote with:', { market, currency: curr, promoCode });
 
+            const config = getGlobalConfig();
             const result = await reservationApi.getQuote({
                 token,
-                businessId: state.businessId,
+                businessId: config.businessId,
                 market,
                 currency: curr,
                 userId: token, // Use token as userId for guests

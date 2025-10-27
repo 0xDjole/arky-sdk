@@ -1,4 +1,4 @@
-import { API_URL } from '../config';
+import { getGlobalConfig } from '../config';
 import type { ApiResponse, Payment, Quote } from '../types';
 import httpClient from '../services/http';
 
@@ -24,6 +24,7 @@ export const reservationApi = {
         promoCode?: string;
     }): Promise<ApiResponse<Quote>> {
         try {
+            const config = getGlobalConfig();
             const lines = parts.map(part => ({
                 type: 'SERVICE',
                 serviceId: part.serviceId,
@@ -41,7 +42,7 @@ export const reservationApi = {
                 shippingMethodId: null,
             };
 
-            const res = await fetch(`${API_URL}/v1/payments/quote`, {
+            const res = await fetch(`${config.apiUrl}/v1/payments/quote`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -86,8 +87,9 @@ export const reservationApi = {
         limit?: number;
         providerId?: string | null;
     }) {
-        const url = `${API_URL}/v1/businesses/${businessId}/services/${serviceId}/available-slots`;
-        
+        const config = getGlobalConfig();
+        const url = `${config.apiUrl}/v1/businesses/${businessId}/services/${serviceId}/available-slots`;
+
         const response = await httpClient.get(url, {
             params: {
                 from,
@@ -115,8 +117,9 @@ export const reservationApi = {
 
     // Get all providers for a service
     async getProviders({ businessId, serviceId, limit = 50 }: { businessId: string; serviceId: string; limit?: number }) {
-        const url = `${API_URL}/v1/businesses/${businessId}/providers`;
-        
+        const config = getGlobalConfig();
+        const url = `${config.apiUrl}/v1/businesses/${businessId}/providers`;
+
         const response = await httpClient.get(url, {
             params: {
                 serviceId,
@@ -143,7 +146,8 @@ export const reservationApi = {
     // Get guest token or create a new one
     async getGuestToken(): Promise<ApiResponse<{ token: string }>> {
         try {
-            const res = await fetch(`${API_URL}/v1/users/login`, {
+            const config = getGlobalConfig();
+            const res = await fetch(`${config.apiUrl}/v1/users/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ provider: "GUEST" }),
@@ -168,7 +172,8 @@ export const reservationApi = {
     // Update user's phone number
     async updateProfilePhone({ token, phoneNumber }: { token: string; phoneNumber: string }) {
         try {
-            const res = await fetch(`${API_URL}/v1/users/update`, {
+            const config = getGlobalConfig();
+            const res = await fetch(`${config.apiUrl}/v1/users/update`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -203,7 +208,8 @@ export const reservationApi = {
     // Verify phone number with code
     async verifyPhoneCode({ token, phoneNumber, code }: { token: string; phoneNumber: string; code: string }) {
         try {
-            const res = await fetch(`${API_URL}/v1/users/confirm/phone-number`, {
+            const config = getGlobalConfig();
+            const res = await fetch(`${config.apiUrl}/v1/users/confirm/phone-number`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -253,6 +259,7 @@ export const reservationApi = {
         promoCode?: string;
     }) {
         try {
+            const config = getGlobalConfig();
             const payload: any = {
                 businessId,
                 blocks: blocks,
@@ -277,7 +284,7 @@ export const reservationApi = {
                 payload.promoCode = promoCode;
             }
 
-            const res = await fetch(`${API_URL}/v1/reservations/checkout`, {
+            const res = await fetch(`${config.apiUrl}/v1/reservations/checkout`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

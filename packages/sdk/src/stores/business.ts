@@ -1,6 +1,6 @@
 // Unified Business Store - Single Source of Truth
 import { computed, deepMap } from "nanostores";
-import { BUSINESS_ID } from "../config";
+import { getGlobalConfig } from "../config";
 import * as authService from "../services/auth";
 import type { Business, Market, Zone, ShippingMethod, BusinessPaymentMethod, PaymentProviderConfig } from "../types";
 import { PaymentMethod } from "../types";
@@ -98,7 +98,9 @@ export const businessActions = {
             businessStore.setKey('loading', true);
             businessStore.setKey('error', null);
 
-            const result = await authService.getBusinessConfig(BUSINESS_ID);
+            // Get businessId dynamically from config
+            const config = getGlobalConfig();
+            const result = await authService.getBusinessConfig(config.businessId);
 
             if (result.success) {
                 businessStore.setKey('data', result.data);
@@ -137,8 +139,3 @@ export {
     businessStore as store,
     businessActions as actions
 };
-
-// Auto-initialize on first import ONLY if config is already set
-if (typeof window !== 'undefined' && BUSINESS_ID) {
-    businessActions.init().catch(console.error);
-}

@@ -1,16 +1,16 @@
-import { API_URL } from '../config';
+import { getGlobalConfig } from '../config';
 import type { ApiResponse, Payment, Quote } from '../types';
 import { reservationApi } from './reservation';
 import httpClient from '../services/http';
 
 export const eshopApi = {
     // Get products
-    async getProducts({ 
-        businessId, 
-        categoryIds = null, 
-        status = "ACTIVE", 
-        limit = 20, 
-        cursor = null 
+    async getProducts({
+        businessId,
+        categoryIds = null,
+        status = "ACTIVE",
+        limit = 20,
+        cursor = null
     }: {
         businessId: string;
         categoryIds?: string[] | null;
@@ -18,8 +18,9 @@ export const eshopApi = {
         limit?: number;
         cursor?: string | null;
     }) {
-        const url = `${API_URL}/v1/businesses/${encodeURIComponent(businessId)}/products`;
-        
+        const config = getGlobalConfig();
+        const url = `${config.apiUrl}/v1/businesses/${encodeURIComponent(businessId)}/products`;
+
         const response = await httpClient.get(url, {
             params: {
                 categoryIds: categoryIds && categoryIds.length > 0 ? categoryIds : undefined,
@@ -50,7 +51,8 @@ export const eshopApi = {
     // Get product by slug
     async getProductBySlug({ businessId, slug }: { businessId: string; slug: string }) {
         try {
-            const url = `${API_URL}/v1/businesses/${encodeURIComponent(businessId)}/products/slug/${encodeURIComponent(businessId)}/${encodeURIComponent(slug)}`;
+            const config = getGlobalConfig();
+            const url = `${config.apiUrl}/v1/businesses/${encodeURIComponent(businessId)}/products/slug/${encodeURIComponent(businessId)}/${encodeURIComponent(slug)}`;
             const res = await fetch(url);
             if (!res.ok) throw new Error("Product not found");
             const json = await res.json();
@@ -92,6 +94,7 @@ export const eshopApi = {
         promoCode?: string;
     }): Promise<ApiResponse<Quote>> {
         try {
+            const config = getGlobalConfig();
             const lines = items.map(item => ({
                 type: 'PRODUCT_VARIANT',
                 productId: item.productId,
@@ -110,7 +113,7 @@ export const eshopApi = {
                 ...(promoCode && { promoCode })
             };
 
-            const res = await fetch(`${API_URL}/v1/payments/quote`, {
+            const res = await fetch(`${config.apiUrl}/v1/payments/quote`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -163,6 +166,7 @@ export const eshopApi = {
         paymentIntentId?: string | null;
     }) {
         try {
+            const config = getGlobalConfig();
             const payload: any = {
                 businessId,
                 items,
@@ -174,7 +178,7 @@ export const eshopApi = {
                 ...(paymentIntentId && { paymentIntentId }),
             };
 
-            const res = await fetch(`${API_URL}/v1/businesses/${encodeURIComponent(businessId)}/orders/checkout`, {
+            const res = await fetch(`${config.apiUrl}/v1/businesses/${encodeURIComponent(businessId)}/orders/checkout`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -206,13 +210,14 @@ export const eshopApi = {
     // Create payment intent for Stripe
     async createPaymentIntent({ amount, currency, businessId }: { amount: number; currency: string; businessId: string }) {
         try {
+            const config = getGlobalConfig();
             const tokenResponse = await reservationApi.getGuestToken();
             if (!tokenResponse.success || !tokenResponse.data) {
                 throw new Error('Failed to get guest token');
             }
             const token = tokenResponse.data.token;
-            
-            const res = await fetch(`${API_URL}/v1/businesses/${encodeURIComponent(businessId)}/payment/create-intent`, {
+
+            const res = await fetch(`${config.apiUrl}/v1/businesses/${encodeURIComponent(businessId)}/payment/create-intent`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
