@@ -15,6 +15,10 @@ export interface AuthTokens {
 export interface HttpClientConfig {
 	baseUrl: string;
 
+	storageUrl?: string;
+
+	businessId: string;
+
 	getTokens: () => Promise<AuthTokens> | AuthTokens;
 
 	setTokens: (tokens: AuthTokens) => void;
@@ -105,7 +109,9 @@ export function createHttpClient(cfg: HttpClientConfig) {
 		let data: any;
 
 		try {
-			res = await fetch(`${cfg.baseUrl}${finalPath}`, fetchOpts);
+			const fullUrl = `${cfg.baseUrl}${finalPath}`;
+		console.log("[SDK] Fetching:", method, fullUrl, fetchOpts);
+		res = await fetch(fullUrl, fetchOpts);
 			data = await res.json();
 		} catch (error) {
 			const err = new Error(error instanceof Error ? error.message : 'Network request failed');

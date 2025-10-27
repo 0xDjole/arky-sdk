@@ -43,7 +43,7 @@ export const createMediaApi = (httpClient: any, config: { baseUrl: string; getTo
 	},
 
 	async deleteBusinessMedia({ id, mediaId }: { id: string; mediaId: string }) {
-		return httpClient.delete<void>(`/v1/businesses/${id}/upload`, {
+		return httpClient.delete(`/v1/businesses/${id}/upload`, {
 			params: { mediaId },
 			successMessage: 'Media deleted successfully',
 			errorMessage: 'Failed to delete media'

@@ -1,69 +1,39 @@
-import { getGlobalConfig } from '../config';
-import httpClient from '../services/http';
-import { ApiResponse } from '../types';
+export const createCmsApi = (httpClient: any, businessId: string) => ({
+	async getCollection(id: string, options?: any) {
+		return httpClient.get(`/v1/businesses/${businessId}/collections/${id}`, options);
+	},
 
-const getCollection = async (id: string) => {
-    const config = getGlobalConfig();
-    const url = `${config.apiUrl}/v1/businesses/${config.businessId}/collections/${id}`;
-    const { value } = await httpClient.get(url);
-    return value;
-};
+	async getCollections(params?: { name?: string; ids?: string[] }, options?: any) {
+		return httpClient.get(`/v1/businesses/${businessId}/collections`, {
+			params: { name: params?.name, ids: params?.ids },
+			...options
+		});
+	},
 
-const getCollections = async ({ name = null, ids = null }: { name?: string | null; ids?: string[] | null }) => {
-    const config = getGlobalConfig();
-    const url = `${config.apiUrl}/v1/businesses/${config.businessId}/collections`;
+	async getCollectionEntries(params: { collectionId: string; limit?: number; cursor?: string; ids?: string[] }, options?: any) {
+		return httpClient.get(`/v1/businesses/${businessId}/collections/${params.collectionId}/entries`, {
+			params: { limit: params.limit, cursor: params.cursor, ids: params.ids },
+			...options
+		});
+	},
 
-    const response = await httpClient.get(url, {
-        params: { name, ids }
-    });
-    return response.value;
-};
+	async getCollectionEntry(params: { collectionId: string; id: string }, options?: any) {
+		return httpClient.get(`/v1/businesses/${businessId}/collections/${params.collectionId}/entries/${params.id}`, options);
+	},
 
-const getCollectionEntries = async ({
-    collectionId,
-    limit,
-    cursor,
-    ids = null
-}: {
-    collectionId: string;
-    limit?: number;
-    cursor?: string;
-    ids?: string[] | null;
-}) => {
-    const config = getGlobalConfig();
-    const url = `${config.apiUrl}/v1/businesses/${config.businessId}/collections/${collectionId}/entries`;
-
-    const response = await httpClient.get(url, {
-        params: { limit, cursor, ids }
-    });
-    return response.value;
-};
-
-const createCollectionEntry = async (collectionEntryData: any) => {
-    const config = getGlobalConfig();
-    const url = `${config.apiUrl}/v1/businesses/${config.businessId}/collections/${collectionEntryData.collectionId}/entries`;
-
-    const result = await httpClient.post(url, collectionEntryData, {
-        successMessage: "Created successfully",
-        errorMessage: "Failed to create collection",
-    });
-
-    return result;
-};
-
-const getCollectionEntry = async ({ collectionId, id }: { collectionId: string; id: string }) => {
-    const config = getGlobalConfig();
-    const url = `${config.apiUrl}/v1/businesses/${config.businessId}/collections/${collectionId}/entries/${id}`;
-
-    const response = await httpClient.get(url);
-
-    return response;
-};
-
-export const cmsApi = {
-    getCollection,
-    getCollections,
-    getCollectionEntries,
-    getCollectionEntry,
-    createCollectionEntry,
-};
+	async createCollectionEntry(params: { collectionId: string; blocks?: any; data?: any }, options?: any) {
+		const payload = params.blocks ? { blocks: params.blocks } : params.data || {};
+		if (params.collectionId && !payload.collectionId) {
+			payload.collectionId = params.collectionId;
+		}
+		return httpClient.post(
+			`/v1/businesses/${businessId}/collections/${params.collectionId}/entries`,
+			payload,
+			{
+				successMessage: 'Created successfully',
+				errorMessage: 'Failed to create collection',
+				...options
+			}
+		);
+	}
+});

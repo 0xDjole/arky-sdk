@@ -108,7 +108,7 @@ export const createUserApi = (httpClient: any) => ({
 	},
 
 	async loginUser({ email, password }: { email: string; password: string }) {
-		const result = await httpClient.post<void>(
+		const result = await httpClient.post(
 			`/v1/users/login`,
 			{
 				email,
@@ -132,7 +132,7 @@ export const createUserApi = (httpClient: any) => ({
 		provider: string;
 		originUrl: string;
 	}) {
-		const result = await httpClient.post<void>(`/v1/users/login`, {
+		const result = await httpClient.post(`/v1/users/login`, {
 			code,
 			provider,
 			originUrl
@@ -159,7 +159,7 @@ export const createUserApi = (httpClient: any) => ({
 	},
 
 	async registerUser({ email, password }: { email: string; password: string }) {
-		const result = await httpClient.post<void>(
+		const result = await httpClient.post(
 			'/v1/users/register',
 			{
 				email,
@@ -172,5 +172,48 @@ export const createUserApi = (httpClient: any) => ({
 		);
 
 		return result;
+	},
+
+	async getGuestToken({ existingToken }: { existingToken?: string }, options?: any): Promise<string> {
+		if (existingToken) {
+			return existingToken;
+		}
+
+		try {
+			const result = await httpClient.post('/v1/users/login', {
+				provider: 'GUEST'
+			}, options);
+			return result.accessToken || result.token || '';
+		} catch (error) {
+			console.error('Failed to get guest token:', error);
+			return '';
+		}
+	},
+
+	async updateProfilePhone({ token, phoneNumber }: { token: string; phoneNumber: string }, options?: any) {
+		return httpClient.put('/v1/users/update', {
+			phoneNumber,
+			phoneNumbers: [],
+			addresses: []
+		}, {
+			...options,
+			headers: {
+				...(options?.headers || {}),
+				'Authorization': `Bearer ${token}`
+			}
+		});
+	},
+
+	async verifyPhoneCode({ token, phoneNumber, code }: { token: string; phoneNumber: string; code: string }, options?: any) {
+		return httpClient.put('/v1/users/confirm/phone-number', {
+			phoneNumber,
+			code
+		}, {
+			...options,
+			headers: {
+				...(options?.headers || {}),
+				'Authorization': `Bearer ${token}`
+			}
+		});
 	}
 });

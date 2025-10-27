@@ -1,12 +1,6 @@
 // Main export file for @arky/sdk
 
 // ========================================
-// CONFIGURATION
-// ========================================
-export * from './config';
-export type { ArkyConfig } from './config';
-
-// ========================================
 // TYPES
 // ========================================
 export * from './types';
@@ -25,18 +19,6 @@ export type {
 // APIs
 // ========================================
 export * from './api';
-
-// ========================================
-// SERVICES
-// ========================================
-export {
-    getGuestToken,
-    updateProfilePhone,
-    verifyPhoneCode,
-    getBusinessConfig
-} from './services/auth';
-
-export { default as httpClient } from './services/http';
 
 // ========================================
 // UTILITIES
@@ -63,7 +45,6 @@ export const SUPPORTED_FRAMEWORKS = ['astro', 'react', 'vue', 'svelte', 'vanilla
 // ========================================
 // INITIALIZATION
 // ========================================
-import { setGlobalConfig, type ArkyConfig } from './config';
 import { createHttpClient, type HttpClientConfig } from './services/createHttpClient';
 import { createUserApi } from './api/user';
 import { createBusinessApi } from './api/business';
@@ -73,21 +54,20 @@ import { createNotificationApi } from './api/notification';
 import { createPromoCodeApi } from './api/promoCode';
 import { createAnalyticsApi } from './api/analytics';
 import { createBootApi } from './api/boot';
-
-export function initArky(config: ArkyConfig): ArkyConfig {
-    if (!config.apiUrl) {
-        throw new Error('apiUrl is required');
-    }
-    if (!config.businessId) {
-        throw new Error('businessId is required');
-    }
-
-    setGlobalConfig(config);
-    return config;
-}
+import { createCmsApi } from './api/cms';
+import { createEshopApi } from './api/eshop';
+import { createReservationApi } from './api/reservation';
+import { createNewsletterApi } from './api/newsletter';
+import { getImageUrl, thumbnailUrl, getGalleryThumbnail } from './utils/blocks';
+import { getMarketPrice, getPriceAmount, formatPayment, formatMinor, createPaymentForCheckout } from './utils/price';
+import { getCurrencySymbol } from './utils/currency';
+import { validatePhoneNumber } from './utils/validation';
+import { tzGroups, findTimeZone } from './utils/timezone';
 
 export function createArkySDK(config: HttpClientConfig) {
     const httpClient = createHttpClient(config);
+    const storageUrl = config.storageUrl || 'https://storage.arky.io/dev';
+    const businessId = config.businessId;
 
     return {
         user: createUserApi(httpClient),
@@ -97,7 +77,34 @@ export function createArkySDK(config: HttpClientConfig) {
         notification: createNotificationApi(httpClient),
         promoCode: createPromoCodeApi(httpClient),
         analytics: createAnalyticsApi(httpClient),
-        boot: createBootApi(httpClient)
+        boot: createBootApi(httpClient),
+        cms: createCmsApi(httpClient, businessId),
+        eshop: createEshopApi(httpClient, businessId),
+        reservation: createReservationApi(httpClient, businessId),
+        newsletter: createNewsletterApi(httpClient, businessId),
+
+        // All utility functions
+        utils: {
+            // Image utilities
+            getImageUrl: (imageBlock: any, isBlock = true) => getImageUrl(imageBlock, isBlock, storageUrl),
+            thumbnailUrl: (service: any) => thumbnailUrl(service, storageUrl),
+            getGalleryThumbnail,
+
+            // Price utilities
+            getMarketPrice,
+            getPriceAmount,
+            formatPayment,
+            formatMinor,
+            createPaymentForCheckout,
+
+            // Currency utilities
+            getCurrencySymbol,
+
+            // Validation utilities
+            validatePhoneNumber,
+            tzGroups,
+            findTimeZone
+        }
     };
 }
 

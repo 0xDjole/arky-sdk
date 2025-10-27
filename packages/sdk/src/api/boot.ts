@@ -1,6 +1,6 @@
 export const createBootApi = (httpClient: any) => ({
 	async boot() {
-		const result = await httpClient.get<any>(`/v1/boot`);
+		const result = await httpClient.get(`/v1/boot`);
 
 		return {
 			businessId: result.businessId as string,

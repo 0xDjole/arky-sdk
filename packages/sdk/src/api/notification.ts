@@ -18,7 +18,7 @@ export const createNotificationApi = (httpClient: any) => ({
 	},
 
 	async updateNotifications() {
-		const response = await httpClient.put<boolean>(`/v1/notifications`, { seen: true });
+		const response = await httpClient.put(`/v1/notifications`, { seen: true });
 		return false;
 	}
 });

@@ -1,19 +1,19 @@
 export const createBusinessApi = (httpClient: any) => ({
 	async createBusiness(businessData: any): Promise<any> {
-		return httpClient.post<any>(`/v1/businesses`, businessData, {
+		return httpClient.post(`/v1/businesses`, businessData, {
 			errorMessage: 'Failed to create business'
 		});
 	},
 
 	async updateBusiness(businessData: any) {
-		return httpClient.put<void>(`/v1/businesses/${businessData.id}`, businessData, {
+		return httpClient.put(`/v1/businesses/${businessData.id}`, businessData, {
 			successMessage: 'Updated successfully',
 			errorMessage: 'Failed to update business'
 		});
 	},
 
 	async deleteBusiness({ id }: { id: string }) {
-		return httpClient.delete<void>(`/v1/businesses/${id}`, {
+		return httpClient.delete(`/v1/businesses/${id}`, {
 			successMessage: 'Deleted successfully',
 			errorMessage: 'Failed to delete business'
 		});
@@ -32,7 +32,7 @@ export const createBusinessApi = (httpClient: any) => ({
 	},
 
 	async triggerBuilds({ id }: { id: string }) {
-		return httpClient.post<any>(`/v1/businesses/${id}/trigger-builds`, {}, {
+		return httpClient.post(`/v1/businesses/${id}/trigger-builds`, {}, {
 			successMessage: 'Build hooks triggered successfully',
 			errorMessage: 'Failed to trigger builds'
 		});
@@ -57,7 +57,7 @@ export const createBusinessApi = (httpClient: any) => ({
 		successUrl: string;
 		cancelUrl: string;
 	}) {
-		return httpClient.post<any>(
+		return httpClient.post(
 			`/v1/businesses/${businessId}/subscription`,
 			{
 				businessId,
@@ -83,7 +83,7 @@ export const createBusinessApi = (httpClient: any) => ({
 		successUrl: string;
 		cancelUrl: string;
 	}) {
-		return httpClient.put<any>(
+		return httpClient.put(
 			`/v1/businesses/${businessId}/subscription`,
 			{
 				businessId,
@@ -104,7 +104,7 @@ export const createBusinessApi = (httpClient: any) => ({
 		businessId: string;
 		immediately?: boolean;
 	}) {
-		return httpClient.delete<any>(`/v1/businesses/${businessId}/subscription`, {
+		return httpClient.delete(`/v1/businesses/${businessId}/subscription`, {
 			params: { immediately },
 			successMessage: immediately
 				? 'Subscription canceled'
@@ -114,7 +114,7 @@ export const createBusinessApi = (httpClient: any) => ({
 	},
 
 	async reactivateSubscription({ businessId }: { businessId: string }) {
-		return httpClient.post<any>(
+		return httpClient.post(
 			`/v1/businesses/${businessId}/subscription/reactivate`,
 			{
 				businessId
@@ -133,7 +133,7 @@ export const createBusinessApi = (httpClient: any) => ({
 		businessId: string;
 		returnUrl: string;
 	}) {
-		return httpClient.post<any>(
+		return httpClient.post(
 			`/v1/businesses/${businessId}/subscription/portal`,
 			{
 				businessId,
@@ -155,7 +155,7 @@ export const createBusinessApi = (httpClient: any) => ({
 		email: string;
 		roleIds?: string[] | null;
 	}) {
-		return httpClient.post<any>(
+		return httpClient.post(
 			`/v1/businesses/${businessId}/invitation`,
 			{ email, roleIds },
 			{
@@ -174,11 +174,11 @@ export const createBusinessApi = (httpClient: any) => ({
 		token: string;
 		action: string;
 	}) {
-		return httpClient.put<any>(`/v1/businesses/${businessId}/invitation`, { token, action });
+		return httpClient.put(`/v1/businesses/${businessId}/invitation`, { token, action });
 	},
 
 	async testWebhook({ businessId, webhook }: { businessId: string; webhook: any }) {
-		return httpClient.post<any>(`/v1/businesses/${businessId}/webhooks/test`, webhook, {
+		return httpClient.post(`/v1/businesses/${businessId}/webhooks/test`, webhook, {
 			successMessage: 'Webhook test triggered successfully',
 			errorMessage: 'Failed to test webhook'
 		});

@@ -1,8 +1,16 @@
-// Main API exports
-export { cmsApi } from "./cms";
-export { eshopApi } from "./eshop";
-export { reservationApi } from "./reservation";
-export { newsletterApi } from "./newsletter";
+// Main API exports - these are factory functions
+export { createCmsApi } from './cms';
+export { createEshopApi } from './eshop';
+export { createReservationApi } from './reservation';
+export { createNewsletterApi } from './newsletter';
+export { createUserApi } from './user';
+export { createBusinessApi } from './business';
+export { createMediaApi } from './media';
+export { createRoleApi } from './role';
+export { createNotificationApi } from './notification';
+export { createPromoCodeApi } from './promoCode';
+export { createAnalyticsApi } from './analytics';
+export { createBootApi } from './boot';
 
 // Re-export types from individual files for better compatibility
-export type { ApiResponse, Newsletter, PaginatedResponse } from "../types/index";
+export type { ApiResponse } from '../types/index';

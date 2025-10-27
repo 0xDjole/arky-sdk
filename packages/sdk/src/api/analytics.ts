@@ -1,6 +1,6 @@
 export const createAnalyticsApi = (httpClient: any) => ({
 	async getAnalytics(businessId: string, params: any = {}) {
-		return httpClient.get<any>(`/v1/analytics/${businessId}`, {
+		return httpClient.get(`/v1/analytics/${businessId}`, {
 			params: {
 				metrics: params.metrics || undefined,
 				period: params.period || undefined,
