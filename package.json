@@ -1,0 +1,10 @@
+{
+  "name": "arky-sdk",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm --filter @arky/sdk build"
+  }
+}
