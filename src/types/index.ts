@@ -1,6 +1,8 @@
 // Core type definitions
 // All types are exported individually for better tree-shaking
 
+export * from './api';
+
 // NEW: Payment structure (matches backend)
 export interface Payment {
 	currency: string;

@@ -31,6 +31,7 @@ export interface ApiConfig {
     businessId: string;
     storageUrl: string;
     baseUrl: string;
+    market: string;
     setTokens: (tokens: any) => void;
     getTokens: () => Promise<any> | any;
 }
@@ -53,7 +54,7 @@ import { getCurrencySymbol } from './utils/currency';
 import { validatePhoneNumber } from './utils/validation';
 import { tzGroups, findTimeZone } from './utils/timezone';
 
-export async function createArkySDK(config: HttpClientConfig) {
+export async function createArkySDK(config: HttpClientConfig & { market?: string }) {
     const httpClient = createHttpClient(config);
     const storageUrl = config.storageUrl || 'https://storage.arky.io/dev';
 
@@ -62,6 +63,7 @@ export async function createArkySDK(config: HttpClientConfig) {
         businessId: config.businessId,
         storageUrl,
         baseUrl: config.baseUrl,
+        market: config.market || 'US',
         setTokens: config.setTokens,
         getTokens: config.getTokens
     };
