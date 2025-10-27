@@ -94,11 +94,12 @@ export {
 } from './utils/errors';
 
 // SDK Version
-export const SDK_VERSION = '0.1.0';
+export const SDK_VERSION = '0.1.2';
 export const SUPPORTED_FRAMEWORKS = ['astro', 'react', 'vue', 'svelte', 'vanilla'] as const;
 
 // SDK initialization function
 import { setGlobalConfig, type ArkyConfig } from './config';
+import { businessActions } from './stores/business';
 
 export function initArky(config: ArkyConfig): ArkyConfig {
     if (!config.apiUrl) {
@@ -109,5 +110,11 @@ export function initArky(config: ArkyConfig): ArkyConfig {
     }
 
     setGlobalConfig(config);
+
+    // Initialize business store after config is set
+    if (typeof window !== 'undefined') {
+        businessActions.init().catch(console.error);
+    }
+
     return config;
 }

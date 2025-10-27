@@ -138,7 +138,7 @@ export {
     businessActions as actions
 };
 
-// Auto-initialize on first import (ensures data is always available)
-if (typeof window !== 'undefined') {
+// Auto-initialize on first import ONLY if config is already set
+if (typeof window !== 'undefined' && BUSINESS_ID) {
     businessActions.init().catch(console.error);
 }
