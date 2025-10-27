@@ -94,7 +94,7 @@ export {
 } from './utils/errors';
 
 // SDK Version
-export const SDK_VERSION = '0.2.0';
+export const SDK_VERSION = '0.3.0';
 export const SUPPORTED_FRAMEWORKS = ['astro', 'react', 'vue', 'svelte', 'vanilla'] as const;
 
 // SDK initialization function

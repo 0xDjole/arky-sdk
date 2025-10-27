@@ -1,6 +1,6 @@
 {
   "name": "arky-sdk",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Official TypeScript SDK for Arky - All-in-one business platform",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -11,11 +11,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    },
-    "./stores": {
-      "types": "./dist/stores.d.ts",
-      "import": "./dist/stores.js",
-      "require": "./dist/stores.cjs"
     },
     "./utils": {
       "types": "./dist/utils.d.ts",
@@ -53,10 +48,7 @@
     "type": "git",
     "url": "https://github.com/0xDjole/arky-sdk.git"
   },
-  "dependencies": {
-    "@nanostores/persistent": "^1.0.0",
-    "nanostores": "^1.0.1"
-  },
+  "dependencies": {},
   "devDependencies": {
     "tsup": "^8.5.0",
     "typescript": "^5.8.3"
