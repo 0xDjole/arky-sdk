@@ -23,7 +23,7 @@ export * from './utils/text';
 export * from './utils/timezone';
 export * from './utils/validation';
 
-export const SDK_VERSION = '0.3.0';
+export const SDK_VERSION = '0.3.1';
 export const SUPPORTED_FRAMEWORKS = ['astro', 'react', 'vue', 'svelte', 'vanilla'] as const;
 
 export interface ApiConfig {
