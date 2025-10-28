@@ -2,12 +2,14 @@ import type { ApiConfig } from '../index';
 import type {
     CreateProductParams,
     UpdateProductParams,
+    GetProductParams,
     GetProductsParams,
     GetProductBySlugParams,
     GetQuoteParams,
     CheckoutParams,
     CreateOrderParams,
     UpdateOrderParams,
+    GetOrderParams,
     GetOrdersParams,
     UpdateOrderStatusParams,
     UpdateOrderPaymentStatusParams,
@@ -41,9 +43,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
             );
         },
 
-        async getProduct(id: string, options?: RequestOptions) {
+        async getProduct(params: GetProductParams, options?: RequestOptions) {
             return apiConfig.httpClient.get(
-                `/v1/businesses/${apiConfig.businessId}/products/${id}`,
+                `/v1/businesses/${apiConfig.businessId}/products/${params.id}`,
                 options
             );
         },
@@ -87,9 +89,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
             );
         },
 
-        async getOrder(id: string, options?: RequestOptions) {
+        async getOrder(params: GetOrderParams, options?: RequestOptions) {
             return apiConfig.httpClient.get(
-                `/v1/businesses/${apiConfig.businessId}/orders/${id}`,
+                `/v1/businesses/${apiConfig.businessId}/orders/${params.id}`,
                 options
             );
         },

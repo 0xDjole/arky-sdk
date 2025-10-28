@@ -101,6 +101,12 @@ export async function createArkySDK(config: HttpClientConfig & { market?: string
         newsletter: createNewsletterApi(apiConfig),
         payment: createPaymentApi(apiConfig),
 
+        setBusinessId: (businessId: string) => {
+            apiConfig.businessId = businessId;
+        },
+
+        getBusinessId: () => apiConfig.businessId,
+
         utils: {
             getImageUrl: (imageBlock: any, isBlock = true) => getImageUrl(imageBlock, isBlock, storageUrl),
             thumbnailUrl: (service: any) => thumbnailUrl(service, storageUrl),

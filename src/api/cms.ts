@@ -10,6 +10,8 @@ import type {
     UpdateEntryParams,
     DeleteEntryParams,
     GetEntryParams,
+    GetCollectionEntryParams,
+    DeleteCollectionEntryParams,
     GenerateBlocksParams,
     GetVariableMetadataParams,
     SendEntryParams,
@@ -43,9 +45,9 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
             );
         },
 
-        async getCollection(id: string, options?: RequestOptions) {
+        async getCollection(params: GetCollectionParams, options?: RequestOptions) {
             return apiConfig.httpClient.get(
-                `/v1/businesses/${apiConfig.businessId}/collections/${id}`,
+                `/v1/businesses/${apiConfig.businessId}/collections/${params.id}`,
                 options
             );
         },
@@ -120,16 +122,16 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
             );
         },
 
-        async deleteCollectionEntry(id: string, options?: RequestOptions) {
+        async deleteCollectionEntry(params: DeleteCollectionEntryParams, options?: RequestOptions) {
             return apiConfig.httpClient.delete(
-                `/v1/businesses/${apiConfig.businessId}/entries/${id}`,
+                `/v1/businesses/${apiConfig.businessId}/entries/${params.id}`,
                 options
             );
         },
 
-        async getCollectionEntry(id: string, options?: RequestOptions) {
+        async getCollectionEntry(params: GetCollectionEntryParams, options?: RequestOptions) {
             return apiConfig.httpClient.get(
-                `/v1/businesses/${apiConfig.businessId}/entries/${id}`,
+                `/v1/businesses/${apiConfig.businessId}/entries/${params.id}`,
                 options
             );
         },

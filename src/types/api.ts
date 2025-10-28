@@ -53,6 +53,14 @@ export interface CreateCollectionEntryParams {
     status?: string;
 }
 
+export interface GetCollectionEntryParams {
+    id: string;
+}
+
+export interface DeleteCollectionEntryParams {
+    id: string;
+}
+
 export interface UploadBusinessMediaParams {
     businessId: string;
     files?: File[];
@@ -96,6 +104,8 @@ export interface LoginUserParams {
     password?: string;
     provider: string;
     token?: string;
+    code?: string;
+    originUrl?: string;
 }
 
 export interface RegisterUserParams {
