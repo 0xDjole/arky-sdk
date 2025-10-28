@@ -33,6 +33,12 @@ export interface HttpClientConfig {
 	loginFallbackPath?: string;
 
 	notify?: (opts: { message: string; type: 'error' | 'success' }) => void;
+
+	isAuthenticated?: () => boolean;
+
+	logout?: () => void;
+
+	setUserToken?: (userToken: any) => void;
 }
 
 export function createHttpClient(cfg: HttpClientConfig) {

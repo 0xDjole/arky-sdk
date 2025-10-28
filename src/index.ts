@@ -55,7 +55,7 @@ import { getCurrencySymbol } from './utils/currency';
 import { validatePhoneNumber } from './utils/validation';
 import { tzGroups, findTimeZone } from './utils/timezone';
 
-export async function createArkySDK(config: HttpClientConfig & { market?: string }) {
+export function createArkySDK(config: HttpClientConfig & { market?: string }) {
     const httpClient = createHttpClient(config);
     const storageUrl = config.storageUrl || 'https://storage.arky.io/dev';
 
@@ -73,21 +73,7 @@ export async function createArkySDK(config: HttpClientConfig & { market?: string
 
     const autoGuest = config.autoGuest !== undefined ? config.autoGuest : true;
 
-    if (autoGuest) {
-        try {
-            const tokens = await config.getTokens();
-            if (!tokens.accessToken && !tokens.refreshToken) {
-                const guestToken = await userApi.getGuestToken({});
-                console.log('[SDK Init] Created guest token:', guestToken ? 'Success' : 'Failed');
-            } else {
-                console.log('[SDK Init] Using existing token from storage');
-            }
-        } catch (error) {
-            console.error('[SDK Init] Failed to initialize auth:', error);
-        }
-    }
-
-    return {
+    const sdk = {
         user: userApi,
         business: createBusinessApi(apiConfig),
         media: createMediaApi(apiConfig),
@@ -107,6 +93,12 @@ export async function createArkySDK(config: HttpClientConfig & { market?: string
 
         getBusinessId: () => apiConfig.businessId,
 
+        auth: {
+            isAuthenticated: config.isAuthenticated || (() => false),
+            logout: config.logout || config.onAuthFailure,
+            setUserToken: config.setUserToken || (() => {})
+        },
+
         utils: {
             getImageUrl: (imageBlock: any, isBlock = true) => getImageUrl(imageBlock, isBlock, storageUrl),
             thumbnailUrl: (service: any) => thumbnailUrl(service, storageUrl),
@@ -125,6 +117,24 @@ export async function createArkySDK(config: HttpClientConfig & { market?: string
             findTimeZone
         }
     };
+
+    if (autoGuest) {
+        Promise.resolve().then(async () => {
+            try {
+                const tokens = await config.getTokens();
+                if (!tokens.accessToken && !tokens.refreshToken) {
+                    const guestToken = await userApi.getGuestToken({});
+                    console.log('[SDK Init] Created guest token:', guestToken ? 'Success' : 'Failed');
+                } else {
+                    console.log('[SDK Init] Using existing token from storage');
+                }
+            } catch (error) {
+                console.error('[SDK Init] Failed to initialize auth:', error);
+            }
+        });
+    }
+
+    return sdk;
 }
 
 export type { HttpClientConfig } from './services/createHttpClient';

@@ -29,12 +29,20 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
         // ===== RESERVATIONS =====
 
         async createReservation(params: CreateReservationParams, options?: RequestOptions) {
-            return apiConfig.httpClient.post(`/v1/reservations`, params, options);
+            return apiConfig.httpClient.post(`/v1/reservations`, params, {
+                successMessage: 'Reservation created successfully',
+                errorMessage: 'Failed to create reservation',
+                ...options
+            });
         },
 
         async updateReservation(params: UpdateReservationParams, options?: RequestOptions) {
             const { id, ...payload } = params;
-            return apiConfig.httpClient.put(`/v1/reservations/${id}`, payload, options);
+            return apiConfig.httpClient.put(`/v1/reservations/${id}`, payload, {
+                successMessage: 'Reservation updated successfully',
+                errorMessage: 'Failed to update reservation',
+                ...options
+            });
         },
 
         async checkout(params: ReservationCheckoutParams, options?: RequestOptions) {
@@ -47,7 +55,11 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
                 ...(params.promoCode && { promoCode: params.promoCode })
             };
 
-            return apiConfig.httpClient.post(`/v1/reservations/checkout`, payload, options);
+            return apiConfig.httpClient.post(`/v1/reservations/checkout`, payload, {
+                successMessage: 'Reservation checkout completed',
+                errorMessage: 'Failed to complete checkout',
+                ...options
+            });
         },
 
         async getReservation(params: GetReservationParams, options?: RequestOptions) {
@@ -105,7 +117,11 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
             return apiConfig.httpClient.post(
                 `/v1/businesses/${apiConfig.businessId}/services`,
                 params,
-                options
+                {
+                    successMessage: 'Service created successfully',
+                    errorMessage: 'Failed to create service',
+                    ...options
+                }
             );
         },
 
@@ -113,14 +129,22 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
             return apiConfig.httpClient.put(
                 `/v1/businesses/${apiConfig.businessId}/services/${params.id}`,
                 params,
-                options
+                {
+                    successMessage: 'Service updated successfully',
+                    errorMessage: 'Failed to update service',
+                    ...options
+                }
             );
         },
 
         async deleteService(params: DeleteServiceParams, options?: RequestOptions) {
             return apiConfig.httpClient.delete(
                 `/v1/businesses/${apiConfig.businessId}/services/${params.id}`,
-                options
+                {
+                    successMessage: 'Service deleted successfully',
+                    errorMessage: 'Failed to delete service',
+                    ...options
+                }
             );
         },
 
@@ -164,7 +188,11 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
             return apiConfig.httpClient.post(
                 `/v1/businesses/${apiConfig.businessId}/providers`,
                 params,
-                options
+                {
+                    successMessage: 'Provider created successfully',
+                    errorMessage: 'Failed to create provider',
+                    ...options
+                }
             );
         },
 
@@ -172,14 +200,22 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
             return apiConfig.httpClient.put(
                 `/v1/businesses/${apiConfig.businessId}/providers/${params.id}`,
                 params,
-                options
+                {
+                    successMessage: 'Provider updated successfully',
+                    errorMessage: 'Failed to update provider',
+                    ...options
+                }
             );
         },
 
         async deleteProvider(params: DeleteProviderParams, options?: RequestOptions) {
             return apiConfig.httpClient.delete(
                 `/v1/businesses/${apiConfig.businessId}/providers/${params.id}`,
-                options
+                {
+                    successMessage: 'Provider deleted successfully',
+                    errorMessage: 'Failed to delete provider',
+                    ...options
+                }
             );
         },
 
