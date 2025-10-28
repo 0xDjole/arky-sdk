@@ -20,13 +20,13 @@ export interface HttpClientConfig {
 
 	businessId: string;
 
-	getTokens: () => Promise<AuthTokens> | AuthTokens;
+	getToken: () => Promise<AuthTokens> | AuthTokens;
 
-	setTokens: (tokens: AuthTokens) => void;
+	setToken: (tokens: AuthTokens) => void;
 
 	autoGuest?: boolean;
 
-	onAuthFailure: () => void;
+	logout: () => void;
 
 	navigate?: (path: string) => void;
 
@@ -35,10 +35,6 @@ export interface HttpClientConfig {
 	notify?: (opts: { message: string; type: 'error' | 'success' }) => void;
 
 	isAuthenticated?: () => boolean;
-
-	logout?: () => void;
-
-	setUserToken?: (userToken: any) => void;
 }
 
 export function createHttpClient(cfg: HttpClientConfig) {
@@ -66,7 +62,7 @@ export function createHttpClient(cfg: HttpClientConfig) {
 			...(options?.headers || {})
 		};
 
-		let { accessToken, refreshToken, provider, expiresAt } = await cfg.getTokens();
+		let { accessToken, refreshToken, provider, expiresAt } = await cfg.getToken();
 
 		const nowSec = Date.now() / 1000;
 		if (expiresAt && nowSec > expiresAt) {
@@ -79,23 +75,17 @@ export function createHttpClient(cfg: HttpClientConfig) {
 
 				if (refRes.ok) {
 					const data = await refRes.json();
-					cfg.setTokens(data);
+					cfg.setToken(data);
 					accessToken = data.accessToken;
 				} else {
-					cfg.onAuthFailure();
-					if (cfg.loginFallbackPath) {
-						cfg.navigate?.(cfg.loginFallbackPath);
-					}
+					cfg.logout();
 					const err: any = new Error('Error refreshing token');
 					err.name = 'ApiError';
 					err.statusCode = 401;
 					throw err;
 				}
 			} else {
-				cfg.onAuthFailure();
-				if (cfg.loginFallbackPath) {
-					cfg.navigate?.(cfg.loginFallbackPath);
-				}
+				cfg.logout();
 				const err: any = new Error('No refresh token');
 				err.name = 'ApiError';
 				err.statusCode = 401;
@@ -119,8 +109,7 @@ export function createHttpClient(cfg: HttpClientConfig) {
 
 		try {
 			const fullUrl = `${cfg.baseUrl}${finalPath}`;
-		console.log("[SDK] Fetching:", method, fullUrl, fetchOpts);
-		res = await fetch(fullUrl, fetchOpts);
+			res = await fetch(fullUrl, fetchOpts);
 			data = await res.json();
 		} catch (error) {
 			const err = new Error(error instanceof Error ? error.message : 'Network request failed');

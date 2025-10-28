@@ -23,7 +23,7 @@ export * from './utils/text';
 export * from './utils/timezone';
 export * from './utils/validation';
 
-export const SDK_VERSION = '0.3.1';
+export const SDK_VERSION = '0.3.4';
 export const SUPPORTED_FRAMEWORKS = ['astro', 'react', 'vue', 'svelte', 'vanilla'] as const;
 
 export interface ApiConfig {
@@ -65,8 +65,8 @@ export function createArkySDK(config: HttpClientConfig & { market?: string }) {
         storageUrl,
         baseUrl: config.baseUrl,
         market: config.market || 'US',
-        setTokens: config.setTokens,
-        getTokens: config.getTokens
+        setTokens: config.setToken,
+        getTokens: config.getToken
     };
 
     const userApi = createUserApi(apiConfig);
@@ -93,11 +93,9 @@ export function createArkySDK(config: HttpClientConfig & { market?: string }) {
 
         getBusinessId: () => apiConfig.businessId,
 
-        auth: {
-            isAuthenticated: config.isAuthenticated || (() => false),
-            logout: config.logout || config.onAuthFailure,
-            setUserToken: config.setUserToken || (() => {})
-        },
+        isAuthenticated: config.isAuthenticated || (() => false),
+        logout: config.logout,
+        setToken: config.setToken,
 
         utils: {
             getImageUrl: (imageBlock: any, isBlock = true) => getImageUrl(imageBlock, isBlock, storageUrl),
@@ -121,7 +119,7 @@ export function createArkySDK(config: HttpClientConfig & { market?: string }) {
     if (autoGuest) {
         Promise.resolve().then(async () => {
             try {
-                const tokens = await config.getTokens();
+                const tokens = await config.getToken();
                 if (!tokens.accessToken && !tokens.refreshToken) {
                     const guestToken = await userApi.getGuestToken({});
                     console.log('[SDK Init] Created guest token:', guestToken ? 'Success' : 'Failed');
