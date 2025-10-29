@@ -715,7 +715,7 @@ export interface SetRoleParams {
 export interface GetPermissionsParams {
 }
 
-export interface GetUsersParams {
+export interface SearchUsersParams {
     limit?: number;
     cursor?: string | null;
     query?: string;

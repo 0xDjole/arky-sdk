@@ -8,7 +8,7 @@ import type {
     VerifyPhoneCodeParams,
     GetUserLocationParams,
     LogoutParams,
-    GetUsersParams,
+    SearchUsersParams,
     SetRoleParams,
     ConfirmUserParams,
     GetLoginUrlParams,
@@ -57,7 +57,7 @@ export const createUserApi = (apiConfig: ApiConfig) => {
             return apiConfig.httpClient.get('/v1/users/me', options);
         },
 
-        async searchUsers(params: GetUsersParams, options?: RequestOptions) {
+        async searchUsers(params: SearchUsersParams, options?: RequestOptions) {
             return apiConfig.httpClient.get('/v1/users/search', {
                 ...options,
                 params: {
