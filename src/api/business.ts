@@ -4,9 +4,11 @@ import type {
 	UpdateBusinessParams,
 	DeleteBusinessParams,
 	GetBusinessParams,
+	GetBusinessesParams,
 	GetBusinessParentsParams,
 	TriggerBuildsParams,
 	GetSubscriptionParams,
+	GetSubscriptionPlansParams,
 	CreateSubscriptionParams,
 	UpdateSubscriptionParams,
 	CancelSubscriptionParams,
@@ -34,12 +36,11 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
 			return apiConfig.httpClient.delete(`/v1/businesses/${params.id}`, options);
 		},
 
-		async getBusiness(params: GetBusinessParams, options?: RequestOptions) {
-			return apiConfig.httpClient.get(`/v1/businesses/${params.id}`, options);
-		},
+	async getBusiness(params: GetBusinessParams, options?: RequestOptions) {
+		return apiConfig.httpClient.get(`/v1/businesses/${apiConfig.businessId}`, options);
+	},
 
-	async getBusinesses(params: {}, options?: RequestOptions) {
-		const _params = params;
+	async getBusinesses(params: GetBusinessesParams, options?: RequestOptions) {
 		return apiConfig.httpClient.get(`/v1/businesses`, options);
 	},
 
@@ -51,8 +52,7 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
 			return apiConfig.httpClient.post(`/v1/businesses/${params.id}/trigger-builds`, {}, options);
 		},
 
-	async getSubscriptionPlans(params: {}, options?: RequestOptions) {
-		const _params = params;
+	async getSubscriptionPlans(params: GetSubscriptionPlansParams, options?: RequestOptions) {
 		return apiConfig.httpClient.get('/v1/businesses/plans', options);
 	},
 

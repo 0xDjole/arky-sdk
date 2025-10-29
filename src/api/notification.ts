@@ -3,6 +3,7 @@ import type {
 	GetNotificationsParams,
 	TrackEmailOpenParams,
 	GetDeliveryStatsParams,
+	UpdateNotificationsParams,
 	RequestOptions
 } from '../types/api';
 
@@ -18,8 +19,7 @@ export const createNotificationApi = (apiConfig: ApiConfig) => {
 			});
 		},
 
-	async updateNotifications(params: {}, options?: RequestOptions) {
-		const _params = params;
+	async updateNotifications(params: UpdateNotificationsParams, options?: RequestOptions) {
 		return apiConfig.httpClient.put(`/v1/notifications`, { seen: true }, options);
 	},
 

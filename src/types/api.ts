@@ -278,7 +278,6 @@ export interface DeleteBusinessParams {
 }
 
 export interface GetBusinessParams {
-    id: string;
 }
 
 export interface GetBusinessParentsParams {
@@ -673,6 +672,21 @@ export interface TrackEmailOpenParams {
 }
 
 export interface GetDeliveryStatsParams {
+}
+
+export interface UpdateNotificationsParams {
+}
+
+export interface GetMeParams {
+}
+
+export interface LogoutParams {
+}
+
+export interface GetBusinessesParams {
+}
+
+export interface GetSubscriptionPlansParams {
 }
 
 // Analytics Admin API Types

@@ -12,6 +12,8 @@ import type {
     ForgotPasswordParams,
     ResetForgotPasswordParams,
     ResetPasswordParams,
+    GetMeParams,
+    LogoutParams,
     RequestOptions
 } from '../types/api';
 
@@ -45,8 +47,7 @@ export const createUserApi = (apiConfig: ApiConfig) => {
             return apiConfig.httpClient.put('/v1/users/confirm/phone-number', params, options);
         },
 
-        async getMe(params: {}, options?: RequestOptions) {
-            const _params = params;
+        async getMe(params: GetMeParams, options?: RequestOptions) {
             return apiConfig.httpClient.get('/v1/users/me', options);
         },
 
@@ -74,8 +75,7 @@ export const createUserApi = (apiConfig: ApiConfig) => {
             return apiConfig.httpClient.post('/v1/users/register', params, options);
         },
 
-        async logout(params: {}, options?: RequestOptions) {
-            const _params = params;
+        async logout(params: LogoutParams, options?: RequestOptions) {
             return apiConfig.httpClient.post('/v1/users/logout', {}, options);
         },
 
