@@ -1,4 +1,4 @@
-export * from "./types";
+// Export only types, not implementations
 export type {
   ApiResponse,
   EshopCartItem,
@@ -10,20 +10,7 @@ export type {
   Price,
 } from "./types";
 
-export * from "./api";
-
-export * from "./utils/blocks";
-export * from "./utils/currency";
-export * from "./utils/errors";
-export * from "./utils/i18n";
-export * from "./utils/price";
-export * from "./utils/queryParams";
-export * from "./utils/svg";
-export * from "./utils/text";
-export * from "./utils/timezone";
-export * from "./utils/validation";
-
-export const SDK_VERSION = '0.3.7';
+export const SDK_VERSION = "0.3.8";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
