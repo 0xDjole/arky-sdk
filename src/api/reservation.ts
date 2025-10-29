@@ -29,7 +29,13 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
         // ===== RESERVATIONS =====
 
         async createReservation(params: CreateReservationParams, options?: RequestOptions) {
-            return apiConfig.httpClient.post(`/v1/reservations`, params, {
+            const payload = {
+                businessId: apiConfig.businessId,
+                market: apiConfig.market,
+                ...params
+            };
+            
+            return apiConfig.httpClient.post(`/v1/reservations`, payload, {
                 successMessage: 'Reservation created successfully',
                 errorMessage: 'Failed to create reservation',
                 ...options
