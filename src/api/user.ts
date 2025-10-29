@@ -67,6 +67,11 @@ export const createUserApi = (apiConfig: ApiConfig) => {
             });
         },
 
+        // Alias for backwards compatibility
+        async getUsers(params: GetUsersParams, options?: RequestOptions) {
+            return this.searchUsers(params, options);
+        },
+
         async setUserRole(params: SetRoleParams, options?: RequestOptions) {
             return apiConfig.httpClient.put('/v1/users/set-role', params, options);
         },
