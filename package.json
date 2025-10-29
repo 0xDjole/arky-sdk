@@ -1,6 +1,6 @@
 {
   "name": "arky-sdk",
-  "version": "0.3.4",
+  "version": "0.3.7",
   "description": "Official TypeScript SDK for Arky - All-in-one business platform",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -8,19 +8,16 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "development": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
     "./utils": {
-      "development": "./src/utils/index.ts",
       "types": "./dist/utils.d.ts",
       "import": "./dist/utils.js",
       "require": "./dist/utils.cjs"
     },
     "./types": {
-      "development": "./src/types/index.ts",
       "types": "./dist/types.d.ts",
       "import": "./dist/types.js",
       "require": "./dist/types.cjs"

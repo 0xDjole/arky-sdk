@@ -23,7 +23,7 @@ export * from "./utils/text";
 export * from "./utils/timezone";
 export * from "./utils/validation";
 
-export const SDK_VERSION = "0.3.4";
+export const SDK_VERSION = '0.3.7';
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -72,7 +72,7 @@ import { tzGroups, findTimeZone } from "./utils/timezone";
 
 export function createArkySDK(config: HttpClientConfig & { market: string }) {
   console.log(
-    `[bruda2 Arky SDK v${SDK_VERSION}] Initializing with market: ${config.market}, businessId: ${config.businessId}`
+    `[Arky SDK v${SDK_VERSION}] Initializing with market: ${config.market}, businessId: ${config.businessId}`
   );
 
   const httpClient = createHttpClient(config);
