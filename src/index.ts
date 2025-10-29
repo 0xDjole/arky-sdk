@@ -10,7 +10,7 @@ export type {
   Price,
 } from "./types";
 
-export const SDK_VERSION = "0.3.8";
+export const SDK_VERSION = "0.3.9";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -45,7 +45,20 @@ import { createEshopApi } from "./api/eshop";
 import { createReservationApi } from "./api/reservation";
 import { createNewsletterApi } from "./api/newsletter";
 import { createPaymentApi } from "./api/payment";
-import { getImageUrl, thumbnailUrl, getGalleryThumbnail } from "./utils/blocks";
+import { 
+  getImageUrl, 
+  thumbnailUrl, 
+  getGalleryThumbnail,
+  getBlockValue,
+  getBlockValues,
+  getBlockLabel,
+  getBlockTextValue,
+  getBlockObjectValues,
+  getBlockFromArray,
+  formatBlockValue,
+  prepareBlocksForSubmission,
+  extractBlockValues,
+} from "./utils/blocks";
 import {
   getMarketPrice,
   getPriceAmount,
@@ -56,6 +69,8 @@ import {
 import { getCurrencySymbol } from "./utils/currency";
 import { validatePhoneNumber } from "./utils/validation";
 import { tzGroups, findTimeZone } from "./utils/timezone";
+import { slugify, humanize, categorify, formatDate } from "./utils/text";
+import { getSvgContentForAstro, fetchSvgContent, injectSvgIntoElement } from "./utils/svg";
 
 export function createArkySDK(config: HttpClientConfig & { market: string }) {
   console.log(
@@ -110,22 +125,48 @@ export function createArkySDK(config: HttpClientConfig & { market: string }) {
     setToken: config.setToken,
 
     utils: {
+      // Block utilities
       getImageUrl: (imageBlock: any, isBlock = true) =>
         getImageUrl(imageBlock, isBlock, storageUrl),
       thumbnailUrl: (service: any) => thumbnailUrl(service, storageUrl),
       getGalleryThumbnail,
+      getBlockValue,
+      getBlockValues,
+      getBlockLabel,
+      getBlockTextValue,
+      getBlockObjectValues,
+      getBlockFromArray,
+      formatBlockValue,
+      prepareBlocksForSubmission,
+      extractBlockValues,
 
+      // Price utilities
       getMarketPrice,
       getPriceAmount,
       formatPayment,
       formatMinor,
       createPaymentForCheckout,
 
+      // Currency utilities
       getCurrencySymbol,
 
+      // Validation utilities
       validatePhoneNumber,
+
+      // Timezone utilities
       tzGroups,
       findTimeZone,
+
+      // Text utilities
+      slugify,
+      humanize,
+      categorify,
+      formatDate,
+
+      // SVG utilities
+      getSvgContentForAstro,
+      fetchSvgContent,
+      injectSvgIntoElement,
     },
   };
 
