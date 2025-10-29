@@ -10,7 +10,7 @@ export type {
   Price,
 } from "./types";
 
-export const SDK_VERSION = "0.3.9";
+export const SDK_VERSION = "0.3.16";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -25,8 +25,8 @@ export interface ApiConfig {
   storageUrl: string;
   baseUrl: string;
   market: string;
-  setTokens: (tokens: any) => void;
-  getTokens: () => Promise<any> | any;
+  setToken: (tokens: any) => void;
+  getToken: () => Promise<any> | any;
 }
 
 import {
@@ -86,8 +86,8 @@ export function createArkySDK(config: HttpClientConfig & { market: string }) {
     storageUrl,
     baseUrl: config.baseUrl,
     market: config.market,
-    setTokens: config.setToken,
-    getTokens: config.getToken,
+    setToken: config.setToken,
+    getToken: config.getToken,
   };
 
   const userApi = createUserApi(apiConfig);
@@ -175,10 +175,16 @@ export function createArkySDK(config: HttpClientConfig & { market: string }) {
       try {
         const tokens = await config.getToken();
         if (!tokens.accessToken && !tokens.refreshToken) {
-          const guestToken = await userApi.getGuestToken({});
+          const result: any = await httpClient.post('/v1/users/login', {
+            provider: 'GUEST'
+          });
+          const token = result.accessToken || result.token || '';
+          if (token) {
+            config.setToken(result);
+          }
           console.log(
             "[SDK Init] Created guest token:",
-            guestToken ? "Success" : "Failed"
+            token ? "Success" : "Failed"
           );
         } else {
           console.log("[SDK Init] Using existing token from storage");

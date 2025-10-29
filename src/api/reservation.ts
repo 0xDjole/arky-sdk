@@ -12,7 +12,6 @@ import type {
     DeleteServiceParams,
     GetServiceParams,
     GetServicesParams,
-    GetAllServicesParams,
     CreateProviderParams,
     UpdateProviderParams,
     DeleteProviderParams,
@@ -35,20 +34,12 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
                 ...params
             };
             
-            return apiConfig.httpClient.post(`/v1/reservations`, payload, {
-                successMessage: 'Reservation created successfully',
-                errorMessage: 'Failed to create reservation',
-                ...options
-            });
+            return apiConfig.httpClient.post(`/v1/reservations`, payload, options);
         },
 
         async updateReservation(params: UpdateReservationParams, options?: RequestOptions) {
             const { id, ...payload } = params;
-            return apiConfig.httpClient.put(`/v1/reservations/${id}`, payload, {
-                successMessage: 'Reservation updated successfully',
-                errorMessage: 'Failed to update reservation',
-                ...options
-            });
+            return apiConfig.httpClient.put(`/v1/reservations/${id}`, payload, options);
         },
 
         async checkout(params: ReservationCheckoutParams, options?: RequestOptions) {
@@ -61,11 +52,7 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
                 ...(params.promoCode && { promoCode: params.promoCode })
             };
 
-            return apiConfig.httpClient.post(`/v1/reservations/checkout`, payload, {
-                successMessage: 'Reservation checkout completed',
-                errorMessage: 'Failed to complete checkout',
-                ...options
-            });
+            return apiConfig.httpClient.post(`/v1/reservations/checkout`, payload, options);
         },
 
         async getReservation(params: GetReservationParams, options?: RequestOptions) {
@@ -75,10 +62,10 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
             });
         },
 
-        async getReservationParts(params?: GetReservationPartsParams, options?: RequestOptions) {
+        async getReservationParts(params: GetReservationPartsParams, options?: RequestOptions) {
             return apiConfig.httpClient.get(`/v1/reservations/parts`, {
                 ...options,
-                params: params || {}
+                params
             });
         },
 
@@ -92,10 +79,10 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
             });
         },
 
-        async searchMyReservations(params?: SearchMyReservationsParams, options?: RequestOptions) {
+        async searchMyReservations(params: SearchMyReservationsParams, options?: RequestOptions) {
             return apiConfig.httpClient.get(`/v1/reservations`, {
                 ...options,
-                params: params || {}
+                params
             });
         },
 
@@ -126,11 +113,7 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
             return apiConfig.httpClient.post(
                 `/v1/businesses/${apiConfig.businessId}/services`,
                 params,
-                {
-                    successMessage: 'Service created successfully',
-                    errorMessage: 'Failed to create service',
-                    ...options
-                }
+                options
             );
         },
 
@@ -138,22 +121,14 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
             return apiConfig.httpClient.put(
                 `/v1/businesses/${apiConfig.businessId}/services/${params.id}`,
                 params,
-                {
-                    successMessage: 'Service updated successfully',
-                    errorMessage: 'Failed to update service',
-                    ...options
-                }
+                options
             );
         },
 
         async deleteService(params: DeleteServiceParams, options?: RequestOptions) {
             return apiConfig.httpClient.delete(
                 `/v1/businesses/${apiConfig.businessId}/services/${params.id}`,
-                {
-                    successMessage: 'Service deleted successfully',
-                    errorMessage: 'Failed to delete service',
-                    ...options
-                }
+                options
             );
         },
 
@@ -164,14 +139,12 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
             );
         },
 
-        async getServices(params?: GetServicesParams, options?: RequestOptions) {
-            const queryParams = params ? { ...params } : {};
-
+        async getServices(params: GetServicesParams, options?: RequestOptions) {
             return apiConfig.httpClient.get(
                 `/v1/businesses/${apiConfig.businessId}/services`,
                 {
                     ...options,
-                    params: queryParams
+                    params
                 }
             );
         },
@@ -197,11 +170,7 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
             return apiConfig.httpClient.post(
                 `/v1/businesses/${apiConfig.businessId}/providers`,
                 params,
-                {
-                    successMessage: 'Provider created successfully',
-                    errorMessage: 'Failed to create provider',
-                    ...options
-                }
+                options
             );
         },
 
@@ -209,22 +178,14 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
             return apiConfig.httpClient.put(
                 `/v1/businesses/${apiConfig.businessId}/providers/${params.id}`,
                 params,
-                {
-                    successMessage: 'Provider updated successfully',
-                    errorMessage: 'Failed to update provider',
-                    ...options
-                }
+                options
             );
         },
 
         async deleteProvider(params: DeleteProviderParams, options?: RequestOptions) {
             return apiConfig.httpClient.delete(
                 `/v1/businesses/${apiConfig.businessId}/providers/${params.id}`,
-                {
-                    successMessage: 'Provider deleted successfully',
-                    errorMessage: 'Failed to delete provider',
-                    ...options
-                }
+                options
             );
         },
 

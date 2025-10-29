@@ -8,8 +8,6 @@ import type {
     GetEntriesParams,
     CreateEntryParams,
     UpdateEntryParams,
-    DeleteEntryParams,
-    GetEntryParams,
     GetCollectionEntryParams,
     DeleteCollectionEntryParams,
     GenerateBlocksParams,
@@ -52,17 +50,17 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
             );
         },
 
-        async getCollections(params?: GetCollectionsParams, options?: RequestOptions) {
+        async getCollections(params: GetCollectionsParams, options?: RequestOptions) {
             return apiConfig.httpClient.get(
                 `/v1/businesses/${apiConfig.businessId}/collections`,
                 {
                     ...options,
-                    params: params || {}
+                    params
                 }
             );
         },
 
-        async generateBlocks(params: any, options?: RequestOptions) {
+        async generateBlocks(params: GenerateBlocksParams, options?: RequestOptions) {
             return apiConfig.httpClient.post(
                 `/v1/businesses/${apiConfig.businessId}/collections/blocks/generate`,
                 params,
@@ -73,8 +71,8 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
         // ===== ENTRIES =====
         // Note: Backend uses /entries NOT /collections/{id}/entries
 
-        async getCollectionEntries(params?: GetEntriesParams, options?: RequestOptions) {
-            const { collectionId, ...queryParams } = params || {};
+        async getCollectionEntries(params: GetEntriesParams, options?: RequestOptions) {
+            const { collectionId, ...queryParams } = params;
 
             // Convert collectionId to owner format if provided
             const finalParams = collectionId

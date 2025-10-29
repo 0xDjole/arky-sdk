@@ -2,6 +2,7 @@ import type { ApiConfig } from '../index';
 import type {
     CreateProductParams,
     UpdateProductParams,
+    DeleteProductParams,
     GetProductParams,
     GetProductsParams,
     GetQuoteParams,
@@ -35,9 +36,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
             );
         },
 
-        async deleteProduct(id: string, options?: RequestOptions) {
+        async deleteProduct(params: DeleteProductParams, options?: RequestOptions) {
             return apiConfig.httpClient.delete(
-                `/v1/businesses/${apiConfig.businessId}/products/${id}`,
+                `/v1/businesses/${apiConfig.businessId}/products/${params.id}`,
                 options
             );
         },
@@ -49,14 +50,12 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
             );
         },
 
-        async getProducts(params?: GetProductsParams, options?: RequestOptions) {
-            const queryParams = params ? { ...params } : {};
-
+        async getProducts(params: GetProductsParams, options?: RequestOptions) {
             return apiConfig.httpClient.get(
                 `/v1/businesses/${encodeURIComponent(apiConfig.businessId)}/products`,
                 {
                     ...options,
-                    params: queryParams
+                    params
                 }
             );
         },
@@ -86,12 +85,12 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
             );
         },
 
-        async getOrders(params?: GetOrdersParams, options?: RequestOptions) {
+        async getOrders(params: GetOrdersParams, options?: RequestOptions) {
             return apiConfig.httpClient.get(
                 `/v1/businesses/${apiConfig.businessId}/orders`,
                 {
                     ...options,
-                    params: params || {}
+                    params
                 }
             );
         },

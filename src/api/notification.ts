@@ -18,9 +18,10 @@ export const createNotificationApi = (apiConfig: ApiConfig) => {
 			});
 		},
 
-		async updateNotifications(options?: RequestOptions) {
-			return apiConfig.httpClient.put(`/v1/notifications`, { seen: true }, options);
-		},
+	async updateNotifications(params: {}, options?: RequestOptions) {
+		const _params = params;
+		return apiConfig.httpClient.put(`/v1/notifications`, { seen: true }, options);
+	},
 
 		async trackEmailOpen(params: TrackEmailOpenParams, options?: RequestOptions) {
 			return apiConfig.httpClient.get(

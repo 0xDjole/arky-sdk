@@ -5,8 +5,6 @@ import type {
 	DeleteRoleParams,
 	GetRoleParams,
 	GetRolesParams,
-	GetRoleParentsParams,
-	GetInvoiceParams,
 	RequestOptions
 } from '../types/api';
 
@@ -28,17 +26,14 @@ export const createRoleApi = (apiConfig: ApiConfig) => {
 			return apiConfig.httpClient.get(`/v1/roles/${params.id}`, options);
 		},
 
-		async getRoles(params?: GetRolesParams, options?: RequestOptions) {
-			return apiConfig.httpClient.get(`/v1/roles`, {
-				...options,
-				params: params ? {
-					businessId: apiConfig.businessId,
-					action: params.action || 'READ'
-				} : {
-					businessId: apiConfig.businessId,
-					action: 'READ'
-				}
-			});
-		}
+	async getRoles(params: GetRolesParams, options?: RequestOptions) {
+		return apiConfig.httpClient.get(`/v1/roles`, {
+			...options,
+			params: {
+				...params,
+				businessId: apiConfig.businessId
+			}
+		});
+	}
 	};
 };

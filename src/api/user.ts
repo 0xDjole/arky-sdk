@@ -1,18 +1,14 @@
 import type { ApiConfig } from '../index';
 import type {
-    UpdateUserParams,
     UpdateUserProfileParams,
     LoginUserParams,
     RegisterUserParams,
     UpdateProfilePhoneParams,
     VerifyPhoneCodeParams,
-    GetUserLocationParams,
-    LogoutParams,
     SearchUsersParams,
     SetRoleParams,
     ConfirmUserParams,
     GetLoginUrlParams,
-    OAuthLoginParams,
     ForgotPasswordParams,
     ResetForgotPasswordParams,
     ResetPasswordParams,
@@ -49,11 +45,8 @@ export const createUserApi = (apiConfig: ApiConfig) => {
             return apiConfig.httpClient.put('/v1/users/confirm/phone-number', params, options);
         },
 
-        async getUserLocation(options?: RequestOptions) {
-            return apiConfig.httpClient.get('/v1/users/location', options);
-        },
-
-        async getMe(options?: RequestOptions) {
+        async getMe(params: {}, options?: RequestOptions) {
+            const _params = params;
             return apiConfig.httpClient.get('/v1/users/me', options);
         },
 
@@ -81,7 +74,8 @@ export const createUserApi = (apiConfig: ApiConfig) => {
             return apiConfig.httpClient.post('/v1/users/register', params, options);
         },
 
-        async logout(options?: RequestOptions) {
+        async logout(params: {}, options?: RequestOptions) {
+            const _params = params;
             return apiConfig.httpClient.post('/v1/users/logout', {}, options);
         },
 
@@ -94,22 +88,6 @@ export const createUserApi = (apiConfig: ApiConfig) => {
                 ...options,
                 params
             });
-        },
-
-        async getGuestToken(params: { existingToken?: string }, options?: RequestOptions): Promise<string> {
-            if (params.existingToken) {
-                return params.existingToken;
-            }
-
-            const result = await apiConfig.httpClient.post('/v1/users/login', {
-                provider: 'GUEST'
-            }, options);
-
-            const token = result.accessToken || result.token || '';
-            if (token) {
-                apiConfig.setTokens(result);
-            }
-            return token;
         },
 
         // ===== PASSWORD MANAGEMENT =====

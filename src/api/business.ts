@@ -15,6 +15,8 @@ import type {
 	InviteUserParams,
 	HandleInvitationParams,
 	TestWebhookParams,
+	GetBusinessMediaParams2,
+	SetProviderScheduleParams,
 	RequestOptions
 } from '../types/api';
 
@@ -36,9 +38,10 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
 			return apiConfig.httpClient.get(`/v1/businesses/${params.id}`, options);
 		},
 
-		async getBusinesses(options?: RequestOptions) {
-			return apiConfig.httpClient.get(`/v1/businesses`, options);
-		},
+	async getBusinesses(params: {}, options?: RequestOptions) {
+		const _params = params;
+		return apiConfig.httpClient.get(`/v1/businesses`, options);
+	},
 
         async getBusinessParents(params: GetBusinessParentsParams, options?: RequestOptions) {
             return apiConfig.httpClient.get(`/v1/businesses/${apiConfig.businessId}/parents`, options);
@@ -48,9 +51,10 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
 			return apiConfig.httpClient.post(`/v1/businesses/${params.id}/trigger-builds`, {}, options);
 		},
 
-		async getSubscriptionPlans(options?: RequestOptions) {
-			return apiConfig.httpClient.get('/v1/businesses/plans', options);
-		},
+	async getSubscriptionPlans(params: {}, options?: RequestOptions) {
+		const _params = params;
+		return apiConfig.httpClient.get('/v1/businesses/plans', options);
+	},
 
         async getSubscription(params: GetSubscriptionParams, options?: RequestOptions) {
             return apiConfig.httpClient.get(`/v1/businesses/${apiConfig.businessId}/subscription`, options);
@@ -115,7 +119,7 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
             );
         },
 
-		async getBusinessMedia(params: { id: string; cursor?: string | null; limit?: number }, options?: RequestOptions) {
+	async getBusinessMedia(params: GetBusinessMediaParams2, options?: RequestOptions) {
 			return apiConfig.httpClient.get(
 				`/v1/businesses/${params.id}/media`,
 				{
@@ -128,7 +132,7 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
 			);
 		},
 
-		async setProviderSchedule(params: { id: string; workingTime: any; serviceIds: string[]; providerIds: string[] }, options?: RequestOptions) {
+	async setProviderSchedule(params: SetProviderScheduleParams, options?: RequestOptions) {
 			const { id, ...payload } = params;
 			return apiConfig.httpClient.put(
 				`/v1/businesses/${id}/schedules`,

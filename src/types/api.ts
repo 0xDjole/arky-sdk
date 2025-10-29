@@ -84,11 +84,6 @@ export interface NewsletterGetParams {
     id: string;
 }
 
-export interface UpdateUserParams {
-    id: string;
-    name?: string;
-    email?: string;
-}
 
 export interface LoginUserParams {
     email?: string;
@@ -189,16 +184,6 @@ export interface GetRolesParams {
     action?: string;
 }
 
-export interface GetRoleParentsParams {
-    roleId: string;
-}
-
-export interface GetInvoiceParams {
-    roleId: string;
-    from: string;
-    to: string;
-    language: string;
-}
 
 // Promo Code API Types
 export interface CreatePromoCodeParams {
@@ -261,27 +246,6 @@ export interface GetPromoCodesParams {
     expiresAtTo?: string;
 }
 
-export interface GetPromoCodeByCodeParams {
-    code: string;
-}
-
-export interface UpdatePromoCodeStatusParams {
-    id: string;
-    status: string;
-    reason?: string;
-}
-
-export interface ValidatePromoCodeParams {
-    code: string;
-    orderTotal?: number;
-    userId?: string;
-}
-
-export interface ApplyPromoCodeParams {
-    code: string;
-    orderId: string;
-    userId: string;
-}
 
 // Business API Types
 export interface CreateBusinessParams {
@@ -426,13 +390,6 @@ export interface UpdateEntryParams {
     [key: string]: any;
 }
 
-export interface DeleteEntryParams {
-    id: string;
-}
-
-export interface GetEntryParams {
-    id: string;
-}
 
 export interface GenerateBlocksParams {
     [key: string]: any;
@@ -475,21 +432,6 @@ export interface GetProductParams {
     id: string;
 }
 
-export interface GetAllProductsParams {
-    categoryIds?: string[] | null;
-    categoryId?: string | null;
-    categoryFilterBlocks?: string | null;
-    matchAll?: boolean | null;
-    statuses?: string[] | null;
-    productType?: string | null;
-    query?: string | null;
-    limit?: number | null;
-    cursor?: string | null;
-    sortField?: string | null;
-    sortDirection?: string | null;
-    createdAtFrom?: string | null;
-    createdAtTo?: string | null;
-}
 
 export interface GetOrderParams {
     id: string;
@@ -623,36 +565,12 @@ export interface GetProvidersParams {
     categoryFilterBlocks?: string | null;
 }
 
-export interface GetProvidersByServiceParams {
-    serviceId: string;
-    limit?: number;
-    cursor?: string;
-}
 
 export interface GetProviderParams {
     id: string;
 }
 
-export interface GetAllServicesParams {
-    providerId?: string;
-    ids?: string[];
-    query?: string | null;
-    statuses?: string[] | null;
-    limit?: number;
-    cursor?: string;
-    sortField?: string | null;
-    sortDirection?: string | null;
-    createdAtFrom?: string | null;
-    createdAtTo?: string | null;
-    categoryId?: string | null;
-    categoryFilterBlocks?: string | null;
-}
 
-export interface ScheduleSetParams {
-    workingTime: any;
-    serviceIds: string[];
-    providerIds: string[];
-}
 
 export interface GetBusinessServiceWorkingTimeParams {
     providerId: string;
@@ -673,17 +591,6 @@ export interface GetReservationPartsParams {
     reservationId?: string;
 }
 
-export interface SearchAvailableSlotsParams {
-    serviceId: string;
-    limit: number;
-    from?: number;
-    to?: number;
-    providerId?: string;
-}
-
-export interface ReservationConfirmParams {
-    token: string;
-}
 
 export interface SearchReservationsParams {
     serviceIds?: string[];
@@ -712,8 +619,6 @@ export interface SetRoleParams {
     roleId: string;
 }
 
-export interface GetPermissionsParams {
-}
 
 export interface SearchUsersParams {
     limit?: number;
@@ -733,11 +638,6 @@ export interface GetLoginUrlParams {
     redirectUrl: string;
 }
 
-export interface OAuthLoginParams {
-    code: string;
-    provider: string;
-    originUrl: string;
-}
 
 export interface ForgotPasswordParams {
     email: string;
@@ -753,13 +653,6 @@ export interface ResetPasswordParams {
     oldPassword?: string;
 }
 
-export interface GetUserLocationParams {
-    // No params needed
-}
-
-export interface LogoutParams {
-    // No params needed
-}
 
 // Payment API Types
 export interface HandleStripeWebhookParams {
@@ -785,4 +678,21 @@ export interface GetDeliveryStatsParams {
 // Analytics Admin API Types
 export interface SetupAnalyticsParams {
     [key: string]: any;
+}
+
+export interface GetBusinessMediaParams2 {
+    id: string;
+    cursor?: string | null;
+    limit?: number;
+}
+
+export interface SetProviderScheduleParams {
+    id: string;
+    workingTime: any;
+    serviceIds: string[];
+    providerIds: string[];
+}
+
+export interface DeleteProductParams {
+    id: string;
 }

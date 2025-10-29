@@ -45,18 +45,13 @@ export const createNewsletterApi = (apiConfig: ApiConfig) => {
         },
 
         async subscribe(params: NewsletterSubscribeParams, options?: RequestOptions) {
-            const { newsletterId, email, customerId, payment } = params;
-
             const payload = {
-                newsletterId,
-                email,
-                market: apiConfig.market,
-                ...(customerId && { customerId }),
-                ...(payment && { payment })
+                ...params,
+                market: apiConfig.market
             };
 
             return apiConfig.httpClient.post(
-                `/v1/newsletters/${newsletterId}/subscribe`,
+                `/v1/newsletters/${params.newsletterId}/subscribe`,
                 payload,
                 options
             );

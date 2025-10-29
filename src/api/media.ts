@@ -8,7 +8,8 @@ import type {
 
 export const createMediaApi = (apiConfig: ApiConfig) => {
     return {
-        async uploadBusinessMedia(params: UploadBusinessMediaParams) {
+        async uploadBusinessMedia(params: UploadBusinessMediaParams, options?: RequestOptions) {
+            const _options = options;
             const { files = [], urls = [] } = params;
             const url = `${apiConfig.baseUrl}/v1/businesses/${apiConfig.businessId}/upload`;
 
@@ -16,7 +17,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
             files.forEach((file) => formData.append('files', file));
             urls.forEach((url) => formData.append('files', url));
 
-            const tokens = await apiConfig.getTokens();
+            const tokens = await apiConfig.getToken();
             const response = await fetch(url, {
                 method: 'POST',
                 body: formData,
@@ -44,7 +45,8 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
             );
         },
 
-        async getBusinessMedia(params: GetBusinessMediaParams) {
+        async getBusinessMedia(params: GetBusinessMediaParams, options?: RequestOptions) {
+            const _options = options;
             const { cursor = null, limit = 20 } = params;
             const url = `${apiConfig.baseUrl}/v1/businesses/${apiConfig.businessId}/media`;
 
