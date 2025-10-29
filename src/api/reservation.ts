@@ -79,7 +79,10 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
         async searchReservations(params: SearchReservationsParams, options?: RequestOptions) {
             return apiConfig.httpClient.get(`/v1/reservations/search`, {
                 ...options,
-                params
+                params: {
+                    ...params,
+                    businessId: apiConfig.businessId
+                }
             });
         },
 
@@ -227,18 +230,17 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
         },
 
         async getProviders(params: GetProvidersParams, options?: RequestOptions) {
-            const { businessId, ...queryParams } = params;
             return apiConfig.httpClient.get(
                 `/v1/businesses/${apiConfig.businessId}/providers`,
                 {
                     ...options,
-                    params: queryParams
+                    params: params
                 }
             );
         },
 
         async getProviderWorkingTime(params: GetBusinessServiceWorkingTimeParams, options?: RequestOptions) {
-            const { businessId, providerId, ...queryParams } = params;
+            const { providerId, ...queryParams } = params;
             return apiConfig.httpClient.get(
                 `/v1/businesses/${apiConfig.businessId}/providers/${providerId}/working-time`,
                 {

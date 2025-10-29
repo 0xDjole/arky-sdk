@@ -9,8 +9,8 @@ import type {
 export const createMediaApi = (apiConfig: ApiConfig) => {
     return {
         async uploadBusinessMedia(params: UploadBusinessMediaParams) {
-            const { businessId, files = [], urls = [] } = params;
-            const url = `${apiConfig.baseUrl}/v1/businesses/${businessId}/upload`;
+            const { files = [], urls = [] } = params;
+            const url = `${apiConfig.baseUrl}/v1/businesses/${apiConfig.businessId}/upload`;
 
             const formData = new FormData();
             files.forEach((file) => formData.append('files', file));
@@ -45,8 +45,8 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
         },
 
         async getBusinessMedia(params: GetBusinessMediaParams) {
-            const { businessId, cursor = null, limit = 20 } = params;
-            const url = `${apiConfig.baseUrl}/v1/businesses/${businessId}/media`;
+            const { cursor = null, limit = 20 } = params;
+            const url = `${apiConfig.baseUrl}/v1/businesses/${apiConfig.businessId}/media`;
 
             const queryParams: any = { limit };
             if (cursor) queryParams.cursor = cursor;

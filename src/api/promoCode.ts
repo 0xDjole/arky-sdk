@@ -44,15 +44,15 @@ export const createPromoCodeApi = (apiConfig: ApiConfig) => {
 			);
 		},
 
-		async getPromoCodes(params: GetPromoCodesParams, options?: RequestOptions) {
-			const { businessId, statuses, ...restParams } = params;
-			return apiConfig.httpClient.get(`/v1/businesses/${apiConfig.businessId}/promo-codes`, {
-				...options,
-				params: {
-					...restParams,
-					statuses: statuses && statuses.length > 0 ? statuses : undefined
-				}
-			});
-		}
+	async getPromoCodes(params: GetPromoCodesParams, options?: RequestOptions) {
+		const { statuses, ...restParams } = params;
+		return apiConfig.httpClient.get(`/v1/businesses/${apiConfig.businessId}/promo-codes`, {
+			...options,
+			params: {
+				...restParams,
+				statuses: statuses && statuses.length > 0 ? statuses : undefined
+			}
+		});
+	}
 	};
 };

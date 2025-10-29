@@ -686,7 +686,6 @@ export interface ReservationConfirmParams {
 }
 
 export interface SearchReservationsParams {
-    businessIds?: string[];
     serviceIds?: string[];
     providerIds?: string[];
     userId?: string;
@@ -721,7 +720,6 @@ export interface GetUsersParams {
     cursor?: string | null;
     query?: string;
     roleIds?: string[];
-    businessIds?: string[];
     owner?: string;
 }
 

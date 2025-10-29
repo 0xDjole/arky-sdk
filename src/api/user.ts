@@ -60,7 +60,10 @@ export const createUserApi = (apiConfig: ApiConfig) => {
         async searchUsers(params: GetUsersParams, options?: RequestOptions) {
             return apiConfig.httpClient.get('/v1/users/search', {
                 ...options,
-                params
+                params: {
+                    ...params,
+                    businessId: apiConfig.businessId
+                }
             });
         },
 

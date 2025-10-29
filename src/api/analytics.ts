@@ -9,10 +9,9 @@ import type {
 export const createAnalyticsApi = (apiConfig: ApiConfig) => {
 	return {
 		async getAnalytics(params: GetAnalyticsParams, options?: RequestOptions) {
-			const { businessId, ...queryParams } = params;
 			return apiConfig.httpClient.get(`/v1/analytics/${apiConfig.businessId}`, {
 				...options,
-				params: queryParams
+				params: params
 			});
 		},
 
