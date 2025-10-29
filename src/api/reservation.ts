@@ -48,8 +48,8 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
         async checkout(params: ReservationCheckoutParams, options?: RequestOptions) {
             const payload = {
                 businessId: apiConfig.businessId,
+                market: apiConfig.market,
                 blocks: params.blocks || [],
-                market: params.market || 'US',
                 parts: params.parts,
                 ...(params.paymentMethod && { paymentMethod: params.paymentMethod }),
                 ...(params.promoCode && { promoCode: params.promoCode })
@@ -101,7 +101,7 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
 
             const payload = {
                 businessId: apiConfig.businessId,
-                market: params.market,
+                market: apiConfig.market,
                 currency: params.currency,
                 paymentMethod: params.paymentMethod,
                 lines: lines,

@@ -39,6 +39,45 @@ export interface HttpClientConfig {
 
 export function createHttpClient(cfg: HttpClientConfig) {
 	const refreshEndpoint = `${cfg.baseUrl}/v1/users/refresh-access-token`;
+	let refreshPromise: Promise<void> | null = null;
+
+	async function ensureFreshToken() {
+		if (refreshPromise) {
+			return refreshPromise;
+		}
+
+		refreshPromise = (async () => {
+			const { refreshToken, provider } = await cfg.getToken();
+			if (!refreshToken) {
+				cfg.logout();
+				const err: any = new Error('No refresh token available');
+				err.name = 'ApiError';
+				err.statusCode = 401;
+				throw err;
+			}
+
+			const refRes = await fetch(refreshEndpoint, {
+				method: 'POST',
+				headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+				body: JSON.stringify({ provider, refreshToken })
+			});
+
+			if (!refRes.ok) {
+				cfg.logout();
+				const err: any = new Error('Token refresh failed');
+				err.name = 'ApiError';
+				err.statusCode = 401;
+				throw err;
+			}
+
+			const data = await refRes.json();
+			cfg.setToken(data);
+		})().finally(() => {
+			refreshPromise = null;
+		});
+
+		return refreshPromise;
+	}
 
 	async function request<T>(
 		method: string,
@@ -50,6 +89,7 @@ export function createHttpClient(cfg: HttpClientConfig) {
 			headers?: Record<string, string>;
 			transformRequest?: (data: any) => any;
 			params?: QueryParams;
+			_retried?: boolean;
 		}
 	): Promise<T> {
 		if (options?.transformRequest) {
@@ -62,35 +102,13 @@ export function createHttpClient(cfg: HttpClientConfig) {
 			...(options?.headers || {})
 		};
 
-		let { accessToken, refreshToken, provider, expiresAt } = await cfg.getToken();
+		let { accessToken, expiresAt } = await cfg.getToken();
 
 		const nowSec = Date.now() / 1000;
 		if (expiresAt && nowSec > expiresAt) {
-			if (refreshToken) {
-				const refRes = await fetch(refreshEndpoint, {
-					method: 'POST',
-					headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-					body: JSON.stringify({ provider, refreshToken })
-				});
-
-				if (refRes.ok) {
-					const data = await refRes.json();
-					cfg.setToken(data);
-					accessToken = data.accessToken;
-				} else {
-					cfg.logout();
-					const err: any = new Error('Error refreshing token');
-					err.name = 'ApiError';
-					err.statusCode = 401;
-					throw err;
-				}
-			} else {
-				cfg.logout();
-				const err: any = new Error('No refresh token');
-				err.name = 'ApiError';
-				err.statusCode = 401;
-				throw err;
-			}
+			await ensureFreshToken();
+			const tokens = await cfg.getToken();
+			accessToken = tokens.accessToken;
 		}
 
 		if (accessToken) {
@@ -104,16 +122,48 @@ export function createHttpClient(cfg: HttpClientConfig) {
 			fetchOpts.body = JSON.stringify(body);
 		}
 
+		const fullUrl = `${cfg.baseUrl}${finalPath}`;
 		let res: Response;
 		let data: any;
 
 		try {
-			const fullUrl = `${cfg.baseUrl}${finalPath}`;
 			res = await fetch(fullUrl, fetchOpts);
-			data = await res.json();
 		} catch (error) {
-			const err = new Error(error instanceof Error ? error.message : 'Network request failed');
+			const err: any = new Error(error instanceof Error ? error.message : 'Network request failed');
 			err.name = 'NetworkError';
+			err.method = method;
+			err.url = fullUrl;
+			throw err;
+		}
+
+		// Handle 401: refresh and retry once
+		if (res.status === 401 && !options?.['_retried']) {
+			try {
+				await ensureFreshToken();
+				const tokens = await cfg.getToken();
+				headers['Authorization'] = `Bearer ${tokens.accessToken}`;
+				fetchOpts.headers = headers;
+				return request<T>(method, path, body, { ...options, _retried: true });
+			} catch (refreshError) {
+				// Fall through to normal error handling
+			}
+		}
+
+		// Safe JSON parsing: handle 204, empty body, non-JSON
+		try {
+			const contentLength = res.headers.get('content-length');
+			const contentType = res.headers.get('content-type');
+			if (res.status === 204 || contentLength === '0' || !contentType?.includes('application/json')) {
+				data = {};
+			} else {
+				data = await res.json();
+			}
+		} catch (error) {
+			const err: any = new Error('Failed to parse response');
+			err.name = 'ParseError';
+			err.method = method;
+			err.url = fullUrl;
+			err.status = res.status;
 			throw err;
 		}
 
@@ -125,8 +175,12 @@ export function createHttpClient(cfg: HttpClientConfig) {
 			}
 			const err: any = new Error(serverErr.message || 'Request failed');
 			err.name = 'ApiError';
-			err.statusCode = serverErr.statusCode;
+			err.statusCode = serverErr.statusCode || res.status;
 			err.validationErrors = reqErr.validationErrors;
+			err.method = method;
+			err.url = fullUrl;
+			const requestId = res.headers.get('x-request-id') || res.headers.get('request-id');
+			if (requestId) err.requestId = requestId;
 			throw err;
 		}
 

@@ -4,7 +4,6 @@ import type {
     UpdateProductParams,
     GetProductParams,
     GetProductsParams,
-    GetProductBySlugParams,
     GetQuoteParams,
     CheckoutParams,
     CreateOrderParams,
@@ -59,15 +58,6 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
                     ...options,
                     params: queryParams
                 }
-            );
-        },
-
-        async getProductBySlug(params: GetProductBySlugParams, options?: RequestOptions) {
-            const { businessId, slug } = params;
-
-            return apiConfig.httpClient.get(
-                `/v1/businesses/${encodeURIComponent(businessId)}/products/slug/${encodeURIComponent(businessId)}/${encodeURIComponent(slug)}`,
-                options
             );
         },
 
@@ -134,7 +124,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
 
             const payload = {
                 businessId: apiConfig.businessId,
-                market: params.market,
+                market: apiConfig.market,
                 currency: params.currency,
                 paymentMethod: params.paymentMethod,
                 lines: lines,
@@ -148,7 +138,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         async checkout(params: CheckoutParams, options?: RequestOptions) {
             const payload = {
                 businessId: apiConfig.businessId,
-                market: params.market,
+                market: apiConfig.market,
                 paymentMethod: params.paymentMethod,
                 shippingMethodId: params.shippingMethodId,
                 items: params.items,

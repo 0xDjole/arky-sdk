@@ -50,7 +50,7 @@ export const createNewsletterApi = (apiConfig: ApiConfig) => {
             const payload = {
                 newsletterId,
                 email,
-                market: 'US',
+                market: apiConfig.market,
                 ...(customerId && { customerId }),
                 ...(payment && { payment })
             };

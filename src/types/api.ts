@@ -12,7 +12,6 @@ export interface EshopItem {
 
 export interface GetQuoteParams {
     items: EshopItem[];
-    market: string;
     currency: string;
     paymentMethod: string;
     shippingMethodId?: string;
@@ -23,7 +22,6 @@ export interface CheckoutParams {
     items: EshopItem[];
     paymentMethod: string;
     blocks?: any[];
-    market: string;
     shippingMethodId: string;
     promoCode?: string;
 }
@@ -33,11 +31,6 @@ export interface GetProductsParams {
     status?: string;
     limit?: number;
     cursor?: string;
-}
-
-export interface GetProductBySlugParams {
-    businessId: string;
-    slug: string;
 }
 
 export interface GetCollectionEntriesParams {
@@ -133,13 +126,11 @@ export interface ReservationCheckoutParams {
     parts: any[];
     paymentMethod?: string;
     blocks?: any[];
-    market?: string;
     promoCode?: string;
 }
 
 export interface GetReservationQuoteParams {
     parts: any[];
-    market: string;
     currency: string;
     paymentMethod: string;
     promoCode?: string;
@@ -865,14 +856,4 @@ export interface GetDeliveryStatsParams {
 // Analytics Admin API Types
 export interface SetupAnalyticsParams {
     [key: string]: any;
-}
-
-// Reservation Checkout Params
-export interface ReservationCheckoutParams {
-    businessId?: string;
-    parts: any[];
-    paymentMethod?: string;
-    blocks?: any[];
-    market?: string;
-    promoCode?: string;
 }

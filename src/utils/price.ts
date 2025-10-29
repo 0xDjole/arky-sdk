@@ -113,15 +113,18 @@ export function getMarketPrice(
         showSymbols = true,
         decimalPlaces = 2,
         showCompareAt = true,
-        fallbackMarket = 'US',
+        fallbackMarket,
     } = options;
 
     // Find price for the specific market
     let price = prices.find(p => p.market === marketId);
 
-    // Fallback to first available or fallback market
+    // Fallback to fallback market (if provided) or first available
+    if (!price && fallbackMarket) {
+        price = prices.find(p => p.market === fallbackMarket);
+    }
     if (!price) {
-        price = prices.find(p => p.market === fallbackMarket) || prices[0];
+        price = prices[0];
     }
 
     if (!price) return '';
@@ -165,12 +168,16 @@ export function getMarketPrice(
 }
 
 // Get price amount from market-based prices (for calculations)
-export function getPriceAmount(prices: Price[], marketId: string, fallbackMarket: string = 'US'): number {
+export function getPriceAmount(prices: Price[], marketId: string, fallbackMarket?: string): number {
     if (!prices || prices.length === 0) return 0;
 
-    const price = prices.find(p => p.market === marketId) ||
-                 prices.find(p => p.market === fallbackMarket) ||
-                 prices[0];
+    let price = prices.find(p => p.market === marketId);
+    if (!price && fallbackMarket) {
+        price = prices.find(p => p.market === fallbackMarket);
+    }
+    if (!price) {
+        price = prices[0];
+    }
 
     // Amounts are stored in minor units (e.g., cents)
     return price?.amount || 0;
