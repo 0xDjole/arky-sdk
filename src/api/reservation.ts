@@ -65,7 +65,7 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
         async getReservation(params: GetReservationParams, options?: RequestOptions) {
             return apiConfig.httpClient.get(`/v1/reservations/${params.id}`, {
                 ...options,
-                params: params.businessId ? { businessId: params.businessId } : {}
+                params: { businessId: apiConfig.businessId }
             });
         },
 

@@ -55,7 +55,6 @@ export interface DeleteCollectionEntryParams {
 }
 
 export interface UploadBusinessMediaParams {
-    businessId: string;
     files?: File[];
     urls?: string[];
 }
@@ -66,7 +65,6 @@ export interface DeleteBusinessMediaParams {
 }
 
 export interface GetBusinessMediaParams {
-    businessId: string;
     cursor?: string | null;
     limit?: number;
 }
@@ -79,7 +77,7 @@ export interface NewsletterSubscribeParams {
 }
 
 export interface NewsletterFindParams {
-    businessId: string;
+    // No params needed - uses apiConfig.businessId
 }
 
 export interface NewsletterGetParams {
@@ -146,7 +144,6 @@ export interface GetAvailableSlotsParams {
 
 // Analytics API Types
 export interface GetAnalyticsParams {
-    businessId: string;
     metrics?: string[];
     period?: string;
     start_date?: string;
@@ -155,7 +152,7 @@ export interface GetAnalyticsParams {
 }
 
 export interface GetAnalyticsHealthParams {
-    businessId: string;
+    // No params needed - uses apiConfig.businessId
 }
 
 // Notification API Types
@@ -167,7 +164,6 @@ export interface GetNotificationsParams {
 // Role API Types
 export interface CreateRoleParams {
     name: string;
-    businessId?: string;
     parentRoles?: string[];
     permissions?: any[];
     [key: string]: any;
@@ -176,7 +172,6 @@ export interface CreateRoleParams {
 export interface UpdateRoleParams {
     id: string;
     name?: string;
-    businessId?: string;
     parentRoles?: string[];
     permissions?: any[];
     [key: string]: any;
@@ -191,7 +186,6 @@ export interface GetRoleParams {
 }
 
 export interface GetRolesParams {
-    businessId?: string;
     action?: string;
 }
 
@@ -208,7 +202,6 @@ export interface GetInvoiceParams {
 
 // Promo Code API Types
 export interface CreatePromoCodeParams {
-    businessId: string;
     code?: string;
     name?: string;
     description?: string;
@@ -228,7 +221,6 @@ export interface CreatePromoCodeParams {
 
 export interface UpdatePromoCodeParams {
     id: string;
-    businessId: string;
     code?: string;
     name?: string;
     description?: string;
@@ -248,16 +240,13 @@ export interface UpdatePromoCodeParams {
 
 export interface DeletePromoCodeParams {
     id: string;
-    businessId: string;
 }
 
 export interface GetPromoCodeParams {
     id: string;
-    businessId: string;
 }
 
 export interface GetPromoCodesParams {
-    businessId: string;
     statuses?: string[];
     query?: string;
     limit?: number;
@@ -273,26 +262,22 @@ export interface GetPromoCodesParams {
 }
 
 export interface GetPromoCodeByCodeParams {
-    businessId: string;
     code: string;
 }
 
 export interface UpdatePromoCodeStatusParams {
     id: string;
-    businessId: string;
     status: string;
     reason?: string;
 }
 
 export interface ValidatePromoCodeParams {
-    businessId: string;
     code: string;
     orderTotal?: number;
     userId?: string;
 }
 
 export interface ApplyPromoCodeParams {
-    businessId: string;
     code: string;
     orderId: string;
     userId: string;
@@ -333,7 +318,6 @@ export interface GetBusinessParams {
 }
 
 export interface GetBusinessParentsParams {
-    businessId: string;
 }
 
 export interface TriggerBuildsParams {
@@ -341,57 +325,47 @@ export interface TriggerBuildsParams {
 }
 
 export interface GetSubscriptionParams {
-    businessId: string;
 }
 
 export interface CreateSubscriptionParams {
-    businessId: string;
     planId: string;
     successUrl: string;
     cancelUrl: string;
 }
 
 export interface UpdateSubscriptionParams {
-    businessId: string;
     planId: string;
     successUrl: string;
     cancelUrl: string;
 }
 
 export interface CancelSubscriptionParams {
-    businessId: string;
     immediately?: boolean;
 }
 
 export interface ReactivateSubscriptionParams {
-    businessId: string;
 }
 
 export interface CreatePortalSessionParams {
-    businessId: string;
     returnUrl: string;
 }
 
 export interface InviteUserParams {
-    businessId: string;
     email: string;
     roleIds?: string[] | null;
 }
 
 export interface HandleInvitationParams {
-    businessId: string;
     token: string;
     action: string;
 }
 
 export interface TestWebhookParams {
-    businessId: string;
     webhook: any;
 }
 
 // Additional CMS API Types
 export interface CreateCollectionParams {
-    businessId: string;
     name: string;
     description?: string;
     schema?: any;
@@ -399,7 +373,6 @@ export interface CreateCollectionParams {
 }
 
 export interface UpdateCollectionParams {
-    businessId: string;
     id: string;
     name?: string;
     description?: string;
@@ -408,23 +381,19 @@ export interface UpdateCollectionParams {
 }
 
 export interface DeleteCollectionParams {
-    businessId: string;
     id: string;
 }
 
 export interface GetCollectionParams {
-    businessId: string;
     id: string;
 }
 
 export interface GetCollectionsParams {
-    businessId: string;
     name?: string | null;
     ids?: string[] | null;
 }
 
 export interface GetEntriesParams {
-    businessId: string;
     owner?: string | null;
     collectionId?: string | null;
     limit?: number;
@@ -441,7 +410,6 @@ export interface GetEntriesParams {
 }
 
 export interface CreateEntryParams {
-    businessId: string;
     owner?: string;
     collectionId?: string;
     blocks: any[];
@@ -450,7 +418,6 @@ export interface CreateEntryParams {
 }
 
 export interface UpdateEntryParams {
-    businessId: string;
     id: string;
     owner?: string;
     collectionId?: string;
@@ -460,17 +427,14 @@ export interface UpdateEntryParams {
 }
 
 export interface DeleteEntryParams {
-    businessId: string;
     id: string;
 }
 
 export interface GetEntryParams {
-    businessId: string;
     id: string;
 }
 
 export interface GenerateBlocksParams {
-    businessId: string;
     [key: string]: any;
 }
 
@@ -479,14 +443,12 @@ export interface GetVariableMetadataParams {
 }
 
 export interface SendEntryParams {
-    businessId: string;
     entryId: string;
     scheduledAt?: number;
 }
 
 // Additional E-shop API Types
 export interface CreateProductParams {
-    businessId: string;
     name: string;
     description?: string;
     categoryIds?: string[];
@@ -496,7 +458,6 @@ export interface CreateProductParams {
 }
 
 export interface UpdateProductParams {
-    businessId: string;
     id: string;
     name?: string;
     description?: string;
@@ -507,17 +468,14 @@ export interface UpdateProductParams {
 }
 
 export interface DeleteProductParams {
-    businessId: string;
     id: string;
 }
 
 export interface GetProductParams {
-    businessId: string;
     id: string;
 }
 
 export interface GetAllProductsParams {
-    businessId: string;
     categoryIds?: string[] | null;
     categoryId?: string | null;
     categoryFilterBlocks?: string | null;
@@ -534,12 +492,10 @@ export interface GetAllProductsParams {
 }
 
 export interface GetOrderParams {
-    businessId: string;
     id: string;
 }
 
 export interface GetOrdersParams {
-    businessId: string;
     userId?: string | null;
     statuses?: string[] | null;
     query?: string | null;
@@ -552,33 +508,28 @@ export interface GetOrdersParams {
 }
 
 export interface UpdateOrderStatusParams {
-    businessId: string;
     id: string;
     status: string;
     [key: string]: any;
 }
 
 export interface UpdateOrderPaymentStatusParams {
-    businessId: string;
     id: string;
     paymentStatus: string;
     [key: string]: any;
 }
 
 export interface UpdateOrderParams {
-    businessId: string;
     id?: string;
     [key: string]: any;
 }
 
 export interface CreateOrderParams {
-    businessId: string;
     [key: string]: any;
 }
 
 // Additional Newsletter API Types
 export interface CreateNewsletterParams {
-    businessId: string;
     name: string;
     description: string;
     newsletterType: 'FREE' | 'PAID';
@@ -612,7 +563,6 @@ export interface UnsubscribeParams {
 
 // Additional Reservation API Types
 export interface CreateReservationParams {
-    businessId?: string;
     [key: string]: any;
 }
 
@@ -625,48 +575,40 @@ export interface UpdateReservationParams {
 }
 
 export interface CreateProviderParams {
-    businessId: string;
     name: string;
     [key: string]: any;
 }
 
 export interface UpdateProviderParams {
-    businessId: string;
     id: string;
     name?: string;
     [key: string]: any;
 }
 
 export interface DeleteProviderParams {
-    businessId: string;
     id: string;
 }
 
 export interface CreateServiceParams {
-    businessId: string;
     name: string;
     [key: string]: any;
 }
 
 export interface UpdateServiceParams {
-    businessId: string;
     id: string;
     name?: string;
     [key: string]: any;
 }
 
 export interface DeleteServiceParams {
-    businessId: string;
     id: string;
 }
 
 export interface GetServiceParams {
-    businessId: string;
     id: string;
 }
 
 export interface GetProvidersParams {
-    businessId: string;
     serviceId?: string;
     ids?: string[];
     query?: string | null;
@@ -682,19 +624,16 @@ export interface GetProvidersParams {
 }
 
 export interface GetProvidersByServiceParams {
-    businessId: string;
     serviceId: string;
     limit?: number;
     cursor?: string;
 }
 
 export interface GetProviderParams {
-    businessId: string;
     id: string;
 }
 
 export interface GetAllServicesParams {
-    businessId: string;
     providerId?: string;
     ids?: string[];
     query?: string | null;
@@ -710,14 +649,12 @@ export interface GetAllServicesParams {
 }
 
 export interface ScheduleSetParams {
-    businessId: string;
     workingTime: any;
     serviceIds: string[];
     providerIds: string[];
 }
 
 export interface GetBusinessServiceWorkingTimeParams {
-    businessId: string;
     providerId: string;
     serviceId?: string;
 }
@@ -730,7 +667,6 @@ export interface SearchMyReservationsParams {
 
 export interface GetReservationParams {
     id: string;
-    businessId?: string;
 }
 
 export interface GetReservationPartsParams {
@@ -738,7 +674,6 @@ export interface GetReservationPartsParams {
 }
 
 export interface SearchAvailableSlotsParams {
-    businessId: string;
     serviceId: string;
     limit: number;
     from?: number;
@@ -779,7 +714,6 @@ export interface SetRoleParams {
 }
 
 export interface GetPermissionsParams {
-    businessId: string;
 }
 
 export interface GetUsersParams {
@@ -836,11 +770,9 @@ export interface HandleStripeWebhookParams {
 }
 
 export interface GetBusinessMarketsParams {
-    businessId: string;
 }
 
 export interface GetBusinessMarketParams {
-    businessId: string;
     marketId: string;
 }
 
@@ -850,7 +782,6 @@ export interface TrackEmailOpenParams {
 }
 
 export interface GetDeliveryStatsParams {
-    businessId: string;
 }
 
 // Analytics Admin API Types

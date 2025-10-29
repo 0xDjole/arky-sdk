@@ -18,7 +18,7 @@ export const createNewsletterApi = (apiConfig: ApiConfig) => {
         async find(params: NewsletterFindParams, options?: RequestOptions) {
             return apiConfig.httpClient.get(`/v1/newsletters`, {
                 ...options,
-                params: { businessId: params.businessId }
+                params: { businessId: apiConfig.businessId }
             });
         },
 
