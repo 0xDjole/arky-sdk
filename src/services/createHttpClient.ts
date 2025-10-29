@@ -102,18 +102,24 @@ export function createHttpClient(cfg: HttpClientConfig) {
 			...(options?.headers || {})
 		};
 
-		let { accessToken, expiresAt } = await cfg.getToken();
+	let { accessToken, expiresAt, provider } = await cfg.getToken();
 
-		const nowSec = Date.now() / 1000;
-		if (expiresAt && nowSec > expiresAt) {
-			await ensureFreshToken();
-			const tokens = await cfg.getToken();
-			accessToken = tokens.accessToken;
-		}
+	const nowSec = Date.now() / 1000;
+	if (expiresAt && nowSec > expiresAt) {
+		await ensureFreshToken();
+		const tokens = await cfg.getToken();
+		accessToken = tokens.accessToken;
+		provider = tokens.provider;
+	}
 
-		if (accessToken) {
+	if (accessToken) {
+		// Use X-API-Key header for API tokens, Authorization for JWT/OAuth
+		if (provider === 'API') {
+			headers['X-API-Key'] = accessToken;
+		} else {
 			headers['Authorization'] = `Bearer ${accessToken}`;
 		}
+	}
 
 		const finalPath = options?.params ? path + buildQueryString(options.params) : path;
 
