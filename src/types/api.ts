@@ -181,7 +181,7 @@ export interface GetRoleParams {
 }
 
 export interface GetRolesParams {
-    action?: string;
+    action: string;
 }
 
 
