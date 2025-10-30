@@ -61,7 +61,7 @@ export const createUserApi = (apiConfig: ApiConfig) => {
             });
         },
 
-        async setUserRole(params: SetRoleParams, options?: RequestOptions) {
+        async setRole(params: SetRoleParams, options?: RequestOptions) {
             return apiConfig.httpClient.put('/v1/users/set-role', params, options);
         },
 
