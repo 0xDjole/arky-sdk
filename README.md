@@ -303,22 +303,6 @@ import type {
 } from 'arky-sdk'
 ```
 
-## Migration from Newsletter Module
-
-Newsletters are now CMS Collections with `type: 'NEWSLETTER'`:
-
-```typescript
-// Old (deprecated)
-await sdk.newsletter.subscribe({ newsletterId, email })
-
-// New
-await sdk.cms.subscribeToCollection({
-  collectionId: newsletterId,
-  email,
-  planId: 'plan_free', // Required
-})
-```
-
 ## License
 
 MIT
