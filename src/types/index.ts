@@ -204,23 +204,6 @@ export interface PaginatedResponse<T> {
 	};
 }
 
-// Newsletter types
-export interface Newsletter {
-	id: string;
-	businessId: string;
-	name: string;
-	description: string;
-	newsletterType: "FREE" | "PAID";
-	statuses: any[];
-	prices: Price[]; // NEW: Market-based pricing
-	paymentProduct?: {
-		priceId: string;
-	};
-	unsubscribeRedirectUrl: string;
-	createdAt: number;
-	updatedAt: number;
-}
-
 // Legacy types - kept for compatibility
 export interface MarketConfigClient {
 	currency: string;

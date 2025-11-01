@@ -191,5 +191,46 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
         options
       );
     },
+
+    // ===== COLLECTION SUBSCRIPTIONS =====
+
+    async getCollectionSubscribers(
+      params: { id: string },
+      options?: RequestOptions
+    ) {
+      return apiConfig.httpClient.get(
+        `/v1/businesses/${apiConfig.businessId}/collections/${params.id}/subscribers`,
+        options
+      );
+    },
+
+    async subscribeToCollection(
+      params: {
+        collectionId: string;
+        email: string;
+      },
+      options?: RequestOptions
+    ) {
+      const payload = {
+        email: params.email,
+        market: apiConfig.market,
+      };
+
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${apiConfig.businessId}/collections/${params.collectionId}/subscribe`,
+        payload,
+        options
+      );
+    },
+
+    async unsubscribeFromCollection(
+      params: { token: string },
+      options?: RequestOptions
+    ) {
+      return apiConfig.httpClient.get(`/v1/businesses/${apiConfig.businessId}/collections/unsubscribe`, {
+        ...options,
+        params,
+      });
+    },
   };
 };

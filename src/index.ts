@@ -43,7 +43,6 @@ import { createAnalyticsApi } from "./api/analytics";
 import { createCmsApi } from "./api/cms";
 import { createEshopApi } from "./api/eshop";
 import { createReservationApi } from "./api/reservation";
-import { createNewsletterApi } from "./api/newsletter";
 import { createPaymentApi } from "./api/payment";
 import { 
   getImageUrl, 
@@ -105,7 +104,6 @@ export function createArkySDK(config: HttpClientConfig & { market: string }) {
     cms: createCmsApi(apiConfig),
     eshop: createEshopApi(apiConfig),
     reservation: createReservationApi(apiConfig),
-    newsletter: createNewsletterApi(apiConfig),
     payment: createPaymentApi(apiConfig),
 
     setBusinessId: (businessId: string) => {

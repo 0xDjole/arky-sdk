@@ -69,22 +69,6 @@ export interface GetBusinessMediaParams {
     limit?: number;
 }
 
-export interface NewsletterSubscribeParams {
-    newsletterId: string;
-    email: string;
-    customerId?: string;
-    payment?: any;
-}
-
-export interface NewsletterFindParams {
-    // No params needed - uses apiConfig.businessId
-}
-
-export interface NewsletterGetParams {
-    id: string;
-}
-
-
 export interface LoginUserParams {
     email?: string;
     password?: string;
@@ -467,39 +451,6 @@ export interface UpdateOrderParams {
 
 export interface CreateOrderParams {
     [key: string]: any;
-}
-
-// Additional Newsletter API Types
-export interface CreateNewsletterParams {
-    name: string;
-    description: string;
-    newsletterType: 'FREE' | 'PAID';
-    prices?: any[];
-    unsubscribeRedirectUrl: string;
-    [key: string]: any;
-}
-
-export interface UpdateNewsletterParams {
-    id: string;
-    name?: string;
-    description?: string;
-    newsletterType?: 'FREE' | 'PAID';
-    status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
-    prices?: any[];
-    unsubscribeRedirectUrl?: string;
-    [key: string]: any;
-}
-
-export interface DeleteNewsletterParams {
-    id: string;
-}
-
-export interface GetSubscribersParams {
-    id: string;
-}
-
-export interface UnsubscribeParams {
-    token: string;
 }
 
 // Additional Reservation API Types
