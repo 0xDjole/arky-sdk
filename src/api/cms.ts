@@ -13,6 +13,9 @@ import type {
   GenerateBlocksParams,
   GetVariableMetadataParams,
   SendEntryParams,
+  GetCollectionSubscribersParams,
+  SubscribeToCollectionParams,
+  UnsubscribeFromCollectionParams,
   RequestOptions,
 } from "../types/api";
 
@@ -195,7 +198,7 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
     // ===== COLLECTION SUBSCRIPTIONS =====
 
     async getCollectionSubscribers(
-      params: { id: string },
+      params: GetCollectionSubscribersParams,
       options?: RequestOptions
     ) {
       return apiConfig.httpClient.get(
@@ -205,11 +208,7 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
     },
 
     async subscribeToCollection(
-      params: {
-        collectionId: string;
-        email: string;
-        planId: string;
-      },
+      params: SubscribeToCollectionParams,
       options?: RequestOptions
     ) {
       return apiConfig.httpClient.post(
@@ -224,7 +223,7 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
     },
 
     async unsubscribeFromCollection(
-      params: { token: string },
+      params: UnsubscribeFromCollectionParams,
       options?: RequestOptions
     ) {
       return apiConfig.httpClient.get(`/v1/businesses/${apiConfig.businessId}/collections/unsubscribe`, {

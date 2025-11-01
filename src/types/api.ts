@@ -387,6 +387,20 @@ export interface SendEntryParams {
     scheduledAt?: number;
 }
 
+export interface GetCollectionSubscribersParams {
+    id: string;
+}
+
+export interface SubscribeToCollectionParams {
+    collectionId: string;
+    email: string;
+    planId: string;
+}
+
+export interface UnsubscribeFromCollectionParams {
+    token: string;
+}
+
 // Additional E-shop API Types
 export interface CreateProductParams {
     name: string;
