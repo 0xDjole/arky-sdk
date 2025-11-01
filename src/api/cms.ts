@@ -208,6 +208,7 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       params: {
         collectionId: string;
         email: string;
+        planId: string;
       },
       options?: RequestOptions
     ) {
@@ -216,6 +217,7 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
         {
           email: params.email,
           market: apiConfig.market,
+          planId: params.planId,
         },
         options
       );
