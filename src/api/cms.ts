@@ -211,14 +211,12 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       },
       options?: RequestOptions
     ) {
-      const payload = {
-        email: params.email,
-        market: apiConfig.market,
-      };
-
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/collections/${params.collectionId}/subscribe`,
-        payload,
+        {
+          email: params.email,
+          market: apiConfig.market,
+        },
         options
       );
     },
