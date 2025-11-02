@@ -9,7 +9,6 @@ import type {
 	TriggerBuildsParams,
 	GetSubscriptionParams,
 	GetSubscriptionPlansParams,
-	CreateSubscriptionParams,
 	UpdateSubscriptionParams,
 	CancelSubscriptionParams,
 	ReactivateSubscriptionParams,
@@ -59,14 +58,6 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
         async getSubscription(params: GetSubscriptionParams, options?: RequestOptions) {
             return apiConfig.httpClient.get(`/v1/businesses/${apiConfig.businessId}/subscription`, options);
         },
-        async createSubscription(params: CreateSubscriptionParams, options?: RequestOptions) {
-            return apiConfig.httpClient.post(
-                `/v1/businesses/${apiConfig.businessId}/subscription`,
-                params,
-                options
-            );
-        },
-
         async updateSubscription(params: UpdateSubscriptionParams, options?: RequestOptions) {
             return apiConfig.httpClient.put(
                 `/v1/businesses/${apiConfig.businessId}/subscription`,
