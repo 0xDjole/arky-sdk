@@ -84,11 +84,11 @@ export interface RegisterUserParams {
   password: string;
 }
 
-export interface UpdateProfilePhoneParams {
+export interface AddPhoneNumberParams {
   phoneNumber: string;
 }
 
-export interface VerifyPhoneCodeParams {
+export interface PhoneNumberConfirmParams {
   phoneNumber: string;
   code: string;
 }
@@ -553,11 +553,10 @@ export interface SearchReservationsParams {
 
 // Additional User API Types
 export interface UpdateUserProfileParams {
-  name: string;
+  name?: string;
   phoneNumbers?: string[];
-  phoneNumber?: string | null;
   addresses?: any[];
-  apiTokens?: any | null;
+  apiTokens?: any[] | null;
 }
 
 export interface SetRoleParams {

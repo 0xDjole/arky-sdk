@@ -3,8 +3,8 @@ import type {
     UpdateUserProfileParams,
     LoginUserParams,
     RegisterUserParams,
-    UpdateProfilePhoneParams,
-    VerifyPhoneCodeParams,
+    AddPhoneNumberParams,
+    PhoneNumberConfirmParams,
     SearchUsersParams,
     SetRoleParams,
     ConfirmUserParams,
@@ -22,29 +22,22 @@ export const createUserApi = (apiConfig: ApiConfig) => {
         // ===== USER PROFILE =====
 
         async updateUser(params: UpdateUserProfileParams, options?: RequestOptions) {
-            const payload = {
-                name: params.name,
-                phoneNumbers: params.phoneNumbers || [],
-                phoneNumber: params.phoneNumber || null,
-                addresses: params.addresses || [],
-                ...(params.apiTokens !== undefined && { apiTokens: params.apiTokens })
-            };
+            const payload: any = {};
 
-            return apiConfig.httpClient.put('/v1/users/update', payload, options);
+            if (params.name !== undefined) payload.name = params.name;
+            if (params.phoneNumbers !== undefined) payload.phoneNumbers = params.phoneNumbers;
+            if (params.addresses !== undefined) payload.addresses = params.addresses;
+            if (params.apiTokens !== undefined) payload.apiTokens = params.apiTokens;
+
+            return apiConfig.httpClient.put('/v1/users', payload, options);
         },
 
-        async updateProfilePhone(params: UpdateProfilePhoneParams, options?: RequestOptions) {
-            const payload = {
-                phoneNumbers: [],
-                phoneNumber: params.phoneNumber,
-                addresses: []
-            };
-
-            return apiConfig.httpClient.put('/v1/users/update', payload, options);
+        async addPhoneNumber(params: AddPhoneNumberParams, options?: RequestOptions) {
+            return apiConfig.httpClient.post('/v1/users/phone-number', params, options);
         },
 
-        async verifyPhoneCode(params: VerifyPhoneCodeParams, options?: RequestOptions) {
-            return apiConfig.httpClient.put('/v1/users/confirm/phone-number', params, options);
+        async phoneNumberConfirm(params: PhoneNumberConfirmParams, options?: RequestOptions) {
+            return apiConfig.httpClient.post('/v1/users/phone-number/confirm', params, options);
         },
 
         async getMe(params: GetMeParams, options?: RequestOptions) {
