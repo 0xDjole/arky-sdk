@@ -125,8 +125,8 @@ export interface GetAvailableSlotsParams {
 export interface GetAnalyticsParams {
   metrics?: string[];
   period?: string;
-  start_date?: string;
-  end_date?: string;
+  startDate?: string;
+  endDate?: string;
   interval?: string;
 }
 
@@ -135,10 +135,11 @@ export interface GetAnalyticsHealthParams {
 }
 
 // Notification API Types
-export interface GetNotificationsParams {
-  previous_id?: string;
-  limit: number;
+export interface TrackEmailOpenParams {
+  trackingPixelId: string;
 }
+
+export interface GetDeliveryStatsParams {}
 
 // Role API Types
 export interface CreateRoleParams {
@@ -169,41 +170,30 @@ export interface GetRolesParams {
 }
 
 // Promo Code API Types
+export interface Discount {
+  type: 'ITEMS_PERCENTAGE' | 'ITEMS_FIXED' | 'SHIPPING_PERCENTAGE';
+  marketId: string;
+  bps?: number;
+  amount?: number;
+}
+
+export interface Condition {
+  type: 'PRODUCTS' | 'SERVICES' | 'MIN_ORDER_AMOUNT' | 'DATE_RANGE' | 'MAX_USES' | 'MAX_USES_PER_USER';
+  value: string[] | number | { start?: number; end?: number };
+}
+
 export interface CreatePromoCodeParams {
-  code?: string;
-  name?: string;
-  description?: string;
-  discountType?: string;
-  discountValue?: number;
-  minOrderValue?: number;
-  maxDiscountAmount?: number;
-  usageLimit?: number;
-  usagePerUser?: number;
-  startsAt?: string;
-  expiresAt?: string;
-  applicableProducts?: string[];
-  applicableCategories?: string[];
-  status?: string;
-  [key: string]: any;
+  code: string;
+  discounts: Discount[];
+  conditions: Condition[];
 }
 
 export interface UpdatePromoCodeParams {
   id: string;
-  code?: string;
-  name?: string;
-  description?: string;
-  discountType?: string;
-  discountValue?: number;
-  minOrderValue?: number;
-  maxDiscountAmount?: number;
-  usageLimit?: number;
-  usagePerUser?: number;
-  startsAt?: string;
-  expiresAt?: string;
-  applicableProducts?: string[];
-  applicableCategories?: string[];
-  status?: string;
-  [key: string]: any;
+  code: string;
+  discounts: Discount[];
+  conditions: Condition[];
+  statuses?: any[];
 }
 
 export interface DeletePromoCodeParams {
