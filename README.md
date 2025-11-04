@@ -59,47 +59,26 @@ const arky = createArkySDK({
 })
 ```
 
-### 2. Fetch Your First Data
+### 2. Browse Products
 
 ```typescript
-// Get CMS content
-const { items: posts } = await arky.cms.getCollectionEntries({
-  collectionId: 'blog',
-  limit: 10
-});
-
-// Get products
+// List products (like on arky.io/products)
 const { items: products } = await arky.eshop.getProducts({
   limit: 20
 });
 
-// Get available booking slots
-const slots = await arky.reservation.getAvailableSlots({
-  serviceId: 'haircut',
-  from: Date.now(),
-  to: Date.now() + 86400000 // +24h
-});
+// Get product details (like arky.io/products/guitar)
+const product = await arky.eshop.getProduct({ id: 'prod_123' });
+
+// Get price for user's market
+const price = arky.utils.getMarketPrice(product.variants[0].prices, 'US');
+console.log(`${arky.utils.formatMinor(price.amount, price.currency)}`); // "$29.99"
 ```
 
-### 3. Complete User Flow Example
+### 3. Shop & Checkout
 
 ```typescript
-// Register a user
-await arky.user.registerUser({
-  email: 'user@example.com',
-  password: 'SecurePass123',
-  name: 'John Doe'
-});
-
-// Login
-const auth = await arky.user.loginUser({
-  email: 'user@example.com',
-  password: 'SecurePass123',
-  provider: 'EMAIL'
-});
-// Tokens auto-stored via setToken
-
-// Checkout products
+// Add to cart and checkout (like arky.io/cart)
 const order = await arky.eshop.checkout({
   items: [{
     productId: 'prod_123',
@@ -107,18 +86,70 @@ const order = await arky.eshop.checkout({
     quantity: 2
   }],
   paymentMethod: 'CREDIT_CARD',
-  shippingMethodId: 'standard'
+  shippingMethodId: 'standard',
+  blocks: [  // Customer info
+    { key: 'email', values: ['customer@example.com'] },
+    { key: 'shipping_address', values: ['123 Main St'] }
+  ]
+});
+```
+
+### 4. Book Services
+
+```typescript
+// Browse services (like arky.io/services)
+const { items: services } = await arky.reservation.getServices({});
+
+// Check available time slots
+const slots = await arky.reservation.getAvailableSlots({
+  serviceId: 'service_haircut',
+  from: Date.now(),
+  to: Date.now() + 86400000  // Next 24 hours
 });
 
-// Book a service
+// Book a reservation
 const reservation = await arky.reservation.checkout({
   parts: [{
-    serviceId: 'haircut',
-    startTime: 1706803200,
-    providerId: 'provider_123'
+    serviceId: 'service_haircut',
+    startTime: slots[0].startTime,
+    providerId: 'provider_jane'
   }],
-  paymentMethod: 'CREDIT_CARD'
+  paymentMethod: 'CREDIT_CARD',
+  blocks: [  // Customer contact info
+    { key: 'name', values: ['John Doe'] },
+    { key: 'phone', values: ['+1234567890'] }
+  ]
 });
+```
+
+### 5. Subscribe to Newsletter
+
+```typescript
+// Subscribe to updates (like arky.io/newsletters)
+await arky.cms.subscribeToCollection({
+  collectionId: 'newsletter_weekly',
+  email: 'user@example.com',
+  planId: 'plan_free'
+});
+```
+
+### 6. Read Content
+
+```typescript
+// Fetch blog posts or content
+const { items: posts } = await arky.cms.getCollectionEntries({
+  collectionId: 'blog',
+  limit: 10
+});
+
+// Extract content from blocks
+const title = arky.utils.getBlockTextValue(
+  posts[0].blocks.find(b => b.key === 'title'),
+  'en'
+);
+const imageUrl = arky.utils.getImageUrl(
+  posts[0].blocks.find(b => b.key === 'featured_image')
+);
 ```
 
 ## API Methods
