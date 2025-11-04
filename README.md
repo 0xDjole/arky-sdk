@@ -33,13 +33,14 @@ npm install arky-sdk
 
 ## Quick Start
 
+### 1. Install & Initialize
+
 ```typescript
 import { createArkySDK } from 'arky-sdk'
 
 const arky = createArkySDK({
   baseUrl: 'https://api.arky.io',
   businessId: 'your-business-id',
-  storageUrl: 'https://storage.arky.io',
   market: 'us',
   getToken: () => ({
     accessToken: localStorage.getItem('accessToken') || '',
@@ -55,12 +56,69 @@ const arky = createArkySDK({
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
   },
-  isAuthenticated: () => !!localStorage.getItem('accessToken'),
 })
+```
 
-// Now use the SDK
-const collections = await arky.cms.getCollections({});
-const products = await arky.eshop.getProducts({});
+### 2. Fetch Your First Data
+
+```typescript
+// Get CMS content
+const { items: posts } = await arky.cms.getCollectionEntries({
+  collectionId: 'blog',
+  limit: 10
+});
+
+// Get products
+const { items: products } = await arky.eshop.getProducts({
+  limit: 20
+});
+
+// Get available booking slots
+const slots = await arky.reservation.getAvailableSlots({
+  serviceId: 'haircut',
+  from: Date.now(),
+  to: Date.now() + 86400000 // +24h
+});
+```
+
+### 3. Complete User Flow Example
+
+```typescript
+// Register a user
+await arky.user.registerUser({
+  email: 'user@example.com',
+  password: 'SecurePass123',
+  name: 'John Doe'
+});
+
+// Login
+const auth = await arky.user.loginUser({
+  email: 'user@example.com',
+  password: 'SecurePass123',
+  provider: 'EMAIL'
+});
+// Tokens auto-stored via setToken
+
+// Checkout products
+const order = await arky.eshop.checkout({
+  items: [{
+    productId: 'prod_123',
+    variantId: 'var_456',
+    quantity: 2
+  }],
+  paymentMethod: 'CREDIT_CARD',
+  shippingMethodId: 'standard'
+});
+
+// Book a service
+const reservation = await arky.reservation.checkout({
+  parts: [{
+    serviceId: 'haircut',
+    startTime: 1706803200,
+    providerId: 'provider_123'
+  }],
+  paymentMethod: 'CREDIT_CARD'
+});
 ```
 
 ## API Methods
