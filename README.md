@@ -1,6 +1,29 @@
 # arky-sdk
 
-Official TypeScript SDK for Arky - All-in-one business platform
+Official TypeScript SDK for [Arky](https://arky.io) — Build online businesses with headless CMS, e-commerce, and booking systems.
+
+## What is Arky?
+
+Arky is an **all-in-one platform** that gives you everything you need to run an online business:
+
+- 📝 **Headless CMS** - Manage content with flexible blocks, multilingual support, and AI-powered content generation
+- 🛒 **E-commerce** - Sell products with multi-currency pricing, inventory, orders, and Stripe payments
+- 📅 **Booking System** - Manage services, providers, and reservations with availability calendars
+- 📧 **Newsletters** - Send newsletters to subscribers with built-in email delivery
+- 👥 **User Management** - Authentication, roles, permissions, and user profiles
+- 📊 **Analytics** - Track business metrics and performance
+- 💳 **Payments** - Integrated Stripe checkout and promo codes
+
+**Build any online business:** SaaS products, e-commerce stores, booking platforms, content sites, newsletters, or multi-tenant marketplaces.
+
+## Why Use This SDK?
+
+Instead of manually calling REST APIs, use this TypeScript SDK to:
+
+✅ **Type-safe** - Full TypeScript support with IntelliSense  
+✅ **Auto-authentication** - Handles tokens, refresh, and guest sessions automatically  
+✅ **Utility helpers** - Extract block values, format prices, slugify text, validate phones  
+✅ **Framework-agnostic** - Works in React, Vue, Svelte, Node.js, or any JS environment  
 
 ## Installation
 
@@ -245,25 +268,14 @@ const svg = await arky.utils.getSvgContentForAstro(mediaBlock)
 await arky.utils.injectSvgIntoElement(mediaBlock, element, 'custom-class')
 ```
 
-## Features
+## What Can You Build?
 
-- 🚀 **TypeScript-first** - Full type safety and IntelliSense
-- 📦 **Tree-shakeable** - Import only what you need
-- ⚡ **Lightweight** - Minimal bundle size (~120KB)
-- 🔄 **Auto-refresh** - Automatic token refresh
-- 🎯 **Framework-agnostic** - Works with any JavaScript framework
-
-## Modules
-
-- **CMS** - Headless content management, newsletters, AI blocks
-- **E-shop** - E-commerce, products, orders, checkout
-- **Reservations** - Booking system, services, providers
-- **Business** - Multi-tenant business management
-- **User** - Authentication, profiles, roles
-- **Media** - File upload, image management
-- **Notifications** - Push, email, SMS
-- **Analytics** - Business metrics and insights
-- **Payment** - Stripe integration, quotes
+- 🏪 **E-commerce stores** - Product catalogs, shopping carts, checkout
+- 📰 **Content websites** - Blogs, documentation, marketing sites
+- 📅 **Booking platforms** - Appointment scheduling, service bookings
+- 📬 **Newsletter platforms** - Subscriber management, email campaigns
+- 🏢 **SaaS products** - Multi-tenant apps with user auth and billing
+- 🛍️ **Marketplaces** - Multi-vendor platforms with payments
 
 ## Configuration Options
 
