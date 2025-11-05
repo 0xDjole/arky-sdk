@@ -1,7 +1,27 @@
-export interface RequestOptions {
-  successMessage?: string;
-  errorMessage?: string;
+export interface RequestOptions<T = any> {
   headers?: Record<string, string>;
+  params?: Record<string, any>;
+  transformRequest?: (data: any) => any;
+  onSuccess?: (ctx: {
+    data: T;
+    method: string;
+    url: string;
+    status: number;
+    request?: any;
+    durationMs?: number;
+    requestId?: string | null;
+  }) => void | Promise<void>;
+  onError?: (ctx: {
+    error: any;
+    method: string;
+    url: string;
+    status?: number;
+    request?: any;
+    response?: any;
+    durationMs?: number;
+    requestId?: string | null;
+    aborted?: boolean;
+  }) => void | Promise<void>;
 }
 
 export interface EshopItem {

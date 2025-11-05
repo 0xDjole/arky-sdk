@@ -10,7 +10,7 @@ export type {
   Price,
 } from "./types";
 
-export const SDK_VERSION = "0.3.25";
+export const SDK_VERSION = "0.3.28";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",

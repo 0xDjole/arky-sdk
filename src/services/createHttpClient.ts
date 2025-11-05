@@ -1,7 +1,6 @@
 import {
 	convertServerErrorToRequestError,
-	type ServerError,
-	type RequestError
+	type ServerError
 } from '../utils/errors';
 import { buildQueryString, type QueryParams } from '../utils/queryParams';
 
@@ -32,10 +31,30 @@ export interface HttpClientConfig {
 
 	loginFallbackPath?: string;
 
-	notify?: (opts: { message: string; type: 'error' | 'success' }) => void;
-
 	isAuthenticated?: () => boolean;
 }
+
+type SuccessCallback<T = any> = (ctx: {
+	data: T;
+	method: string;
+	url: string;
+	status: number;
+	request?: any;
+	durationMs?: number;
+	requestId?: string | null;
+}) => void | Promise<void>;
+
+type ErrorCallback = (ctx: {
+	error: any;
+	method: string;
+	url: string;
+	status?: number;
+	request?: any;
+	response?: any;
+	durationMs?: number;
+	requestId?: string | null;
+	aborted?: boolean;
+}) => void | Promise<void>;
 
 export function createHttpClient(cfg: HttpClientConfig) {
 	const refreshEndpoint = `${cfg.baseUrl}/v1/users/refresh-access-token`;
@@ -84,8 +103,8 @@ export function createHttpClient(cfg: HttpClientConfig) {
 		path: string,
 		body?: any,
 		options?: {
-			successMessage?: string;
-			errorMessage?: string;
+			onSuccess?: SuccessCallback<T>;
+			onError?: ErrorCallback;
 			headers?: Record<string, string>;
 			transformRequest?: (data: any) => any;
 			params?: QueryParams;
@@ -131,6 +150,7 @@ export function createHttpClient(cfg: HttpClientConfig) {
 		const fullUrl = `${cfg.baseUrl}${finalPath}`;
 		let res: Response;
 		let data: any;
+		const startedAt = Date.now();
 
 		try {
 			res = await fetch(fullUrl, fetchOpts);
@@ -139,6 +159,11 @@ export function createHttpClient(cfg: HttpClientConfig) {
 			err.name = 'NetworkError';
 			err.method = method;
 			err.url = fullUrl;
+if (options?.onError && method !== 'GET') {
+				Promise.resolve(
+					options.onError({ error: err, method, url: fullUrl, aborted: false })
+				).catch(() => {});
+			}
 			throw err;
 		}
 
@@ -170,15 +195,17 @@ export function createHttpClient(cfg: HttpClientConfig) {
 			err.method = method;
 			err.url = fullUrl;
 			err.status = res.status;
+if (options?.onError && method !== 'GET') {
+				Promise.resolve(
+					options.onError({ error: err, method, url: fullUrl, status: res.status })
+				).catch(() => {});
+			}
 			throw err;
 		}
 
 		if (!res.ok) {
 			const serverErr: ServerError = data;
 			const reqErr = convertServerErrorToRequestError(serverErr);
-			if (options?.errorMessage && cfg.notify) {
-				cfg.notify({ message: options.errorMessage, type: 'error' });
-			}
 			const err: any = new Error(serverErr.message || 'Request failed');
 			err.name = 'ApiError';
 			err.statusCode = serverErr.statusCode || res.status;
@@ -187,11 +214,34 @@ export function createHttpClient(cfg: HttpClientConfig) {
 			err.url = fullUrl;
 			const requestId = res.headers.get('x-request-id') || res.headers.get('request-id');
 			if (requestId) err.requestId = requestId;
+if (options?.onError && method !== 'GET') {
+				Promise.resolve(
+					options.onError({
+						error: err,
+						method,
+						url: fullUrl,
+						status: res.status,
+						response: serverErr,
+						requestId: requestId || null,
+						durationMs: Date.now() - startedAt
+					})
+				).catch(() => {});
+			}
 			throw err;
 		}
 
-		if (options?.successMessage && cfg.notify) {
-			cfg.notify({ message: options.successMessage, type: 'success' });
+if (options?.onSuccess && method !== 'GET') {
+			const requestId = res.headers.get('x-request-id') || res.headers.get('request-id');
+			Promise.resolve(
+				options.onSuccess({
+					data: data as T,
+					method,
+					url: fullUrl,
+					status: res.status,
+					requestId: requestId || null,
+					durationMs: Date.now() - startedAt
+				})
+			).catch(() => {});
 		}
 		return data as T;
 	}
