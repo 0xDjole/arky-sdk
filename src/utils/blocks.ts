@@ -266,19 +266,6 @@ export const getImageUrl = (imageBlock: any, isBlock = true, storageUrl: string 
     return null;
 };
 
-export function getGalleryThumbnail(gallery: any) {
-    if (!gallery?.length) return null;
-    const item = gallery.find((g: any) => g.settings.isThumbnail) || gallery[0];
-    const res = item.media.resolutions.thumbnail || item.media.resolutions.original;
-    return res?.url || null;
-}
-
-// full URL or null
-export function thumbnailUrl(service: any, storageUrl: string = "") {
-    const path = getGalleryThumbnail(service.gallery);
-    return path ? `${storageUrl}/${path}` : null;
-}
-
 export const translateMap = (labels: any, lang: string, fallback = "unknown") => {
     let parsedLang = "en";
 

@@ -44,10 +44,8 @@ import { createCmsApi } from "./api/cms";
 import { createEshopApi } from "./api/eshop";
 import { createReservationApi } from "./api/reservation";
 import { createPaymentApi } from "./api/payment";
-import { 
-  getImageUrl, 
-  thumbnailUrl, 
-  getGalleryThumbnail,
+import {
+  getImageUrl,
   getBlockValue,
   getBlockValues,
   getBlockLabel,
@@ -126,8 +124,6 @@ export function createArkySDK(config: HttpClientConfig & { market: string }) {
       // Block utilities
       getImageUrl: (imageBlock: any, isBlock = true) =>
         getImageUrl(imageBlock, isBlock, storageUrl),
-      thumbnailUrl: (service: any) => thumbnailUrl(service, storageUrl),
-      getGalleryThumbnail,
       getBlockValue,
       getBlockValues,
       getBlockLabel,
