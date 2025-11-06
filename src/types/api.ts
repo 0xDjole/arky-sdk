@@ -403,6 +403,8 @@ export interface CreateProductParams {
   name: string;
   description?: string;
   categoryIds?: string[];
+  categoryFilterBlocks?: any[];
+  blocks?: any[];
   variants?: any[];
   status?: string;
   [key: string]: any;
@@ -413,6 +415,8 @@ export interface UpdateProductParams {
   name?: string;
   description?: string;
   categoryIds?: string[];
+  categoryFilterBlocks?: any[];
+  blocks?: any[];
   variants?: any[];
   status?: string;
   [key: string]: any;
@@ -478,12 +482,22 @@ export interface UpdateReservationParams {
 
 export interface CreateProviderParams {
   name: string;
+  blocks?: any[];
+  categoryIds?: string[];
+  categoryFilterBlocks?: any[];
+  concurrentLimit?: number;
+  statuses?: any[];
   [key: string]: any;
 }
 
 export interface UpdateProviderParams {
   id: string;
   name?: string;
+  blocks?: any[];
+  categoryIds?: string[];
+  categoryFilterBlocks?: any[];
+  concurrentLimit?: number;
+  statuses?: any[];
   [key: string]: any;
 }
 
@@ -493,12 +507,30 @@ export interface DeleteProviderParams {
 
 export interface CreateServiceParams {
   name: string;
+  blocks?: any[];
+  reservationBlocks?: any[];
+  categoryIds?: string[];
+  categoryFilterBlocks?: any[];
+  prices?: any[];
+  durations?: any[];
+  reservationMethods?: any[];
+  reservationConfigs?: any;
+  statuses?: any[];
   [key: string]: any;
 }
 
 export interface UpdateServiceParams {
   id: string;
   name?: string;
+  blocks?: any[];
+  reservationBlocks?: any[];
+  categoryIds?: string[];
+  categoryFilterBlocks?: any[];
+  prices?: any[];
+  durations?: any[];
+  reservationMethods?: any[];
+  reservationConfigs?: any;
+  statuses?: any[];
   [key: string]: any;
 }
 
