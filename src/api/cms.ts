@@ -19,6 +19,7 @@ import type {
   RequestOptions,
 } from "../types/api";
 import { formatIdOrSlug } from "../utils/slug";
+import { getBlockFromArray, getBlockObjectValues, getImageUrl } from "../utils/blocks";
 
 export const createCmsApi = (apiConfig: ApiConfig) => {
   return {
@@ -58,10 +59,25 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
 
     async getCollection(params: GetCollectionParams, options?: RequestOptions) {
       const formattedId = formatIdOrSlug(params.id, apiConfig);
-      return apiConfig.httpClient.get(
+      const response = await apiConfig.httpClient.get(
         `/v1/businesses/${apiConfig.businessId}/collections/${formattedId}`,
         options,
       );
+
+      // Add helper methods that automatically use SDK's current locale
+      return {
+        ...response,
+        getBlock(key: string) {
+          return getBlockFromArray(response, key, apiConfig.locale);
+        },
+        getBlockValues(key: string) {
+          return getBlockObjectValues(response, key, apiConfig.locale);
+        },
+        getImage(key: string) {
+          const block = getBlockFromArray(response, key, apiConfig.locale);
+          return getImageUrl(block, true, apiConfig.storageUrl);
+        }
+      };
     },
 
     async getCollections(

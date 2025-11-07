@@ -168,10 +168,23 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
 
     async getService(params: GetServiceParams, options?: RequestOptions) {
       const formattedId = formatIdOrSlug(params.id, apiConfig);
-      return apiConfig.httpClient.get(
+      const response = await apiConfig.httpClient.get(
         `/v1/businesses/${apiConfig.businessId}/services/${formattedId}`,
         options,
       );
+
+      // Add helper methods that automatically use SDK's current locale
+      return {
+        ...response,
+        getName() {
+          const locale = apiConfig.locale;
+          return response.name?.[locale] || response.name?.en || response.name || '';
+        },
+        getDescription() {
+          const locale = apiConfig.locale;
+          return response.description?.[locale] || response.description?.en || response.description || '';
+        }
+      };
     },
 
     async getServices(params: GetServicesParams, options?: RequestOptions) {
