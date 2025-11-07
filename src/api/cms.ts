@@ -18,6 +18,7 @@ import type {
   UnsubscribeFromCollectionParams,
   RequestOptions,
 } from "../types/api";
+import { formatIdOrSlug } from "../utils/slug";
 
 export const createCmsApi = (apiConfig: ApiConfig) => {
   return {
@@ -25,64 +26,65 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
 
     async createCollection(
       params: CreateCollectionParams,
-      options?: RequestOptions
+      options?: RequestOptions,
     ) {
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/collections`,
         params,
-        options
+        options,
       );
     },
 
     async updateCollection(
       params: UpdateCollectionParams,
-      options?: RequestOptions
+      options?: RequestOptions,
     ) {
       return apiConfig.httpClient.put(
         `/v1/businesses/${apiConfig.businessId}/collections/${params.id}`,
         params,
-        options
+        options,
       );
     },
 
     async deleteCollection(
       params: DeleteCollectionParams,
-      options?: RequestOptions
+      options?: RequestOptions,
     ) {
       return apiConfig.httpClient.delete(
         `/v1/businesses/${apiConfig.businessId}/collections/${params.id}`,
-        options
+        options,
       );
     },
 
     async getCollection(params: GetCollectionParams, options?: RequestOptions) {
+      const formattedId = formatIdOrSlug(params.id, apiConfig);
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/collections/${params.id}`,
-        options
+        `/v1/businesses/${apiConfig.businessId}/collections/${formattedId}`,
+        options,
       );
     },
 
     async getCollections(
       params: GetCollectionsParams,
-      options?: RequestOptions
+      options?: RequestOptions,
     ) {
       return apiConfig.httpClient.get(
         `/v1/businesses/${apiConfig.businessId}/collections`,
         {
           ...options,
           params,
-        }
+        },
       );
     },
 
     async generateBlocks(
       params: GenerateBlocksParams,
-      options?: RequestOptions
+      options?: RequestOptions,
     ) {
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/collections/blocks/generate`,
         params,
-        options
+        options,
       );
     },
 
@@ -91,7 +93,7 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
 
     async getCollectionEntries(
       params: GetEntriesParams,
-      options?: RequestOptions
+      options?: RequestOptions,
     ) {
       const { collectionId, ...queryParams } = params;
 
@@ -105,13 +107,13 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
         {
           ...options,
           params: finalParams,
-        }
+        },
       );
     },
 
     async createCollectionEntry(
       params: CreateEntryParams,
-      options?: RequestOptions
+      options?: RequestOptions,
     ) {
       const { collectionId, owner, ...rest } = params;
 
@@ -125,13 +127,13 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/entries`,
         payload,
-        options
+        options,
       );
     },
 
     async updateCollectionEntry(
       params: UpdateEntryParams,
-      options?: RequestOptions
+      options?: RequestOptions,
     ) {
       const { id, collectionId, owner, ...rest } = params;
 
@@ -145,27 +147,28 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.put(
         `/v1/businesses/${apiConfig.businessId}/entries/${id}`,
         payload,
-        options
+        options,
       );
     },
 
     async deleteCollectionEntry(
       params: DeleteCollectionEntryParams,
-      options?: RequestOptions
+      options?: RequestOptions,
     ) {
       return apiConfig.httpClient.delete(
         `/v1/businesses/${apiConfig.businessId}/entries/${params.id}`,
-        options
+        options,
       );
     },
 
     async getCollectionEntry(
       params: GetCollectionEntryParams,
-      options?: RequestOptions
+      options?: RequestOptions,
     ) {
+      const formattedId = formatIdOrSlug(params.id, apiConfig);
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/entries/${params.id}`,
-        options
+        `/v1/businesses/${apiConfig.businessId}/entries/${formattedId}`,
+        options,
       );
     },
 
@@ -179,7 +182,7 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
           entryId,
           scheduledAt: scheduledAt ?? Math.floor(Date.now() / 1000),
         },
-        options
+        options,
       );
     },
 
@@ -187,11 +190,11 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
 
     async getVariableMetadata(
       params: GetVariableMetadataParams,
-      options?: RequestOptions
+      options?: RequestOptions,
     ) {
       return apiConfig.httpClient.get(
         `/v1/collections/entry-types/${params.entryType}/variables`,
-        options
+        options,
       );
     },
 
@@ -199,17 +202,18 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
 
     async getCollectionSubscribers(
       params: GetCollectionSubscribersParams,
-      options?: RequestOptions
+      options?: RequestOptions,
     ) {
+      const formattedId = formatIdOrSlug(params.id, apiConfig);
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/collections/${params.id}/subscribers`,
-        options
+        `/v1/businesses/${apiConfig.businessId}/collections/${formattedId}/subscribers`,
+        options,
       );
     },
 
     async subscribeToCollection(
       params: SubscribeToCollectionParams,
-      options?: RequestOptions
+      options?: RequestOptions,
     ) {
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/collections/${params.collectionId}/subscribe`,
@@ -218,18 +222,21 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
           market: apiConfig.market,
           planId: params.planId,
         },
-        options
+        options,
       );
     },
 
     async unsubscribeFromCollection(
       params: UnsubscribeFromCollectionParams,
-      options?: RequestOptions
+      options?: RequestOptions,
     ) {
-      return apiConfig.httpClient.get(`/v1/businesses/${apiConfig.businessId}/collections/unsubscribe`, {
-        ...options,
-        params,
-      });
+      return apiConfig.httpClient.get(
+        `/v1/businesses/${apiConfig.businessId}/collections/unsubscribe`,
+        {
+          ...options,
+          params,
+        },
+      );
     },
   };
 };

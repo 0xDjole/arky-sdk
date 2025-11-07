@@ -10,7 +10,7 @@ export type {
   Price,
 } from "./types";
 
-export const SDK_VERSION = "0.3.28";
+export const SDK_VERSION = "0.3.30";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -25,6 +25,7 @@ export interface ApiConfig {
   storageUrl: string;
   baseUrl: string;
   market: string;
+  locale: string;
   setToken: (tokens: any) => void;
   getToken: () => Promise<any> | any;
 }
@@ -67,11 +68,18 @@ import { getCurrencySymbol } from "./utils/currency";
 import { validatePhoneNumber } from "./utils/validation";
 import { tzGroups, findTimeZone } from "./utils/timezone";
 import { slugify, humanize, categorify, formatDate } from "./utils/text";
-import { getSvgContentForAstro, fetchSvgContent, injectSvgIntoElement } from "./utils/svg";
+import {
+  getSvgContentForAstro,
+  fetchSvgContent,
+  injectSvgIntoElement,
+} from "./utils/svg";
 
-export function createArkySDK(config: HttpClientConfig & { market: string }) {
+export function createArkySDK(
+  config: HttpClientConfig & { market: string; locale?: string },
+) {
+  const locale = config.locale || "en";
   console.log(
-    `[Arky SDK v${SDK_VERSION}] Initializing with market: ${config.market}, businessId: ${config.businessId}`
+    `[Arky SDK v${SDK_VERSION}] Initializing with market: ${config.market}, businessId: ${config.businessId}, locale: ${locale}`,
   );
 
   const httpClient = createHttpClient(config);
@@ -83,6 +91,7 @@ export function createArkySDK(config: HttpClientConfig & { market: string }) {
     storageUrl,
     baseUrl: config.baseUrl,
     market: config.market,
+    locale,
     setToken: config.setToken,
     getToken: config.getToken,
   };
@@ -115,6 +124,12 @@ export function createArkySDK(config: HttpClientConfig & { market: string }) {
     },
 
     getMarket: () => apiConfig.market,
+
+    setLocale: (locale: string) => {
+      apiConfig.locale = locale;
+    },
+
+    getLocale: () => apiConfig.locale,
 
     isAuthenticated: config.isAuthenticated || (() => false),
     logout: config.logout,
@@ -169,16 +184,16 @@ export function createArkySDK(config: HttpClientConfig & { market: string }) {
       try {
         const tokens = await config.getToken();
         if (!tokens.accessToken && !tokens.refreshToken) {
-          const result: any = await httpClient.post('/v1/users/login', {
-            provider: 'GUEST'
+          const result: any = await httpClient.post("/v1/users/login", {
+            provider: "GUEST",
           });
-          const token = result.accessToken || result.token || '';
+          const token = result.accessToken || result.token || "";
           if (token) {
             config.setToken(result);
           }
           console.log(
             "[SDK Init] Created guest token:",
-            token ? "Success" : "Failed"
+            token ? "Success" : "Failed",
           );
         } else {
           console.log("[SDK Init] Using existing token from storage");
