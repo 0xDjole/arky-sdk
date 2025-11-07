@@ -3,6 +3,7 @@ import type {
     UploadBusinessMediaParams,
     DeleteBusinessMediaParams,
     GetBusinessMediaParams,
+    UpdateMediaParams,
     RequestOptions
 } from '../types/api';
 
@@ -11,7 +12,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
         async uploadBusinessMedia(params: UploadBusinessMediaParams, options?: RequestOptions) {
             const _options = options;
             const { files = [], urls = [] } = params;
-            const url = `${apiConfig.baseUrl}/v1/businesses/${apiConfig.businessId}/upload`;
+            const url = `${apiConfig.baseUrl}/v1/businesses/${apiConfig.businessId}/media`;
 
             const formData = new FormData();
             files.forEach((file) => formData.append('files', file));
@@ -37,11 +38,8 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
             const { id, mediaId } = params;
 
             return apiConfig.httpClient.delete(
-                `/v1/businesses/${id}/upload`,
-                {
-                    ...options,
-                    params: { mediaId }
-                }
+                `/v1/businesses/${id}/media/${mediaId}`,
+                options
             );
         },
 
@@ -62,6 +60,16 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
             }
 
             return await response.json();
+        },
+
+        async updateMedia(params: UpdateMediaParams, options?: RequestOptions) {
+            const { mediaId, ...updateData } = params;
+            
+            return apiConfig.httpClient.put(
+                `/v1/businesses/${apiConfig.businessId}/media/${mediaId}`,
+                updateData,
+                options
+            );
         }
     };
 };

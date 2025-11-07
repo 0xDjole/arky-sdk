@@ -84,6 +84,14 @@ export interface DeleteBusinessMediaParams {
   mediaId: string;
 }
 
+export interface UpdateMediaParams {
+  mediaId: string;
+  seo?: any;
+  title?: string;
+  description?: string;
+  alt?: string;
+}
+
 export interface GetBusinessMediaParams {
   cursor?: string | null;
   limit?: number;

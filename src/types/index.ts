@@ -186,6 +186,35 @@ export interface Block {
 	value?: any;
 }
 
+// SEO types
+export interface Seo {
+	slug: Record<string, string>;
+	metaTitle: Record<string, string>;
+	metaDescription: Record<string, string>;
+	canonicalUrl: Record<string, string>;
+	ogImage: string;
+}
+
+// Media types
+export interface MediaResolution {
+	id: string;
+	size: string;
+	url: string;
+}
+
+export interface Media {
+	id: string;
+	resolutions: { [key: string]: MediaResolution };
+	mimeType: string;
+	title?: string | null;
+	description?: string | null;
+	alt?: string | null;
+	owner: string;
+	metadata?: string | null;
+	uploadedAt: string;
+	seo: Seo;
+}
+
 // API Response types
 export interface ApiResponse<T> {
     success: boolean;
