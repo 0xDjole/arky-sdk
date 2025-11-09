@@ -129,13 +129,13 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
         quantity: 1,
       }));
 
+      const { parts, ...rest } = params;
+
       const payload = {
         businessId: apiConfig.businessId,
         market: apiConfig.market,
-        currency: params.currency,
-        paymentMethod: params.paymentMethod,
         lines: lines,
-        ...(params.promoCode && { promoCode: params.promoCode }),
+        ...rest,
       };
 
       return apiConfig.httpClient.post(`/v1/payments/quote`, payload, options);

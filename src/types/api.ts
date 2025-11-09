@@ -140,6 +140,7 @@ export interface GetReservationQuoteParams {
   currency: string;
   paymentMethod: string;
   promoCode?: string;
+  location?: any;
 }
 
 export interface GetAvailableSlotsParams {
