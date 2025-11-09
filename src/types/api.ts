@@ -36,6 +36,7 @@ export interface GetQuoteParams {
   paymentMethod: string;
   shippingMethodId?: string;
   promoCode?: string;
+  location?: any;
 }
 
 export interface CheckoutParams {

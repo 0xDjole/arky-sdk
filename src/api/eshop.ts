@@ -144,16 +144,13 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         quantity: item.quantity,
       }));
 
+      const { items, ...rest } = params;
+
       const payload = {
         businessId: apiConfig.businessId,
         market: apiConfig.market,
-        currency: params.currency,
-        paymentMethod: params.paymentMethod,
         lines: lines,
-        ...(params.shippingMethodId && {
-          shippingMethodId: params.shippingMethodId,
-        }),
-        ...(params.promoCode && { promoCode: params.promoCode }),
+        ...rest,
       };
 
       return apiConfig.httpClient.post(`/v1/payments/quote`, payload, options);

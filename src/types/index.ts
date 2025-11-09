@@ -81,15 +81,6 @@ export interface Location {
 	coordinates?: { lat: number; lon: number } | null;
 }
 
-// Zone structure (logistics grouping - countries, tax rates, shipping methods)
-export interface Zone {
-	id: string;
-	name: string;
-	countries: string[]; // Empty array = "All Countries"
-	taxBps: number;
-	shippingMethods: ShippingMethod[];
-}
-
 // Cart types
 export interface EshopCartItem {
 	id: string;
@@ -125,14 +116,21 @@ export interface PaymentProviderConfig {
 	webhookSecret: string;
 }
 
+// Zone types - Country-specific configuration within a market
+export interface Zone {
+	code: string; // ISO country code or "*" for global wildcard
+	taxBps: number;
+	paymentMethods: BusinessPaymentMethod[];
+	shippingMethods: ShippingMethod[];
+}
+
 // Market types (business-owned) - camelCase for frontend
 export interface Market {
 	id: string;
 	name: string;
 	currency: string;
 	taxMode: "INCLUSIVE" | "EXCLUSIVE";
-	taxBps: number;
-	paymentMethods: BusinessPaymentMethod[];
+	zones: Zone[]; // Country-specific configs
 }
 
 export interface ShippingMethod {
@@ -153,7 +151,6 @@ export interface BusinessConfig {
 	orderBlocks?: any[];
 	reservationBlocks?: any[];
 	markets?: Market[];
-	zones?: Zone[];
 	paymentProvider?: PaymentProviderConfig;
 	aiProvider?: any;
 }
