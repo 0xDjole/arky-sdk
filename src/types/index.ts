@@ -162,8 +162,7 @@ export interface ZoneResolvedShippingMethod extends ShippingMethod {
 }
 
 export interface Language {
-	code: string;
-	isDefault: boolean;
+	id: string;
 }
 
 export interface BusinessEmails {
