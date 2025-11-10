@@ -160,11 +160,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const payload = {
         businessId: apiConfig.businessId,
         market: apiConfig.market,
-        paymentMethod: params.paymentMethod,
-        shippingMethodId: params.shippingMethodId,
-        items: params.items,
-        blocks: params.blocks || [],
-        ...(params.promoCode && { promoCode: params.promoCode }),
+        ...params,
       };
 
       return apiConfig.httpClient.post(

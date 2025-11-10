@@ -116,43 +116,74 @@ export interface PaymentProviderConfig {
 	webhookSecret: string;
 }
 
-// Zone types - Country-specific configuration within a market
-export interface Zone {
-	code: string; // ISO country code or "*" for global wildcard
-	taxBps: number;
-	paymentMethods: BusinessPaymentMethod[];
-	shippingMethods: ShippingMethod[];
-}
-
-// Market types (business-owned) - camelCase for frontend
-export interface Market {
+export interface ZoneDefinition {
 	id: string;
 	name: string;
+}
+
+export interface ZonePaymentMethod {
+	id: string;
+}
+
+export interface ZoneShippingMethod {
+	id: string;
+	amount: number;
+}
+
+export interface MarketZone {
+	taxBps: number;
+	zoneId: string;
+	paymentMethods: ZonePaymentMethod[];
+	shippingMethods: ZoneShippingMethod[];
+}
+
+export interface Market {
+	id: string;
 	currency: string;
-	taxMode: "INCLUSIVE" | "EXCLUSIVE";
-	zones: Zone[]; // Country-specific configs
+	taxMode: "EXCLUSIVE" | "INCLUSIVE";
+	zones: MarketZone[];
+}
+
+export interface PaymentMethodConfig {
+	id: string;
+	method: PaymentMethod;
 }
 
 export interface ShippingMethod {
     id: string;
     type: 'SHIPPING' | 'PICKUP';
-    prices: Price[]; // Market-based pricing with free thresholds
     taxable: boolean;
-    etaText: string; // e.g., "3-5 business days"
-    location?: Location; // Pickup address (only for PICKUP type)
+    etaText: string;
+    location?: Location;
 }
 
-export interface BusinessPaymentMethod {
-	method: PaymentMethod;
+export interface ZoneResolvedShippingMethod extends ShippingMethod {
+	zoneAmount: number;
 }
 
-// Business types
+export interface Language {
+	code: string;
+	isDefault: boolean;
+}
+
+export interface BusinessEmails {
+	billing: string;
+	support: string;
+}
+
 export interface BusinessConfig {
-	orderBlocks?: any[];
-	reservationBlocks?: any[];
-	markets?: Market[];
+	languages: Language[];
+	zones: ZoneDefinition[];
+	paymentMethods: PaymentMethodConfig[];
+	shippingMethods: ShippingMethod[];
+	markets: Market[];
+	buildHooks: string[];
+	webhooks: any[];
+	orderBlocks: any[];
+	reservationBlocks: any[];
 	paymentProvider?: PaymentProviderConfig;
 	aiProvider?: any;
+	emails: BusinessEmails;
 }
 
 export interface Business {

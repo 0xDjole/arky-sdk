@@ -45,6 +45,7 @@ export interface CheckoutParams {
   blocks?: any[];
   shippingMethodId: string;
   promoCode?: string;
+  zoneId?: string;
 }
 
 export interface GetProductsParams {
@@ -133,6 +134,7 @@ export interface ReservationCheckoutParams {
   paymentMethod?: string;
   blocks?: any[];
   promoCode?: string;
+  zoneId?: string;
 }
 
 export interface GetReservationQuoteParams {
@@ -141,6 +143,7 @@ export interface GetReservationQuoteParams {
   paymentMethod: string;
   promoCode?: string;
   location?: any;
+  zoneId?: string;
 }
 
 export interface GetAvailableSlotsParams {
