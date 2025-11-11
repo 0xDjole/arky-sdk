@@ -16,14 +16,14 @@ export interface Payment {
 	promoCode?: string;
 	promoType?: string;
 	promoValue?: number;
-	method: PaymentMethod;
+	type: PaymentMethodType;
 	customerId?: string;
 	paymentIntentId?: string;
 	subscriptionId?: string;
 	priceId?: string;
 }
 
-export enum PaymentMethod {
+export enum PaymentMethodType {
 	Cash = "CASH",
 	CreditCard = "CREDIT_CARD",
 	Free = "FREE",
@@ -144,9 +144,9 @@ export interface Market {
 	zones: MarketZone[];
 }
 
-export interface PaymentMethodConfig {
+export interface PaymentMethod {
 	id: string;
-	method: PaymentMethod;
+	type: PaymentMethodType;
 }
 
 export interface ShippingMethod {
@@ -173,7 +173,7 @@ export interface BusinessEmails {
 export interface BusinessConfig {
 	languages: Language[];
 	zones: ZoneDefinition[];
-	paymentMethods: PaymentMethodConfig[];
+	paymentMethods: PaymentMethod[];
 	shippingMethods: ShippingMethod[];
 	markets: Market[];
 	buildHooks: string[];

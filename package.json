@@ -1,6 +1,6 @@
 {
   "name": "arky-sdk",
-  "version": "0.3.37",
+  "version": "0.3.38",
   "description": "Official TypeScript SDK for Arky - All-in-one business platform",
   "type": "module",
   "main": "./dist/index.cjs",

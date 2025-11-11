@@ -1,5 +1,5 @@
 // Price formatting utilities - Centralized currency and price operations
-import type { Payment, PaymentMethod, Price } from '../types';
+import type { Payment, PaymentMethodType, Price } from '../types';
 import { getCurrencySymbol, isSymbolAfterCurrency } from './currency';
 
 const MARKET_CURRENCIES = {
@@ -207,6 +207,6 @@ export function createPaymentForCheckout(
         tax,
         total,
         promoCodeId,
-        method: paymentMethod,
+        type: paymentMethod,
     };
 }
