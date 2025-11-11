@@ -11,7 +11,6 @@ import type {
 	GetSubscriptionPlansParams,
 	UpdateSubscriptionParams,
 	CancelSubscriptionParams,
-	ReactivateSubscriptionParams,
 	CreatePortalSessionParams,
 	InviteUserParams,
 	HandleInvitationParams,
@@ -72,13 +71,6 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
             });
         },
 
-        async reactivateSubscription(params: ReactivateSubscriptionParams, options?: RequestOptions) {
-            return apiConfig.httpClient.post(
-                `/v1/businesses/${apiConfig.businessId}/subscription/reactivate`,
-                params,
-                options
-            );
-        },
         async createPortalSession(params: CreatePortalSessionParams, options?: RequestOptions) {
             return apiConfig.httpClient.post(
                 `/v1/businesses/${apiConfig.businessId}/subscription/portal`,
