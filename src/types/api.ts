@@ -302,6 +302,8 @@ export interface CancelSubscriptionParams {
   immediately?: boolean;
 }
 
+export interface CancelScheduledDowngradeParams {}
+
 export interface CreatePortalSessionParams {
   returnUrl: string;
 }

@@ -11,6 +11,7 @@ import type {
 	GetSubscriptionPlansParams,
 	UpdateSubscriptionParams,
 	CancelSubscriptionParams,
+	CancelScheduledDowngradeParams,
 	CreatePortalSessionParams,
 	InviteUserParams,
 	HandleInvitationParams,
@@ -69,6 +70,14 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
                 ...options,
                 params: { immediately: params.immediately || false }
             });
+        },
+
+        async cancelScheduledDowngrade(params: CancelScheduledDowngradeParams, options?: RequestOptions) {
+            return apiConfig.httpClient.post(
+                `/v1/businesses/${apiConfig.businessId}/subscription/cancel-downgrade`,
+                {},
+                options
+            );
         },
 
         async createPortalSession(params: CreatePortalSessionParams, options?: RequestOptions) {
