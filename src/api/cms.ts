@@ -236,10 +236,7 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
     ) {
       return apiConfig.httpClient.put(
         `/v1/businesses/${apiConfig.businessId}/collections/${params.collectionId}/subscribe`,
-        {
-          market: apiConfig.market,
-          ...params,
-        },
+        params,
         options
       );
     },

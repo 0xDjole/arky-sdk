@@ -405,7 +405,7 @@ export interface SubscribeToCollectionParams {
   collectionId?: string;
   email?: string;
   planId?: string;
-  unsubscribeToken?: string;
+  token?: string;
 }
 
 // Additional E-shop API Types
