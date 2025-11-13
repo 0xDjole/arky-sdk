@@ -402,7 +402,7 @@ export interface GetCollectionSubscribersParams {
 }
 
 export interface SubscribeToCollectionParams {
-  collectionId?: string;
+  id?: string;
   email?: string;
   planId?: string;
   token?: string;
