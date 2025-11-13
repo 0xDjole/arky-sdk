@@ -298,17 +298,11 @@ export interface TriggerBuildsParams {
 
 export interface GetSubscriptionParams {}
 
-export interface UpdateSubscriptionParams {
+export interface SubscribeParams {
   planId: string;
   successUrl: string;
   cancelUrl: string;
 }
-
-export interface CancelSubscriptionParams {
-  immediately?: boolean;
-}
-
-export interface CancelScheduledDowngradeParams {}
 
 export interface CreatePortalSessionParams {
   returnUrl: string;
