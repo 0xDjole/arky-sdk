@@ -402,11 +402,11 @@ export interface GetCollectionSubscribersParams {
 }
 
 export interface UserSubscribeParams {
-  target: string;
-  token?: string;
-  planId: string;
-  successUrl: string;
-  cancelUrl: string;
+  target?: string;
+  identifier: string;
+  planId?: string;
+  successUrl?: string;
+  cancelUrl?: string;
 }
 
 // Additional E-shop API Types
