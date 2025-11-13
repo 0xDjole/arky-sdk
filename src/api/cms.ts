@@ -234,9 +234,10 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       params: SubscribeToCollectionParams,
       options?: RequestOptions
     ) {
+      const { collectionId, ...rest } = params;
       return apiConfig.httpClient.put(
-        `/v1/businesses/${apiConfig.businessId}/collections/${params.collectionId}/subscribe`,
-        params,
+        `/v1/businesses/${apiConfig.businessId}/collections/${collectionId}/subscribe`,
+        { id: collectionId, ...rest },
         options
       );
     },
