@@ -14,7 +14,6 @@ import type {
   GetVariableMetadataParams,
   SendEntryParams,
   GetCollectionSubscribersParams,
-  SubscribeToCollectionParams,
   RequestOptions,
 } from "../types/api";
 import { formatIdOrSlug } from "../utils/slug";
@@ -226,17 +225,6 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       const formattedId = formatIdOrSlug(params.id, apiConfig);
       return apiConfig.httpClient.get(
         `/v1/businesses/${apiConfig.businessId}/collections/${formattedId}/subscribers`,
-        options
-      );
-    },
-
-    async subscribeToCollection(
-      params: SubscribeToCollectionParams,
-      options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.put(
-        `/v1/businesses/${apiConfig.businessId}/collections/${params.id}/subscribe`,
-        params,
         options
       );
     },

@@ -14,6 +14,7 @@ import type {
     ResetPasswordParams,
     GetMeParams,
     LogoutParams,
+    UserSubscribeParams,
     RequestOptions
 } from '../types/api';
 
@@ -95,6 +96,10 @@ export const createUserApi = (apiConfig: ApiConfig) => {
 
         async resetPassword(params: ResetPasswordParams, options?: RequestOptions) {
             return apiConfig.httpClient.post('/v1/users/reset-password', params, options);
+        },
+
+        async subscribe(params: UserSubscribeParams, options?: RequestOptions) {
+            return apiConfig.httpClient.post('/v1/users/subscribe', params, options);
         }
     };
 };
