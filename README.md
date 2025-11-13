@@ -205,7 +205,6 @@ await arky.cms.subscribeToCollection({
   planId: 'plan_free', // Required
 })
 await arky.cms.getCollectionSubscribers({ id: 'newsletter_id' })
-await arky.cms.unsubscribeFromCollection({ token: 'unsubscribe_token' })
 ```
 
 ### E-shop

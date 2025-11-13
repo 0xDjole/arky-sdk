@@ -15,7 +15,6 @@ import type {
   SendEntryParams,
   GetCollectionSubscribersParams,
   SubscribeToCollectionParams,
-  UnsubscribeFromCollectionParams,
   RequestOptions,
 } from "../types/api";
 import { formatIdOrSlug } from "../utils/slug";
@@ -235,7 +234,7 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       params: SubscribeToCollectionParams,
       options?: RequestOptions
     ) {
-      return apiConfig.httpClient.post(
+      return apiConfig.httpClient.put(
         `/v1/businesses/${apiConfig.businessId}/collections/${params.collectionId}/subscribe`,
         {
           market: apiConfig.market,
@@ -245,17 +244,5 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async unsubscribeFromCollection(
-      params: UnsubscribeFromCollectionParams,
-      options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/collections/unsubscribe`,
-        {
-          ...options,
-          params,
-        }
-      );
-    },
   };
 };

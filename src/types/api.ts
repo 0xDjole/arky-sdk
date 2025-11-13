@@ -402,13 +402,10 @@ export interface GetCollectionSubscribersParams {
 }
 
 export interface SubscribeToCollectionParams {
-  collectionId: string;
-  email: string;
-  planId: string;
-}
-
-export interface UnsubscribeFromCollectionParams {
-  token: string;
+  collectionId?: string;
+  email?: string;
+  planId?: string;
+  unsubscribeToken?: string;
 }
 
 // Additional E-shop API Types
