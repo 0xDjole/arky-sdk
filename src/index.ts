@@ -44,7 +44,6 @@ import { createAnalyticsApi } from "./api/analytics";
 import { createCmsApi } from "./api/cms";
 import { createEshopApi } from "./api/eshop";
 import { createReservationApi } from "./api/reservation";
-import { createPaymentApi } from "./api/payment";
 import {
   getImageUrl,
   getBlockValue,
@@ -75,11 +74,11 @@ import {
 } from "./utils/svg";
 
 export function createArkySDK(
-  config: HttpClientConfig & { market: string; locale?: string },
+  config: HttpClientConfig & { market: string; locale?: string }
 ) {
   const locale = config.locale || "en";
   console.log(
-    `[Arky SDK v${SDK_VERSION}] Initializing with market: ${config.market}, businessId: ${config.businessId}, locale: ${locale}`,
+    `[Arky SDK v${SDK_VERSION}] Initializing with market: ${config.market}, businessId: ${config.businessId}, locale: ${locale}`
   );
 
   const httpClient = createHttpClient(config);
@@ -111,7 +110,6 @@ export function createArkySDK(
     cms: createCmsApi(apiConfig),
     eshop: createEshopApi(apiConfig),
     reservation: createReservationApi(apiConfig),
-    payment: createPaymentApi(apiConfig),
 
     setBusinessId: (businessId: string) => {
       apiConfig.businessId = businessId;
@@ -193,7 +191,7 @@ export function createArkySDK(
           }
           console.log(
             "[SDK Init] Created guest token:",
-            token ? "Success" : "Failed",
+            token ? "Success" : "Failed"
           );
         } else {
           console.log("[SDK Init] Using existing token from storage");

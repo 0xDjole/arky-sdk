@@ -204,14 +204,20 @@ export interface GetRolesParams {
 
 // Promo Code API Types
 export interface Discount {
-  type: 'ITEMS_PERCENTAGE' | 'ITEMS_FIXED' | 'SHIPPING_PERCENTAGE';
+  type: "ITEMS_PERCENTAGE" | "ITEMS_FIXED" | "SHIPPING_PERCENTAGE";
   marketId: string;
   bps?: number;
   amount?: number;
 }
 
 export interface Condition {
-  type: 'PRODUCTS' | 'SERVICES' | 'MIN_ORDER_AMOUNT' | 'DATE_RANGE' | 'MAX_USES' | 'MAX_USES_PER_USER';
+  type:
+    | "PRODUCTS"
+    | "SERVICES"
+    | "MIN_ORDER_AMOUNT"
+    | "DATE_RANGE"
+    | "MAX_USES"
+    | "MAX_USES_PER_USER";
   value: string[] | number | { start?: number; end?: number };
 }
 
@@ -649,18 +655,6 @@ export interface ResetForgotPasswordParams {
 export interface ResetPasswordParams {
   newPassword: string;
   oldPassword?: string;
-}
-
-// Payment API Types
-export interface HandleStripeWebhookParams {
-  // Webhook payload handled in body
-  [key: string]: any;
-}
-
-export interface GetBusinessMarketsParams {}
-
-export interface GetBusinessMarketParams {
-  marketId: string;
 }
 
 // Notification Tracking API Types
