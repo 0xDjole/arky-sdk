@@ -82,7 +82,8 @@ export function formatPayment(
     if (showBreakdown) {
         const subtotal = formatMinor(payment.subtotal, payment.currency, { showSymbols, decimalPlaces });
         const discount = (payment.discount ?? 0) > 0 ? formatMinor(payment.discount, payment.currency, { showSymbols, decimalPlaces }) : null;
-        const tax = (payment.tax ?? 0) > 0 ? formatMinor(payment.tax, payment.currency, { showSymbols, decimalPlaces }) : null;
+        const taxAmount = payment.tax?.amount ?? 0;
+        const tax = taxAmount > 0 ? formatMinor(taxAmount, payment.currency, { showSymbols, decimalPlaces }) : null;
         const total = formatMinor(payment.total, payment.currency, { showSymbols, decimalPlaces });
 
         let result = `Subtotal: ${subtotal}`;
@@ -191,12 +192,18 @@ export function createPaymentForCheckout(
     paymentMethod: any,
     options: {
         discount?: number;
-        tax?: number;
-        promoCodeId?: string;
+        taxAmount?: number;
+        taxRateBps?: number;
+        promoCode?: {
+            id: string;
+            code: string;
+            type: string;
+            value: number;
+        };
     } = {}
 ): Payment {
-    const { discount = 0, tax = 0, promoCodeId } = options;
-    const total = subtotalMinor - discount + tax;
+    const { discount = 0, taxAmount = 0, taxRateBps = 0, promoCode } = options;
+    const total = subtotalMinor - discount + taxAmount;
 
     return {
         currency,
@@ -204,9 +211,15 @@ export function createPaymentForCheckout(
         subtotal: subtotalMinor,
         shipping: 0,
         discount,
-        tax,
         total,
-        promoCodeId,
         type: paymentMethod,
+        ...(taxAmount > 0 && {
+            tax: {
+                amount: taxAmount,
+                rateBps: taxRateBps,
+                lines: [],
+            },
+        }),
+        ...(promoCode && { promoCode }),
     };
 }

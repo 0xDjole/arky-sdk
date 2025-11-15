@@ -10,17 +10,26 @@ export interface Payment {
 	subtotal: number;
 	shipping: number;
 	discount: number;
-	tax: number;
 	total: number;
-	promoCodeId?: string;
-	promoCode?: string;
-	promoType?: string;
-	promoValue?: number;
+	tax?: {
+		amount: number;
+		modeSnapshot?: string;
+		rateBps: number;
+		lines: Array<{ rateBps: number; amount: number; label?: string; scope?: string }>;
+	};
+	promoCode?: {
+		id: string;
+		code: string;
+		type: string;
+		value: number;
+	};
 	type: PaymentMethodType;
-	customerId?: string;
-	paymentIntentId?: string;
-	subscriptionId?: string;
-	priceId?: string;
+	provider?: {
+		customerId: string;
+		paymentIntentId?: string;
+		subscriptionId?: string;
+		priceId?: string;
+	};
 }
 
 export enum PaymentMethodType {
@@ -55,7 +64,6 @@ export interface Quote {
 	subtotal: number;
 	shipping: number;
 	discount: number;
-	tax: number;
 	total: number;
 	lineItems: QuoteLineItem[];
 	shippingMethod: ShippingMethod | null;
