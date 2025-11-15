@@ -130,7 +130,7 @@ export interface GetServicesParams {
 }
 
 export interface ReservationCheckoutParams {
-  parts: any[];
+  items: any[];
   paymentMethod?: string;
   blocks?: any[];
   promoCode?: string;
@@ -138,7 +138,7 @@ export interface ReservationCheckoutParams {
 }
 
 export interface GetReservationQuoteParams {
-  parts: any[];
+  items: any[];
   currency: string;
   paymentMethod: string;
   promoCode?: string;

@@ -102,7 +102,7 @@ export interface EshopCartItem {
 	addedAt: number;
 }
 
-export interface ReservationCartPart {
+export interface ReservationCartItem {
 	id: string;
 	serviceId: string;
 	serviceName: string;
@@ -326,7 +326,7 @@ export interface ReservationStoreState {
 	storageUrl: string;
 	timezone: string;
 	tzGroups: any;
-	parts: ReservationCartPart[];
+	items: ReservationCartItem[];
 
 	// Payment configuration
 	allowedPaymentMethods: string[];
