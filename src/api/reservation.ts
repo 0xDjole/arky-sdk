@@ -4,7 +4,6 @@ import type {
   UpdateReservationParams,
   ReservationCheckoutParams,
   GetReservationParams,
-  GetReservationPartsParams,
   SearchReservationsParams,
   SearchMyReservationsParams,
   CreateServiceParams,
@@ -78,16 +77,6 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get(`/v1/reservations/${params.id}`, {
         ...options,
         params: { businessId: apiConfig.businessId },
-      });
-    },
-
-    async getReservationParts(
-      params: GetReservationPartsParams,
-      options?: RequestOptions,
-    ) {
-      return apiConfig.httpClient.get(`/v1/reservations/parts`, {
-        ...options,
-        params,
       });
     },
 

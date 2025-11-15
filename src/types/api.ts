@@ -587,10 +587,6 @@ export interface GetReservationParams {
   id: string;
 }
 
-export interface GetReservationPartsParams {
-  reservationId?: string;
-}
-
 export interface SearchReservationsParams {
   serviceIds?: string[];
   providerIds?: string[];
