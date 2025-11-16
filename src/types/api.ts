@@ -684,15 +684,8 @@ export interface DeleteProductParams {
   id: string;
 }
 
-export interface RefundItem {
-  id: string;
-  quantity: number;
-  amount: number;
-}
-
 export interface ProcessRefundParams {
   id: string;
   entity: string;
-  items: RefundItem[];
-  reason: string;
+  amount: number;
 }
