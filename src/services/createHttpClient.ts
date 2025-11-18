@@ -10,6 +10,7 @@ export interface AuthTokens {
 	provider?: string;
 	expiresAt?: number;
 	userId?: string;
+	isGuest?: boolean;
 }
 
 export interface HttpClientConfig {
