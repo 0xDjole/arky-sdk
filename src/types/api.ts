@@ -32,7 +32,6 @@ export interface EshopItem {
 
 export interface GetQuoteParams {
   items: EshopItem[];
-  currency: string;
   paymentMethod: string;
   shippingMethodId?: string;
   promoCode?: string;
@@ -139,7 +138,6 @@ export interface ReservationCheckoutParams {
 
 export interface GetReservationQuoteParams {
   items: any[];
-  currency: string;
   paymentMethod: string;
   promoCode?: string;
   location?: any;
