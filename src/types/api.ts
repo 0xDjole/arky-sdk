@@ -643,6 +643,8 @@ export interface ResetPasswordParams {
   oldPassword?: string;
 }
 
+export interface DeleteUserParams {}
+
 // Notification Tracking API Types
 export interface TrackEmailOpenParams {
   trackingPixelId: string;

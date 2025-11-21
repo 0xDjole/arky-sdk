@@ -12,6 +12,7 @@ import type {
     ForgotPasswordParams,
     ResetForgotPasswordParams,
     ResetPasswordParams,
+    DeleteUserParams,
     GetMeParams,
     LogoutParams,
     UserSubscribeParams,
@@ -31,6 +32,10 @@ export const createUserApi = (apiConfig: ApiConfig) => {
             if (params.apiTokens !== undefined) payload.apiTokens = params.apiTokens;
 
             return apiConfig.httpClient.put('/v1/users', payload, options);
+        },
+
+        async deleteUser(params: DeleteUserParams, options?: RequestOptions) {
+            return apiConfig.httpClient.delete('/v1/users', options);
         },
 
         async addPhoneNumber(params: AddPhoneNumberParams, options?: RequestOptions) {
