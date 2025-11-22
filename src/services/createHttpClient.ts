@@ -16,8 +16,6 @@ export interface AuthTokens {
 export interface HttpClientConfig {
 	baseUrl: string;
 
-	storageUrl?: string;
-
 	businessId: string;
 
 	getToken: () => Promise<AuthTokens> | AuthTokens;

@@ -77,7 +77,7 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
         },
         getImage(key: string) {
           const block = getBlockFromArray(response, key, apiConfig.locale);
-          return getImageUrl(block, true, apiConfig.storageUrl);
+          return getImageUrl(block, true);
         },
       };
     },

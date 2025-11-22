@@ -206,13 +206,8 @@ export const getBlockFromArray = (entry: any, blockKey: string, locale = "en") =
     });
 };
 
-export const getImageUrl = (imageBlock: any, isBlock = true, storageUrl: string = "https://storage.arky.io/dev") => {
+export const getImageUrl = (imageBlock: any, isBlock = true) => {
     if (!imageBlock) return null;
-
-    // Helper to check if URL is external
-    const isExternalUrl = (url: string) => {
-        return url.startsWith('http://') || url.startsWith('https://');
-    };
 
     // Handle relationship blocks with media
     if (imageBlock.type === 'RELATIONSHIP' && Array.isArray(imageBlock.value)) {
@@ -220,13 +215,12 @@ export const getImageUrl = (imageBlock: any, isBlock = true, storageUrl: string 
         if (mediaValue && mediaValue.mimeType) {
             // Handle media with resolutions structure
             if (mediaValue.resolutions && mediaValue.resolutions.original && mediaValue.resolutions.original.url) {
-                const url = mediaValue.resolutions.original.url;
-                return isExternalUrl(url) ? url : `${storageUrl}/${url}`;
+                return mediaValue.resolutions.original.url;
             }
-            
+
             // Handle direct URL on media
             if (mediaValue.url) {
-                return isExternalUrl(mediaValue.url) ? mediaValue.url : `${storageUrl}/${mediaValue.url}`;
+                return mediaValue.url;
             }
         }
         return null;
@@ -234,19 +228,11 @@ export const getImageUrl = (imageBlock: any, isBlock = true, storageUrl: string 
 
     if (isBlock) {
         if (typeof imageBlock === "string") {
-            // Check if it's already a full URL
-            if (isExternalUrl(imageBlock)) {
-                return imageBlock;
-            }
-            return `${storageUrl}/${imageBlock}`;
+            return imageBlock;
         }
 
         if (imageBlock.url) {
-            // Check if it's already a full URL
-            if (isExternalUrl(imageBlock.url)) {
-                return imageBlock.url;
-            }
-            return `${storageUrl}/${imageBlock.url}`;
+            return imageBlock.url;
         }
     }
 
@@ -255,12 +241,7 @@ export const getImageUrl = (imageBlock: any, isBlock = true, storageUrl: string 
         imageBlock.resolutions.original &&
         imageBlock.resolutions.original.url
     ) {
-        const url = imageBlock.resolutions.original.url;
-        // Check if it's already a full URL
-        if (isExternalUrl(url)) {
-            return url;
-        }
-        return `${storageUrl}/${url}`;
+        return imageBlock.resolutions.original.url;
     }
 
     return null;

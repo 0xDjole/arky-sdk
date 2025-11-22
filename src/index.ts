@@ -10,7 +10,7 @@ export type {
   Price,
 } from "./types";
 
-export const SDK_VERSION = "0.3.44";
+export const SDK_VERSION = "0.3.63";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -22,7 +22,6 @@ export const SUPPORTED_FRAMEWORKS = [
 export interface ApiConfig {
   httpClient: any;
   businessId: string;
-  storageUrl: string;
   baseUrl: string;
   market: string;
   locale: string;
@@ -82,12 +81,10 @@ export function createArkySDK(
   );
 
   const httpClient = createHttpClient(config);
-  const storageUrl = config.storageUrl || "https://storage.arky.io/dev";
 
   const apiConfig: ApiConfig = {
     httpClient,
     businessId: config.businessId,
-    storageUrl,
     baseUrl: config.baseUrl,
     market: config.market,
     locale,
@@ -136,7 +133,7 @@ export function createArkySDK(
     utils: {
       // Block utilities
       getImageUrl: (imageBlock: any, isBlock = true) =>
-        getImageUrl(imageBlock, isBlock, storageUrl),
+        getImageUrl(imageBlock, isBlock),
       getBlockValue,
       getBlockValues,
       getBlockLabel,
