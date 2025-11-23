@@ -15,6 +15,16 @@ export interface DeleteDataParams {
   key: string;
 }
 
+export interface RunScriptParams {
+  name: string;
+  value?: string;
+}
+
+export interface RunScriptResponse {
+  success: boolean;
+  message: string;
+}
+
 export const createDatabaseApi = (apiConfig: ApiConfig) => {
   return {
     async scanData(
@@ -57,6 +67,13 @@ export const createDatabaseApi = (apiConfig: ApiConfig) => {
           },
         }
       );
+    },
+
+    async runScript(
+      params: RunScriptParams,
+      options?: RequestOptions
+    ): Promise<RunScriptResponse> {
+      return apiConfig.httpClient.post(`/v1/operations/scripts`, params, options);
     },
   };
 };
