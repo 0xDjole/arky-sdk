@@ -350,7 +350,6 @@ export interface GetCollectionsParams {
 }
 
 export interface GetEntriesParams {
-  owner?: string | null;
   collectionId?: string | null;
   limit?: number;
   cursor?: string;
@@ -366,7 +365,6 @@ export interface GetEntriesParams {
 }
 
 export interface CreateEntryParams {
-  owner?: string;
   collectionId?: string;
   blocks: any[];
   status?: string;
@@ -375,7 +373,6 @@ export interface CreateEntryParams {
 
 export interface UpdateEntryParams {
   id: string;
-  owner?: string;
   collectionId?: string;
   blocks?: any[];
   status?: string;

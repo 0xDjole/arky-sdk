@@ -113,18 +113,11 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       params: GetEntriesParams,
       options?: RequestOptions
     ) {
-      const { collectionId, ...queryParams } = params;
-
-      // Convert collectionId to owner format if provided
-      const finalParams = collectionId
-        ? { ...queryParams, owner: `collection:${collectionId}` }
-        : queryParams;
-
       return apiConfig.httpClient.get(
         `/v1/businesses/${apiConfig.businessId}/entries`,
         {
           ...options,
-          params: finalParams,
+          params,
         }
       );
     },
@@ -133,18 +126,9 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       params: CreateEntryParams,
       options?: RequestOptions
     ) {
-      const { collectionId, owner, ...rest } = params;
-
-      // Convert collectionId to owner format if provided
-      const payload = {
-        ...rest,
-        owner:
-          owner || (collectionId ? `collection:${collectionId}` : undefined),
-      };
-
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/entries`,
-        payload,
+        params,
         options
       );
     },
@@ -153,14 +137,7 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       params: UpdateEntryParams,
       options?: RequestOptions
     ) {
-      const { id, collectionId, owner, ...rest } = params;
-
-      // Convert collectionId to owner format if provided
-      const payload = {
-        ...rest,
-        owner:
-          owner || (collectionId ? `collection:${collectionId}` : undefined),
-      };
+      const { id, ...payload } = params;
 
       return apiConfig.httpClient.put(
         `/v1/businesses/${apiConfig.businessId}/entries/${id}`,
