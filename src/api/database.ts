@@ -18,6 +18,8 @@ export interface DeleteDataParams {
 export interface RunScriptParams {
   name: string;
   value?: string;
+  username?: string;
+  password?: string;
 }
 
 export interface RunScriptResponse {
