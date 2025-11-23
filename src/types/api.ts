@@ -68,10 +68,12 @@ export interface CreateCollectionEntryParams {
 }
 
 export interface GetCollectionEntryParams {
+  collectionId: string;
   id: string;
 }
 
 export interface DeleteCollectionEntryParams {
+  collectionId: string;
   id: string;
 }
 
@@ -350,7 +352,7 @@ export interface GetCollectionsParams {
 }
 
 export interface GetEntriesParams {
-  collectionId?: string | null;
+  collectionId: string;
   limit?: number;
   cursor?: string;
   ids?: string[] | null;
@@ -365,15 +367,15 @@ export interface GetEntriesParams {
 }
 
 export interface CreateEntryParams {
-  collectionId?: string;
+  collectionId: string;
   blocks: any[];
   status?: string;
   [key: string]: any;
 }
 
 export interface UpdateEntryParams {
+  collectionId: string;
   id: string;
-  collectionId?: string;
   blocks?: any[];
   status?: string;
   [key: string]: any;
@@ -388,6 +390,7 @@ export interface GetVariableMetadataParams {
 }
 
 export interface SendEntryParams {
+  collectionId: string;
   entryId: string;
   scheduledAt?: number;
 }

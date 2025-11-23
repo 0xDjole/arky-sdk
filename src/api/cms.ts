@@ -107,17 +107,17 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
     },
 
     // ===== ENTRIES =====
-    // Note: Backend uses /entries NOT /collections/{id}/entries
 
     async getCollectionEntries(
       params: GetEntriesParams,
       options?: RequestOptions
     ) {
+      const { collectionId, ...queryParams } = params;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/entries`,
+        `/v1/businesses/${apiConfig.businessId}/collections/${collectionId}/entries`,
         {
           ...options,
-          params,
+          params: queryParams,
         }
       );
     },
@@ -126,9 +126,10 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       params: CreateEntryParams,
       options?: RequestOptions
     ) {
+      const { collectionId, ...payload } = params;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/entries`,
-        params,
+        `/v1/businesses/${apiConfig.businessId}/collections/${collectionId}/entries`,
+        { ...payload, collectionId },
         options
       );
     },
@@ -137,11 +138,11 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       params: UpdateEntryParams,
       options?: RequestOptions
     ) {
-      const { id, ...payload } = params;
+      const { collectionId, id, ...payload } = params;
 
       return apiConfig.httpClient.put(
-        `/v1/businesses/${apiConfig.businessId}/entries/${id}`,
-        payload,
+        `/v1/businesses/${apiConfig.businessId}/collections/${collectionId}/entries/${id}`,
+        { ...payload, collectionId },
         options
       );
     },
@@ -151,7 +152,7 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions
     ) {
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${apiConfig.businessId}/entries/${params.id}`,
+        `/v1/businesses/${apiConfig.businessId}/collections/${params.collectionId}/entries/${params.id}`,
         options
       );
     },
@@ -162,16 +163,16 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
     ) {
       const formattedId = formatIdOrSlug(params.id, apiConfig);
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/entries/${formattedId}`,
+        `/v1/businesses/${apiConfig.businessId}/collections/${params.collectionId}/entries/${formattedId}`,
         options
       );
     },
 
     async sendEntry(params: SendEntryParams, options?: RequestOptions) {
-      const { entryId, scheduledAt } = params;
+      const { collectionId, entryId, scheduledAt } = params;
 
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/entries/${entryId}/send`,
+        `/v1/businesses/${apiConfig.businessId}/collections/${collectionId}/entries/${entryId}/send`,
         {
           businessId: apiConfig.businessId,
           entryId,
