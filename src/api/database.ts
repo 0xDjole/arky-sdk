@@ -1,0 +1,62 @@
+import type { ApiConfig } from "../index";
+import type { RequestOptions } from "../types/api";
+
+export interface ScanDataParams {
+  key: string;
+}
+
+export interface PutDataParams {
+  key: string;
+  value: any;
+  oldKey?: string;
+}
+
+export interface DeleteDataParams {
+  key: string;
+}
+
+export const createDatabaseApi = (apiConfig: ApiConfig) => {
+  return {
+    async scanData(
+      params: ScanDataParams,
+      options?: RequestOptions
+    ): Promise<any[]> {
+      const response = await apiConfig.httpClient.get(
+        `/v1/operations/data`,
+        {
+          ...options,
+          params: {
+            key: params.key,
+          },
+        }
+      );
+      return response.value || [];
+    },
+
+    async putData(
+      params: PutDataParams,
+      options?: RequestOptions
+    ): Promise<void> {
+      return apiConfig.httpClient.post(
+        `/v1/operations/data`,
+        params,
+        options
+      );
+    },
+
+    async deleteData(
+      params: DeleteDataParams,
+      options?: RequestOptions
+    ): Promise<void> {
+      return apiConfig.httpClient.delete(
+        `/v1/operations/data`,
+        {
+          ...options,
+          params: {
+            key: params.key,
+          },
+        }
+      );
+    },
+  };
+};

@@ -10,7 +10,7 @@ export type {
   Price,
 } from "./types";
 
-export const SDK_VERSION = "0.3.63";
+export const SDK_VERSION = "0.3.64";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -43,6 +43,7 @@ import { createAnalyticsApi } from "./api/analytics";
 import { createCmsApi } from "./api/cms";
 import { createEshopApi } from "./api/eshop";
 import { createReservationApi } from "./api/reservation";
+import { createDatabaseApi } from "./api/database";
 import {
   getImageUrl,
   getBlockValue,
@@ -107,6 +108,7 @@ export function createArkySDK(
     cms: createCmsApi(apiConfig),
     eshop: createEshopApi(apiConfig),
     reservation: createReservationApi(apiConfig),
+    database: createDatabaseApi(apiConfig),
 
     setBusinessId: (businessId: string) => {
       apiConfig.businessId = businessId;
