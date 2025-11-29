@@ -689,3 +689,100 @@ export interface ProcessRefundParams {
   entity: string;
   amount: number;
 }
+
+// Feature Flag API Types
+export type FeatureFlagStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
+
+export interface VariantInput {
+  key: string;
+  name: string;
+  weight: number;
+  payload?: any;
+}
+
+export interface Variant extends VariantInput {
+  assignments: number;
+  conversions: number;
+}
+
+export interface FeatureFlag {
+  id: string;
+  key: string;
+  name: string;
+  description?: string;
+  businessId: string;
+  status: FeatureFlagStatus;
+  variants: Variant[];
+  goalEvent?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface VariantResult {
+  variantKey: string;
+  assignments: number;
+  conversions: number;
+  conversionRate: number;
+  improvement?: number;
+}
+
+export interface FlagResults {
+  totalAssignments: number;
+  totalConversions: number;
+  variantResults: VariantResult[];
+}
+
+export interface GetVariantResponse {
+  flagKey: string;
+  variantKey: string;
+  variantName: string;
+  payload?: any;
+  isNewAssignment: boolean;
+}
+
+export interface TrackEventResponse {
+  tracked: boolean;
+  experimentsUpdated: number;
+}
+
+export interface CreateFeatureFlagParams {
+  key: string;
+  name: string;
+  description?: string;
+  variants: VariantInput[];
+  goalEvent?: string;
+}
+
+export interface UpdateFeatureFlagParams {
+  id: string;
+  name?: string;
+  description?: string;
+  variants?: VariantInput[];
+  goalEvent?: string;
+  status?: FeatureFlagStatus;
+}
+
+export interface DeleteFeatureFlagParams {
+  id: string;
+}
+
+export interface GetFeatureFlagParams {
+  id: string;
+}
+
+export interface GetFeatureFlagsParams {
+  status?: FeatureFlagStatus;
+}
+
+export interface GetFeatureFlagResultsParams {
+  id: string;
+}
+
+export interface GetVariantParams {
+  flagKey: string;
+}
+
+export interface TrackEventParams {
+  eventName: string;
+  value?: number;
+}

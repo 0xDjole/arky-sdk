@@ -9,8 +9,8 @@ export { createRoleApi } from './role';
 export { createNotificationApi } from './notification';
 export { createPromoCodeApi } from './promoCode';
 export { createAnalyticsApi } from './analytics';
-export { createPaymentApi } from './payment';
 export { createDatabaseApi } from './database';
+export { createFeatureFlagsApi } from './featureFlags';
 
 // Re-export types from individual files for better compatibility
 export type { ApiResponse } from '../types/index';

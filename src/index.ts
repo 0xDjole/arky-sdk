@@ -44,6 +44,7 @@ import { createCmsApi } from "./api/cms";
 import { createEshopApi } from "./api/eshop";
 import { createReservationApi } from "./api/reservation";
 import { createDatabaseApi } from "./api/database";
+import { createFeatureFlagsApi } from "./api/featureFlags";
 import {
   getImageUrl,
   getBlockValue,
@@ -109,6 +110,7 @@ export function createArkySDK(
     eshop: createEshopApi(apiConfig),
     reservation: createReservationApi(apiConfig),
     database: createDatabaseApi(apiConfig),
+    featureFlags: createFeatureFlagsApi(apiConfig),
 
     setBusinessId: (businessId: string) => {
       apiConfig.businessId = businessId;
