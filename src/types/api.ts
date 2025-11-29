@@ -1,3 +1,5 @@
+import type { Block } from "./index";
+
 export interface RequestOptions<T = any> {
   headers?: Record<string, string>;
   params?: Record<string, any>;
@@ -697,7 +699,7 @@ export interface VariantInput {
   key: string;
   name: string;
   weight: number;
-  payload?: any;
+  payload?: Block[];
 }
 
 export interface Variant extends VariantInput {
@@ -736,7 +738,7 @@ export interface GetVariantResponse {
   flagKey: string;
   variantKey: string;
   variantName: string;
-  payload?: any;
+  payload: Block[];
   isNewAssignment: boolean;
 }
 
