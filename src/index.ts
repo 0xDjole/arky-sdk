@@ -10,7 +10,7 @@ export type {
   Price,
 } from "./types";
 
-export const SDK_VERSION = "0.3.66";
+export const SDK_VERSION = "0.3.73";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -74,13 +74,10 @@ import {
   injectSvgIntoElement,
 } from "./utils/svg";
 
-export function createArkySDK(
+export async function createArkySDK(
   config: HttpClientConfig & { market: string; locale?: string }
 ) {
   const locale = config.locale || "en";
-  console.log(
-    `[Arky SDK v${SDK_VERSION}] Initializing with market: ${config.market}, businessId: ${config.businessId}, locale: ${locale}`
-  );
 
   const httpClient = createHttpClient(config);
 
@@ -97,6 +94,24 @@ export function createArkySDK(
   const userApi = createUserApi(apiConfig);
 
   const autoGuest = config.autoGuest !== undefined ? config.autoGuest : true;
+
+  // If autoGuest, login before returning SDK
+  if (autoGuest) {
+    try {
+      const tokens = await config.getToken();
+      if (!tokens.accessToken && !tokens.refreshToken) {
+        const result: any = await httpClient.post("/v1/users/login", {
+          provider: "GUEST",
+        });
+        const token = result.accessToken || result.token || "";
+        if (token) {
+          config.setToken(result);
+        }
+      }
+    } catch (error) {
+      // Silent fail - guest auth is optional
+    }
+  }
 
   const sdk = {
     user: userApi,
@@ -133,6 +148,9 @@ export function createArkySDK(
     isAuthenticated: config.isAuthenticated || (() => false),
     logout: config.logout,
     setToken: config.setToken,
+
+    // Top-level block utilities for convenience
+    extractBlockValues,
 
     utils: {
       // Block utilities
@@ -177,31 +195,6 @@ export function createArkySDK(
       injectSvgIntoElement,
     },
   };
-
-  if (autoGuest) {
-    Promise.resolve().then(async () => {
-      try {
-        const tokens = await config.getToken();
-        if (!tokens.accessToken && !tokens.refreshToken) {
-          const result: any = await httpClient.post("/v1/users/login", {
-            provider: "GUEST",
-          });
-          const token = result.accessToken || result.token || "";
-          if (token) {
-            config.setToken(result);
-          }
-          console.log(
-            "[SDK Init] Created guest token:",
-            token ? "Success" : "Failed"
-          );
-        } else {
-          console.log("[SDK Init] Using existing token from storage");
-        }
-      } catch (error) {
-        console.error("[SDK Init] Failed to initialize auth:", error);
-      }
-    });
-  }
 
   return sdk;
 }
