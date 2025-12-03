@@ -448,6 +448,7 @@ export interface GetOrderParams {
 export interface GetOrdersParams {
   userId?: string | null;
   statuses?: string[] | null;
+  productIds?: string[];
   query?: string | null;
   limit?: number | null;
   cursor?: string | null;
