@@ -588,6 +588,7 @@ export interface GetReservationParams {
 }
 
 export interface SearchReservationsParams {
+  query?: string;
   serviceIds?: string[];
   providerIds?: string[];
   userId?: string;
