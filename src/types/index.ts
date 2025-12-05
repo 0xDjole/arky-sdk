@@ -124,24 +124,28 @@ export interface PaymentProviderConfig {
 	webhookSecret: string;
 }
 
-export interface ZoneDefinition {
-	id: string;
-	name: string;
-}
-
-export interface ZonePaymentMethod {
-	id: string;
+export interface ShippingWeightTier {
+	upToGrams: number;
+	amount: number;
 }
 
 export interface ZoneShippingMethod {
 	id: string;
 	amount: number;
+	freeAbove?: number;
+	weightTiers?: ShippingWeightTier[];
 }
 
-export interface MarketZone {
+export interface Zone {
+	id: string;
+	name: string;
+	marketId: string;
+	countries: string[];
+	states: string[];
+	cities: string[];
+	postalCodes: string[];
 	taxBps: number;
-	zoneId: string;
-	paymentMethods: ZonePaymentMethod[];
+	paymentMethods: string[];
 	shippingMethods: ZoneShippingMethod[];
 }
 
@@ -149,7 +153,6 @@ export interface Market {
 	id: string;
 	currency: string;
 	taxMode: "EXCLUSIVE" | "INCLUSIVE";
-	zones: MarketZone[];
 }
 
 export interface PaymentMethod {
@@ -180,10 +183,10 @@ export interface BusinessEmails {
 
 export interface BusinessConfig {
 	languages: Language[];
-	zones: ZoneDefinition[];
 	paymentMethods: PaymentMethod[];
 	shippingMethods: ShippingMethod[];
 	markets: Market[];
+	zones: Zone[];
 	buildHooks: string[];
 	webhooks: any[];
 	orderBlocks: any[];
