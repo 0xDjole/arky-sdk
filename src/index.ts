@@ -39,15 +39,14 @@ export type {
   Slot,
 } from "./types/api";
 
-// Export slot utility types (for advanced use)
+// Export reservation engine types
 export type {
-  ServiceDuration,
-  AvailableSlot,
-  FormattedSlot,
-  ComputeSlotsOptions,
-} from "./utils/slots";
+  ReservationEngineConfig,
+  ReservationEngineState,
+  CalendarDay,
+} from "./api/reservationEngine";
 
-export const SDK_VERSION = "0.3.73";
+export const SDK_VERSION = "0.3.78";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -111,15 +110,11 @@ import {
   injectSvgIntoElement,
 } from "./utils/svg";
 import {
-  computeSlotsForDate,
-  hasAvailableSlots,
-  formatSlots,
-  formatSlotTime,
-  formatTime,
-  getTotalDuration,
-  getWorkingHoursForDate,
-  isTimeBlocked,
-} from "./utils/slots";
+  createReservationEngine,
+  type ReservationEngineConfig,
+  type ReservationEngineState,
+  type CalendarDay,
+} from "./api/reservationEngine";
 
 export async function createArkySDK(
   config: HttpClientConfig & { market: string; locale?: string }
@@ -173,6 +168,12 @@ export async function createArkySDK(
     reservation: createReservationApi(apiConfig),
     database: createDatabaseApi(apiConfig),
     featureFlags: createFeatureFlagsApi(apiConfig),
+
+    // High-level reservation engine
+    reservationEngine: (engineConfig?: ReservationEngineConfig) => {
+      const reservationApi = createReservationApi(apiConfig);
+      return createReservationEngine(reservationApi, engineConfig);
+    },
 
     setBusinessId: (businessId: string) => {
       apiConfig.businessId = businessId;
@@ -240,16 +241,6 @@ export async function createArkySDK(
       getSvgContentForAstro,
       fetchSvgContent,
       injectSvgIntoElement,
-
-      // Slot utilities (for advanced use with cached providers)
-      computeSlotsForDate,
-      hasAvailableSlots,
-      formatSlots,
-      formatSlotTime,
-      formatTime,
-      getTotalDuration,
-      getWorkingHoursForDate,
-      isTimeBlocked,
     },
   };
 

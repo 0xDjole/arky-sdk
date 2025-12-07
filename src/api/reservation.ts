@@ -20,19 +20,9 @@ import type {
   GetServiceProvidersParams,
   GetReservationQuoteParams,
   RequestOptions,
-  GetSlotsForDateParams,
-  GetAvailabilityParams,
-  DayAvailability,
   Slot,
-  ProviderWithTimeline,
 } from "../types/api";
 import { formatIdOrSlug } from "../utils/slug";
-import {
-  computeSlotsForDate,
-  hasAvailableSlots,
-  formatSlotTime,
-  type ServiceDuration,
-} from "../utils/slots";
 
 export const createReservationApi = (apiConfig: ApiConfig) => {
   // Cart state for multiple slots
@@ -308,123 +298,6 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
           params: queryParams,
         },
       );
-    },
-
-    /**
-     * Get available slots for a service on a specific date.
-     * Returns slots ready to add to cart.
-     */
-    async getSlotsForDate(
-      params: GetSlotsForDateParams,
-      options?: RequestOptions,
-    ): Promise<Slot[]> {
-      const { serviceId, date, timezone, providerId } = params;
-
-      const service = await this.getService({ id: serviceId }, options);
-
-      const dayStart = new Date(date);
-      dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(date);
-      dayEnd.setHours(23, 59, 59, 999);
-
-      const fromTs = Math.floor(dayStart.getTime() / 1000);
-      const toTs = Math.floor(dayEnd.getTime() / 1000);
-
-      let providers: ProviderWithTimeline[] = await this.getServiceProviders(
-        { serviceId, from: fromTs, to: toTs },
-        options,
-      );
-
-      if (providerId) {
-        providers = providers.filter((p) => p.id === providerId);
-      }
-
-      const durations: ServiceDuration[] = (service.durations || []).map(
-        (d: any) => ({
-          duration: d.duration,
-          isPause: d.isPause || d.is_pause || false,
-        }),
-      );
-
-      const raw = computeSlotsForDate({ providers, date, durations, timezone });
-
-      // Format and include serviceId
-      return raw.map((s, i) => ({
-        id: `${serviceId}-${s.from}-${i}`,
-        serviceId,
-        providerId: s.providerId,
-        from: s.from,
-        to: s.to,
-        timeText: formatSlotTime(s.from, s.to, timezone),
-        dateText: new Date(s.from * 1000).toLocaleDateString([], {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-          timeZone: timezone,
-        }),
-      }));
-    },
-
-    /**
-     * Get availability for a date range (useful for calendar UI).
-     * Returns an array of dates with availability status.
-     *
-     * @example
-     * const availability = await arky.reservation.getAvailability({
-     *   serviceId: 'massage',
-     *   from: new Date('2024-01-01'),
-     *   to: new Date('2024-01-31'),
-     *   timezone: 'Europe/Prague'
-     * });
-     * // Returns: [{ date: Date, available: true }, { date: Date, available: false }, ...]
-     */
-    async getAvailability(
-      params: GetAvailabilityParams,
-      options?: RequestOptions,
-    ): Promise<DayAvailability[]> {
-      const { serviceId, from, to, timezone } = params;
-
-      // 1. Get service for durations
-      const service = await this.getService({ id: serviceId }, options);
-
-      // 2. Calculate range timestamps
-      const fromTs = Math.floor(from.getTime() / 1000);
-      const toTs = Math.floor(to.getTime() / 1000);
-
-      // 3. Get providers with timeline for entire range (single API call)
-      const providers: ProviderWithTimeline[] = await this.getServiceProviders(
-        { serviceId, from: fromTs, to: toTs },
-        options,
-      );
-
-      // 4. Extract durations from service
-      const durations: ServiceDuration[] = (service.durations || []).map(
-        (d: any) => ({
-          duration: d.duration,
-          isPause: d.isPause || d.is_pause || false,
-        }),
-      );
-
-      // 5. Generate all dates in range
-      const days: DayAvailability[] = [];
-      const current = new Date(from);
-      current.setHours(0, 0, 0, 0);
-      const endDate = new Date(to);
-      endDate.setHours(23, 59, 59, 999);
-
-      while (current <= endDate) {
-        const date = new Date(current);
-        const available = hasAvailableSlots({
-          providers,
-          date,
-          durations,
-          timezone,
-        });
-        days.push({ date, available });
-        current.setDate(current.getDate() + 1);
-      }
-
-      return days;
     },
   };
 };
