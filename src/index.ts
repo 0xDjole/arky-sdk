@@ -25,10 +25,20 @@ export type {
   Seo,
   Media,
   MediaResolution,
+  ProviderWithTimeline,
 } from "./types";
 
 // Export enums (must be exported as values, not types)
 export { PaymentMethodType } from "./types";
+
+// Export slot types
+export type {
+  ServiceDuration,
+  AvailableSlot,
+  FormattedSlot,
+  MonthAvailability,
+  CreateAvailabilityOptions,
+} from "./utils/slots";
 
 export const SDK_VERSION = "0.3.73";
 export const SUPPORTED_FRAMEWORKS = [
@@ -93,6 +103,18 @@ import {
   fetchSvgContent,
   injectSvgIntoElement,
 } from "./utils/svg";
+import {
+  computeSlotsForDate,
+  getAvailableDatesForMonth,
+  findFirstAvailableSlot,
+  getTotalDuration,
+  getWorkingHoursForDate,
+  isTimeBlocked,
+  formatSlots,
+  formatSlotTime,
+  formatTime,
+  createMonthAvailability,
+} from "./utils/slots";
 
 export async function createArkySDK(
   config: HttpClientConfig & { market: string; locale?: string }
@@ -213,6 +235,18 @@ export async function createArkySDK(
       getSvgContentForAstro,
       fetchSvgContent,
       injectSvgIntoElement,
+
+      // Slot utilities
+      createMonthAvailability,
+      computeSlotsForDate,
+      getAvailableDatesForMonth,
+      findFirstAvailableSlot,
+      formatSlots,
+      formatSlotTime,
+      formatTime,
+      getTotalDuration,
+      getWorkingHoursForDate,
+      isTimeBlocked,
     },
   };
 
