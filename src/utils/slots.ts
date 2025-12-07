@@ -22,20 +22,12 @@ export interface FormattedSlot extends AvailableSlot {
 export interface ComputeSlotsOptions {
   providers: ProviderWithTimeline[];
   date: Date;
-  durations: ServiceDuration[]; // e.g. [{duration:30}, {duration:10, isPause:true}, {duration:30}] = 70 min
+  durations: ServiceDuration[];
   timezone: string;
   slotInterval?: number;
 }
 
-export interface ComputeMonthAvailabilityOptions {
-  providers: ProviderWithTimeline[];
-  year: number;
-  month: number;
-  durations: ServiceDuration[];
-  timezone: string;
-}
-
-// ============ Formatting (display UTC timestamps in any timezone) ============
+// ============ Formatting ============
 
 export function formatTime(ts: number, tz: string): string {
   return new Date(ts * 1000).toLocaleTimeString([], {
@@ -63,7 +55,7 @@ export function formatSlots(slots: AvailableSlot[], tz: string): FormattedSlot[]
   }));
 }
 
-// ============ Internal helpers ============
+// ============ Helpers ============
 
 function getTzOffset(date: Date, tz: string): number {
   const utc = new Date(date.toLocaleString("en-US", { timeZone: "UTC" }));
@@ -78,18 +70,14 @@ function toUtcTimestamp(year: number, month: number, day: number, mins: number, 
 }
 
 function isBlocked(from: number, to: number, timeline: TimelinePoint[], limit: number): boolean {
-  // Check concurrent count at slot start
   const before = timeline.filter((p) => p.timestamp <= from).sort((a, b) => b.timestamp - a.timestamp);
   if (before.length > 0 && before[0].concurrent >= limit) return true;
 
-  // Check if any point during slot exceeds limit
   for (const p of timeline) {
     if (p.timestamp >= from && p.timestamp < to && p.concurrent >= limit) return true;
   }
   return false;
 }
-
-// ============ Public API ============
 
 export function getTotalDuration(durations: ServiceDuration[]): number {
   return durations.reduce((sum, d) => sum + d.duration, 0);
@@ -107,7 +95,6 @@ export function getWorkingHoursForDate(
   const d = date.getDate();
   const ts = Math.floor(date.getTime() / 1000);
 
-  // Priority: specificDates > outcastDates > workingDays
   const specific = wt.specificDates?.find((s) => s.date === ts);
   if (specific) return specific.workingHours || [];
 
@@ -121,11 +108,19 @@ export function isTimeBlocked(from: number, to: number, timeline: TimelinePoint[
   return isBlocked(from, to, timeline, limit);
 }
 
+// ============ Core ============
+
 export function computeSlotsForDate(opts: ComputeSlotsOptions): AvailableSlot[] {
   const { providers, date, durations, timezone, slotInterval } = opts;
   const total = getTotalDuration(durations);
   const interval = slotInterval || total;
   const slots: AvailableSlot[] = [];
+  const nowTs = Math.floor(Date.now() / 1000);
+
+  // Skip past dates entirely
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (date < today) return [];
 
   const [year, month, day] = date.toLocaleDateString("en-CA", { timeZone: timezone }).split("-").map(Number);
 
@@ -134,6 +129,8 @@ export function computeSlotsForDate(opts: ComputeSlotsOptions): AvailableSlot[] 
       for (let m = wh.from; m + total <= wh.to; m += interval) {
         const from = toUtcTimestamp(year, month, day, m, timezone);
         const to = from + total * 60;
+        // Skip slots in the past
+        if (from < nowTs) continue;
         if (!isBlocked(from, to, p.timeline, p.concurrentLimit)) {
           slots.push({ from, to, providerId: p.id });
         }
@@ -144,87 +141,6 @@ export function computeSlotsForDate(opts: ComputeSlotsOptions): AvailableSlot[] 
   return slots.sort((a, b) => a.from - b.from);
 }
 
-export function getAvailableDatesForMonth(opts: ComputeMonthAvailabilityOptions): Set<string> {
-  const { providers, year, month, durations, timezone } = opts;
-  const result = new Set<string>();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const lastDay = new Date(year, month + 1, 0).getDate();
-  for (let d = 1; d <= lastDay; d++) {
-    const date = new Date(year, month, d);
-    if (date < today) continue;
-
-    if (computeSlotsForDate({ providers, date, durations, timezone }).length > 0) {
-      result.add(`${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
-    }
-  }
-  return result;
-}
-
-export function findFirstAvailableSlot(
-  providers: ProviderWithTimeline[],
-  durations: ServiceDuration[],
-  timezone: string,
-  fromDate = new Date(),
-  maxDays = 90
-): AvailableSlot | null {
-  const start = new Date(fromDate);
-  start.setHours(0, 0, 0, 0);
-
-  for (let i = 0; i < maxDays; i++) {
-    const date = new Date(start);
-    date.setDate(date.getDate() + i);
-    const slots = computeSlotsForDate({ providers, date, durations, timezone });
-    if (slots.length > 0) return slots[0];
-  }
-  return null;
-}
-
-// ============ High-level API for frontends ============
-
-export interface MonthAvailability {
-  availableDates: string[];
-  getSlots: (date: string | Date) => FormattedSlot[];
-  firstAvailable: FormattedSlot | null;
-}
-
-export interface CreateAvailabilityOptions {
-  providers: ProviderWithTimeline[];
-  durations: ServiceDuration[];
-  timezone: string;
-  providerId?: string;
-}
-
-/**
- * Create availability helper for a month.
- * Returns available dates and a function to get formatted slots for any date.
- *
- * Usage:
- *   const avail = createMonthAvailability(providers, durations, tz, 2024, 11);
- *   calendar.forEach(day => day.available = avail.availableDates.includes(day.iso));
- *   const slots = avail.getSlots("2024-12-07"); // FormattedSlot[]
- */
-export function createMonthAvailability(
-  opts: CreateAvailabilityOptions,
-  year: number,
-  month: number
-): MonthAvailability {
-  const { providers, durations, timezone, providerId } = opts;
-  const filtered = providerId ? providers.filter((p) => p.id === providerId) : providers;
-
-  const dates = getAvailableDatesForMonth({ providers: filtered, year, month, durations, timezone });
-
-  const getSlots = (date: string | Date): FormattedSlot[] => {
-    const d = typeof date === "string" ? new Date(date + "T00:00:00") : date;
-    return formatSlots(computeSlotsForDate({ providers: filtered, date: d, durations, timezone }), timezone);
-  };
-
-  const first = findFirstAvailableSlot(filtered, durations, timezone);
-
-  return {
-    availableDates: Array.from(dates),
-    getSlots,
-    firstAvailable: first ? formatSlots([first], timezone)[0] : null,
-  };
+export function hasAvailableSlots(opts: ComputeSlotsOptions): boolean {
+  return computeSlotsForDate(opts).length > 0;
 }

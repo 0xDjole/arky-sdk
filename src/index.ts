@@ -31,13 +31,20 @@ export type {
 // Export enums (must be exported as values, not types)
 export { PaymentMethodType } from "./types";
 
-// Export slot types
+// Export reservation types
+export type {
+  GetSlotsForDateParams,
+  GetAvailabilityParams,
+  DayAvailability,
+  Slot,
+} from "./types/api";
+
+// Export slot utility types (for advanced use)
 export type {
   ServiceDuration,
   AvailableSlot,
   FormattedSlot,
-  MonthAvailability,
-  CreateAvailabilityOptions,
+  ComputeSlotsOptions,
 } from "./utils/slots";
 
 export const SDK_VERSION = "0.3.73";
@@ -105,15 +112,13 @@ import {
 } from "./utils/svg";
 import {
   computeSlotsForDate,
-  getAvailableDatesForMonth,
-  findFirstAvailableSlot,
-  getTotalDuration,
-  getWorkingHoursForDate,
-  isTimeBlocked,
+  hasAvailableSlots,
   formatSlots,
   formatSlotTime,
   formatTime,
-  createMonthAvailability,
+  getTotalDuration,
+  getWorkingHoursForDate,
+  isTimeBlocked,
 } from "./utils/slots";
 
 export async function createArkySDK(
@@ -236,11 +241,9 @@ export async function createArkySDK(
       fetchSvgContent,
       injectSvgIntoElement,
 
-      // Slot utilities
-      createMonthAvailability,
+      // Slot utilities (for advanced use with cached providers)
       computeSlotsForDate,
-      getAvailableDatesForMonth,
-      findFirstAvailableSlot,
+      hasAvailableSlots,
       formatSlots,
       formatSlotTime,
       formatTime,

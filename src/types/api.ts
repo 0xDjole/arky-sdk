@@ -148,14 +148,6 @@ export interface GetReservationQuoteParams {
   zoneId?: string;
 }
 
-export interface GetAvailableSlotsParams {
-  serviceId: string;
-  providerId?: string | null;
-  from: number;
-  to: number;
-  limit?: number;
-}
-
 export interface GetServiceProvidersParams {
   serviceId: string;
   from: number;
@@ -846,4 +838,39 @@ export interface GetVariantParams {
 export interface TrackEventParams {
   eventName: string;
   value?: number;
+}
+
+// === Reservation Slot Types ===
+
+export interface GetSlotsForDateParams {
+  serviceId: string;
+  date: Date;
+  timezone: string;
+  providerId?: string;
+}
+
+export interface GetAvailabilityParams {
+  serviceId: string;
+  from: Date;
+  to: Date;
+  timezone: string;
+}
+
+export interface DayAvailability {
+  date: Date;
+  available: boolean;
+}
+
+/**
+ * A bookable time slot returned by getSlotsForDate.
+ * Contains all information needed to display and book the slot.
+ */
+export interface Slot {
+  id: string;
+  serviceId: string;
+  providerId: string;
+  from: number;
+  to: number;
+  timeText: string;
+  dateText: string;
 }
