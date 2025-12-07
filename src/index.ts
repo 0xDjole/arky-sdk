@@ -1,4 +1,4 @@
-// Export only types, not implementations
+// Export types
 export type {
   ApiResponse,
   EshopCartItem,
@@ -6,9 +6,29 @@ export type {
   ReservationStoreState,
   ReservationCartItem,
   Business,
+  BusinessConfig,
   Block,
   Price,
+  Payment,
+  PaymentMethod,
+  PaymentProviderConfig,
+  ShippingMethod,
+  ShippingWeightTier,
+  Zone,
+  Market,
+  Location,
+  Quote,
+  QuoteLineItem,
+  PromoCodeValidation,
+  PaginatedResponse,
+  Language,
+  Seo,
+  Media,
+  MediaResolution,
 } from "./types";
+
+// Export enums (must be exported as values, not types)
+export { PaymentMethodType } from "./types";
 
 export const SDK_VERSION = "0.3.73";
 export const SUPPORTED_FRAMEWORKS = [

@@ -18,6 +18,7 @@ import type {
   GetProvidersParams,
   GetBusinessServiceWorkingTimeParams,
   GetAvailableSlotsParams,
+  GetServiceProvidersParams,
   GetReservationQuoteParams,
   RequestOptions,
 } from "../types/api";
@@ -197,6 +198,21 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
             ...queryParams,
             limit: queryParams.limit || 1000,
           },
+        },
+      );
+    },
+
+    async getServiceProviders(
+      params: GetServiceProvidersParams,
+      options?: RequestOptions,
+    ) {
+      const { serviceId, ...queryParams } = params;
+
+      return apiConfig.httpClient.get(
+        `/v1/businesses/${apiConfig.businessId}/services/${serviceId}/providers`,
+        {
+          ...options,
+          params: queryParams,
         },
       );
     },

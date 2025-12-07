@@ -1,9 +1,5 @@
-// Core type definitions
-// All types are exported individually for better tree-shaking
-
 export * from './api';
 
-// NEW: Payment structure (matches backend)
 export interface Payment {
 	currency: string;
 	market: string;
@@ -38,7 +34,6 @@ export enum PaymentMethodType {
 	Free = "FREE",
 }
 
-// Quote line item (from quote engine)
 export interface QuoteLineItem {
 	itemType: string;
 	id: string;
@@ -48,7 +43,6 @@ export interface QuoteLineItem {
 	total: number;
 }
 
-// Promo code validation result
 export interface PromoCodeValidation {
 	id: string;
 	code: string;
@@ -57,7 +51,6 @@ export interface PromoCodeValidation {
 	conditions: any[];
 }
 
-// Quote response from backend (full pricing breakdown)
 export interface Quote {
 	currency: string;
 	market: string;
@@ -68,18 +61,18 @@ export interface Quote {
 	lineItems: QuoteLineItem[];
 	shippingMethod: ShippingMethod | null;
 	promoCode: PromoCodeValidation | null;
+	availableShippingMethods: ShippingMethod[];
+	availablePaymentMethods: PaymentMethod[];
 	payment: Payment;
 	chargeAmount: number;
 }
 
-// Market-based price structure (for product variants)
 export interface Price {
 	market: string;
 	amount: number;
 	compareAt?: number;
 }
 
-// Location structure (for shipping addresses, pickup points, etc.)
 export interface Location {
 	country?: string | null;
 	address?: string | null;
@@ -89,7 +82,6 @@ export interface Location {
 	coordinates?: { lat: number; lon: number } | null;
 }
 
-// Cart types
 export interface EshopCartItem {
 	id: string;
 	productId: string;
@@ -97,7 +89,7 @@ export interface EshopCartItem {
 	productName: string;
 	productSlug: string;
 	variantAttributes: Record<string, any>;
-	price: Price; // Minor units (backend format)
+	price: Price;
 	quantity: number;
 	addedAt: number;
 }
@@ -116,7 +108,6 @@ export interface ReservationCartItem {
 	blocks: any[];
 }
 
-// Payment provider types
 export interface PaymentProviderConfig {
 	type: "STRIPE";
 	publicKey: string;
@@ -129,8 +120,18 @@ export interface ShippingWeightTier {
 	amount: number;
 }
 
-export interface ZoneShippingMethod {
+export interface PaymentMethod {
 	id: string;
+	name: Record<string, string>;
+	type: PaymentMethodType;
+}
+
+export interface ShippingMethod {
+	id: string;
+	name: Record<string, string>;
+	taxable: boolean;
+	etaText: string;
+	pickupLocation?: Location;
 	amount: number;
 	freeAbove?: number;
 	weightTiers?: ShippingWeightTier[];
@@ -145,8 +146,8 @@ export interface Zone {
 	cities: string[];
 	postalCodes: string[];
 	taxBps: number;
-	paymentMethods: string[];
-	shippingMethods: ZoneShippingMethod[];
+	paymentMethods: PaymentMethod[];
+	shippingMethods: ShippingMethod[];
 }
 
 export interface Market {
@@ -155,22 +156,6 @@ export interface Market {
 	taxMode: "EXCLUSIVE" | "INCLUSIVE";
 }
 
-export interface PaymentMethod {
-	id: string;
-	type: PaymentMethodType;
-}
-
-export interface ShippingMethod {
-    id: string;
-    type: 'SHIPPING' | 'PICKUP';
-    taxable: boolean;
-    etaText: string;
-    location?: Location;
-}
-
-export interface ZoneResolvedShippingMethod extends ShippingMethod {
-	zoneAmount: number;
-}
 
 export interface Language {
 	id: string;
@@ -183,8 +168,6 @@ export interface BusinessEmails {
 
 export interface BusinessConfig {
 	languages: Language[];
-	paymentMethods: PaymentMethod[];
-	shippingMethods: ShippingMethod[];
 	markets: Market[];
 	zones: Zone[];
 	buildHooks: string[];
@@ -202,7 +185,6 @@ export interface Business {
 	configs?: BusinessConfig;
 }
 
-// Store state types - Simplified (business data moved to business store)
 export interface EshopStoreState {
 	businessId: string;
 	selectedShippingMethodId: string | null;
@@ -224,7 +206,6 @@ export interface Block {
 	value?: any;
 }
 
-// SEO types
 export interface Seo {
 	slug: Record<string, string>;
 	metaTitle: Record<string, string>;
@@ -233,7 +214,6 @@ export interface Seo {
 	ogImage: string;
 }
 
-// Media types
 export interface MediaResolution {
 	id: string;
 	size: string;
@@ -253,13 +233,12 @@ export interface Media {
 	seo: Seo;
 }
 
-// API Response types
 export interface ApiResponse<T> {
-    success: boolean;
-    data?: T;
-    error?: string;
-    cursor?: string;
-    total?: number;
+	success: boolean;
+	data?: T;
+	error?: string;
+	cursor?: string;
+	total?: number;
 }
 
 export interface PaginatedResponse<T> {
@@ -271,42 +250,24 @@ export interface PaginatedResponse<T> {
 	};
 }
 
-// Legacy types - kept for compatibility
-export interface MarketConfigClient {
-	currency: string;
-	taxMode: string;
-	defaultTaxRate: number;
-	paymentMethods: string[];
-	showTaxIncluded: boolean;
-	shippingMethods?: ShippingMethod[];
-}
-
 export interface ReservationStoreState {
 	currentStep: number;
 	totalSteps: number;
 	steps: Record<number, { name: string; labelKey: string }>;
-
-	// Calendar data
 	weekdays: string[];
 	monthYear: string;
 	days: any[];
 	current: Date;
-
-	// Selection state
 	selectedDate: string | null;
 	slots: any[];
 	selectedSlot: any | null;
 	selectedMethod: string | null;
 	selectedProvider: any | null;
 	providers: any[];
-
-	// Status flags
 	loading: boolean;
 	startDate: string | null;
 	endDate: string | null;
 	isMultiDay: boolean;
-
-	// Phone verification
 	phoneNumber: string;
 	phoneError: string | null;
 	phoneSuccess: string | null;
@@ -317,8 +278,6 @@ export interface ReservationStoreState {
 	isVerifying: boolean;
 	codeSentAt: number | null;
 	canResendAt: number | null;
-
-	// Service & config
 	guestToken: string | null;
 	service: any | null;
 	business: Business | null;
@@ -329,8 +288,6 @@ export interface ReservationStoreState {
 	timezone: string;
 	tzGroups: any;
 	items: ReservationCartItem[];
-
-	// Payment configuration
 	allowedPaymentMethods: string[];
 	paymentConfig: {
 		provider: PaymentProviderConfig | null;

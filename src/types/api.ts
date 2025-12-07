@@ -156,6 +156,63 @@ export interface GetAvailableSlotsParams {
   limit?: number;
 }
 
+export interface GetServiceProvidersParams {
+  serviceId: string;
+  from: number;
+  to: number;
+}
+
+export interface TimelinePoint {
+  id: string;
+  providerId: string;
+  businessId: string;
+  timestamp: number;
+  concurrent: number;
+}
+
+export interface WorkingHour {
+  from: number;
+  to: number;
+}
+
+export interface WorkingDay {
+  day: string;
+  workingHours: WorkingHour[];
+}
+
+export interface OutcastDate {
+  month: number;
+  day: number;
+  workingHours: WorkingHour[];
+}
+
+export interface SpecificDate {
+  date: number;
+  workingHours: WorkingHour[];
+}
+
+export interface WorkingTime {
+  workingDays: WorkingDay[];
+  outcastDates: OutcastDate[];
+  specificDates: SpecificDate[];
+}
+
+export interface ProviderWithTimeline {
+  id: string;
+  name: Record<string, string>;
+  businessId: string;
+  seo: any;
+  blocks: Block[];
+  statuses: any[];
+  concurrentLimit: number;
+  categoryIds: string[];
+  categoryFilterBlocks: Block[];
+  createdAt: number;
+  updatedAt: number;
+  workingTime: WorkingTime | null;
+  timeline: TimelinePoint[];
+}
+
 // Analytics API Types
 export interface GetAnalyticsParams {
   metrics?: string[];
