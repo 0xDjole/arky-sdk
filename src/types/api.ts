@@ -574,7 +574,6 @@ export interface CreateServiceParams {
   categoryFilterBlocks?: any[];
   prices?: any[];
   durations?: any[];
-  reservationMethods?: any[];
   reservationConfigs?: any;
   statuses?: any[];
   [key: string]: any;
@@ -589,7 +588,6 @@ export interface UpdateServiceParams {
   categoryFilterBlocks?: any[];
   prices?: any[];
   durations?: any[];
-  reservationMethods?: any[];
   reservationConfigs?: any;
   statuses?: any[];
   [key: string]: any;

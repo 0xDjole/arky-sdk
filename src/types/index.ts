@@ -102,8 +102,6 @@ export interface ReservationCartItem {
 	from: number;
 	to: number;
 	timeText: string;
-	isMultiDay: boolean;
-	reservationMethod: string;
 	providerId?: string;
 	blocks: any[];
 }
@@ -261,13 +259,11 @@ export interface ReservationStoreState {
 	selectedDate: string | null;
 	slots: any[];
 	selectedSlot: any | null;
-	selectedMethod: string | null;
 	selectedProvider: any | null;
 	providers: any[];
 	loading: boolean;
 	startDate: string | null;
 	endDate: string | null;
-	isMultiDay: boolean;
 	phoneNumber: string;
 	phoneError: string | null;
 	phoneSuccess: string | null;

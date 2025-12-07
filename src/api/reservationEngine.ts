@@ -120,7 +120,6 @@ export interface ReservationEngineState {
   service: any | null;
   providers: ProviderWithTimeline[];
   selectedProvider: ProviderWithTimeline | null;
-  selectedMethod: string | null;
   currentMonth: Date;
   calendar: CalendarDay[];
   selectedDate: string | null;
@@ -149,7 +148,6 @@ const createInitialState = (timezone: string): ReservationEngineState => ({
   service: null,
   providers: [],
   selectedProvider: null,
-  selectedMethod: null,
   currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   calendar: [],
   selectedDate: null,
@@ -258,7 +256,6 @@ export const createReservationEngine = (
         store.set({
           ...store.get(),
           service,
-          selectedMethod: service.reservationMethods?.length === 1 ? service.reservationMethods[0] : null,
           selectedProvider: null,
           providers: [],
           selectedDate: null,
@@ -307,20 +304,6 @@ export const createReservationEngine = (
       const { currentMonth } = store.get();
       store.setKey("currentMonth", new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
       actions.loadMonth();
-    },
-
-    selectMethod(method: string) {
-      store.set({
-        ...store.get(),
-        selectedMethod: method,
-        selectedProvider: null,
-        selectedDate: null,
-        startDate: null,
-        endDate: null,
-        slots: [],
-        selectedSlot: null,
-      });
-      store.setKey("calendar", buildCalendar());
     },
 
     selectProvider(provider: ProviderWithTimeline | null) {
@@ -399,7 +382,6 @@ export const createReservationEngine = (
             from: s.from,
             to: s.to,
             blocks: s.serviceBlocks || [],
-            reservationMethod: s.reservationMethod || state.selectedMethod || "STANDARD",
           })),
           paymentMethod: options.paymentMethod,
           promoCode: options.promoCode ?? null,
