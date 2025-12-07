@@ -375,7 +375,7 @@ export const createReservationEngine = (
       store.setKey("loading", true);
 
       try {
-        const result = await api.checkout({
+        return api.checkout({
           items: state.cart.map((s: any) => ({
             serviceId: s.serviceId,
             providerId: s.providerId,
@@ -387,8 +387,6 @@ export const createReservationEngine = (
           promoCode: options.promoCode ?? null,
           blocks: options.blocks || [],
         });
-        store.setKey("cart", []);
-        return result;
       } finally {
         store.setKey("loading", false);
       }

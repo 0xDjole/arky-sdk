@@ -93,16 +93,11 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
         items,
       };
 
-      const result = await apiConfig.httpClient.post(
+      return apiConfig.httpClient.post(
         `/v1/reservations/checkout`,
         payload,
         options,
       );
-
-      // Clear cart after successful checkout
-      cart = [];
-
-      return result;
     },
 
     async getReservation(
