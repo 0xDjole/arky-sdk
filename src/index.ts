@@ -39,13 +39,6 @@ export type {
   Slot,
 } from "./types/api";
 
-// Export reservation engine types
-export type {
-  ReservationEngineConfig,
-  ReservationEngineState,
-  CalendarDay,
-} from "./api/reservationEngine";
-
 // Export location types
 export type {
   LocationState,
@@ -53,7 +46,7 @@ export type {
   GetCountriesResponse,
 } from "./api/location";
 
-export const SDK_VERSION = "0.3.83";
+export const SDK_VERSION = "0.3.84";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -117,12 +110,6 @@ import {
   fetchSvgContent,
   injectSvgIntoElement,
 } from "./utils/svg";
-import {
-  createReservationEngine,
-  type ReservationEngineConfig,
-  type ReservationEngineState,
-  type CalendarDay,
-} from "./api/reservationEngine";
 
 export async function createArkySDK(
   config: HttpClientConfig & { market: string; locale?: string }
@@ -177,12 +164,6 @@ export async function createArkySDK(
     database: createDatabaseApi(apiConfig),
     featureFlags: createFeatureFlagsApi(apiConfig),
     location: createLocationApi(apiConfig),
-
-    // High-level reservation engine
-    reservationEngine: (engineConfig?: ReservationEngineConfig) => {
-      const reservationApi = createReservationApi(apiConfig);
-      return createReservationEngine(reservationApi, engineConfig);
-    },
 
     setBusinessId: (businessId: string) => {
       apiConfig.businessId = businessId;
