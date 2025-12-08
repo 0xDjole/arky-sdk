@@ -1,4 +1,4 @@
-import type { Block } from "./index";
+import type { Block, Location } from "./index";
 
 export interface RequestOptions<T = any> {
   headers?: Record<string, string>;
@@ -37,7 +37,7 @@ export interface GetQuoteParams {
   paymentMethod: string;
   shippingMethodId?: string;
   promoCode?: string;
-  location?: any;
+  location?: Location;
 }
 
 export interface CheckoutParams {
@@ -46,7 +46,7 @@ export interface CheckoutParams {
   blocks?: any[];
   shippingMethodId: string;
   promoCode?: string;
-  zoneId?: string;
+  location: Location;
 }
 
 export interface GetProductsParams {
