@@ -46,7 +46,14 @@ export type {
   CalendarDay,
 } from "./api/reservationEngine";
 
-export const SDK_VERSION = "0.3.78";
+// Export location types
+export type {
+  LocationState,
+  LocationCountry,
+  GetCountriesResponse,
+} from "./api/location";
+
+export const SDK_VERSION = "0.3.81";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -81,6 +88,7 @@ import { createEshopApi } from "./api/eshop";
 import { createReservationApi } from "./api/reservation";
 import { createDatabaseApi } from "./api/database";
 import { createFeatureFlagsApi } from "./api/featureFlags";
+import { createLocationApi } from "./api/location";
 import {
   getImageUrl,
   getBlockValue,
@@ -168,6 +176,7 @@ export async function createArkySDK(
     reservation: createReservationApi(apiConfig),
     database: createDatabaseApi(apiConfig),
     featureFlags: createFeatureFlagsApi(apiConfig),
+    location: createLocationApi(apiConfig),
 
     // High-level reservation engine
     reservationEngine: (engineConfig?: ReservationEngineConfig) => {
