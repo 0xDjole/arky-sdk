@@ -61,8 +61,8 @@ export interface Quote {
 	lineItems: QuoteLineItem[];
 	shippingMethod: ShippingMethod | null;
 	promoCode: PromoCodeValidation | null;
-	availableShippingMethods: ShippingMethod[];
-	availablePaymentMethods: PaymentMethod[];
+	shippingMethods: ShippingMethod[];
+	paymentMethods: PaymentMethod[];
 	payment: Payment;
 	chargeAmount: number;
 }
@@ -141,7 +141,6 @@ export interface Zone {
 	marketId: string;
 	countries: string[];
 	states: string[];
-	cities: string[];
 	postalCodes: string[];
 	taxBps: number;
 	paymentMethods: PaymentMethod[];
