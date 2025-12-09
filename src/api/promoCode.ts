@@ -40,11 +40,11 @@ export const createPromoCodeApi = (apiConfig: ApiConfig) => {
 			);
 		},
 
-	async getPromoCodes(params: GetPromoCodesParams, options?: RequestOptions) {
-		return apiConfig.httpClient.get(`/v1/businesses/${apiConfig.businessId}/promo-codes`, {
-			...options,
-			params
-		});
-	}
+		async getPromoCodes(params: GetPromoCodesParams, options?: RequestOptions) {
+			return apiConfig.httpClient.get(`/v1/businesses/${apiConfig.businessId}/promo-codes`, {
+				...options,
+				params
+			});
+		}
 	};
 };

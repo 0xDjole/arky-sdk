@@ -11,8 +11,6 @@ import type {
   UpdateOrderParams,
   GetOrderParams,
   GetOrdersParams,
-  UpdateOrderStatusParams,
-  UpdateOrderPaymentStatusParams,
   RequestOptions,
 } from "../types/api";
 
@@ -109,28 +107,6 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
           ...options,
           params,
         },
-      );
-    },
-
-    async updateOrderStatus(
-      params: UpdateOrderStatusParams,
-      options?: RequestOptions,
-    ) {
-      return apiConfig.httpClient.put(
-        `/v1/businesses/${apiConfig.businessId}/orders/${params.id}/status`,
-        params,
-        options,
-      );
-    },
-
-    async updateOrderPaymentStatus(
-      params: UpdateOrderPaymentStatusParams,
-      options?: RequestOptions,
-    ) {
-      return apiConfig.httpClient.put(
-        `/v1/businesses/${apiConfig.businessId}/orders/${params.id}/payment-status`,
-        params,
-        options,
       );
     },
 

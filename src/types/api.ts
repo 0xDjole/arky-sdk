@@ -45,7 +45,7 @@ export interface CheckoutParams {
   paymentMethod: string;
   blocks?: any[];
   shippingMethodId: string;
-  promoCode?: string;
+  promoCodeId?: string;
   address?: Location;
   email?: string;
   phone?: string;
@@ -138,7 +138,7 @@ export interface ReservationCheckoutParams {
   items: any[];
   paymentMethod?: string;
   blocks?: any[];
-  promoCode?: string;
+  promoCodeId?: string;
   zoneId?: string;
   email?: string;
   phone?: string;
@@ -511,21 +511,14 @@ export interface GetOrdersParams {
   createdAtTo?: string | null;
 }
 
-export interface UpdateOrderStatusParams {
-  id: string;
-  status: string;
-  [key: string]: any;
-}
-
-export interface UpdateOrderPaymentStatusParams {
-  id: string;
-  paymentStatus: string;
-  [key: string]: any;
-}
-
 export interface UpdateOrderParams {
-  id?: string;
-  [key: string]: any;
+  id: string;
+  statuses: any[];
+  blocks: any[];
+  items: any[];
+  address?: any | null;
+  email?: string | null;
+  phone?: string | null;
 }
 
 export interface CreateOrderParams {
