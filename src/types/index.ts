@@ -77,8 +77,8 @@ export interface Location {
 	country?: string | null;
 	address?: string | null;
 	city?: string | null;
+	state?: string | null;
 	postalCode?: string | null;
-	countryCode?: string | null;
 	coordinates?: { lat: number; lon: number } | null;
 }
 
