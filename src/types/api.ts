@@ -46,7 +46,9 @@ export interface CheckoutParams {
   blocks?: any[];
   shippingMethodId: string;
   promoCode?: string;
-  location: Location;
+  address?: Location;
+  email?: string;
+  phone?: string;
 }
 
 export interface GetProductsParams {
@@ -138,6 +140,8 @@ export interface ReservationCheckoutParams {
   blocks?: any[];
   promoCode?: string;
   zoneId?: string;
+  email?: string;
+  phone?: string;
 }
 
 export interface GetReservationQuoteParams {

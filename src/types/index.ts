@@ -163,6 +163,16 @@ export interface BusinessEmails {
 	support: string;
 }
 
+export interface OrderConfigs {
+	isEmailRequired: boolean;
+	isPhoneRequired: boolean;
+}
+
+export interface BusinessReservationConfigs {
+	isEmailRequired: boolean;
+	isPhoneRequired: boolean;
+}
+
 export interface BusinessConfig {
 	languages: Language[];
 	markets: Market[];
@@ -171,6 +181,8 @@ export interface BusinessConfig {
 	webhooks: any[];
 	orderBlocks: any[];
 	reservationBlocks: any[];
+	orderConfigs: OrderConfigs;
+	reservationConfigs: BusinessReservationConfigs;
 	paymentProvider?: PaymentProviderConfig;
 	aiProvider?: any;
 	emails: BusinessEmails;
