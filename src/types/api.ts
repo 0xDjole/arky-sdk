@@ -571,7 +571,7 @@ export interface CreateServiceParams {
   categoryFilterBlocks?: any[];
   prices?: any[];
   durations?: any[];
-  reservationConfigs?: any;
+  isApprovalRequired?: boolean;
   statuses?: any[];
   [key: string]: any;
 }
@@ -585,7 +585,7 @@ export interface UpdateServiceParams {
   categoryFilterBlocks?: any[];
   prices?: any[];
   durations?: any[];
-  reservationConfigs?: any;
+  isApprovalRequired?: boolean;
   statuses?: any[];
   [key: string]: any;
 }
