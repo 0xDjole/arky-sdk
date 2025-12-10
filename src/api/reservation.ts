@@ -140,24 +140,13 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       params: GetReservationQuoteParams,
       options?: RequestOptions,
     ) {
-      const lines = params.items.map((item: any) => ({
-        type: "SERVICE",
-        serviceId: item.serviceId,
-        from: item.from,
-        to: item.to,
-        providerId: item.providerId,
-      }));
-
-      const { items, ...rest } = params;
-
       const payload = {
         businessId: apiConfig.businessId,
         market: apiConfig.market,
-        lines: lines,
-        ...rest,
+        ...params,
       };
 
-      return apiConfig.httpClient.post(`/v1/payments/quote`, payload, options);
+      return apiConfig.httpClient.post(`/v1/reservations/quote`, payload, options);
     },
 
     // ===== SERVICES =====

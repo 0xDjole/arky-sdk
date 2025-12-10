@@ -145,9 +145,9 @@ export interface ReservationCheckoutParams {
 
 export interface ReservationQuoteItem {
   serviceId: string;
-  from?: number;
-  to?: number;
-  providerId?: string;
+  from: number;
+  to: number;
+  providerId: string;
 }
 
 export interface GetReservationQuoteParams {

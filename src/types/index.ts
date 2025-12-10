@@ -34,38 +34,63 @@ export enum PaymentMethodType {
 	Free = "FREE",
 }
 
-export interface QuoteLineItem {
-	itemType: string;
-	id: string;
+export interface PromoCodeValidation {
+	promoCodeId: string;
+	code: string;
+	discounts: any[];
+	conditions: any[];
+}
+
+export interface EshopQuoteLineItem {
+	productId: string;
+	variantId: string;
 	name: string;
 	quantity: number;
 	unitPrice: number;
 	total: number;
 }
 
-export interface PromoCodeValidation {
-	id: string;
-	code: string;
-	discountType: any;
-	discountValue: number;
-	conditions: any[];
-}
-
-export interface Quote {
-	currency: string;
+export interface EshopQuote {
 	market: string;
 	subtotal: number;
 	shipping: number;
 	discount: number;
+	tax: number;
 	total: number;
-	lineItems: QuoteLineItem[];
+	lineItems: EshopQuoteLineItem[];
 	shippingMethod: ShippingMethod | null;
 	promoCode: PromoCodeValidation | null;
 	shippingMethods: ShippingMethod[];
 	paymentMethods: PaymentMethod[];
 	payment: Payment;
 	chargeAmount: number;
+	id?: string;
+	expiresAt?: number;
 }
+
+export interface ReservationQuoteLineItem {
+	serviceId: string;
+	name: string;
+	quantity: number;
+	unitPrice: number;
+	total: number;
+}
+
+export interface ReservationQuote {
+	market: string;
+	subtotal: number;
+	discount: number;
+	tax: number;
+	total: number;
+	lineItems: ReservationQuoteLineItem[];
+	paymentMethods: PaymentMethod[];
+	promoCode: PromoCodeValidation | null;
+	payment: Payment;
+	chargeAmount: number;
+	id?: string;
+	expiresAt?: number;
+}
+
 
 export interface Price {
 	market: string;

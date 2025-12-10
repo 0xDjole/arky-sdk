@@ -113,20 +113,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     // ===== PAYMENTS =====
 
     async getQuote(params: GetQuoteParams, options?: RequestOptions) {
-      const lines = params.items.map((item) => ({
-        type: "PRODUCT_VARIANT",
-        productId: item.productId,
-        variantId: item.variantId,
-        quantity: item.quantity,
-      }));
-
-      const { items, ...rest } = params;
-
       const payload = {
         businessId: apiConfig.businessId,
         market: apiConfig.market,
-        lines: lines,
-        ...rest,
+        ...params,
       };
 
       return apiConfig.httpClient.post(`/v1/payments/quote`, payload, options);
