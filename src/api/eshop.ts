@@ -119,7 +119,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         ...params,
       };
 
-      return apiConfig.httpClient.post(`/v1/payments/quote`, payload, options);
+      return apiConfig.httpClient.post(`/v1/orders/quote`, payload, options);
     },
 
     async checkout(params: CheckoutParams, options?: RequestOptions) {
