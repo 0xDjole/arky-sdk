@@ -151,6 +151,8 @@ export interface Market {
 	id: string;
 	currency: string;
 	taxMode: "EXCLUSIVE" | "INCLUSIVE";
+	reservationTaxBps: number;
+	reservationPaymentMethods: PaymentMethod[];
 }
 
 
@@ -339,7 +341,6 @@ export interface Reservation {
 	items: ReservationItem[];
 	email?: string;
 	phone?: string;
-	address?: Location;
 	createdAt: number;
 	lastModified: number;
 }

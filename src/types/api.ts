@@ -139,15 +139,12 @@ export interface ReservationCheckoutParams {
   paymentMethod?: string;
   blocks?: any[];
   promoCodeId?: string;
-  zoneId?: string;
   email?: string;
   phone?: string;
-  address?: Location;
 }
 
 export interface ReservationQuoteItem {
   serviceId: string;
-  quantity?: number;
   from?: number;
   to?: number;
   providerId?: string;
@@ -157,8 +154,6 @@ export interface GetReservationQuoteParams {
   items: ReservationQuoteItem[];
   paymentMethod: string;
   promoCode?: string;
-  location?: Location;
-  zoneId?: string;
 }
 
 export interface GetServiceProvidersParams {
