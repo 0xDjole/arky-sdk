@@ -143,7 +143,7 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       const lines = params.items.map((item: any) => ({
         type: "SERVICE",
         serviceId: item.serviceId,
-        quantity: 1,
+        quantity: item.quantity || 1,
       }));
 
       const { items, ...rest } = params;

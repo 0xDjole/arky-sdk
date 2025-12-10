@@ -301,3 +301,45 @@ export interface ReservationStoreState {
 		enabled: boolean;
 	};
 }
+
+export interface StatusEvent {
+	id: string;
+	changedBy: 'BUSINESS' | 'USER' | 'SYSTEM';
+	userId?: string;
+	status: string;
+	note?: string;
+	timestamp: number;
+}
+
+export interface ReservationItem {
+	id: string;
+	serviceId: string;
+	providerId: string;
+	businessId: string;
+	reservationId: string;
+	userId: string;
+	from: number;
+	to: number;
+	blocks: Block[];
+	price: Price;
+}
+
+export interface Reservation {
+	id: string;
+	number: string;
+	userId: string;
+	blocks: Block[];
+	businessId: string;
+	statuses: StatusEvent[];
+	serviceIds: string[];
+	providerIds: string[];
+	payment: Payment;
+	business?: Business;
+	user?: any;
+	items: ReservationItem[];
+	email?: string;
+	phone?: string;
+	address?: Location;
+	createdAt: number;
+	lastModified: number;
+}

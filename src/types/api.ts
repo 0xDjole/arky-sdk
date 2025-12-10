@@ -142,13 +142,22 @@ export interface ReservationCheckoutParams {
   zoneId?: string;
   email?: string;
   phone?: string;
+  address?: Location;
+}
+
+export interface ReservationQuoteItem {
+  serviceId: string;
+  quantity?: number;
+  from?: number;
+  to?: number;
+  providerId?: string;
 }
 
 export interface GetReservationQuoteParams {
-  items: any[];
+  items: ReservationQuoteItem[];
   paymentMethod: string;
   promoCode?: string;
-  location?: any;
+  location?: Location;
   zoneId?: string;
 }
 
