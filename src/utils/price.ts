@@ -212,6 +212,8 @@ export function createPaymentForCheckout(
         shipping: 0,
         discount,
         total,
+        paid: 0,
+        refunds: [],
         type: paymentMethod,
         ...(taxAmount > 0 && {
             tax: {

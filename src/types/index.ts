@@ -1,5 +1,14 @@
 export * from './api';
 
+export interface PaymentRefund {
+	id: string;
+	entity: string;
+	total: number;
+	providerRefundId?: string;
+	status: string;
+	createdAt: number;
+}
+
 export interface Payment {
 	currency: string;
 	market: string;
@@ -7,6 +16,7 @@ export interface Payment {
 	shipping: number;
 	discount: number;
 	total: number;
+	paid: number;
 	tax?: {
 		amount: number;
 		modeSnapshot?: string;
@@ -26,6 +36,7 @@ export interface Payment {
 		subscriptionId?: string;
 		priceId?: string;
 	};
+	refunds: PaymentRefund[];
 }
 
 export enum PaymentMethodType {

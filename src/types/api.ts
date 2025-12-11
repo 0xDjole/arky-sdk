@@ -523,6 +523,7 @@ export interface UpdateOrderParams {
   address?: any | null;
   email?: string | null;
   phone?: string | null;
+  payment?: any | null;
 }
 
 export interface CreateOrderParams {
@@ -539,6 +540,7 @@ export interface UpdateReservationParams {
   statuses?: any;
   blocks?: any;
   parts?: any;
+  payment?: any | null;
   [key: string]: any;
 }
 

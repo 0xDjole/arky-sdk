@@ -10,6 +10,7 @@ export type {
   Block,
   Price,
   Payment,
+  PaymentRefund,
   PaymentMethod,
   PaymentProviderConfig,
   ShippingMethod,
