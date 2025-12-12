@@ -52,49 +52,17 @@ export interface PromoCodeValidation {
 	conditions: any[];
 }
 
-export interface EshopQuoteLineItem {
-	productId: string;
-	variantId: string;
-	name: string;
-	quantity: number;
-	unitPrice: number;
-	total: number;
-}
-
-export interface EshopQuote {
+export interface Quote {
 	market: string;
 	subtotal: number;
 	shipping: number;
 	discount: number;
 	tax: number;
 	total: number;
-	lineItems: EshopQuoteLineItem[];
+	availableShippingMethods: ShippingMethod[];
+	availablePaymentMethods: PaymentMethod[];
 	shippingMethod: ShippingMethod | null;
-	promoCode: PromoCodeValidation | null;
-	shippingMethods: ShippingMethod[];
-	paymentMethods: PaymentMethod[];
-	payment: Payment;
-	chargeAmount: number;
-	id?: string;
-	expiresAt?: number;
-}
-
-export interface ReservationQuoteLineItem {
-	serviceId: string;
-	name: string;
-	quantity: number;
-	unitPrice: number;
-	total: number;
-}
-
-export interface ReservationQuote {
-	market: string;
-	subtotal: number;
-	discount: number;
-	tax: number;
-	total: number;
-	lineItems: ReservationQuoteLineItem[];
-	paymentMethods: PaymentMethod[];
+	paymentMethod: PaymentMethod | null;
 	promoCode: PromoCodeValidation | null;
 	payment: Payment;
 	chargeAmount: number;
