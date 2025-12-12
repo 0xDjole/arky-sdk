@@ -57,14 +57,12 @@ export interface PromoCodeValidation {
 
 export interface Quote {
 	market: string;
-	zoneId: string;
+	zone: Zone;
 	subtotal: number;
 	shipping: number;
 	discount: number;
 	tax: number;
 	total: number;
-	availableShippingMethods: ShippingMethod[];
-	availablePaymentMethods: PaymentMethod[];
 	shippingMethod: ShippingMethod | null;
 	paymentMethod: PaymentMethod | null;
 	promoCode: PromoCodeValidation | null;
@@ -128,13 +126,11 @@ export interface ShippingWeightTier {
 
 export interface PaymentMethod {
 	id: string;
-	name: Record<string, string>;
 	type: PaymentMethodType;
 }
 
 export interface ShippingMethod {
 	id: string;
-	name: Record<string, string>;
 	taxable: boolean;
 	etaText: string;
 	pickupLocation?: Location;
@@ -143,11 +139,10 @@ export interface ShippingMethod {
 	weightTiers?: ShippingWeightTier[];
 }
 
-export type ZoneScope = "ORDER" | "RESERVATION" | "ALL";
+export type ZoneScope = "ORDER" | "RESERVATION";
 
 export interface Zone {
 	id: string;
-	name: string;
 	marketId: string;
 	scope: ZoneScope;
 	countries: string[];
