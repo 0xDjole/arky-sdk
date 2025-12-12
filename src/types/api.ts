@@ -34,7 +34,7 @@ export interface EshopItem {
 
 export interface GetQuoteParams {
   items: EshopItem[];
-  paymentMethod: string;
+  paymentMethodId?: string;
   shippingMethodId?: string;
   promoCode?: string;
   location?: Location;
@@ -42,7 +42,7 @@ export interface GetQuoteParams {
 
 export interface CheckoutParams {
   items: EshopItem[];
-  paymentMethod: string;
+  paymentMethodId?: string;
   blocks?: any[];
   shippingMethodId: string;
   promoCodeId?: string;
@@ -136,7 +136,7 @@ export interface GetServicesParams {
 
 export interface ReservationCheckoutParams {
   items: any[];
-  paymentMethod?: string;
+  paymentMethodId?: string;
   blocks?: any[];
   promoCodeId?: string;
   email?: string;
@@ -152,7 +152,7 @@ export interface ReservationQuoteItem {
 
 export interface GetReservationQuoteParams {
   items: ReservationQuoteItem[];
-  paymentMethod: string;
+  paymentMethodId?: string;
   promoCode?: string;
 }
 

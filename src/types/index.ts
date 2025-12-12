@@ -37,6 +37,9 @@ export interface Payment {
 		priceId?: string;
 	};
 	refunds: PaymentRefund[];
+	zoneId?: string;
+	paymentMethodId?: string;
+	shippingMethodId?: string;
 }
 
 export enum PaymentMethodType {
@@ -54,6 +57,7 @@ export interface PromoCodeValidation {
 
 export interface Quote {
 	market: string;
+	zoneId: string;
 	subtotal: number;
 	shipping: number;
 	discount: number;
