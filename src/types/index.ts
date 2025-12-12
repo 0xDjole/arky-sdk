@@ -139,10 +139,13 @@ export interface ShippingMethod {
 	weightTiers?: ShippingWeightTier[];
 }
 
+export type ZoneScope = "ORDER" | "RESERVATION" | "ALL";
+
 export interface Zone {
 	id: string;
 	name: string;
 	marketId: string;
+	scope: ZoneScope;
 	countries: string[];
 	states: string[];
 	postalCodes: string[];
@@ -155,8 +158,6 @@ export interface Market {
 	id: string;
 	currency: string;
 	taxMode: "EXCLUSIVE" | "INCLUSIVE";
-	reservationTaxBps: number;
-	reservationPaymentMethods: PaymentMethod[];
 }
 
 
