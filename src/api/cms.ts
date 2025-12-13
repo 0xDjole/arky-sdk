@@ -189,7 +189,7 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions
     ) {
       return apiConfig.httpClient.get(
-        `/v1/collections/entry-types/${params.entryType}/variables`,
+        `/v1/businesses/${apiConfig.businessId}/collections/types/${params.entryType}/variables`,
         options
       );
     },

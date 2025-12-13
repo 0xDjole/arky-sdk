@@ -14,33 +14,45 @@ export const createRoleApi = (apiConfig: ApiConfig) => {
       params: CreateRoleParams,
       options?: RequestOptions
     ): Promise<void> {
-      return apiConfig.httpClient.post(`/v1/roles`, params, options);
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${apiConfig.businessId}/roles`,
+        params,
+        options,
+      );
     },
 
     async updateRole(params: UpdateRoleParams, options?: RequestOptions) {
       return apiConfig.httpClient.put(
-        `/v1/roles/${params.id}`,
+        `/v1/businesses/${apiConfig.businessId}/roles/${params.id}`,
         params,
-        options
+        options,
       );
     },
 
     async deleteRole(params: DeleteRoleParams, options?: RequestOptions) {
-      return apiConfig.httpClient.delete(`/v1/roles/${params.id}`, options);
+      return apiConfig.httpClient.delete(
+        `/v1/businesses/${apiConfig.businessId}/roles/${params.id}`,
+        options,
+      );
     },
 
     async getRole(params: GetRoleParams, options?: RequestOptions) {
-      return apiConfig.httpClient.get(`/v1/roles/${params.id}`, options);
+      return apiConfig.httpClient.get(
+        `/v1/businesses/${apiConfig.businessId}/roles/${params.id}`,
+        options,
+      );
     },
 
     async getRoles(params: GetRolesParams, options?: RequestOptions) {
-      return apiConfig.httpClient.get(`/v1/roles`, {
-        ...options,
-        params: {
-          action: params.action,
-          businessId: apiConfig.businessId,
+      return apiConfig.httpClient.get(
+        `/v1/businesses/${apiConfig.businessId}/roles`,
+        {
+          ...options,
+          params: {
+            action: params.action,
+          },
         },
-      });
+      );
     },
   };
 };

@@ -5,7 +5,6 @@ import type {
   ReservationCheckoutParams,
   GetReservationParams,
   SearchReservationsParams,
-  SearchMyReservationsParams,
   CreateServiceParams,
   UpdateServiceParams,
   DeleteServiceParams,
@@ -54,12 +53,15 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ) {
       const payload = {
-        businessId: apiConfig.businessId,
         market: apiConfig.market,
         ...params,
       };
 
-      return apiConfig.httpClient.post(`/v1/reservations`, payload, options);
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${apiConfig.businessId}/reservations`,
+        payload,
+        options,
+      );
     },
 
     async updateReservation(
@@ -68,7 +70,7 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
     ) {
       const { id, ...payload } = params;
       return apiConfig.httpClient.put(
-        `/v1/reservations/${id}`,
+        `/v1/businesses/${apiConfig.businessId}/reservations/${id}`,
         payload,
         options,
       );
@@ -87,14 +89,13 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       }));
 
       const payload = {
-        businessId: apiConfig.businessId,
         market: apiConfig.market,
         ...params,
         items,
       };
 
       return apiConfig.httpClient.post(
-        `/v1/reservations/checkout`,
+        `/v1/businesses/${apiConfig.businessId}/reservations/checkout`,
         payload,
         options,
       );
@@ -104,34 +105,23 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       params: GetReservationParams,
       options?: RequestOptions,
     ) {
-      // Reservations use UUID only - no SEO slug support
-      return apiConfig.httpClient.get(`/v1/reservations/${params.id}`, {
-        ...options,
-        params: { businessId: apiConfig.businessId },
-      });
+      return apiConfig.httpClient.get(
+        `/v1/businesses/${apiConfig.businessId}/reservations/${params.id}`,
+        options,
+      );
     },
 
     async searchReservations(
       params: SearchReservationsParams,
       options?: RequestOptions,
     ) {
-      return apiConfig.httpClient.get(`/v1/reservations/search`, {
-        ...options,
-        params: {
-          ...params,
-          businessId: apiConfig.businessId,
+      return apiConfig.httpClient.get(
+        `/v1/businesses/${apiConfig.businessId}/reservations`,
+        {
+          ...options,
+          params,
         },
-      });
-    },
-
-    async searchMyReservations(
-      params: SearchMyReservationsParams,
-      options?: RequestOptions,
-    ) {
-      return apiConfig.httpClient.get(`/v1/reservations`, {
-        ...options,
-        params,
-      });
+      );
     },
 
     // ===== QUOTES =====
@@ -141,12 +131,15 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ) {
       const payload = {
-        businessId: apiConfig.businessId,
         market: apiConfig.market,
         ...params,
       };
 
-      return apiConfig.httpClient.post(`/v1/reservations/quote`, payload, options);
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${apiConfig.businessId}/reservations/quote`,
+        payload,
+        options,
+      );
     },
 
     // ===== SERVICES =====

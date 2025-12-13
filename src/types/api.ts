@@ -40,7 +40,7 @@ export interface GetQuoteParams {
   location?: Location;
 }
 
-export interface CheckoutParams {
+export interface OrderCheckoutParams {
   items: EshopItem[];
   paymentMethodId?: string;
   blocks?: any[];
@@ -141,6 +141,7 @@ export interface ReservationCheckoutParams {
   promoCodeId?: string;
   email?: string;
   phone?: string;
+  location?: Location;
 }
 
 export interface ReservationQuoteItem {
@@ -154,6 +155,7 @@ export interface GetReservationQuoteParams {
   items: ReservationQuoteItem[];
   paymentMethodId?: string;
   promoCode?: string;
+  location?: Location;
 }
 
 export interface GetServiceProvidersParams {
@@ -628,11 +630,6 @@ export interface GetBusinessServiceWorkingTimeParams {
   serviceId?: string;
 }
 
-export interface SearchMyReservationsParams {
-  limit?: number;
-  status?: string;
-  cursor?: string;
-}
 
 export interface GetReservationParams {
   id: string;

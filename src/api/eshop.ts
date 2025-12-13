@@ -6,7 +6,7 @@ import type {
   GetProductParams,
   GetProductsParams,
   GetQuoteParams,
-  CheckoutParams,
+  OrderCheckoutParams,
   CreateOrderParams,
   UpdateOrderParams,
   GetOrderParams,
@@ -86,7 +86,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
 
     async updateOrder(params: UpdateOrderParams, options?: RequestOptions) {
       return apiConfig.httpClient.put(
-        `/v1/businesses/${apiConfig.businessId}/orders/update`,
+        `/v1/businesses/${apiConfig.businessId}/orders/${params.id}`,
         params,
         options,
       );
@@ -114,15 +114,18 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
 
     async getQuote(params: GetQuoteParams, options?: RequestOptions) {
       const payload = {
-        businessId: apiConfig.businessId,
         market: apiConfig.market,
         ...params,
       };
 
-      return apiConfig.httpClient.post(`/v1/orders/quote`, payload, options);
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${apiConfig.businessId}/orders/quote`,
+        payload,
+        options,
+      );
     },
 
-    async checkout(params: CheckoutParams, options?: RequestOptions) {
+    async checkout(params: OrderCheckoutParams, options?: RequestOptions) {
       const payload = {
         businessId: apiConfig.businessId,
         market: apiConfig.market,
