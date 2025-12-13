@@ -50,6 +50,7 @@ export const createRoleApi = (apiConfig: ApiConfig) => {
           ...options,
           params: {
             action: params.action,
+            ids: params.ids,
           },
         },
       );

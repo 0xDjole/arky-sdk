@@ -52,6 +52,7 @@ export interface OrderCheckoutParams {
 }
 
 export interface GetProductsParams {
+  ids?: string[];
   categoryIds?: string[] | null;
   status?: string;
   limit?: number;
@@ -261,6 +262,7 @@ export interface GetRoleParams {
 
 export interface GetRolesParams {
   action: string;
+  ids?: string[];
 }
 
 // Promo Code API Types
