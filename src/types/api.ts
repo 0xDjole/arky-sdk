@@ -133,6 +133,13 @@ export interface GetServicesParams {
   providerId?: string;
   limit?: number;
   cursor?: string;
+  query?: string;
+  ids?: string[];
+  statuses?: string[];
+  categoryId?: string;
+  categoryFilterBlocks?: any[];
+  sortField?: string;
+  sortDirection?: string;
 }
 
 export interface ReservationCheckoutParams {
