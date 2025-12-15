@@ -129,7 +129,7 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       const { collectionId, ...payload } = params;
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/collections/${collectionId}/entries`,
-        { ...payload, collectionId },
+        { ...payload, entity: `collection:${collectionId}` },
         options
       );
     },
@@ -142,7 +142,7 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
 
       return apiConfig.httpClient.put(
         `/v1/businesses/${apiConfig.businessId}/collections/${collectionId}/entries/${id}`,
-        { ...payload, collectionId },
+        payload,
         options
       );
     },
