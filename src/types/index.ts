@@ -348,3 +348,68 @@ export interface Reservation {
 	createdAt: number;
 	lastModified: number;
 }
+
+// ===== CMS Types =====
+
+export enum CollectionEntryType {
+	CONTENT = 'CONTENT',
+	SERVICE_CATEGORY = 'SERVICE_CATEGORY',
+	PROVIDER_CATEGORY = 'PROVIDER_CATEGORY',
+	PRODUCT_CATEGORY = 'PRODUCT_CATEGORY',
+	EMAIL_FORGOT_PASSWORD = 'EMAIL_FORGOT_PASSWORD',
+	EMAIL_USER_CONFIRM = 'EMAIL_USER_CONFIRM',
+	EMAIL_USER_INVITATION = 'EMAIL_USER_INVITATION',
+	EMAIL_ORDER_STATUS_UPDATE = 'EMAIL_ORDER_STATUS_UPDATE',
+	EMAIL_RESERVATION_BUSINESS_STATUS_UPDATE = 'EMAIL_RESERVATION_BUSINESS_STATUS_UPDATE',
+	EMAIL_RESERVATION_CUSTOMER_STATUS_UPDATE = 'EMAIL_RESERVATION_CUSTOMER_STATUS_UPDATE',
+	NEWSLETTER_POST = 'NEWSLETTER_POST',
+	NEWSLETTER_ENTRY = 'NEWSLETTER_ENTRY',
+}
+
+export enum CollectionType {
+	SINGLE = 'SINGLE',
+	CONTENT = 'CONTENT',
+	EMAIL_TEMPLATES = 'EMAIL_TEMPLATES',
+	SERVICE_CATEGORIES = 'SERVICE_CATEGORIES',
+	PROVIDER_CATEGORIES = 'PROVIDER_CATEGORIES',
+	PRODUCT_CATEGORIES = 'PRODUCT_CATEGORIES',
+	NEWSLETTER = 'NEWSLETTER',
+	NEWSLETTER_SEGMENTS = 'NEWSLETTER_SEGMENTS',
+	SERVICE = 'SERVICE',
+	PRODUCT = 'PRODUCT',
+}
+
+export interface CollectionConfig {
+	isPubliclyReadable: boolean;
+	isPubliclyWritable: boolean;
+	isSubmissionEnabled: boolean;
+	isCaptchaRequired: boolean;
+	notificationEmails: string[];
+	unsubscribeUrl: string | null;
+}
+
+export interface Collection {
+	id: string;
+	name: string;
+	businessId: string;
+	type: CollectionType;
+	blocks: Block[];
+	config: CollectionConfig;
+	entity: string;
+	statuses: StatusEvent[];
+	seo: Seo;
+}
+
+export interface CollectionEntry {
+	id: string;
+	name: Record<string, string>;
+	collectionId: string;
+	businessId: string;
+	type: CollectionEntryType;
+	blocks: Block[];
+	statuses: StatusEvent[];
+	props?: any;
+	seo: Seo;
+	createdAt: number;
+	updatedAt: number;
+}

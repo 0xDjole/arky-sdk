@@ -393,18 +393,35 @@ export interface TestWebhookParams {
 }
 
 // Additional CMS API Types
+export interface CollectionConfigParams {
+  isPubliclyReadable?: boolean;
+  isPubliclyWritable?: boolean;
+  isSubmissionEnabled?: boolean;
+  isCaptchaRequired?: boolean;
+  notificationEmails?: string[];
+  unsubscribeUrl?: string | null;
+}
+
 export interface CreateCollectionParams {
   name: string;
-  description?: string;
-  schema?: any;
+  type?: string;
+  blocks?: any[];
+  config?: CollectionConfigParams;
+  entity?: string | null;
+  plans?: any[];
+  seo?: any;
   [key: string]: any;
 }
 
 export interface UpdateCollectionParams {
   id: string;
   name?: string;
-  description?: string;
-  schema?: any;
+  type?: string;
+  blocks?: any[];
+  config?: CollectionConfigParams;
+  entity?: string | null;
+  plans?: any[];
+  seo?: any;
   [key: string]: any;
 }
 
@@ -419,6 +436,8 @@ export interface GetCollectionParams {
 export interface GetCollectionsParams {
   name?: string | null;
   ids?: string[] | null;
+  entity?: string | null;
+  type?: string | null;
 }
 
 export interface GetEntriesParams {

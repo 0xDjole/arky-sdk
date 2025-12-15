@@ -11,6 +11,7 @@ export interface Block {
 export interface Collection {
   id: string;
   blocks: Block[];
+  entity: string;
 }
 
 export interface CollectionEntry {
