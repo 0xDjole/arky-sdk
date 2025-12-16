@@ -207,6 +207,13 @@ export interface WorkingTime {
   specificDates: SpecificDate[];
 }
 
+// ServiceProvider - embedded provider with working time in a Service
+export interface ServiceProvider {
+  id: string;
+  providerId: string;
+  workingTime: WorkingTime;
+}
+
 export interface ProviderWithTimeline {
   id: string;
   name: Record<string, string>;
@@ -599,6 +606,12 @@ export interface DeleteProviderParams {
   id: string;
 }
 
+export interface ServiceProviderInput {
+  id?: string;
+  providerId: string;
+  workingTime: WorkingTime;
+}
+
 export interface CreateServiceParams {
   name: string;
   blocks?: any[];
@@ -609,6 +622,7 @@ export interface CreateServiceParams {
   durations?: any[];
   isApprovalRequired?: boolean;
   statuses?: any[];
+  providers?: ServiceProviderInput[];
   [key: string]: any;
 }
 
@@ -623,6 +637,7 @@ export interface UpdateServiceParams {
   durations?: any[];
   isApprovalRequired?: boolean;
   statuses?: any[];
+  providers?: ServiceProviderInput[];
   [key: string]: any;
 }
 
@@ -750,13 +765,6 @@ export interface GetBusinessMediaParams2 {
   id: string;
   cursor?: string | null;
   limit?: number;
-}
-
-export interface SetProviderScheduleParams {
-  id: string;
-  workingTime: any;
-  serviceIds: string[];
-  providerIds: string[];
 }
 
 export interface DeleteProductParams {

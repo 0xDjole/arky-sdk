@@ -413,3 +413,52 @@ export interface CollectionEntry {
 	createdAt: number;
 	updatedAt: number;
 }
+
+// ===== Reservation Domain Types =====
+
+export interface ServiceDuration {
+	duration: number;
+	isPause?: boolean;
+}
+
+export interface ServiceProvider {
+	id: string;
+	providerId: string;
+	workingTime: {
+		workingDays: Array<{ day: string; workingHours: Array<{ from: number; to: number }> }>;
+		outcastDates: Array<{ month: number; day: number; workingHours: Array<{ from: number; to: number }> }>;
+		specificDates: Array<{ date: number; workingHours: Array<{ from: number; to: number }> }>;
+	};
+}
+
+export interface Service {
+	id: string;
+	name: Record<string, string>;
+	seo: Seo;
+	businessId: string;
+	prices: Price[];
+	durations: ServiceDuration[];
+	categoryFilterBlocks: Block[];
+	categoryIds: string[];
+	blocks: Block[];
+	isApprovalRequired: boolean;
+	reservationBlocks: Block[];
+	providers: ServiceProvider[];
+	createdAt: number;
+	updatedAt: number;
+	statuses: StatusEvent[];
+}
+
+export interface Provider {
+	id: string;
+	name: Record<string, string>;
+	seo: Seo;
+	businessId: string;
+	blocks: Block[];
+	statuses: StatusEvent[];
+	concurrentLimit: number;
+	categoryIds: string[];
+	categoryFilterBlocks: Block[];
+	createdAt: number;
+	updatedAt: number;
+}

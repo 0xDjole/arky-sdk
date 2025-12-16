@@ -15,7 +15,6 @@ import type {
   HandleInvitationParams,
   TestWebhookParams,
   GetBusinessMediaParams2,
-  SetProviderScheduleParams,
   ProcessRefundParams,
   RequestOptions,
 } from "../types/api";
@@ -151,18 +150,6 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
           limit: params.limit || 20,
         },
       });
-    },
-
-    async setProviderSchedule(
-      params: SetProviderScheduleParams,
-      options?: RequestOptions
-    ) {
-      const { id, ...payload } = params;
-      return apiConfig.httpClient.put(
-        `/v1/businesses/${id}/schedules`,
-        payload,
-        options
-      );
     },
 
     async processRefund(params: ProcessRefundParams, options?: RequestOptions) {
