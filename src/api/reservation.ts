@@ -10,6 +10,7 @@ import type {
   DeleteServiceParams,
   GetServiceParams,
   GetServicesParams,
+  BulkScheduleParams,
   CreateProviderParams,
   UpdateProviderParams,
   DeleteProviderParams,
@@ -163,6 +164,14 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
     async deleteService(params: DeleteServiceParams, options?: RequestOptions) {
       return apiConfig.httpClient.delete(
         `/v1/businesses/${apiConfig.businessId}/services/${params.id}`,
+        options,
+      );
+    },
+
+    async bulkSchedule(params: BulkScheduleParams, options?: RequestOptions) {
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${apiConfig.businessId}/services/bulk-schedule`,
+        params,
         options,
       );
     },
