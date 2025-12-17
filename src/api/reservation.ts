@@ -17,7 +17,6 @@ import type {
   GetProviderParams,
   GetProvidersParams,
   GetBusinessServiceWorkingTimeParams,
-  GetServiceProvidersParams,
   GetReservationQuoteParams,
   RequestOptions,
   Slot,
@@ -203,21 +202,6 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
         {
           ...options,
           params,
-        },
-      );
-    },
-
-    async getServiceProviders(
-      params: GetServiceProvidersParams,
-      options?: RequestOptions,
-    ) {
-      const { serviceId, ...queryParams } = params;
-
-      return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/services/${serviceId}/providers`,
-        {
-          ...options,
-          params: queryParams,
         },
       );
     },

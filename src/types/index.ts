@@ -429,6 +429,7 @@ export interface ServiceProvider {
 		outcastDates: Array<{ month: number; day: number; workingHours: Array<{ from: number; to: number }> }>;
 		specificDates: Array<{ date: number; workingHours: Array<{ from: number; to: number }> }>;
 	};
+	provider?: Provider;
 }
 
 export interface Service {
@@ -449,6 +450,11 @@ export interface Service {
 	statuses: StatusEvent[];
 }
 
+export interface ProviderTimelinePoint {
+	timestamp: number;
+	concurrent: number;
+}
+
 export interface Provider {
 	id: string;
 	name: Record<string, string>;
@@ -459,6 +465,7 @@ export interface Provider {
 	concurrentLimit: number;
 	categoryIds: string[];
 	categoryFilterBlocks: Block[];
+	timeline: ProviderTimelinePoint[];
 	createdAt: number;
 	updatedAt: number;
 }

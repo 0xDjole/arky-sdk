@@ -140,6 +140,8 @@ export interface GetServicesParams {
   categoryFilterBlocks?: any[];
   sortField?: string;
   sortDirection?: string;
+  priceFrom?: number;
+  priceTo?: number;
 }
 
 export interface ReservationCheckoutParams {
@@ -166,16 +168,7 @@ export interface GetReservationQuoteParams {
   location?: Location;
 }
 
-export interface GetServiceProvidersParams {
-  serviceId: string;
-  from: number;
-  to: number;
-}
-
 export interface TimelinePoint {
-  id: string;
-  providerId: string;
-  businessId: string;
   timestamp: number;
   concurrent: number;
 }
@@ -212,6 +205,7 @@ export interface ServiceProvider {
   id: string;
   providerId: string;
   workingTime: WorkingTime;
+  provider?: ProviderWithTimeline;
 }
 
 export interface ProviderWithTimeline {
