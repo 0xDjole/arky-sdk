@@ -441,9 +441,7 @@ export interface Service {
 	durations: ServiceDuration[];
 	categoryFilterBlocks: Block[];
 	categoryIds: string[];
-	blocks: Block[];
 	isApprovalRequired: boolean;
-	reservationBlocks: Block[];
 	providers: ServiceProvider[];
 	createdAt: number;
 	updatedAt: number;
@@ -460,7 +458,6 @@ export interface Provider {
 	name: Record<string, string>;
 	seo: Seo;
 	businessId: string;
-	blocks: Block[];
 	statuses: StatusEvent[];
 	concurrentLimit: number;
 	categoryIds: string[];

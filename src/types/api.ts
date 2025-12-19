@@ -213,7 +213,6 @@ export interface ProviderWithTimeline {
   name: Record<string, string>;
   businessId: string;
   seo: any;
-  blocks: Block[];
   statuses: any[];
   concurrentLimit: number;
   categoryIds: string[];
@@ -503,7 +502,6 @@ export interface CreateProductParams {
   description?: string;
   categoryIds?: string[];
   categoryFilterBlocks?: any[];
-  blocks?: any[];
   variants?: any[];
   status?: string;
   [key: string]: any;
@@ -515,7 +513,6 @@ export interface UpdateProductParams {
   description?: string;
   categoryIds?: string[];
   categoryFilterBlocks?: any[];
-  blocks?: any[];
   variants?: any[];
   status?: string;
   [key: string]: any;
@@ -577,7 +574,6 @@ export interface UpdateReservationParams {
 
 export interface CreateProviderParams {
   name: string;
-  blocks?: any[];
   categoryIds?: string[];
   categoryFilterBlocks?: any[];
   concurrentLimit?: number;
@@ -588,7 +584,6 @@ export interface CreateProviderParams {
 export interface UpdateProviderParams {
   id: string;
   name?: string;
-  blocks?: any[];
   categoryIds?: string[];
   categoryFilterBlocks?: any[];
   concurrentLimit?: number;
@@ -608,8 +603,6 @@ export interface ServiceProviderInput {
 
 export interface CreateServiceParams {
   name: string;
-  blocks?: any[];
-  reservationBlocks?: any[];
   categoryIds?: string[];
   categoryFilterBlocks?: any[];
   prices?: any[];
@@ -623,8 +616,6 @@ export interface CreateServiceParams {
 export interface UpdateServiceParams {
   id: string;
   name?: string;
-  blocks?: any[];
-  reservationBlocks?: any[];
   categoryIds?: string[];
   categoryFilterBlocks?: any[];
   prices?: any[];
