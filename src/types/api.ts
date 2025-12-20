@@ -84,7 +84,6 @@ export interface GetNodesParams {
 
 export interface CreateNodeParams {
   name: string;
-  parentId?: string;
   type?: string;
   blocks?: any[];
   config?: any;
@@ -98,7 +97,6 @@ export interface CreateNodeParams {
 export interface UpdateNodeParams {
   id: string;
   name?: string;
-  parentId?: string;
   type?: string;
   blocks?: any[];
   config?: any;

@@ -378,6 +378,21 @@ export interface NodeConfig {
 	unsubscribeUrl: string | null;
 }
 
+export interface EmailProperties {
+	subject: string;
+	fromName: string;
+	fromEmail: string;
+}
+
+export interface TaxonomyProperties {
+	parentId: string | null;
+	hasChildren: boolean;
+}
+
+export type NodeProps =
+	| { type: 'EMAIL'; subject: string; fromName: string; fromEmail: string }
+	| { type: 'TAXONOMY'; parentId: string | null; hasChildren: boolean };
+
 export interface SubscriptionPlan {
 	id: string;
 	name: string;
@@ -400,12 +415,11 @@ export interface Node {
 	id: string;
 	name: string;
 	businessId: string;
-	parentId?: string;
 	entity: string;
 	type: NodeType;
 	blocks: Block[];
 	config?: NodeConfig;
-	props?: any;
+	props?: NodeProps;
 	plans: SubscriptionPlan[];
 	statuses: StatusEvent[];
 	seo: Seo;
