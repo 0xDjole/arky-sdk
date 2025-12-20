@@ -53,10 +53,18 @@ export interface OrderCheckoutParams {
 
 export interface GetProductsParams {
   ids?: string[];
-  categoryIds?: string[] | null;
+  taxonomyIds?: string[] | null;
+  taxonomyId?: string | null;
+  filterBlocks?: any[] | null;
   status?: string;
   limit?: number;
   cursor?: string;
+  query?: string;
+  statuses?: string[];
+  sortField?: string;
+  sortDirection?: string;
+  createdAtFrom?: number | null;
+  createdAtTo?: number | null;
 }
 
 export interface GetNodesParams {
@@ -169,8 +177,8 @@ export interface GetServicesParams {
   query?: string;
   ids?: string[];
   statuses?: string[];
-  categoryId?: string;
-  categoryFilterBlocks?: any[];
+  taxonomyId?: string;
+  filterBlocks?: any[];
   sortField?: string;
   sortDirection?: string;
   priceFrom?: number;
@@ -248,8 +256,8 @@ export interface ProviderWithTimeline {
   seo: any;
   statuses: any[];
   concurrentLimit: number;
-  categoryIds: string[];
-  categoryFilterBlocks: Block[];
+  taxonomyIds: string[];
+  filterBlocks: Block[];
   createdAt: number;
   updatedAt: number;
   workingTime: WorkingTime | null;
@@ -464,8 +472,8 @@ export interface UserSubscribeParams {
 export interface CreateProductParams {
   name: string;
   description?: string;
-  categoryIds?: string[];
-  categoryFilterBlocks?: any[];
+  taxonomyIds?: string[];
+  filterBlocks?: any[];
   variants?: any[];
   status?: string;
   [key: string]: any;
@@ -475,8 +483,8 @@ export interface UpdateProductParams {
   id: string;
   name?: string;
   description?: string;
-  categoryIds?: string[];
-  categoryFilterBlocks?: any[];
+  taxonomyIds?: string[];
+  filterBlocks?: any[];
   variants?: any[];
   status?: string;
   [key: string]: any;
@@ -538,8 +546,8 @@ export interface UpdateReservationParams {
 
 export interface CreateProviderParams {
   name: string;
-  categoryIds?: string[];
-  categoryFilterBlocks?: any[];
+  taxonomyIds?: string[];
+  filterBlocks?: any[];
   concurrentLimit?: number;
   statuses?: any[];
   [key: string]: any;
@@ -548,8 +556,8 @@ export interface CreateProviderParams {
 export interface UpdateProviderParams {
   id: string;
   name?: string;
-  categoryIds?: string[];
-  categoryFilterBlocks?: any[];
+  taxonomyIds?: string[];
+  filterBlocks?: any[];
   concurrentLimit?: number;
   statuses?: any[];
   [key: string]: any;
@@ -567,8 +575,8 @@ export interface ServiceProviderInput {
 
 export interface CreateServiceParams {
   name: string;
-  categoryIds?: string[];
-  categoryFilterBlocks?: any[];
+  taxonomyIds?: string[];
+  filterBlocks?: any[];
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
@@ -580,8 +588,8 @@ export interface CreateServiceParams {
 export interface UpdateServiceParams {
   id: string;
   name?: string;
-  categoryIds?: string[];
-  categoryFilterBlocks?: any[];
+  taxonomyIds?: string[];
+  filterBlocks?: any[];
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
@@ -615,8 +623,8 @@ export interface GetProvidersParams {
   sortDirection?: string | null;
   createdAtFrom?: string | null;
   createdAtTo?: string | null;
-  categoryId?: string | null;
-  categoryFilterBlocks?: string | null;
+  taxonomyId?: string | null;
+  filterBlocks?: string | null;
 }
 
 export interface GetProviderParams {

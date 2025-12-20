@@ -352,9 +352,9 @@ export interface Reservation {
 export enum NodeType {
 	CONTENT = 'CONTENT',
 	CATEGORY = 'CATEGORY',
-	SERVICE_CATEGORY = 'SERVICE_CATEGORY',
-	PROVIDER_CATEGORY = 'PROVIDER_CATEGORY',
-	PRODUCT_CATEGORY = 'PRODUCT_CATEGORY',
+	TAXONOMY_SERVICE = 'TAXONOMY_SERVICE',
+	TAXONOMY_PROVIDER = 'TAXONOMY_PROVIDER',
+	TAXONOMY_PRODUCT = 'TAXONOMY_PRODUCT',
 	EMAIL_TEMPLATE = 'EMAIL_TEMPLATE',
 	EMAIL_FORGOT_PASSWORD = 'EMAIL_FORGOT_PASSWORD',
 	EMAIL_USER_CONFIRM = 'EMAIL_USER_CONFIRM',
@@ -439,8 +439,8 @@ export interface Service {
 	businessId: string;
 	prices: Price[];
 	durations: ServiceDuration[];
-	categoryFilterBlocks: Block[];
-	categoryIds: string[];
+	filterBlocks: Block[];
+	taxonomyIds: string[];
 	isApprovalRequired: boolean;
 	providers: ServiceProvider[];
 	createdAt: number;
@@ -460,8 +460,8 @@ export interface Provider {
 	businessId: string;
 	statuses: StatusEvent[];
 	concurrentLimit: number;
-	categoryIds: string[];
-	categoryFilterBlocks: Block[];
+	taxonomyIds: string[];
+	filterBlocks: Block[];
 	timeline: ProviderTimelinePoint[];
 	createdAt: number;
 	updatedAt: number;
