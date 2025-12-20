@@ -243,7 +243,7 @@ export interface ServiceProvider {
 
 export interface ProviderWithTimeline {
   id: string;
-  name: Record<string, string>;
+  name: string;
   businessId: string;
   seo: any;
   statuses: any[];

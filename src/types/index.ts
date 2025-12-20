@@ -434,7 +434,7 @@ export interface ServiceProvider {
 
 export interface Service {
 	id: string;
-	name: Record<string, string>;
+	name: string;
 	seo: Seo;
 	businessId: string;
 	prices: Price[];
@@ -455,7 +455,7 @@ export interface ProviderTimelinePoint {
 
 export interface Provider {
 	id: string;
-	name: Record<string, string>;
+	name: string;
 	seo: Seo;
 	businessId: string;
 	statuses: StatusEvent[];
