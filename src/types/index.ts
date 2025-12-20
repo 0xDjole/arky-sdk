@@ -439,7 +439,7 @@ export interface Service {
 	businessId: string;
 	prices: Price[];
 	durations: ServiceDuration[];
-	filterBlocks: Block[];
+	blocks: Block[];
 	taxonomyIds: string[];
 	isApprovalRequired: boolean;
 	providers: ServiceProvider[];
@@ -461,7 +461,7 @@ export interface Provider {
 	statuses: StatusEvent[];
 	concurrentLimit: number;
 	taxonomyIds: string[];
-	filterBlocks: Block[];
+	blocks: Block[];
 	timeline: ProviderTimelinePoint[];
 	createdAt: number;
 	updatedAt: number;

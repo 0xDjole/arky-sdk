@@ -55,7 +55,7 @@ export interface GetProductsParams {
   ids?: string[];
   taxonomyIds?: string[] | null;
   taxonomyId?: string | null;
-  filterBlocks?: any[] | null;
+  blocks?: any[] | null;
   status?: string;
   limit?: number;
   cursor?: string;
@@ -178,7 +178,7 @@ export interface GetServicesParams {
   ids?: string[];
   statuses?: string[];
   taxonomyId?: string;
-  filterBlocks?: any[];
+  blocks?: any[];
   sortField?: string;
   sortDirection?: string;
   priceFrom?: number;
@@ -257,7 +257,7 @@ export interface ProviderWithTimeline {
   statuses: any[];
   concurrentLimit: number;
   taxonomyIds: string[];
-  filterBlocks: Block[];
+  blocks: Block[];
   createdAt: number;
   updatedAt: number;
   workingTime: WorkingTime | null;
@@ -473,7 +473,7 @@ export interface CreateProductParams {
   name: string;
   description?: string;
   taxonomyIds?: string[];
-  filterBlocks?: any[];
+  blocks?: any[];
   variants?: any[];
   status?: string;
   [key: string]: any;
@@ -484,7 +484,7 @@ export interface UpdateProductParams {
   name?: string;
   description?: string;
   taxonomyIds?: string[];
-  filterBlocks?: any[];
+  blocks?: any[];
   variants?: any[];
   status?: string;
   [key: string]: any;
@@ -547,7 +547,7 @@ export interface UpdateReservationParams {
 export interface CreateProviderParams {
   name: string;
   taxonomyIds?: string[];
-  filterBlocks?: any[];
+  blocks?: any[];
   concurrentLimit?: number;
   statuses?: any[];
   [key: string]: any;
@@ -557,7 +557,7 @@ export interface UpdateProviderParams {
   id: string;
   name?: string;
   taxonomyIds?: string[];
-  filterBlocks?: any[];
+  blocks?: any[];
   concurrentLimit?: number;
   statuses?: any[];
   [key: string]: any;
@@ -576,7 +576,7 @@ export interface ServiceProviderInput {
 export interface CreateServiceParams {
   name: string;
   taxonomyIds?: string[];
-  filterBlocks?: any[];
+  blocks?: any[];
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
@@ -589,7 +589,7 @@ export interface UpdateServiceParams {
   id: string;
   name?: string;
   taxonomyIds?: string[];
-  filterBlocks?: any[];
+  blocks?: any[];
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
@@ -624,7 +624,7 @@ export interface GetProvidersParams {
   createdAtFrom?: string | null;
   createdAtTo?: string | null;
   taxonomyId?: string | null;
-  filterBlocks?: string | null;
+  blocks?: string | null;
 }
 
 export interface GetProviderParams {
