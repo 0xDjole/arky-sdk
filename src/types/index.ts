@@ -72,7 +72,6 @@ export interface Quote {
 	expiresAt?: number;
 }
 
-
 export interface Price {
 	market: string;
 	amount: number;
@@ -158,7 +157,6 @@ export interface Market {
 	currency: string;
 	taxMode: "EXCLUSIVE" | "INCLUSIVE";
 }
-
 
 export interface Language {
 	id: string;
@@ -351,35 +349,27 @@ export interface Reservation {
 
 // ===== CMS Types =====
 
-export enum CollectionEntryType {
+export enum NodeType {
 	CONTENT = 'CONTENT',
+	CATEGORY = 'CATEGORY',
 	SERVICE_CATEGORY = 'SERVICE_CATEGORY',
 	PROVIDER_CATEGORY = 'PROVIDER_CATEGORY',
 	PRODUCT_CATEGORY = 'PRODUCT_CATEGORY',
+	EMAIL_TEMPLATE = 'EMAIL_TEMPLATE',
 	EMAIL_FORGOT_PASSWORD = 'EMAIL_FORGOT_PASSWORD',
 	EMAIL_USER_CONFIRM = 'EMAIL_USER_CONFIRM',
 	EMAIL_USER_INVITATION = 'EMAIL_USER_INVITATION',
 	EMAIL_ORDER_STATUS_UPDATE = 'EMAIL_ORDER_STATUS_UPDATE',
 	EMAIL_RESERVATION_BUSINESS_STATUS_UPDATE = 'EMAIL_RESERVATION_BUSINESS_STATUS_UPDATE',
 	EMAIL_RESERVATION_CUSTOMER_STATUS_UPDATE = 'EMAIL_RESERVATION_CUSTOMER_STATUS_UPDATE',
-	NEWSLETTER_POST = 'NEWSLETTER_POST',
-	NEWSLETTER_ENTRY = 'NEWSLETTER_ENTRY',
-}
-
-export enum CollectionType {
-	SINGLE = 'SINGLE',
-	CONTENT = 'CONTENT',
-	EMAIL_TEMPLATES = 'EMAIL_TEMPLATES',
-	SERVICE_CATEGORIES = 'SERVICE_CATEGORIES',
-	PROVIDER_CATEGORIES = 'PROVIDER_CATEGORIES',
-	PRODUCT_CATEGORIES = 'PRODUCT_CATEGORIES',
 	NEWSLETTER = 'NEWSLETTER',
-	NEWSLETTER_SEGMENTS = 'NEWSLETTER_SEGMENTS',
-	SERVICE = 'SERVICE',
-	PRODUCT = 'PRODUCT',
+	NEWSLETTER_POST = 'NEWSLETTER_POST',
+	NEWSLETTER_SEGMENT = 'NEWSLETTER_SEGMENT',
+	NEWSLETTER_ENTRY = 'NEWSLETTER_ENTRY',
+	FORM = 'FORM',
 }
 
-export interface CollectionConfig {
+export interface NodeConfig {
 	isPubliclyReadable: boolean;
 	isPubliclyWritable: boolean;
 	isSubmissionEnabled: boolean;
@@ -388,28 +378,38 @@ export interface CollectionConfig {
 	unsubscribeUrl: string | null;
 }
 
-export interface Collection {
+export interface SubscriptionPlan {
+	id: string;
+	name: string;
+	description?: string;
+	providerPriceId?: string;
+	prices: Price[];
+}
+
+export interface NodeSend {
+	id: string;
+	recipientSource: string;
+	scheduledAt: number;
+	status: string;
+	sentCount: number;
+	failedCount: number;
+	createdAt: number;
+}
+
+export interface Node {
 	id: string;
 	name: string;
 	businessId: string;
-	type: CollectionType;
-	blocks: Block[];
-	config: CollectionConfig;
+	parentId?: string;
 	entity: string;
-	statuses: StatusEvent[];
-	seo: Seo;
-}
-
-export interface CollectionEntry {
-	id: string;
-	name: Record<string, string>;
-	collectionId: string;
-	businessId: string;
-	type: CollectionEntryType;
+	type: NodeType;
 	blocks: Block[];
-	statuses: StatusEvent[];
+	config?: NodeConfig;
 	props?: any;
+	plans: SubscriptionPlan[];
+	statuses: StatusEvent[];
 	seo: Seo;
+	sends: NodeSend[];
 	createdAt: number;
 	updatedAt: number;
 }

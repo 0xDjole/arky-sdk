@@ -59,27 +59,60 @@ export interface GetProductsParams {
   cursor?: string;
 }
 
-export interface GetCollectionEntriesParams {
-  collectionId: string;
+export interface GetNodesParams {
+  parentId?: string;
   limit?: number;
   cursor?: string;
   ids?: string[];
+  query?: string;
+  type?: string;
+  entity?: string;
+  statuses?: string[];
+  sortField?: string;
+  sortDirection?: string;
+  createdAtFrom?: string;
+  createdAtTo?: string;
 }
 
-export interface CreateCollectionEntryParams {
-  collectionId: string;
-  blocks: any[];
+export interface CreateNodeParams {
+  name: string;
+  parentId?: string;
+  type?: string;
+  blocks?: any[];
+  config?: any;
+  entity?: string;
+  plans?: any[];
+  props?: any;
+  seo?: any;
   status?: string;
 }
 
-export interface GetCollectionEntryParams {
-  collectionId: string;
+export interface UpdateNodeParams {
+  id: string;
+  name?: string;
+  parentId?: string;
+  type?: string;
+  blocks?: any[];
+  config?: any;
+  entity?: string;
+  plans?: any[];
+  props?: any;
+  seo?: any;
+  status?: string;
+}
+
+export interface GetNodeParams {
   id: string;
 }
 
-export interface DeleteCollectionEntryParams {
-  collectionId: string;
+export interface DeleteNodeParams {
   id: string;
+}
+
+export interface GetNodeChildrenParams {
+  id: string;
+  limit?: number;
+  cursor?: string;
 }
 
 export interface UploadBusinessMediaParams {
@@ -393,7 +426,7 @@ export interface TestWebhookParams {
 }
 
 // Additional CMS API Types
-export interface CollectionConfigParams {
+export interface NodeConfigParams {
   isPubliclyReadable?: boolean;
   isPubliclyWritable?: boolean;
   isSubmissionEnabled?: boolean;
@@ -402,89 +435,20 @@ export interface CollectionConfigParams {
   unsubscribeUrl?: string | null;
 }
 
-export interface CreateCollectionParams {
-  name: string;
-  type?: string;
-  blocks?: any[];
-  config?: CollectionConfigParams;
-  entity?: string | null;
-  plans?: any[];
-  seo?: any;
-  [key: string]: any;
-}
-
-export interface UpdateCollectionParams {
-  id: string;
-  name?: string;
-  type?: string;
-  blocks?: any[];
-  config?: CollectionConfigParams;
-  entity?: string | null;
-  plans?: any[];
-  seo?: any;
-  [key: string]: any;
-}
-
-export interface DeleteCollectionParams {
-  id: string;
-}
-
-export interface GetCollectionParams {
-  id: string;
-}
-
-export interface GetCollectionsParams {
-  name?: string | null;
-  ids?: string[] | null;
-  entity?: string | null;
-  type?: string | null;
-}
-
-export interface GetEntriesParams {
-  collectionId: string;
-  limit?: number;
-  cursor?: string;
-  ids?: string[] | null;
-  query?: string | null;
-  type?: string | null;
-  statuses?: string[] | null;
-  sortField?: string | null;
-  sortDirection?: string | null;
-  createdAtFrom?: string | null;
-  createdAtTo?: string | null;
-  parentId?: string | null;
-}
-
-export interface CreateEntryParams {
-  collectionId: string;
-  blocks: any[];
-  status?: string;
-  [key: string]: any;
-}
-
-export interface UpdateEntryParams {
-  collectionId: string;
-  id: string;
-  blocks?: any[];
-  status?: string;
-  [key: string]: any;
-}
-
 export interface GenerateBlocksParams {
   [key: string]: any;
 }
 
 export interface GetVariableMetadataParams {
-  entryType: string;
+  nodeType: string;
 }
 
-export interface SendEntryParams {
-  collectionId: string;
-  entryId: string;
+export interface SendNodeParams {
+  nodeId: string;
   scheduledAt?: number;
 }
 
-export interface GetCollectionSubscribersParams {
+export interface GetNodeSubscribersParams {
   id: string;
 }
 
@@ -496,7 +460,7 @@ export interface UserSubscribeParams {
   cancelUrl?: string;
 }
 
-// Additional E-shop API Types
+// E-shop API Types
 export interface CreateProductParams {
   name: string;
   description?: string;
