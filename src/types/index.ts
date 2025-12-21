@@ -365,17 +365,7 @@ export enum NodeType {
 	NEWSLETTER = 'NEWSLETTER',
 	NEWSLETTER_POST = 'NEWSLETTER_POST',
 	NEWSLETTER_SEGMENT = 'NEWSLETTER_SEGMENT',
-	NEWSLETTER_ENTRY = 'NEWSLETTER_ENTRY',
 	FORM = 'FORM',
-}
-
-export interface NodeConfig {
-	isPubliclyReadable: boolean;
-	isPubliclyWritable: boolean;
-	isSubmissionEnabled: boolean;
-	isCaptchaRequired: boolean;
-	notificationEmails: string[];
-	unsubscribeUrl: string | null;
 }
 
 export interface EmailProperties {
@@ -384,14 +374,23 @@ export interface EmailProperties {
 	fromEmail: string;
 }
 
-export interface TaxonomyProperties {
-	parentId: string | null;
-	hasChildren: boolean;
+export interface FormProperties {
+	isPubliclyReadable: boolean;
+	isPubliclyWritable: boolean;
+	isSubmissionEnabled: boolean;
+	isCaptchaRequired: boolean;
+	notificationEmails: string[];
+}
+
+export interface NewsletterPostProperties {
+	unsubscribeUrl: string | null;
 }
 
 export type NodeProps =
+	| { type: 'NONE' }
 	| { type: 'EMAIL'; subject: string; fromName: string; fromEmail: string }
-	| { type: 'TAXONOMY'; parentId: string | null; hasChildren: boolean };
+	| { type: 'FORM'; isPubliclyReadable: boolean; isPubliclyWritable: boolean; isSubmissionEnabled: boolean; isCaptchaRequired: boolean; notificationEmails: string[] }
+	| { type: 'NEWSLETTER_POST'; unsubscribeUrl: string | null };
 
 export interface SubscriptionPlan {
 	id: string;
@@ -418,8 +417,9 @@ export interface Node {
 	entity: string;
 	type: NodeType;
 	blocks: Block[];
-	config?: NodeConfig;
-	props?: NodeProps;
+	parentId?: string | null;
+	hasChildren: boolean;
+	props: NodeProps;
 	plans: SubscriptionPlan[];
 	statuses: StatusEvent[];
 	seo: Seo;

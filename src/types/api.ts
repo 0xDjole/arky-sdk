@@ -86,7 +86,8 @@ export interface CreateNodeParams {
   name: string;
   type?: string;
   blocks?: any[];
-  config?: any;
+  parentId?: string | null;
+  hasChildren?: boolean;
   entity?: string;
   plans?: any[];
   props?: any;
@@ -99,7 +100,8 @@ export interface UpdateNodeParams {
   name?: string;
   type?: string;
   blocks?: any[];
-  config?: any;
+  parentId?: string | null;
+  hasChildren?: boolean;
   entity?: string;
   plans?: any[];
   props?: any;
@@ -432,12 +434,15 @@ export interface TestWebhookParams {
 }
 
 // Additional CMS API Types
-export interface NodeConfigParams {
+export interface FormPropsParams {
   isPubliclyReadable?: boolean;
   isPubliclyWritable?: boolean;
   isSubmissionEnabled?: boolean;
   isCaptchaRequired?: boolean;
   notificationEmails?: string[];
+}
+
+export interface NewsletterPostPropsParams {
   unsubscribeUrl?: string | null;
 }
 
