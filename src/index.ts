@@ -39,6 +39,16 @@ export type {
   Slot,
 } from "./types/api";
 
+// Export email template types
+export type {
+  EmailType,
+  EmailTemplate,
+  EmailTemplateListItem,
+  GetEmailTemplatesParams,
+  GetEmailTemplateParams,
+  UpsertEmailTemplateParams,
+} from "./types/api";
+
 // Export location types
 export type {
   LocationState,
@@ -83,6 +93,7 @@ import { createDatabaseApi } from "./api/database";
 import { createFeatureFlagsApi } from "./api/featureFlags";
 import { createLocationApi } from "./api/location";
 import { createNewsletterApi } from "./api/newsletter";
+import { createEmailTemplateApi } from "./api/emailTemplate";
 import {
   getImageUrl,
   getBlockValue,
@@ -166,6 +177,7 @@ export async function createArkySDK(
     featureFlags: createFeatureFlagsApi(apiConfig),
     location: createLocationApi(apiConfig),
     newsletter: createNewsletterApi(apiConfig),
+    emailTemplate: createEmailTemplateApi(apiConfig),
 
     setBusinessId: (businessId: string) => {
       apiConfig.businessId = businessId;

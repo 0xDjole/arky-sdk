@@ -351,23 +351,10 @@ export interface Reservation {
 
 export enum NodeType {
 	CONTENT = 'CONTENT',
-	CATEGORY = 'CATEGORY',
 	TAXONOMY_SERVICE = 'TAXONOMY_SERVICE',
 	TAXONOMY_PROVIDER = 'TAXONOMY_PROVIDER',
 	TAXONOMY_PRODUCT = 'TAXONOMY_PRODUCT',
-	EMAIL_FORGOT_PASSWORD = 'EMAIL_FORGOT_PASSWORD',
-	EMAIL_USER_CONFIRMATION = 'EMAIL_USER_CONFIRMATION',
-	EMAIL_USER_INVITATION = 'EMAIL_USER_INVITATION',
-	EMAIL_ORDER_STATUS_UPDATE = 'EMAIL_ORDER_STATUS_UPDATE',
-	EMAIL_RESERVATION_BUSINESS_UPDATE = 'EMAIL_RESERVATION_BUSINESS_UPDATE',
-	EMAIL_RESERVATION_CUSTOMER_UPDATE = 'EMAIL_RESERVATION_CUSTOMER_UPDATE',
 	FORM = 'FORM',
-}
-
-export interface EmailProperties {
-	subject: string;
-	fromName: string;
-	fromEmail: string;
 }
 
 export interface FormProperties {
@@ -380,7 +367,6 @@ export interface FormProperties {
 
 export type NodeProps =
 	| { type: 'NONE' }
-	| { type: 'EMAIL'; subject: string; fromName: string; fromEmail: string }
 	| { type: 'FORM'; isPubliclyReadable: boolean; isPubliclyWritable: boolean; isSubmissionEnabled: boolean; isCaptchaRequired: boolean; notificationEmails: string[] };
 
 export interface Node {

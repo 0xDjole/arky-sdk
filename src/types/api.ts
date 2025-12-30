@@ -961,6 +961,51 @@ export interface CancelSendParams {
   sendId: string;
 }
 
+// === Email Template Types ===
+
+export type EmailType =
+  | "RESERVATION_BUSINESS_UPDATE"
+  | "RESERVATION_CUSTOMER_UPDATE"
+  | "USER_INVITATION"
+  | "ORDER_STATUS_UPDATE"
+  | "USER_CONFIRMATION"
+  | "FORGOT_PASSWORD"
+  | "INQUIRY";
+
+export interface EmailTemplate {
+  id: string;
+  businessId: string;
+  emailType: EmailType;
+  subject: Record<string, string>; // i18n: { en: "...", es: "..." }
+  mjml: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface EmailTemplateListItem {
+  emailType: EmailType;
+  displayName: string;
+  isConfigured: boolean;
+  template: EmailTemplate | null;
+}
+
+// Email Template API Params
+export interface GetEmailTemplatesParams {
+  businessId?: string;
+}
+
+export interface GetEmailTemplateParams {
+  emailType: EmailType;
+  businessId?: string;
+}
+
+export interface UpsertEmailTemplateParams {
+  emailType: EmailType;
+  subject: Record<string, string>;
+  mjml: string;
+  businessId?: string;
+}
+
 // === Reservation Slot Types ===
 
 export interface GetSlotsForDateParams {
