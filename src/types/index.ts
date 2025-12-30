@@ -351,10 +351,28 @@ export interface Reservation {
 
 export enum NodeType {
 	CONTENT = 'CONTENT',
-	TAXONOMY_SERVICE = 'TAXONOMY_SERVICE',
-	TAXONOMY_PROVIDER = 'TAXONOMY_PROVIDER',
-	TAXONOMY_PRODUCT = 'TAXONOMY_PRODUCT',
 	FORM = 'FORM',
+}
+
+// ===== Taxonomy Types =====
+
+export enum TaxonomyScope {
+	SERVICE = 'SERVICE',
+	PROVIDER = 'PROVIDER',
+	PRODUCT = 'PRODUCT',
+}
+
+export interface Taxonomy {
+	id: string;
+	businessId: string;
+	name: string;
+	scope: TaxonomyScope;
+	blocks: Block[];
+	parentId: string | null;
+	hasChildren: boolean;
+	statuses: StatusEvent[];
+	createdAt: number;
+	updatedAt: number;
 }
 
 export interface FormProperties {

@@ -26,10 +26,11 @@ export type {
   Media,
   MediaResolution,
   ProviderWithTimeline,
+  Taxonomy,
 } from "./types";
 
 // Export enums (must be exported as values, not types)
-export { PaymentMethodType } from "./types";
+export { PaymentMethodType, TaxonomyScope, NodeType } from "./types";
 
 // Export reservation types
 export type {
@@ -55,6 +56,16 @@ export type {
   LocationCountry,
   GetCountriesResponse,
 } from "./api/location";
+
+// Export taxonomy types
+export type {
+  GetTaxonomiesParams,
+  GetTaxonomyParams,
+  CreateTaxonomyParams,
+  UpdateTaxonomyParams,
+  DeleteTaxonomyParams,
+  GetTaxonomyChildrenParams,
+} from "./api/taxonomy";
 
 export const SDK_VERSION = "0.3.88";
 export const SUPPORTED_FRAMEWORKS = [
@@ -94,6 +105,7 @@ import { createFeatureFlagsApi } from "./api/featureFlags";
 import { createLocationApi } from "./api/location";
 import { createNewsletterApi } from "./api/newsletter";
 import { createEmailTemplateApi } from "./api/emailTemplate";
+import { createTaxonomyApi } from "./api/taxonomy";
 import {
   getImageUrl,
   getBlockValue,
@@ -178,6 +190,7 @@ export async function createArkySDK(
     location: createLocationApi(apiConfig),
     newsletter: createNewsletterApi(apiConfig),
     emailTemplate: createEmailTemplateApi(apiConfig),
+    taxonomy: createTaxonomyApi(apiConfig),
 
     setBusinessId: (businessId: string) => {
       apiConfig.businessId = businessId;
