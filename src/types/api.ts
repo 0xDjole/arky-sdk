@@ -442,25 +442,12 @@ export interface FormPropsParams {
   notificationEmails?: string[];
 }
 
-export interface NewsletterPostPropsParams {
-  unsubscribeUrl?: string | null;
-}
-
 export interface GenerateBlocksParams {
   [key: string]: any;
 }
 
 export interface GetVariableMetadataParams {
   nodeType: string;
-}
-
-export interface SendNodeParams {
-  nodeId: string;
-  scheduledAt?: number;
-}
-
-export interface GetNodeSubscribersParams {
-  id: string;
 }
 
 export interface UserSubscribeParams {
@@ -838,6 +825,140 @@ export interface GetVariantParams {
 export interface TrackEventParams {
   eventName: string;
   value?: number;
+}
+
+// === Newsletter Types ===
+
+export type SendStatus = "SCHEDULED" | "SENDING" | "SENT" | "CANCELLED" | "FAILED";
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  price?: number;
+  marketId?: string;
+}
+
+export interface NewsletterSend {
+  id: string;
+  scheduledAt: number;
+  status: SendStatus;
+  sentCount: number;
+  failedCount: number;
+  createdAt: number;
+}
+
+export interface Newsletter {
+  id: string;
+  businessId: string;
+  name: string;
+  description: string;
+  plans: SubscriptionPlan[];
+  statuses: any[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface NewsletterPost {
+  id: string;
+  newsletterId: string;
+  businessId: string;
+  title: string;
+  subject: string;
+  contentMjml: string;
+  sends: NewsletterSend[];
+  statuses: any[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SubscriberInfo {
+  userId: string;
+  email: string;
+  name: string;
+  subscribedAt: number;
+}
+
+export interface Paginated<T> {
+  items: T[];
+  cursor: string | null;
+}
+
+// Newsletter API Params
+export interface CreateNewsletterParams {
+  name: string;
+  description?: string;
+  plans?: SubscriptionPlan[];
+}
+
+export interface GetNewsletterParams {
+  id: string;
+}
+
+export interface GetNewslettersParams {
+  limit?: number;
+  cursor?: string;
+}
+
+export interface UpdateNewsletterParams {
+  id: string;
+  name?: string;
+  description?: string;
+  plans?: SubscriptionPlan[];
+  status?: string;
+}
+
+export interface DeleteNewsletterParams {
+  id: string;
+}
+
+export interface GetSubscribersParams {
+  id: string;
+}
+
+// Newsletter Post API Params
+export interface CreateNewsletterPostParams {
+  newsletterId: string;
+  title: string;
+  subject: string;
+  contentMjml?: string;
+}
+
+export interface GetNewsletterPostParams {
+  newsletterId: string;
+  postId: string;
+}
+
+export interface GetNewsletterPostsParams {
+  newsletterId: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface UpdateNewsletterPostParams {
+  newsletterId: string;
+  postId: string;
+  title?: string;
+  subject?: string;
+  contentMjml?: string;
+  status?: string;
+}
+
+export interface DeleteNewsletterPostParams {
+  newsletterId: string;
+  postId: string;
+}
+
+// Newsletter Send API Params
+export interface ScheduleSendParams {
+  newsletterId: string;
+  postId: string;
+  scheduledAt?: number;
+}
+
+export interface CancelSendParams {
+  newsletterId: string;
+  postId: string;
+  sendId: string;
 }
 
 // === Reservation Slot Types ===

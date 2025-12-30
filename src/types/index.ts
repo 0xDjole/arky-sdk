@@ -355,16 +355,12 @@ export enum NodeType {
 	TAXONOMY_SERVICE = 'TAXONOMY_SERVICE',
 	TAXONOMY_PROVIDER = 'TAXONOMY_PROVIDER',
 	TAXONOMY_PRODUCT = 'TAXONOMY_PRODUCT',
-	EMAIL_TEMPLATE = 'EMAIL_TEMPLATE',
 	EMAIL_FORGOT_PASSWORD = 'EMAIL_FORGOT_PASSWORD',
-	EMAIL_USER_CONFIRM = 'EMAIL_USER_CONFIRM',
+	EMAIL_USER_CONFIRMATION = 'EMAIL_USER_CONFIRMATION',
 	EMAIL_USER_INVITATION = 'EMAIL_USER_INVITATION',
 	EMAIL_ORDER_STATUS_UPDATE = 'EMAIL_ORDER_STATUS_UPDATE',
-	EMAIL_RESERVATION_BUSINESS_STATUS_UPDATE = 'EMAIL_RESERVATION_BUSINESS_STATUS_UPDATE',
-	EMAIL_RESERVATION_CUSTOMER_STATUS_UPDATE = 'EMAIL_RESERVATION_CUSTOMER_STATUS_UPDATE',
-	NEWSLETTER = 'NEWSLETTER',
-	NEWSLETTER_POST = 'NEWSLETTER_POST',
-	NEWSLETTER_SEGMENT = 'NEWSLETTER_SEGMENT',
+	EMAIL_RESERVATION_BUSINESS_UPDATE = 'EMAIL_RESERVATION_BUSINESS_UPDATE',
+	EMAIL_RESERVATION_CUSTOMER_UPDATE = 'EMAIL_RESERVATION_CUSTOMER_UPDATE',
 	FORM = 'FORM',
 }
 
@@ -382,33 +378,10 @@ export interface FormProperties {
 	notificationEmails: string[];
 }
 
-export interface NewsletterPostProperties {
-	unsubscribeUrl: string | null;
-}
-
 export type NodeProps =
 	| { type: 'NONE' }
 	| { type: 'EMAIL'; subject: string; fromName: string; fromEmail: string }
-	| { type: 'FORM'; isPubliclyReadable: boolean; isPubliclyWritable: boolean; isSubmissionEnabled: boolean; isCaptchaRequired: boolean; notificationEmails: string[] }
-	| { type: 'NEWSLETTER_POST'; unsubscribeUrl: string | null };
-
-export interface SubscriptionPlan {
-	id: string;
-	name: string;
-	description?: string;
-	providerPriceId?: string;
-	prices: Price[];
-}
-
-export interface NodeSend {
-	id: string;
-	recipientSource: string;
-	scheduledAt: number;
-	status: string;
-	sentCount: number;
-	failedCount: number;
-	createdAt: number;
-}
+	| { type: 'FORM'; isPubliclyReadable: boolean; isPubliclyWritable: boolean; isSubmissionEnabled: boolean; isCaptchaRequired: boolean; notificationEmails: string[] };
 
 export interface Node {
 	id: string;
@@ -420,10 +393,8 @@ export interface Node {
 	parentId?: string | null;
 	hasChildren: boolean;
 	props: NodeProps;
-	plans: SubscriptionPlan[];
 	statuses: StatusEvent[];
 	seo: Seo;
-	sends: NodeSend[];
 	createdAt: number;
 	updatedAt: number;
 }

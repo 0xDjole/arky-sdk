@@ -8,8 +8,6 @@ import type {
   GetNodeChildrenParams,
   GenerateBlocksParams,
   GetVariableMetadataParams,
-  SendNodeParams,
-  GetNodeSubscribersParams,
   RequestOptions,
 } from "../types/api";
 import { formatIdOrSlug } from "../utils/slug";
@@ -95,30 +93,9 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async sendNode(params: SendNodeParams, options?: RequestOptions) {
-      const { nodeId, scheduledAt } = params;
-      return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/nodes/${nodeId}/send`,
-        {
-          businessId: apiConfig.businessId,
-          nodeId,
-          scheduledAt: scheduledAt ?? Math.floor(Date.now() / 1000),
-        },
-        options
-      );
-    },
-
     async getVariableMetadata(params: GetVariableMetadataParams, options?: RequestOptions) {
       return apiConfig.httpClient.get(
         `/v1/businesses/${apiConfig.businessId}/nodes/types/${params.nodeType}/variables`,
-        options
-      );
-    },
-
-    async getNodeSubscribers(params: GetNodeSubscribersParams, options?: RequestOptions) {
-      const formattedId = formatIdOrSlug(params.id, apiConfig);
-      return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/nodes/${formattedId}/subscribers`,
         options
       );
     },
