@@ -27,10 +27,12 @@ export type {
   MediaResolution,
   ProviderWithTimeline,
   Taxonomy,
+  Form,
+  FormEntry,
 } from "./types";
 
 // Export enums (must be exported as values, not types)
-export { PaymentMethodType, TaxonomyScope, NodeType } from "./types";
+export { PaymentMethodType, TaxonomyScope } from "./types";
 
 // Export reservation types
 export type {
@@ -66,6 +68,19 @@ export type {
   DeleteTaxonomyParams,
   GetTaxonomyChildrenParams,
 } from "./api/taxonomy";
+
+// Export form types
+export type {
+  GetFormsParams,
+  GetFormParams,
+  CreateFormParams,
+  UpdateFormParams,
+  DeleteFormParams,
+  GetEntriesParams,
+  CreateEntryParams,
+  GetEntryParams,
+  DeleteEntryParams,
+} from "./api/form";
 
 export const SDK_VERSION = "0.3.88";
 export const SUPPORTED_FRAMEWORKS = [
@@ -106,6 +121,7 @@ import { createLocationApi } from "./api/location";
 import { createNewsletterApi } from "./api/newsletter";
 import { createEmailTemplateApi } from "./api/emailTemplate";
 import { createTaxonomyApi } from "./api/taxonomy";
+import { createFormApi } from "./api/form";
 import {
   getImageUrl,
   getBlockValue,
@@ -191,6 +207,7 @@ export async function createArkySDK(
     newsletter: createNewsletterApi(apiConfig),
     emailTemplate: createEmailTemplateApi(apiConfig),
     taxonomy: createTaxonomyApi(apiConfig),
+    form: createFormApi(apiConfig),
 
     setBusinessId: (businessId: string) => {
       apiConfig.businessId = businessId;

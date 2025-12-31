@@ -74,7 +74,7 @@ export interface GetNodesParams {
   ids?: string[];
   query?: string;
   type?: string;
-  entity?: string;
+  key?: string;
   statuses?: string[];
   sortField?: string;
   sortDirection?: string;
@@ -83,28 +83,20 @@ export interface GetNodesParams {
 }
 
 export interface CreateNodeParams {
-  name: string;
-  type?: string;
+  key: string;
   blocks?: any[];
   parentId?: string | null;
   hasChildren?: boolean;
-  entity?: string;
-  plans?: any[];
-  props?: any;
   seo?: any;
   status?: string;
 }
 
 export interface UpdateNodeParams {
   id: string;
-  name?: string;
-  type?: string;
+  key?: string;
   blocks?: any[];
   parentId?: string | null;
   hasChildren?: boolean;
-  entity?: string;
-  plans?: any[];
-  props?: any;
   seo?: any;
   status?: string;
 }
@@ -251,7 +243,7 @@ export interface ServiceProvider {
 
 export interface ProviderWithTimeline {
   id: string;
-  name: string;
+  key: string;
   businessId: string;
   seo: any;
   statuses: any[];
@@ -460,7 +452,7 @@ export interface UserSubscribeParams {
 
 // E-shop API Types
 export interface CreateProductParams {
-  name: string;
+  key: string;
   description?: string;
   taxonomyIds?: string[];
   blocks?: any[];
@@ -471,7 +463,7 @@ export interface CreateProductParams {
 
 export interface UpdateProductParams {
   id: string;
-  name?: string;
+  key?: string;
   description?: string;
   taxonomyIds?: string[];
   blocks?: any[];
@@ -535,7 +527,7 @@ export interface UpdateReservationParams {
 }
 
 export interface CreateProviderParams {
-  name: string;
+  key: string;
   taxonomyIds?: string[];
   blocks?: any[];
   concurrentLimit?: number;
@@ -545,7 +537,7 @@ export interface CreateProviderParams {
 
 export interface UpdateProviderParams {
   id: string;
-  name?: string;
+  key?: string;
   taxonomyIds?: string[];
   blocks?: any[];
   concurrentLimit?: number;
@@ -564,7 +556,7 @@ export interface ServiceProviderInput {
 }
 
 export interface CreateServiceParams {
-  name: string;
+  key: string;
   taxonomyIds?: string[];
   blocks?: any[];
   prices?: any[];
@@ -577,7 +569,7 @@ export interface CreateServiceParams {
 
 export interface UpdateServiceParams {
   id: string;
-  name?: string;
+  key?: string;
   taxonomyIds?: string[];
   blocks?: any[];
   prices?: any[];
@@ -850,8 +842,7 @@ export interface NewsletterSend {
 export interface Newsletter {
   id: string;
   businessId: string;
-  name: string;
-  description: string;
+  key: string;
   plans: SubscriptionPlan[];
   statuses: any[];
   createdAt: number;
@@ -862,7 +853,7 @@ export interface NewsletterPost {
   id: string;
   newsletterId: string;
   businessId: string;
-  title: string;
+  key: string;
   subject: string;
   contentMjml: string;
   sends: NewsletterSend[];
@@ -885,8 +876,7 @@ export interface Paginated<T> {
 
 // Newsletter API Params
 export interface CreateNewsletterParams {
-  name: string;
-  description?: string;
+  key: string;
   plans?: SubscriptionPlan[];
 }
 
@@ -901,8 +891,7 @@ export interface GetNewslettersParams {
 
 export interface UpdateNewsletterParams {
   id: string;
-  name?: string;
-  description?: string;
+  key?: string;
   plans?: SubscriptionPlan[];
   status?: string;
 }
@@ -918,7 +907,7 @@ export interface GetSubscribersParams {
 // Newsletter Post API Params
 export interface CreateNewsletterPostParams {
   newsletterId: string;
-  title: string;
+  key: string;
   subject: string;
   contentMjml?: string;
 }
@@ -937,7 +926,7 @@ export interface GetNewsletterPostsParams {
 export interface UpdateNewsletterPostParams {
   newsletterId: string;
   postId: string;
-  title?: string;
+  key?: string;
   subject?: string;
   contentMjml?: string;
   status?: string;

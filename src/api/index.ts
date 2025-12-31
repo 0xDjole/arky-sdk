@@ -13,6 +13,7 @@ export { createDatabaseApi } from './database';
 export { createFeatureFlagsApi } from './featureFlags';
 export { createLocationApi } from './location';
 export { createNewsletterApi } from './newsletter';
+export { createFormApi } from './form';
 
 // Re-export types from individual files for better compatibility
 export type { ApiResponse } from '../types/index';

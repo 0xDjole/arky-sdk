@@ -349,9 +349,31 @@ export interface Reservation {
 
 // ===== CMS Types =====
 
-export enum NodeType {
-	CONTENT = 'CONTENT',
-	FORM = 'FORM',
+// ===== Form Types =====
+
+export interface Form {
+	id: string;
+	businessId: string;
+	key: string;
+	blocks: Block[];
+	isPubliclyReadable: boolean;
+	isPubliclyWritable: boolean;
+	isSubmissionEnabled: boolean;
+	isCaptchaRequired: boolean;
+	notificationEmails: string[];
+	statuses: StatusEvent[];
+	createdAt: number;
+	updatedAt: number;
+}
+
+export interface FormEntry {
+	id: string;
+	businessId: string;
+	formId: string;
+	blocks: Block[];
+	statuses: StatusEvent[];
+	createdAt: number;
+	updatedAt: number;
 }
 
 // ===== Taxonomy Types =====
@@ -375,28 +397,13 @@ export interface Taxonomy {
 	updatedAt: number;
 }
 
-export interface FormProperties {
-	isPubliclyReadable: boolean;
-	isPubliclyWritable: boolean;
-	isSubmissionEnabled: boolean;
-	isCaptchaRequired: boolean;
-	notificationEmails: string[];
-}
-
-export type NodeProps =
-	| { type: 'NONE' }
-	| { type: 'FORM'; isPubliclyReadable: boolean; isPubliclyWritable: boolean; isSubmissionEnabled: boolean; isCaptchaRequired: boolean; notificationEmails: string[] };
-
 export interface Node {
 	id: string;
-	name: string;
+	key: string;
 	businessId: string;
-	entity: string;
-	type: NodeType;
 	blocks: Block[];
 	parentId?: string | null;
 	hasChildren: boolean;
-	props: NodeProps;
 	statuses: StatusEvent[];
 	seo: Seo;
 	createdAt: number;
@@ -423,7 +430,7 @@ export interface ServiceProvider {
 
 export interface Service {
 	id: string;
-	name: string;
+	key: string;
 	seo: Seo;
 	businessId: string;
 	prices: Price[];
@@ -444,7 +451,7 @@ export interface ProviderTimelinePoint {
 
 export interface Provider {
 	id: string;
-	name: string;
+	key: string;
 	seo: Seo;
 	businessId: string;
 	statuses: StatusEvent[];
