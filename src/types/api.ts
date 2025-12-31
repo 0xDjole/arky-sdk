@@ -727,7 +727,6 @@ export type FeatureFlagStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
 
 export interface VariantInput {
   key: string;
-  name: string;
   weight: number;
   payload?: Block[];
 }
@@ -740,8 +739,6 @@ export interface Variant extends VariantInput {
 export interface FeatureFlag {
   id: string;
   key: string;
-  name: string;
-  description?: string;
   businessId: string;
   status: FeatureFlagStatus;
   variants: Variant[];
@@ -767,7 +764,6 @@ export interface FlagResults {
 export interface GetVariantResponse {
   flagKey: string;
   variantKey: string;
-  variantName: string;
   payload: Block[];
   isNewAssignment: boolean;
 }
@@ -779,16 +775,12 @@ export interface TrackEventResponse {
 
 export interface CreateFeatureFlagParams {
   key: string;
-  name: string;
-  description?: string;
   variants: VariantInput[];
   goalEvent?: string;
 }
 
 export interface UpdateFeatureFlagParams {
   id: string;
-  name?: string;
-  description?: string;
   variants?: VariantInput[];
   goalEvent?: string;
   status?: FeatureFlagStatus;
@@ -952,46 +944,62 @@ export interface CancelSendParams {
 
 // === Email Template Types ===
 
-export type EmailType =
-  | "RESERVATION_BUSINESS_UPDATE"
-  | "RESERVATION_CUSTOMER_UPDATE"
-  | "USER_INVITATION"
-  | "ORDER_STATUS_UPDATE"
-  | "USER_CONFIRMATION"
-  | "FORGOT_PASSWORD"
-  | "INQUIRY";
+// System template keys use 'system:' prefix
+export type SystemTemplateKey =
+  | "system:reservation-business-update"
+  | "system:reservation-customer-update"
+  | "system:user-invitation"
+  | "system:order-status-update"
+  | "system:user-confirmation"
+  | "system:forgot-password";
 
 export interface EmailTemplate {
   id: string;
   businessId: string;
-  emailType: EmailType;
+  key: string;
   subject: Record<string, string>; // i18n: { en: "...", es: "..." }
   mjml: string;
   createdAt: number;
   updatedAt: number;
 }
 
-export interface EmailTemplateListItem {
-  emailType: EmailType;
-  displayName: string;
-  isConfigured: boolean;
-  template: EmailTemplate | null;
-}
-
 // Email Template API Params
 export interface GetEmailTemplatesParams {
   businessId?: string;
+  key?: string;
+  keys?: string[];
+  query?: string;
+  limit?: number;
+  cursor?: string;
 }
 
 export interface GetEmailTemplateParams {
-  emailType: EmailType;
+  id: string;
   businessId?: string;
 }
 
-export interface UpsertEmailTemplateParams {
-  emailType: EmailType;
+export interface GetEmailTemplateByKeyParams {
+  key: string;
+  businessId?: string;
+}
+
+export interface CreateEmailTemplateParams {
+  key: string;
   subject: Record<string, string>;
   mjml: string;
+  businessId?: string;
+}
+
+export interface UpdateEmailTemplateParams {
+  id: string;
+  key?: string;
+  subject?: Record<string, string>;
+  mjml?: string;
+  businessId?: string;
+}
+
+export interface DeleteEmailTemplateParams {
+  id: string;
   businessId?: string;
 }
 

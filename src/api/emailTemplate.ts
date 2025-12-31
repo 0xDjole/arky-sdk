@@ -1,11 +1,13 @@
 import type {
   EmailTemplate,
-  EmailTemplateListItem,
-  EmailType,
   GetEmailTemplatesParams,
   GetEmailTemplateParams,
-  UpsertEmailTemplateParams,
+  GetEmailTemplateByKeyParams,
+  CreateEmailTemplateParams,
+  UpdateEmailTemplateParams,
+  DeleteEmailTemplateParams,
   RequestOptions,
+  PaginatedResponse,
 } from "../types/api";
 
 interface ApiConfig {
@@ -22,21 +24,29 @@ export const createEmailTemplateApi = (apiConfig: ApiConfig) => {
   return {
     /**
      * List all email templates for the business
-     * Returns all email types with their configuration status
+     * Returns paginated list of email templates
      */
     async getTemplates(
       params?: GetEmailTemplatesParams,
-      options?: RequestOptions<EmailTemplateListItem[]>
-    ): Promise<EmailTemplateListItem[]> {
+      options?: RequestOptions<PaginatedResponse<EmailTemplate>>
+    ): Promise<PaginatedResponse<EmailTemplate>> {
       const businessId = params?.businessId || apiConfig.businessId;
+      const queryParams: Record<string, any> = {};
+
+      if (params?.key) queryParams.key = params.key;
+      if (params?.keys) queryParams.keys = params.keys;
+      if (params?.query) queryParams.query = params.query;
+      if (params?.limit) queryParams.limit = params.limit;
+      if (params?.cursor) queryParams.cursor = params.cursor;
+
       return apiConfig.httpClient.get(
         `/v1/businesses/${businessId}/email-templates`,
-        options
+        { ...options, params: queryParams }
       );
     },
 
     /**
-     * Get a specific email template by type
+     * Get a specific email template by ID
      */
     async getTemplate(
       params: GetEmailTemplateParams,
@@ -44,38 +54,69 @@ export const createEmailTemplateApi = (apiConfig: ApiConfig) => {
     ): Promise<EmailTemplate> {
       const businessId = params.businessId || apiConfig.businessId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${businessId}/email-templates/${params.emailType}`,
+        `/v1/businesses/${businessId}/email-templates/${params.id}`,
         options
       );
     },
 
     /**
-     * Create or update an email template
+     * Get a specific email template by key
      */
-    async upsertTemplate(
-      params: UpsertEmailTemplateParams,
+    async getTemplateByKey(
+      params: GetEmailTemplateByKeyParams,
       options?: RequestOptions<EmailTemplate>
     ): Promise<EmailTemplate> {
-      const { emailType, businessId: paramBusinessId, ...body } = params;
+      const businessId = params.businessId || apiConfig.businessId;
+      return apiConfig.httpClient.get(
+        `/v1/businesses/${businessId}/email-templates/by-key/${params.key}`,
+        options
+      );
+    },
+
+    /**
+     * Create a new email template
+     */
+    async createTemplate(
+      params: CreateEmailTemplateParams,
+      options?: RequestOptions<EmailTemplate>
+    ): Promise<EmailTemplate> {
+      const { businessId: paramBusinessId, ...body } = params;
       const businessId = paramBusinessId || apiConfig.businessId;
-      return apiConfig.httpClient.put(
-        `/v1/businesses/${businessId}/email-templates/${emailType}`,
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${businessId}/email-templates`,
         body,
         options
       );
     },
 
     /**
-     * Reset a template to default (delete custom template)
-     * After reset, the system will fall back to the default template
+     * Update an existing email template
      */
-    async resetTemplate(
-      emailType: EmailType,
-      businessId?: string
+    async updateTemplate(
+      params: UpdateEmailTemplateParams,
+      options?: RequestOptions<EmailTemplate>
     ): Promise<EmailTemplate> {
-      const bId = businessId || apiConfig.businessId;
-      // Get the default template (empty MJML triggers fallback)
-      return this.getTemplate({ emailType, businessId: bId });
+      const { id, businessId: paramBusinessId, ...body } = params;
+      const businessId = paramBusinessId || apiConfig.businessId;
+      return apiConfig.httpClient.put(
+        `/v1/businesses/${businessId}/email-templates/${id}`,
+        body,
+        options
+      );
+    },
+
+    /**
+     * Delete an email template
+     */
+    async deleteTemplate(
+      params: DeleteEmailTemplateParams,
+      options?: RequestOptions<{ deleted: boolean }>
+    ): Promise<{ deleted: boolean }> {
+      const businessId = params.businessId || apiConfig.businessId;
+      return apiConfig.httpClient.delete(
+        `/v1/businesses/${businessId}/email-templates/${params.id}`,
+        options
+      );
     },
   };
 };

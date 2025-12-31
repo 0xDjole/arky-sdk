@@ -44,12 +44,14 @@ export type {
 
 // Export email template types
 export type {
-  EmailType,
+  SystemTemplateKey,
   EmailTemplate,
-  EmailTemplateListItem,
   GetEmailTemplatesParams,
   GetEmailTemplateParams,
-  UpsertEmailTemplateParams,
+  GetEmailTemplateByKeyParams,
+  CreateEmailTemplateParams,
+  UpdateEmailTemplateParams,
+  DeleteEmailTemplateParams,
 } from "./types/api";
 
 // Export location types
@@ -150,6 +152,12 @@ import {
   fetchSvgContent,
   injectSvgIntoElement,
 } from "./utils/svg";
+import {
+  isValidKey,
+  validateKey,
+  toKey,
+  nameToKey,
+} from "./utils/keyValidation";
 
 export async function createArkySDK(
   config: HttpClientConfig & { market: string; locale?: string }
@@ -275,6 +283,12 @@ export async function createArkySDK(
       getSvgContentForAstro,
       fetchSvgContent,
       injectSvgIntoElement,
+
+      // Key validation utilities
+      isValidKey,
+      validateKey,
+      toKey,
+      nameToKey,
     },
   };
 

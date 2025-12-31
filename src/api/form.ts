@@ -20,6 +20,7 @@ export interface CreateFormParams {
   isPubliclyWritable?: boolean;
   isSubmissionEnabled?: boolean;
   isCaptchaRequired?: boolean;
+  notificationTemplateKey?: string;
   notificationEmails?: string[];
 }
 
@@ -31,6 +32,7 @@ export interface UpdateFormParams {
   isPubliclyWritable: boolean;
   isSubmissionEnabled: boolean;
   isCaptchaRequired: boolean;
+  notificationTemplateKey?: string;
   notificationEmails: string[];
   statuses: StatusEvent[];
 }

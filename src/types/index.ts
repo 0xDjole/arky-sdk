@@ -360,6 +360,7 @@ export interface Form {
 	isPubliclyWritable: boolean;
 	isSubmissionEnabled: boolean;
 	isCaptchaRequired: boolean;
+	notificationTemplateKey: string | null;
 	notificationEmails: string[];
 	statuses: StatusEvent[];
 	createdAt: number;
