@@ -41,8 +41,8 @@ export const createNewsletterApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions<Newsletter>
     ): Promise<Newsletter> {
       return apiConfig.httpClient.post(
-        `/v1/newsletters`,
-        { ...params, businessId: apiConfig.businessId },
+        `/v1/businesses/${apiConfig.businessId}/newsletters`,
+        params,
         options
       );
     },
@@ -55,7 +55,7 @@ export const createNewsletterApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions<Newsletter>
     ): Promise<Newsletter> {
       return apiConfig.httpClient.get(
-        `/v1/newsletters/${params.id}`,
+        `/v1/businesses/${apiConfig.businessId}/newsletters/${params.id}`,
         options
       );
     },
@@ -67,10 +67,13 @@ export const createNewsletterApi = (apiConfig: ApiConfig) => {
       params?: GetNewslettersParams,
       options?: RequestOptions<Paginated<Newsletter>>
     ): Promise<Paginated<Newsletter>> {
-      return apiConfig.httpClient.get(`/v1/newsletters`, {
-        ...options,
-        params: { ...params, businessId: apiConfig.businessId },
-      });
+      return apiConfig.httpClient.get(
+        `/v1/businesses/${apiConfig.businessId}/newsletters`,
+        {
+          ...options,
+          params,
+        }
+      );
     },
 
     /**
@@ -81,7 +84,11 @@ export const createNewsletterApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions<Newsletter>
     ): Promise<Newsletter> {
       const { id, ...body } = params;
-      return apiConfig.httpClient.put(`/v1/newsletters/${id}`, body, options);
+      return apiConfig.httpClient.put(
+        `/v1/businesses/${apiConfig.businessId}/newsletters/${id}`,
+        body,
+        options
+      );
     },
 
     /**
@@ -92,7 +99,7 @@ export const createNewsletterApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions<boolean>
     ): Promise<boolean> {
       return apiConfig.httpClient.delete(
-        `/v1/newsletters/${params.id}`,
+        `/v1/businesses/${apiConfig.businessId}/newsletters/${params.id}`,
         options
       );
     },
@@ -105,7 +112,7 @@ export const createNewsletterApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions<SubscriberInfo[]>
     ): Promise<SubscriberInfo[]> {
       return apiConfig.httpClient.get(
-        `/v1/newsletters/${params.id}/subscribers`,
+        `/v1/businesses/${apiConfig.businessId}/newsletters/${params.id}/subscribers`,
         options
       );
     },
@@ -121,8 +128,8 @@ export const createNewsletterApi = (apiConfig: ApiConfig) => {
     ): Promise<NewsletterPost> {
       const { newsletterId, ...body } = params;
       return apiConfig.httpClient.post(
-        `/v1/newsletters/${newsletterId}/posts`,
-        { ...body, businessId: apiConfig.businessId },
+        `/v1/businesses/${apiConfig.businessId}/newsletters/${newsletterId}/posts`,
+        body,
         options
       );
     },
@@ -135,7 +142,7 @@ export const createNewsletterApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions<NewsletterPost>
     ): Promise<NewsletterPost> {
       return apiConfig.httpClient.get(
-        `/v1/newsletters/${params.newsletterId}/posts/${params.postId}`,
+        `/v1/businesses/${apiConfig.businessId}/newsletters/${params.newsletterId}/posts/${params.postId}`,
         options
       );
     },
@@ -149,10 +156,10 @@ export const createNewsletterApi = (apiConfig: ApiConfig) => {
     ): Promise<Paginated<NewsletterPost>> {
       const { newsletterId, ...queryParams } = params;
       return apiConfig.httpClient.get(
-        `/v1/newsletters/${newsletterId}/posts`,
+        `/v1/businesses/${apiConfig.businessId}/newsletters/${newsletterId}/posts`,
         {
           ...options,
-          params: { ...queryParams, businessId: apiConfig.businessId },
+          params: queryParams,
         }
       );
     },
@@ -166,7 +173,7 @@ export const createNewsletterApi = (apiConfig: ApiConfig) => {
     ): Promise<NewsletterPost> {
       const { newsletterId, postId, ...body } = params;
       return apiConfig.httpClient.put(
-        `/v1/newsletters/${newsletterId}/posts/${postId}`,
+        `/v1/businesses/${apiConfig.businessId}/newsletters/${newsletterId}/posts/${postId}`,
         body,
         options
       );
@@ -180,7 +187,7 @@ export const createNewsletterApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions<boolean>
     ): Promise<boolean> {
       return apiConfig.httpClient.delete(
-        `/v1/newsletters/${params.newsletterId}/posts/${params.postId}`,
+        `/v1/businesses/${apiConfig.businessId}/newsletters/${params.newsletterId}/posts/${params.postId}`,
         options
       );
     },
@@ -196,7 +203,7 @@ export const createNewsletterApi = (apiConfig: ApiConfig) => {
     ): Promise<NewsletterPost> {
       const { newsletterId, postId, ...body } = params;
       return apiConfig.httpClient.post(
-        `/v1/newsletters/${newsletterId}/posts/${postId}/send`,
+        `/v1/businesses/${apiConfig.businessId}/newsletters/${newsletterId}/posts/${postId}/send`,
         body,
         options
       );
@@ -211,7 +218,7 @@ export const createNewsletterApi = (apiConfig: ApiConfig) => {
     ): Promise<NewsletterPost> {
       const { newsletterId, postId, sendId } = params;
       return apiConfig.httpClient.post(
-        `/v1/newsletters/${newsletterId}/posts/${postId}/send/${sendId}/cancel`,
+        `/v1/businesses/${apiConfig.businessId}/newsletters/${newsletterId}/posts/${postId}/send/${sendId}/cancel`,
         {},
         options
       );

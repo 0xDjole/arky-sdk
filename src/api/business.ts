@@ -143,12 +143,19 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       params: GetBusinessMediaParams2,
       options?: RequestOptions
     ) {
+      const queryParams: Record<string, any> = {
+        limit: params.limit,
+      };
+      if (params.cursor) queryParams.cursor = params.cursor;
+      if (params.ids && params.ids.length > 0) queryParams.ids = params.ids.join(',');
+      if (params.query) queryParams.query = params.query;
+      if (params.mimeType) queryParams.mimeType = params.mimeType;
+      if (params.sortField) queryParams.sortField = params.sortField;
+      if (params.sortDirection) queryParams.sortDirection = params.sortDirection;
+
       return apiConfig.httpClient.get(`/v1/businesses/${params.id}/media`, {
         ...options,
-        params: {
-          cursor: params.cursor,
-          limit: params.limit || 20,
-        },
+        params: queryParams,
       });
     },
 

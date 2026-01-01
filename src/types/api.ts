@@ -135,7 +135,12 @@ export interface UpdateMediaParams {
 
 export interface GetBusinessMediaParams {
   cursor?: string | null;
-  limit?: number;
+  limit: number;
+  ids?: string[];
+  query?: string;
+  mimeType?: string;
+  sortField?: string;
+  sortDirection?: 'asc' | 'desc';
 }
 
 export interface LoginUserParams {
@@ -709,7 +714,12 @@ export interface SetupAnalyticsParams {
 export interface GetBusinessMediaParams2 {
   id: string;
   cursor?: string | null;
-  limit?: number;
+  limit: number;
+  ids?: string[];
+  query?: string;
+  mimeType?: string;
+  sortField?: string;
+  sortDirection?: 'asc' | 'desc';
 }
 
 export interface DeleteProductParams {

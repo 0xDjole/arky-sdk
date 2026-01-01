@@ -44,15 +44,25 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
         },
 
         async getBusinessMedia(params: GetBusinessMediaParams, options?: RequestOptions) {
-            const _options = options;
-            const { cursor = null, limit = 20 } = params;
+            const { cursor, limit, ids, query, mimeType, sortField, sortDirection } = params;
             const url = `${apiConfig.baseUrl}/v1/businesses/${apiConfig.businessId}/media`;
 
-            const queryParams: any = { limit };
+            const queryParams: Record<string, string> = { limit: String(limit) };
             if (cursor) queryParams.cursor = cursor;
+            if (ids && ids.length > 0) queryParams.ids = ids.join(',');
+            if (query) queryParams.query = query;
+            if (mimeType) queryParams.mimeType = mimeType;
+            if (sortField) queryParams.sortField = sortField;
+            if (sortDirection) queryParams.sortDirection = sortDirection;
 
             const queryString = new URLSearchParams(queryParams).toString();
-            const response = await fetch(`${url}?${queryString}`);
+
+            const tokens = await apiConfig.getToken();
+            const response = await fetch(`${url}?${queryString}`, {
+                headers: {
+                    Authorization: `Bearer ${tokens.accessToken}`
+                }
+            });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => null);
