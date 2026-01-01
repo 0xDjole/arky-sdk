@@ -377,27 +377,6 @@ export interface FormEntry {
 	updatedAt: number;
 }
 
-// ===== Taxonomy Types =====
-
-export enum TaxonomyScope {
-	SERVICE = 'SERVICE',
-	PROVIDER = 'PROVIDER',
-	PRODUCT = 'PRODUCT',
-}
-
-export interface Taxonomy {
-	id: string;
-	businessId: string;
-	key: string;
-	scope: TaxonomyScope;
-	blocks: Block[];
-	parentId: string | null;
-	hasChildren: boolean;
-	statuses: StatusEvent[];
-	createdAt: number;
-	updatedAt: number;
-}
-
 export interface Node {
 	id: string;
 	key: string;
@@ -437,7 +416,7 @@ export interface Service {
 	prices: Price[];
 	durations: ServiceDuration[];
 	blocks: Block[];
-	taxonomyIds: string[];
+	nodeIds: string[];
 	isApprovalRequired: boolean;
 	providers: ServiceProvider[];
 	createdAt: number;
@@ -457,7 +436,7 @@ export interface Provider {
 	businessId: string;
 	statuses: StatusEvent[];
 	concurrentLimit: number;
-	taxonomyIds: string[];
+	nodeIds: string[];
 	blocks: Block[];
 	timeline: ProviderTimelinePoint[];
 	createdAt: number;

@@ -163,8 +163,7 @@ function unwrapBlock(block: any, locale: string) {
     });
   }
 
-  // Primitive leaves (text/number/boolean/media …)
-  const isLocalized = block.type === "TEXT";
+  const isLocalized = block.type === "LOCALIZED_TEXT" || block.type === "MARKDOWN";
   const isList =
     block.properties?.ui === "list" ||
     (block.properties?.maxValues ?? 1) > 1 ||

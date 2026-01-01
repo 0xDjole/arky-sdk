@@ -53,8 +53,8 @@ export interface OrderCheckoutParams {
 
 export interface GetProductsParams {
   ids?: string[];
-  taxonomyIds?: string[] | null;
-  taxonomyId?: string | null;
+  nodeIds?: string[] | null;
+  nodeId?: string | null;
   blocks?: any[] | null;
   status?: string;
   limit?: number;
@@ -174,7 +174,7 @@ export interface GetServicesParams {
   query?: string;
   ids?: string[];
   statuses?: string[];
-  taxonomyId?: string;
+  nodeId?: string;
   blocks?: any[];
   sortField?: string;
   sortDirection?: string;
@@ -253,7 +253,7 @@ export interface ProviderWithTimeline {
   seo: any;
   statuses: any[];
   concurrentLimit: number;
-  taxonomyIds: string[];
+  nodeIds: string[];
   blocks: Block[];
   createdAt: number;
   updatedAt: number;
@@ -459,7 +459,7 @@ export interface UserSubscribeParams {
 export interface CreateProductParams {
   key: string;
   description?: string;
-  taxonomyIds?: string[];
+  nodeIds?: string[];
   blocks?: any[];
   variants?: any[];
   status?: string;
@@ -470,7 +470,7 @@ export interface UpdateProductParams {
   id: string;
   key?: string;
   description?: string;
-  taxonomyIds?: string[];
+  nodeIds?: string[];
   blocks?: any[];
   variants?: any[];
   status?: string;
@@ -533,7 +533,7 @@ export interface UpdateReservationParams {
 
 export interface CreateProviderParams {
   key: string;
-  taxonomyIds?: string[];
+  nodeIds?: string[];
   blocks?: any[];
   concurrentLimit?: number;
   statuses?: any[];
@@ -543,7 +543,7 @@ export interface CreateProviderParams {
 export interface UpdateProviderParams {
   id: string;
   key?: string;
-  taxonomyIds?: string[];
+  nodeIds?: string[];
   blocks?: any[];
   concurrentLimit?: number;
   statuses?: any[];
@@ -562,7 +562,7 @@ export interface ServiceProviderInput {
 
 export interface CreateServiceParams {
   key: string;
-  taxonomyIds?: string[];
+  nodeIds?: string[];
   blocks?: any[];
   prices?: any[];
   durations?: any[];
@@ -575,7 +575,7 @@ export interface CreateServiceParams {
 export interface UpdateServiceParams {
   id: string;
   key?: string;
-  taxonomyIds?: string[];
+  nodeIds?: string[];
   blocks?: any[];
   prices?: any[];
   durations?: any[];
@@ -610,7 +610,7 @@ export interface GetProvidersParams {
   sortDirection?: string | null;
   createdAtFrom?: string | null;
   createdAtTo?: string | null;
-  taxonomyId?: string | null;
+  nodeId?: string | null;
   blocks?: string | null;
 }
 
