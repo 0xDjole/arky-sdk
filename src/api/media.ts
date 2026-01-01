@@ -16,7 +16,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
 
             const formData = new FormData();
             files.forEach((file) => formData.append('files', file));
-            urls.forEach((url) => formData.append('files', url));
+            urls.forEach((url) => formData.append('urls', url));
 
             const tokens = await apiConfig.getToken();
             const response = await fetch(url, {

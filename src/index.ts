@@ -84,7 +84,7 @@ export type {
   DeleteEntryParams,
 } from "./api/form";
 
-export const SDK_VERSION = "0.3.88";
+export const SDK_VERSION = "0.3.130";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
