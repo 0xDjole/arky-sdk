@@ -388,7 +388,7 @@ export enum TaxonomyScope {
 export interface Taxonomy {
 	id: string;
 	businessId: string;
-	name: string;
+	key: string;
 	scope: TaxonomyScope;
 	blocks: Block[];
 	parentId: string | null;

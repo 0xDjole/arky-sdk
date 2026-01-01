@@ -12,7 +12,7 @@ export interface GetTaxonomyParams {
 }
 
 export interface CreateTaxonomyParams {
-  name: string;
+  key: string;
   scope: TaxonomyScope;
   blocks?: Block[];
   parentId?: string;
@@ -20,7 +20,7 @@ export interface CreateTaxonomyParams {
 
 export interface UpdateTaxonomyParams {
   id: string;
-  name: string;
+  key: string;
   scope: TaxonomyScope;
   blocks?: Block[];
   parentId?: string;
