@@ -38,18 +38,7 @@ export type {
   GetAvailabilityParams,
   DayAvailability,
   Slot,
-} from "./types/api";
-
-// Export email template types
-export type {
   SystemTemplateKey,
-  EmailTemplate,
-  GetEmailTemplatesParams,
-  GetEmailTemplateParams,
-  GetEmailTemplateByKeyParams,
-  CreateEmailTemplateParams,
-  UpdateEmailTemplateParams,
-  DeleteEmailTemplateParams,
 } from "./types/api";
 
 // Export location types
@@ -60,7 +49,7 @@ export type {
 } from "./api/location";
 
 
-export const SDK_VERSION = "0.3.130";
+export const SDK_VERSION = "0.3.131";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -97,7 +86,6 @@ import { createDatabaseApi } from "./api/database";
 import { createFeatureFlagsApi } from "./api/featureFlags";
 import { createLocationApi } from "./api/location";
 import { createNewsletterApi } from "./api/newsletter";
-import { createEmailTemplateApi } from "./api/emailTemplate";
 import {
   getImageUrl,
   getBlockValue,
@@ -187,7 +175,6 @@ export async function createArkySDK(
     featureFlags: createFeatureFlagsApi(apiConfig),
     location: createLocationApi(apiConfig),
     newsletter: createNewsletterApi(apiConfig),
-    emailTemplate: createEmailTemplateApi(apiConfig),
 
     setBusinessId: (businessId: string) => {
       apiConfig.businessId = businessId;

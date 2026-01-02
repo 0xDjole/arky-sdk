@@ -97,6 +97,8 @@ export interface CreateNodeParams {
     isPubliclyReadable?: boolean;
     isPubliclyWritable?: boolean;
   };
+  /** Email subject for email template nodes */
+  emailSubject?: string;
 }
 
 export interface UpdateNodeParams {
@@ -115,6 +117,8 @@ export interface UpdateNodeParams {
     isPubliclyReadable?: boolean;
     isPubliclyWritable?: boolean;
   };
+  /** Email subject for email template nodes */
+  emailSubject?: string;
 }
 
 export interface GetNodeParams {
@@ -864,7 +868,7 @@ export interface NewsletterPost {
   businessId: string;
   key: string;
   subject: string;
-  contentMjml: string;
+  contentHtml: string;
   sends: NewsletterSend[];
   statuses: any[];
   createdAt: number;
@@ -918,7 +922,7 @@ export interface CreateNewsletterPostParams {
   newsletterId: string;
   key: string;
   subject: string;
-  contentMjml?: string;
+  contentHtml?: string;
 }
 
 export interface GetNewsletterPostParams {
@@ -937,7 +941,7 @@ export interface UpdateNewsletterPostParams {
   postId: string;
   key?: string;
   subject?: string;
-  contentMjml?: string;
+  contentHtml?: string;
   status?: string;
 }
 
@@ -969,56 +973,6 @@ export type SystemTemplateKey =
   | "system:order-status-update"
   | "system:user-confirmation"
   | "system:forgot-password";
-
-export interface EmailTemplate {
-  id: string;
-  businessId: string;
-  key: string;
-  subject: Record<string, string>; // i18n: { en: "...", es: "..." }
-  mjml: string;
-  createdAt: number;
-  updatedAt: number;
-}
-
-// Email Template API Params
-export interface GetEmailTemplatesParams {
-  businessId?: string;
-  key?: string;
-  keys?: string[];
-  query?: string;
-  limit?: number;
-  cursor?: string;
-}
-
-export interface GetEmailTemplateParams {
-  id: string;
-  businessId?: string;
-}
-
-export interface GetEmailTemplateByKeyParams {
-  key: string;
-  businessId?: string;
-}
-
-export interface CreateEmailTemplateParams {
-  key: string;
-  subject: Record<string, string>;
-  mjml: string;
-  businessId?: string;
-}
-
-export interface UpdateEmailTemplateParams {
-  id: string;
-  key?: string;
-  subject?: Record<string, string>;
-  mjml?: string;
-  businessId?: string;
-}
-
-export interface DeleteEmailTemplateParams {
-  id: string;
-  businessId?: string;
-}
 
 // === Reservation Slot Types ===
 
