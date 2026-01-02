@@ -349,32 +349,14 @@ export interface Reservation {
 
 // ===== CMS Types =====
 
-// ===== Form Types =====
-
-export interface Form {
-	id: string;
-	businessId: string;
-	key: string;
-	blocks: Block[];
-	isPubliclyReadable: boolean;
-	isPubliclyWritable: boolean;
-	isSubmissionEnabled: boolean;
-	isCaptchaRequired: boolean;
-	notificationTemplateKey: string | null;
-	notificationEmails: string[];
-	statuses: StatusEvent[];
-	createdAt: number;
-	updatedAt: number;
+export interface NodeNotifications {
+	emails: string[];
+	templateKey?: string | null;
 }
 
-export interface FormEntry {
-	id: string;
-	businessId: string;
-	formId: string;
-	blocks: Block[];
-	statuses: StatusEvent[];
-	createdAt: number;
-	updatedAt: number;
+export interface NodeConfig {
+	isPubliclyReadable: boolean;
+	isPubliclyWritable: boolean;
 }
 
 export interface Node {
@@ -386,6 +368,8 @@ export interface Node {
 	hasChildren: boolean;
 	statuses: StatusEvent[];
 	seo: Seo;
+	notifications: NodeNotifications;
+	config: NodeConfig;
 	createdAt: number;
 	updatedAt: number;
 }

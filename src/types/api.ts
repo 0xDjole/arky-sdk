@@ -89,6 +89,14 @@ export interface CreateNodeParams {
   hasChildren?: boolean;
   seo?: any;
   status?: string;
+  notifications?: {
+    emails?: string[];
+    templateKey?: string | null;
+  };
+  config?: {
+    isPubliclyReadable?: boolean;
+    isPubliclyWritable?: boolean;
+  };
 }
 
 export interface UpdateNodeParams {
@@ -99,6 +107,14 @@ export interface UpdateNodeParams {
   hasChildren?: boolean;
   seo?: any;
   status?: string;
+  notifications?: {
+    emails?: string[];
+    templateKey?: string | null;
+  };
+  config?: {
+    isPubliclyReadable?: boolean;
+    isPubliclyWritable?: boolean;
+  };
 }
 
 export interface GetNodeParams {
@@ -428,15 +444,6 @@ export interface HandleInvitationParams {
 
 export interface TestWebhookParams {
   webhook: any;
-}
-
-// Additional CMS API Types
-export interface FormPropsParams {
-  isPubliclyReadable?: boolean;
-  isPubliclyWritable?: boolean;
-  isSubmissionEnabled?: boolean;
-  isCaptchaRequired?: boolean;
-  notificationEmails?: string[];
 }
 
 export interface GenerateBlocksParams {
