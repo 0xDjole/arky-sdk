@@ -351,12 +351,36 @@ export interface Reservation {
 
 export interface NodeNotifications {
 	emails: string[];
-	templateKey?: string | null;
 }
 
 export interface NodeConfig {
 	isPubliclyReadable: boolean;
 	isPubliclyWritable: boolean;
+}
+
+export interface SubscriptionPlan {
+	id: string;
+	providerPriceId?: string;
+	providerProductId?: string;
+	name: string;
+	tier: number;
+	amount: number;
+	currency: string;
+	interval: string;
+	intervalCount: number;
+	trialPeriodDays: number;
+	features: Record<string, any>;
+}
+
+export type SendStatus = 'SCHEDULED' | 'SENDING' | 'SENT' | 'CANCELLED' | 'FAILED';
+
+export interface NewsletterSend {
+	id: string;
+	scheduledAt: number;
+	status: SendStatus;
+	sentCount: number;
+	failedCount: number;
+	createdAt: number;
 }
 
 export interface Node {
@@ -370,6 +394,9 @@ export interface Node {
 	seo: Seo;
 	notifications: NodeNotifications;
 	config: NodeConfig;
+	emailSubject?: Record<string, string>;
+	plans?: SubscriptionPlan[];
+	sends?: NewsletterSend[];
 	createdAt: number;
 	updatedAt: number;
 }

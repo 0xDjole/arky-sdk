@@ -49,7 +49,7 @@ export type {
 } from "./api/location";
 
 
-export const SDK_VERSION = "0.3.131";
+export const SDK_VERSION = "0.3.132";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -85,7 +85,6 @@ import { createReservationApi } from "./api/reservation";
 import { createDatabaseApi } from "./api/database";
 import { createFeatureFlagsApi } from "./api/featureFlags";
 import { createLocationApi } from "./api/location";
-import { createNewsletterApi } from "./api/newsletter";
 import {
   getImageUrl,
   getBlockValue,
@@ -174,7 +173,6 @@ export async function createArkySDK(
     database: createDatabaseApi(apiConfig),
     featureFlags: createFeatureFlagsApi(apiConfig),
     location: createLocationApi(apiConfig),
-    newsletter: createNewsletterApi(apiConfig),
 
     setBusinessId: (businessId: string) => {
       apiConfig.businessId = businessId;

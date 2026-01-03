@@ -12,7 +12,6 @@ export { createAnalyticsApi } from './analytics';
 export { createDatabaseApi } from './database';
 export { createFeatureFlagsApi } from './featureFlags';
 export { createLocationApi } from './location';
-export { createNewsletterApi } from './newsletter';
 
 // Re-export types from individual files for better compatibility
 export type { ApiResponse } from '../types/index';
