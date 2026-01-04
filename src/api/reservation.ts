@@ -21,7 +21,6 @@ import type {
   RequestOptions,
   Slot,
 } from "../types/api";
-import { formatIdOrSlug } from "../utils/slug";
 
 export const createReservationApi = (apiConfig: ApiConfig) => {
   // Cart state for multiple slots
@@ -176,9 +175,17 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
     },
 
     async getService(params: GetServiceParams, options?: RequestOptions) {
-      const formattedId = formatIdOrSlug(params.id, apiConfig);
+      let identifier: string;
+      if (params.id) {
+        identifier = params.id;
+      } else if (params.slug) {
+        identifier = `${apiConfig.businessId}:${apiConfig.locale}:${params.slug}`;
+      } else {
+        throw new Error("GetServiceParams requires id or slug");
+      }
+
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/services/${formattedId}`,
+        `/v1/businesses/${apiConfig.businessId}/services/${identifier}`,
         options,
       );
     },
@@ -228,9 +235,17 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
     },
 
     async getProvider(params: GetProviderParams, options?: RequestOptions) {
-      // Providers use UUID only - no SEO slug support
+      let identifier: string;
+      if (params.id) {
+        identifier = params.id;
+      } else if (params.slug) {
+        identifier = `${apiConfig.businessId}:${apiConfig.locale}:${params.slug}`;
+      } else {
+        throw new Error("GetProviderParams requires id or slug");
+      }
+
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/providers/${params.id}`,
+        `/v1/businesses/${apiConfig.businessId}/providers/${identifier}`,
         options,
       );
     },

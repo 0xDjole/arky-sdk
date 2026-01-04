@@ -10,7 +10,6 @@ import type {
   GetVariableMetadataParams,
   RequestOptions,
 } from "../types/api";
-import { formatIdOrSlug } from "../utils/slug";
 import {
   getBlockFromArray,
   getBlockObjectValues,
@@ -43,9 +42,19 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
     },
 
     async getNode(params: GetNodeParams, options?: RequestOptions) {
-      const formattedId = formatIdOrSlug(params.id, apiConfig);
+      let identifier: string;
+      if (params.id) {
+        identifier = params.id;
+      } else if (params.slug) {
+        identifier = `${apiConfig.businessId}:${apiConfig.locale}:${params.slug}`;
+      } else if (params.key) {
+        identifier = `${apiConfig.businessId}:${params.key}`;
+      } else {
+        throw new Error("GetNodeParams requires id, slug, or key");
+      }
+
       const response = await apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/nodes/${formattedId}`,
+        `/v1/businesses/${apiConfig.businessId}/nodes/${identifier}`,
         options
       );
 

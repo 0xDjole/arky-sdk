@@ -14,8 +14,6 @@ import type {
   RequestOptions,
 } from "../types/api";
 
-import { formatIdOrSlug } from "../utils/slug";
-
 export const createEshopApi = (apiConfig: ApiConfig) => {
   return {
     // ===== PRODUCTS =====
@@ -44,9 +42,17 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     },
 
     async getProduct(params: GetProductParams, options?: RequestOptions) {
-      const formattedId = formatIdOrSlug(params.id, apiConfig);
+      let identifier: string;
+      if (params.id) {
+        identifier = params.id;
+      } else if (params.slug) {
+        identifier = `${apiConfig.businessId}:${apiConfig.locale}:${params.slug}`;
+      } else {
+        throw new Error("GetProductParams requires id or slug");
+      }
+
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/products/${formattedId}`,
+        `/v1/businesses/${apiConfig.businessId}/products/${identifier}`,
         options,
       );
     },

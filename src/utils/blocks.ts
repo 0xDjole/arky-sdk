@@ -210,15 +210,19 @@ export const getBlockFromArray = (
   locale = "en"
 ) => {
   if (!entry) {
-    return [];
+    return {};
   }
 
   const values = getBlockValues(entry, blockKey); // top‑level list
 
+  if (!values || !Array.isArray(values)) {
+    return {};
+  }
+
   return values.reduce((acc: any, current: any) => {
     acc[current.key] = unwrapBlock(current, locale);
     return acc;
-  });
+  }, {});
 };
 
 export const getImageUrl = (imageBlock: any, isBlock = true) => {

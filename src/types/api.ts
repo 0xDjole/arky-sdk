@@ -120,7 +120,9 @@ export interface UpdateNodeParams {
 }
 
 export interface GetNodeParams {
-  id: string;
+  id?: string;
+  slug?: string;
+  key?: string;
 }
 
 export interface DeleteNodeParams {
@@ -491,7 +493,8 @@ export interface DeleteProductParams {
 }
 
 export interface GetProductParams {
-  id: string;
+  id?: string;
+  slug?: string;
 }
 
 export interface GetOrderParams {
@@ -605,7 +608,8 @@ export interface BulkScheduleParams {
 }
 
 export interface GetServiceParams {
-  id: string;
+  id?: string;
+  slug?: string;
 }
 
 export interface GetProvidersParams {
@@ -624,7 +628,8 @@ export interface GetProvidersParams {
 }
 
 export interface GetProviderParams {
-  id: string;
+  id?: string;
+  slug?: string;
 }
 
 export interface GetBusinessServiceWorkingTimeParams {
