@@ -240,7 +240,7 @@ export interface Media {
 	title?: string | null;
 	description?: string | null;
 	alt?: string | null;
-	owner: string;
+	entity: string;
 	metadata?: string | null;
 	uploadedAt: string;
 	seo: Seo;
