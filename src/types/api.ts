@@ -715,7 +715,7 @@ export interface LogoutParams {}
 export interface GetBusinessesParams {
   query?: string;
   isNetwork?: boolean;
-  status?: string;
+  statuses?: string[];
   limit?: number;
   cursor?: string;
   sortField?: string;
