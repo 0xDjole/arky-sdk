@@ -192,10 +192,26 @@ export interface BusinessConfig {
 	emails: BusinessEmails;
 }
 
+export interface Subscription {
+	id: string;
+	target: string;
+	planId: string;
+	pendingPlanId: string | null;
+	payment: any;
+	statuses: StatusEvent[];
+	endDate: number;
+	usage: Record<string, any>;
+	token: string;
+}
+
 export interface Business {
 	id: string;
 	name: string;
+	networkKey: string | null;
+	timezone: string;
 	configs?: BusinessConfig;
+	subscriptions?: Subscription[];
+	statuses?: StatusEvent[];
 }
 
 export interface EshopStoreState {

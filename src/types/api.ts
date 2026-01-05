@@ -401,15 +401,11 @@ export interface CreateBusinessParams {
 
 export interface UpdateBusinessParams {
   id: string;
-  name?: string;
-  slug?: string;
-  description?: string;
-  email?: string;
-  phone?: string;
-  website?: string;
-  address?: any;
-  settings?: any;
-  [key: string]: any;
+  name: string;
+  networkKey: string | null;
+  timezone: string;
+  statuses: any[];
+  configs: any;
 }
 
 export interface DeleteBusinessParams {
@@ -716,7 +712,15 @@ export interface GetMeParams {}
 
 export interface LogoutParams {}
 
-export interface GetBusinessesParams {}
+export interface GetBusinessesParams {
+  query?: string;
+  isNetwork?: boolean;
+  status?: string;
+  limit?: number;
+  cursor?: string;
+  sortField?: string;
+  sortDirection?: "asc" | "desc";
+}
 
 export interface GetSubscriptionPlansParams {}
 

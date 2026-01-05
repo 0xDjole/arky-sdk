@@ -56,8 +56,21 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getBusinesses(params: GetBusinessesParams, options?: RequestOptions) {
-      return apiConfig.httpClient.get(`/v1/businesses`, options);
+    async getBusinesses(params?: GetBusinessesParams, options?: RequestOptions) {
+      const queryParams: Record<string, any> = {};
+
+      if (params?.query) queryParams.query = params.query;
+      if (params?.isNetwork !== undefined) queryParams.isNetwork = params.isNetwork;
+      if (params?.status) queryParams.status = params.status;
+      if (params?.limit !== undefined) queryParams.limit = params.limit;
+      if (params?.cursor) queryParams.cursor = params.cursor;
+      if (params?.sortField) queryParams.sortField = params.sortField;
+      if (params?.sortDirection) queryParams.sortDirection = params.sortDirection;
+
+      return apiConfig.httpClient.get(`/v1/businesses`, {
+        ...options,
+        params: queryParams,
+      });
     },
 
     async getBusinessParents(

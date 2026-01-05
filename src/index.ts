@@ -85,6 +85,7 @@ import { createReservationApi } from "./api/reservation";
 import { createDatabaseApi } from "./api/database";
 import { createFeatureFlagsApi } from "./api/featureFlags";
 import { createLocationApi } from "./api/location";
+import { createNetworkApi } from "./api/network";
 import {
   getImageUrl,
   getBlockValue,
@@ -173,6 +174,7 @@ export async function createArkySDK(
     database: createDatabaseApi(apiConfig),
     featureFlags: createFeatureFlagsApi(apiConfig),
     location: createLocationApi(apiConfig),
+    network: createNetworkApi(apiConfig),
 
     setBusinessId: (businessId: string) => {
       apiConfig.businessId = businessId;
