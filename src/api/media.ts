@@ -11,8 +11,9 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
     return {
         async uploadBusinessMedia(params: UploadBusinessMediaParams, options?: RequestOptions) {
             const _options = options;
-            const { files = [], urls = [] } = params;
-            const url = `${apiConfig.baseUrl}/v1/businesses/${apiConfig.businessId}/media`;
+            const { businessId, files = [], urls = [] } = params;
+            const targetBusinessId = businessId || apiConfig.businessId;
+            const url = `${apiConfig.baseUrl}/v1/businesses/${targetBusinessId}/media`;
 
             const formData = new FormData();
             files.forEach((file) => formData.append('files', file));
@@ -44,8 +45,9 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
         },
 
         async getBusinessMedia(params: GetBusinessMediaParams, options?: RequestOptions) {
-            const { cursor, limit, ids, query, mimeType, sortField, sortDirection } = params;
-            const url = `${apiConfig.baseUrl}/v1/businesses/${apiConfig.businessId}/media`;
+            const { businessId, cursor, limit, ids, query, mimeType, sortField, sortDirection } = params;
+            const targetBusinessId = businessId || apiConfig.businessId;
+            const url = `${apiConfig.baseUrl}/v1/businesses/${targetBusinessId}/media`;
 
             const queryParams: Record<string, string> = { limit: String(limit) };
             if (cursor) queryParams.cursor = cursor;
@@ -73,10 +75,11 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
         },
 
         async updateMedia(params: UpdateMediaParams, options?: RequestOptions) {
-            const { mediaId, ...updateData } = params;
-            
+            const { mediaId, businessId, ...updateData } = params;
+            const targetBusinessId = businessId || apiConfig.businessId;
+
             return apiConfig.httpClient.put(
-                `/v1/businesses/${apiConfig.businessId}/media/${mediaId}`,
+                `/v1/businesses/${targetBusinessId}/media/${mediaId}`,
                 updateData,
                 options
             );

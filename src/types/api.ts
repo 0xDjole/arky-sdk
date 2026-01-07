@@ -68,6 +68,7 @@ export interface GetProductsParams {
 }
 
 export interface GetNodesParams {
+  businessId?: string;
   parentId?: string;
   limit?: number;
   cursor?: string;
@@ -83,6 +84,7 @@ export interface GetNodesParams {
 }
 
 export interface CreateNodeParams {
+  businessId?: string;
   key: string;
   blocks?: any[];
   parentId?: string | null;
@@ -102,6 +104,7 @@ export interface CreateNodeParams {
 
 export interface UpdateNodeParams {
   id: string;
+  businessId?: string;
   key?: string;
   blocks?: any[];
   parentId?: string | null;
@@ -123,19 +126,23 @@ export interface GetNodeParams {
   id?: string;
   slug?: string;
   key?: string;
+  businessId?: string;
 }
 
 export interface DeleteNodeParams {
   id: string;
+  businessId?: string;
 }
 
 export interface GetNodeChildrenParams {
   id: string;
+  businessId?: string;
   limit?: number;
   cursor?: string;
 }
 
 export interface UploadBusinessMediaParams {
+  businessId?: string;
   files?: File[];
   urls?: string[];
 }
@@ -147,6 +154,7 @@ export interface DeleteBusinessMediaParams {
 
 export interface UpdateMediaParams {
   mediaId: string;
+  businessId?: string;
   seo?: any;
   title?: string;
   description?: string;
@@ -154,6 +162,7 @@ export interface UpdateMediaParams {
 }
 
 export interface GetBusinessMediaParams {
+  businessId?: string;
   cursor?: string | null;
   limit: number;
   ids?: string[];
@@ -188,6 +197,7 @@ export interface PhoneNumberConfirmParams {
 }
 
 export interface GetServicesParams {
+  businessId?: string;
   providerId?: string;
   limit?: number;
   cursor?: string;
@@ -203,6 +213,7 @@ export interface GetServicesParams {
 }
 
 export interface ReservationCheckoutParams {
+  businessId?: string;
   items: any[];
   paymentMethodId?: string;
   blocks?: any[];
@@ -220,6 +231,7 @@ export interface ReservationQuoteItem {
 }
 
 export interface GetReservationQuoteParams {
+  businessId?: string;
   items: ReservationQuoteItem[];
   paymentMethodId?: string;
   promoCode?: string;
@@ -527,6 +539,7 @@ export interface CreateOrderParams {
 
 // Additional Reservation API Types
 export interface CreateReservationParams {
+  businessId?: string;
   [key: string]: any;
 }
 
@@ -540,6 +553,7 @@ export interface UpdateReservationParams {
 }
 
 export interface CreateProviderParams {
+  businessId?: string;
   key: string;
   nodeIds?: string[];
   blocks?: any[];
@@ -550,6 +564,7 @@ export interface CreateProviderParams {
 
 export interface UpdateProviderParams {
   id: string;
+  businessId?: string;
   key?: string;
   nodeIds?: string[];
   blocks?: any[];
@@ -560,6 +575,7 @@ export interface UpdateProviderParams {
 
 export interface DeleteProviderParams {
   id: string;
+  businessId?: string;
 }
 
 export interface ServiceProviderInput {
@@ -569,6 +585,7 @@ export interface ServiceProviderInput {
 }
 
 export interface CreateServiceParams {
+  businessId?: string;
   key: string;
   nodeIds?: string[];
   blocks?: any[];
@@ -582,6 +599,7 @@ export interface CreateServiceParams {
 
 export interface UpdateServiceParams {
   id: string;
+  businessId?: string;
   key?: string;
   nodeIds?: string[];
   blocks?: any[];
@@ -595,6 +613,7 @@ export interface UpdateServiceParams {
 
 export interface DeleteServiceParams {
   id: string;
+  businessId?: string;
 }
 
 export interface BulkScheduleParams {
@@ -606,9 +625,11 @@ export interface BulkScheduleParams {
 export interface GetServiceParams {
   id?: string;
   slug?: string;
+  businessId?: string;
 }
 
 export interface GetProvidersParams {
+  businessId?: string;
   serviceId?: string;
   ids?: string[];
   query?: string | null;
@@ -626,6 +647,7 @@ export interface GetProvidersParams {
 export interface GetProviderParams {
   id?: string;
   slug?: string;
+  businessId?: string;
 }
 
 export interface GetBusinessServiceWorkingTimeParams {
@@ -636,9 +658,11 @@ export interface GetBusinessServiceWorkingTimeParams {
 
 export interface GetReservationParams {
   id: string;
+  businessId?: string;
 }
 
 export interface SearchReservationsParams {
+  businessId?: string;
   query?: string;
   serviceIds?: string[];
   providerIds?: string[];

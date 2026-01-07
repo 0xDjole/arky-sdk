@@ -19,42 +19,48 @@ import {
 export const createCmsApi = (apiConfig: ApiConfig) => {
   return {
     async createNode(params: CreateNodeParams, options?: RequestOptions) {
+      const { businessId, ...payload } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/nodes`,
-        params,
+        `/v1/businesses/${targetBusinessId}/nodes`,
+        payload,
         options
       );
     },
 
     async updateNode(params: UpdateNodeParams, options?: RequestOptions) {
+      const { businessId, ...payload } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
       return apiConfig.httpClient.put(
-        `/v1/businesses/${apiConfig.businessId}/nodes/${params.id}`,
-        params,
+        `/v1/businesses/${targetBusinessId}/nodes/${params.id}`,
+        payload,
         options
       );
     },
 
     async deleteNode(params: DeleteNodeParams, options?: RequestOptions) {
+      const targetBusinessId = params.businessId || apiConfig.businessId;
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${apiConfig.businessId}/nodes/${params.id}`,
+        `/v1/businesses/${targetBusinessId}/nodes/${params.id}`,
         options
       );
     },
 
     async getNode(params: GetNodeParams, options?: RequestOptions) {
+      const targetBusinessId = params.businessId || apiConfig.businessId;
       let identifier: string;
       if (params.id) {
         identifier = params.id;
       } else if (params.slug) {
-        identifier = `${apiConfig.businessId}:${apiConfig.locale}:${params.slug}`;
+        identifier = `${targetBusinessId}:${apiConfig.locale}:${params.slug}`;
       } else if (params.key) {
-        identifier = `${apiConfig.businessId}:${params.key}`;
+        identifier = `${targetBusinessId}:${params.key}`;
       } else {
         throw new Error("GetNodeParams requires id, slug, or key");
       }
 
       const response = await apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/nodes/${identifier}`,
+        `/v1/businesses/${targetBusinessId}/nodes/${identifier}`,
         options
       );
 
@@ -74,19 +80,22 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
     },
 
     async getNodes(params: GetNodesParams, options?: RequestOptions) {
+      const { businessId, ...queryParams } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/nodes`,
+        `/v1/businesses/${targetBusinessId}/nodes`,
         {
           ...options,
-          params,
+          params: queryParams,
         }
       );
     },
 
     async getNodeChildren(params: GetNodeChildrenParams, options?: RequestOptions) {
-      const { id, ...queryParams } = params;
+      const { id, businessId, ...queryParams } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/nodes/${id}/children`,
+        `/v1/businesses/${targetBusinessId}/nodes/${id}/children`,
         {
           ...options,
           params: queryParams,

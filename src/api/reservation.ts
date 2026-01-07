@@ -51,13 +51,15 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       params: CreateReservationParams,
       options?: RequestOptions,
     ) {
+      const { businessId, ...rest } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
       const payload = {
         market: apiConfig.market,
-        ...params,
+        ...rest,
       };
 
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/reservations`,
+        `/v1/businesses/${targetBusinessId}/reservations`,
         payload,
         options,
       );
@@ -79,8 +81,10 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       params?: Partial<ReservationCheckoutParams>,
       options?: RequestOptions,
     ) {
+      const { businessId, ...rest } = params || {};
+      const targetBusinessId = businessId || apiConfig.businessId;
       // Use cart if no items provided
-      const items = params?.items || cart.map((s) => ({
+      const items = rest?.items || cart.map((s) => ({
         serviceId: s.serviceId,
         providerId: s.providerId,
         from: s.from,
@@ -89,12 +93,12 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
 
       const payload = {
         market: apiConfig.market,
-        ...params,
+        ...rest,
         items,
       };
 
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/reservations/checkout`,
+        `/v1/businesses/${targetBusinessId}/reservations/checkout`,
         payload,
         options,
       );
@@ -104,8 +108,9 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       params: GetReservationParams,
       options?: RequestOptions,
     ) {
+      const targetBusinessId = params.businessId || apiConfig.businessId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/reservations/${params.id}`,
+        `/v1/businesses/${targetBusinessId}/reservations/${params.id}`,
         options,
       );
     },
@@ -114,11 +119,13 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       params: SearchReservationsParams,
       options?: RequestOptions,
     ) {
+      const { businessId, ...queryParams } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/reservations`,
+        `/v1/businesses/${targetBusinessId}/reservations`,
         {
           ...options,
-          params,
+          params: queryParams,
         },
       );
     },
@@ -129,13 +136,15 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       params: GetReservationQuoteParams,
       options?: RequestOptions,
     ) {
+      const { businessId, ...rest } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
       const payload = {
         market: apiConfig.market,
-        ...params,
+        ...rest,
       };
 
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/reservations/quote`,
+        `/v1/businesses/${targetBusinessId}/reservations/quote`,
         payload,
         options,
       );
@@ -144,24 +153,29 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
     // ===== SERVICES =====
 
     async createService(params: CreateServiceParams, options?: RequestOptions) {
+      const { businessId, ...payload } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/services`,
-        params,
+        `/v1/businesses/${targetBusinessId}/services`,
+        payload,
         options,
       );
     },
 
     async updateService(params: UpdateServiceParams, options?: RequestOptions) {
+      const { businessId, ...payload } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
       return apiConfig.httpClient.put(
-        `/v1/businesses/${apiConfig.businessId}/services/${params.id}`,
-        params,
+        `/v1/businesses/${targetBusinessId}/services/${params.id}`,
+        payload,
         options,
       );
     },
 
     async deleteService(params: DeleteServiceParams, options?: RequestOptions) {
+      const targetBusinessId = params.businessId || apiConfig.businessId;
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${apiConfig.businessId}/services/${params.id}`,
+        `/v1/businesses/${targetBusinessId}/services/${params.id}`,
         options,
       );
     },
@@ -175,27 +189,30 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
     },
 
     async getService(params: GetServiceParams, options?: RequestOptions) {
+      const businessId = params.businessId || apiConfig.businessId;
       let identifier: string;
       if (params.id) {
         identifier = params.id;
       } else if (params.slug) {
-        identifier = `${apiConfig.businessId}:${apiConfig.locale}:${params.slug}`;
+        identifier = `${businessId}:${apiConfig.locale}:${params.slug}`;
       } else {
         throw new Error("GetServiceParams requires id or slug");
       }
 
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/services/${identifier}`,
+        `/v1/businesses/${businessId}/services/${identifier}`,
         options,
       );
     },
 
     async getServices(params: GetServicesParams, options?: RequestOptions) {
+      const { businessId, ...queryParams } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/services`,
+        `/v1/businesses/${targetBusinessId}/services`,
         {
           ...options,
-          params,
+          params: queryParams,
         },
       );
     },
@@ -206,9 +223,11 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       params: CreateProviderParams,
       options?: RequestOptions,
     ) {
+      const { businessId, ...payload } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/providers`,
-        params,
+        `/v1/businesses/${targetBusinessId}/providers`,
+        payload,
         options,
       );
     },
@@ -217,9 +236,11 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       params: UpdateProviderParams,
       options?: RequestOptions,
     ) {
+      const { businessId, ...payload } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
       return apiConfig.httpClient.put(
-        `/v1/businesses/${apiConfig.businessId}/providers/${params.id}`,
-        params,
+        `/v1/businesses/${targetBusinessId}/providers/${params.id}`,
+        payload,
         options,
       );
     },
@@ -228,34 +249,38 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       params: DeleteProviderParams,
       options?: RequestOptions,
     ) {
+      const targetBusinessId = params.businessId || apiConfig.businessId;
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${apiConfig.businessId}/providers/${params.id}`,
+        `/v1/businesses/${targetBusinessId}/providers/${params.id}`,
         options,
       );
     },
 
     async getProvider(params: GetProviderParams, options?: RequestOptions) {
+      const businessId = params.businessId || apiConfig.businessId;
       let identifier: string;
       if (params.id) {
         identifier = params.id;
       } else if (params.slug) {
-        identifier = `${apiConfig.businessId}:${apiConfig.locale}:${params.slug}`;
+        identifier = `${businessId}:${apiConfig.locale}:${params.slug}`;
       } else {
         throw new Error("GetProviderParams requires id or slug");
       }
 
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/providers/${identifier}`,
+        `/v1/businesses/${businessId}/providers/${identifier}`,
         options,
       );
     },
 
     async getProviders(params: GetProvidersParams, options?: RequestOptions) {
+      const { businessId, ...queryParams } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/providers`,
+        `/v1/businesses/${targetBusinessId}/providers`,
         {
           ...options,
-          params: params,
+          params: queryParams,
         },
       );
     },

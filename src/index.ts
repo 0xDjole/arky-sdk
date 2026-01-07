@@ -49,7 +49,7 @@ export type {
 } from "./api/location";
 
 
-export const SDK_VERSION = "0.3.135";
+export const SDK_VERSION = "0.3.136";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
