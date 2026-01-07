@@ -3,6 +3,7 @@ import type { RequestOptions } from "../types/api";
 
 export interface ScanDataParams {
   key: string;
+  limit?: number;
 }
 
 export interface PutDataParams {
@@ -39,6 +40,7 @@ export const createDatabaseApi = (apiConfig: ApiConfig) => {
           ...options,
           params: {
             key: params.key,
+            limit: params.limit || 200,
           },
         }
       );
