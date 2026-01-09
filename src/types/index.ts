@@ -167,26 +167,12 @@ export interface BusinessEmails {
 	support: string;
 }
 
-export interface OrderConfigs {
-	isEmailRequired: boolean;
-	isPhoneRequired: boolean;
-}
-
-export interface BusinessReservationConfigs {
-	isEmailRequired: boolean;
-	isPhoneRequired: boolean;
-}
-
 export interface BusinessConfig {
 	languages: Language[];
 	markets: Market[];
 	zones: Zone[];
 	buildHooks: string[];
 	webhooks: any[];
-	orderBlocks: any[];
-	reservationBlocks: any[];
-	orderConfigs: OrderConfigs;
-	reservationConfigs: BusinessReservationConfigs;
 	paymentProvider?: PaymentProviderConfig;
 	aiProvider?: any;
 	emails: BusinessEmails;
@@ -206,7 +192,7 @@ export interface Subscription {
 
 export interface Business {
 	id: string;
-	name: string;
+	key: string;
 	networkKey: string | null;
 	timezone: string;
 	configs?: BusinessConfig;
@@ -221,10 +207,6 @@ export interface EshopStoreState {
 	processingCheckout: boolean;
 	loading: boolean;
 	error: string | null;
-	phoneNumber: string;
-	phoneError: string | null;
-	verificationCode: string;
-	verifyError: string | null;
 }
 
 export interface Block {
@@ -233,6 +215,66 @@ export interface Block {
 	type: string;
 	properties?: any;
 	value?: any;
+}
+
+export type BlockType =
+	| "TEXT"
+	| "LOCALIZED_TEXT"
+	| "NUMBER"
+	| "BOOLEAN"
+	| "BLOCK"
+	| "RELATIONSHIP_ENTRY"
+	| "RELATIONSHIP_MEDIA"
+	| "MARKDOWN"
+	| "EMAIL"
+	| "PHONE"
+	| "ADDRESS";
+
+export type AddressType = "SHIPPING" | "BILLING";
+
+export interface EmailBlockProperties {
+	minValues?: number;
+	maxValues?: number;
+	isNotificationTarget?: boolean;
+}
+
+export interface PhoneBlockProperties {
+	minValues?: number;
+	maxValues?: number;
+	isNotificationTarget?: boolean;
+}
+
+export interface AddressBlockProperties {
+	minValues?: number;
+	maxValues?: number;
+	addressType: AddressType;
+}
+
+export interface GeoLocationValue {
+	country?: string | null;
+	address?: string | null;
+	city?: string | null;
+	state?: string | null;
+	postalCode?: string | null;
+	coordinates?: { lat: number; lon: number } | null;
+}
+
+export interface EmailBlock extends Block {
+	type: "EMAIL";
+	properties: EmailBlockProperties;
+	value: string[];
+}
+
+export interface PhoneBlock extends Block {
+	type: "PHONE";
+	properties: PhoneBlockProperties;
+	value: string[];
+}
+
+export interface AddressBlock extends Block {
+	type: "ADDRESS";
+	properties: AddressBlockProperties;
+	value: GeoLocationValue[];
 }
 
 export interface Seo {
@@ -295,16 +337,6 @@ export interface ReservationStoreState {
 	loading: boolean;
 	startDate: string | null;
 	endDate: string | null;
-	phoneNumber: string;
-	phoneError: string | null;
-	phoneSuccess: string | null;
-	verificationCode: string;
-	verifyError: string | null;
-	isPhoneVerified: boolean;
-	isSendingCode: boolean;
-	isVerifying: boolean;
-	codeSentAt: number | null;
-	canResendAt: number | null;
 	guestToken: string | null;
 	service: any | null;
 	business: Business | null;
@@ -370,6 +402,7 @@ export interface NodeNotifications {
 }
 
 export interface NodeConfig {
+	parentId?: string | null;
 	isPubliclyReadable: boolean;
 	isPubliclyWritable: boolean;
 }
@@ -390,7 +423,7 @@ export interface SubscriptionPlan {
 
 export type SendStatus = 'SCHEDULED' | 'SENDING' | 'SENT' | 'CANCELLED' | 'FAILED';
 
-export interface NewsletterSend {
+export interface NodeSend {
 	id: string;
 	scheduledAt: number;
 	status: SendStatus;
@@ -404,15 +437,14 @@ export interface Node {
 	key: string;
 	businessId: string;
 	blocks: Block[];
-	parentId?: string | null;
-	hasChildren: boolean;
 	statuses: StatusEvent[];
 	seo: Seo;
 	notifications: NodeNotifications;
 	config: NodeConfig;
 	emailSubject?: Record<string, string>;
-	plans?: SubscriptionPlan[];
-	sends?: NewsletterSend[];
+	plans: SubscriptionPlan[];
+	sends: NodeSend[];
+	children: Node[];
 	createdAt: number;
 	updatedAt: number;
 }

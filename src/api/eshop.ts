@@ -108,7 +108,11 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     async getQuote(params: GetQuoteParams, options?: RequestOptions) {
       const payload = {
         market: apiConfig.market,
-        ...params,
+        items: params.items,
+        blocks: params.blocks || [],
+        paymentMethodId: params.paymentMethodId,
+        shippingMethodId: params.shippingMethodId,
+        promoCode: params.promoCode,
       };
 
       return apiConfig.httpClient.post(
@@ -122,7 +126,11 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const payload = {
         businessId: apiConfig.businessId,
         market: apiConfig.market,
-        ...params,
+        items: params.items,
+        blocks: params.blocks || [],
+        paymentMethodId: params.paymentMethodId,
+        shippingMethodId: params.shippingMethodId,
+        promoCodeId: params.promoCodeId,
       };
 
       return apiConfig.httpClient.post(

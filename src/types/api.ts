@@ -37,7 +37,7 @@ export interface GetQuoteParams {
   paymentMethodId?: string;
   shippingMethodId?: string;
   promoCode?: string;
-  location?: Location;
+  blocks?: any[];
 }
 
 export interface OrderCheckoutParams {
@@ -46,9 +46,6 @@ export interface OrderCheckoutParams {
   blocks?: any[];
   shippingMethodId: string;
   promoCodeId?: string;
-  address?: Location;
-  email?: string;
-  phone?: string;
 }
 
 export interface GetProductsParams {
@@ -81,20 +78,20 @@ export interface GetNodesParams {
   sortDirection?: string;
   createdAtFrom?: string;
   createdAtTo?: string;
+  includeChildren?: boolean;
 }
 
 export interface CreateNodeParams {
   businessId?: string;
   key: string;
   blocks?: any[];
-  parentId?: string | null;
-  hasChildren?: boolean;
   seo?: any;
   status?: string;
   notifications?: {
     emails?: string[];
   };
   config?: {
+    parentId?: string | null;
     isPubliclyReadable?: boolean;
     isPubliclyWritable?: boolean;
   };
@@ -107,14 +104,13 @@ export interface UpdateNodeParams {
   businessId?: string;
   key?: string;
   blocks?: any[];
-  parentId?: string | null;
-  hasChildren?: boolean;
   seo?: any;
   status?: string;
   notifications?: {
     emails?: string[];
   };
   config?: {
+    parentId?: string | null;
     isPubliclyReadable?: boolean;
     isPubliclyWritable?: boolean;
   };
@@ -400,7 +396,7 @@ export interface GetPromoCodesParams {
 
 // Business API Types
 export interface CreateBusinessParams {
-  name: string;
+  key: string;
   slug?: string;
   description?: string;
   email?: string;
@@ -413,7 +409,7 @@ export interface CreateBusinessParams {
 
 export interface UpdateBusinessParams {
   id: string;
-  name: string;
+  key: string;
   networkKey: string | null;
   timezone: string;
   statuses: any[];
