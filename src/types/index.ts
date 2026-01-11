@@ -501,3 +501,80 @@ export interface Provider {
 	createdAt: number;
 	updatedAt: number;
 }
+
+// ===== Workflow Types =====
+
+export interface Workflow {
+	id: string;
+	key: string;
+	businessId: string;
+	secret: string;
+	statuses: StatusEvent[];
+	nodes: Record<string, WorkflowNode>;
+	edges: WorkflowEdge[];
+	createdAt: number;
+	updatedAt: number;
+}
+
+export interface WorkflowEdge {
+	id: string;
+	source: string;
+	sourceOutput: string;
+	target: string;
+}
+
+export type WorkflowNode =
+	| WorkflowTriggerNode
+	| WorkflowHttpNode
+	| WorkflowIfNode
+	| WorkflowLoopNode
+	| WorkflowWaitNode;
+
+export interface WorkflowTriggerNode {
+	type: 'trigger';
+	event?: string;
+}
+
+export interface WorkflowHttpNode {
+	type: 'http';
+	method: WorkflowHttpMethod;
+	url: string;
+	headers?: Record<string, string>;
+	body?: any;
+	timeoutMs?: number;
+}
+
+export interface WorkflowIfNode {
+	type: 'if';
+	condition: string;
+}
+
+export interface WorkflowLoopNode {
+	type: 'loop';
+	array: string;
+}
+
+export interface WorkflowWaitNode {
+	type: 'wait';
+	duration: string;
+}
+
+export type WorkflowHttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+export type ExecutionStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'WAITING';
+
+export interface WorkflowExecution {
+	id: string;
+	workflowId: string;
+	businessId: string;
+	status: ExecutionStatus;
+	input: Record<string, any>;
+	nodeOutputs: Record<string, any>;
+	currentNode?: string;
+	error?: string;
+	scheduledAt: number;
+	startedAt: number;
+	completedAt?: number;
+	createdAt: number;
+	updatedAt: number;
+}

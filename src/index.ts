@@ -27,6 +27,15 @@ export type {
   MediaResolution,
   ProviderWithTimeline,
   Node,
+  Workflow,
+  WorkflowNode,
+  WorkflowEdge,
+  WorkflowTriggerNode,
+  WorkflowHttpNode,
+  WorkflowIfNode,
+  WorkflowLoopNode,
+  WorkflowWaitNode,
+  WorkflowHttpMethod,
 } from "./types";
 
 // Export enums (must be exported as values, not types)
@@ -49,7 +58,7 @@ export type {
 } from "./api/location";
 
 
-export const SDK_VERSION = "0.3.136";
+export const SDK_VERSION = "0.3.145";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -86,6 +95,7 @@ import { createDatabaseApi } from "./api/database";
 import { createFeatureFlagsApi } from "./api/featureFlags";
 import { createLocationApi } from "./api/location";
 import { createNetworkApi } from "./api/network";
+import { createWorkflowApi } from "./api/workflow";
 import {
   getImageUrl,
   getBlockValue,
@@ -175,6 +185,7 @@ export async function createArkySDK(
     featureFlags: createFeatureFlagsApi(apiConfig),
     location: createLocationApi(apiConfig),
     network: createNetworkApi(apiConfig),
+    workflow: createWorkflowApi(apiConfig),
 
     setBusinessId: (businessId: string) => {
       apiConfig.businessId = businessId;

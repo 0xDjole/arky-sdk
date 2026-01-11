@@ -1,4 +1,4 @@
-import type { Block, Location } from "./index";
+import type { Block, Location, WorkflowNode, WorkflowEdge, StatusEvent } from "./index";
 
 export interface RequestOptions<T = any> {
   headers?: Record<string, string>;
@@ -925,4 +925,50 @@ export interface Slot {
   to: number;
   timeText: string;
   dateText: string;
+}
+
+// ===== Workflow API Types =====
+
+export interface CreateWorkflowParams {
+  businessId?: string;
+  key: string;
+  statuses?: StatusEvent[];
+  nodes: Record<string, WorkflowNode>;
+  edges: WorkflowEdge[];
+}
+
+export interface UpdateWorkflowParams {
+  id: string;
+  key: string;
+  statuses?: StatusEvent[];
+  nodes: Record<string, WorkflowNode>;
+  edges: WorkflowEdge[];
+}
+
+export interface DeleteWorkflowParams {
+  id: string;
+}
+
+export interface GetWorkflowParams {
+  id: string;
+}
+
+export interface GetWorkflowsParams {
+  businessId?: string;
+  ids?: string[];
+  query?: string;
+  statuses?: string[];
+  limit?: number;
+  cursor?: string;
+  sortField?: string;
+  sortDirection?: 'asc' | 'desc';
+  createdAtFrom?: number;
+  createdAtTo?: number;
+}
+
+export interface TriggerWorkflowParams {
+  /** The workflow secret from the workflow's webhook URL */
+  secret: string;
+  /** Any additional data to pass to the workflow */
+  [key: string]: any;
 }

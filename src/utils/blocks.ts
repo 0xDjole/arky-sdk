@@ -163,7 +163,8 @@ function unwrapBlock(block: any, locale: string) {
     });
   }
 
-  const isLocalized = block.type === "LOCALIZED_TEXT" || block.type === "MARKDOWN";
+  const isLocalized =
+    block.type === "LOCALIZED_TEXT" || block.type === "MARKDOWN";
   const isList =
     block.properties?.ui === "list" ||
     (block.properties?.maxValues ?? 1) > 1 ||
@@ -191,7 +192,17 @@ export const getBlockObjectValues = (
 
   const values = getBlockValues(entry, blockKey); // top‑level list
 
+  // Handle null/undefined values - return empty array
+  if (!values || !Array.isArray(values)) {
+    return [];
+  }
+
   const parsed = values.map((obj: Record<string, any>) => {
+    // Handle case where obj.value might be missing
+    if (!obj || !obj.value || !Array.isArray(obj.value)) {
+      return {};
+    }
+
     const res = obj.value.reduce((acc: any, current: any) => {
       acc[current.key] = unwrapBlock(current, locale);
 
