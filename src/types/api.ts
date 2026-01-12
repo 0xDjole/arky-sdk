@@ -87,9 +87,6 @@ export interface CreateNodeParams {
   blocks?: any[];
   seo?: any;
   status?: string;
-  notifications?: {
-    emails?: string[];
-  };
   config?: {
     parentId?: string | null;
     isPubliclyReadable?: boolean;
@@ -106,9 +103,6 @@ export interface UpdateNodeParams {
   blocks?: any[];
   seo?: any;
   status?: string;
-  notifications?: {
-    emails?: string[];
-  };
   config?: {
     parentId?: string | null;
     isPubliclyReadable?: boolean;

@@ -397,10 +397,6 @@ export interface Reservation {
 
 // ===== CMS Types =====
 
-export interface NodeNotifications {
-	emails: string[];
-}
-
 export interface NodeConfig {
 	parentId?: string | null;
 	isPubliclyReadable: boolean;
@@ -439,7 +435,6 @@ export interface Node {
 	blocks: Block[];
 	statuses: StatusEvent[];
 	seo: Seo;
-	notifications: NodeNotifications;
 	config: NodeConfig;
 	emailSubject?: Record<string, string>;
 	plans: SubscriptionPlan[];
