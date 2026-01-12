@@ -512,6 +512,8 @@ export interface Workflow {
 	statuses: StatusEvent[];
 	nodes: Record<string, WorkflowNode>;
 	edges: WorkflowEdge[];
+	/** Optional cron schedule expression (e.g., "0 9 * * *" for 9am daily) */
+	schedule?: string;
 	createdAt: number;
 	updatedAt: number;
 }

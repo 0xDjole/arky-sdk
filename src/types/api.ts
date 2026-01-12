@@ -935,6 +935,8 @@ export interface CreateWorkflowParams {
   statuses?: StatusEvent[];
   nodes: Record<string, WorkflowNode>;
   edges: WorkflowEdge[];
+  /** Optional cron schedule expression (e.g., "0 9 * * *" for 9am daily) */
+  schedule?: string;
 }
 
 export interface UpdateWorkflowParams {
@@ -943,6 +945,8 @@ export interface UpdateWorkflowParams {
   statuses?: StatusEvent[];
   nodes: Record<string, WorkflowNode>;
   edges: WorkflowEdge[];
+  /** Optional cron schedule expression (e.g., "0 9 * * *" for 9am daily) */
+  schedule?: string;
 }
 
 export interface DeleteWorkflowParams {
