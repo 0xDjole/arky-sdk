@@ -235,13 +235,11 @@ export type AddressType = "SHIPPING" | "BILLING";
 export interface EmailBlockProperties {
 	minValues?: number;
 	maxValues?: number;
-	isNotificationTarget?: boolean;
 }
 
 export interface PhoneBlockProperties {
 	minValues?: number;
 	maxValues?: number;
-	isNotificationTarget?: boolean;
 }
 
 export interface AddressBlockProperties {
@@ -389,8 +387,6 @@ export interface Reservation {
 	business?: Business;
 	user?: any;
 	items: ReservationItem[];
-	email?: string;
-	phone?: string;
 	createdAt: number;
 	lastModified: number;
 }

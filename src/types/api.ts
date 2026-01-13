@@ -208,8 +208,6 @@ export interface ReservationCheckoutParams {
   paymentMethodId?: string;
   blocks?: any[];
   promoCodeId?: string;
-  email?: string;
-  phone?: string;
   location?: Location;
 }
 
@@ -518,8 +516,6 @@ export interface UpdateOrderParams {
   blocks: any[];
   items: any[];
   address?: any | null;
-  email?: string | null;
-  phone?: string | null;
   payment?: any | null;
 }
 
