@@ -162,19 +162,18 @@ export interface GetBusinessMediaParams {
   sortDirection?: 'asc' | 'desc';
 }
 
-export interface LoginUserParams {
+export interface LoginAccountParams {
   email?: string;
-  password?: string;
   provider: string;
   token?: string;
-  code?: string;
-  originUrl?: string;
 }
 
-export interface RegisterUserParams {
-  name: string;
+export interface MagicLinkRequestParams {
   email: string;
-  password: string;
+}
+
+export interface MagicLinkVerifyParams {
+  token: string;
 }
 
 export interface AddPhoneNumberParams {
@@ -454,7 +453,7 @@ export interface GetVariableMetadataParams {
   nodeType: string;
 }
 
-export interface UserSubscribeParams {
+export interface AccountSubscribeParams {
   target?: string;
   identifier: string;
   planId?: string;
@@ -662,20 +661,19 @@ export interface SearchReservationsParams {
   sortOrder?: string;
 }
 
-// Additional User API Types
-export interface UpdateUserProfileParams {
-  name?: string;
+// Additional Account API Types
+export interface UpdateAccountProfileParams {
   phoneNumbers?: string[];
   addresses?: any[];
   apiTokens?: any[] | null;
 }
 
 export interface SetRoleParams {
-  userId: string;
+  accountId: string;
   roleId: string;
 }
 
-export interface SearchUsersParams {
+export interface SearchAccountsParams {
   limit?: number;
   cursor?: string | null;
   query?: string;
@@ -683,31 +681,7 @@ export interface SearchUsersParams {
   owner?: string;
 }
 
-export interface ConfirmUserParams {
-  token: string;
-}
-
-export interface GetLoginUrlParams {
-  provider: string;
-  originUrl: string;
-  redirectUrl: string;
-}
-
-export interface ForgotPasswordParams {
-  email: string;
-}
-
-export interface ResetForgotPasswordParams {
-  token: string;
-  password: string;
-}
-
-export interface ResetPasswordParams {
-  newPassword: string;
-  oldPassword?: string;
-}
-
-export interface DeleteUserParams {}
+export interface DeleteAccountParams {}
 
 // Notification Tracking API Types
 export interface TrackEmailOpenParams {

@@ -56,7 +56,7 @@ type ErrorCallback = (ctx: {
 }) => void | Promise<void>;
 
 export function createHttpClient(cfg: HttpClientConfig) {
-	const refreshEndpoint = `${cfg.baseUrl}/v1/users/refresh-access-token`;
+	const refreshEndpoint = `${cfg.baseUrl}/v1/accounts/refresh-access-token`;
 	let refreshPromise: Promise<void> | null = null;
 
 	async function ensureFreshToken() {

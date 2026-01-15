@@ -2,7 +2,7 @@
 export { createCmsApi } from './cms';
 export { createEshopApi } from './eshop';
 export { createReservationApi } from './reservation';
-export { createUserApi } from './user';
+export { createAccountApi } from './account';
 export { createBusinessApi } from './business';
 export { createMediaApi } from './media';
 export { createRoleApi } from './role';

@@ -81,7 +81,7 @@ import {
   createHttpClient,
   type HttpClientConfig,
 } from "./services/createHttpClient";
-import { createUserApi } from "./api/user";
+import { createAccountApi } from "./api/account";
 import { createBusinessApi } from "./api/business";
 import { createMediaApi } from "./api/media";
 import { createRoleApi } from "./api/role";
@@ -148,7 +148,7 @@ export async function createArkySDK(
     getToken: config.getToken,
   };
 
-  const userApi = createUserApi(apiConfig);
+  const accountApi = createAccountApi(apiConfig);
 
   const autoGuest = config.autoGuest !== undefined ? config.autoGuest : true;
 
@@ -157,7 +157,7 @@ export async function createArkySDK(
     try {
       const tokens = await config.getToken();
       if (!tokens.accessToken && !tokens.refreshToken) {
-        const result: any = await httpClient.post("/v1/users/login", {
+        const result: any = await httpClient.post("/v1/accounts/login", {
           provider: "GUEST",
         });
         const token = result.accessToken || result.token || "";
@@ -171,7 +171,7 @@ export async function createArkySDK(
   }
 
   const sdk = {
-    user: userApi,
+    account: accountApi,
     business: createBusinessApi(apiConfig),
     media: createMediaApi(apiConfig),
     role: createRoleApi(apiConfig),
