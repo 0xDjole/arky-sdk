@@ -170,10 +170,12 @@ export interface LoginAccountParams {
 
 export interface MagicLinkRequestParams {
   email: string;
+  businessId?: string;
 }
 
 export interface MagicLinkVerifyParams {
-  token: string;
+  email: string;
+  code: string;
 }
 
 export interface AddPhoneNumberParams {

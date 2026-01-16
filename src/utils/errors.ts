@@ -134,9 +134,11 @@ export const convertServerErrorToRequestError = (
   serverError: ServerError,
   renameRules?: { [key: string]: string }
 ): RequestError => {
+  const validationErrors = serverError?.validationErrors ?? [];
+
   return {
     ...serverError,
-    validationErrors: serverError.validationErrors.map((validationError) => {
+    validationErrors: validationErrors.map((validationError) => {
       const field =
         renameRules && renameRules[validationError.field]
           ? renameRules[validationError.field]

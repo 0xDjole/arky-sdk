@@ -58,7 +58,7 @@ export type {
 } from "./api/location";
 
 
-export const SDK_VERSION = "0.3.145";
+export const SDK_VERSION = "0.3.156";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -82,6 +82,7 @@ import {
   type HttpClientConfig,
 } from "./services/createHttpClient";
 import { createAccountApi } from "./api/account";
+import { createAuthApi } from "./api/auth";
 import { createBusinessApi } from "./api/business";
 import { createMediaApi } from "./api/media";
 import { createRoleApi } from "./api/role";
@@ -149,17 +150,16 @@ export async function createArkySDK(
   };
 
   const accountApi = createAccountApi(apiConfig);
+  const authApi = createAuthApi(apiConfig);
 
   const autoGuest = config.autoGuest !== undefined ? config.autoGuest : true;
 
-  // If autoGuest, login before returning SDK
+  // If autoGuest, create guest session before returning SDK
   if (autoGuest) {
     try {
       const tokens = await config.getToken();
       if (!tokens.accessToken && !tokens.refreshToken) {
-        const result: any = await httpClient.post("/v1/accounts/login", {
-          provider: "GUEST",
-        });
+        const result: any = await httpClient.post("/v1/auth/session", {});
         const token = result.accessToken || result.token || "";
         if (token) {
           config.setToken(result);
@@ -171,6 +171,7 @@ export async function createArkySDK(
   }
 
   const sdk = {
+    auth: authApi,
     account: accountApi,
     business: createBusinessApi(apiConfig),
     media: createMediaApi(apiConfig),

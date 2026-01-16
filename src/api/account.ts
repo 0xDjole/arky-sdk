@@ -1,17 +1,13 @@
 import type { ApiConfig } from '../index';
 import type {
     UpdateAccountProfileParams,
-    LoginAccountParams,
     AddPhoneNumberParams,
     PhoneNumberConfirmParams,
     SearchAccountsParams,
     SetRoleParams,
     DeleteAccountParams,
     GetMeParams,
-    LogoutParams,
     AccountSubscribeParams,
-    MagicLinkRequestParams,
-    MagicLinkVerifyParams,
     RequestOptions
 } from '../types/api';
 
@@ -57,26 +53,6 @@ export const createAccountApi = (apiConfig: ApiConfig) => {
 
         async setRole(params: SetRoleParams, options?: RequestOptions) {
             return apiConfig.httpClient.put('/v1/accounts/set-role', params, options);
-        },
-
-        // ===== AUTHENTICATION =====
-
-        async login(params: LoginAccountParams, options?: RequestOptions) {
-            return apiConfig.httpClient.post('/v1/accounts/login', params, options);
-        },
-
-        async logout(params: LogoutParams, options?: RequestOptions) {
-            return apiConfig.httpClient.post('/v1/accounts/logout', {}, options);
-        },
-
-        // ===== MAGIC LINK =====
-
-        async requestMagicLink(params: MagicLinkRequestParams, options?: RequestOptions) {
-            return apiConfig.httpClient.post('/v1/accounts/magic-link/request', params, options);
-        },
-
-        async verifyMagicLink(params: MagicLinkVerifyParams, options?: RequestOptions) {
-            return apiConfig.httpClient.post('/v1/accounts/magic-link/verify', params, options);
         },
 
         // ===== SUBSCRIPTION =====

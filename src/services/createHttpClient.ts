@@ -7,9 +7,8 @@ import { buildQueryString, type QueryParams } from '../utils/queryParams';
 export interface AuthTokens {
 	accessToken: string;
 	refreshToken?: string;
-	provider?: string;
 	expiresAt?: number;
-	userId?: string;
+	accountId?: string;
 	isGuest?: boolean;
 }
 
@@ -56,7 +55,7 @@ type ErrorCallback = (ctx: {
 }) => void | Promise<void>;
 
 export function createHttpClient(cfg: HttpClientConfig) {
-	const refreshEndpoint = `${cfg.baseUrl}/v1/accounts/refresh-access-token`;
+	const refreshEndpoint = `${cfg.baseUrl}/v1/auth/refresh`;
 	let refreshPromise: Promise<void> | null = null;
 
 	async function ensureFreshToken() {
@@ -65,7 +64,7 @@ export function createHttpClient(cfg: HttpClientConfig) {
 		}
 
 		refreshPromise = (async () => {
-			const { refreshToken, provider } = await cfg.getToken();
+			const { refreshToken } = await cfg.getToken();
 			if (!refreshToken) {
 				cfg.logout();
 				const err: any = new Error('No refresh token available');
@@ -77,7 +76,7 @@ export function createHttpClient(cfg: HttpClientConfig) {
 			const refRes = await fetch(refreshEndpoint, {
 				method: 'POST',
 				headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-				body: JSON.stringify({ provider, refreshToken })
+				body: JSON.stringify({ refreshToken })
 			});
 
 			if (!refRes.ok) {
@@ -120,23 +119,17 @@ export function createHttpClient(cfg: HttpClientConfig) {
 			...(options?.headers || {})
 		};
 
-	let { accessToken, expiresAt, provider } = await cfg.getToken();
+	let { accessToken, expiresAt } = await cfg.getToken();
 
 	const nowSec = Date.now() / 1000;
 	if (expiresAt && nowSec > expiresAt) {
 		await ensureFreshToken();
 		const tokens = await cfg.getToken();
 		accessToken = tokens.accessToken;
-		provider = tokens.provider;
 	}
 
 	if (accessToken) {
-		// Use X-API-Key header for API tokens, Authorization for JWT/OAuth
-		if (provider === 'API') {
-			headers['X-API-Key'] = accessToken;
-		} else {
-			headers['Authorization'] = `Bearer ${accessToken}`;
-		}
+		headers['Authorization'] = `Bearer ${accessToken}`;
 	}
 
 		const finalPath = options?.params ? path + buildQueryString(options.params) : path;
