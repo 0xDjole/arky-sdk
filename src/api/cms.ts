@@ -117,41 +117,5 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
         options
       );
     },
-
-    /**
-     * Send a node to all subscribers (schedule or immediate)
-     * @param params.entryId - The node ID to send
-     * @param params.subject - Email subject for this send
-     * @param params.scheduledAt - Optional unix timestamp to schedule the send
-     */
-    async sendNode(params: { entryId: string; subject: string; scheduledAt?: number }, options?: RequestOptions) {
-      const { entryId, ...body } = params;
-      return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/nodes/${entryId}/send`,
-        body,
-        options
-      );
-    },
-
-    /**
-     * Cancel a scheduled send
-     */
-    async cancelSend(params: { nodeId: string; sendId: string }, options?: RequestOptions) {
-      return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/nodes/${params.nodeId}/send/${params.sendId}/cancel`,
-        {},
-        options
-      );
-    },
-
-    /**
-     * Get subscribers for a node
-     */
-    async getSubscribers(params: { nodeId: string }, options?: RequestOptions) {
-      return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/nodes/${params.nodeId}/subscribers`,
-        options
-      );
-    },
   };
 };

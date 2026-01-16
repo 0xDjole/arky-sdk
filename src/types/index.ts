@@ -399,31 +399,6 @@ export interface NodeConfig {
 	isPubliclyWritable: boolean;
 }
 
-export interface SubscriptionPlan {
-	id: string;
-	providerPriceId?: string;
-	providerProductId?: string;
-	name: string;
-	tier: number;
-	amount: number;
-	currency: string;
-	interval: string;
-	intervalCount: number;
-	trialPeriodDays: number;
-	features: Record<string, any>;
-}
-
-export type SendStatus = 'SCHEDULED' | 'SENDING' | 'SENT' | 'CANCELLED' | 'FAILED';
-
-export interface NodeSend {
-	id: string;
-	scheduledAt: number;
-	status: SendStatus;
-	sentCount: number;
-	failedCount: number;
-	createdAt: number;
-}
-
 export interface Node {
 	id: string;
 	key: string;
@@ -433,8 +408,6 @@ export interface Node {
 	seo: Seo;
 	config: NodeConfig;
 	emailSubject?: Record<string, string>;
-	plans: SubscriptionPlan[];
-	sends: NodeSend[];
 	children: Node[];
 	createdAt: number;
 	updatedAt: number;

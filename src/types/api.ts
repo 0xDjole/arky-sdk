@@ -825,28 +825,6 @@ export interface TrackEventParams {
   value?: number;
 }
 
-// === Node Newsletter Types (plans/sends on Node) ===
-
-export interface Paginated<T> {
-  items: T[];
-  cursor: string | null;
-}
-
-// Node Send API Params
-export interface ScheduleSendParams {
-  nodeId: string;
-  scheduledAt?: number;
-}
-
-export interface CancelSendParams {
-  nodeId: string;
-  sendId: string;
-}
-
-export interface GetSubscribersParams {
-  nodeId: string;
-}
-
 // === Email Template Types ===
 
 // System template keys use 'system:' prefix
