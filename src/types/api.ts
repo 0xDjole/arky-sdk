@@ -499,7 +499,7 @@ export interface GetOrderParams {
 }
 
 export interface GetOrdersParams {
-  userId?: string | null;
+  accountId?: string | null;
   statuses?: string[] | null;
   productIds?: string[];
   query?: string | null;
@@ -653,7 +653,7 @@ export interface SearchReservationsParams {
   query?: string;
   serviceIds?: string[];
   providerIds?: string[];
-  userId?: string;
+  accountId?: string;
   from?: number;
   to?: number;
   status?: string;
