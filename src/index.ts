@@ -58,7 +58,7 @@ export type {
 } from "./api/location";
 
 
-export const SDK_VERSION = "0.3.156";
+export const SDK_VERSION = "0.3.158";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -151,24 +151,6 @@ export async function createArkySDK(
 
   const accountApi = createAccountApi(apiConfig);
   const authApi = createAuthApi(apiConfig);
-
-  const autoGuest = config.autoGuest !== undefined ? config.autoGuest : true;
-
-  // If autoGuest, create guest session before returning SDK
-  if (autoGuest) {
-    try {
-      const tokens = await config.getToken();
-      if (!tokens.accessToken && !tokens.refreshToken) {
-        const result: any = await httpClient.post("/v1/auth/session", {});
-        const token = result.accessToken || result.token || "";
-        if (token) {
-          config.setToken(result);
-        }
-      }
-    } catch (error) {
-      // Silent fail - guest auth is optional
-    }
-  }
 
   const sdk = {
     auth: authApi,

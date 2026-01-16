@@ -9,7 +9,6 @@ export interface AuthTokens {
 	refreshToken?: string;
 	expiresAt?: number;
 	accountId?: string;
-	isGuest?: boolean;
 }
 
 export interface HttpClientConfig {
@@ -20,8 +19,6 @@ export interface HttpClientConfig {
 	getToken: () => Promise<AuthTokens> | AuthTokens;
 
 	setToken: (tokens: AuthTokens) => void;
-
-	autoGuest?: boolean;
 
 	logout: () => void;
 
