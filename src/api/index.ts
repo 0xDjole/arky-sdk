@@ -12,6 +12,7 @@ export { createDatabaseApi } from './database';
 export { createLocationApi } from './location';
 export { createNetworkApi } from './network';
 export { createWorkflowApi } from './workflow';
+export { createAudienceApi } from './audience';
 
 // Re-export types from individual files for better compatibility
 export type { ApiResponse } from '../types/index';

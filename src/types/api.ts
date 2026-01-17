@@ -799,3 +799,53 @@ export interface TriggerWorkflowParams {
   /** Any additional data to pass to the workflow */
   [key: string]: any;
 }
+
+// ===== Audience API Types =====
+
+export interface AudiencePrice {
+  market: string;
+  amount: number;
+  compareAt?: number;
+  providerPriceId?: string;
+  freeThreshold?: number;
+}
+
+export interface CreateAudienceParams {
+  key: string;
+  name: string;
+  nodeIds?: string[];
+  prices?: AudiencePrice[];
+}
+
+export interface UpdateAudienceParams {
+  id: string;
+  key?: string;
+  name?: string;
+  nodeIds?: string[];
+  prices?: AudiencePrice[];
+  statuses?: any[];
+}
+
+export interface GetAudienceParams {
+  id: string;
+}
+
+export interface GetAudiencesParams {
+  ids?: string[];
+  nodeId?: string;
+  statuses?: string[];
+  query?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface SubscribeAudienceParams {
+  id: string;
+  priceId: string;
+  successUrl: string;
+  cancelUrl: string;
+}
+
+export interface DeleteAudienceParams {
+  id: string;
+}
