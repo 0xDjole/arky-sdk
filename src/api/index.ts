@@ -9,7 +9,6 @@ export { createNotificationApi } from './notification';
 export { createPromoCodeApi } from './promoCode';
 export { createAnalyticsApi } from './analytics';
 export { createDatabaseApi } from './database';
-export { createFeatureFlagsApi } from './featureFlags';
 export { createLocationApi } from './location';
 export { createNetworkApi } from './network';
 export { createWorkflowApi } from './workflow';
