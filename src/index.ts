@@ -85,7 +85,6 @@ import { createAccountApi } from "./api/account";
 import { createAuthApi } from "./api/auth";
 import { createBusinessApi } from "./api/business";
 import { createMediaApi } from "./api/media";
-import { createRoleApi } from "./api/role";
 import { createNotificationApi } from "./api/notification";
 import { createPromoCodeApi } from "./api/promoCode";
 import { createAnalyticsApi } from "./api/analytics";
@@ -157,7 +156,6 @@ export async function createArkySDK(
     account: accountApi,
     business: createBusinessApi(apiConfig),
     media: createMediaApi(apiConfig),
-    role: createRoleApi(apiConfig),
     notification: createNotificationApi(apiConfig),
     promoCode: createPromoCodeApi(apiConfig),
     analytics: createAnalyticsApi(apiConfig),

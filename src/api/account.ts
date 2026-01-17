@@ -4,7 +4,6 @@ import type {
     AddPhoneNumberParams,
     PhoneNumberConfirmParams,
     SearchAccountsParams,
-    SetRoleParams,
     DeleteAccountParams,
     GetMeParams,
     AccountSubscribeParams,
@@ -49,10 +48,6 @@ export const createAccountApi = (apiConfig: ApiConfig) => {
                     businessId: apiConfig.businessId
                 }
             });
-        },
-
-        async setRole(params: SetRoleParams, options?: RequestOptions) {
-            return apiConfig.httpClient.put('/v1/accounts/set-role', params, options);
         },
 
         // ===== SUBSCRIPTION =====

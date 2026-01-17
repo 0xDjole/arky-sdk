@@ -5,7 +5,6 @@ export { createReservationApi } from './reservation';
 export { createAccountApi } from './account';
 export { createBusinessApi } from './business';
 export { createMediaApi } from './media';
-export { createRoleApi } from './role';
 export { createNotificationApi } from './notification';
 export { createPromoCodeApi } from './promoCode';
 export { createAnalyticsApi } from './analytics';

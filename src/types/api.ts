@@ -66,7 +66,6 @@ export interface GetProductsParams {
 
 export interface GetNodesParams {
   businessId?: string;
-  accountId?: string;
   parentId?: string;
   limit?: number;
   cursor?: string;
@@ -84,7 +83,6 @@ export interface GetNodesParams {
 
 export interface CreateNodeParams {
   businessId?: string;
-  accountId: string;
   key: string;
   blocks?: any[];
   seo?: any;
@@ -304,34 +302,8 @@ export interface TrackEmailOpenParams {
 
 export interface GetDeliveryStatsParams {}
 
-// Role API Types
-export interface CreateRoleParams {
-  name: string;
-  parentRoles?: string[];
-  permissions?: any[];
-  [key: string]: any;
-}
-
-export interface UpdateRoleParams {
-  id: string;
-  name?: string;
-  parentRoles?: string[];
-  permissions?: any[];
-  [key: string]: any;
-}
-
-export interface DeleteRoleParams {
-  id: string;
-}
-
-export interface GetRoleParams {
-  id: string;
-}
-
-export interface GetRolesParams {
-  action: string;
-  ids?: string[];
-}
+// Business Role Type
+export type BusinessRole = 'Admin' | 'Owner' | 'Super';
 
 // Promo Code API Types
 export interface Discount {
@@ -437,7 +409,7 @@ export interface CreatePortalSessionParams {
 
 export interface InviteUserParams {
   email: string;
-  roleIds?: string[] | null;
+  role?: BusinessRole;
 }
 
 export interface HandleInvitationParams {
@@ -672,16 +644,10 @@ export interface UpdateAccountProfileParams {
   apiTokens?: any[] | null;
 }
 
-export interface SetRoleParams {
-  accountId: string;
-  roleId: string;
-}
-
 export interface SearchAccountsParams {
   limit?: number;
   cursor?: string | null;
   query?: string;
-  roleIds?: string[];
   owner?: string;
 }
 
