@@ -36,6 +36,9 @@ export type {
   WorkflowLoopNode,
   WorkflowWaitNode,
   WorkflowHttpMethod,
+  Audience,
+  AudienceAccessResponse,
+  AudienceSubscribeResponse,
 } from "./types";
 
 // Export enums (must be exported as values, not types)
@@ -95,6 +98,7 @@ import { createDatabaseApi } from "./api/database";
 import { createLocationApi } from "./api/location";
 import { createNetworkApi } from "./api/network";
 import { createWorkflowApi } from "./api/workflow";
+import { createAudienceApi } from "./api/audience";
 import {
   getImageUrl,
   getBlockValue,
@@ -165,6 +169,7 @@ export async function createArkySDK(
     location: createLocationApi(apiConfig),
     network: createNetworkApi(apiConfig),
     workflow: createWorkflowApi(apiConfig),
+    audience: createAudienceApi(apiConfig),
 
     setBusinessId: (businessId: string) => {
       apiConfig.businessId = businessId;

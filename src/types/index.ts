@@ -544,3 +544,27 @@ export interface WorkflowExecution {
 	createdAt: number;
 	updatedAt: number;
 }
+
+// ===== Audience Types =====
+
+export interface Audience {
+	id: string;
+	businessId: string;
+	key: string;
+	name: string;
+	nodeIds: string[];
+	prices: Price[];
+	statuses: StatusEvent[];
+	createdAt: number;
+	updatedAt: number;
+}
+
+export interface AudienceAccessResponse {
+	hasAccess: boolean;
+	subscription?: Subscription;
+}
+
+export interface AudienceSubscribeResponse {
+	checkoutUrl?: string;
+	subscription?: Subscription;
+}
