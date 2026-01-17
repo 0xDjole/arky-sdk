@@ -403,6 +403,7 @@ export interface Node {
 	id: string;
 	key: string;
 	businessId: string;
+	accountId: string;
 	blocks: Block[];
 	statuses: StatusEvent[];
 	seo: Seo;

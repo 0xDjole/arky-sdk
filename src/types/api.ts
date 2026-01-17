@@ -66,6 +66,7 @@ export interface GetProductsParams {
 
 export interface GetNodesParams {
   businessId?: string;
+  accountId?: string;
   parentId?: string;
   limit?: number;
   cursor?: string;
@@ -83,6 +84,7 @@ export interface GetNodesParams {
 
 export interface CreateNodeParams {
   businessId?: string;
+  accountId: string;
   key: string;
   blocks?: any[];
   seo?: any;
