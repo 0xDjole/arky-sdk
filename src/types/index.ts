@@ -551,12 +551,9 @@ export interface Audience {
 	id: string;
 	businessId: string;
 	key: string;
-	name: string;
 	nodeIds: string[];
 	prices: Price[];
 	statuses: StatusEvent[];
-	createdAt: number;
-	updatedAt: number;
 }
 
 export interface AudienceAccessResponse {

@@ -5,6 +5,7 @@ import type {
   GetAudienceParams,
   GetAudiencesParams,
   SubscribeAudienceParams,
+  GetAudienceSubscribersParams,
   RequestOptions,
 } from "../types/api";
 
@@ -63,6 +64,19 @@ export const createAudienceApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get(
         `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/access`,
         options,
+      );
+    },
+
+    async getSubscribers(params: GetAudienceSubscribersParams, options?: RequestOptions) {
+      return apiConfig.httpClient.get(
+        `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribers`,
+        {
+          ...options,
+          params: {
+            limit: params.limit,
+            cursor: params.cursor,
+          },
+        },
       );
     },
   };
