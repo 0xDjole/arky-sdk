@@ -11,7 +11,6 @@ Arky is an **all-in-one platform** that gives you everything you need to run an 
 - 📅 **Booking System** - Manage services, providers, and reservations with availability calendars
 - 📧 **Newsletters** - Send newsletters to subscribers with built-in email delivery
 - 👥 **User Management** - Authentication, roles, permissions, and user profiles
-- 📊 **Analytics** - Track business metrics and performance
 - 💳 **Payments** - Integrated Stripe checkout and promo codes
 
 **Build any online business:** SaaS products, e-commerce stores, booking platforms, content sites, newsletters, or multi-tenant marketplaces.
@@ -274,19 +273,6 @@ await arky.notification.updateNotifications({})
 
 // Delivery stats
 const stats = await arky.notification.getDeliveryStats({})
-```
-
-### Analytics
-```typescript
-// Query metrics
-const data = await arky.analytics.getAnalytics({
-  start: '2024-01-01',
-  end: '2024-12-31',
-  metrics: ['revenue', 'orders', 'users'],
-})
-
-// Health check
-const health = await arky.analytics.getAnalyticsHealth({})
 ```
 
 ### Roles & Permissions

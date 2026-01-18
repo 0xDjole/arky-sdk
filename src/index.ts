@@ -91,7 +91,6 @@ import { createBusinessApi } from "./api/business";
 import { createMediaApi } from "./api/media";
 import { createNotificationApi } from "./api/notification";
 import { createPromoCodeApi } from "./api/promoCode";
-import { createAnalyticsApi } from "./api/analytics";
 import { createCmsApi } from "./api/cms";
 import { createEshopApi } from "./api/eshop";
 import { createReservationApi } from "./api/reservation";
@@ -162,7 +161,6 @@ export async function createArkySDK(
     media: createMediaApi(apiConfig),
     notification: createNotificationApi(apiConfig),
     promoCode: createPromoCodeApi(apiConfig),
-    analytics: createAnalyticsApi(apiConfig),
     cms: createCmsApi(apiConfig),
     eshop: createEshopApi(apiConfig),
     reservation: createReservationApi(apiConfig),
