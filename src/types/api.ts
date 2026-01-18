@@ -841,11 +841,24 @@ export interface GetAudiencesParams {
 
 export interface SubscribeAudienceParams {
   id: string;
-  priceId: string;
+  /** Optional for free audiences, required for paid audiences */
+  priceId?: string;
   successUrl: string;
   cancelUrl: string;
 }
 
 export interface DeleteAudienceParams {
   id: string;
+}
+
+export interface GetAudienceSubscribersParams {
+  id: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface AudienceSubscriber {
+  accountId: string;
+  email: string;
+  subscribedAt?: number;
 }

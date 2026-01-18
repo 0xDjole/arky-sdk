@@ -39,6 +39,7 @@ export type {
   Audience,
   AudienceAccessResponse,
   AudienceSubscribeResponse,
+  AudienceSubscriber,
 } from "./types";
 
 // Export enums (must be exported as values, not types)
