@@ -22,7 +22,7 @@ export type {
   PromoCodeValidation,
   PaginatedResponse,
   Language,
-  Seo,
+  Access,
   Media,
   MediaResolution,
   ProviderWithTimeline,

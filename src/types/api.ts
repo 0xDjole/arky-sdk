@@ -85,15 +85,15 @@ export interface CreateNodeParams {
   businessId?: string;
   key: string;
   blocks?: any[];
-  seo?: any;
+  slug?: Record<string, string>;
+  access?: 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
+  writeAccess?: 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
   status?: string;
   config?: {
     parentId?: string | null;
-    isPubliclyReadable?: boolean;
-    isPubliclyWritable?: boolean;
   };
   /** Email subject for email template nodes */
-  emailSubject?: string;
+  emailSubject?: Record<string, string>;
 }
 
 export interface UpdateNodeParams {
@@ -101,15 +101,15 @@ export interface UpdateNodeParams {
   businessId?: string;
   key?: string;
   blocks?: any[];
-  seo?: any;
+  slug?: Record<string, string>;
+  access?: 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
+  writeAccess?: 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
   status?: string;
   config?: {
     parentId?: string | null;
-    isPubliclyReadable?: boolean;
-    isPubliclyWritable?: boolean;
   };
   /** Email subject for email template nodes */
-  emailSubject?: string;
+  emailSubject?: Record<string, string>;
 }
 
 export interface GetNodeParams {

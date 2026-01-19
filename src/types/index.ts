@@ -128,11 +128,13 @@ export interface ShippingWeightTier {
 
 export interface PaymentMethod {
 	id: string;
+	name: Record<string, string>;
 	type: PaymentMethodType;
 }
 
 export interface ShippingMethod {
 	id: string;
+	name: Record<string, string>;
 	taxable: boolean;
 	etaText: string;
 	pickupLocation?: Location;
@@ -141,10 +143,11 @@ export interface ShippingMethod {
 	weightTiers?: ShippingWeightTier[];
 }
 
-export type ZoneScope = "ORDER" | "RESERVATION";
+export type ZoneScope = "ALL" | "ORDER" | "RESERVATION";
 
 export interface Zone {
 	id: string;
+	name: string;
 	marketId: string;
 	scope: ZoneScope;
 	countries: string[];
@@ -278,13 +281,7 @@ export interface AddressBlock extends Block {
 	value: GeoLocationValue[];
 }
 
-export interface Seo {
-	slug: Record<string, string>;
-	metaTitle: Record<string, string>;
-	metaDescription: Record<string, string>;
-	canonicalUrl: Record<string, string>;
-	ogImage: string;
-}
+export type Access = 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
 
 export interface MediaResolution {
 	id: string;
@@ -302,7 +299,7 @@ export interface Media {
 	entity: string;
 	metadata?: string | null;
 	uploadedAt: string;
-	seo: Seo;
+	slug: Record<string, string>;
 }
 
 export interface ApiResponse<T> {
@@ -397,8 +394,6 @@ export interface Reservation {
 
 export interface NodeConfig {
 	parentId?: string | null;
-	isPubliclyReadable: boolean;
-	isPubliclyWritable: boolean;
 }
 
 export interface Node {
@@ -407,7 +402,9 @@ export interface Node {
 	businessId: string;
 	blocks: Block[];
 	status: Status;
-	seo: Seo;
+	slug: Record<string, string>;
+	access: Access;
+	writeAccess: Access;
 	config: NodeConfig;
 	emailSubject?: Record<string, string>;
 	children: Node[];
@@ -436,7 +433,8 @@ export interface ServiceProvider {
 export interface Service {
 	id: string;
 	key: string;
-	seo: Seo;
+	slug: Record<string, string>;
+	access: Access;
 	businessId: string;
 	prices: Price[];
 	durations: ServiceDuration[];
@@ -457,7 +455,8 @@ export interface ProviderTimelinePoint {
 export interface Provider {
 	id: string;
 	key: string;
-	seo: Seo;
+	slug: Record<string, string>;
+	access: Access;
 	businessId: string;
 	status: Status;
 	concurrentLimit: number;
@@ -553,6 +552,7 @@ export interface Audience {
 	id: string;
 	businessId: string;
 	key: string;
+	access: Access;
 	nodeIds: string[];
 	prices: Price[];
 	status: Status;
