@@ -84,14 +84,12 @@ export interface GetNodesParams {
 export interface CreateNodeParams {
   businessId?: string;
   key: string;
+  parentId?: string | null;
   blocks?: any[];
   slug?: Record<string, string>;
   access?: 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
   writeAccess?: 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
   status?: string;
-  config?: {
-    parentId?: string | null;
-  };
   /** Email subject for email template nodes */
   emailSubject?: Record<string, string>;
 }
@@ -100,14 +98,12 @@ export interface UpdateNodeParams {
   id: string;
   businessId?: string;
   key?: string;
+  parentId?: string | null;
   blocks?: any[];
   slug?: Record<string, string>;
   access?: 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
   writeAccess?: 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
   status?: string;
-  config?: {
-    parentId?: string | null;
-  };
   /** Email subject for email template nodes */
   emailSubject?: Record<string, string>;
 }

@@ -392,20 +392,16 @@ export interface Reservation {
 
 // ===== CMS Types =====
 
-export interface NodeConfig {
-	parentId?: string | null;
-}
-
 export interface Node {
 	id: string;
 	key: string;
 	businessId: string;
+	parentId?: string | null;
 	blocks: Block[];
 	status: Status;
 	slug: Record<string, string>;
 	access: Access;
 	writeAccess: Access;
-	config: NodeConfig;
 	emailSubject?: Record<string, string>;
 	children: Node[];
 	createdAt: number;
