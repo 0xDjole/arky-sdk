@@ -802,12 +802,15 @@ export interface TriggerWorkflowParams {
 
 // ===== Audience API Types =====
 
+export type PriceType = 'recurring' | 'one_time';
+
 export interface AudiencePrice {
   market: string;
   amount: number;
   compareAt?: number;
   providerPriceId?: string;
   freeThreshold?: number;
+  type: PriceType;
 }
 
 export interface CreateAudienceParams {
@@ -861,4 +864,9 @@ export interface AudienceSubscriber {
   accountId: string;
   email: string;
   subscribedAt?: number;
+}
+
+export interface RevokeAudienceSubscriptionParams {
+  id: string;
+  accountId: string;
 }

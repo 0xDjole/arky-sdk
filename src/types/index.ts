@@ -72,10 +72,13 @@ export interface Quote {
 	expiresAt?: number;
 }
 
+export type PriceType = 'recurring' | 'one_time';
+
 export interface Price {
 	market: string;
 	amount: number;
 	compareAt?: number;
+	type: PriceType;
 }
 
 export interface Location {

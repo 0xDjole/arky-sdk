@@ -6,6 +6,7 @@ import type {
   GetAudiencesParams,
   SubscribeAudienceParams,
   GetAudienceSubscribersParams,
+  RevokeAudienceSubscriptionParams,
   RequestOptions,
 } from "../types/api";
 
@@ -77,6 +78,13 @@ export const createAudienceApi = (apiConfig: ApiConfig) => {
             cursor: params.cursor,
           },
         },
+      );
+    },
+
+    async revokeSubscription(params: RevokeAudienceSubscriptionParams, options?: RequestOptions) {
+      return apiConfig.httpClient.delete(
+        `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribers/${params.accountId}`,
+        options,
       );
     },
   };
