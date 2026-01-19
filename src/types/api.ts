@@ -1,4 +1,4 @@
-import type { Block, Location, WorkflowNode, WorkflowEdge, StatusEvent } from "./index";
+import type { Block, Location, WorkflowNode, WorkflowEdge, Status } from "./index";
 
 export interface RequestOptions<T = any> {
   headers?: Record<string, string>;
@@ -272,7 +272,7 @@ export interface ProviderWithTimeline {
   key: string;
   businessId: string;
   seo: any;
-  statuses: any[];
+  status: Status;
   concurrentLimit: number;
   nodeIds: string[];
   blocks: Block[];
@@ -335,7 +335,7 @@ export interface UpdatePromoCodeParams {
   code: string;
   discounts: Discount[];
   conditions: Condition[];
-  statuses?: any[];
+  status?: Status;
 }
 
 export interface DeletePromoCodeParams {
@@ -379,7 +379,7 @@ export interface UpdateBusinessParams {
   key: string;
   networkKey: string | null;
   timezone: string;
-  statuses: any[];
+  status: Status;
   configs: any;
 }
 
@@ -487,7 +487,7 @@ export interface GetOrdersParams {
 
 export interface UpdateOrderParams {
   id: string;
-  statuses: any[];
+  status: string;
   blocks: any[];
   items: any[];
   address?: any | null;
@@ -506,7 +506,7 @@ export interface CreateReservationParams {
 
 export interface UpdateReservationParams {
   id: string;
-  statuses?: any;
+  status?: string;
   blocks?: any;
   parts?: any;
   payment?: any | null;
@@ -519,7 +519,7 @@ export interface CreateProviderParams {
   nodeIds?: string[];
   blocks?: any[];
   concurrentLimit?: number;
-  statuses?: any[];
+  status?: Status;
   [key: string]: any;
 }
 
@@ -530,7 +530,7 @@ export interface UpdateProviderParams {
   nodeIds?: string[];
   blocks?: any[];
   concurrentLimit?: number;
-  statuses?: any[];
+  status?: Status;
   [key: string]: any;
 }
 
@@ -553,7 +553,7 @@ export interface CreateServiceParams {
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
-  statuses?: any[];
+  status?: Status;
   providers?: ServiceProviderInput[];
   [key: string]: any;
 }
@@ -567,7 +567,7 @@ export interface UpdateServiceParams {
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
-  statuses?: any[];
+  status?: Status;
   providers?: ServiceProviderInput[];
   [key: string]: any;
 }
@@ -755,7 +755,7 @@ export interface Slot {
 export interface CreateWorkflowParams {
   businessId?: string;
   key: string;
-  statuses?: StatusEvent[];
+  status?: Status;
   nodes: Record<string, WorkflowNode>;
   edges: WorkflowEdge[];
   /** Optional cron schedule expression (e.g., "0 9 * * *" for 9am daily) */
@@ -765,7 +765,7 @@ export interface CreateWorkflowParams {
 export interface UpdateWorkflowParams {
   id: string;
   key: string;
-  statuses?: StatusEvent[];
+  status?: Status;
   nodes: Record<string, WorkflowNode>;
   edges: WorkflowEdge[];
   /** Optional cron schedule expression (e.g., "0 9 * * *" for 9am daily) */
@@ -826,7 +826,7 @@ export interface UpdateAudienceParams {
   name?: string;
   nodeIds?: string[];
   prices?: AudiencePrice[];
-  statuses?: any[];
+  status?: Status;
 }
 
 export interface GetAudienceParams {

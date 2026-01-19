@@ -187,7 +187,7 @@ export interface Subscription {
 	planId: string;
 	pendingPlanId: string | null;
 	payment: any;
-	statuses: StatusEvent[];
+	status: SubscriptionStatus;
 	endDate: number;
 	usage: Record<string, any>;
 	token: string;
@@ -200,7 +200,7 @@ export interface Business {
 	timezone: string;
 	configs?: BusinessConfig;
 	subscriptions?: Subscription[];
-	statuses?: StatusEvent[];
+	status: Status;
 }
 
 export interface EshopStoreState {
@@ -355,14 +355,13 @@ export interface ReservationStoreState {
 	};
 }
 
-export interface StatusEvent {
-	id: string;
-	changedBy: 'BUSINESS' | 'USER' | 'SYSTEM';
-	userId?: string;
-	status: string;
-	note?: string;
-	timestamp: number;
-}
+export type Status = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
+
+export type OrderStatus = 'INITIATED' | 'PENDING' | 'AUTHORIZED' | 'CONFIRMED' | 'SHIPPED' | 'COMPLETED' | 'CANCELLED' | 'FAILED';
+
+export type ReservationStatus = 'INITIATED' | 'PENDING' | 'AUTHORIZED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'FAILED';
+
+export type SubscriptionStatus = 'PENDING' | 'ACTIVE' | 'CANCELLATION_SCHEDULED' | 'CANCELLED' | 'EXPIRED';
 
 export interface ReservationItem {
 	id: string;
@@ -383,7 +382,7 @@ export interface Reservation {
 	userId: string;
 	blocks: Block[];
 	businessId: string;
-	statuses: StatusEvent[];
+	status: ReservationStatus;
 	serviceIds: string[];
 	providerIds: string[];
 	payment: Payment;
@@ -407,7 +406,7 @@ export interface Node {
 	key: string;
 	businessId: string;
 	blocks: Block[];
-	statuses: StatusEvent[];
+	status: Status;
 	seo: Seo;
 	config: NodeConfig;
 	emailSubject?: Record<string, string>;
@@ -447,7 +446,7 @@ export interface Service {
 	providers: ServiceProvider[];
 	createdAt: number;
 	updatedAt: number;
-	statuses: StatusEvent[];
+	status: Status;
 }
 
 export interface ProviderTimelinePoint {
@@ -460,7 +459,7 @@ export interface Provider {
 	key: string;
 	seo: Seo;
 	businessId: string;
-	statuses: StatusEvent[];
+	status: Status;
 	concurrentLimit: number;
 	nodeIds: string[];
 	blocks: Block[];
@@ -476,7 +475,7 @@ export interface Workflow {
 	key: string;
 	businessId: string;
 	secret: string;
-	statuses: StatusEvent[];
+	status: Status;
 	nodes: Record<string, WorkflowNode>;
 	edges: WorkflowEdge[];
 	/** Optional cron schedule expression (e.g., "0 9 * * *" for 9am daily) */
@@ -556,7 +555,7 @@ export interface Audience {
 	key: string;
 	nodeIds: string[];
 	prices: Price[];
-	statuses: StatusEvent[];
+	status: Status;
 }
 
 export interface AudienceAccessResponse {
