@@ -40,6 +40,8 @@ export type {
   AudienceAccessResponse,
   AudienceSubscribeResponse,
   AudienceSubscriber,
+  BusinessEvent,
+  BusinessEventAction,
 } from "./types";
 
 // Export enums (must be exported as values, not types)
@@ -62,7 +64,7 @@ export type {
 } from "./api/location";
 
 
-export const SDK_VERSION = "0.3.167";
+export const SDK_VERSION = "0.3.168";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",

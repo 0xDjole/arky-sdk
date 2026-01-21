@@ -866,3 +866,16 @@ export interface RevokeAudienceSubscriptionParams {
   id: string;
   accountId: string;
 }
+
+// ===== Business Event API Types =====
+
+export interface GetBusinessEventsParams {
+  entity: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface UpdateBusinessEventParams {
+  eventId: string;
+  payload: import('./index').BusinessEventAction;
+}

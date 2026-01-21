@@ -354,9 +354,9 @@ export interface ReservationStoreState {
 
 export type Status = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
 
-export type OrderStatus = 'INITIATED' | 'PENDING' | 'AUTHORIZED' | 'CONFIRMED' | 'SHIPPED' | 'COMPLETED' | 'CANCELLED' | 'FAILED';
+export type OrderStatus = 'CREATED' | 'PENDING' | 'AUTHORIZED' | 'CONFIRMED' | 'SHIPPED' | 'COMPLETED' | 'CANCELLED' | 'FAILED';
 
-export type ReservationStatus = 'INITIATED' | 'PENDING' | 'AUTHORIZED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'FAILED';
+export type ReservationStatus = 'CREATED' | 'PENDING' | 'AUTHORIZED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'FAILED';
 
 export type SubscriptionStatus = 'PENDING' | 'ACTIVE' | 'CANCELLATION_SCHEDULED' | 'CANCELLED' | 'EXPIRED';
 
@@ -562,4 +562,34 @@ export interface AudienceAccessResponse {
 export interface AudienceSubscribeResponse {
 	checkoutUrl?: string;
 	subscription?: Subscription;
+}
+
+// ===== Business Event Types =====
+
+export type BusinessEventAction =
+	// Order events
+	| { action: 'order_created' }
+	| { action: 'order_status_changed'; data: { from: string; to: string } }
+	| { action: 'order_payment_received'; data: { amount: number } }
+	| { action: 'order_payment_failed'; data: { reason?: string } }
+	| { action: 'order_refunded'; data: { amount: number; reason?: string } }
+	| { action: 'order_shipped'; data: { tracking_url?: string } }
+	| { action: 'order_completed' }
+	| { action: 'order_cancelled'; data: { reason?: string } }
+	// Reservation events
+	| { action: 'reservation_created' }
+	| { action: 'reservation_status_changed'; data: { from: string; to: string } }
+	| { action: 'reservation_payment_received'; data: { amount: number } }
+	| { action: 'reservation_payment_failed'; data: { reason?: string } }
+	| { action: 'reservation_refunded'; data: { amount: number; reason?: string } }
+	| { action: 'reservation_completed' }
+	| { action: 'reservation_cancelled'; data: { reason?: string } };
+
+export interface BusinessEvent {
+	id: string;
+	businessId: string;
+	entity: string;
+	payload: BusinessEventAction;
+	actor: string;
+	createdAt: number;
 }
