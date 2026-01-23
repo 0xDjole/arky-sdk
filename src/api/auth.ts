@@ -74,7 +74,7 @@ export const createAuthApi = (apiConfig: ApiConfig) => {
             return apiConfig.httpClient.post('/v1/auth/refresh', params, options);
         },
 
-        // ==================== BUSINESS AUTH (arky.io, delfin, korvus) ====================
+        // ==================== BUSINESS AUTH (arky.io, delfin, soulofstrings) ====================
 
         /**
          * Request business auth code
