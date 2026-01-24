@@ -121,6 +121,11 @@ export interface PaymentProviderConfig {
 	webhookSecret: string;
 }
 
+export interface AnalyticsConfig {
+	type: "GA4";
+	measurementId: string;
+}
+
 export interface ShippingWeightTier {
 	upToGrams: number;
 	amount: number;
@@ -181,6 +186,7 @@ export interface BusinessConfig {
 	webhooks: any[];
 	paymentProvider?: PaymentProviderConfig;
 	aiProvider?: any;
+	analytics?: AnalyticsConfig;
 	emails: BusinessEmails;
 }
 

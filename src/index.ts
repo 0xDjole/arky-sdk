@@ -13,6 +13,7 @@ export type {
   PaymentRefund,
   PaymentMethod,
   PaymentProviderConfig,
+  AnalyticsConfig,
   ShippingMethod,
   ShippingWeightTier,
   Zone,
@@ -64,7 +65,8 @@ export type {
 } from "./api/location";
 
 
-export const SDK_VERSION = "0.3.168";
+
+export const SDK_VERSION = "0.4.14";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -135,6 +137,7 @@ import {
   toKey,
   nameToKey,
 } from "./utils/keyValidation";
+import { injectGA4Script, track } from "./utils/analytics";
 
 export async function createArkySDK(
   config: HttpClientConfig & { market: string; locale?: string }
@@ -155,11 +158,20 @@ export async function createArkySDK(
 
   const accountApi = createAccountApi(apiConfig);
   const authApi = createAuthApi(apiConfig);
+  const businessApi = createBusinessApi(apiConfig);
+
+  if (typeof window !== "undefined") {
+    businessApi.getBusiness({}).then(({ data: business }) => {
+      if (business?.config?.analytics?.measurementId) {
+        injectGA4Script(business.config.analytics.measurementId);
+      }
+    }).catch(() => {});
+  }
 
   const sdk = {
     auth: authApi,
     account: accountApi,
-    business: createBusinessApi(apiConfig),
+    business: businessApi,
     media: createMediaApi(apiConfig),
     notification: createNotificationApi(apiConfig),
     promoCode: createPromoCodeApi(apiConfig),
@@ -171,6 +183,10 @@ export async function createArkySDK(
     network: createNetworkApi(apiConfig),
     workflow: createWorkflowApi(apiConfig),
     audience: createAudienceApi(apiConfig),
+
+    analytics: {
+      track,
+    },
 
     setBusinessId: (businessId: string) => {
       apiConfig.businessId = businessId;
@@ -244,6 +260,9 @@ export async function createArkySDK(
       validateKey,
       toKey,
       nameToKey,
+
+      // Analytics utilities
+      track,
     },
   };
 
