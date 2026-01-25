@@ -20,11 +20,7 @@ export interface NetworkSearchParams {
 
 export const createNetworkApi = (apiConfig: ApiConfig) => {
   return {
-    /**
-     * Search services across all businesses that have opted into a network
-     * @param networkKey - The network key (e.g., "delfin")
-     * @param params - Search parameters
-     */
+    
     async searchServices(
       networkKey: string,
       params?: NetworkSearchParams,
@@ -58,11 +54,6 @@ export const createNetworkApi = (apiConfig: ApiConfig) => {
       });
     },
 
-    /**
-     * Search products across all businesses that have opted into a network
-     * @param networkKey - The network key (e.g., "delfin")
-     * @param params - Search parameters
-     */
     async searchProducts(
       networkKey: string,
       params?: NetworkSearchParams,
@@ -96,11 +87,6 @@ export const createNetworkApi = (apiConfig: ApiConfig) => {
       });
     },
 
-    /**
-     * Search providers across all businesses that have opted into a network
-     * @param networkKey - The network key (e.g., "delfin")
-     * @param params - Search parameters
-     */
     async searchProviders(
       networkKey: string,
       params?: NetworkSearchParams,

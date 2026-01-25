@@ -1,8 +1,6 @@
-// Error handling utilities (combined from errorCodes.ts and errorHelpers.ts)
 
-// Comprehensive error code system with both numeric codes and named constants
 export const ERROR_CODES = {
-  // General errors
+  
   "GENERAL.001": "GENERAL.BAD_REQUEST",
   "GENERAL.002": "GENERAL.VALIDATION_ERROR",
   "GENERAL.003": "GENERAL.FORBIDDEN_ERROR",
@@ -10,7 +8,6 @@ export const ERROR_CODES = {
   "GENERAL.005": "GENERAL.UNAUTHORIZED",
   "GENERAL.006": "GENERAL.UNAUTHENTICATED",
 
-  // Google/OAuth errors
   "GOOGLE.001": "GOOGLE.INVALID_ORIGIN_URI",
   "GOOGLE.002": "GOOGLE.INVALID_REDIRECT_URI",
   "GOOGLE.003": "GOOGLE.FAILED_TO_CALL_API",
@@ -19,7 +16,6 @@ export const ERROR_CODES = {
   "GOOGLE.006": "GOOGLE.FAILED_REFRESH_TOKEN",
   "GOOGLE.007": "GOOGLE.INVALID_PROVIDER_PASSED",
 
-  // User errors
   "USER.001": "USER.NOT_FOUND",
   "USER.002": "USER.FAILED_TO_CREATE",
   "USER.003": "USER.FAILED_TO_UPDATE",
@@ -27,7 +23,6 @@ export const ERROR_CODES = {
   "USER.005": "USER.EMAIL_EXISTS",
   "USER.006": "USER.FAILED_TO_GET_UPLOAD_URL",
 
-  // Business errors
   "BUSINESS.001": "BUSINESS.NOT_FOUND",
   "BUSINESS.002": "BUSINESS.FAILED_TO_CREATE",
   "BUSINESS.003": "BUSINESS.FAILED_TO_UPDATE",
@@ -38,7 +33,6 @@ export const ERROR_CODES = {
   "BUSINESS.010": "BUSINESS.DESCRIPTION_REQUIRED",
   "BUSINESS.011": "BUSINESS.SLUG_INVALID",
 
-  // Provider errors
   "PROVIDER.001": "PROVIDER.NOT_FOUND",
   "PROVIDER.002": "PROVIDER.FAILED_TO_CREATE",
   "PROVIDER.003": "PROVIDER.FAILED_TO_UPDATE",
@@ -49,7 +43,6 @@ export const ERROR_CODES = {
   "PROVIDER.008": "PROVIDER.DESCRIPTION_REQUIRED",
 };
 
-// Named error constants for direct access
 export const ERROR_CONSTANTS = {
   GENERAL: {
     BAD_REQUEST: "GENERAL.BAD_REQUEST",
@@ -99,7 +92,6 @@ export type RequestError = {
   validationErrors: ValidationError[];
 };
 
-// Utility functions for error handling
 export function getErrorMessage(code: string): string {
   return ERROR_CODES[code as keyof typeof ERROR_CODES] || code;
 }
@@ -152,6 +144,5 @@ export const convertServerErrorToRequestError = (
   };
 };
 
-// Export for backward compatibility
 export const errors = ERROR_CONSTANTS;
 export default ERROR_CODES;

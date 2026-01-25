@@ -156,7 +156,6 @@ if (options?.onError && method !== 'GET') {
 			throw err;
 		}
 
-		// Handle 401: refresh and retry once
 		if (res.status === 401 && !options?.['_retried']) {
 			try {
 				await ensureFreshToken();
@@ -165,11 +164,10 @@ if (options?.onError && method !== 'GET') {
 				fetchOpts.headers = headers;
 				return request<T>(method, path, body, { ...options, _retried: true });
 			} catch (refreshError) {
-				// Fall through to normal error handling
+				
 			}
 		}
 
-		// Safe JSON parsing: handle 204, empty body, non-JSON
 		try {
 			const contentLength = res.headers.get('content-length');
 			const contentType = res.headers.get('content-type');

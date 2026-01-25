@@ -16,8 +16,7 @@ import type {
 
 export const createEshopApi = (apiConfig: ApiConfig) => {
   return {
-    // ===== PRODUCTS =====
-
+    
     async createProduct(params: CreateProductParams, options?: RequestOptions) {
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/products`,
@@ -67,8 +66,6 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    // ===== ORDERS =====
-
     async createOrder(params: CreateOrderParams, options?: RequestOptions) {
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/orders`,
@@ -86,7 +83,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     },
 
     async getOrder(params: GetOrderParams, options?: RequestOptions) {
-      // Orders use UUID only - no SEO slug support
+      
       return apiConfig.httpClient.get(
         `/v1/businesses/${apiConfig.businessId}/orders/${params.id}`,
         options,
@@ -102,8 +99,6 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         },
       );
     },
-
-    // ===== PAYMENTS =====
 
     async getQuote(params: GetQuoteParams, options?: RequestOptions) {
       const payload = {

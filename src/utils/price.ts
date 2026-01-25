@@ -1,4 +1,4 @@
-// Price formatting utilities - Centralized currency and price operations
+
 import type { Payment, PaymentMethodType, Price } from '../types';
 import { getCurrencySymbol, isSymbolAfterCurrency } from './currency';
 
@@ -10,22 +10,18 @@ const MARKET_CURRENCIES = {
     'AU': 'AUD'
 } as const;
 
-// Convert minor units (cents) to major units (dollars)
 export function convertToMajor(minorAmount: number): number {
     return (minorAmount ?? 0) / 100;
 }
 
-// Convert major units to minor units
 export function convertToMinor(majorAmount: number): number {
     return Math.round((majorAmount ?? 0) * 100);
 }
 
-// Get currency from market ID
 export function getCurrencyFromMarket(marketId: string): string {
     return MARKET_CURRENCIES[marketId as keyof typeof MARKET_CURRENCIES] || 'USD';
 }
 
-// Format currency amount with symbol (locale-aware positioning)
 export function formatCurrencyAmount(
     amount: number,
     currency: string,
@@ -44,7 +40,6 @@ export function formatCurrencyAmount(
 
     const symbol = customSymbol || getCurrencySymbol(currency);
 
-    // Use locale-specific symbol positioning
     if (isSymbolAfterCurrency(currency)) {
         return `${roundedAmount} ${symbol}`;
     }
@@ -52,7 +47,6 @@ export function formatCurrencyAmount(
     return `${symbol}${roundedAmount}`;
 }
 
-// Format minor units with currency
 export function formatMinor(
     amountMinor: number,
     currency: string,
@@ -66,7 +60,6 @@ export function formatMinor(
     return formatCurrencyAmount(major, currency, options);
 }
 
-// Format Payment structure for display
 export function formatPayment(
     payment: Payment,
     options: {
@@ -96,7 +89,6 @@ export function formatPayment(
     return formatMinor(payment.total, payment.currency, { showSymbols, decimalPlaces });
 }
 
-// Format market-based prices (from product variants)
 export function getMarketPrice(
     prices: Price[],
     marketId: string,
@@ -117,10 +109,8 @@ export function getMarketPrice(
         fallbackMarket,
     } = options;
 
-    // Find price for the specific market
     let price = prices.find(p => p.market === marketId);
 
-    // Fallback to fallback market (if provided) or first available
     if (!price && fallbackMarket) {
         price = prices.find(p => p.market === fallbackMarket);
     }
@@ -133,7 +123,6 @@ export function getMarketPrice(
     let currency: string;
     let symbol: string;
 
-    // If we have business markets, use the currency directly from market data
     if (businessMarkets) {
         const marketData = businessMarkets.find(m => m.id === price.market || m.code === price.market);
         if (marketData?.currency) {
@@ -148,14 +137,12 @@ export function getMarketPrice(
         symbol = getCurrencySymbol(currency);
     }
 
-    // Format price with custom symbol
     const formattedPrice = formatMinor(price.amount ?? 0, currency, {
         showSymbols,
         decimalPlaces,
         customSymbol: symbol
     });
 
-    // Add compare-at price if available
     if (showCompareAt && price.compareAt && price.compareAt > (price.amount ?? 0)) {
         const formattedCompareAt = formatMinor(price.compareAt, currency, {
             showSymbols,
@@ -168,7 +155,6 @@ export function getMarketPrice(
     return formattedPrice;
 }
 
-// Get price amount from market-based prices (for calculations)
 export function getPriceAmount(prices: Price[], marketId: string, fallbackMarket?: string): number {
     if (!prices || prices.length === 0) return 0;
 
@@ -180,11 +166,9 @@ export function getPriceAmount(prices: Price[], marketId: string, fallbackMarket
         price = prices[0];
     }
 
-    // Amounts are stored in minor units (e.g., cents)
     return price?.amount || 0;
 }
 
-// Create Payment structure for checkout (all amounts in minor units)
 export function createPaymentForCheckout(
     subtotalMinor: number,
     marketId: string,

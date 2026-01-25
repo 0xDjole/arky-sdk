@@ -396,8 +396,6 @@ export interface Reservation {
 	lastModified: number;
 }
 
-// ===== CMS Types =====
-
 export interface Node {
 	id: string;
 	key: string;
@@ -413,8 +411,6 @@ export interface Node {
 	createdAt: number;
 	updatedAt: number;
 }
-
-// ===== Reservation Domain Types =====
 
 export interface ServiceDuration {
 	duration: number;
@@ -469,8 +465,6 @@ export interface Provider {
 	updatedAt: number;
 }
 
-// ===== Workflow Types =====
-
 export interface Workflow {
 	id: string;
 	key: string;
@@ -479,7 +473,7 @@ export interface Workflow {
 	status: Status;
 	nodes: Record<string, WorkflowNode>;
 	edges: WorkflowEdge[];
-	/** Optional cron schedule expression (e.g., "0 9 * * *" for 9am daily) */
+	
 	schedule?: string;
 	createdAt: number;
 	updatedAt: number;
@@ -548,8 +542,6 @@ export interface WorkflowExecution {
 	updatedAt: number;
 }
 
-// ===== Audience Types =====
-
 export interface Audience {
 	id: string;
 	businessId: string;
@@ -570,10 +562,8 @@ export interface AudienceSubscribeResponse {
 	subscription?: Subscription;
 }
 
-// ===== Business Event Types =====
-
 export type BusinessEventAction =
-	// Order events
+	
 	| { action: 'order_created' }
 	| { action: 'order_status_changed'; data: { from: string; to: string } }
 	| { action: 'order_payment_received'; data: { amount: number } }
@@ -582,7 +572,7 @@ export type BusinessEventAction =
 	| { action: 'order_shipped'; data: { tracking_url?: string } }
 	| { action: 'order_completed' }
 	| { action: 'order_cancelled'; data: { reason?: string } }
-	// Reservation events
+	
 	| { action: 'reservation_created' }
 	| { action: 'reservation_status_changed'; data: { from: string; to: string } }
 	| { action: 'reservation_payment_received'; data: { amount: number } }

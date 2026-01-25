@@ -1,11 +1,9 @@
-// Validation utilities
 
 export interface ValidationResult {
     isValid: boolean;
     error?: string;
 }
 
-// Phone number validation
 export function validatePhoneNumber(phone: string): ValidationResult {
     if (!phone) {
         return { isValid: false, error: 'Phone number is required' };
@@ -24,7 +22,6 @@ export function validatePhoneNumber(phone: string): ValidationResult {
     return { isValid: true };
 }
 
-// Email validation
 export function validateEmail(email: string): ValidationResult {
     if (!email) {
         return { isValid: false, error: 'Email is required' };
@@ -39,7 +36,6 @@ export function validateEmail(email: string): ValidationResult {
     return { isValid: true };
 }
 
-// Verification code validation (4-digit codes)
 export function validateVerificationCode(code: string): ValidationResult {
     if (!code) {
         return { isValid: false, error: 'Verification code is required' };
@@ -54,7 +50,6 @@ export function validateVerificationCode(code: string): ValidationResult {
     return { isValid: true };
 }
 
-// Generic required field validation
 export function validateRequired(value: any, fieldName: string = 'This field'): ValidationResult {
     if (value === null || value === undefined || value === '') {
         return { isValid: false, error: `${fieldName} is required` };

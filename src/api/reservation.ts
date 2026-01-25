@@ -23,12 +23,11 @@ import type {
 } from "../types/api";
 
 export const createReservationApi = (apiConfig: ApiConfig) => {
-  // Cart state for multiple slots
+  
   let cart: Slot[] = [];
 
   return {
-    // ===== CART =====
-
+    
     addToCart(slot: Slot) {
       cart.push(slot);
     },
@@ -44,8 +43,6 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
     clearCart() {
       cart = [];
     },
-
-    // ===== RESERVATIONS =====
 
     async createReservation(
       params: CreateReservationParams,
@@ -83,7 +80,7 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
     ) {
       const { businessId, ...rest } = params || {};
       const targetBusinessId = businessId || apiConfig.businessId;
-      // Use cart if no items provided
+      
       const items = rest?.items || cart.map((s) => ({
         serviceId: s.serviceId,
         providerId: s.providerId,
@@ -130,8 +127,6 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    // ===== QUOTES =====
-
     async getQuote(
       params: GetReservationQuoteParams,
       options?: RequestOptions,
@@ -149,8 +144,6 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
         options,
       );
     },
-
-    // ===== SERVICES =====
 
     async createService(params: CreateServiceParams, options?: RequestOptions) {
       const { businessId, ...payload } = params;
@@ -216,8 +209,6 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
         },
       );
     },
-
-    // ===== PROVIDERS =====
 
     async createProvider(
       params: CreateProviderParams,

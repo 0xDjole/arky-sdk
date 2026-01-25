@@ -12,8 +12,7 @@ import type {
 
 export const createAccountApi = (apiConfig: ApiConfig) => {
     return {
-        // ===== ACCOUNT PROFILE =====
-
+        
         async updateAccount(params: UpdateAccountProfileParams, options?: RequestOptions) {
             const payload: any = {};
 
@@ -49,8 +48,6 @@ export const createAccountApi = (apiConfig: ApiConfig) => {
                 }
             });
         },
-
-        // ===== SUBSCRIPTION =====
 
         async subscribe(params: AccountSubscribeParams, options?: RequestOptions) {
             return apiConfig.httpClient.post('/v1/accounts/subscribe', params, options);

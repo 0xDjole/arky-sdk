@@ -21,12 +21,6 @@ export async function fetchSvgContent(mediaObject: any): Promise<string | null> 
 	}
 }
 
-/**
- * Server-side helper for Astro components to fetch SVG content during SSR
- *
- * @param mediaObject The media object from the CMS
- * @returns The SVG content as a string, or empty string on failure
- */
 export async function getSvgContentForAstro(mediaObject: any): Promise<string> {
 	try {
 		const svgContent = await fetchSvgContent(mediaObject);
@@ -37,13 +31,6 @@ export async function getSvgContentForAstro(mediaObject: any): Promise<string> {
 	}
 }
 
-/**
- * Client-side helper to fetch and inject SVG content into DOM elements
- *
- * @param mediaObject The media object from the CMS
- * @param targetElement The DOM element to inject the SVG into
- * @param className Optional CSS class to add to the SVG
- */
 export async function injectSvgIntoElement(
 	mediaObject: any,
 	targetElement: HTMLElement,
@@ -57,7 +44,6 @@ export async function injectSvgIntoElement(
 		if (svgContent) {
 			targetElement.innerHTML = svgContent;
 
-			// Add class if provided
 			if (className) {
 				const svgElement = targetElement.querySelector("svg");
 				if (svgElement) {

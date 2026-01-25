@@ -1,6 +1,4 @@
-/**
- * Maps currency codes to their display symbols
- */
+
 export function getCurrencySymbol(currency: string): string {
     const currencySymbols: Record<string, string> = {
         USD: '$',
@@ -86,14 +84,8 @@ export function getCurrencySymbol(currency: string): string {
     return currencySymbols[currency.toUpperCase()] || currency;
 }
 
-/**
- * List of currencies where the symbol appears after the amount
- */
 export const SYMBOL_AFTER_CURRENCIES = ['SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'BGN', 'HRK'];
 
-/**
- * Check if currency symbol should be placed after the amount
- */
 export function isSymbolAfterCurrency(currency: string): boolean {
     return SYMBOL_AFTER_CURRENCIES.includes(currency.toUpperCase());
 }

@@ -1,4 +1,4 @@
-// Export types
+
 export type {
   ApiResponse,
   EshopCartItem,
@@ -45,10 +45,8 @@ export type {
   BusinessEventAction,
 } from "./types";
 
-// Export enums (must be exported as values, not types)
 export { PaymentMethodType } from "./types";
 
-// Export reservation types
 export type {
   GetSlotsForDateParams,
   GetAvailabilityParams,
@@ -57,14 +55,11 @@ export type {
   SystemTemplateKey,
 } from "./types/api";
 
-// Export location types
 export type {
   LocationState,
   LocationCountry,
   GetCountriesResponse,
 } from "./api/location";
-
-
 
 export const SDK_VERSION = "0.4.14";
 export const SUPPORTED_FRAMEWORKS = [
@@ -210,11 +205,10 @@ export async function createArkySDK(
     logout: config.logout,
     setToken: config.setToken,
 
-    // Top-level block utilities for convenience
     extractBlockValues,
 
     utils: {
-      // Block utilities
+      
       getImageUrl: (imageBlock: any, isBlock = true) =>
         getImageUrl(imageBlock, isBlock),
       getBlockValue,
@@ -227,41 +221,33 @@ export async function createArkySDK(
       prepareBlocksForSubmission,
       extractBlockValues,
 
-      // Price utilities
       getMarketPrice,
       getPriceAmount,
       formatPayment,
       formatMinor,
       createPaymentForCheckout,
 
-      // Currency utilities
       getCurrencySymbol,
 
-      // Validation utilities
       validatePhoneNumber,
 
-      // Timezone utilities
       tzGroups,
       findTimeZone,
 
-      // Text utilities
       slugify,
       humanize,
       categorify,
       formatDate,
 
-      // SVG utilities
       getSvgContentForAstro,
       fetchSvgContent,
       injectSvgIntoElement,
 
-      // Key validation utilities
       isValidKey,
       validateKey,
       toKey,
       nameToKey,
 
-      // Analytics utilities
       track,
     },
   };

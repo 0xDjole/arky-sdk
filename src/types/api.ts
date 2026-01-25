@@ -90,7 +90,7 @@ export interface CreateNodeParams {
   access?: 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
   writeAccess?: 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
   status?: string;
-  /** Email subject for email template nodes */
+  
   emailSubject?: Record<string, string>;
 }
 
@@ -104,7 +104,7 @@ export interface UpdateNodeParams {
   access?: 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
   writeAccess?: 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
   status?: string;
-  /** Email subject for email template nodes */
+  
   emailSubject?: Record<string, string>;
 }
 
@@ -255,7 +255,6 @@ export interface WorkingTime {
   specificDates: SpecificDate[];
 }
 
-// ServiceProvider - embedded provider with working time in a Service
 export interface ServiceProvider {
   id: string;
   providerId: string;
@@ -278,7 +277,6 @@ export interface ProviderWithTimeline {
   timeline: TimelinePoint[];
 }
 
-// Analytics API Types
 export interface GetAnalyticsParams {
   metrics?: string[];
   period?: string;
@@ -288,20 +286,17 @@ export interface GetAnalyticsParams {
 }
 
 export interface GetAnalyticsHealthParams {
-  // No params needed - uses apiConfig.businessId
+  
 }
 
-// Notification API Types
 export interface TrackEmailOpenParams {
   trackingPixelId: string;
 }
 
 export interface GetDeliveryStatsParams {}
 
-// Business Role Type
 export type BusinessRole = 'Admin' | 'Owner' | 'Super';
 
-// Promo Code API Types
 export interface Discount {
   type: "ITEMS_PERCENTAGE" | "ITEMS_FIXED" | "SHIPPING_PERCENTAGE";
   marketId: string;
@@ -357,7 +352,6 @@ export interface GetPromoCodesParams {
   expiresAtTo?: string;
 }
 
-// Business API Types
 export interface CreateBusinessParams {
   key: string;
   slug?: string;
@@ -433,7 +427,6 @@ export interface AccountSubscribeParams {
   cancelUrl?: string;
 }
 
-// E-shop API Types
 export interface CreateProductParams {
   key: string;
   description?: string;
@@ -494,7 +487,6 @@ export interface CreateOrderParams {
   [key: string]: any;
 }
 
-// Additional Reservation API Types
 export interface CreateReservationParams {
   businessId?: string;
   [key: string]: any;
@@ -612,7 +604,6 @@ export interface GetBusinessServiceWorkingTimeParams {
   serviceId?: string;
 }
 
-
 export interface GetReservationParams {
   id: string;
   businessId?: string;
@@ -633,7 +624,6 @@ export interface SearchReservationsParams {
   sortOrder?: string;
 }
 
-// Additional Account API Types
 export interface UpdateAccountProfileParams {
   phoneNumbers?: string[];
   addresses?: any[];
@@ -649,7 +639,6 @@ export interface SearchAccountsParams {
 
 export interface DeleteAccountParams {}
 
-// Notification Tracking API Types
 export interface TrackEmailOpenParams {
   trackingPixelId: string;
 }
@@ -674,7 +663,6 @@ export interface GetBusinessesParams {
 
 export interface GetSubscriptionPlansParams {}
 
-// Analytics Admin API Types
 export interface SetupAnalyticsParams {
   [key: string]: any;
 }
@@ -700,9 +688,6 @@ export interface ProcessRefundParams {
   amount: number;
 }
 
-// === Email Template Types ===
-
-// System template keys use 'system:' prefix
 export type SystemTemplateKey =
   | "system:reservation-business-update"
   | "system:reservation-customer-update"
@@ -710,8 +695,6 @@ export type SystemTemplateKey =
   | "system:order-status-update"
   | "system:user-confirmation"
   | "system:forgot-password";
-
-// === Reservation Slot Types ===
 
 export interface GetSlotsForDateParams {
   serviceId: string;
@@ -732,10 +715,6 @@ export interface DayAvailability {
   available: boolean;
 }
 
-/**
- * A bookable time slot returned by getSlotsForDate.
- * Contains all information needed to display and book the slot.
- */
 export interface Slot {
   id: string;
   serviceId: string;
@@ -746,15 +725,13 @@ export interface Slot {
   dateText: string;
 }
 
-// ===== Workflow API Types =====
-
 export interface CreateWorkflowParams {
   businessId?: string;
   key: string;
   status?: Status;
   nodes: Record<string, WorkflowNode>;
   edges: WorkflowEdge[];
-  /** Optional cron schedule expression (e.g., "0 9 * * *" for 9am daily) */
+  
   schedule?: string;
 }
 
@@ -764,7 +741,7 @@ export interface UpdateWorkflowParams {
   status?: Status;
   nodes: Record<string, WorkflowNode>;
   edges: WorkflowEdge[];
-  /** Optional cron schedule expression (e.g., "0 9 * * *" for 9am daily) */
+  
   schedule?: string;
 }
 
@@ -790,13 +767,11 @@ export interface GetWorkflowsParams {
 }
 
 export interface TriggerWorkflowParams {
-  /** The workflow secret from the workflow's webhook URL */
+  
   secret: string;
-  /** Any additional data to pass to the workflow */
+  
   [key: string]: any;
 }
-
-// ===== Audience API Types =====
 
 export type PriceType = 'recurring' | 'one_time';
 
@@ -840,7 +815,7 @@ export interface GetAudiencesParams {
 
 export interface SubscribeAudienceParams {
   id: string;
-  /** Optional for free audiences, required for paid audiences */
+  
   priceId?: string;
   successUrl: string;
   cancelUrl: string;
@@ -866,8 +841,6 @@ export interface RevokeAudienceSubscriptionParams {
   id: string;
   accountId: string;
 }
-
-// ===== Business Event API Types =====
 
 export interface GetBusinessEventsParams {
   entity: string;

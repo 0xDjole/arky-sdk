@@ -1,4 +1,3 @@
-// Timezone utilities (moved from Reservation folder)
 
 export const tzGroups = [
     {
@@ -34,7 +33,6 @@ export function findTimeZone(groups: typeof tzGroups): string {
     try {
         const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
         
-        // Check if detected timezone is in our list
         for (const group of groups) {
             for (const zone of group.zones) {
                 if (zone.value === detected) {
@@ -43,10 +41,9 @@ export function findTimeZone(groups: typeof tzGroups): string {
             }
         }
         
-        // Fallback to UTC if not found
         return "UTC";
     } catch (e) {
-        // Fallback to UTC if detection fails
+        
         return "UTC";
     }
 }

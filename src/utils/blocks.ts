@@ -1,4 +1,3 @@
-// Block utilities (extracted from index.ts)
 
 export interface Block {
   id: string;
@@ -37,7 +36,6 @@ export function getBlockLabel(block: any, locale: string = "en"): string {
     }
   }
 
-  // Convert key to readable format
   return (
     block.key
       ?.replace(/_/g, " ")
@@ -54,7 +52,7 @@ export function formatBlockValue(block: any): string {
     case "BOOLEAN":
       return block.value ? "Yes" : "No";
     case "NUMBER":
-      // Handle date/datetime variants
+      
       if (
         block.properties?.variant === "DATE" ||
         block.properties?.variant === "DATE_TIME"
@@ -109,26 +107,22 @@ export function extractBlockValues(blocks: any[]): Record<string, any> {
   return values;
 }
 
-// Extract localized text value from a block, handling multilingual content
 export function getBlockTextValue(block: any, locale: string = "en"): string {
   if (!block || !block.value || block.value.length === 0) return "";
 
   const firstValue = block.value[0];
 
-  // Handle multilingual object
   if (typeof firstValue === "object" && firstValue !== null) {
-    // Try specified locale first, then 'en', then first available language
+    
     if (firstValue[locale]) return firstValue[locale];
     if (firstValue.en) return firstValue.en;
     const values = Object.values(firstValue);
     return String(values[0] || "");
   }
 
-  // Handle simple string
   return String(firstValue);
 }
 
-// Legacy functions for backward compatibility
 export const getBlockValue = (entry: any, blockKey: string) => {
   if (!entry || !entry.blocks) return null;
 
@@ -152,7 +146,6 @@ export const getBlockValues = (entry: any, blockKey: string) => {
 function unwrapBlock(block: any, locale: string) {
   if (!block?.type || block.value === undefined) return block;
 
-  // Nested objects / lists → recurse for every child
   if (block.type === "BLOCK") {
     return block.value.map((obj: Record<string, any>) => {
       const parsed: Record<string, any> = {};
@@ -190,15 +183,14 @@ export const getBlockObjectValues = (
     return [];
   }
 
-  const values = getBlockValues(entry, blockKey); // top‑level list
+  const values = getBlockValues(entry, blockKey); 
 
-  // Handle null/undefined values - return empty array
   if (!values || !Array.isArray(values)) {
     return [];
   }
 
   const parsed = values.map((obj: Record<string, any>) => {
-    // Handle case where obj.value might be missing
+    
     if (!obj || !obj.value || !Array.isArray(obj.value)) {
       return {};
     }
@@ -224,7 +216,7 @@ export const getBlockFromArray = (
     return {};
   }
 
-  const values = getBlockValues(entry, blockKey); // top‑level list
+  const values = getBlockValues(entry, blockKey); 
 
   if (!values || !Array.isArray(values)) {
     return {};
@@ -245,7 +237,7 @@ export const getImageUrl = (imageBlock: any, isBlock = true) => {
   ) {
     const mediaValue = imageBlock.value[0];
     if (mediaValue && mediaValue.mimeType) {
-      // Handle media with resolutions structure
+      
       if (
         mediaValue.resolutions &&
         mediaValue.resolutions.original &&
@@ -254,7 +246,6 @@ export const getImageUrl = (imageBlock: any, isBlock = true) => {
         return mediaValue.resolutions.original.url;
       }
 
-      // Handle direct URL on media
       if (mediaValue.url) {
         return mediaValue.url;
       }

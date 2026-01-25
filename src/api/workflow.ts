@@ -44,7 +44,7 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
 
 		async getWorkflows(params?: GetWorkflowsParams, options?: RequestOptions) {
 			const businessId = params?.businessId || apiConfig.businessId;
-			// Don't pass businessId in query params since it's in the URL path
+			
 			const { businessId: _, ...queryParams } = params || {};
 			return apiConfig.httpClient.get(`/v1/businesses/${businessId}/workflows`, {
 				...options,
@@ -52,10 +52,6 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
 			});
 		},
 
-		/**
-		 * Trigger a workflow execution via webhook
-		 * No authentication required - the secret in the URL validates the request
-		 */
 		async triggerWorkflow(params: TriggerWorkflowParams, options?: RequestOptions) {
 			const { secret, ...input } = params;
 			return apiConfig.httpClient.post(`/v1/workflows/trigger/${secret}`, input, options);
