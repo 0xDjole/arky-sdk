@@ -852,3 +852,12 @@ export interface UpdateBusinessEventParams {
   eventId: string;
   payload: import('./index').BusinessEventAction;
 }
+
+export interface ConnectStripeParams {
+  businessId: string;
+  code: string;
+}
+
+export interface DisconnectStripeParams {
+  businessId: string;
+}

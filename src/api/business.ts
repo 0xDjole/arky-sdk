@@ -18,6 +18,8 @@ import type {
   ProcessRefundParams,
   GetBusinessEventsParams,
   UpdateBusinessEventParams,
+  ConnectStripeParams,
+  DisconnectStripeParams,
   RequestOptions,
 } from "../types/api";
 
@@ -197,6 +199,28 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.put(
         `/v1/businesses/${apiConfig.businessId}/events/${params.eventId}`,
         { payload: params.payload },
+        options
+      );
+    },
+
+    async connectStripe(
+      params: ConnectStripeParams,
+      options?: RequestOptions
+    ) {
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${params.businessId}/stripe/connect`,
+        { code: params.code },
+        options
+      );
+    },
+
+    async disconnectStripe(
+      params: DisconnectStripeParams,
+      options?: RequestOptions
+    ) {
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${params.businessId}/stripe/disconnect`,
+        {},
         options
       );
     },

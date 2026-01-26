@@ -61,7 +61,7 @@ export type {
   GetCountriesResponse,
 } from "./api/location";
 
-export const SDK_VERSION = "0.4.14";
+export const SDK_VERSION = "0.4.15";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -98,6 +98,7 @@ import { createLocationApi } from "./api/location";
 import { createNetworkApi } from "./api/network";
 import { createWorkflowApi } from "./api/workflow";
 import { createAudienceApi } from "./api/audience";
+import { createPlatformApi } from "./api/platform";
 import {
   getImageUrl,
   getBlockValue,
@@ -170,6 +171,7 @@ export async function createArkySDK(
     media: createMediaApi(apiConfig),
     notification: createNotificationApi(apiConfig),
     promoCode: createPromoCodeApi(apiConfig),
+    platform: createPlatformApi(apiConfig),
     cms: createCmsApi(apiConfig),
     eshop: createEshopApi(apiConfig),
     reservation: createReservationApi(apiConfig),
