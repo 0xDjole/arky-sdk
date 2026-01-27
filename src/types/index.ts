@@ -245,19 +245,11 @@ export type BlockType =
 
 export type AddressType = "SHIPPING" | "BILLING";
 
-export interface EmailBlockProperties {
-	minValues?: number;
-	maxValues?: number;
-}
+export interface EmailBlockProperties {}
 
-export interface PhoneBlockProperties {
-	minValues?: number;
-	maxValues?: number;
-}
+export interface PhoneBlockProperties {}
 
 export interface AddressBlockProperties {
-	minValues?: number;
-	maxValues?: number;
 	addressType: AddressType;
 }
 
@@ -273,19 +265,19 @@ export interface GeoLocationValue {
 export interface EmailBlock extends Block {
 	type: "EMAIL";
 	properties: EmailBlockProperties;
-	value: string[];
+	value: string | null;
 }
 
 export interface PhoneBlock extends Block {
 	type: "PHONE";
 	properties: PhoneBlockProperties;
-	value: string[];
+	value: string | null;
 }
 
 export interface AddressBlock extends Block {
 	type: "ADDRESS";
 	properties: AddressBlockProperties;
-	value: GeoLocationValue[];
+	value: GeoLocationValue | null;
 }
 
 export type Access = 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';

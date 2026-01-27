@@ -102,9 +102,7 @@ import { createPlatformApi } from "./api/platform";
 import {
   getImageUrl,
   getBlockValue,
-  getBlockValues,
   getBlockLabel,
-  getBlockTextValue,
   getBlockObjectValues,
   getBlockFromArray,
   formatBlockValue,
@@ -218,13 +216,11 @@ export async function createArkySDK(
     extractBlockValues,
 
     utils: {
-      
+
       getImageUrl: (imageBlock: any, isBlock = true) =>
         getImageUrl(imageBlock, isBlock),
       getBlockValue,
-      getBlockValues,
       getBlockLabel,
-      getBlockTextValue,
       getBlockObjectValues,
       getBlockFromArray,
       formatBlockValue,

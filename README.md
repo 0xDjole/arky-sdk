@@ -291,10 +291,8 @@ The SDK includes helpful utilities accessible via `arky.utils`:
 // Get image URL from block
 const url = arky.utils.getImageUrl(imageBlock)
 
-// Get block values
+// Get block value
 const value = arky.utils.getBlockValue(entry, 'title')
-const values = arky.utils.getBlockValues(entry, 'gallery')
-const text = arky.utils.getBlockTextValue(block, 'en')
 
 // Format blocks
 const formatted = arky.utils.formatBlockValue(block)
