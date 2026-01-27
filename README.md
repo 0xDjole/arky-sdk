@@ -310,9 +310,6 @@ const payment = arky.utils.formatPayment(paymentObject)
 // Format prices from array
 const formatted = arky.utils.formatPrice(prices) // "$9.99"
 const amount = arky.utils.getPriceAmount(prices, 'US')
-
-// Currency
-const symbol = arky.utils.getCurrencySymbol('USD') // "$"
 ```
 
 ### Text Utilities

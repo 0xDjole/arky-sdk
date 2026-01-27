@@ -61,7 +61,7 @@ export type {
   GetCountriesResponse,
 } from "./api/location";
 
-export const SDK_VERSION = "0.4.22";
+export const SDK_VERSION = "0.4.25";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -116,8 +116,9 @@ import {
   getPriceAmount,
   formatPayment,
   formatMinor,
+  getCurrencySymbol,
+  getCurrencyName,
 } from "./utils/price";
-import { formatCurrency, getCurrencySymbol, getCurrencyName, getCurrenciesCache, setCurrenciesCache, type CurrencyInfo } from "./utils/currency";
 import { validatePhoneNumber } from "./utils/validation";
 import { tzGroups, findTimeZone } from "./utils/timezone";
 import { slugify, humanize, categorify, formatDate } from "./utils/text";
@@ -138,7 +139,6 @@ export async function createArkySDK(
   config: HttpClientConfig & {
     market: string;
     locale?: string;
-    fetchFullConfig?: boolean;  // If true, fetch currencies for admin dropdowns
   }
 ) {
   const locale = config.locale || "en";
@@ -161,19 +161,15 @@ export async function createArkySDK(
   const platformApi = createPlatformApi(apiConfig);
 
   if (typeof window !== "undefined") {
+    // Fetch business config for analytics
     businessApi.getBusiness({}).then(({ data: business }) => {
       if (business?.config?.analytics?.measurementId) {
         injectGA4Script(business.config.analytics.measurementId);
       }
     }).catch(() => {});
 
-    if (config.fetchFullConfig) {
-      platformApi.getConfig({ params: { currencies: true } }).then(platformConfig => {
-        if (platformConfig.currencies) {
-          setCurrenciesCache(platformConfig.currencies);
-        }
-      }).catch(() => {});
-    }
+    // Fetch platform config for Stripe keys
+    platformApi.getConfig().catch(() => {});
   }
 
   const sdk = {
@@ -239,11 +235,8 @@ export async function createArkySDK(
       getPriceAmount: (prices: any[]) => getPriceAmount(prices, apiConfig.market),
       formatPayment,
       formatMinor,
-      formatCurrency,
       getCurrencySymbol,
       getCurrencyName,
-      getCurrenciesCache,
-
       validatePhoneNumber,
 
       tzGroups,
@@ -276,5 +269,3 @@ export async function createArkySDK(
 }
 
 export type { HttpClientConfig } from "./services/createHttpClient";
-export type { CurrencyInfo } from "./utils/currency";
-export { formatCurrency, getCurrencySymbol, getCurrencyName, getCurrenciesCache } from "./utils/currency";

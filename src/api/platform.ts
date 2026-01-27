@@ -1,11 +1,9 @@
 import type { ApiConfig } from '../index';
 import type { RequestOptions } from '../types/api';
-import type { CurrencyInfo } from '../utils/currency';
 
 export interface PlatformConfig {
 	stripePublicKey: string;
 	stripeConnectClientId: string;
-	currencies?: CurrencyInfo[];
 }
 
 let cachedConfig: PlatformConfig | null = null;
@@ -21,6 +19,10 @@ export const createPlatformApi = (apiConfig: ApiConfig) => {
 
 		getConfigCache(): PlatformConfig | null {
 			return cachedConfig;
+		},
+
+		async getCurrencies(options?: RequestOptions): Promise<string[]> {
+			return apiConfig.httpClient.get('/v1/platform/currencies', options);
 		},
 	};
 };

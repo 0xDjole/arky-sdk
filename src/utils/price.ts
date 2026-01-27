@@ -1,16 +1,58 @@
 import type { Payment, Price } from '../types';
-import { formatCurrency } from './currency';
 
-export function convertToMajor(minorAmount: number): number {
-    return minorAmount / 100;
+function formatCurrency(amount: number, currencyCode: string, locale: string = 'en'): string {
+    return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: currencyCode.toUpperCase(),
+    }).format(amount);
 }
 
-export function convertToMinor(majorAmount: number): number {
-    return Math.round(majorAmount * 100);
+function getMinorUnits(currency: string): number {
+    try {
+        const formatter = new Intl.NumberFormat('en', {
+            style: 'currency',
+            currency: currency.toUpperCase(),
+        });
+        const parts = formatter.formatToParts(1.11);
+        const fractionPart = parts.find(p => p.type === 'fraction');
+        return fractionPart?.value.length ?? 2;
+    } catch {
+        return 2; // Default fallback
+    }
+}
+
+export function convertToMajor(minorAmount: number, currency: string): number {
+    const units = getMinorUnits(currency);
+    return minorAmount / Math.pow(10, units);
+}
+
+export function convertToMinor(majorAmount: number, currency: string): number {
+    const units = getMinorUnits(currency);
+    return Math.round(majorAmount * Math.pow(10, units));
+}
+
+export function getCurrencySymbol(currency: string): string {
+    try {
+        return new Intl.NumberFormat('en', {
+            style: 'currency',
+            currency: currency.toUpperCase(),
+            currencyDisplay: 'narrowSymbol'
+        }).formatToParts(0).find(p => p.type === 'currency')?.value || currency.toUpperCase();
+    } catch {
+        return currency.toUpperCase();
+    }
+}
+
+export function getCurrencyName(currency: string): string {
+    try {
+        return new Intl.DisplayNames(['en'], { type: 'currency' }).of(currency.toUpperCase()) || currency.toUpperCase();
+    } catch {
+        return currency.toUpperCase();
+    }
 }
 
 export function formatMinor(amountMinor: number, currency: string): string {
-    return formatCurrency(convertToMajor(amountMinor), currency);
+    return formatCurrency(convertToMajor(amountMinor, currency), currency);
 }
 
 export function formatPayment(payment: Payment): string {
