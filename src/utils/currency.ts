@@ -1,91 +1,66 @@
 
-export function getCurrencySymbol(currency: string): string {
-    const currencySymbols: Record<string, string> = {
-        USD: '$',
-        EUR: '€',
-        GBP: '£',
-        CAD: 'C$',
-        AUD: 'A$',
-        JPY: '¥',
-        CHF: 'CHF',
-        SEK: 'kr',
-        NOK: 'kr',
-        DKK: 'kr',
-        PLN: 'zł',
-        CZK: 'Kč',
-        HUF: 'Ft',
-        RON: 'lei',
-        BGN: 'лв',
-        HRK: 'kn',
-        RSD: 'дин',
-        BAM: 'KM',
-        MKD: 'ден',
-        ALL: 'L',
-        TRY: '₺',
-        RUB: '₽',
-        UAH: '₴',
-        BYN: 'Br',
-        CNY: '¥',
-        INR: '₹',
-        KRW: '₩',
-        THB: '฿',
-        VND: '₫',
-        SGD: 'S$',
-        MYR: 'RM',
-        IDR: 'Rp',
-        PHP: '₱',
-        BRL: 'R$',
-        ARS: '$',
-        CLP: '$',
-        COP: '$',
-        PEN: 'S/',
-        MXN: '$',
-        ZAR: 'R',
-        EGP: 'E£',
-        NGN: '₦',
-        KES: 'KSh',
-        GHS: '₵',
-        MAD: 'DH',
-        TND: 'د.ت',
-        DZD: 'د.ج',
-        LYD: 'ل.د',
-        AED: 'د.إ',
-        SAR: 'ر.س',
-        QAR: 'ر.ق',
-        KWD: 'د.ك',
-        BHD: 'ب.د',
-        OMR: 'ر.ع',
-        JOD: 'د.أ',
-        LBP: 'ل.ل',
-        SYP: 'ل.س',
-        IQD: 'ع.د',
-        IRR: '﷼',
-        AFN: '؋',
-        PKR: '₨',
-        LKR: '₨',
-        NPR: '₨',
-        BDT: '৳',
-        MMK: 'K',
-        LAK: '₭',
-        KHR: '៛',
-        MNT: '₮',
-        KZT: '₸',
-        UZS: 'лв',
-        KGS: 'лв',
-        TJS: 'SM',
-        TMT: 'T',
-        AZN: '₼',
-        GEL: '₾',
-        AMD: '֏',
-        BYR: 'p.',
-        MDL: 'L'
-    };
-
-    return currencySymbols[currency.toUpperCase()] || currency;
+/**
+ * Currency information returned from the config endpoint
+ */
+export interface CurrencyInfo {
+    code: string;      // "usd"
+    symbol: string;    // "$"
+    name: string;      // "US Dollar"
 }
 
-export const SYMBOL_AFTER_CURRENCIES = ['SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'BGN', 'HRK'];
+/**
+ * Cached currencies fetched from config endpoint
+ */
+let cachedCurrencies: CurrencyInfo[] | null = null;
+
+/**
+ * Set the cached currencies (called by SDK when config is fetched)
+ */
+export function setCurrenciesCache(currencies: CurrencyInfo[]): void {
+    cachedCurrencies = currencies;
+}
+
+/**
+ * Get the cached currencies
+ */
+export function getCurrenciesCache(): CurrencyInfo[] | null {
+    return cachedCurrencies;
+}
+
+/**
+ * Get the symbol for a currency code using browser Intl API.
+ * Works without any server fetch.
+ */
+export function getCurrencySymbol(currencyCode: string): string {
+    if (!currencyCode) return '';
+    try {
+        const parts = new Intl.NumberFormat('en', {
+            style: 'currency',
+            currency: currencyCode.toUpperCase(),
+            currencyDisplay: 'narrowSymbol'
+        }).formatToParts(0);
+        const symbolPart = parts.find(p => p.type === 'currency');
+        return symbolPart?.value || currencyCode.toUpperCase();
+    } catch {
+        return currencyCode.toUpperCase();
+    }
+}
+
+/**
+ * Get the name for a currency code using browser Intl API.
+ */
+export function getCurrencyName(currencyCode: string): string {
+    if (!currencyCode) return '';
+    try {
+        const displayNames = new Intl.DisplayNames(['en'], { type: 'currency' });
+        return displayNames.of(currencyCode.toUpperCase()) || currencyCode.toUpperCase();
+    } catch {
+        return currencyCode.toUpperCase();
+    }
+}
+
+export const SYMBOL_AFTER_CURRENCIES = ['sek', 'nok', 'dkk', 'pln', 'czk', 'huf', 'ron', 'bgn', 'hrk'];
 
 export function isSymbolAfterCurrency(currency: string): boolean {
-    return SYMBOL_AFTER_CURRENCIES.includes(currency.toUpperCase());
+    return SYMBOL_AFTER_CURRENCIES.includes(currency.toLowerCase());
 }

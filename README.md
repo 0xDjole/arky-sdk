@@ -69,9 +69,8 @@ const { items: products } = await arky.eshop.getProducts({
 // Get product details (like arky.io/products/guitar)
 const product = await arky.eshop.getProduct({ id: 'prod_123' });
 
-// Get price for user's market
-const price = arky.utils.getMarketPrice(product.variants[0].prices, 'US');
-console.log(`${arky.utils.formatMinor(price.amount, price.currency)}`); // "$29.99"
+// Format price (uses currency from price object)
+const formatted = arky.utils.formatPrice(product.variants[0].prices); // "$29.99"
 ```
 
 ### 3. Shop & Checkout
@@ -308,8 +307,8 @@ const forSubmit = arky.utils.prepareBlocksForSubmission(blocks)
 const formatted = arky.utils.formatMinor(999, 'usd') // "$9.99"
 const payment = arky.utils.formatPayment(paymentObject)
 
-// Get market prices
-const price = arky.utils.getMarketPrice(prices, 'US', markets)
+// Format prices from array
+const formatted = arky.utils.formatPrice(prices) // "$9.99"
 const amount = arky.utils.getPriceAmount(prices, 'US')
 
 // Currency

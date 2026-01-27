@@ -75,6 +75,7 @@ export interface Quote {
 export type PriceType = 'recurring' | 'one_time';
 
 export interface Price {
+	currency: string;
 	market: string;
 	amount: number;
 	compareAt?: number;

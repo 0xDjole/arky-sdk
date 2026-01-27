@@ -2,14 +2,6 @@
 import type { Payment, PaymentMethodType, Price } from '../types';
 import { getCurrencySymbol, isSymbolAfterCurrency } from './currency';
 
-const MARKET_CURRENCIES = {
-    'US': 'USD',
-    'EU': 'EUR',
-    'UK': 'GBP',
-    'CA': 'CAD',
-    'AU': 'AUD'
-} as const;
-
 export function convertToMajor(minorAmount: number): number {
     return (minorAmount ?? 0) / 100;
 }
@@ -18,19 +10,17 @@ export function convertToMinor(majorAmount: number): number {
     return Math.round((majorAmount ?? 0) * 100);
 }
 
-export function getCurrencyFromMarket(marketId: string): string {
-    return MARKET_CURRENCIES[marketId as keyof typeof MARKET_CURRENCIES] || 'USD';
-}
-
 export function formatCurrencyAmount(
     amount: number,
-    currency: string,
+    currency: string | undefined,
     options: {
         showSymbols?: boolean;
         decimalPlaces?: number;
         customSymbol?: string;
     } = {}
 ): string {
+    if (!currency) return '';
+
     const { showSymbols = true, decimalPlaces = 2, customSymbol } = options;
     const roundedAmount = amount.toFixed(decimalPlaces);
 
@@ -41,15 +31,15 @@ export function formatCurrencyAmount(
     const symbol = customSymbol || getCurrencySymbol(currency);
 
     if (isSymbolAfterCurrency(currency)) {
-        return `${roundedAmount} ${symbol}`;
+        return `${roundedAmount} ${symbol ?? currency}`;
     }
 
-    return `${symbol}${roundedAmount}`;
+    return `${symbol ?? currency}${roundedAmount}`;
 }
 
 export function formatMinor(
     amountMinor: number,
-    currency: string,
+    currency: string | undefined,
     options: {
         showSymbols?: boolean;
         decimalPlaces?: number;
@@ -68,7 +58,7 @@ export function formatPayment(
         showBreakdown?: boolean;
     } = {}
 ): string {
-    if (!payment) return '';
+    if (!payment || !payment.currency) return '';
 
     const { showSymbols = true, decimalPlaces = 2, showBreakdown = false } = options;
 
@@ -89,15 +79,13 @@ export function formatPayment(
     return formatMinor(payment.total, payment.currency, { showSymbols, decimalPlaces });
 }
 
-export function getMarketPrice(
+export function formatPrice(
     prices: Price[],
-    marketId: string,
-    businessMarkets?: any[],
     options: {
         showSymbols?: boolean;
         decimalPlaces?: number;
         showCompareAt?: boolean;
-        fallbackMarket?: string;
+        marketId?: string;
     } = {}
 ): string {
     if (!prices || prices.length === 0) return '';
@@ -106,45 +94,27 @@ export function getMarketPrice(
         showSymbols = true,
         decimalPlaces = 2,
         showCompareAt = true,
-        fallbackMarket,
+        marketId,
     } = options;
 
-    let price = prices.find(p => p.market === marketId);
-
-    if (!price && fallbackMarket) {
-        price = prices.find(p => p.market === fallbackMarket);
-    }
+    // Find price by market if specified, otherwise use first
+    let price = marketId ? prices.find(p => p.market === marketId) : undefined;
     if (!price) {
         price = prices[0];
     }
 
-    if (!price) return '';
+    if (!price || !price.currency) return '';
 
-    let currency: string;
-    let symbol: string;
+    const symbol = getCurrencySymbol(price.currency);
 
-    if (businessMarkets) {
-        const marketData = businessMarkets.find(m => m.id === price.market || m.code === price.market);
-        if (marketData?.currency) {
-            currency = marketData.currency;
-            symbol = getCurrencySymbol(currency);
-        } else {
-            currency = getCurrencyFromMarket(price.market);
-            symbol = getCurrencySymbol(currency);
-        }
-    } else {
-        currency = getCurrencyFromMarket(price.market);
-        symbol = getCurrencySymbol(currency);
-    }
-
-    const formattedPrice = formatMinor(price.amount ?? 0, currency, {
+    const formattedPrice = formatMinor(price.amount ?? 0, price.currency, {
         showSymbols,
         decimalPlaces,
         customSymbol: symbol
     });
 
     if (showCompareAt && price.compareAt && price.compareAt > (price.amount ?? 0)) {
-        const formattedCompareAt = formatMinor(price.compareAt, currency, {
+        const formattedCompareAt = formatMinor(price.compareAt, price.currency, {
             showSymbols,
             decimalPlaces,
             customSymbol: symbol

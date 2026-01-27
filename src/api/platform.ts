@@ -1,15 +1,30 @@
 import type { ApiConfig } from '../index';
 import type { RequestOptions } from '../types/api';
+import type { CurrencyInfo } from '../utils/currency';
 
 export interface PlatformConfig {
 	stripePublicKey: string;
 	stripeConnectClientId: string;
+	currencies?: CurrencyInfo[];  // Optional - only returned when ?currencies=true
 }
+
+let cachedConfig: PlatformConfig | null = null;
 
 export const createPlatformApi = (apiConfig: ApiConfig) => {
 	return {
 		async getConfig(options?: RequestOptions): Promise<PlatformConfig> {
-			return apiConfig.httpClient.get('/v1/platform/config', options);
+			if (cachedConfig) return cachedConfig;
+			const config = await apiConfig.httpClient.get('/v1/platform/config', options);
+			cachedConfig = config;
+			return config;
+		},
+
+		getConfigCache(): PlatformConfig | null {
+			return cachedConfig;
+		},
+
+		setConfigCache(config: PlatformConfig): void {
+			cachedConfig = config;
 		}
 	};
 };

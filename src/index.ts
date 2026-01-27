@@ -61,7 +61,7 @@ export type {
   GetCountriesResponse,
 } from "./api/location";
 
-export const SDK_VERSION = "0.4.15";
+export const SDK_VERSION = "0.4.20";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -112,13 +112,13 @@ import {
   extractBlockValues,
 } from "./utils/blocks";
 import {
-  getMarketPrice,
+  formatPrice,
   getPriceAmount,
   formatPayment,
   formatMinor,
   createPaymentForCheckout,
 } from "./utils/price";
-import { getCurrencySymbol } from "./utils/currency";
+import { getCurrencySymbol, getCurrencyName, getCurrenciesCache, setCurrenciesCache, type CurrencyInfo } from "./utils/currency";
 import { validatePhoneNumber } from "./utils/validation";
 import { tzGroups, findTimeZone } from "./utils/timezone";
 import { slugify, humanize, categorify, formatDate } from "./utils/text";
@@ -136,7 +136,11 @@ import {
 import { injectGA4Script, track } from "./utils/analytics";
 
 export async function createArkySDK(
-  config: HttpClientConfig & { market: string; locale?: string }
+  config: HttpClientConfig & {
+    market: string;
+    locale?: string;
+    fetchFullConfig?: boolean;  // If true, fetch currencies for admin dropdowns
+  }
 ) {
   const locale = config.locale || "en";
 
@@ -155,6 +159,7 @@ export async function createArkySDK(
   const accountApi = createAccountApi(apiConfig);
   const authApi = createAuthApi(apiConfig);
   const businessApi = createBusinessApi(apiConfig);
+  const platformApi = createPlatformApi(apiConfig);
 
   if (typeof window !== "undefined") {
     businessApi.getBusiness({}).then(({ data: business }) => {
@@ -162,6 +167,18 @@ export async function createArkySDK(
         injectGA4Script(business.config.analytics.measurementId);
       }
     }).catch(() => {});
+
+    // Auto-fetch platform config on init (browser only)
+    // NOTE: Currencies are NOT fetched by default - use Intl API for symbol/name
+    // Pass fetchFullConfig: true to fetch currencies (for admin dropdowns)
+    const configParams = config.fetchFullConfig ? { params: { currencies: true } } : undefined;
+    platformApi.getConfig(configParams).then(platformConfig => {
+      if (platformConfig.currencies) {
+        setCurrenciesCache(platformConfig.currencies);
+      }
+    }).catch(() => {
+      // Silent fail - config will be fetched on demand
+    });
   }
 
   const sdk = {
@@ -171,7 +188,7 @@ export async function createArkySDK(
     media: createMediaApi(apiConfig),
     notification: createNotificationApi(apiConfig),
     promoCode: createPromoCodeApi(apiConfig),
-    platform: createPlatformApi(apiConfig),
+    platform: platformApi,
     cms: createCmsApi(apiConfig),
     eshop: createEshopApi(apiConfig),
     reservation: createReservationApi(apiConfig),
@@ -223,13 +240,18 @@ export async function createArkySDK(
       prepareBlocksForSubmission,
       extractBlockValues,
 
-      getMarketPrice,
-      getPriceAmount,
+      formatPrice: (prices: any[], options: { showSymbols?: boolean; decimalPlaces?: number; showCompareAt?: boolean } = {}) =>
+        formatPrice(prices, { ...options, marketId: apiConfig.market }),
+      getPriceAmount: (prices: any[], fallbackMarket?: string) =>
+        getPriceAmount(prices, apiConfig.market, fallbackMarket),
       formatPayment,
       formatMinor,
       createPaymentForCheckout,
 
       getCurrencySymbol,
+      getCurrencyName,
+      getCurrenciesCache,
+      setCurrenciesCache,
 
       validatePhoneNumber,
 
@@ -252,9 +274,16 @@ export async function createArkySDK(
 
       track,
     },
+
+    // Platform config helpers
+    getPlatformConfig: () => platformApi.getConfigCache(),
+    getStripePublicKey: () => platformApi.getConfigCache()?.stripePublicKey,
+    getStripeConnectClientId: () => platformApi.getConfigCache()?.stripeConnectClientId,
   };
 
   return sdk;
 }
 
 export type { HttpClientConfig } from "./services/createHttpClient";
+export type { CurrencyInfo } from "./utils/currency";
+export { getCurrencySymbol, getCurrencyName, getCurrenciesCache, setCurrenciesCache } from "./utils/currency";
