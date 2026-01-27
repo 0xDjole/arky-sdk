@@ -5,7 +5,7 @@ import type { CurrencyInfo } from '../utils/currency';
 export interface PlatformConfig {
 	stripePublicKey: string;
 	stripeConnectClientId: string;
-	currencies?: CurrencyInfo[];  // Optional - only returned when ?currencies=true
+	currencies?: CurrencyInfo[];
 }
 
 let cachedConfig: PlatformConfig | null = null;
@@ -22,9 +22,5 @@ export const createPlatformApi = (apiConfig: ApiConfig) => {
 		getConfigCache(): PlatformConfig | null {
 			return cachedConfig;
 		},
-
-		setConfigCache(config: PlatformConfig): void {
-			cachedConfig = config;
-		}
 	};
 };

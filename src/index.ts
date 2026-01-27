@@ -61,7 +61,7 @@ export type {
   GetCountriesResponse,
 } from "./api/location";
 
-export const SDK_VERSION = "0.4.20";
+export const SDK_VERSION = "0.4.22";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -116,9 +116,8 @@ import {
   getPriceAmount,
   formatPayment,
   formatMinor,
-  createPaymentForCheckout,
 } from "./utils/price";
-import { getCurrencySymbol, getCurrencyName, getCurrenciesCache, setCurrenciesCache, type CurrencyInfo } from "./utils/currency";
+import { formatCurrency, getCurrencySymbol, getCurrencyName, getCurrenciesCache, setCurrenciesCache, type CurrencyInfo } from "./utils/currency";
 import { validatePhoneNumber } from "./utils/validation";
 import { tzGroups, findTimeZone } from "./utils/timezone";
 import { slugify, humanize, categorify, formatDate } from "./utils/text";
@@ -168,17 +167,13 @@ export async function createArkySDK(
       }
     }).catch(() => {});
 
-    // Auto-fetch platform config on init (browser only)
-    // NOTE: Currencies are NOT fetched by default - use Intl API for symbol/name
-    // Pass fetchFullConfig: true to fetch currencies (for admin dropdowns)
-    const configParams = config.fetchFullConfig ? { params: { currencies: true } } : undefined;
-    platformApi.getConfig(configParams).then(platformConfig => {
-      if (platformConfig.currencies) {
-        setCurrenciesCache(platformConfig.currencies);
-      }
-    }).catch(() => {
-      // Silent fail - config will be fetched on demand
-    });
+    if (config.fetchFullConfig) {
+      platformApi.getConfig({ params: { currencies: true } }).then(platformConfig => {
+        if (platformConfig.currencies) {
+          setCurrenciesCache(platformConfig.currencies);
+        }
+      }).catch(() => {});
+    }
   }
 
   const sdk = {
@@ -240,18 +235,14 @@ export async function createArkySDK(
       prepareBlocksForSubmission,
       extractBlockValues,
 
-      formatPrice: (prices: any[], options: { showSymbols?: boolean; decimalPlaces?: number; showCompareAt?: boolean } = {}) =>
-        formatPrice(prices, { ...options, marketId: apiConfig.market }),
-      getPriceAmount: (prices: any[], fallbackMarket?: string) =>
-        getPriceAmount(prices, apiConfig.market, fallbackMarket),
+      formatPrice: (prices: any[]) => formatPrice(prices, apiConfig.market),
+      getPriceAmount: (prices: any[]) => getPriceAmount(prices, apiConfig.market),
       formatPayment,
       formatMinor,
-      createPaymentForCheckout,
-
+      formatCurrency,
       getCurrencySymbol,
       getCurrencyName,
       getCurrenciesCache,
-      setCurrenciesCache,
 
       validatePhoneNumber,
 
@@ -286,4 +277,4 @@ export async function createArkySDK(
 
 export type { HttpClientConfig } from "./services/createHttpClient";
 export type { CurrencyInfo } from "./utils/currency";
-export { getCurrencySymbol, getCurrencyName, getCurrenciesCache, setCurrenciesCache } from "./utils/currency";
+export { formatCurrency, getCurrencySymbol, getCurrencyName, getCurrenciesCache } from "./utils/currency";
