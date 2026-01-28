@@ -61,7 +61,7 @@ export type {
   GetCountriesResponse,
 } from "./api/location";
 
-export const SDK_VERSION = "0.4.25";
+export const SDK_VERSION = "0.4.31";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -102,6 +102,8 @@ import { createPlatformApi } from "./api/platform";
 import {
   getImageUrl,
   getBlockValue,
+  getBlockTextValue,
+  getBlockValues,
   getBlockLabel,
   getBlockObjectValues,
   getBlockFromArray,
@@ -220,6 +222,8 @@ export async function createArkySDK(
       getImageUrl: (imageBlock: any, isBlock = true) =>
         getImageUrl(imageBlock, isBlock),
       getBlockValue,
+      getBlockTextValue,
+      getBlockValues,
       getBlockLabel,
       getBlockObjectValues,
       getBlockFromArray,

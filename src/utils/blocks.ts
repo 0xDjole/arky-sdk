@@ -21,9 +21,10 @@ export interface CollectionEntry {
 
 export function getBlockLabel(block: any, locale: string = "en"): string {
   if (!block) return "";
-  if (typeof block.properties?.label === "string") return block.properties.label;
-  if (typeof block.properties?.label === "object") return block.properties.label[locale];
-  return block.key?.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
+  const label = block.properties?.label;
+  if (typeof label === "string") return label;
+  if (label && typeof label === "object") return label[locale] ?? label["en"] ?? "";
+  return block.key?.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase()) ?? "";
 }
 
 export function formatBlockValue(block: any): string {
@@ -72,6 +73,34 @@ export function extractBlockValues(blocks: any[]): Record<string, any> {
 export const getBlockValue = (entry: any, blockKey: string) => {
   const block = entry?.blocks?.find((f: any) => f.key === blockKey);
   return block?.value ?? null;
+};
+
+export const getBlockTextValue = (block: any, locale: string = "en"): string => {
+  if (!block || block.value === null || block.value === undefined) return "";
+
+  // For LOCALIZED_TEXT and MARKDOWN, value is { en: "...", bs: "..." }
+  if (block.type === "LOCALIZED_TEXT" || block.type === "MARKDOWN") {
+    if (typeof block.value === "object" && block.value !== null) {
+      return block.value[locale] ?? block.value["en"] ?? "";
+    }
+  }
+
+  // For TEXT and other simple types, value is a string
+  if (typeof block.value === "string") return block.value;
+
+  return String(block.value ?? "");
+};
+
+export const getBlockValues = (entry: any, blockKey: string) => {
+  const block = entry?.blocks?.find((f: any) => f.key === blockKey);
+  if (!block) return [];
+
+  // For BLOCK type, value is an array of child blocks
+  if (block.type === "BLOCK" && Array.isArray(block.value)) {
+    return block.value;
+  }
+
+  return [];
 };
 
 function unwrapBlock(block: any, locale: string) {
