@@ -82,12 +82,26 @@ export interface Price {
 	type: PriceType;
 }
 
+/**
+ * Unified Location type used for addresses, shipping, and geo locations.
+ * All fields are optional to support various use cases.
+ */
 export interface Location {
-	country?: string | null;
-	address?: string | null;
+	// Identity/Contact
+	name?: string | null;
+	company?: string | null;
+	email?: string | null;
+	phone?: string | null;
+
+	// Address
+	street1?: string | null;
+	street2?: string | null;
 	city?: string | null;
 	state?: string | null;
 	postalCode?: string | null;
+	country?: string | null;
+
+	// Geo
 	coordinates?: { lat: number; lon: number } | null;
 }
 
@@ -268,14 +282,8 @@ export interface AddressBlockProperties {
 	addressType: AddressType;
 }
 
-export interface GeoLocationValue {
-	country?: string | null;
-	address?: string | null;
-	city?: string | null;
-	state?: string | null;
-	postalCode?: string | null;
-	coordinates?: { lat: number; lon: number } | null;
-}
+/** @deprecated Use Location instead */
+export type GeoLocationValue = Location;
 
 export interface EmailBlock extends Block {
 	type: "EMAIL";
@@ -292,7 +300,7 @@ export interface PhoneBlock extends Block {
 export interface AddressBlock extends Block {
 	type: "ADDRESS";
 	properties: AddressBlockProperties;
-	value: GeoLocationValue | null;
+	value: Location | null;
 }
 
 export type Access = 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';

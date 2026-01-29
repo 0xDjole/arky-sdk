@@ -61,7 +61,7 @@ export type {
   GetCountriesResponse,
 } from "./api/location";
 
-export const SDK_VERSION = "0.4.31";
+export const SDK_VERSION = "0.4.34";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -134,6 +134,13 @@ import {
   nameToKey,
 } from "./utils/keyValidation";
 import { injectGA4Script, track } from "./utils/analytics";
+import {
+  getAvailableStock,
+  getReservedStock,
+  hasStock,
+  getInventoryAt,
+  getFirstAvailableFCId,
+} from "./utils/inventory";
 
 export async function createArkySDK(
   config: HttpClientConfig & {
@@ -257,6 +264,12 @@ export async function createArkySDK(
       nameToKey,
 
       track,
+
+      getAvailableStock,
+      getReservedStock,
+      hasStock,
+      getInventoryAt,
+      getFirstAvailableFCId,
     },
 
     // Platform config helpers
