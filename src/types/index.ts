@@ -143,10 +143,24 @@ export interface ShippingMethod {
 	name: Record<string, string>;
 	taxable: boolean;
 	etaText: string;
-	pickupLocation?: Location;
+	fulfillmentCenterId?: string;
 	amount: number;
 	freeAbove?: number;
 	weightTiers?: ShippingWeightTier[];
+}
+
+export interface FulfillmentCenter {
+	id: string;
+	key: string;
+	name: Record<string, string>;
+	location: Location;
+	isPickupLocation: boolean;
+}
+
+export interface InventoryLevel {
+	fulfillmentCenterId: string;
+	available: number;
+	reserved: number;
 }
 
 export type ZoneScope = "ALL" | "ORDER" | "RESERVATION";
@@ -183,6 +197,7 @@ export interface BusinessConfig {
 	languages: Language[];
 	markets: Market[];
 	zones: Zone[];
+	fulfillmentCenters: FulfillmentCenter[];
 	buildHooks: string[];
 	webhooks: any[];
 	paymentProvider?: PaymentProviderConfig;

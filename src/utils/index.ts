@@ -12,3 +12,11 @@ export {
   convertToMajor,
   convertToMinor,
 } from "./price";
+
+export {
+  getAvailableStock,
+  getReservedStock,
+  hasStock,
+  getInventoryAt,
+  getFirstAvailableFCId,
+} from "./inventory";
