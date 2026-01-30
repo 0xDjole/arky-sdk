@@ -33,15 +33,15 @@ export function formatBlockValue(block: any): string {
   const value = block.value;
 
   switch (block.type) {
-    case "BOOLEAN":
+    case "boolean":
       return value ? "Yes" : "No";
-    case "NUMBER":
+    case "number":
       if (block.properties?.variant === "DATE" || block.properties?.variant === "DATE_TIME") {
         return new Date(value).toLocaleDateString();
       }
       return String(value);
-    case "RELATIONSHIP_ENTRY":
-    case "RELATIONSHIP_MEDIA":
+    case "relationship_entry":
+    case "relationship_media":
       if (value && typeof value === 'object') {
         return value.mimeType ? (value.name || value.id) : (value.title || value.name || value.id);
       }
@@ -56,7 +56,7 @@ export function prepareBlocksForSubmission(formData: any, blockTypes?: Record<st
     .filter((key) => formData[key] !== null && formData[key] !== undefined)
     .map((key) => ({
       key,
-      value: blockTypes?.[key] === 'BLOCK' && !Array.isArray(formData[key])
+      value: blockTypes?.[key] === 'block' && !Array.isArray(formData[key])
         ? [formData[key]]
         : formData[key],
     }));
@@ -78,8 +78,8 @@ export const getBlockValue = (entry: any, blockKey: string) => {
 export const getBlockTextValue = (block: any, locale: string = "en"): string => {
   if (!block || block.value === null || block.value === undefined) return "";
 
-  // For LOCALIZED_TEXT and MARKDOWN, value is { en: "...", bs: "..." }
-  if (block.type === "LOCALIZED_TEXT" || block.type === "MARKDOWN") {
+  // For localized_text and markdown, value is { en: "...", bs: "..." }
+  if (block.type === "localized_text" || block.type === "markdown") {
     if (typeof block.value === "object" && block.value !== null) {
       return block.value[locale] ?? block.value["en"] ?? "";
     }
@@ -95,8 +95,8 @@ export const getBlockValues = (entry: any, blockKey: string) => {
   const block = entry?.blocks?.find((f: any) => f.key === blockKey);
   if (!block) return [];
 
-  // For BLOCK type, value is an array of child blocks
-  if (block.type === "BLOCK" && Array.isArray(block.value)) {
+  // For block type, value is an array of child blocks
+  if (block.type === "block" && Array.isArray(block.value)) {
     return block.value;
   }
 
@@ -106,7 +106,7 @@ export const getBlockValues = (entry: any, blockKey: string) => {
 function unwrapBlock(block: any, locale: string) {
   if (!block?.type || block.value === undefined) return block;
 
-  if (block.type === "BLOCK") {
+  if (block.type === "block") {
     return block.value.map((obj: Record<string, any>) => {
       const parsed: Record<string, any> = {};
       for (const [k, v] of Object.entries(obj)) {
@@ -116,11 +116,11 @@ function unwrapBlock(block: any, locale: string) {
     });
   }
 
-  if (block.type === "TEXT_FILTER" || block.type === "NUMBER_FILTER") {
+  if (block.type === "text_filter" || block.type === "number_filter") {
     return block.value;
   }
 
-  if (block.type === "LOCALIZED_TEXT" || block.type === "MARKDOWN") {
+  if (block.type === "localized_text" || block.type === "markdown") {
     return block.value?.[locale];
   }
 
@@ -129,7 +129,7 @@ function unwrapBlock(block: any, locale: string) {
 
 export const getBlockObjectValues = (entry: any, blockKey: string, locale = "en") => {
   const block = entry?.blocks?.find((f: any) => f.key === blockKey);
-  if (!block || block.type !== "BLOCK" || !Array.isArray(block.value)) return [];
+  if (!block || block.type !== "block" || !Array.isArray(block.value)) return [];
 
   return block.value.map((obj: Record<string, any>) => {
     if (!obj?.value || !Array.isArray(obj.value)) return {};
@@ -144,7 +144,7 @@ export const getBlockFromArray = (entry: any, blockKey: string, locale = "en") =
   const block = entry?.blocks?.find((f: any) => f.key === blockKey);
   if (!block) return {};
 
-  if (block.type === "BLOCK" && Array.isArray(block.value)) {
+  if (block.type === "block" && Array.isArray(block.value)) {
     return block.value.reduce((acc: any, current: any) => {
       acc[current.key] = unwrapBlock(current, locale);
       return acc;
@@ -157,7 +157,7 @@ export const getBlockFromArray = (entry: any, blockKey: string, locale = "en") =
 export const getImageUrl = (imageBlock: any, isBlock = true) => {
   if (!imageBlock) return null;
 
-  if (imageBlock.type === "RELATIONSHIP_MEDIA") {
+  if (imageBlock.type === "relationship_media") {
     const mediaValue = imageBlock.value;
     return mediaValue?.resolutions?.original?.url || mediaValue?.url || null;
   }

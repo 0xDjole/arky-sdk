@@ -43,8 +43,8 @@ export interface Payment {
 }
 
 export enum PaymentMethodType {
-	Cash = "CASH",
-	CreditCard = "CREDIT_CARD",
+	Cash = "cash",
+	CreditCard = "credit_card",
 	// Free REMOVED - handled with logic: if total == 0, skip payment
 	// NOTE: Apple Pay and Google Pay are NOT separate PaymentMethodTypes
 	// They are handled automatically by Stripe's Payment Element
@@ -83,7 +83,7 @@ export interface Price {
 }
 
 /** Interval period for subscription pricing */
-export type IntervalPeriod = 'MONTH' | 'YEAR';
+export type IntervalPeriod = 'month' | 'year';
 
 /** Subscription interval configuration */
 export interface SubscriptionInterval {
@@ -158,7 +158,7 @@ export interface ReservationCartItem {
  * Note: Wallet payments are controlled via Stripe Dashboard and detected automatically
  */
 export interface CardProvider {
-	type: "STRIPE";
+	type: "stripe";
 	accountId: string;
 	currency: string;
 }
@@ -166,14 +166,14 @@ export interface CardProvider {
 
 /** @deprecated Use CardProvider instead */
 export interface PaymentProviderConfig {
-	type: "STRIPE";
+	type: "stripe";
 	publicKey: string;
 	secretKey: string;
 	webhookSecret: string;
 }
 
 export interface AnalyticsConfig {
-	type: "GA4";
+	type: "google_analytics4";
 	measurementId: string;
 }
 
@@ -213,7 +213,7 @@ export interface InventoryLevel {
 	reserved: number;
 }
 
-export type ZoneScope = "ALL" | "ORDER" | "RESERVATION";
+export type ZoneScope = "all" | "order" | "reservation";
 
 export interface Zone {
 	id: string;
@@ -231,7 +231,7 @@ export interface Zone {
 export interface Market {
 	id: string;
 	currency: string;
-	taxMode: "EXCLUSIVE" | "INCLUSIVE";
+	taxMode: "exclusive" | "inclusive";
 }
 
 export interface Language {
@@ -297,19 +297,19 @@ export interface Block {
 }
 
 export type BlockType =
-	| "TEXT"
-	| "LOCALIZED_TEXT"
-	| "NUMBER"
-	| "BOOLEAN"
-	| "BLOCK"
-	| "RELATIONSHIP_ENTRY"
-	| "RELATIONSHIP_MEDIA"
-	| "MARKDOWN"
-	| "EMAIL"
-	| "PHONE"
-	| "ADDRESS";
+	| "text"
+	| "localized_text"
+	| "number"
+	| "boolean"
+	| "block"
+	| "relationship_entry"
+	| "relationship_media"
+	| "markdown"
+	| "email"
+	| "phone"
+	| "address";
 
-export type AddressType = "SHIPPING" | "BILLING";
+export type AddressType = "shipping" | "billing";
 
 export interface EmailBlockProperties {}
 
@@ -323,24 +323,24 @@ export interface AddressBlockProperties {
 export type GeoLocationValue = Location;
 
 export interface EmailBlock extends Block {
-	type: "EMAIL";
+	type: "email";
 	properties: EmailBlockProperties;
 	value: string | null;
 }
 
 export interface PhoneBlock extends Block {
-	type: "PHONE";
+	type: "phone";
 	properties: PhoneBlockProperties;
 	value: string | null;
 }
 
 export interface AddressBlock extends Block {
-	type: "ADDRESS";
+	type: "address";
 	properties: AddressBlockProperties;
 	value: Location | null;
 }
 
-export type Access = 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
+export type Access = 'public' | 'private';
 
 export interface MediaResolution {
 	id: string;
@@ -411,13 +411,13 @@ export interface ReservationStoreState {
 	};
 }
 
-export type Status = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
+export type Status = 'draft' | 'active' | 'archived';
 
-export type OrderStatus = 'CREATED' | 'PENDING' | 'AUTHORIZED' | 'CONFIRMED' | 'SHIPPED' | 'COMPLETED' | 'CANCELLED' | 'FAILED';
+export type OrderStatus = 'created' | 'pending' | 'authorized' | 'confirmed' | 'shipped' | 'completed' | 'cancelled' | 'failed';
 
-export type ReservationStatus = 'CREATED' | 'PENDING' | 'AUTHORIZED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'FAILED';
+export type ReservationStatus = 'created' | 'pending' | 'authorized' | 'confirmed' | 'completed' | 'cancelled' | 'failed';
 
-export type SubscriptionStatus = 'PENDING' | 'ACTIVE' | 'CANCELLATION_SCHEDULED' | 'CANCELLED' | 'EXPIRED';
+export type SubscriptionStatus = 'pending' | 'active' | 'cancellation_scheduled' | 'cancelled' | 'expired';
 
 export interface ReservationItem {
 	id: string;
@@ -575,9 +575,9 @@ export interface WorkflowWaitNode {
 	duration: string;
 }
 
-export type WorkflowHttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+export type WorkflowHttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
-export type ExecutionStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'WAITING';
+export type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'waiting';
 
 export interface WorkflowExecution {
 	id: string;

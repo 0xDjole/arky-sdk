@@ -87,8 +87,8 @@ export interface CreateNodeParams {
   parentId?: string | null;
   blocks?: any[];
   slug?: Record<string, string>;
-  access?: 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
-  writeAccess?: 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
+  access?: 'public' | 'private';
+  writeAccess?: 'public' | 'private';
   status?: string;
   
   emailSubject?: Record<string, string>;
@@ -101,8 +101,8 @@ export interface UpdateNodeParams {
   parentId?: string | null;
   blocks?: any[];
   slug?: Record<string, string>;
-  access?: 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
-  writeAccess?: 'PUBLIC' | 'AUTHENTICATED' | 'PRIVATE';
+  access?: 'public' | 'private';
+  writeAccess?: 'public' | 'private';
   status?: string;
   
   emailSubject?: Record<string, string>;
@@ -295,10 +295,10 @@ export interface TrackEmailOpenParams {
 
 export interface GetDeliveryStatsParams {}
 
-export type BusinessRole = 'Admin' | 'Owner' | 'Super';
+export type BusinessRole = 'admin' | 'owner' | 'super';
 
 export interface Discount {
-  type: "ITEMS_PERCENTAGE" | "ITEMS_FIXED" | "SHIPPING_PERCENTAGE";
+  type: "items_percentage" | "items_fixed" | "shipping_percentage";
   marketId: string;
   bps?: number;
   amount?: number;
@@ -306,12 +306,12 @@ export interface Discount {
 
 export interface Condition {
   type:
-    | "PRODUCTS"
-    | "SERVICES"
-    | "MIN_ORDER_AMOUNT"
-    | "DATE_RANGE"
-    | "MAX_USES"
-    | "MAX_USES_PER_USER";
+    | "products"
+    | "services"
+    | "min_order_amount"
+    | "date_range"
+    | "max_uses"
+    | "max_uses_per_user";
   value: string[] | number | { start?: number; end?: number };
 }
 
