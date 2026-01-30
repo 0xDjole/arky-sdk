@@ -45,7 +45,9 @@ export interface Payment {
 export enum PaymentMethodType {
 	Cash = "CASH",
 	CreditCard = "CREDIT_CARD",
-	Free = "FREE",
+	// Free REMOVED - handled with logic: if total == 0, skip payment
+	// NOTE: Apple Pay and Google Pay are NOT separate PaymentMethodTypes
+	// They are handled automatically by Stripe's Payment Element
 }
 
 export interface PromoCodeValidation {
@@ -151,6 +153,18 @@ export interface ReservationCartItem {
 	blocks: any[];
 }
 
+/** Card payment processor - business picks ONE
+ * Handles: Credit/Debit Cards, Apple Pay, Google Pay
+ * Note: Wallet payments are controlled via Stripe Dashboard and detected automatically
+ */
+export interface CardProvider {
+	type: "STRIPE";
+	accountId: string;
+	currency: string;
+}
+
+
+/** @deprecated Use CardProvider instead */
 export interface PaymentProviderConfig {
 	type: "STRIPE";
 	publicKey: string;
@@ -236,7 +250,8 @@ export interface BusinessConfig {
 	fulfillmentCenters: FulfillmentCenter[];
 	buildHooks: string[];
 	webhooks: any[];
-	paymentProvider?: PaymentProviderConfig;
+	/** Card payment processor (handles cards + Apple Pay + Google Pay) */
+	cardProvider?: CardProvider;
 	aiProvider?: any;
 	analytics?: AnalyticsConfig;
 	emails: BusinessEmails;
@@ -391,7 +406,7 @@ export interface ReservationStoreState {
 	items: ReservationCartItem[];
 	allowedPaymentMethods: string[];
 	paymentConfig: {
-		provider: PaymentProviderConfig | null;
+		provider: CardProvider | null;
 		enabled: boolean;
 	};
 }
