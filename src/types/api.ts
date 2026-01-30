@@ -1,4 +1,4 @@
-import type { Block, Location, WorkflowNode, WorkflowEdge, Status } from "./index";
+import type { Block, Location, WorkflowNode, WorkflowEdge, Status, SubscriptionPrice } from "./index";
 
 export interface RequestOptions<T = any> {
   headers?: Record<string, string>;
@@ -773,22 +773,11 @@ export interface TriggerWorkflowParams {
   [key: string]: any;
 }
 
-export type PriceType = 'recurring' | 'one_time';
-
-export interface AudiencePrice {
-  market: string;
-  amount: number;
-  compareAt?: number;
-  providerPriceId?: string;
-  freeThreshold?: number;
-  type: PriceType;
-}
-
 export interface CreateAudienceParams {
   key: string;
   name: string;
   nodeIds?: string[];
-  prices?: AudiencePrice[];
+  prices?: SubscriptionPrice[];
 }
 
 export interface UpdateAudienceParams {
@@ -796,7 +785,7 @@ export interface UpdateAudienceParams {
   key?: string;
   name?: string;
   nodeIds?: string[];
-  prices?: AudiencePrice[];
+  prices?: SubscriptionPrice[];
   status?: Status;
 }
 

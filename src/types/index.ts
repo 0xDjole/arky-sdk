@@ -72,14 +72,36 @@ export interface Quote {
 	expiresAt?: number;
 }
 
-export type PriceType = 'recurring' | 'one_time';
-
+/** Price for products and services (market-based, no provider fields) */
 export interface Price {
 	currency: string;
 	market: string;
 	amount: number;
 	compareAt?: number;
-	type: PriceType;
+}
+
+/** Interval period for subscription pricing */
+export type IntervalPeriod = 'MONTH' | 'YEAR';
+
+/** Subscription interval configuration */
+export interface SubscriptionInterval {
+	period: IntervalPeriod;
+	count: number;
+}
+
+/** Price provider configuration (e.g., Stripe) */
+export interface PriceProvider {
+	type: string;
+	id: string;
+}
+
+/** Price for audiences/subscriptions (provider-based with interval) */
+export interface SubscriptionPrice {
+	currency: string;
+	amount: number;
+	compareAt?: number;
+	interval?: SubscriptionInterval;
+	providers: PriceProvider[];
 }
 
 /**
@@ -564,7 +586,7 @@ export interface Audience {
 	key: string;
 	access: Access;
 	nodeIds: string[];
-	prices: Price[];
+	prices: SubscriptionPrice[];
 	status: Status;
 }
 
