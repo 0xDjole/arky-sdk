@@ -255,6 +255,8 @@ export interface BusinessConfig {
 	aiProvider?: any;
 	analytics?: AnalyticsConfig;
 	emails: BusinessEmails;
+	/** Configured shipping providers (e.g., Shippo) */
+	shippingProviders?: BusinessShippingProvider[];
 }
 
 export interface Subscription {
@@ -642,3 +644,84 @@ export interface BusinessEvent {
 	actor: string;
 	createdAt: number;
 }
+
+// Shipping Types
+
+/** Shipping status for order fulfillment tracking */
+export type ShippingStatus =
+	| 'pending'
+	| 'label_created'
+	| 'in_transit'
+	| 'out_for_delivery'
+	| 'delivered'
+	| 'failed'
+	| 'returned';
+
+/** Order shipping information */
+export interface OrderShipping {
+	carrier: string;
+	service: string;
+	trackingNumber?: string | null;
+	trackingUrl?: string | null;
+	labelUrl?: string | null;
+	status: ShippingStatus;
+}
+
+/** Shipping rate from provider */
+export interface ShippingRate {
+	id: string;
+	provider: string;
+	carrier: string;
+	service: string;
+	displayName: string;
+	amount: number;
+	currency: string;
+	estimatedDays?: number | null;
+}
+
+/** Shipping address for rate requests */
+export interface ShippingAddress {
+	name: string;
+	company?: string | null;
+	street1: string;
+	street2?: string | null;
+	city: string;
+	state: string;
+	postalCode: string;
+	country: string;
+	phone?: string | null;
+	email?: string | null;
+}
+
+/** Parcel dimensions for shipping */
+export interface Parcel {
+	length: number;
+	width: number;
+	height: number;
+	weight: number;
+	distanceUnit: 'in' | 'cm';
+	massUnit: 'oz' | 'lb' | 'g' | 'kg';
+}
+
+/** Result from purchasing a shipping label */
+export interface PurchaseLabelResult {
+	trackingNumber: string;
+	trackingUrl?: string | null;
+	labelUrl: string;
+	carrier: string;
+	service: string;
+}
+
+/** Shipping provider status */
+export type ShippingProviderStatus = 'active' | 'inactive';
+
+/** Shippo shipping provider configuration */
+export interface ShippingProviderShippo {
+	type: 'shippo';
+	id: string;
+	status: ShippingProviderStatus;
+	apiToken: string;
+}
+
+/** Business shipping provider (union type for extensibility) */
+export type BusinessShippingProvider = ShippingProviderShippo;

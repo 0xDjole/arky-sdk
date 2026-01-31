@@ -850,3 +850,20 @@ export interface ConnectStripeParams {
 export interface DisconnectStripeParams {
   businessId: string;
 }
+
+// Shipping API Parameters
+
+/** Get shipping rates for an order */
+export interface GetShippingRatesParams {
+  orderId: string;
+  parcel: import('./index').Parcel;
+  fromAddress: import('./index').ShippingAddress;  // selected fulfillment center
+}
+
+/** Purchase a shipping label */
+export interface PurchaseLabelParams {
+  orderId: string;
+  rateId: string;
+  carrier: string;
+  service: string;
+}

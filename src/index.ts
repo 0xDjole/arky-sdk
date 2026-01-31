@@ -43,6 +43,16 @@ export type {
   AudienceSubscriber,
   BusinessEvent,
   BusinessEventAction,
+  // Shipping types
+  ShippingStatus,
+  OrderShipping,
+  ShippingRate,
+  ShippingAddress,
+  Parcel,
+  PurchaseLabelResult,
+  ShippingProviderStatus,
+  ShippingProviderShippo,
+  BusinessShippingProvider,
 } from "./types";
 
 export { PaymentMethodType } from "./types";
@@ -53,6 +63,9 @@ export type {
   DayAvailability,
   Slot,
   SystemTemplateKey,
+  // Shipping API params
+  GetShippingRatesParams,
+  PurchaseLabelParams,
 } from "./types/api";
 
 export type {
@@ -99,6 +112,7 @@ import { createNetworkApi } from "./api/network";
 import { createWorkflowApi } from "./api/workflow";
 import { createAudienceApi } from "./api/audience";
 import { createPlatformApi } from "./api/platform";
+import { createShippingApi } from "./api/shipping";
 import {
   getImageUrl,
   getBlockValue,
@@ -195,6 +209,7 @@ export async function createArkySDK(
     network: createNetworkApi(apiConfig),
     workflow: createWorkflowApi(apiConfig),
     audience: createAudienceApi(apiConfig),
+    shipping: createShippingApi(apiConfig),
 
     analytics: {
       track,
