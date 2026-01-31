@@ -202,7 +202,6 @@ export interface ShippingMethod {
 export interface FulfillmentCenter {
 	id: string;
 	key: string;
-	name: Record<string, string>;
 	location: Location;
 	isPickupLocation: boolean;
 }
@@ -657,7 +656,7 @@ export type ShippingStatus =
 	| 'failed'
 	| 'returned';
 
-/** Order shipping information */
+/** Order shipping information (legacy - kept for backward compatibility) */
 export interface OrderShipping {
 	carrier: string;
 	service: string;
@@ -665,6 +664,21 @@ export interface OrderShipping {
 	trackingUrl?: string | null;
 	labelUrl?: string | null;
 	status: ShippingStatus;
+}
+
+/** Individual shipment for an order (ships from one fulfillment center) */
+export interface Shipment {
+	id: string;
+	fulfillmentCenterId: string;
+	itemIds: string[];              // OrderItem IDs in this shipment
+	carrier?: string | null;        // Set when label purchased
+	service?: string | null;
+	trackingNumber?: string | null;
+	trackingUrl?: string | null;
+	labelUrl?: string | null;
+	status: ShippingStatus;
+	createdAt: number;
+	updatedAt: number;
 }
 
 /** Shipping rate from provider */

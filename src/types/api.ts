@@ -481,6 +481,7 @@ export interface UpdateOrderParams {
   items: any[];
   address?: any | null;
   payment?: any | null;
+  shipments?: import('./index').Shipment[];
 }
 
 export interface CreateOrderParams {
@@ -853,16 +854,19 @@ export interface DisconnectStripeParams {
 
 // Shipping API Parameters
 
-/** Get shipping rates for an order */
+/** Get shipping rates for a shipment */
 export interface GetShippingRatesParams {
   orderId: string;
+  shippingProviderId: string;
+  fromAddress: import('./index').ShippingAddress;
+  toAddress: import('./index').ShippingAddress;
   parcel: import('./index').Parcel;
-  fromAddress: import('./index').ShippingAddress;  // selected fulfillment center
 }
 
-/** Purchase a shipping label */
+/** Purchase a shipping label for a shipment */
 export interface PurchaseLabelParams {
   orderId: string;
+  shipmentId: string;
   rateId: string;
   carrier: string;
   service: string;
