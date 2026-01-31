@@ -108,6 +108,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         paymentMethodId: params.paymentMethodId,
         shippingMethodId: params.shippingMethodId,
         promoCode: params.promoCode,
+        location: params.location,
       };
 
       return apiConfig.httpClient.post(
@@ -126,6 +127,8 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         paymentMethodId: params.paymentMethodId,
         shippingMethodId: params.shippingMethodId,
         promoCodeId: params.promoCodeId,
+        shippingAddress: params.shippingAddress,
+        billingAddress: params.billingAddress,
       };
 
       return apiConfig.httpClient.post(

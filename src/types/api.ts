@@ -1,4 +1,4 @@
-import type { Block, Location, WorkflowNode, WorkflowEdge, Status, SubscriptionPrice } from "./index";
+import type { Block, ZoneLocation, WorkflowNode, WorkflowEdge, Status, SubscriptionPrice, Address } from "./index";
 
 export interface RequestOptions<T = any> {
   headers?: Record<string, string>;
@@ -38,6 +38,8 @@ export interface GetQuoteParams {
   shippingMethodId?: string;
   promoCode?: string;
   blocks?: any[];
+  /** Zone location for zone/market resolution */
+  location?: ZoneLocation;
 }
 
 export interface OrderCheckoutParams {
@@ -46,6 +48,10 @@ export interface OrderCheckoutParams {
   blocks?: any[];
   shippingMethodId: string;
   promoCodeId?: string;
+  /** Shipping address for the order */
+  shippingAddress?: Address;
+  /** Billing address (defaults to shipping address if not provided) */
+  billingAddress?: Address;
 }
 
 export interface GetProductsParams {
@@ -205,7 +211,8 @@ export interface ReservationCheckoutParams {
   paymentMethodId?: string;
   blocks?: any[];
   promoCodeId?: string;
-  location?: Location;
+  /** Zone location for zone/market resolution */
+  location?: ZoneLocation;
 }
 
 export interface ReservationQuoteItem {
@@ -220,7 +227,8 @@ export interface GetReservationQuoteParams {
   items: ReservationQuoteItem[];
   paymentMethodId?: string;
   promoCode?: string;
-  location?: Location;
+  /** Zone location for zone/market resolution */
+  location?: ZoneLocation;
 }
 
 export interface TimelinePoint {
@@ -858,8 +866,8 @@ export interface DisconnectStripeParams {
 export interface GetShippingRatesParams {
   orderId: string;
   shippingProviderId: string;
-  fromAddress: import('./index').ShippingAddress;
-  toAddress: import('./index').ShippingAddress;
+  fromAddress: Address;
+  toAddress: Address;
   parcel: import('./index').Parcel;
 }
 

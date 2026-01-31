@@ -107,26 +107,44 @@ export interface SubscriptionPrice {
 }
 
 /**
- * Unified Location type used for addresses, shipping, and geo locations.
- * All fields are optional to support various use cases.
+ * Full address for shipping, billing, and fulfillment centers.
+ * Used for order addresses and shipping labels.
  */
-export interface Location {
-	// Identity/Contact
-	name?: string | null;
+export interface Address {
+	name: string;
 	company?: string | null;
-	email?: string | null;
-	phone?: string | null;
-
-	// Address
-	street1?: string | null;
+	street1: string;
 	street2?: string | null;
-	city?: string | null;
-	state?: string | null;
-	postalCode?: string | null;
-	country?: string | null;
+	city: string;
+	state: string;
+	postalCode: string;
+	country: string;
+	phone?: string | null;
+	email?: string | null;
+}
 
-	// Geo
+/**
+ * Simple geo location for CMS map/location blocks.
+ * Just coordinates and an optional label for display.
+ */
+export interface GeoLocation {
 	coordinates?: { lat: number; lon: number } | null;
+	label?: string | null;
+}
+
+/**
+ * @deprecated Use Address for shipping/billing addresses, GeoLocation for map coordinates
+ */
+export type Location = Address & { coordinates?: { lat: number; lon: number } | null };
+
+/**
+ * Used for zone matching - simplified location with optional fields.
+ */
+export interface ZoneLocation {
+	country?: string | null;
+	state?: string | null;
+	city?: string | null;
+	postalCode?: string | null;
 }
 
 export interface EshopCartItem {
@@ -202,7 +220,8 @@ export interface ShippingMethod {
 export interface FulfillmentCenter {
 	id: string;
 	key: string;
-	location: Location;
+	/** Ship-from address for shipping labels */
+	address: Address;
 	isPickupLocation: boolean;
 }
 
@@ -306,39 +325,17 @@ export type BlockType =
 	| "relationship_entry"
 	| "relationship_media"
 	| "markdown"
-	| "email"
-	| "phone"
-	| "address";
+	| "geo_location";
 
-export type AddressType = "shipping" | "billing";
+export interface GeoLocationBlockProperties {}
 
-export interface EmailBlockProperties {}
+/** @deprecated Use GeoLocation instead */
+export type GeoLocationValue = GeoLocation;
 
-export interface PhoneBlockProperties {}
-
-export interface AddressBlockProperties {
-	addressType: AddressType;
-}
-
-/** @deprecated Use Location instead */
-export type GeoLocationValue = Location;
-
-export interface EmailBlock extends Block {
-	type: "email";
-	properties: EmailBlockProperties;
-	value: string | null;
-}
-
-export interface PhoneBlock extends Block {
-	type: "phone";
-	properties: PhoneBlockProperties;
-	value: string | null;
-}
-
-export interface AddressBlock extends Block {
-	type: "address";
-	properties: AddressBlockProperties;
-	value: Location | null;
+export interface GeoLocationBlock extends Block {
+	type: "geo_location";
+	properties: GeoLocationBlockProperties;
+	value: GeoLocation | null;
 }
 
 export type Access = 'public' | 'private';
@@ -693,19 +690,11 @@ export interface ShippingRate {
 	estimatedDays?: number | null;
 }
 
-/** Shipping address for rate requests */
-export interface ShippingAddress {
-	name: string;
-	company?: string | null;
-	street1: string;
-	street2?: string | null;
-	city: string;
-	state: string;
-	postalCode: string;
-	country: string;
-	phone?: string | null;
-	email?: string | null;
-}
+/**
+ * @deprecated Use Address instead
+ * Shipping address for rate requests
+ */
+export type ShippingAddress = Address;
 
 /** Parcel dimensions for shipping */
 export interface Parcel {

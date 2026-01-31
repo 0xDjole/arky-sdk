@@ -18,7 +18,11 @@ export type {
   ShippingWeightTier,
   Zone,
   Market,
-  Location,
+  // Address types
+  Address,
+  GeoLocation,
+  ZoneLocation,
+  Location, // deprecated - use Address for addresses, GeoLocation for map pins
   Quote,
   PromoCodeValidation,
   PaginatedResponse,
@@ -47,12 +51,14 @@ export type {
   ShippingStatus,
   OrderShipping,
   ShippingRate,
-  ShippingAddress,
+  ShippingAddress, // deprecated - use Address
   Parcel,
   PurchaseLabelResult,
   ShippingProviderStatus,
   ShippingProviderShippo,
   BusinessShippingProvider,
+  // Block types
+  GeoLocationBlock,
 } from "./types";
 
 export { PaymentMethodType } from "./types";
