@@ -15,14 +15,10 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       params: GetShippingRatesParams,
       options?: RequestOptions
     ): Promise<{ rates: ShippingRate[] }> {
+      const { orderId, ...payload } = params;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/orders/${params.orderId}/shipping/rates`,
-        {
-          shippingProviderId: params.shippingProviderId,
-          fromAddress: params.fromAddress,
-          toAddress: params.toAddress,
-          parcel: params.parcel,
-        },
+        `/v1/businesses/${apiConfig.businessId}/orders/${orderId}/shipping/rates`,
+        payload,
         options
       );
     },
@@ -34,14 +30,10 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       params: PurchaseLabelParams,
       options?: RequestOptions
     ): Promise<PurchaseLabelResult> {
+      const { orderId, ...payload } = params;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/orders/${params.orderId}/shipping/purchase`,
-        {
-          shipmentId: params.shipmentId,
-          rateId: params.rateId,
-          carrier: params.carrier,
-          service: params.service,
-        },
+        `/v1/businesses/${apiConfig.businessId}/orders/${orderId}/shipping/purchase`,
+        payload,
         options
       );
     },

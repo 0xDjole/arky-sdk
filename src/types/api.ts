@@ -488,6 +488,7 @@ export interface UpdateOrderParams {
   blocks: any[];
   items: any[];
   address?: any | null;
+  billingAddress?: any | null;
   payment?: any | null;
   shipments?: import('./index').Shipment[];
 }

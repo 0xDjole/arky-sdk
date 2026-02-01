@@ -53,8 +53,8 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
 		},
 
 		async triggerWorkflow(params: TriggerWorkflowParams, options?: RequestOptions) {
-			const { secret, ...input } = params;
-			return apiConfig.httpClient.post(`/v1/workflows/trigger/${secret}`, input, options);
+			const { secret, ...payload } = params;
+			return apiConfig.httpClient.post(`/v1/workflows/trigger/${secret}`, payload, options);
 		}
 	};
 };

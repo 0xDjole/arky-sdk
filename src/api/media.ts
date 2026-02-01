@@ -75,12 +75,12 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
         },
 
         async updateMedia(params: UpdateMediaParams, options?: RequestOptions) {
-            const { mediaId, businessId, ...updateData } = params;
+            const { mediaId, businessId, ...payload } = params;
             const targetBusinessId = businessId || apiConfig.businessId;
 
             return apiConfig.httpClient.put(
                 `/v1/businesses/${targetBusinessId}/media/${mediaId}`,
-                updateData,
+                payload,
                 options
             );
         }

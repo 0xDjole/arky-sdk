@@ -48,16 +48,12 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       params: CreateReservationParams,
       options?: RequestOptions,
     ) {
-      const { businessId, ...rest } = params;
+      const { businessId, ...payload } = params;
       const targetBusinessId = businessId || apiConfig.businessId;
-      const payload = {
-        market: apiConfig.market,
-        ...rest,
-      };
 
       return apiConfig.httpClient.post(
         `/v1/businesses/${targetBusinessId}/reservations`,
-        payload,
+        { market: apiConfig.market, ...payload },
         options,
       );
     },
@@ -78,25 +74,19 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       params?: Partial<ReservationCheckoutParams>,
       options?: RequestOptions,
     ) {
-      const { businessId, ...rest } = params || {};
+      const { businessId, items: paramItems, ...payload } = params || {};
       const targetBusinessId = businessId || apiConfig.businessId;
-      
-      const items = rest?.items || cart.map((s) => ({
+
+      const items = paramItems || cart.map((s) => ({
         serviceId: s.serviceId,
         providerId: s.providerId,
         from: s.from,
         to: s.to,
       }));
 
-      const payload = {
-        market: apiConfig.market,
-        ...rest,
-        items,
-      };
-
       return apiConfig.httpClient.post(
         `/v1/businesses/${targetBusinessId}/reservations/checkout`,
-        payload,
+        { market: apiConfig.market, ...payload, items },
         options,
       );
     },
@@ -131,16 +121,12 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       params: GetReservationQuoteParams,
       options?: RequestOptions,
     ) {
-      const { businessId, ...rest } = params;
+      const { businessId, ...payload } = params;
       const targetBusinessId = businessId || apiConfig.businessId;
-      const payload = {
-        market: apiConfig.market,
-        ...rest,
-      };
 
       return apiConfig.httpClient.post(
         `/v1/businesses/${targetBusinessId}/reservations/quote`,
-        payload,
+        { market: apiConfig.market, ...payload },
         options,
       );
     },
