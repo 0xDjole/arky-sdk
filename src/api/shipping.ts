@@ -1,10 +1,10 @@
 import type { ApiConfig } from "../index";
 import type {
   GetShippingRatesParams,
-  PurchaseLabelParams,
+  ShipParams,
   RequestOptions,
 } from "../types/api";
-import type { ShippingRate, PurchaseLabelResult } from "../types";
+import type { ShippingRate, ShipResult } from "../types";
 
 export const createShippingApi = (apiConfig: ApiConfig) => {
   return {
@@ -24,15 +24,15 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
     },
 
     /**
-     * Purchase a shipping label for a shipment
+     * Ship items: creates shipment + purchases label atomically
      */
-    async purchaseLabel(
-      params: PurchaseLabelParams,
+    async ship(
+      params: ShipParams,
       options?: RequestOptions
-    ): Promise<PurchaseLabelResult> {
+    ): Promise<ShipResult> {
       const { orderId, ...payload } = params;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/orders/${orderId}/shipping/purchase`,
+        `/v1/businesses/${apiConfig.businessId}/orders/${orderId}/ship`,
         payload,
         options
       );

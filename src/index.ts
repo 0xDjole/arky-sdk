@@ -54,6 +54,11 @@ export type {
   ShippingAddress, // deprecated - use Address
   Parcel,
   PurchaseLabelResult,
+  ShipResult,
+  ShipmentLine,
+  Shipment,
+  CustomsItem,
+  CustomsDeclaration,
   ShippingProviderStatus,
   ShippingProviderShippo,
   BusinessShippingProvider,
@@ -71,7 +76,7 @@ export type {
   SystemTemplateKey,
   // Shipping API params
   GetShippingRatesParams,
-  PurchaseLabelParams,
+  ShipParams,
 } from "./types/api";
 
 export type {

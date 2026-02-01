@@ -663,12 +663,18 @@ export interface OrderShipping {
 	status: ShippingStatus;
 }
 
+/** Line item in a shipment with quantity (for partial fulfillment) */
+export interface ShipmentLine {
+	orderItemId: string;
+	quantity: number;
+}
+
 /** Individual shipment for an order (ships from one fulfillment center) */
 export interface Shipment {
 	id: string;
 	fulfillmentCenterId: string;
-	itemIds: string[];              // OrderItem IDs in this shipment
-	carrier?: string | null;        // Set when label purchased
+	lines: ShipmentLine[];           // OrderItem IDs + quantities in this shipment
+	carrier?: string | null;         // Set when label purchased
 	service?: string | null;
 	trackingNumber?: string | null;
 	trackingUrl?: string | null;
@@ -713,6 +719,36 @@ export interface PurchaseLabelResult {
 	labelUrl: string;
 	carrier: string;
 	service: string;
+}
+
+/** Result from ship operation */
+export interface ShipResult {
+	shipmentId: string;
+	trackingNumber: string;
+	trackingUrl?: string | null;
+	labelUrl: string;
+}
+
+/** Individual item in a customs declaration */
+export interface CustomsItem {
+	description: string;
+	quantity: number;
+	netWeight: string;
+	massUnit: string;
+	valueAmount: string;
+	valueCurrency: string;
+	originCountry: string;
+	tariffNumber?: string | null;
+}
+
+/** Customs declaration for international shipments */
+export interface CustomsDeclaration {
+	contentsType: string;              // "MERCHANDISE" | "GIFT" | "SAMPLE" | "DOCUMENTS" | "RETURN"
+	contentsExplanation?: string | null;
+	nonDeliveryOption: string;         // "RETURN" | "ABANDON"
+	certify: boolean;
+	certifySigner: string;
+	items: CustomsItem[];
 }
 
 /** Shipping provider status */
