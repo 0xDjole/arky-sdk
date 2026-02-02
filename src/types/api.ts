@@ -840,15 +840,15 @@ export interface RevokeAudienceSubscriptionParams {
   accountId: string;
 }
 
-export interface GetBusinessEventsParams {
+export interface GetEventsParams {
   entity: string;
   limit?: number;
   cursor?: string;
 }
 
-export interface UpdateBusinessEventParams {
+export interface UpdateEventParams {
   eventId: string;
-  payload: import('./index').BusinessEventAction;
+  event: import('./index').EventAction;
 }
 
 export interface ConnectStripeParams {

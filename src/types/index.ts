@@ -613,30 +613,61 @@ export interface AudienceSubscribeResponse {
 	subscription?: Subscription;
 }
 
-export type BusinessEventAction =
-	
+export type EventAction =
+	// Order events
 	| { action: 'order_created' }
+	| { action: 'order_updated' }
 	| { action: 'order_status_changed'; data: { from: string; to: string } }
-	| { action: 'order_payment_received'; data: { amount: number } }
+	| { action: 'order_payment_received'; data: { amount: number; currency: string } }
 	| { action: 'order_payment_failed'; data: { reason?: string } }
-	| { action: 'order_refunded'; data: { amount: number; reason?: string } }
+	| { action: 'order_refunded'; data: { amount: number; currency: string; reason?: string } }
 	| { action: 'order_shipped'; data: { tracking_url?: string } }
 	| { action: 'order_completed' }
 	| { action: 'order_cancelled'; data: { reason?: string } }
-	
+	// Reservation events
 	| { action: 'reservation_created' }
+	| { action: 'reservation_updated' }
 	| { action: 'reservation_status_changed'; data: { from: string; to: string } }
-	| { action: 'reservation_payment_received'; data: { amount: number } }
+	| { action: 'reservation_payment_received'; data: { amount: number; currency: string } }
 	| { action: 'reservation_payment_failed'; data: { reason?: string } }
-	| { action: 'reservation_refunded'; data: { amount: number; reason?: string } }
+	| { action: 'reservation_refunded'; data: { amount: number; currency: string; reason?: string } }
 	| { action: 'reservation_completed' }
-	| { action: 'reservation_cancelled'; data: { reason?: string } };
+	| { action: 'reservation_cancelled'; data: { reason?: string } }
+	// Product events
+	| { action: 'product_created' }
+	| { action: 'product_updated' }
+	| { action: 'product_deleted' }
+	// Node events
+	| { action: 'node_created' }
+	| { action: 'node_updated' }
+	| { action: 'node_deleted' }
+	// Provider events
+	| { action: 'provider_created' }
+	| { action: 'provider_updated' }
+	| { action: 'provider_deleted' }
+	// Service events
+	| { action: 'service_created' }
+	| { action: 'service_updated' }
+	| { action: 'service_deleted' }
+	// Account events
+	| { action: 'account_created' }
+	| { action: 'account_updated' }
+	| { action: 'account_deleted' }
+	// Media events
+	| { action: 'media_created' }
+	| { action: 'media_deleted' }
+	// Business events
+	| { action: 'business_created' }
+	| { action: 'business_updated' }
+	| { action: 'business_deleted' }
+	// Audience events
+	| { action: 'audience_created' }
+	| { action: 'audience_updated' };
 
-export interface BusinessEvent {
+export interface Event {
 	id: string;
-	businessId: string;
 	entity: string;
-	payload: BusinessEventAction;
+	event: EventAction;
 	actor: string;
 	createdAt: number;
 }

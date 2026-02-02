@@ -45,8 +45,8 @@ export type {
   AudienceAccessResponse,
   AudienceSubscribeResponse,
   AudienceSubscriber,
-  BusinessEvent,
-  BusinessEventAction,
+  Event,
+  EventAction,
   // Shipping types
   ShippingStatus,
   OrderShipping,
