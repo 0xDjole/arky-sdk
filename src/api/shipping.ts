@@ -17,7 +17,7 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
     ): Promise<{ rates: ShippingRate[] }> {
       const { orderId, ...payload } = params;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/orders/${orderId}/shipping/rates`,
+        `/v1/businesses/${apiConfig.businessId}/orders/${orderId}/rates`,
         payload,
         options
       );
