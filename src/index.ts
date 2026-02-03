@@ -124,6 +124,7 @@ import { createWorkflowApi } from "./api/workflow";
 import { createAudienceApi } from "./api/audience";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
+import { createEventsApi } from "./api/events";
 import {
   getImageUrl,
   getBlockValue,
@@ -221,6 +222,7 @@ export async function createArkySDK(
     workflow: createWorkflowApi(apiConfig),
     audience: createAudienceApi(apiConfig),
     shipping: createShippingApi(apiConfig),
+    events: createEventsApi(apiConfig),
 
     analytics: {
       track,

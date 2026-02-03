@@ -16,8 +16,6 @@ import type {
   TestWebhookParams,
   GetBusinessMediaParams2,
   ProcessRefundParams,
-  GetEventsParams,
-  UpdateEventParams,
   ConnectStripeParams,
   DisconnectStripeParams,
   RequestOptions,
@@ -171,34 +169,6 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post(
         `/v1/businesses/${id}/refund`,
         payload,
-        options
-      );
-    },
-
-    async getEvents(
-      params: GetEventsParams,
-      options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/events`,
-        {
-          ...options,
-          params: {
-            entity: params.entity,
-            limit: params.limit,
-            cursor: params.cursor,
-          },
-        }
-      );
-    },
-
-    async updateEvent(
-      params: UpdateEventParams,
-      options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.put(
-        `/v1/businesses/${apiConfig.businessId}/events/${params.eventId}`,
-        { event: params.event },
         options
       );
     },
