@@ -540,12 +540,15 @@ export interface WorkflowEdge {
 export type WorkflowNode =
 	| WorkflowTriggerNode
 	| WorkflowHttpNode
-	| WorkflowIfNode
-	| WorkflowLoopNode;
+	| WorkflowSwitchNode
+	| WorkflowLoopNode
+	| WorkflowMergeNode
+	| WorkflowTransformNode;
 
 export interface WorkflowTriggerNode {
 	type: 'trigger';
 	event?: string;
+	delayMs?: number;
 }
 
 export interface WorkflowHttpNode {
@@ -555,21 +558,60 @@ export interface WorkflowHttpNode {
 	headers?: Record<string, string>;
 	body?: any;
 	timeoutMs?: number;
+	integration?: {
+		id: string;
+		resource: string;
+		operation: string;
+	};
+	delayMs?: number;
+	retries?: number;
+	retryDelayMs?: number;
 }
 
-export interface WorkflowIfNode {
-	type: 'if';
+export interface WorkflowSwitchRule {
 	condition: string;
+}
+
+export interface WorkflowSwitchNode {
+	type: 'switch';
+	rules: WorkflowSwitchRule[];
+	sendToAllMatching?: boolean;
+	delayMs?: number;
 }
 
 export interface WorkflowLoopNode {
 	type: 'loop';
 	array: string;
+	delayMs?: number;
+}
+
+export type MergeMode = 'append' | 'combine_by_key' | 'combine_by_position';
+
+export interface WorkflowMergeNode {
+	type: 'merge';
+	mode?: MergeMode;
+	combineKey?: string;
+	delayMs?: number;
+}
+
+export interface WorkflowTransformNode {
+	type: 'transform';
+	code: string;
+	delayMs?: number;
 }
 
 export type WorkflowHttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
-export type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+export interface NodeExecutionResult {
+	output: any;
+	outputKey: string;
+	startedAt: number;
+	completedAt: number;
+	durationMs: number;
+	error?: string;
+}
 
 export interface WorkflowExecution {
 	id: string;
@@ -577,7 +619,7 @@ export interface WorkflowExecution {
 	businessId: string;
 	status: ExecutionStatus;
 	input: Record<string, any>;
-	nodeOutputs: Record<string, any>;
+	results: Record<string, NodeExecutionResult>;
 	error?: string;
 	scheduledAt: number;
 	startedAt: number;

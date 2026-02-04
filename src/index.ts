@@ -37,10 +37,14 @@ export type {
   WorkflowEdge,
   WorkflowTriggerNode,
   WorkflowHttpNode,
-  WorkflowIfNode,
+  WorkflowSwitchNode,
   WorkflowLoopNode,
-  WorkflowWaitNode,
+  WorkflowMergeNode,
+  WorkflowTransformNode,
   WorkflowHttpMethod,
+  WorkflowExecution,
+  ExecutionStatus,
+  NodeExecutionResult,
   Audience,
   AudienceAccessResponse,
   AudienceSubscribeResponse,
@@ -85,7 +89,7 @@ export type {
   GetCountriesResponse,
 } from "./api/location";
 
-export const SDK_VERSION = "0.4.50";
+export const SDK_VERSION = "0.4.51";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
