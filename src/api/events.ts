@@ -24,5 +24,9 @@ export function createEventsApi(apiConfig: ApiConfig) {
         options
       );
     },
+
+    async getWebhookEvents(options?: RequestOptions): Promise<{ data: string[] }> {
+      return apiConfig.httpClient.get(`/v1/operations/events/metadata`, options);
+    },
   };
 }

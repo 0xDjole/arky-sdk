@@ -85,7 +85,7 @@ export type {
   GetCountriesResponse,
 } from "./api/location";
 
-export const SDK_VERSION = "0.4.34";
+export const SDK_VERSION = "0.4.50";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",

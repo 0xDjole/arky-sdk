@@ -541,8 +541,7 @@ export type WorkflowNode =
 	| WorkflowTriggerNode
 	| WorkflowHttpNode
 	| WorkflowIfNode
-	| WorkflowLoopNode
-	| WorkflowWaitNode;
+	| WorkflowLoopNode;
 
 export interface WorkflowTriggerNode {
 	type: 'trigger';
@@ -568,14 +567,9 @@ export interface WorkflowLoopNode {
 	array: string;
 }
 
-export interface WorkflowWaitNode {
-	type: 'wait';
-	duration: string;
-}
-
 export type WorkflowHttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
-export type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'waiting';
+export type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed';
 
 export interface WorkflowExecution {
 	id: string;
@@ -584,7 +578,6 @@ export interface WorkflowExecution {
 	status: ExecutionStatus;
 	input: Record<string, any>;
 	nodeOutputs: Record<string, any>;
-	currentNode?: string;
 	error?: string;
 	scheduledAt: number;
 	startedAt: number;
@@ -621,9 +614,16 @@ export type EventAction =
 	| { action: 'order_payment_received'; data: { amount: number; currency: string } }
 	| { action: 'order_payment_failed'; data: { reason?: string } }
 	| { action: 'order_refunded'; data: { amount: number; currency: string; reason?: string } }
-	| { action: 'order_shipped'; data: { tracking_url?: string } }
 	| { action: 'order_completed' }
 	| { action: 'order_cancelled'; data: { reason?: string } }
+	// Order shipment events
+	| { action: 'order_shipment_created'; data: { shipment_id: string } }
+	| { action: 'order_shipment_in_transit'; data: { shipment_id: string } }
+	| { action: 'order_shipment_out_for_delivery'; data: { shipment_id: string } }
+	| { action: 'order_shipment_delivered'; data: { shipment_id: string } }
+	| { action: 'order_shipment_failed'; data: { shipment_id: string; reason?: string } }
+	| { action: 'order_shipment_returned'; data: { shipment_id: string } }
+	| { action: 'order_shipment_status_changed'; data: { shipment_id: string; from: string; to: string } }
 	// Reservation events
 	| { action: 'reservation_created' }
 	| { action: 'reservation_updated' }
@@ -662,7 +662,8 @@ export type EventAction =
 	| { action: 'business_deleted' }
 	// Audience events
 	| { action: 'audience_created' }
-	| { action: 'audience_updated' };
+	| { action: 'audience_updated' }
+	| { action: 'audience_deleted' };
 
 export interface Event {
 	id: string;
