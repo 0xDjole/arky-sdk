@@ -44,7 +44,7 @@ export type {
   WorkflowHttpMethod,
   WorkflowExecution,
   ExecutionStatus,
-  NodeExecutionResult,
+  NodeResult,
   Audience,
   AudienceAccessResponse,
   AudienceSubscribeResponse,
@@ -89,7 +89,7 @@ export type {
   GetCountriesResponse,
 } from "./api/location";
 
-export const SDK_VERSION = "0.4.51";
+export const SDK_VERSION = "0.4.70";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",

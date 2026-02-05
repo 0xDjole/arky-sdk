@@ -604,9 +604,9 @@ export type WorkflowHttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
 export type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
-export interface NodeExecutionResult {
+export interface NodeResult {
 	output: any;
-	outputKey: string;
+	route: string;
 	startedAt: number;
 	completedAt: number;
 	durationMs: number;
@@ -619,7 +619,7 @@ export interface WorkflowExecution {
 	businessId: string;
 	status: ExecutionStatus;
 	input: Record<string, any>;
-	results: Record<string, NodeExecutionResult>;
+	results: Record<string, NodeResult>;
 	error?: string;
 	scheduledAt: number;
 	startedAt: number;
