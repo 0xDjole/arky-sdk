@@ -542,7 +542,6 @@ export type WorkflowNode =
 	| WorkflowHttpNode
 	| WorkflowSwitchNode
 	| WorkflowLoopNode
-	| WorkflowMergeNode
 	| WorkflowTransformNode;
 
 export interface WorkflowTriggerNode {
@@ -582,15 +581,6 @@ export interface WorkflowSwitchNode {
 export interface WorkflowLoopNode {
 	type: 'loop';
 	array: string;
-	delayMs?: number;
-}
-
-export type MergeMode = 'append' | 'combine_by_key' | 'combine_by_position';
-
-export interface WorkflowMergeNode {
-	type: 'merge';
-	mode?: MergeMode;
-	combineKey?: string;
 	delayMs?: number;
 }
 
