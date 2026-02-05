@@ -533,7 +533,7 @@ export interface Workflow {
 export interface WorkflowEdge {
 	id: string;
 	source: string;
-	sourceOutput: string;
+	output: string;
 	target: string;
 }
 
@@ -574,7 +574,6 @@ export interface WorkflowSwitchRule {
 export interface WorkflowSwitchNode {
 	type: 'switch';
 	rules: WorkflowSwitchRule[];
-	sendToAllMatching?: boolean;
 	delayMs?: number;
 }
 
