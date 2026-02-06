@@ -516,6 +516,11 @@ export interface Provider {
 	updatedAt: number;
 }
 
+export interface WorkflowConnection {
+	node: string;
+	output: string;
+}
+
 export interface Workflow {
 	id: string;
 	key: string;
@@ -523,19 +528,10 @@ export interface Workflow {
 	secret: string;
 	status: Status;
 	nodes: Record<string, WorkflowNode>;
-	edges: WorkflowEdge[];
-	
+
 	schedule?: string;
 	createdAt: number;
 	updatedAt: number;
-}
-
-export interface WorkflowEdge {
-	id: string;
-	source: string;
-	output: string;
-	target: string;
-	input?: string;
 }
 
 export type WorkflowNode =
@@ -566,6 +562,7 @@ export interface WorkflowHttpNode {
 	delayMs?: number;
 	retries?: number;
 	retryDelayMs?: number;
+	inputs?: WorkflowConnection[];
 }
 
 export interface WorkflowSwitchRule {
@@ -576,18 +573,22 @@ export interface WorkflowSwitchNode {
 	type: 'switch';
 	rules: WorkflowSwitchRule[];
 	delayMs?: number;
+	inputs?: WorkflowConnection[];
 }
 
 export interface WorkflowTransformNode {
 	type: 'transform';
 	code: string;
 	delayMs?: number;
+	inputs?: WorkflowConnection[];
 }
 
 export interface WorkflowLoopNode {
 	type: 'loop';
 	expression: string;
 	delayMs?: number;
+	inputs?: WorkflowConnection[];
+	back?: WorkflowConnection[];
 }
 
 export type WorkflowHttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';

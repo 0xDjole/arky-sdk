@@ -1,4 +1,4 @@
-import type { Block, ZoneLocation, WorkflowNode, WorkflowEdge, Status, SubscriptionPrice, Address } from "./index";
+import type { Block, ZoneLocation, WorkflowNode, Status, SubscriptionPrice, Address } from "./index";
 
 export interface RequestOptions<T = any> {
   headers?: Record<string, string>;
@@ -739,8 +739,7 @@ export interface CreateWorkflowParams {
   key: string;
   status?: Status;
   nodes: Record<string, WorkflowNode>;
-  edges: WorkflowEdge[];
-  
+
   schedule?: string;
 }
 
@@ -749,8 +748,7 @@ export interface UpdateWorkflowParams {
   key: string;
   status?: Status;
   nodes: Record<string, WorkflowNode>;
-  edges: WorkflowEdge[];
-  
+
   schedule?: string;
 }
 
