@@ -535,13 +535,15 @@ export interface WorkflowEdge {
 	source: string;
 	output: string;
 	target: string;
+	input?: string;
 }
 
 export type WorkflowNode =
 	| WorkflowTriggerNode
 	| WorkflowHttpNode
 	| WorkflowSwitchNode
-	| WorkflowTransformNode;
+	| WorkflowTransformNode
+	| WorkflowLoopNode;
 
 export interface WorkflowTriggerNode {
 	type: 'trigger';
@@ -579,6 +581,12 @@ export interface WorkflowSwitchNode {
 export interface WorkflowTransformNode {
 	type: 'transform';
 	code: string;
+	delayMs?: number;
+}
+
+export interface WorkflowLoopNode {
+	type: 'loop';
+	expression: string;
 	delayMs?: number;
 }
 
