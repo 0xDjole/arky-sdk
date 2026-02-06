@@ -541,7 +541,6 @@ export type WorkflowNode =
 	| WorkflowTriggerNode
 	| WorkflowHttpNode
 	| WorkflowSwitchNode
-	| WorkflowLoopNode
 	| WorkflowTransformNode;
 
 export interface WorkflowTriggerNode {
@@ -574,12 +573,6 @@ export interface WorkflowSwitchRule {
 export interface WorkflowSwitchNode {
 	type: 'switch';
 	rules: WorkflowSwitchRule[];
-	delayMs?: number;
-}
-
-export interface WorkflowLoopNode {
-	type: 'loop';
-	array: string;
 	delayMs?: number;
 }
 
