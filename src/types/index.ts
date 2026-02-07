@@ -107,7 +107,7 @@ export interface SubscriptionPrice {
 }
 
 /**
- * Full address for shipping, billing, and fulfillment centers.
+ * Full address for shipping, billing, and locations.
  * Used for order addresses and shipping labels.
  */
 export interface Address {
@@ -132,10 +132,6 @@ export interface GeoLocation {
 	label?: string | null;
 }
 
-/**
- * @deprecated Use Address for shipping/billing addresses, GeoLocation for map coordinates
- */
-export type Location = Address & { coordinates?: { lat: number; lon: number } | null };
 
 /**
  * Used for zone matching - simplified location with optional fields.
@@ -211,13 +207,13 @@ export interface ShippingMethod {
 	name: Record<string, string>;
 	taxable: boolean;
 	etaText: string;
-	fulfillmentCenterId?: string;
+	locationId?: string;
 	amount: number;
 	freeAbove?: number;
 	weightTiers?: ShippingWeightTier[];
 }
 
-export interface FulfillmentCenter {
+export interface Location {
 	id: string;
 	key: string;
 	/** Ship-from address for shipping labels */
@@ -226,7 +222,7 @@ export interface FulfillmentCenter {
 }
 
 export interface InventoryLevel {
-	fulfillmentCenterId: string;
+	locationId: string;
 	available: number;
 	reserved: number;
 }
@@ -265,7 +261,7 @@ export interface BusinessConfig {
 	languages: Language[];
 	markets: Market[];
 	zones: Zone[];
-	fulfillmentCenters: FulfillmentCenter[];
+	locations: Location[];
 	buildHooks: string[];
 	webhooks: any[];
 	/** Card payment processor (handles cards + Apple Pay + Google Pay) */
@@ -735,10 +731,10 @@ export interface ShipmentLine {
 	quantity: number;
 }
 
-/** Individual shipment for an order (ships from one fulfillment center) */
+/** Individual shipment for an order (ships from one location) */
 export interface Shipment {
 	id: string;
-	fulfillmentCenterId: string;
+	locationId: string;
 	lines: ShipmentLine[];           // OrderItem IDs + quantities in this shipment
 	carrier?: string | null;         // Set when label purchased
 	service?: string | null;

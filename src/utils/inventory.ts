@@ -1,11 +1,11 @@
-import type { InventoryLevel, FulfillmentCenter } from '../types';
+import type { InventoryLevel, Location } from '../types';
 
 export interface VariantWithInventory {
   inventory: InventoryLevel[];
 }
 
 /**
- * Get total available stock across all fulfillment centers for a variant
+ * Get total available stock across all locations for a variant
  */
 export function getAvailableStock(variant: VariantWithInventory): number {
   if (!variant?.inventory) return 0;
@@ -13,7 +13,7 @@ export function getAvailableStock(variant: VariantWithInventory): number {
 }
 
 /**
- * Get total reserved stock across all fulfillment centers for a variant
+ * Get total reserved stock across all locations for a variant
  */
 export function getReservedStock(variant: VariantWithInventory): number {
   if (!variant?.inventory) return 0;
@@ -28,23 +28,23 @@ export function hasStock(variant: VariantWithInventory, quantity: number = 1): b
 }
 
 /**
- * Get inventory level at a specific fulfillment center
+ * Get inventory level at a specific location
  */
 export function getInventoryAt(
   variant: VariantWithInventory,
-  fulfillmentCenterId: string
+  locationId: string
 ): InventoryLevel | undefined {
-  return variant?.inventory?.find(inv => inv.fulfillmentCenterId === fulfillmentCenterId);
+  return variant?.inventory?.find(inv => inv.locationId === locationId);
 }
 
 /**
- * Get the first fulfillment center with available stock
- * Returns the fulfillmentCenterId of the first center that has stock
+ * Get the first location with available stock
+ * Returns the locationId of the first location that has stock
  */
 export function getFirstAvailableFCId(
   variant: VariantWithInventory,
   quantity: number = 1
 ): string | undefined {
   const inv = variant?.inventory?.find(i => i.available >= quantity);
-  return inv?.fulfillmentCenterId;
+  return inv?.locationId;
 }

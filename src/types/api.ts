@@ -876,6 +876,6 @@ export interface ShipParams {
   rateId: string;
   carrier: string;
   service: string;
-  fulfillmentCenterId: string;
+  locationId: string;
   lines: import('./index').ShipmentLine[];
 }
