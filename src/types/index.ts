@@ -562,7 +562,7 @@ export interface WorkflowHttpNode {
 	delayMs?: number;
 	retries?: number;
 	retryDelayMs?: number;
-	inputs?: WorkflowConnection[];
+	edges?: WorkflowConnection[];
 }
 
 export interface WorkflowSwitchRule {
@@ -573,22 +573,22 @@ export interface WorkflowSwitchNode {
 	type: 'switch';
 	rules: WorkflowSwitchRule[];
 	delayMs?: number;
-	inputs?: WorkflowConnection[];
+	edges?: WorkflowConnection[];
 }
 
 export interface WorkflowTransformNode {
 	type: 'transform';
 	code: string;
 	delayMs?: number;
-	inputs?: WorkflowConnection[];
+	edges?: WorkflowConnection[];
 }
 
 export interface WorkflowLoopNode {
 	type: 'loop';
 	expression: string;
 	delayMs?: number;
-	inputs?: WorkflowConnection[];
-	back?: WorkflowConnection[];
+	edges?: WorkflowConnection[];
+	backEdges?: WorkflowConnection[];
 }
 
 export type WorkflowHttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
