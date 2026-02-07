@@ -545,6 +545,7 @@ export interface WorkflowTriggerNode {
 	type: 'trigger';
 	event?: string;
 	delayMs?: number;
+	schema?: Block[];
 }
 
 export interface WorkflowHttpNode {
