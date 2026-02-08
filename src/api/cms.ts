@@ -7,7 +7,6 @@ import type {
   GetNodesParams,
   GetNodeChildrenParams,
   GenerateBlocksParams,
-  GetVariableMetadataParams,
   RequestOptions,
 } from "../types/api";
 import {
@@ -111,11 +110,5 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getVariableMetadata(params: GetVariableMetadataParams, options?: RequestOptions) {
-      return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/nodes/types/${params.nodeType}/variables`,
-        options
-      );
-    },
   };
 };

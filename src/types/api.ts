@@ -423,9 +423,6 @@ export interface GenerateBlocksParams {
   [key: string]: any;
 }
 
-export interface GetVariableMetadataParams {
-  nodeType: string;
-}
 
 export interface AccountSubscribeParams {
   target?: string;
