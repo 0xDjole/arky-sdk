@@ -6,6 +6,8 @@ import type {
 	GetWorkflowParams,
 	GetWorkflowsParams,
 	TriggerWorkflowParams,
+	GetWorkflowExecutionsParams,
+	GetWorkflowExecutionParams,
 	RequestOptions
 } from '../types/api';
 
@@ -55,6 +57,26 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
 		async triggerWorkflow(params: TriggerWorkflowParams, options?: RequestOptions) {
 			const { secret, ...payload } = params;
 			return apiConfig.httpClient.post(`/v1/workflows/trigger/${secret}`, payload, options);
+		},
+
+		async getWorkflowExecutions(params: GetWorkflowExecutionsParams, options?: RequestOptions) {
+			const businessId = params.businessId || apiConfig.businessId;
+			const { businessId: _, workflowId, ...queryParams } = params;
+			return apiConfig.httpClient.get(
+				`/v1/businesses/${businessId}/workflows/${workflowId}/executions`,
+				{
+					...options,
+					params: Object.keys(queryParams).length > 0 ? queryParams : undefined
+				}
+			);
+		},
+
+		async getWorkflowExecution(params: GetWorkflowExecutionParams, options?: RequestOptions) {
+			const businessId = params.businessId || apiConfig.businessId;
+			return apiConfig.httpClient.get(
+				`/v1/businesses/${businessId}/workflows/${params.workflowId}/executions/${params.executionId}`,
+				options
+			);
 		}
 	};
 };

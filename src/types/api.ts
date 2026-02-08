@@ -771,10 +771,24 @@ export interface GetWorkflowsParams {
 }
 
 export interface TriggerWorkflowParams {
-  
+
   secret: string;
-  
+
   [key: string]: any;
+}
+
+export interface GetWorkflowExecutionsParams {
+  workflowId: string;
+  businessId?: string;
+  status?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface GetWorkflowExecutionParams {
+  workflowId: string;
+  executionId: string;
+  businessId?: string;
 }
 
 export interface CreateAudienceParams {
