@@ -167,29 +167,16 @@ export interface ReservationCartItem {
 	blocks: any[];
 }
 
-/** Card payment processor - business picks ONE
- * Handles: Credit/Debit Cards, Apple Pay, Google Pay
- * Note: Wallet payments are controlled via Stripe Dashboard and detected automatically
- */
-export interface CardProvider {
-	type: "stripe";
-	accountId: string;
-	currency: string;
-}
+/** Unified business provider — all external service integrations */
+export type Integration =
+	| { type: "stripe"; publishableKey: string; currency: string }
+	| { type: "google"; clientId: string; accountEmail?: string | null; scopes?: string[]; connectedAt?: number }
+	| { type: "shippo"; id: string; status: "active" | "inactive"; apiToken: string }
+	| { type: "deepseek"; apiKey: string; baseUrl: string }
+	| { type: "google_analytics4"; measurementId: string };
 
-
-/** @deprecated Use CardProvider instead */
-export interface PaymentProviderConfig {
-	type: "stripe";
-	publicKey: string;
-	secretKey: string;
-	webhookSecret: string;
-}
-
-export interface AnalyticsConfig {
-	type: "google_analytics4";
-	measurementId: string;
-}
+/** @deprecated Use Integration with type: "stripe" */
+export type CardProvider = Extract<Integration, { type: "stripe" }>;
 
 export interface ShippingWeightTier {
 	upToGrams: number;
@@ -264,13 +251,8 @@ export interface BusinessConfig {
 	locations: Location[];
 	buildHooks: string[];
 	webhooks: any[];
-	/** Card payment processor (handles cards + Apple Pay + Google Pay) */
-	cardProvider?: CardProvider;
-	aiProvider?: any;
-	analytics?: AnalyticsConfig;
+	integrations: Integration[];
 	emails: BusinessEmails;
-	/** Configured shipping providers (e.g., Shippo) */
-	shippingProviders?: BusinessShippingProvider[];
 }
 
 export interface Subscription {
@@ -401,7 +383,7 @@ export interface ReservationStoreState {
 	items: ReservationCartItem[];
 	allowedPaymentMethods: string[];
 	paymentConfig: {
-		provider: CardProvider | null;
+		provider: Extract<Integration, { type: "stripe" }> | null;
 		enabled: boolean;
 	};
 }

@@ -7,13 +7,13 @@ export type {
   ReservationCartItem,
   Business,
   BusinessConfig,
+  Integration,
+  CardProvider,
   Block,
   Price,
   Payment,
   PaymentRefund,
   PaymentMethod,
-  PaymentProviderConfig,
-  AnalyticsConfig,
   ShippingMethod,
   ShippingWeightTier,
   Zone,
@@ -61,9 +61,6 @@ export type {
   Shipment,
   CustomsItem,
   CustomsDeclaration,
-  ShippingProviderStatus,
-  ShippingProviderShippo,
-  BusinessShippingProvider,
   // Block types
   GeoLocationBlock,
 } from "./types";
@@ -198,13 +195,11 @@ export async function createArkySDK(
   if (typeof window !== "undefined") {
     // Fetch business config for analytics
     businessApi.getBusiness({}).then(({ data: business }) => {
-      if (business?.config?.analytics?.measurementId) {
-        injectGA4Script(business.config.analytics.measurementId);
+      const ga4 = business?.config?.integrations?.find((i: any) => i.type === 'google_analytics4');
+      if (ga4?.measurementId) {
+        injectGA4Script(ga4.measurementId);
       }
     }).catch(() => {});
-
-    // Fetch platform config for Stripe keys
-    platformApi.getConfig().catch(() => {});
   }
 
   const sdk = {
@@ -302,11 +297,6 @@ export async function createArkySDK(
       getFirstAvailableFCId,
     },
 
-    // Platform config helpers
-    getPlatformConfig: () => platformApi.getConfigCache(),
-    getStripePublicKey: () => platformApi.getConfigCache()?.stripePublicKey,
-    getStripeConnectClientId: () => platformApi.getConfigCache()?.stripeConnectClientId,
-    getGoogleClientId: () => platformApi.getConfigCache()?.googleClientId,
   };
 
   return sdk;

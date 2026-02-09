@@ -16,10 +16,8 @@ import type {
   TestWebhookParams,
   GetBusinessMediaParams2,
   ProcessRefundParams,
-  ConnectStripeParams,
-  DisconnectStripeParams,
-  ConnectGoogleParams,
-  DisconnectGoogleParams,
+  OAuthConnectParams,
+  OAuthDisconnectParams,
   RequestOptions,
 } from "../types/api";
 
@@ -175,46 +173,24 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async connectStripe(
-      params: ConnectStripeParams,
+    async oauthConnect(
+      params: OAuthConnectParams,
       options?: RequestOptions
     ) {
       return apiConfig.httpClient.post(
-        `/v1/businesses/${params.businessId}/stripe/connect`,
-        { code: params.code },
+        `/v1/businesses/${params.businessId}/oauth/connect`,
+        { provider: params.provider, code: params.code, redirectUri: params.redirectUri },
         options
       );
     },
 
-    async disconnectStripe(
-      params: DisconnectStripeParams,
+    async oauthDisconnect(
+      params: OAuthDisconnectParams,
       options?: RequestOptions
     ) {
       return apiConfig.httpClient.post(
-        `/v1/businesses/${params.businessId}/stripe/disconnect`,
-        {},
-        options
-      );
-    },
-
-    async connectGoogle(
-      params: ConnectGoogleParams,
-      options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.post(
-        `/v1/businesses/${params.businessId}/google/connect`,
-        { code: params.code, redirectUri: params.redirectUri },
-        options
-      );
-    },
-
-    async disconnectGoogle(
-      params: DisconnectGoogleParams,
-      options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.post(
-        `/v1/businesses/${params.businessId}/google/disconnect`,
-        {},
+        `/v1/businesses/${params.businessId}/oauth/disconnect`,
+        { provider: params.provider },
         options
       );
     },

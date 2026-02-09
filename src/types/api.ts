@@ -860,23 +860,16 @@ export interface UpdateEventParams {
   event: import('./index').EventAction;
 }
 
-export interface ConnectStripeParams {
+export interface OAuthConnectParams {
   businessId: string;
-  code: string;
-}
-
-export interface DisconnectStripeParams {
-  businessId: string;
-}
-
-export interface ConnectGoogleParams {
-  businessId: string;
+  provider: string;
   code: string;
   redirectUri: string;
 }
 
-export interface DisconnectGoogleParams {
+export interface OAuthDisconnectParams {
   businessId: string;
+  provider: string;
 }
 
 // Shipping API Parameters
