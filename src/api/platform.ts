@@ -4,6 +4,7 @@ import type { RequestOptions } from '../types/api';
 export interface PlatformConfig {
 	stripePublicKey: string;
 	stripeConnectClientId: string;
+	googleClientId: string;
 }
 
 let cachedConfig: PlatformConfig | null = null;

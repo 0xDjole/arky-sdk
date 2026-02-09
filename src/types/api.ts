@@ -869,6 +869,16 @@ export interface DisconnectStripeParams {
   businessId: string;
 }
 
+export interface ConnectGoogleParams {
+  businessId: string;
+  code: string;
+  redirectUri: string;
+}
+
+export interface DisconnectGoogleParams {
+  businessId: string;
+}
+
 // Shipping API Parameters
 
 /** Get shipping rates for a shipment */

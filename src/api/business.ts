@@ -18,6 +18,8 @@ import type {
   ProcessRefundParams,
   ConnectStripeParams,
   DisconnectStripeParams,
+  ConnectGoogleParams,
+  DisconnectGoogleParams,
   RequestOptions,
 } from "../types/api";
 
@@ -190,6 +192,28 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
     ) {
       return apiConfig.httpClient.post(
         `/v1/businesses/${params.businessId}/stripe/disconnect`,
+        {},
+        options
+      );
+    },
+
+    async connectGoogle(
+      params: ConnectGoogleParams,
+      options?: RequestOptions
+    ) {
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${params.businessId}/google/connect`,
+        { code: params.code, redirectUri: params.redirectUri },
+        options
+      );
+    },
+
+    async disconnectGoogle(
+      params: DisconnectGoogleParams,
+      options?: RequestOptions
+    ) {
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${params.businessId}/google/disconnect`,
         {},
         options
       );

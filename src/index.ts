@@ -306,6 +306,7 @@ export async function createArkySDK(
     getPlatformConfig: () => platformApi.getConfigCache(),
     getStripePublicKey: () => platformApi.getConfigCache()?.stripePublicKey,
     getStripeConnectClientId: () => platformApi.getConfigCache()?.stripeConnectClientId,
+    getGoogleClientId: () => platformApi.getConfigCache()?.googleClientId,
   };
 
   return sdk;
