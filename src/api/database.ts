@@ -35,7 +35,7 @@ export const createDatabaseApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions
     ): Promise<any[]> {
       const response = await apiConfig.httpClient.get(
-        `/v1/operations/data`,
+        `/v1/platform/data`,
         {
           ...options,
           params: {
@@ -52,7 +52,7 @@ export const createDatabaseApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions
     ): Promise<void> {
       return apiConfig.httpClient.post(
-        `/v1/operations/data`,
+        `/v1/platform/data`,
         params,
         options
       );
@@ -63,7 +63,7 @@ export const createDatabaseApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions
     ): Promise<void> {
       return apiConfig.httpClient.delete(
-        `/v1/operations/data`,
+        `/v1/platform/data`,
         {
           ...options,
           params: {
@@ -77,7 +77,7 @@ export const createDatabaseApi = (apiConfig: ApiConfig) => {
       params: RunScriptParams,
       options?: RequestOptions
     ): Promise<RunScriptResponse> {
-      return apiConfig.httpClient.post(`/v1/operations/scripts`, params, options);
+      return apiConfig.httpClient.post(`/v1/platform/scripts`, params, options);
     },
   };
 };
