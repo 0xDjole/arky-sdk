@@ -7,8 +7,11 @@ export type {
   ReservationCartItem,
   Business,
   BusinessConfig,
+  PaymentConfig,
+  AiConfig,
+  AnalyticsConfig,
+  ShippingConfig,
   Integration,
-  CardProvider,
   Block,
   Price,
   Payment,
@@ -195,9 +198,10 @@ export async function createArkySDK(
   if (typeof window !== "undefined") {
     // Fetch business config for analytics
     businessApi.getBusiness({}).then(({ data: business }) => {
-      const ga4 = business?.config?.integrations?.find((i: any) => i.type === 'google_analytics4');
-      if (ga4?.measurementId) {
-        injectGA4Script(ga4.measurementId);
+      for (const a of business?.config?.analytics || []) {
+        if (a.provider === 'google_analytics4') {
+          injectGA4Script(a.measurementId);
+        }
       }
     }).catch(() => {});
   }

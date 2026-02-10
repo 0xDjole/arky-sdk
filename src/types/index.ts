@@ -167,16 +167,21 @@ export interface ReservationCartItem {
 	blocks: any[];
 }
 
-/** Unified business provider — all external service integrations */
-export type Integration =
-	| { type: "stripe"; publishableKey: string; currency: string }
-	| { type: "google"; clientId: string; accountEmail?: string | null; scopes?: string[]; connectedAt?: number }
-	| { type: "shippo"; id: string; status: "active" | "inactive"; apiToken: string }
-	| { type: "deepseek"; apiKey: string; baseUrl: string }
-	| { type: "google_analytics4"; measurementId: string };
+export type PaymentConfig =
+	| { provider: 'stripe'; publishableKey: string; currency: string };
 
-/** @deprecated Use Integration with type: "stripe" */
-export type CardProvider = Extract<Integration, { type: "stripe" }>;
+export type AiConfig =
+	| { provider: 'deepseek'; apiKey: string; baseUrl: string };
+
+export type AnalyticsConfig =
+	| { provider: 'google_analytics4'; measurementId: string };
+
+export type ShippingConfig =
+	| { provider: 'shippo'; id: string; status: 'active' | 'inactive'; apiToken: string };
+
+/** Integration — OAuth/platform connections */
+export type Integration =
+	| { type: "google"; clientId: string; accountEmail?: string | null; scopes?: string[]; connectedAt?: number };
 
 export interface ShippingWeightTier {
 	upToGrams: number;
@@ -251,6 +256,10 @@ export interface BusinessConfig {
 	locations: Location[];
 	buildHooks: string[];
 	webhooks: any[];
+	payment?: PaymentConfig;
+	ai: AiConfig[];
+	analytics: AnalyticsConfig[];
+	shipping: ShippingConfig[];
 	integrations: Integration[];
 	emails: BusinessEmails;
 }
@@ -383,7 +392,7 @@ export interface ReservationStoreState {
 	items: ReservationCartItem[];
 	allowedPaymentMethods: string[];
 	paymentConfig: {
-		provider: Extract<Integration, { type: "stripe" }> | null;
+		provider: PaymentConfig | null;
 		enabled: boolean;
 	};
 }
@@ -799,13 +808,13 @@ export interface CustomsDeclaration {
 /** Shipping provider status */
 export type ShippingProviderStatus = 'active' | 'inactive';
 
-/** Shippo shipping provider configuration */
+/** @deprecated Use ShippingConfig instead */
 export interface ShippingProviderShippo {
-	type: 'shippo';
+	provider: 'shippo';
 	id: string;
 	status: ShippingProviderStatus;
 	apiToken: string;
 }
 
-/** Business shipping provider (union type for extensibility) */
+/** @deprecated Use ShippingConfig instead */
 export type BusinessShippingProvider = ShippingProviderShippo;
