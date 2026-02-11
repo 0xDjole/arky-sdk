@@ -167,21 +167,27 @@ export interface ReservationCartItem {
 	blocks: any[];
 }
 
-export type PaymentConfig =
-	| { provider: 'stripe'; publishableKey: string; currency: string };
+/** Integration status */
+export type IntegrationStatus = 'active' | 'inactive';
 
-export type AiConfig =
-	| { provider: 'deepseek'; apiKey: string; baseUrl: string };
+/** Integration provider — typed data per service */
+export type IntegrationProvider =
+	| { type: 'stripe'; secretKey?: string; publishableKey: string; webhookSecret?: string; currency: string }
+	| { type: 'shippo'; apiToken?: string }
+	| { type: 'deepseek'; apiKey?: string; baseUrl: string }
+	| { type: 'google'; clientId?: string; clientSecret?: string; accessToken?: string; refreshToken?: string;
+		tokenExpiresAt?: number; scopes: string[]; accountEmail?: string | null; connectedAt: number }
+	| { type: 'google_analytics4'; measurementId: string };
 
-export type AnalyticsConfig =
-	| { provider: 'google_analytics4'; measurementId: string };
-
-export type ShippingConfig =
-	| { provider: 'shippo'; id: string; status: 'active' | 'inactive'; apiToken: string };
-
-/** Integration — OAuth/platform connections */
-export type Integration =
-	| { type: "google"; clientId: string; accountEmail?: string | null; scopes?: string[]; connectedAt?: number };
+/** Unified integration — single pool for all third-party service configs */
+export interface Integration {
+	id: string;
+	name: string;
+	status: IntegrationStatus;
+	provider: IntegrationProvider;
+	createdAt: number;
+	updatedAt: number;
+}
 
 export interface ShippingWeightTier {
 	upToGrams: number;
@@ -256,11 +262,11 @@ export interface BusinessConfig {
 	locations: Location[];
 	buildHooks: string[];
 	webhooks: any[];
-	payment?: PaymentConfig;
-	ai: AiConfig[];
-	analytics: AnalyticsConfig[];
-	shipping: ShippingConfig[];
 	integrations: Integration[];
+	paymentId?: string | null;
+	shippingIds: string[];
+	aiId?: string | null;
+	analyticsIds: string[];
 	emails: BusinessEmails;
 }
 
@@ -392,7 +398,7 @@ export interface ReservationStoreState {
 	items: ReservationCartItem[];
 	allowedPaymentMethods: string[];
 	paymentConfig: {
-		provider: PaymentConfig | null;
+		provider: { publishableKey: string; currency: string } | null;
 		enabled: boolean;
 	};
 }
@@ -548,6 +554,7 @@ export interface WorkflowHttpNode {
 		resource: string;
 		operation: string;
 	};
+	integrationId?: string;
 	delayMs?: number;
 	retries?: number;
 	retryDelayMs?: number;
@@ -805,10 +812,10 @@ export interface CustomsDeclaration {
 	items: CustomsItem[];
 }
 
-/** Shipping provider status */
-export type ShippingProviderStatus = 'active' | 'inactive';
+/** @deprecated Use IntegrationStatus instead */
+export type ShippingProviderStatus = IntegrationStatus;
 
-/** @deprecated Use ShippingConfig instead */
+/** @deprecated Use Integration instead */
 export interface ShippingProviderShippo {
 	provider: 'shippo';
 	id: string;
@@ -816,5 +823,5 @@ export interface ShippingProviderShippo {
 	apiToken: string;
 }
 
-/** @deprecated Use ShippingConfig instead */
+/** @deprecated Use Integration instead */
 export type BusinessShippingProvider = ShippingProviderShippo;

@@ -7,11 +7,9 @@ export type {
   ReservationCartItem,
   Business,
   BusinessConfig,
-  PaymentConfig,
-  AiConfig,
-  AnalyticsConfig,
-  ShippingConfig,
   Integration,
+  IntegrationStatus,
+  IntegrationProvider,
   Block,
   Price,
   Payment,
@@ -169,6 +167,10 @@ import {
   getInventoryAt,
   getFirstAvailableFCId,
 } from "./utils/inventory";
+import {
+  getPaymentConfig,
+  getAnalyticsConfigs,
+} from "./utils/integrations";
 
 export async function createArkySDK(
   config: HttpClientConfig & {
@@ -198,9 +200,12 @@ export async function createArkySDK(
   if (typeof window !== "undefined") {
     // Fetch business config for analytics
     businessApi.getBusiness({}).then(({ data: business }) => {
-      for (const a of business?.config?.analytics || []) {
-        if (a.provider === 'google_analytics4') {
-          injectGA4Script(a.measurementId);
+      const configs = business?.configs || business?.config;
+      if (configs?.integrations) {
+        for (const i of configs.integrations) {
+          if (i.provider?.type === 'google_analytics4') {
+            injectGA4Script(i.provider.measurementId);
+          }
         }
       }
     }).catch(() => {});
@@ -299,6 +304,9 @@ export async function createArkySDK(
       hasStock,
       getInventoryAt,
       getFirstAvailableFCId,
+
+      getPaymentConfig,
+      getAnalyticsConfigs,
     },
 
   };
