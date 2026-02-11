@@ -26,7 +26,7 @@ export function createEventsApi(apiConfig: ApiConfig) {
     },
 
     async getWebhookEvents(options?: RequestOptions): Promise<{ data: string[] }> {
-      return apiConfig.httpClient.get(`/v1/platform/events/metadata`, options);
+      return apiConfig.httpClient.get(`/v1/platform/events`, options);
     },
   };
 }

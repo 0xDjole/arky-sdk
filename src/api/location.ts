@@ -20,15 +20,15 @@ export interface GetCountriesResponse {
 export const createLocationApi = (apiConfig: ApiConfig) => {
   return {
     async getCountries(options?: RequestOptions): Promise<GetCountriesResponse> {
-      return apiConfig.httpClient.get(`/v1/platform/location/countries`, options);
+      return apiConfig.httpClient.get(`/v1/platform/countries`, options);
     },
 
-    async getCountryStates(
+    async getCountry(
       countryCode: string,
       options?: RequestOptions
     ): Promise<LocationCountry> {
       return apiConfig.httpClient.get(
-        `/v1/platform/location/countries/${countryCode}/states`,
+        `/v1/platform/countries/${countryCode}`,
         options
       );
     },
