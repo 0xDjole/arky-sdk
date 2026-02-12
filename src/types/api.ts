@@ -56,8 +56,6 @@ export interface OrderCheckoutParams {
 
 export interface GetProductsParams {
   ids?: string[];
-  nodeIds?: string[] | null;
-  nodeId?: string | null;
   blocks?: any[] | null;
   status?: string;
   limit?: number;
@@ -199,7 +197,6 @@ export interface GetServicesParams {
   query?: string;
   ids?: string[];
   statuses?: string[];
-  nodeId?: string;
   blocks?: any[];
   sortField?: string;
   sortDirection?: string;
@@ -279,7 +276,6 @@ export interface ProviderWithTimeline {
   seo: any;
   status: Status;
   concurrentLimit: number;
-  nodeIds: string[];
   audiences: AudienceAccess[];
   blocks: Block[];
   createdAt: number;
@@ -438,7 +434,6 @@ export interface AccountSubscribeParams {
 export interface CreateProductParams {
   key: string;
   description?: string;
-  nodeIds?: string[];
   audiences?: AudienceAccess[];
   blocks?: any[];
   variants?: any[];
@@ -450,7 +445,6 @@ export interface UpdateProductParams {
   id: string;
   key?: string;
   description?: string;
-  nodeIds?: string[];
   audiences?: AudienceAccess[];
   blocks?: any[];
   variants?: any[];
@@ -515,7 +509,6 @@ export interface UpdateReservationParams {
 export interface CreateProviderParams {
   businessId?: string;
   key: string;
-  nodeIds?: string[];
   audiences?: AudienceAccess[];
   blocks?: any[];
   concurrentLimit?: number;
@@ -527,7 +520,6 @@ export interface UpdateProviderParams {
   id: string;
   businessId?: string;
   key?: string;
-  nodeIds?: string[];
   audiences?: AudienceAccess[];
   blocks?: any[];
   concurrentLimit?: number;
@@ -543,18 +535,17 @@ export interface DeleteProviderParams {
 export interface ServiceProviderInput {
   id?: string;
   providerId: string;
+  prices?: any[];
+  durations?: any[];
+  isApprovalRequired?: boolean;
   workingTime: WorkingTime;
 }
 
 export interface CreateServiceParams {
   businessId?: string;
   key: string;
-  nodeIds?: string[];
   audiences?: AudienceAccess[];
   blocks?: any[];
-  prices?: any[];
-  durations?: any[];
-  isApprovalRequired?: boolean;
   status?: Status;
   providers?: ServiceProviderInput[];
   [key: string]: any;
@@ -564,12 +555,8 @@ export interface UpdateServiceParams {
   id: string;
   businessId?: string;
   key?: string;
-  nodeIds?: string[];
   audiences?: AudienceAccess[];
   blocks?: any[];
-  prices?: any[];
-  durations?: any[];
-  isApprovalRequired?: boolean;
   status?: Status;
   providers?: ServiceProviderInput[];
   [key: string]: any;
@@ -604,7 +591,6 @@ export interface GetProvidersParams {
   sortDirection?: string | null;
   createdAtFrom?: string | null;
   createdAtTo?: string | null;
-  nodeId?: string | null;
   blocks?: string | null;
 }
 

@@ -529,6 +529,9 @@ export interface ServiceDuration {
 export interface ServiceProvider {
 	id: string;
 	providerId: string;
+	prices: Price[];
+	durations: ServiceDuration[];
+	isApprovalRequired: boolean;
 	workingTime: {
 		workingDays: Array<{ day: string; workingHours: Array<{ from: number; to: number }> }>;
 		outcastDates: Array<{ month: number; day: number; workingHours: Array<{ from: number; to: number }> }>;
@@ -543,13 +546,9 @@ export interface Service {
 	slug: Record<string, string>;
 	access: Access;
 	businessId: string;
-	prices: Price[];
-	durations: ServiceDuration[];
 	blocks: Block[];
-	nodeIds: string[];
 	networkIds: string[];
 	audiences: AudienceAccess[];
-	isApprovalRequired: boolean;
 	providers: ServiceProvider[];
 	createdAt: number;
 	updatedAt: number;
@@ -569,7 +568,6 @@ export interface Provider {
 	businessId: string;
 	status: Status;
 	concurrentLimit: number;
-	nodeIds: string[];
 	networkIds: string[];
 	audiences: AudienceAccess[];
 	blocks: Block[];

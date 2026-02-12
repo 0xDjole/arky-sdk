@@ -5,8 +5,6 @@ export interface NetworkSearchParams {
   query?: string;
   limit?: number;
   cursor?: string;
-  nodeId?: string;
-  nodeIds?: string[];
   statuses?: string[];
   blocks?: any[];
   sortField?: string;
@@ -31,9 +29,6 @@ export const createNetworkApi = (apiConfig: ApiConfig) => {
       if (params?.limit !== undefined) queryParams.limit = params.limit;
       if (params?.cursor) queryParams.cursor = params.cursor;
       if (params?.query) queryParams.query = params.query;
-      if (params?.nodeId) queryParams.nodeId = params.nodeId;
-      if (params?.nodeIds && params.nodeIds.length > 0)
-        queryParams.nodeIds = params.nodeIds.join(",");
       if (params?.statuses && params.statuses.length > 0)
         queryParams.statuses = params.statuses.join(",");
       if (params?.sortField) queryParams.sortField = params.sortField;
@@ -64,9 +59,6 @@ export const createNetworkApi = (apiConfig: ApiConfig) => {
       if (params?.limit !== undefined) queryParams.limit = params.limit;
       if (params?.cursor) queryParams.cursor = params.cursor;
       if (params?.query) queryParams.query = params.query;
-      if (params?.nodeId) queryParams.nodeId = params.nodeId;
-      if (params?.nodeIds && params.nodeIds.length > 0)
-        queryParams.nodeIds = params.nodeIds.join(",");
       if (params?.statuses && params.statuses.length > 0)
         queryParams.statuses = params.statuses.join(",");
       if (params?.sortField) queryParams.sortField = params.sortField;
@@ -97,9 +89,6 @@ export const createNetworkApi = (apiConfig: ApiConfig) => {
       if (params?.limit !== undefined) queryParams.limit = params.limit;
       if (params?.cursor) queryParams.cursor = params.cursor;
       if (params?.query) queryParams.query = params.query;
-      if (params?.nodeId) queryParams.nodeId = params.nodeId;
-      if (params?.nodeIds && params.nodeIds.length > 0)
-        queryParams.nodeIds = params.nodeIds.join(",");
       if (params?.statuses && params.statuses.length > 0)
         queryParams.statuses = params.statuses.join(",");
       if (params?.sortField) queryParams.sortField = params.sortField;
