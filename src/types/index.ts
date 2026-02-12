@@ -97,6 +97,12 @@ export interface PriceProvider {
 	id: string;
 }
 
+/** Audience-specific access with optional audience-specific prices */
+export interface AudienceAccess {
+	id: string;
+	prices: Price[];
+}
+
 /** Price for audiences/subscriptions (provider-based with interval) */
 export interface SubscriptionPrice {
 	currency: string;
@@ -255,13 +261,68 @@ export interface BusinessEmails {
 	support: string;
 }
 
+export type WebhookEventSubscription =
+	| { event: 'node.created'; parentKey?: string }
+	| { event: 'node.updated'; key?: string }
+	| { event: 'node.deleted'; key?: string }
+	| { event: 'order.created' }
+	| { event: 'order.updated' }
+	| { event: 'order.status_changed' }
+	| { event: 'order.payment_received' }
+	| { event: 'order.payment_failed' }
+	| { event: 'order.refunded' }
+	| { event: 'order.completed' }
+	| { event: 'order.cancelled' }
+	| { event: 'order.shipment_created' }
+	| { event: 'order.shipment_in_transit' }
+	| { event: 'order.shipment_out_for_delivery' }
+	| { event: 'order.shipment_delivered' }
+	| { event: 'order.shipment_failed' }
+	| { event: 'order.shipment_returned' }
+	| { event: 'order.shipment_status_changed' }
+	| { event: 'reservation.created' }
+	| { event: 'reservation.updated' }
+	| { event: 'reservation.status_changed' }
+	| { event: 'reservation.payment_received' }
+	| { event: 'reservation.payment_failed' }
+	| { event: 'reservation.refunded' }
+	| { event: 'reservation.completed' }
+	| { event: 'reservation.cancelled' }
+	| { event: 'product.created' }
+	| { event: 'product.updated' }
+	| { event: 'product.deleted' }
+	| { event: 'provider.created' }
+	| { event: 'provider.updated' }
+	| { event: 'provider.deleted' }
+	| { event: 'service.created' }
+	| { event: 'service.updated' }
+	| { event: 'service.deleted' }
+	| { event: 'media.created' }
+	| { event: 'media.deleted' }
+	| { event: 'business.created' }
+	| { event: 'business.updated' }
+	| { event: 'business.deleted' }
+	| { event: 'audience.created' }
+	| { event: 'audience.updated' }
+	| { event: 'audience.deleted' };
+
+export interface WebhookEndpoint {
+	id: string;
+	name: string;
+	url: string;
+	events: WebhookEventSubscription[];
+	headers: Record<string, string>;
+	secret: string;
+	enabled: boolean;
+}
+
 export interface BusinessConfig {
 	languages: Language[];
 	markets: Market[];
 	zones: Zone[];
 	locations: Location[];
 	buildHooks: string[];
-	webhooks: any[];
+	webhooks: WebhookEndpoint[];
 	integrations: Integration[];
 	paymentId?: string | null;
 	shippingIds: string[];
@@ -437,6 +498,8 @@ export interface Reservation {
 	business?: Business;
 	user?: any;
 	items: ReservationItem[];
+	groupId?: string;
+	audienceId?: string;
 	createdAt: number;
 	lastModified: number;
 }
@@ -451,6 +514,7 @@ export interface Node {
 	slug: Record<string, string>;
 	access: Access;
 	writeAccess: Access;
+	audiences: AudienceAccess[];
 	emailSubject?: Record<string, string>;
 	children: Node[];
 	createdAt: number;
@@ -483,6 +547,8 @@ export interface Service {
 	durations: ServiceDuration[];
 	blocks: Block[];
 	nodeIds: string[];
+	networkIds: string[];
+	audiences: AudienceAccess[];
 	isApprovalRequired: boolean;
 	providers: ServiceProvider[];
 	createdAt: number;
@@ -504,6 +570,8 @@ export interface Provider {
 	status: Status;
 	concurrentLimit: number;
 	nodeIds: string[];
+	networkIds: string[];
+	audiences: AudienceAccess[];
 	blocks: Block[];
 	timeline: ProviderTimelinePoint[];
 	createdAt: number;
@@ -549,12 +617,8 @@ export interface WorkflowHttpNode {
 	headers?: Record<string, string>;
 	body?: any;
 	timeoutMs?: number;
-	integration?: {
-		id: string;
-		resource: string;
-		operation: string;
-	};
 	integrationId?: string;
+	integrationProviderId?: string;
 	delayMs?: number;
 	retries?: number;
 	retryDelayMs?: number;
@@ -620,7 +684,6 @@ export interface Audience {
 	businessId: string;
 	key: string;
 	access: Access;
-	nodeIds: string[];
 	prices: SubscriptionPrice[];
 	status: Status;
 }

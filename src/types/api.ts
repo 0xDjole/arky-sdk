@@ -1,4 +1,4 @@
-import type { Block, ZoneLocation, WorkflowNode, Status, SubscriptionPrice, Address } from "./index";
+import type { Block, ZoneLocation, WorkflowNode, Status, SubscriptionPrice, Address, AudienceAccess } from "./index";
 
 export interface RequestOptions<T = any> {
   headers?: Record<string, string>;
@@ -95,8 +95,9 @@ export interface CreateNodeParams {
   slug?: Record<string, string>;
   access?: 'public' | 'private';
   writeAccess?: 'public' | 'private';
+  audiences?: AudienceAccess[];
   status?: string;
-  
+
   emailSubject?: Record<string, string>;
 }
 
@@ -109,8 +110,9 @@ export interface UpdateNodeParams {
   slug?: Record<string, string>;
   access?: 'public' | 'private';
   writeAccess?: 'public' | 'private';
+  audiences?: AudienceAccess[];
   status?: string;
-  
+
   emailSubject?: Record<string, string>;
 }
 
@@ -278,6 +280,7 @@ export interface ProviderWithTimeline {
   status: Status;
   concurrentLimit: number;
   nodeIds: string[];
+  audiences: AudienceAccess[];
   blocks: Block[];
   createdAt: number;
   updatedAt: number;
@@ -436,6 +439,7 @@ export interface CreateProductParams {
   key: string;
   description?: string;
   nodeIds?: string[];
+  audiences?: AudienceAccess[];
   blocks?: any[];
   variants?: any[];
   status?: string;
@@ -447,6 +451,7 @@ export interface UpdateProductParams {
   key?: string;
   description?: string;
   nodeIds?: string[];
+  audiences?: AudienceAccess[];
   blocks?: any[];
   variants?: any[];
   status?: string;
@@ -511,6 +516,7 @@ export interface CreateProviderParams {
   businessId?: string;
   key: string;
   nodeIds?: string[];
+  audiences?: AudienceAccess[];
   blocks?: any[];
   concurrentLimit?: number;
   status?: Status;
@@ -522,6 +528,7 @@ export interface UpdateProviderParams {
   businessId?: string;
   key?: string;
   nodeIds?: string[];
+  audiences?: AudienceAccess[];
   blocks?: any[];
   concurrentLimit?: number;
   status?: Status;
@@ -543,6 +550,7 @@ export interface CreateServiceParams {
   businessId?: string;
   key: string;
   nodeIds?: string[];
+  audiences?: AudienceAccess[];
   blocks?: any[];
   prices?: any[];
   durations?: any[];
@@ -557,6 +565,7 @@ export interface UpdateServiceParams {
   businessId?: string;
   key?: string;
   nodeIds?: string[];
+  audiences?: AudienceAccess[];
   blocks?: any[];
   prices?: any[];
   durations?: any[];
@@ -794,7 +803,6 @@ export interface GetWorkflowExecutionParams {
 export interface CreateAudienceParams {
   key: string;
   name: string;
-  nodeIds?: string[];
   prices?: SubscriptionPrice[];
 }
 
@@ -802,7 +810,6 @@ export interface UpdateAudienceParams {
   id: string;
   key?: string;
   name?: string;
-  nodeIds?: string[];
   prices?: SubscriptionPrice[];
   status?: Status;
 }
@@ -813,7 +820,6 @@ export interface GetAudienceParams {
 
 export interface GetAudiencesParams {
   ids?: string[];
-  nodeId?: string;
   statuses?: string[];
   query?: string;
   limit?: number;
@@ -892,4 +898,17 @@ export interface ShipParams {
   service: string;
   locationId: string;
   lines: import('./index').ShipmentLine[];
+}
+
+/** Group booking — batch-book audience members into a service */
+export interface GroupBookingParams {
+  businessId?: string;
+  audienceId: string;
+  serviceId: string;
+  providerId: string;
+  from: number;
+  to: number;
+  market: string;
+  blocks?: any[];
+  paymentMethodId?: string;
 }

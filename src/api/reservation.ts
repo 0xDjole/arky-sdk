@@ -18,6 +18,7 @@ import type {
   GetProvidersParams,
   GetBusinessServiceWorkingTimeParams,
   GetReservationQuoteParams,
+  GroupBookingParams,
   RequestOptions,
   Slot,
 } from "../types/api";
@@ -259,6 +260,16 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
           ...options,
           params: queryParams,
         },
+      );
+    },
+
+    async groupBook(params: GroupBookingParams, options?: RequestOptions) {
+      const { businessId, ...payload } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${targetBusinessId}/reservations/group-book`,
+        payload,
+        options,
       );
     },
 
