@@ -6,8 +6,8 @@ export const createPlatformApi = (apiConfig: ApiConfig) => {
 		async getCurrencies(options?: RequestOptions): Promise<string[]> {
 			return apiConfig.httpClient.get('/v1/platform/currencies', options);
 		},
-		async getIntegrationCatalogue(options?: RequestOptions): Promise<any[]> {
-			return apiConfig.httpClient.get('/v1/platform/integration-catalogue', options);
+		async getIntegrationServices(options?: RequestOptions): Promise<any[]> {
+			return apiConfig.httpClient.get('/v1/platform/integration-services', options);
 		},
 	};
 };
