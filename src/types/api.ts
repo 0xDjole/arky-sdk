@@ -1,4 +1,4 @@
-import type { Block, ZoneLocation, WorkflowNode, Status, SubscriptionPrice, Address, AudienceAccess } from "./index";
+import type { Block, ZoneLocation, WorkflowNode, Status, SubscriptionPrice, Address } from "./index";
 
 export interface RequestOptions<T = any> {
   headers?: Record<string, string>;
@@ -92,7 +92,7 @@ export interface CreateNodeParams {
   blocks?: any[];
   slug?: Record<string, string>;
   writeAccess?: 'public' | 'private';
-  audiences?: AudienceAccess[];
+  audienceIds?: string[];
   status?: string;
 
   emailSubject?: Record<string, string>;
@@ -106,7 +106,7 @@ export interface UpdateNodeParams {
   blocks?: any[];
   slug?: Record<string, string>;
   writeAccess?: 'public' | 'private';
-  audiences?: AudienceAccess[];
+  audienceIds?: string[];
   status?: string;
 
   emailSubject?: Record<string, string>;
@@ -274,7 +274,7 @@ export interface ProviderWithTimeline {
   seo: any;
   status: Status;
   concurrentLimit: number;
-  audiences: AudienceAccess[];
+  audienceIds: string[];
   blocks: Block[];
   createdAt: number;
   updatedAt: number;
@@ -432,7 +432,7 @@ export interface AccountSubscribeParams {
 export interface CreateProductParams {
   key: string;
   description?: string;
-  audiences?: AudienceAccess[];
+  audienceIds?: string[];
   blocks?: any[];
   variants?: any[];
   status?: string;
@@ -443,7 +443,7 @@ export interface UpdateProductParams {
   id: string;
   key?: string;
   description?: string;
-  audiences?: AudienceAccess[];
+  audienceIds?: string[];
   blocks?: any[];
   variants?: any[];
   status?: string;
@@ -507,7 +507,7 @@ export interface UpdateReservationParams {
 export interface CreateProviderParams {
   businessId?: string;
   key: string;
-  audiences?: AudienceAccess[];
+  audienceIds?: string[];
   blocks?: any[];
   concurrentLimit?: number;
   status?: Status;
@@ -518,7 +518,7 @@ export interface UpdateProviderParams {
   id: string;
   businessId?: string;
   key?: string;
-  audiences?: AudienceAccess[];
+  audienceIds?: string[];
   blocks?: any[];
   concurrentLimit?: number;
   status?: Status;
@@ -542,7 +542,7 @@ export interface ServiceProviderInput {
 export interface CreateServiceParams {
   businessId?: string;
   key: string;
-  audiences?: AudienceAccess[];
+  audienceIds?: string[];
   blocks?: any[];
   status?: Status;
   providers?: ServiceProviderInput[];
@@ -553,7 +553,7 @@ export interface UpdateServiceParams {
   id: string;
   businessId?: string;
   key?: string;
-  audiences?: AudienceAccess[];
+  audienceIds?: string[];
   blocks?: any[];
   status?: Status;
   providers?: ServiceProviderInput[];

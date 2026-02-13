@@ -80,6 +80,7 @@ export interface Price {
 	market: string;
 	amount: number;
 	compareAt?: number;
+	audienceId?: string;
 }
 
 /** Interval period for subscription pricing */
@@ -95,12 +96,6 @@ export interface SubscriptionInterval {
 export interface PriceProvider {
 	type: string;
 	id: string;
-}
-
-/** Audience-specific access with optional audience-specific prices */
-export interface AudienceAccess {
-	id: string;
-	prices: Price[];
 }
 
 /** Price for audiences/subscriptions (provider-based with interval) */
@@ -513,7 +508,7 @@ export interface Node {
 	status: Status;
 	slug: Record<string, string>;
 	writeAccess: Access;
-	audiences: AudienceAccess[];
+	audienceIds: string[];
 	emailSubject?: Record<string, string>;
 	children: Node[];
 	createdAt: number;
@@ -546,7 +541,7 @@ export interface Service {
 	businessId: string;
 	blocks: Block[];
 	networkIds: string[];
-	audiences: AudienceAccess[];
+	audienceIds: string[];
 	providers: ServiceProvider[];
 	createdAt: number;
 	updatedAt: number;
@@ -566,7 +561,7 @@ export interface Provider {
 	status: Status;
 	concurrentLimit: number;
 	networkIds: string[];
-	audiences: AudienceAccess[];
+	audienceIds: string[];
 	blocks: Block[];
 	timeline: ProviderTimelinePoint[];
 	createdAt: number;
