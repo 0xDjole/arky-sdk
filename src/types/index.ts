@@ -512,7 +512,6 @@ export interface Node {
 	blocks: Block[];
 	status: Status;
 	slug: Record<string, string>;
-	access: Access;
 	writeAccess: Access;
 	audiences: AudienceAccess[];
 	emailSubject?: Record<string, string>;
@@ -544,7 +543,6 @@ export interface Service {
 	id: string;
 	key: string;
 	slug: Record<string, string>;
-	access: Access;
 	businessId: string;
 	blocks: Block[];
 	networkIds: string[];
@@ -564,7 +562,6 @@ export interface Provider {
 	id: string;
 	key: string;
 	slug: Record<string, string>;
-	access: Access;
 	businessId: string;
 	status: Status;
 	concurrentLimit: number;
@@ -681,7 +678,6 @@ export interface Audience {
 	id: string;
 	businessId: string;
 	key: string;
-	access: Access;
 	prices: SubscriptionPrice[];
 	status: Status;
 }

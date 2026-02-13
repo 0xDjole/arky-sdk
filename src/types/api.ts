@@ -91,7 +91,6 @@ export interface CreateNodeParams {
   parentId?: string | null;
   blocks?: any[];
   slug?: Record<string, string>;
-  access?: 'public' | 'private';
   writeAccess?: 'public' | 'private';
   audiences?: AudienceAccess[];
   status?: string;
@@ -106,7 +105,6 @@ export interface UpdateNodeParams {
   parentId?: string | null;
   blocks?: any[];
   slug?: Record<string, string>;
-  access?: 'public' | 'private';
   writeAccess?: 'public' | 'private';
   audiences?: AudienceAccess[];
   status?: string;
