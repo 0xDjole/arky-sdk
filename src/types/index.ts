@@ -365,6 +365,12 @@ export interface Block {
 	value?: any;
 }
 
+export interface Filter {
+	id: string;
+	nodeId: string;
+	blocks: Block[];
+}
+
 export type BlockType =
 	| "text"
 	| "localized_text"
@@ -540,6 +546,7 @@ export interface Service {
 	slug: Record<string, string>;
 	businessId: string;
 	blocks: Block[];
+	filters: Filter[];
 	networkIds: string[];
 	audienceIds: string[];
 	providers: ServiceProvider[];
@@ -563,6 +570,7 @@ export interface Provider {
 	networkIds: string[];
 	audienceIds: string[];
 	blocks: Block[];
+	filters: Filter[];
 	timeline: ProviderTimelinePoint[];
 	createdAt: number;
 	updatedAt: number;

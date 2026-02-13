@@ -57,6 +57,7 @@ export interface OrderCheckoutParams {
 export interface GetProductsParams {
   ids?: string[];
   blocks?: any[] | null;
+  filterId?: string;
   status?: string;
   limit?: number;
   cursor?: string;
@@ -190,6 +191,7 @@ export interface PhoneNumberConfirmParams {
 export interface GetServicesParams {
   businessId?: string;
   providerId?: string;
+  filterId?: string;
   limit?: number;
   cursor?: string;
   query?: string;
@@ -434,6 +436,7 @@ export interface CreateProductParams {
   description?: string;
   audienceIds?: string[];
   blocks?: any[];
+  filters?: any[];
   variants?: any[];
   status?: string;
   [key: string]: any;
@@ -445,6 +448,7 @@ export interface UpdateProductParams {
   description?: string;
   audienceIds?: string[];
   blocks?: any[];
+  filters?: any[];
   variants?: any[];
   status?: string;
   [key: string]: any;
@@ -509,6 +513,7 @@ export interface CreateProviderParams {
   key: string;
   audienceIds?: string[];
   blocks?: any[];
+  filters?: any[];
   concurrentLimit?: number;
   status?: Status;
   [key: string]: any;
@@ -520,6 +525,7 @@ export interface UpdateProviderParams {
   key?: string;
   audienceIds?: string[];
   blocks?: any[];
+  filters?: any[];
   concurrentLimit?: number;
   status?: Status;
   [key: string]: any;
@@ -544,6 +550,7 @@ export interface CreateServiceParams {
   key: string;
   audienceIds?: string[];
   blocks?: any[];
+  filters?: any[];
   status?: Status;
   providers?: ServiceProviderInput[];
   [key: string]: any;
@@ -555,6 +562,7 @@ export interface UpdateServiceParams {
   key?: string;
   audienceIds?: string[];
   blocks?: any[];
+  filters?: any[];
   status?: Status;
   providers?: ServiceProviderInput[];
   [key: string]: any;
@@ -580,6 +588,7 @@ export interface GetServiceParams {
 export interface GetProvidersParams {
   businessId?: string;
   serviceId?: string;
+  filterId?: string;
   ids?: string[];
   query?: string | null;
   statuses?: string[] | null;

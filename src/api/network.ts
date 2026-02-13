@@ -7,6 +7,7 @@ export interface NetworkSearchParams {
   cursor?: string;
   statuses?: string[];
   blocks?: any[];
+  filterId?: string;
   sortField?: string;
   sortDirection?: "asc" | "desc";
   createdAtFrom?: number;
@@ -40,6 +41,7 @@ export const createNetworkApi = (apiConfig: ApiConfig) => {
       if (params?.priceFrom !== undefined) queryParams.priceFrom = params.priceFrom;
       if (params?.priceTo !== undefined) queryParams.priceTo = params.priceTo;
       if (params?.matchAll !== undefined) queryParams.matchAll = params.matchAll;
+      if (params?.filterId) queryParams.filterId = params.filterId;
       if (params?.blocks && params.blocks.length > 0)
         queryParams.blocks = JSON.stringify(params.blocks);
 
@@ -70,6 +72,7 @@ export const createNetworkApi = (apiConfig: ApiConfig) => {
       if (params?.priceFrom !== undefined) queryParams.priceFrom = params.priceFrom;
       if (params?.priceTo !== undefined) queryParams.priceTo = params.priceTo;
       if (params?.matchAll !== undefined) queryParams.matchAll = params.matchAll;
+      if (params?.filterId) queryParams.filterId = params.filterId;
       if (params?.blocks && params.blocks.length > 0)
         queryParams.blocks = JSON.stringify(params.blocks);
 
@@ -98,6 +101,7 @@ export const createNetworkApi = (apiConfig: ApiConfig) => {
       if (params?.createdAtTo !== undefined)
         queryParams.createdAtTo = params.createdAtTo;
       if (params?.matchAll !== undefined) queryParams.matchAll = params.matchAll;
+      if (params?.filterId) queryParams.filterId = params.filterId;
       if (params?.blocks && params.blocks.length > 0)
         queryParams.blocks = JSON.stringify(params.blocks);
 
