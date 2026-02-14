@@ -479,7 +479,7 @@ export interface BookingItem {
 	providerId: string;
 	businessId: string;
 	bookingId: string;
-	userId: string;
+	accountId: string;
 	from: number;
 	to: number;
 	blocks: Block[];
@@ -489,7 +489,7 @@ export interface BookingItem {
 export interface Booking {
 	id: string;
 	number: string;
-	userId: string;
+	accountId: string;
 	blocks: Block[];
 	businessId: string;
 	status: BookingStatus;
@@ -497,7 +497,7 @@ export interface Booking {
 	providerIds: string[];
 	payment: Payment;
 	business?: Business;
-	user?: any;
+	account?: any;
 	items: BookingItem[];
 	groupId?: string;
 	audienceId?: string;
