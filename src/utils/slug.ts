@@ -2,7 +2,7 @@ import type { ApiConfig } from "../index";
 
 export type SeoEnabledEntity = "product" | "service" | "collection" | "entry";
 
-export type UuidOnlyEntity = "order" | "reservation" | "provider";
+export type UuidOnlyEntity = "order" | "booking" | "provider";
 
 export const isUuid = (str: string): boolean => {
   const uuidRegex =

@@ -3,8 +3,8 @@ export type {
   ApiResponse,
   EshopCartItem,
   EshopStoreState,
-  ReservationStoreState,
-  ReservationCartItem,
+  BookingStoreState,
+  BookingCartItem,
   Business,
   BusinessConfig,
   Integration,
@@ -116,7 +116,7 @@ import { createNotificationApi } from "./api/notification";
 import { createPromoCodeApi } from "./api/promoCode";
 import { createCmsApi } from "./api/cms";
 import { createEshopApi } from "./api/eshop";
-import { createReservationApi } from "./api/reservation";
+import { createBookingApi } from "./api/booking";
 import { createDatabaseApi } from "./api/database";
 import { createLocationApi } from "./api/location";
 import { createNetworkApi } from "./api/network";
@@ -221,7 +221,7 @@ export async function createArkySDK(
     platform: platformApi,
     cms: createCmsApi(apiConfig),
     eshop: createEshopApi(apiConfig),
-    reservation: createReservationApi(apiConfig),
+    booking: createBookingApi(apiConfig),
     database: createDatabaseApi(apiConfig),
     location: createLocationApi(apiConfig),
     network: createNetworkApi(apiConfig),

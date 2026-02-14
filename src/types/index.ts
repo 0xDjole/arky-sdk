@@ -156,7 +156,7 @@ export interface EshopCartItem {
 	addedAt: number;
 }
 
-export interface ReservationCartItem {
+export interface BookingCartItem {
 	id: string;
 	serviceId: string;
 	serviceName: string;
@@ -226,7 +226,7 @@ export interface InventoryLevel {
 	reserved: number;
 }
 
-export type ZoneScope = "all" | "order" | "reservation";
+export type ZoneScope = "all" | "order" | "booking";
 
 export interface Zone {
 	id: string;
@@ -275,14 +275,14 @@ export type WebhookEventSubscription =
 	| { event: 'order.shipment_failed' }
 	| { event: 'order.shipment_returned' }
 	| { event: 'order.shipment_status_changed' }
-	| { event: 'reservation.created' }
-	| { event: 'reservation.updated' }
-	| { event: 'reservation.status_changed' }
-	| { event: 'reservation.payment_received' }
-	| { event: 'reservation.payment_failed' }
-	| { event: 'reservation.refunded' }
-	| { event: 'reservation.completed' }
-	| { event: 'reservation.cancelled' }
+	| { event: 'booking.created' }
+	| { event: 'booking.updated' }
+	| { event: 'booking.status_changed' }
+	| { event: 'booking.payment_received' }
+	| { event: 'booking.payment_failed' }
+	| { event: 'booking.refunded' }
+	| { event: 'booking.completed' }
+	| { event: 'booking.cancelled' }
 	| { event: 'product.created' }
 	| { event: 'product.updated' }
 	| { event: 'product.deleted' }
@@ -432,7 +432,7 @@ export interface PaginatedResponse<T> {
 	};
 }
 
-export interface ReservationStoreState {
+export interface BookingStoreState {
 	currentStep: number;
 	totalSteps: number;
 	steps: Record<number, { name: string; labelKey: string }>;
@@ -452,12 +452,12 @@ export interface ReservationStoreState {
 	service: any | null;
 	business: Business | null;
 	currency: string;
-	reservationBlocks: Block[];
+	bookingBlocks: Block[];
 	apiUrl: string;
 	businessId: string;
 	timezone: string;
 	tzGroups: any;
-	items: ReservationCartItem[];
+	items: BookingCartItem[];
 	allowedPaymentMethods: string[];
 	paymentConfig: {
 		provider: { publishableKey: string; currency: string } | null;
@@ -469,16 +469,16 @@ export type Status = 'draft' | 'active' | 'archived';
 
 export type OrderStatus = 'created' | 'pending' | 'authorized' | 'confirmed' | 'shipped' | 'completed' | 'cancelled' | 'failed';
 
-export type ReservationStatus = 'created' | 'pending' | 'authorized' | 'confirmed' | 'completed' | 'cancelled' | 'failed';
+export type BookingStatus = 'created' | 'pending' | 'authorized' | 'confirmed' | 'completed' | 'cancelled' | 'failed';
 
 export type SubscriptionStatus = 'pending' | 'active' | 'cancellation_scheduled' | 'cancelled' | 'expired';
 
-export interface ReservationItem {
+export interface BookingItem {
 	id: string;
 	serviceId: string;
 	providerId: string;
 	businessId: string;
-	reservationId: string;
+	bookingId: string;
 	userId: string;
 	from: number;
 	to: number;
@@ -486,19 +486,19 @@ export interface ReservationItem {
 	price: Price;
 }
 
-export interface Reservation {
+export interface Booking {
 	id: string;
 	number: string;
 	userId: string;
 	blocks: Block[];
 	businessId: string;
-	status: ReservationStatus;
+	status: BookingStatus;
 	serviceIds: string[];
 	providerIds: string[];
 	payment: Payment;
 	business?: Business;
 	user?: any;
-	items: ReservationItem[];
+	items: BookingItem[];
 	groupId?: string;
 	audienceId?: string;
 	createdAt: number;
@@ -532,6 +532,7 @@ export interface ServiceProvider {
 	prices: Price[];
 	durations: ServiceDuration[];
 	isApprovalRequired: boolean;
+	audienceIds: string[];
 	workingTime: {
 		workingDays: Array<{ day: string; workingHours: Array<{ from: number; to: number }> }>;
 		outcastDates: Array<{ month: number; day: number; workingHours: Array<{ from: number; to: number }> }>;
@@ -548,7 +549,6 @@ export interface Service {
 	blocks: Block[];
 	filters: Filter[];
 	networkIds: string[];
-	audienceIds: string[];
 	providers: ServiceProvider[];
 	createdAt: number;
 	updatedAt: number;
@@ -713,15 +713,15 @@ export type EventAction =
 	| { action: 'order_shipment_failed'; data: { shipment_id: string; reason?: string } }
 	| { action: 'order_shipment_returned'; data: { shipment_id: string } }
 	| { action: 'order_shipment_status_changed'; data: { shipment_id: string; from: string; to: string } }
-	// Reservation events
-	| { action: 'reservation_created' }
-	| { action: 'reservation_updated' }
-	| { action: 'reservation_status_changed'; data: { from: string; to: string } }
-	| { action: 'reservation_payment_received'; data: { amount: number; currency: string } }
-	| { action: 'reservation_payment_failed'; data: { reason?: string } }
-	| { action: 'reservation_refunded'; data: { amount: number; currency: string; reason?: string } }
-	| { action: 'reservation_completed' }
-	| { action: 'reservation_cancelled'; data: { reason?: string } }
+	// Booking events
+	| { action: 'booking_created' }
+	| { action: 'booking_updated' }
+	| { action: 'booking_status_changed'; data: { from: string; to: string } }
+	| { action: 'booking_payment_received'; data: { amount: number; currency: string } }
+	| { action: 'booking_payment_failed'; data: { reason?: string } }
+	| { action: 'booking_refunded'; data: { amount: number; currency: string; reason?: string } }
+	| { action: 'booking_completed' }
+	| { action: 'booking_cancelled'; data: { reason?: string } }
 	// Product events
 	| { action: 'product_created' }
 	| { action: 'product_updated' }

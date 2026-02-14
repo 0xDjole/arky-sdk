@@ -204,7 +204,7 @@ export interface GetServicesParams {
   priceTo?: number;
 }
 
-export interface ReservationCheckoutParams {
+export interface BookingCheckoutParams {
   businessId?: string;
   items: any[];
   paymentMethodId?: string;
@@ -214,16 +214,16 @@ export interface ReservationCheckoutParams {
   location?: ZoneLocation;
 }
 
-export interface ReservationQuoteItem {
+export interface BookingQuoteItem {
   serviceId: string;
   from: number;
   to: number;
   providerId: string;
 }
 
-export interface GetReservationQuoteParams {
+export interface GetBookingQuoteParams {
   businessId?: string;
-  items: ReservationQuoteItem[];
+  items: BookingQuoteItem[];
   paymentMethodId?: string;
   promoCode?: string;
   /** Zone location for zone/market resolution */
@@ -494,12 +494,13 @@ export interface CreateOrderParams {
   [key: string]: any;
 }
 
-export interface CreateReservationParams {
+export interface CreateBookingParams {
   businessId?: string;
+  audienceId?: string;
   [key: string]: any;
 }
 
-export interface UpdateReservationParams {
+export interface UpdateBookingParams {
   id: string;
   status?: string;
   blocks?: any;
@@ -543,12 +544,12 @@ export interface ServiceProviderInput {
   durations?: any[];
   isApprovalRequired?: boolean;
   workingTime: WorkingTime;
+  audienceIds: string[];
 }
 
 export interface CreateServiceParams {
   businessId?: string;
   key: string;
-  audienceIds?: string[];
   blocks?: any[];
   filters?: any[];
   status?: Status;
@@ -560,7 +561,6 @@ export interface UpdateServiceParams {
   id: string;
   businessId?: string;
   key?: string;
-  audienceIds?: string[];
   blocks?: any[];
   filters?: any[];
   status?: Status;
@@ -612,12 +612,12 @@ export interface GetBusinessServiceWorkingTimeParams {
   serviceId?: string;
 }
 
-export interface GetReservationParams {
+export interface GetBookingParams {
   id: string;
   businessId?: string;
 }
 
-export interface SearchReservationsParams {
+export interface SearchBookingsParams {
   businessId?: string;
   query?: string;
   serviceIds?: string[];
@@ -697,8 +697,8 @@ export interface ProcessRefundParams {
 }
 
 export type SystemTemplateKey =
-  | "system:reservation-business-update"
-  | "system:reservation-customer-update"
+  | "system:booking-business-update"
+  | "system:booking-customer-update"
   | "system:user-invitation"
   | "system:order-status-update"
   | "system:user-confirmation"
@@ -893,15 +893,3 @@ export interface ShipParams {
   lines: import('./index').ShipmentLine[];
 }
 
-/** Group booking — batch-book audience members into a service */
-export interface GroupBookingParams {
-  businessId?: string;
-  audienceId: string;
-  serviceId: string;
-  providerId: string;
-  from: number;
-  to: number;
-  market: string;
-  blocks?: any[];
-  paymentMethodId?: string;
-}

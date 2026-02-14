@@ -1,10 +1,10 @@
 import type { ApiConfig } from "../index";
 import type {
-  CreateReservationParams,
-  UpdateReservationParams,
-  ReservationCheckoutParams,
-  GetReservationParams,
-  SearchReservationsParams,
+  CreateBookingParams,
+  UpdateBookingParams,
+  BookingCheckoutParams,
+  GetBookingParams,
+  SearchBookingsParams,
   CreateServiceParams,
   UpdateServiceParams,
   DeleteServiceParams,
@@ -17,13 +17,12 @@ import type {
   GetProviderParams,
   GetProvidersParams,
   GetBusinessServiceWorkingTimeParams,
-  GetReservationQuoteParams,
-  GroupBookingParams,
+  GetBookingQuoteParams,
   RequestOptions,
   Slot,
 } from "../types/api";
 
-export const createReservationApi = (apiConfig: ApiConfig) => {
+export const createBookingApi = (apiConfig: ApiConfig) => {
   
   let cart: Slot[] = [];
 
@@ -45,34 +44,34 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       cart = [];
     },
 
-    async createReservation(
-      params: CreateReservationParams,
+    async createBooking(
+      params: CreateBookingParams,
       options?: RequestOptions,
     ) {
       const { businessId, ...payload } = params;
       const targetBusinessId = businessId || apiConfig.businessId;
 
       return apiConfig.httpClient.post(
-        `/v1/businesses/${targetBusinessId}/reservations`,
+        `/v1/businesses/${targetBusinessId}/bookings`,
         { market: apiConfig.market, ...payload },
         options,
       );
     },
 
-    async updateReservation(
-      params: UpdateReservationParams,
+    async updateBooking(
+      params: UpdateBookingParams,
       options?: RequestOptions,
     ) {
       const { id, ...payload } = params;
       return apiConfig.httpClient.put(
-        `/v1/businesses/${apiConfig.businessId}/reservations/${id}`,
+        `/v1/businesses/${apiConfig.businessId}/bookings/${id}`,
         payload,
         options,
       );
     },
 
     async checkout(
-      params?: Partial<ReservationCheckoutParams>,
+      params?: Partial<BookingCheckoutParams>,
       options?: RequestOptions,
     ) {
       const { businessId, items: paramItems, ...payload } = params || {};
@@ -86,31 +85,31 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
       }));
 
       return apiConfig.httpClient.post(
-        `/v1/businesses/${targetBusinessId}/reservations/checkout`,
+        `/v1/businesses/${targetBusinessId}/bookings/checkout`,
         { market: apiConfig.market, ...payload, items },
         options,
       );
     },
 
-    async getReservation(
-      params: GetReservationParams,
+    async getBooking(
+      params: GetBookingParams,
       options?: RequestOptions,
     ) {
       const targetBusinessId = params.businessId || apiConfig.businessId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${targetBusinessId}/reservations/${params.id}`,
+        `/v1/businesses/${targetBusinessId}/bookings/${params.id}`,
         options,
       );
     },
 
-    async searchReservations(
-      params: SearchReservationsParams,
+    async searchBookings(
+      params: SearchBookingsParams,
       options?: RequestOptions,
     ) {
       const { businessId, ...queryParams } = params;
       const targetBusinessId = businessId || apiConfig.businessId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${targetBusinessId}/reservations`,
+        `/v1/businesses/${targetBusinessId}/bookings`,
         {
           ...options,
           params: queryParams,
@@ -119,14 +118,14 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
     },
 
     async getQuote(
-      params: GetReservationQuoteParams,
+      params: GetBookingQuoteParams,
       options?: RequestOptions,
     ) {
       const { businessId, ...payload } = params;
       const targetBusinessId = businessId || apiConfig.businessId;
 
       return apiConfig.httpClient.post(
-        `/v1/businesses/${targetBusinessId}/reservations/quote`,
+        `/v1/businesses/${targetBusinessId}/bookings/quote`,
         { market: apiConfig.market, ...payload },
         options,
       );
@@ -260,16 +259,6 @@ export const createReservationApi = (apiConfig: ApiConfig) => {
           ...options,
           params: queryParams,
         },
-      );
-    },
-
-    async groupBook(params: GroupBookingParams, options?: RequestOptions) {
-      const { businessId, ...payload } = params;
-      const targetBusinessId = businessId || apiConfig.businessId;
-      return apiConfig.httpClient.post(
-        `/v1/businesses/${targetBusinessId}/reservations/group-book`,
-        payload,
-        options,
       );
     },
 
