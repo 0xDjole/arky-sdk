@@ -572,12 +572,6 @@ export interface DeleteServiceParams {
   businessId?: string;
 }
 
-export interface BulkScheduleParams {
-  serviceIds: string[];
-  providerIds: string[];
-  workingTime: WorkingTime;
-}
-
 export interface GetServiceParams {
   id?: string;
   slug?: string;
