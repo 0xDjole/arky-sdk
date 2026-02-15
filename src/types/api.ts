@@ -836,9 +836,19 @@ export interface AudienceSubscriber {
   subscribedAt?: number;
 }
 
-export interface RevokeAudienceSubscriptionParams {
+export interface RemoveAudienceSubscriberParams {
   id: string;
   accountId: string;
+}
+
+export interface AddAudienceSubscriberParams {
+  id: string;
+  email: string;
+}
+
+export interface AddAudienceSubscriberResponse {
+  subscriber: AudienceSubscriber | null;
+  skipped: boolean;
 }
 
 export interface GetEventsParams {
