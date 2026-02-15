@@ -830,10 +830,17 @@ export interface GetAudienceSubscribersParams {
   cursor?: string;
 }
 
+export enum SubscriptionSource {
+  Signup = 'signup',
+  Admin = 'admin',
+  Import = 'import'
+}
+
 export interface AudienceSubscriber {
   accountId: string;
   email: string;
   subscribedAt?: number;
+  source?: SubscriptionSource;
 }
 
 export interface RemoveAudienceSubscriberParams {
