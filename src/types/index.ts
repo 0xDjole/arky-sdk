@@ -499,7 +499,6 @@ export interface Booking {
 	business?: Business;
 	account?: any;
 	items: BookingItem[];
-	groupId?: string;
 	audienceId?: string;
 	createdAt: number;
 	lastModified: number;

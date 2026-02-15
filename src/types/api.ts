@@ -496,7 +496,6 @@ export interface CreateOrderParams {
 
 export interface CreateBookingParams {
   businessId?: string;
-  audienceId?: string;
   [key: string]: any;
 }
 
