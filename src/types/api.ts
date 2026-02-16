@@ -409,6 +409,10 @@ export interface InviteUserParams {
   role?: BusinessRole;
 }
 
+export interface RemoveMemberParams {
+  accountId: string;
+}
+
 export interface HandleInvitationParams {
   token: string;
   action: string;

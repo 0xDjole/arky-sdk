@@ -12,6 +12,7 @@ import type {
   SubscribeParams,
   CreatePortalSessionParams,
   InviteUserParams,
+  RemoveMemberParams,
   HandleInvitationParams,
   TestWebhookParams,
   GetBusinessMediaParams2,
@@ -125,6 +126,14 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
         options
       );
     },
+
+    async removeMember(params: RemoveMemberParams, options?: RequestOptions) {
+      return apiConfig.httpClient.delete(
+        `/v1/businesses/${apiConfig.businessId}/members/${params.accountId}`,
+        options
+      );
+    },
+
     async handleInvitation(
       params: HandleInvitationParams,
       options?: RequestOptions
