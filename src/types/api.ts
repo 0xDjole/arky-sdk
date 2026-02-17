@@ -143,13 +143,15 @@ export interface DeleteBusinessMediaParams {
   mediaId: string;
 }
 
+export interface GetMediaParams {
+  mediaId: string;
+  businessId?: string;
+}
+
 export interface UpdateMediaParams {
   mediaId: string;
   businessId?: string;
-  seo?: any;
-  title?: string;
-  description?: string;
-  alt?: string;
+  slug?: Record<string, string>;
 }
 
 export interface GetBusinessMediaParams {
@@ -179,14 +181,6 @@ export interface MagicLinkVerifyParams {
   code: string;
 }
 
-export interface AddPhoneNumberParams {
-  phoneNumber: string;
-}
-
-export interface PhoneNumberConfirmParams {
-  phoneNumber: string;
-  code: string;
-}
 
 export interface GetServicesParams {
   businessId?: string;
@@ -386,13 +380,11 @@ export interface DeleteBusinessParams {
 
 export interface GetBusinessParams {}
 
-export interface GetBusinessParentsParams {}
 
 export interface TriggerBuildsParams {
   id: string;
 }
 
-export interface GetSubscriptionParams {}
 
 export interface SubscribeParams {
   planId: string;
@@ -422,18 +414,6 @@ export interface TestWebhookParams {
   webhook: any;
 }
 
-export interface GenerateBlocksParams {
-  [key: string]: any;
-}
-
-
-export interface AccountSubscribeParams {
-  target?: string;
-  identifier: string;
-  planId?: string;
-  successUrl?: string;
-  cancelUrl?: string;
-}
 
 export interface CreateProductParams {
   key: string;
@@ -648,9 +628,16 @@ export interface TrackEmailOpenParams {
   trackingPixelId: string;
 }
 
-export interface GetDeliveryStatsParams {}
 
-export interface UpdateNotificationsParams {}
+export interface TriggerNotificationParams {
+  channel: string;
+  businessId: string;
+  nodeId?: string;
+  recipients?: string[];
+  audienceId?: string;
+  fromName?: string;
+  vars?: Record<string, any>;
+}
 
 export interface GetMeParams {}
 
@@ -863,16 +850,6 @@ export interface AddAudienceSubscriberResponse {
   skipped: boolean;
 }
 
-export interface GetEventsParams {
-  entity: string;
-  limit?: number;
-  cursor?: string;
-}
-
-export interface UpdateEventParams {
-  eventId: string;
-  event: import('./index').EventAction;
-}
 
 export interface OAuthConnectParams {
   businessId: string;

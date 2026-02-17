@@ -6,7 +6,6 @@ import type {
   GetNodeParams,
   GetNodesParams,
   GetNodeChildrenParams,
-  GenerateBlocksParams,
   RequestOptions,
 } from "../types/api";
 import {
@@ -99,14 +98,6 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
           ...options,
           params: queryParams,
         }
-      );
-    },
-
-    async generateBlocks(params: GenerateBlocksParams, options?: RequestOptions) {
-      return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/nodes/blocks/generate`,
-        params,
-        options
       );
     },
 

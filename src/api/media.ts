@@ -3,12 +3,21 @@ import type {
     UploadBusinessMediaParams,
     DeleteBusinessMediaParams,
     GetBusinessMediaParams,
+    GetMediaParams,
     UpdateMediaParams,
     RequestOptions
 } from '../types/api';
 
 export const createMediaApi = (apiConfig: ApiConfig) => {
     return {
+        async getMedia(params: GetMediaParams, options?: RequestOptions) {
+            const targetBusinessId = params.businessId || apiConfig.businessId;
+            return apiConfig.httpClient.get(
+                `/v1/businesses/${targetBusinessId}/media/${params.mediaId}`,
+                options
+            );
+        },
+
         async uploadBusinessMedia(params: UploadBusinessMediaParams, options?: RequestOptions) {
             const _options = options;
             const { businessId, files = [], urls = [] } = params;

@@ -175,7 +175,6 @@ export type IntegrationStatus = 'active' | 'inactive';
 export type IntegrationProvider =
 	| { type: 'stripe'; secretKey?: string; publishableKey: string; webhookSecret?: string; currency: string }
 	| { type: 'shippo'; apiToken?: string }
-	| { type: 'deepseek'; apiKey?: string; baseUrl: string }
 	| { type: 'google'; clientId?: string; clientSecret?: string; accessToken?: string; refreshToken?: string;
 		tokenExpiresAt?: number; scopes: string[]; accountEmail?: string | null; connectedAt: number }
 	| { type: 'google_analytics4'; measurementId: string };

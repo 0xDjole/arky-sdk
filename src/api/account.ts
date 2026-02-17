@@ -1,18 +1,14 @@
 import type { ApiConfig } from '../index';
 import type {
     UpdateAccountProfileParams,
-    AddPhoneNumberParams,
-    PhoneNumberConfirmParams,
     SearchAccountsParams,
     DeleteAccountParams,
     GetMeParams,
-    AccountSubscribeParams,
     RequestOptions
 } from '../types/api';
 
 export const createAccountApi = (apiConfig: ApiConfig) => {
     return {
-        
         async updateAccount(params: UpdateAccountProfileParams, options?: RequestOptions) {
             const payload: any = {};
 
@@ -25,14 +21,6 @@ export const createAccountApi = (apiConfig: ApiConfig) => {
 
         async deleteAccount(params: DeleteAccountParams, options?: RequestOptions) {
             return apiConfig.httpClient.delete('/v1/accounts', options);
-        },
-
-        async addPhoneNumber(params: AddPhoneNumberParams, options?: RequestOptions) {
-            return apiConfig.httpClient.post('/v1/accounts/phone-number', params, options);
-        },
-
-        async phoneNumberConfirm(params: PhoneNumberConfirmParams, options?: RequestOptions) {
-            return apiConfig.httpClient.post('/v1/accounts/phone-number/confirm', params, options);
         },
 
         async getMe(params: GetMeParams, options?: RequestOptions) {
@@ -48,9 +36,5 @@ export const createAccountApi = (apiConfig: ApiConfig) => {
                 }
             });
         },
-
-        async subscribe(params: AccountSubscribeParams, options?: RequestOptions) {
-            return apiConfig.httpClient.post('/v1/accounts/subscribe', params, options);
-        }
     };
 };

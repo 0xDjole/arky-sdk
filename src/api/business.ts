@@ -5,9 +5,7 @@ import type {
   DeleteBusinessParams,
   GetBusinessParams,
   GetBusinessesParams,
-  GetBusinessParentsParams,
   TriggerBuildsParams,
-  GetSubscriptionParams,
   GetSubscriptionPlansParams,
   SubscribeParams,
   CreatePortalSessionParams,
@@ -66,16 +64,6 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       });
     },
 
-    async getBusinessParents(
-      params: GetBusinessParentsParams,
-      options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/parents`,
-        options
-      );
-    },
-
     async triggerBuilds(params: TriggerBuildsParams, options?: RequestOptions) {
       return apiConfig.httpClient.post(
         `/v1/businesses/${params.id}/trigger-builds`,
@@ -91,15 +79,6 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get("/v1/businesses/plans", options);
     },
 
-    async getSubscription(
-      params: GetSubscriptionParams,
-      options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/subscription`,
-        options
-      );
-    },
     async subscribe(params: SubscribeParams, options?: RequestOptions) {
       return apiConfig.httpClient.put(
         `/v1/businesses/${apiConfig.businessId}/subscribe`,
