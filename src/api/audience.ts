@@ -37,8 +37,16 @@ export const createAudienceApi = (apiConfig: ApiConfig) => {
     },
 
     async getAudience(params: GetAudienceParams, options?: RequestOptions) {
+      let identifier: string;
+      if (params.id) {
+        identifier = params.id;
+      } else if (params.key) {
+        identifier = `${apiConfig.businessId}:${params.key}`;
+      } else {
+        throw new Error("GetAudienceParams requires id or key");
+      }
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}`,
+        `/v1/businesses/${apiConfig.businessId}/audiences/${identifier}`,
         options,
       );
     },

@@ -805,7 +805,8 @@ export interface UpdateAudienceParams {
 }
 
 export interface GetAudienceParams {
-  id: string;
+  id?: string;
+  key?: string;
 }
 
 export interface GetAudiencesParams {
