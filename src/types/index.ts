@@ -179,7 +179,52 @@ export type IntegrationProvider =
 		tokenExpiresAt?: number; scopes: string[]; accountEmail?: string | null; connectedAt: number }
 	| { type: 'google_analytics4'; measurementId: string }
 	| { type: 'telegram'; botToken?: string }
-	| { type: 'anthropic'; apiKey?: string };
+	| { type: 'deep_seek'; apiKey?: string }
+	// Bearer token providers
+	| { type: 'open_ai'; apiKey?: string }
+	| { type: 'slack'; apiKey?: string }
+	| { type: 'discord'; apiKey?: string }
+	| { type: 'whats_app'; apiKey?: string }
+	| { type: 'resend'; apiKey?: string }
+	| { type: 'send_grid'; apiKey?: string }
+	| { type: 'airtable'; apiKey?: string }
+	| { type: 'linear'; apiKey?: string }
+	| { type: 'git_hub'; apiKey?: string }
+	| { type: 'git_lab'; apiKey?: string }
+	| { type: 'dropbox'; apiKey?: string }
+	| { type: 'hub_spot'; apiKey?: string }
+	| { type: 'monday'; apiKey?: string }
+	| { type: 'click_up'; apiKey?: string }
+	| { type: 'pipedrive'; apiKey?: string }
+	| { type: 'calendly'; apiKey?: string }
+	| { type: 'typeform'; apiKey?: string }
+	| { type: 'webflow'; apiKey?: string }
+	| { type: 'trello'; apiKey?: string }
+	| { type: 'perplexity'; apiKey?: string }
+	| { type: 'replicate'; apiKey?: string }
+	| { type: 'asana'; apiKey?: string }
+	| { type: 'brevo'; apiKey?: string }
+	| { type: 'intercom'; apiKey?: string }
+	| { type: 'google_gemini'; apiKey?: string }
+	// Custom header auth
+	| { type: 'anthropic'; apiKey?: string }
+	| { type: 'notion'; apiKey?: string }
+	| { type: 'eleven_labs'; apiKey?: string }
+	| { type: 'active_campaign'; apiKey?: string; accountUrl: string }
+	| { type: 'shopify'; apiKey?: string; storeDomain: string }
+	| { type: 'supabase'; apiKey?: string; projectUrl: string }
+	| { type: 'mailchimp'; apiKey?: string }
+	// Basic auth
+	| { type: 'twilio'; accountSid?: string; authToken?: string }
+	| { type: 'jira'; email?: string; apiToken?: string; domain: string }
+	| { type: 'woo_commerce'; consumerKey?: string; consumerSecret?: string; storeUrl: string }
+	| { type: 'freshdesk'; apiKey?: string; domain: string }
+	| { type: 'zendesk'; apiToken?: string; email?: string; subdomain: string }
+	// OAuth / token + instance
+	| { type: 'salesforce'; accessToken?: string; instanceUrl: string }
+	| { type: 'zoom'; apiKey?: string }
+	| { type: 'microsoft_teams'; apiKey?: string }
+	| { type: 'firebase'; apiKey?: string };
 
 /** Unified integration — single pool for all third-party service configs */
 export interface Integration {
