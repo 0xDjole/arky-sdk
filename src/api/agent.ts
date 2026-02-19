@@ -6,6 +6,9 @@ import type {
 	GetAgentParams,
 	GetAgentsParams,
 	SetupAgentWebhookParams,
+	RunAgentParams,
+	GetAgentMemoriesParams,
+	DeleteAgentMemoryParams,
 	RequestOptions
 } from '../types/api';
 
@@ -56,6 +59,34 @@ export const createAgentApi = (apiConfig: ApiConfig) => {
 			return apiConfig.httpClient.post(
 				`/v1/businesses/${businessId}/agents/${params.id}/webhook`,
 				params,
+				options
+			);
+		},
+
+		async runAgent(params: RunAgentParams, options?: RequestOptions) {
+			return apiConfig.httpClient.post(
+				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/run`,
+				{ message: params.message },
+				options
+			);
+		},
+
+		async getMemories(params: GetAgentMemoriesParams, options?: RequestOptions) {
+			const queryParams: Record<string, string> = {};
+			if (params.category) queryParams.category = params.category;
+			if (params.limit) queryParams.limit = String(params.limit);
+			return apiConfig.httpClient.get(
+				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/memories`,
+				{
+					...options,
+					params: Object.keys(queryParams).length > 0 ? queryParams : undefined
+				}
+			);
+		},
+
+		async deleteMemory(params: DeleteAgentMemoryParams, options?: RequestOptions) {
+			return apiConfig.httpClient.delete(
+				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/memories/${params.memoryId}`,
 				options
 			);
 		}

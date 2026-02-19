@@ -889,7 +889,7 @@ export interface ShipParams {
 
 export type AgentStatus = 'active' | 'disabled';
 export type AgentChannel = 'telegram';
-export type AgentProvider = 'anthropic';
+export type AgentProvider = 'deep_seek' | 'open_ai' | 'google_gemini' | 'perplexity';
 
 export interface CreateAgentParams {
   businessId?: string;
@@ -935,5 +935,21 @@ export interface SetupAgentWebhookParams {
   id: string;
   businessId?: string;
   webhookBaseUrl: string;
+}
+
+export interface RunAgentParams {
+  id: string;
+  message: string;
+}
+
+export interface GetAgentMemoriesParams {
+  id: string;
+  category?: 'soul' | 'message' | 'fact';
+  limit?: number;
+}
+
+export interface DeleteAgentMemoryParams {
+  id: string;
+  memoryId: string;
 }
 

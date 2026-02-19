@@ -224,7 +224,8 @@ export type IntegrationProvider =
 	| { type: 'salesforce'; accessToken?: string; instanceUrl: string }
 	| { type: 'zoom'; apiKey?: string }
 	| { type: 'microsoft_teams'; apiKey?: string }
-	| { type: 'firebase'; apiKey?: string };
+	| { type: 'firebase'; apiKey?: string }
+	| { type: 'arky'; apiKey?: string };
 
 /** Unified integration — single pool for all third-party service configs */
 export interface Integration {
