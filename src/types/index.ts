@@ -177,7 +177,9 @@ export type IntegrationProvider =
 	| { type: 'shippo'; apiToken?: string }
 	| { type: 'google'; clientId?: string; clientSecret?: string; accessToken?: string; refreshToken?: string;
 		tokenExpiresAt?: number; scopes: string[]; accountEmail?: string | null; connectedAt: number }
-	| { type: 'google_analytics4'; measurementId: string };
+	| { type: 'google_analytics4'; measurementId: string }
+	| { type: 'telegram'; botToken?: string }
+	| { type: 'anthropic'; apiKey?: string };
 
 /** Unified integration — single pool for all third-party service configs */
 export interface Integration {

@@ -77,6 +77,12 @@ export type {
   // Shipping API params
   GetShippingRatesParams,
   ShipParams,
+  // Agent API params
+  CreateAgentParams,
+  UpdateAgentParams,
+  GetAgentParams,
+  GetAgentsParams,
+  AgentStatus,
 } from "./types/api";
 
 export type {
@@ -123,6 +129,7 @@ import { createWorkflowApi } from "./api/workflow";
 import { createAudienceApi } from "./api/audience";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
+import { createAgentApi } from "./api/agent";
 import {
   getImageUrl,
   getBlockValue,
@@ -225,6 +232,7 @@ location: createLocationApi(apiConfig),
     workflow: createWorkflowApi(apiConfig),
     audience: createAudienceApi(apiConfig),
     shipping: createShippingApi(apiConfig),
+    agent: createAgentApi(apiConfig),
 
     analytics: {
       track,

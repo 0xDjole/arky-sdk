@@ -885,3 +885,55 @@ export interface ShipParams {
   lines: import('./index').ShipmentLine[];
 }
 
+// ===== Agent API Parameters =====
+
+export type AgentStatus = 'active' | 'disabled';
+export type AgentChannel = 'telegram';
+export type AgentProvider = 'anthropic';
+
+export interface CreateAgentParams {
+  businessId?: string;
+  name: string;
+  rolePrompt: string;
+  status?: AgentStatus;
+  channel?: AgentChannel;
+  channelIntegrationId: string;
+  provider?: AgentProvider;
+  providerIntegrationId: string;
+  providerModel?: string;
+  toolsConfig?: string[];
+}
+
+export interface UpdateAgentParams {
+  id: string;
+  name: string;
+  rolePrompt: string;
+  status: AgentStatus;
+  channel: AgentChannel;
+  channelIntegrationId: string;
+  provider: AgentProvider;
+  providerIntegrationId: string;
+  providerModel: string;
+  toolsConfig: string[];
+}
+
+export interface DeleteAgentParams {
+  id: string;
+}
+
+export interface GetAgentParams {
+  id: string;
+}
+
+export interface GetAgentsParams {
+  businessId?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface SetupAgentWebhookParams {
+  id: string;
+  businessId?: string;
+  webhookBaseUrl: string;
+}
+
