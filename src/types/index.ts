@@ -358,6 +358,20 @@ export interface WebhookEndpoint {
 	enabled: boolean;
 }
 
+export type Channel = 'telegram' | 'slack' | 'discord' | 'whats_app';
+
+export type ChannelAction =
+	| { type: 'agent'; agentId: string }
+	| { type: 'workflow'; workflowId: string };
+
+export interface BusinessChannel {
+	id: string;
+	integrationId: string;
+	channel: Channel;
+	action: ChannelAction;
+	enabled: boolean;
+}
+
 export interface BusinessConfig {
 	languages: Language[];
 	markets: Market[];
@@ -366,6 +380,7 @@ export interface BusinessConfig {
 	buildHooks: string[];
 	webhooks: WebhookEndpoint[];
 	integrations: Integration[];
+	channels: BusinessChannel[];
 	paymentId?: string | null;
 	shippingIds: string[];
 	aiId?: string | null;

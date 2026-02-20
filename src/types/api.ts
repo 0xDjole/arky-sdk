@@ -888,32 +888,29 @@ export interface ShipParams {
 // ===== Agent API Parameters =====
 
 export type AgentStatus = 'active' | 'disabled';
-export type AgentChannel = 'telegram';
 export type AgentProvider = 'deep_seek' | 'open_ai' | 'google_gemini' | 'perplexity';
+
+export interface AgentProviderConfig {
+  type: AgentProvider;
+  integrationId: string;
+  model: string;
+}
 
 export interface CreateAgentParams {
   businessId?: string;
-  name: string;
+  key: string;
   rolePrompt: string;
   status?: AgentStatus;
-  channel?: AgentChannel;
-  channelIntegrationId: string;
-  provider?: AgentProvider;
-  providerIntegrationId: string;
-  providerModel?: string;
+  provider: AgentProviderConfig;
   toolsConfig?: string[];
 }
 
 export interface UpdateAgentParams {
   id: string;
-  name: string;
+  key: string;
   rolePrompt: string;
   status: AgentStatus;
-  channel: AgentChannel;
-  channelIntegrationId: string;
-  provider: AgentProvider;
-  providerIntegrationId: string;
-  providerModel: string;
+  provider: AgentProviderConfig;
   toolsConfig: string[];
 }
 
@@ -931,9 +928,9 @@ export interface GetAgentsParams {
   cursor?: string;
 }
 
-export interface SetupAgentWebhookParams {
-  id: string;
+export interface SetupChannelWebhookParams {
   businessId?: string;
+  integrationId: string;
   webhookBaseUrl: string;
 }
 

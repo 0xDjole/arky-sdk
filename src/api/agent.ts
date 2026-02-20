@@ -5,7 +5,6 @@ import type {
 	DeleteAgentParams,
 	GetAgentParams,
 	GetAgentsParams,
-	SetupAgentWebhookParams,
 	RunAgentParams,
 	GetAgentMemoriesParams,
 	DeleteAgentMemoryParams,
@@ -52,15 +51,6 @@ export const createAgentApi = (apiConfig: ApiConfig) => {
 				...options,
 				params: Object.keys(queryParams).length > 0 ? queryParams : undefined
 			});
-		},
-
-		async setupWebhook(params: SetupAgentWebhookParams, options?: RequestOptions) {
-			const businessId = params.businessId || apiConfig.businessId;
-			return apiConfig.httpClient.post(
-				`/v1/businesses/${businessId}/agents/${params.id}/webhook`,
-				params,
-				options
-			);
 		},
 
 		async runAgent(params: RunAgentParams, options?: RequestOptions) {

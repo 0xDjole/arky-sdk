@@ -7,6 +7,9 @@ export type {
   BookingCartItem,
   Business,
   BusinessConfig,
+  BusinessChannel,
+  Channel,
+  ChannelAction,
   Integration,
   IntegrationStatus,
   IntegrationProvider,
@@ -78,6 +81,7 @@ export type {
   GetShippingRatesParams,
   ShipParams,
   // Agent API params
+  AgentProviderConfig,
   CreateAgentParams,
   UpdateAgentParams,
   GetAgentParams,
