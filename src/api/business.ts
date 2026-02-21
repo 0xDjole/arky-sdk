@@ -17,7 +17,6 @@ import type {
   ProcessRefundParams,
   OAuthConnectParams,
   OAuthDisconnectParams,
-  SetupChannelWebhookParams,
   RequestOptions,
 } from "../types/api";
 
@@ -184,16 +183,5 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async setupChannelWebhook(
-      params: SetupChannelWebhookParams,
-      options?: RequestOptions
-    ) {
-      const businessId = params.businessId || apiConfig.businessId;
-      return apiConfig.httpClient.post(
-        `/v1/businesses/${businessId}/channels/${params.integrationId}/webhook`,
-        { webhookBaseUrl: params.webhookBaseUrl },
-        options
-      );
-    },
   };
 };

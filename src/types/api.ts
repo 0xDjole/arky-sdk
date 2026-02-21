@@ -928,12 +928,6 @@ export interface GetAgentsParams {
   cursor?: string;
 }
 
-export interface SetupChannelWebhookParams {
-  businessId?: string;
-  integrationId: string;
-  webhookBaseUrl: string;
-}
-
 export interface RunAgentParams {
   id: string;
   message: string;
