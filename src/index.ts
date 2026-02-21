@@ -7,8 +7,6 @@ export type {
   BookingCartItem,
   Business,
   BusinessConfig,
-  BusinessChannel,
-  Channel,
   ChannelAction,
   Integration,
   IntegrationStatus,
@@ -95,7 +93,7 @@ export type {
   GetCountriesResponse,
 } from "./api/location";
 
-export const SDK_VERSION = "0.5.23";
+export const SDK_VERSION = "0.5.24";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",

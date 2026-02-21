@@ -178,7 +178,7 @@ export type IntegrationProvider =
 	| { type: 'google'; clientId?: string; clientSecret?: string; accessToken?: string; refreshToken?: string;
 		tokenExpiresAt?: number; scopes: string[]; accountEmail?: string | null; connectedAt: number }
 	| { type: 'google_analytics4'; measurementId: string }
-	| { type: 'telegram'; botToken?: string }
+	| { type: 'telegram_bot'; botToken?: string; action: ChannelAction }
 	| { type: 'deep_seek'; apiKey?: string }
 	// Bearer token providers
 	| { type: 'open_ai'; apiKey?: string }
@@ -358,19 +358,9 @@ export interface WebhookEndpoint {
 	enabled: boolean;
 }
 
-export type Channel = 'telegram' | 'slack' | 'discord' | 'whats_app';
-
 export type ChannelAction =
 	| { type: 'agent'; agentId: string }
 	| { type: 'workflow'; workflowId: string };
-
-export interface BusinessChannel {
-	id: string;
-	integrationId: string;
-	channel: Channel;
-	action: ChannelAction;
-	enabled: boolean;
-}
 
 export interface BusinessConfig {
 	languages: Language[];
@@ -380,7 +370,6 @@ export interface BusinessConfig {
 	buildHooks: string[];
 	webhooks: WebhookEndpoint[];
 	integrations: Integration[];
-	channels: BusinessChannel[];
 	paymentId?: string | null;
 	shippingIds: string[];
 	aiId?: string | null;
