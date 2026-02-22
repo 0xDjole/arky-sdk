@@ -9,7 +9,6 @@ export type {
   BusinessConfig,
   ChannelAction,
   Integration,
-  IntegrationStatus,
   IntegrationProvider,
   Block,
   Price,

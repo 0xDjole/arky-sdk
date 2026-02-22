@@ -168,16 +168,13 @@ export interface BookingCartItem {
 	blocks: any[];
 }
 
-/** Integration status */
-export type IntegrationStatus = 'active' | 'inactive';
-
 /** Integration provider — typed data per service */
 export type IntegrationProvider =
-	| { type: 'stripe'; secretKey?: string; publishableKey: string; webhookSecret?: string; currency: string }
-	| { type: 'shippo'; apiToken?: string }
+	| { type: 'stripe'; secretKey?: string; publishableKey: string; webhookSecret?: string; currency: string; activeForCardPayments?: boolean }
+	| { type: 'shippo'; apiToken?: string; activeForFulfillment?: boolean }
 	| { type: 'google'; clientId?: string; clientSecret?: string; accessToken?: string; refreshToken?: string;
 		tokenExpiresAt?: number; scopes: string[]; accountEmail?: string | null; connectedAt: number }
-	| { type: 'google_analytics4'; measurementId: string }
+	| { type: 'google_analytics4'; measurementId: string; activeForTracking?: boolean }
 	| { type: 'telegram_bot'; botToken?: string; action: ChannelAction }
 	| { type: 'deep_seek'; apiKey?: string }
 	// Bearer token providers
@@ -231,7 +228,6 @@ export type IntegrationProvider =
 export interface Integration {
 	id: string;
 	name: string;
-	status: IntegrationStatus;
 	provider: IntegrationProvider;
 	createdAt: number;
 	updatedAt: number;
@@ -370,10 +366,7 @@ export interface BusinessConfig {
 	buildHooks: string[];
 	webhooks: WebhookEndpoint[];
 	integrations: Integration[];
-	paymentId?: string | null;
-	shippingIds: string[];
 	aiId?: string | null;
-	analyticsIds: string[];
 	emails: BusinessEmails;
 }
 
@@ -922,16 +915,3 @@ export interface CustomsDeclaration {
 	items: CustomsItem[];
 }
 
-/** @deprecated Use IntegrationStatus instead */
-export type ShippingProviderStatus = IntegrationStatus;
-
-/** @deprecated Use Integration instead */
-export interface ShippingProviderShippo {
-	provider: 'shippo';
-	id: string;
-	status: ShippingProviderStatus;
-	apiToken: string;
-}
-
-/** @deprecated Use Integration instead */
-export type BusinessShippingProvider = ShippingProviderShippo;
