@@ -345,27 +345,40 @@ export type WebhookEventSubscription =
 	| { event: 'audience.updated' }
 	| { event: 'audience.deleted' };
 
-export interface WebhookEndpoint {
+export interface BusinessWebhook {
 	id: string;
+	businessId: string;
 	name: string;
 	url: string;
 	events: WebhookEventSubscription[];
 	headers: Record<string, string>;
 	secret: string;
 	enabled: boolean;
+	createdAt: number;
+	updatedAt: number;
 }
+
+/** @deprecated Use BusinessWebhook instead */
+export type WebhookEndpoint = BusinessWebhook;
 
 export type ChannelAction =
 	| { type: 'agent'; agentId: string }
 	| { type: 'workflow'; workflowId: string };
+
+export type BuildHookProvider = 'vercel' | 'netlify' | 'cloudflare' | 'custom';
+
+export interface BuildHook {
+	id: string;
+	url: string;
+	provider: BuildHookProvider;
+}
 
 export interface BusinessConfig {
 	languages: Language[];
 	markets: Market[];
 	zones: Zone[];
 	locations: Location[];
-	buildHooks: string[];
-	webhooks: WebhookEndpoint[];
+	buildHooks: BuildHook[];
 	aiId?: string | null;
 	emails: BusinessEmails;
 }

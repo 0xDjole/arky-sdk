@@ -8,6 +8,9 @@ export type {
   Business,
   BusinessConfig,
   ChannelAction,
+  BusinessWebhook,
+  WebhookEndpoint,
+  WebhookEventSubscription,
   Integration,
   IntegrationProvider,
   Block,
@@ -92,7 +95,7 @@ export type {
   GetCountriesResponse,
 } from "./api/location";
 
-export const SDK_VERSION = "0.5.29";
+export const SDK_VERSION = "0.5.31";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",

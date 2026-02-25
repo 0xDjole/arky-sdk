@@ -21,6 +21,10 @@ import type {
   CreateIntegrationParams,
   UpdateIntegrationParams,
   DeleteIntegrationParams,
+  ListWebhooksParams,
+  CreateWebhookParams,
+  UpdateWebhookParams,
+  DeleteWebhookParams,
   RequestOptions,
 } from "../types/api";
 
@@ -239,6 +243,52 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
     ) {
       return apiConfig.httpClient.get(
         `/v1/businesses/${params.businessId}/integrations/config/${params.type}`,
+        options
+      );
+    },
+
+    // ── Webhook CRUD ──
+
+    async listWebhooks(
+      params: ListWebhooksParams,
+      options?: RequestOptions
+    ) {
+      return apiConfig.httpClient.get(
+        `/v1/businesses/${params.businessId}/webhooks`,
+        options
+      );
+    },
+
+    async createWebhook(
+      params: CreateWebhookParams,
+      options?: RequestOptions
+    ) {
+      const { businessId, ...payload } = params;
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${businessId}/webhooks`,
+        payload,
+        options
+      );
+    },
+
+    async updateWebhook(
+      params: UpdateWebhookParams,
+      options?: RequestOptions
+    ) {
+      const { businessId, id, ...payload } = params;
+      return apiConfig.httpClient.put(
+        `/v1/businesses/${businessId}/webhooks/${id}`,
+        payload,
+        options
+      );
+    },
+
+    async deleteWebhook(
+      params: DeleteWebhookParams,
+      options?: RequestOptions
+    ) {
+      return apiConfig.httpClient.delete(
+        `/v1/businesses/${params.businessId}/webhooks/${params.id}`,
         options
       );
     },

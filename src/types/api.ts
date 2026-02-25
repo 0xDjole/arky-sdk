@@ -892,6 +892,38 @@ export interface DeleteIntegrationParams {
   id: string;
 }
 
+// Webhook CRUD Parameters
+
+export interface ListWebhooksParams {
+  businessId: string;
+}
+
+export interface CreateWebhookParams {
+  businessId: string;
+  name: string;
+  url: string;
+  events: import('./index').WebhookEventSubscription[];
+  headers: Record<string, string>;
+  secret: string;
+  enabled: boolean;
+}
+
+export interface UpdateWebhookParams {
+  businessId: string;
+  id: string;
+  name: string;
+  url: string;
+  events: import('./index').WebhookEventSubscription[];
+  headers: Record<string, string>;
+  secret: string;
+  enabled: boolean;
+}
+
+export interface DeleteWebhookParams {
+  businessId: string;
+  id: string;
+}
+
 // Shipping API Parameters
 
 /** Get shipping rates for a shipment */
