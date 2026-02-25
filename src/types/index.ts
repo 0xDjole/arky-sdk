@@ -224,9 +224,10 @@ export type IntegrationProvider =
 	| { type: 'firebase'; apiKey?: string }
 	| { type: 'arky'; apiKey?: string };
 
-/** Unified integration — single pool for all third-party service configs */
+/** Business integration — standalone sub-resource with its own CRUD */
 export interface Integration {
 	id: string;
+	businessId: string;
 	name: string;
 	provider: IntegrationProvider;
 	createdAt: number;
@@ -365,10 +366,10 @@ export interface BusinessConfig {
 	locations: Location[];
 	buildHooks: string[];
 	webhooks: WebhookEndpoint[];
-	integrations: Integration[];
 	aiId?: string | null;
 	emails: BusinessEmails;
 }
+
 
 export interface Subscription {
 	id: string;

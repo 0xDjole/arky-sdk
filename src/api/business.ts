@@ -17,6 +17,10 @@ import type {
   ProcessRefundParams,
   OAuthConnectParams,
   OAuthDisconnectParams,
+  ListIntegrationsParams,
+  CreateIntegrationParams,
+  UpdateIntegrationParams,
+  DeleteIntegrationParams,
   RequestOptions,
 } from "../types/api";
 
@@ -179,6 +183,62 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post(
         `/v1/businesses/${params.businessId}/oauth/disconnect`,
         { provider: params.provider },
+        options
+      );
+    },
+
+    // ── Integration CRUD ──
+
+    async listIntegrations(
+      params: ListIntegrationsParams,
+      options?: RequestOptions
+    ) {
+      return apiConfig.httpClient.get(
+        `/v1/businesses/${params.businessId}/integrations`,
+        options
+      );
+    },
+
+    async createIntegration(
+      params: CreateIntegrationParams,
+      options?: RequestOptions
+    ) {
+      const { businessId, ...payload } = params;
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${businessId}/integrations`,
+        payload,
+        options
+      );
+    },
+
+    async updateIntegration(
+      params: UpdateIntegrationParams,
+      options?: RequestOptions
+    ) {
+      const { businessId, id, ...payload } = params;
+      return apiConfig.httpClient.put(
+        `/v1/businesses/${businessId}/integrations/${id}`,
+        payload,
+        options
+      );
+    },
+
+    async deleteIntegration(
+      params: DeleteIntegrationParams,
+      options?: RequestOptions
+    ) {
+      return apiConfig.httpClient.delete(
+        `/v1/businesses/${params.businessId}/integrations/${params.id}`,
+        options
+      );
+    },
+
+    async getIntegrationConfig(
+      params: { businessId: string; type: 'payment' | 'shipping' | 'analytics' },
+      options?: RequestOptions
+    ) {
+      return apiConfig.httpClient.get(
+        `/v1/businesses/${params.businessId}/integrations/config/${params.type}`,
         options
       );
     },

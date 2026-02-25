@@ -863,6 +863,35 @@ export interface OAuthDisconnectParams {
   provider: string;
 }
 
+// Integration API Parameters
+
+export interface ListIntegrationsParams {
+  businessId: string;
+}
+
+export interface GetIntegrationParams {
+  businessId: string;
+  id: string;
+}
+
+export interface CreateIntegrationParams {
+  businessId: string;
+  name: string;
+  provider: import("./index").IntegrationProvider;
+}
+
+export interface UpdateIntegrationParams {
+  businessId: string;
+  id: string;
+  name?: string;
+  provider?: import("./index").IntegrationProvider;
+}
+
+export interface DeleteIntegrationParams {
+  businessId: string;
+  id: string;
+}
+
 // Shipping API Parameters
 
 /** Get shipping rates for a shipment */

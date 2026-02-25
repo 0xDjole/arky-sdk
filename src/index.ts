@@ -92,7 +92,7 @@ export type {
   GetCountriesResponse,
 } from "./api/location";
 
-export const SDK_VERSION = "0.5.25";
+export const SDK_VERSION = "0.5.29";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -173,10 +173,6 @@ import {
   getInventoryAt,
   getFirstAvailableFCId,
 } from "./utils/inventory";
-import {
-  getPaymentConfig,
-  getAnalyticsConfigs,
-} from "./utils/integrations";
 
 export async function createArkySDK(
   config: HttpClientConfig & {
@@ -203,15 +199,13 @@ export async function createArkySDK(
   const businessApi = createBusinessApi(apiConfig);
   const platformApi = createPlatformApi(apiConfig);
 
-  if (typeof window !== "undefined") {
-    // Fetch business config for analytics
-    businessApi.getBusiness({}).then(({ data: business }) => {
-      const configs = business?.configs || business?.config;
-      if (configs?.integrations) {
-        for (const i of configs.integrations) {
-          if (i.provider?.type === 'google_analytics4') {
-            injectGA4Script(i.provider.measurementId);
-          }
+  if (typeof window !== "undefined" && apiConfig.businessId) {
+    // Fetch analytics config (public endpoint, no auth needed)
+    businessApi.getIntegrationConfig({ businessId: apiConfig.businessId, type: 'analytics' }).then((configs: any[]) => {
+      if (!configs) return;
+      for (const c of Array.isArray(configs) ? configs : [configs]) {
+        if (c.measurementId) {
+          injectGA4Script(c.measurementId);
         }
       }
     }).catch(() => {});
@@ -310,8 +304,6 @@ location: createLocationApi(apiConfig),
       getInventoryAt,
       getFirstAvailableFCId,
 
-      getPaymentConfig,
-      getAnalyticsConfigs,
     },
 
   };

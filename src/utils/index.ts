@@ -21,7 +21,3 @@ export {
   getFirstAvailableFCId,
 } from "./inventory";
 
-export {
-  getPaymentConfig,
-  getAnalyticsConfigs,
-} from "./integrations";
