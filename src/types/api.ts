@@ -381,11 +381,6 @@ export interface DeleteBusinessParams {
 export interface GetBusinessParams {}
 
 
-export interface TriggerBuildsParams {
-  id: string;
-}
-
-
 export interface SubscribeParams {
   planId: string;
   successUrl: string;

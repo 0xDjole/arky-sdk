@@ -5,7 +5,6 @@ import type {
   DeleteBusinessParams,
   GetBusinessParams,
   GetBusinessesParams,
-  TriggerBuildsParams,
   GetSubscriptionPlansParams,
   SubscribeParams,
   CreatePortalSessionParams,
@@ -70,14 +69,6 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
         ...options,
         params,
       });
-    },
-
-    async triggerBuilds(params: TriggerBuildsParams, options?: RequestOptions) {
-      return apiConfig.httpClient.post(
-        `/v1/businesses/${params.id}/trigger-builds`,
-        {},
-        options
-      );
     },
 
     async getSubscriptionPlans(

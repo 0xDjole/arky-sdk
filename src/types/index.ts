@@ -222,7 +222,12 @@ export type IntegrationProvider =
 	| { type: 'zoom'; apiKey?: string }
 	| { type: 'microsoft_teams'; apiKey?: string }
 	| { type: 'firebase'; apiKey?: string }
-	| { type: 'arky'; apiKey?: string };
+	| { type: 'arky'; apiKey?: string }
+	// Deploy hooks
+	| { type: 'vercel_deploy_hook'; url?: string }
+	| { type: 'netlify_deploy_hook'; url?: string }
+	| { type: 'cloudflare_deploy_hook'; url?: string }
+	| { type: 'custom_deploy_hook'; url?: string };
 
 /** Business integration — standalone sub-resource with its own CRUD */
 export interface Integration {
@@ -365,20 +370,11 @@ export type ChannelAction =
 	| { type: 'agent'; agentId: string }
 	| { type: 'workflow'; workflowId: string };
 
-export type BuildHookProvider = 'vercel' | 'netlify' | 'cloudflare' | 'custom';
-
-export interface BuildHook {
-	id: string;
-	url: string;
-	provider: BuildHookProvider;
-}
-
 export interface BusinessConfig {
 	languages: Language[];
 	markets: Market[];
 	zones: Zone[];
 	locations: Location[];
-	buildHooks: BuildHook[];
 	aiId?: string | null;
 	emails: BusinessEmails;
 }
