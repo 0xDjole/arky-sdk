@@ -62,9 +62,11 @@ export const createAudienceApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribe`,
         {
-          priceId: params.priceId,
-          successUrl: params.successUrl,
-          cancelUrl: params.cancelUrl,
+          email: params.email,
+          ...(params.priceId && { priceId: params.priceId }),
+          ...(params.successUrl && { successUrl: params.successUrl }),
+          ...(params.cancelUrl && { cancelUrl: params.cancelUrl }),
+          ...(params.confirmUrl && { confirmUrl: params.confirmUrl }),
         },
         options,
       );

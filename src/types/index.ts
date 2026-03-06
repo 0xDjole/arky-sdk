@@ -399,7 +399,6 @@ export interface Business {
 	timezone: string;
 	configs?: BusinessConfig;
 	subscriptions?: Subscription[];
-	status: Status;
 }
 
 export interface EshopStoreState {
@@ -519,7 +518,7 @@ export interface BookingStoreState {
 	};
 }
 
-export type Status = 'draft' | 'active' | 'archived';
+export type Status = 'active' | 'archived';
 
 export type OrderStatus = 'created' | 'pending' | 'authorized' | 'confirmed' | 'shipped' | 'completed' | 'cancelled' | 'failed';
 
@@ -736,6 +735,7 @@ export interface Audience {
 	key: string;
 	prices: SubscriptionPrice[];
 	status: Status;
+	confirmationNodeId?: string | null;
 }
 
 export interface AudienceAccessResponse {

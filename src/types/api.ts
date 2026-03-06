@@ -370,7 +370,6 @@ export interface UpdateBusinessParams {
   key: string;
   networkKey: string | null;
   timezone: string;
-  status: Status;
   configs: any;
 }
 
@@ -627,7 +626,7 @@ export interface TrackEmailOpenParams {
 export interface TriggerNotificationParams {
   channel: string;
   businessId: string;
-  nodeId?: string;
+  templateId?: string;
   recipients?: string[];
   audienceId?: string;
   fromName?: string;
@@ -641,7 +640,6 @@ export interface LogoutParams {}
 export interface GetBusinessesParams {
   query?: string;
   isNetwork?: boolean;
-  statuses?: string[];
   limit?: number;
   cursor?: string;
   sortField?: string;
@@ -776,6 +774,7 @@ export interface CreateAudienceParams {
   key: string;
   name: string;
   prices?: SubscriptionPrice[];
+  confirmationNodeId?: string | null;
 }
 
 export interface UpdateAudienceParams {
@@ -784,6 +783,7 @@ export interface UpdateAudienceParams {
   name?: string;
   prices?: SubscriptionPrice[];
   status?: Status;
+  confirmationNodeId?: string | null;
 }
 
 export interface GetAudienceParams {
@@ -801,10 +801,11 @@ export interface GetAudiencesParams {
 
 export interface SubscribeAudienceParams {
   id: string;
-  
+  email: string;
   priceId?: string;
-  successUrl: string;
-  cancelUrl: string;
+  successUrl?: string;
+  cancelUrl?: string;
+  confirmUrl?: string;
 }
 
 export interface DeleteAudienceParams {
