@@ -729,13 +729,17 @@ export interface WorkflowExecution {
 	updatedAt: number;
 }
 
+export type AudienceType =
+	| { type: 'free' }
+	| { type: 'paid'; prices: SubscriptionPrice[] }
+	| { type: 'confirmation'; confirmationNodeId: string };
+
 export interface Audience {
 	id: string;
 	businessId: string;
 	key: string;
-	prices: SubscriptionPrice[];
 	status: Status;
-	confirmationNodeId?: string | null;
+	type: AudienceType;
 }
 
 export interface AudienceAccessResponse {

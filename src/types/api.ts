@@ -1,4 +1,4 @@
-import type { Block, ZoneLocation, WorkflowNode, Status, SubscriptionPrice, Address } from "./index";
+import type { Block, ZoneLocation, WorkflowNode, Status, SubscriptionPrice, Address, SubscriptionStatus } from "./index";
 
 export interface RequestOptions<T = any> {
   headers?: Record<string, string>;
@@ -829,6 +829,7 @@ export interface AudienceSubscriber {
   email: string;
   subscribedAt?: number;
   source?: SubscriptionSource;
+  status?: SubscriptionStatus;
 }
 
 export interface RemoveAudienceSubscriberParams {
