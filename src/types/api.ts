@@ -1,4 +1,4 @@
-import type { Block, ZoneLocation, WorkflowNode, Status, SubscriptionPrice, Address, SubscriptionStatus } from "./index";
+import type { Block, ZoneLocation, WorkflowNode, Status, Address, SubscriptionStatus, AudienceType } from "./index";
 
 export interface RequestOptions<T = any> {
   headers?: Record<string, string>;
@@ -773,17 +773,15 @@ export interface GetWorkflowExecutionParams {
 export interface CreateAudienceParams {
   key: string;
   name: string;
-  prices?: SubscriptionPrice[];
-  confirmationNodeId?: string | null;
+  type?: AudienceType;
 }
 
 export interface UpdateAudienceParams {
   id: string;
   key?: string;
   name?: string;
-  prices?: SubscriptionPrice[];
+  type?: AudienceType;
   status?: Status;
-  confirmationNodeId?: string | null;
 }
 
 export interface GetAudienceParams {

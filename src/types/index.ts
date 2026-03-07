@@ -730,7 +730,7 @@ export interface WorkflowExecution {
 }
 
 export type AudienceType =
-	| { type: 'free' }
+	| { type: 'standard' }
 	| { type: 'paid'; prices: SubscriptionPrice[] }
 	| { type: 'confirmation'; confirmationNodeId: string };
 
