@@ -601,7 +601,6 @@ export interface Service {
 	blocks: Block[];
 	filters: Filter[];
 	networkIds: string[];
-	providers: ServiceProvider[];
 	createdAt: number;
 	updatedAt: number;
 	status: Status;

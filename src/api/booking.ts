@@ -15,7 +15,10 @@ import type {
   DeleteProviderParams,
   GetProviderParams,
   GetProvidersParams,
-  GetBusinessServiceWorkingTimeParams,
+  CreateServiceProviderParams,
+  UpdateServiceProviderParams,
+  DeleteServiceProviderParams,
+  FindServiceProvidersParams,
   GetBookingQuoteParams,
   RequestOptions,
   Slot,
@@ -253,17 +256,51 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getProviderWorkingTime(
-      params: GetBusinessServiceWorkingTimeParams,
+    async findServiceProviders(
+      params: FindServiceProvidersParams,
       options?: RequestOptions,
     ) {
-      const { providerId, ...queryParams } = params;
+      const targetBusinessId = params.businessId || apiConfig.businessId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/providers/${providerId}/working-time`,
-        {
-          ...options,
-          params: queryParams,
-        },
+        `/v1/businesses/${targetBusinessId}/services/${params.serviceId}/providers`,
+        options,
+      );
+    },
+
+    async createServiceProvider(
+      params: CreateServiceProviderParams,
+      options?: RequestOptions,
+    ) {
+      const { businessId, serviceId, ...payload } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${targetBusinessId}/services/${serviceId}/providers`,
+        payload,
+        options,
+      );
+    },
+
+    async updateServiceProvider(
+      params: UpdateServiceProviderParams,
+      options?: RequestOptions,
+    ) {
+      const { businessId, serviceId, id, ...payload } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
+      return apiConfig.httpClient.put(
+        `/v1/businesses/${targetBusinessId}/services/${serviceId}/providers/${id}`,
+        payload,
+        options,
+      );
+    },
+
+    async deleteServiceProvider(
+      params: DeleteServiceProviderParams,
+      options?: RequestOptions,
+    ) {
+      const targetBusinessId = params.businessId || apiConfig.businessId;
+      return apiConfig.httpClient.delete(
+        `/v1/businesses/${targetBusinessId}/services/${params.serviceId}/providers/${params.id}`,
+        options,
       );
     },
   };

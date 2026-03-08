@@ -258,9 +258,15 @@ export interface WorkingTime {
 
 export interface ServiceProvider {
   id: string;
+  serviceId: string;
   providerId: string;
+  businessId: string;
   workingTime: WorkingTime;
-  provider?: ProviderWithTimeline;
+  prices?: any[];
+  durations?: any[];
+  isApprovalRequired?: boolean;
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface ProviderWithTimeline {
@@ -515,13 +521,12 @@ export interface DeleteProviderParams {
 }
 
 export interface ServiceProviderInput {
-  id?: string;
   providerId: string;
+  businessId?: string;
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
   workingTime: WorkingTime;
-  audienceIds: string[];
 }
 
 export interface CreateServiceParams {
@@ -530,7 +535,6 @@ export interface CreateServiceParams {
   blocks?: any[];
   filters?: any[];
   status?: Status;
-  providers?: ServiceProviderInput[];
   [key: string]: any;
 }
 
@@ -541,8 +545,38 @@ export interface UpdateServiceParams {
   blocks?: any[];
   filters?: any[];
   status?: Status;
-  providers?: ServiceProviderInput[];
   [key: string]: any;
+}
+
+export interface CreateServiceProviderParams {
+  businessId?: string;
+  serviceId: string;
+  providerId: string;
+  workingTime: WorkingTime;
+  prices?: any[];
+  durations?: any[];
+  isApprovalRequired?: boolean;
+}
+
+export interface UpdateServiceProviderParams {
+  businessId?: string;
+  serviceId: string;
+  id: string;
+  workingTime: WorkingTime;
+  prices?: any[];
+  durations?: any[];
+  isApprovalRequired?: boolean;
+}
+
+export interface DeleteServiceProviderParams {
+  businessId?: string;
+  serviceId: string;
+  id: string;
+}
+
+export interface FindServiceProvidersParams {
+  businessId?: string;
+  serviceId: string;
 }
 
 export interface DeleteServiceParams {
@@ -576,11 +610,6 @@ export interface GetProviderParams {
   id?: string;
   slug?: string;
   businessId?: string;
-}
-
-export interface GetBusinessServiceWorkingTimeParams {
-  providerId: string;
-  serviceId?: string;
 }
 
 export interface GetBookingParams {
