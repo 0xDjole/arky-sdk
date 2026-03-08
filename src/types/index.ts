@@ -585,11 +585,8 @@ export interface ServiceProvider {
 	durations: ServiceDuration[];
 	isApprovalRequired: boolean;
 	audienceIds: string[];
-	workingTime: {
-		workingDays: Array<{ day: string; workingHours: Array<{ from: number; to: number }> }>;
-		outcastDates: Array<{ month: number; day: number; workingHours: Array<{ from: number; to: number }> }>;
-		specificDates: Array<{ date: number; workingHours: Array<{ from: number; to: number }> }>;
-	};
+	workingDays: Array<{ day: string; workingHours: Array<{ from: number; to: number }> }>;
+	specificDates: Array<{ date: number; workingHours: Array<{ from: number; to: number }> }>;
 	provider?: Provider;
 }
 

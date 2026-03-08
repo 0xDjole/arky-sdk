@@ -260,10 +260,11 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
       params: FindServiceProvidersParams,
       options?: RequestOptions,
     ) {
-      const targetBusinessId = params.businessId || apiConfig.businessId;
+      const { businessId, ...queryParams } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${targetBusinessId}/services/${params.serviceId}/providers`,
-        options,
+        `/v1/businesses/${targetBusinessId}/service-providers`,
+        { ...options, params: queryParams },
       );
     },
 
@@ -271,10 +272,10 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
       params: CreateServiceProviderParams,
       options?: RequestOptions,
     ) {
-      const { businessId, serviceId, ...payload } = params;
+      const { businessId, ...payload } = params;
       const targetBusinessId = businessId || apiConfig.businessId;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${targetBusinessId}/services/${serviceId}/providers`,
+        `/v1/businesses/${targetBusinessId}/service-providers`,
         payload,
         options,
       );
@@ -284,10 +285,10 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
       params: UpdateServiceProviderParams,
       options?: RequestOptions,
     ) {
-      const { businessId, serviceId, id, ...payload } = params;
+      const { businessId, id, ...payload } = params;
       const targetBusinessId = businessId || apiConfig.businessId;
       return apiConfig.httpClient.put(
-        `/v1/businesses/${targetBusinessId}/services/${serviceId}/providers/${id}`,
+        `/v1/businesses/${targetBusinessId}/service-providers/${id}`,
         payload,
         options,
       );
@@ -299,7 +300,7 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
     ) {
       const targetBusinessId = params.businessId || apiConfig.businessId;
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${targetBusinessId}/services/${params.serviceId}/providers/${params.id}`,
+        `/v1/businesses/${targetBusinessId}/service-providers/${params.id}`,
         options,
       );
     },

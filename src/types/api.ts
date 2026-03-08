@@ -239,21 +239,9 @@ export interface WorkingDay {
   workingHours: WorkingHour[];
 }
 
-export interface OutcastDate {
-  month: number;
-  day: number;
-  workingHours: WorkingHour[];
-}
-
 export interface SpecificDate {
   date: number;
   workingHours: WorkingHour[];
-}
-
-export interface WorkingTime {
-  workingDays: WorkingDay[];
-  outcastDates: OutcastDate[];
-  specificDates: SpecificDate[];
 }
 
 export interface ServiceProvider {
@@ -261,12 +249,15 @@ export interface ServiceProvider {
   serviceId: string;
   providerId: string;
   businessId: string;
-  workingTime: WorkingTime;
+  workingDays: WorkingDay[];
+  specificDates: SpecificDate[];
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
   createdAt?: number;
   updatedAt?: number;
+  service?: any;
+  provider?: any;
 }
 
 export interface ProviderWithTimeline {
@@ -280,7 +271,8 @@ export interface ProviderWithTimeline {
   blocks: Block[];
   createdAt: number;
   updatedAt: number;
-  workingTime: WorkingTime | null;
+  workingDays?: WorkingDay[];
+  specificDates?: SpecificDate[];
   timeline: TimelinePoint[];
 }
 
@@ -526,7 +518,8 @@ export interface ServiceProviderInput {
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
-  workingTime: WorkingTime;
+  workingDays: WorkingDay[];
+  specificDates: SpecificDate[];
 }
 
 export interface CreateServiceParams {
@@ -552,7 +545,8 @@ export interface CreateServiceProviderParams {
   businessId?: string;
   serviceId: string;
   providerId: string;
-  workingTime: WorkingTime;
+  workingDays: WorkingDay[];
+  specificDates: SpecificDate[];
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
@@ -560,9 +554,9 @@ export interface CreateServiceProviderParams {
 
 export interface UpdateServiceProviderParams {
   businessId?: string;
-  serviceId: string;
   id: string;
-  workingTime: WorkingTime;
+  workingDays: WorkingDay[];
+  specificDates: SpecificDate[];
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
@@ -570,13 +564,13 @@ export interface UpdateServiceProviderParams {
 
 export interface DeleteServiceProviderParams {
   businessId?: string;
-  serviceId: string;
   id: string;
 }
 
 export interface FindServiceProvidersParams {
   businessId?: string;
-  serviceId: string;
+  serviceId?: string;
+  providerId?: string;
 }
 
 export interface DeleteServiceParams {
