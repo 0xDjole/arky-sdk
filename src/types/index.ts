@@ -599,6 +599,8 @@ export interface Service {
 	createdAt: number;
 	updatedAt: number;
 	status: Status;
+	priceMin: number;
+	priceMax: number;
 }
 
 export interface ProviderTimelinePoint {
