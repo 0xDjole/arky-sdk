@@ -395,7 +395,6 @@ export interface Subscription {
 export interface Business {
 	id: string;
 	key: string;
-	networkKey: string | null;
 	timezone: string;
 	configs?: BusinessConfig;
 	subscriptions?: Subscription[];
@@ -597,7 +596,6 @@ export interface Service {
 	businessId: string;
 	blocks: Block[];
 	filters: Filter[];
-	networkIds: string[];
 	createdAt: number;
 	updatedAt: number;
 	status: Status;
@@ -615,7 +613,6 @@ export interface Provider {
 	businessId: string;
 	status: Status;
 	concurrentLimit: number;
-	networkIds: string[];
 	audienceIds: string[];
 	blocks: Block[];
 	filters: Filter[];

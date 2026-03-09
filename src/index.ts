@@ -87,6 +87,14 @@ export type {
   GetAgentParams,
   GetAgentsParams,
   AgentStatus,
+  // Network types
+  Network,
+  NetworkNode,
+  CreateNetworkParams,
+  UpdateNetworkParams,
+  GetNetworkParams,
+  FindNetworksParams,
+  DeleteNetworkParams,
 } from "./types/api";
 
 export type {

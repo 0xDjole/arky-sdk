@@ -1,114 +1,47 @@
 import type { ApiConfig } from "../index";
-import type { RequestOptions } from "../types/api";
-
-export interface NetworkSearchParams {
-  query?: string;
-  limit?: number;
-  cursor?: string;
-  statuses?: string[];
-  blocks?: any[];
-  filterId?: string;
-  sortField?: string;
-  sortDirection?: "asc" | "desc";
-  createdAtFrom?: number;
-  createdAtTo?: number;
-  priceFrom?: number;
-  priceTo?: number;
-  matchAll?: boolean;
-}
+import type {
+  RequestOptions,
+  CreateNetworkParams,
+  UpdateNetworkParams,
+  GetNetworkParams,
+  FindNetworksParams,
+  DeleteNetworkParams,
+  Network,
+} from "../types/api";
 
 export const createNetworkApi = (apiConfig: ApiConfig) => {
   return {
-    
-    async searchServices(
-      networkKey: string,
-      params?: NetworkSearchParams,
-      options?: RequestOptions
-    ) {
+    async create(params: CreateNetworkParams, options?: RequestOptions) {
+      return apiConfig.httpClient.post(`/v1/networks`, params, options);
+    },
+
+    async get(params: GetNetworkParams, options?: RequestOptions) {
+      return apiConfig.httpClient.get(`/v1/networks/${params.id}`, options);
+    },
+
+    async find(params?: FindNetworksParams, options?: RequestOptions) {
       const queryParams: Record<string, any> = {};
 
       if (params?.limit !== undefined) queryParams.limit = params.limit;
       if (params?.cursor) queryParams.cursor = params.cursor;
       if (params?.query) queryParams.query = params.query;
-      if (params?.statuses && params.statuses.length > 0)
-        queryParams.statuses = params.statuses.join(",");
-      if (params?.sortField) queryParams.sortField = params.sortField;
-      if (params?.sortDirection) queryParams.sortDirection = params.sortDirection;
-      if (params?.createdAtFrom !== undefined)
-        queryParams.createdAtFrom = params.createdAtFrom;
-      if (params?.createdAtTo !== undefined)
-        queryParams.createdAtTo = params.createdAtTo;
-      if (params?.priceFrom !== undefined) queryParams.priceFrom = params.priceFrom;
-      if (params?.priceTo !== undefined) queryParams.priceTo = params.priceTo;
-      if (params?.matchAll !== undefined) queryParams.matchAll = params.matchAll;
-      if (params?.filterId) queryParams.filterId = params.filterId;
-      if (params?.blocks && params.blocks.length > 0)
-        queryParams.blocks = JSON.stringify(params.blocks);
 
-      return apiConfig.httpClient.get(`/v1/networks/${networkKey}/services`, {
+      return apiConfig.httpClient.get(`/v1/networks`, {
         ...options,
         params: queryParams,
       });
     },
 
-    async searchProducts(
-      networkKey: string,
-      params?: NetworkSearchParams,
-      options?: RequestOptions
-    ) {
-      const queryParams: Record<string, any> = {};
-
-      if (params?.limit !== undefined) queryParams.limit = params.limit;
-      if (params?.cursor) queryParams.cursor = params.cursor;
-      if (params?.query) queryParams.query = params.query;
-      if (params?.statuses && params.statuses.length > 0)
-        queryParams.statuses = params.statuses.join(",");
-      if (params?.sortField) queryParams.sortField = params.sortField;
-      if (params?.sortDirection) queryParams.sortDirection = params.sortDirection;
-      if (params?.createdAtFrom !== undefined)
-        queryParams.createdAtFrom = params.createdAtFrom;
-      if (params?.createdAtTo !== undefined)
-        queryParams.createdAtTo = params.createdAtTo;
-      if (params?.priceFrom !== undefined) queryParams.priceFrom = params.priceFrom;
-      if (params?.priceTo !== undefined) queryParams.priceTo = params.priceTo;
-      if (params?.matchAll !== undefined) queryParams.matchAll = params.matchAll;
-      if (params?.filterId) queryParams.filterId = params.filterId;
-      if (params?.blocks && params.blocks.length > 0)
-        queryParams.blocks = JSON.stringify(params.blocks);
-
-      return apiConfig.httpClient.get(`/v1/networks/${networkKey}/products`, {
-        ...options,
-        params: queryParams,
-      });
+    async update(params: UpdateNetworkParams, options?: RequestOptions) {
+      const { id, ...body } = params;
+      return apiConfig.httpClient.put(`/v1/networks/${id}`, body, options);
     },
 
-    async searchProviders(
-      networkKey: string,
-      params?: NetworkSearchParams,
-      options?: RequestOptions
-    ) {
-      const queryParams: Record<string, any> = {};
-
-      if (params?.limit !== undefined) queryParams.limit = params.limit;
-      if (params?.cursor) queryParams.cursor = params.cursor;
-      if (params?.query) queryParams.query = params.query;
-      if (params?.statuses && params.statuses.length > 0)
-        queryParams.statuses = params.statuses.join(",");
-      if (params?.sortField) queryParams.sortField = params.sortField;
-      if (params?.sortDirection) queryParams.sortDirection = params.sortDirection;
-      if (params?.createdAtFrom !== undefined)
-        queryParams.createdAtFrom = params.createdAtFrom;
-      if (params?.createdAtTo !== undefined)
-        queryParams.createdAtTo = params.createdAtTo;
-      if (params?.matchAll !== undefined) queryParams.matchAll = params.matchAll;
-      if (params?.filterId) queryParams.filterId = params.filterId;
-      if (params?.blocks && params.blocks.length > 0)
-        queryParams.blocks = JSON.stringify(params.blocks);
-
-      return apiConfig.httpClient.get(`/v1/networks/${networkKey}/providers`, {
-        ...options,
-        params: queryParams,
-      });
+    async delete(params: DeleteNetworkParams, options?: RequestOptions) {
+      return apiConfig.httpClient.delete(
+        `/v1/networks/${params.id}`,
+        options
+      );
     },
   };
 };

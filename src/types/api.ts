@@ -366,7 +366,6 @@ export interface CreateBusinessParams {
 export interface UpdateBusinessParams {
   id: string;
   key: string;
-  networkKey: string | null;
   timezone: string;
   configs: any;
 }
@@ -662,7 +661,6 @@ export interface LogoutParams {}
 
 export interface GetBusinessesParams {
   query?: string;
-  isNetwork?: boolean;
   limit?: number;
   cursor?: string;
   sortField?: string;
@@ -1021,5 +1019,46 @@ export interface GetAgentMemoriesParams {
 export interface DeleteAgentMemoryParams {
   id: string;
   memoryId: string;
+}
+
+// ===== Network API Parameters =====
+
+export interface NetworkNode {
+  id?: string;
+  key: string;
+  blocks?: any[];
+}
+
+export interface Network {
+  id: string;
+  key: string;
+  nodes: NetworkNode[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface CreateNetworkParams {
+  key: string;
+  nodes?: NetworkNode[];
+}
+
+export interface UpdateNetworkParams {
+  id: string;
+  key: string;
+  nodes: NetworkNode[];
+}
+
+export interface GetNetworkParams {
+  id: string;
+}
+
+export interface FindNetworksParams {
+  query?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface DeleteNetworkParams {
+  id: string;
 }
 
