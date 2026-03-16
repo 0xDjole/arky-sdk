@@ -63,7 +63,6 @@ export const createAgentApi = (apiConfig: ApiConfig) => {
 
 		async getMemories(params: GetAgentMemoriesParams, options?: RequestOptions) {
 			const queryParams: Record<string, string> = {};
-			if (params.category) queryParams.category = params.category;
 			if (params.limit) queryParams.limit = String(params.limit);
 			return apiConfig.httpClient.get(
 				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/memories`,

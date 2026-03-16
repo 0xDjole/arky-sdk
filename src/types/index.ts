@@ -420,6 +420,7 @@ export interface Block {
 export interface Filter {
 	id: string;
 	nodeId: string;
+	networkId?: string;
 	blocks: Block[];
 }
 
@@ -599,8 +600,6 @@ export interface Service {
 	createdAt: number;
 	updatedAt: number;
 	status: Status;
-	priceMin: number;
-	priceMax: number;
 }
 
 export interface ProviderTimelinePoint {

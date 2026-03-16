@@ -194,8 +194,6 @@ export interface GetServicesParams {
   blocks?: any[];
   sortField?: string;
   sortDirection?: string;
-  priceFrom?: number;
-  priceTo?: number;
 }
 
 export interface BookingCheckoutParams {
@@ -976,19 +974,17 @@ export interface AgentProviderConfig {
 export interface CreateAgentParams {
   businessId?: string;
   key: string;
-  rolePrompt: string;
+  prompt: string;
   status?: AgentStatus;
   provider: AgentProviderConfig;
-  toolsConfig?: string[];
 }
 
 export interface UpdateAgentParams {
   id: string;
   key: string;
-  rolePrompt: string;
+  prompt: string;
   status: AgentStatus;
   provider: AgentProviderConfig;
-  toolsConfig: string[];
 }
 
 export interface DeleteAgentParams {
@@ -1012,7 +1008,6 @@ export interface RunAgentParams {
 
 export interface GetAgentMemoriesParams {
   id: string;
-  category?: 'soul' | 'message' | 'fact';
   limit?: number;
 }
 
