@@ -306,7 +306,7 @@ export interface BusinessEmails {
 }
 
 export type WebhookEventSubscription =
-	| { event: 'node.created'; parentKey?: string }
+	| { event: 'node.created'; parentId?: string }
 	| { event: 'node.updated'; key?: string }
 	| { event: 'node.deleted'; key?: string }
 	| { event: 'order.created' }
@@ -388,7 +388,6 @@ export interface Subscription {
 	payment: any;
 	status: SubscriptionStatus;
 	endDate: number;
-	usage: Record<string, any>;
 	token: string;
 }
 
@@ -397,7 +396,8 @@ export interface Business {
 	key: string;
 	timezone: string;
 	configs?: BusinessConfig;
-	subscriptions?: Subscription[];
+	subscription?: Subscription;
+	counts?: Record<string, number>;
 }
 
 export interface EshopStoreState {
