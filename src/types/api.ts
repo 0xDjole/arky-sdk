@@ -1,4 +1,4 @@
-import type { Block, ZoneLocation, WorkflowNode, Status, Address, SubscriptionStatus, AudienceType } from "./index";
+import type { Block, ZoneLocation, WorkflowNode, Status, Address, SubscriptionStatus, AudienceType, IntegrationProvider, WebhookEventSubscription, Parcel, CustomsDeclaration, ShipmentLine } from "./index";
 
 export interface RequestOptions<T = any> {
   headers?: Record<string, string>;
@@ -890,15 +890,15 @@ export interface GetIntegrationParams {
 
 export interface CreateIntegrationParams {
   businessId: string;
-  name: string;
-  provider: import("./index").IntegrationProvider;
+  key: string;
+  provider: IntegrationProvider;
 }
 
 export interface UpdateIntegrationParams {
   businessId: string;
   id: string;
-  name?: string;
-  provider?: import("./index").IntegrationProvider;
+  key?: string;
+  provider?: IntegrationProvider;
 }
 
 export interface DeleteIntegrationParams {
@@ -914,9 +914,9 @@ export interface ListWebhooksParams {
 
 export interface CreateWebhookParams {
   businessId: string;
-  name: string;
+  key: string;
   url: string;
-  events: import('./index').WebhookEventSubscription[];
+  events: WebhookEventSubscription[];
   headers: Record<string, string>;
   secret: string;
   enabled: boolean;
@@ -925,9 +925,9 @@ export interface CreateWebhookParams {
 export interface UpdateWebhookParams {
   businessId: string;
   id: string;
-  name: string;
+  key: string;
   url: string;
-  events: import('./index').WebhookEventSubscription[];
+  events: WebhookEventSubscription[];
   headers: Record<string, string>;
   secret: string;
   enabled: boolean;
@@ -946,8 +946,8 @@ export interface GetShippingRatesParams {
   shippingProviderId: string;
   fromAddress: Address;
   toAddress: Address;
-  parcel: import('./index').Parcel;
-  customsDeclaration?: import('./index').CustomsDeclaration;
+  parcel: Parcel;
+  customsDeclaration?: CustomsDeclaration;
 }
 
 /** Ship items: creates shipment + purchases label atomically */
@@ -957,7 +957,7 @@ export interface ShipParams {
   carrier: string;
   service: string;
   locationId: string;
-  lines: import('./index').ShipmentLine[];
+  lines: ShipmentLine[];
 }
 
 // ===== Agent API Parameters =====

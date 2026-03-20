@@ -233,7 +233,7 @@ export type IntegrationProvider =
 export interface Integration {
 	id: string;
 	businessId: string;
-	name: string;
+	key: string;
 	provider: IntegrationProvider;
 	createdAt: number;
 	updatedAt: number;
@@ -353,7 +353,7 @@ export type WebhookEventSubscription =
 export interface BusinessWebhook {
 	id: string;
 	businessId: string;
-	name: string;
+	key: string;
 	url: string;
 	events: WebhookEventSubscription[];
 	headers: Record<string, string>;
