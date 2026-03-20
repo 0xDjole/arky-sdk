@@ -252,6 +252,8 @@ export interface ServiceProvider {
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
+  capacity: number;
+  timeline: TimelinePoint[];
   createdAt?: number;
   updatedAt?: number;
   service?: any;
@@ -264,7 +266,7 @@ export interface ProviderWithTimeline {
   businessId: string;
   seo: any;
   status: Status;
-  concurrentLimit: number;
+  capacity: number;
   audienceIds: string[];
   blocks: Block[];
   createdAt: number;
@@ -487,7 +489,6 @@ export interface CreateProviderParams {
   audienceIds?: string[];
   blocks?: any[];
   filters?: any[];
-  concurrentLimit?: number;
   status?: Status;
   [key: string]: any;
 }
@@ -499,7 +500,6 @@ export interface UpdateProviderParams {
   audienceIds?: string[];
   blocks?: any[];
   filters?: any[];
-  concurrentLimit?: number;
   status?: Status;
   [key: string]: any;
 }
@@ -515,6 +515,7 @@ export interface ServiceProviderInput {
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
+  capacity?: number;
   workingDays: WorkingDay[];
   specificDates: SpecificDate[];
 }

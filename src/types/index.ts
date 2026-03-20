@@ -587,6 +587,8 @@ export interface ServiceProvider {
 	audienceIds: string[];
 	workingDays: Array<{ day: string; workingHours: Array<{ from: number; to: number }> }>;
 	specificDates: Array<{ date: number; workingHours: Array<{ from: number; to: number }> }>;
+	capacity: number;
+	timeline: ProviderTimelinePoint[];
 	provider?: Provider;
 }
 
@@ -613,11 +615,9 @@ export interface Provider {
 	slug: Record<string, string>;
 	businessId: string;
 	status: Status;
-	concurrentLimit: number;
 	audienceIds: string[];
 	blocks: Block[];
 	filters: Filter[];
-	timeline: ProviderTimelinePoint[];
 	createdAt: number;
 	updatedAt: number;
 }
