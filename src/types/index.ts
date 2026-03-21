@@ -176,9 +176,9 @@ export type IntegrationProvider =
 		tokenExpiresAt?: number; scopes: string[]; accountEmail?: string | null; connectedAt: number }
 	| { type: 'google_analytics4'; measurementId: string; activeForTracking?: boolean }
 	| { type: 'telegram_bot'; botToken?: string; action: ChannelAction }
-	| { type: 'deep_seek'; apiKey?: string }
+	| { type: 'deep_seek'; apiKey?: string; model?: string }
 	// Bearer token providers
-	| { type: 'open_ai'; apiKey?: string }
+	| { type: 'open_ai'; apiKey?: string; model?: string }
 	| { type: 'slack'; apiKey?: string }
 	| { type: 'discord'; apiKey?: string }
 	| { type: 'whats_app'; apiKey?: string }
@@ -197,12 +197,12 @@ export type IntegrationProvider =
 	| { type: 'typeform'; apiKey?: string }
 	| { type: 'webflow'; apiKey?: string }
 	| { type: 'trello'; apiKey?: string }
-	| { type: 'perplexity'; apiKey?: string }
+	| { type: 'perplexity'; apiKey?: string; model?: string }
 	| { type: 'replicate'; apiKey?: string }
 	| { type: 'asana'; apiKey?: string }
 	| { type: 'brevo'; apiKey?: string }
 	| { type: 'intercom'; apiKey?: string }
-	| { type: 'google_gemini'; apiKey?: string }
+	| { type: 'google_gemini'; apiKey?: string; model?: string }
 	// Custom header auth
 	| { type: 'anthropic'; apiKey?: string }
 	| { type: 'notion'; apiKey?: string }

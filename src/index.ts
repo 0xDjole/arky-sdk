@@ -81,7 +81,6 @@ export type {
   GetShippingRatesParams,
   ShipParams,
   // Agent API params
-  AgentProviderConfig,
   CreateAgentParams,
   UpdateAgentParams,
   GetAgentParams,

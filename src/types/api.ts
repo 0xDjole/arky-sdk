@@ -964,20 +964,13 @@ export interface ShipParams {
 // ===== Agent API Parameters =====
 
 export type AgentStatus = 'active' | 'disabled';
-export type AgentProvider = 'deep_seek' | 'open_ai' | 'google_gemini' | 'perplexity';
-
-export interface AgentProviderConfig {
-  type: AgentProvider;
-  integrationId: string;
-  model: string;
-}
 
 export interface CreateAgentParams {
   businessId?: string;
   key: string;
   prompt: string;
   status?: AgentStatus;
-  provider: AgentProviderConfig;
+  integrationId: string;
 }
 
 export interface UpdateAgentParams {
@@ -985,7 +978,7 @@ export interface UpdateAgentParams {
   key: string;
   prompt: string;
   status: AgentStatus;
-  provider: AgentProviderConfig;
+  integrationId: string;
 }
 
 export interface DeleteAgentParams {
