@@ -647,7 +647,7 @@ export interface TrackEmailOpenParams {
 export interface TriggerNotificationParams {
   channel: string;
   businessId: string;
-  templateId?: string;
+  nodeId?: string;
   recipients?: string[];
   audienceId?: string;
   fromName?: string;

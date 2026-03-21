@@ -204,7 +204,7 @@ export type IntegrationProvider =
 	| { type: 'intercom'; apiKey?: string }
 	| { type: 'google_gemini'; apiKey?: string; model?: string }
 	// Custom header auth
-	| { type: 'anthropic'; apiKey?: string }
+	| { type: 'anthropic'; apiKey?: string; model?: string }
 	| { type: 'notion'; apiKey?: string }
 	| { type: 'eleven_labs'; apiKey?: string }
 	| { type: 'active_campaign'; apiKey?: string; accountUrl: string }
