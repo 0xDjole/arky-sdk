@@ -92,11 +92,8 @@ export interface CreateNodeParams {
   parentId?: string | null;
   blocks?: any[];
   slug?: Record<string, string>;
-  writeAccess?: 'public' | 'private';
   audienceIds?: string[];
   status?: string;
-
-  emailSubject?: Record<string, string>;
 }
 
 export interface UpdateNodeParams {
@@ -106,11 +103,8 @@ export interface UpdateNodeParams {
   parentId?: string | null;
   blocks?: any[];
   slug?: Record<string, string>;
-  writeAccess?: 'public' | 'private';
   audienceIds?: string[];
   status?: string;
-
-  emailSubject?: Record<string, string>;
 }
 
 export interface GetNodeParams {
@@ -647,11 +641,167 @@ export interface TrackEmailOpenParams {
 export interface TriggerNotificationParams {
   channel: string;
   businessId: string;
-  nodeId?: string;
+  emailTemplateId?: string;
   recipients?: string[];
   audienceId?: string;
   fromName?: string;
   vars?: Record<string, any>;
+}
+
+// ── EmailTemplate params ──────────────────────────────────────
+
+export interface GetEmailTemplatesParams {
+  businessId?: string;
+  limit?: number;
+  cursor?: string;
+  ids?: string[];
+  query?: string;
+  key?: string;
+  status?: string;
+  sortField?: string;
+  sortDirection?: "asc" | "desc";
+  createdAtFrom?: number;
+  createdAtTo?: number;
+}
+
+export interface CreateEmailTemplateParams {
+  businessId?: string;
+  key: string;
+  subject?: Record<string, string>;
+  blocks?: any[];
+}
+
+export interface UpdateEmailTemplateParams {
+  id: string;
+  businessId?: string;
+  key?: string;
+  subject?: Record<string, string>;
+  blocks?: any[];
+  status?: string;
+}
+
+export interface GetEmailTemplateParams {
+  id?: string;
+  key?: string;
+  businessId?: string;
+}
+
+export interface DeleteEmailTemplateParams {
+  id: string;
+  businessId?: string;
+}
+
+// ── Form params ───────────────────────────────────────────────
+
+export interface GetFormsParams {
+  businessId?: string;
+  limit?: number;
+  cursor?: string;
+  ids?: string[];
+  query?: string;
+  key?: string;
+  status?: string;
+  sortField?: string;
+  sortDirection?: "asc" | "desc";
+  createdAtFrom?: number;
+  createdAtTo?: number;
+}
+
+export interface CreateFormParams {
+  businessId?: string;
+  key: string;
+  blocks?: any[];
+}
+
+export interface UpdateFormParams {
+  id: string;
+  businessId?: string;
+  key?: string;
+  blocks?: any[];
+  status?: string;
+}
+
+export interface GetFormParams {
+  id?: string;
+  key?: string;
+  businessId?: string;
+}
+
+export interface DeleteFormParams {
+  id: string;
+  businessId?: string;
+}
+
+export interface SubmitFormParams {
+  formId: string;
+  businessId?: string;
+  blocks: any[];
+}
+
+export interface GetFormSubmissionsParams {
+  formId: string;
+  businessId?: string;
+  limit?: number;
+  cursor?: string;
+  sortField?: string;
+  sortDirection?: "asc" | "desc";
+  createdAtFrom?: number;
+  createdAtTo?: number;
+}
+
+export interface GetFormSubmissionParams {
+  id: string;
+  formId: string;
+  businessId?: string;
+}
+
+// ── Taxonomy params ───────────────────────────────────────────
+
+export interface GetTaxonomiesParams {
+  businessId?: string;
+  parentId?: string;
+  limit?: number;
+  cursor?: string;
+  ids?: string[];
+  query?: string;
+  key?: string;
+  status?: string;
+  sortField?: string;
+  sortDirection?: "asc" | "desc";
+  createdAtFrom?: number;
+  createdAtTo?: number;
+}
+
+export interface CreateTaxonomyParams {
+  businessId?: string;
+  key: string;
+  parentId?: string | null;
+  blocks?: any[];
+}
+
+export interface UpdateTaxonomyParams {
+  id: string;
+  businessId?: string;
+  key?: string;
+  parentId?: string | null;
+  blocks?: any[];
+  status?: string;
+}
+
+export interface GetTaxonomyParams {
+  id?: string;
+  key?: string;
+  businessId?: string;
+}
+
+export interface DeleteTaxonomyParams {
+  id: string;
+  businessId?: string;
+}
+
+export interface GetTaxonomyChildrenParams {
+  id: string;
+  businessId?: string;
 }
 
 export interface GetMeParams {}

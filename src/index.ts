@@ -141,6 +141,9 @@ import { createAudienceApi } from "./api/audience";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
 import { createAgentApi } from "./api/agent";
+import { createEmailTemplateApi } from "./api/emailTemplate";
+import { createFormApi } from "./api/form";
+import { createTaxonomyApi } from "./api/taxonomy";
 import {
   getImageUrl,
   getBlockValue,
@@ -238,6 +241,9 @@ location: createLocationApi(apiConfig),
     audience: createAudienceApi(apiConfig),
     shipping: createShippingApi(apiConfig),
     agent: createAgentApi(apiConfig),
+    emailTemplate: createEmailTemplateApi(apiConfig),
+    form: createFormApi(apiConfig),
+    taxonomy: createTaxonomyApi(apiConfig),
 
     analytics: {
       track,

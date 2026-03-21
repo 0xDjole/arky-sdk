@@ -565,10 +565,48 @@ export interface Node {
 	blocks: Block[];
 	status: Status;
 	slug: Record<string, string>;
-	writeAccess: Access;
-	audienceIds: string[];
-	emailSubject?: Record<string, string>;
 	children: Node[];
+	createdAt: number;
+	updatedAt: number;
+}
+
+export interface EmailTemplate {
+	id: string;
+	key: string;
+	businessId: string;
+	subject: Record<string, string>;
+	blocks: Block[];
+	status: Status;
+	createdAt: number;
+	updatedAt: number;
+}
+
+export interface Form {
+	id: string;
+	key: string;
+	businessId: string;
+	blocks: Block[];
+	status: Status;
+	createdAt: number;
+	updatedAt: number;
+}
+
+export interface FormSubmission {
+	id: string;
+	formId: string;
+	businessId: string;
+	blocks: Block[];
+	createdAt: number;
+}
+
+export interface Taxonomy {
+	id: string;
+	key: string;
+	businessId: string;
+	parentId?: string | null;
+	blocks: Block[];
+	status: Status;
+	children: Taxonomy[];
 	createdAt: number;
 	updatedAt: number;
 }
