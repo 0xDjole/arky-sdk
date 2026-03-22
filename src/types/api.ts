@@ -90,6 +90,7 @@ export interface CreateNodeParams {
   key: string;
   parentId?: string | null;
   blocks?: any[];
+  filters?: any[];
   slug?: Record<string, string>;
   audienceIds?: string[];
   status?: string;
@@ -101,6 +102,7 @@ export interface UpdateNodeParams {
   key?: string;
   parentId?: string | null;
   blocks?: any[];
+  filters?: any[];
   slug?: Record<string, string>;
   audienceIds?: string[];
   status?: string;
@@ -758,7 +760,6 @@ export interface GetFormSubmissionParams {
 
 export interface GetTaxonomiesParams {
   businessId?: string;
-  type?: string;
   parentId?: string;
   limit?: number;
   cursor?: string;
@@ -775,7 +776,6 @@ export interface GetTaxonomiesParams {
 export interface CreateTaxonomyParams {
   businessId?: string;
   key: string;
-  type: string;
   parentId?: string | null;
   blocks?: any[];
 }
@@ -784,7 +784,6 @@ export interface UpdateTaxonomyParams {
   id: string;
   businessId?: string;
   key?: string;
-  type?: string;
   parentId?: string | null;
   blocks?: any[];
   status?: string;
@@ -1122,7 +1121,8 @@ export interface CreateAgentParams {
   key: string;
   prompt: string;
   status?: AgentStatus;
-  integrationId: string;
+  modelId: string;
+  channelIds?: string[];
 }
 
 export interface UpdateAgentParams {
@@ -1130,7 +1130,8 @@ export interface UpdateAgentParams {
   key: string;
   prompt: string;
   status: AgentStatus;
-  integrationId: string;
+  modelId: string;
+  channelIds?: string[];
 }
 
 export interface DeleteAgentParams {

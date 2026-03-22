@@ -563,6 +563,7 @@ export interface Node {
 	businessId: string;
 	parentId?: string | null;
 	blocks: Block[];
+	filters: Filter[];
 	status: Status;
 	slug: Record<string, string>;
 	children: Node[];
@@ -602,7 +603,6 @@ export interface FormSubmission {
 export interface Taxonomy {
 	id: string;
 	key: string;
-	type: string;
 	businessId: string;
 	parentId?: string | null;
 	blocks: Block[];
