@@ -577,6 +577,10 @@ export interface EmailTemplate {
 	businessId: string;
 	subject: Record<string, string>;
 	body: string;
+	fromName: string;
+	fromEmail: string;
+	replyTo?: string;
+	preheader?: string;
 	status: Status;
 	createdAt: number;
 	updatedAt: number;

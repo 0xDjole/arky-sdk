@@ -645,7 +645,6 @@ export interface TriggerNotificationParams {
   emailTemplateId?: string;
   recipients?: string[];
   audienceId?: string;
-  fromName?: string;
   vars?: Record<string, any>;
 }
 
@@ -670,6 +669,10 @@ export interface CreateEmailTemplateParams {
   key: string;
   subject?: Record<string, string>;
   body?: string;
+  fromName: string;
+  fromEmail: string;
+  replyTo?: string;
+  preheader?: string;
 }
 
 export interface UpdateEmailTemplateParams {
@@ -678,6 +681,10 @@ export interface UpdateEmailTemplateParams {
   key?: string;
   subject?: Record<string, string>;
   body?: string;
+  fromName?: string;
+  fromEmail?: string;
+  replyTo?: string;
+  preheader?: string;
   status?: string;
 }
 
@@ -1182,6 +1189,13 @@ export interface UpdateAgentChatParams {
   id: string;
   chatId: string;
   status: 'active' | 'archived';
+}
+
+export interface RateAgentChatParams {
+  id: string;
+  chatId: string;
+  rating: number;
+  comment?: string;
 }
 
 // ===== Network API Parameters =====

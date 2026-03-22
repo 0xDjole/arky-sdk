@@ -10,6 +10,7 @@ import type {
 	GetBusinessChatsParams,
 	GetAgentChatParams,
 	UpdateAgentChatParams,
+	RateAgentChatParams,
 	RequestOptions
 } from '../types/api';
 
@@ -90,6 +91,16 @@ export const createAgentApi = (apiConfig: ApiConfig) => {
 			return apiConfig.httpClient.put(
 				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/chats/${params.chatId}`,
 				{ status: params.status },
+				options
+			);
+		},
+
+		async rateChat(params: RateAgentChatParams, options?: RequestOptions) {
+			const body: Record<string, any> = { rating: params.rating };
+			if (params.comment) body.comment = params.comment;
+			return apiConfig.httpClient.post(
+				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/chats/${params.chatId}/rate`,
+				body,
 				options
 			);
 		},
