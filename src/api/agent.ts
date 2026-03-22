@@ -55,10 +55,13 @@ export const createAgentApi = (apiConfig: ApiConfig) => {
 			});
 		},
 
-		async runAgent(params: RunAgentParams, options?: RequestOptions) {
+		async sendMessage(params: RunAgentParams, options?: RequestOptions) {
+			const body: Record<string, any> = { message: params.message };
+			if (params.chatId) body.chatId = params.chatId;
+			if (params.direct) body.direct = params.direct;
 			return apiConfig.httpClient.post(
-				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/run`,
-				{ message: params.message },
+				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/chats/messages`,
+				body,
 				options
 			);
 		},
@@ -110,6 +113,8 @@ export const createAgentApi = (apiConfig: ApiConfig) => {
 					params: Object.keys(queryParams).length > 0 ? queryParams : undefined
 				}
 			);
-		}
+		},
+
+
 	};
 };

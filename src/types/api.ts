@@ -669,7 +669,7 @@ export interface CreateEmailTemplateParams {
   businessId?: string;
   key: string;
   subject?: Record<string, string>;
-  blocks?: any[];
+  body?: string;
 }
 
 export interface UpdateEmailTemplateParams {
@@ -677,7 +677,7 @@ export interface UpdateEmailTemplateParams {
   businessId?: string;
   key?: string;
   subject?: Record<string, string>;
-  blocks?: any[];
+  body?: string;
   status?: string;
 }
 
@@ -1152,6 +1152,8 @@ export interface GetAgentsParams {
 export interface RunAgentParams {
   id: string;
   message: string;
+  chatId?: string;
+  direct?: boolean;
 }
 
 export interface GetAgentChatsParams {

@@ -576,7 +576,7 @@ export interface EmailTemplate {
 	key: string;
 	businessId: string;
 	subject: Record<string, string>;
-	blocks: Block[];
+	body: string;
 	status: Status;
 	createdAt: number;
 	updatedAt: number;
