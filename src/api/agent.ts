@@ -6,8 +6,9 @@ import type {
 	GetAgentParams,
 	GetAgentsParams,
 	RunAgentParams,
-	GetAgentMemoriesParams,
-	DeleteAgentMemoryParams,
+	GetAgentChatsParams,
+	GetAgentChatParams,
+	UpdateAgentChatParams,
 	RequestOptions
 } from '../types/api';
 
@@ -61,11 +62,12 @@ export const createAgentApi = (apiConfig: ApiConfig) => {
 			);
 		},
 
-		async getMemories(params: GetAgentMemoriesParams, options?: RequestOptions) {
+		async getChats(params: GetAgentChatsParams, options?: RequestOptions) {
 			const queryParams: Record<string, string> = {};
 			if (params.limit) queryParams.limit = String(params.limit);
+			if (params.cursor) queryParams.cursor = params.cursor;
 			return apiConfig.httpClient.get(
-				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/memories`,
+				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/chats`,
 				{
 					...options,
 					params: Object.keys(queryParams).length > 0 ? queryParams : undefined
@@ -73,10 +75,30 @@ export const createAgentApi = (apiConfig: ApiConfig) => {
 			);
 		},
 
-		async deleteMemory(params: DeleteAgentMemoryParams, options?: RequestOptions) {
-			return apiConfig.httpClient.delete(
-				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/memories/${params.memoryId}`,
+		async getChat(params: GetAgentChatParams, options?: RequestOptions) {
+			return apiConfig.httpClient.get(
+				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/chats/${params.chatId}`,
 				options
+			);
+		},
+
+		async updateChat(params: UpdateAgentChatParams, options?: RequestOptions) {
+			return apiConfig.httpClient.put(
+				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/chats/${params.chatId}`,
+				{ status: params.status },
+				options
+			);
+		},
+
+		async getChatMessages(params: GetAgentChatParams & { limit?: number }, options?: RequestOptions) {
+			const queryParams: Record<string, string> = {};
+			if (params.limit) queryParams.limit = String(params.limit);
+			return apiConfig.httpClient.get(
+				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/chats/${params.chatId}/messages`,
+				{
+					...options,
+					params: Object.keys(queryParams).length > 0 ? queryParams : undefined
+				}
 			);
 		}
 	};

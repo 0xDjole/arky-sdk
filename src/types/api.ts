@@ -83,7 +83,6 @@ export interface GetNodesParams {
   sortDirection?: string;
   createdAtFrom?: string;
   createdAtTo?: string;
-  includeChildren?: boolean;
 }
 
 export interface CreateNodeParams {
@@ -760,7 +759,7 @@ export interface GetFormSubmissionParams {
 export interface GetTaxonomiesParams {
   businessId?: string;
   type?: string;
-  parentIds?: string[];
+  parentId?: string;
   limit?: number;
   cursor?: string;
   ids?: string[];
@@ -1153,14 +1152,21 @@ export interface RunAgentParams {
   message: string;
 }
 
-export interface GetAgentMemoriesParams {
+export interface GetAgentChatsParams {
   id: string;
   limit?: number;
+  cursor?: string;
 }
 
-export interface DeleteAgentMemoryParams {
+export interface GetAgentChatParams {
   id: string;
-  memoryId: string;
+  chatId: string;
+}
+
+export interface UpdateAgentChatParams {
+  id: string;
+  chatId: string;
+  status: 'active' | 'archived';
 }
 
 // ===== Network API Parameters =====
