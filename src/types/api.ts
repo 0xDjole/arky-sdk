@@ -759,7 +759,8 @@ export interface GetFormSubmissionParams {
 
 export interface GetTaxonomiesParams {
   businessId?: string;
-  parentId?: string;
+  type?: string;
+  parentIds?: string[];
   limit?: number;
   cursor?: string;
   ids?: string[];
@@ -775,6 +776,7 @@ export interface GetTaxonomiesParams {
 export interface CreateTaxonomyParams {
   businessId?: string;
   key: string;
+  type: string;
   parentId?: string | null;
   blocks?: any[];
 }
@@ -783,6 +785,7 @@ export interface UpdateTaxonomyParams {
   id: string;
   businessId?: string;
   key?: string;
+  type?: string;
   parentId?: string | null;
   blocks?: any[];
   status?: string;

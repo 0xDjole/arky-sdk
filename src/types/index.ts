@@ -419,7 +419,7 @@ export interface Block {
 
 export interface Filter {
 	id: string;
-	nodeId: string;
+	taxonomyId: string;
 	networkId?: string;
 	blocks: Block[];
 }
@@ -602,11 +602,11 @@ export interface FormSubmission {
 export interface Taxonomy {
 	id: string;
 	key: string;
+	type: string;
 	businessId: string;
 	parentId?: string | null;
 	blocks: Block[];
 	status: Status;
-	children: Taxonomy[];
 	createdAt: number;
 	updatedAt: number;
 }
