@@ -7,6 +7,7 @@ import type {
 	GetAgentsParams,
 	RunAgentParams,
 	GetAgentChatsParams,
+	GetBusinessChatsParams,
 	GetAgentChatParams,
 	UpdateAgentChatParams,
 	RequestOptions
@@ -88,6 +89,15 @@ export const createAgentApi = (apiConfig: ApiConfig) => {
 				{ status: params.status },
 				options
 			);
+		},
+
+		async getBusinessChats(params: GetBusinessChatsParams, options?: RequestOptions) {
+			const businessId = params.businessId || apiConfig.businessId;
+			const { businessId: _, ...queryParams } = params;
+			return apiConfig.httpClient.get(`/v1/businesses/${businessId}/chats`, {
+				...options,
+				params: Object.keys(queryParams).length > 0 ? queryParams : undefined
+			});
 		},
 
 		async getChatMessages(params: GetAgentChatParams & { limit?: number }, options?: RequestOptions) {

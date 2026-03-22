@@ -742,6 +742,7 @@ export interface SubmitFormParams {
 export interface GetFormSubmissionsParams {
   formId: string;
   businessId?: string;
+  query?: string;
   limit?: number;
   cursor?: string;
   sortField?: string;
@@ -1155,6 +1156,17 @@ export interface RunAgentParams {
 
 export interface GetAgentChatsParams {
   id: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface GetBusinessChatsParams {
+  businessId?: string;
+  agentId?: string;
+  status?: string;
+  query?: string;
+  sortField?: string;
+  sortDirection?: 'asc' | 'desc';
   limit?: number;
   cursor?: string;
 }
