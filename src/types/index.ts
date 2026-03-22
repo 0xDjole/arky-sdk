@@ -350,7 +350,7 @@ export type WebhookEventSubscription =
 	| { event: 'audience.updated' }
 	| { event: 'audience.deleted' };
 
-export interface BusinessWebhook {
+export interface Webhook {
 	id: string;
 	businessId: string;
 	key: string;
@@ -362,9 +362,6 @@ export interface BusinessWebhook {
 	createdAt: number;
 	updatedAt: number;
 }
-
-/** @deprecated Use BusinessWebhook instead */
-export type WebhookEndpoint = BusinessWebhook;
 
 export type ChannelAction =
 	| { type: 'agent'; agentId: string }
