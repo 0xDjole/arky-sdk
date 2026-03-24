@@ -19,11 +19,8 @@ export interface CollectionEntry {
   blocks: Block[];
 }
 
-export function getBlockLabel(block: any, locale: string = "en"): string {
+export function getBlockLabel(block: any): string {
   if (!block) return "";
-  const label = block.properties?.label;
-  if (typeof label === "string") return label;
-  if (label && typeof label === "object") return label[locale] ?? label["en"] ?? "";
   return block.key?.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase()) ?? "";
 }
 
