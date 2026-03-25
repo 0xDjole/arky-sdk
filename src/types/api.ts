@@ -56,8 +56,7 @@ export interface OrderCheckoutParams {
 
 export interface GetProductsParams {
   ids?: string[];
-  blocks?: any[] | null;
-  filterId?: string;
+  filters?: { taxonomyId: string; blocks?: any[] }[];
   status?: string;
   limit?: number;
   cursor?: string;
@@ -180,13 +179,12 @@ export interface MagicLinkVerifyParams {
 export interface GetServicesParams {
   businessId?: string;
   providerId?: string;
-  filterId?: string;
+  filters?: { taxonomyId: string; blocks?: any[] }[];
   limit?: number;
   cursor?: string;
   query?: string;
   ids?: string[];
   statuses?: string[];
-  blocks?: any[];
   sortField?: string;
   sortDirection?: string;
 }
@@ -580,7 +578,7 @@ export interface GetServiceParams {
 export interface GetProvidersParams {
   businessId?: string;
   serviceId?: string;
-  filterId?: string;
+  filters?: { taxonomyId: string; blocks?: any[] }[];
   ids?: string[];
   query?: string | null;
   statuses?: string[] | null;
@@ -590,7 +588,6 @@ export interface GetProvidersParams {
   sortDirection?: string | null;
   createdAtFrom?: string | null;
   createdAtTo?: string | null;
-  blocks?: string | null;
 }
 
 export interface GetProviderParams {
@@ -786,6 +783,7 @@ export interface CreateTaxonomyParams {
   key: string;
   parentId?: string | null;
   blocks?: any[];
+  filters?: any[];
 }
 
 export interface UpdateTaxonomyParams {
@@ -794,6 +792,7 @@ export interface UpdateTaxonomyParams {
   key?: string;
   parentId?: string | null;
   blocks?: any[];
+  filters?: any[];
   status?: string;
 }
 

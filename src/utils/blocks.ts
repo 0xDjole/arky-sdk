@@ -121,10 +121,6 @@ function unwrapBlock(block: any, locale: string) {
     return parsed;
   }
 
-  if (block.type === "text_filter" || block.type === "number_filter") {
-    return block.value;
-  }
-
   if (block.type === "localized_text" || block.type === "markdown") {
     return block.value?.[locale];
   }

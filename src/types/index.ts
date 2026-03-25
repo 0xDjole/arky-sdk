@@ -414,11 +414,20 @@ export interface Block {
 	value?: any;
 }
 
-export interface Filter {
+export type BlockFilterType = "text" | "number" | "boolean" | "geo_location";
+
+export interface BlockFilter {
 	id: string;
+	key: string;
+	type: BlockFilterType;
+	properties?: any;
+	value?: any;
+}
+
+export interface Filter {
 	taxonomyId: string;
 	networkId?: string;
-	blocks: Block[];
+	blocks: BlockFilter[];
 }
 
 export type BlockType =
