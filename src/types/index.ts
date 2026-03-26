@@ -414,20 +414,42 @@ export interface Block {
 	value?: any;
 }
 
-export type BlockFilterType = "text" | "number" | "boolean" | "geo_location";
+export type FilterSchemaType = "text" | "number" | "boolean" | "geo_location";
 
-export interface BlockFilter {
+export interface FilterSchema {
 	id: string;
 	key: string;
-	type: BlockFilterType;
-	properties?: any;
-	value?: any;
+	type: FilterSchemaType;
+	value?: string[];      // text options
+	min?: number | null;   // number min or text min matches
+	max?: number | null;   // number max
 }
 
 export interface Filter {
+	id: string;
+	key: string;
+	type: FilterSchemaType;
+	value: any;            // typed: string[] for text, number for number, boolean for boolean, GeoLocation for geo
+}
+
+export interface FilterQuery {
+	key: string;
+	type: FilterSchemaType;
+	operation?: string;    // for numbers
+	value: any;
+	center?: { lat: number; lon: number };  // for geo
+	radius?: number;       // for geo
+}
+
+export interface TaxonomyFilter {
 	taxonomyId: string;
 	networkId?: string;
-	blocks: BlockFilter[];
+	values: Filter[];
+}
+
+export interface TaxonomyFilterQuery {
+	taxonomyId: string;
+	query: FilterQuery[];
 }
 
 export type BlockType =
@@ -569,7 +591,7 @@ export interface Node {
 	businessId: string;
 	parentId?: string | null;
 	blocks: Block[];
-	filters: Filter[];
+	taxonomyFilters: TaxonomyFilter[];
 	status: Status;
 	slug: Record<string, string>;
 	children: Node[];
@@ -646,7 +668,7 @@ export interface Service {
 	slug: Record<string, string>;
 	businessId: string;
 	blocks: Block[];
-	filters: Filter[];
+	taxonomyFilters: TaxonomyFilter[];
 	createdAt: number;
 	updatedAt: number;
 	status: Status;
@@ -665,7 +687,7 @@ export interface Provider {
 	status: Status;
 	audienceIds: string[];
 	blocks: Block[];
-	filters: Filter[];
+	taxonomyFilters: TaxonomyFilter[];
 	createdAt: number;
 	updatedAt: number;
 }

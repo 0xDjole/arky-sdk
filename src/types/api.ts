@@ -56,7 +56,7 @@ export interface OrderCheckoutParams {
 
 export interface GetProductsParams {
   ids?: string[];
-  filters?: { taxonomyId: string; blocks?: any[] }[];
+  taxonomyQuery?: any[];
   status?: string;
   limit?: number;
   cursor?: string;
@@ -179,7 +179,7 @@ export interface MagicLinkVerifyParams {
 export interface GetServicesParams {
   businessId?: string;
   providerId?: string;
-  filters?: { taxonomyId: string; blocks?: any[] }[];
+  taxonomyQuery?: any[];
   limit?: number;
   cursor?: string;
   query?: string;
@@ -404,7 +404,7 @@ export interface CreateProductParams {
   description?: string;
   audienceIds?: string[];
   blocks?: any[];
-  filters?: any[];
+  taxonomyFilters?: any[];
   variants?: any[];
   status?: string;
   [key: string]: any;
@@ -416,7 +416,7 @@ export interface UpdateProductParams {
   description?: string;
   audienceIds?: string[];
   blocks?: any[];
-  filters?: any[];
+  taxonomyFilters?: any[];
   variants?: any[];
   status?: string;
   [key: string]: any;
@@ -481,7 +481,7 @@ export interface CreateProviderParams {
   key: string;
   audienceIds?: string[];
   blocks?: any[];
-  filters?: any[];
+  taxonomyFilters?: any[];
   status?: Status;
   [key: string]: any;
 }
@@ -492,7 +492,7 @@ export interface UpdateProviderParams {
   key?: string;
   audienceIds?: string[];
   blocks?: any[];
-  filters?: any[];
+  taxonomyFilters?: any[];
   status?: Status;
   [key: string]: any;
 }
@@ -517,7 +517,7 @@ export interface CreateServiceParams {
   businessId?: string;
   key: string;
   blocks?: any[];
-  filters?: any[];
+  taxonomyFilters?: any[];
   status?: Status;
   [key: string]: any;
 }
@@ -527,7 +527,7 @@ export interface UpdateServiceParams {
   businessId?: string;
   key?: string;
   blocks?: any[];
-  filters?: any[];
+  taxonomyFilters?: any[];
   status?: Status;
   [key: string]: any;
 }
@@ -578,7 +578,7 @@ export interface GetServiceParams {
 export interface GetProvidersParams {
   businessId?: string;
   serviceId?: string;
-  filters?: { taxonomyId: string; blocks?: any[] }[];
+  taxonomyQuery?: any[];
   ids?: string[];
   query?: string | null;
   statuses?: string[] | null;
@@ -783,7 +783,7 @@ export interface CreateTaxonomyParams {
   key: string;
   parentId?: string | null;
   blocks?: any[];
-  filters?: any[];
+  filterSchema?: any[];
 }
 
 export interface UpdateTaxonomyParams {
@@ -792,7 +792,7 @@ export interface UpdateTaxonomyParams {
   key?: string;
   parentId?: string | null;
   blocks?: any[];
-  filters?: any[];
+  filterSchema?: any[];
   status?: string;
 }
 
