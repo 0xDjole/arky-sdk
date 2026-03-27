@@ -952,6 +952,7 @@ export interface CreateAudienceParams {
   key: string;
   name: string;
   type?: AudienceType;
+  confirmTemplateId?: string;
 }
 
 export interface UpdateAudienceParams {
@@ -960,6 +961,7 @@ export interface UpdateAudienceParams {
   name?: string;
   type?: AudienceType;
   status?: Status;
+  confirmTemplateId?: string;
 }
 
 export interface GetAudienceParams {

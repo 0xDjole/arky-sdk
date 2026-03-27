@@ -554,6 +554,14 @@ export type BookingStatus = 'created' | 'pending' | 'authorized' | 'confirmed' |
 
 export type SubscriptionStatus = 'pending' | 'active' | 'cancellation_scheduled' | 'cancelled' | 'expired';
 
+export interface ServiceSnapshot {
+	key: string;
+}
+
+export interface ProviderSnapshot {
+	key: string;
+}
+
 export interface BookingItem {
 	id: string;
 	serviceId: string;
@@ -565,6 +573,8 @@ export interface BookingItem {
 	to: number;
 	blocks: Block[];
 	price: Price;
+	serviceSnapshot?: ServiceSnapshot;
+	providerSnapshot?: ProviderSnapshot;
 }
 
 export interface Booking {
@@ -795,8 +805,7 @@ export interface WorkflowExecution {
 
 export type AudienceType =
 	| { type: 'standard' }
-	| { type: 'paid'; prices: SubscriptionPrice[] }
-	| { type: 'confirmation'; confirmationNodeId: string };
+	| { type: 'paid'; prices: SubscriptionPrice[] };
 
 export interface Audience {
 	id: string;
@@ -804,6 +813,7 @@ export interface Audience {
 	key: string;
 	status: Status;
 	type: AudienceType;
+	confirmTemplateId?: string;
 }
 
 export interface AudienceAccessResponse {
