@@ -950,7 +950,6 @@ export interface GetWorkflowExecutionParams {
 
 export interface CreateAudienceParams {
   key: string;
-  name: string;
   type?: AudienceType;
   confirmTemplateId?: string;
 }
@@ -958,8 +957,6 @@ export interface CreateAudienceParams {
 export interface UpdateAudienceParams {
   id: string;
   key?: string;
-  name?: string;
-  type?: AudienceType;
   status?: Status;
   confirmTemplateId?: string;
 }
@@ -971,7 +968,7 @@ export interface GetAudienceParams {
 
 export interface GetAudiencesParams {
   ids?: string[];
-  statuses?: string[];
+  status?: string;
   query?: string;
   limit?: number;
   cursor?: string;

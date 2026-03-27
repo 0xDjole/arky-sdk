@@ -175,7 +175,8 @@ export type IntegrationProvider =
 	| { type: 'google'; clientId?: string; clientSecret?: string; accessToken?: string; refreshToken?: string;
 		tokenExpiresAt?: number; scopes: string[]; accountEmail?: string | null; connectedAt: number }
 	| { type: 'google_analytics4'; measurementId: string; activeForTracking?: boolean }
-	| { type: 'telegram_bot'; botToken?: string; action: ChannelAction }
+	| { type: 'telegram_bot'; botToken?: string }
+	| { type: 'instagram_messenger'; pageAccessToken?: string; verifyToken?: string }
 	| { type: 'deep_seek'; apiKey?: string; model?: string }
 	// Bearer token providers
 	| { type: 'open_ai'; apiKey?: string; model?: string }
@@ -363,9 +364,6 @@ export interface Webhook {
 	updatedAt: number;
 }
 
-export type ChannelAction =
-	| { type: 'agent'; agentId: string }
-	| { type: 'workflow'; workflowId: string };
 
 export interface BusinessConfig {
 	languages: Language[];

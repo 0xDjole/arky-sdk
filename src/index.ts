@@ -7,7 +7,6 @@ export type {
   BookingCartItem,
   Business,
   BusinessConfig,
-  ChannelAction,
   Webhook,
   WebhookEventSubscription,
   Integration,
