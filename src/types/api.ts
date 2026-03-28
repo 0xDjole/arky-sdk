@@ -44,6 +44,7 @@ export interface GetQuoteParams {
 
 export interface OrderCheckoutParams {
   items: EshopItem[];
+  customerId?: string;
   paymentMethodId?: string;
   blocks?: any[];
   shippingMethodId: string;
@@ -191,6 +192,7 @@ export interface GetServicesParams {
 
 export interface BookingCheckoutParams {
   businessId?: string;
+  customerId?: string;
   items: any[];
   paymentMethodId?: string;
   blocks?: any[];
@@ -1260,7 +1262,7 @@ export interface Customer {
 export interface CreateCustomerParams {
   businessId?: string;
   accountId?: string;
-  emails: string[];
+  email: string;
   firstName?: string;
   lastName?: string;
   phone?: string;
