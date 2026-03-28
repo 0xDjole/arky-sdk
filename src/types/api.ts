@@ -1237,3 +1237,76 @@ export interface DeleteNetworkParams {
   id: string;
 }
 
+// ===== Customer API Parameters =====
+
+export interface Customer {
+  id: string;
+  businessId: string;
+  accountId?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  emails: string[];
+  phone?: string | null;
+  addresses: Address[];
+  tags: string[];
+  note?: string | null;
+  status: string;
+  mergedInto?: string | null;
+  blocks: Block[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface CreateCustomerParams {
+  businessId?: string;
+  accountId?: string;
+  emails: string[];
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  note?: string;
+  tags?: string[];
+  addresses?: Address[];
+  blocks?: Block[];
+}
+
+export interface UpdateCustomerParams {
+  id: string;
+  businessId?: string;
+  emails?: string[];
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  note?: string;
+  tags?: string[];
+  addresses?: Address[];
+  blocks?: Block[];
+  status?: string;
+}
+
+export interface GetCustomerParams {
+  id: string;
+  businessId?: string;
+}
+
+export interface FindCustomersParams {
+  businessId?: string;
+  query?: string;
+  tags?: string[];
+  limit?: number;
+  cursor?: string;
+  sortField?: string;
+  sortDirection?: string;
+}
+
+export interface DeleteCustomerParams {
+  id: string;
+  businessId?: string;
+}
+
+export interface MergeCustomersParams {
+  targetId: string;
+  sourceId: string;
+  businessId?: string;
+}
+
