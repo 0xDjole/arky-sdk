@@ -27,6 +27,15 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    async initialize(params: { email: string; businessId?: string }, options?: RequestOptions) {
+      const businessId = params.businessId || apiConfig.businessId;
+      return apiConfig.httpClient.post<Customer>(
+        `/v1/businesses/${businessId}/customers/initialize`,
+        { email: params.email },
+        options
+      );
+    },
+
     async find(params?: FindCustomersParams, options?: RequestOptions) {
       const businessId = params?.businessId || apiConfig.businessId;
       const queryParams: Record<string, any> = {};
