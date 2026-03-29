@@ -133,7 +133,7 @@ import { createCmsApi } from "./api/cms";
 import { createEshopApi } from "./api/eshop";
 import { createBookingApi } from "./api/booking";
 import { createLocationApi } from "./api/location";
-import { createCustomerApi } from "./api/customer";
+import { createCustomerApi } from "./api/crm";
 import { createNetworkApi } from "./api/network";
 import { createWorkflowApi } from "./api/workflow";
 import { createAudienceApi } from "./api/audience";
@@ -235,7 +235,7 @@ export async function createArkySDK(
     eshop: createEshopApi(apiConfig),
     booking: createBookingApi(apiConfig),
 location: createLocationApi(apiConfig),
-    customer: createCustomerApi(apiConfig),
+    crm: createCustomerApi(apiConfig),
     network: createNetworkApi(apiConfig),
     workflow: createWorkflowApi(apiConfig),
     audience: createAudienceApi(apiConfig),

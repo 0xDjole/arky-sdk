@@ -101,39 +101,17 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     },
 
     async getQuote(params: GetQuoteParams, options?: RequestOptions) {
-      const payload = {
-        market: apiConfig.market,
-        items: params.items,
-        blocks: params.blocks || [],
-        paymentMethodId: params.paymentMethodId,
-        shippingMethodId: params.shippingMethodId,
-        promoCode: params.promoCode,
-        location: params.location,
-      };
-
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/orders/quote`,
-        payload,
+        { ...params, market: apiConfig.market },
         options,
       );
     },
 
     async checkout(params: OrderCheckoutParams, options?: RequestOptions) {
-      const payload = {
-        businessId: apiConfig.businessId,
-        market: apiConfig.market,
-        items: params.items,
-        blocks: params.blocks || [],
-        paymentMethodId: params.paymentMethodId,
-        shippingMethodId: params.shippingMethodId,
-        promoCodeId: params.promoCodeId,
-        shippingAddress: params.shippingAddress,
-        billingAddress: params.billingAddress,
-      };
-
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/orders/checkout`,
-        payload,
+        { ...params, businessId: apiConfig.businessId, market: apiConfig.market },
         options,
       );
     },
