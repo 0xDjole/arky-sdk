@@ -566,7 +566,6 @@ export interface BookingItem {
 	providerId: string;
 	businessId: string;
 	bookingId: string;
-	accountId: string;
 	from: number;
 	to: number;
 	blocks: Block[];
@@ -578,7 +577,6 @@ export interface BookingItem {
 export interface Booking {
 	id: string;
 	number: string;
-	accountId: string;
 	blocks: Block[];
 	businessId: string;
 	status: BookingStatus;

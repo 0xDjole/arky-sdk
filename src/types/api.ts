@@ -438,7 +438,6 @@ export interface GetOrderParams {
 }
 
 export interface GetOrdersParams {
-  accountId?: string | null;
   statuses?: string[] | null;
   productIds?: string[];
   query?: string | null;
@@ -608,7 +607,6 @@ export interface SearchBookingsParams {
   query?: string;
   serviceIds?: string[];
   providerIds?: string[];
-  accountId?: string;
   from?: number;
   to?: number;
   status?: string;
@@ -978,7 +976,7 @@ export interface GetAudiencesParams {
 
 export interface SubscribeAudienceParams {
   id: string;
-  email: string;
+  customerId: string;
   priceId?: string;
   successUrl?: string;
   cancelUrl?: string;
@@ -1002,7 +1000,7 @@ export enum SubscriptionSource {
 }
 
 export interface AudienceSubscriber {
-  accountId: string;
+  customerId: string;
   email: string;
   subscribedAt?: number;
   source?: SubscriptionSource;
@@ -1011,12 +1009,12 @@ export interface AudienceSubscriber {
 
 export interface RemoveAudienceSubscriberParams {
   id: string;
-  accountId: string;
+  customerId: string;
 }
 
 export interface AddAudienceSubscriberParams {
   id: string;
-  email: string;
+  customerId: string;
 }
 
 export interface AddAudienceSubscriberResponse {
@@ -1255,6 +1253,7 @@ export interface Customer {
   status: string;
   mergedInto?: string | null;
   blocks: Block[];
+  subscriptions: any[];
   createdAt: number;
   updatedAt: number;
 }

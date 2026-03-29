@@ -62,7 +62,7 @@ export const createAudienceApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribe`,
         {
-          email: params.email,
+          customerId: params.customerId,
           ...(params.priceId && { priceId: params.priceId }),
           ...(params.successUrl && { successUrl: params.successUrl }),
           ...(params.cancelUrl && { cancelUrl: params.cancelUrl }),
@@ -95,14 +95,14 @@ export const createAudienceApi = (apiConfig: ApiConfig) => {
     async addSubscriber(params: AddAudienceSubscriberParams, options?: RequestOptions) {
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribers`,
-        { email: params.email },
+        { customerId: params.customerId },
         options,
       );
     },
 
     async removeSubscriber(params: RemoveAudienceSubscriberParams, options?: RequestOptions) {
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribers/${params.accountId}`,
+        `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribers/${params.customerId}`,
         options,
       );
     },
