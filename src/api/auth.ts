@@ -7,31 +7,6 @@ import type {
 
 export const createAuthApi = (apiConfig: ApiConfig) => {
     return {
-        
-        async session(options?: RequestOptions) {
-            return apiConfig.httpClient.post('/v1/auth/session', {}, options);
-        },
-
-        async signInAnonymously(options?: RequestOptions) {
-            const tokens = await apiConfig.getToken();
-            if (tokens?.accessToken) {
-                
-                return tokens;
-            }
-            
-            const result = await apiConfig.httpClient.post('/v1/auth/session', {}, options);
-            if (result?.accessToken) {
-                apiConfig.setToken({ ...result, isGuest: true });
-            }
-            return result;
-        },
-
-        async isGuest(): Promise<boolean> {
-            const tokens = await apiConfig.getToken();
-            if (!tokens?.accessToken) return true;
-            const email = (tokens as any).email || "";
-            return !email || email.startsWith("guest+");
-        },
 
         async code(params: { email: string }, options?: RequestOptions) {
             return apiConfig.httpClient.post('/v1/auth/code', params, options);

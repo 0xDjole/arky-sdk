@@ -1,4 +1,4 @@
-import type { Block, ZoneLocation, WorkflowNode, Status, Address, SubscriptionStatus, AudienceType, IntegrationProvider, WebhookEventSubscription, Parcel, CustomsDeclaration, ShipmentLine } from "./index";
+import type { Block, ZoneLocation, WorkflowNode, Status, Address, SubscriptionStatus, AudienceType, IntegrationProvider, WebhookEventSubscription, Parcel, CustomsDeclaration, ShipmentLine, TaxonomyFilter } from "./index";
 
 export interface RequestOptions<T = any> {
   headers?: Record<string, string>;
@@ -44,7 +44,6 @@ export interface GetQuoteParams {
 
 export interface OrderCheckoutParams {
   items: EshopItem[];
-  customerId?: string;
   paymentMethodId?: string;
   blocks?: any[];
   shippingMethodId: string;
@@ -192,7 +191,6 @@ export interface GetServicesParams {
 
 export interface BookingCheckoutParams {
   businessId?: string;
-  customerId?: string;
   items: any[];
   paymentMethodId?: string;
   blocks?: any[];
@@ -1239,20 +1237,25 @@ export interface DeleteNetworkParams {
 
 // ===== Customer API Parameters =====
 
+export interface AuthToken {
+  id: string;
+  accessToken: string;
+  refreshToken: string;
+  accessExpiresAt: number;
+  refreshExpiresAt: number;
+  createdAt: number;
+  lastUsedAt: number;
+  isGuest: boolean;
+}
+
 export interface Customer {
   id: string;
   businessId: string;
-  accountId?: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
   emails: string[];
-  phone?: string | null;
-  addresses: Address[];
-  tags: string[];
-  note?: string | null;
   status: string;
   mergedInto?: string | null;
   blocks: Block[];
+  taxonomyFilters: TaxonomyFilter[];
   subscriptions: any[];
   createdAt: number;
   updatedAt: number;
@@ -1260,28 +1263,17 @@ export interface Customer {
 
 export interface CreateCustomerParams {
   businessId?: string;
-  accountId?: string;
   email: string;
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
-  note?: string;
-  tags?: string[];
-  addresses?: Address[];
   blocks?: Block[];
+  taxonomyFilters?: TaxonomyFilter[];
 }
 
 export interface UpdateCustomerParams {
   id: string;
   businessId?: string;
   emails?: string[];
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
-  note?: string;
-  tags?: string[];
-  addresses?: Address[];
   blocks?: Block[];
+  taxonomyFilters?: TaxonomyFilter[];
   status?: string;
 }
 
@@ -1293,7 +1285,6 @@ export interface GetCustomerParams {
 export interface FindCustomersParams {
   businessId?: string;
   query?: string;
-  tags?: string[];
   limit?: number;
   cursor?: string;
   sortField?: string;
