@@ -1,6 +1,7 @@
 import type { ApiConfig } from "../index";
 import type {
   RequestOptions,
+  ConnectCustomerParams,
   CreateCustomerParams,
   UpdateCustomerParams,
   GetCustomerParams,
@@ -77,6 +78,15 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<AuthToken>(
         `/v1/businesses/${businessId}/customers/initialize`,
         { businessId },
+        options
+      );
+    },
+
+    async connect(params: ConnectCustomerParams, options?: RequestOptions) {
+      const businessId = params.businessId || apiConfig.businessId;
+      return apiConfig.httpClient.post<AuthToken>(
+        `/v1/businesses/${businessId}/customers/connect`,
+        { email: params.email },
         options
       );
     },

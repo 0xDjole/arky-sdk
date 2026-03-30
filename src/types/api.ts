@@ -1245,7 +1245,12 @@ export interface AuthToken {
   refreshExpiresAt: number;
   createdAt: number;
   lastUsedAt: number;
-  isGuest: boolean;
+  isVerified: boolean;
+}
+
+export interface CustomerInfo {
+  id: string;
+  verified: boolean;
 }
 
 export interface Customer {
@@ -1259,6 +1264,11 @@ export interface Customer {
   subscriptions: any[];
   createdAt: number;
   updatedAt: number;
+}
+
+export interface ConnectCustomerParams {
+  email: string;
+  businessId?: string;
 }
 
 export interface CreateCustomerParams {
