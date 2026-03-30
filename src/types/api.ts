@@ -1252,7 +1252,7 @@ export interface Customer {
   id: string;
   businessId: string;
   emails: string[];
-  status: string;
+  status: 'active' | 'archived';
   mergedInto?: string | null;
   blocks: Block[];
   taxonomyFilters: TaxonomyFilter[];
@@ -1274,7 +1274,7 @@ export interface UpdateCustomerParams {
   emails?: string[];
   blocks?: Block[];
   taxonomyFilters?: TaxonomyFilter[];
-  status?: string;
+  status?: 'active' | 'archived';
 }
 
 export interface GetCustomerParams {
