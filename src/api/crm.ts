@@ -9,6 +9,14 @@ import type {
   MergeCustomersParams,
   Customer,
   AuthToken,
+  CreateAudienceParams,
+  UpdateAudienceParams,
+  GetAudienceParams,
+  GetAudiencesParams,
+  SubscribeAudienceParams,
+  GetAudienceSubscribersParams,
+  RemoveAudienceSubscriberParams,
+  AddAudienceSubscriberParams,
 } from "../types/api";
 
 export const createCustomerApi = (apiConfig: ApiConfig) => {
@@ -115,6 +123,100 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
         { sourceId: params.sourceId, businessId },
         options
       );
+    },
+
+    // Audiences
+    audiences: {
+      async create(params: CreateAudienceParams, options?: RequestOptions) {
+        return apiConfig.httpClient.post(
+          `/v1/businesses/${apiConfig.businessId}/audiences`,
+          params,
+          options,
+        );
+      },
+
+      async update(params: UpdateAudienceParams, options?: RequestOptions) {
+        return apiConfig.httpClient.put(
+          `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}`,
+          params,
+          options,
+        );
+      },
+
+      async delete(params: { id: string }, options?: RequestOptions) {
+        return apiConfig.httpClient.delete(
+          `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}`,
+          options,
+        );
+      },
+
+      async get(params: GetAudienceParams, options?: RequestOptions) {
+        let identifier: string;
+        if (params.id) {
+          identifier = params.id;
+        } else if (params.key) {
+          identifier = `${apiConfig.businessId}:${params.key}`;
+        } else {
+          throw new Error("GetAudienceParams requires id or key");
+        }
+        return apiConfig.httpClient.get(
+          `/v1/businesses/${apiConfig.businessId}/audiences/${identifier}`,
+          options,
+        );
+      },
+
+      async find(params: GetAudiencesParams, options?: RequestOptions) {
+        return apiConfig.httpClient.get(
+          `/v1/businesses/${apiConfig.businessId}/audiences`,
+          { ...options, params },
+        );
+      },
+
+      async subscribe(params: SubscribeAudienceParams, options?: RequestOptions) {
+        return apiConfig.httpClient.post(
+          `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribe`,
+          {
+            customerId: params.customerId,
+            ...(params.priceId && { priceId: params.priceId }),
+            ...(params.successUrl && { successUrl: params.successUrl }),
+            ...(params.cancelUrl && { cancelUrl: params.cancelUrl }),
+            ...(params.confirmUrl && { confirmUrl: params.confirmUrl }),
+          },
+          options,
+        );
+      },
+
+      async checkAccess(params: { id: string }, options?: RequestOptions) {
+        return apiConfig.httpClient.get(
+          `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/access`,
+          options,
+        );
+      },
+
+      async getSubscribers(params: GetAudienceSubscribersParams, options?: RequestOptions) {
+        return apiConfig.httpClient.get(
+          `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribers`,
+          {
+            ...options,
+            params: { limit: params.limit, cursor: params.cursor },
+          },
+        );
+      },
+
+      async addSubscriber(params: AddAudienceSubscriberParams, options?: RequestOptions) {
+        return apiConfig.httpClient.post(
+          `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribers`,
+          { customerId: params.customerId },
+          options,
+        );
+      },
+
+      async removeSubscriber(params: RemoveAudienceSubscriberParams, options?: RequestOptions) {
+        return apiConfig.httpClient.delete(
+          `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribers/${params.customerId}`,
+          options,
+        );
+      },
     },
   };
 };

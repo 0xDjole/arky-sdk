@@ -136,7 +136,6 @@ import { createLocationApi } from "./api/location";
 import { createCustomerApi } from "./api/crm";
 import { createNetworkApi } from "./api/network";
 import { createWorkflowApi } from "./api/workflow";
-import { createAudienceApi } from "./api/audience";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
 import { createAgentApi } from "./api/agent";
@@ -238,7 +237,6 @@ location: createLocationApi(apiConfig),
     crm: createCustomerApi(apiConfig),
     network: createNetworkApi(apiConfig),
     workflow: createWorkflowApi(apiConfig),
-    audience: createAudienceApi(apiConfig),
     shipping: createShippingApi(apiConfig),
     agent: createAgentApi(apiConfig),
     emailTemplate: createEmailTemplateApi(apiConfig),
