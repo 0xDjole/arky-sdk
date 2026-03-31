@@ -546,9 +546,11 @@ export interface BookingStoreState {
 
 export type Status = 'active' | 'archived';
 
-export type OrderStatus = 'created' | 'pending' | 'authorized' | 'confirmed' | 'shipped' | 'completed' | 'cancelled' | 'failed';
+export type OrderStatus = Status;
+export type OrderWorkflowStatus = 'created' | 'pending' | 'authorized' | 'confirmed' | 'shipped' | 'completed' | 'cancelled' | 'failed';
 
-export type BookingStatus = 'created' | 'pending' | 'authorized' | 'confirmed' | 'completed' | 'cancelled' | 'failed';
+export type BookingStatus = Status;
+export type BookingWorkflowStatus = 'created' | 'pending' | 'authorized' | 'confirmed' | 'completed' | 'cancelled' | 'failed';
 
 export type SubscriptionStatus = 'pending' | 'active' | 'cancellation_scheduled' | 'cancelled' | 'expired';
 
@@ -580,6 +582,7 @@ export interface Booking {
 	blocks: Block[];
 	businessId: string;
 	status: BookingStatus;
+	workflowStatus: BookingWorkflowStatus;
 	serviceIds: string[];
 	providerIds: string[];
 	payment: Payment;
