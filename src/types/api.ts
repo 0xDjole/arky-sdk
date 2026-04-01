@@ -1301,6 +1301,11 @@ export interface FindCustomersParams {
   sortDirection?: string;
 }
 
+export interface DeleteCustomerParams {
+  id: string;
+  businessId?: string;
+}
+
 export interface MergeCustomersParams {
   targetId: string;
   sourceId: string;
