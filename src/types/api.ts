@@ -1253,6 +1253,25 @@ export interface CustomerInfo {
   verified: boolean;
 }
 
+export interface CustomerAuthToken {
+  id: string;
+  accessToken: string;
+  refreshToken: string;
+  accessExpiresAt: number;
+  refreshExpiresAt: number;
+  createdAt: number;
+  lastUsedAt: number;
+  isVerified: boolean;
+  userAgent?: string | null;
+}
+
+export interface CustomerVerificationCode {
+  code: string;
+  createdAt: number;
+  used: boolean;
+  businessId?: string | null;
+}
+
 export interface Customer {
   id: string;
   businessId: string;
@@ -1261,6 +1280,8 @@ export interface Customer {
   mergedInto?: string | null;
   blocks: Block[];
   taxonomyFilters: TaxonomyFilter[];
+  authTokens: CustomerAuthToken[];
+  verificationCodes: CustomerVerificationCode[];
   audienceSubscriptions: any[];
   createdAt: number;
   updatedAt: number;

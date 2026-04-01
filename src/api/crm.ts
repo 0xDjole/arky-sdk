@@ -127,6 +127,22 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    async revokeToken(params: { id: string; tokenId: string; businessId?: string }, options?: RequestOptions) {
+      const businessId = params.businessId || apiConfig.businessId;
+      return apiConfig.httpClient.delete(
+        `/v1/businesses/${businessId}/customers/${params.id}/sessions/${params.tokenId}`,
+        options
+      );
+    },
+
+    async revokeAllTokens(params: { id: string; businessId?: string }, options?: RequestOptions) {
+      const businessId = params.businessId || apiConfig.businessId;
+      return apiConfig.httpClient.delete(
+        `/v1/businesses/${businessId}/customers/${params.id}/sessions`,
+        options
+      );
+    },
+
     // Audiences
     audiences: {
       async create(params: CreateAudienceParams, options?: RequestOptions) {
