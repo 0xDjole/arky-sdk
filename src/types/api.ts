@@ -1261,7 +1261,7 @@ export interface Customer {
   mergedInto?: string | null;
   blocks: Block[];
   taxonomyFilters: TaxonomyFilter[];
-  subscriptions: any[];
+  audienceSubscriptions: any[];
   createdAt: number;
   updatedAt: number;
 }
