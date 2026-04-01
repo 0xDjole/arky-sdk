@@ -6,7 +6,6 @@ import type {
   UpdateCustomerParams,
   GetCustomerParams,
   FindCustomersParams,
-  DeleteCustomerParams,
   MergeCustomersParams,
   Customer,
   AuthToken,
@@ -119,13 +118,6 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async delete(params: DeleteCustomerParams, options?: RequestOptions) {
-      return apiConfig.httpClient.delete(
-        `/v1/businesses/${params.businessId || apiConfig.businessId}/customers/${params.id}`,
-        options
-      );
-    },
-
     async merge(params: MergeCustomersParams, options?: RequestOptions) {
       const businessId = params.businessId || apiConfig.businessId;
       return apiConfig.httpClient.post<Customer>(
@@ -149,13 +141,6 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
         return apiConfig.httpClient.put(
           `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}`,
           params,
-          options,
-        );
-      },
-
-      async delete(params: { id: string }, options?: RequestOptions) {
-        return apiConfig.httpClient.delete(
-          `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}`,
           options,
         );
       },
