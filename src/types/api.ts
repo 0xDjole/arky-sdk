@@ -246,6 +246,7 @@ export interface ServiceProvider {
   durations?: any[];
   isApprovalRequired?: boolean;
   capacity: number;
+  slotInterval: number;
   timeline: TimelinePoint[];
   createdAt?: number;
   updatedAt?: number;
@@ -540,6 +541,8 @@ export interface CreateServiceProviderParams {
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
+  capacity?: number;
+  slotInterval: number;
 }
 
 export interface UpdateServiceProviderParams {
@@ -550,6 +553,8 @@ export interface UpdateServiceProviderParams {
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
+  capacity?: number;
+  slotInterval: number;
 }
 
 export interface DeleteServiceProviderParams {
@@ -857,23 +862,31 @@ export type SystemTemplateKey =
   | "system:user-confirmation"
   | "system:forgot-password";
 
-export interface GetSlotsForDateParams {
-  serviceId: string;
-  date: Date;
-  timezone: string;
-  providerId?: string;
-}
-
 export interface GetAvailabilityParams {
+  businessId?: string;
   serviceId: string;
-  from: Date;
-  to: Date;
-  timezone: string;
+  month: string;
 }
 
-export interface DayAvailability {
-  date: Date;
+export interface AvailabilitySlot {
+  from: number;
+  to: number;
   available: boolean;
+}
+
+export interface DaySlots {
+  date: string;
+  slots: AvailabilitySlot[];
+}
+
+export interface ProviderAvailability {
+  providerId: string;
+  days: DaySlots[];
+}
+
+export interface AvailabilityResponse {
+  month: string;
+  providers: ProviderAvailability[];
 }
 
 export interface Slot {

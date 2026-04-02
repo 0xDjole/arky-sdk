@@ -562,6 +562,11 @@ export interface ProviderSnapshot {
 	key: string;
 }
 
+export interface TimeRange {
+	from: number;
+	to: number;
+}
+
 export interface BookingItem {
 	id: string;
 	serviceId: string;
@@ -570,6 +575,7 @@ export interface BookingItem {
 	bookingId: string;
 	from: number;
 	to: number;
+	workRanges: TimeRange[];
 	blocks: Block[];
 	price: Price;
 	serviceSnapshot?: ServiceSnapshot;
@@ -667,6 +673,7 @@ export interface ServiceProvider {
 	workingDays: Array<{ day: string; workingHours: Array<{ from: number; to: number }> }>;
 	specificDates: Array<{ date: number; workingHours: Array<{ from: number; to: number }> }>;
 	capacity: number;
+	slotInterval: number;
 	timeline: ProviderTimelinePoint[];
 	provider?: Provider;
 }

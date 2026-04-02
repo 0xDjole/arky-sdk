@@ -70,9 +70,11 @@ export type {
 export { PaymentMethodType } from "./types";
 
 export type {
-  GetSlotsForDateParams,
   GetAvailabilityParams,
-  DayAvailability,
+  AvailabilitySlot,
+  DaySlots,
+  ProviderAvailability,
+  AvailabilityResponse,
   Slot,
   SystemTemplateKey,
   // Shipping API params

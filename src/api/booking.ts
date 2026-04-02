@@ -20,6 +20,8 @@ import type {
   DeleteServiceProviderParams,
   FindServiceProvidersParams,
   GetBookingQuoteParams,
+  GetAvailabilityParams,
+  AvailabilityResponse,
   RequestOptions,
   Slot,
 } from "../types/api";
@@ -130,6 +132,19 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
         `/v1/businesses/${targetBusinessId}/bookings/quote`,
         { market: apiConfig.market, ...payload },
         options,
+      );
+    },
+
+    async getAvailability(
+      params: GetAvailabilityParams,
+      options?: RequestOptions,
+    ): Promise<AvailabilityResponse> {
+      const { businessId, ...query } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
+
+      return apiConfig.httpClient.get<AvailabilityResponse>(
+        `/v1/businesses/${targetBusinessId}/bookings/availability`,
+        { ...options, params: query },
       );
     },
 
