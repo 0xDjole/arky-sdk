@@ -675,7 +675,6 @@ export interface ServiceProvider {
 	capacity: number;
 	slotInterval: number;
 	timeline: ProviderTimelinePoint[];
-	provider?: Provider;
 }
 
 export interface Service {
@@ -692,7 +691,7 @@ export interface Service {
 
 export interface ProviderTimelinePoint {
 	timestamp: number;
-	concurrent: number;
+	booked: number;
 }
 
 export interface Provider {

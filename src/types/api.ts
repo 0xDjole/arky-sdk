@@ -217,7 +217,7 @@ export interface GetBookingQuoteParams {
 
 export interface TimelinePoint {
   timestamp: number;
-  concurrent: number;
+  booked: number;
 }
 
 export interface WorkingHour {
@@ -250,8 +250,6 @@ export interface ServiceProvider {
   timeline: TimelinePoint[];
   createdAt?: number;
   updatedAt?: number;
-  service?: any;
-  provider?: any;
 }
 
 export interface ProviderWithTimeline {
