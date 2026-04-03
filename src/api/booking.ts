@@ -26,6 +26,18 @@ import type {
   Slot,
 } from "../types/api";
 
+function groupCartToItems(cart: Slot[]) {
+  const groups = new Map<string, { serviceId: string; providerId: string; slots: { from: number; to: number }[] }>();
+  for (const s of cart) {
+    const key = `${s.serviceId}:${s.providerId}`;
+    if (!groups.has(key)) {
+      groups.set(key, { serviceId: s.serviceId, providerId: s.providerId, slots: [] });
+    }
+    groups.get(key)!.slots.push({ from: s.from, to: s.to });
+  }
+  return [...groups.values()];
+}
+
 export const createBookingApi = (apiConfig: ApiConfig) => {
   
   let cart: Slot[] = [];
@@ -81,12 +93,7 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
       const { businessId, items: paramItems, ...payload } = params || {};
       const targetBusinessId = businessId || apiConfig.businessId;
 
-      const items = paramItems || cart.map((s) => ({
-        serviceId: s.serviceId,
-        providerId: s.providerId,
-        from: s.from,
-        to: s.to,
-      }));
+      const items = paramItems || groupCartToItems(cart);
 
       return apiConfig.httpClient.post(
         `/v1/businesses/${targetBusinessId}/bookings/checkout`,

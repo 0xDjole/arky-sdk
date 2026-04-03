@@ -199,11 +199,15 @@ export interface BookingCheckoutParams {
   location?: ZoneLocation;
 }
 
-export interface BookingQuoteItem {
-  serviceId: string;
+export interface SlotRange {
   from: number;
   to: number;
+}
+
+export interface BookingQuoteItem {
+  serviceId: string;
   providerId: string;
+  slots: SlotRange[];
 }
 
 export interface GetBookingQuoteParams {
