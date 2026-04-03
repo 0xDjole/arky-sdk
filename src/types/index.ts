@@ -575,7 +575,6 @@ export interface BookingItem {
 	bookingId: string;
 	from: number;
 	to: number;
-	workRanges: TimeRange[];
 	blocks: Block[];
 	price: Price;
 	serviceSnapshot?: ServiceSnapshot;
