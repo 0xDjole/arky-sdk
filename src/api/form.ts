@@ -8,6 +8,7 @@ import type {
   SubmitFormParams,
   GetFormSubmissionsParams,
   GetFormSubmissionParams,
+  UpdateFormSubmissionParams,
   RequestOptions,
 } from "../types/api";
 
@@ -96,6 +97,16 @@ export const createFormApi = (apiConfig: ApiConfig) => {
       const targetBusinessId = params.businessId || apiConfig.businessId;
       return apiConfig.httpClient.get(
         `/v1/businesses/${targetBusinessId}/forms/${params.formId}/submissions/${params.id}`,
+        options
+      );
+    },
+
+    async updateSubmission(params: UpdateFormSubmissionParams, options?: RequestOptions) {
+      const { businessId, formId, id, ...payload } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
+      return apiConfig.httpClient.put(
+        `/v1/businesses/${targetBusinessId}/forms/${formId}/submissions/${id}`,
+        { ...payload, formId, businessId: targetBusinessId, id },
         options
       );
     },

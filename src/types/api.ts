@@ -766,6 +766,13 @@ export interface GetFormSubmissionParams {
   businessId?: string;
 }
 
+export interface UpdateFormSubmissionParams {
+  id: string;
+  formId: string;
+  businessId?: string;
+  fields: any[];
+}
+
 // ── Taxonomy params ───────────────────────────────────────────
 
 export interface GetTaxonomiesParams {
