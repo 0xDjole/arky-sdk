@@ -868,12 +868,13 @@ export interface GetAvailabilityParams {
   businessId?: string;
   serviceId: string;
   month: string;
+  providerId?: string;
 }
 
 export interface AvailabilitySlot {
   from: number;
   to: number;
-  available: boolean;
+  spots: number;
 }
 
 export interface DaySlots {
