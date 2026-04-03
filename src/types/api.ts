@@ -1,4 +1,4 @@
-import type { Block, ZoneLocation, WorkflowNode, Status, Address, SubscriptionStatus, AudienceType, IntegrationProvider, WebhookEventSubscription, Parcel, CustomsDeclaration, ShipmentLine, TaxonomyFilter } from "./index";
+import type { Block, ZoneLocation, WorkflowNode, Status, Address, SubscriptionStatus, AudienceType, IntegrationProvider, WebhookEventSubscription, Parcel, CustomsDeclaration, ShipmentLine, TaxonomyEntry } from "./index";
 
 export interface RequestOptions<T = any> {
   headers?: Record<string, string>;
@@ -193,7 +193,7 @@ export interface BookingCheckoutParams {
   businessId?: string;
   items: any[];
   paymentMethodId?: string;
-  blocks?: any[];
+  forms?: any[];
   promoCodeId?: string;
   /** Zone location for zone/market resolution */
   location?: ZoneLocation;
@@ -407,7 +407,7 @@ export interface CreateProductParams {
   description?: string;
   audienceIds?: string[];
   blocks?: any[];
-  taxonomyFilters?: any[];
+  taxonomies?: any[];
   variants?: any[];
   status?: string;
   [key: string]: any;
@@ -419,7 +419,7 @@ export interface UpdateProductParams {
   description?: string;
   audienceIds?: string[];
   blocks?: any[];
-  taxonomyFilters?: any[];
+  taxonomies?: any[];
   variants?: any[];
   status?: string;
   [key: string]: any;
@@ -472,7 +472,7 @@ export interface CreateBookingParams {
 export interface UpdateBookingParams {
   id: string;
   status?: string;
-  blocks?: any;
+  forms?: any;
   parts?: any;
   payment?: any | null;
   [key: string]: any;
@@ -483,7 +483,7 @@ export interface CreateProviderParams {
   key: string;
   audienceIds?: string[];
   blocks?: any[];
-  taxonomyFilters?: any[];
+  taxonomies?: any[];
   status?: Status;
   [key: string]: any;
 }
@@ -494,7 +494,7 @@ export interface UpdateProviderParams {
   key?: string;
   audienceIds?: string[];
   blocks?: any[];
-  taxonomyFilters?: any[];
+  taxonomies?: any[];
   status?: Status;
   [key: string]: any;
 }
@@ -519,7 +519,7 @@ export interface CreateServiceParams {
   businessId?: string;
   key: string;
   blocks?: any[];
-  taxonomyFilters?: any[];
+  taxonomies?: any[];
   status?: Status;
   [key: string]: any;
 }
@@ -529,7 +529,7 @@ export interface UpdateServiceParams {
   businessId?: string;
   key?: string;
   blocks?: any[];
-  taxonomyFilters?: any[];
+  taxonomies?: any[];
   status?: Status;
   [key: string]: any;
 }
@@ -720,14 +720,14 @@ export interface GetFormsParams {
 export interface CreateFormParams {
   businessId?: string;
   key: string;
-  blocks?: any[];
+  schema?: any[];
 }
 
 export interface UpdateFormParams {
   id: string;
   businessId?: string;
   key?: string;
-  blocks?: any[];
+  schema?: any[];
   status?: string;
 }
 
@@ -745,7 +745,7 @@ export interface DeleteFormParams {
 export interface SubmitFormParams {
   formId: string;
   businessId?: string;
-  blocks: any[];
+  fields: any[];
 }
 
 export interface GetFormSubmissionsParams {
@@ -787,8 +787,7 @@ export interface CreateTaxonomyParams {
   businessId?: string;
   key: string;
   parentId?: string | null;
-  blocks?: any[];
-  filterSchema?: any[];
+  schema?: any[];
 }
 
 export interface UpdateTaxonomyParams {
@@ -796,8 +795,7 @@ export interface UpdateTaxonomyParams {
   businessId?: string;
   key?: string;
   parentId?: string | null;
-  blocks?: any[];
-  filterSchema?: any[];
+  schema?: any[];
   status?: string;
 }
 
@@ -1296,7 +1294,7 @@ export interface Customer {
   status: 'active' | 'archived';
   mergedInto?: string | null;
   blocks: Block[];
-  taxonomyFilters: TaxonomyFilter[];
+  taxonomies: TaxonomyEntry[];
   authTokens: CustomerAuthToken[];
   verificationCodes: CustomerVerificationCode[];
   audienceSubscriptions: any[];
@@ -1313,7 +1311,7 @@ export interface CreateCustomerParams {
   businessId?: string;
   email: string;
   blocks?: Block[];
-  taxonomyFilters?: TaxonomyFilter[];
+  taxonomies?: TaxonomyEntry[];
 }
 
 export interface UpdateCustomerParams {
@@ -1321,7 +1319,7 @@ export interface UpdateCustomerParams {
   businessId?: string;
   emails?: string[];
   blocks?: Block[];
-  taxonomyFilters?: TaxonomyFilter[];
+  taxonomies?: TaxonomyEntry[];
   status?: 'active' | 'archived';
 }
 

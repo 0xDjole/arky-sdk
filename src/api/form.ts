@@ -71,10 +71,11 @@ export const createFormApi = (apiConfig: ApiConfig) => {
     },
 
     async submit(params: SubmitFormParams, options?: RequestOptions) {
-      const targetBusinessId = params.businessId || apiConfig.businessId;
+      const { businessId, formId, ...payload } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${targetBusinessId}/forms/${params.formId}/submissions`,
-        { formId: params.formId, businessId: targetBusinessId, blocks: params.blocks },
+        `/v1/businesses/${targetBusinessId}/forms/${formId}/submissions`,
+        { ...payload, formId, businessId: targetBusinessId },
         options
       );
     },

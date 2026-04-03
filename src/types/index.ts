@@ -165,7 +165,7 @@ export interface BookingCartItem {
 	to: number;
 	timeText: string;
 	providerId?: string;
-	blocks: any[];
+	forms: any[];
 }
 
 /** Integration provider — typed data per service */
@@ -412,42 +412,68 @@ export interface Block {
 	value?: any;
 }
 
-export type FilterSchemaType = "text" | "number" | "boolean" | "geo_location";
+export type TaxonomySchemaType = "text" | "number" | "boolean" | "geo_location";
 
-export interface FilterSchema {
+export interface TaxonomySchema {
 	id: string;
 	key: string;
-	type: FilterSchemaType;
+	type: TaxonomySchemaType;
 	value?: string[];      // text options
 	min?: number | null;   // number min or text min matches
 	max?: number | null;   // number max
 }
 
-export interface Filter {
+export interface TaxonomyField {
 	id: string;
 	key: string;
-	type: FilterSchemaType;
-	value: any;            // typed: string[] for text, number for number, boolean for boolean, GeoLocation for geo
-}
-
-export interface FilterQuery {
-	key: string;
-	type: FilterSchemaType;
-	operation?: string;    // for numbers
+	type: TaxonomySchemaType;
 	value: any;
-	center?: { lat: number; lon: number };  // for geo
-	radius?: number;       // for geo
 }
 
-export interface TaxonomyFilter {
+export interface TaxonomyFieldQuery {
+	key: string;
+	type: TaxonomySchemaType;
+	operation?: string;
+	value: any;
+	center?: { lat: number; lon: number };
+	radius?: number;
+}
+
+export interface TaxonomyEntry {
 	taxonomyId: string;
 	networkId?: string;
-	values: Filter[];
+	fields: TaxonomyField[];
 }
 
-export interface TaxonomyFilterQuery {
+export interface TaxonomyQuery {
 	taxonomyId: string;
-	query: FilterQuery[];
+	query: TaxonomyFieldQuery[];
+}
+
+export type FormSchemaType = "text" | "number" | "boolean" | "date" | "geo_location" | "select";
+
+export interface FormSchema {
+	id: string;
+	key: string;
+	type: FormSchemaType;
+	required?: boolean;
+	min?: number | null;
+	max?: number | null;
+	options?: string[];
+}
+
+export type FormFieldType = "text" | "number" | "boolean" | "date" | "geo_location" | "select";
+
+export interface FormField {
+	id: string;
+	key: string;
+	type: FormFieldType;
+	value?: any;
+}
+
+export interface FormEntry {
+	formId: string;
+	fields: FormField[];
 }
 
 export type BlockType =
@@ -531,7 +557,7 @@ export interface BookingStoreState {
 	service: any | null;
 	business: Business | null;
 	currency: string;
-	bookingBlocks: Block[];
+	bookingForms: FormEntry[];
 	apiUrl: string;
 	businessId: string;
 	timezone: string;
@@ -575,7 +601,7 @@ export interface BookingItem {
 	bookingId: string;
 	from: number;
 	to: number;
-	blocks: Block[];
+	forms: FormEntry[];
 	price: Price;
 	serviceSnapshot?: ServiceSnapshot;
 	providerSnapshot?: ProviderSnapshot;
@@ -584,7 +610,7 @@ export interface BookingItem {
 export interface Booking {
 	id: string;
 	number: string;
-	blocks: Block[];
+	forms: FormEntry[];
 	businessId: string;
 	status: BookingStatus;
 	workflowStatus: BookingWorkflowStatus;
@@ -605,7 +631,7 @@ export interface Node {
 	businessId: string;
 	parentId?: string | null;
 	blocks: Block[];
-	taxonomyFilters: TaxonomyFilter[];
+	taxonomies: TaxonomyEntry[];
 	status: Status;
 	slug: Record<string, string>;
 	children: Node[];
@@ -632,7 +658,7 @@ export interface Form {
 	id: string;
 	key: string;
 	businessId: string;
-	blocks: Block[];
+	schema: FormSchema[];
 	status: Status;
 	createdAt: number;
 	updatedAt: number;
@@ -642,7 +668,7 @@ export interface FormSubmission {
 	id: string;
 	formId: string;
 	businessId: string;
-	blocks: Block[];
+	fields: FormField[];
 	createdAt: number;
 }
 
@@ -651,7 +677,7 @@ export interface Taxonomy {
 	key: string;
 	businessId: string;
 	parentId?: string | null;
-	blocks: Block[];
+	schema?: TaxonomySchema[];
 	status: Status;
 	createdAt: number;
 	updatedAt: number;
@@ -674,6 +700,7 @@ export interface ServiceProvider {
 	capacity: number;
 	slotInterval: number;
 	timeline: ProviderTimelinePoint[];
+	forms?: FormEntry[];
 }
 
 export interface Service {
@@ -682,7 +709,7 @@ export interface Service {
 	slug: Record<string, string>;
 	businessId: string;
 	blocks: Block[];
-	taxonomyFilters: TaxonomyFilter[];
+	taxonomies: TaxonomyEntry[];
 	createdAt: number;
 	updatedAt: number;
 	status: Status;
@@ -701,7 +728,7 @@ export interface Provider {
 	status: Status;
 	audienceIds: string[];
 	blocks: Block[];
-	taxonomyFilters: TaxonomyFilter[];
+	taxonomies: TaxonomyEntry[];
 	createdAt: number;
 	updatedAt: number;
 }
