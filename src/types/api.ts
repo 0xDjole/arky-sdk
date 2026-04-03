@@ -884,6 +884,7 @@ export interface DaySlots {
 
 export interface ProviderAvailability {
   providerId: string;
+  providerKey: string;
   days: DaySlots[];
 }
 
