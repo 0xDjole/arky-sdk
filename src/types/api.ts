@@ -249,9 +249,7 @@ export interface ServiceProvider {
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
-  capacity: number;
   slotInterval: number;
-  timeline: TimelinePoint[];
   createdAt?: number;
   updatedAt?: number;
 }
@@ -262,7 +260,6 @@ export interface ProviderWithTimeline {
   businessId: string;
   seo: any;
   status: Status;
-  capacity: number;
   audienceIds: string[];
   blocks: Block[];
   createdAt: number;
@@ -510,7 +507,6 @@ export interface ServiceProviderInput {
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
-  capacity?: number;
   workingDays: WorkingDay[];
   specificDates: SpecificDate[];
 }
@@ -543,7 +539,6 @@ export interface CreateServiceProviderParams {
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
-  capacity?: number;
   slotInterval: number;
 }
 
@@ -555,7 +550,6 @@ export interface UpdateServiceProviderParams {
   prices?: any[];
   durations?: any[];
   isApprovalRequired?: boolean;
-  capacity?: number;
   slotInterval: number;
 }
 

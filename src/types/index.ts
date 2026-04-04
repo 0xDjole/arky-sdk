@@ -697,9 +697,7 @@ export interface ServiceProvider {
 	audienceIds: string[];
 	workingDays: Array<{ day: string; workingHours: Array<{ from: number; to: number }> }>;
 	specificDates: Array<{ date: number; workingHours: Array<{ from: number; to: number }> }>;
-	capacity: number;
 	slotInterval: number;
-	timeline: ProviderTimelinePoint[];
 	forms?: FormEntry[];
 }
 
@@ -729,6 +727,7 @@ export interface Provider {
 	audienceIds: string[];
 	blocks: Block[];
 	taxonomies: TaxonomyEntry[];
+	timeline: ProviderTimelinePoint[];
 	createdAt: number;
 	updatedAt: number;
 }
