@@ -1344,3 +1344,65 @@ export interface MergeCustomersParams {
   businessId?: string;
 }
 
+
+// --- Review types ---
+
+export type ReviewTargetType = 'product' | 'service' | 'node' | 'order' | 'booking' | 'provider';
+export type ReviewStatus = 'pending' | 'approved' | 'rejected' | 'spam';
+
+export interface ReviewTarget {
+  type: ReviewTargetType;
+  id: string;
+}
+
+export interface Review {
+  id: string;
+  businessId: string;
+  customerInfo?: CustomerInfo | null;
+  target: ReviewTarget;
+  parentId?: string | null;
+  rating?: number | null;
+  blocks: Block[];
+  status: ReviewStatus;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface CreateReviewParams {
+  businessId?: string;
+  customerId?: string;
+  target: ReviewTarget;
+  parentId?: string;
+  rating?: number;
+  blocks?: Block[];
+}
+
+export interface UpdateReviewParams {
+  id: string;
+  businessId?: string;
+  status?: ReviewStatus;
+  blocks?: Block[];
+  rating?: number;
+}
+
+export interface GetReviewParams {
+  id: string;
+  businessId?: string;
+}
+
+export interface FindReviewsParams {
+  businessId?: string;
+  target?: ReviewTarget;
+  customerId?: string;
+  status?: ReviewStatus;
+  query?: string;
+  limit?: number;
+  cursor?: string;
+  sortField?: string;
+  sortDirection?: string;
+}
+
+export interface DeleteReviewParams {
+  id: string;
+  businessId?: string;
+}
