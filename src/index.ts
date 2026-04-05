@@ -49,10 +49,6 @@ export type {
   AudienceAccessResponse,
   AudienceSubscribeResponse,
   AudienceSubscriber,
-  Review,
-  ReviewTarget,
-  ReviewTargetType,
-  ReviewStatus,
   Event,
   EventAction,
   // Shipping types
@@ -145,7 +141,6 @@ import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
 import { createAgentApi } from "./api/agent";
-import { createReviewApi } from "./api/review";
 import { createEmailTemplateApi } from "./api/emailTemplate";
 import { createFormApi } from "./api/form";
 import { createTaxonomyApi } from "./api/taxonomy";
@@ -242,7 +237,6 @@ export async function createArkySDK(
     booking: createBookingApi(apiConfig),
 location: createLocationApi(apiConfig),
     crm: createCustomerApi(apiConfig),
-    review: createReviewApi(apiConfig),
     network: createNetworkApi(apiConfig),
     workflow: createWorkflowApi(apiConfig),
     shipping: createShippingApi(apiConfig),
