@@ -580,12 +580,10 @@ export type BookingWorkflowStatus = 'created' | 'pending' | 'authorized' | 'conf
 
 export type SubscriptionStatus = 'pending' | 'active' | 'cancellation_scheduled' | 'cancelled' | 'expired';
 
-export interface ServiceSnapshot {
-	key: string;
-}
-
-export interface ProviderSnapshot {
-	key: string;
+export interface BookingItemSnapshot {
+	serviceKey: string;
+	providerKey: string;
+	price: Price;
 }
 
 export interface TimeRange {
@@ -602,9 +600,7 @@ export interface BookingItem {
 	from: number;
 	to: number;
 	forms: FormEntry[];
-	price: Price;
-	serviceSnapshot?: ServiceSnapshot;
-	providerSnapshot?: ProviderSnapshot;
+	snapshot: BookingItemSnapshot;
 }
 
 export interface Booking {
