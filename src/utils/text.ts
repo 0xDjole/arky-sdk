@@ -8,19 +8,19 @@ const localeMap: Record<typeof locales[number], string> = {
 export function slugify(text: string): string {
 	return text
 		.toString()
-		.toLowerCase() 
-		.replace(/\s+/g, "-") 
-		.replace(/[^\w-]+/g, "") 
-		.replace(/--+/g, "-") 
-		.replace(/^-+/, "") 
-		.replace(/-+$/, ""); 
+		.toLowerCase()
+		.replace(/\s+/g, "-")
+		.replace(/[^\w-]+/g, "")
+		.replace(/--+/g, "-")
+		.replace(/^-+/, "")
+		.replace(/-+$/, "");
 }
 
 export function humanize(text: string): string {
 	const slugifiedText = slugify(text);
 	return (
 		slugifiedText
-			.replace(/-/g, " ") 
+			.replace(/-/g, " ")
 			
 			.replace(
 				
@@ -33,7 +33,7 @@ export function humanize(text: string): string {
 export function categorify(text: string): string {
 	const slugifiedText = slugify(text);
 	return slugifiedText
-		.replace(/-/g, " ") 
+		.replace(/-/g, " ")
 		.toUpperCase();
 }
 

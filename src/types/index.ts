@@ -45,9 +45,8 @@ export interface Payment {
 export enum PaymentMethodType {
 	Cash = "cash",
 	CreditCard = "credit_card",
-	// Free REMOVED - handled with logic: if total == 0, skip payment
-	// NOTE: Apple Pay and Google Pay are NOT separate PaymentMethodTypes
-	// They are handled automatically by Stripe's Payment Element
+	
+	
 }
 
 export interface PromoCodeValidation {
@@ -74,7 +73,7 @@ export interface Quote {
 	expiresAt?: number;
 }
 
-/** Price for products and services (market-based, no provider fields) */
+
 export interface Price {
 	currency: string;
 	market: string;
@@ -83,22 +82,22 @@ export interface Price {
 	audienceId?: string;
 }
 
-/** Interval period for subscription pricing */
+
 export type IntervalPeriod = 'month' | 'year';
 
-/** Subscription interval configuration */
+
 export interface SubscriptionInterval {
 	period: IntervalPeriod;
 	count: number;
 }
 
-/** Price provider configuration (e.g., Stripe) */
+
 export interface PriceProvider {
 	type: string;
 	id: string;
 }
 
-/** Price for audiences/subscriptions (provider-based with interval) */
+
 export interface SubscriptionPrice {
 	currency: string;
 	amount: number;
@@ -107,10 +106,7 @@ export interface SubscriptionPrice {
 	providers: PriceProvider[];
 }
 
-/**
- * Full address for shipping, billing, and locations.
- * Used for order addresses and shipping labels.
- */
+
 export interface Address {
 	name: string;
 	company?: string | null;
@@ -124,19 +120,13 @@ export interface Address {
 	email?: string | null;
 }
 
-/**
- * Simple geo location for CMS map/location blocks.
- * Just coordinates and an optional label for display.
- */
+
 export interface GeoLocation {
 	coordinates?: { lat: number; lon: number } | null;
 	label?: string | null;
 }
 
 
-/**
- * Used for zone matching - simplified location with optional fields.
- */
 export interface ZoneLocation {
 	country?: string | null;
 	state?: string | null;
@@ -168,7 +158,7 @@ export interface BookingCartItem {
 	forms: any[];
 }
 
-/** Integration provider — typed data per service */
+
 export type IntegrationProvider =
 	| { type: 'stripe'; secretKey?: string; publishableKey: string; webhookSecret?: string; currency: string; activeForCardPayments?: boolean }
 	| { type: 'shippo'; apiToken?: string; activeForFulfillment?: boolean }
@@ -178,7 +168,7 @@ export type IntegrationProvider =
 	| { type: 'telegram_bot'; botToken?: string }
 	| { type: 'instagram_messenger'; pageAccessToken?: string; verifyToken?: string }
 	| { type: 'deep_seek'; apiKey?: string; model?: string }
-	// Bearer token providers
+	
 	| { type: 'open_ai'; apiKey?: string; model?: string }
 	| { type: 'slack'; apiKey?: string }
 	| { type: 'discord'; apiKey?: string }
@@ -204,7 +194,7 @@ export type IntegrationProvider =
 	| { type: 'brevo'; apiKey?: string }
 	| { type: 'intercom'; apiKey?: string }
 	| { type: 'google_gemini'; apiKey?: string; model?: string }
-	// Custom header auth
+	
 	| { type: 'anthropic'; apiKey?: string; model?: string }
 	| { type: 'notion'; apiKey?: string }
 	| { type: 'eleven_labs'; apiKey?: string }
@@ -212,25 +202,25 @@ export type IntegrationProvider =
 	| { type: 'shopify'; apiKey?: string; storeDomain: string }
 	| { type: 'supabase'; apiKey?: string; projectUrl: string }
 	| { type: 'mailchimp'; apiKey?: string }
-	// Basic auth
+	
 	| { type: 'twilio'; accountSid?: string; authToken?: string }
 	| { type: 'jira'; email?: string; apiToken?: string; domain: string }
 	| { type: 'woo_commerce'; consumerKey?: string; consumerSecret?: string; storeUrl: string }
 	| { type: 'freshdesk'; apiKey?: string; domain: string }
 	| { type: 'zendesk'; apiToken?: string; email?: string; subdomain: string }
-	// OAuth / token + instance
+	
 	| { type: 'salesforce'; accessToken?: string; instanceUrl: string }
 	| { type: 'zoom'; apiKey?: string }
 	| { type: 'microsoft_teams'; apiKey?: string }
 	| { type: 'firebase'; apiKey?: string }
 	| { type: 'arky'; apiKey?: string }
-	// Deploy hooks
+	
 	| { type: 'vercel_deploy_hook'; url?: string }
 	| { type: 'netlify_deploy_hook'; url?: string }
 	| { type: 'cloudflare_deploy_hook'; url?: string }
 	| { type: 'custom_deploy_hook'; url?: string };
 
-/** Business integration — standalone sub-resource with its own CRUD */
+
 export interface Integration {
 	id: string;
 	businessId: string;
@@ -265,7 +255,7 @@ export interface ShippingMethod {
 export interface Location {
 	id: string;
 	key: string;
-	/** Ship-from address for shipping labels */
+	
 	address: Address;
 	isPickupLocation: boolean;
 }
@@ -418,9 +408,9 @@ export interface TaxonomySchema {
 	id: string;
 	key: string;
 	type: TaxonomySchemaType;
-	value?: string[];      // text options
-	min?: number | null;   // number min or text min matches
-	max?: number | null;   // number max
+	value?: string[];
+	min?: number | null;
+	max?: number | null;
 }
 
 export interface TaxonomyField {
@@ -490,7 +480,7 @@ export type BlockType =
 
 export interface GeoLocationBlockProperties {}
 
-/** @deprecated Use GeoLocation instead */
+
 export type GeoLocationValue = GeoLocation;
 
 export interface GeoLocationBlock extends Block {
@@ -853,7 +843,7 @@ export interface AudienceSubscribeResponse {
 }
 
 export type EventAction =
-	// Order events
+	
 	| { action: 'order_created' }
 	| { action: 'order_updated' }
 	| { action: 'order_status_changed'; data: { from: string; to: string } }
@@ -862,7 +852,7 @@ export type EventAction =
 	| { action: 'order_refunded'; data: { amount: number; currency: string; reason?: string } }
 	| { action: 'order_completed' }
 	| { action: 'order_cancelled'; data: { reason?: string } }
-	// Order shipment events
+	
 	| { action: 'order_shipment_created'; data: { shipment_id: string } }
 	| { action: 'order_shipment_in_transit'; data: { shipment_id: string } }
 	| { action: 'order_shipment_out_for_delivery'; data: { shipment_id: string } }
@@ -870,7 +860,7 @@ export type EventAction =
 	| { action: 'order_shipment_failed'; data: { shipment_id: string; reason?: string } }
 	| { action: 'order_shipment_returned'; data: { shipment_id: string } }
 	| { action: 'order_shipment_status_changed'; data: { shipment_id: string; from: string; to: string } }
-	// Booking events
+	
 	| { action: 'booking_created' }
 	| { action: 'booking_updated' }
 	| { action: 'booking_status_changed'; data: { from: string; to: string } }
@@ -879,34 +869,34 @@ export type EventAction =
 	| { action: 'booking_refunded'; data: { amount: number; currency: string; reason?: string } }
 	| { action: 'booking_completed' }
 	| { action: 'booking_cancelled'; data: { reason?: string } }
-	// Product events
+	
 	| { action: 'product_created' }
 	| { action: 'product_updated' }
 	| { action: 'product_deleted' }
-	// Node events
+	
 	| { action: 'node_created' }
 	| { action: 'node_updated' }
 	| { action: 'node_deleted' }
-	// Provider events
+	
 	| { action: 'provider_created' }
 	| { action: 'provider_updated' }
 	| { action: 'provider_deleted' }
-	// Service events
+	
 	| { action: 'service_created' }
 	| { action: 'service_updated' }
 	| { action: 'service_deleted' }
-	// Account events
+	
 	| { action: 'account_created' }
 	| { action: 'account_updated' }
 	| { action: 'account_deleted' }
-	// Media events
+	
 	| { action: 'media_created' }
 	| { action: 'media_deleted' }
-	// Business events
+	
 	| { action: 'business_created' }
 	| { action: 'business_updated' }
 	| { action: 'business_deleted' }
-	// Audience events
+	
 	| { action: 'audience_created' }
 	| { action: 'audience_updated' }
 	| { action: 'audience_deleted' };
@@ -919,9 +909,7 @@ export interface Event {
 	createdAt: number;
 }
 
-// Shipping Types
 
-/** Shipping status for order fulfillment tracking */
 export type ShippingStatus =
 	| 'pending'
 	| 'label_created'
@@ -931,7 +919,7 @@ export type ShippingStatus =
 	| 'failed'
 	| 'returned';
 
-/** Order shipping information (legacy - kept for backward compatibility) */
+
 export interface OrderShipping {
 	carrier: string;
 	service: string;
@@ -941,18 +929,18 @@ export interface OrderShipping {
 	status: ShippingStatus;
 }
 
-/** Line item in a shipment with quantity (for partial fulfillment) */
+
 export interface ShipmentLine {
 	orderItemId: string;
 	quantity: number;
 }
 
-/** Individual shipment for an order (ships from one location) */
+
 export interface Shipment {
 	id: string;
 	locationId: string;
-	lines: ShipmentLine[];           // OrderItem IDs + quantities in this shipment
-	carrier?: string | null;         // Set when label purchased
+	lines: ShipmentLine[];
+	carrier?: string | null;
 	service?: string | null;
 	trackingNumber?: string | null;
 	trackingUrl?: string | null;
@@ -962,7 +950,7 @@ export interface Shipment {
 	updatedAt: number;
 }
 
-/** Shipping rate from provider */
+
 export interface ShippingRate {
 	id: string;
 	provider: string;
@@ -974,13 +962,10 @@ export interface ShippingRate {
 	estimatedDays?: number | null;
 }
 
-/**
- * @deprecated Use Address instead
- * Shipping address for rate requests
- */
+
 export type ShippingAddress = Address;
 
-/** Parcel dimensions for shipping */
+
 export interface Parcel {
 	length: number;
 	width: number;
@@ -990,7 +975,7 @@ export interface Parcel {
 	massUnit: 'oz' | 'lb' | 'g' | 'kg';
 }
 
-/** Result from purchasing a shipping label */
+
 export interface PurchaseLabelResult {
 	trackingNumber: string;
 	trackingUrl?: string | null;
@@ -999,7 +984,7 @@ export interface PurchaseLabelResult {
 	service: string;
 }
 
-/** Result from ship operation */
+
 export interface ShipResult {
 	shipmentId: string;
 	trackingNumber: string;
@@ -1007,7 +992,7 @@ export interface ShipResult {
 	labelUrl: string;
 }
 
-/** Individual item in a customs declaration */
+
 export interface CustomsItem {
 	description: string;
 	quantity: number;
@@ -1019,13 +1004,12 @@ export interface CustomsItem {
 	tariffNumber?: string | null;
 }
 
-/** Customs declaration for international shipments */
+
 export interface CustomsDeclaration {
-	contentsType: string;              // "MERCHANDISE" | "GIFT" | "SAMPLE" | "DOCUMENTS" | "RETURN"
+	contentsType: string;
 	contentsExplanation?: string | null;
-	nonDeliveryOption: string;         // "RETURN" | "ABANDON"
+	nonDeliveryOption: string;
 	certify: boolean;
 	certifySigner: string;
 	items: CustomsItem[];
 }
-

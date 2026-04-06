@@ -21,7 +21,7 @@ import type {
 
 export const createCustomerApi = (apiConfig: ApiConfig) => {
   return {
-    // Auth methods
+    
     async requestCode(params: { email: string; businessId?: string }, options?: RequestOptions) {
       const businessId = params.businessId || apiConfig.businessId;
       return apiConfig.httpClient.post(
@@ -56,7 +56,7 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    // CRUD methods
+    
     async create(params: CreateCustomerParams, options?: RequestOptions) {
       return apiConfig.httpClient.post<Customer>(
         `/v1/businesses/${params.businessId || apiConfig.businessId}/customers`,
@@ -143,7 +143,7 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    // Audiences
+    
     audiences: {
       async create(params: CreateAudienceParams, options?: RequestOptions) {
         return apiConfig.httpClient.post(

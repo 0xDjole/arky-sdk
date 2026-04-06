@@ -20,11 +20,11 @@ export type {
   ShippingWeightTier,
   Zone,
   Market,
-  // Address types
+  
   Address,
   GeoLocation,
   ZoneLocation,
-  Location, // deprecated - use Address for addresses, GeoLocation for map pins
+  Location,
   Quote,
   PromoCodeValidation,
   PaginatedResponse,
@@ -51,11 +51,11 @@ export type {
   AudienceSubscriber,
   Event,
   EventAction,
-  // Shipping types
+  
   ShippingStatus,
   OrderShipping,
   ShippingRate,
-  ShippingAddress, // deprecated - use Address
+  ShippingAddress,
   Parcel,
   PurchaseLabelResult,
   ShipResult,
@@ -63,7 +63,7 @@ export type {
   Shipment,
   CustomsItem,
   CustomsDeclaration,
-  // Block types
+  
   GeoLocationBlock,
 } from "./types";
 
@@ -77,16 +77,16 @@ export type {
   AvailabilityResponse,
   Slot,
   SystemTemplateKey,
-  // Shipping API params
+  
   GetShippingRatesParams,
   ShipParams,
-  // Agent API params
+  
   CreateAgentParams,
   UpdateAgentParams,
   GetAgentParams,
   GetAgentsParams,
   AgentStatus,
-  // Network types
+  
   Network,
   NetworkNode,
   CreateNetworkParams,
@@ -213,7 +213,7 @@ export async function createArkySDK(
   const platformApi = createPlatformApi(apiConfig);
 
   if (typeof window !== "undefined" && apiConfig.businessId) {
-    // Fetch analytics config (public endpoint, no auth needed)
+    
     businessApi.getIntegrationConfig({ businessId: apiConfig.businessId, type: 'analytics' }).then((configs: any[]) => {
       if (!configs) return;
       for (const c of Array.isArray(configs) ? configs : [configs]) {

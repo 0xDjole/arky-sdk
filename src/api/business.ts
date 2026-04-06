@@ -182,8 +182,7 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    // ── Integration CRUD ──
-
+    
     async listIntegrations(
       params: ListIntegrationsParams,
       options?: RequestOptions
@@ -238,8 +237,7 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    // ── Webhook CRUD ──
-
+    
     async listWebhooks(
       params: ListWebhooksParams,
       options?: RequestOptions

@@ -17,7 +17,7 @@ function getMinorUnits(currency: string): number {
         const fractionPart = parts.find(p => p.type === 'fraction');
         return fractionPart?.value.length ?? 2;
     } catch {
-        return 2; // Default fallback
+        return 2;
     }
 }
 

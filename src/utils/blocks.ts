@@ -75,14 +75,14 @@ export const getBlockValue = (entry: any, blockKey: string) => {
 export const getBlockTextValue = (block: any, locale: string = "en"): string => {
   if (!block || block.value === null || block.value === undefined) return "";
 
-  // For localized_text and markdown, value is { en: "...", bs: "..." }
+  
   if (block.type === "localized_text" || block.type === "markdown") {
     if (typeof block.value === "object" && block.value !== null) {
       return block.value[locale] ?? block.value["en"] ?? "";
     }
   }
 
-  // For TEXT and other simple types, value is a string
+  
   if (typeof block.value === "string") return block.value;
 
   return String(block.value ?? "");
@@ -92,7 +92,7 @@ export const getBlockValues = (entry: any, blockKey: string) => {
   const block = entry?.blocks?.find((f: any) => f.key === blockKey);
   if (!block) return [];
 
-  // For list type, value is an array of child blocks
+  
   if (block.type === "list" && Array.isArray(block.value)) {
     return block.value;
   }

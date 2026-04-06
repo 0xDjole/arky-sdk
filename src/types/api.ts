@@ -38,7 +38,7 @@ export interface GetQuoteParams {
   shippingMethodId?: string;
   promoCode?: string;
   blocks?: any[];
-  /** Zone location for zone/market resolution */
+  
   location?: ZoneLocation;
 }
 
@@ -48,9 +48,9 @@ export interface OrderCheckoutParams {
   blocks?: any[];
   shippingMethodId: string;
   promoCodeId?: string;
-  /** Shipping address for the order */
+  
   shippingAddress?: Address;
-  /** Billing address (defaults to shipping address if not provided) */
+  
   billingAddress?: Address;
 }
 
@@ -195,7 +195,7 @@ export interface BookingCheckoutParams {
   paymentMethodId?: string;
   forms?: any[];
   promoCodeId?: string;
-  /** Zone location for zone/market resolution */
+  
   location?: ZoneLocation;
 }
 
@@ -215,7 +215,7 @@ export interface GetBookingQuoteParams {
   items: BookingQuoteItem[];
   paymentMethodId?: string;
   promoCode?: string;
-  /** Zone location for zone/market resolution */
+  
   location?: ZoneLocation;
 }
 
@@ -644,7 +644,6 @@ export interface TriggerNotificationParams {
   vars?: Record<string, any>;
 }
 
-// ── EmailTemplate params ──────────────────────────────────────
 
 export interface GetEmailTemplatesParams {
   businessId?: string;
@@ -695,7 +694,6 @@ export interface DeleteEmailTemplateParams {
   businessId?: string;
 }
 
-// ── Form params ───────────────────────────────────────────────
 
 export interface GetFormsParams {
   businessId?: string;
@@ -767,7 +765,6 @@ export interface UpdateFormSubmissionParams {
   fields: any[];
 }
 
-// ── Taxonomy params ───────────────────────────────────────────
 
 export interface GetTaxonomiesParams {
   businessId?: string;
@@ -1049,7 +1046,6 @@ export interface OAuthDisconnectParams {
   provider: string;
 }
 
-// Integration API Parameters
 
 export interface ListIntegrationsParams {
   businessId: string;
@@ -1078,7 +1074,6 @@ export interface DeleteIntegrationParams {
   id: string;
 }
 
-// Webhook CRUD Parameters
 
 export interface ListWebhooksParams {
   businessId: string;
@@ -1110,9 +1105,7 @@ export interface DeleteWebhookParams {
   id: string;
 }
 
-// Shipping API Parameters
 
-/** Get shipping rates for a shipment */
 export interface GetShippingRatesParams {
   orderId: string;
   shippingProviderId: string;
@@ -1122,7 +1115,7 @@ export interface GetShippingRatesParams {
   customsDeclaration?: CustomsDeclaration;
 }
 
-/** Ship items: creates shipment + purchases label atomically */
+
 export interface ShipParams {
   orderId: string;
   rateId: string;
@@ -1132,7 +1125,6 @@ export interface ShipParams {
   lines: ShipmentLine[];
 }
 
-// ===== Agent API Parameters =====
 
 export type AgentStatus = 'active' | 'disabled';
 
@@ -1210,7 +1202,6 @@ export interface RateAgentChatParams {
   comment?: string;
 }
 
-// ===== Network API Parameters =====
 
 export interface NetworkNode {
   id?: string;
@@ -1251,7 +1242,6 @@ export interface DeleteNetworkParams {
   id: string;
 }
 
-// ===== Customer API Parameters =====
 
 export interface AuthToken {
   id: string;
@@ -1348,5 +1338,3 @@ export interface MergeCustomersParams {
   sourceId: string;
   businessId?: string;
 }
-
-

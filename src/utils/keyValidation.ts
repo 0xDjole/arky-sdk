@@ -32,10 +32,10 @@ export function toKey(input: string): string {
   return input
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, "_") 
-    .replace(/[^a-z0-9_-]/g, "") 
-    .replace(/^[-_]+|[-_]+$/g, "") 
-    .replace(/[-_]{2,}/g, "_"); 
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_-]/g, "")
+    .replace(/^[-_]+|[-_]+$/g, "")
+    .replace(/[-_]{2,}/g, "_");
 }
 
 export function nameToKey(name: string): string {

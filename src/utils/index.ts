@@ -20,4 +20,3 @@ export {
   getInventoryAt,
   getFirstAvailableFCId,
 } from "./inventory";
-
