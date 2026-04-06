@@ -1288,11 +1288,17 @@ export interface CustomerVerificationCode {
   businessId?: string | null;
 }
 
+export interface PromoUsage {
+  promoCodeId: string;
+  uses: number;
+}
+
 export interface Customer {
   id: string;
   businessId: string;
   emails: string[];
   status: 'active' | 'archived';
+  promoUsage: PromoUsage[];
   blocks: Block[];
   taxonomies: TaxonomyEntry[];
   authTokens: CustomerAuthToken[];
