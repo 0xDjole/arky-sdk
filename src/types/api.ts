@@ -1293,7 +1293,6 @@ export interface Customer {
   businessId: string;
   emails: string[];
   status: 'active' | 'archived';
-  mergedInto?: string | null;
   blocks: Block[];
   taxonomies: TaxonomyEntry[];
   authTokens: CustomerAuthToken[];
