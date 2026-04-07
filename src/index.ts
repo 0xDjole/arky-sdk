@@ -102,7 +102,7 @@ export type {
   GetCountriesResponse,
 } from "./api/location";
 
-export const SDK_VERSION = "0.5.32";
+export const SDK_VERSION = "0.5.33";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -136,6 +136,26 @@ import { createEshopApi } from "./api/eshop";
 import { createBookingApi } from "./api/booking";
 import { createLocationApi } from "./api/location";
 import { createCustomerApi } from "./api/crm";
+import { createReactionApi } from "./api/reaction";
+export {
+  DEFAULT_REACTION_KINDS,
+  REACTION_KIND_REGEX,
+  isValidReactionKind,
+  computeAverageStars,
+} from "./api/reaction";
+export type {
+  Reaction,
+  ReactionTarget,
+  ReactionTargetType,
+  ReactionStatus,
+  CreateReactionParams,
+  UpdateReactionParams,
+  GetReactionParams,
+  FindReactionsParams,
+  ModerateReactionParams,
+  EngagementSummary,
+  EngagementSummaryParams,
+} from "./api/reaction";
 import { createNetworkApi } from "./api/network";
 import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
@@ -237,6 +257,7 @@ export async function createArkySDK(
     booking: createBookingApi(apiConfig),
 location: createLocationApi(apiConfig),
     crm: createCustomerApi(apiConfig),
+    reaction: createReactionApi(apiConfig),
     network: createNetworkApi(apiConfig),
     workflow: createWorkflowApi(apiConfig),
     shipping: createShippingApi(apiConfig),

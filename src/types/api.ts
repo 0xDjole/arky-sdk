@@ -1294,6 +1294,7 @@ export interface Customer {
   authTokens: CustomerAuthToken[];
   verificationCodes: CustomerVerificationCode[];
   audienceSubscriptions: any[];
+  reactions: any[];
   createdAt: number;
   updatedAt: number;
 }
