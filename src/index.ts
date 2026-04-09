@@ -102,7 +102,16 @@ export type {
   GetCountriesResponse,
 } from "./api/location";
 
-export const SDK_VERSION = "0.5.33";
+export type {
+  CreateLocationParams,
+  UpdateLocationParams,
+  DeleteLocationParams,
+  CreateZoneParams,
+  UpdateZoneParams,
+  DeleteZoneParams,
+} from "./types/api";
+
+export const SDK_VERSION = "0.7.26";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -135,6 +144,7 @@ import { createCmsApi } from "./api/cms";
 import { createEshopApi } from "./api/eshop";
 import { createBookingApi } from "./api/booking";
 import { createLocationApi } from "./api/location";
+import { createZoneApi } from "./api/zone";
 import { createCustomerApi } from "./api/crm";
 import { createReactionApi } from "./api/reaction";
 export {
@@ -255,7 +265,8 @@ export async function createArkySDK(
     cms: createCmsApi(apiConfig),
     eshop: createEshopApi(apiConfig),
     booking: createBookingApi(apiConfig),
-location: createLocationApi(apiConfig),
+    location: createLocationApi(apiConfig),
+    zone: createZoneApi(apiConfig),
     crm: createCustomerApi(apiConfig),
     reaction: createReactionApi(apiConfig),
     network: createNetworkApi(apiConfig),

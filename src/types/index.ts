@@ -254,10 +254,12 @@ export interface ShippingMethod {
 
 export interface Location {
 	id: string;
+	businessId: string;
 	key: string;
-	
 	address: Address;
 	isPickupLocation: boolean;
+	createdAt: number;
+	updatedAt: number;
 }
 
 export interface InventoryLevel {
@@ -270,7 +272,7 @@ export type ZoneScope = "all" | "order" | "booking";
 
 export interface Zone {
 	id: string;
-	name: string;
+	businessId: string;
 	marketId: string;
 	scope: ZoneScope;
 	countries: string[];
@@ -279,6 +281,8 @@ export interface Zone {
 	taxBps: number;
 	paymentMethods: PaymentMethod[];
 	shippingMethods: ShippingMethod[];
+	createdAt: number;
+	updatedAt: number;
 }
 
 export interface Market {
@@ -358,8 +362,6 @@ export interface Webhook {
 export interface BusinessConfig {
 	languages: Language[];
 	markets: Market[];
-	zones: Zone[];
-	locations: Location[];
 	aiId?: string | null;
 	emails: BusinessEmails;
 }

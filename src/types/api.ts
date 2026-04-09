@@ -1,4 +1,50 @@
-import type { Block, ZoneLocation, WorkflowNode, Status, Address, SubscriptionStatus, AudienceType, IntegrationProvider, WebhookEventSubscription, Parcel, CustomsDeclaration, ShipmentLine, TaxonomyEntry } from "./index";
+import type { Block, ZoneLocation, WorkflowNode, Status, Address, SubscriptionStatus, AudienceType, IntegrationProvider, WebhookEventSubscription, Parcel, CustomsDeclaration, ShipmentLine, TaxonomyEntry, ZoneScope, PaymentMethod, ShippingMethod } from "./index";
+
+// Location CRUD params
+export interface CreateLocationParams {
+  key: string;
+  address: Address;
+  isPickupLocation?: boolean;
+}
+
+export interface UpdateLocationParams {
+  id: string;
+  key: string;
+  address: Address;
+  isPickupLocation?: boolean;
+}
+
+export interface DeleteLocationParams {
+  id: string;
+}
+
+// Zone CRUD params
+export interface CreateZoneParams {
+  marketId: string;
+  scope?: ZoneScope;
+  countries?: string[];
+  states?: string[];
+  postalCodes?: string[];
+  taxBps?: number;
+  paymentMethods?: PaymentMethod[];
+  shippingMethods?: ShippingMethod[];
+}
+
+export interface UpdateZoneParams {
+  id: string;
+  marketId: string;
+  scope?: ZoneScope;
+  countries?: string[];
+  states?: string[];
+  postalCodes?: string[];
+  taxBps?: number;
+  paymentMethods?: PaymentMethod[];
+  shippingMethods?: ShippingMethod[];
+}
+
+export interface DeleteZoneParams {
+  id: string;
+}
 
 export interface RequestOptions<T = any> {
   headers?: Record<string, string>;

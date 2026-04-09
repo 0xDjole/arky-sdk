@@ -16,12 +16,16 @@ export interface ReactionTarget {
   id: string;
 }
 
+export interface ReactionCustomerInfo {
+  id: string;
+  verified: boolean;
+}
+
 export interface Reaction {
   id: string;
   businessId: string;
-  customerId: string;
-  targetType: ReactionTargetType;
-  targetId: string;
+  customerInfo: ReactionCustomerInfo;
+  target: ReactionTarget;
   parentId?: string | null;
   kind: string;
   blocks: Block[];
@@ -38,6 +42,7 @@ export interface CreateReactionParams {
   blocks?: Block[];
   parentId?: string;
   taxonomies?: any[];
+  customerId?: string;
 }
 
 export interface UpdateReactionParams {
@@ -61,6 +66,7 @@ export interface FindReactionsParams {
   kind?: string;
   status?: ReactionStatus;
   contentOnly?: boolean;
+  query?: string;
   limit?: number;
   cursor?: string;
 }
@@ -165,6 +171,7 @@ export const createReactionApi = (apiConfig: ApiConfig) => {
       if (params?.status) queryParams.status = params.status;
       if (params?.contentOnly !== undefined)
         queryParams.contentOnly = params.contentOnly;
+      if (params?.query) queryParams.query = params.query;
       if (params?.limit !== undefined) queryParams.limit = params.limit;
       if (params?.cursor) queryParams.cursor = params.cursor;
 
