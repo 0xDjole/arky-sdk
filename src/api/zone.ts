@@ -7,8 +7,7 @@ import type {
 } from "../types/api";
 import type { Zone } from "../types";
 
-// Zones are now their own entity (their own table) and are no longer embedded
-// in BusinessConfigs. Reads and writes go through these endpoints.
+
 export const createZoneApi = (apiConfig: ApiConfig) => {
   return {
     async list(options?: RequestOptions): Promise<Zone[]> {

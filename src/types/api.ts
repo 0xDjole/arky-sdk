@@ -1,6 +1,6 @@
 import type { Block, ZoneLocation, WorkflowNode, Status, Address, SubscriptionStatus, AudienceType, IntegrationProvider, WebhookEventSubscription, Parcel, CustomsDeclaration, ShipmentLine, TaxonomyEntry, ZoneScope, PaymentMethod, ShippingMethod } from "./index";
 
-// Location CRUD params
+
 export interface CreateLocationParams {
   key: string;
   address: Address;
@@ -18,7 +18,7 @@ export interface DeleteLocationParams {
   id: string;
 }
 
-// Zone CRUD params
+
 export interface CreateZoneParams {
   marketId: string;
   scope?: ZoneScope;

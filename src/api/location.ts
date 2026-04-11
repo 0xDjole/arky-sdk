@@ -39,9 +39,7 @@ export const createLocationApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    // Business location CRUD. Locations are now first-class entities (their own
-    // table) and are no longer embedded in BusinessConfigs. Reads and writes go
-    // through these endpoints.
+    
     async list(options?: RequestOptions): Promise<Location[]> {
       return apiConfig.httpClient.get(
         `/v1/businesses/${apiConfig.businessId}/locations`,
