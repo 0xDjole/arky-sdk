@@ -1249,46 +1249,6 @@ export interface RateAgentChatParams {
 }
 
 
-export interface NetworkNode {
-  id?: string;
-  key: string;
-  blocks?: any[];
-}
-
-export interface Network {
-  id: string;
-  key: string;
-  nodes: NetworkNode[];
-  createdAt: number;
-  updatedAt: number;
-}
-
-export interface CreateNetworkParams {
-  key: string;
-  nodes?: NetworkNode[];
-}
-
-export interface UpdateNetworkParams {
-  id: string;
-  key: string;
-  nodes: NetworkNode[];
-}
-
-export interface GetNetworkParams {
-  id: string;
-}
-
-export interface FindNetworksParams {
-  query?: string;
-  limit?: number;
-  cursor?: string;
-}
-
-export interface DeleteNetworkParams {
-  id: string;
-}
-
-
 export interface AuthToken {
   id: string;
   accessToken: string;

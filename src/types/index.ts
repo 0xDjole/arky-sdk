@@ -433,7 +433,6 @@ export interface TaxonomyFieldQuery {
 
 export interface TaxonomyEntry {
 	taxonomyId: string;
-	networkId?: string;
 	fields: TaxonomyField[];
 }
 

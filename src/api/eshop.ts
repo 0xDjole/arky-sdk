@@ -101,9 +101,21 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     },
 
     async getQuote(params: GetQuoteParams, options?: RequestOptions) {
+      const { location, ...rest } = params;
+      const shippingAddress = location
+        ? {
+            country: location.country || "",
+            state: location.state || "",
+            city: location.city || "",
+            postalCode: location.postalCode || "",
+            name: "",
+            street1: "",
+            street2: null,
+          }
+        : undefined;
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/orders/quote`,
-        { ...params, market: apiConfig.market },
+        { ...rest, shippingAddress, market: apiConfig.market },
         options,
       );
     },

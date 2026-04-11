@@ -86,14 +86,6 @@ export type {
   GetAgentParams,
   GetAgentsParams,
   AgentStatus,
-  
-  Network,
-  NetworkNode,
-  CreateNetworkParams,
-  UpdateNetworkParams,
-  GetNetworkParams,
-  FindNetworksParams,
-  DeleteNetworkParams,
 } from "./types/api";
 
 export type {
@@ -166,7 +158,6 @@ export type {
   EngagementSummary,
   EngagementSummaryParams,
 } from "./api/reaction";
-import { createNetworkApi } from "./api/network";
 import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
@@ -269,7 +260,6 @@ export async function createArkySDK(
     zone: createZoneApi(apiConfig),
     crm: createCustomerApi(apiConfig),
     reaction: createReactionApi(apiConfig),
-    network: createNetworkApi(apiConfig),
     workflow: createWorkflowApi(apiConfig),
     shipping: createShippingApi(apiConfig),
     agent: createAgentApi(apiConfig),
