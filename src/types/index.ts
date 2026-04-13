@@ -160,11 +160,11 @@ export interface BookingCartItem {
 
 
 export type IntegrationProvider =
-	| { type: 'stripe'; secretKey?: string; publishableKey: string; webhookSecret?: string; currency: string; activeForCardPayments?: boolean }
-	| { type: 'shippo'; apiToken?: string; activeForFulfillment?: boolean }
+	| { type: 'stripe'; secretKey?: string; publishableKey: string; webhookSecret?: string; currency: string }
+	| { type: 'shippo'; apiToken?: string }
 	| { type: 'google'; clientId?: string; clientSecret?: string; accessToken?: string; refreshToken?: string;
 		tokenExpiresAt?: number; scopes: string[]; accountEmail?: string | null; connectedAt: number }
-	| { type: 'google_analytics4'; measurementId: string; activeForTracking?: boolean }
+	| { type: 'google_analytics4'; measurementId: string }
 	| { type: 'telegram_bot'; botToken?: string }
 	| { type: 'instagram_messenger'; pageAccessToken?: string; verifyToken?: string }
 	| { type: 'deep_seek'; apiKey?: string; model?: string }
@@ -237,8 +237,7 @@ export interface ShippingWeightTier {
 
 export interface PaymentMethod {
 	id: string;
-	name: Record<string, string>;
-	type: PaymentMethodType;
+	integrationId?: string;
 }
 
 export interface ShippingMethod {
@@ -247,6 +246,7 @@ export interface ShippingMethod {
 	taxable: boolean;
 	etaText: string;
 	locationId?: string;
+	integrationId?: string;
 	amount: number;
 	freeAbove?: number;
 	weightTiers?: ShippingWeightTier[];
@@ -822,7 +822,8 @@ export interface WorkflowExecution {
 
 export type AudienceType =
 	| { type: 'standard' }
-	| { type: 'paid'; prices: SubscriptionPrice[] };
+	| { type: 'confirmation'; confirmTemplateId: string }
+	| { type: 'paid'; prices: SubscriptionPrice[]; paymentIntegrationId?: string };
 
 export interface Audience {
 	id: string;
@@ -830,7 +831,6 @@ export interface Audience {
 	key: string;
 	status: Status;
 	type: AudienceType;
-	confirmTemplateId?: string;
 }
 
 export interface AudienceAccessResponse {
