@@ -234,7 +234,6 @@ export async function createArkySDK(
   const platformApi = createPlatformApi(apiConfig);
 
   if (typeof window !== "undefined" && apiConfig.businessId) {
-    
     businessApi.getIntegrationConfig({ businessId: apiConfig.businessId, type: 'analytics' }).then((configs: any[]) => {
       if (!configs) return;
       for (const c of Array.isArray(configs) ? configs : [configs]) {
