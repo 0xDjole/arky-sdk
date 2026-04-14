@@ -1,4 +1,4 @@
-import type { Block, ZoneLocation, WorkflowNode, Status, Address, SubscriptionStatus, AudienceType, IntegrationProvider, WebhookEventSubscription, Parcel, CustomsDeclaration, ShipmentLine, TaxonomyEntry, PaymentMethod, ShippingMethod } from "./index";
+import type { Block, Zone, ZoneLocation, WorkflowNode, Status, Address, SubscriptionStatus, AudienceType, IntegrationProvider, WebhookEventSubscription, Parcel, CustomsDeclaration, ShipmentLine, TaxonomyEntry, PaymentMethod, ShippingMethod } from "./index";
 
 
 export interface CreateLocationParams {
@@ -19,34 +19,12 @@ export interface DeleteLocationParams {
 }
 
 
-export interface CreateZoneParams {
-  marketId: string;
-  countries?: string[];
-  states?: string[];
-  postalCodes?: string[];
-  taxBps?: number;
-  shippingMethods?: ShippingMethod[];
-}
-
-export interface UpdateZoneParams {
-  id: string;
-  marketId: string;
-  countries?: string[];
-  states?: string[];
-  postalCodes?: string[];
-  taxBps?: number;
-  shippingMethods?: ShippingMethod[];
-}
-
-export interface DeleteZoneParams {
-  id: string;
-}
-
 export interface CreateMarketParams {
   key: string;
   currency: string;
   taxMode: 'inclusive' | 'exclusive';
   paymentMethods?: PaymentMethod[];
+  zones?: Zone[];
 }
 
 export interface UpdateMarketParams {
@@ -55,6 +33,7 @@ export interface UpdateMarketParams {
   currency?: string;
   taxMode?: 'inclusive' | 'exclusive';
   paymentMethods?: PaymentMethod[];
+  zones?: Zone[];
 }
 
 export interface DeleteMarketParams {

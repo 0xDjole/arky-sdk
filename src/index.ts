@@ -97,9 +97,6 @@ export type {
   CreateLocationParams,
   UpdateLocationParams,
   DeleteLocationParams,
-  CreateZoneParams,
-  UpdateZoneParams,
-  DeleteZoneParams,
 } from "./types/api";
 
 export const SDK_VERSION = "0.7.26";
@@ -136,7 +133,6 @@ import { createEshopApi } from "./api/eshop";
 import { createBookingApi } from "./api/booking";
 import { createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
-import { createZoneApi } from "./api/zone";
 import { createCustomerApi } from "./api/crm";
 import { createReactionApi } from "./api/reaction";
 export {
@@ -257,7 +253,6 @@ export async function createArkySDK(
     booking: createBookingApi(apiConfig),
     location: createLocationApi(apiConfig),
     market: createMarketApi(apiConfig),
-    zone: createZoneApi(apiConfig),
     crm: createCustomerApi(apiConfig),
     reaction: createReactionApi(apiConfig),
     workflow: createWorkflowApi(apiConfig),
