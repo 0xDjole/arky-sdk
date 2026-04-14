@@ -235,8 +235,6 @@ export interface BookingCheckoutParams {
   paymentMethodId?: string;
   forms?: any[];
   promoCodeId?: string;
-  
-  location?: ZoneLocation;
 }
 
 export interface SlotRange {
@@ -255,8 +253,6 @@ export interface GetBookingQuoteParams {
   items: BookingQuoteItem[];
   paymentMethodId?: string;
   promoCode?: string;
-  
-  location?: ZoneLocation;
 }
 
 export interface TimelinePoint {
