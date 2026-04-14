@@ -6,7 +6,6 @@ export type {
   BookingStoreState,
   BookingCartItem,
   Business,
-  BusinessConfig,
   Webhook,
   WebhookEventSubscription,
   Integration,
@@ -136,6 +135,7 @@ import { createCmsApi } from "./api/cms";
 import { createEshopApi } from "./api/eshop";
 import { createBookingApi } from "./api/booking";
 import { createLocationApi } from "./api/location";
+import { createMarketApi } from "./api/market";
 import { createZoneApi } from "./api/zone";
 import { createCustomerApi } from "./api/crm";
 import { createReactionApi } from "./api/reaction";
@@ -256,6 +256,7 @@ export async function createArkySDK(
     eshop: createEshopApi(apiConfig),
     booking: createBookingApi(apiConfig),
     location: createLocationApi(apiConfig),
+    market: createMarketApi(apiConfig),
     zone: createZoneApi(apiConfig),
     crm: createCustomerApi(apiConfig),
     reaction: createReactionApi(apiConfig),

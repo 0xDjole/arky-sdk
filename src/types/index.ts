@@ -58,7 +58,7 @@ export interface PromoCodeValidation {
 
 export interface Quote {
 	market: string;
-	zone: Zone;
+	zone: Zone | null;
 	subtotal: number;
 	shipping: number;
 	discount: number;
@@ -66,6 +66,7 @@ export interface Quote {
 	total: number;
 	shippingMethod: ShippingMethod | null;
 	paymentMethod: PaymentMethod | null;
+	paymentMethods: PaymentMethod[];
 	promoCode: PromoCodeValidation | null;
 	payment: Payment;
 	chargeAmount: number;
@@ -268,27 +269,26 @@ export interface InventoryLevel {
 	reserved: number;
 }
 
-export type ZoneScope = "all" | "order" | "booking";
-
 export interface Zone {
 	id: string;
 	businessId: string;
 	marketId: string;
-	scope: ZoneScope;
 	countries: string[];
 	states: string[];
 	postalCodes: string[];
 	taxBps: number;
-	paymentMethods: PaymentMethod[];
 	shippingMethods: ShippingMethod[];
-	createdAt: number;
-	updatedAt: number;
 }
 
 export interface Market {
 	id: string;
+	businessId: string;
+	key: string;
 	currency: string;
 	taxMode: "exclusive" | "inclusive";
+	paymentMethods: PaymentMethod[];
+	createdAt: number;
+	updatedAt: number;
 }
 
 export interface Language {
@@ -359,14 +359,6 @@ export interface Webhook {
 }
 
 
-export interface BusinessConfig {
-	languages: Language[];
-	markets: Market[];
-	aiId?: string | null;
-	emails: BusinessEmails;
-}
-
-
 export interface Subscription {
 	id: string;
 	target: string;
@@ -382,7 +374,8 @@ export interface Business {
 	id: string;
 	key: string;
 	timezone: string;
-	configs?: BusinessConfig;
+	languages?: Language[];
+	emails?: BusinessEmails;
 	subscription?: Subscription;
 	counts?: Record<string, number>;
 }

@@ -69,7 +69,7 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
 
       return apiConfig.httpClient.post(
         `/v1/businesses/${targetBusinessId}/bookings`,
-        { market: apiConfig.market, ...payload },
+        { market: "booking", ...payload },
         options,
       );
     },
@@ -97,7 +97,7 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
 
       return apiConfig.httpClient.post(
         `/v1/businesses/${targetBusinessId}/bookings/checkout`,
-        { market: apiConfig.market, ...payload, items },
+        { market: "booking", ...payload, items },
         options,
       );
     },
@@ -137,7 +137,7 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
 
       return apiConfig.httpClient.post(
         `/v1/businesses/${targetBusinessId}/bookings/quote`,
-        { market: apiConfig.market, ...payload },
+        { market: "booking", ...payload },
         options,
       );
     },
