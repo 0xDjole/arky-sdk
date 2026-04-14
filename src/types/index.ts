@@ -167,7 +167,6 @@ export type IntegrationProvider =
 		tokenExpiresAt?: number; scopes: string[]; accountEmail?: string | null; connectedAt: number }
 	| { type: 'google_analytics4'; measurementId: string }
 	| { type: 'telegram_bot'; botToken?: string }
-	| { type: 'instagram_messenger'; pageAccessToken?: string; verifyToken?: string }
 	| { type: 'deep_seek'; apiKey?: string; model?: string }
 	
 	| { type: 'open_ai'; apiKey?: string; model?: string }
@@ -195,8 +194,6 @@ export type IntegrationProvider =
 	| { type: 'brevo'; apiKey?: string }
 	| { type: 'intercom'; apiKey?: string }
 	| { type: 'google_gemini'; apiKey?: string; model?: string }
-	
-	| { type: 'anthropic'; apiKey?: string; model?: string }
 	| { type: 'notion'; apiKey?: string }
 	| { type: 'eleven_labs'; apiKey?: string }
 	| { type: 'active_campaign'; apiKey?: string; accountUrl: string }
@@ -243,7 +240,6 @@ export interface PaymentMethod {
 
 export interface ShippingMethod {
 	id: string;
-	name: Record<string, string>;
 	taxable: boolean;
 	etaText: string;
 	locationId?: string;
@@ -287,6 +283,7 @@ export interface Market {
 	currency: string;
 	taxMode: "exclusive" | "inclusive";
 	paymentMethods: PaymentMethod[];
+	zones: Zone[];
 	createdAt: number;
 	updatedAt: number;
 }
