@@ -188,12 +188,10 @@ export type IntegrationProvider =
 	| { type: 'typeform'; apiKey?: string }
 	| { type: 'webflow'; apiKey?: string }
 	| { type: 'trello'; apiKey?: string }
-	| { type: 'perplexity'; apiKey?: string; model?: string }
 	| { type: 'replicate'; apiKey?: string }
 	| { type: 'asana'; apiKey?: string }
 	| { type: 'brevo'; apiKey?: string }
 	| { type: 'intercom'; apiKey?: string }
-	| { type: 'google_gemini'; apiKey?: string; model?: string }
 	| { type: 'notion'; apiKey?: string }
 	| { type: 'eleven_labs'; apiKey?: string }
 	| { type: 'active_campaign'; apiKey?: string; accountUrl: string }
@@ -598,6 +596,8 @@ export interface Booking {
 	account?: any;
 	items: BookingItem[];
 	audienceId?: string;
+	approvalExpiresAt?: number;
+	history?: { action: string; reason?: string; timestamp: number }[];
 	createdAt: number;
 	lastModified: number;
 }

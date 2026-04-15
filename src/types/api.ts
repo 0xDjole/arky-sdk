@@ -505,9 +505,11 @@ export interface CreateBookingParams {
 export interface UpdateBookingParams {
   id: string;
   status?: string;
+  workflowStatus?: 'Created' | 'Pending' | 'Authorized' | 'Confirmed' | 'Completed' | 'Cancelled' | 'Failed';
   forms?: any;
-  parts?: any;
+  items?: any;
   payment?: any | null;
+  declineReason?: string;
   [key: string]: any;
 }
 
