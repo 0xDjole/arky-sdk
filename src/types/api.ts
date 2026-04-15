@@ -284,7 +284,7 @@ export interface ServiceProvider {
   specificDates: SpecificDate[];
   prices?: any[];
   durations?: any[];
-  isApprovalRequired?: boolean;
+  bookingType?: 'instant' | 'request_blocking' | 'request_non_blocking';
   slotInterval: number;
   createdAt?: number;
   updatedAt?: number;
@@ -544,7 +544,7 @@ export interface ServiceProviderInput {
   businessId?: string;
   prices?: any[];
   durations?: any[];
-  isApprovalRequired?: boolean;
+  bookingType?: 'instant' | 'request_blocking' | 'request_non_blocking';
   workingDays: WorkingDay[];
   specificDates: SpecificDate[];
 }
@@ -576,7 +576,7 @@ export interface CreateServiceProviderParams {
   specificDates: SpecificDate[];
   prices?: any[];
   durations?: any[];
-  isApprovalRequired?: boolean;
+  bookingType?: 'instant' | 'request_blocking' | 'request_non_blocking';
   slotInterval: number;
 }
 
@@ -587,7 +587,7 @@ export interface UpdateServiceProviderParams {
   specificDates: SpecificDate[];
   prices?: any[];
   durations?: any[];
-  isApprovalRequired?: boolean;
+  bookingType?: 'instant' | 'request_blocking' | 'request_non_blocking';
   slotInterval: number;
 }
 

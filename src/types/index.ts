@@ -670,7 +670,7 @@ export interface ServiceProvider {
 	providerId: string;
 	prices: Price[];
 	durations: ServiceDuration[];
-	isApprovalRequired: boolean;
+	bookingType: 'instant' | 'request_blocking' | 'request_non_blocking';
 	audienceIds: string[];
 	workingDays: Array<{ day: string; workingHours: Array<{ from: number; to: number }> }>;
 	specificDates: Array<{ date: number; workingHours: Array<{ from: number; to: number }> }>;
