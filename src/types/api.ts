@@ -504,8 +504,8 @@ export interface CreateBookingParams {
 
 export interface UpdateBookingParams {
   id: string;
-  status?: string;
-  workflowStatus?: 'Created' | 'Pending' | 'Authorized' | 'Confirmed' | 'Completed' | 'Cancelled' | 'Failed';
+  status?: 'active' | 'archived';
+  workflowStatus?: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
   forms?: any;
   items?: any;
   payment?: any | null;
@@ -647,6 +647,7 @@ export interface SearchBookingsParams {
   from?: number;
   to?: number;
   status?: string;
+  workflowStatus?: string;
   limit?: number;
   cursor?: string;
   sortField?: string;

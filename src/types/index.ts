@@ -555,7 +555,7 @@ export type OrderStatus = Status;
 export type OrderWorkflowStatus = 'created' | 'pending' | 'authorized' | 'confirmed' | 'shipped' | 'completed' | 'cancelled' | 'failed';
 
 export type BookingStatus = Status;
-export type BookingWorkflowStatus = 'created' | 'pending' | 'authorized' | 'confirmed' | 'completed' | 'cancelled' | 'failed';
+export type BookingWorkflowStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
 
 export type SubscriptionStatus = 'pending' | 'active' | 'cancellation_scheduled' | 'cancelled' | 'expired';
 
