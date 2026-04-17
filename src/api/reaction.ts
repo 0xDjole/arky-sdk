@@ -16,15 +16,11 @@ export interface ReactionTarget {
   id: string;
 }
 
-export interface ReactionCustomerInfo {
-  id: string;
-  verified: boolean;
-}
-
 export interface Reaction {
   id: string;
   businessId: string;
-  customerInfo: ReactionCustomerInfo;
+  customerId: string;
+  verified: boolean;
   target: ReactionTarget;
   parentId?: string | null;
   kind: string;
@@ -66,6 +62,7 @@ export interface FindReactionsParams {
   kind?: string;
   status?: ReactionStatus;
   contentOnly?: boolean;
+  verified?: boolean;
   query?: string;
   limit?: number;
   cursor?: string;
@@ -171,6 +168,8 @@ export const createReactionApi = (apiConfig: ApiConfig) => {
       if (params?.status) queryParams.status = params.status;
       if (params?.contentOnly !== undefined)
         queryParams.contentOnly = params.contentOnly;
+      if (params?.verified !== undefined)
+        queryParams.verified = params.verified;
       if (params?.query) queryParams.query = params.query;
       if (params?.limit !== undefined) queryParams.limit = params.limit;
       if (params?.cursor) queryParams.cursor = params.cursor;

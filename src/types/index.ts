@@ -585,6 +585,8 @@ export interface BookingItem {
 export interface Booking {
 	id: string;
 	number: string;
+	customerId: string;
+	verified: boolean;
 	forms: FormEntry[];
 	businessId: string;
 	status: BookingStatus;
