@@ -5,6 +5,7 @@ import type {
   BookingCheckoutParams,
   GetBookingParams,
   SearchBookingsParams,
+  CancelBookingItemParams,
   CreateServiceParams,
   UpdateServiceParams,
   DeleteServiceParams,
@@ -275,6 +276,19 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
           ...options,
           params: queryParams,
         },
+      );
+    },
+
+    async cancelBookingItem(
+      params: CancelBookingItemParams,
+      options?: RequestOptions,
+    ) {
+      const { businessId, bookingId, itemId, ...payload } = params;
+      const targetBusinessId = businessId || apiConfig.businessId;
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${targetBusinessId}/bookings/${bookingId}/items/${itemId}/cancel`,
+        payload,
+        options,
       );
     },
 

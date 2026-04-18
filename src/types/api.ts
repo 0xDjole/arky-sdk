@@ -275,6 +275,11 @@ export interface SpecificDate {
   workingHours: WorkingHour[];
 }
 
+export interface CancellationRule {
+  beforeHours: number;
+  refundPercentage: number;
+}
+
 export interface ServiceProvider {
   id: string;
   serviceId: string;
@@ -286,6 +291,7 @@ export interface ServiceProvider {
   durations?: any[];
   bookingType?: 'instant' | 'request_blocking' | 'request_non_blocking';
   slotInterval: number;
+  cancellationRules: CancellationRule[];
   createdAt?: number;
   updatedAt?: number;
 }
@@ -506,11 +512,11 @@ export interface CreateBookingParams {
 export interface UpdateBookingParams {
   id: string;
   status?: 'active' | 'archived';
-  workflowStatus?: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+  approve?: boolean;
+  cancel?: boolean;
   forms?: any;
   items?: any;
   payment?: any | null;
-  declineReason?: string;
   [key: string]: any;
 }
 
@@ -579,6 +585,7 @@ export interface CreateServiceProviderParams {
   durations?: any[];
   bookingType?: 'instant' | 'request_blocking' | 'request_non_blocking';
   slotInterval: number;
+  cancellationRules?: CancellationRule[];
 }
 
 export interface UpdateServiceProviderParams {
@@ -590,6 +597,7 @@ export interface UpdateServiceProviderParams {
   durations?: any[];
   bookingType?: 'instant' | 'request_blocking' | 'request_non_blocking';
   slotInterval: number;
+  cancellationRules?: CancellationRule[];
 }
 
 export interface DeleteServiceProviderParams {
@@ -638,6 +646,13 @@ export interface GetProviderParams {
 export interface GetBookingParams {
   id: string;
   businessId?: string;
+}
+
+export interface CancelBookingItemParams {
+  businessId?: string;
+  bookingId: string;
+  itemId: string;
+  reason?: string;
 }
 
 export interface SearchBookingsParams {

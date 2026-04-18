@@ -316,12 +316,12 @@ export type WebhookEventSubscription =
 	| { event: 'order.shipment_status_changed' }
 	| { event: 'booking.created' }
 	| { event: 'booking.updated' }
-	| { event: 'booking.status_changed' }
+	| { event: 'booking.approved' }
 	| { event: 'booking.payment_received' }
 	| { event: 'booking.payment_failed' }
 	| { event: 'booking.refunded' }
-	| { event: 'booking.completed' }
 	| { event: 'booking.cancelled' }
+	| { event: 'booking.item_cancelled' }
 	| { event: 'product.created' }
 	| { event: 'product.updated' }
 	| { event: 'product.deleted' }
@@ -555,7 +555,10 @@ export type OrderStatus = Status;
 export type OrderWorkflowStatus = 'created' | 'pending' | 'authorized' | 'confirmed' | 'shipped' | 'completed' | 'cancelled' | 'failed';
 
 export type BookingStatus = Status;
-export type BookingWorkflowStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+export type BookingWorkflowStatus =
+	| { status: 'pending'; expires_at: number }
+	| { status: 'confirmed'; at: number }
+	| { status: 'rejected'; at: number };
 
 export type SubscriptionStatus = 'pending' | 'active' | 'cancellation_scheduled' | 'cancelled' | 'expired';
 
@@ -570,6 +573,8 @@ export interface TimeRange {
 	to: number;
 }
 
+export type BookingItemStatus = 'active' | 'cancelled' | 'no_show';
+
 export interface BookingItem {
 	id: string;
 	serviceId: string;
@@ -580,6 +585,8 @@ export interface BookingItem {
 	to: number;
 	forms: FormEntry[];
 	snapshot: BookingItemSnapshot;
+	status: BookingItemStatus;
+	cancelledAt?: number;
 }
 
 export interface Booking {
@@ -598,7 +605,6 @@ export interface Booking {
 	account?: any;
 	items: BookingItem[];
 	audienceId?: string;
-	approvalExpiresAt?: number;
 	history?: { action: string; reason?: string; timestamp: number }[];
 	createdAt: number;
 	lastModified: number;
@@ -667,6 +673,11 @@ export interface ServiceDuration {
 	isPause?: boolean;
 }
 
+export interface CancellationRule {
+	beforeHours: number;
+	refundPercentage: number;
+}
+
 export interface ServiceProvider {
 	id: string;
 	providerId: string;
@@ -677,6 +688,7 @@ export interface ServiceProvider {
 	workingDays: Array<{ day: string; workingHours: Array<{ from: number; to: number }> }>;
 	specificDates: Array<{ date: number; workingHours: Array<{ from: number; to: number }> }>;
 	slotInterval: number;
+	cancellationRules: CancellationRule[];
 	forms?: FormEntry[];
 }
 
@@ -856,12 +868,12 @@ export type EventAction =
 	
 	| { action: 'booking_created' }
 	| { action: 'booking_updated' }
-	| { action: 'booking_status_changed'; data: { from: string; to: string } }
+	| { action: 'booking_approved' }
 	| { action: 'booking_payment_received'; data: { amount: number; currency: string } }
 	| { action: 'booking_payment_failed'; data: { reason?: string } }
 	| { action: 'booking_refunded'; data: { amount: number; currency: string; reason?: string } }
-	| { action: 'booking_completed' }
 	| { action: 'booking_cancelled'; data: { reason?: string } }
+	| { action: 'booking_item_cancelled'; data: { itemId: string; refundAmount: number } }
 	
 	| { action: 'product_created' }
 	| { action: 'product_updated' }
