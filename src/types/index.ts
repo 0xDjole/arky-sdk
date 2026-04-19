@@ -694,18 +694,9 @@ export interface BookingStoreState {
 }
 
 export type OrderStatus = 'active' | 'draft' | 'archived';
-export type OrderWorkflowStatus =
-	| { status: 'pending'; at: number; expires_at: number }
-	| { status: 'confirmed'; at: number }
-	| { status: 'rejected'; at: number };
-
 export type BookingStatus = 'active' | 'draft' | 'archived';
 export type BookingServiceStatus = 'active' | 'draft' | 'archived';
 export type BookingProviderStatus = 'active' | 'draft' | 'archived';
-export type BookingWorkflowStatus =
-	| { status: 'pending'; expires_at: number }
-	| { status: 'confirmed'; at: number }
-	| { status: 'rejected'; at: number };
 
 export type ProductStatus = 'active' | 'draft' | 'archived';
 export type CustomerStatus = 'active' | 'draft' | 'archived';
@@ -718,6 +709,47 @@ export type EmailTemplateStatus = 'active' | 'draft' | 'archived';
 export type FormStatus = 'active' | 'draft' | 'archived';
 export type TaxonomyStatus = 'active' | 'draft' | 'archived';
 
+export type BookingCancellationReason =
+	| 'admin_rejected'
+	| 'customer_cancelled'
+	| 'payment_failed'
+	| 'expired'
+	| 'no_show_auto'
+	| 'other';
+
+export type OrderCancellationReason =
+	| 'admin_rejected'
+	| 'customer_cancelled'
+	| 'payment_failed'
+	| 'expired'
+	| 'other';
+
+export type BookingItemStatus =
+	| { status: 'pending'; at: number; expires_at: number }
+	| { status: 'confirmed'; at: number }
+	| { status: 'cancelled'; at: number; reason: BookingCancellationReason }
+	| { status: 'fulfilled'; at: number }
+	| { status: 'no_show'; at: number };
+
+export type OrderItemStatus =
+	| { status: 'pending'; at: number; expires_at: number }
+	| { status: 'confirmed'; at: number }
+	| { status: 'cancelled'; at: number; reason: OrderCancellationReason }
+	| { status: 'fulfilled'; at: number }
+	| { status: 'returned'; at: number };
+
+export type BookingPaymentStatus =
+	| { status: 'pending'; at: number }
+	| { status: 'authorized'; at: number; amount: number }
+	| { status: 'captured'; at: number; amount: number }
+	| { status: 'failed'; at: number; reason?: string };
+
+export type OrderPaymentStatus =
+	| { status: 'pending'; at: number }
+	| { status: 'authorized'; at: number; amount: number }
+	| { status: 'captured'; at: number; amount: number }
+	| { status: 'failed'; at: number; reason?: string };
+
 export interface BookingItemSnapshot {
 	serviceKey: string;
 	providerKey: string;
@@ -728,8 +760,6 @@ export interface TimeRange {
 	from: number;
 	to: number;
 }
-
-export type BookingItemStatus = 'active' | 'cancelled' | 'no_show';
 
 export interface BookingItem {
 	id: string;
@@ -742,7 +772,6 @@ export interface BookingItem {
 	forms: FormEntry[];
 	snapshot: BookingItemSnapshot;
 	status: BookingItemStatus;
-	cancelledAt?: number;
 }
 
 export interface Booking {
@@ -753,7 +782,6 @@ export interface Booking {
 	forms: FormEntry[];
 	businessId: string;
 	status: BookingStatus;
-	workflowStatus: BookingWorkflowStatus;
 	serviceIds: string[];
 	providerIds: string[];
 	payment: BookingPayment;
