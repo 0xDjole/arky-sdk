@@ -548,19 +548,30 @@ export interface BookingStoreState {
 	};
 }
 
-export type Status = 'active' | 'archived';
-
-export type OrderStatus = Status;
+export type OrderStatus = 'active' | 'draft' | 'archived';
 export type OrderWorkflowStatus =
 	| { status: 'pending'; at: number; expires_at: number }
 	| { status: 'confirmed'; at: number }
 	| { status: 'rejected'; at: number };
 
-export type BookingStatus = Status;
+export type BookingStatus = 'active' | 'draft' | 'archived';
+export type BookingServiceStatus = 'active' | 'draft' | 'archived';
+export type BookingProviderStatus = 'active' | 'draft' | 'archived';
 export type BookingWorkflowStatus =
 	| { status: 'pending'; expires_at: number }
 	| { status: 'confirmed'; at: number }
 	| { status: 'rejected'; at: number };
+
+export type ProductStatus = 'active' | 'draft' | 'archived';
+export type CustomerStatus = 'active' | 'draft' | 'archived';
+export type AudienceStatus = 'active' | 'draft' | 'archived';
+export type AgentChatStatus = 'active' | 'draft' | 'archived';
+export type WorkflowStatus = 'active' | 'draft' | 'archived';
+export type PromoCodeStatus = 'active' | 'draft' | 'archived';
+export type NodeStatus = 'active' | 'draft' | 'archived';
+export type EmailTemplateStatus = 'active' | 'draft' | 'archived';
+export type FormStatus = 'active' | 'draft' | 'archived';
+export type TaxonomyStatus = 'active' | 'draft' | 'archived';
 
 export type SubscriptionStatus = 'pending' | 'active' | 'cancellation_scheduled' | 'cancelled' | 'expired';
 
@@ -619,7 +630,7 @@ export interface Node {
 	parentId?: string | null;
 	blocks: Block[];
 	taxonomies: TaxonomyEntry[];
-	status: Status;
+	status: NodeStatus;
 	slug: Record<string, string>;
 	children: Node[];
 	createdAt: number;
@@ -636,7 +647,7 @@ export interface EmailTemplate {
 	fromEmail: string;
 	replyTo?: string;
 	preheader?: string;
-	status: Status;
+	status: EmailTemplateStatus;
 	createdAt: number;
 	updatedAt: number;
 }
@@ -646,7 +657,7 @@ export interface Form {
 	key: string;
 	businessId: string;
 	schema: FormSchema[];
-	status: Status;
+	status: FormStatus;
 	createdAt: number;
 	updatedAt: number;
 }
@@ -665,7 +676,7 @@ export interface Taxonomy {
 	businessId: string;
 	parentId?: string | null;
 	schema?: TaxonomySchema[];
-	status: Status;
+	status: TaxonomyStatus;
 	createdAt: number;
 	updatedAt: number;
 }
@@ -703,7 +714,7 @@ export interface Service {
 	taxonomies: TaxonomyEntry[];
 	createdAt: number;
 	updatedAt: number;
-	status: Status;
+	status: BookingServiceStatus;
 }
 
 export interface ProviderTimelinePoint {
@@ -716,7 +727,7 @@ export interface Provider {
 	key: string;
 	slug: Record<string, string>;
 	businessId: string;
-	status: Status;
+	status: BookingProviderStatus;
 	audienceIds: string[];
 	blocks: Block[];
 	taxonomies: TaxonomyEntry[];
@@ -735,7 +746,7 @@ export interface Workflow {
 	key: string;
 	businessId: string;
 	secret: string;
-	status: Status;
+	status: WorkflowStatus;
 	nodes: Record<string, WorkflowNode>;
 
 	schedule?: string;
@@ -835,7 +846,7 @@ export interface Audience {
 	id: string;
 	businessId: string;
 	key: string;
-	status: Status;
+	status: AudienceStatus;
 	type: AudienceType;
 }
 

@@ -62,8 +62,23 @@ export type {
   Shipment,
   CustomsItem,
   CustomsDeclaration,
-  
+
   GeoLocationBlock,
+
+  OrderStatus,
+  BookingStatus,
+  BookingServiceStatus,
+  BookingProviderStatus,
+  ProductStatus,
+  CustomerStatus,
+  AudienceStatus,
+  AgentChatStatus,
+  WorkflowStatus,
+  PromoCodeStatus,
+  NodeStatus,
+  EmailTemplateStatus,
+  FormStatus,
+  TaxonomyStatus,
 } from "./types";
 
 export { PaymentMethodType } from "./types";

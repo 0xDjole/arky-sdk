@@ -1,4 +1,4 @@
-import type { Block, Zone, ZoneLocation, WorkflowNode, Status, Address, SubscriptionStatus, AudienceType, IntegrationProvider, WebhookEventSubscription, Parcel, CustomsDeclaration, ShipmentLine, TaxonomyEntry, PaymentMethod, ShippingMethod } from "./index";
+import type { Block, Zone, ZoneLocation, WorkflowNode, Address, SubscriptionStatus, AudienceType, IntegrationProvider, WebhookEventSubscription, Parcel, CustomsDeclaration, ShipmentLine, TaxonomyEntry, PaymentMethod, ShippingMethod, BookingServiceStatus, BookingProviderStatus, WorkflowStatus, PromoCodeStatus, AudienceStatus } from "./index";
 
 
 export interface CreateLocationParams {
@@ -301,7 +301,7 @@ export interface ProviderWithTimeline {
   key: string;
   businessId: string;
   seo: any;
-  status: Status;
+  status: BookingProviderStatus;
   audienceIds: string[];
   blocks: Block[];
   createdAt: number;
@@ -360,7 +360,7 @@ export interface UpdatePromoCodeParams {
   code: string;
   discounts: Discount[];
   conditions: Condition[];
-  status?: Status;
+  status?: PromoCodeStatus;
 }
 
 export interface DeletePromoCodeParams {
@@ -529,7 +529,7 @@ export interface CreateProviderParams {
   audienceIds?: string[];
   blocks?: any[];
   taxonomies?: any[];
-  status?: Status;
+  status?: BookingProviderStatus;
   [key: string]: any;
 }
 
@@ -540,7 +540,7 @@ export interface UpdateProviderParams {
   audienceIds?: string[];
   blocks?: any[];
   taxonomies?: any[];
-  status?: Status;
+  status?: BookingProviderStatus;
   [key: string]: any;
 }
 
@@ -564,7 +564,7 @@ export interface CreateServiceParams {
   key: string;
   blocks?: any[];
   taxonomies?: any[];
-  status?: Status;
+  status?: BookingServiceStatus;
   [key: string]: any;
 }
 
@@ -574,7 +574,7 @@ export interface UpdateServiceParams {
   key?: string;
   blocks?: any[];
   taxonomies?: any[];
-  status?: Status;
+  status?: BookingServiceStatus;
   [key: string]: any;
 }
 
@@ -961,7 +961,7 @@ export interface Slot {
 export interface CreateWorkflowParams {
   businessId?: string;
   key: string;
-  status?: Status;
+  status?: WorkflowStatus;
   nodes: Record<string, WorkflowNode>;
 
   schedule?: string;
@@ -970,7 +970,7 @@ export interface CreateWorkflowParams {
 export interface UpdateWorkflowParams {
   id: string;
   key: string;
-  status?: Status;
+  status?: WorkflowStatus;
   nodes: Record<string, WorkflowNode>;
 
   schedule?: string;
@@ -1027,7 +1027,7 @@ export interface CreateAudienceParams {
 export interface UpdateAudienceParams {
   id: string;
   key?: string;
-  status?: Status;
+  status?: AudienceStatus;
   confirmTemplateId?: string;
 }
 
@@ -1185,7 +1185,7 @@ export interface ShipParams {
 }
 
 
-export type AgentStatus = 'active' | 'disabled';
+export type AgentStatus = 'active' | 'draft' | 'archived';
 
 export interface CreateAgentParams {
   businessId?: string;
