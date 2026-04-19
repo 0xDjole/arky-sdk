@@ -479,6 +479,7 @@ export interface GetOrderParams {
 
 export interface GetOrdersParams {
   statuses?: string[] | null;
+  workflowStatus?: string;
   productIds?: string[];
   verified?: boolean;
   query?: string | null;
@@ -498,6 +499,8 @@ export interface UpdateOrderParams {
   address?: any | null;
   billingAddress?: any | null;
   payment?: any | null;
+  confirm?: boolean;
+  cancel?: boolean;
 }
 
 export interface CreateOrderParams {

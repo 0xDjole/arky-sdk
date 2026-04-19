@@ -301,11 +301,10 @@ export type WebhookEventSubscription =
 	| { event: 'node.deleted'; key?: string }
 	| { event: 'order.created' }
 	| { event: 'order.updated' }
-	| { event: 'order.status_changed' }
+	| { event: 'order.confirmed' }
 	| { event: 'order.payment_received' }
 	| { event: 'order.payment_failed' }
 	| { event: 'order.refunded' }
-	| { event: 'order.completed' }
 	| { event: 'order.cancelled' }
 	| { event: 'order.shipment_created' }
 	| { event: 'order.shipment_in_transit' }
@@ -552,7 +551,10 @@ export interface BookingStoreState {
 export type Status = 'active' | 'archived';
 
 export type OrderStatus = Status;
-export type OrderWorkflowStatus = 'created' | 'pending' | 'authorized' | 'confirmed' | 'shipped' | 'completed' | 'cancelled' | 'failed';
+export type OrderWorkflowStatus =
+	| { status: 'pending'; at: number; expires_at: number }
+	| { status: 'confirmed'; at: number }
+	| { status: 'rejected'; at: number };
 
 export type BookingStatus = Status;
 export type BookingWorkflowStatus =
@@ -851,11 +853,10 @@ export type EventAction =
 	
 	| { action: 'order_created' }
 	| { action: 'order_updated' }
-	| { action: 'order_status_changed'; data: { from: string; to: string } }
+	| { action: 'order_confirmed' }
 	| { action: 'order_payment_received'; data: { amount: number; currency: string } }
 	| { action: 'order_payment_failed'; data: { reason?: string } }
 	| { action: 'order_refunded'; data: { amount: number; currency: string; reason?: string } }
-	| { action: 'order_completed' }
 	| { action: 'order_cancelled'; data: { reason?: string } }
 	
 	| { action: 'order_shipment_created'; data: { shipment_id: string } }
