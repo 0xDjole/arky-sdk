@@ -11,6 +11,7 @@ import type {
   UpdateOrderParams,
   GetOrderParams,
   GetOrdersParams,
+  ProcessOrderRefundParams,
   RequestOptions,
 } from "../types/api";
 
@@ -124,6 +125,17 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/orders/checkout`,
         { ...params, businessId: apiConfig.businessId, market: apiConfig.market },
+        options,
+      );
+    },
+
+    async processRefund(
+      params: ProcessOrderRefundParams,
+      options?: RequestOptions,
+    ) {
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${apiConfig.businessId}/orders/${params.id}/refund`,
+        { amount: params.amount },
         options,
       );
     },

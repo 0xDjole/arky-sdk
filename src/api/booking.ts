@@ -23,6 +23,7 @@ import type {
   GetBookingQuoteParams,
   GetAvailabilityParams,
   AvailabilityResponse,
+  ProcessBookingRefundParams,
   RequestOptions,
   Slot,
 } from "../types/api";
@@ -139,6 +140,17 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post(
         `/v1/businesses/${targetBusinessId}/bookings/quote`,
         { market: "booking", ...payload },
+        options,
+      );
+    },
+
+    async processRefund(
+      params: ProcessBookingRefundParams,
+      options?: RequestOptions,
+    ) {
+      return apiConfig.httpClient.post(
+        `/v1/businesses/${apiConfig.businessId}/bookings/${params.id}/refund`,
+        { amount: params.amount },
         options,
       );
     },

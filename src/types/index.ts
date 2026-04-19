@@ -1,15 +1,103 @@
 export * from './api';
 
-export interface PaymentRefund {
+export enum PaymentMethodType {
+	Cash = "cash",
+	CreditCard = "credit_card",
+}
+
+export interface PaymentTaxLine {
+	rateBps: number;
+	amount: number;
+	label?: string;
+	scope?: string;
+}
+
+export interface BookingPaymentTax {
+	amount: number;
+	modeSnapshot?: string;
+	rateBps: number;
+	lines: BookingPaymentTaxLine[];
+}
+
+export interface BookingPaymentTaxLine {
+	rateBps: number;
+	amount: number;
+	label?: string;
+	scope?: string;
+}
+
+export interface BookingPaymentPromoCode {
 	id: string;
-	entity: string;
+	code: string;
+	type: string;
+	value: number;
+}
+
+export type BookingPaymentProvider = {
+	type: 'stripe';
+	customerId: string;
+	paymentIntentId?: string;
+};
+
+export interface BookingPaymentRefund {
+	id: string;
 	total: number;
 	providerRefundId?: string;
 	status: string;
 	createdAt: number;
 }
 
-export interface Payment {
+export interface BookingPayment {
+	currency: string;
+	market: string;
+	subtotal: number;
+	discount: number;
+	total: number;
+	paid: number;
+	tax?: BookingPaymentTax;
+	promoCode?: BookingPaymentPromoCode;
+	provider?: BookingPaymentProvider;
+	refunds: BookingPaymentRefund[];
+	paymentMethodId?: string;
+	methodType: PaymentMethodType;
+}
+
+export interface OrderPaymentTax {
+	amount: number;
+	modeSnapshot?: string;
+	rateBps: number;
+	lines: OrderPaymentTaxLine[];
+}
+
+export interface OrderPaymentTaxLine {
+	rateBps: number;
+	amount: number;
+	label?: string;
+	scope?: string;
+}
+
+export interface OrderPaymentPromoCode {
+	id: string;
+	code: string;
+	type: string;
+	value: number;
+}
+
+export type OrderPaymentProvider = {
+	type: 'stripe';
+	customerId: string;
+	paymentIntentId?: string;
+};
+
+export interface OrderPaymentRefund {
+	id: string;
+	total: number;
+	providerRefundId?: string;
+	status: string;
+	createdAt: number;
+}
+
+export interface OrderPayment {
 	currency: string;
 	market: string;
 	subtotal: number;
@@ -17,36 +105,14 @@ export interface Payment {
 	discount: number;
 	total: number;
 	paid: number;
-	tax?: {
-		amount: number;
-		modeSnapshot?: string;
-		rateBps: number;
-		lines: Array<{ rateBps: number; amount: number; label?: string; scope?: string }>;
-	};
-	promoCode?: {
-		id: string;
-		code: string;
-		type: string;
-		value: number;
-	};
-	type: PaymentMethodType;
-	provider?: {
-		customerId: string;
-		paymentIntentId?: string;
-		subscriptionId?: string;
-		priceId?: string;
-	};
-	refunds: PaymentRefund[];
+	tax?: OrderPaymentTax;
+	promoCode?: OrderPaymentPromoCode;
+	provider?: OrderPaymentProvider;
+	refunds: OrderPaymentRefund[];
 	zoneId?: string;
 	paymentMethodId?: string;
 	shippingMethodId?: string;
-}
-
-export enum PaymentMethodType {
-	Cash = "cash",
-	CreditCard = "credit_card",
-	
-	
+	methodType: PaymentMethodType;
 }
 
 export interface PromoCodeValidation {
@@ -56,7 +122,23 @@ export interface PromoCodeValidation {
 	conditions: any[];
 }
 
-export interface Quote {
+export interface BookingQuote {
+	market: string;
+	zone: Zone | null;
+	subtotal: number;
+	discount: number;
+	tax: number;
+	total: number;
+	paymentMethod: PaymentMethod | null;
+	paymentMethods: PaymentMethod[];
+	promoCode: PromoCodeValidation | null;
+	payment: BookingPayment;
+	chargeAmount: number;
+	id?: string;
+	expiresAt?: number;
+}
+
+export interface OrderQuote {
 	market: string;
 	zone: Zone | null;
 	subtotal: number;
@@ -68,7 +150,7 @@ export interface Quote {
 	paymentMethod: PaymentMethod | null;
 	paymentMethods: PaymentMethod[];
 	promoCode: PromoCodeValidation | null;
-	payment: Payment;
+	payment: OrderPayment;
 	chargeAmount: number;
 	id?: string;
 	expiresAt?: number;
@@ -353,15 +435,78 @@ export interface Webhook {
 }
 
 
-export interface Subscription {
+export type BusinessSubscriptionStatus =
+	| 'pending'
+	| 'active'
+	| 'cancellation_scheduled'
+	| 'cancelled'
+	| 'expired';
+
+export type BusinessSubscriptionSource = 'signup' | 'admin' | 'import';
+
+export type BusinessSubscriptionProvider = {
+	type: 'stripe';
+	customerId: string;
+	subscriptionId?: string;
+	priceId?: string;
+};
+
+export interface BusinessSubscriptionPayment {
+	currency: string;
+	market: string;
+	provider?: BusinessSubscriptionProvider;
+}
+
+export interface BusinessSubscription {
 	id: string;
 	target: string;
 	planId: string;
 	pendingPlanId: string | null;
-	payment: any;
-	status: SubscriptionStatus;
+	payment: BusinessSubscriptionPayment;
+	status: BusinessSubscriptionStatus;
+	startDate: number;
 	endDate: number;
 	token: string;
+	source: BusinessSubscriptionSource;
+}
+
+export type AudienceSubscriptionStatus =
+	| 'pending'
+	| 'active'
+	| 'cancellation_scheduled'
+	| 'cancelled'
+	| 'expired';
+
+export type AudienceSubscriptionSource = 'signup' | 'admin' | 'import';
+
+export type AudienceSubscriptionProvider = {
+	type: 'stripe';
+	customerId: string;
+	subscriptionId?: string;
+	priceId?: string;
+};
+
+export interface AudienceSubscriptionPayment {
+	currency: string;
+	market: string;
+	provider?: AudienceSubscriptionProvider;
+}
+
+export interface AudienceSubscription {
+	id: string;
+	businessId: string;
+	customerId: string;
+	audienceId: string;
+	planId: string;
+	pendingPlanId: string | null;
+	payment: AudienceSubscriptionPayment;
+	status: AudienceSubscriptionStatus;
+	startDate: number;
+	endDate: number;
+	token: string;
+	source: AudienceSubscriptionSource;
+	createdAt: number;
+	updatedAt: number;
 }
 
 export interface Business {
@@ -370,7 +515,7 @@ export interface Business {
 	timezone: string;
 	languages?: Language[];
 	emails?: BusinessEmails;
-	subscription?: Subscription;
+	subscription?: BusinessSubscription;
 	counts?: Record<string, number>;
 }
 
@@ -573,8 +718,6 @@ export type EmailTemplateStatus = 'active' | 'draft' | 'archived';
 export type FormStatus = 'active' | 'draft' | 'archived';
 export type TaxonomyStatus = 'active' | 'draft' | 'archived';
 
-export type SubscriptionStatus = 'pending' | 'active' | 'cancellation_scheduled' | 'cancelled' | 'expired';
-
 export interface BookingItemSnapshot {
 	serviceKey: string;
 	providerKey: string;
@@ -613,7 +756,7 @@ export interface Booking {
 	workflowStatus: BookingWorkflowStatus;
 	serviceIds: string[];
 	providerIds: string[];
-	payment: Payment;
+	payment: BookingPayment;
 	business?: Business;
 	account?: any;
 	items: BookingItem[];
@@ -852,12 +995,12 @@ export interface Audience {
 
 export interface AudienceAccessResponse {
 	hasAccess: boolean;
-	subscription?: Subscription;
+	subscription?: AudienceSubscription;
 }
 
 export interface AudienceSubscribeResponse {
 	checkoutUrl?: string;
-	subscription?: Subscription;
+	subscription?: AudienceSubscription;
 }
 
 export type EventAction =

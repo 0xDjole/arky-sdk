@@ -1,4 +1,4 @@
-import type { Block, Zone, ZoneLocation, WorkflowNode, Address, SubscriptionStatus, AudienceType, IntegrationProvider, WebhookEventSubscription, Parcel, CustomsDeclaration, ShipmentLine, TaxonomyEntry, PaymentMethod, ShippingMethod, BookingServiceStatus, BookingProviderStatus, WorkflowStatus, PromoCodeStatus, AudienceStatus } from "./index";
+import type { Block, Zone, ZoneLocation, WorkflowNode, Address, AudienceSubscriptionStatus, AudienceSubscriptionSource, AudienceType, IntegrationProvider, WebhookEventSubscription, Parcel, CustomsDeclaration, ShipmentLine, TaxonomyEntry, PaymentMethod, ShippingMethod, BookingServiceStatus, BookingProviderStatus, WorkflowStatus, PromoCodeStatus, AudienceStatus } from "./index";
 
 
 export interface CreateLocationParams {
@@ -498,7 +498,7 @@ export interface UpdateOrderParams {
   items: any[];
   address?: any | null;
   billingAddress?: any | null;
-  payment?: any | null;
+  payment?: Partial<import('./index').OrderPayment> | null;
   confirm?: boolean;
   cancel?: boolean;
 }
@@ -519,7 +519,7 @@ export interface UpdateBookingParams {
   cancel?: boolean;
   forms?: any;
   items?: any;
-  payment?: any | null;
+  payment?: Partial<import('./index').BookingPayment> | null;
   [key: string]: any;
 }
 
@@ -905,9 +905,13 @@ export interface DeleteProductParams {
   id: string;
 }
 
-export interface ProcessRefundParams {
+export interface ProcessBookingRefundParams {
   id: string;
-  entity: string;
+  amount: number;
+}
+
+export interface ProcessOrderRefundParams {
+  id: string;
   amount: number;
 }
 
@@ -1063,18 +1067,12 @@ export interface GetAudienceSubscribersParams {
   cursor?: string;
 }
 
-export enum SubscriptionSource {
-  Signup = 'signup',
-  Admin = 'admin',
-  Import = 'import'
-}
-
 export interface AudienceSubscriber {
   customerId: string;
   email: string;
   subscribedAt?: number;
-  source?: SubscriptionSource;
-  status?: SubscriptionStatus;
+  source?: AudienceSubscriptionSource;
+  status?: AudienceSubscriptionStatus;
 }
 
 export interface RemoveAudienceSubscriberParams {

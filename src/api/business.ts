@@ -13,7 +13,6 @@ import type {
   HandleInvitationParams,
   TestWebhookParams,
   GetBusinessMediaParams2,
-  ProcessRefundParams,
   OAuthConnectParams,
   OAuthDisconnectParams,
   ListIntegrationsParams,
@@ -149,15 +148,6 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
         ...options,
         params: queryParams,
       });
-    },
-
-    async processRefund(params: ProcessRefundParams, options?: RequestOptions) {
-      const { id, ...payload } = params;
-      return apiConfig.httpClient.post(
-        `/v1/businesses/${id}/refund`,
-        payload,
-        options
-      );
     },
 
     async oauthConnect(

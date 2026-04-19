@@ -1,4 +1,6 @@
-import type { Payment, Price } from '../types';
+import type { BookingPayment, OrderPayment, Price } from '../types';
+
+type AnyPayment = Pick<BookingPayment, 'total' | 'currency'> | Pick<OrderPayment, 'total' | 'currency'>;
 
 function formatCurrency(amount: number, currencyCode: string, locale: string = 'en'): string {
     return new Intl.NumberFormat(locale, {
@@ -55,7 +57,7 @@ export function formatMinor(amountMinor: number, currency: string): string {
     return formatCurrency(convertToMajor(amountMinor, currency), currency);
 }
 
-export function formatPayment(payment: Payment): string {
+export function formatPayment(payment: AnyPayment): string {
     return formatMinor(payment.total, payment.currency);
 }
 
