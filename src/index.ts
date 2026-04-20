@@ -86,8 +86,6 @@ export type {
 
   GeoLocationBlock,
 
-  OrderStatus,
-  BookingStatus,
   BookingServiceStatus,
   BookingProviderStatus,
   ProductStatus,

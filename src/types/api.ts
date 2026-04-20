@@ -478,7 +478,7 @@ export interface GetOrderParams {
 }
 
 export interface GetOrdersParams {
-  statuses?: string[] | null;
+  itemStatuses?: string[] | null;
   productIds?: string[];
   verified?: boolean;
   query?: string | null;
@@ -664,7 +664,7 @@ export interface SearchBookingsParams {
   providerIds?: string[];
   from?: number;
   to?: number;
-  status?: string;
+  itemStatuses?: string[];
   verified?: boolean;
   limit?: number;
   cursor?: string;
