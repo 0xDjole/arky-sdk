@@ -397,7 +397,6 @@ export type WebhookEventSubscription =
 	| { event: 'order.shipment_status_changed' }
 	| { event: 'booking.created' }
 	| { event: 'booking.updated' }
-	| { event: 'booking.approved' }
 	| { event: 'booking.payment_received' }
 	| { event: 'booking.payment_failed' }
 	| { event: 'booking.refunded' }
@@ -859,7 +858,6 @@ export interface ServiceProvider {
 	providerId: string;
 	prices: Price[];
 	durations: ServiceDuration[];
-	bookingType: 'instant' | 'request_blocking' | 'request_non_blocking';
 	audienceIds: string[];
 	workingDays: Array<{ day: string; workingHours: Array<{ from: number; to: number }> }>;
 	specificDates: Array<{ date: number; workingHours: Array<{ from: number; to: number }> }>;
@@ -1044,7 +1042,6 @@ export type EventAction =
 	
 	| { action: 'booking_created' }
 	| { action: 'booking_updated' }
-	| { action: 'booking_approved' }
 	| { action: 'booking_payment_received'; data: { amount: number; currency: string } }
 	| { action: 'booking_payment_failed'; data: { reason?: string } }
 	| { action: 'booking_refunded'; data: { amount: number; currency: string; reason?: string } }

@@ -284,7 +284,6 @@ export interface ServiceProvider {
   specificDates: SpecificDate[];
   prices?: any[];
   durations?: any[];
-  bookingType?: 'instant' | 'request_blocking' | 'request_non_blocking';
   slotInterval: number;
   minAdvance: number;
   maxAdvance: number;
@@ -510,7 +509,6 @@ export interface CreateBookingParams {
 export interface UpdateBookingParams {
   id: string;
   status?: 'active' | 'archived';
-  approve?: boolean;
   cancel?: boolean;
   forms?: any;
   items?: any;
@@ -549,7 +547,6 @@ export interface ServiceProviderInput {
   businessId?: string;
   prices?: any[];
   durations?: any[];
-  bookingType?: 'instant' | 'request_blocking' | 'request_non_blocking';
   workingDays: WorkingDay[];
   specificDates: SpecificDate[];
 }
@@ -581,7 +578,6 @@ export interface CreateServiceProviderParams {
   specificDates: SpecificDate[];
   prices?: any[];
   durations?: any[];
-  bookingType?: 'instant' | 'request_blocking' | 'request_non_blocking';
   slotInterval: number;
   minAdvance?: number;
   maxAdvance?: number;
@@ -594,7 +590,6 @@ export interface UpdateServiceProviderParams {
   specificDates: SpecificDate[];
   prices?: any[];
   durations?: any[];
-  bookingType?: 'instant' | 'request_blocking' | 'request_non_blocking';
   slotInterval: number;
   minAdvance?: number;
   maxAdvance?: number;
