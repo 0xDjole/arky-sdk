@@ -854,11 +854,6 @@ export interface ServiceDuration {
 	isPause?: boolean;
 }
 
-export interface CancellationRule {
-	beforeHours: number;
-	refundPercentage: number;
-}
-
 export interface ServiceProvider {
 	id: string;
 	providerId: string;
@@ -869,7 +864,8 @@ export interface ServiceProvider {
 	workingDays: Array<{ day: string; workingHours: Array<{ from: number; to: number }> }>;
 	specificDates: Array<{ date: number; workingHours: Array<{ from: number; to: number }> }>;
 	slotInterval: number;
-	cancellationRules: CancellationRule[];
+	minAdvance: number;
+	maxAdvance: number;
 	forms?: FormEntry[];
 }
 

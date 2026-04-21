@@ -275,11 +275,6 @@ export interface SpecificDate {
   workingHours: WorkingHour[];
 }
 
-export interface CancellationRule {
-  beforeHours: number;
-  refundPercentage: number;
-}
-
 export interface ServiceProvider {
   id: string;
   serviceId: string;
@@ -291,7 +286,8 @@ export interface ServiceProvider {
   durations?: any[];
   bookingType?: 'instant' | 'request_blocking' | 'request_non_blocking';
   slotInterval: number;
-  cancellationRules: CancellationRule[];
+  minAdvance: number;
+  maxAdvance: number;
   createdAt?: number;
   updatedAt?: number;
 }
@@ -587,7 +583,8 @@ export interface CreateServiceProviderParams {
   durations?: any[];
   bookingType?: 'instant' | 'request_blocking' | 'request_non_blocking';
   slotInterval: number;
-  cancellationRules?: CancellationRule[];
+  minAdvance?: number;
+  maxAdvance?: number;
 }
 
 export interface UpdateServiceProviderParams {
@@ -599,7 +596,8 @@ export interface UpdateServiceProviderParams {
   durations?: any[];
   bookingType?: 'instant' | 'request_blocking' | 'request_non_blocking';
   slotInterval: number;
-  cancellationRules?: CancellationRule[];
+  minAdvance?: number;
+  maxAdvance?: number;
 }
 
 export interface DeleteServiceProviderParams {
