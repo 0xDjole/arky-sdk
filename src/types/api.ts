@@ -924,7 +924,8 @@ export type SystemTemplateKey =
 export interface GetAvailabilityParams {
   businessId?: string;
   serviceId: string;
-  month: string;
+  from: number;
+  to: number;
   providerId?: string;
 }
 
@@ -946,7 +947,8 @@ export interface ProviderAvailability {
 }
 
 export interface AvailabilityResponse {
-  month: string;
+  from: number;
+  to: number;
   providers: ProviderAvailability[];
 }
 
