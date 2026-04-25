@@ -227,6 +227,7 @@ export interface EshopCartItem {
 	price: Price;
 	quantity: number;
 	addedAt: number;
+	maxStock?: number;
 }
 
 export interface BookingCartItem {
@@ -402,6 +403,7 @@ export type WebhookEventSubscription =
 	| { event: 'booking.refunded' }
 	| { event: 'booking.cancelled' }
 	| { event: 'booking.item_cancelled' }
+	| { event: 'booking.reminder' }
 	| { event: 'product.created' }
 	| { event: 'product.updated' }
 	| { event: 'product.deleted' }
@@ -786,6 +788,7 @@ export interface Booking {
 	items: BookingItem[];
 	audienceId?: string;
 	history?: { action: string; reason?: string; timestamp: number }[];
+	firedReminders: number[];
 	createdAt: number;
 	lastModified: number;
 }
@@ -864,6 +867,7 @@ export interface ServiceProvider {
 	slotInterval: number;
 	minAdvance: number;
 	maxAdvance: number;
+	reminders: number[];
 	forms?: FormEntry[];
 }
 

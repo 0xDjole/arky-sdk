@@ -287,6 +287,7 @@ export interface ServiceProvider {
   slotInterval: number;
   minAdvance: number;
   maxAdvance: number;
+  reminders: number[];
   createdAt?: number;
   updatedAt?: number;
 }
@@ -509,7 +510,6 @@ export interface CreateBookingParams {
 export interface UpdateBookingParams {
   id: string;
   status?: 'active' | 'archived';
-  cancel?: boolean;
   forms?: any;
   items?: any;
   payment?: Partial<import('./index').BookingPayment> | null;
@@ -581,6 +581,7 @@ export interface CreateServiceProviderParams {
   slotInterval: number;
   minAdvance?: number;
   maxAdvance?: number;
+  reminders?: number[];
 }
 
 export interface UpdateServiceProviderParams {
@@ -593,6 +594,7 @@ export interface UpdateServiceProviderParams {
   slotInterval: number;
   minAdvance?: number;
   maxAdvance?: number;
+  reminders?: number[];
 }
 
 export interface DeleteServiceProviderParams {
@@ -1303,6 +1305,7 @@ export interface Customer {
   taxonomies: TaxonomyEntry[];
   authTokens: CustomerAuthToken[];
   verificationCodes: CustomerVerificationCode[];
+  addresses: Address[];
   audienceSubscriptions: any[];
   reactions: any[];
   createdAt: number;
@@ -1328,6 +1331,7 @@ export interface UpdateCustomerParams {
   blocks?: Block[];
   taxonomies?: TaxonomyEntry[];
   status?: 'active' | 'archived';
+  addresses?: Address[];
 }
 
 export interface GetCustomerParams {
