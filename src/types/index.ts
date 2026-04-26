@@ -713,7 +713,6 @@ export type BookingCancellationReason =
 	| 'customer_cancelled'
 	| 'payment_failed'
 	| 'expired'
-	| 'no_show_auto'
 	| 'other';
 
 export type OrderCancellationReason =
@@ -726,16 +725,12 @@ export type OrderCancellationReason =
 export type BookingItemStatus =
 	| { status: 'pending'; expires_at: number }
 	| { status: 'confirmed' }
-	| { status: 'cancelled'; reason: BookingCancellationReason }
-	| { status: 'fulfilled' }
-	| { status: 'no_show' };
+	| { status: 'cancelled'; reason: BookingCancellationReason };
 
 export type OrderItemStatus =
 	| { status: 'pending'; expires_at: number }
 	| { status: 'confirmed' }
-	| { status: 'cancelled'; reason: OrderCancellationReason }
-	| { status: 'fulfilled' }
-	| { status: 'returned' };
+	| { status: 'cancelled'; reason: OrderCancellationReason };
 
 export type BookingPaymentStatus =
 	| { status: 'pending'; at: number }
@@ -902,9 +897,11 @@ export interface Provider {
 	updatedAt: number;
 }
 
-export interface WorkflowConnection {
-	node: string;
+export interface WorkflowEdge {
+	source: string;
+	target: string;
 	output: string;
+	backEdge: boolean;
 }
 
 export interface Workflow {
@@ -914,6 +911,7 @@ export interface Workflow {
 	secret: string;
 	status: WorkflowStatus;
 	nodes: Record<string, WorkflowNode>;
+	edges: WorkflowEdge[];
 
 	schedule?: string;
 	createdAt: number;
@@ -946,7 +944,6 @@ export interface WorkflowHttpNode {
 	delayMs?: number;
 	retries?: number;
 	retryDelayMs?: number;
-	edges?: WorkflowConnection[];
 }
 
 export interface WorkflowSwitchRule {
@@ -957,22 +954,18 @@ export interface WorkflowSwitchNode {
 	type: 'switch';
 	rules: WorkflowSwitchRule[];
 	delayMs?: number;
-	edges?: WorkflowConnection[];
 }
 
 export interface WorkflowTransformNode {
 	type: 'transform';
 	code: string;
 	delayMs?: number;
-	edges?: WorkflowConnection[];
 }
 
 export interface WorkflowLoopNode {
 	type: 'loop';
 	expression: string;
 	delayMs?: number;
-	edges?: WorkflowConnection[];
-	backEdges?: WorkflowConnection[];
 }
 
 export type WorkflowHttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';

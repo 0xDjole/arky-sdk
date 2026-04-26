@@ -56,7 +56,7 @@ export type {
   Node,
   Workflow,
   WorkflowNode,
-  WorkflowConnection,
+  WorkflowEdge,
   WorkflowTriggerNode,
   WorkflowHttpNode,
   WorkflowSwitchNode,

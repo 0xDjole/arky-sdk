@@ -1,4 +1,4 @@
-import type { Block, Zone, ZoneLocation, WorkflowNode, Address, AudienceSubscriptionStatus, AudienceSubscriptionSource, AudienceType, IntegrationProvider, WebhookEventSubscription, Parcel, CustomsDeclaration, ShipmentLine, TaxonomyEntry, PaymentMethod, ShippingMethod, BookingServiceStatus, BookingProviderStatus, WorkflowStatus, PromoCodeStatus, AudienceStatus } from "./index";
+import type { Block, Zone, ZoneLocation, WorkflowNode, WorkflowEdge, Address, AudienceSubscriptionStatus, AudienceSubscriptionSource, AudienceType, IntegrationProvider, WebhookEventSubscription, Parcel, CustomsDeclaration, ShipmentLine, TaxonomyEntry, PaymentMethod, ShippingMethod, BookingServiceStatus, BookingProviderStatus, WorkflowStatus, PromoCodeStatus, AudienceStatus } from "./index";
 
 
 export interface CreateLocationParams {
@@ -962,6 +962,7 @@ export interface CreateWorkflowParams {
   key: string;
   status?: WorkflowStatus;
   nodes: Record<string, WorkflowNode>;
+  edges: WorkflowEdge[];
 
   schedule?: string;
 }
@@ -971,6 +972,7 @@ export interface UpdateWorkflowParams {
   key: string;
   status?: WorkflowStatus;
   nodes: Record<string, WorkflowNode>;
+  edges: WorkflowEdge[];
 
   schedule?: string;
 }
