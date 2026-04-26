@@ -134,8 +134,8 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ) {
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/refund`,
-        { entity: `order:${params.id}`, amount: params.amount },
+        `/v1/businesses/${apiConfig.businessId}/orders/${params.id}/refund`,
+        { amount: params.amount },
         options,
       );
     },

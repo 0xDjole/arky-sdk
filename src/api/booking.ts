@@ -149,8 +149,8 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ) {
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/refund`,
-        { entity: `booking:${params.id}`, amount: params.amount },
+        `/v1/businesses/${apiConfig.businessId}/bookings/${params.id}/refund`,
+        { amount: params.amount },
         options,
       );
     },
