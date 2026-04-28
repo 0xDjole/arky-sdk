@@ -1,19 +1,16 @@
 import type { ApiConfig } from "../index";
 import type {
   RequestOptions,
-  ConnectCustomerParams,
   CreateCustomerParams,
   UpdateCustomerParams,
   GetCustomerParams,
   FindCustomersParams,
   MergeCustomersParams,
   Customer,
-  AuthToken,
   CreateAudienceParams,
   UpdateAudienceParams,
   GetAudienceParams,
   GetAudiencesParams,
-  SubscribeAudienceParams,
   GetAudienceSubscribersParams,
   RemoveAudienceSubscriberParams,
   AddAudienceSubscriberParams,
@@ -21,42 +18,6 @@ import type {
 
 export const createCustomerApi = (apiConfig: ApiConfig) => {
   return {
-    
-    async requestCode(params: { email: string; businessId?: string }, options?: RequestOptions) {
-      const businessId = params.businessId || apiConfig.businessId;
-      return apiConfig.httpClient.post(
-        `/v1/businesses/${businessId}/customers/auth/code`,
-        { email: params.email },
-        options
-      );
-    },
-
-    async verify(params: { email: string; code: string; businessId?: string }, options?: RequestOptions) {
-      const businessId = params.businessId || apiConfig.businessId;
-      return apiConfig.httpClient.post(
-        `/v1/businesses/${businessId}/customers/auth/verify`,
-        { email: params.email, code: params.code },
-        options
-      );
-    },
-
-    async refreshToken(params: { refreshToken: string; businessId?: string }, options?: RequestOptions) {
-      const businessId = params.businessId || apiConfig.businessId;
-      return apiConfig.httpClient.post(
-        `/v1/businesses/${businessId}/customers/auth/refresh`,
-        { refreshToken: params.refreshToken },
-        options
-      );
-    },
-
-    async getMe(options?: RequestOptions) {
-      return apiConfig.httpClient.get<Customer>(
-        `/v1/businesses/${apiConfig.businessId}/customers/me`,
-        options
-      );
-    },
-
-    
     async create(params: CreateCustomerParams, options?: RequestOptions) {
       return apiConfig.httpClient.post<Customer>(
         `/v1/businesses/${params.businessId || apiConfig.businessId}/customers`,
@@ -68,24 +29,6 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
     async get(params: GetCustomerParams, options?: RequestOptions) {
       return apiConfig.httpClient.get<Customer>(
         `/v1/businesses/${params.businessId || apiConfig.businessId}/customers/${params.id}`,
-        options
-      );
-    },
-
-    async initialize(params?: { businessId?: string }, options?: RequestOptions) {
-      const businessId = params?.businessId || apiConfig.businessId;
-      return apiConfig.httpClient.post<AuthToken>(
-        `/v1/businesses/${businessId}/customers/initialize`,
-        { businessId },
-        options
-      );
-    },
-
-    async connect(params: ConnectCustomerParams, options?: RequestOptions) {
-      const businessId = params.businessId || apiConfig.businessId;
-      return apiConfig.httpClient.post<AuthToken>(
-        `/v1/businesses/${businessId}/customers/connect`,
-        { email: params.email },
         options
       );
     },
@@ -180,27 +123,6 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
         return apiConfig.httpClient.get(
           `/v1/businesses/${apiConfig.businessId}/audiences`,
           { ...options, params },
-        );
-      },
-
-      async subscribe(params: SubscribeAudienceParams, options?: RequestOptions) {
-        return apiConfig.httpClient.post(
-          `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribe`,
-          {
-            customerId: params.customerId,
-            ...(params.priceId && { priceId: params.priceId }),
-            ...(params.successUrl && { successUrl: params.successUrl }),
-            ...(params.cancelUrl && { cancelUrl: params.cancelUrl }),
-            ...(params.confirmUrl && { confirmUrl: params.confirmUrl }),
-          },
-          options,
-        );
-      },
-
-      async checkAccess(params: { id: string }, options?: RequestOptions) {
-        return apiConfig.httpClient.get(
-          `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/access`,
-          options,
         );
       },
 

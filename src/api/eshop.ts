@@ -6,7 +6,6 @@ import type {
   GetProductParams,
   GetProductsParams,
   GetQuoteParams,
-  OrderCheckoutParams,
   CreateOrderParams,
   UpdateOrderParams,
   GetOrderParams,
@@ -117,14 +116,6 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/orders/quote`,
         { ...rest, shippingAddress, market: apiConfig.market },
-        options,
-      );
-    },
-
-    async checkout(params: OrderCheckoutParams, options?: RequestOptions) {
-      return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/orders/checkout`,
-        { ...params, businessId: apiConfig.businessId, market: apiConfig.market },
         options,
       );
     },

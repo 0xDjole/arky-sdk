@@ -16,6 +16,8 @@ export interface HttpClientConfig {
 
 	businessId: string;
 
+	refreshPath?: string;
+
 	getToken: () => Promise<AuthTokens> | AuthTokens;
 
 	setToken: (tokens: AuthTokens) => void;
@@ -52,7 +54,7 @@ type ErrorCallback = (ctx: {
 }) => void | Promise<void>;
 
 export function createHttpClient(cfg: HttpClientConfig) {
-	const refreshEndpoint = `${cfg.baseUrl}/v1/auth/refresh`;
+	const refreshEndpoint = `${cfg.baseUrl}${cfg.refreshPath || '/v1/auth/refresh'}`;
 	let refreshPromise: Promise<void> | null = null;
 
 	async function ensureFreshToken() {

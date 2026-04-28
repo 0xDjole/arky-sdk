@@ -2,7 +2,6 @@ import type { ApiConfig } from "../index";
 import type {
   CreateBookingParams,
   UpdateBookingParams,
-  BookingCheckoutParams,
   GetBookingParams,
   SearchBookingsParams,
   CancelBookingItemParams,
@@ -84,22 +83,6 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.put(
         `/v1/businesses/${apiConfig.businessId}/bookings/${id}`,
         payload,
-        options,
-      );
-    },
-
-    async checkout(
-      params?: Partial<BookingCheckoutParams>,
-      options?: RequestOptions,
-    ) {
-      const { businessId, items: paramItems, ...payload } = params || {};
-      const targetBusinessId = businessId || apiConfig.businessId;
-
-      const items = paramItems || groupCartToItems(cart);
-
-      return apiConfig.httpClient.post(
-        `/v1/businesses/${targetBusinessId}/bookings/checkout`,
-        { market: "booking", ...payload, items },
         options,
       );
     },
