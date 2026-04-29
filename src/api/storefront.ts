@@ -455,6 +455,15 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         );
       },
 
+      signInAnonymously(params?: { businessId?: string }, options?: RequestOptions) {
+        const businessId = params?.businessId || apiConfig.businessId;
+        return apiConfig.httpClient.post(
+          `${base(businessId)}/customers/initialize`,
+          { businessId },
+          options,
+        );
+      },
+
       audiences: {
         get(params: any, options?: RequestOptions) {
           let identifier: string;
@@ -513,6 +522,81 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
             params: { token },
           });
         },
+      },
+    },
+
+    agent: {
+      getAgents(params?: any, options?: RequestOptions) {
+        const businessId = params?.businessId || apiConfig.businessId;
+        const queryParams = { ...(params || {}) };
+        delete queryParams.businessId;
+        return apiConfig.httpClient.get(`${base(businessId)}/agents`, {
+          ...options,
+          params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+        });
+      },
+
+      getAgent(params: { id: string; businessId?: string }, options?: RequestOptions) {
+        const businessId = params.businessId || apiConfig.businessId;
+        return apiConfig.httpClient.get(
+          `${base(businessId)}/agents/${params.id}`,
+          options,
+        );
+      },
+
+      sendMessage(
+        params: { id: string; message: string; chatId?: string; businessId?: string },
+        options?: RequestOptions,
+      ) {
+        const businessId = params.businessId || apiConfig.businessId;
+        const body: Record<string, any> = { message: params.message };
+        if (params.chatId) body.chatId = params.chatId;
+        return apiConfig.httpClient.post(
+          `${base(businessId)}/agents/${params.id}/chats/messages`,
+          body,
+          options,
+        );
+      },
+
+      getChat(
+        params: { id: string; chatId: string; businessId?: string },
+        options?: RequestOptions,
+      ) {
+        const businessId = params.businessId || apiConfig.businessId;
+        return apiConfig.httpClient.get(
+          `${base(businessId)}/agents/${params.id}/chats/${params.chatId}`,
+          options,
+        );
+      },
+
+      getChatMessages(
+        params: { id: string; chatId: string; limit?: number; businessId?: string },
+        options?: RequestOptions,
+      ) {
+        const businessId = params.businessId || apiConfig.businessId;
+        const queryParams: Record<string, string> = {};
+        if (params.limit) queryParams.limit = String(params.limit);
+        return apiConfig.httpClient.get(
+          `${base(businessId)}/agents/${params.id}/chats/${params.chatId}/messages`,
+          {
+            ...options,
+            params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+          },
+        );
+      },
+
+      rateChat(
+        params: { id: string; chatId: string; rating: number; comment?: string; businessId?: string },
+        options?: RequestOptions,
+      ) {
+        const businessId = params.businessId || apiConfig.businessId;
+        const body: Record<string, any> = { rating: params.rating };
+        if (params.comment) body.comment = params.comment;
+        return apiConfig.httpClient.post(
+          `${base(businessId)}/agents/${params.id}/chats/${params.chatId}/rate`,
+          body,
+          options,
+        );
       },
     },
 

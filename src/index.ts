@@ -133,7 +133,7 @@ export type {
   DeleteLocationParams,
 } from "./types/api";
 
-export const SDK_VERSION = "0.7.59";
+export const SDK_VERSION = "0.7.61";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -487,6 +487,7 @@ export async function createStorefront(
     location: storefrontApi.location,
     market: storefrontApi.market,
     crm: storefrontApi.crm,
+    agent: storefrontApi.agent,
     reaction: storefrontApi.reaction,
     analytics: {
       track,
