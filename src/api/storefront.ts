@@ -52,186 +52,223 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
           options,
         );
       },
+
+      location: {
+        getCountries(options?: RequestOptions) {
+          return apiConfig.httpClient.get(`/v1/platform/countries`, options);
+        },
+
+        getCountry(countryCode: string, options?: RequestOptions) {
+          return apiConfig.httpClient.get(
+            `/v1/platform/countries/${countryCode}`,
+            options,
+          );
+        },
+
+        list(options?: RequestOptions) {
+          return apiConfig.httpClient.get(`${base()}/locations`, options);
+        },
+
+        get(id: string, options?: RequestOptions) {
+          return apiConfig.httpClient.get(`${base()}/locations/${id}`, options);
+        },
+      },
+
+      market: {
+        list(options?: RequestOptions) {
+          return apiConfig.httpClient.get(`${base()}/markets`, options);
+        },
+
+        get(id: string, options?: RequestOptions) {
+          return apiConfig.httpClient.get(`${base()}/markets/${id}`, options);
+        },
+      },
     },
 
     cms: {
-      async getNode(params: any, options?: RequestOptions) {
-        const businessId = params.businessId || apiConfig.businessId;
-        let identifier: string;
-        if (params.id) {
-          identifier = params.id;
-        } else if (params.slug) {
-          identifier = `${businessId}:${apiConfig.locale}:${params.slug}`;
-        } else if (params.key) {
-          identifier = `${businessId}:${params.key}`;
-        } else {
-          throw new Error("GetNodeParams requires id, slug, or key");
-        }
+      node: {
+        async get(params: any, options?: RequestOptions) {
+          const businessId = params.businessId || apiConfig.businessId;
+          let identifier: string;
+          if (params.id) {
+            identifier = params.id;
+          } else if (params.slug) {
+            identifier = `${businessId}:${apiConfig.locale}:${params.slug}`;
+          } else if (params.key) {
+            identifier = `${businessId}:${params.key}`;
+          } else {
+            throw new Error("GetNodeParams requires id, slug, or key");
+          }
 
-        const response = await apiConfig.httpClient.get(
-          `${base(businessId)}/nodes/${identifier}`,
-          options,
-        );
+          const response = await apiConfig.httpClient.get(
+            `${base(businessId)}/nodes/${identifier}`,
+            options,
+          );
 
-        return {
-          ...response,
-          getBlock(key: string) {
-            return getBlockFromArray(response, key, apiConfig.locale);
-          },
-          getBlockValues(key: string) {
-            return getBlockObjectValues(response, key, apiConfig.locale);
-          },
-          getImage(key: string) {
-            const block = getBlockFromArray(response, key, apiConfig.locale);
-            return getImageUrl(block, true);
-          },
-        };
+          return {
+            ...response,
+            getBlock(key: string) {
+              return getBlockFromArray(response, key, apiConfig.locale);
+            },
+            getBlockValues(key: string) {
+              return getBlockObjectValues(response, key, apiConfig.locale);
+            },
+            getImage(key: string) {
+              const block = getBlockFromArray(response, key, apiConfig.locale);
+              return getImageUrl(block, true);
+            },
+          };
+        },
+
+        find(params: any, options?: RequestOptions) {
+          const { businessId, ...queryParams } = params;
+          return apiConfig.httpClient.get(`${base(businessId)}/nodes`, {
+            ...options,
+            params: queryParams,
+          });
+        },
+
+        getChildren(params: any, options?: RequestOptions) {
+          const { id, businessId, ...queryParams } = params;
+          return apiConfig.httpClient.get(`${base(businessId)}/nodes/${id}/children`, {
+            ...options,
+            params: queryParams,
+          });
+        },
       },
 
-      getNodes(params: any, options?: RequestOptions) {
-        const { businessId, ...queryParams } = params;
-        return apiConfig.httpClient.get(`${base(businessId)}/nodes`, {
-          ...options,
-          params: queryParams,
-        });
+      form: {
+        get(params: any, options?: RequestOptions) {
+          const businessId = params.businessId || apiConfig.businessId;
+          let identifier: string;
+          if (params.id) {
+            identifier = params.id;
+          } else if (params.key) {
+            identifier = `${businessId}:${params.key}`;
+          } else {
+            throw new Error("GetFormParams requires id or key");
+          }
+
+          return apiConfig.httpClient.get(
+            `${base(businessId)}/forms/${identifier}`,
+            options,
+          );
+        },
+
+        submit(params: any, options?: RequestOptions) {
+          const { businessId, formId, ...payload } = params;
+          const targetBusinessId = businessId || apiConfig.businessId;
+          return apiConfig.httpClient.post(
+            `${base(targetBusinessId)}/forms/${formId}/submissions`,
+            { ...payload, formId, businessId: targetBusinessId },
+            options,
+          );
+        },
       },
 
-      getNodeChildren(params: any, options?: RequestOptions) {
-        const { id, businessId, ...queryParams } = params;
-        return apiConfig.httpClient.get(`${base(businessId)}/nodes/${id}/children`, {
-          ...options,
-          params: queryParams,
-        });
-      },
-    },
+      taxonomy: {
+        get(params: any, options?: RequestOptions) {
+          const businessId = params.businessId || apiConfig.businessId;
+          let identifier: string;
+          if (params.id) {
+            identifier = params.id;
+          } else if (params.key) {
+            identifier = `${businessId}:${params.key}`;
+          } else {
+            throw new Error("GetTaxonomyParams requires id or key");
+          }
 
-    form: {
-      getForm(params: any, options?: RequestOptions) {
-        const businessId = params.businessId || apiConfig.businessId;
-        let identifier: string;
-        if (params.id) {
-          identifier = params.id;
-        } else if (params.key) {
-          identifier = `${businessId}:${params.key}`;
-        } else {
-          throw new Error("GetFormParams requires id or key");
-        }
+          return apiConfig.httpClient.get(
+            `${base(businessId)}/taxonomies/${identifier}`,
+            options,
+          );
+        },
 
-        return apiConfig.httpClient.get(
-          `${base(businessId)}/forms/${identifier}`,
-          options,
-        );
-      },
-
-      submit(params: any, options?: RequestOptions) {
-        const { businessId, formId, ...payload } = params;
-        const targetBusinessId = businessId || apiConfig.businessId;
-        return apiConfig.httpClient.post(
-          `${base(targetBusinessId)}/forms/${formId}/submissions`,
-          { ...payload, formId, businessId: targetBusinessId },
-          options,
-        );
-      },
-    },
-
-    taxonomy: {
-      getTaxonomy(params: any, options?: RequestOptions) {
-        const businessId = params.businessId || apiConfig.businessId;
-        let identifier: string;
-        if (params.id) {
-          identifier = params.id;
-        } else if (params.key) {
-          identifier = `${businessId}:${params.key}`;
-        } else {
-          throw new Error("GetTaxonomyParams requires id or key");
-        }
-
-        return apiConfig.httpClient.get(
-          `${base(businessId)}/taxonomies/${identifier}`,
-          options,
-        );
-      },
-
-      getTaxonomyChildren(params: any, options?: RequestOptions) {
-        const businessId = params.businessId || apiConfig.businessId;
-        return apiConfig.httpClient.get(
-          `${base(businessId)}/taxonomies/${params.id}/children`,
-          options,
-        );
+        getChildren(params: any, options?: RequestOptions) {
+          const businessId = params.businessId || apiConfig.businessId;
+          return apiConfig.httpClient.get(
+            `${base(businessId)}/taxonomies/${params.id}/children`,
+            options,
+          );
+        },
       },
     },
 
     eshop: {
-      getProduct(params: any, options?: RequestOptions) {
-        const businessId = params.businessId || apiConfig.businessId;
-        let identifier: string;
-        if (params.id) {
-          identifier = params.id;
-        } else if (params.slug) {
-          identifier = `${businessId}:${apiConfig.locale}:${params.slug}`;
-        } else {
-          throw new Error("GetProductParams requires id or slug");
-        }
+      product: {
+        get(params: any, options?: RequestOptions) {
+          const businessId = params.businessId || apiConfig.businessId;
+          let identifier: string;
+          if (params.id) {
+            identifier = params.id;
+          } else if (params.slug) {
+            identifier = `${businessId}:${apiConfig.locale}:${params.slug}`;
+          } else {
+            throw new Error("GetProductParams requires id or slug");
+          }
 
-        return apiConfig.httpClient.get(
-          `${base(businessId)}/products/${identifier}`,
-          options,
-        );
+          return apiConfig.httpClient.get(
+            `${base(businessId)}/products/${identifier}`,
+            options,
+          );
+        },
+
+        find(params: any, options?: RequestOptions) {
+          const { businessId, ...queryParams } = params;
+          return apiConfig.httpClient.get(`${base(businessId)}/products`, {
+            ...options,
+            params: queryParams,
+          });
+        },
       },
 
-      getProducts(params: any, options?: RequestOptions) {
-        const { businessId, ...queryParams } = params;
-        return apiConfig.httpClient.get(`${base(businessId)}/products`, {
-          ...options,
-          params: queryParams,
-        });
-      },
+      order: {
+        getQuote(params: any, options?: RequestOptions) {
+          const businessId = params.businessId || apiConfig.businessId;
+          const { location, businessId: _businessId, ...rest } = params;
+          const shippingAddress = location
+            ? {
+                country: location.country || "",
+                state: location.state || "",
+                city: location.city || "",
+                postalCode: location.postalCode || "",
+                name: "",
+                street1: "",
+                street2: null,
+              }
+            : undefined;
 
-      getQuote(params: any, options?: RequestOptions) {
-        const businessId = params.businessId || apiConfig.businessId;
-        const { location, businessId: _businessId, ...rest } = params;
-        const shippingAddress = location
-          ? {
-              country: location.country || "",
-              state: location.state || "",
-              city: location.city || "",
-              postalCode: location.postalCode || "",
-              name: "",
-              street1: "",
-              street2: null,
-            }
-          : undefined;
+          return apiConfig.httpClient.post(
+            `${base(businessId)}/orders/quote`,
+            { ...rest, shippingAddress, market: apiConfig.market },
+            options,
+          );
+        },
 
-        return apiConfig.httpClient.post(
-          `${base(businessId)}/orders/quote`,
-          { ...rest, shippingAddress, market: apiConfig.market },
-          options,
-        );
-      },
+        checkout(params: any, options?: RequestOptions) {
+          const businessId = params.businessId || apiConfig.businessId;
+          return apiConfig.httpClient.post(
+            `${base(businessId)}/orders/checkout`,
+            { ...params, businessId, market: apiConfig.market },
+            options,
+          );
+        },
 
-      checkout(params: any, options?: RequestOptions) {
-        const businessId = params.businessId || apiConfig.businessId;
-        return apiConfig.httpClient.post(
-          `${base(businessId)}/orders/checkout`,
-          { ...params, businessId, market: apiConfig.market },
-          options,
-        );
-      },
+        get(params: any, options?: RequestOptions) {
+          const businessId = params.businessId || apiConfig.businessId;
+          return apiConfig.httpClient.get(
+            `${base(businessId)}/orders/${params.id}`,
+            options,
+          );
+        },
 
-      getOrder(params: any, options?: RequestOptions) {
-        const businessId = params.businessId || apiConfig.businessId;
-        return apiConfig.httpClient.get(
-          `${base(businessId)}/orders/${params.id}`,
-          options,
-        );
-      },
-
-      getOrders(params: any, options?: RequestOptions) {
-        const { businessId, ...queryParams } = params;
-        return apiConfig.httpClient.get(`${base(businessId)}/orders`, {
-          ...options,
-          params: queryParams,
-        });
+        find(params: any, options?: RequestOptions) {
+          const { businessId, ...queryParams } = params;
+          return apiConfig.httpClient.get(`${base(businessId)}/orders`, {
+            ...options,
+            params: queryParams,
+          });
+        },
       },
     },
 
@@ -264,7 +301,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      getBooking(params: any, options?: RequestOptions) {
+      get(params: any, options?: RequestOptions) {
         const businessId = params.businessId || apiConfig.businessId;
         return apiConfig.httpClient.get(
           `${base(businessId)}/bookings/${params.id}`,
@@ -272,7 +309,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      searchBookings(params: any, options?: RequestOptions) {
+      find(params: any, options?: RequestOptions) {
         const { businessId, ...queryParams } = params;
         return apiConfig.httpClient.get(`${base(businessId)}/bookings`, {
           ...options,
@@ -297,57 +334,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      getService(params: any, options?: RequestOptions) {
-        const businessId = params.businessId || apiConfig.businessId;
-        let identifier: string;
-        if (params.id) {
-          identifier = params.id;
-        } else if (params.slug) {
-          identifier = `${businessId}:${apiConfig.locale}:${params.slug}`;
-        } else {
-          throw new Error("GetServiceParams requires id or slug");
-        }
-
-        return apiConfig.httpClient.get(
-          `${base(businessId)}/services/${identifier}`,
-          options,
-        );
-      },
-
-      getServices(params: any, options?: RequestOptions) {
-        const { businessId, ...queryParams } = params;
-        return apiConfig.httpClient.get(`${base(businessId)}/services`, {
-          ...options,
-          params: queryParams,
-        });
-      },
-
-      getProvider(params: any, options?: RequestOptions) {
-        const businessId = params.businessId || apiConfig.businessId;
-        let identifier: string;
-        if (params.id) {
-          identifier = params.id;
-        } else if (params.slug) {
-          identifier = `${businessId}:${apiConfig.locale}:${params.slug}`;
-        } else {
-          throw new Error("GetProviderParams requires id or slug");
-        }
-
-        return apiConfig.httpClient.get(
-          `${base(businessId)}/providers/${identifier}`,
-          options,
-        );
-      },
-
-      getProviders(params: any, options?: RequestOptions) {
-        const { businessId, ...queryParams } = params;
-        return apiConfig.httpClient.get(`${base(businessId)}/providers`, {
-          ...options,
-          params: queryParams,
-        });
-      },
-
-      cancelBookingItem(params: any, options?: RequestOptions) {
+      cancelItem(params: any, options?: RequestOptions) {
         const { businessId, bookingId, itemId, ...payload } = params;
         return apiConfig.httpClient.post(
           `${base(businessId)}/bookings/${bookingId}/items/${itemId}/cancel`,
@@ -356,115 +343,140 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      findServiceProviders(params: any, options?: RequestOptions) {
-        const { businessId, ...queryParams } = params;
-        return apiConfig.httpClient.get(`${base(businessId)}/service-providers`, {
-          ...options,
-          params: queryParams,
-        });
-      },
-    },
+      service: {
+        get(params: any, options?: RequestOptions) {
+          const businessId = params.businessId || apiConfig.businessId;
+          let identifier: string;
+          if (params.id) {
+            identifier = params.id;
+          } else if (params.slug) {
+            identifier = `${businessId}:${apiConfig.locale}:${params.slug}`;
+          } else {
+            throw new Error("GetServiceParams requires id or slug");
+          }
 
-    location: {
-      getCountries(options?: RequestOptions) {
-        return apiConfig.httpClient.get(`/v1/platform/countries`, options);
+          return apiConfig.httpClient.get(
+            `${base(businessId)}/services/${identifier}`,
+            options,
+          );
+        },
+
+        find(params: any, options?: RequestOptions) {
+          const { businessId, ...queryParams } = params;
+          return apiConfig.httpClient.get(`${base(businessId)}/services`, {
+            ...options,
+            params: queryParams,
+          });
+        },
+
+        findProviders(params: any, options?: RequestOptions) {
+          const { businessId, ...queryParams } = params;
+          return apiConfig.httpClient.get(`${base(businessId)}/service-providers`, {
+            ...options,
+            params: queryParams,
+          });
+        },
       },
 
-      getCountry(countryCode: string, options?: RequestOptions) {
-        return apiConfig.httpClient.get(
-          `/v1/platform/countries/${countryCode}`,
-          options,
-        );
-      },
+      provider: {
+        get(params: any, options?: RequestOptions) {
+          const businessId = params.businessId || apiConfig.businessId;
+          let identifier: string;
+          if (params.id) {
+            identifier = params.id;
+          } else if (params.slug) {
+            identifier = `${businessId}:${apiConfig.locale}:${params.slug}`;
+          } else {
+            throw new Error("GetProviderParams requires id or slug");
+          }
 
-      list(options?: RequestOptions) {
-        return apiConfig.httpClient.get(`${base()}/locations`, options);
-      },
+          return apiConfig.httpClient.get(
+            `${base(businessId)}/providers/${identifier}`,
+            options,
+          );
+        },
 
-      get(id: string, options?: RequestOptions) {
-        return apiConfig.httpClient.get(`${base()}/locations/${id}`, options);
-      },
-    },
-
-    market: {
-      list(options?: RequestOptions) {
-        return apiConfig.httpClient.get(`${base()}/markets`, options);
-      },
-
-      get(id: string, options?: RequestOptions) {
-        return apiConfig.httpClient.get(`${base()}/markets/${id}`, options);
+        find(params: any, options?: RequestOptions) {
+          const { businessId, ...queryParams } = params;
+          return apiConfig.httpClient.get(`${base(businessId)}/providers`, {
+            ...options,
+            params: queryParams,
+          });
+        },
       },
     },
 
     crm: {
-      requestCode(
-        params: { email: string; businessId?: string },
-        options?: RequestOptions,
-      ) {
-        const businessId = params.businessId || apiConfig.businessId;
-        return apiConfig.httpClient.post(
-          `${base(businessId)}/customers/auth/code`,
-          { email: params.email, businessId },
-          options,
-        );
+      customer: {
+        initialize(params?: { businessId?: string }, options?: RequestOptions) {
+          const businessId = params?.businessId || apiConfig.businessId;
+          return apiConfig.httpClient.post(
+            `${base(businessId)}/customers/initialize`,
+            { businessId },
+            options,
+          );
+        },
+
+        signInAnonymously(params?: { businessId?: string }, options?: RequestOptions) {
+          const businessId = params?.businessId || apiConfig.businessId;
+          return apiConfig.httpClient.post(
+            `${base(businessId)}/customers/initialize`,
+            { businessId },
+            options,
+          );
+        },
+
+        connect(params: any, options?: RequestOptions) {
+          const businessId = params.businessId || apiConfig.businessId;
+          return apiConfig.httpClient.post(
+            `${base(businessId)}/customers/connect`,
+            { email: params.email, businessId },
+            options,
+          );
+        },
+
+        requestCode(
+          params: { email: string; businessId?: string },
+          options?: RequestOptions,
+        ) {
+          const businessId = params.businessId || apiConfig.businessId;
+          return apiConfig.httpClient.post(
+            `${base(businessId)}/customers/auth/code`,
+            { email: params.email, businessId },
+            options,
+          );
+        },
+
+        verify(
+          params: { email: string; code: string; businessId?: string },
+          options?: RequestOptions,
+        ) {
+          const businessId = params.businessId || apiConfig.businessId;
+          return apiConfig.httpClient.post(
+            `${base(businessId)}/customers/auth/verify`,
+            { email: params.email, code: params.code, businessId },
+            options,
+          );
+        },
+
+        refreshToken(
+          params: { refreshToken: string; businessId?: string },
+          options?: RequestOptions,
+        ) {
+          const businessId = params.businessId || apiConfig.businessId;
+          return apiConfig.httpClient.post(
+            `${base(businessId)}/customers/auth/refresh`,
+            { refreshToken: params.refreshToken },
+            options,
+          );
+        },
+
+        getMe(options?: RequestOptions) {
+          return apiConfig.httpClient.get(`${base()}/customers/me`, options);
+        },
       },
 
-      verify(
-        params: { email: string; code: string; businessId?: string },
-        options?: RequestOptions,
-      ) {
-        const businessId = params.businessId || apiConfig.businessId;
-        return apiConfig.httpClient.post(
-          `${base(businessId)}/customers/auth/verify`,
-          { email: params.email, code: params.code, businessId },
-          options,
-        );
-      },
-
-      refreshToken(
-        params: { refreshToken: string; businessId?: string },
-        options?: RequestOptions,
-      ) {
-        const businessId = params.businessId || apiConfig.businessId;
-        return apiConfig.httpClient.post(
-          `${base(businessId)}/customers/auth/refresh`,
-          { refreshToken: params.refreshToken },
-          options,
-        );
-      },
-
-      getMe(options?: RequestOptions) {
-        return apiConfig.httpClient.get(`${base()}/customers/me`, options);
-      },
-
-      initialize(params?: { businessId?: string }, options?: RequestOptions) {
-        const businessId = params?.businessId || apiConfig.businessId;
-        return apiConfig.httpClient.post(
-          `${base(businessId)}/customers/initialize`,
-          { businessId },
-          options,
-        );
-      },
-
-      connect(params: any, options?: RequestOptions) {
-        const businessId = params.businessId || apiConfig.businessId;
-        return apiConfig.httpClient.post(
-          `${base(businessId)}/customers/connect`,
-          { email: params.email, businessId },
-          options,
-        );
-      },
-
-      signInAnonymously(params?: { businessId?: string }, options?: RequestOptions) {
-        const businessId = params?.businessId || apiConfig.businessId;
-        return apiConfig.httpClient.post(
-          `${base(businessId)}/customers/initialize`,
-          { businessId },
-          options,
-        );
-      },
-
-      audiences: {
+      audience: {
         get(params: any, options?: RequestOptions) {
           let identifier: string;
           if (params.id) {
@@ -523,155 +535,157 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
           });
         },
       },
+
+      reaction: {
+        DEFAULT_REACTION_KINDS,
+        isValidReactionKind,
+        computeAverageStars,
+
+        create(params: any, options?: RequestOptions) {
+          const businessId = params.businessId || apiConfig.businessId;
+          return apiConfig.httpClient.post(
+            `${base(businessId)}/reactions`,
+            {
+              businessId,
+              target: params.target,
+              kind: params.kind,
+              blocks: params.blocks || [],
+              parentId: params.parentId,
+              taxonomies: params.taxonomies || [],
+            },
+            options,
+          );
+        },
+
+        get(params: any, options?: RequestOptions) {
+          const businessId = params.businessId || apiConfig.businessId;
+          return apiConfig.httpClient.get(
+            `${base(businessId)}/reactions/${params.id}`,
+            options,
+          );
+        },
+
+        find(params?: any, options?: RequestOptions) {
+          const businessId = params?.businessId || apiConfig.businessId;
+          const queryParams = { ...(params || {}) };
+          delete queryParams.businessId;
+          return apiConfig.httpClient.get(`${base(businessId)}/reactions`, {
+            ...options,
+            params: queryParams,
+          });
+        },
+
+        update(params: any, options?: RequestOptions) {
+          const businessId = params.businessId || apiConfig.businessId;
+          return apiConfig.httpClient.put(
+            `${base(businessId)}/reactions/${params.id}`,
+            {
+              id: params.id,
+              businessId,
+              blocks: params.blocks,
+              taxonomies: params.taxonomies,
+            },
+            options,
+          );
+        },
+
+        remove(params: { id: string; businessId?: string }, options?: RequestOptions) {
+          const businessId = params.businessId || apiConfig.businessId;
+          return apiConfig.httpClient.delete(
+            `${base(businessId)}/reactions/${params.id}`,
+            options,
+          );
+        },
+
+        summary(params: any, options?: RequestOptions) {
+          const businessId = params.businessId || apiConfig.businessId;
+          return apiConfig.httpClient.get(`${base(businessId)}/reactions/summary`, {
+            ...options,
+            params: {
+              businessId,
+              targetType: params.targetType,
+              targetId: params.targetId,
+              parentId: params.parentId,
+            },
+          });
+        },
+      },
     },
 
-    agent: {
-      getAgents(params?: any, options?: RequestOptions) {
-        const businessId = params?.businessId || apiConfig.businessId;
-        const queryParams = { ...(params || {}) };
-        delete queryParams.businessId;
-        return apiConfig.httpClient.get(`${base(businessId)}/agents`, {
-          ...options,
-          params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
-        });
-      },
-
-      getAgent(params: { id: string; businessId?: string }, options?: RequestOptions) {
-        const businessId = params.businessId || apiConfig.businessId;
-        return apiConfig.httpClient.get(
-          `${base(businessId)}/agents/${params.id}`,
-          options,
-        );
-      },
-
-      sendMessage(
-        params: { id: string; message: string; chatId?: string; businessId?: string },
-        options?: RequestOptions,
-      ) {
-        const businessId = params.businessId || apiConfig.businessId;
-        const body: Record<string, any> = { message: params.message };
-        if (params.chatId) body.chatId = params.chatId;
-        return apiConfig.httpClient.post(
-          `${base(businessId)}/agents/${params.id}/chats/messages`,
-          body,
-          options,
-        );
-      },
-
-      getChat(
-        params: { id: string; chatId: string; businessId?: string },
-        options?: RequestOptions,
-      ) {
-        const businessId = params.businessId || apiConfig.businessId;
-        return apiConfig.httpClient.get(
-          `${base(businessId)}/agents/${params.id}/chats/${params.chatId}`,
-          options,
-        );
-      },
-
-      getChatMessages(
-        params: { id: string; chatId: string; limit?: number; businessId?: string },
-        options?: RequestOptions,
-      ) {
-        const businessId = params.businessId || apiConfig.businessId;
-        const queryParams: Record<string, string> = {};
-        if (params.limit) queryParams.limit = String(params.limit);
-        return apiConfig.httpClient.get(
-          `${base(businessId)}/agents/${params.id}/chats/${params.chatId}/messages`,
-          {
+    automation: {
+      agent: {
+        getAgents(params?: any, options?: RequestOptions) {
+          const businessId = params?.businessId || apiConfig.businessId;
+          const queryParams = { ...(params || {}) };
+          delete queryParams.businessId;
+          return apiConfig.httpClient.get(`${base(businessId)}/agents`, {
             ...options,
             params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
-          },
-        );
-      },
+          });
+        },
 
-      rateChat(
-        params: { id: string; chatId: string; rating: number; comment?: string; businessId?: string },
-        options?: RequestOptions,
-      ) {
-        const businessId = params.businessId || apiConfig.businessId;
-        const body: Record<string, any> = { rating: params.rating };
-        if (params.comment) body.comment = params.comment;
-        return apiConfig.httpClient.post(
-          `${base(businessId)}/agents/${params.id}/chats/${params.chatId}/rate`,
-          body,
-          options,
-        );
-      },
-    },
+        getAgent(params: { id: string; businessId?: string }, options?: RequestOptions) {
+          const businessId = params.businessId || apiConfig.businessId;
+          return apiConfig.httpClient.get(
+            `${base(businessId)}/agents/${params.id}`,
+            options,
+          );
+        },
 
-    reaction: {
-      DEFAULT_REACTION_KINDS,
-      isValidReactionKind,
-      computeAverageStars,
+        sendMessage(
+          params: { id: string; message: string; chatId?: string; businessId?: string },
+          options?: RequestOptions,
+        ) {
+          const businessId = params.businessId || apiConfig.businessId;
+          const body: Record<string, any> = { message: params.message };
+          if (params.chatId) body.chatId = params.chatId;
+          return apiConfig.httpClient.post(
+            `${base(businessId)}/agents/${params.id}/chats/messages`,
+            body,
+            options,
+          );
+        },
 
-      create(params: any, options?: RequestOptions) {
-        const businessId = params.businessId || apiConfig.businessId;
-        return apiConfig.httpClient.post(
-          `${base(businessId)}/reactions`,
-          {
-            businessId,
-            target: params.target,
-            kind: params.kind,
-            blocks: params.blocks || [],
-            parentId: params.parentId,
-            taxonomies: params.taxonomies || [],
-          },
-          options,
-        );
-      },
+        getChat(
+          params: { id: string; chatId: string; businessId?: string },
+          options?: RequestOptions,
+        ) {
+          const businessId = params.businessId || apiConfig.businessId;
+          return apiConfig.httpClient.get(
+            `${base(businessId)}/agents/${params.id}/chats/${params.chatId}`,
+            options,
+          );
+        },
 
-      get(params: any, options?: RequestOptions) {
-        const businessId = params.businessId || apiConfig.businessId;
-        return apiConfig.httpClient.get(
-          `${base(businessId)}/reactions/${params.id}`,
-          options,
-        );
-      },
+        getChatMessages(
+          params: { id: string; chatId: string; limit?: number; businessId?: string },
+          options?: RequestOptions,
+        ) {
+          const businessId = params.businessId || apiConfig.businessId;
+          const queryParams: Record<string, string> = {};
+          if (params.limit) queryParams.limit = String(params.limit);
+          return apiConfig.httpClient.get(
+            `${base(businessId)}/agents/${params.id}/chats/${params.chatId}/messages`,
+            {
+              ...options,
+              params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+            },
+          );
+        },
 
-      find(params?: any, options?: RequestOptions) {
-        const businessId = params?.businessId || apiConfig.businessId;
-        const queryParams = { ...(params || {}) };
-        delete queryParams.businessId;
-        return apiConfig.httpClient.get(`${base(businessId)}/reactions`, {
-          ...options,
-          params: queryParams,
-        });
-      },
-
-      update(params: any, options?: RequestOptions) {
-        const businessId = params.businessId || apiConfig.businessId;
-        return apiConfig.httpClient.put(
-          `${base(businessId)}/reactions/${params.id}`,
-          {
-            id: params.id,
-            businessId,
-            blocks: params.blocks,
-            taxonomies: params.taxonomies,
-          },
-          options,
-        );
-      },
-
-      remove(params: { id: string; businessId?: string }, options?: RequestOptions) {
-        const businessId = params.businessId || apiConfig.businessId;
-        return apiConfig.httpClient.delete(
-          `${base(businessId)}/reactions/${params.id}`,
-          options,
-        );
-      },
-
-      summary(params: any, options?: RequestOptions) {
-        const businessId = params.businessId || apiConfig.businessId;
-        return apiConfig.httpClient.get(`${base(businessId)}/reactions/summary`, {
-          ...options,
-          params: {
-            businessId,
-            targetType: params.targetType,
-            targetId: params.targetId,
-            parentId: params.parentId,
-          },
-        });
+        rateChat(
+          params: { id: string; chatId: string; rating: number; comment?: string; businessId?: string },
+          options?: RequestOptions,
+        ) {
+          const businessId = params.businessId || apiConfig.businessId;
+          const body: Record<string, any> = { rating: params.rating };
+          if (params.comment) body.comment = params.comment;
+          return apiConfig.httpClient.post(
+            `${base(businessId)}/agents/${params.id}/chats/${params.chatId}/rate`,
+            body,
+            options,
+          );
+        },
       },
     },
   };
