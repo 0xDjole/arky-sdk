@@ -133,7 +133,7 @@ export type {
   DeleteLocationParams,
 } from "./types/api";
 
-export const SDK_VERSION = "0.7.61";
+export const SDK_VERSION = "0.7.63";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -351,10 +351,40 @@ export async function createAdmin(
     platform: platformApi,
     shipping: createShippingApi(apiConfig),
     cms: {
-      node: cmsApi,
-      form: formApi,
-      taxonomy: taxonomyApi,
-      emailTemplate: emailTemplateApi,
+      node: {
+        create: cmsApi.createNode,
+        update: cmsApi.updateNode,
+        delete: cmsApi.deleteNode,
+        get: cmsApi.getNode,
+        find: cmsApi.getNodes,
+        getChildren: cmsApi.getNodeChildren,
+      },
+      form: {
+        create: formApi.createForm,
+        update: formApi.updateForm,
+        delete: formApi.deleteForm,
+        get: formApi.getForm,
+        find: formApi.getForms,
+        submit: formApi.submit,
+        getSubmissions: formApi.getSubmissions,
+        getSubmission: formApi.getSubmission,
+        updateSubmission: formApi.updateSubmission,
+      },
+      taxonomy: {
+        create: taxonomyApi.createTaxonomy,
+        update: taxonomyApi.updateTaxonomy,
+        delete: taxonomyApi.deleteTaxonomy,
+        get: taxonomyApi.getTaxonomy,
+        find: taxonomyApi.getTaxonomies,
+        getChildren: taxonomyApi.getTaxonomyChildren,
+      },
+      emailTemplate: {
+        create: emailTemplateApi.createEmailTemplate,
+        update: emailTemplateApi.updateEmailTemplate,
+        delete: emailTemplateApi.deleteEmailTemplate,
+        get: emailTemplateApi.getEmailTemplate,
+        find: emailTemplateApi.getEmailTemplates,
+      },
     },
     eshop: {
       product: {
@@ -427,8 +457,30 @@ export async function createAdmin(
       reaction: reactionApi,
     },
     automation: {
-      agent: agentApi,
-      workflow: workflowApi,
+      agent: {
+        create: agentApi.createAgent,
+        update: agentApi.updateAgent,
+        delete: agentApi.deleteAgent,
+        get: agentApi.getAgent,
+        find: agentApi.getAgents,
+        sendMessage: agentApi.sendMessage,
+        getChats: agentApi.getChats,
+        getChat: agentApi.getChat,
+        updateChat: agentApi.updateChat,
+        rateChat: agentApi.rateChat,
+        getBusinessChats: agentApi.getBusinessChats,
+        getChatMessages: agentApi.getChatMessages,
+      },
+      workflow: {
+        create: workflowApi.createWorkflow,
+        update: workflowApi.updateWorkflow,
+        delete: workflowApi.deleteWorkflow,
+        get: workflowApi.getWorkflow,
+        find: workflowApi.getWorkflows,
+        trigger: workflowApi.triggerWorkflow,
+        getExecutions: workflowApi.getWorkflowExecutions,
+        getExecution: workflowApi.getWorkflowExecution,
+      },
     },
 
     analytics: {
