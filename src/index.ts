@@ -133,7 +133,7 @@ export type {
   DeleteLocationParams,
 } from "./types/api";
 
-export const SDK_VERSION = "0.7.63";
+export const SDK_VERSION = "0.7.66";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -154,6 +154,10 @@ export interface ApiConfig {
 
 import {
   createHttpClient,
+  defaultGetToken,
+  defaultSetToken,
+  defaultLogout,
+  defaultIsAuthenticated,
   type HttpClientConfig,
 } from "./services/createHttpClient";
 import { createAccountApi } from "./api/account";
@@ -295,8 +299,12 @@ export async function createAdmin(
   }
 ) {
   const locale = config.locale || "en";
+  const getToken = config.getToken || defaultGetToken;
+  const setToken = config.setToken || defaultSetToken;
+  const logout = config.logout || defaultLogout;
+  const isAuthenticated = config.isAuthenticated || defaultIsAuthenticated;
 
-  const httpClient = createHttpClient(config);
+  const httpClient = createHttpClient({ ...config, getToken, setToken, logout });
 
   const apiConfig: ApiConfig = {
     httpClient,
@@ -304,8 +312,8 @@ export async function createAdmin(
     baseUrl: config.baseUrl,
     market: config.market,
     locale,
-    setToken: config.setToken,
-    getToken: config.getToken,
+    setToken,
+    getToken,
   };
 
   const accountApi = createAccountApi(apiConfig);
@@ -505,9 +513,9 @@ export async function createAdmin(
 
     getLocale: () => apiConfig.locale,
 
-    isAuthenticated: config.isAuthenticated || (() => false),
-    logout: config.logout,
-    setToken: config.setToken,
+    isAuthenticated,
+    logout,
+    setToken,
 
     extractBlockValues,
 
@@ -525,8 +533,16 @@ export async function createStorefront(
   }
 ) {
   const locale = config.locale || "en";
+  const getToken = config.getToken || defaultGetToken;
+  const setToken = config.setToken || defaultSetToken;
+  const logout = config.logout || defaultLogout;
+  const isAuthenticated = config.isAuthenticated || defaultIsAuthenticated;
+
   const httpClient = createHttpClient({
     ...config,
+    getToken,
+    setToken,
+    logout,
     refreshPath: `/v1/storefront/${config.businessId}/customers/auth/refresh`,
   });
 
@@ -536,21 +552,45 @@ export async function createStorefront(
     baseUrl: config.baseUrl,
     market: config.market,
     locale,
-    setToken: config.setToken,
-    getToken: config.getToken,
+    setToken,
+    getToken,
   };
 
   const storefrontApi = createStorefrontApi(apiConfig);
 
-  if (typeof window !== "undefined" && apiConfig.businessId) {
-    storefrontApi.business.getIntegrationConfig({ businessId: apiConfig.businessId, type: 'analytics' }).then((configs: any[]) => {
-      if (!configs) return;
-      for (const c of Array.isArray(configs) ? configs : [configs]) {
-        if (c.measurementId) {
-          injectGA4Script(c.measurementId);
-        }
+  let sessionPromise: Promise<void> | null = null;
+
+  function ensureSession(): Promise<void> {
+    if (typeof window === "undefined") return Promise.resolve();
+    if (sessionPromise) return sessionPromise;
+
+    sessionPromise = (async () => {
+      const tokens = await apiConfig.getToken();
+      if (tokens.accessToken) return;
+
+      const result = await storefrontApi.crm.customer.initialize();
+      if (result?.accessToken) {
+        apiConfig.setToken(result);
       }
-    }).catch(() => {});
+    })().finally(() => {
+      sessionPromise = null;
+    });
+
+    return sessionPromise;
+  }
+
+  if (typeof window !== "undefined") {
+    ensureSession().catch(() => {});
+    if (apiConfig.businessId) {
+      storefrontApi.business.getIntegrationConfig({ businessId: apiConfig.businessId, type: 'analytics' }).then((configs: any[]) => {
+        if (!configs) return;
+        for (const c of Array.isArray(configs) ? configs : [configs]) {
+          if (c.measurementId) {
+            injectGA4Script(c.measurementId);
+          }
+        }
+      }).catch(() => {});
+    }
   }
 
   return {
@@ -575,9 +615,9 @@ export async function createStorefront(
       apiConfig.locale = locale;
     },
     getLocale: () => apiConfig.locale,
-    isAuthenticated: config.isAuthenticated || (() => false),
-    logout: config.logout,
-    setToken: config.setToken,
+    isAuthenticated,
+    logout,
+    setToken,
     extractBlockValues,
     utils: createUtilitySurface(apiConfig),
   };

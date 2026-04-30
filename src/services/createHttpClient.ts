@@ -7,8 +7,45 @@ import { buildQueryString, type QueryParams } from '../utils/queryParams';
 export interface AuthTokens {
 	accessToken: string;
 	refreshToken?: string;
-	expiresAt?: number;
+	accessExpiresAt?: number;
 	accountId?: string;
+}
+
+const STORAGE_KEYS = {
+	accessToken: "arky_token",
+	refreshToken: "arky_refresh",
+	accessExpiresAt: "arky_expires_at",
+};
+
+export function defaultGetToken(): AuthTokens {
+	if (typeof window === "undefined") return { accessToken: "" };
+	return {
+		accessToken: localStorage.getItem(STORAGE_KEYS.accessToken) || "",
+		refreshToken: localStorage.getItem(STORAGE_KEYS.refreshToken) || "",
+		accessExpiresAt: parseInt(localStorage.getItem(STORAGE_KEYS.accessExpiresAt) || "0", 10),
+	};
+}
+
+export function defaultSetToken(tokens: AuthTokens): void {
+	if (typeof window === "undefined") return;
+	if (tokens.accessToken) {
+		localStorage.setItem(STORAGE_KEYS.accessToken, tokens.accessToken);
+		localStorage.setItem(STORAGE_KEYS.refreshToken, tokens.refreshToken || "");
+		localStorage.setItem(STORAGE_KEYS.accessExpiresAt, (tokens.accessExpiresAt || 0).toString());
+	} else {
+		Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+	}
+}
+
+export function defaultLogout(): void {
+	if (typeof window === "undefined") return;
+	Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+}
+
+export function defaultIsAuthenticated(): boolean {
+	if (typeof window === "undefined") return false;
+	const token = localStorage.getItem(STORAGE_KEYS.accessToken) || "";
+	return token.startsWith("customer_") || token.startsWith("account_");
 }
 
 export interface HttpClientConfig {
@@ -18,11 +55,11 @@ export interface HttpClientConfig {
 
 	refreshPath?: string;
 
-	getToken: () => Promise<AuthTokens> | AuthTokens;
+	getToken?: () => Promise<AuthTokens> | AuthTokens;
 
-	setToken: (tokens: AuthTokens) => void;
+	setToken?: (tokens: AuthTokens) => void;
 
-	logout: () => void;
+	logout?: () => void;
 
 	navigate?: (path: string) => void;
 
@@ -54,6 +91,10 @@ type ErrorCallback = (ctx: {
 }) => void | Promise<void>;
 
 export function createHttpClient(cfg: HttpClientConfig) {
+	const getToken = cfg.getToken || defaultGetToken;
+	const setToken = cfg.setToken || defaultSetToken;
+	const logout = cfg.logout || defaultLogout;
+
 	const refreshEndpoint = `${cfg.baseUrl}${cfg.refreshPath || '/v1/auth/refresh'}`;
 	let refreshPromise: Promise<void> | null = null;
 
@@ -63,9 +104,9 @@ export function createHttpClient(cfg: HttpClientConfig) {
 		}
 
 		refreshPromise = (async () => {
-			const { refreshToken } = await cfg.getToken();
+			const { refreshToken } = await getToken();
 			if (!refreshToken) {
-				cfg.logout();
+				logout();
 				const err: any = new Error('No refresh token available');
 				err.name = 'ApiError';
 				err.statusCode = 401;
@@ -79,7 +120,7 @@ export function createHttpClient(cfg: HttpClientConfig) {
 			});
 
 			if (!refRes.ok) {
-				cfg.logout();
+				logout();
 				const err: any = new Error('Token refresh failed');
 				err.name = 'ApiError';
 				err.statusCode = 401;
@@ -87,7 +128,7 @@ export function createHttpClient(cfg: HttpClientConfig) {
 			}
 
 			const data = await refRes.json();
-			cfg.setToken(data);
+			setToken(data);
 		})().finally(() => {
 			refreshPromise = null;
 		});
@@ -118,12 +159,12 @@ export function createHttpClient(cfg: HttpClientConfig) {
 			...(options?.headers || {})
 		};
 
-	let { accessToken, expiresAt } = await cfg.getToken();
+	let { accessToken, accessExpiresAt } = await getToken();
 
 	const nowSec = Date.now() / 1000;
-	if (expiresAt && nowSec > expiresAt) {
+	if (accessExpiresAt && nowSec > accessExpiresAt) {
 		await ensureFreshToken();
-		const tokens = await cfg.getToken();
+		const tokens = await getToken();
 		accessToken = tokens.accessToken;
 	}
 
@@ -161,7 +202,7 @@ if (options?.onError && method !== 'GET') {
 		if (res.status === 401 && !options?.['_retried']) {
 			try {
 				await ensureFreshToken();
-				const tokens = await cfg.getToken();
+				const tokens = await getToken();
 				headers['Authorization'] = `Bearer ${tokens.accessToken}`;
 				fetchOpts.headers = headers;
 				return request<T>(method, path, body, { ...options, _retried: true });
