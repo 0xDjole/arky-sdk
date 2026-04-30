@@ -128,12 +128,19 @@ export type {
 } from "./api/location";
 
 export type {
+  AnalyticsSummary,
+  TimeSeriesPoint,
+  TimeSeriesResponse,
+  StatusBreakdown,
+} from "./api/analytics";
+
+export type {
   CreateLocationParams,
   UpdateLocationParams,
   DeleteLocationParams,
 } from "./types/api";
 
-export const SDK_VERSION = "0.7.66";
+export const SDK_VERSION = "0.7.70";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -199,6 +206,7 @@ import { createAgentApi } from "./api/agent";
 import { createEmailTemplateApi } from "./api/emailTemplate";
 import { createFormApi } from "./api/form";
 import { createTaxonomyApi } from "./api/taxonomy";
+import { createAnalyticsApi } from "./api/analytics";
 import { createStorefrontApi } from "./api/storefront";
 import {
   getImageUrl,
@@ -344,6 +352,7 @@ export async function createAdmin(
   const formApi = createFormApi(apiConfig);
   const taxonomyApi = createTaxonomyApi(apiConfig);
   const emailTemplateApi = createEmailTemplateApi(apiConfig);
+  const analyticsApi = createAnalyticsApi(apiConfig);
 
   const sdk = {
     auth: authApi,
@@ -493,6 +502,9 @@ export async function createAdmin(
 
     analytics: {
       track,
+      getSummary: analyticsApi.getSummary,
+      getSeries: analyticsApi.getSeries,
+      getStatusBreakdown: analyticsApi.getStatusBreakdown,
     },
 
     setBusinessId: (businessId: string) => {
