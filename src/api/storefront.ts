@@ -1,11 +1,6 @@
 import type { ApiConfig } from "../index";
 import type { RequestOptions, Slot } from "../types/api";
 import {
-  computeAverageStars,
-  DEFAULT_REACTION_KINDS,
-  isValidReactionKind,
-} from "./reaction";
-import {
   getBlockFromArray,
   getBlockObjectValues,
   getImageUrl,
@@ -532,81 +527,6 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
           return apiConfig.httpClient.get(`${base()}/audiences/confirm`, {
             ...options,
             params: { token },
-          });
-        },
-      },
-
-      reaction: {
-        DEFAULT_REACTION_KINDS,
-        isValidReactionKind,
-        computeAverageStars,
-
-        create(params: any, options?: RequestOptions) {
-          const businessId = params.businessId || apiConfig.businessId;
-          return apiConfig.httpClient.post(
-            `${base(businessId)}/reactions`,
-            {
-              businessId,
-              target: params.target,
-              kind: params.kind,
-              blocks: params.blocks || [],
-              parentId: params.parentId,
-              taxonomies: params.taxonomies || [],
-            },
-            options,
-          );
-        },
-
-        get(params: any, options?: RequestOptions) {
-          const businessId = params.businessId || apiConfig.businessId;
-          return apiConfig.httpClient.get(
-            `${base(businessId)}/reactions/${params.id}`,
-            options,
-          );
-        },
-
-        find(params?: any, options?: RequestOptions) {
-          const businessId = params?.businessId || apiConfig.businessId;
-          const queryParams = { ...(params || {}) };
-          delete queryParams.businessId;
-          return apiConfig.httpClient.get(`${base(businessId)}/reactions`, {
-            ...options,
-            params: queryParams,
-          });
-        },
-
-        update(params: any, options?: RequestOptions) {
-          const businessId = params.businessId || apiConfig.businessId;
-          return apiConfig.httpClient.put(
-            `${base(businessId)}/reactions/${params.id}`,
-            {
-              id: params.id,
-              businessId,
-              blocks: params.blocks,
-              taxonomies: params.taxonomies,
-            },
-            options,
-          );
-        },
-
-        remove(params: { id: string; businessId?: string }, options?: RequestOptions) {
-          const businessId = params.businessId || apiConfig.businessId;
-          return apiConfig.httpClient.delete(
-            `${base(businessId)}/reactions/${params.id}`,
-            options,
-          );
-        },
-
-        summary(params: any, options?: RequestOptions) {
-          const businessId = params.businessId || apiConfig.businessId;
-          return apiConfig.httpClient.get(`${base(businessId)}/reactions/summary`, {
-            ...options,
-            params: {
-              businessId,
-              targetType: params.targetType,
-              targetId: params.targetId,
-              parentId: params.parentId,
-            },
           });
         },
       },

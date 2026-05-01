@@ -135,7 +135,7 @@ export type {
   DeleteLocationParams,
 } from "./types/api";
 
-export const SDK_VERSION = "0.7.72";
+export const SDK_VERSION = "0.7.73";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -174,26 +174,6 @@ import { createBookingApi } from "./api/booking";
 import { createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
 import { createCustomerApi } from "./api/crm";
-import { createReactionApi } from "./api/reaction";
-export {
-  DEFAULT_REACTION_KINDS,
-  REACTION_KIND_REGEX,
-  isValidReactionKind,
-  computeAverageStars,
-} from "./api/reaction";
-export type {
-  Reaction,
-  ReactionTarget,
-  ReactionTargetType,
-  ReactionStatus,
-  CreateReactionParams,
-  UpdateReactionParams,
-  GetReactionParams,
-  FindReactionsParams,
-  ModerateReactionParams,
-  EngagementSummary,
-  EngagementSummaryParams,
-} from "./api/reaction";
 import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
@@ -339,7 +319,6 @@ export async function createAdmin(
   const eshopApi = createEshopApi(apiConfig);
   const bookingApi = createBookingApi(apiConfig);
   const crmApi = createCustomerApi(apiConfig);
-  const reactionApi = createReactionApi(apiConfig);
   const locationApi = createLocationApi(apiConfig);
   const marketApi = createMarketApi(apiConfig);
   const agentApi = createAgentApi(apiConfig);
@@ -466,7 +445,6 @@ export async function createAdmin(
         addSubscriber: crmApi.audiences.addSubscriber,
         removeSubscriber: crmApi.audiences.removeSubscriber,
       },
-      reaction: reactionApi,
     },
     automation: {
       agent: {

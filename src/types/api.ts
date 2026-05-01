@@ -1309,7 +1309,6 @@ export interface Customer {
   verificationCodes: CustomerVerificationCode[];
   addresses: Address[];
   audienceSubscriptions: any[];
-  reactions: any[];
   createdAt: number;
   updatedAt: number;
 }

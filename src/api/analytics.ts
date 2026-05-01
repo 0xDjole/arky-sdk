@@ -10,8 +10,6 @@ export interface AnalyticsSummary {
   newCustomersChange: number;
   formSubmissions: number;
   formSubmissionsChange: number;
-  reactions: number;
-  reactionsChange: number;
 }
 
 export interface StatusBreakdown {
