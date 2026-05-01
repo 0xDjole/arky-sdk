@@ -6,6 +6,72 @@ import {
   getImageUrl,
 } from "../utils/blocks";
 
+export interface Activity {
+  businessId: string;
+  customerId: string;
+  type: string;
+  payload: Record<string, any>;
+  createdAt: number;
+}
+
+export interface TrackParams {
+  type: string;
+  payload?: Record<string, any>;
+}
+
+export const COMMON_ACTIVITY_TYPES = [
+  "page_view",
+  "product_view",
+  "service_view",
+  "provider_view",
+  "cart_added",
+  "cart_removed",
+  "checkout_started",
+  "purchase",
+  "booking_created",
+  "signin",
+  "signup",
+  "verified_email",
+  "search",
+  "share",
+  "wishlist_added",
+] as const;
+
+export type CommonActivityType = (typeof COMMON_ACTIVITY_TYPES)[number];
+
+async function ensureCustomer(apiConfig: ApiConfig): Promise<void> {
+  if (apiConfig.getToken) {
+    const tokens = await apiConfig.getToken();
+    if (tokens?.accessToken) return;
+  }
+
+  const response = await apiConfig.httpClient.post(
+    `/v1/storefront/${apiConfig.businessId}/customers/initialize`,
+    {
+      userAgent:
+        typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+    },
+  );
+
+  const accessToken = response?.accessToken;
+  const refreshToken = response?.refreshToken;
+  const accessExpiresAt = response?.accessExpiresAt;
+  if (accessToken) {
+    apiConfig.setToken?.({ accessToken, refreshToken, accessExpiresAt });
+  }
+}
+
+export const createActivityApi = (apiConfig: ApiConfig) => ({
+  COMMON_ACTIVITY_TYPES,
+  async track(params: TrackParams): Promise<void> {
+    await ensureCustomer(apiConfig);
+    await apiConfig.httpClient.post(
+      `/v1/storefront/${apiConfig.businessId}/activities/track`,
+      { type: params.type, payload: params.payload },
+    );
+  },
+});
+
 function groupCartToItems(cart: Slot[]) {
   const groups = new Map<
     string,
@@ -531,6 +597,8 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         },
       },
     },
+
+    activity: createActivityApi(apiConfig),
 
     automation: {
       agent: {

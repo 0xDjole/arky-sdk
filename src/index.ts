@@ -135,7 +135,20 @@ export type {
   DeleteLocationParams,
 } from "./types/api";
 
-export const SDK_VERSION = "0.7.73";
+export type {
+  Activity,
+  TrackParams,
+  CommonActivityType,
+} from "./api/storefront";
+export { COMMON_ACTIVITY_TYPES } from "./api/storefront";
+
+export type {
+  TimelineParams,
+  CountParams,
+  ActivityTypeInfo,
+} from "./api/crm";
+
+export const SDK_VERSION = "0.7.74";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -445,6 +458,7 @@ export async function createAdmin(
         addSubscriber: crmApi.audiences.addSubscriber,
         removeSubscriber: crmApi.audiences.removeSubscriber,
       },
+      activity: crmApi.activity,
     },
     automation: {
       agent: {
@@ -583,6 +597,7 @@ export async function createStorefront(
     eshop: storefrontApi.eshop,
     booking: storefrontApi.booking,
     crm: storefrontApi.crm,
+    activity: storefrontApi.activity,
     automation: storefrontApi.automation,
     analytics: {
       track,
