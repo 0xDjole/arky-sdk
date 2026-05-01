@@ -127,12 +127,7 @@ export type {
   GetCountriesResponse,
 } from "./api/location";
 
-export type {
-  AnalyticsSummary,
-  TimeSeriesPoint,
-  TimeSeriesResponse,
-  StatusBreakdown,
-} from "./api/analytics";
+export type { AnalyticsSummary, StatusBreakdown } from "./api/analytics";
 
 export type {
   CreateLocationParams,
@@ -140,7 +135,7 @@ export type {
   DeleteLocationParams,
 } from "./types/api";
 
-export const SDK_VERSION = "0.7.70";
+export const SDK_VERSION = "0.7.71";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -503,7 +498,6 @@ export async function createAdmin(
     analytics: {
       track,
       getSummary: analyticsApi.getSummary,
-      getSeries: analyticsApi.getSeries,
       getStatusBreakdown: analyticsApi.getStatusBreakdown,
     },
 
