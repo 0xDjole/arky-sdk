@@ -135,7 +135,7 @@ export type {
   DeleteLocationParams,
 } from "./types/api";
 
-export const SDK_VERSION = "0.7.71";
+export const SDK_VERSION = "0.7.72";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",

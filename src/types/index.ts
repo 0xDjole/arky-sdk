@@ -640,7 +640,7 @@ export interface Media {
 	alt?: string | null;
 	entity: string;
 	metadata?: string | null;
-	uploadedAt: string;
+	createdAt: number;
 	slug: Record<string, string>;
 }
 
