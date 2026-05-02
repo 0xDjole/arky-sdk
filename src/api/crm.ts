@@ -22,6 +22,15 @@ export interface Activity {
   type: string;
   payload: Record<string, any>;
   createdAt: number;
+  countryCode?: string | null;
+  city?: string | null;
+  region?: string | null;
+  timezone?: string | null;
+  deviceType?: string | null;
+  browser?: string | null;
+  os?: string | null;
+  language?: string | null;
+  sessionIdx?: number | null;
 }
 
 export interface TimelineParams {
@@ -29,21 +38,6 @@ export interface TimelineParams {
   businessId?: string;
   limit?: number;
   cursor?: string;
-}
-
-export interface CountParams {
-  businessId?: string;
-  type?: string;
-  payloadKey?: string;
-  payloadValue?: string;
-  windowSeconds?: number;
-}
-
-export interface ActivityTypeInfo {
-  type: string;
-  eventCount: number;
-  firstSeenAt: number;
-  lastSeenAt: number;
 }
 
 export const createActivityAdminApi = (apiConfig: ApiConfig) => ({
@@ -56,27 +50,6 @@ export const createActivityAdminApi = (apiConfig: ApiConfig) => ({
       `/v1/businesses/${businessId}/activities/timeline`,
       { ...options, params: queryParams },
     ) as Promise<{ items: Activity[]; cursor: string | null }>;
-  },
-
-  async count(params: CountParams, options?: RequestOptions) {
-    const businessId = params.businessId || apiConfig.businessId;
-    const queryParams: Record<string, any> = {};
-    if (params.type) queryParams.type = params.type;
-    if (params.payloadKey) queryParams.payloadKey = params.payloadKey;
-    if (params.payloadValue) queryParams.payloadValue = params.payloadValue;
-    if (params.windowSeconds !== undefined) queryParams.windowSeconds = params.windowSeconds;
-    return apiConfig.httpClient.get(
-      `/v1/businesses/${businessId}/activities/count`,
-      { ...options, params: queryParams },
-    ) as Promise<{ total: number; distinctCustomers: number }>;
-  },
-
-  async types(params?: { businessId?: string }, options?: RequestOptions) {
-    const businessId = params?.businessId || apiConfig.businessId;
-    return apiConfig.httpClient.get(
-      `/v1/businesses/${businessId}/activities/types`,
-      options,
-    ) as Promise<{ items: ActivityTypeInfo[]; uniqueCount: number }>;
   },
 });
 

@@ -127,7 +127,21 @@ export type {
   GetCountriesResponse,
 } from "./api/location";
 
-export type { AnalyticsSummary, StatusBreakdown } from "./api/analytics";
+export type {
+  AnalyticsQuery,
+  AnalyticsQueryResponse,
+  AnalyticsRow,
+  Measure,
+  Dimension,
+  Filter,
+  FilterField,
+  FilterOp,
+  Granularity,
+  EntityKind,
+  TimeRange,
+  TimeUnit,
+  OrderBy,
+} from "./api/analytics";
 
 export type {
   CreateLocationParams,
@@ -142,13 +156,9 @@ export type {
 } from "./api/storefront";
 export { COMMON_ACTIVITY_TYPES } from "./api/storefront";
 
-export type {
-  TimelineParams,
-  CountParams,
-  ActivityTypeInfo,
-} from "./api/crm";
+export type { TimelineParams } from "./api/crm";
 
-export const SDK_VERSION = "0.7.74";
+export const SDK_VERSION = "0.7.80";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -489,8 +499,7 @@ export async function createAdmin(
 
     analytics: {
       track,
-      getSummary: analyticsApi.getSummary,
-      getStatusBreakdown: analyticsApi.getStatusBreakdown,
+      query: analyticsApi.query,
     },
 
     setBusinessId: (businessId: string) => {
