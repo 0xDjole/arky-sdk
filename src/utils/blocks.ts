@@ -40,7 +40,7 @@ export function formatBlockValue(block: any): string {
     case "relationship_entry":
     case "relationship_media":
       if (value && typeof value === 'object') {
-        return value.mimeType ? (value.name || value.id) : (value.title || value.name || value.id);
+        return value.mime_type ? (value.name || value.id) : (value.title || value.name || value.id);
       }
       return String(value);
     default:

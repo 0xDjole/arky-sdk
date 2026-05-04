@@ -10,8 +10,8 @@ export type EntityKind =
   | "audience"
   | "agent"
   | "workflow"
-  | "promoCode"
-  | "emailTemplate"
+  | "promo_code"
+  | "email_template"
   | "form"
   | "taxonomy"
   | "media"
@@ -27,37 +27,37 @@ export type Granularity =
 
 export type Measure =
   | "count"
-  | "uniqCustomers"
-  | "ordersCreated"
-  | "bookingsCreated"
-  | "newCustomers"
-  | "formSubmissions"
-  | { entityState: { entity: EntityKind; status: string } };
+  | "uniq_customers"
+  | "orders_created"
+  | "bookings_created"
+  | "new_customers"
+  | "form_submissions"
+  | { entity_state: { entity: EntityKind; status: string } };
 
 export type Dimension =
-  | "countryCode"
+  | "country_code"
   | "city"
-  | "deviceType"
+  | "device_type"
   | "browser"
   | "os"
   | "language"
-  | "activityType"
+  | "activity_type"
   | "entity"
-  | "entityStatus"
-  | { timeBucket: { granularity: Granularity } };
+  | "entity_status"
+  | { time_bucket: { granularity: Granularity } };
 
 export type FilterField =
   | "type"
-  | "countryCode"
-  | "deviceType"
+  | "country_code"
+  | "device_type"
   | "browser"
   | "os"
   | "language"
   | "entity"
   | "action"
-  | "customerId";
+  | "customer_id";
 
-export type FilterOp = "eq" | "neq" | "in" | "notIn" | "contains";
+export type FilterOp = "eq" | "neq" | "in" | "not_in" | "contains";
 
 export interface Filter {
   field: FilterField;
@@ -80,9 +80,9 @@ export interface AnalyticsQuery {
   measures: Measure[];
   dimensions?: Dimension[];
   filters?: Filter[];
-  timeRange: TimeRange;
+  time_range: TimeRange;
   granularity?: Granularity;
-  orderBy?: OrderBy[];
+  order_by?: OrderBy[];
   limit?: number;
 }
 
@@ -93,8 +93,8 @@ export interface AnalyticsRow {
 export interface AnalyticsQueryResponse {
   rows: AnalyticsRow[];
   meta: {
-    rowCount: number;
-    executionMs: number;
+    row_count: number;
+    execution_ms: number;
   };
 }
 

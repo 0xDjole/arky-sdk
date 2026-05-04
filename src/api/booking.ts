@@ -28,11 +28,11 @@ import type {
 } from "../types/api";
 
 function groupCartToItems(cart: Slot[]) {
-  const groups = new Map<string, { serviceId: string; providerId: string; slots: { from: number; to: number }[] }>();
+  const groups = new Map<string, { service_id: string; provider_id: string; slots: { from: number; to: number }[] }>();
   for (const s of cart) {
-    const key = `${s.serviceId}:${s.providerId}`;
+    const key = `${s.service_id}:${s.provider_id}`;
     if (!groups.has(key)) {
-      groups.set(key, { serviceId: s.serviceId, providerId: s.providerId, slots: [] });
+      groups.set(key, { service_id: s.service_id, provider_id: s.provider_id, slots: [] });
     }
     groups.get(key)!.slots.push({ from: s.from, to: s.to });
   }
@@ -278,10 +278,10 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
       params: CancelBookingItemParams,
       options?: RequestOptions,
     ) {
-      const { businessId, bookingId, itemId, ...payload } = params;
+      const { businessId, booking_id, item_id, ...payload } = params;
       const targetBusinessId = businessId || apiConfig.businessId;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${targetBusinessId}/bookings/${bookingId}/items/${itemId}/cancel`,
+        `/v1/businesses/${targetBusinessId}/bookings/${booking_id}/items/${item_id}/cancel`,
         payload,
         options,
       );

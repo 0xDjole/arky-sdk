@@ -102,12 +102,12 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
 
     async getQuote(params: GetQuoteParams, options?: RequestOptions) {
       const { location, ...rest } = params;
-      const shippingAddress = location
+      const shipping_address = location
         ? {
             country: location.country || "",
             state: location.state || "",
             city: location.city || "",
-            postalCode: location.postalCode || "",
+            postal_code: location.postal_code || "",
             name: "",
             street1: "",
             street2: null,
@@ -115,7 +115,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         : undefined;
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/orders/quote`,
-        { ...rest, shippingAddress, market: apiConfig.market },
+        { ...rest, shipping_address, market: apiConfig.market },
         options,
       );
     },

@@ -7,11 +7,11 @@ import {
 } from "../utils/blocks";
 
 export interface Activity {
-  businessId: string;
-  customerId: string;
+  business_id: string;
+  customer_id: string;
   type: string;
   payload: Record<string, any>;
-  createdAt: number;
+  created_at: number;
 }
 
 export interface TrackParams {
@@ -42,22 +42,22 @@ export type CommonActivityType = (typeof COMMON_ACTIVITY_TYPES)[number];
 async function ensureCustomer(apiConfig: ApiConfig): Promise<void> {
   if (apiConfig.getToken) {
     const tokens = await apiConfig.getToken();
-    if (tokens?.accessToken) return;
+    if (tokens?.access_token) return;
   }
 
   const response = await apiConfig.httpClient.post(
     `/v1/storefront/${apiConfig.businessId}/customers/initialize`,
     {
-      userAgent:
+      user_agent:
         typeof navigator !== "undefined" ? navigator.userAgent : undefined,
     },
   );
 
-  const accessToken = response?.accessToken;
-  const refreshToken = response?.refreshToken;
-  const accessExpiresAt = response?.accessExpiresAt;
-  if (accessToken) {
-    apiConfig.setToken?.({ accessToken, refreshToken, accessExpiresAt });
+  const access_token = response?.access_token;
+  const refresh_token = response?.refresh_token;
+  const access_expires_at = response?.access_expires_at;
+  if (access_token) {
+    apiConfig.setToken?.({ access_token, refresh_token, access_expires_at });
   }
 }
 
@@ -75,15 +75,15 @@ export const createActivityApi = (apiConfig: ApiConfig) => ({
 function groupCartToItems(cart: Slot[]) {
   const groups = new Map<
     string,
-    { serviceId: string; providerId: string; slots: { from: number; to: number }[] }
+    { service_id: string; provider_id: string; slots: { from: number; to: number }[] }
   >();
 
   for (const slot of cart) {
-    const key = `${slot.serviceId}:${slot.providerId}`;
+    const key = `${slot.service_id}:${slot.provider_id}`;
     if (!groups.has(key)) {
       groups.set(key, {
-        serviceId: slot.serviceId,
-        providerId: slot.providerId,
+        service_id: slot.service_id,
+        provider_id: slot.provider_id,
         slots: [],
       });
     }
@@ -287,12 +287,12 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         getQuote(params: any, options?: RequestOptions) {
           const businessId = params.businessId || apiConfig.businessId;
           const { location, businessId: _businessId, ...rest } = params;
-          const shippingAddress = location
+          const shipping_address = location
             ? {
                 country: location.country || "",
                 state: location.state || "",
                 city: location.city || "",
-                postalCode: location.postalCode || "",
+                postal_code: location.postal_code || "",
                 name: "",
                 street1: "",
                 street2: null,
@@ -301,7 +301,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
 
           return apiConfig.httpClient.post(
             `${base(businessId)}/orders/quote`,
-            { ...rest, shippingAddress, market: apiConfig.market },
+            { ...rest, shipping_address, market: apiConfig.market },
             options,
           );
         },
@@ -521,13 +521,13 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         },
 
         refreshToken(
-          params: { refreshToken: string; businessId?: string },
+          params: { refresh_token: string; businessId?: string },
           options?: RequestOptions,
         ) {
           const businessId = params.businessId || apiConfig.businessId;
           return apiConfig.httpClient.post(
             `${base(businessId)}/customers/auth/refresh`,
-            { refreshToken: params.refreshToken },
+            { refresh_token: params.refresh_token },
             options,
           );
         },
@@ -565,11 +565,11 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
           return apiConfig.httpClient.post(
             `${base()}/audiences/${params.id}/subscribe`,
             {
-              customerId: params.customerId,
-              priceId: params.priceId,
-              successUrl: params.successUrl,
-              cancelUrl: params.cancelUrl,
-              confirmUrl: params.confirmUrl,
+              customer_id: params.customer_id,
+              price_id: params.price_id,
+              success_url: params.success_url,
+              cancel_url: params.cancel_url,
+              confirm_url: params.confirm_url,
             },
             options,
           );
@@ -621,12 +621,12 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         },
 
         sendMessage(
-          params: { id: string; message: string; chatId?: string; businessId?: string },
+          params: { id: string; message: string; chat_id?: string; businessId?: string },
           options?: RequestOptions,
         ) {
           const businessId = params.businessId || apiConfig.businessId;
           const body: Record<string, any> = { message: params.message };
-          if (params.chatId) body.chatId = params.chatId;
+          if (params.chat_id) body.chat_id = params.chat_id;
           return apiConfig.httpClient.post(
             `${base(businessId)}/agents/${params.id}/chats/messages`,
             body,
@@ -635,25 +635,25 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         },
 
         getChat(
-          params: { id: string; chatId: string; businessId?: string },
+          params: { id: string; chat_id: string; businessId?: string },
           options?: RequestOptions,
         ) {
           const businessId = params.businessId || apiConfig.businessId;
           return apiConfig.httpClient.get(
-            `${base(businessId)}/agents/${params.id}/chats/${params.chatId}`,
+            `${base(businessId)}/agents/${params.id}/chats/${params.chat_id}`,
             options,
           );
         },
 
         getChatMessages(
-          params: { id: string; chatId: string; limit?: number; businessId?: string },
+          params: { id: string; chat_id: string; limit?: number; businessId?: string },
           options?: RequestOptions,
         ) {
           const businessId = params.businessId || apiConfig.businessId;
           const queryParams: Record<string, string> = {};
           if (params.limit) queryParams.limit = String(params.limit);
           return apiConfig.httpClient.get(
-            `${base(businessId)}/agents/${params.id}/chats/${params.chatId}/messages`,
+            `${base(businessId)}/agents/${params.id}/chats/${params.chat_id}/messages`,
             {
               ...options,
               params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
@@ -662,14 +662,14 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         },
 
         rateChat(
-          params: { id: string; chatId: string; rating: number; comment?: string; businessId?: string },
+          params: { id: string; chat_id: string; rating: number; comment?: string; businessId?: string },
           options?: RequestOptions,
         ) {
           const businessId = params.businessId || apiConfig.businessId;
           const body: Record<string, any> = { rating: params.rating };
           if (params.comment) body.comment = params.comment;
           return apiConfig.httpClient.post(
-            `${base(businessId)}/agents/${params.id}/chats/${params.chatId}/rate`,
+            `${base(businessId)}/agents/${params.id}/chats/${params.chat_id}/rate`,
             body,
             options,
           );

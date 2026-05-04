@@ -61,9 +61,9 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
 
 		async getWorkflowExecutions(params: GetWorkflowExecutionsParams, options?: RequestOptions) {
 			const businessId = params.businessId || apiConfig.businessId;
-			const { businessId: _, workflowId, ...queryParams } = params;
+			const { businessId: _, workflow_id, ...queryParams } = params;
 			return apiConfig.httpClient.get(
-				`/v1/businesses/${businessId}/workflows/${workflowId}/executions`,
+				`/v1/businesses/${businessId}/workflows/${workflow_id}/executions`,
 				{
 					...options,
 					params: Object.keys(queryParams).length > 0 ? queryParams : undefined
@@ -74,7 +74,7 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
 		async getWorkflowExecution(params: GetWorkflowExecutionParams, options?: RequestOptions) {
 			const businessId = params.businessId || apiConfig.businessId;
 			return apiConfig.httpClient.get(
-				`/v1/businesses/${businessId}/workflows/${params.workflowId}/executions/${params.executionId}`,
+				`/v1/businesses/${businessId}/workflows/${params.workflow_id}/executions/${params.execution_id}`,
 				options
 			);
 		}

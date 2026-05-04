@@ -158,7 +158,7 @@ export { COMMON_ACTIVITY_TYPES } from "./api/storefront";
 
 export type { TimelineParams } from "./api/crm";
 
-export const SDK_VERSION = "0.7.80";
+export const SDK_VERSION = "0.7.81";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -331,8 +331,8 @@ export async function createAdmin(
     businessApi.getIntegrationConfig({ businessId: apiConfig.businessId, type: 'analytics' }).then((configs: any[]) => {
       if (!configs) return;
       for (const c of Array.isArray(configs) ? configs : [configs]) {
-        if (c.measurementId) {
-          injectGA4Script(c.measurementId);
+        if (c.measurement_id) {
+          injectGA4Script(c.measurement_id);
         }
       }
     }).catch(() => {});
@@ -573,10 +573,10 @@ export async function createStorefront(
 
     sessionPromise = (async () => {
       const tokens = await apiConfig.getToken();
-      if (tokens.accessToken) return;
+      if (tokens.access_token) return;
 
       const result = await storefrontApi.crm.customer.initialize();
-      if (result?.accessToken) {
+      if (result?.access_token) {
         apiConfig.setToken(result);
       }
     })().finally(() => {
@@ -592,8 +592,8 @@ export async function createStorefront(
       storefrontApi.business.getIntegrationConfig({ businessId: apiConfig.businessId, type: 'analytics' }).then((configs: any[]) => {
         if (!configs) return;
         for (const c of Array.isArray(configs) ? configs : [configs]) {
-          if (c.measurementId) {
-            injectGA4Script(c.measurementId);
+          if (c.measurement_id) {
+            injectGA4Script(c.measurement_id);
           }
         }
       }).catch(() => {});

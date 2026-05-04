@@ -13,22 +13,22 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       params: GetShippingRatesParams,
       options?: RequestOptions
     ): Promise<{ rates: ShippingRate[] }> {
-      const { orderId, ...payload } = params;
+      const { order_id, ...payload } = params;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/orders/${orderId}/shipping/rates`,
+        `/v1/businesses/${apiConfig.businessId}/orders/${order_id}/shipping/rates`,
         payload,
         options
       );
     },
 
-    
+
     async ship(
       params: ShipParams,
       options?: RequestOptions
     ): Promise<ShipResult> {
-      const { orderId, ...payload } = params;
+      const { order_id, ...payload } = params;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/orders/${orderId}/ship`,
+        `/v1/businesses/${apiConfig.businessId}/orders/${order_id}/ship`,
         payload,
         options
       );

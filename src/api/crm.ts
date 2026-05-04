@@ -17,24 +17,24 @@ import type {
 } from "../types/api";
 
 export interface Activity {
-  businessId: string;
-  customerId: string;
+  business_id: string;
+  customer_id: string;
   type: string;
   payload: Record<string, any>;
-  createdAt: number;
-  countryCode?: string | null;
+  created_at: number;
+  country_code?: string | null;
   city?: string | null;
   region?: string | null;
   timezone?: string | null;
-  deviceType?: string | null;
+  device_type?: string | null;
   browser?: string | null;
   os?: string | null;
   language?: string | null;
-  sessionIdx?: number | null;
+  session_idx?: number | null;
 }
 
 export interface TimelineParams {
-  customerId: string;
+  customer_id: string;
   businessId?: string;
   limit?: number;
   cursor?: string;
@@ -43,7 +43,7 @@ export interface TimelineParams {
 export const createActivityAdminApi = (apiConfig: ApiConfig) => ({
   async timeline(params: TimelineParams, options?: RequestOptions) {
     const businessId = params.businessId || apiConfig.businessId;
-    const queryParams: Record<string, any> = { customerId: params.customerId };
+    const queryParams: Record<string, any> = { customer_id: params.customer_id };
     if (params.limit !== undefined) queryParams.limit = params.limit;
     if (params.cursor) queryParams.cursor = params.cursor;
     return apiConfig.httpClient.get(
@@ -77,8 +77,8 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
       if (params?.limit !== undefined) queryParams.limit = params.limit;
       if (params?.cursor) queryParams.cursor = params.cursor;
       if (params?.query) queryParams.query = params.query;
-      if (params?.sortField) queryParams.sortField = params.sortField;
-      if (params?.sortDirection) queryParams.sortDirection = params.sortDirection;
+      if (params?.sort_field) queryParams.sort_field = params.sort_field;
+      if (params?.sort_direction) queryParams.sort_direction = params.sort_direction;
 
       return apiConfig.httpClient.get(
         `/v1/businesses/${businessId}/customers`,
@@ -101,8 +101,8 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
     async merge(params: MergeCustomersParams, options?: RequestOptions): Promise<Customer> {
       const businessId = params.businessId || apiConfig.businessId;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${businessId}/customers/${params.targetId}/merge`,
-        { sourceId: params.sourceId, businessId },
+        `/v1/businesses/${businessId}/customers/${params.target_id}/merge`,
+        { source_id: params.source_id, businessId },
         options
       );
     },
@@ -176,14 +176,14 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
       async addSubscriber(params: AddAudienceSubscriberParams, options?: RequestOptions) {
         return apiConfig.httpClient.post(
           `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribers`,
-          { customerId: params.customerId },
+          { customer_id: params.customer_id },
           options,
         );
       },
 
       async removeSubscriber(params: RemoveAudienceSubscriberParams, options?: RequestOptions) {
         return apiConfig.httpClient.delete(
-          `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribers/${params.customerId}`,
+          `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribers/${params.customer_id}`,
           options,
         );
       },

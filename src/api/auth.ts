@@ -14,13 +14,13 @@ export const createAuthApi = (apiConfig: ApiConfig) => {
 
         async verify(params: MagicLinkVerifyParams, options?: RequestOptions) {
             const result = await apiConfig.httpClient.post('/v1/auth/verify', params, options);
-            if (result?.accessToken) {
-                apiConfig.setToken({ ...result, email: params.email, isVerified: true });
+            if (result?.access_token) {
+                apiConfig.setToken({ ...result, email: params.email, is_verified: true });
             }
             return result;
         },
 
-        async refresh(params: { refreshToken: string }, options?: RequestOptions) {
+        async refresh(params: { refresh_token: string }, options?: RequestOptions) {
             return apiConfig.httpClient.post('/v1/auth/refresh', params, options);
         },
 
@@ -30,8 +30,8 @@ export const createAuthApi = (apiConfig: ApiConfig) => {
 
         async businessVerify(businessId: string, params: MagicLinkVerifyParams, options?: RequestOptions) {
             const result = await apiConfig.httpClient.post(`/v1/businesses/${businessId}/auth/verify`, params, options);
-            if (result?.accessToken) {
-                apiConfig.setToken({ ...result, email: params.email, isVerified: true });
+            if (result?.access_token) {
+                apiConfig.setToken({ ...result, email: params.email, is_verified: true });
             }
             return result;
         },

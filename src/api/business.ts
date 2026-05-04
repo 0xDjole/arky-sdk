@@ -106,7 +106,7 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
 
     async removeMember(params: RemoveMemberParams, options?: RequestOptions) {
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${apiConfig.businessId}/members/${params.accountId}`,
+        `/v1/businesses/${apiConfig.businessId}/members/${params.account_id}`,
         options
       );
     },
@@ -140,9 +140,9 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       if (params.cursor) queryParams.cursor = params.cursor;
       if (params.ids && params.ids.length > 0) queryParams.ids = params.ids.join(',');
       if (params.query) queryParams.query = params.query;
-      if (params.mimeType) queryParams.mimeType = params.mimeType;
-      if (params.sortField) queryParams.sortField = params.sortField;
-      if (params.sortDirection) queryParams.sortDirection = params.sortDirection;
+      if (params.mime_type) queryParams.mime_type = params.mime_type;
+      if (params.sort_field) queryParams.sort_field = params.sort_field;
+      if (params.sort_direction) queryParams.sort_direction = params.sort_direction;
 
       return apiConfig.httpClient.get(`/v1/businesses/${params.id}/media`, {
         ...options,
@@ -156,7 +156,7 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
     ) {
       return apiConfig.httpClient.post(
         `/v1/businesses/${params.businessId}/oauth/connect`,
-        { provider: params.provider, code: params.code, redirectUri: params.redirectUri },
+        { provider: params.provider, code: params.code, redirect_uri: params.redirect_uri },
         options
       );
     },

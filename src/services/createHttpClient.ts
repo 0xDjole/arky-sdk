@@ -5,10 +5,10 @@ import {
 import { buildQueryString, type QueryParams } from '../utils/queryParams';
 
 export interface AuthTokens {
-	accessToken: string;
-	refreshToken?: string;
-	accessExpiresAt?: number;
-	accountId?: string;
+	access_token: string;
+	refresh_token?: string;
+	access_expires_at?: number;
+	account_id?: string;
 }
 
 const STORAGE_KEYS = {
@@ -18,20 +18,20 @@ const STORAGE_KEYS = {
 };
 
 export function defaultGetToken(): AuthTokens {
-	if (typeof window === "undefined") return { accessToken: "" };
+	if (typeof window === "undefined") return { access_token: "" };
 	return {
-		accessToken: localStorage.getItem(STORAGE_KEYS.accessToken) || "",
-		refreshToken: localStorage.getItem(STORAGE_KEYS.refreshToken) || "",
-		accessExpiresAt: parseInt(localStorage.getItem(STORAGE_KEYS.accessExpiresAt) || "0", 10),
+		access_token: localStorage.getItem(STORAGE_KEYS.accessToken) || "",
+		refresh_token: localStorage.getItem(STORAGE_KEYS.refreshToken) || "",
+		access_expires_at: parseInt(localStorage.getItem(STORAGE_KEYS.accessExpiresAt) || "0", 10),
 	};
 }
 
 export function defaultSetToken(tokens: AuthTokens): void {
 	if (typeof window === "undefined") return;
-	if (tokens.accessToken) {
-		localStorage.setItem(STORAGE_KEYS.accessToken, tokens.accessToken);
-		localStorage.setItem(STORAGE_KEYS.refreshToken, tokens.refreshToken || "");
-		localStorage.setItem(STORAGE_KEYS.accessExpiresAt, (tokens.accessExpiresAt || 0).toString());
+	if (tokens.access_token) {
+		localStorage.setItem(STORAGE_KEYS.accessToken, tokens.access_token);
+		localStorage.setItem(STORAGE_KEYS.refreshToken, tokens.refresh_token || "");
+		localStorage.setItem(STORAGE_KEYS.accessExpiresAt, (tokens.access_expires_at || 0).toString());
 	} else {
 		Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
 	}
@@ -104,8 +104,8 @@ export function createHttpClient(cfg: HttpClientConfig) {
 		}
 
 		refreshPromise = (async () => {
-			const { refreshToken } = await getToken();
-			if (!refreshToken) {
+			const { refresh_token } = await getToken();
+			if (!refresh_token) {
 				logout();
 				const err: any = new Error('No refresh token available');
 				err.name = 'ApiError';
@@ -116,7 +116,7 @@ export function createHttpClient(cfg: HttpClientConfig) {
 			const refRes = await fetch(refreshEndpoint, {
 				method: 'POST',
 				headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-				body: JSON.stringify({ refreshToken })
+				body: JSON.stringify({ refresh_token })
 			});
 
 			if (!refRes.ok) {
@@ -159,17 +159,17 @@ export function createHttpClient(cfg: HttpClientConfig) {
 			...(options?.headers || {})
 		};
 
-	let { accessToken, accessExpiresAt } = await getToken();
+	let { access_token, access_expires_at } = await getToken();
 
 	const nowSec = Date.now() / 1000;
-	if (accessExpiresAt && nowSec > accessExpiresAt) {
+	if (access_expires_at && nowSec > access_expires_at) {
 		await ensureFreshToken();
 		const tokens = await getToken();
-		accessToken = tokens.accessToken;
+		access_token = tokens.access_token;
 	}
 
-	if (accessToken) {
-		headers['Authorization'] = `Bearer ${accessToken}`;
+	if (access_token) {
+		headers['Authorization'] = `Bearer ${access_token}`;
 	}
 
 		const finalPath = options?.params ? path + buildQueryString(options.params) : path;
@@ -203,7 +203,7 @@ if (options?.onError && method !== 'GET') {
 			try {
 				await ensureFreshToken();
 				const tokens = await getToken();
-				headers['Authorization'] = `Bearer ${tokens.accessToken}`;
+				headers['Authorization'] = `Bearer ${tokens.access_token}`;
 				fetchOpts.headers = headers;
 				return request<T>(method, path, body, { ...options, _retried: true });
 			} catch (refreshError) {

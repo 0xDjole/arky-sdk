@@ -12,9 +12,9 @@ export const createAccountApi = (apiConfig: ApiConfig) => {
         async updateAccount(params: UpdateAccountProfileParams, options?: RequestOptions) {
             const payload: any = {};
 
-            if (params.phoneNumbers !== undefined) payload.phoneNumbers = params.phoneNumbers;
+            if (params.phone_numbers !== undefined) payload.phone_numbers = params.phone_numbers;
             if (params.addresses !== undefined) payload.addresses = params.addresses;
-            if (params.apiTokens !== undefined) payload.apiTokens = params.apiTokens;
+            if (params.api_tokens !== undefined) payload.api_tokens = params.api_tokens;
 
             return apiConfig.httpClient.put('/v1/accounts', payload, options);
         },

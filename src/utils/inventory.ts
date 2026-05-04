@@ -26,7 +26,7 @@ export function getInventoryAt(
   variant: VariantWithInventory,
   locationId: string
 ): InventoryLevel | undefined {
-  return variant?.inventory?.find(inv => inv.locationId === locationId);
+  return variant?.inventory?.find(inv => inv.location_id === locationId);
 }
 
 
@@ -35,5 +35,5 @@ export function getFirstAvailableFCId(
   quantity: number = 1
 ): string | undefined {
   const inv = variant?.inventory?.find(i => i.available >= quantity);
-  return inv?.locationId;
+  return inv?.location_id;
 }

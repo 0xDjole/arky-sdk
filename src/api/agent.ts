@@ -58,7 +58,7 @@ export const createAgentApi = (apiConfig: ApiConfig) => {
 
 		async sendMessage(params: RunAgentParams, options?: RequestOptions) {
 			const body: Record<string, any> = { message: params.message };
-			if (params.chatId) body.chatId = params.chatId;
+			if (params.chat_id) body.chat_id = params.chat_id;
 			if (params.direct) body.direct = params.direct;
 			return apiConfig.httpClient.post(
 				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/chats/messages`,
@@ -82,14 +82,14 @@ export const createAgentApi = (apiConfig: ApiConfig) => {
 
 		async getChat(params: GetAgentChatParams, options?: RequestOptions) {
 			return apiConfig.httpClient.get(
-				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/chats/${params.chatId}`,
+				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/chats/${params.chat_id}`,
 				options
 			);
 		},
 
 		async updateChat(params: UpdateAgentChatParams, options?: RequestOptions) {
 			return apiConfig.httpClient.put(
-				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/chats/${params.chatId}`,
+				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/chats/${params.chat_id}`,
 				{ status: params.status },
 				options
 			);
@@ -99,7 +99,7 @@ export const createAgentApi = (apiConfig: ApiConfig) => {
 			const body: Record<string, any> = { rating: params.rating };
 			if (params.comment) body.comment = params.comment;
 			return apiConfig.httpClient.post(
-				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/chats/${params.chatId}/rate`,
+				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/chats/${params.chat_id}/rate`,
 				body,
 				options
 			);
@@ -118,7 +118,7 @@ export const createAgentApi = (apiConfig: ApiConfig) => {
 			const queryParams: Record<string, string> = {};
 			if (params.limit) queryParams.limit = String(params.limit);
 			return apiConfig.httpClient.get(
-				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/chats/${params.chatId}/messages`,
+				`/v1/businesses/${apiConfig.businessId}/agents/${params.id}/chats/${params.chat_id}/messages`,
 				{
 					...options,
 					params: Object.keys(queryParams).length > 0 ? queryParams : undefined

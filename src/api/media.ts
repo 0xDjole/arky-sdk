@@ -33,7 +33,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
                 method: 'POST',
                 body: formData,
                 headers: {
-                    Authorization: `Bearer ${tokens.accessToken}`
+                    Authorization: `Bearer ${tokens.access_token}`
                 }
             });
 
@@ -54,7 +54,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
         },
 
         async getBusinessMedia(params: GetBusinessMediaParams, options?: RequestOptions) {
-            const { businessId, cursor, limit, ids, query, mimeType, sortField, sortDirection } = params;
+            const { businessId, cursor, limit, ids, query, mime_type, sort_field, sort_direction } = params;
             const targetBusinessId = businessId || apiConfig.businessId;
             const url = `${apiConfig.baseUrl}/v1/businesses/${targetBusinessId}/media`;
 
@@ -62,16 +62,16 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
             if (cursor) queryParams.cursor = cursor;
             if (ids && ids.length > 0) queryParams.ids = ids.join(',');
             if (query) queryParams.query = query;
-            if (mimeType) queryParams.mimeType = mimeType;
-            if (sortField) queryParams.sortField = sortField;
-            if (sortDirection) queryParams.sortDirection = sortDirection;
+            if (mime_type) queryParams.mime_type = mime_type;
+            if (sort_field) queryParams.sort_field = sort_field;
+            if (sort_direction) queryParams.sort_direction = sort_direction;
 
             const queryString = new URLSearchParams(queryParams).toString();
 
             const tokens = await apiConfig.getToken();
             const response = await fetch(`${url}?${queryString}`, {
                 headers: {
-                    Authorization: `Bearer ${tokens.accessToken}`
+                    Authorization: `Bearer ${tokens.access_token}`
                 }
             });
 

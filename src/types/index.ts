@@ -6,7 +6,7 @@ export enum PaymentMethodType {
 }
 
 export interface PaymentTaxLine {
-	rateBps: number;
+	rate_bps: number;
 	amount: number;
 	label?: string;
 	scope?: string;
@@ -14,13 +14,13 @@ export interface PaymentTaxLine {
 
 export interface BookingPaymentTax {
 	amount: number;
-	modeSnapshot?: string;
-	rateBps: number;
+	mode_snapshot?: string;
+	rate_bps: number;
 	lines: BookingPaymentTaxLine[];
 }
 
 export interface BookingPaymentTaxLine {
-	rateBps: number;
+	rate_bps: number;
 	amount: number;
 	label?: string;
 	scope?: string;
@@ -33,18 +33,19 @@ export interface BookingPaymentPromoCode {
 	value: number;
 }
 
+
 export type BookingPaymentProvider = {
 	type: 'stripe';
-	customerId: string;
-	paymentIntentId?: string;
+	customer_id: string;
+	payment_intent_id?: string;
 };
 
 export interface BookingPaymentRefund {
 	id: string;
 	total: number;
-	providerRefundId?: string;
+	provider_refund_id?: string;
 	status: string;
-	createdAt: number;
+	created_at: number;
 }
 
 export interface BookingPayment {
@@ -55,22 +56,22 @@ export interface BookingPayment {
 	total: number;
 	paid: number;
 	tax?: BookingPaymentTax;
-	promoCode?: BookingPaymentPromoCode;
+	promo_code?: BookingPaymentPromoCode;
 	provider?: BookingPaymentProvider;
 	refunds: BookingPaymentRefund[];
-	paymentMethodId?: string;
-	methodType: PaymentMethodType;
+	payment_method_id?: string;
+	method_type: PaymentMethodType;
 }
 
 export interface OrderPaymentTax {
 	amount: number;
-	modeSnapshot?: string;
-	rateBps: number;
+	mode_snapshot?: string;
+	rate_bps: number;
 	lines: OrderPaymentTaxLine[];
 }
 
 export interface OrderPaymentTaxLine {
-	rateBps: number;
+	rate_bps: number;
 	amount: number;
 	label?: string;
 	scope?: string;
@@ -83,18 +84,19 @@ export interface OrderPaymentPromoCode {
 	value: number;
 }
 
+
 export type OrderPaymentProvider = {
 	type: 'stripe';
-	customerId: string;
-	paymentIntentId?: string;
+	customer_id: string;
+	payment_intent_id?: string;
 };
 
 export interface OrderPaymentRefund {
 	id: string;
 	total: number;
-	providerRefundId?: string;
+	provider_refund_id?: string;
 	status: string;
-	createdAt: number;
+	created_at: number;
 }
 
 export interface OrderPayment {
@@ -106,17 +108,17 @@ export interface OrderPayment {
 	total: number;
 	paid: number;
 	tax?: OrderPaymentTax;
-	promoCode?: OrderPaymentPromoCode;
+	promo_code?: OrderPaymentPromoCode;
 	provider?: OrderPaymentProvider;
 	refunds: OrderPaymentRefund[];
-	zoneId?: string;
-	paymentMethodId?: string;
-	shippingMethodId?: string;
-	methodType: PaymentMethodType;
+	zone_id?: string;
+	payment_method_id?: string;
+	shipping_method_id?: string;
+	method_type: PaymentMethodType;
 }
 
 export interface PromoCodeValidation {
-	promoCodeId: string;
+	promo_code_id: string;
 	code: string;
 	discounts: any[];
 	conditions: any[];
@@ -129,13 +131,13 @@ export interface BookingQuote {
 	discount: number;
 	tax: number;
 	total: number;
-	paymentMethod: PaymentMethod | null;
-	paymentMethods: PaymentMethod[];
-	promoCode: PromoCodeValidation | null;
+	payment_method: PaymentMethod | null;
+	payment_methods: PaymentMethod[];
+	promo_code: PromoCodeValidation | null;
 	payment: BookingPayment;
-	chargeAmount: number;
+	charge_amount: number;
 	id?: string;
-	expiresAt?: number;
+	expires_at?: number;
 }
 
 export interface OrderQuote {
@@ -146,14 +148,14 @@ export interface OrderQuote {
 	discount: number;
 	tax: number;
 	total: number;
-	shippingMethod: ShippingMethod | null;
-	paymentMethod: PaymentMethod | null;
-	paymentMethods: PaymentMethod[];
-	promoCode: PromoCodeValidation | null;
+	shipping_method: ShippingMethod | null;
+	payment_method: PaymentMethod | null;
+	payment_methods: PaymentMethod[];
+	promo_code: PromoCodeValidation | null;
 	payment: OrderPayment;
-	chargeAmount: number;
+	charge_amount: number;
 	id?: string;
-	expiresAt?: number;
+	expires_at?: number;
 }
 
 
@@ -161,8 +163,8 @@ export interface Price {
 	currency: string;
 	market: string;
 	amount: number;
-	compareAt?: number;
-	audienceId?: string;
+	compare_at?: number;
+	audience_id?: string;
 }
 
 
@@ -184,7 +186,7 @@ export interface PriceProvider {
 export interface SubscriptionPrice {
 	currency: string;
 	amount: number;
-	compareAt?: number;
+	compare_at?: number;
 	interval?: SubscriptionInterval;
 	providers: PriceProvider[];
 }
@@ -197,7 +199,7 @@ export interface Address {
 	street2?: string | null;
 	city: string;
 	state: string;
-	postalCode: string;
+	postal_code: string;
 	country: string;
 	phone?: string | null;
 	email?: string | null;
@@ -214,86 +216,86 @@ export interface ZoneLocation {
 	country?: string | null;
 	state?: string | null;
 	city?: string | null;
-	postalCode?: string | null;
+	postal_code?: string | null;
 }
 
 export interface EshopCartItem {
 	id: string;
-	productId: string;
-	variantId: string;
-	productName: string;
-	productSlug: string;
-	variantAttributes: Record<string, any>;
+	product_id: string;
+	variant_id: string;
+	product_name: string;
+	product_slug: string;
+	variant_attributes: Record<string, any>;
 	price: Price;
 	quantity: number;
-	addedAt: number;
-	maxStock?: number;
+	added_at: number;
+	max_stock?: number;
 }
 
 export interface BookingCartItem {
 	id: string;
-	serviceId: string;
-	serviceName: string;
+	service_id: string;
+	service_name: string;
 	date: string;
 	from: number;
 	to: number;
-	timeText: string;
-	providerId?: string;
+	time_text: string;
+	provider_id?: string;
 	forms: any[];
 }
 
 
 export type IntegrationProvider =
-	| { type: 'stripe'; secretKey?: string; publishableKey: string; webhookSecret?: string; currency: string }
-	| { type: 'shippo'; apiToken?: string }
-	| { type: 'google'; clientId?: string; clientSecret?: string; accessToken?: string; refreshToken?: string;
-		tokenExpiresAt?: number; scopes: string[]; accountEmail?: string | null; connectedAt: number }
-	| { type: 'google_analytics4'; measurementId: string }
-	| { type: 'telegram_bot'; botToken?: string }
-	| { type: 'deep_seek'; apiKey?: string; model?: string }
-	
-	| { type: 'open_ai'; apiKey?: string; model?: string }
-	| { type: 'slack'; apiKey?: string }
-	| { type: 'discord'; apiKey?: string }
-	| { type: 'whats_app'; apiKey?: string }
-	| { type: 'resend'; apiKey?: string }
-	| { type: 'send_grid'; apiKey?: string }
-	| { type: 'airtable'; apiKey?: string }
-	| { type: 'linear'; apiKey?: string }
-	| { type: 'git_hub'; apiKey?: string }
-	| { type: 'git_lab'; apiKey?: string }
-	| { type: 'dropbox'; apiKey?: string }
-	| { type: 'hub_spot'; apiKey?: string }
-	| { type: 'monday'; apiKey?: string }
-	| { type: 'click_up'; apiKey?: string }
-	| { type: 'pipedrive'; apiKey?: string }
-	| { type: 'calendly'; apiKey?: string }
-	| { type: 'typeform'; apiKey?: string }
-	| { type: 'webflow'; apiKey?: string }
-	| { type: 'trello'; apiKey?: string }
-	| { type: 'replicate'; apiKey?: string }
-	| { type: 'asana'; apiKey?: string }
-	| { type: 'brevo'; apiKey?: string }
-	| { type: 'intercom'; apiKey?: string }
-	| { type: 'notion'; apiKey?: string }
-	| { type: 'eleven_labs'; apiKey?: string }
-	| { type: 'active_campaign'; apiKey?: string; accountUrl: string }
-	| { type: 'shopify'; apiKey?: string; storeDomain: string }
-	| { type: 'supabase'; apiKey?: string; projectUrl: string }
-	| { type: 'mailchimp'; apiKey?: string }
-	
-	| { type: 'twilio'; accountSid?: string; authToken?: string }
-	| { type: 'jira'; email?: string; apiToken?: string; domain: string }
-	| { type: 'woo_commerce'; consumerKey?: string; consumerSecret?: string; storeUrl: string }
-	| { type: 'freshdesk'; apiKey?: string; domain: string }
-	| { type: 'zendesk'; apiToken?: string; email?: string; subdomain: string }
-	
-	| { type: 'salesforce'; accessToken?: string; instanceUrl: string }
-	| { type: 'zoom'; apiKey?: string }
-	| { type: 'microsoft_teams'; apiKey?: string }
-	| { type: 'firebase'; apiKey?: string }
-	| { type: 'arky'; apiKey?: string }
-	
+	| { type: 'stripe'; secret_key?: string; publishable_key: string; webhook_secret?: string; currency: string }
+	| { type: 'shippo'; api_token?: string }
+	| { type: 'google'; client_id?: string; client_secret?: string; access_token?: string; refresh_token?: string;
+		token_expires_at?: number; scopes: string[]; account_email?: string | null; connected_at: number }
+	| { type: 'google_analytics4'; measurement_id: string }
+	| { type: 'telegram_bot'; bot_token?: string }
+	| { type: 'deep_seek'; api_key?: string; model?: string }
+
+	| { type: 'open_ai'; api_key?: string; model?: string }
+	| { type: 'slack'; api_key?: string }
+	| { type: 'discord'; api_key?: string }
+	| { type: 'whats_app'; api_key?: string }
+	| { type: 'resend'; api_key?: string }
+	| { type: 'send_grid'; api_key?: string }
+	| { type: 'airtable'; api_key?: string }
+	| { type: 'linear'; api_key?: string }
+	| { type: 'git_hub'; api_key?: string }
+	| { type: 'git_lab'; api_key?: string }
+	| { type: 'dropbox'; api_key?: string }
+	| { type: 'hub_spot'; api_key?: string }
+	| { type: 'monday'; api_key?: string }
+	| { type: 'click_up'; api_key?: string }
+	| { type: 'pipedrive'; api_key?: string }
+	| { type: 'calendly'; api_key?: string }
+	| { type: 'typeform'; api_key?: string }
+	| { type: 'webflow'; api_key?: string }
+	| { type: 'trello'; api_key?: string }
+	| { type: 'replicate'; api_key?: string }
+	| { type: 'asana'; api_key?: string }
+	| { type: 'brevo'; api_key?: string }
+	| { type: 'intercom'; api_key?: string }
+	| { type: 'notion'; api_key?: string }
+	| { type: 'eleven_labs'; api_key?: string }
+	| { type: 'active_campaign'; api_key?: string; account_url: string }
+	| { type: 'shopify'; api_key?: string; store_domain: string }
+	| { type: 'supabase'; api_key?: string; project_url: string }
+	| { type: 'mailchimp'; api_key?: string }
+
+	| { type: 'twilio'; account_sid?: string; auth_token?: string }
+	| { type: 'jira'; email?: string; api_token?: string; domain: string }
+	| { type: 'woo_commerce'; consumer_key?: string; consumer_secret?: string; store_url: string }
+	| { type: 'freshdesk'; api_key?: string; domain: string }
+	| { type: 'zendesk'; api_token?: string; email?: string; subdomain: string }
+
+	| { type: 'salesforce'; access_token?: string; instance_url: string }
+	| { type: 'zoom'; api_key?: string }
+	| { type: 'microsoft_teams'; api_key?: string }
+	| { type: 'firebase'; api_key?: string }
+	| { type: 'arky'; api_key?: string }
+
 	| { type: 'vercel_deploy_hook'; url?: string }
 	| { type: 'netlify_deploy_hook'; url?: string }
 	| { type: 'cloudflare_deploy_hook'; url?: string }
@@ -302,71 +304,71 @@ export type IntegrationProvider =
 
 export interface Integration {
 	id: string;
-	businessId: string;
+	business_id: string;
 	key: string;
 	provider: IntegrationProvider;
-	createdAt: number;
-	updatedAt: number;
+	created_at: number;
+	updated_at: number;
 }
 
 export interface ShippingWeightTier {
-	upToGrams: number;
+	up_to_grams: number;
 	amount: number;
 }
 
 export interface PaymentMethod {
 	id: string;
-	integrationId?: string;
+	integration_id?: string;
 }
 
 export interface ShippingMethod {
 	id: string;
 	taxable: boolean;
-	etaText: string;
-	locationId?: string;
-	integrationId?: string;
+	eta_text: string;
+	location_id?: string;
+	integration_id?: string;
 	amount: number;
-	freeAbove?: number;
-	weightTiers?: ShippingWeightTier[];
+	free_above?: number;
+	weight_tiers?: ShippingWeightTier[];
 }
 
 export interface Location {
 	id: string;
-	businessId: string;
+	business_id: string;
 	key: string;
 	address: Address;
-	isPickupLocation: boolean;
-	createdAt: number;
-	updatedAt: number;
+	is_pickup_location: boolean;
+	created_at: number;
+	updated_at: number;
 }
 
 export interface InventoryLevel {
-	locationId: string;
+	location_id: string;
 	available: number;
 	reserved: number;
 }
 
 export interface Zone {
 	id: string;
-	businessId: string;
-	marketId: string;
+	business_id: string;
+	market_id: string;
 	countries: string[];
 	states: string[];
-	postalCodes: string[];
-	taxBps: number;
-	shippingMethods: ShippingMethod[];
+	postal_codes: string[];
+	tax_bps: number;
+	shipping_methods: ShippingMethod[];
 }
 
 export interface Market {
 	id: string;
-	businessId: string;
+	business_id: string;
 	key: string;
 	currency: string;
-	taxMode: "exclusive" | "inclusive";
-	paymentMethods: PaymentMethod[];
+	tax_mode: "exclusive" | "inclusive";
+	payment_methods: PaymentMethod[];
 	zones: Zone[];
-	createdAt: number;
-	updatedAt: number;
+	created_at: number;
+	updated_at: number;
 }
 
 export interface Language {
@@ -379,7 +381,7 @@ export interface BusinessEmails {
 }
 
 export type WebhookEventSubscription =
-	| { event: 'node.created'; parentId?: string }
+	| { event: 'node.created'; parent_id?: string }
 	| { event: 'node.updated'; key?: string }
 	| { event: 'node.deleted'; key?: string }
 	| { event: 'order.created' }
@@ -424,15 +426,15 @@ export type WebhookEventSubscription =
 
 export interface Webhook {
 	id: string;
-	businessId: string;
+	business_id: string;
 	key: string;
 	url: string;
 	events: WebhookEventSubscription[];
 	headers: Record<string, string>;
 	secret: string;
 	enabled: boolean;
-	createdAt: number;
-	updatedAt: number;
+	created_at: number;
+	updated_at: number;
 }
 
 
@@ -447,9 +449,9 @@ export type BusinessSubscriptionSource = 'signup' | 'admin' | 'import';
 
 export type BusinessSubscriptionProvider = {
 	type: 'stripe';
-	customerId: string;
-	subscriptionId?: string;
-	priceId?: string;
+	customer_id: string;
+	subscription_id?: string;
+	price_id?: string;
 };
 
 export interface BusinessSubscriptionPayment {
@@ -461,12 +463,12 @@ export interface BusinessSubscriptionPayment {
 export interface BusinessSubscription {
 	id: string;
 	target: string;
-	planId: string;
-	pendingPlanId: string | null;
+	plan_id: string;
+	pending_plan_id: string | null;
 	payment: BusinessSubscriptionPayment;
 	status: BusinessSubscriptionStatus;
-	startDate: number;
-	endDate: number;
+	start_date: number;
+	end_date: number;
 	token: string;
 	source: BusinessSubscriptionSource;
 }
@@ -482,9 +484,9 @@ export type AudienceSubscriptionSource = 'signup' | 'admin' | 'import';
 
 export type AudienceSubscriptionProvider = {
 	type: 'stripe';
-	customerId: string;
-	subscriptionId?: string;
-	priceId?: string;
+	customer_id: string;
+	subscription_id?: string;
+	price_id?: string;
 };
 
 export interface AudienceSubscriptionPayment {
@@ -495,19 +497,19 @@ export interface AudienceSubscriptionPayment {
 
 export interface AudienceSubscription {
 	id: string;
-	businessId: string;
-	customerId: string;
-	audienceId: string;
-	planId: string;
-	pendingPlanId: string | null;
+	business_id: string;
+	customer_id: string;
+	audience_id: string;
+	plan_id: string;
+	pending_plan_id: string | null;
 	payment: AudienceSubscriptionPayment;
 	status: AudienceSubscriptionStatus;
-	startDate: number;
-	endDate: number;
+	start_date: number;
+	end_date: number;
 	token: string;
 	source: AudienceSubscriptionSource;
-	createdAt: number;
-	updatedAt: number;
+	created_at: number;
+	updated_at: number;
 }
 
 export interface Business {
@@ -521,10 +523,10 @@ export interface Business {
 }
 
 export interface EshopStoreState {
-	businessId: string;
-	selectedShippingMethodId: string | null;
-	userToken: string | null;
-	processingCheckout: boolean;
+	business_id: string;
+	selected_shipping_method_id: string | null;
+	user_token: string | null;
+	processing_checkout: boolean;
 	loading: boolean;
 	error: string | null;
 }
@@ -565,12 +567,12 @@ export interface TaxonomyFieldQuery {
 }
 
 export interface TaxonomyEntry {
-	taxonomyId: string;
+	taxonomy_id: string;
 	fields: TaxonomyField[];
 }
 
 export interface TaxonomyQuery {
-	taxonomyId: string;
+	taxonomy_id: string;
 	query: TaxonomyFieldQuery[];
 }
 
@@ -596,7 +598,7 @@ export interface FormField {
 }
 
 export interface FormEntry {
-	formId: string;
+	form_id: string;
 	fields: FormField[];
 }
 
@@ -634,13 +636,13 @@ export interface MediaResolution {
 export interface Media {
 	id: string;
 	resolutions: { [key: string]: MediaResolution };
-	mimeType: string;
+	mime_type: string;
 	title?: string | null;
 	description?: string | null;
 	alt?: string | null;
 	entity: string;
 	metadata?: string | null;
-	createdAt: number;
+	created_at: number;
 	slug: Record<string, string>;
 }
 
@@ -662,34 +664,34 @@ export interface PaginatedResponse<T> {
 }
 
 export interface BookingStoreState {
-	currentStep: number;
-	totalSteps: number;
-	steps: Record<number, { name: string; labelKey: string }>;
+	current_step: number;
+	total_steps: number;
+	steps: Record<number, { name: string; label_key: string }>;
 	weekdays: string[];
-	monthYear: string;
+	month_year: string;
 	days: any[];
 	current: Date;
-	selectedDate: string | null;
+	selected_date: string | null;
 	slots: any[];
-	selectedSlot: any | null;
-	selectedProvider: any | null;
+	selected_slot: any | null;
+	selected_provider: any | null;
 	providers: any[];
 	loading: boolean;
-	startDate: string | null;
-	endDate: string | null;
-	guestToken: string | null;
+	start_date: string | null;
+	end_date: string | null;
+	guest_token: string | null;
 	service: any | null;
 	business: Business | null;
 	currency: string;
-	bookingForms: FormEntry[];
-	apiUrl: string;
-	businessId: string;
+	booking_forms: FormEntry[];
+	api_url: string;
+	business_id: string;
 	timezone: string;
-	tzGroups: any;
+	tz_groups: any;
 	items: BookingCartItem[];
-	allowedPaymentMethods: string[];
-	paymentConfig: {
-		provider: { publishableKey: string; currency: string } | null;
+	allowed_payment_methods: string[];
+	payment_config: {
+		provider: { publishable_key: string; currency: string } | null;
 		enabled: boolean;
 	};
 }
@@ -745,8 +747,8 @@ export type OrderPaymentStatus =
 	| { status: 'failed'; at: number; reason?: string };
 
 export interface BookingItemSnapshot {
-	serviceKey: string;
-	providerKey: string;
+	service_key: string;
+	provider_key: string;
 	price: Price;
 }
 
@@ -757,10 +759,10 @@ export interface TimeRange {
 
 export interface BookingItem {
 	id: string;
-	serviceId: string;
-	providerId: string;
-	businessId: string;
-	bookingId: string;
+	service_id: string;
+	provider_id: string;
+	business_id: string;
+	booking_id: string;
 	from: number;
 	to: number;
 	forms: FormEntry[];
@@ -771,97 +773,97 @@ export interface BookingItem {
 export interface Booking {
 	id: string;
 	number: string;
-	customerId: string;
+	customer_id: string;
 	verified: boolean;
 	forms: FormEntry[];
-	businessId: string;
-	serviceIds: string[];
-	providerIds: string[];
+	business_id: string;
+	service_ids: string[];
+	provider_ids: string[];
 	payment: BookingPayment;
 	business?: Business;
 	account?: any;
 	items: BookingItem[];
-	audienceId?: string;
+	audience_id?: string;
 	history?: { action: string; reason?: string; timestamp: number }[];
-	firedReminders: number[];
-	createdAt: number;
-	lastModified: number;
+	fired_reminders: number[];
+	created_at: number;
+	last_modified: number;
 }
 
 export interface Node {
 	id: string;
 	key: string;
-	businessId: string;
-	parentId?: string | null;
+	business_id: string;
+	parent_id?: string | null;
 	blocks: Block[];
 	taxonomies: TaxonomyEntry[];
 	status: NodeStatus;
 	slug: Record<string, string>;
 	children: Node[];
-	createdAt: number;
-	updatedAt: number;
+	created_at: number;
+	updated_at: number;
 }
 
 export interface EmailTemplate {
 	id: string;
 	key: string;
-	businessId: string;
+	business_id: string;
 	subject: Record<string, string>;
 	body: string;
-	fromName: string;
-	fromEmail: string;
-	replyTo?: string;
+	from_name: string;
+	from_email: string;
+	reply_to?: string;
 	preheader?: string;
 	status: EmailTemplateStatus;
-	createdAt: number;
-	updatedAt: number;
+	created_at: number;
+	updated_at: number;
 }
 
 export interface Form {
 	id: string;
 	key: string;
-	businessId: string;
+	business_id: string;
 	schema: FormSchema[];
 	status: FormStatus;
-	createdAt: number;
-	updatedAt: number;
+	created_at: number;
+	updated_at: number;
 }
 
 export interface FormSubmission {
 	id: string;
-	formId: string;
-	businessId: string;
+	form_id: string;
+	business_id: string;
 	fields: FormField[];
-	createdAt: number;
+	created_at: number;
 }
 
 export interface Taxonomy {
 	id: string;
 	key: string;
-	businessId: string;
-	parentId?: string | null;
+	business_id: string;
+	parent_id?: string | null;
 	schema?: TaxonomySchema[];
 	status: TaxonomyStatus;
-	createdAt: number;
-	updatedAt: number;
+	created_at: number;
+	updated_at: number;
 }
 
 export interface ServiceDuration {
 	duration: number;
-	isPause?: boolean;
+	is_pause?: boolean;
 }
 
 export interface ServiceProvider {
 	id: string;
-	providerId: string;
+	provider_id: string;
 	prices: Price[];
 	durations: ServiceDuration[];
-	audienceIds: string[];
-	workingDays: Array<{ day: string; workingHours: Array<{ from: number; to: number }> }>;
-	specificDates: Array<{ date: number; workingHours: Array<{ from: number; to: number }> }>;
-	slotInterval: number;
-	minAdvance: number;
-	maxAdvance: number;
+	audience_ids: string[];
+	working_days: Array<{ day: string; working_hours: Array<{ from: number; to: number }> }>;
+	specific_dates: Array<{ date: number; working_hours: Array<{ from: number; to: number }> }>;
+	slot_interval: number;
+	min_advance: number;
+	max_advance: number;
 	reminders: number[];
 	forms?: FormEntry[];
 }
@@ -870,11 +872,11 @@ export interface Service {
 	id: string;
 	key: string;
 	slug: Record<string, string>;
-	businessId: string;
+	business_id: string;
 	blocks: Block[];
 	taxonomies: TaxonomyEntry[];
-	createdAt: number;
-	updatedAt: number;
+	created_at: number;
+	updated_at: number;
 	status: BookingServiceStatus;
 }
 
@@ -887,35 +889,35 @@ export interface Provider {
 	id: string;
 	key: string;
 	slug: Record<string, string>;
-	businessId: string;
+	business_id: string;
 	status: BookingProviderStatus;
-	audienceIds: string[];
+	audience_ids: string[];
 	blocks: Block[];
 	taxonomies: TaxonomyEntry[];
 	timeline: ProviderTimelinePoint[];
-	createdAt: number;
-	updatedAt: number;
+	created_at: number;
+	updated_at: number;
 }
 
 export interface WorkflowEdge {
 	source: string;
 	target: string;
 	output: string;
-	backEdge: boolean;
+	back_edge: boolean;
 }
 
 export interface Workflow {
 	id: string;
 	key: string;
-	businessId: string;
+	business_id: string;
 	secret: string;
 	status: WorkflowStatus;
 	nodes: Record<string, WorkflowNode>;
 	edges: WorkflowEdge[];
 
 	schedule?: string;
-	createdAt: number;
-	updatedAt: number;
+	created_at: number;
+	updated_at: number;
 }
 
 export type WorkflowNode =
@@ -928,7 +930,7 @@ export type WorkflowNode =
 export interface WorkflowTriggerNode {
 	type: 'trigger';
 	event?: string;
-	delayMs?: number;
+	delay_ms?: number;
 	schema?: Block[];
 }
 
@@ -938,12 +940,12 @@ export interface WorkflowHttpNode {
 	url: string;
 	headers?: Record<string, string>;
 	body?: any;
-	timeoutMs?: number;
-	integrationId?: string;
-	integrationProviderId?: string;
-	delayMs?: number;
+	timeout_ms?: number;
+	integration_id?: string;
+	integration_provider_id?: string;
+	delay_ms?: number;
 	retries?: number;
-	retryDelayMs?: number;
+	retry_delay_ms?: number;
 }
 
 export interface WorkflowSwitchRule {
@@ -953,19 +955,19 @@ export interface WorkflowSwitchRule {
 export interface WorkflowSwitchNode {
 	type: 'switch';
 	rules: WorkflowSwitchRule[];
-	delayMs?: number;
+	delay_ms?: number;
 }
 
 export interface WorkflowTransformNode {
 	type: 'transform';
 	code: string;
-	delayMs?: number;
+	delay_ms?: number;
 }
 
 export interface WorkflowLoopNode {
 	type: 'loop';
 	expression: string;
-	delayMs?: number;
+	delay_ms?: number;
 }
 
 export type WorkflowHttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
@@ -975,47 +977,47 @@ export type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed' | '
 export interface NodeResult {
 	output: any;
 	route: string;
-	startedAt: number;
-	completedAt: number;
-	durationMs: number;
+	started_at: number;
+	completed_at: number;
+	duration_ms: number;
 	error?: string;
 }
 
 export interface WorkflowExecution {
 	id: string;
-	workflowId: string;
-	businessId: string;
+	workflow_id: string;
+	business_id: string;
 	status: ExecutionStatus;
 	input: Record<string, any>;
 	results: Record<string, NodeResult>;
 	error?: string;
-	scheduledAt: number;
-	startedAt: number;
-	completedAt?: number;
-	createdAt: number;
-	updatedAt: number;
+	scheduled_at: number;
+	started_at: number;
+	completed_at?: number;
+	created_at: number;
+	updated_at: number;
 }
 
 export type AudienceType =
 	| { type: 'standard' }
-	| { type: 'confirmation'; confirmTemplateId: string }
-	| { type: 'paid'; prices: SubscriptionPrice[]; paymentIntegrationId?: string };
+	| { type: 'confirmation'; confirm_template_id: string }
+	| { type: 'paid'; prices: SubscriptionPrice[]; payment_integration_id?: string };
 
 export interface Audience {
 	id: string;
-	businessId: string;
+	business_id: string;
 	key: string;
 	status: AudienceStatus;
 	type: AudienceType;
 }
 
 export interface AudienceAccessResponse {
-	hasAccess: boolean;
+	has_access: boolean;
 	subscription?: AudienceSubscription;
 }
 
 export interface AudienceSubscribeResponse {
-	checkoutUrl?: string;
+	checkout_url?: string;
 	subscription?: AudienceSubscription;
 }
 
@@ -1043,7 +1045,7 @@ export type EventAction =
 	| { action: 'booking_payment_failed'; data: { reason?: string } }
 	| { action: 'booking_refunded'; data: { amount: number; currency: string; reason?: string } }
 	| { action: 'booking_cancelled'; data: { reason?: string } }
-	| { action: 'booking_item_cancelled'; data: { itemId: string; refundAmount: number } }
+	| { action: 'booking_item_cancelled'; data: { item_id: string; refund_amount: number } }
 	
 	| { action: 'product_created' }
 	| { action: 'product_updated' }
@@ -1081,7 +1083,7 @@ export interface Event {
 	entity: string;
 	event: EventAction;
 	actor: string;
-	createdAt: number;
+	created_at: number;
 }
 
 
@@ -1098,31 +1100,31 @@ export type ShippingStatus =
 export interface OrderShipping {
 	carrier: string;
 	service: string;
-	trackingNumber?: string | null;
-	trackingUrl?: string | null;
-	labelUrl?: string | null;
+	tracking_number?: string | null;
+	tracking_url?: string | null;
+	label_url?: string | null;
 	status: ShippingStatus;
 }
 
 
 export interface ShipmentLine {
-	orderItemId: string;
+	order_item_id: string;
 	quantity: number;
 }
 
 
 export interface Shipment {
 	id: string;
-	locationId: string;
+	location_id: string;
 	lines: ShipmentLine[];
 	carrier?: string | null;
 	service?: string | null;
-	trackingNumber?: string | null;
-	trackingUrl?: string | null;
-	labelUrl?: string | null;
+	tracking_number?: string | null;
+	tracking_url?: string | null;
+	label_url?: string | null;
 	status: ShippingStatus;
-	createdAt: number;
-	updatedAt: number;
+	created_at: number;
+	updated_at: number;
 }
 
 
@@ -1131,10 +1133,10 @@ export interface ShippingRate {
 	provider: string;
 	carrier: string;
 	service: string;
-	displayName: string;
+	display_name: string;
 	amount: number;
 	currency: string;
-	estimatedDays?: number | null;
+	estimated_days?: number | null;
 }
 
 
@@ -1146,45 +1148,45 @@ export interface Parcel {
 	width: number;
 	height: number;
 	weight: number;
-	distanceUnit: 'in' | 'cm';
-	massUnit: 'oz' | 'lb' | 'g' | 'kg';
+	distance_unit: 'in' | 'cm';
+	mass_unit: 'oz' | 'lb' | 'g' | 'kg';
 }
 
 
 export interface PurchaseLabelResult {
-	trackingNumber: string;
-	trackingUrl?: string | null;
-	labelUrl: string;
+	tracking_number: string;
+	tracking_url?: string | null;
+	label_url: string;
 	carrier: string;
 	service: string;
 }
 
 
 export interface ShipResult {
-	shipmentId: string;
-	trackingNumber: string;
-	trackingUrl?: string | null;
-	labelUrl: string;
+	shipment_id: string;
+	tracking_number: string;
+	tracking_url?: string | null;
+	label_url: string;
 }
 
 
 export interface CustomsItem {
 	description: string;
 	quantity: number;
-	netWeight: string;
-	massUnit: string;
-	valueAmount: string;
-	valueCurrency: string;
-	originCountry: string;
-	tariffNumber?: string | null;
+	net_weight: string;
+	mass_unit: string;
+	value_amount: string;
+	value_currency: string;
+	origin_country: string;
+	tariff_number?: string | null;
 }
 
 
 export interface CustomsDeclaration {
-	contentsType: string;
-	contentsExplanation?: string | null;
-	nonDeliveryOption: string;
+	contents_type: string;
+	contents_explanation?: string | null;
+	non_delivery_option: string;
 	certify: boolean;
-	certifySigner: string;
+	certify_signer: string;
 	items: CustomsItem[];
 }

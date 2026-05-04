@@ -9,7 +9,7 @@ export const createNotificationApi = (apiConfig: ApiConfig) => {
 	return {
 		async trackEmailOpen(params: TrackEmailOpenParams, options?: RequestOptions) {
 			return apiConfig.httpClient.get(
-				`/v1/notifications/track/pixel/${params.trackingPixelId}`,
+				`/v1/notifications/track/pixel/${params.tracking_pixel_id}`,
 				options
 			);
 		},

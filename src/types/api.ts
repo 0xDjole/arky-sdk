@@ -4,14 +4,14 @@ import type { Block, Zone, ZoneLocation, WorkflowNode, WorkflowEdge, Address, Au
 export interface CreateLocationParams {
   key: string;
   address: Address;
-  isPickupLocation?: boolean;
+  is_pickup_location?: boolean;
 }
 
 export interface UpdateLocationParams {
   id: string;
   key: string;
   address: Address;
-  isPickupLocation?: boolean;
+  is_pickup_location?: boolean;
 }
 
 export interface DeleteLocationParams {
@@ -22,8 +22,8 @@ export interface DeleteLocationParams {
 export interface CreateMarketParams {
   key: string;
   currency: string;
-  taxMode: 'inclusive' | 'exclusive';
-  paymentMethods?: PaymentMethod[];
+  tax_mode: 'inclusive' | 'exclusive';
+  payment_methods?: PaymentMethod[];
   zones?: Zone[];
 }
 
@@ -31,8 +31,8 @@ export interface UpdateMarketParams {
   id: string;
   key?: string;
   currency?: string;
-  taxMode?: 'inclusive' | 'exclusive';
-  paymentMethods?: PaymentMethod[];
+  tax_mode?: 'inclusive' | 'exclusive';
+  payment_methods?: PaymentMethod[];
   zones?: Zone[];
 }
 
@@ -50,8 +50,8 @@ export interface RequestOptions<T = any> {
     url: string;
     status: number;
     request?: any;
-    durationMs?: number;
-    requestId?: string | null;
+    duration_ms?: number;
+    request_id?: string | null;
   }) => void | Promise<void>;
   onError?: (ctx: {
     error: any;
@@ -60,57 +60,57 @@ export interface RequestOptions<T = any> {
     status?: number;
     request?: any;
     response?: any;
-    durationMs?: number;
-    requestId?: string | null;
+    duration_ms?: number;
+    request_id?: string | null;
     aborted?: boolean;
   }) => void | Promise<void>;
 }
 
 export interface EshopItem {
-  productId: string;
-  variantId: string;
+  product_id: string;
+  variant_id: string;
   quantity: number;
 }
 
 export interface GetQuoteParams {
   items: EshopItem[];
-  paymentMethodId?: string;
-  shippingMethodId?: string;
-  promoCode?: string;
+  payment_method_id?: string;
+  shipping_method_id?: string;
+  promo_code?: string;
   blocks?: any[];
-  
+
   location?: ZoneLocation;
 }
 
 export interface OrderCheckoutParams {
   items: EshopItem[];
-  paymentMethodId?: string;
+  payment_method_id?: string;
   blocks?: any[];
-  shippingMethodId: string;
-  promoCodeId?: string;
-  
-  shippingAddress?: Address;
-  
-  billingAddress?: Address;
+  shipping_method_id: string;
+  promo_code_id?: string;
+
+  shipping_address?: Address;
+
+  billing_address?: Address;
 }
 
 export interface GetProductsParams {
   ids?: string[];
-  taxonomyQuery?: any[];
+  taxonomy_query?: any[];
   status?: string;
   limit?: number;
   cursor?: string;
   query?: string;
   statuses?: string[];
-  sortField?: string;
-  sortDirection?: string;
-  createdAtFrom?: number | null;
-  createdAtTo?: number | null;
+  sort_field?: string;
+  sort_direction?: string;
+  created_at_from?: number | null;
+  created_at_to?: number | null;
 }
 
 export interface GetNodesParams {
   businessId?: string;
-  parentId?: string;
+  parent_id?: string;
   limit?: number;
   cursor?: string;
   ids?: string[];
@@ -118,20 +118,20 @@ export interface GetNodesParams {
   type?: string;
   key?: string;
   statuses?: string[];
-  sortField?: string;
-  sortDirection?: string;
-  createdAtFrom?: string;
-  createdAtTo?: string;
+  sort_field?: string;
+  sort_direction?: string;
+  created_at_from?: string;
+  created_at_to?: string;
 }
 
 export interface CreateNodeParams {
   businessId?: string;
   key: string;
-  parentId?: string | null;
+  parent_id?: string | null;
   blocks?: any[];
   filters?: any[];
   slug?: Record<string, string>;
-  audienceIds?: string[];
+  audience_ids?: string[];
   status?: string;
 }
 
@@ -139,11 +139,11 @@ export interface UpdateNodeParams {
   id: string;
   businessId?: string;
   key?: string;
-  parentId?: string | null;
+  parent_id?: string | null;
   blocks?: any[];
   filters?: any[];
   slug?: Record<string, string>;
-  audienceIds?: string[];
+  audience_ids?: string[];
   status?: string;
 }
 
@@ -194,9 +194,9 @@ export interface GetBusinessMediaParams {
   limit: number;
   ids?: string[];
   query?: string;
-  mimeType?: string;
-  sortField?: string;
-  sortDirection?: 'asc' | 'desc';
+  mime_type?: string;
+  sort_field?: string;
+  sort_direction?: 'asc' | 'desc';
 }
 
 export interface LoginAccountParams {
@@ -207,7 +207,7 @@ export interface LoginAccountParams {
 
 export interface MagicLinkRequestParams {
   email: string;
-  businessId?: string;
+  business_id?: string;
 }
 
 export interface MagicLinkVerifyParams {
@@ -218,23 +218,23 @@ export interface MagicLinkVerifyParams {
 
 export interface GetServicesParams {
   businessId?: string;
-  providerId?: string;
-  taxonomyQuery?: any[];
+  provider_id?: string;
+  taxonomy_query?: any[];
   limit?: number;
   cursor?: string;
   query?: string;
   ids?: string[];
   statuses?: string[];
-  sortField?: string;
-  sortDirection?: string;
+  sort_field?: string;
+  sort_direction?: string;
 }
 
 export interface BookingCheckoutParams {
   businessId?: string;
   items: any[];
-  paymentMethodId?: string;
+  payment_method_id?: string;
   forms?: any[];
-  promoCodeId?: string;
+  promo_code_id?: string;
 }
 
 export interface SlotRange {
@@ -243,16 +243,16 @@ export interface SlotRange {
 }
 
 export interface BookingQuoteItem {
-  serviceId: string;
-  providerId: string;
+  service_id: string;
+  provider_id: string;
   slots: SlotRange[];
 }
 
 export interface GetBookingQuoteParams {
   businessId?: string;
   items: BookingQuoteItem[];
-  paymentMethodId?: string;
-  promoCode?: string;
+  payment_method_id?: string;
+  promo_code?: string;
 }
 
 export interface TimelinePoint {
@@ -267,51 +267,51 @@ export interface WorkingHour {
 
 export interface WorkingDay {
   day: string;
-  workingHours: WorkingHour[];
+  working_hours: WorkingHour[];
 }
 
 export interface SpecificDate {
   date: number;
-  workingHours: WorkingHour[];
+  working_hours: WorkingHour[];
 }
 
 export interface ServiceProvider {
   id: string;
-  serviceId: string;
-  providerId: string;
-  businessId: string;
-  workingDays: WorkingDay[];
-  specificDates: SpecificDate[];
+  service_id: string;
+  provider_id: string;
+  business_id: string;
+  working_days: WorkingDay[];
+  specific_dates: SpecificDate[];
   prices?: any[];
   durations?: any[];
-  slotInterval: number;
-  minAdvance: number;
-  maxAdvance: number;
+  slot_interval: number;
+  min_advance: number;
+  max_advance: number;
   reminders: number[];
-  createdAt?: number;
-  updatedAt?: number;
+  created_at?: number;
+  updated_at?: number;
 }
 
 export interface ProviderWithTimeline {
   id: string;
   key: string;
-  businessId: string;
+  business_id: string;
   seo: any;
   status: BookingProviderStatus;
-  audienceIds: string[];
+  audience_ids: string[];
   blocks: Block[];
-  createdAt: number;
-  updatedAt: number;
-  workingDays?: WorkingDay[];
-  specificDates?: SpecificDate[];
+  created_at: number;
+  updated_at: number;
+  working_days?: WorkingDay[];
+  specific_dates?: SpecificDate[];
   timeline: TimelinePoint[];
 }
 
 export interface GetAnalyticsParams {
   metrics?: string[];
   period?: string;
-  startDate?: string;
-  endDate?: string;
+  start_date?: string;
+  end_date?: string;
   interval?: string;
 }
 
@@ -320,7 +320,7 @@ export interface GetAnalyticsHealthParams {
 }
 
 export interface TrackEmailOpenParams {
-  trackingPixelId: string;
+  tracking_pixel_id: string;
 }
 
 export interface GetDeliveryStatsParams {}
@@ -329,7 +329,7 @@ export type BusinessRole = 'admin' | 'owner' | 'super';
 
 export interface Discount {
   type: "items_percentage" | "items_fixed" | "shipping_percentage";
-  marketId: string;
+  market_id: string;
   bps?: number;
   amount?: number;
 }
@@ -372,14 +372,14 @@ export interface GetPromoCodesParams {
   query?: string;
   limit?: number;
   cursor?: string;
-  sortField?: string;
-  sortDirection?: string;
-  createdAtFrom?: string;
-  createdAtTo?: string;
-  startsAtFrom?: string;
-  startsAtTo?: string;
-  expiresAtFrom?: string;
-  expiresAtTo?: string;
+  sort_field?: string;
+  sort_direction?: string;
+  created_at_from?: string;
+  created_at_to?: string;
+  starts_at_from?: string;
+  starts_at_to?: string;
+  expires_at_from?: string;
+  expires_at_to?: string;
 }
 
 export interface CreateBusinessParams {
@@ -424,7 +424,7 @@ export interface InviteUserParams {
 }
 
 export interface RemoveMemberParams {
-  accountId: string;
+  account_id: string;
 }
 
 export interface HandleInvitationParams {
@@ -440,7 +440,7 @@ export interface TestWebhookParams {
 export interface CreateProductParams {
   key: string;
   description?: string;
-  audienceIds?: string[];
+  audience_ids?: string[];
   blocks?: any[];
   taxonomies?: any[];
   variants?: any[];
@@ -452,7 +452,7 @@ export interface UpdateProductParams {
   id: string;
   key?: string;
   description?: string;
-  audienceIds?: string[];
+  audience_ids?: string[];
   blocks?: any[];
   taxonomies?: any[];
   variants?: any[];
@@ -474,16 +474,16 @@ export interface GetOrderParams {
 }
 
 export interface GetOrdersParams {
-  itemStatuses?: string[] | null;
-  productIds?: string[];
+  item_statuses?: string[] | null;
+  product_ids?: string[];
   verified?: boolean;
   query?: string | null;
   limit?: number | null;
   cursor?: string | null;
-  sortField?: string | null;
-  sortDirection?: string | null;
-  createdAtFrom?: string | null;
-  createdAtTo?: string | null;
+  sort_field?: string | null;
+  sort_direction?: string | null;
+  created_at_from?: string | null;
+  created_at_to?: string | null;
 }
 
 export interface UpdateOrderParams {
@@ -492,7 +492,7 @@ export interface UpdateOrderParams {
   blocks: any[];
   items: any[];
   address?: any | null;
-  billingAddress?: any | null;
+  billing_address?: any | null;
   payment?: Partial<import('./index').OrderPayment> | null;
   confirm?: boolean;
   cancel?: boolean;
@@ -519,7 +519,7 @@ export interface UpdateBookingParams {
 export interface CreateProviderParams {
   businessId?: string;
   key: string;
-  audienceIds?: string[];
+  audience_ids?: string[];
   blocks?: any[];
   taxonomies?: any[];
   status?: BookingProviderStatus;
@@ -530,7 +530,7 @@ export interface UpdateProviderParams {
   id: string;
   businessId?: string;
   key?: string;
-  audienceIds?: string[];
+  audience_ids?: string[];
   blocks?: any[];
   taxonomies?: any[];
   status?: BookingProviderStatus;
@@ -543,12 +543,12 @@ export interface DeleteProviderParams {
 }
 
 export interface ServiceProviderInput {
-  providerId: string;
+  provider_id: string;
   businessId?: string;
   prices?: any[];
   durations?: any[];
-  workingDays: WorkingDay[];
-  specificDates: SpecificDate[];
+  working_days: WorkingDay[];
+  specific_dates: SpecificDate[];
 }
 
 export interface CreateServiceParams {
@@ -572,28 +572,28 @@ export interface UpdateServiceParams {
 
 export interface CreateServiceProviderParams {
   businessId?: string;
-  serviceId: string;
-  providerId: string;
-  workingDays: WorkingDay[];
-  specificDates: SpecificDate[];
+  service_id: string;
+  provider_id: string;
+  working_days: WorkingDay[];
+  specific_dates: SpecificDate[];
   prices?: any[];
   durations?: any[];
-  slotInterval: number;
-  minAdvance?: number;
-  maxAdvance?: number;
+  slot_interval: number;
+  min_advance?: number;
+  max_advance?: number;
   reminders?: number[];
 }
 
 export interface UpdateServiceProviderParams {
   businessId?: string;
   id: string;
-  workingDays: WorkingDay[];
-  specificDates: SpecificDate[];
+  working_days: WorkingDay[];
+  specific_dates: SpecificDate[];
   prices?: any[];
   durations?: any[];
-  slotInterval: number;
-  minAdvance?: number;
-  maxAdvance?: number;
+  slot_interval: number;
+  min_advance?: number;
+  max_advance?: number;
   reminders?: number[];
 }
 
@@ -604,8 +604,8 @@ export interface DeleteServiceProviderParams {
 
 export interface FindServiceProvidersParams {
   businessId?: string;
-  serviceId?: string;
-  providerId?: string;
+  service_id?: string;
+  provider_id?: string;
 }
 
 export interface DeleteServiceParams {
@@ -621,17 +621,17 @@ export interface GetServiceParams {
 
 export interface GetProvidersParams {
   businessId?: string;
-  serviceId?: string;
-  taxonomyQuery?: any[];
+  service_id?: string;
+  taxonomy_query?: any[];
   ids?: string[];
   query?: string | null;
   statuses?: string[] | null;
   limit?: number;
   cursor?: string;
-  sortField?: string | null;
-  sortDirection?: string | null;
-  createdAtFrom?: string | null;
-  createdAtTo?: string | null;
+  sort_field?: string | null;
+  sort_direction?: string | null;
+  created_at_from?: string | null;
+  created_at_to?: string | null;
 }
 
 export interface GetProviderParams {
@@ -647,30 +647,30 @@ export interface GetBookingParams {
 
 export interface CancelBookingItemParams {
   businessId?: string;
-  bookingId: string;
-  itemId: string;
+  booking_id: string;
+  item_id: string;
   reason?: string;
 }
 
 export interface SearchBookingsParams {
   businessId?: string;
   query?: string;
-  serviceIds?: string[];
-  providerIds?: string[];
+  service_ids?: string[];
+  provider_ids?: string[];
   from?: number;
   to?: number;
-  itemStatuses?: string[];
+  item_statuses?: string[];
   verified?: boolean;
   limit?: number;
   cursor?: string;
-  sortField?: string;
-  sortOrder?: string;
+  sort_field?: string;
+  sort_order?: string;
 }
 
 export interface UpdateAccountProfileParams {
-  phoneNumbers?: string[];
+  phone_numbers?: string[];
   addresses?: any[];
-  apiTokens?: any[] | null;
+  api_tokens?: any[] | null;
 }
 
 export interface SearchAccountsParams {
@@ -683,16 +683,16 @@ export interface SearchAccountsParams {
 export interface DeleteAccountParams {}
 
 export interface TrackEmailOpenParams {
-  trackingPixelId: string;
+  tracking_pixel_id: string;
 }
 
 
 export interface TriggerNotificationParams {
   channel: string;
-  businessId: string;
-  emailTemplateId?: string;
+  business_id: string;
+  email_template_id?: string;
   recipients?: string[];
-  audienceId?: string;
+  audience_id?: string;
   vars?: Record<string, any>;
 }
 
@@ -705,10 +705,10 @@ export interface GetEmailTemplatesParams {
   query?: string;
   key?: string;
   status?: string;
-  sortField?: string;
-  sortDirection?: "asc" | "desc";
-  createdAtFrom?: number;
-  createdAtTo?: number;
+  sort_field?: string;
+  sort_direction?: "asc" | "desc";
+  created_at_from?: number;
+  created_at_to?: number;
 }
 
 export interface CreateEmailTemplateParams {
@@ -716,9 +716,9 @@ export interface CreateEmailTemplateParams {
   key: string;
   subject?: Record<string, string>;
   body?: string;
-  fromName: string;
-  fromEmail: string;
-  replyTo?: string;
+  from_name: string;
+  from_email: string;
+  reply_to?: string;
   preheader?: string;
 }
 
@@ -728,9 +728,9 @@ export interface UpdateEmailTemplateParams {
   key?: string;
   subject?: Record<string, string>;
   body?: string;
-  fromName?: string;
-  fromEmail?: string;
-  replyTo?: string;
+  from_name?: string;
+  from_email?: string;
+  reply_to?: string;
   preheader?: string;
   status?: string;
 }
@@ -755,10 +755,10 @@ export interface GetFormsParams {
   query?: string;
   key?: string;
   status?: string;
-  sortField?: string;
-  sortDirection?: "asc" | "desc";
-  createdAtFrom?: number;
-  createdAtTo?: number;
+  sort_field?: string;
+  sort_direction?: "asc" | "desc";
+  created_at_from?: number;
+  created_at_to?: number;
 }
 
 export interface CreateFormParams {
@@ -798,10 +798,10 @@ export interface GetFormSubmissionsParams {
   query?: string;
   limit?: number;
   cursor?: string;
-  sortField?: string;
-  sortDirection?: "asc" | "desc";
-  createdAtFrom?: number;
-  createdAtTo?: number;
+  sort_field?: string;
+  sort_direction?: "asc" | "desc";
+  created_at_from?: number;
+  created_at_to?: number;
 }
 
 export interface GetFormSubmissionParams {
@@ -820,23 +820,23 @@ export interface UpdateFormSubmissionParams {
 
 export interface GetTaxonomiesParams {
   businessId?: string;
-  parentId?: string;
+  parent_id?: string;
   limit?: number;
   cursor?: string;
   ids?: string[];
   query?: string;
   key?: string;
   status?: string;
-  sortField?: string;
-  sortDirection?: "asc" | "desc";
-  createdAtFrom?: number;
-  createdAtTo?: number;
+  sort_field?: string;
+  sort_direction?: "asc" | "desc";
+  created_at_from?: number;
+  created_at_to?: number;
 }
 
 export interface CreateTaxonomyParams {
   businessId?: string;
   key: string;
-  parentId?: string | null;
+  parent_id?: string | null;
   schema?: any[];
 }
 
@@ -844,7 +844,7 @@ export interface UpdateTaxonomyParams {
   id: string;
   businessId?: string;
   key?: string;
-  parentId?: string | null;
+  parent_id?: string | null;
   schema?: any[];
   status?: string;
 }
@@ -873,8 +873,8 @@ export interface GetBusinessesParams {
   query?: string;
   limit?: number;
   cursor?: string;
-  sortField?: string;
-  sortDirection?: "asc" | "desc";
+  sort_field?: string;
+  sort_direction?: "asc" | "desc";
 }
 
 export interface GetSubscriptionPlansParams {}
@@ -889,9 +889,9 @@ export interface GetBusinessMediaParams2 {
   limit: number;
   ids?: string[];
   query?: string;
-  mimeType?: string;
-  sortField?: string;
-  sortDirection?: 'asc' | 'desc';
+  mime_type?: string;
+  sort_field?: string;
+  sort_direction?: 'asc' | 'desc';
 }
 
 export interface DeleteProductParams {
@@ -918,10 +918,10 @@ export type SystemTemplateKey =
 
 export interface GetAvailabilityParams {
   businessId?: string;
-  serviceId: string;
+  service_id: string;
   from: number;
   to: number;
-  providerId?: string;
+  provider_id?: string;
 }
 
 export interface AvailabilitySlot {
@@ -936,8 +936,8 @@ export interface DaySlots {
 }
 
 export interface ProviderAvailability {
-  providerId: string;
-  providerKey: string;
+  provider_id: string;
+  provider_key: string;
   days: DaySlots[];
 }
 
@@ -949,12 +949,12 @@ export interface AvailabilityResponse {
 
 export interface Slot {
   id: string;
-  serviceId: string;
-  providerId: string;
+  service_id: string;
+  provider_id: string;
   from: number;
   to: number;
-  timeText: string;
-  dateText: string;
+  time_text: string;
+  date_text: string;
 }
 
 export interface CreateWorkflowParams {
@@ -992,10 +992,10 @@ export interface GetWorkflowsParams {
   statuses?: string[];
   limit?: number;
   cursor?: string;
-  sortField?: string;
-  sortDirection?: 'asc' | 'desc';
-  createdAtFrom?: number;
-  createdAtTo?: number;
+  sort_field?: string;
+  sort_direction?: 'asc' | 'desc';
+  created_at_from?: number;
+  created_at_to?: number;
 }
 
 export interface TriggerWorkflowParams {
@@ -1006,7 +1006,7 @@ export interface TriggerWorkflowParams {
 }
 
 export interface GetWorkflowExecutionsParams {
-  workflowId: string;
+  workflow_id: string;
   businessId?: string;
   status?: string;
   limit?: number;
@@ -1014,22 +1014,22 @@ export interface GetWorkflowExecutionsParams {
 }
 
 export interface GetWorkflowExecutionParams {
-  workflowId: string;
-  executionId: string;
+  workflow_id: string;
+  execution_id: string;
   businessId?: string;
 }
 
 export interface CreateAudienceParams {
   key: string;
   type?: AudienceType;
-  confirmTemplateId?: string;
+  confirm_template_id?: string;
 }
 
 export interface UpdateAudienceParams {
   id: string;
   key?: string;
   status?: AudienceStatus;
-  confirmTemplateId?: string;
+  confirm_template_id?: string;
 }
 
 export interface GetAudienceParams {
@@ -1047,11 +1047,11 @@ export interface GetAudiencesParams {
 
 export interface SubscribeAudienceParams {
   id: string;
-  customerId: string;
-  priceId?: string;
-  successUrl?: string;
-  cancelUrl?: string;
-  confirmUrl?: string;
+  customer_id: string;
+  price_id?: string;
+  success_url?: string;
+  cancel_url?: string;
+  confirm_url?: string;
 }
 
 export interface DeleteAudienceParams {
@@ -1065,21 +1065,21 @@ export interface GetAudienceSubscribersParams {
 }
 
 export interface AudienceSubscriber {
-  customerId: string;
+  customer_id: string;
   email: string;
-  subscribedAt?: number;
+  subscribed_at?: number;
   source?: AudienceSubscriptionSource;
   status?: AudienceSubscriptionStatus;
 }
 
 export interface RemoveAudienceSubscriberParams {
   id: string;
-  customerId: string;
+  customer_id: string;
 }
 
 export interface AddAudienceSubscriberParams {
   id: string;
-  customerId: string;
+  customer_id: string;
 }
 
 export interface AddAudienceSubscriberResponse {
@@ -1092,7 +1092,7 @@ export interface OAuthConnectParams {
   businessId: string;
   provider: string;
   code: string;
-  redirectUri: string;
+  redirect_uri: string;
 }
 
 export interface OAuthDisconnectParams {
@@ -1161,21 +1161,21 @@ export interface DeleteWebhookParams {
 
 
 export interface GetShippingRatesParams {
-  orderId: string;
-  shippingProviderId: string;
-  fromAddress: Address;
-  toAddress: Address;
+  order_id: string;
+  shipping_provider_id: string;
+  from_address: Address;
+  to_address: Address;
   parcel: Parcel;
-  customsDeclaration?: CustomsDeclaration;
+  customs_declaration?: CustomsDeclaration;
 }
 
 
 export interface ShipParams {
-  orderId: string;
-  rateId: string;
+  order_id: string;
+  rate_id: string;
   carrier: string;
   service: string;
-  locationId: string;
+  location_id: string;
   lines: ShipmentLine[];
 }
 
@@ -1187,8 +1187,8 @@ export interface CreateAgentParams {
   key: string;
   prompt: string;
   status?: AgentStatus;
-  modelId: string;
-  channelIds?: string[];
+  model_id: string;
+  channel_ids?: string[];
 }
 
 export interface UpdateAgentParams {
@@ -1196,8 +1196,8 @@ export interface UpdateAgentParams {
   key: string;
   prompt: string;
   status: AgentStatus;
-  modelId: string;
-  channelIds?: string[];
+  model_id: string;
+  channel_ids?: string[];
 }
 
 export interface DeleteAgentParams {
@@ -1217,7 +1217,7 @@ export interface GetAgentsParams {
 export interface RunAgentParams {
   id: string;
   message: string;
-  chatId?: string;
+  chat_id?: string;
   direct?: boolean;
 }
 
@@ -1229,29 +1229,29 @@ export interface GetAgentChatsParams {
 
 export interface GetBusinessChatsParams {
   businessId?: string;
-  agentId?: string;
+  agent_id?: string;
   status?: string;
   query?: string;
-  sortField?: string;
-  sortDirection?: 'asc' | 'desc';
+  sort_field?: string;
+  sort_direction?: 'asc' | 'desc';
   limit?: number;
   cursor?: string;
 }
 
 export interface GetAgentChatParams {
   id: string;
-  chatId: string;
+  chat_id: string;
 }
 
 export interface UpdateAgentChatParams {
   id: string;
-  chatId: string;
+  chat_id: string;
   status: 'active' | 'archived';
 }
 
 export interface RateAgentChatParams {
   id: string;
-  chatId: string;
+  chat_id: string;
   rating: number;
   comment?: string;
 }
@@ -1259,13 +1259,13 @@ export interface RateAgentChatParams {
 
 export interface AuthToken {
   id: string;
-  accessToken: string;
-  refreshToken: string;
-  accessExpiresAt: number;
-  refreshExpiresAt: number;
-  createdAt: number;
-  lastUsedAt: number;
-  isVerified: boolean;
+  access_token: string;
+  refresh_token: string;
+  access_expires_at: number;
+  refresh_expires_at: number;
+  created_at: number;
+  last_used_at: number;
+  is_verified: boolean;
 }
 
 export interface CustomerInfo {
@@ -1275,42 +1275,42 @@ export interface CustomerInfo {
 
 export interface CustomerAuthToken {
   id: string;
-  accessToken: string;
-  refreshToken: string;
-  accessExpiresAt: number;
-  refreshExpiresAt: number;
-  createdAt: number;
-  lastUsedAt: number;
-  isVerified: boolean;
-  userAgent?: string | null;
+  access_token: string;
+  refresh_token: string;
+  access_expires_at: number;
+  refresh_expires_at: number;
+  created_at: number;
+  last_used_at: number;
+  is_verified: boolean;
+  user_agent?: string | null;
 }
 
 export interface CustomerVerificationCode {
   code: string;
-  createdAt: number;
+  created_at: number;
   used: boolean;
-  businessId?: string | null;
+  business_id?: string | null;
 }
 
 export interface PromoUsage {
-  promoCodeId: string;
+  promo_code_id: string;
   uses: number;
 }
 
 export interface Customer {
   id: string;
-  businessId: string;
+  business_id: string;
   emails: string[];
   status: 'active' | 'archived';
-  promoUsage: PromoUsage[];
+  promo_usage: PromoUsage[];
   blocks: Block[];
   taxonomies: TaxonomyEntry[];
-  authTokens: CustomerAuthToken[];
-  verificationCodes: CustomerVerificationCode[];
+  auth_tokens: CustomerAuthToken[];
+  verification_codes: CustomerVerificationCode[];
   addresses: Address[];
-  audienceSubscriptions: any[];
-  createdAt: number;
-  updatedAt: number;
+  audience_subscriptions: any[];
+  created_at: number;
+  updated_at: number;
 }
 
 export interface ConnectCustomerParams {
@@ -1345,12 +1345,12 @@ export interface FindCustomersParams {
   query?: string;
   limit?: number;
   cursor?: string;
-  sortField?: string;
-  sortDirection?: string;
+  sort_field?: string;
+  sort_direction?: string;
 }
 
 export interface MergeCustomersParams {
-  targetId: string;
-  sourceId: string;
+  target_id: string;
+  source_id: string;
   businessId?: string;
 }
