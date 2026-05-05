@@ -218,7 +218,7 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
     },
 
     async getIntegrationConfig(
-      params: { businessId: string; type: 'payment' | 'shipping' | 'analytics' },
+      params: { businessId: string; type: 'payment' | 'shipping' },
       options?: RequestOptions
     ) {
       return apiConfig.httpClient.get(

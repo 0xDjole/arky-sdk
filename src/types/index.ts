@@ -250,7 +250,6 @@ export type IntegrationProvider =
 	| { type: 'shippo'; api_token?: string }
 	| { type: 'google'; client_id?: string; client_secret?: string; access_token?: string; refresh_token?: string;
 		token_expires_at?: number; scopes: string[]; account_email?: string | null; connected_at: number }
-	| { type: 'google_analytics4'; measurement_id: string }
 	| { type: 'telegram_bot'; bot_token?: string }
 	| { type: 'deep_seek'; api_key?: string; model?: string }
 

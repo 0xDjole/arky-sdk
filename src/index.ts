@@ -240,7 +240,6 @@ import {
   toKey,
   nameToKey,
 } from "./utils/keyValidation";
-import { injectGA4Script, track } from "./utils/analytics";
 import {
   getAvailableStock,
   getReservedStock,
@@ -288,8 +287,6 @@ function createUtilitySurface(apiConfig: ApiConfig) {
     toKey,
     nameToKey,
 
-    track,
-
     getAvailableStock,
     getReservedStock,
     hasStock,
@@ -326,17 +323,6 @@ export async function createAdmin(
   const authApi = createAuthApi(apiConfig);
   const businessApi = createBusinessApi(apiConfig);
   const platformApi = createPlatformApi(apiConfig);
-
-  if (typeof window !== "undefined" && apiConfig.businessId) {
-    businessApi.getIntegrationConfig({ businessId: apiConfig.businessId, type: 'analytics' }).then((configs: any[]) => {
-      if (!configs) return;
-      for (const c of Array.isArray(configs) ? configs : [configs]) {
-        if (c.measurement_id) {
-          injectGA4Script(c.measurement_id);
-        }
-      }
-    }).catch(() => {});
-  }
 
   const cmsApi = createCmsApi(apiConfig);
   const eshopApi = createEshopApi(apiConfig);
@@ -498,7 +484,6 @@ export async function createAdmin(
     },
 
     analytics: {
-      track,
       query: analyticsApi.query,
     },
 
@@ -588,16 +573,6 @@ export async function createStorefront(
 
   if (typeof window !== "undefined") {
     ensureSession().catch(() => {});
-    if (apiConfig.businessId) {
-      storefrontApi.business.getIntegrationConfig({ businessId: apiConfig.businessId, type: 'analytics' }).then((configs: any[]) => {
-        if (!configs) return;
-        for (const c of Array.isArray(configs) ? configs : [configs]) {
-          if (c.measurement_id) {
-            injectGA4Script(c.measurement_id);
-          }
-        }
-      }).catch(() => {});
-    }
   }
 
   return {
@@ -608,9 +583,6 @@ export async function createStorefront(
     crm: storefrontApi.crm,
     activity: storefrontApi.activity,
     automation: storefrontApi.automation,
-    analytics: {
-      track,
-    },
     setBusinessId: (businessId: string) => {
       apiConfig.businessId = businessId;
     },

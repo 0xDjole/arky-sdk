@@ -104,16 +104,6 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         return apiConfig.httpClient.get(base(), options);
       },
 
-      getIntegrationConfig(
-        params: { businessId?: string; type: "payment" | "shipping" | "analytics" },
-        options?: RequestOptions,
-      ) {
-        return apiConfig.httpClient.get(
-          `${base(params.businessId)}/integrations/config/${params.type}`,
-          options,
-        );
-      },
-
       location: {
         getCountries(options?: RequestOptions) {
           return apiConfig.httpClient.get(`/v1/platform/countries`, options);
