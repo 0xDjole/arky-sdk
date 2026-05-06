@@ -12,55 +12,55 @@ import type {
 export const createTaxonomyApi = (apiConfig: ApiConfig) => {
   return {
     async createTaxonomy(params: CreateTaxonomyParams, options?: RequestOptions) {
-      const { business_id, ...payload } = params;
-      const target_business_id = business_id || apiConfig.businessId;
+      const { store_id, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${target_business_id}/taxonomies`,
+        `/v1/stores/${target_store_id}/taxonomies`,
         payload,
         options
       );
     },
 
     async updateTaxonomy(params: UpdateTaxonomyParams, options?: RequestOptions) {
-      const { business_id, ...payload } = params;
-      const target_business_id = business_id || apiConfig.businessId;
+      const { store_id, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.put(
-        `/v1/businesses/${target_business_id}/taxonomies/${params.id}`,
+        `/v1/stores/${target_store_id}/taxonomies/${params.id}`,
         payload,
         options
       );
     },
 
     async deleteTaxonomy(params: DeleteTaxonomyParams, options?: RequestOptions) {
-      const target_business_id = params.business_id || apiConfig.businessId;
+      const target_store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${target_business_id}/taxonomies/${params.id}`,
+        `/v1/stores/${target_store_id}/taxonomies/${params.id}`,
         options
       );
     },
 
     async getTaxonomy(params: GetTaxonomyParams, options?: RequestOptions) {
-      const target_business_id = params.business_id || apiConfig.businessId;
+      const target_store_id = params.store_id || apiConfig.storeId;
       let identifier: string;
       if (params.id) {
         identifier = params.id;
       } else if (params.key) {
-        identifier = `${target_business_id}:${params.key}`;
+        identifier = `${target_store_id}:${params.key}`;
       } else {
         throw new Error("GetTaxonomyParams requires id or key");
       }
 
       return apiConfig.httpClient.get(
-        `/v1/businesses/${target_business_id}/taxonomies/${identifier}`,
+        `/v1/stores/${target_store_id}/taxonomies/${identifier}`,
         options
       );
     },
 
     async getTaxonomies(params: GetTaxonomiesParams, options?: RequestOptions) {
-      const { business_id, ...queryParams } = params;
-      const target_business_id = business_id || apiConfig.businessId;
+      const { store_id, ...queryParams } = params;
+      const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${target_business_id}/taxonomies`,
+        `/v1/stores/${target_store_id}/taxonomies`,
         {
           ...options,
           params: queryParams,
@@ -69,10 +69,10 @@ export const createTaxonomyApi = (apiConfig: ApiConfig) => {
     },
 
     async getTaxonomyChildren(params: GetTaxonomyChildrenParams, options?: RequestOptions) {
-      const { id, business_id } = params;
-      const target_business_id = business_id || apiConfig.businessId;
+      const { id, store_id } = params;
+      const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${target_business_id}/taxonomies/${id}/children`,
+        `/v1/stores/${target_store_id}/taxonomies/${id}/children`,
         options
       );
     },

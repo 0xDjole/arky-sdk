@@ -5,7 +5,7 @@ export type {
   EshopStoreState,
   BookingStoreState,
   BookingCartItem,
-  Business,
+  Store,
   Webhook,
   WebhookEventSubscription,
   Integration,
@@ -26,11 +26,11 @@ export type {
   OrderPaymentProvider,
   OrderPaymentRefund,
   OrderQuote,
-  BusinessSubscription,
-  BusinessSubscriptionPayment,
-  BusinessSubscriptionProvider,
-  BusinessSubscriptionStatus,
-  BusinessSubscriptionSource,
+  StoreSubscription,
+  StoreSubscriptionPayment,
+  StoreSubscriptionProvider,
+  StoreSubscriptionStatus,
+  StoreSubscriptionSource,
   AudienceSubscription,
   AudienceSubscriptionPayment,
   AudienceSubscriptionProvider,
@@ -158,7 +158,7 @@ export { COMMON_ACTIVITY_TYPES } from "./api/storefront";
 
 export type { TimelineParams } from "./api/crm";
 
-export const SDK_VERSION = "0.7.94";
+export const SDK_VERSION = "0.7.95";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -169,7 +169,7 @@ export const SUPPORTED_FRAMEWORKS = [
 
 export interface ApiConfig {
   httpClient: any;
-  businessId: string;
+  storeId: string;
   baseUrl: string;
   market: string;
   locale: string;
@@ -187,7 +187,7 @@ import {
 } from "./services/createHttpClient";
 import { createAccountApi } from "./api/account";
 import { createAuthApi } from "./api/auth";
-import { createBusinessApi } from "./api/business";
+import { createStoreApi } from "./api/store";
 import { createMediaApi } from "./api/media";
 import { createNotificationApi } from "./api/notification";
 import { createPromoCodeApi } from "./api/promoCode";
@@ -311,7 +311,7 @@ export function createAdmin(
 
   const apiConfig: ApiConfig = {
     httpClient,
-    businessId: config.businessId,
+    storeId: config.storeId,
     baseUrl: config.baseUrl,
     market: config.market,
     locale,
@@ -321,7 +321,7 @@ export function createAdmin(
 
   const accountApi = createAccountApi(apiConfig);
   const authApi = createAuthApi(apiConfig);
-  const businessApi = createBusinessApi(apiConfig);
+  const storeApi = createStoreApi(apiConfig);
   const platformApi = createPlatformApi(apiConfig);
 
   const cmsApi = createCmsApi(apiConfig);
@@ -340,8 +340,8 @@ export function createAdmin(
   const sdk = {
     auth: authApi,
     account: accountApi,
-    business: {
-      ...businessApi,
+    store: {
+      ...storeApi,
       location: locationApi,
       market: marketApi,
     },
@@ -468,7 +468,7 @@ export function createAdmin(
         getChat: agentApi.getChat,
         updateChat: agentApi.updateChat,
         rateChat: agentApi.rateChat,
-        getBusinessChats: agentApi.getBusinessChats,
+        getStoreChats: agentApi.getStoreChats,
         getChatMessages: agentApi.getChatMessages,
       },
       workflow: {
@@ -487,11 +487,11 @@ export function createAdmin(
       query: analyticsApi.query,
     },
 
-    setBusinessId: (businessId: string) => {
-      apiConfig.businessId = businessId;
+    setStoreId: (storeId: string) => {
+      apiConfig.storeId = storeId;
     },
 
-    getBusinessId: () => apiConfig.businessId,
+    getStoreId: () => apiConfig.storeId,
 
     setMarket: (market: string) => {
       apiConfig.market = market;
@@ -520,7 +520,7 @@ export function createAdmin(
 
 export interface StorefrontSession {
   customer: any;
-  business: any;
+  store: any;
   market: any;
 }
 
@@ -538,19 +538,19 @@ export function createStorefront(
   const setToken = config.setToken || defaultSetToken;
   const logout = config.logout || defaultLogout;
   const isAuthenticated = config.isAuthenticated || defaultIsAuthenticated;
-  let refresh_business_id = config.businessId;
+  let refresh_store_id = config.storeId;
 
   const httpClient = createHttpClient({
     ...config,
     getToken,
     setToken,
     logout,
-    refreshPath: () => `/v1/storefront/${refresh_business_id}/customers/auth/refresh`,
+    refreshPath: () => `/v1/storefront/${refresh_store_id}/customers/auth/refresh`,
   });
 
   const apiConfig: ApiConfig = {
     httpClient,
-    businessId: config.businessId,
+    storeId: config.storeId,
     baseUrl: config.baseUrl,
     market,
     locale,
@@ -576,7 +576,7 @@ export function createStorefront(
   function setCurrentSessionFromResult(result: any) {
     const s = {
       customer: result.customer,
-      business: result.business,
+      store: result.store,
       market: result.market || null,
     };
     currentSession = s;
@@ -678,19 +678,19 @@ export function createStorefront(
     session,
     getSession,
     onSessionChange,
-    business: storefrontApi.business,
+    store: storefrontApi.store,
     cms: storefrontApi.cms,
     eshop: storefrontApi.eshop,
     booking: storefrontApi.booking,
     crm,
     activity: storefrontApi.activity,
     automation: storefrontApi.automation,
-    setBusinessId: (businessId: string) => {
-      refresh_business_id = businessId;
-      apiConfig.businessId = businessId;
+    setStoreId: (storeId: string) => {
+      refresh_store_id = storeId;
+      apiConfig.storeId = storeId;
       clearSession();
     },
-    getBusinessId: () => apiConfig.businessId,
+    getStoreId: () => apiConfig.storeId,
     setMarket,
     getMarket: () => apiConfig.market,
     setLocale: (locale: string) => {

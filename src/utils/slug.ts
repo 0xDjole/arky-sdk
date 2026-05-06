@@ -20,5 +20,5 @@ export const formatIdOrSlug = (id: string, apiConfig: ApiConfig): string => {
     return id;
   }
 
-  return `${apiConfig.businessId}:${apiConfig.locale}:${id}`;
+  return `${apiConfig.storeId}:${apiConfig.locale}:${id}`;
 };

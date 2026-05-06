@@ -102,11 +102,11 @@ export const createAnalyticsApi = (apiConfig: ApiConfig) => {
   return {
     async query(
       spec: AnalyticsQuery,
-      options?: RequestOptions & { business_id?: string },
+      options?: RequestOptions & { store_id?: string },
     ): Promise<AnalyticsQueryResponse> {
-      const business_id = options?.business_id || apiConfig.businessId;
+      const store_id = options?.store_id || apiConfig.storeId;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${business_id}/analytics/query`,
+        `/v1/stores/${store_id}/analytics/query`,
         spec,
         options,
       );

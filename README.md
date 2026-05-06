@@ -1,10 +1,10 @@
 # arky-sdk
 
-Official TypeScript SDK for [Arky](https://arky.io) — Build online businesses with headless CMS, e-commerce, and booking systems.
+Official TypeScript SDK for [Arky](https://arky.io) — Build online stores with headless CMS, e-commerce, and booking systems.
 
 ## What is Arky?
 
-Arky is an **all-in-one platform** that gives you everything you need to run an online business:
+Arky is an **all-in-one platform** that gives you everything you need to run an online store:
 
 - 📝 **Headless CMS** - Manage content with flexible blocks, multilingual support, and AI-powered content generation
 - 🛒 **E-commerce** - Sell products with multi-currency pricing, inventory, orders, and Stripe payments
@@ -13,7 +13,7 @@ Arky is an **all-in-one platform** that gives you everything you need to run an 
 - 👥 **User Management** - Authentication, roles, permissions, and user profiles
 - 💳 **Payments** - Integrated Stripe checkout and promo codes
 
-**Build any online business:** SaaS products, e-commerce stores, booking platforms, content sites, newsletters, or multi-tenant marketplaces.
+**Build any online store:** SaaS products, e-commerce shops, booking platforms, content sites, newsletters, or multi-tenant marketplaces.
 
 ## Why Use This SDK?
 
@@ -39,7 +39,7 @@ import { createArkySDK } from 'arky-sdk'
 
 const arky = createArkySDK({
   baseUrl: 'https://api.arky.io',
-  businessId: 'your-business-id',
+  storeId: 'your-store-id',
   market: 'us',
   getToken: () => ({
     accessToken: localStorage.getItem('accessToken') || '',
@@ -167,18 +167,18 @@ await arky.user.updateUser({ name, phoneNumber, addresses })
 await arky.user.resetPassword({ oldPassword, newPassword })
 ```
 
-### Business
+### Store
 ```typescript
-// Business CRUD
-await arky.business.createBusiness({ name, slug })
-await arky.business.getBusiness()
-await arky.business.updateBusiness({ id, name })
-await arky.business.deleteBusiness({ id })
+// Store CRUD
+await arky.store.createStore({ name, slug })
+await arky.store.getStore()
+await arky.store.updateStore({ id, name })
+await arky.store.deleteStore({ id })
 
 // Subscriptions
-await arky.business.createSubscription({ planId })
-await arky.business.getSubscription()
-await arky.business.cancelSubscription({ immediately: true })
+await arky.store.createSubscription({ planId })
+await arky.store.getSubscription()
+await arky.store.cancelSubscription({ immediately: true })
 ```
 
 ### CMS & Newsletters
@@ -247,16 +247,16 @@ await arky.reservation.searchReservations({ start, end })
 ### Media
 ```typescript
 // Upload files
-const media = await arky.media.uploadBusinessMedia({
+const media = await arky.media.uploadStoreMedia({
   files: [file1, file2],
   urls: ['https://example.com/image.jpg'],
 })
 
 // List media
-const { items } = await arky.media.getBusinessMedia({ limit: 20 })
+const { items } = await arky.media.getStoreMedia({ limit: 20 })
 
 // Delete media
-await arky.media.deleteBusinessMedia({ id: businessId, mediaId })
+await arky.media.deleteStoreMedia({ id: storeId, mediaId })
 ```
 
 ### Notifications
@@ -338,7 +338,7 @@ await arky.utils.injectSvgIntoElement(mediaBlock, element, 'custom-class')
 
 ## What Can You Build?
 
-- 🏪 **E-commerce stores** - Product catalogs, shopping carts, checkout
+- 🏪 **E-commerce shops** - Product catalogs, shopping carts, checkout
 - 📰 **Content websites** - Blogs, documentation, marketing sites
 - 📅 **Booking platforms** - Appointment scheduling, service bookings
 - 📬 **Newsletter platforms** - Subscriber management, email campaigns
@@ -351,7 +351,7 @@ await arky.utils.injectSvgIntoElement(mediaBlock, element, 'custom-class')
 createArkySDK({
   // Required
   baseUrl: string,        // API URL
-  businessId: string,     // Your business ID
+  storeId: string,        // Your store ID
   market: string,         // Market code (e.g., 'us', 'eu')
 
   // Token management
@@ -377,7 +377,7 @@ import type {
   HttpClientConfig,
   ApiResponse,
   Block,
-  Business,
+  Store,
   Price,
   // ... and many more
 } from 'arky-sdk'

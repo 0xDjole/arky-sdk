@@ -12,14 +12,14 @@ export const createMarketApi = (apiConfig: ApiConfig) => {
   return {
     async list(options?: RequestOptions): Promise<Market[]> {
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/markets`,
+        `/v1/stores/${apiConfig.storeId}/markets`,
         options,
       );
     },
 
     async get(id: string, options?: RequestOptions): Promise<Market> {
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/markets/${id}`,
+        `/v1/stores/${apiConfig.storeId}/markets/${id}`,
         options,
       );
     },
@@ -29,8 +29,8 @@ export const createMarketApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Market> {
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/markets`,
-        { ...params, business_id: apiConfig.businessId },
+        `/v1/stores/${apiConfig.storeId}/markets`,
+        { ...params, store_id: apiConfig.storeId },
         options,
       );
     },
@@ -40,8 +40,8 @@ export const createMarketApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Market> {
       return apiConfig.httpClient.put(
-        `/v1/businesses/${apiConfig.businessId}/markets/${params.id}`,
-        { ...params, business_id: apiConfig.businessId },
+        `/v1/stores/${apiConfig.storeId}/markets/${params.id}`,
+        { ...params, store_id: apiConfig.storeId },
         options,
       );
     },
@@ -51,7 +51,7 @@ export const createMarketApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<{ deleted: boolean }> {
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${apiConfig.businessId}/markets/${params.id}`,
+        `/v1/stores/${apiConfig.storeId}/markets/${params.id}`,
         options,
       );
     },

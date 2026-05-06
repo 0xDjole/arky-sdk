@@ -42,14 +42,14 @@ export const createLocationApi = (apiConfig: ApiConfig) => {
     
     async list(options?: RequestOptions): Promise<Location[]> {
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/locations`,
+        `/v1/stores/${apiConfig.storeId}/locations`,
         options,
       );
     },
 
     async get(id: string, options?: RequestOptions): Promise<Location> {
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}/locations/${id}`,
+        `/v1/stores/${apiConfig.storeId}/locations/${id}`,
         options,
       );
     },
@@ -59,8 +59,8 @@ export const createLocationApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Location> {
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/locations`,
-        { ...params, business_id: apiConfig.businessId },
+        `/v1/stores/${apiConfig.storeId}/locations`,
+        { ...params, store_id: apiConfig.storeId },
         options,
       );
     },
@@ -70,8 +70,8 @@ export const createLocationApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Location> {
       return apiConfig.httpClient.put(
-        `/v1/businesses/${apiConfig.businessId}/locations/${params.id}`,
-        { ...params, business_id: apiConfig.businessId },
+        `/v1/stores/${apiConfig.storeId}/locations/${params.id}`,
+        { ...params, store_id: apiConfig.storeId },
         options,
       );
     },
@@ -81,7 +81,7 @@ export const createLocationApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<{ deleted: boolean }> {
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${apiConfig.businessId}/locations/${params.id}`,
+        `/v1/stores/${apiConfig.storeId}/locations/${params.id}`,
         options,
       );
     },

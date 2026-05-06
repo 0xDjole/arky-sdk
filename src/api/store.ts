@@ -1,10 +1,10 @@
 import type { ApiConfig } from "../index";
 import type {
-  CreateBusinessParams,
-  UpdateBusinessParams,
-  DeleteBusinessParams,
-  GetBusinessParams,
-  GetBusinessesParams,
+  CreateStoreParams,
+  UpdateStoreParams,
+  DeleteStoreParams,
+  GetStoreParams,
+  GetStoresParams,
   GetSubscriptionPlansParams,
   SubscribeParams,
   CreatePortalSessionParams,
@@ -12,7 +12,7 @@ import type {
   RemoveMemberParams,
   HandleInvitationParams,
   TestWebhookParams,
-  GetBusinessMediaParams2,
+  GetStoreMediaParams2,
   OAuthConnectParams,
   OAuthDisconnectParams,
   ListIntegrationsParams,
@@ -26,45 +26,45 @@ import type {
   RequestOptions,
 } from "../types/api";
 
-export const createBusinessApi = (apiConfig: ApiConfig) => {
+export const createStoreApi = (apiConfig: ApiConfig) => {
   return {
-    async createBusiness(
-      params: CreateBusinessParams,
+    async createStore(
+      params: CreateStoreParams,
       options?: RequestOptions
     ) {
-      return apiConfig.httpClient.post(`/v1/businesses`, params, options);
+      return apiConfig.httpClient.post(`/v1/stores`, params, options);
     },
 
-    async updateBusiness(
-      params: UpdateBusinessParams,
+    async updateStore(
+      params: UpdateStoreParams,
       options?: RequestOptions
     ) {
       return apiConfig.httpClient.put(
-        `/v1/businesses/${params.id}`,
+        `/v1/stores/${params.id}`,
         params,
         options
       );
     },
 
-    async deleteBusiness(
-      params: DeleteBusinessParams,
+    async deleteStore(
+      params: DeleteStoreParams,
       options?: RequestOptions
     ) {
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${params.id}`,
+        `/v1/stores/${params.id}`,
         options
       );
     },
 
-    async getBusiness(params: GetBusinessParams, options?: RequestOptions) {
+    async getStore(params: GetStoreParams, options?: RequestOptions) {
       return apiConfig.httpClient.get(
-        `/v1/businesses/${apiConfig.businessId}`,
+        `/v1/stores/${apiConfig.storeId}`,
         options
       );
     },
 
-    async getBusinesses(params?: GetBusinessesParams, options?: RequestOptions) {
-      return apiConfig.httpClient.get(`/v1/businesses`, {
+    async getStores(params?: GetStoresParams, options?: RequestOptions) {
+      return apiConfig.httpClient.get(`/v1/stores`, {
         ...options,
         params,
       });
@@ -74,14 +74,14 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       params: GetSubscriptionPlansParams,
       options?: RequestOptions
     ) {
-      return apiConfig.httpClient.get("/v1/businesses/plans", options);
+      return apiConfig.httpClient.get("/v1/stores/plans", options);
     },
 
     async subscribe(params: SubscribeParams, options?: RequestOptions) {
-      const { business_id, plan_id, success_url, cancel_url } = params;
-      const target_business_id = business_id || apiConfig.businessId;
+      const { store_id, plan_id, success_url, cancel_url } = params;
+      const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.put(
-        `/v1/businesses/${target_business_id}/subscribe`,
+        `/v1/stores/${target_store_id}/subscribe`,
         { plan_id, success_url, cancel_url },
         options
       );
@@ -91,9 +91,9 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       params: CreatePortalSessionParams,
       options?: RequestOptions
     ) {
-      const business_id = params.business_id || apiConfig.businessId;
+      const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${business_id}/subscription/portal`,
+        `/v1/stores/${store_id}/subscription/portal`,
         { return_url: params.return_url },
         options
       );
@@ -101,7 +101,7 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
 
     async inviteUser(params: InviteUserParams, options?: RequestOptions) {
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/invitation`,
+        `/v1/stores/${apiConfig.storeId}/invitation`,
         params,
         options
       );
@@ -109,7 +109,7 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
 
     async removeMember(params: RemoveMemberParams, options?: RequestOptions) {
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${apiConfig.businessId}/members/${params.account_id}`,
+        `/v1/stores/${apiConfig.storeId}/members/${params.account_id}`,
         options
       );
     },
@@ -118,9 +118,9 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       params: HandleInvitationParams,
       options?: RequestOptions
     ) {
-      const { business_id, ...payload } = params;
+      const { store_id, ...payload } = params;
       return apiConfig.httpClient.put(
-        `/v1/businesses/${business_id || apiConfig.businessId}/invitation`,
+        `/v1/stores/${store_id || apiConfig.storeId}/invitation`,
         payload,
         options
       );
@@ -128,14 +128,14 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
 
     async testWebhook(params: TestWebhookParams, options?: RequestOptions) {
       return apiConfig.httpClient.post(
-        `/v1/businesses/${apiConfig.businessId}/webhooks/test`,
+        `/v1/stores/${apiConfig.storeId}/webhooks/test`,
         params.webhook,
         options
       );
     },
 
-    async getBusinessMedia(
-      params: GetBusinessMediaParams2,
+    async getStoreMedia(
+      params: GetStoreMediaParams2,
       options?: RequestOptions
     ) {
       const queryParams: Record<string, any> = {
@@ -148,7 +148,7 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       if (params.sort_field) queryParams.sort_field = params.sort_field;
       if (params.sort_direction) queryParams.sort_direction = params.sort_direction;
 
-      return apiConfig.httpClient.get(`/v1/businesses/${params.id}/media`, {
+      return apiConfig.httpClient.get(`/v1/stores/${params.id}/media`, {
         ...options,
         params: queryParams,
       });
@@ -159,7 +159,7 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions
     ) {
       return apiConfig.httpClient.post(
-        `/v1/businesses/${params.business_id}/oauth/connect`,
+        `/v1/stores/${params.store_id}/oauth/connect`,
         { provider: params.provider, code: params.code, redirect_uri: params.redirect_uri },
         options
       );
@@ -170,19 +170,19 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions
     ) {
       return apiConfig.httpClient.post(
-        `/v1/businesses/${params.business_id}/oauth/disconnect`,
+        `/v1/stores/${params.store_id}/oauth/disconnect`,
         { provider: params.provider },
         options
       );
     },
 
-    
+
     async listIntegrations(
       params: ListIntegrationsParams,
       options?: RequestOptions
     ) {
       return apiConfig.httpClient.get(
-        `/v1/businesses/${params.business_id}/integrations`,
+        `/v1/stores/${params.store_id}/integrations`,
         options
       );
     },
@@ -191,9 +191,9 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       params: CreateIntegrationParams,
       options?: RequestOptions
     ) {
-      const { business_id, ...payload } = params;
+      const { store_id, ...payload } = params;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${business_id}/integrations`,
+        `/v1/stores/${store_id}/integrations`,
         payload,
         options
       );
@@ -203,9 +203,9 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       params: UpdateIntegrationParams,
       options?: RequestOptions
     ) {
-      const { business_id, id, ...payload } = params;
+      const { store_id, id, ...payload } = params;
       return apiConfig.httpClient.put(
-        `/v1/businesses/${business_id}/integrations/${id}`,
+        `/v1/stores/${store_id}/integrations/${id}`,
         payload,
         options
       );
@@ -216,28 +216,28 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions
     ) {
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${params.business_id}/integrations/${params.id}`,
+        `/v1/stores/${params.store_id}/integrations/${params.id}`,
         options
       );
     },
 
     async getIntegrationConfig(
-      params: { business_id: string; type: 'payment' | 'shipping' },
+      params: { store_id: string; type: 'payment' | 'shipping' },
       options?: RequestOptions
     ) {
       return apiConfig.httpClient.get(
-        `/v1/businesses/${params.business_id}/integrations/config/${params.type}`,
+        `/v1/stores/${params.store_id}/integrations/config/${params.type}`,
         options
       );
     },
 
-    
+
     async listWebhooks(
       params: ListWebhooksParams,
       options?: RequestOptions
     ) {
       return apiConfig.httpClient.get(
-        `/v1/businesses/${params.business_id}/webhooks`,
+        `/v1/stores/${params.store_id}/webhooks`,
         options
       );
     },
@@ -246,9 +246,9 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       params: CreateWebhookParams,
       options?: RequestOptions
     ) {
-      const { business_id, ...payload } = params;
+      const { store_id, ...payload } = params;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${business_id}/webhooks`,
+        `/v1/stores/${store_id}/webhooks`,
         payload,
         options
       );
@@ -258,9 +258,9 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       params: UpdateWebhookParams,
       options?: RequestOptions
     ) {
-      const { business_id, id, ...payload } = params;
+      const { store_id, id, ...payload } = params;
       return apiConfig.httpClient.put(
-        `/v1/businesses/${business_id}/webhooks/${id}`,
+        `/v1/stores/${store_id}/webhooks/${id}`,
         payload,
         options
       );
@@ -271,7 +271,7 @@ export const createBusinessApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions
     ) {
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${params.business_id}/webhooks/${params.id}`,
+        `/v1/stores/${params.store_id}/webhooks/${params.id}`,
         options
       );
     },

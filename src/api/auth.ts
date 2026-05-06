@@ -24,12 +24,12 @@ export const createAuthApi = (apiConfig: ApiConfig) => {
             return apiConfig.httpClient.post('/v1/auth/refresh', params, options);
         },
 
-        async businessCode(businessId: string, params: { email: string }, options?: RequestOptions) {
-            return apiConfig.httpClient.post(`/v1/businesses/${businessId}/auth/code`, params, options);
+        async storeCode(storeId: string, params: { email: string }, options?: RequestOptions) {
+            return apiConfig.httpClient.post(`/v1/stores/${storeId}/auth/code`, params, options);
         },
 
-        async businessVerify(businessId: string, params: MagicLinkVerifyParams, options?: RequestOptions) {
-            const result = await apiConfig.httpClient.post(`/v1/businesses/${businessId}/auth/verify`, params, options);
+        async storeVerify(storeId: string, params: MagicLinkVerifyParams, options?: RequestOptions) {
+            const result = await apiConfig.httpClient.post(`/v1/stores/${storeId}/auth/verify`, params, options);
             if (result?.access_token) {
                 apiConfig.setToken({ ...result, email: params.email, is_verified: true });
             }

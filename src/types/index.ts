@@ -303,7 +303,7 @@ export type IntegrationProvider =
 
 export interface Integration {
 	id: string;
-	business_id: string;
+	store_id: string;
 	key: string;
 	provider: IntegrationProvider;
 	created_at: number;
@@ -333,7 +333,7 @@ export interface ShippingMethod {
 
 export interface Location {
 	id: string;
-	business_id: string;
+	store_id: string;
 	key: string;
 	address: Address;
 	is_pickup_location: boolean;
@@ -349,7 +349,7 @@ export interface InventoryLevel {
 
 export interface Zone {
 	id: string;
-	business_id: string;
+	store_id: string;
 	market_id: string;
 	countries: string[];
 	states: string[];
@@ -360,7 +360,7 @@ export interface Zone {
 
 export interface Market {
 	id: string;
-	business_id: string;
+	store_id: string;
 	key: string;
 	currency: string;
 	tax_mode: "exclusive" | "inclusive";
@@ -374,7 +374,7 @@ export interface Language {
 	id: string;
 }
 
-export interface BusinessEmails {
+export interface StoreEmails {
 	billing: string;
 	support: string;
 }
@@ -416,16 +416,16 @@ export type WebhookEventSubscription =
 	| { event: 'service.deleted' }
 	| { event: 'media.created' }
 	| { event: 'media.deleted' }
-	| { event: 'business.created' }
-	| { event: 'business.updated' }
-	| { event: 'business.deleted' }
+	| { event: 'store.created' }
+	| { event: 'store.updated' }
+	| { event: 'store.deleted' }
 	| { event: 'audience.created' }
 	| { event: 'audience.updated' }
 	| { event: 'audience.deleted' };
 
 export interface Webhook {
 	id: string;
-	business_id: string;
+	store_id: string;
 	key: string;
 	url: string;
 	events: WebhookEventSubscription[];
@@ -437,39 +437,39 @@ export interface Webhook {
 }
 
 
-export type BusinessSubscriptionStatus =
+export type StoreSubscriptionStatus =
 	| 'pending'
 	| 'active'
 	| 'cancellation_scheduled'
 	| 'cancelled'
 	| 'expired';
 
-export type BusinessSubscriptionSource = 'signup' | 'admin' | 'import';
+export type StoreSubscriptionSource = 'signup' | 'admin' | 'import';
 
-export type BusinessSubscriptionProvider = {
+export type StoreSubscriptionProvider = {
 	type: 'stripe';
 	customer_id: string;
 	subscription_id?: string;
 	price_id?: string;
 };
 
-export interface BusinessSubscriptionPayment {
+export interface StoreSubscriptionPayment {
 	currency: string;
 	market: string;
-	provider?: BusinessSubscriptionProvider;
+	provider?: StoreSubscriptionProvider;
 }
 
-export interface BusinessSubscription {
+export interface StoreSubscription {
 	id: string;
 	target: string;
 	plan_id: string;
 	pending_plan_id: string | null;
-	payment: BusinessSubscriptionPayment;
-	status: BusinessSubscriptionStatus;
+	payment: StoreSubscriptionPayment;
+	status: StoreSubscriptionStatus;
 	start_date: number;
 	end_date: number;
 	token: string;
-	source: BusinessSubscriptionSource;
+	source: StoreSubscriptionSource;
 }
 
 export type AudienceSubscriptionStatus =
@@ -496,7 +496,7 @@ export interface AudienceSubscriptionPayment {
 
 export interface AudienceSubscription {
 	id: string;
-	business_id: string;
+	store_id: string;
 	customer_id: string;
 	audience_id: string;
 	plan_id: string;
@@ -511,18 +511,18 @@ export interface AudienceSubscription {
 	updated_at: number;
 }
 
-export interface Business {
+export interface Store {
 	id: string;
 	key: string;
 	timezone: string;
 	languages?: Language[];
-	emails?: BusinessEmails;
-	subscription?: BusinessSubscription;
+	emails?: StoreEmails;
+	subscription?: StoreSubscription;
 	counts?: Record<string, number>;
 }
 
 export interface EshopStoreState {
-	business_id: string;
+	store_id: string;
 	selected_shipping_method_id: string | null;
 	user_token: string | null;
 	processing_checkout: boolean;
@@ -680,11 +680,11 @@ export interface BookingStoreState {
 	end_date: string | null;
 	guest_token: string | null;
 	service: any | null;
-	business: Business | null;
+	store: Store | null;
 	currency: string;
 	booking_forms: FormEntry[];
 	api_url: string;
-	business_id: string;
+	store_id: string;
 	timezone: string;
 	tz_groups: any;
 	items: BookingCartItem[];
@@ -760,7 +760,7 @@ export interface BookingItem {
 	id: string;
 	service_id: string;
 	provider_id: string;
-	business_id: string;
+	store_id: string;
 	booking_id: string;
 	from: number;
 	to: number;
@@ -775,11 +775,11 @@ export interface Booking {
 	customer_id: string;
 	verified: boolean;
 	forms: FormEntry[];
-	business_id: string;
+	store_id: string;
 	service_ids: string[];
 	provider_ids: string[];
 	payment: BookingPayment;
-	business?: Business;
+	store?: Store;
 	account?: any;
 	items: BookingItem[];
 	audience_id?: string;
@@ -792,7 +792,7 @@ export interface Booking {
 export interface Node {
 	id: string;
 	key: string;
-	business_id: string;
+	store_id: string;
 	parent_id?: string | null;
 	blocks: Block[];
 	taxonomies: TaxonomyEntry[];
@@ -806,7 +806,7 @@ export interface Node {
 export interface EmailTemplate {
 	id: string;
 	key: string;
-	business_id: string;
+	store_id: string;
 	subject: Record<string, string>;
 	body: string;
 	from_name: string;
@@ -821,7 +821,7 @@ export interface EmailTemplate {
 export interface Form {
 	id: string;
 	key: string;
-	business_id: string;
+	store_id: string;
 	schema: FormSchema[];
 	status: FormStatus;
 	created_at: number;
@@ -831,7 +831,7 @@ export interface Form {
 export interface FormSubmission {
 	id: string;
 	form_id: string;
-	business_id: string;
+	store_id: string;
 	fields: FormField[];
 	created_at: number;
 }
@@ -839,7 +839,7 @@ export interface FormSubmission {
 export interface Taxonomy {
 	id: string;
 	key: string;
-	business_id: string;
+	store_id: string;
 	parent_id?: string | null;
 	schema?: TaxonomySchema[];
 	status: TaxonomyStatus;
@@ -871,7 +871,7 @@ export interface Service {
 	id: string;
 	key: string;
 	slug: Record<string, string>;
-	business_id: string;
+	store_id: string;
 	blocks: Block[];
 	taxonomies: TaxonomyEntry[];
 	created_at: number;
@@ -888,7 +888,7 @@ export interface Provider {
 	id: string;
 	key: string;
 	slug: Record<string, string>;
-	business_id: string;
+	store_id: string;
 	status: BookingProviderStatus;
 	audience_ids: string[];
 	blocks: Block[];
@@ -908,7 +908,7 @@ export interface WorkflowEdge {
 export interface Workflow {
 	id: string;
 	key: string;
-	business_id: string;
+	store_id: string;
 	secret: string;
 	status: WorkflowStatus;
 	nodes: Record<string, WorkflowNode>;
@@ -985,7 +985,7 @@ export interface NodeResult {
 export interface WorkflowExecution {
 	id: string;
 	workflow_id: string;
-	business_id: string;
+	store_id: string;
 	status: ExecutionStatus;
 	input: Record<string, any>;
 	results: Record<string, NodeResult>;
@@ -1004,7 +1004,7 @@ export type AudienceType =
 
 export interface Audience {
 	id: string;
-	business_id: string;
+	store_id: string;
 	key: string;
 	status: AudienceStatus;
 	type: AudienceType;
@@ -1069,9 +1069,9 @@ export type EventAction =
 	| { action: 'media_created' }
 	| { action: 'media_deleted' }
 	
-	| { action: 'business_created' }
-	| { action: 'business_updated' }
-	| { action: 'business_deleted' }
+	| { action: 'store_created' }
+	| { action: 'store_updated' }
+	| { action: 'store_deleted' }
 	
 	| { action: 'audience_created' }
 	| { action: 'audience_updated' }

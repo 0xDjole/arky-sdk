@@ -17,7 +17,7 @@ import type {
 } from "../types/api";
 
 export interface Activity {
-  business_id: string;
+  store_id: string;
   customer_id: string;
   type: string;
   payload: Record<string, any>;
@@ -35,19 +35,19 @@ export interface Activity {
 
 export interface TimelineParams {
   customer_id: string;
-  business_id?: string;
+  store_id?: string;
   limit?: number;
   cursor?: string;
 }
 
 export const createActivityAdminApi = (apiConfig: ApiConfig) => ({
   async timeline(params: TimelineParams, options?: RequestOptions) {
-    const business_id = params.business_id || apiConfig.businessId;
+    const store_id = params.store_id || apiConfig.storeId;
     const queryParams: Record<string, any> = { customer_id: params.customer_id };
     if (params.limit !== undefined) queryParams.limit = params.limit;
     if (params.cursor) queryParams.cursor = params.cursor;
     return apiConfig.httpClient.get(
-      `/v1/businesses/${business_id}/activities/timeline`,
+      `/v1/stores/${store_id}/activities/timeline`,
       { ...options, params: queryParams },
     ) as Promise<{ items: Activity[]; cursor: string | null }>;
   },
@@ -56,9 +56,9 @@ export const createActivityAdminApi = (apiConfig: ApiConfig) => ({
 export const createCustomerApi = (apiConfig: ApiConfig) => {
   return {
     async create(params: CreateCustomerParams, options?: RequestOptions): Promise<Customer> {
-      const { business_id, ...payload } = params;
+      const { store_id, ...payload } = params;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${business_id || apiConfig.businessId}/customers`,
+        `/v1/stores/${store_id || apiConfig.storeId}/customers`,
         payload,
         options
       );
@@ -66,13 +66,13 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
 
     async get(params: GetCustomerParams, options?: RequestOptions): Promise<Customer> {
       return apiConfig.httpClient.get(
-        `/v1/businesses/${params.business_id || apiConfig.businessId}/customers/${params.id}`,
+        `/v1/stores/${params.store_id || apiConfig.storeId}/customers/${params.id}`,
         options
       );
     },
 
     async find(params?: FindCustomersParams, options?: RequestOptions): Promise<{ items: Customer[]; cursor?: string }> {
-      const business_id = params?.business_id || apiConfig.businessId;
+      const store_id = params?.store_id || apiConfig.storeId;
       const queryParams: Record<string, any> = {};
 
       if (params?.limit !== undefined) queryParams.limit = params.limit;
@@ -82,7 +82,7 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
       if (params?.sort_direction) queryParams.sort_direction = params.sort_direction;
 
       return apiConfig.httpClient.get(
-        `/v1/businesses/${business_id}/customers`,
+        `/v1/stores/${store_id}/customers`,
         {
           ...options,
           params: queryParams,
@@ -91,35 +91,35 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
     },
 
     async update(params: UpdateCustomerParams, options?: RequestOptions): Promise<Customer> {
-      const { id, business_id, ...body } = params;
+      const { id, store_id, ...body } = params;
       return apiConfig.httpClient.put(
-        `/v1/businesses/${business_id || apiConfig.businessId}/customers/${id}`,
+        `/v1/stores/${store_id || apiConfig.storeId}/customers/${id}`,
         body,
         options
       );
     },
 
     async merge(params: MergeCustomersParams, options?: RequestOptions): Promise<Customer> {
-      const business_id = params.business_id || apiConfig.businessId;
+      const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${business_id}/customers/${params.target_id}/merge`,
-        { source_id: params.source_id, business_id },
+        `/v1/stores/${store_id}/customers/${params.target_id}/merge`,
+        { source_id: params.source_id, store_id },
         options
       );
     },
 
-    async revokeToken(params: { id: string; token_id: string; business_id?: string }, options?: RequestOptions) {
-      const business_id = params.business_id || apiConfig.businessId;
+    async revokeToken(params: { id: string; token_id: string; store_id?: string }, options?: RequestOptions) {
+      const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${business_id}/customers/${params.id}/sessions/${params.token_id}`,
+        `/v1/stores/${store_id}/customers/${params.id}/sessions/${params.token_id}`,
         options
       );
     },
 
-    async revokeAllTokens(params: { id: string; business_id?: string }, options?: RequestOptions) {
-      const business_id = params.business_id || apiConfig.businessId;
+    async revokeAllTokens(params: { id: string; store_id?: string }, options?: RequestOptions) {
+      const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${business_id}/customers/${params.id}/sessions`,
+        `/v1/stores/${store_id}/customers/${params.id}/sessions`,
         options
       );
     },
@@ -128,7 +128,7 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
     audiences: {
       async create(params: CreateAudienceParams, options?: RequestOptions) {
         return apiConfig.httpClient.post(
-          `/v1/businesses/${apiConfig.businessId}/audiences`,
+          `/v1/stores/${apiConfig.storeId}/audiences`,
           params,
           options,
         );
@@ -136,7 +136,7 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
 
       async update(params: UpdateAudienceParams, options?: RequestOptions) {
         return apiConfig.httpClient.put(
-          `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}`,
+          `/v1/stores/${apiConfig.storeId}/audiences/${params.id}`,
           params,
           options,
         );
@@ -147,26 +147,26 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
         if (params.id) {
           identifier = params.id;
         } else if (params.key) {
-          identifier = `${apiConfig.businessId}:${params.key}`;
+          identifier = `${apiConfig.storeId}:${params.key}`;
         } else {
           throw new Error("GetAudienceParams requires id or key");
         }
         return apiConfig.httpClient.get(
-          `/v1/businesses/${apiConfig.businessId}/audiences/${identifier}`,
+          `/v1/stores/${apiConfig.storeId}/audiences/${identifier}`,
           options,
         );
       },
 
       async find(params: GetAudiencesParams, options?: RequestOptions) {
         return apiConfig.httpClient.get(
-          `/v1/businesses/${apiConfig.businessId}/audiences`,
+          `/v1/stores/${apiConfig.storeId}/audiences`,
           { ...options, params },
         );
       },
 
       async getSubscribers(params: GetAudienceSubscribersParams, options?: RequestOptions) {
         return apiConfig.httpClient.get(
-          `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribers`,
+          `/v1/stores/${apiConfig.storeId}/audiences/${params.id}/subscribers`,
           {
             ...options,
             params: { limit: params.limit, cursor: params.cursor },
@@ -176,7 +176,7 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
 
       async addSubscriber(params: AddAudienceSubscriberParams, options?: RequestOptions) {
         return apiConfig.httpClient.post(
-          `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribers`,
+          `/v1/stores/${apiConfig.storeId}/audiences/${params.id}/subscribers`,
           { customer_id: params.customer_id },
           options,
         );
@@ -184,7 +184,7 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
 
       async removeSubscriber(params: RemoveAudienceSubscriberParams, options?: RequestOptions) {
         return apiConfig.httpClient.delete(
-          `/v1/businesses/${apiConfig.businessId}/audiences/${params.id}/subscribers/${params.customer_id}`,
+          `/v1/stores/${apiConfig.storeId}/audiences/${params.id}/subscribers/${params.customer_id}`,
           options,
         );
       },

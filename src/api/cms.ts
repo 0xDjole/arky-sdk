@@ -17,48 +17,48 @@ import {
 export const createCmsApi = (apiConfig: ApiConfig) => {
   return {
     async createNode(params: CreateNodeParams, options?: RequestOptions) {
-      const { business_id, ...payload } = params;
-      const target_business_id = business_id || apiConfig.businessId;
+      const { store_id, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${target_business_id}/nodes`,
+        `/v1/stores/${target_store_id}/nodes`,
         payload,
         options
       );
     },
 
     async updateNode(params: UpdateNodeParams, options?: RequestOptions) {
-      const { business_id, ...payload } = params;
-      const target_business_id = business_id || apiConfig.businessId;
+      const { store_id, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.put(
-        `/v1/businesses/${target_business_id}/nodes/${params.id}`,
+        `/v1/stores/${target_store_id}/nodes/${params.id}`,
         payload,
         options
       );
     },
 
     async deleteNode(params: DeleteNodeParams, options?: RequestOptions) {
-      const target_business_id = params.business_id || apiConfig.businessId;
+      const target_store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${target_business_id}/nodes/${params.id}`,
+        `/v1/stores/${target_store_id}/nodes/${params.id}`,
         options
       );
     },
 
     async getNode(params: GetNodeParams, options?: RequestOptions) {
-      const target_business_id = params.business_id || apiConfig.businessId;
+      const target_store_id = params.store_id || apiConfig.storeId;
       let identifier: string;
       if (params.id) {
         identifier = params.id;
       } else if (params.slug) {
-        identifier = `${target_business_id}:${apiConfig.locale}:${params.slug}`;
+        identifier = `${target_store_id}:${apiConfig.locale}:${params.slug}`;
       } else if (params.key) {
-        identifier = `${target_business_id}:${params.key}`;
+        identifier = `${target_store_id}:${params.key}`;
       } else {
         throw new Error("GetNodeParams requires id, slug, or key");
       }
 
       const response = await apiConfig.httpClient.get(
-        `/v1/businesses/${target_business_id}/nodes/${identifier}`,
+        `/v1/stores/${target_store_id}/nodes/${identifier}`,
         options
       );
 
@@ -78,10 +78,10 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
     },
 
     async getNodes(params: GetNodesParams, options?: RequestOptions) {
-      const { business_id, ...queryParams } = params;
-      const target_business_id = business_id || apiConfig.businessId;
+      const { store_id, ...queryParams } = params;
+      const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${target_business_id}/nodes`,
+        `/v1/stores/${target_store_id}/nodes`,
         {
           ...options,
           params: queryParams,
@@ -90,10 +90,10 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
     },
 
     async getNodeChildren(params: GetNodeChildrenParams, options?: RequestOptions) {
-      const { id, business_id, ...queryParams } = params;
-      const target_business_id = business_id || apiConfig.businessId;
+      const { id, store_id, ...queryParams } = params;
+      const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${target_business_id}/nodes/${id}/children`,
+        `/v1/stores/${target_store_id}/nodes/${id}/children`,
         {
           ...options,
           params: queryParams,

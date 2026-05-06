@@ -51,7 +51,7 @@ export function defaultIsAuthenticated(): boolean {
 export interface HttpClientConfig {
 	baseUrl: string;
 
-	businessId: string;
+	storeId: string;
 
 	refreshPath?: string | (() => string);
 

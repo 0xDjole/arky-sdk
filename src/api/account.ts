@@ -32,7 +32,7 @@ export const createAccountApi = (apiConfig: ApiConfig) => {
                 ...options,
                 params: {
                     ...params,
-                    business_id: apiConfig.businessId
+                    store_id: apiConfig.storeId
                 }
             });
         },

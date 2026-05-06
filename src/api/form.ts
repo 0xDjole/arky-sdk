@@ -15,55 +15,55 @@ import type {
 export const createFormApi = (apiConfig: ApiConfig) => {
   return {
     async createForm(params: CreateFormParams, options?: RequestOptions) {
-      const { business_id, ...payload } = params;
-      const target_business_id = business_id || apiConfig.businessId;
+      const { store_id, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${target_business_id}/forms`,
+        `/v1/stores/${target_store_id}/forms`,
         payload,
         options
       );
     },
 
     async updateForm(params: UpdateFormParams, options?: RequestOptions) {
-      const { business_id, ...payload } = params;
-      const target_business_id = business_id || apiConfig.businessId;
+      const { store_id, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.put(
-        `/v1/businesses/${target_business_id}/forms/${params.id}`,
+        `/v1/stores/${target_store_id}/forms/${params.id}`,
         payload,
         options
       );
     },
 
     async deleteForm(params: DeleteFormParams, options?: RequestOptions) {
-      const target_business_id = params.business_id || apiConfig.businessId;
+      const target_store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${target_business_id}/forms/${params.id}`,
+        `/v1/stores/${target_store_id}/forms/${params.id}`,
         options
       );
     },
 
     async getForm(params: GetFormParams, options?: RequestOptions) {
-      const target_business_id = params.business_id || apiConfig.businessId;
+      const target_store_id = params.store_id || apiConfig.storeId;
       let identifier: string;
       if (params.id) {
         identifier = params.id;
       } else if (params.key) {
-        identifier = `${target_business_id}:${params.key}`;
+        identifier = `${target_store_id}:${params.key}`;
       } else {
         throw new Error("GetFormParams requires id or key");
       }
 
       return apiConfig.httpClient.get(
-        `/v1/businesses/${target_business_id}/forms/${identifier}`,
+        `/v1/stores/${target_store_id}/forms/${identifier}`,
         options
       );
     },
 
     async getForms(params: GetFormsParams, options?: RequestOptions) {
-      const { business_id, ...queryParams } = params;
-      const target_business_id = business_id || apiConfig.businessId;
+      const { store_id, ...queryParams } = params;
+      const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${target_business_id}/forms`,
+        `/v1/stores/${target_store_id}/forms`,
         {
           ...options,
           params: queryParams,
@@ -72,41 +72,41 @@ export const createFormApi = (apiConfig: ApiConfig) => {
     },
 
     async submit(params: SubmitFormParams, options?: RequestOptions) {
-      const { business_id, form_id, ...payload } = params;
-      const target_business_id = business_id || apiConfig.businessId;
+      const { store_id, form_id, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${target_business_id}/forms/${form_id}/submissions`,
-        { ...payload, form_id, business_id: target_business_id },
+        `/v1/stores/${target_store_id}/forms/${form_id}/submissions`,
+        { ...payload, form_id, store_id: target_store_id },
         options
       );
     },
 
     async getSubmissions(params: GetFormSubmissionsParams, options?: RequestOptions) {
-      const { business_id, form_id, ...queryParams } = params;
-      const target_business_id = business_id || apiConfig.businessId;
+      const { store_id, form_id, ...queryParams } = params;
+      const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${target_business_id}/forms/${form_id}/submissions`,
+        `/v1/stores/${target_store_id}/forms/${form_id}/submissions`,
         {
           ...options,
-          params: { ...queryParams, form_id, business_id: target_business_id },
+          params: { ...queryParams, form_id, store_id: target_store_id },
         }
       );
     },
 
     async getSubmission(params: GetFormSubmissionParams, options?: RequestOptions) {
-      const target_business_id = params.business_id || apiConfig.businessId;
+      const target_store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.get(
-        `/v1/businesses/${target_business_id}/forms/${params.form_id}/submissions/${params.id}`,
+        `/v1/stores/${target_store_id}/forms/${params.form_id}/submissions/${params.id}`,
         options
       );
     },
 
     async updateSubmission(params: UpdateFormSubmissionParams, options?: RequestOptions) {
-      const { business_id, form_id, id, ...payload } = params;
-      const target_business_id = business_id || apiConfig.businessId;
+      const { store_id, form_id, id, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.put(
-        `/v1/businesses/${target_business_id}/forms/${form_id}/submissions/${id}`,
-        { ...payload, form_id, business_id: target_business_id, id },
+        `/v1/stores/${target_store_id}/forms/${form_id}/submissions/${id}`,
+        { ...payload, form_id, store_id: target_store_id, id },
         options
       );
     },
