@@ -446,10 +446,10 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
 
     crm: {
       customer: {
-        async initialize(params?: { business_id?: string; market?: string }, options?: RequestOptions) {
+        async session(params?: { business_id?: string; market?: string }, options?: RequestOptions) {
           const business_id = params?.business_id || apiConfig.businessId;
           const result = await apiConfig.httpClient.post(
-            `${base(business_id)}/customers/initialize`,
+            `${base(business_id)}/customers/session`,
             { business_id, market: params?.market || apiConfig.market || null },
             options,
           );

@@ -145,10 +145,10 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
       const { business_id, ...query } = params;
       const target_business_id = business_id || apiConfig.businessId;
 
-      return apiConfig.httpClient.get<AvailabilityResponse>(
+      return apiConfig.httpClient.get(
         `/v1/businesses/${target_business_id}/bookings/availability`,
         { ...options, params: query },
-      );
+      ) as Promise<AvailabilityResponse>;
     },
 
     async createService(params: CreateServiceParams, options?: RequestOptions) {

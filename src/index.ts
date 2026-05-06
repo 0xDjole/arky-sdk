@@ -157,9 +157,8 @@ export type {
 export { COMMON_ACTIVITY_TYPES } from "./api/storefront";
 
 export type { TimelineParams } from "./api/crm";
-export type { StorefrontStores } from "./stores";
 
-export const SDK_VERSION = "0.7.89";
+export const SDK_VERSION = "0.7.94";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -228,7 +227,6 @@ import {
   getCurrencyName,
 } from "./utils/price";
 import { validatePhoneNumber } from "./utils/validation";
-import { createStores, populateStores, resetStores } from "./stores";
 import { tzGroups, findTimeZone } from "./utils/timezone";
 import { slugify, humanize, categorify, formatDate } from "./utils/text";
 import {
@@ -297,7 +295,7 @@ function createUtilitySurface(apiConfig: ApiConfig) {
   };
 }
 
-export async function createAdmin(
+export function createAdmin(
   config: HttpClientConfig & {
     market: string;
     locale?: string;
@@ -520,38 +518,13 @@ export async function createAdmin(
   return sdk;
 }
 
-const SESSION_CACHE_TTL = 3600000;
-
-function getCachedSession(businessId: string): StorefrontSession | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(`arky_session_${businessId}`);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (Date.now() - (parsed.timestamp || 0) > SESSION_CACHE_TTL) {
-      localStorage.removeItem(`arky_session_${businessId}`);
-      return null;
-    }
-    return { business: parsed.business, market: parsed.market };
-  } catch {
-    return null;
-  }
-}
-
-function setCachedSession(businessId: string, data: StorefrontSession): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(
-      `arky_session_${businessId}`,
-      JSON.stringify({ ...data, timestamp: Date.now() }),
-    );
-  } catch {}
-}
-
 export interface StorefrontSession {
+  customer: any;
   business: any;
   market: any;
 }
+
+export type StorefrontSessionListener = (session: StorefrontSession | null) => void;
 
 export function createStorefront(
   config: HttpClientConfig & {
@@ -586,80 +559,136 @@ export function createStorefront(
   };
 
   const storefrontApi = createStorefrontApi(apiConfig);
-  const stores = createStores();
 
-  let initPromise: Promise<StorefrontSession> | null = null;
+  let sessionPromise: Promise<StorefrontSession> | null = null;
+  let currentSession: StorefrontSession | null = null;
+  const sessionListeners = new Set<StorefrontSessionListener>();
+  const customerApi = storefrontApi.crm.customer;
 
-  function init(): Promise<StorefrontSession> {
-    if (initPromise) return initPromise;
+  function emitSessionChange(session: StorefrontSession | null) {
+    for (const listener of sessionListeners) {
+      Promise.resolve()
+        .then(() => listener(session))
+        .catch(() => {});
+    }
+  }
 
-    initPromise = (async (): Promise<StorefrontSession> => {
-      stores.loading.set(true);
-      stores.error.set(null);
+  function setCurrentSessionFromResult(result: any) {
+    const s = {
+      customer: result.customer,
+      business: result.business,
+      market: result.market || null,
+    };
+    currentSession = s;
+    emitSessionChange(s);
+    return s;
+  }
 
-      const cached = getCachedSession(apiConfig.businessId);
-      const tokens = await getToken();
-      const hasToken = !!tokens.access_token;
+  function clearSession() {
+    sessionPromise = null;
+    currentSession = null;
+    emitSessionChange(null);
+  }
 
-      if (hasToken && cached) {
-        populateStores(stores, cached);
-        stores.loading.set(false);
-        return cached;
+  async function invalidateAfterAuth<T>(promise: Promise<T>) {
+    const result = await promise;
+    clearSession();
+    return result;
+  }
+
+  function session(market?: string): Promise<StorefrontSession> {
+    if (market !== undefined) apiConfig.market = market;
+    if (sessionPromise) return sessionPromise;
+
+    sessionPromise = (async (): Promise<StorefrontSession> => {
+      try {
+        const result = await customerApi.session({
+          market: apiConfig.market,
+        });
+        return setCurrentSessionFromResult(result);
+      } catch (err: any) {
+        const status = err?.statusCode || err?.status || err?.response?.status;
+        if (status === 401) {
+          currentSession = null;
+          emitSessionChange(null);
+          await setToken({ access_token: "", refresh_token: "", access_expires_at: 0 });
+          const result = await customerApi.session({
+            market: apiConfig.market,
+          });
+          return setCurrentSessionFromResult(result);
+        }
+        throw err;
       }
-
-      if (hasToken) {
-        const [business, allMarkets] = await Promise.all([
-          storefrontApi.business.getBusiness(),
-          storefrontApi.business.market.list().catch(() => []),
-        ]);
-        const marketData = apiConfig.market
-          ? (allMarkets as any[]).find((m: any) => m.key === apiConfig.market) || null
-          : null;
-        const session = { business, market: marketData };
-        populateStores(stores, session);
-        setCachedSession(apiConfig.businessId, session);
-        stores.loading.set(false);
-        return session;
-      }
-
-      const result = await storefrontApi.crm.customer.initialize({
-        market: apiConfig.market,
-      });
-      const session = {
-        business: result.business,
-        market: result.market || null,
-      };
-      populateStores(stores, session);
-      setCachedSession(apiConfig.businessId, session);
-      stores.loading.set(false);
-      return session;
     })().catch((err) => {
-      stores.error.set(err.message || "Initialization failed");
-      stores.loading.set(false);
-      initPromise = null;
+      sessionPromise = null;
       throw err;
     });
 
-    return initPromise;
+    return sessionPromise;
   }
 
   function setMarket(key: string) {
     apiConfig.market = key;
+    clearSession();
   }
 
+  function onSessionChange(listener: StorefrontSessionListener) {
+    sessionListeners.add(listener);
+    if (currentSession) {
+      Promise.resolve()
+        .then(() => listener(currentSession))
+        .catch(() => {});
+    }
+    return () => {
+      sessionListeners.delete(listener);
+    };
+  }
+
+  function getSession(): StorefrontSession | null {
+    return currentSession;
+  }
+
+  function logoutAndClearSession() {
+    clearSession();
+    return logout();
+  }
+
+  function setTokenAndClearSession(tokens: any) {
+    setToken(tokens);
+    clearSession();
+  }
+
+  const crm = {
+    ...storefrontApi.crm,
+    customer: {
+      ...customerApi,
+      async session(params?: Parameters<typeof customerApi.session>[0], options?: Parameters<typeof customerApi.session>[1]) {
+        const result = await customerApi.session(params, options);
+        setCurrentSessionFromResult(result);
+        return result;
+      },
+      connect: (params: any, options?: any) =>
+        invalidateAfterAuth(customerApi.connect(params, options)),
+      verify: (params: any, options?: any) =>
+        invalidateAfterAuth(customerApi.verify(params, options)),
+    },
+  };
+
   return {
-    init,
-    stores,
+    session,
+    getSession,
+    onSessionChange,
     business: storefrontApi.business,
     cms: storefrontApi.cms,
     eshop: storefrontApi.eshop,
     booking: storefrontApi.booking,
-    crm: storefrontApi.crm,
+    crm,
     activity: storefrontApi.activity,
     automation: storefrontApi.automation,
     setBusinessId: (businessId: string) => {
       refresh_business_id = businessId;
       apiConfig.businessId = businessId;
+      clearSession();
     },
     getBusinessId: () => apiConfig.businessId,
     setMarket,
@@ -669,8 +698,8 @@ export function createStorefront(
     },
     getLocale: () => apiConfig.locale,
     isAuthenticated,
-    logout,
-    setToken,
+    logout: logoutAndClearSession,
+    setToken: setTokenAndClearSession,
     extractBlockValues,
     utils: createUtilitySurface(apiConfig),
   };
