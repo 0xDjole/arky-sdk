@@ -12,26 +12,26 @@ export interface AuthTokens {
 }
 
 const STORAGE_KEYS = {
-	accessToken: "arky_token",
-	refreshToken: "arky_refresh",
-	accessExpiresAt: "arky_expires_at",
+	access_token: "arky_token",
+	refresh_token: "arky_refresh",
+	access_expires_at: "arky_expires_at",
 };
 
 export function defaultGetToken(): AuthTokens {
 	if (typeof window === "undefined") return { access_token: "" };
 	return {
-		access_token: localStorage.getItem(STORAGE_KEYS.accessToken) || "",
-		refresh_token: localStorage.getItem(STORAGE_KEYS.refreshToken) || "",
-		access_expires_at: parseInt(localStorage.getItem(STORAGE_KEYS.accessExpiresAt) || "0", 10),
+		access_token: localStorage.getItem(STORAGE_KEYS.access_token) || "",
+		refresh_token: localStorage.getItem(STORAGE_KEYS.refresh_token) || "",
+		access_expires_at: parseInt(localStorage.getItem(STORAGE_KEYS.access_expires_at) || "0", 10),
 	};
 }
 
 export function defaultSetToken(tokens: AuthTokens): void {
 	if (typeof window === "undefined") return;
 	if (tokens.access_token) {
-		localStorage.setItem(STORAGE_KEYS.accessToken, tokens.access_token);
-		localStorage.setItem(STORAGE_KEYS.refreshToken, tokens.refresh_token || "");
-		localStorage.setItem(STORAGE_KEYS.accessExpiresAt, (tokens.access_expires_at || 0).toString());
+		localStorage.setItem(STORAGE_KEYS.access_token, tokens.access_token);
+		localStorage.setItem(STORAGE_KEYS.refresh_token, tokens.refresh_token || "");
+		localStorage.setItem(STORAGE_KEYS.access_expires_at, (tokens.access_expires_at || 0).toString());
 	} else {
 		Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
 	}
@@ -44,7 +44,7 @@ export function defaultLogout(): void {
 
 export function defaultIsAuthenticated(): boolean {
 	if (typeof window === "undefined") return false;
-	const token = localStorage.getItem(STORAGE_KEYS.accessToken) || "";
+	const token = localStorage.getItem(STORAGE_KEYS.access_token) || "";
 	return token.startsWith("customer_") || token.startsWith("account_");
 }
 
@@ -53,7 +53,7 @@ export interface HttpClientConfig {
 
 	businessId: string;
 
-	refreshPath?: string;
+	refreshPath?: string | (() => string);
 
 	getToken?: () => Promise<AuthTokens> | AuthTokens;
 
@@ -74,8 +74,8 @@ type SuccessCallback<T = any> = (ctx: {
 	url: string;
 	status: number;
 	request?: any;
-	durationMs?: number;
-	requestId?: string | null;
+	duration_ms?: number;
+	request_id?: string | null;
 }) => void | Promise<void>;
 
 type ErrorCallback = (ctx: {
@@ -85,8 +85,8 @@ type ErrorCallback = (ctx: {
 	status?: number;
 	request?: any;
 	response?: any;
-	durationMs?: number;
-	requestId?: string | null;
+	duration_ms?: number;
+	request_id?: string | null;
 	aborted?: boolean;
 }) => void | Promise<void>;
 
@@ -95,8 +95,14 @@ export function createHttpClient(cfg: HttpClientConfig) {
 	const setToken = cfg.setToken || defaultSetToken;
 	const logout = cfg.logout || defaultLogout;
 
-	const refreshEndpoint = `${cfg.baseUrl}${cfg.refreshPath || '/v1/auth/refresh'}`;
 	let refreshPromise: Promise<void> | null = null;
+
+	function getRefreshEndpoint() {
+		const refreshPath = typeof cfg.refreshPath === "function"
+			? cfg.refreshPath()
+			: cfg.refreshPath || '/v1/auth/refresh';
+		return `${cfg.baseUrl}${refreshPath}`;
+	}
 
 	async function ensureFreshToken() {
 		if (refreshPromise) {
@@ -113,7 +119,7 @@ export function createHttpClient(cfg: HttpClientConfig) {
 				throw err;
 			}
 
-			const refRes = await fetch(refreshEndpoint, {
+			const refRes = await fetch(getRefreshEndpoint(), {
 				method: 'POST',
 				headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
 				body: JSON.stringify({ refresh_token })
@@ -207,7 +213,7 @@ if (options?.onError && method !== 'GET') {
 				fetchOpts.headers = headers;
 				return request<T>(method, path, body, { ...options, _retried: true });
 			} catch (refreshError) {
-				
+				throw refreshError;
 			}
 		}
 
@@ -252,8 +258,8 @@ if (options?.onError && method !== 'GET') {
 						url: fullUrl,
 						status: res.status,
 						response: serverErr,
-						requestId: requestId || null,
-						durationMs: Date.now() - startedAt
+						request_id: requestId || null,
+						duration_ms: Date.now() - startedAt
 					})
 				).catch(() => {});
 			}
@@ -268,8 +274,8 @@ if (options?.onSuccess && method !== 'GET') {
 					method,
 					url: fullUrl,
 					status: res.status,
-					requestId: requestId || null,
-					durationMs: Date.now() - startedAt
+					request_id: requestId || null,
+					duration_ms: Date.now() - startedAt
 				})
 			).catch(() => {});
 		}

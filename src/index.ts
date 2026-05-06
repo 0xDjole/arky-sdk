@@ -157,8 +157,9 @@ export type {
 export { COMMON_ACTIVITY_TYPES } from "./api/storefront";
 
 export type { TimelineParams } from "./api/crm";
+export type { StorefrontStores } from "./stores";
 
-export const SDK_VERSION = "0.7.81";
+export const SDK_VERSION = "0.7.89";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -227,6 +228,7 @@ import {
   getCurrencyName,
 } from "./utils/price";
 import { validatePhoneNumber } from "./utils/validation";
+import { createStores, populateStores, resetStores } from "./stores";
 import { tzGroups, findTimeZone } from "./utils/timezone";
 import { slugify, humanize, categorify, formatDate } from "./utils/text";
 import {
@@ -518,64 +520,136 @@ export async function createAdmin(
   return sdk;
 }
 
-export async function createStorefront(
+const SESSION_CACHE_TTL = 3600000;
+
+function getCachedSession(businessId: string): StorefrontSession | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(`arky_session_${businessId}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Date.now() - (parsed.timestamp || 0) > SESSION_CACHE_TTL) {
+      localStorage.removeItem(`arky_session_${businessId}`);
+      return null;
+    }
+    return { business: parsed.business, market: parsed.market };
+  } catch {
+    return null;
+  }
+}
+
+function setCachedSession(businessId: string, data: StorefrontSession): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(
+      `arky_session_${businessId}`,
+      JSON.stringify({ ...data, timestamp: Date.now() }),
+    );
+  } catch {}
+}
+
+export interface StorefrontSession {
+  business: any;
+  market: any;
+}
+
+export function createStorefront(
   config: HttpClientConfig & {
-    market: string;
+    market?: string;
     locale?: string;
   }
 ) {
   const locale = config.locale || "en";
+  const market = config.market || "";
   const getToken = config.getToken || defaultGetToken;
   const setToken = config.setToken || defaultSetToken;
   const logout = config.logout || defaultLogout;
   const isAuthenticated = config.isAuthenticated || defaultIsAuthenticated;
+  let refresh_business_id = config.businessId;
 
   const httpClient = createHttpClient({
     ...config,
     getToken,
     setToken,
     logout,
-    refreshPath: `/v1/storefront/${config.businessId}/customers/auth/refresh`,
+    refreshPath: () => `/v1/storefront/${refresh_business_id}/customers/auth/refresh`,
   });
 
   const apiConfig: ApiConfig = {
     httpClient,
     businessId: config.businessId,
     baseUrl: config.baseUrl,
-    market: config.market,
+    market,
     locale,
     setToken,
     getToken,
   };
 
   const storefrontApi = createStorefrontApi(apiConfig);
+  const stores = createStores();
 
-  let sessionPromise: Promise<void> | null = null;
+  let initPromise: Promise<StorefrontSession> | null = null;
 
-  function ensureSession(): Promise<void> {
-    if (typeof window === "undefined") return Promise.resolve();
-    if (sessionPromise) return sessionPromise;
+  function init(): Promise<StorefrontSession> {
+    if (initPromise) return initPromise;
 
-    sessionPromise = (async () => {
-      const tokens = await apiConfig.getToken();
-      if (tokens.access_token) return;
+    initPromise = (async (): Promise<StorefrontSession> => {
+      stores.loading.set(true);
+      stores.error.set(null);
 
-      const result = await storefrontApi.crm.customer.initialize();
-      if (result?.access_token) {
-        apiConfig.setToken(result);
+      const cached = getCachedSession(apiConfig.businessId);
+      const tokens = await getToken();
+      const hasToken = !!tokens.access_token;
+
+      if (hasToken && cached) {
+        populateStores(stores, cached);
+        stores.loading.set(false);
+        return cached;
       }
-    })().finally(() => {
-      sessionPromise = null;
+
+      if (hasToken) {
+        const [business, allMarkets] = await Promise.all([
+          storefrontApi.business.getBusiness(),
+          storefrontApi.business.market.list().catch(() => []),
+        ]);
+        const marketData = apiConfig.market
+          ? (allMarkets as any[]).find((m: any) => m.key === apiConfig.market) || null
+          : null;
+        const session = { business, market: marketData };
+        populateStores(stores, session);
+        setCachedSession(apiConfig.businessId, session);
+        stores.loading.set(false);
+        return session;
+      }
+
+      const result = await storefrontApi.crm.customer.initialize({
+        market: apiConfig.market,
+      });
+      const session = {
+        business: result.business,
+        market: result.market || null,
+      };
+      populateStores(stores, session);
+      setCachedSession(apiConfig.businessId, session);
+      stores.loading.set(false);
+      return session;
+    })().catch((err) => {
+      stores.error.set(err.message || "Initialization failed");
+      stores.loading.set(false);
+      initPromise = null;
+      throw err;
     });
 
-    return sessionPromise;
+    return initPromise;
   }
 
-  if (typeof window !== "undefined") {
-    ensureSession().catch(() => {});
+  function setMarket(key: string) {
+    apiConfig.market = key;
   }
 
   return {
+    init,
+    stores,
     business: storefrontApi.business,
     cms: storefrontApi.cms,
     eshop: storefrontApi.eshop,
@@ -584,12 +658,11 @@ export async function createStorefront(
     activity: storefrontApi.activity,
     automation: storefrontApi.automation,
     setBusinessId: (businessId: string) => {
+      refresh_business_id = businessId;
       apiConfig.businessId = businessId;
     },
     getBusinessId: () => apiConfig.businessId,
-    setMarket: (market: string) => {
-      apiConfig.market = market;
-    },
+    setMarket,
     getMarket: () => apiConfig.market,
     setLocale: (locale: string) => {
       apiConfig.locale = locale;

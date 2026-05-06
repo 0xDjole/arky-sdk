@@ -11,18 +11,18 @@ import type {
 export const createMediaApi = (apiConfig: ApiConfig) => {
     return {
         async getMedia(params: GetMediaParams, options?: RequestOptions) {
-            const targetBusinessId = params.businessId || apiConfig.businessId;
+            const target_business_id = params.business_id || apiConfig.businessId;
             return apiConfig.httpClient.get(
-                `/v1/businesses/${targetBusinessId}/media/${params.mediaId}`,
+                `/v1/businesses/${target_business_id}/media/${params.media_id}`,
                 options
             );
         },
 
         async uploadBusinessMedia(params: UploadBusinessMediaParams, options?: RequestOptions) {
             const _options = options;
-            const { businessId, files = [], urls = [] } = params;
-            const targetBusinessId = businessId || apiConfig.businessId;
-            const url = `${apiConfig.baseUrl}/v1/businesses/${targetBusinessId}/media`;
+            const { business_id, files = [], urls = [] } = params;
+            const target_business_id = business_id || apiConfig.businessId;
+            const url = `${apiConfig.baseUrl}/v1/businesses/${target_business_id}/media`;
 
             const formData = new FormData();
             files.forEach((file) => formData.append('files', file));
@@ -45,18 +45,18 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
         },
 
         async deleteBusinessMedia(params: DeleteBusinessMediaParams, options?: RequestOptions) {
-            const { id, mediaId } = params;
+            const { id, media_id } = params;
 
             return apiConfig.httpClient.delete(
-                `/v1/businesses/${id}/media/${mediaId}`,
+                `/v1/businesses/${id}/media/${media_id}`,
                 options
             );
         },
 
         async getBusinessMedia(params: GetBusinessMediaParams, options?: RequestOptions) {
-            const { businessId, cursor, limit, ids, query, mime_type, sort_field, sort_direction } = params;
-            const targetBusinessId = businessId || apiConfig.businessId;
-            const url = `${apiConfig.baseUrl}/v1/businesses/${targetBusinessId}/media`;
+            const { business_id, cursor, limit, ids, query, mime_type, sort_field, sort_direction } = params;
+            const target_business_id = business_id || apiConfig.businessId;
+            const url = `${apiConfig.baseUrl}/v1/businesses/${target_business_id}/media`;
 
             const queryParams: Record<string, string> = { limit: String(limit) };
             if (cursor) queryParams.cursor = cursor;
@@ -84,11 +84,11 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
         },
 
         async updateMedia(params: UpdateMediaParams, options?: RequestOptions) {
-            const { mediaId, businessId, ...payload } = params;
-            const targetBusinessId = businessId || apiConfig.businessId;
+            const { media_id, business_id, ...payload } = params;
+            const target_business_id = business_id || apiConfig.businessId;
 
             return apiConfig.httpClient.put(
-                `/v1/businesses/${targetBusinessId}/media/${mediaId}`,
+                `/v1/businesses/${target_business_id}/media/${media_id}`,
                 payload,
                 options
             );

@@ -30,7 +30,7 @@ export const createMarketApi = (apiConfig: ApiConfig) => {
     ): Promise<Market> {
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/markets`,
-        { ...params, businessId: apiConfig.businessId },
+        { ...params, business_id: apiConfig.businessId },
         options,
       );
     },
@@ -41,7 +41,7 @@ export const createMarketApi = (apiConfig: ApiConfig) => {
     ): Promise<Market> {
       return apiConfig.httpClient.put(
         `/v1/businesses/${apiConfig.businessId}/markets/${params.id}`,
-        { ...params, businessId: apiConfig.businessId },
+        { ...params, business_id: apiConfig.businessId },
         options,
       );
     },

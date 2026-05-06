@@ -60,7 +60,7 @@ export const createLocationApi = (apiConfig: ApiConfig) => {
     ): Promise<Location> {
       return apiConfig.httpClient.post(
         `/v1/businesses/${apiConfig.businessId}/locations`,
-        { ...params, businessId: apiConfig.businessId },
+        { ...params, business_id: apiConfig.businessId },
         options,
       );
     },
@@ -71,7 +71,7 @@ export const createLocationApi = (apiConfig: ApiConfig) => {
     ): Promise<Location> {
       return apiConfig.httpClient.put(
         `/v1/businesses/${apiConfig.businessId}/locations/${params.id}`,
-        { ...params, businessId: apiConfig.businessId },
+        { ...params, business_id: apiConfig.businessId },
         options,
       );
     },

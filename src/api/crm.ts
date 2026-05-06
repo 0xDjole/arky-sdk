@@ -35,19 +35,19 @@ export interface Activity {
 
 export interface TimelineParams {
   customer_id: string;
-  businessId?: string;
+  business_id?: string;
   limit?: number;
   cursor?: string;
 }
 
 export const createActivityAdminApi = (apiConfig: ApiConfig) => ({
   async timeline(params: TimelineParams, options?: RequestOptions) {
-    const businessId = params.businessId || apiConfig.businessId;
+    const business_id = params.business_id || apiConfig.businessId;
     const queryParams: Record<string, any> = { customer_id: params.customer_id };
     if (params.limit !== undefined) queryParams.limit = params.limit;
     if (params.cursor) queryParams.cursor = params.cursor;
     return apiConfig.httpClient.get(
-      `/v1/businesses/${businessId}/activities/timeline`,
+      `/v1/businesses/${business_id}/activities/timeline`,
       { ...options, params: queryParams },
     ) as Promise<{ items: Activity[]; cursor: string | null }>;
   },
@@ -56,22 +56,23 @@ export const createActivityAdminApi = (apiConfig: ApiConfig) => ({
 export const createCustomerApi = (apiConfig: ApiConfig) => {
   return {
     async create(params: CreateCustomerParams, options?: RequestOptions): Promise<Customer> {
+      const { business_id, ...payload } = params;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${params.businessId || apiConfig.businessId}/customers`,
-        params,
+        `/v1/businesses/${business_id || apiConfig.businessId}/customers`,
+        payload,
         options
       );
     },
 
     async get(params: GetCustomerParams, options?: RequestOptions): Promise<Customer> {
       return apiConfig.httpClient.get(
-        `/v1/businesses/${params.businessId || apiConfig.businessId}/customers/${params.id}`,
+        `/v1/businesses/${params.business_id || apiConfig.businessId}/customers/${params.id}`,
         options
       );
     },
 
     async find(params?: FindCustomersParams, options?: RequestOptions): Promise<{ items: Customer[]; cursor?: string }> {
-      const businessId = params?.businessId || apiConfig.businessId;
+      const business_id = params?.business_id || apiConfig.businessId;
       const queryParams: Record<string, any> = {};
 
       if (params?.limit !== undefined) queryParams.limit = params.limit;
@@ -81,7 +82,7 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
       if (params?.sort_direction) queryParams.sort_direction = params.sort_direction;
 
       return apiConfig.httpClient.get(
-        `/v1/businesses/${businessId}/customers`,
+        `/v1/businesses/${business_id}/customers`,
         {
           ...options,
           params: queryParams,
@@ -90,35 +91,35 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
     },
 
     async update(params: UpdateCustomerParams, options?: RequestOptions): Promise<Customer> {
-      const { id, businessId, ...body } = params;
+      const { id, business_id, ...body } = params;
       return apiConfig.httpClient.put(
-        `/v1/businesses/${businessId || apiConfig.businessId}/customers/${id}`,
+        `/v1/businesses/${business_id || apiConfig.businessId}/customers/${id}`,
         body,
         options
       );
     },
 
     async merge(params: MergeCustomersParams, options?: RequestOptions): Promise<Customer> {
-      const businessId = params.businessId || apiConfig.businessId;
+      const business_id = params.business_id || apiConfig.businessId;
       return apiConfig.httpClient.post(
-        `/v1/businesses/${businessId}/customers/${params.target_id}/merge`,
-        { source_id: params.source_id, businessId },
+        `/v1/businesses/${business_id}/customers/${params.target_id}/merge`,
+        { source_id: params.source_id, business_id },
         options
       );
     },
 
-    async revokeToken(params: { id: string; tokenId: string; businessId?: string }, options?: RequestOptions) {
-      const businessId = params.businessId || apiConfig.businessId;
+    async revokeToken(params: { id: string; token_id: string; business_id?: string }, options?: RequestOptions) {
+      const business_id = params.business_id || apiConfig.businessId;
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${businessId}/customers/${params.id}/sessions/${params.tokenId}`,
+        `/v1/businesses/${business_id}/customers/${params.id}/sessions/${params.token_id}`,
         options
       );
     },
 
-    async revokeAllTokens(params: { id: string; businessId?: string }, options?: RequestOptions) {
-      const businessId = params.businessId || apiConfig.businessId;
+    async revokeAllTokens(params: { id: string; business_id?: string }, options?: RequestOptions) {
+      const business_id = params.business_id || apiConfig.businessId;
       return apiConfig.httpClient.delete(
-        `/v1/businesses/${businessId}/customers/${params.id}/sessions`,
+        `/v1/businesses/${business_id}/customers/${params.id}/sessions`,
         options
       );
     },
