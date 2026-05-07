@@ -120,8 +120,8 @@ export interface OrderPayment {
 export interface PromoCodeValidation {
 	promo_code_id: string;
 	code: string;
-	discounts: any[];
-	conditions: any[];
+	discounts: import('./api').Discount[];
+	conditions: import('./api').Condition[];
 }
 
 export interface BookingQuote {
@@ -193,14 +193,14 @@ export interface SubscriptionPrice {
 
 
 export interface Address {
-	name: string;
+	name?: string | null;
 	company?: string | null;
-	street1: string;
+	street1?: string | null;
 	street2?: string | null;
-	city: string;
-	state: string;
-	postal_code: string;
-	country: string;
+	city?: string | null;
+	state?: string | null;
+	postal_code?: string | null;
+	country?: string | null;
 	phone?: string | null;
 	email?: string | null;
 }
@@ -241,7 +241,7 @@ export interface BookingCartItem {
 	to: number;
 	time_text: string;
 	provider_id?: string;
-	forms: any[];
+	forms: FormEntry[];
 }
 
 
@@ -345,6 +345,87 @@ export interface InventoryLevel {
 	location_id: string;
 	available: number;
 	reserved: number;
+}
+
+export interface ProductInventory {
+	id: string;
+	store_id: string;
+	product_id: string;
+	variant_id: string;
+	location_id: string;
+	available: number;
+	reserved: number;
+	updated_at: number;
+}
+
+export interface ProductVariant {
+	id: string;
+	sku?: string;
+	prices: Price[];
+	inventory: ProductInventory[];
+	attributes: Block[];
+	weight?: number;
+}
+
+export interface Product {
+	id: string;
+	store_id: string;
+	key: string;
+	slug: Record<string, string>;
+	blocks: Block[];
+	taxonomies: TaxonomyEntry[];
+	variants: ProductVariant[];
+	status: ProductStatus;
+	created_at: number;
+	updated_at: number;
+}
+
+export interface GalleryItem {
+	id: string;
+	url: string;
+	alt?: string;
+	caption?: string;
+}
+
+export interface OrderItemSnapshot {
+	product_key: string;
+	variant_sku?: string;
+	variant_attributes: Block[];
+	price: Price;
+}
+
+export interface OrderItem {
+	id: string;
+	product_id: string;
+	variant_id: string;
+	quantity: number;
+	location_id?: string;
+	snapshot: OrderItemSnapshot;
+	status: OrderItemStatus;
+}
+
+export interface HistoryEntry {
+	action: string;
+	reason?: string;
+	timestamp: number;
+}
+
+export interface Order {
+	id: string;
+	number: string;
+	store_id: string;
+	customer_id: string;
+	verified: boolean;
+	items: OrderItem[];
+	payment: OrderPayment;
+	shipping_address?: Address;
+	billing_address?: Address;
+	forms: FormEntry[];
+	shipments: Shipment[];
+	history: HistoryEntry[];
+	audience_id?: string;
+	created_at: number;
+	updated_at: number;
 }
 
 export interface Zone {
@@ -849,25 +930,43 @@ export interface Taxonomy {
 
 export interface ServiceDuration {
 	duration: number;
-	is_pause?: boolean;
+	is_pause: boolean;
+}
+
+export interface WorkingHour {
+	from: number;
+	to: number;
+}
+
+export interface WorkingDay {
+	day: string;
+	working_hours: WorkingHour[];
+}
+
+export interface SpecificDate {
+	date: number;
+	working_hours: WorkingHour[];
 }
 
 export interface ServiceProvider {
 	id: string;
+	service_id: string;
 	provider_id: string;
+	store_id: string;
+	working_days: WorkingDay[];
+	specific_dates: SpecificDate[];
 	prices: Price[];
 	durations: ServiceDuration[];
-	audience_ids: string[];
-	working_days: Array<{ day: string; working_hours: Array<{ from: number; to: number }> }>;
-	specific_dates: Array<{ date: number; working_hours: Array<{ from: number; to: number }> }>;
 	slot_interval: number;
+	forms: FormEntry[];
+	reminders: number[];
 	min_advance: number;
 	max_advance: number;
-	reminders: number[];
-	forms?: FormEntry[];
+	created_at: number;
+	updated_at: number;
 }
 
-export interface Service {
+export interface BookingService {
 	id: string;
 	key: string;
 	slug: Record<string, string>;
@@ -879,24 +978,29 @@ export interface Service {
 	status: BookingServiceStatus;
 }
 
+
+export type Service = BookingService;
+
 export interface ProviderTimelinePoint {
 	timestamp: number;
 	booked: number;
 }
 
-export interface Provider {
+export interface BookingProvider {
 	id: string;
 	key: string;
 	slug: Record<string, string>;
 	store_id: string;
 	status: BookingProviderStatus;
-	audience_ids: string[];
 	blocks: Block[];
 	taxonomies: TaxonomyEntry[];
 	timeline: ProviderTimelinePoint[];
 	created_at: number;
 	updated_at: number;
 }
+
+
+export type Provider = BookingProvider;
 
 export interface WorkflowEdge {
 	source: string;
@@ -1188,4 +1292,49 @@ export interface CustomsDeclaration {
 	certify: boolean;
 	certify_signer: string;
 	items: CustomsItem[];
+}
+
+export interface Agent {
+	id: string;
+	store_id: string;
+	key: string;
+	prompt: string;
+	status: import('./api').AgentStatus;
+	model_id: string;
+	channel_ids: string[];
+	created_at: number;
+	updated_at: number;
+}
+
+export interface AgentChat {
+	id: string;
+	store_id: string;
+	agent_id: string;
+	account_id: string;
+	status: AgentChatStatus;
+	rating?: number;
+	rating_comment?: string;
+	created_at: number;
+	updated_at: number;
+}
+
+export interface AgentChatMessage {
+	id: string;
+	store_id: string;
+	agent_id?: string;
+	chat_id?: string;
+	message: string;
+	created_at: number;
+}
+
+export interface PromoCode {
+	id: string;
+	store_id: string;
+	code: string;
+	discounts: import('./api').Discount[];
+	conditions: import('./api').Condition[];
+	status: PromoCodeStatus;
+	uses: number;
+	created_at: number;
+	updated_at: number;
 }

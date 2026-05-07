@@ -7,15 +7,15 @@ import type {
 
 export const createNotificationApi = (apiConfig: ApiConfig) => {
 	return {
-		async trackEmailOpen(params: TrackEmailOpenParams, options?: RequestOptions) {
-			return apiConfig.httpClient.get(
+		async trackEmailOpen(params: TrackEmailOpenParams, options?: RequestOptions): Promise<void> {
+			return apiConfig.httpClient.get<void>(
 				`/v1/notifications/track/pixel/${params.tracking_pixel_id}`,
 				options
 			);
 		},
 
-		async trigger(params: TriggerNotificationParams, options?: RequestOptions) {
-			return apiConfig.httpClient.post(
+		async trigger(params: TriggerNotificationParams, options?: RequestOptions): Promise<{ triggered: boolean }> {
+			return apiConfig.httpClient.post<{ triggered: boolean }>(
 				'/v1/notifications/trigger',
 				params,
 				options

@@ -25,21 +25,33 @@ import type {
   DeleteWebhookParams,
   RequestOptions,
 } from "../types/api";
+import type {
+  Store,
+  Integration,
+  Webhook,
+  Media,
+  PaginatedResponse,
+} from "../types";
+
+// TODO: type as SubscriptionPlan once exported from types/index.ts
+type SubscriptionPlan = unknown;
+// TODO: type as IntegrationConfig once exported from types/index.ts
+type IntegrationConfig = unknown;
 
 export const createStoreApi = (apiConfig: ApiConfig) => {
   return {
     async createStore(
       params: CreateStoreParams,
       options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.post(`/v1/stores`, params, options);
+    ): Promise<Store> {
+      return apiConfig.httpClient.post<Store>(`/v1/stores`, params, options);
     },
 
     async updateStore(
       params: UpdateStoreParams,
       options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.put(
+    ): Promise<Store> {
+      return apiConfig.httpClient.put<Store>(
         `/v1/stores/${params.id}`,
         params,
         options
@@ -49,38 +61,38 @@ export const createStoreApi = (apiConfig: ApiConfig) => {
     async deleteStore(
       params: DeleteStoreParams,
       options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.delete(
+    ): Promise<{ deleted: boolean }> {
+      return apiConfig.httpClient.delete<{ deleted: boolean }>(
         `/v1/stores/${params.id}`,
         options
       );
     },
 
-    async getStore(params: GetStoreParams, options?: RequestOptions) {
-      return apiConfig.httpClient.get(
+    async getStore(_params: GetStoreParams, options?: RequestOptions): Promise<Store> {
+      return apiConfig.httpClient.get<Store>(
         `/v1/stores/${apiConfig.storeId}`,
         options
       );
     },
 
-    async getStores(params?: GetStoresParams, options?: RequestOptions) {
-      return apiConfig.httpClient.get(`/v1/stores`, {
+    async getStores(params?: GetStoresParams, options?: RequestOptions): Promise<PaginatedResponse<Store>> {
+      return apiConfig.httpClient.get<PaginatedResponse<Store>>(`/v1/stores`, {
         ...options,
         params,
       });
     },
 
     async getSubscriptionPlans(
-      params: GetSubscriptionPlansParams,
+      _params: GetSubscriptionPlansParams,
       options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.get("/v1/stores/plans", options);
+    ): Promise<SubscriptionPlan[]> {
+      return apiConfig.httpClient.get<SubscriptionPlan[]>("/v1/stores/plans", options);
     },
 
-    async subscribe(params: SubscribeParams, options?: RequestOptions) {
+    async subscribe(params: SubscribeParams, options?: RequestOptions): Promise<{ checkout_url?: string }> {
       const { store_id, plan_id, success_url, cancel_url } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.put(
+      return apiConfig.httpClient.put<{ checkout_url?: string }>(
         `/v1/stores/${target_store_id}/subscribe`,
         { plan_id, success_url, cancel_url },
         options
@@ -90,25 +102,25 @@ export const createStoreApi = (apiConfig: ApiConfig) => {
     async createPortalSession(
       params: CreatePortalSessionParams,
       options?: RequestOptions
-    ) {
+    ): Promise<{ url: string }> {
       const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post(
+      return apiConfig.httpClient.post<{ url: string }>(
         `/v1/stores/${store_id}/subscription/portal`,
         { return_url: params.return_url },
         options
       );
     },
 
-    async inviteUser(params: InviteUserParams, options?: RequestOptions) {
-      return apiConfig.httpClient.post(
+    async inviteUser(params: InviteUserParams, options?: RequestOptions): Promise<{ invited: boolean }> {
+      return apiConfig.httpClient.post<{ invited: boolean }>(
         `/v1/stores/${apiConfig.storeId}/invitation`,
         params,
         options
       );
     },
 
-    async removeMember(params: RemoveMemberParams, options?: RequestOptions) {
-      return apiConfig.httpClient.delete(
+    async removeMember(params: RemoveMemberParams, options?: RequestOptions): Promise<{ removed: boolean }> {
+      return apiConfig.httpClient.delete<{ removed: boolean }>(
         `/v1/stores/${apiConfig.storeId}/members/${params.account_id}`,
         options
       );
@@ -117,17 +129,17 @@ export const createStoreApi = (apiConfig: ApiConfig) => {
     async handleInvitation(
       params: HandleInvitationParams,
       options?: RequestOptions
-    ) {
+    ): Promise<{ handled: boolean }> {
       const { store_id, ...payload } = params;
-      return apiConfig.httpClient.put(
+      return apiConfig.httpClient.put<{ handled: boolean }>(
         `/v1/stores/${store_id || apiConfig.storeId}/invitation`,
         payload,
         options
       );
     },
 
-    async testWebhook(params: TestWebhookParams, options?: RequestOptions) {
-      return apiConfig.httpClient.post(
+    async testWebhook(params: TestWebhookParams, options?: RequestOptions): Promise<{ tested: boolean }> {
+      return apiConfig.httpClient.post<{ tested: boolean }>(
         `/v1/stores/${apiConfig.storeId}/webhooks/test`,
         params.webhook,
         options
@@ -137,8 +149,8 @@ export const createStoreApi = (apiConfig: ApiConfig) => {
     async getStoreMedia(
       params: GetStoreMediaParams2,
       options?: RequestOptions
-    ) {
-      const queryParams: Record<string, any> = {
+    ): Promise<PaginatedResponse<Media>> {
+      const queryParams: Record<string, unknown> = {
         limit: params.limit,
       };
       if (params.cursor) queryParams.cursor = params.cursor;
@@ -148,7 +160,7 @@ export const createStoreApi = (apiConfig: ApiConfig) => {
       if (params.sort_field) queryParams.sort_field = params.sort_field;
       if (params.sort_direction) queryParams.sort_direction = params.sort_direction;
 
-      return apiConfig.httpClient.get(`/v1/stores/${params.id}/media`, {
+      return apiConfig.httpClient.get<PaginatedResponse<Media>>(`/v1/stores/${params.id}/media`, {
         ...options,
         params: queryParams,
       });
@@ -157,8 +169,8 @@ export const createStoreApi = (apiConfig: ApiConfig) => {
     async oauthConnect(
       params: OAuthConnectParams,
       options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.post(
+    ): Promise<Integration> {
+      return apiConfig.httpClient.post<Integration>(
         `/v1/stores/${params.store_id}/oauth/connect`,
         { provider: params.provider, code: params.code, redirect_uri: params.redirect_uri },
         options
@@ -168,8 +180,8 @@ export const createStoreApi = (apiConfig: ApiConfig) => {
     async oauthDisconnect(
       params: OAuthDisconnectParams,
       options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.post(
+    ): Promise<{ disconnected: boolean }> {
+      return apiConfig.httpClient.post<{ disconnected: boolean }>(
         `/v1/stores/${params.store_id}/oauth/disconnect`,
         { provider: params.provider },
         options
@@ -180,8 +192,8 @@ export const createStoreApi = (apiConfig: ApiConfig) => {
     async listIntegrations(
       params: ListIntegrationsParams,
       options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.get(
+    ): Promise<Integration[]> {
+      return apiConfig.httpClient.get<Integration[]>(
         `/v1/stores/${params.store_id}/integrations`,
         options
       );
@@ -190,9 +202,9 @@ export const createStoreApi = (apiConfig: ApiConfig) => {
     async createIntegration(
       params: CreateIntegrationParams,
       options?: RequestOptions
-    ) {
+    ): Promise<Integration> {
       const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post(
+      return apiConfig.httpClient.post<Integration>(
         `/v1/stores/${store_id}/integrations`,
         payload,
         options
@@ -202,9 +214,9 @@ export const createStoreApi = (apiConfig: ApiConfig) => {
     async updateIntegration(
       params: UpdateIntegrationParams,
       options?: RequestOptions
-    ) {
+    ): Promise<Integration> {
       const { store_id, id, ...payload } = params;
-      return apiConfig.httpClient.put(
+      return apiConfig.httpClient.put<Integration>(
         `/v1/stores/${store_id}/integrations/${id}`,
         payload,
         options
@@ -214,8 +226,8 @@ export const createStoreApi = (apiConfig: ApiConfig) => {
     async deleteIntegration(
       params: DeleteIntegrationParams,
       options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.delete(
+    ): Promise<{ deleted: boolean }> {
+      return apiConfig.httpClient.delete<{ deleted: boolean }>(
         `/v1/stores/${params.store_id}/integrations/${params.id}`,
         options
       );
@@ -224,8 +236,8 @@ export const createStoreApi = (apiConfig: ApiConfig) => {
     async getIntegrationConfig(
       params: { store_id: string; type: 'payment' | 'shipping' },
       options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.get(
+    ): Promise<IntegrationConfig> {
+      return apiConfig.httpClient.get<IntegrationConfig>(
         `/v1/stores/${params.store_id}/integrations/config/${params.type}`,
         options
       );
@@ -235,8 +247,8 @@ export const createStoreApi = (apiConfig: ApiConfig) => {
     async listWebhooks(
       params: ListWebhooksParams,
       options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.get(
+    ): Promise<Webhook[]> {
+      return apiConfig.httpClient.get<Webhook[]>(
         `/v1/stores/${params.store_id}/webhooks`,
         options
       );
@@ -245,9 +257,9 @@ export const createStoreApi = (apiConfig: ApiConfig) => {
     async createWebhook(
       params: CreateWebhookParams,
       options?: RequestOptions
-    ) {
+    ): Promise<Webhook> {
       const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post(
+      return apiConfig.httpClient.post<Webhook>(
         `/v1/stores/${store_id}/webhooks`,
         payload,
         options
@@ -257,9 +269,9 @@ export const createStoreApi = (apiConfig: ApiConfig) => {
     async updateWebhook(
       params: UpdateWebhookParams,
       options?: RequestOptions
-    ) {
+    ): Promise<Webhook> {
       const { store_id, id, ...payload } = params;
-      return apiConfig.httpClient.put(
+      return apiConfig.httpClient.put<Webhook>(
         `/v1/stores/${store_id}/webhooks/${id}`,
         payload,
         options
@@ -269,8 +281,8 @@ export const createStoreApi = (apiConfig: ApiConfig) => {
     async deleteWebhook(
       params: DeleteWebhookParams,
       options?: RequestOptions
-    ) {
-      return apiConfig.httpClient.delete(
+    ): Promise<{ deleted: boolean }> {
+      return apiConfig.httpClient.delete<{ deleted: boolean }>(
         `/v1/stores/${params.store_id}/webhooks/${params.id}`,
         options
       );

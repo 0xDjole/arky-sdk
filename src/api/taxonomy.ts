@@ -8,38 +8,39 @@ import type {
   GetTaxonomyChildrenParams,
   RequestOptions,
 } from "../types/api";
+import type { Taxonomy, PaginatedResponse } from "../types";
 
 export const createTaxonomyApi = (apiConfig: ApiConfig) => {
   return {
-    async createTaxonomy(params: CreateTaxonomyParams, options?: RequestOptions) {
+    async createTaxonomy(params: CreateTaxonomyParams, options?: RequestOptions): Promise<Taxonomy> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post(
+      return apiConfig.httpClient.post<Taxonomy>(
         `/v1/stores/${target_store_id}/taxonomies`,
         payload,
         options
       );
     },
 
-    async updateTaxonomy(params: UpdateTaxonomyParams, options?: RequestOptions) {
+    async updateTaxonomy(params: UpdateTaxonomyParams, options?: RequestOptions): Promise<Taxonomy> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.put(
+      return apiConfig.httpClient.put<Taxonomy>(
         `/v1/stores/${target_store_id}/taxonomies/${params.id}`,
         payload,
         options
       );
     },
 
-    async deleteTaxonomy(params: DeleteTaxonomyParams, options?: RequestOptions) {
+    async deleteTaxonomy(params: DeleteTaxonomyParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.delete(
+      return apiConfig.httpClient.delete<{ deleted: boolean }>(
         `/v1/stores/${target_store_id}/taxonomies/${params.id}`,
         options
       );
     },
 
-    async getTaxonomy(params: GetTaxonomyParams, options?: RequestOptions) {
+    async getTaxonomy(params: GetTaxonomyParams, options?: RequestOptions): Promise<Taxonomy> {
       const target_store_id = params.store_id || apiConfig.storeId;
       let identifier: string;
       if (params.id) {
@@ -50,16 +51,16 @@ export const createTaxonomyApi = (apiConfig: ApiConfig) => {
         throw new Error("GetTaxonomyParams requires id or key");
       }
 
-      return apiConfig.httpClient.get(
+      return apiConfig.httpClient.get<Taxonomy>(
         `/v1/stores/${target_store_id}/taxonomies/${identifier}`,
         options
       );
     },
 
-    async getTaxonomies(params: GetTaxonomiesParams, options?: RequestOptions) {
+    async getTaxonomies(params: GetTaxonomiesParams, options?: RequestOptions): Promise<PaginatedResponse<Taxonomy>> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get(
+      return apiConfig.httpClient.get<PaginatedResponse<Taxonomy>>(
         `/v1/stores/${target_store_id}/taxonomies`,
         {
           ...options,
@@ -68,10 +69,10 @@ export const createTaxonomyApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getTaxonomyChildren(params: GetTaxonomyChildrenParams, options?: RequestOptions) {
+    async getTaxonomyChildren(params: GetTaxonomyChildrenParams, options?: RequestOptions): Promise<PaginatedResponse<Taxonomy>> {
       const { id, store_id } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get(
+      return apiConfig.httpClient.get<PaginatedResponse<Taxonomy>>(
         `/v1/stores/${target_store_id}/taxonomies/${id}/children`,
         options
       );

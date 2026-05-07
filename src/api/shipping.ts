@@ -14,7 +14,7 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions
     ): Promise<{ rates: ShippingRate[] }> {
       const { order_id, ...payload } = params;
-      return apiConfig.httpClient.post(
+      return apiConfig.httpClient.post<{ rates: ShippingRate[] }>(
         `/v1/stores/${apiConfig.storeId}/orders/${order_id}/shipping/rates`,
         payload,
         options
@@ -27,7 +27,7 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions
     ): Promise<ShipResult> {
       const { order_id, ...payload } = params;
-      return apiConfig.httpClient.post(
+      return apiConfig.httpClient.post<ShipResult>(
         `/v1/stores/${apiConfig.storeId}/orders/${order_id}/ship`,
         payload,
         options

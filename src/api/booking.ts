@@ -26,6 +26,14 @@ import type {
   RequestOptions,
   Slot,
 } from "../types/api";
+import type {
+  Booking,
+  BookingQuote,
+  PaginatedResponse,
+  Service,
+  Provider,
+  ServiceProvider,
+} from "../types";
 
 function groupCartToItems(cart: Slot[]) {
   const groups = new Map<string, { service_id: string; provider_id: string; slots: { from: number; to: number }[] }>();
@@ -40,11 +48,11 @@ function groupCartToItems(cart: Slot[]) {
 }
 
 export const createBookingApi = (apiConfig: ApiConfig) => {
-  
+
   let cart: Slot[] = [];
 
   return {
-    
+
     addToCart(slot: Slot) {
       cart.push(slot);
     },
@@ -64,13 +72,13 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
     async createBooking(
       params: CreateBookingParams,
       options?: RequestOptions,
-    ) {
+    ): Promise<Booking> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
 
-      return apiConfig.httpClient.post(
+      return apiConfig.httpClient.post<Booking>(
         `/v1/stores/${target_store_id}/bookings`,
-        { market: "booking", ...payload },
+        { market: apiConfig.market, ...payload },
         options,
       );
     },
@@ -78,9 +86,9 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
     async updateBooking(
       params: UpdateBookingParams,
       options?: RequestOptions,
-    ) {
+    ): Promise<Booking> {
       const { id, ...payload } = params;
-      return apiConfig.httpClient.put(
+      return apiConfig.httpClient.put<Booking>(
         `/v1/stores/${apiConfig.storeId}/bookings/${id}`,
         payload,
         options,
@@ -90,9 +98,9 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
     async getBooking(
       params: GetBookingParams,
       options?: RequestOptions,
-    ) {
+    ): Promise<Booking> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get(
+      return apiConfig.httpClient.get<Booking>(
         `/v1/stores/${target_store_id}/bookings/${params.id}`,
         options,
       );
@@ -101,10 +109,10 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
     async searchBookings(
       params: SearchBookingsParams,
       options?: RequestOptions,
-    ) {
+    ): Promise<PaginatedResponse<Booking>> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get(
+      return apiConfig.httpClient.get<PaginatedResponse<Booking>>(
         `/v1/stores/${target_store_id}/bookings`,
         {
           ...options,
@@ -116,13 +124,13 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
     async getQuote(
       params: GetBookingQuoteParams,
       options?: RequestOptions,
-    ) {
+    ): Promise<BookingQuote> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
 
-      return apiConfig.httpClient.post(
+      return apiConfig.httpClient.post<BookingQuote>(
         `/v1/stores/${target_store_id}/bookings/quote`,
-        { market: "booking", ...payload },
+        { market: apiConfig.market, ...payload },
         options,
       );
     },
@@ -130,8 +138,8 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
     async processRefund(
       params: ProcessBookingRefundParams,
       options?: RequestOptions,
-    ) {
-      return apiConfig.httpClient.post(
+    ): Promise<Booking> {
+      return apiConfig.httpClient.post<Booking>(
         `/v1/stores/${apiConfig.storeId}/bookings/${params.id}/refund`,
         { amount: params.amount },
         options,
@@ -145,41 +153,53 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
       const { store_id, ...query } = params;
       const target_store_id = store_id || apiConfig.storeId;
 
-      return apiConfig.httpClient.get(
+      return apiConfig.httpClient.get<AvailabilityResponse>(
         `/v1/stores/${target_store_id}/bookings/availability`,
         { ...options, params: query },
-      ) as Promise<AvailabilityResponse>;
+      );
     },
 
-    async createService(params: CreateServiceParams, options?: RequestOptions) {
+    async createService(
+      params: CreateServiceParams,
+      options?: RequestOptions,
+    ): Promise<Service> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post(
+      return apiConfig.httpClient.post<Service>(
         `/v1/stores/${target_store_id}/services`,
         payload,
         options,
       );
     },
 
-    async updateService(params: UpdateServiceParams, options?: RequestOptions) {
+    async updateService(
+      params: UpdateServiceParams,
+      options?: RequestOptions,
+    ): Promise<Service> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.put(
+      return apiConfig.httpClient.put<Service>(
         `/v1/stores/${target_store_id}/services/${params.id}`,
         payload,
         options,
       );
     },
 
-    async deleteService(params: DeleteServiceParams, options?: RequestOptions) {
+    async deleteService(
+      params: DeleteServiceParams,
+      options?: RequestOptions,
+    ): Promise<void> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.delete(
+      return apiConfig.httpClient.delete<void>(
         `/v1/stores/${target_store_id}/services/${params.id}`,
         options,
       );
     },
 
-    async getService(params: GetServiceParams, options?: RequestOptions) {
+    async getService(
+      params: GetServiceParams,
+      options?: RequestOptions,
+    ): Promise<Service> {
       const store_id = params.store_id || apiConfig.storeId;
       let identifier: string;
       if (params.id) {
@@ -190,16 +210,19 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
         throw new Error("GetServiceParams requires id or slug");
       }
 
-      return apiConfig.httpClient.get(
+      return apiConfig.httpClient.get<Service>(
         `/v1/stores/${store_id}/services/${identifier}`,
         options,
       );
     },
 
-    async getServices(params: GetServicesParams, options?: RequestOptions) {
+    async getServices(
+      params: GetServicesParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<Service>> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get(
+      return apiConfig.httpClient.get<PaginatedResponse<Service>>(
         `/v1/stores/${target_store_id}/services`,
         {
           ...options,
@@ -211,10 +234,10 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
     async createProvider(
       params: CreateProviderParams,
       options?: RequestOptions,
-    ) {
+    ): Promise<Provider> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post(
+      return apiConfig.httpClient.post<Provider>(
         `/v1/stores/${target_store_id}/providers`,
         payload,
         options,
@@ -224,10 +247,10 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
     async updateProvider(
       params: UpdateProviderParams,
       options?: RequestOptions,
-    ) {
+    ): Promise<Provider> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.put(
+      return apiConfig.httpClient.put<Provider>(
         `/v1/stores/${target_store_id}/providers/${params.id}`,
         payload,
         options,
@@ -237,15 +260,18 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
     async deleteProvider(
       params: DeleteProviderParams,
       options?: RequestOptions,
-    ) {
+    ): Promise<void> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.delete(
+      return apiConfig.httpClient.delete<void>(
         `/v1/stores/${target_store_id}/providers/${params.id}`,
         options,
       );
     },
 
-    async getProvider(params: GetProviderParams, options?: RequestOptions) {
+    async getProvider(
+      params: GetProviderParams,
+      options?: RequestOptions,
+    ): Promise<Provider> {
       const store_id = params.store_id || apiConfig.storeId;
       let identifier: string;
       if (params.id) {
@@ -256,16 +282,19 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
         throw new Error("GetProviderParams requires id or slug");
       }
 
-      return apiConfig.httpClient.get(
+      return apiConfig.httpClient.get<Provider>(
         `/v1/stores/${store_id}/providers/${identifier}`,
         options,
       );
     },
 
-    async getProviders(params: GetProvidersParams, options?: RequestOptions) {
+    async getProviders(
+      params: GetProvidersParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<Provider>> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get(
+      return apiConfig.httpClient.get<PaginatedResponse<Provider>>(
         `/v1/stores/${target_store_id}/providers`,
         {
           ...options,
@@ -277,10 +306,10 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
     async cancelBookingItem(
       params: CancelBookingItemParams,
       options?: RequestOptions,
-    ) {
+    ): Promise<Booking> {
       const { store_id, booking_id, item_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post(
+      return apiConfig.httpClient.post<Booking>(
         `/v1/stores/${target_store_id}/bookings/${booking_id}/items/${item_id}/cancel`,
         payload,
         options,
@@ -290,10 +319,10 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
     async findServiceProviders(
       params: FindServiceProvidersParams,
       options?: RequestOptions,
-    ) {
+    ): Promise<ServiceProvider[]> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get(
+      return apiConfig.httpClient.get<ServiceProvider[]>(
         `/v1/stores/${target_store_id}/service-providers`,
         { ...options, params: queryParams },
       );
@@ -302,10 +331,10 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
     async createServiceProvider(
       params: CreateServiceProviderParams,
       options?: RequestOptions,
-    ) {
+    ): Promise<ServiceProvider> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post(
+      return apiConfig.httpClient.post<ServiceProvider>(
         `/v1/stores/${target_store_id}/service-providers`,
         payload,
         options,
@@ -315,10 +344,10 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
     async updateServiceProvider(
       params: UpdateServiceProviderParams,
       options?: RequestOptions,
-    ) {
+    ): Promise<ServiceProvider> {
       const { store_id, id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.put(
+      return apiConfig.httpClient.put<ServiceProvider>(
         `/v1/stores/${target_store_id}/service-providers/${id}`,
         payload,
         options,
@@ -328,9 +357,9 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
     async deleteServiceProvider(
       params: DeleteServiceProviderParams,
       options?: RequestOptions,
-    ) {
+    ): Promise<void> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.delete(
+      return apiConfig.httpClient.delete<void>(
         `/v1/stores/${target_store_id}/service-providers/${params.id}`,
         options,
       );

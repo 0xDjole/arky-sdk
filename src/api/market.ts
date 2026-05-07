@@ -11,14 +11,14 @@ import type { Market } from "../types";
 export const createMarketApi = (apiConfig: ApiConfig) => {
   return {
     async list(options?: RequestOptions): Promise<Market[]> {
-      return apiConfig.httpClient.get(
+      return apiConfig.httpClient.get<Market[]>(
         `/v1/stores/${apiConfig.storeId}/markets`,
         options,
       );
     },
 
     async get(id: string, options?: RequestOptions): Promise<Market> {
-      return apiConfig.httpClient.get(
+      return apiConfig.httpClient.get<Market>(
         `/v1/stores/${apiConfig.storeId}/markets/${id}`,
         options,
       );
@@ -28,7 +28,7 @@ export const createMarketApi = (apiConfig: ApiConfig) => {
       params: CreateMarketParams,
       options?: RequestOptions,
     ): Promise<Market> {
-      return apiConfig.httpClient.post(
+      return apiConfig.httpClient.post<Market>(
         `/v1/stores/${apiConfig.storeId}/markets`,
         { ...params, store_id: apiConfig.storeId },
         options,
@@ -39,7 +39,7 @@ export const createMarketApi = (apiConfig: ApiConfig) => {
       params: UpdateMarketParams,
       options?: RequestOptions,
     ): Promise<Market> {
-      return apiConfig.httpClient.put(
+      return apiConfig.httpClient.put<Market>(
         `/v1/stores/${apiConfig.storeId}/markets/${params.id}`,
         { ...params, store_id: apiConfig.storeId },
         options,
@@ -50,7 +50,7 @@ export const createMarketApi = (apiConfig: ApiConfig) => {
       params: DeleteMarketParams,
       options?: RequestOptions,
     ): Promise<{ deleted: boolean }> {
-      return apiConfig.httpClient.delete(
+      return apiConfig.httpClient.delete<{ deleted: boolean }>(
         `/v1/stores/${apiConfig.storeId}/markets/${params.id}`,
         options,
       );

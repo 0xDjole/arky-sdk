@@ -60,18 +60,21 @@ export type {
   WorkflowTriggerNode,
   WorkflowHttpNode,
   WorkflowSwitchNode,
+  WorkflowSwitchRule,
   WorkflowTransformNode,
+  WorkflowLoopNode,
   WorkflowHttpMethod,
   WorkflowExecution,
   ExecutionStatus,
   NodeResult,
   Audience,
+  AudienceType,
   AudienceAccessResponse,
   AudienceSubscribeResponse,
   AudienceSubscriber,
   Event,
   EventAction,
-  
+
   ShippingStatus,
   OrderShipping,
   ShippingRate,
@@ -85,6 +88,63 @@ export type {
   CustomsDeclaration,
 
   GeoLocationBlock,
+
+  Booking,
+  BookingItem,
+  BookingItemSnapshot,
+  BookingItemStatus,
+  BookingPaymentStatus,
+  BookingCancellationReason,
+  BookingService,
+  BookingProvider,
+  Service,
+  Provider,
+  ServiceProvider,
+  ServiceDuration,
+  ProviderTimelinePoint,
+  TimelinePoint,
+  WorkingHour,
+  WorkingDay,
+  SpecificDate,
+
+  Order,
+  OrderItem,
+  OrderItemSnapshot,
+  OrderItemStatus,
+  OrderPaymentStatus,
+  OrderCancellationReason,
+  HistoryEntry,
+
+  Product,
+  ProductVariant,
+  ProductInventory,
+  InventoryLevel,
+  GalleryItem,
+
+  EmailTemplate,
+  Form,
+  FormSubmission,
+  FormSchema,
+  FormSchemaType,
+  FormField,
+  FormFieldType,
+  FormEntry,
+  Taxonomy,
+  TaxonomyEntry,
+  TaxonomyQuery,
+  TaxonomySchema,
+  TaxonomySchemaType,
+  TaxonomyField,
+  TaxonomyFieldQuery,
+
+  Agent,
+  AgentChat,
+  AgentChatMessage,
+  PromoCode,
+
+  Customer,
+  Discount,
+  Condition,
 
   BookingServiceStatus,
   BookingProviderStatus,
@@ -158,7 +218,7 @@ export { COMMON_ACTIVITY_TYPES } from "./api/storefront";
 
 export type { TimelineParams } from "./api/crm";
 
-export const SDK_VERSION = "0.7.98";
+export const SDK_VERSION = "0.7.102";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -168,13 +228,13 @@ export const SUPPORTED_FRAMEWORKS = [
 ] as const;
 
 export interface ApiConfig {
-  httpClient: any;
+  httpClient: HttpClient;
   storeId: string;
   baseUrl: string;
   market: string;
   locale: string;
-  setToken: (tokens: any) => void;
-  getToken: () => Promise<any> | any;
+  setToken: (tokens: AuthTokens) => void;
+  getToken: () => Promise<AuthTokens> | AuthTokens;
 }
 
 import {
@@ -184,6 +244,8 @@ import {
   defaultLogout,
   defaultIsAuthenticated,
   type HttpClientConfig,
+  type HttpClient,
+  type AuthTokens,
 } from "./services/createHttpClient";
 import { createAccountApi } from "./api/account";
 import { createAuthApi } from "./api/auth";
@@ -518,10 +580,12 @@ export function createAdmin(
   return sdk;
 }
 
+import type { Customer as StorefrontCustomer, Market as StorefrontMarket, Store as StorefrontStore } from "./types";
+
 export interface StorefrontSession {
-  customer: any;
-  store: any;
-  market: any;
+  customer: StorefrontCustomer;
+  store: StorefrontStore;
+  market: StorefrontMarket | null;
 }
 
 export type StorefrontSessionListener = (session: StorefrontSession | null) => void;
@@ -571,8 +635,12 @@ export function createStorefront(
     }
   }
 
-  function setCurrentSessionFromResult(result: any) {
-    const s = {
+  function setCurrentSessionFromResult(result: {
+    customer: StorefrontCustomer;
+    store: StorefrontStore;
+    market: StorefrontMarket | null;
+  }): StorefrontSession {
+    const s: StorefrontSession = {
       customer: result.customer,
       store: result.store,
       market: result.market || null,
@@ -594,23 +662,31 @@ export function createStorefront(
     return result;
   }
 
-  function session(market?: string): Promise<StorefrontSession> {
-    if (market !== undefined) apiConfig.market = market;
-    if (sessionPromise) return sessionPromise;
+  function identify(
+    params?: { email?: string; verify?: boolean; market?: string },
+  ): Promise<StorefrontSession> {
+    if (params?.market !== undefined) apiConfig.market = params.market;
 
-    sessionPromise = (async (): Promise<StorefrontSession> => {
+    // Cache only the bare bootstrap (no email, no verify).
+    const isBareCall = !params?.email && !params?.verify;
+    if (isBareCall && sessionPromise) return sessionPromise;
+
+    const promise = (async (): Promise<StorefrontSession> => {
       try {
-        const result = await customerApi.session({
+        const result = await customerApi.identify({
           market: apiConfig.market,
+          email: params?.email,
+          verify: params?.verify,
         });
         return setCurrentSessionFromResult(result);
-      } catch (err: any) {
-        const status = err?.statusCode || err?.status || err?.response?.status;
-        if (status === 401) {
+      } catch (err: unknown) {
+        const e = err as { statusCode?: number; status?: number; response?: { status?: number } };
+        const status = e?.statusCode || e?.status || e?.response?.status;
+        if (isBareCall && status === 401) {
           currentSession = null;
           emitSessionChange(null);
           await setToken({ access_token: "" });
-          const result = await customerApi.session({
+          const result = await customerApi.identify({
             market: apiConfig.market,
           });
           return setCurrentSessionFromResult(result);
@@ -618,11 +694,13 @@ export function createStorefront(
         throw err;
       }
     })().catch((err) => {
-      sessionPromise = null;
+      if (isBareCall) sessionPromise = null;
       throw err;
     });
 
-    return sessionPromise;
+    if (isBareCall) sessionPromise = promise;
+
+    return promise;
   }
 
   function setMarket(key: string) {
@@ -651,7 +729,7 @@ export function createStorefront(
     return logout();
   }
 
-  function setTokenAndClearSession(tokens: any) {
+  function setTokenAndClearSession(tokens: AuthTokens) {
     setToken(tokens);
     clearSession();
   }
@@ -660,20 +738,43 @@ export function createStorefront(
     ...storefrontApi.crm,
     customer: {
       ...customerApi,
-      async session(params?: Parameters<typeof customerApi.session>[0], options?: Parameters<typeof customerApi.session>[1]) {
-        const result = await customerApi.session(params, options);
+      async identify(
+        params?: Parameters<typeof customerApi.identify>[0],
+        options?: Parameters<typeof customerApi.identify>[1],
+      ) {
+        const result = await customerApi.identify(params, options);
         setCurrentSessionFromResult(result);
         return result;
       },
-      login: (params: any, options?: any) =>
-        invalidateAfterAuth(customerApi.login(params, options)),
-      verify: (params: any, options?: any) =>
-        invalidateAfterAuth(customerApi.verify(params, options)),
+      verify: (
+        params: Parameters<typeof customerApi.verify>[0],
+        options?: Parameters<typeof customerApi.verify>[1],
+      ) => invalidateAfterAuth(customerApi.verify(params, options)),
     },
   };
 
+  async function verify(params: { code: string }) {
+    const result = await invalidateAfterAuth(customerApi.verify(params));
+    return result;
+  }
+
+  async function me() {
+    return customerApi.getMe();
+  }
+
+  async function logoutCustomer() {
+    try {
+      await customerApi.logout();
+    } finally {
+      clearSession();
+    }
+  }
+
   return {
-    session,
+    identify,
+    verify,
+    me,
+    logout: logoutCustomer,
     getSession,
     onSessionChange,
     store: storefrontApi.store,
@@ -695,7 +796,6 @@ export function createStorefront(
     },
     getLocale: () => apiConfig.locale,
     isAuthenticated,
-    logout: logoutAndClearSession,
     setToken: setTokenAndClearSession,
     extractBlockValues,
     utils: createUtilitySurface(apiConfig),

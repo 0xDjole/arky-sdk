@@ -1,22 +1,102 @@
 import type { ApiConfig } from "../index";
-import type { RequestOptions, Slot } from "../types/api";
+import type {
+  RequestOptions,
+  Slot,
+  GetNodeParams,
+  GetNodesParams,
+  GetNodeChildrenParams,
+  GetFormParams,
+  SubmitFormParams,
+  GetTaxonomyParams,
+  GetTaxonomyChildrenParams,
+  GetProductParams,
+  GetProductsParams,
+  GetQuoteParams,
+  OrderCheckoutParams,
+  GetOrderParams,
+  GetOrdersParams,
+  GetBookingParams,
+  SearchBookingsParams,
+  GetBookingQuoteParams,
+  GetAvailabilityParams,
+  AvailabilityResponse,
+  CancelBookingItemParams,
+  GetServiceParams,
+  GetServicesParams,
+  FindServiceProvidersParams,
+  GetProviderParams,
+  GetProvidersParams,
+  GetAudienceParams,
+  GetAudiencesParams,
+  SubscribeAudienceParams,
+  GetAgentsParams,
+  BookingCheckoutParams,
+} from "../types/api";
+import type {
+  Node,
+  Form,
+  FormSubmission,
+  Taxonomy,
+  Audience,
+  AudienceAccessResponse,
+  AudienceSubscribeResponse,
+  Booking,
+  BookingQuote,
+  Service,
+  Provider,
+  Store,
+  Location,
+  Market,
+  OrderQuote,
+  Order,
+  Product,
+  Agent,
+  AgentChat,
+  AgentChatMessage,
+  Customer,
+  CustomerDetail,
+  PaginatedResponse,
+} from "../types";
 import {
   getBlockFromArray,
   getBlockObjectValues,
   getImageUrl,
 } from "../utils/blocks";
 
+export type CustomerToken = {
+  id: string;
+  token: string;
+  created_at: number;
+};
+
+export type IdentifyResponse = {
+  customer: Customer;
+  token: CustomerToken;
+  store: Store;
+  market: Market | null;
+  code_sent: boolean;
+};
+
+export type VerifyResponse = CustomerToken;
+type LogoutResponse = void;
+type Country = {
+  code: string;
+  name: string;
+  states: { code: string; name: string }[];
+};
+type CountriesResponse = { items: Country[]; cursor: string | null };
+
 export interface Activity {
   store_id: string;
   customer_id: string;
   type: string;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
   created_at: number;
 }
 
 export interface TrackParams {
   type: string;
-  payload?: Record<string, any>;
+  payload?: Record<string, unknown>;
 }
 
 export const COMMON_ACTIVITY_TYPES = [
@@ -43,7 +123,7 @@ export const createActivityApi = (apiConfig: ApiConfig) => ({
   COMMON_ACTIVITY_TYPES,
   async track(params: TrackParams): Promise<void> {
     try {
-      await apiConfig.httpClient.post(
+      await apiConfig.httpClient.post<void>(
         `/v1/storefront/${apiConfig.storeId}/activities/track`,
         { type: params.type, payload: params.payload },
       );
@@ -79,45 +159,45 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
 
   return {
     store: {
-      getStore(options?: RequestOptions) {
-        return apiConfig.httpClient.get(base(), options);
+      getStore(options?: RequestOptions): Promise<Store> {
+        return apiConfig.httpClient.get<Store>(base(), options);
       },
 
       location: {
-        getCountries(options?: RequestOptions) {
-          return apiConfig.httpClient.get(`/v1/platform/countries`, options);
+        getCountries(options?: RequestOptions): Promise<CountriesResponse> {
+          return apiConfig.httpClient.get<CountriesResponse>(`/v1/platform/countries`, options);
         },
 
-        getCountry(countryCode: string, options?: RequestOptions) {
-          return apiConfig.httpClient.get(
+        getCountry(countryCode: string, options?: RequestOptions): Promise<Country> {
+          return apiConfig.httpClient.get<Country>(
             `/v1/platform/countries/${countryCode}`,
             options,
           );
         },
 
-        list(options?: RequestOptions) {
-          return apiConfig.httpClient.get(`${base()}/locations`, options);
+        list(options?: RequestOptions): Promise<Location[]> {
+          return apiConfig.httpClient.get<Location[]>(`${base()}/locations`, options);
         },
 
-        get(id: string, options?: RequestOptions) {
-          return apiConfig.httpClient.get(`${base()}/locations/${id}`, options);
+        get(id: string, options?: RequestOptions): Promise<Location> {
+          return apiConfig.httpClient.get<Location>(`${base()}/locations/${id}`, options);
         },
       },
 
       market: {
-        list(options?: RequestOptions) {
-          return apiConfig.httpClient.get(`${base()}/markets`, options);
+        list(options?: RequestOptions): Promise<Market[]> {
+          return apiConfig.httpClient.get<Market[]>(`${base()}/markets`, options);
         },
 
-        get(id: string, options?: RequestOptions) {
-          return apiConfig.httpClient.get(`${base()}/markets/${id}`, options);
+        get(id: string, options?: RequestOptions): Promise<Market> {
+          return apiConfig.httpClient.get<Market>(`${base()}/markets/${id}`, options);
         },
       },
     },
 
     cms: {
       node: {
-        async get(params: any, options?: RequestOptions) {
+        async get(params: GetNodeParams, options?: RequestOptions) {
           const store_id = params.store_id || apiConfig.storeId;
           let identifier: string;
           if (params.id) {
@@ -130,7 +210,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
             throw new Error("GetNodeParams requires id, slug, or key");
           }
 
-          const response = await apiConfig.httpClient.get(
+          const response = await apiConfig.httpClient.get<Node>(
             `${base(store_id)}/nodes/${identifier}`,
             options,
           );
@@ -150,17 +230,17 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
           };
         },
 
-        find(params: any, options?: RequestOptions) {
+        find(params: GetNodesParams, options?: RequestOptions): Promise<PaginatedResponse<Node>> {
           const { store_id, ...queryParams } = params;
-          return apiConfig.httpClient.get(`${base(store_id)}/nodes`, {
+          return apiConfig.httpClient.get<PaginatedResponse<Node>>(`${base(store_id)}/nodes`, {
             ...options,
             params: queryParams,
           });
         },
 
-        getChildren(params: any, options?: RequestOptions) {
+        getChildren(params: GetNodeChildrenParams, options?: RequestOptions): Promise<PaginatedResponse<Node>> {
           const { id, store_id, ...queryParams } = params;
-          return apiConfig.httpClient.get(`${base(store_id)}/nodes/${id}/children`, {
+          return apiConfig.httpClient.get<PaginatedResponse<Node>>(`${base(store_id)}/nodes/${id}/children`, {
             ...options,
             params: queryParams,
           });
@@ -168,7 +248,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
       },
 
       form: {
-        get(params: any, options?: RequestOptions) {
+        get(params: GetFormParams, options?: RequestOptions): Promise<Form> {
           const store_id = params.store_id || apiConfig.storeId;
           let identifier: string;
           if (params.id) {
@@ -179,20 +259,20 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
             throw new Error("GetFormParams requires id or key");
           }
 
-          return apiConfig.httpClient.get(
+          return apiConfig.httpClient.get<Form>(
             `${base(store_id)}/forms/${identifier}`,
             options,
           );
         },
 
-        submit(params: any, options?: RequestOptions) {
+        submit(params: SubmitFormParams, options?: RequestOptions): Promise<FormSubmission> {
           const { store_id, form_id, ...payload } = params;
           const target_store_id = store_id || apiConfig.storeId;
           if (!form_id) {
             throw new Error("SubmitFormParams requires form_id");
           }
 
-          return apiConfig.httpClient.post(
+          return apiConfig.httpClient.post<FormSubmission>(
             `${base(target_store_id)}/forms/${form_id}/submissions`,
             { ...payload, form_id, store_id: target_store_id },
             options,
@@ -201,7 +281,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
       },
 
       taxonomy: {
-        get(params: any, options?: RequestOptions) {
+        get(params: GetTaxonomyParams, options?: RequestOptions): Promise<Taxonomy> {
           const store_id = params.store_id || apiConfig.storeId;
           let identifier: string;
           if (params.id) {
@@ -212,15 +292,15 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
             throw new Error("GetTaxonomyParams requires id or key");
           }
 
-          return apiConfig.httpClient.get(
+          return apiConfig.httpClient.get<Taxonomy>(
             `${base(store_id)}/taxonomies/${identifier}`,
             options,
           );
         },
 
-        getChildren(params: any, options?: RequestOptions) {
+        getChildren(params: GetTaxonomyChildrenParams, options?: RequestOptions): Promise<PaginatedResponse<Taxonomy>> {
           const store_id = params.store_id || apiConfig.storeId;
-          return apiConfig.httpClient.get(
+          return apiConfig.httpClient.get<PaginatedResponse<Taxonomy>>(
             `${base(store_id)}/taxonomies/${params.id}/children`,
             options,
           );
@@ -230,7 +310,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
 
     eshop: {
       product: {
-        get(params: any, options?: RequestOptions) {
+        get(params: GetProductParams, options?: RequestOptions): Promise<Product> {
           const store_id = params.store_id || apiConfig.storeId;
           let identifier: string;
           if (params.id) {
@@ -241,15 +321,15 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
             throw new Error("GetProductParams requires id or slug");
           }
 
-          return apiConfig.httpClient.get(
+          return apiConfig.httpClient.get<Product>(
             `${base(store_id)}/products/${identifier}`,
             options,
           );
         },
 
-        find(params: any, options?: RequestOptions) {
+        find(params: GetProductsParams, options?: RequestOptions): Promise<PaginatedResponse<Product>> {
           const { store_id, ...queryParams } = params;
-          return apiConfig.httpClient.get(`${base(store_id)}/products`, {
+          return apiConfig.httpClient.get<PaginatedResponse<Product>>(`${base(store_id)}/products`, {
             ...options,
             params: queryParams,
           });
@@ -257,7 +337,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
       },
 
       order: {
-        getQuote(params: any, options?: RequestOptions) {
+        getQuote(params: GetQuoteParams & { store_id?: string }, options?: RequestOptions): Promise<OrderQuote> {
           const store_id = params.store_id || apiConfig.storeId;
           const { location, store_id: _store_id, ...rest } = params;
           const shipping_address = location
@@ -272,34 +352,34 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
               }
             : undefined;
 
-          return apiConfig.httpClient.post(
+          return apiConfig.httpClient.post<OrderQuote>(
             `${base(store_id)}/orders/quote`,
             { ...rest, shipping_address, market: apiConfig.market },
             options,
           );
         },
 
-        checkout(params: any, options?: RequestOptions) {
+        checkout(params: OrderCheckoutParams & { store_id?: string }, options?: RequestOptions): Promise<Order> {
           const { store_id, ...rest } = params;
           const target = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.post(
+          return apiConfig.httpClient.post<Order>(
             `${base(target)}/orders/checkout`,
             { ...rest, store_id: target, market: apiConfig.market },
             options,
           );
         },
 
-        get(params: any, options?: RequestOptions) {
+        get(params: GetOrderParams, options?: RequestOptions): Promise<Order> {
           const store_id = params.store_id || apiConfig.storeId;
-          return apiConfig.httpClient.get(
+          return apiConfig.httpClient.get<Order>(
             `${base(store_id)}/orders/${params.id}`,
             options,
           );
         },
 
-        find(params: any, options?: RequestOptions) {
+        find(params: GetOrdersParams, options?: RequestOptions): Promise<PaginatedResponse<Order>> {
           const { store_id, ...queryParams } = params;
-          return apiConfig.httpClient.get(`${base(store_id)}/orders`, {
+          return apiConfig.httpClient.get<PaginatedResponse<Order>>(`${base(store_id)}/orders`, {
             ...options,
             params: queryParams,
           });
@@ -324,57 +404,57 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         cart = [];
       },
 
-      checkout(params?: any, options?: RequestOptions) {
+      checkout(params?: Partial<BookingCheckoutParams>, options?: RequestOptions): Promise<Booking> {
         const { store_id, items: paramItems, ...payload } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
         const items = paramItems || groupCartToItems(cart);
 
-        return apiConfig.httpClient.post(
+        return apiConfig.httpClient.post<Booking>(
           `${base(target_store_id)}/bookings/checkout`,
-          { market: "booking", ...payload, items },
+          { market: apiConfig.market, ...payload, items },
           options,
         );
       },
 
-      get(params: any, options?: RequestOptions) {
+      get(params: GetBookingParams, options?: RequestOptions): Promise<Booking> {
         const store_id = params.store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get(
+        return apiConfig.httpClient.get<Booking>(
           `${base(store_id)}/bookings/${params.id}`,
           options,
         );
       },
 
-      find(params: any, options?: RequestOptions) {
+      find(params: SearchBookingsParams, options?: RequestOptions): Promise<PaginatedResponse<Booking>> {
         const { store_id, ...queryParams } = params;
-        return apiConfig.httpClient.get(`${base(store_id)}/bookings`, {
+        return apiConfig.httpClient.get<PaginatedResponse<Booking>>(`${base(store_id)}/bookings`, {
           ...options,
           params: queryParams,
         });
       },
 
-      getQuote(params: any, options?: RequestOptions) {
+      getQuote(params: GetBookingQuoteParams, options?: RequestOptions): Promise<BookingQuote> {
         const { store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post(
+        return apiConfig.httpClient.post<BookingQuote>(
           `${base(target_store_id)}/bookings/quote`,
-          { market: "booking", ...payload },
+          { market: apiConfig.market, ...payload },
           options,
         );
       },
 
-      getAvailability(params: any, options?: RequestOptions) {
+      getAvailability(params: GetAvailabilityParams, options?: RequestOptions): Promise<AvailabilityResponse> {
         const { store_id, ...queryParams } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get(
+        return apiConfig.httpClient.get<AvailabilityResponse>(
           `${base(target_store_id)}/bookings/availability`,
           { ...options, params: queryParams },
         );
       },
 
-      cancelItem(params: any, options?: RequestOptions) {
+      cancelItem(params: CancelBookingItemParams, options?: RequestOptions): Promise<Booking> {
         const { store_id, booking_id, item_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post(
+        return apiConfig.httpClient.post<Booking>(
           `${base(target_store_id)}/bookings/${booking_id}/items/${item_id}/cancel`,
           payload,
           options,
@@ -382,7 +462,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
       },
 
       service: {
-        get(params: any, options?: RequestOptions) {
+        get(params: GetServiceParams, options?: RequestOptions): Promise<Service> {
           const store_id = params.store_id || apiConfig.storeId;
           let identifier: string;
           if (params.id) {
@@ -393,23 +473,23 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
             throw new Error("GetServiceParams requires id or slug");
           }
 
-          return apiConfig.httpClient.get(
+          return apiConfig.httpClient.get<Service>(
             `${base(store_id)}/services/${identifier}`,
             options,
           );
         },
 
-        find(params: any, options?: RequestOptions) {
+        find(params: GetServicesParams, options?: RequestOptions): Promise<PaginatedResponse<Service>> {
           const { store_id, ...queryParams } = params;
-          return apiConfig.httpClient.get(`${base(store_id)}/services`, {
+          return apiConfig.httpClient.get<PaginatedResponse<Service>>(`${base(store_id)}/services`, {
             ...options,
             params: queryParams,
           });
         },
 
-        findProviders(params: any, options?: RequestOptions) {
+        findProviders(params: FindServiceProvidersParams, options?: RequestOptions): Promise<Provider[]> {
           const { store_id, ...queryParams } = params;
-          return apiConfig.httpClient.get(`${base(store_id)}/service-providers`, {
+          return apiConfig.httpClient.get<Provider[]>(`${base(store_id)}/service-providers`, {
             ...options,
             params: queryParams,
           });
@@ -417,7 +497,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
       },
 
       provider: {
-        get(params: any, options?: RequestOptions) {
+        get(params: GetProviderParams, options?: RequestOptions): Promise<Provider> {
           const store_id = params.store_id || apiConfig.storeId;
           let identifier: string;
           if (params.id) {
@@ -428,15 +508,15 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
             throw new Error("GetProviderParams requires id or slug");
           }
 
-          return apiConfig.httpClient.get(
+          return apiConfig.httpClient.get<Provider>(
             `${base(store_id)}/providers/${identifier}`,
             options,
           );
         },
 
-        find(params: any, options?: RequestOptions) {
+        find(params: GetProvidersParams, options?: RequestOptions): Promise<PaginatedResponse<Provider>> {
           const { store_id, ...queryParams } = params;
-          return apiConfig.httpClient.get(`${base(store_id)}/providers`, {
+          return apiConfig.httpClient.get<PaginatedResponse<Provider>>(`${base(store_id)}/providers`, {
             ...options,
             params: queryParams,
           });
@@ -446,13 +526,18 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
 
     crm: {
       customer: {
-        async session(params?: { market?: string }, options?: RequestOptions) {
+        async identify(
+          params?: { email?: string; verify?: boolean; market?: string },
+          options?: RequestOptions,
+        ): Promise<IdentifyResponse> {
           const store_id = apiConfig.storeId;
-          const result = await apiConfig.httpClient.post(
-            `${base(store_id)}/customers/session`,
+          const result = await apiConfig.httpClient.post<IdentifyResponse>(
+            `${base(store_id)}/customers/identify`,
             {
               store_id,
               market: params?.market || apiConfig.market || null,
+              email: params?.email,
+              verify: params?.verify ?? false,
             },
             options,
           );
@@ -462,24 +547,12 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
           return result;
         },
 
-        async login(
-          params: { email: string; verify?: boolean },
-          options?: RequestOptions,
-        ) {
-          const store_id = apiConfig.storeId;
-          return apiConfig.httpClient.post(
-            `${base(store_id)}/customers/login`,
-            { store_id, email: params.email, verify: params.verify ?? false },
-            options,
-          );
-        },
-
         async verify(
           params: { code: string },
           options?: RequestOptions,
-        ) {
+        ): Promise<VerifyResponse> {
           const store_id = apiConfig.storeId;
-          const result = await apiConfig.httpClient.post(
+          const result = await apiConfig.httpClient.post<VerifyResponse>(
             `${base(store_id)}/customers/verify`,
             { store_id, code: params.code },
             options,
@@ -490,10 +563,10 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
           return result;
         },
 
-        async logout(options?: RequestOptions) {
+        async logout(options?: RequestOptions): Promise<LogoutResponse> {
           const store_id = apiConfig.storeId;
           try {
-            await apiConfig.httpClient.post(
+            await apiConfig.httpClient.post<void>(
               `${base(store_id)}/customers/logout`,
               {},
               options,
@@ -503,13 +576,13 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
           }
         },
 
-        getMe(options?: RequestOptions) {
-          return apiConfig.httpClient.get(`${base()}/customers/me`, options);
+        getMe(options?: RequestOptions): Promise<CustomerDetail> {
+          return apiConfig.httpClient.get<CustomerDetail>(`${base()}/customers/me`, options);
         },
       },
 
       audience: {
-        get(params: any, options?: RequestOptions) {
+        get(params: GetAudienceParams, options?: RequestOptions): Promise<Audience> {
           let identifier: string;
           if (params.id) {
             identifier = params.id;
@@ -519,21 +592,21 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
             throw new Error("GetAudienceParams requires id or key");
           }
 
-          return apiConfig.httpClient.get(
+          return apiConfig.httpClient.get<Audience>(
             `${base(apiConfig.storeId)}/audiences/${identifier}`,
             options,
           );
         },
 
-        find(params: any, options?: RequestOptions) {
-          return apiConfig.httpClient.get(`${base()}/audiences`, {
+        find(params: GetAudiencesParams, options?: RequestOptions): Promise<PaginatedResponse<Audience>> {
+          return apiConfig.httpClient.get<PaginatedResponse<Audience>>(`${base()}/audiences`, {
             ...options,
             params,
           });
         },
 
-        subscribe(params: any, options?: RequestOptions) {
-          return apiConfig.httpClient.post(
+        subscribe(params: SubscribeAudienceParams, options?: RequestOptions): Promise<AudienceSubscribeResponse> {
+          return apiConfig.httpClient.post<AudienceSubscribeResponse>(
             `${base()}/audiences/${params.id}/subscribe`,
             {
               customer_id: params.customer_id,
@@ -546,22 +619,22 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
           );
         },
 
-        checkAccess(params: { id: string }, options?: RequestOptions) {
-          return apiConfig.httpClient.get(
+        checkAccess(params: { id: string }, options?: RequestOptions): Promise<AudienceAccessResponse> {
+          return apiConfig.httpClient.get<AudienceAccessResponse>(
             `${base()}/audiences/${params.id}/access`,
             options,
           );
         },
 
-        unsubscribe(token: string, options?: RequestOptions) {
-          return apiConfig.httpClient.get(`${base()}/audiences/unsubscribe`, {
+        unsubscribe(token: string, options?: RequestOptions): Promise<{ unsubscribed: boolean }> {
+          return apiConfig.httpClient.get<{ unsubscribed: boolean }>(`${base()}/audiences/unsubscribe`, {
             ...options,
             params: { token },
           });
         },
 
-        confirm(token: string, options?: RequestOptions) {
-          return apiConfig.httpClient.get(`${base()}/audiences/confirm`, {
+        confirm(token: string, options?: RequestOptions): Promise<{ confirmed: boolean }> {
+          return apiConfig.httpClient.get<{ confirmed: boolean }>(`${base()}/audiences/confirm`, {
             ...options,
             params: { token },
           });
@@ -573,19 +646,19 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
 
     automation: {
       agent: {
-        getAgents(params?: any, options?: RequestOptions) {
+        getAgents(params?: GetAgentsParams, options?: RequestOptions): Promise<PaginatedResponse<Agent>> {
           const store_id = params?.store_id || apiConfig.storeId;
-          const queryParams = { ...(params || {}) };
+          const queryParams: Record<string, unknown> = { ...(params || {}) };
           delete queryParams.store_id;
-          return apiConfig.httpClient.get(`${base(store_id)}/agents`, {
+          return apiConfig.httpClient.get<PaginatedResponse<Agent>>(`${base(store_id)}/agents`, {
             ...options,
             params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
           });
         },
 
-        getAgent(params: { id: string; store_id?: string }, options?: RequestOptions) {
+        getAgent(params: { id: string; store_id?: string }, options?: RequestOptions): Promise<Agent> {
           const store_id = params.store_id || apiConfig.storeId;
-          return apiConfig.httpClient.get(
+          return apiConfig.httpClient.get<Agent>(
             `${base(store_id)}/agents/${params.id}`,
             options,
           );
@@ -594,11 +667,11 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         sendMessage(
           params: { id: string; message: string; chat_id?: string; store_id?: string },
           options?: RequestOptions,
-        ) {
+        ): Promise<AgentChatMessage> {
           const store_id = params.store_id || apiConfig.storeId;
-          const body: Record<string, any> = { message: params.message };
+          const body: Record<string, unknown> = { message: params.message };
           if (params.chat_id) body.chat_id = params.chat_id;
-          return apiConfig.httpClient.post(
+          return apiConfig.httpClient.post<AgentChatMessage>(
             `${base(store_id)}/agents/${params.id}/chats/messages`,
             body,
             options,
@@ -608,9 +681,9 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         getChat(
           params: { id: string; chat_id: string; store_id?: string },
           options?: RequestOptions,
-        ) {
+        ): Promise<AgentChat> {
           const store_id = params.store_id || apiConfig.storeId;
-          return apiConfig.httpClient.get(
+          return apiConfig.httpClient.get<AgentChat>(
             `${base(store_id)}/agents/${params.id}/chats/${params.chat_id}`,
             options,
           );
@@ -619,11 +692,11 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         getChatMessages(
           params: { id: string; chat_id: string; limit?: number; store_id?: string },
           options?: RequestOptions,
-        ) {
+        ): Promise<PaginatedResponse<AgentChatMessage>> {
           const store_id = params.store_id || apiConfig.storeId;
           const queryParams: Record<string, string> = {};
           if (params.limit) queryParams.limit = String(params.limit);
-          return apiConfig.httpClient.get(
+          return apiConfig.httpClient.get<PaginatedResponse<AgentChatMessage>>(
             `${base(store_id)}/agents/${params.id}/chats/${params.chat_id}/messages`,
             {
               ...options,
@@ -635,11 +708,11 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         rateChat(
           params: { id: string; chat_id: string; rating: number; comment?: string; store_id?: string },
           options?: RequestOptions,
-        ) {
+        ): Promise<AgentChat> {
           const store_id = params.store_id || apiConfig.storeId;
-          const body: Record<string, any> = { rating: params.rating };
+          const body: Record<string, unknown> = { rating: params.rating };
           if (params.comment) body.comment = params.comment;
-          return apiConfig.httpClient.post(
+          return apiConfig.httpClient.post<AgentChat>(
             `${base(store_id)}/agents/${params.id}/chats/${params.chat_id}/rate`,
             body,
             options,

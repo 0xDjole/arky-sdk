@@ -10,64 +10,65 @@ import type {
 	GetWorkflowExecutionParams,
 	RequestOptions
 } from '../types/api';
+import type { Workflow, WorkflowExecution, PaginatedResponse } from '../types';
 
 export const createWorkflowApi = (apiConfig: ApiConfig) => {
 	return {
-		async createWorkflow(params: CreateWorkflowParams, options?: RequestOptions) {
+		async createWorkflow(params: CreateWorkflowParams, options?: RequestOptions): Promise<Workflow> {
 			const { store_id, ...payload } = params;
 			const target_store_id = store_id || apiConfig.storeId;
-			return apiConfig.httpClient.post(
+			return apiConfig.httpClient.post<Workflow>(
 				`/v1/stores/${target_store_id}/workflows`,
 				{ ...payload, store_id: target_store_id },
 				options
 			);
 		},
 
-		async updateWorkflow(params: UpdateWorkflowParams, options?: RequestOptions) {
+		async updateWorkflow(params: UpdateWorkflowParams, options?: RequestOptions): Promise<Workflow> {
 			const { store_id, id, ...payload } = params;
 			const target_store_id = store_id || apiConfig.storeId;
-			return apiConfig.httpClient.put(
+			return apiConfig.httpClient.put<Workflow>(
 				`/v1/stores/${target_store_id}/workflows/${id}`,
 				payload,
 				options
 			);
 		},
 
-		async deleteWorkflow(params: DeleteWorkflowParams, options?: RequestOptions) {
+		async deleteWorkflow(params: DeleteWorkflowParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
 			const store_id = params.store_id || apiConfig.storeId;
-			return apiConfig.httpClient.delete(
+			return apiConfig.httpClient.delete<{ deleted: boolean }>(
 				`/v1/stores/${store_id}/workflows/${params.id}`,
 				options
 			);
 		},
 
-		async getWorkflow(params: GetWorkflowParams, options?: RequestOptions) {
+		async getWorkflow(params: GetWorkflowParams, options?: RequestOptions): Promise<Workflow> {
 			const store_id = params.store_id || apiConfig.storeId;
-			return apiConfig.httpClient.get(
+			return apiConfig.httpClient.get<Workflow>(
 				`/v1/stores/${store_id}/workflows/${params.id}`,
 				options
 			);
 		},
 
-		async getWorkflows(params?: GetWorkflowsParams, options?: RequestOptions) {
+		async getWorkflows(params?: GetWorkflowsParams, options?: RequestOptions): Promise<PaginatedResponse<Workflow>> {
 			const store_id = params?.store_id || apiConfig.storeId;
-			
+
 			const { store_id: _, ...queryParams } = params || {};
-			return apiConfig.httpClient.get(`/v1/stores/${store_id}/workflows`, {
+			return apiConfig.httpClient.get<PaginatedResponse<Workflow>>(`/v1/stores/${store_id}/workflows`, {
 				...options,
 				params: Object.keys(queryParams).length > 0 ? queryParams : undefined
 			});
 		},
 
-		async triggerWorkflow(params: TriggerWorkflowParams, options?: RequestOptions) {
+		async triggerWorkflow(params: TriggerWorkflowParams, options?: RequestOptions): Promise<WorkflowExecution> {
 			const { secret, ...payload } = params;
-			return apiConfig.httpClient.post(`/v1/workflows/trigger/${secret}`, payload, options);
+			return apiConfig.httpClient.post<WorkflowExecution>(`/v1/workflows/trigger/${secret}`, payload, options);
 		},
 
-		async getWorkflowExecutions(params: GetWorkflowExecutionsParams, options?: RequestOptions) {
+		async getWorkflowExecutions(params: GetWorkflowExecutionsParams, options?: RequestOptions): Promise<PaginatedResponse<WorkflowExecution>> {
 			const store_id = params.store_id || apiConfig.storeId;
 			const { store_id: _, workflow_id, ...queryParams } = params;
-			return apiConfig.httpClient.get(
+			return apiConfig.httpClient.get<PaginatedResponse<WorkflowExecution>>(
 				`/v1/stores/${store_id}/workflows/${workflow_id}/executions`,
 				{
 					...options,
@@ -76,9 +77,9 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
 			);
 		},
 
-		async getWorkflowExecution(params: GetWorkflowExecutionParams, options?: RequestOptions) {
+		async getWorkflowExecution(params: GetWorkflowExecutionParams, options?: RequestOptions): Promise<WorkflowExecution> {
 			const store_id = params.store_id || apiConfig.storeId;
-			return apiConfig.httpClient.get(
+			return apiConfig.httpClient.get<WorkflowExecution>(
 				`/v1/stores/${store_id}/workflows/${params.workflow_id}/executions/${params.execution_id}`,
 				options
 			);

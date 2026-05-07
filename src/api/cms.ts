@@ -8,6 +8,7 @@ import type {
   GetNodeChildrenParams,
   RequestOptions,
 } from "../types/api";
+import type { Node, PaginatedResponse } from "../types";
 import {
   getBlockFromArray,
   getBlockObjectValues,
@@ -16,29 +17,29 @@ import {
 
 export const createCmsApi = (apiConfig: ApiConfig) => {
   return {
-    async createNode(params: CreateNodeParams, options?: RequestOptions) {
+    async createNode(params: CreateNodeParams, options?: RequestOptions): Promise<Node> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post(
+      return apiConfig.httpClient.post<Node>(
         `/v1/stores/${target_store_id}/nodes`,
         payload,
         options
       );
     },
 
-    async updateNode(params: UpdateNodeParams, options?: RequestOptions) {
+    async updateNode(params: UpdateNodeParams, options?: RequestOptions): Promise<Node> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.put(
+      return apiConfig.httpClient.put<Node>(
         `/v1/stores/${target_store_id}/nodes/${params.id}`,
         payload,
         options
       );
     },
 
-    async deleteNode(params: DeleteNodeParams, options?: RequestOptions) {
+    async deleteNode(params: DeleteNodeParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.delete(
+      return apiConfig.httpClient.delete<{ deleted: boolean }>(
         `/v1/stores/${target_store_id}/nodes/${params.id}`,
         options
       );
@@ -57,7 +58,7 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
         throw new Error("GetNodeParams requires id, slug, or key");
       }
 
-      const response = await apiConfig.httpClient.get(
+      const response = await apiConfig.httpClient.get<Node>(
         `/v1/stores/${target_store_id}/nodes/${identifier}`,
         options
       );
@@ -77,10 +78,10 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       };
     },
 
-    async getNodes(params: GetNodesParams, options?: RequestOptions) {
+    async getNodes(params: GetNodesParams, options?: RequestOptions): Promise<PaginatedResponse<Node>> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get(
+      return apiConfig.httpClient.get<PaginatedResponse<Node>>(
         `/v1/stores/${target_store_id}/nodes`,
         {
           ...options,
@@ -89,10 +90,10 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getNodeChildren(params: GetNodeChildrenParams, options?: RequestOptions) {
+    async getNodeChildren(params: GetNodeChildrenParams, options?: RequestOptions): Promise<PaginatedResponse<Node>> {
       const { id, store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get(
+      return apiConfig.httpClient.get<PaginatedResponse<Node>>(
         `/v1/stores/${target_store_id}/nodes/${id}/children`,
         {
           ...options,

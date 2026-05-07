@@ -11,6 +11,44 @@ export interface AuthTokens {
 	account_id?: string;
 }
 
+export interface RequestSuccessContext<T = unknown> {
+	data: T;
+	method: string;
+	url: string;
+	status: number;
+	request?: unknown;
+	duration_ms?: number;
+	request_id?: string | null;
+}
+
+export interface RequestErrorContext {
+	error: unknown;
+	method: string;
+	url: string;
+	status?: number;
+	request?: unknown;
+	response?: unknown;
+	duration_ms?: number;
+	request_id?: string | null;
+	aborted?: boolean;
+}
+
+export interface RequestOptions<T = unknown> {
+	headers?: Record<string, string>;
+	params?: QueryParams | Record<string, any>;
+	transformRequest?: (data: unknown) => unknown;
+	onSuccess?: (ctx: RequestSuccessContext<T>) => void | Promise<void>;
+	onError?: (ctx: RequestErrorContext) => void | Promise<void>;
+}
+
+export interface HttpClient {
+	get<T>(path: string, opts?: RequestOptions<T>): Promise<T>;
+	post<T>(path: string, body: unknown, opts?: RequestOptions<T>): Promise<T>;
+	put<T>(path: string, body: unknown, opts?: RequestOptions<T>): Promise<T>;
+	patch<T>(path: string, body: unknown, opts?: RequestOptions<T>): Promise<T>;
+	delete<T>(path: string, opts?: RequestOptions<T>): Promise<T>;
+}
+
 const TOKEN_KEY = "arky_token";
 const LEGACY_KEYS = ["arky_refresh", "arky_expires_at"];
 
@@ -63,29 +101,11 @@ export interface HttpClientConfig {
 	isAuthenticated?: () => boolean;
 }
 
-type SuccessCallback<T = any> = (ctx: {
-	data: T;
-	method: string;
-	url: string;
-	status: number;
-	request?: any;
-	duration_ms?: number;
-	request_id?: string | null;
-}) => void | Promise<void>;
+type SuccessCallback<T = unknown> = (ctx: RequestSuccessContext<T>) => void | Promise<void>;
 
-type ErrorCallback = (ctx: {
-	error: any;
-	method: string;
-	url: string;
-	status?: number;
-	request?: any;
-	response?: any;
-	duration_ms?: number;
-	request_id?: string | null;
-	aborted?: boolean;
-}) => void | Promise<void>;
+type ErrorCallback = (ctx: RequestErrorContext) => void | Promise<void>;
 
-export function createHttpClient(cfg: HttpClientConfig) {
+export function createHttpClient(cfg: HttpClientConfig): HttpClient {
 	const getToken = cfg.getToken || defaultGetToken;
 	const setToken = cfg.setToken || defaultSetToken;
 	const logout = cfg.logout || defaultLogout;
@@ -140,15 +160,8 @@ export function createHttpClient(cfg: HttpClientConfig) {
 	async function request<T>(
 		method: string,
 		path: string,
-		body?: any,
-		options?: {
-			onSuccess?: SuccessCallback<T>;
-			onError?: ErrorCallback;
-			headers?: Record<string, string>;
-			transformRequest?: (data: any) => any;
-			params?: QueryParams;
-			_retried?: boolean;
-		}
+		body?: unknown,
+		options?: RequestOptions<T> & { _retried?: boolean }
 	): Promise<T> {
 		if (options?.transformRequest) {
 			body = options.transformRequest(body);
@@ -173,7 +186,7 @@ export function createHttpClient(cfg: HttpClientConfig) {
 		headers['Authorization'] = `Bearer ${access_token}`;
 	}
 
-		const finalPath = options?.params ? path + buildQueryString(options.params) : path;
+		const finalPath = options?.params ? path + buildQueryString(options.params as QueryParams) : path;
 
 		const fetchOpts: any = { method, headers };
 		if (!['GET', 'DELETE'].includes(method) && body !== undefined) {
@@ -278,10 +291,10 @@ if (options?.onSuccess && method !== 'GET') {
 	}
 
 	return {
-		get: <T>(path: string, opts?: any) => request<T>('GET', path, undefined, opts),
-		post: <T>(path: string, body: any, opts?: any) => request<T>('POST', path, body, opts),
-		put: <T>(path: string, body: any, opts?: any) => request<T>('PUT', path, body, opts),
-		patch: <T>(path: string, body: any, opts?: any) => request<T>('PATCH', path, body, opts),
-		delete: <T>(path: string, opts?: any) => request<T>('DELETE', path, undefined, opts)
+		get: <T>(path: string, opts?: RequestOptions<T>) => request<T>('GET', path, undefined, opts),
+		post: <T>(path: string, body: unknown, opts?: RequestOptions<T>) => request<T>('POST', path, body, opts),
+		put: <T>(path: string, body: unknown, opts?: RequestOptions<T>) => request<T>('PUT', path, body, opts),
+		patch: <T>(path: string, body: unknown, opts?: RequestOptions<T>) => request<T>('PATCH', path, body, opts),
+		delete: <T>(path: string, opts?: RequestOptions<T>) => request<T>('DELETE', path, undefined, opts)
 	};
 }

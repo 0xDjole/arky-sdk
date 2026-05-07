@@ -7,19 +7,19 @@ import type {
     UpdateMediaParams,
     RequestOptions
 } from '../types/api';
+import type { Media, PaginatedResponse } from '../types';
 
 export const createMediaApi = (apiConfig: ApiConfig) => {
     return {
-        async getMedia(params: GetMediaParams, options?: RequestOptions) {
+        async getMedia(params: GetMediaParams, options?: RequestOptions): Promise<Media> {
             const target_store_id = params.store_id || apiConfig.storeId;
-            return apiConfig.httpClient.get(
+            return apiConfig.httpClient.get<Media>(
                 `/v1/stores/${target_store_id}/media/${params.media_id}`,
                 options
             );
         },
 
-        async uploadStoreMedia(params: UploadStoreMediaParams, options?: RequestOptions) {
-            const _options = options;
+        async uploadStoreMedia(params: UploadStoreMediaParams, _options?: RequestOptions): Promise<Media[]> {
             const { store_id, files = [], urls = [] } = params;
             const target_store_id = store_id || apiConfig.storeId;
             const url = `${apiConfig.baseUrl}/v1/stores/${target_store_id}/media`;
@@ -44,16 +44,16 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
             return await response.json();
         },
 
-        async deleteStoreMedia(params: DeleteStoreMediaParams, options?: RequestOptions) {
+        async deleteStoreMedia(params: DeleteStoreMediaParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
             const { id, media_id } = params;
 
-            return apiConfig.httpClient.delete(
+            return apiConfig.httpClient.delete<{ deleted: boolean }>(
                 `/v1/stores/${id}/media/${media_id}`,
                 options
             );
         },
 
-        async getStoreMedia(params: GetStoreMediaParams, options?: RequestOptions) {
+        async getStoreMedia(params: GetStoreMediaParams, _options?: RequestOptions): Promise<PaginatedResponse<Media>> {
             const { store_id, cursor, limit, ids, query, mime_type, sort_field, sort_direction } = params;
             const target_store_id = store_id || apiConfig.storeId;
             const url = `${apiConfig.baseUrl}/v1/stores/${target_store_id}/media`;
@@ -83,11 +83,11 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
             return await response.json();
         },
 
-        async updateMedia(params: UpdateMediaParams, options?: RequestOptions) {
+        async updateMedia(params: UpdateMediaParams, options?: RequestOptions): Promise<Media> {
             const { media_id, store_id, ...payload } = params;
             const target_store_id = store_id || apiConfig.storeId;
 
-            return apiConfig.httpClient.put(
+            return apiConfig.httpClient.put<Media>(
                 `/v1/stores/${target_store_id}/media/${media_id}`,
                 payload,
                 options

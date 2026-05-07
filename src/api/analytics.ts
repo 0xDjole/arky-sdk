@@ -105,7 +105,7 @@ export const createAnalyticsApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions & { store_id?: string },
     ): Promise<AnalyticsQueryResponse> {
       const store_id = options?.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post(
+      return apiConfig.httpClient.post<AnalyticsQueryResponse>(
         `/v1/stores/${store_id}/analytics/query`,
         spec,
         options,

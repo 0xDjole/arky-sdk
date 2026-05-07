@@ -383,6 +383,20 @@ import type {
 } from 'arky-sdk'
 ```
 
+## Adding a new endpoint
+
+When adding a new SDK method, follow this checklist so the API surface stays typed end-to-end and request shapes stay aligned with the Rust DTOs on the server:
+
+1. **Define the entity** in `src/types/index.ts` if it does not already exist. Mirror the Rust response struct field-for-field.
+2. **Define the request params** in `src/types/api.ts`. Mirror the Rust DTO in `server/core/src/{module}/types/commands.rs` field-for-field. Two exceptions: `store_id?: string` and `market?: string` are optional in TS (the SDK auto-fills both from `apiConfig.storeId` and `apiConfig.market`). Do **not** use `[key: string]: any` index signatures.
+3. **Annotate the SDK method's return type** using the matching entity from `src/types/index.ts`.
+4. **Pass the response generic to the HTTP call**: `apiConfig.httpClient.post<EntityType>(...)`, `apiConfig.httpClient.get<PaginatedResponse<EntityType>>(...)`, etc. Never rely on inference.
+5. **Inject `market` from `apiConfig`**: when a body needs a `market` field, write `{ market: apiConfig.market, ...payload }`. Never hardcode `"booking"`, `"eshop"`, or any other market string in `src/api/*.ts`.
+6. **Re-export the entity** from `src/index.ts` if consumers (admin, storefront) will import it.
+7. **Bump `SDK_VERSION`** in `src/index.ts` and the `version` in `package.json`. Patch only.
+
+A guardrail script (`scripts/check-no-any.mjs`) runs on `npm run build` (via `prebuild`) and fails red if `: any`, `as any`, or hardcoded `market: "..."` literals show up in `src/api/*.ts`.
+
 ## License
 
 MIT
