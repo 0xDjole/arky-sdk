@@ -158,7 +158,7 @@ export { COMMON_ACTIVITY_TYPES } from "./api/storefront";
 
 export type { TimelineParams } from "./api/crm";
 
-export const SDK_VERSION = "0.7.95";
+export const SDK_VERSION = "0.7.97";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -538,14 +538,12 @@ export function createStorefront(
   const setToken = config.setToken || defaultSetToken;
   const logout = config.logout || defaultLogout;
   const isAuthenticated = config.isAuthenticated || defaultIsAuthenticated;
-  let refresh_store_id = config.storeId;
 
   const httpClient = createHttpClient({
     ...config,
     getToken,
     setToken,
     logout,
-    refreshPath: () => `/v1/storefront/${refresh_store_id}/customers/auth/refresh`,
   });
 
   const apiConfig: ApiConfig = {
@@ -611,7 +609,7 @@ export function createStorefront(
         if (status === 401) {
           currentSession = null;
           emitSessionChange(null);
-          await setToken({ access_token: "", refresh_token: "", access_expires_at: 0 });
+          await setToken({ access_token: "" });
           const result = await customerApi.session({
             market: apiConfig.market,
           });
@@ -667,8 +665,8 @@ export function createStorefront(
         setCurrentSessionFromResult(result);
         return result;
       },
-      connect: (params: any, options?: any) =>
-        invalidateAfterAuth(customerApi.connect(params, options)),
+      setEmail: (params: any, options?: any) =>
+        invalidateAfterAuth(customerApi.setEmail(params, options)),
       verify: (params: any, options?: any) =>
         invalidateAfterAuth(customerApi.verify(params, options)),
     },
@@ -686,7 +684,6 @@ export function createStorefront(
     activity: storefrontApi.activity,
     automation: storefrontApi.automation,
     setStoreId: (storeId: string) => {
-      refresh_store_id = storeId;
       apiConfig.storeId = storeId;
       clearSession();
     },

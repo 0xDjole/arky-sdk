@@ -1292,7 +1292,6 @@ export interface AuthToken {
   access_expires_at: number;
   refresh_expires_at: number;
   created_at: number;
-  last_used_at: number;
   is_verified: boolean;
 }
 
@@ -1303,14 +1302,8 @@ export interface CustomerInfo {
 
 export interface CustomerAuthToken {
   id: string;
-  access_token: string;
-  refresh_token: string;
-  access_expires_at: number;
-  refresh_expires_at: number;
+  token: string;
   created_at: number;
-  last_used_at: number;
-  is_verified: boolean;
-  user_agent?: string | null;
 }
 
 export interface CustomerVerificationCode {
@@ -1328,20 +1321,19 @@ export interface PromoUsage {
 export interface Customer {
   id: string;
   store_id: string;
-  emails: string[];
+  email: string | null;
+  verified: boolean;
   status: 'active' | 'archived';
   promo_usage: PromoUsage[];
-  blocks: Block[];
   taxonomies: TaxonomyEntry[];
   auth_tokens: CustomerAuthToken[];
   verification_codes: CustomerVerificationCode[];
-  addresses: Address[];
   audience_subscriptions: any[];
   created_at: number;
   updated_at: number;
 }
 
-export interface ConnectCustomerParams {
+export interface SetCustomerEmailParams {
   email: string;
   store_id?: string;
 }
@@ -1349,18 +1341,15 @@ export interface ConnectCustomerParams {
 export interface CreateCustomerParams {
   store_id?: string;
   email: string;
-  blocks?: Block[];
   taxonomies?: TaxonomyEntry[];
 }
 
 export interface UpdateCustomerParams {
   id: string;
   store_id?: string;
-  emails?: string[];
-  blocks?: Block[];
+  email?: string;
   taxonomies?: TaxonomyEntry[];
   status?: 'active' | 'archived';
-  addresses?: Address[];
 }
 
 export interface GetCustomerParams {

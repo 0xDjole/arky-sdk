@@ -11,40 +11,35 @@ export interface AuthTokens {
 	account_id?: string;
 }
 
-const STORAGE_KEYS = {
-	access_token: "arky_token",
-	refresh_token: "arky_refresh",
-	access_expires_at: "arky_expires_at",
-};
+const TOKEN_KEY = "arky_token";
+const LEGACY_KEYS = ["arky_refresh", "arky_expires_at"];
 
 export function defaultGetToken(): AuthTokens {
 	if (typeof window === "undefined") return { access_token: "" };
 	return {
-		access_token: localStorage.getItem(STORAGE_KEYS.access_token) || "",
-		refresh_token: localStorage.getItem(STORAGE_KEYS.refresh_token) || "",
-		access_expires_at: parseInt(localStorage.getItem(STORAGE_KEYS.access_expires_at) || "0", 10),
+		access_token: localStorage.getItem(TOKEN_KEY) || "",
 	};
 }
 
 export function defaultSetToken(tokens: AuthTokens): void {
 	if (typeof window === "undefined") return;
 	if (tokens.access_token) {
-		localStorage.setItem(STORAGE_KEYS.access_token, tokens.access_token);
-		localStorage.setItem(STORAGE_KEYS.refresh_token, tokens.refresh_token || "");
-		localStorage.setItem(STORAGE_KEYS.access_expires_at, (tokens.access_expires_at || 0).toString());
+		localStorage.setItem(TOKEN_KEY, tokens.access_token);
 	} else {
-		Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+		localStorage.removeItem(TOKEN_KEY);
 	}
+	LEGACY_KEYS.forEach((key) => localStorage.removeItem(key));
 }
 
 export function defaultLogout(): void {
 	if (typeof window === "undefined") return;
-	Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+	localStorage.removeItem(TOKEN_KEY);
+	LEGACY_KEYS.forEach((key) => localStorage.removeItem(key));
 }
 
 export function defaultIsAuthenticated(): boolean {
 	if (typeof window === "undefined") return false;
-	const token = localStorage.getItem(STORAGE_KEYS.access_token) || "";
+	const token = localStorage.getItem(TOKEN_KEY) || "";
 	return token.startsWith("customer_") || token.startsWith("account_");
 }
 

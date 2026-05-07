@@ -450,26 +450,28 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
           const store_id = params?.store_id || apiConfig.storeId;
           const result = await apiConfig.httpClient.post(
             `${base(store_id)}/customers/session`,
-            { store_id, market: params?.market || apiConfig.market || null },
+            {
+              store_id,
+              market: params?.market || apiConfig.market || null,
+            },
             options,
           );
-          if (result?.token?.access_token) {
-            apiConfig.setToken(result.token);
+          if (result?.token?.token) {
+            apiConfig.setToken({ access_token: result.token.token });
           }
           return result;
         },
 
-        async connect(params: any, options?: RequestOptions) {
+        async setEmail(
+          params: { email: string; store_id?: string },
+          options?: RequestOptions,
+        ) {
           const store_id = params.store_id || apiConfig.storeId;
-          const result = await apiConfig.httpClient.post(
-            `${base(store_id)}/customers/connect`,
+          return apiConfig.httpClient.post(
+            `${base(store_id)}/customers/email`,
             { email: params.email, store_id },
             options,
           );
-          if (result?.access_token) {
-            apiConfig.setToken(result);
-          }
-          return result;
         },
 
         requestCode(
@@ -478,7 +480,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         ) {
           const store_id = params.store_id || apiConfig.storeId;
           return apiConfig.httpClient.post(
-            `${base(store_id)}/customers/auth/code`,
+            `${base(store_id)}/customers/code`,
             { email: params.email, store_id },
             options,
           );
@@ -490,30 +492,27 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
         ) {
           const store_id = params.store_id || apiConfig.storeId;
           const result = await apiConfig.httpClient.post(
-            `${base(store_id)}/customers/auth/verify`,
+            `${base(store_id)}/customers/verify`,
             { email: params.email, code: params.code, store_id },
             options,
           );
-          if (result?.access_token) {
-            apiConfig.setToken(result);
+          if (result?.token) {
+            apiConfig.setToken({ access_token: result.token });
           }
           return result;
         },
 
-        async refreshToken(
-          params: { refresh_token: string; store_id?: string },
-          options?: RequestOptions,
-        ) {
-          const store_id = params.store_id || apiConfig.storeId;
-          const result = await apiConfig.httpClient.post(
-            `${base(store_id)}/customers/auth/refresh`,
-            { refresh_token: params.refresh_token },
-            options,
-          );
-          if (result?.access_token) {
-            apiConfig.setToken(result);
+        async logout(options?: RequestOptions) {
+          const store_id = apiConfig.storeId;
+          try {
+            await apiConfig.httpClient.post(
+              `${base(store_id)}/customers/logout`,
+              {},
+              options,
+            );
+          } finally {
+            apiConfig.setToken({ access_token: "" });
           }
-          return result;
         },
 
         getMe(options?: RequestOptions) {
