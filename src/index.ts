@@ -158,7 +158,7 @@ export { COMMON_ACTIVITY_TYPES } from "./api/storefront";
 
 export type { TimelineParams } from "./api/crm";
 
-export const SDK_VERSION = "0.7.97";
+export const SDK_VERSION = "0.7.98";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -665,8 +665,8 @@ export function createStorefront(
         setCurrentSessionFromResult(result);
         return result;
       },
-      setEmail: (params: any, options?: any) =>
-        invalidateAfterAuth(customerApi.setEmail(params, options)),
+      login: (params: any, options?: any) =>
+        invalidateAfterAuth(customerApi.login(params, options)),
       verify: (params: any, options?: any) =>
         invalidateAfterAuth(customerApi.verify(params, options)),
     },

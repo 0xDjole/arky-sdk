@@ -446,8 +446,8 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
 
     crm: {
       customer: {
-        async session(params?: { store_id?: string; market?: string }, options?: RequestOptions) {
-          const store_id = params?.store_id || apiConfig.storeId;
+        async session(params?: { market?: string }, options?: RequestOptions) {
+          const store_id = apiConfig.storeId;
           const result = await apiConfig.httpClient.post(
             `${base(store_id)}/customers/session`,
             {
@@ -462,38 +462,26 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
           return result;
         },
 
-        async setEmail(
-          params: { email: string; store_id?: string },
+        async login(
+          params: { email: string; verify?: boolean },
           options?: RequestOptions,
         ) {
-          const store_id = params.store_id || apiConfig.storeId;
+          const store_id = apiConfig.storeId;
           return apiConfig.httpClient.post(
-            `${base(store_id)}/customers/email`,
-            { email: params.email, store_id },
-            options,
-          );
-        },
-
-        requestCode(
-          params: { email: string; store_id?: string },
-          options?: RequestOptions,
-        ) {
-          const store_id = params.store_id || apiConfig.storeId;
-          return apiConfig.httpClient.post(
-            `${base(store_id)}/customers/code`,
-            { email: params.email, store_id },
+            `${base(store_id)}/customers/login`,
+            { store_id, email: params.email, verify: params.verify ?? false },
             options,
           );
         },
 
         async verify(
-          params: { email: string; code: string; store_id?: string },
+          params: { code: string },
           options?: RequestOptions,
         ) {
-          const store_id = params.store_id || apiConfig.storeId;
+          const store_id = apiConfig.storeId;
           const result = await apiConfig.httpClient.post(
             `${base(store_id)}/customers/verify`,
-            { email: params.email, code: params.code, store_id },
+            { store_id, code: params.code },
             options,
           );
           if (result?.token) {
