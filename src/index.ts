@@ -218,7 +218,7 @@ export { COMMON_ACTIVITY_TYPES } from "./api/storefront";
 
 export type { TimelineParams } from "./api/crm";
 
-export const SDK_VERSION = "0.7.107";
+export const SDK_VERSION = "0.7.110";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -678,7 +678,7 @@ export function createAdmin(config: CreateAdminConfig) {
 
     getLocale: () => apiConfig.locale,
 
-    get currentSession(): AdminSession | null {
+    get session(): AdminSession | null {
       if (config.apiToken) return null;
       return toPublic(readAdminSession());
     },
@@ -877,7 +877,7 @@ export function createStorefront(config: CreateStorefrontConfig) {
     logout,
     me: () => customerApi.getMe(),
 
-    get currentSession(): CustomerSession | null {
+    get session(): CustomerSession | null {
       if (config.apiToken) return null;
       return toPublic(readCustomerSession());
     },
