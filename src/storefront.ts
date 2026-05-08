@@ -2,8 +2,9 @@ export { COMMON_ACTIVITY_TYPES, createStorefront } from "./index";
 export type {
   Activity,
   CommonActivityType,
-  StorefrontSession,
-  StorefrontSessionListener,
+  CustomerSession,
+  AuthStateListener,
+  CreateStorefrontConfig,
   TrackParams,
 } from "./index";
-export type { HttpClientConfig } from "./services/createHttpClient";
+export type { HttpClientConfig, AuthStorage } from "./services/createHttpClient";

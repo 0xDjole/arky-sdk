@@ -17,10 +17,12 @@ import type {
   AddAudienceSubscriberParams,
   AddAudienceSubscriberResponse,
   AudienceSubscriber,
+  FindActivitiesParams,
 } from "../types/api";
 import type { Audience, PaginatedResponse } from "../types";
 
 export interface Activity {
+  id: string;
   store_id: string;
   customer_id: string;
   type: string;
@@ -53,6 +55,21 @@ export const createActivityAdminApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.get<{ items: Activity[]; cursor: string | null }>(
       `/v1/stores/${store_id}/activities/timeline`,
       { ...options, params: queryParams },
+    );
+  },
+
+  async find(params: FindActivitiesParams, options?: RequestOptions): Promise<{ items: Activity[]; cursor: string | null }> {
+    const store_id = apiConfig.storeId;
+    const queryParams: Record<string, unknown> = {};
+    if (params.customer_id) queryParams.customer_id = params.customer_id;
+    if (params.types && params.types.length > 0) queryParams.types = params.types;
+    if (params.from !== undefined) queryParams.from = params.from;
+    if (params.to !== undefined) queryParams.to = params.to;
+    if (params.limit !== undefined) queryParams.limit = params.limit;
+    if (params.cursor) queryParams.cursor = params.cursor;
+    return apiConfig.httpClient.get<{ items: Activity[]; cursor: string | null }>(
+      `/v1/stores/${store_id}/activities`,
+      { ...options, params: queryParams }
     );
   },
 });

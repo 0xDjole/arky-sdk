@@ -1,4 +1,4 @@
-import type { ApiConfig } from '../index';
+import type { ApiConfig, AdminSessionInternal, AdminSessionUpdater } from '../index';
 import type {
     MagicLinkRequestParams,
     MagicLinkVerifyParams,
@@ -6,7 +6,17 @@ import type {
     RequestOptions
 } from '../types/api';
 
-export const createAuthApi = (apiConfig: ApiConfig) => {
+export const createAuthApi = (apiConfig: ApiConfig, updateSession: AdminSessionUpdater) => {
+    function applyAuthToken(result: AuthToken, email?: string) {
+        const next: AdminSessionInternal = {
+            access_token: result.access_token,
+            refresh_token: result.refresh_token,
+            access_expires_at: result.access_expires_at,
+            email,
+        };
+        updateSession(() => next);
+    }
+
     return {
 
         async code(params: { email: string }, options?: RequestOptions): Promise<{ sent: boolean }> {
@@ -14,13 +24,13 @@ export const createAuthApi = (apiConfig: ApiConfig) => {
         },
 
         async verify(params: MagicLinkVerifyParams, options?: RequestOptions): Promise<AuthToken> {
-            const result = await apiConfig.httpClient.post<AuthToken & { access_token?: string }>(
+            const result = await apiConfig.httpClient.post<AuthToken>(
                 '/v1/auth/verify',
                 params,
                 options,
             );
             if (result?.access_token) {
-                apiConfig.setToken({ access_token: result.access_token, refresh_token: result.refresh_token });
+                applyAuthToken(result, params.email);
             }
             return result;
         },
@@ -34,13 +44,13 @@ export const createAuthApi = (apiConfig: ApiConfig) => {
         },
 
         async storeVerify(storeId: string, params: MagicLinkVerifyParams, options?: RequestOptions): Promise<AuthToken> {
-            const result = await apiConfig.httpClient.post<AuthToken & { access_token?: string }>(
+            const result = await apiConfig.httpClient.post<AuthToken>(
                 `/v1/stores/${storeId}/auth/verify`,
                 params,
                 options,
             );
             if (result?.access_token) {
-                apiConfig.setToken({ access_token: result.access_token, refresh_token: result.refresh_token });
+                applyAuthToken(result, params.email);
             }
             return result;
         },

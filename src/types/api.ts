@@ -923,7 +923,7 @@ export interface SubmitFormParams {
 }
 
 export interface GetFormSubmissionsParams {
-  form_id: string;
+  form_ids?: string[];
   store_id?: string;
   customer_id?: string;
 
@@ -934,6 +934,15 @@ export interface GetFormSubmissionsParams {
   sort_direction?: "asc" | "desc";
   created_at_from?: number;
   created_at_to?: number;
+}
+
+export interface FindActivitiesParams {
+  customer_id?: string;
+  types?: string[];
+  from?: number;
+  to?: number;
+  limit?: number;
+  cursor?: string;
 }
 
 export interface GetFormSubmissionParams {

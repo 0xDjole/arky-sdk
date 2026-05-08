@@ -4,11 +4,16 @@ import {
 } from '../utils/errors';
 import { buildQueryString, type QueryParams } from '../utils/queryParams';
 
-export interface AuthTokens {
+export interface TokenSet {
 	access_token: string;
 	refresh_token?: string;
 	access_expires_at?: number;
-	account_id?: string;
+}
+
+export interface AuthStorage {
+	getTokens(): TokenSet | null;
+	onTokensRefreshed(tokens: TokenSet): void;
+	onForcedLogout(): void;
 }
 
 export interface RequestSuccessContext<T = unknown> {
@@ -49,67 +54,17 @@ export interface HttpClient {
 	delete<T>(path: string, opts?: RequestOptions<T>): Promise<T>;
 }
 
-const TOKEN_KEY = "arky_token";
-const LEGACY_KEYS = ["arky_refresh", "arky_expires_at"];
-
-export function defaultGetToken(): AuthTokens {
-	if (typeof window === "undefined") return { access_token: "" };
-	return {
-		access_token: localStorage.getItem(TOKEN_KEY) || "",
-	};
-}
-
-export function defaultSetToken(tokens: AuthTokens): void {
-	if (typeof window === "undefined") return;
-	if (tokens.access_token) {
-		localStorage.setItem(TOKEN_KEY, tokens.access_token);
-	} else {
-		localStorage.removeItem(TOKEN_KEY);
-	}
-	LEGACY_KEYS.forEach((key) => localStorage.removeItem(key));
-}
-
-export function defaultLogout(): void {
-	if (typeof window === "undefined") return;
-	localStorage.removeItem(TOKEN_KEY);
-	LEGACY_KEYS.forEach((key) => localStorage.removeItem(key));
-}
-
-export function defaultIsAuthenticated(): boolean {
-	if (typeof window === "undefined") return false;
-	const token = localStorage.getItem(TOKEN_KEY) || "";
-	return token.startsWith("customer_") || token.startsWith("account_");
-}
-
 export interface HttpClientConfig {
 	baseUrl: string;
-
 	storeId: string;
-
+	authStorage: AuthStorage;
 	refreshPath?: string | (() => string);
-
-	getToken?: () => Promise<AuthTokens> | AuthTokens;
-
-	setToken?: (tokens: AuthTokens) => void;
-
-	logout?: () => void;
-
 	navigate?: (path: string) => void;
-
 	loginFallbackPath?: string;
-
-	isAuthenticated?: () => boolean;
 }
 
-type SuccessCallback<T = unknown> = (ctx: RequestSuccessContext<T>) => void | Promise<void>;
-
-type ErrorCallback = (ctx: RequestErrorContext) => void | Promise<void>;
-
 export function createHttpClient(cfg: HttpClientConfig): HttpClient {
-	const getToken = cfg.getToken || defaultGetToken;
-	const setToken = cfg.setToken || defaultSetToken;
-	const logout = cfg.logout || defaultLogout;
-
+	const { authStorage } = cfg;
 	let refreshPromise: Promise<void> | null = null;
 
 	function getRefreshEndpoint() {
@@ -125,9 +80,10 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
 		}
 
 		refreshPromise = (async () => {
-			const { refresh_token } = await getToken();
+			const tokens = authStorage.getTokens();
+			const refresh_token = tokens?.refresh_token;
 			if (!refresh_token) {
-				logout();
+				authStorage.onForcedLogout();
 				const err: any = new Error('No refresh token available');
 				err.name = 'ApiError';
 				err.statusCode = 401;
@@ -141,7 +97,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
 			});
 
 			if (!refRes.ok) {
-				logout();
+				authStorage.onForcedLogout();
 				const err: any = new Error('Token refresh failed');
 				err.name = 'ApiError';
 				err.statusCode = 401;
@@ -149,7 +105,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
 			}
 
 			const data = await refRes.json();
-			setToken(data);
+			authStorage.onTokensRefreshed(data);
 		})().finally(() => {
 			refreshPromise = null;
 		});
@@ -173,18 +129,16 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
 			...(options?.headers || {})
 		};
 
-	let { access_token, access_expires_at } = await getToken();
+		let tokens = authStorage.getTokens();
+		const nowSec = Date.now() / 1000;
+		if (tokens?.access_expires_at && nowSec > tokens.access_expires_at) {
+			await ensureFreshToken();
+			tokens = authStorage.getTokens();
+		}
 
-	const nowSec = Date.now() / 1000;
-	if (access_expires_at && nowSec > access_expires_at) {
-		await ensureFreshToken();
-		const tokens = await getToken();
-		access_token = tokens.access_token;
-	}
-
-	if (access_token) {
-		headers['Authorization'] = `Bearer ${access_token}`;
-	}
+		if (tokens?.access_token) {
+			headers['Authorization'] = `Bearer ${tokens.access_token}`;
+		}
 
 		const finalPath = options?.params ? path + buildQueryString(options.params as QueryParams) : path;
 
@@ -205,7 +159,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
 			err.name = 'NetworkError';
 			err.method = method;
 			err.url = fullUrl;
-if (options?.onError && method !== 'GET') {
+			if (options?.onError && method !== 'GET') {
 				Promise.resolve(
 					options.onError({ error: err, method, url: fullUrl, aborted: false })
 				).catch(() => {});
@@ -216,9 +170,11 @@ if (options?.onError && method !== 'GET') {
 		if (res.status === 401 && !options?.['_retried']) {
 			try {
 				await ensureFreshToken();
-				const tokens = await getToken();
-				headers['Authorization'] = `Bearer ${tokens.access_token}`;
-				fetchOpts.headers = headers;
+				const refreshed = authStorage.getTokens();
+				if (refreshed?.access_token) {
+					headers['Authorization'] = `Bearer ${refreshed.access_token}`;
+					fetchOpts.headers = headers;
+				}
 				return request<T>(method, path, body, { ...options, _retried: true });
 			} catch (refreshError) {
 				throw refreshError;
@@ -239,7 +195,7 @@ if (options?.onError && method !== 'GET') {
 			err.method = method;
 			err.url = fullUrl;
 			err.status = res.status;
-if (options?.onError && method !== 'GET') {
+			if (options?.onError && method !== 'GET') {
 				Promise.resolve(
 					options.onError({ error: err, method, url: fullUrl, status: res.status })
 				).catch(() => {});
@@ -258,7 +214,7 @@ if (options?.onError && method !== 'GET') {
 			err.url = fullUrl;
 			const requestId = res.headers.get('x-request-id') || res.headers.get('request-id');
 			if (requestId) err.requestId = requestId;
-if (options?.onError && method !== 'GET') {
+			if (options?.onError && method !== 'GET') {
 				Promise.resolve(
 					options.onError({
 						error: err,
@@ -274,7 +230,7 @@ if (options?.onError && method !== 'GET') {
 			throw err;
 		}
 
-if (options?.onSuccess && method !== 'GET') {
+		if (options?.onSuccess && method !== 'GET') {
 			const requestId = res.headers.get('x-request-id') || res.headers.get('request-id');
 			Promise.resolve(
 				options.onSuccess({

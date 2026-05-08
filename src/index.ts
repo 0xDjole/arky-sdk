@@ -218,7 +218,7 @@ export { COMMON_ACTIVITY_TYPES } from "./api/storefront";
 
 export type { TimelineParams } from "./api/crm";
 
-export const SDK_VERSION = "0.7.104";
+export const SDK_VERSION = "0.7.107";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -227,25 +227,56 @@ export const SUPPORTED_FRAMEWORKS = [
   "vanilla",
 ] as const;
 
+import type { Customer as CustomerType, Store as StoreType, Market as MarketType } from "./types";
+
 export interface ApiConfig {
   httpClient: HttpClient;
   storeId: string;
   baseUrl: string;
   market: string;
   locale: string;
-  setToken: (tokens: AuthTokens) => void;
-  getToken: () => Promise<AuthTokens> | AuthTokens;
+  authStorage: AuthStorage;
 }
+
+export interface AdminSessionInternal {
+  access_token: string;
+  refresh_token: string;
+  access_expires_at?: number;
+  email?: string;
+}
+
+export interface CustomerSessionInternal {
+  access_token: string;
+  customer: CustomerType;
+  store: StoreType;
+  market: MarketType | null;
+}
+
+export interface AdminSession {
+  email?: string;
+}
+
+export interface CustomerSession {
+  customer: CustomerType;
+  store: StoreType;
+  market: MarketType | null;
+}
+
+export type AdminSessionUpdater = (
+  updater: (prev: AdminSessionInternal | null) => AdminSessionInternal | null,
+) => void;
+
+export type CustomerSessionUpdater = (
+  updater: (prev: CustomerSessionInternal | null) => CustomerSessionInternal | null,
+) => void;
+
+export type AuthStateListener<T> = (session: T | null) => void;
 
 import {
   createHttpClient,
-  defaultGetToken,
-  defaultSetToken,
-  defaultLogout,
-  defaultIsAuthenticated,
   type HttpClientConfig,
   type HttpClient,
-  type AuthTokens,
+  type AuthStorage,
 } from "./services/createHttpClient";
 import { createAccountApi } from "./api/account";
 import { createAuthApi } from "./api/auth";
@@ -357,19 +388,100 @@ function createUtilitySurface(apiConfig: ApiConfig) {
   };
 }
 
-export function createAdmin(
-  config: HttpClientConfig & {
-    market: string;
-    locale?: string;
-  }
-) {
-  const locale = config.locale || "en";
-  const getToken = config.getToken || defaultGetToken;
-  const setToken = config.setToken || defaultSetToken;
-  const logout = config.logout || defaultLogout;
-  const isAuthenticated = config.isAuthenticated || defaultIsAuthenticated;
+const ADMIN_STORAGE_KEY = "arky_admin_session";
 
-  const httpClient = createHttpClient({ ...config, getToken, setToken, logout });
+function readAdminSession(): AdminSessionInternal | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(ADMIN_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as AdminSessionInternal) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeAdminSession(s: AdminSessionInternal | null): void {
+  if (typeof window === "undefined") return;
+  if (s) {
+    localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(s));
+  } else {
+    localStorage.removeItem(ADMIN_STORAGE_KEY);
+  }
+}
+
+export type CreateAdminConfig = Omit<HttpClientConfig, "authStorage" | "storeId"> & {
+  storeId: string;
+  market: string;
+  locale?: string;
+  apiToken?: string;
+};
+
+export function createAdmin(config: CreateAdminConfig) {
+  const locale = config.locale || "en";
+  const listeners = new Set<AuthStateListener<AdminSession>>();
+
+  function toPublic(s: AdminSessionInternal | null): AdminSession | null {
+    return s ? { email: s.email } : null;
+  }
+
+  function emit(): void {
+    const pub = toPublic(readAdminSession());
+    for (const l of listeners) {
+      Promise.resolve()
+        .then(() => l(pub))
+        .catch(() => {});
+    }
+  }
+
+  const updateSession: AdminSessionUpdater = (updater) => {
+    if (config.apiToken) return;
+    const prev = readAdminSession();
+    const next = updater(prev);
+    writeAdminSession(next);
+    emit();
+  };
+
+  const authStorage: AuthStorage = config.apiToken
+    ? {
+        getTokens: () => ({ access_token: config.apiToken! }),
+        onTokensRefreshed: () => {},
+        onForcedLogout: () => {},
+      }
+    : {
+        getTokens() {
+          const s = readAdminSession();
+          if (!s) return null;
+          return {
+            access_token: s.access_token,
+            refresh_token: s.refresh_token,
+            access_expires_at: s.access_expires_at,
+          };
+        },
+        onTokensRefreshed(tokens) {
+          updateSession((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  access_token: tokens.access_token,
+                  refresh_token: tokens.refresh_token ?? prev.refresh_token,
+                  access_expires_at: tokens.access_expires_at ?? prev.access_expires_at,
+                }
+              : null,
+          );
+        },
+        onForcedLogout() {
+          updateSession(() => null);
+        },
+      };
+
+  const httpClient = createHttpClient({
+    baseUrl: config.baseUrl,
+    storeId: config.storeId,
+    refreshPath: config.refreshPath,
+    navigate: config.navigate,
+    loginFallbackPath: config.loginFallbackPath,
+    authStorage,
+  });
 
   const apiConfig: ApiConfig = {
     httpClient,
@@ -377,13 +489,12 @@ export function createAdmin(
     baseUrl: config.baseUrl,
     market: config.market,
     locale,
-    setToken,
-    getToken,
+    authStorage,
   };
 
   const accountApi = createAccountApi(apiConfig);
-  const authApi = createAuthApi(apiConfig);
-  const storeApi = createStoreApi(apiConfig);
+  const authApi = createAuthApi(apiConfig, updateSession);
+  const storeApi = createStoreApi(apiConfig, updateSession);
   const platformApi = createPlatformApi(apiConfig);
 
   const cmsApi = createCmsApi(apiConfig);
@@ -567,9 +678,33 @@ export function createAdmin(
 
     getLocale: () => apiConfig.locale,
 
-    isAuthenticated,
-    logout,
-    setToken,
+    get currentSession(): AdminSession | null {
+      if (config.apiToken) return null;
+      return toPublic(readAdminSession());
+    },
+
+    get isAuthenticated(): boolean {
+      if (config.apiToken) return true;
+      return readAdminSession() !== null;
+    },
+
+    onAuthStateChanged(listener: AuthStateListener<AdminSession>): () => void {
+      listeners.add(listener);
+      const current = toPublic(readAdminSession());
+      if (current) {
+        Promise.resolve()
+          .then(() => listener(current))
+          .catch(() => {});
+      }
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+
+    async logout(): Promise<void> {
+      if (config.apiToken) return;
+      updateSession(() => null);
+    },
 
     extractBlockValues,
 
@@ -580,223 +715,213 @@ export function createAdmin(
   return sdk;
 }
 
-import type { Customer as StorefrontCustomer, Market as StorefrontMarket, Store as StorefrontStore } from "./types";
+const CUSTOMER_STORAGE_KEY = "arky_customer_session";
 
-export interface StorefrontSession {
-  customer: StorefrontCustomer;
-  store: StorefrontStore;
-  market: StorefrontMarket | null;
+function readCustomerSession(): CustomerSessionInternal | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(CUSTOMER_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as CustomerSessionInternal) : null;
+  } catch {
+    return null;
+  }
 }
 
-export type StorefrontSessionListener = (session: StorefrontSession | null) => void;
-
-export function createStorefront(
-  config: HttpClientConfig & {
-    market?: string;
-    locale?: string;
+function writeCustomerSession(s: CustomerSessionInternal | null): void {
+  if (typeof window === "undefined") return;
+  if (s) {
+    localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(s));
+  } else {
+    localStorage.removeItem(CUSTOMER_STORAGE_KEY);
   }
-) {
+}
+
+export type CreateStorefrontConfig = Omit<HttpClientConfig, "authStorage" | "storeId"> & {
+  storeId: string;
+  market?: string;
+  locale?: string;
+  apiToken?: string;
+};
+
+export function createStorefront(config: CreateStorefrontConfig) {
   const locale = config.locale || "en";
-  const market = config.market || "";
-  const getToken = config.getToken || defaultGetToken;
-  const setToken = config.setToken || defaultSetToken;
-  const logout = config.logout || defaultLogout;
-  const isAuthenticated = config.isAuthenticated || defaultIsAuthenticated;
+  const initialMarket = config.market || "";
+  const listeners = new Set<AuthStateListener<CustomerSession>>();
+  let bareIdentifyPromise: Promise<CustomerSession> | null = null;
+
+  function toPublic(s: CustomerSessionInternal | null): CustomerSession | null {
+    return s ? { customer: s.customer, store: s.store, market: s.market } : null;
+  }
+
+  function emit(): void {
+    const pub = toPublic(readCustomerSession());
+    for (const l of listeners) {
+      Promise.resolve()
+        .then(() => l(pub))
+        .catch(() => {});
+    }
+  }
+
+  const updateSession: CustomerSessionUpdater = (updater) => {
+    if (config.apiToken) return;
+    const prev = readCustomerSession();
+    const next = updater(prev);
+    writeCustomerSession(next);
+    emit();
+  };
+
+  const authStorage: AuthStorage = config.apiToken
+    ? {
+        getTokens: () => ({ access_token: config.apiToken! }),
+        onTokensRefreshed: () => {},
+        onForcedLogout: () => {},
+      }
+    : {
+        getTokens() {
+          const s = readCustomerSession();
+          return s ? { access_token: s.access_token } : null;
+        },
+        onTokensRefreshed() {
+          // Customer tokens are one-shot; no refresh on this flow.
+        },
+        onForcedLogout() {
+          bareIdentifyPromise = null;
+          updateSession(() => null);
+        },
+      };
 
   const httpClient = createHttpClient({
-    ...config,
-    getToken,
-    setToken,
-    logout,
+    baseUrl: config.baseUrl,
+    storeId: config.storeId,
+    refreshPath: config.refreshPath,
+    navigate: config.navigate,
+    loginFallbackPath: config.loginFallbackPath,
+    authStorage,
   });
 
   const apiConfig: ApiConfig = {
     httpClient,
     storeId: config.storeId,
     baseUrl: config.baseUrl,
-    market,
+    market: initialMarket,
     locale,
-    setToken,
-    getToken,
+    authStorage,
   };
 
-  const storefrontApi = createStorefrontApi(apiConfig);
-
-  let sessionPromise: Promise<StorefrontSession> | null = null;
-  let currentSession: StorefrontSession | null = null;
-  const sessionListeners = new Set<StorefrontSessionListener>();
+  const storefrontApi = createStorefrontApi(apiConfig, updateSession);
   const customerApi = storefrontApi.crm.customer;
-
-  function emitSessionChange(session: StorefrontSession | null) {
-    for (const listener of sessionListeners) {
-      Promise.resolve()
-        .then(() => listener(session))
-        .catch(() => {});
-    }
-  }
-
-  function setCurrentSessionFromResult(result: {
-    customer: StorefrontCustomer;
-    store: StorefrontStore;
-    market: StorefrontMarket | null;
-  }): StorefrontSession {
-    const s: StorefrontSession = {
-      customer: result.customer,
-      store: result.store,
-      market: result.market || null,
-    };
-    currentSession = s;
-    emitSessionChange(s);
-    return s;
-  }
-
-  function clearSession() {
-    sessionPromise = null;
-    currentSession = null;
-    emitSessionChange(null);
-  }
-
-  async function invalidateAfterAuth<T>(promise: Promise<T>) {
-    const result = await promise;
-    clearSession();
-    return result;
-  }
 
   function identify(
     params?: { email?: string; verify?: boolean; market?: string },
-  ): Promise<StorefrontSession> {
+  ): Promise<CustomerSession> {
     if (params?.market !== undefined) apiConfig.market = params.market;
 
-    // Cache only the bare bootstrap (no email, no verify).
     const isBareCall = !params?.email && !params?.verify;
-    if (isBareCall && sessionPromise) return sessionPromise;
+    if (isBareCall && bareIdentifyPromise) return bareIdentifyPromise;
 
-    const promise = (async (): Promise<StorefrontSession> => {
+    const promise = (async (): Promise<CustomerSession> => {
       try {
         const result = await customerApi.identify({
           market: apiConfig.market,
           email: params?.email,
           verify: params?.verify,
         });
-        return setCurrentSessionFromResult(result);
+        return {
+          customer: result.customer,
+          store: result.store,
+          market: result.market,
+        };
       } catch (err: unknown) {
         const e = err as { statusCode?: number; status?: number; response?: { status?: number } };
         const status = e?.statusCode || e?.status || e?.response?.status;
         if (isBareCall && status === 401) {
-          currentSession = null;
-          emitSessionChange(null);
-          await setToken({ access_token: "" });
-          const result = await customerApi.identify({
-            market: apiConfig.market,
-          });
-          return setCurrentSessionFromResult(result);
+          updateSession(() => null);
+          const result = await customerApi.identify({ market: apiConfig.market });
+          return {
+            customer: result.customer,
+            store: result.store,
+            market: result.market,
+          };
         }
         throw err;
       }
     })().catch((err) => {
-      if (isBareCall) sessionPromise = null;
+      if (isBareCall) bareIdentifyPromise = null;
       throw err;
     });
 
-    if (isBareCall) sessionPromise = promise;
+    if (isBareCall) bareIdentifyPromise = promise;
 
     return promise;
   }
 
-  function setMarket(key: string) {
-    apiConfig.market = key;
-    clearSession();
-  }
-
-  function onSessionChange(listener: StorefrontSessionListener) {
-    sessionListeners.add(listener);
-    if (currentSession) {
-      Promise.resolve()
-        .then(() => listener(currentSession))
-        .catch(() => {});
-    }
-    return () => {
-      sessionListeners.delete(listener);
-    };
-  }
-
-  function getSession(): StorefrontSession | null {
-    return currentSession;
-  }
-
-  function logoutAndClearSession() {
-    clearSession();
-    return logout();
-  }
-
-  function setTokenAndClearSession(tokens: AuthTokens) {
-    setToken(tokens);
-    clearSession();
-  }
-
-  const crm = {
-    ...storefrontApi.crm,
-    customer: {
-      ...customerApi,
-      async identify(
-        params?: Parameters<typeof customerApi.identify>[0],
-        options?: Parameters<typeof customerApi.identify>[1],
-      ) {
-        const result = await customerApi.identify(params, options);
-        setCurrentSessionFromResult(result);
-        return result;
-      },
-      verify: (
-        params: Parameters<typeof customerApi.verify>[0],
-        options?: Parameters<typeof customerApi.verify>[1],
-      ) => invalidateAfterAuth(customerApi.verify(params, options)),
-    },
-  };
-
   async function verify(params: { code: string }) {
-    const result = await invalidateAfterAuth(customerApi.verify(params));
+    const result = await customerApi.verify(params);
+    bareIdentifyPromise = null;
     return result;
   }
 
-  async function me() {
-    return customerApi.getMe();
-  }
-
-  async function logoutCustomer() {
+  async function logout(): Promise<void> {
+    if (config.apiToken) return;
+    bareIdentifyPromise = null;
     try {
       await customerApi.logout();
-    } finally {
-      clearSession();
+    } catch {
+      updateSession(() => null);
     }
   }
 
   return {
     identify,
     verify,
-    me,
-    logout: logoutCustomer,
-    getSession,
-    onSessionChange,
+    logout,
+    me: () => customerApi.getMe(),
+
+    get currentSession(): CustomerSession | null {
+      if (config.apiToken) return null;
+      return toPublic(readCustomerSession());
+    },
+
+    get isAuthenticated(): boolean {
+      if (config.apiToken) return true;
+      const s = readCustomerSession();
+      return s !== null && !!s.access_token;
+    },
+
+    onAuthStateChanged(listener: AuthStateListener<CustomerSession>): () => void {
+      listeners.add(listener);
+      const current = toPublic(readCustomerSession());
+      if (current) {
+        Promise.resolve()
+          .then(() => listener(current))
+          .catch(() => {});
+      }
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+
     store: storefrontApi.store,
     cms: storefrontApi.cms,
     eshop: storefrontApi.eshop,
     booking: storefrontApi.booking,
-    crm,
+    crm: storefrontApi.crm,
     activity: storefrontApi.activity,
     automation: storefrontApi.automation,
     setStoreId: (storeId: string) => {
       apiConfig.storeId = storeId;
-      clearSession();
+      bareIdentifyPromise = null;
     },
     getStoreId: () => apiConfig.storeId,
-    setMarket,
+    setMarket: (key: string) => {
+      apiConfig.market = key;
+      bareIdentifyPromise = null;
+    },
     getMarket: () => apiConfig.market,
-    setLocale: (locale: string) => {
-      apiConfig.locale = locale;
+    setLocale: (l: string) => {
+      apiConfig.locale = l;
     },
     getLocale: () => apiConfig.locale,
-    isAuthenticated,
-    setToken: setTokenAndClearSession,
     extractBlockValues,
     utils: createUtilitySurface(apiConfig),
   };

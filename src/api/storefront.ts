@@ -1,4 +1,4 @@
-import type { ApiConfig } from "../index";
+import type { ApiConfig, CustomerSessionUpdater } from "../index";
 import type {
   RequestOptions,
   Slot,
@@ -152,7 +152,7 @@ function groupCartToItems(cart: Slot[]) {
   return [...groups.values()];
 }
 
-export const createStorefrontApi = (apiConfig: ApiConfig) => {
+export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession: CustomerSessionUpdater) => {
   const base = (storeId = apiConfig.storeId) =>
     `/v1/storefront/${storeId}`;
   let cart: Slot[] = [];
@@ -542,7 +542,12 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
             options,
           );
           if (result?.token?.token) {
-            apiConfig.setToken({ access_token: result.token.token });
+            updateCustomerSession(() => ({
+              access_token: result.token.token,
+              customer: result.customer,
+              store: result.store,
+              market: result.market,
+            }));
           }
           return result;
         },
@@ -558,7 +563,9 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
             options,
           );
           if (result?.token) {
-            apiConfig.setToken({ access_token: result.token });
+            updateCustomerSession((prev) =>
+              prev ? { ...prev, access_token: result.token } : null,
+            );
           }
           return result;
         },
@@ -572,7 +579,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig) => {
               options,
             );
           } finally {
-            apiConfig.setToken({ access_token: "" });
+            updateCustomerSession(() => null);
           }
         },
 

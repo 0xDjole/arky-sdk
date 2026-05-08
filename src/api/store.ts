@@ -1,4 +1,5 @@
-import type { ApiConfig } from "../index";
+import type { ApiConfig, AdminSessionUpdater } from "../index";
+import type { AuthToken } from "../types/api";
 import type {
   CreateStoreParams,
   UpdateStoreParams,
@@ -38,7 +39,11 @@ type SubscriptionPlan = unknown;
 // TODO: type as IntegrationConfig once exported from types/index.ts
 type IntegrationConfig = unknown;
 
-export const createStoreApi = (apiConfig: ApiConfig) => {
+export interface InvitationTokenData extends AuthToken {
+  store_id?: string | null;
+}
+
+export const createStoreApi = (apiConfig: ApiConfig, updateSession: AdminSessionUpdater) => {
   return {
     async createStore(
       params: CreateStoreParams,
@@ -129,13 +134,21 @@ export const createStoreApi = (apiConfig: ApiConfig) => {
     async handleInvitation(
       params: HandleInvitationParams,
       options?: RequestOptions
-    ): Promise<{ handled: boolean }> {
+    ): Promise<InvitationTokenData> {
       const { store_id, ...payload } = params;
-      return apiConfig.httpClient.put<{ handled: boolean }>(
+      const result = await apiConfig.httpClient.put<InvitationTokenData>(
         `/v1/stores/${store_id || apiConfig.storeId}/invitation`,
         payload,
         options
       );
+      if (params.action === "accept" && result?.access_token) {
+        updateSession(() => ({
+          access_token: result.access_token,
+          refresh_token: result.refresh_token,
+          access_expires_at: result.access_expires_at,
+        }));
+      }
+      return result;
     },
 
     async testWebhook(params: TestWebhookParams, options?: RequestOptions): Promise<{ tested: boolean }> {

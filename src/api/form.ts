@@ -83,14 +83,11 @@ export const createFormApi = (apiConfig: ApiConfig) => {
     },
 
     async getSubmissions(params: GetFormSubmissionsParams, options?: RequestOptions): Promise<PaginatedResponse<FormSubmission>> {
-      const { store_id, form_id, ...queryParams } = params;
+      const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<PaginatedResponse<FormSubmission>>(
-        `/v1/stores/${target_store_id}/forms/${form_id}/submissions`,
-        {
-          ...options,
-          params: { ...queryParams, form_id, store_id: target_store_id },
-        }
+        `/v1/stores/${target_store_id}/forms/submissions`,
+        { ...options, params: queryParams }
       );
     },
 

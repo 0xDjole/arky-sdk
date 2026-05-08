@@ -28,12 +28,12 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
             files.forEach((file) => formData.append('files', file));
             urls.forEach((url) => formData.append('urls', url));
 
-            const tokens = await apiConfig.getToken();
+            const tokens = apiConfig.authStorage.getTokens();
             const response = await fetch(url, {
                 method: 'POST',
                 body: formData,
                 headers: {
-                    Authorization: `Bearer ${tokens.access_token}`
+                    Authorization: `Bearer ${tokens?.access_token || ''}`
                 }
             });
 
@@ -68,10 +68,10 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
 
             const queryString = new URLSearchParams(queryParams).toString();
 
-            const tokens = await apiConfig.getToken();
+            const tokens = apiConfig.authStorage.getTokens();
             const response = await fetch(`${url}?${queryString}`, {
                 headers: {
-                    Authorization: `Bearer ${tokens.access_token}`
+                    Authorization: `Bearer ${tokens?.access_token || ''}`
                 }
             });
 
