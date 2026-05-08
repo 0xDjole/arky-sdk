@@ -39,7 +39,8 @@ type SubscriptionPlan = unknown;
 // TODO: type as IntegrationConfig once exported from types/index.ts
 type IntegrationConfig = unknown;
 
-export interface InvitationTokenData extends AuthToken {
+export interface InvitationTokenData {
+  auth: AuthToken;
   store_id?: string | null;
 }
 
@@ -141,11 +142,11 @@ export const createStoreApi = (apiConfig: ApiConfig, updateSession: AdminSession
         payload,
         options
       );
-      if (params.action === "accept" && result?.access_token) {
+      if (params.action === "accept" && result?.auth?.access_token) {
         updateSession(() => ({
-          access_token: result.access_token,
-          refresh_token: result.refresh_token,
-          access_expires_at: result.access_expires_at,
+          access_token: result.auth.access_token,
+          refresh_token: result.auth.refresh_token,
+          access_expires_at: result.auth.access_expires_at,
         }));
       }
       return result;
@@ -154,7 +155,7 @@ export const createStoreApi = (apiConfig: ApiConfig, updateSession: AdminSession
     async testWebhook(params: TestWebhookParams, options?: RequestOptions): Promise<{ tested: boolean }> {
       return apiConfig.httpClient.post<{ tested: boolean }>(
         `/v1/stores/${apiConfig.storeId}/webhooks/test`,
-        params.webhook,
+        params,
         options
       );
     },

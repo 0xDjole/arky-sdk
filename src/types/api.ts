@@ -1462,7 +1462,8 @@ export interface Customer {
   updated_at: number;
 }
 
-export interface CustomerDetail extends Customer {
+export interface CustomerDetail {
+  customer: Customer;
   orders: import('./index').Order[];
   bookings: import('./index').Booking[];
   audience_subscriptions: import('./index').AudienceSubscription[];
