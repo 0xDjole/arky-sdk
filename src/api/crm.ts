@@ -7,6 +7,7 @@ import type {
   FindCustomersParams,
   MergeCustomersParams,
   Customer,
+  CustomerDetail,
   CreateAudienceParams,
   UpdateAudienceParams,
   GetAudienceParams,
@@ -67,8 +68,8 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async get(params: GetCustomerParams, options?: RequestOptions): Promise<Customer> {
-      return apiConfig.httpClient.get<Customer>(
+    async get(params: GetCustomerParams, options?: RequestOptions): Promise<CustomerDetail> {
+      return apiConfig.httpClient.get<CustomerDetail>(
         `/v1/stores/${params.store_id || apiConfig.storeId}/customers/${params.id}`,
         options
       );

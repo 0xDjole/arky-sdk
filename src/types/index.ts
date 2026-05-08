@@ -780,7 +780,7 @@ export type BookingServiceStatus = 'active' | 'draft' | 'archived';
 export type BookingProviderStatus = 'active' | 'draft' | 'archived';
 
 export type ProductStatus = 'active' | 'draft' | 'archived';
-export type CustomerStatus = 'active' | 'draft' | 'archived';
+export type CustomerStatus = 'active' | 'archived';
 export type AudienceStatus = 'active' | 'draft' | 'archived';
 export type AgentChatStatus = 'active' | 'draft' | 'archived';
 export type WorkflowStatus = 'active' | 'draft' | 'archived';
@@ -913,6 +913,7 @@ export interface FormSubmission {
 	id: string;
 	form_id: string;
 	store_id: string;
+	customer_id: string;
 	fields: FormField[];
 	created_at: number;
 }

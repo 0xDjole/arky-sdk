@@ -580,7 +580,7 @@ export interface UpdateOrderParams {
 export interface CreateOrderParams {
   store_id?: string;
   market?: string;
-  customer_id?: string;
+  customer_id: string;
   forms?: FormEntry[];
   items: OrderUpdateItem[];
   shipping_address?: Address;
@@ -591,7 +591,7 @@ export interface CreateOrderParams {
 export interface CreateBookingParams {
   store_id?: string;
   market?: string;
-  customer_id?: string;
+  customer_id: string;
   forms?: FormEntry[];
   items: BookingCreatePart[];
   payment_method_id?: string;
@@ -925,6 +925,7 @@ export interface SubmitFormParams {
 export interface GetFormSubmissionsParams {
   form_id: string;
   store_id?: string;
+  customer_id?: string;
 
   query?: string | number;
   limit?: number;
@@ -1456,6 +1457,7 @@ export interface CustomerDetail extends Customer {
   orders: import('./index').Order[];
   bookings: import('./index').Booking[];
   audience_subscriptions: import('./index').AudienceSubscription[];
+  form_submissions: import('./index').FormSubmission[];
 }
 
 export interface SetCustomerEmailParams {

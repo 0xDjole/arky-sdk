@@ -218,7 +218,7 @@ export { COMMON_ACTIVITY_TYPES } from "./api/storefront";
 
 export type { TimelineParams } from "./api/crm";
 
-export const SDK_VERSION = "0.7.102";
+export const SDK_VERSION = "0.7.104";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
