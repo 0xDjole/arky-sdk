@@ -14,6 +14,10 @@ import type {
   RequestOptions,
 } from "../types/api";
 import type { Order, Product, OrderQuote, PaginatedResponse } from "../types";
+import {
+  normalizeOrderCheckoutItems,
+  normalizeOrderQuoteItems,
+} from "../utils/orderItems";
 
 export const createEshopApi = (apiConfig: ApiConfig) => {
   return {
@@ -76,8 +80,14 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     },
 
     async createOrder(params: CreateOrderParams, options?: RequestOptions): Promise<Order> {
-      const { store_id, ...payload } = params;
+      const { store_id, items, ...rest } = params;
       const target_store_id = store_id || apiConfig.storeId;
+      const payload = {
+        ...rest,
+        market: rest.market || apiConfig.market,
+        items: normalizeOrderCheckoutItems(items),
+      };
+
       return apiConfig.httpClient.post<Order>(
         `/v1/stores/${target_store_id}/orders`,
         payload,
@@ -86,8 +96,13 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     },
 
     async updateOrder(params: UpdateOrderParams, options?: RequestOptions): Promise<Order> {
-      const { store_id, ...payload } = params;
+      const { store_id, items, ...rest } = params;
       const target_store_id = store_id || apiConfig.storeId;
+      const payload = {
+        ...rest,
+        ...(items ? { items: normalizeOrderCheckoutItems(items) } : {}),
+      };
+
       return apiConfig.httpClient.put<Order>(
         `/v1/stores/${target_store_id}/orders/${params.id}`,
         payload,
@@ -117,7 +132,8 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     },
 
     async getQuote(params: GetQuoteParams, options?: RequestOptions): Promise<OrderQuote> {
-      const { location, ...rest } = params;
+      const { location, store_id, items, ...rest } = params;
+      const target_store_id = store_id || apiConfig.storeId;
       const shipping_address = location
         ? {
             country: location.country || "",
@@ -128,10 +144,15 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
             street1: "",
             street2: null,
           }
-        : undefined;
+        : rest.shipping_address;
       return apiConfig.httpClient.post<OrderQuote>(
-        `/v1/stores/${apiConfig.storeId}/orders/quote`,
-        { ...rest, shipping_address, market: apiConfig.market },
+        `/v1/stores/${target_store_id}/orders/quote`,
+        {
+          ...rest,
+          items: normalizeOrderQuoteItems(items),
+          shipping_address,
+          market: rest.market || apiConfig.market,
+        },
         options,
       );
     },

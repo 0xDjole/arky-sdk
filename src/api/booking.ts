@@ -25,6 +25,7 @@ import type {
   ProcessBookingRefundParams,
   RequestOptions,
   Slot,
+  BookingCreatePart,
 } from "../types/api";
 import type {
   Booking,
@@ -34,13 +35,17 @@ import type {
   Provider,
   ServiceProvider,
 } from "../types";
+import {
+  normalizeBookingCheckoutItems,
+  normalizeBookingQuoteItems,
+} from "../utils/orderItems";
 
-function groupCartToItems(cart: Slot[]) {
-  const groups = new Map<string, { service_id: string; provider_id: string; slots: { from: number; to: number }[] }>();
+function groupCartToItems(cart: Slot[]): BookingCreatePart[] {
+  const groups = new Map<string, BookingCreatePart>();
   for (const s of cart) {
     const key = `${s.service_id}:${s.provider_id}`;
     if (!groups.has(key)) {
-      groups.set(key, { service_id: s.service_id, provider_id: s.provider_id, slots: [] });
+      groups.set(key, { service_id: s.service_id, provider_id: s.provider_id, slots: [], forms: [] });
     }
     groups.get(key)!.slots.push({ from: s.from, to: s.to });
   }
@@ -73,8 +78,12 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
       params: CreateBookingParams,
       options?: RequestOptions,
     ): Promise<Booking> {
-      const { store_id, ...payload } = params;
+      const { store_id, items, ...rest } = params;
       const target_store_id = store_id || apiConfig.storeId;
+      const payload = {
+        ...rest,
+        items: normalizeBookingCheckoutItems(items),
+      };
 
       return apiConfig.httpClient.post<Booking>(
         `/v1/stores/${target_store_id}/bookings`,
@@ -125,12 +134,16 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
       params: GetBookingQuoteParams,
       options?: RequestOptions,
     ): Promise<BookingQuote> {
-      const { store_id, ...payload } = params;
+      const { store_id, items, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
 
       return apiConfig.httpClient.post<BookingQuote>(
         `/v1/stores/${target_store_id}/bookings/quote`,
-        { market: apiConfig.market, ...payload },
+        {
+          market: apiConfig.market,
+          ...payload,
+          items: normalizeBookingQuoteItems(items),
+        },
         options,
       );
     },

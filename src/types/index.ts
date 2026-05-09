@@ -141,8 +141,11 @@ export interface BookingQuote {
 }
 
 export interface OrderQuote {
+	id?: string;
+	expires_at?: number;
 	market: string;
 	zone: Zone | null;
+	items: QuoteLine[];
 	subtotal: number;
 	shipping: number;
 	discount: number;
@@ -154,8 +157,6 @@ export interface OrderQuote {
 	promo_code: PromoCodeValidation | null;
 	payment: OrderPayment;
 	charge_amount: number;
-	id?: string;
-	expires_at?: number;
 }
 
 
@@ -387,22 +388,87 @@ export interface GalleryItem {
 	caption?: string;
 }
 
-export interface OrderItemSnapshot {
+export interface ProductOrderItemSnapshot {
 	product_key: string;
 	variant_sku?: string;
 	variant_attributes: Block[];
 	price: Price;
 }
 
-export interface OrderItem {
+export type OrderItemSnapshot = ProductOrderItemSnapshot;
+
+export interface BookingOrderItemSnapshot {
+	service_key: string;
+	provider_key: string;
+	price: Price;
+}
+
+export type ProductQuoteLineAvailability =
+	| { ok: true; available?: number }
+	| { ok: false; reason: string };
+
+export type BookingQuoteLineAvailability =
+	| { ok: true; spots: number }
+	| { ok: false; reason: string };
+
+export interface ProductQuoteLine {
+	type: 'product';
+	line_id: string;
+	product_id: string;
+	variant_id: string;
+	quantity: number;
+	unit_price: number;
+	subtotal: number;
+	discount: number;
+	tax: number;
+	total: number;
+	snapshot: ProductOrderItemSnapshot;
+	availability: ProductQuoteLineAvailability;
+}
+
+export interface BookingQuoteLine {
+	type: 'booking';
+	line_id: string;
+	service_id: string;
+	provider_id: string;
+	from: number;
+	to: number;
+	quantity: 1;
+	unit_price: number;
+	subtotal: number;
+	discount: number;
+	tax: number;
+	total: number;
+	snapshot: BookingOrderItemSnapshot;
+	availability: BookingQuoteLineAvailability;
+}
+
+export type QuoteLine = ProductQuoteLine | BookingQuoteLine;
+
+export interface ProductOrderItem {
+	type: 'product';
 	id: string;
 	product_id: string;
 	variant_id: string;
 	quantity: number;
 	location_id?: string;
-	snapshot: OrderItemSnapshot;
+	snapshot: ProductOrderItemSnapshot;
 	status: OrderItemStatus;
 }
+
+export interface BookingOrderItem {
+	type: 'booking';
+	id: string;
+	service_id: string;
+	provider_id: string;
+	from: number;
+	to: number;
+	forms: FormEntry[];
+	snapshot: BookingOrderItemSnapshot;
+	status: OrderItemStatus;
+}
+
+export type OrderItem = ProductOrderItem | BookingOrderItem;
 
 export interface HistoryEntry {
 	action: string;
@@ -424,8 +490,16 @@ export interface Order {
 	shipments: Shipment[];
 	history: HistoryEntry[];
 	audience_id?: string;
+	fired_reminders: number[];
 	created_at: number;
 	updated_at: number;
+}
+
+export interface OrderCheckoutResult {
+	order_id: string;
+	number: string;
+	client_secret: string | null;
+	payment: OrderPayment;
 }
 
 export interface Zone {

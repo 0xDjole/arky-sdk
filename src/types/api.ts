@@ -119,12 +119,84 @@ export interface EshopQuoteItem {
   price?: Price;
 }
 
+export interface SlotRange {
+  from: number;
+  to: number;
+}
+
+export interface BookingQuoteItem {
+  service_id: string;
+  provider_id: string;
+  slots: SlotRange[];
+  forms?: FormEntry[];
+  price?: Price;
+}
+
+export interface BookingCreatePart {
+  service_id: string;
+  provider_id: string;
+  slots: SlotRange[];
+  forms: FormEntry[];
+}
+
+export interface ProductQuoteItemInput extends EshopQuoteItem {
+  type: "product";
+}
+
+export interface BookingQuoteItemInput extends BookingQuoteItem {
+  type: "booking";
+}
+
+export type OrderQuoteItemInput =
+  | ProductQuoteItemInput
+  | BookingQuoteItemInput;
+
+export type QuoteItemInput = OrderQuoteItemInput;
+
+export type OrderQuoteCompatibleItemInput =
+  | OrderQuoteItemInput
+  | EshopQuoteItem
+  | BookingQuoteItem;
+
+export interface ProductCheckoutItemInput extends EshopItem {
+  type: "product";
+}
+
+export interface BookingCheckoutItemInput {
+  type: "booking";
+  service_id: string;
+  provider_id: string;
+  slots: SlotRange[];
+  forms?: FormEntry[];
+  price?: Price;
+}
+
+export type OrderCheckoutItemInput =
+  | ProductCheckoutItemInput
+  | BookingCheckoutItemInput;
+
+export type CheckoutItemInput = OrderCheckoutItemInput;
+
+export type OrderCheckoutCompatibleItemInput =
+  | OrderCheckoutItemInput
+  | EshopItem
+  | BookingCreatePart;
+
+export type BookingQuoteCompatibleItemInput =
+  | BookingQuoteItem
+  | BookingQuoteItemInput;
+
+export type BookingCheckoutCompatibleItemInput =
+  | BookingCreatePart
+  | BookingCheckoutItemInput;
+
 
 export interface GetQuoteParams {
   store_id?: string;
   market?: string;
-  items: EshopQuoteItem[];
+  items: OrderQuoteCompatibleItemInput[];
   shipping_address?: Address;
+  billing_address?: Address;
   forms?: FormEntry[];
   payment_method_id?: string;
   promo_code?: string;
@@ -137,7 +209,7 @@ export interface GetQuoteParams {
 export interface OrderCheckoutParams {
   store_id?: string;
   market?: string;
-  items: EshopItem[];
+  items: OrderCheckoutCompatibleItemInput[];
   payment_method_id?: string;
   shipping_address?: Address;
   billing_address?: Address;
@@ -287,40 +359,19 @@ export interface GetServicesParams {
 }
 
 
-export interface BookingCreatePart {
-  service_id: string;
-  provider_id: string;
-  slots: SlotRange[];
-  forms: FormEntry[];
-}
-
-
 export interface BookingCheckoutParams {
   store_id?: string;
   market?: string;
-  items: BookingCreatePart[];
+  items: BookingCheckoutCompatibleItemInput[];
   payment_method_id?: string;
   forms?: FormEntry[];
   promo_code_id?: string;
 }
 
-export interface SlotRange {
-  from: number;
-  to: number;
-}
-
-export interface BookingQuoteItem {
-  service_id: string;
-  provider_id: string;
-  slots: SlotRange[];
-  price?: Price;
-}
-
-
 export interface GetBookingQuoteParams {
   store_id?: string;
   market?: string;
-  items: BookingQuoteItem[];
+  items: BookingQuoteCompatibleItemInput[];
   payment_method_id?: string;
   promo_code?: string;
 }
@@ -555,11 +606,7 @@ export interface GetOrdersParams {
 }
 
 
-export interface OrderUpdateItem {
-  product_id: string;
-  variant_id: string;
-  quantity: number;
-}
+export interface OrderUpdateItem extends EshopItem {}
 
 
 export interface UpdateOrderParams {
@@ -572,7 +619,7 @@ export interface UpdateOrderParams {
 
   billing_address?: Address | null;
   forms?: FormEntry[];
-  items?: OrderUpdateItem[];
+  items?: OrderCheckoutCompatibleItemInput[];
   payment?: import('./index').OrderPayment;
 }
 
@@ -582,7 +629,7 @@ export interface CreateOrderParams {
   market?: string;
   customer_id: string;
   forms?: FormEntry[];
-  items: OrderUpdateItem[];
+  items: OrderCheckoutCompatibleItemInput[];
   shipping_address?: Address;
   billing_address?: Address;
 }
@@ -593,7 +640,7 @@ export interface CreateBookingParams {
   market?: string;
   customer_id: string;
   forms?: FormEntry[];
-  items: BookingCreatePart[];
+  items: BookingCheckoutCompatibleItemInput[];
   payment_method_id?: string;
   promo_code?: string;
 }

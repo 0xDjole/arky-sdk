@@ -31,6 +31,7 @@ import type {
   SubscribeAudienceParams,
   GetAgentsParams,
   BookingCheckoutParams,
+  BookingCreatePart,
 } from "../types/api";
 import type {
   Node,
@@ -49,6 +50,7 @@ import type {
   Market,
   OrderQuote,
   Order,
+  OrderCheckoutResult,
   Product,
   Agent,
   AgentChat,
@@ -62,6 +64,12 @@ import {
   getBlockObjectValues,
   getImageUrl,
 } from "../utils/blocks";
+import {
+  normalizeBookingCheckoutItems,
+  normalizeBookingQuoteItems,
+  normalizeOrderCheckoutItems,
+  normalizeOrderQuoteItems,
+} from "../utils/orderItems";
 
 export type CustomerToken = {
   id: string;
@@ -131,11 +139,8 @@ export const createActivityApi = (apiConfig: ApiConfig) => ({
   },
 });
 
-function groupCartToItems(cart: Slot[]) {
-  const groups = new Map<
-    string,
-    { service_id: string; provider_id: string; slots: { from: number; to: number }[] }
-  >();
+function groupCartToItems(cart: Slot[]): BookingCreatePart[] {
+  const groups = new Map<string, BookingCreatePart>();
 
   for (const slot of cart) {
     const key = `${slot.service_id}:${slot.provider_id}`;
@@ -144,6 +149,7 @@ function groupCartToItems(cart: Slot[]) {
         service_id: slot.service_id,
         provider_id: slot.provider_id,
         slots: [],
+        forms: [],
       });
     }
     groups.get(key)!.slots.push({ from: slot.from, to: slot.to });
@@ -339,7 +345,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession:
       order: {
         getQuote(params: GetQuoteParams & { store_id?: string }, options?: RequestOptions): Promise<OrderQuote> {
           const store_id = params.store_id || apiConfig.storeId;
-          const { location, store_id: _store_id, ...rest } = params;
+          const { location, store_id: _store_id, items, market, ...rest } = params;
           const shipping_address = location
             ? {
                 country: location.country || "",
@@ -350,21 +356,31 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession:
                 street1: "",
                 street2: null,
               }
-            : undefined;
+            : rest.shipping_address;
 
           return apiConfig.httpClient.post<OrderQuote>(
             `${base(store_id)}/orders/quote`,
-            { ...rest, shipping_address, market: apiConfig.market },
+            {
+              ...rest,
+              items: normalizeOrderQuoteItems(items),
+              shipping_address,
+              market: market || apiConfig.market,
+            },
             options,
           );
         },
 
-        checkout(params: OrderCheckoutParams & { store_id?: string }, options?: RequestOptions): Promise<Order> {
-          const { store_id, ...rest } = params;
+        checkout(params: OrderCheckoutParams & { store_id?: string }, options?: RequestOptions): Promise<OrderCheckoutResult> {
+          const { store_id, items, market, ...rest } = params;
           const target = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.post<Order>(
+          return apiConfig.httpClient.post<OrderCheckoutResult>(
             `${base(target)}/orders/checkout`,
-            { ...rest, store_id: target, market: apiConfig.market },
+            {
+              ...rest,
+              items: normalizeOrderCheckoutItems(items),
+              store_id: target,
+              market: market || apiConfig.market,
+            },
             options,
           );
         },
@@ -405,13 +421,13 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession:
       },
 
       checkout(params?: Partial<BookingCheckoutParams>, options?: RequestOptions): Promise<Booking> {
-        const { store_id, items: paramItems, ...payload } = params || {};
+        const { store_id, items: paramItems, market, ...payload } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
-        const items = paramItems || groupCartToItems(cart);
+        const items = normalizeBookingCheckoutItems(paramItems || groupCartToItems(cart));
 
         return apiConfig.httpClient.post<Booking>(
           `${base(target_store_id)}/bookings/checkout`,
-          { market: apiConfig.market, ...payload, items },
+          { market: market || apiConfig.market, ...payload, items },
           options,
         );
       },
@@ -433,11 +449,15 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession:
       },
 
       getQuote(params: GetBookingQuoteParams, options?: RequestOptions): Promise<BookingQuote> {
-        const { store_id, ...payload } = params;
+        const { store_id, items, market, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<BookingQuote>(
           `${base(target_store_id)}/bookings/quote`,
-          { market: apiConfig.market, ...payload },
+          {
+            market: market || apiConfig.market,
+            ...payload,
+            items: normalizeBookingQuoteItems(items),
+          },
           options,
         );
       },
