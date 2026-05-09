@@ -6,18 +6,31 @@ import type {
   GetProductParams,
   GetProductsParams,
   GetQuoteParams,
+  GetAvailabilityParams,
+  AvailabilityResponse,
   CreateOrderParams,
+  OrderCheckoutParams,
   UpdateOrderParams,
   GetOrderParams,
   GetOrdersParams,
   ProcessOrderRefundParams,
   RequestOptions,
 } from "../types/api";
-import type { Order, Product, OrderQuote, PaginatedResponse } from "../types";
+import type { Order, Product, OrderQuote, OrderCheckoutResult, PaginatedResponse } from "../types";
 import {
   normalizeOrderCheckoutItems,
   normalizeOrderQuoteItems,
 } from "../utils/orderItems";
+
+const normalizeTaxonomyAliases = <T extends { taxonomies?: unknown; filters?: unknown }>(
+  payload: T,
+) => {
+  const { filters, ...rest } = payload;
+  return {
+    ...rest,
+    ...(!rest.taxonomies && filters ? { taxonomies: filters } : {}),
+  };
+};
 
 export const createEshopApi = (apiConfig: ApiConfig) => {
   return {
@@ -27,7 +40,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<Product>(
         `/v1/stores/${target_store_id}/products`,
-        payload,
+        normalizeTaxonomyAliases(payload),
         options,
       );
     },
@@ -37,7 +50,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.put<Product>(
         `/v1/stores/${target_store_id}/products/${params.id}`,
-        payload,
+        normalizeTaxonomyAliases(payload),
         options,
       );
     },
@@ -90,6 +103,26 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
 
       return apiConfig.httpClient.post<Order>(
         `/v1/stores/${target_store_id}/orders`,
+        payload,
+        options,
+      );
+    },
+
+    async checkoutOrder(
+      params: OrderCheckoutParams,
+      options?: RequestOptions,
+    ): Promise<OrderCheckoutResult> {
+      const { store_id, items, ...rest } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      const payload = {
+        ...rest,
+        store_id: target_store_id,
+        market: rest.market || apiConfig.market,
+        items: normalizeOrderCheckoutItems(items),
+      };
+
+      return apiConfig.httpClient.post<OrderCheckoutResult>(
+        `/v1/stores/${target_store_id}/orders/checkout`,
         payload,
         options,
       );
@@ -154,6 +187,18 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
           market: rest.market || apiConfig.market,
         },
         options,
+      );
+    },
+
+    async getOrderAvailability(
+      params: GetAvailabilityParams,
+      options?: RequestOptions,
+    ): Promise<AvailabilityResponse> {
+      const { store_id, ...queryParams } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<AvailabilityResponse>(
+        `/v1/stores/${target_store_id}/orders/availability`,
+        { ...options, params: queryParams },
       );
     },
 

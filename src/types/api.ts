@@ -16,8 +16,8 @@ import type {
   TaxonomyEntry,
   TaxonomyQuery,
   PaymentMethod,
-  BookingServiceStatus,
-  BookingProviderStatus,
+  ServiceStatus,
+  ProviderStatus,
   WorkflowStatus,
   PromoCodeStatus,
   ProductStatus,
@@ -124,7 +124,7 @@ export interface SlotRange {
   to: number;
 }
 
-export interface BookingQuoteItem {
+export interface ServiceQuoteItem {
   service_id: string;
   provider_id: string;
   slots: SlotRange[];
@@ -132,7 +132,7 @@ export interface BookingQuoteItem {
   price?: Price;
 }
 
-export interface BookingCreatePart {
+export interface ServiceCheckoutPart {
   service_id: string;
   provider_id: string;
   slots: SlotRange[];
@@ -143,26 +143,26 @@ export interface ProductQuoteItemInput extends EshopQuoteItem {
   type: "product";
 }
 
-export interface BookingQuoteItemInput extends BookingQuoteItem {
+export interface ServiceQuoteItemInput extends ServiceQuoteItem {
   type: "booking";
 }
 
 export type OrderQuoteItemInput =
   | ProductQuoteItemInput
-  | BookingQuoteItemInput;
+  | ServiceQuoteItemInput;
 
 export type QuoteItemInput = OrderQuoteItemInput;
 
 export type OrderQuoteCompatibleItemInput =
   | OrderQuoteItemInput
   | EshopQuoteItem
-  | BookingQuoteItem;
+  | ServiceQuoteItem;
 
 export interface ProductCheckoutItemInput extends EshopItem {
   type: "product";
 }
 
-export interface BookingCheckoutItemInput {
+export interface ServiceCheckoutItemInput {
   type: "booking";
   service_id: string;
   provider_id: string;
@@ -173,22 +173,14 @@ export interface BookingCheckoutItemInput {
 
 export type OrderCheckoutItemInput =
   | ProductCheckoutItemInput
-  | BookingCheckoutItemInput;
+  | ServiceCheckoutItemInput;
 
 export type CheckoutItemInput = OrderCheckoutItemInput;
 
 export type OrderCheckoutCompatibleItemInput =
   | OrderCheckoutItemInput
   | EshopItem
-  | BookingCreatePart;
-
-export type BookingQuoteCompatibleItemInput =
-  | BookingQuoteItem
-  | BookingQuoteItemInput;
-
-export type BookingCheckoutCompatibleItemInput =
-  | BookingCreatePart
-  | BookingCheckoutItemInput;
+  | ServiceCheckoutPart;
 
 
 export interface GetQuoteParams {
@@ -347,7 +339,7 @@ export interface GetServicesParams {
   cursor?: string;
 
   query?: string | number;
-  status?: BookingServiceStatus;
+  status?: ServiceStatus;
   sort_field?: string;
   sort_direction?: 'asc' | 'desc';
   created_at_from?: number;
@@ -356,24 +348,6 @@ export interface GetServicesParams {
   match_all?: boolean;
   from?: number;
   to?: number;
-}
-
-
-export interface BookingCheckoutParams {
-  store_id?: string;
-  market?: string;
-  items: BookingCheckoutCompatibleItemInput[];
-  payment_method_id?: string;
-  forms?: FormEntry[];
-  promo_code_id?: string;
-}
-
-export interface GetBookingQuoteParams {
-  store_id?: string;
-  market?: string;
-  items: BookingQuoteCompatibleItemInput[];
-  payment_method_id?: string;
-  promo_code?: string;
 }
 
 export interface TimelinePoint {
@@ -386,7 +360,7 @@ export interface ProviderWithTimeline {
   key: string;
   store_id: string;
   slug: Record<string, string>;
-  status: BookingProviderStatus;
+  status: ProviderStatus;
   blocks: Block[];
   taxonomies: TaxonomyEntry[];
   created_at: number;
@@ -557,6 +531,7 @@ export interface CreateProductParams {
   slug?: Record<string, string>;
   blocks?: Block[];
   taxonomies?: TaxonomyEntry[];
+  filters?: TaxonomyEntry[];
   variants?: CreateProductVariantInput[];
 }
 
@@ -568,6 +543,7 @@ export interface UpdateProductParams {
   slug?: Record<string, string>;
   blocks?: Block[];
   taxonomies?: TaxonomyEntry[];
+  filters?: TaxonomyEntry[];
   variants?: UpdateProductVariantInput[];
   status?: ProductStatus;
 }
@@ -634,44 +610,14 @@ export interface CreateOrderParams {
   billing_address?: Address;
 }
 
-
-export interface CreateBookingParams {
-  store_id?: string;
-  market?: string;
-  customer_id: string;
-  forms?: FormEntry[];
-  items: BookingCheckoutCompatibleItemInput[];
-  payment_method_id?: string;
-  promo_code?: string;
-}
-
-
-export interface BookingUpdateItem {
-  id: string;
-  service_id: string;
-  provider_id: string;
-  from: number;
-  to: number;
-  forms: FormEntry[];
-}
-
-
-export interface UpdateBookingParams {
-  id: string;
-  store_id?: string;
-  forms?: FormEntry[];
-  items?: BookingUpdateItem[];
-  payment?: import('./index').BookingPayment;
-}
-
-
 export interface CreateProviderParams {
   store_id?: string;
   key: string;
   slug?: Record<string, string>;
-  status?: BookingProviderStatus;
+  status?: ProviderStatus;
   blocks?: Block[];
   taxonomies?: TaxonomyEntry[];
+  filters?: TaxonomyEntry[];
 }
 
 
@@ -680,9 +626,10 @@ export interface UpdateProviderParams {
   store_id?: string;
   key?: string;
   slug?: Record<string, string>;
-  status?: BookingProviderStatus;
+  status?: ProviderStatus;
   blocks?: Block[];
   taxonomies?: TaxonomyEntry[];
+  filters?: TaxonomyEntry[];
 }
 
 export interface DeleteProviderParams {
@@ -707,8 +654,9 @@ export interface CreateServiceParams {
   slug?: Record<string, string>;
   blocks?: Block[];
   taxonomies?: TaxonomyEntry[];
+  filters?: TaxonomyEntry[];
   location?: ZoneLocation;
-  status?: BookingServiceStatus;
+  status?: ServiceStatus;
 }
 
 
@@ -719,8 +667,9 @@ export interface UpdateServiceParams {
   slug?: Record<string, string>;
   blocks?: Block[];
   taxonomies?: TaxonomyEntry[];
+  filters?: TaxonomyEntry[];
   location?: ZoneLocation | null;
-  status?: BookingServiceStatus;
+  status?: ServiceStatus;
 }
 
 export interface CreateServiceProviderParams {
@@ -782,7 +731,7 @@ export interface GetProvidersParams {
   match_all?: boolean;
 
   query?: string | number | null;
-  status?: BookingProviderStatus;
+  status?: ProviderStatus;
   limit?: number;
   cursor?: string;
   sort_field?: string | null;
@@ -799,19 +748,7 @@ export interface GetProviderParams {
   store_id?: string;
 }
 
-export interface GetBookingParams {
-  id: string;
-  store_id?: string;
-}
-
-export interface CancelBookingItemParams {
-  store_id?: string;
-  booking_id: string;
-  item_id: string;
-  reason?: string;
-}
-
-export interface SearchBookingsParams {
+export interface SearchOrderServiceItemsParams {
   store_id?: string;
   customer_id?: string;
   service_ids?: string[];
@@ -1086,19 +1023,12 @@ export interface GetStoreMediaParams2 {
   sort_direction?: 'asc' | 'desc';
 }
 
-export interface ProcessBookingRefundParams {
-  id: string;
-  amount: number;
-}
-
 export interface ProcessOrderRefundParams {
   id: string;
   amount: number;
 }
 
 export type SystemTemplateKey =
-  | "system:booking-store-update"
-  | "system:booking-customer-update"
   | "system:user-invitation"
   | "system:order-status-update"
   | "system:user-confirmation"
@@ -1512,7 +1442,6 @@ export interface Customer {
 export interface CustomerDetail {
   customer: Customer;
   orders: import('./index').Order[];
-  bookings: import('./index').Booking[];
   audience_subscriptions: import('./index').AudienceSubscription[];
   form_submissions: import('./index').FormSubmission[];
 }

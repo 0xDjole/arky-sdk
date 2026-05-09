@@ -15,8 +15,7 @@ export type EntityKind =
   | "form"
   | "taxonomy"
   | "media"
-  | "order"
-  | "booking";
+  | "order";
 
 export type Granularity =
   | "hour"
@@ -29,7 +28,6 @@ export type Measure =
   | "count"
   | "uniq_customers"
   | "orders_created"
-  | "bookings_created"
   | "new_customers"
   | "form_submissions"
   | { entity_state: { entity: EntityKind; status: string } };

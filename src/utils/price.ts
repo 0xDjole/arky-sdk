@@ -1,6 +1,6 @@
-import type { BookingPayment, OrderPayment, Price } from '../types';
+import type { OrderPayment, Price } from '../types';
 
-type AnyPayment = Pick<BookingPayment, 'total' | 'currency'> | Pick<OrderPayment, 'total' | 'currency'>;
+type AnyPayment = Pick<OrderPayment, 'total' | 'currency'>;
 
 function formatCurrency(amount: number, currencyCode: string, locale: string = 'en'): string {
     if (!currencyCode) return '';

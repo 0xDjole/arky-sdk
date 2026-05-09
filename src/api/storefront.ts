@@ -1,7 +1,6 @@
 import type { ApiConfig, CustomerSessionUpdater } from "../index";
 import type {
   RequestOptions,
-  Slot,
   GetNodeParams,
   GetNodesParams,
   GetNodeChildrenParams,
@@ -15,12 +14,8 @@ import type {
   OrderCheckoutParams,
   GetOrderParams,
   GetOrdersParams,
-  GetBookingParams,
-  SearchBookingsParams,
-  GetBookingQuoteParams,
   GetAvailabilityParams,
   AvailabilityResponse,
-  CancelBookingItemParams,
   GetServiceParams,
   GetServicesParams,
   FindServiceProvidersParams,
@@ -30,8 +25,6 @@ import type {
   GetAudiencesParams,
   SubscribeAudienceParams,
   GetAgentsParams,
-  BookingCheckoutParams,
-  BookingCreatePart,
 } from "../types/api";
 import type {
   Node,
@@ -41,8 +34,6 @@ import type {
   Audience,
   AudienceAccessResponse,
   AudienceSubscribeResponse,
-  Booking,
-  BookingQuote,
   Service,
   Provider,
   Store,
@@ -65,8 +56,6 @@ import {
   getImageUrl,
 } from "../utils/blocks";
 import {
-  normalizeBookingCheckoutItems,
-  normalizeBookingQuoteItems,
   normalizeOrderCheckoutItems,
   normalizeOrderQuoteItems,
 } from "../utils/orderItems";
@@ -116,7 +105,7 @@ export const COMMON_ACTIVITY_TYPES = [
   "cart_removed",
   "checkout_started",
   "purchase",
-  "booking_created",
+  "order_created",
   "signin",
   "signup",
   "verified_email",
@@ -139,29 +128,9 @@ export const createActivityApi = (apiConfig: ApiConfig) => ({
   },
 });
 
-function groupCartToItems(cart: Slot[]): BookingCreatePart[] {
-  const groups = new Map<string, BookingCreatePart>();
-
-  for (const slot of cart) {
-    const key = `${slot.service_id}:${slot.provider_id}`;
-    if (!groups.has(key)) {
-      groups.set(key, {
-        service_id: slot.service_id,
-        provider_id: slot.provider_id,
-        slots: [],
-        forms: [],
-      });
-    }
-    groups.get(key)!.slots.push({ from: slot.from, to: slot.to });
-  }
-
-  return [...groups.values()];
-}
-
 export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession: CustomerSessionUpdater) => {
   const base = (storeId = apiConfig.storeId) =>
     `/v1/storefront/${storeId}`;
-  let cart: Slot[] = [];
 
   return {
     store: {
@@ -400,85 +369,15 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession:
             params: queryParams,
           });
         },
-      },
-    },
 
-    booking: {
-      addToCart(slot: Slot) {
-        cart.push(slot);
-      },
-
-      removeFromCart(slotId: string) {
-        cart = cart.filter((slot) => slot.id !== slotId);
-      },
-
-      getCart() {
-        return [...cart];
-      },
-
-      clearCart() {
-        cart = [];
-      },
-
-      checkout(params?: Partial<BookingCheckoutParams>, options?: RequestOptions): Promise<Booking> {
-        const { store_id, items: paramItems, market, ...payload } = params || {};
-        const target_store_id = store_id || apiConfig.storeId;
-        const items = normalizeBookingCheckoutItems(paramItems || groupCartToItems(cart));
-
-        return apiConfig.httpClient.post<Booking>(
-          `${base(target_store_id)}/bookings/checkout`,
-          { market: market || apiConfig.market, ...payload, items },
-          options,
-        );
-      },
-
-      get(params: GetBookingParams, options?: RequestOptions): Promise<Booking> {
-        const store_id = params.store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<Booking>(
-          `${base(store_id)}/bookings/${params.id}`,
-          options,
-        );
-      },
-
-      find(params: SearchBookingsParams, options?: RequestOptions): Promise<PaginatedResponse<Booking>> {
-        const { store_id, ...queryParams } = params;
-        return apiConfig.httpClient.get<PaginatedResponse<Booking>>(`${base(store_id)}/bookings`, {
-          ...options,
-          params: queryParams,
-        });
-      },
-
-      getQuote(params: GetBookingQuoteParams, options?: RequestOptions): Promise<BookingQuote> {
-        const { store_id, items, market, ...payload } = params;
-        const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<BookingQuote>(
-          `${base(target_store_id)}/bookings/quote`,
-          {
-            market: market || apiConfig.market,
-            ...payload,
-            items: normalizeBookingQuoteItems(items),
-          },
-          options,
-        );
-      },
-
-      getAvailability(params: GetAvailabilityParams, options?: RequestOptions): Promise<AvailabilityResponse> {
-        const { store_id, ...queryParams } = params;
-        const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<AvailabilityResponse>(
-          `${base(target_store_id)}/bookings/availability`,
-          { ...options, params: queryParams },
-        );
-      },
-
-      cancelItem(params: CancelBookingItemParams, options?: RequestOptions): Promise<Booking> {
-        const { store_id, booking_id, item_id, ...payload } = params;
-        const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<Booking>(
-          `${base(target_store_id)}/bookings/${booking_id}/items/${item_id}/cancel`,
-          payload,
-          options,
-        );
+        getAvailability(params: GetAvailabilityParams, options?: RequestOptions): Promise<AvailabilityResponse> {
+          const { store_id, ...queryParams } = params;
+          const target_store_id = store_id || apiConfig.storeId;
+          return apiConfig.httpClient.get<AvailabilityResponse>(
+            `${base(target_store_id)}/orders/availability`,
+            { ...options, params: queryParams },
+          );
+        },
       },
 
       service: {

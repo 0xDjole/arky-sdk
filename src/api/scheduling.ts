@@ -1,177 +1,40 @@
 import type { ApiConfig } from "../index";
 import type {
-  CreateBookingParams,
-  UpdateBookingParams,
-  GetBookingParams,
-  SearchBookingsParams,
-  CancelBookingItemParams,
-  CreateServiceParams,
-  UpdateServiceParams,
-  DeleteServiceParams,
-  GetServiceParams,
-  GetServicesParams,
   CreateProviderParams,
-  UpdateProviderParams,
-  DeleteProviderParams,
-  GetProviderParams,
-  GetProvidersParams,
+  CreateServiceParams,
   CreateServiceProviderParams,
-  UpdateServiceProviderParams,
+  DeleteProviderParams,
+  DeleteServiceParams,
   DeleteServiceProviderParams,
   FindServiceProvidersParams,
-  GetBookingQuoteParams,
-  GetAvailabilityParams,
-  AvailabilityResponse,
-  ProcessBookingRefundParams,
+  GetProviderParams,
+  GetProvidersParams,
+  GetServiceParams,
+  GetServicesParams,
   RequestOptions,
-  Slot,
-  BookingCreatePart,
+  UpdateProviderParams,
+  UpdateServiceParams,
+  UpdateServiceProviderParams,
 } from "../types/api";
 import type {
-  Booking,
-  BookingQuote,
   PaginatedResponse,
-  Service,
   Provider,
+  Service,
   ServiceProvider,
 } from "../types";
-import {
-  normalizeBookingCheckoutItems,
-  normalizeBookingQuoteItems,
-} from "../utils/orderItems";
 
-function groupCartToItems(cart: Slot[]): BookingCreatePart[] {
-  const groups = new Map<string, BookingCreatePart>();
-  for (const s of cart) {
-    const key = `${s.service_id}:${s.provider_id}`;
-    if (!groups.has(key)) {
-      groups.set(key, { service_id: s.service_id, provider_id: s.provider_id, slots: [], forms: [] });
-    }
-    groups.get(key)!.slots.push({ from: s.from, to: s.to });
-  }
-  return [...groups.values()];
-}
-
-export const createBookingApi = (apiConfig: ApiConfig) => {
-
-  let cart: Slot[] = [];
-
+const normalizeTaxonomyAliases = <T extends { taxonomies?: unknown; filters?: unknown }>(
+  payload: T,
+) => {
+  const { filters, ...rest } = payload;
   return {
+    ...rest,
+    ...(!rest.taxonomies && filters ? { taxonomies: filters } : {}),
+  };
+};
 
-    addToCart(slot: Slot) {
-      cart.push(slot);
-    },
-
-    removeFromCart(slotId: string) {
-      cart = cart.filter((s) => s.id !== slotId);
-    },
-
-    getCart(): Slot[] {
-      return [...cart];
-    },
-
-    clearCart() {
-      cart = [];
-    },
-
-    async createBooking(
-      params: CreateBookingParams,
-      options?: RequestOptions,
-    ): Promise<Booking> {
-      const { store_id, items, ...rest } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-      const payload = {
-        ...rest,
-        items: normalizeBookingCheckoutItems(items),
-      };
-
-      return apiConfig.httpClient.post<Booking>(
-        `/v1/stores/${target_store_id}/bookings`,
-        { market: apiConfig.market, ...payload },
-        options,
-      );
-    },
-
-    async updateBooking(
-      params: UpdateBookingParams,
-      options?: RequestOptions,
-    ): Promise<Booking> {
-      const { id, ...payload } = params;
-      return apiConfig.httpClient.put<Booking>(
-        `/v1/stores/${apiConfig.storeId}/bookings/${id}`,
-        payload,
-        options,
-      );
-    },
-
-    async getBooking(
-      params: GetBookingParams,
-      options?: RequestOptions,
-    ): Promise<Booking> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<Booking>(
-        `/v1/stores/${target_store_id}/bookings/${params.id}`,
-        options,
-      );
-    },
-
-    async searchBookings(
-      params: SearchBookingsParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<Booking>> {
-      const { store_id, ...queryParams } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<Booking>>(
-        `/v1/stores/${target_store_id}/bookings`,
-        {
-          ...options,
-          params: queryParams,
-        },
-      );
-    },
-
-    async getQuote(
-      params: GetBookingQuoteParams,
-      options?: RequestOptions,
-    ): Promise<BookingQuote> {
-      const { store_id, items, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-
-      return apiConfig.httpClient.post<BookingQuote>(
-        `/v1/stores/${target_store_id}/bookings/quote`,
-        {
-          market: apiConfig.market,
-          ...payload,
-          items: normalizeBookingQuoteItems(items),
-        },
-        options,
-      );
-    },
-
-    async processRefund(
-      params: ProcessBookingRefundParams,
-      options?: RequestOptions,
-    ): Promise<Booking> {
-      return apiConfig.httpClient.post<Booking>(
-        `/v1/stores/${apiConfig.storeId}/bookings/${params.id}/refund`,
-        { amount: params.amount },
-        options,
-      );
-    },
-
-    async getAvailability(
-      params: GetAvailabilityParams,
-      options?: RequestOptions,
-    ): Promise<AvailabilityResponse> {
-      const { store_id, ...query } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-
-      return apiConfig.httpClient.get<AvailabilityResponse>(
-        `/v1/stores/${target_store_id}/bookings/availability`,
-        { ...options, params: query },
-      );
-    },
-
+export const createSchedulingApi = (apiConfig: ApiConfig) => {
+  return {
     async createService(
       params: CreateServiceParams,
       options?: RequestOptions,
@@ -180,7 +43,7 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<Service>(
         `/v1/stores/${target_store_id}/services`,
-        payload,
+        normalizeTaxonomyAliases(payload),
         options,
       );
     },
@@ -193,7 +56,7 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.put<Service>(
         `/v1/stores/${target_store_id}/services/${params.id}`,
-        payload,
+        normalizeTaxonomyAliases(payload),
         options,
       );
     },
@@ -252,7 +115,7 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<Provider>(
         `/v1/stores/${target_store_id}/providers`,
-        payload,
+        normalizeTaxonomyAliases(payload),
         options,
       );
     },
@@ -265,7 +128,7 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.put<Provider>(
         `/v1/stores/${target_store_id}/providers/${params.id}`,
-        payload,
+        normalizeTaxonomyAliases(payload),
         options,
       );
     },
@@ -313,19 +176,6 @@ export const createBookingApi = (apiConfig: ApiConfig) => {
           ...options,
           params: queryParams,
         },
-      );
-    },
-
-    async cancelBookingItem(
-      params: CancelBookingItemParams,
-      options?: RequestOptions,
-    ): Promise<Booking> {
-      const { store_id, booking_id, item_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<Booking>(
-        `/v1/stores/${target_store_id}/bookings/${booking_id}/items/${item_id}/cancel`,
-        payload,
-        options,
       );
     },
 

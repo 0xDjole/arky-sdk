@@ -12,57 +12,6 @@ export interface PaymentTaxLine {
 	scope?: string;
 }
 
-export interface BookingPaymentTax {
-	amount: number;
-	mode_snapshot?: string;
-	rate_bps: number;
-	lines: BookingPaymentTaxLine[];
-}
-
-export interface BookingPaymentTaxLine {
-	rate_bps: number;
-	amount: number;
-	label?: string;
-	scope?: string;
-}
-
-export interface BookingPaymentPromoCode {
-	id: string;
-	code: string;
-	type: string;
-	value: number;
-}
-
-
-export type BookingPaymentProvider = {
-	type: 'stripe';
-	customer_id: string;
-	payment_intent_id?: string;
-};
-
-export interface BookingPaymentRefund {
-	id: string;
-	total: number;
-	provider_refund_id?: string;
-	status: string;
-	created_at: number;
-}
-
-export interface BookingPayment {
-	currency: string;
-	market: string;
-	subtotal: number;
-	discount: number;
-	total: number;
-	paid: number;
-	tax?: BookingPaymentTax;
-	promo_code?: BookingPaymentPromoCode;
-	provider?: BookingPaymentProvider;
-	refunds: BookingPaymentRefund[];
-	payment_method_id?: string;
-	method_type: PaymentMethodType;
-}
-
 export interface OrderPaymentTax {
 	amount: number;
 	mode_snapshot?: string;
@@ -122,22 +71,6 @@ export interface PromoCodeValidation {
 	code: string;
 	discounts: import('./api').Discount[];
 	conditions: import('./api').Condition[];
-}
-
-export interface BookingQuote {
-	market: string;
-	zone: Zone | null;
-	subtotal: number;
-	discount: number;
-	tax: number;
-	total: number;
-	payment_method: PaymentMethod | null;
-	payment_methods: PaymentMethod[];
-	promo_code: PromoCodeValidation | null;
-	payment: BookingPayment;
-	charge_amount: number;
-	id?: string;
-	expires_at?: number;
 }
 
 export interface OrderQuote {
@@ -232,19 +165,6 @@ export interface EshopCartItem {
 	added_at: number;
 	max_stock?: number;
 }
-
-export interface BookingCartItem {
-	id: string;
-	service_id: string;
-	service_name: string;
-	date: string;
-	from: number;
-	to: number;
-	time_text: string;
-	provider_id?: string;
-	forms: FormEntry[];
-}
-
 
 export type IntegrationProvider =
 	| { type: 'stripe'; secret_key?: string; publishable_key: string; webhook_secret?: string; currency: string }
@@ -375,6 +295,7 @@ export interface Product {
 	slug: Record<string, string>;
 	blocks: Block[];
 	taxonomies: TaxonomyEntry[];
+	filters?: TaxonomyEntry[];
 	variants: ProductVariant[];
 	status: ProductStatus;
 	created_at: number;
@@ -395,19 +316,19 @@ export interface ProductOrderItemSnapshot {
 	price: Price;
 }
 
-export type OrderItemSnapshot = ProductOrderItemSnapshot;
-
-export interface BookingOrderItemSnapshot {
+export interface ServiceOrderItemSnapshot {
 	service_key: string;
 	provider_key: string;
 	price: Price;
 }
 
+export type OrderItemSnapshot = ProductOrderItemSnapshot | ServiceOrderItemSnapshot;
+
 export type ProductQuoteLineAvailability =
 	| { ok: true; available?: number }
 	| { ok: false; reason: string };
 
-export type BookingQuoteLineAvailability =
+export type ServiceQuoteLineAvailability =
 	| { ok: true; spots: number }
 	| { ok: false; reason: string };
 
@@ -426,7 +347,7 @@ export interface ProductQuoteLine {
 	availability: ProductQuoteLineAvailability;
 }
 
-export interface BookingQuoteLine {
+export interface ServiceQuoteLine {
 	type: 'booking';
 	line_id: string;
 	service_id: string;
@@ -439,11 +360,11 @@ export interface BookingQuoteLine {
 	discount: number;
 	tax: number;
 	total: number;
-	snapshot: BookingOrderItemSnapshot;
-	availability: BookingQuoteLineAvailability;
+	snapshot: ServiceOrderItemSnapshot;
+	availability: ServiceQuoteLineAvailability;
 }
 
-export type QuoteLine = ProductQuoteLine | BookingQuoteLine;
+export type QuoteLine = ProductQuoteLine | ServiceQuoteLine;
 
 export interface ProductOrderItem {
 	type: 'product';
@@ -456,7 +377,7 @@ export interface ProductOrderItem {
 	status: OrderItemStatus;
 }
 
-export interface BookingOrderItem {
+export interface ServiceOrderItem {
 	type: 'booking';
 	id: string;
 	service_id: string;
@@ -464,11 +385,11 @@ export interface BookingOrderItem {
 	from: number;
 	to: number;
 	forms: FormEntry[];
-	snapshot: BookingOrderItemSnapshot;
+	snapshot: ServiceOrderItemSnapshot;
 	status: OrderItemStatus;
 }
 
-export type OrderItem = ProductOrderItem | BookingOrderItem;
+export type OrderItem = ProductOrderItem | ServiceOrderItem;
 
 export interface HistoryEntry {
 	action: string;
@@ -552,14 +473,6 @@ export type WebhookEventSubscription =
 	| { event: 'order.shipment_failed' }
 	| { event: 'order.shipment_returned' }
 	| { event: 'order.shipment_status_changed' }
-	| { event: 'booking.created' }
-	| { event: 'booking.updated' }
-	| { event: 'booking.payment_received' }
-	| { event: 'booking.payment_failed' }
-	| { event: 'booking.refunded' }
-	| { event: 'booking.cancelled' }
-	| { event: 'booking.item_cancelled' }
-	| { event: 'booking.reminder' }
 	| { event: 'product.created' }
 	| { event: 'product.updated' }
 	| { event: 'product.deleted' }
@@ -809,7 +722,9 @@ export interface ApiResponse<T> {
 }
 
 export interface PaginatedResponse<T> {
-	data: T[];
+	items: T[];
+	cursor: string | null;
+	data?: T[];
 	meta?: {
 		total: number;
 		page: number;
@@ -817,41 +732,8 @@ export interface PaginatedResponse<T> {
 	};
 }
 
-export interface BookingStoreState {
-	current_step: number;
-	total_steps: number;
-	steps: Record<number, { name: string; label_key: string }>;
-	weekdays: string[];
-	month_year: string;
-	days: any[];
-	current: Date;
-	selected_date: string | null;
-	slots: any[];
-	selected_slot: any | null;
-	selected_provider: any | null;
-	providers: any[];
-	loading: boolean;
-	start_date: string | null;
-	end_date: string | null;
-	guest_token: string | null;
-	service: any | null;
-	store: Store | null;
-	currency: string;
-	booking_forms: FormEntry[];
-	api_url: string;
-	store_id: string;
-	timezone: string;
-	tz_groups: any;
-	items: BookingCartItem[];
-	allowed_payment_methods: string[];
-	payment_config: {
-		provider: { publishable_key: string; currency: string } | null;
-		enabled: boolean;
-	};
-}
-
-export type BookingServiceStatus = 'active' | 'draft' | 'archived';
-export type BookingProviderStatus = 'active' | 'draft' | 'archived';
+export type ServiceStatus = 'active' | 'draft' | 'archived';
+export type ProviderStatus = 'active' | 'draft' | 'archived';
 
 export type ProductStatus = 'active' | 'draft' | 'archived';
 export type CustomerStatus = 'active' | 'archived';
@@ -864,13 +746,6 @@ export type EmailTemplateStatus = 'active' | 'draft' | 'archived';
 export type FormStatus = 'active' | 'draft' | 'archived';
 export type TaxonomyStatus = 'active' | 'draft' | 'archived';
 
-export type BookingCancellationReason =
-	| 'admin_rejected'
-	| 'customer_cancelled'
-	| 'payment_failed'
-	| 'expired'
-	| 'other';
-
 export type OrderCancellationReason =
 	| 'admin_rejected'
 	| 'customer_cancelled'
@@ -878,21 +753,10 @@ export type OrderCancellationReason =
 	| 'expired'
 	| 'other';
 
-export type BookingItemStatus =
-	| { status: 'pending'; expires_at: number }
-	| { status: 'confirmed' }
-	| { status: 'cancelled'; reason: BookingCancellationReason };
-
 export type OrderItemStatus =
 	| { status: 'pending'; expires_at: number }
 	| { status: 'confirmed' }
 	| { status: 'cancelled'; reason: OrderCancellationReason };
-
-export type BookingPaymentStatus =
-	| { status: 'pending'; at: number }
-	| { status: 'authorized'; at: number; amount: number }
-	| { status: 'captured'; at: number; amount: number }
-	| { status: 'failed'; at: number; reason?: string };
 
 export type OrderPaymentStatus =
 	| { status: 'pending'; at: number }
@@ -900,48 +764,9 @@ export type OrderPaymentStatus =
 	| { status: 'captured'; at: number; amount: number }
 	| { status: 'failed'; at: number; reason?: string };
 
-export interface BookingItemSnapshot {
-	service_key: string;
-	provider_key: string;
-	price: Price;
-}
-
 export interface TimeRange {
 	from: number;
 	to: number;
-}
-
-export interface BookingItem {
-	id: string;
-	service_id: string;
-	provider_id: string;
-	store_id: string;
-	booking_id: string;
-	from: number;
-	to: number;
-	forms: FormEntry[];
-	snapshot: BookingItemSnapshot;
-	status: BookingItemStatus;
-}
-
-export interface Booking {
-	id: string;
-	number: string;
-	customer_id: string;
-	verified: boolean;
-	forms: FormEntry[];
-	store_id: string;
-	service_ids: string[];
-	provider_ids: string[];
-	payment: BookingPayment;
-	store?: Store;
-	account?: any;
-	items: BookingItem[];
-	audience_id?: string;
-	history?: { action: string; reason?: string; timestamp: number }[];
-	fired_reminders: number[];
-	created_at: number;
-	last_modified: number;
 }
 
 export interface Node {
@@ -1041,41 +866,38 @@ export interface ServiceProvider {
 	updated_at: number;
 }
 
-export interface BookingService {
+export interface Service {
 	id: string;
 	key: string;
 	slug: Record<string, string>;
 	store_id: string;
 	blocks: Block[];
 	taxonomies: TaxonomyEntry[];
+	filters?: TaxonomyEntry[];
 	created_at: number;
 	updated_at: number;
-	status: BookingServiceStatus;
+	status: ServiceStatus;
 }
 
-
-export type Service = BookingService;
 
 export interface ProviderTimelinePoint {
 	timestamp: number;
 	booked: number;
 }
 
-export interface BookingProvider {
+export interface Provider {
 	id: string;
 	key: string;
 	slug: Record<string, string>;
 	store_id: string;
-	status: BookingProviderStatus;
+	status: ProviderStatus;
 	blocks: Block[];
 	taxonomies: TaxonomyEntry[];
+	filters?: TaxonomyEntry[];
 	timeline: ProviderTimelinePoint[];
 	created_at: number;
 	updated_at: number;
 }
-
-
-export type Provider = BookingProvider;
 
 export interface WorkflowEdge {
 	source: string;
@@ -1217,15 +1039,7 @@ export type EventAction =
 	| { action: 'order_shipment_returned'; data: { shipment_id: string } }
 	| { action: 'order_shipment_status_changed'; data: { shipment_id: string; from: string; to: string } }
 	
-	| { action: 'booking_created' }
-	| { action: 'booking_updated' }
-	| { action: 'booking_payment_received'; data: { amount: number; currency: string } }
-	| { action: 'booking_payment_failed'; data: { reason?: string } }
-	| { action: 'booking_refunded'; data: { amount: number; currency: string; reason?: string } }
-	| { action: 'booking_cancelled'; data: { reason?: string } }
-	| { action: 'booking_item_cancelled'; data: { item_id: string; refund_amount: number } }
-	
-	| { action: 'product_created' }
+		| { action: 'product_created' }
 	| { action: 'product_updated' }
 	| { action: 'product_deleted' }
 	

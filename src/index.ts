@@ -3,8 +3,6 @@ export type {
   ApiResponse,
   EshopCartItem,
   EshopStoreState,
-  BookingStoreState,
-  BookingCartItem,
   Store,
   Webhook,
   WebhookEventSubscription,
@@ -12,13 +10,6 @@ export type {
   IntegrationProvider,
   Block,
   Price,
-  BookingPayment,
-  BookingPaymentTax,
-  BookingPaymentTaxLine,
-  BookingPaymentPromoCode,
-  BookingPaymentProvider,
-  BookingPaymentRefund,
-  BookingQuote,
   OrderPayment,
   OrderPaymentTax,
   OrderPaymentTaxLine,
@@ -89,14 +80,6 @@ export type {
 
   GeoLocationBlock,
 
-  Booking,
-  BookingItem,
-  BookingItemSnapshot,
-  BookingItemStatus,
-  BookingPaymentStatus,
-  BookingCancellationReason,
-  BookingService,
-  BookingProvider,
   Service,
   Provider,
   ServiceProvider,
@@ -111,14 +94,14 @@ export type {
   OrderItem,
   OrderItemSnapshot,
   ProductOrderItem,
-  BookingOrderItem,
+  ServiceOrderItem,
   ProductOrderItemSnapshot,
-  BookingOrderItemSnapshot,
+  ServiceOrderItemSnapshot,
   QuoteLine,
   ProductQuoteLine,
-  BookingQuoteLine,
+  ServiceQuoteLine,
   ProductQuoteLineAvailability,
-  BookingQuoteLineAvailability,
+  ServiceQuoteLineAvailability,
   OrderItemStatus,
   OrderPaymentStatus,
   OrderCancellationReason,
@@ -155,8 +138,8 @@ export type {
   Discount,
   Condition,
 
-  BookingServiceStatus,
-  BookingProviderStatus,
+  ServiceStatus,
+  ProviderStatus,
   ProductStatus,
   CustomerStatus,
   AudienceStatus,
@@ -181,20 +164,18 @@ export type {
   SlotRange,
   EshopItem,
   EshopQuoteItem,
-  BookingCreatePart,
-  BookingQuoteItem,
+  ServiceCheckoutPart,
+  ServiceQuoteItem,
   ProductQuoteItemInput,
-  BookingQuoteItemInput,
+  ServiceQuoteItemInput,
   OrderQuoteItemInput,
   QuoteItemInput,
   OrderQuoteCompatibleItemInput,
   ProductCheckoutItemInput,
-  BookingCheckoutItemInput,
+  ServiceCheckoutItemInput,
   OrderCheckoutItemInput,
   CheckoutItemInput,
   OrderCheckoutCompatibleItemInput,
-  BookingQuoteCompatibleItemInput,
-  BookingCheckoutCompatibleItemInput,
   SystemTemplateKey,
   
   GetShippingRatesParams,
@@ -244,7 +225,7 @@ export { COMMON_ACTIVITY_TYPES } from "./api/storefront";
 
 export type { TimelineParams } from "./api/crm";
 
-export const SDK_VERSION = "0.7.110";
+export const SDK_VERSION = "0.7.112";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -312,7 +293,7 @@ import { createNotificationApi } from "./api/notification";
 import { createPromoCodeApi } from "./api/promoCode";
 import { createCmsApi } from "./api/cms";
 import { createEshopApi } from "./api/eshop";
-import { createBookingApi } from "./api/booking";
+import { createSchedulingApi } from "./api/scheduling";
 import { createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
 import { createCustomerApi } from "./api/crm";
@@ -525,7 +506,8 @@ export function createAdmin(config: CreateAdminConfig) {
 
   const cmsApi = createCmsApi(apiConfig);
   const eshopApi = createEshopApi(apiConfig);
-  const bookingApi = createBookingApi(apiConfig);
+  const schedulingApi = createSchedulingApi(apiConfig);
+  const promoCodeApi = createPromoCodeApi(apiConfig);
   const crmApi = createCustomerApi(apiConfig);
   const locationApi = createLocationApi(apiConfig);
   const marketApi = createMarketApi(apiConfig);
@@ -546,7 +528,7 @@ export function createAdmin(config: CreateAdminConfig) {
     },
     media: createMediaApi(apiConfig),
     notification: createNotificationApi(apiConfig),
-    promoCode: createPromoCodeApi(apiConfig),
+    promoCode: promoCodeApi,
     platform: platformApi,
     shipping: createShippingApi(apiConfig),
     cms: {
@@ -599,40 +581,29 @@ export function createAdmin(config: CreateAdminConfig) {
         get: eshopApi.getOrder,
         find: eshopApi.getOrders,
         getQuote: eshopApi.getQuote,
+        checkout: eshopApi.checkoutOrder,
+        getAvailability: eshopApi.getOrderAvailability,
         processRefund: eshopApi.processRefund,
       },
-    },
-    booking: {
-      addToCart: bookingApi.addToCart,
-      removeFromCart: bookingApi.removeFromCart,
-      getCart: bookingApi.getCart,
-      clearCart: bookingApi.clearCart,
-      create: bookingApi.createBooking,
-      update: bookingApi.updateBooking,
-      get: bookingApi.getBooking,
-      find: bookingApi.searchBookings,
-      getQuote: bookingApi.getQuote,
-      processRefund: bookingApi.processRefund,
-      getAvailability: bookingApi.getAvailability,
-      cancelItem: bookingApi.cancelBookingItem,
       service: {
-        create: bookingApi.createService,
-        update: bookingApi.updateService,
-        delete: bookingApi.deleteService,
-        get: bookingApi.getService,
-        find: bookingApi.getServices,
-        findProviders: bookingApi.findServiceProviders,
-        createProvider: bookingApi.createServiceProvider,
-        updateProvider: bookingApi.updateServiceProvider,
-        deleteProvider: bookingApi.deleteServiceProvider,
+        create: schedulingApi.createService,
+        update: schedulingApi.updateService,
+        delete: schedulingApi.deleteService,
+        get: schedulingApi.getService,
+        find: schedulingApi.getServices,
+        findProviders: schedulingApi.findServiceProviders,
+        createProvider: schedulingApi.createServiceProvider,
+        updateProvider: schedulingApi.updateServiceProvider,
+        deleteProvider: schedulingApi.deleteServiceProvider,
       },
       provider: {
-        create: bookingApi.createProvider,
-        update: bookingApi.updateProvider,
-        delete: bookingApi.deleteProvider,
-        get: bookingApi.getProvider,
-        find: bookingApi.getProviders,
+        create: schedulingApi.createProvider,
+        update: schedulingApi.updateProvider,
+        delete: schedulingApi.deleteProvider,
+        get: schedulingApi.getProvider,
+        find: schedulingApi.getProviders,
       },
+      promoCode: promoCodeApi,
     },
     crm: {
       customer: {
@@ -930,7 +901,6 @@ export function createStorefront(config: CreateStorefrontConfig) {
     store: storefrontApi.store,
     cms: storefrontApi.cms,
     eshop: storefrontApi.eshop,
-    booking: storefrontApi.booking,
     crm: storefrontApi.crm,
     activity: storefrontApi.activity,
     automation: storefrontApi.automation,
