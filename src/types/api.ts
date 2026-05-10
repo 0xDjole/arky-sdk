@@ -921,6 +921,7 @@ export interface GetFormSubmissionsParams {
 }
 
 export interface FindActivitiesParams {
+  store_id?: string;
   customer_id?: string;
   types?: string[];
   from?: number;
@@ -1474,6 +1475,8 @@ export interface FindCustomersParams {
   store_id?: string;
 
   query?: string | number;
+  taxonomy_query?: TaxonomyQuery[];
+  status?: CustomerStatus;
   limit?: number;
   cursor?: string;
   sort_field?: string;

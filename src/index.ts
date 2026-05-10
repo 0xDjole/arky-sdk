@@ -293,7 +293,6 @@ import { createNotificationApi } from "./api/notification";
 import { createPromoCodeApi } from "./api/promoCode";
 import { createCmsApi } from "./api/cms";
 import { createEshopApi } from "./api/eshop";
-import { createSchedulingApi } from "./api/scheduling";
 import { createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
 import { createCustomerApi } from "./api/crm";
@@ -506,7 +505,6 @@ export function createAdmin(config: CreateAdminConfig) {
 
   const cmsApi = createCmsApi(apiConfig);
   const eshopApi = createEshopApi(apiConfig);
-  const schedulingApi = createSchedulingApi(apiConfig);
   const promoCodeApi = createPromoCodeApi(apiConfig);
   const crmApi = createCustomerApi(apiConfig);
   const locationApi = createLocationApi(apiConfig);
@@ -582,26 +580,26 @@ export function createAdmin(config: CreateAdminConfig) {
         find: eshopApi.getOrders,
         getQuote: eshopApi.getQuote,
         checkout: eshopApi.checkoutOrder,
-        getAvailability: eshopApi.getOrderAvailability,
         processRefund: eshopApi.processRefund,
       },
       service: {
-        create: schedulingApi.createService,
-        update: schedulingApi.updateService,
-        delete: schedulingApi.deleteService,
-        get: schedulingApi.getService,
-        find: schedulingApi.getServices,
-        findProviders: schedulingApi.findServiceProviders,
-        createProvider: schedulingApi.createServiceProvider,
-        updateProvider: schedulingApi.updateServiceProvider,
-        deleteProvider: schedulingApi.deleteServiceProvider,
+        create: eshopApi.createService,
+        update: eshopApi.updateService,
+        delete: eshopApi.deleteService,
+        get: eshopApi.getService,
+        find: eshopApi.getServices,
+        getAvailability: eshopApi.getServiceAvailability,
+        findProviders: eshopApi.findServiceProviders,
+        createProvider: eshopApi.createServiceProvider,
+        updateProvider: eshopApi.updateServiceProvider,
+        deleteProvider: eshopApi.deleteServiceProvider,
       },
       provider: {
-        create: schedulingApi.createProvider,
-        update: schedulingApi.updateProvider,
-        delete: schedulingApi.deleteProvider,
-        get: schedulingApi.getProvider,
-        find: schedulingApi.getProviders,
+        create: eshopApi.createProvider,
+        update: eshopApi.updateProvider,
+        delete: eshopApi.deleteProvider,
+        get: eshopApi.getProvider,
+        find: eshopApi.getProviders,
       },
       promoCode: promoCodeApi,
     },

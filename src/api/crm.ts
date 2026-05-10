@@ -59,7 +59,7 @@ export const createActivityAdminApi = (apiConfig: ApiConfig) => ({
   },
 
   async find(params: FindActivitiesParams, options?: RequestOptions): Promise<{ items: Activity[]; cursor: string | null }> {
-    const store_id = apiConfig.storeId;
+    const store_id = params.store_id || apiConfig.storeId;
     const queryParams: Record<string, unknown> = {};
     if (params.customer_id) queryParams.customer_id = params.customer_id;
     if (params.types && params.types.length > 0) queryParams.types = params.types;
@@ -99,6 +99,8 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
       if (params?.limit !== undefined) queryParams.limit = params.limit;
       if (params?.cursor) queryParams.cursor = params.cursor;
       if (params?.query) queryParams.query = params.query;
+      if (params?.taxonomy_query) queryParams.taxonomy_query = params.taxonomy_query;
+      if (params?.status) queryParams.status = params.status;
       if (params?.sort_field) queryParams.sort_field = params.sort_field;
       if (params?.sort_direction) queryParams.sort_direction = params.sort_direction;
 

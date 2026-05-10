@@ -466,6 +466,7 @@ export type WebhookEventSubscription =
 	| { event: 'order.payment_failed' }
 	| { event: 'order.refunded' }
 	| { event: 'order.cancelled' }
+	| { event: 'order.reminder' }
 	| { event: 'order.shipment_created' }
 	| { event: 'order.shipment_in_transit' }
 	| { event: 'order.shipment_out_for_delivery' }

@@ -370,14 +370,6 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession:
           });
         },
 
-        getAvailability(params: GetAvailabilityParams, options?: RequestOptions): Promise<AvailabilityResponse> {
-          const { store_id, ...queryParams } = params;
-          const target_store_id = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.get<AvailabilityResponse>(
-            `${base(target_store_id)}/orders/availability`,
-            { ...options, params: queryParams },
-          );
-        },
       },
 
       service: {
@@ -412,6 +404,15 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession:
             ...options,
             params: queryParams,
           });
+        },
+
+        getAvailability(params: GetAvailabilityParams, options?: RequestOptions): Promise<AvailabilityResponse> {
+          const { store_id, ...queryParams } = params;
+          const target_store_id = store_id || apiConfig.storeId;
+          return apiConfig.httpClient.get<AvailabilityResponse>(
+            `${base(target_store_id)}/services/availability`,
+            { ...options, params: queryParams },
+          );
         },
       },
 
