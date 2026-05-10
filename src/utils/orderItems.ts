@@ -10,14 +10,15 @@ export function normalizeOrderQuoteItems(
 ): OrderQuoteItemInput[] {
   return items.map((item) => {
     if ("type" in item) {
-      return item;
+      const type = (item as { type?: string }).type;
+      return type === "booking" ? ({ ...item, type: "service" } as OrderQuoteItemInput) : item;
     }
 
     if ("product_id" in item) {
       return { type: "product", ...item };
     }
 
-    return { type: "booking", ...item };
+    return { type: "service", ...item };
   });
 }
 
@@ -26,13 +27,14 @@ export function normalizeOrderCheckoutItems(
 ): OrderCheckoutItemInput[] {
   return items.map((item) => {
     if ("type" in item) {
-      return item;
+      const type = (item as { type?: string }).type;
+      return type === "booking" ? ({ ...item, type: "service" } as OrderCheckoutItemInput) : item;
     }
 
     if ("product_id" in item) {
       return { type: "product", ...item };
     }
 
-    return { type: "booking", ...item };
+    return { type: "service", ...item };
   });
 }

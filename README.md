@@ -1,6 +1,6 @@
 # arky-sdk
 
-Official TypeScript SDK for [Arky](https://arky.io) — Build online stores with headless CMS, e-commerce, and booking systems.
+Official TypeScript SDK for [Arky](https://arky.io) — Build online stores with headless CMS, e-commerce, and service scheduling.
 
 ## What is Arky?
 
@@ -8,12 +8,12 @@ Arky is an **all-in-one platform** that gives you everything you need to run an 
 
 - 📝 **Headless CMS** - Manage content with flexible blocks, multilingual support, and AI-powered content generation
 - 🛒 **E-commerce** - Sell products with multi-currency pricing, inventory, orders, and Stripe payments
-- 📅 **Booking System** - Manage services, providers, and reservations with availability calendars
+- 📅 **Service Scheduling** - Sell scheduled services with providers and availability calendars
 - 📧 **Newsletters** - Send newsletters to subscribers with built-in email delivery
 - 👥 **User Management** - Authentication, roles, permissions, and user profiles
 - 💳 **Payments** - Integrated Stripe checkout and promo codes
 
-**Build any online store:** SaaS products, e-commerce shops, booking platforms, content sites, newsletters, or multi-tenant marketplaces.
+**Build any online store:** SaaS products, e-commerce shops, service businesses, content sites, newsletters, or multi-tenant marketplaces.
 
 ## Why Use This SDK?
 
@@ -92,31 +92,33 @@ const order = await arky.eshop.checkout({
 });
 ```
 
-### 4. Book Services
+### 4. Sell Scheduled Services
 
 ```typescript
 // Browse services (like arky.io/services)
-const { items: services } = await arky.reservation.getServices({});
+const { items: services } = await arky.eshop.service.find({});
 
 // Check available time slots
-const slots = await arky.reservation.getAvailableSlots({
-  serviceId: 'service_haircut',
-  from: Date.now(),
-  to: Date.now() + 86400000  // Next 24 hours
+const availability = await arky.eshop.service.getAvailability({
+  service_id: 'service_haircut',
+  provider_id: 'provider_jane',
+  from: Math.floor(Date.now() / 1000),
+  to: Math.floor(Date.now() / 1000) + 86400,
 });
 
-// Book a reservation
-const reservation = await arky.reservation.checkout({
-  parts: [{
-    serviceId: 'service_haircut',
-    startTime: slots[0].startTime,
-    providerId: 'provider_jane'
+// Create an order with a service line
+const order = await arky.eshop.order.checkout({
+  items: [{
+    type: 'service',
+    service_id: 'service_haircut',
+    provider_id: 'provider_jane',
+    slots: [{
+      from: availability.available_slots[0].from,
+      to: availability.available_slots[0].to,
+    }],
   }],
-  paymentMethod: 'CREDIT_CARD',
-  blocks: [  // Customer contact info
-    { key: 'name', values: ['John Doe'] },
-    { key: 'phone', values: ['+1234567890'] }
-  ]
+  payment_method: 'cash',
+  forms: [],
 });
 ```
 
@@ -227,21 +229,21 @@ await arky.eshop.getQuote({
 })
 ```
 
-### Reservations
+### Services
 ```typescript
 // Services
-await arky.reservation.createService({ name, duration, price })
-await arky.reservation.getServices({})
-await arky.reservation.getAvailableSlots({ serviceId, start, end })
+await arky.eshop.service.create({ name, duration, price })
+await arky.eshop.service.find({})
+await arky.eshop.service.getAvailability({ service_id, provider_id, from, to })
 
 // Providers
-await arky.reservation.createProvider({ name, serviceIds })
-await arky.reservation.getProviders({})
+await arky.eshop.provider.create({ name })
+await arky.eshop.provider.find({})
 
-// Reservations
-await arky.reservation.createReservation({ parts, blocks })
-await arky.reservation.checkout({ parts, paymentMethod })
-await arky.reservation.searchReservations({ start, end })
+// Service orders
+await arky.eshop.order.getQuote({ items, payment_method })
+await arky.eshop.order.checkout({ items, payment_method })
+await arky.eshop.order.find({})
 ```
 
 ### Media
@@ -340,7 +342,7 @@ await arky.utils.injectSvgIntoElement(mediaBlock, element, 'custom-class')
 
 - 🏪 **E-commerce shops** - Product catalogs, shopping carts, checkout
 - 📰 **Content websites** - Blogs, documentation, marketing sites
-- 📅 **Booking platforms** - Appointment scheduling, service bookings
+- 📅 **Service businesses** - Appointment scheduling, service orders
 - 📬 **Newsletter platforms** - Subscriber management, email campaigns
 - 🏢 **SaaS products** - Multi-tenant apps with user auth and billing
 - 🛍️ **Marketplaces** - Multi-vendor platforms with payments
@@ -391,7 +393,7 @@ When adding a new SDK method, follow this checklist so the API surface stays typ
 2. **Define the request params** in `src/types/api.ts`. Mirror the Rust DTO in `server/core/src/{module}/types/commands.rs` field-for-field. Two exceptions: `store_id?: string` and `market?: string` are optional in TS (the SDK auto-fills both from `apiConfig.storeId` and `apiConfig.market`). Do **not** use `[key: string]: any` index signatures.
 3. **Annotate the SDK method's return type** using the matching entity from `src/types/index.ts`.
 4. **Pass the response generic to the HTTP call**: `apiConfig.httpClient.post<EntityType>(...)`, `apiConfig.httpClient.get<PaginatedResponse<EntityType>>(...)`, etc. Never rely on inference.
-5. **Inject `market` from `apiConfig`**: when a body needs a `market` field, write `{ market: apiConfig.market, ...payload }`. Never hardcode `"booking"`, `"eshop"`, or any other market string in `src/api/*.ts`.
+5. **Inject `market` from `apiConfig`**: when a body needs a `market` field, write `{ market: apiConfig.market, ...payload }`. Never hardcode `"default"`, `"eshop"`, or any other market string in `src/api/*.ts`.
 6. **Re-export the entity** from `src/index.ts` if consumers (admin, storefront) will import it.
 7. **Bump `SDK_VERSION`** in `src/index.ts` and the `version` in `package.json`. Patch only.
 

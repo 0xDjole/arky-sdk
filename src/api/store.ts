@@ -32,10 +32,9 @@ import type {
   Webhook,
   Media,
   PaginatedResponse,
+  SubscriptionPlan,
 } from "../types";
 
-// TODO: type as SubscriptionPlan once exported from types/index.ts
-type SubscriptionPlan = unknown;
 // TODO: type as IntegrationConfig once exported from types/index.ts
 type IntegrationConfig = unknown;
 
@@ -91,8 +90,8 @@ export const createStoreApi = (apiConfig: ApiConfig, updateSession: AdminSession
     async getSubscriptionPlans(
       _params: GetSubscriptionPlansParams,
       options?: RequestOptions
-    ): Promise<SubscriptionPlan[]> {
-      return apiConfig.httpClient.get<SubscriptionPlan[]>("/v1/stores/plans", options);
+    ): Promise<PaginatedResponse<SubscriptionPlan>> {
+      return apiConfig.httpClient.get<PaginatedResponse<SubscriptionPlan>>("/v1/stores/plans", options);
     },
 
     async subscribe(params: SubscribeParams, options?: RequestOptions): Promise<{ checkout_url?: string }> {
@@ -108,9 +107,9 @@ export const createStoreApi = (apiConfig: ApiConfig, updateSession: AdminSession
     async createPortalSession(
       params: CreatePortalSessionParams,
       options?: RequestOptions
-    ): Promise<{ url: string }> {
+    ): Promise<{ portal_url: string }> {
       const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<{ url: string }>(
+      return apiConfig.httpClient.post<{ portal_url: string }>(
         `/v1/stores/${store_id}/subscription/portal`,
         { return_url: params.return_url },
         options

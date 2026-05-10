@@ -22,6 +22,7 @@ export type {
   StoreSubscriptionProvider,
   StoreSubscriptionStatus,
   StoreSubscriptionSource,
+  SubscriptionPlan,
   AudienceSubscription,
   AudienceSubscriptionPayment,
   AudienceSubscriptionProvider,
@@ -135,6 +136,10 @@ export type {
   PromoCode,
 
   Customer,
+  Account,
+  AccountToken,
+  AccountUpdateResponse,
+  StoreMembership,
   Discount,
   Condition,
 
@@ -166,6 +171,7 @@ export type {
   EshopQuoteItem,
   ServiceCheckoutPart,
   ServiceQuoteItem,
+  ConditionValue,
   ProductQuoteItemInput,
   ServiceQuoteItemInput,
   OrderQuoteItemInput,
@@ -224,8 +230,13 @@ export type {
 export { COMMON_ACTIVITY_TYPES } from "./api/storefront";
 
 export type { TimelineParams } from "./api/crm";
+export type {
+  IntegrationOperation,
+  IntegrationResource,
+  IntegrationService,
+} from "./api/platform";
 
-export const SDK_VERSION = "0.7.112";
+export const SDK_VERSION = "0.7.119";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",

@@ -144,7 +144,7 @@ export interface ProductQuoteItemInput extends EshopQuoteItem {
 }
 
 export interface ServiceQuoteItemInput extends ServiceQuoteItem {
-  type: "booking";
+  type: "service";
 }
 
 export type OrderQuoteItemInput =
@@ -163,7 +163,7 @@ export interface ProductCheckoutItemInput extends EshopItem {
 }
 
 export interface ServiceCheckoutItemInput {
-  type: "booking";
+  type: "service";
   service_id: string;
   provider_id: string;
   slots: SlotRange[];
@@ -390,12 +390,16 @@ export interface GetDeliveryStatsParams {}
 
 export type StoreRole = 'admin' | 'owner' | 'super';
 
-export interface Discount {
-  type: "items_percentage" | "items_fixed" | "shipping_percentage";
-  market_id: string;
-  bps?: number;
-  amount?: number;
-}
+export type Discount =
+  | { type: "items_percentage"; market_id: string; bps: number }
+  | { type: "items_fixed"; market_id: string; amount: number }
+  | { type: "shipping_percentage"; market_id: string; bps: number };
+
+export type ConditionValue =
+  | { type: "ids"; value: string[] }
+  | { type: "amount"; value: number }
+  | { type: "count"; value: number }
+  | { type: "date_range"; value: { start?: number; end?: number } };
 
 export interface Condition {
   type:
@@ -405,7 +409,7 @@ export interface Condition {
     | "date_range"
     | "max_uses"
     | "max_uses_per_user";
-  value: string[] | number | { start?: number; end?: number };
+  value: ConditionValue;
 }
 
 export interface CreatePromoCodeParams {
@@ -418,9 +422,9 @@ export interface CreatePromoCodeParams {
 export interface UpdatePromoCodeParams {
   id: string;
   store_id?: string;
-  code: string;
-  discounts: Discount[];
-  conditions: Condition[];
+  code?: string;
+  discounts?: Discount[];
+  conditions?: Condition[];
   status?: PromoCodeStatus;
 }
 
@@ -436,6 +440,7 @@ export interface GetPromoCodeParams {
 
 export interface GetPromoCodesParams {
   store_id?: string;
+  ids?: string[];
 
   query?: string | number;
   status?: PromoCodeStatus;
@@ -774,11 +779,12 @@ export interface AccountAddress {
 
 
 export interface AccountApiToken {
-  id: string;
-  name: string;
-  token: string;
-  created_at: number;
-  last_used_at?: number;
+  id: string | null;
+  value?: string;
+  name?: string | null;
+  created_at?: number;
+  expires_at?: number | null;
+  type?: string;
 }
 
 
@@ -794,6 +800,9 @@ export interface SearchAccountsParams {
 
   query?: string | number;
   owner?: string;
+  store_id?: string;
+  sort_field?: string | null;
+  sort_direction?: 'asc' | 'desc' | null;
 }
 
 export interface DeleteAccountParams {}

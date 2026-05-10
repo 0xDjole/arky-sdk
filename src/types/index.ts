@@ -348,7 +348,7 @@ export interface ProductQuoteLine {
 }
 
 export interface ServiceQuoteLine {
-	type: 'booking';
+	type: 'service';
 	line_id: string;
 	service_id: string;
 	provider_id: string;
@@ -378,7 +378,7 @@ export interface ProductOrderItem {
 }
 
 export interface ServiceOrderItem {
-	type: 'booking';
+	type: 'service';
 	id: string;
 	service_id: string;
 	provider_id: string;
@@ -708,10 +708,60 @@ export interface Media {
 	title?: string | null;
 	description?: string | null;
 	alt?: string | null;
-	entity: string;
+	store_id: string;
+	entity?: string;
 	metadata?: string | null;
 	created_at: number;
 	slug: Record<string, string>;
+}
+
+export interface SubscriptionPlan {
+	id: string;
+	provider_price_id?: string | null;
+	provider_product_id?: string | null;
+	name: string;
+	tier: number;
+	amount: number;
+	currency: string;
+	interval: string;
+	interval_count: number;
+	trial_period_days: number;
+}
+
+export interface AccountToken {
+	id: string;
+	value?: string;
+	name?: string | null;
+	created_at: number;
+	expires_at?: number | null;
+	type?: string;
+}
+
+export interface StoreMembership {
+	store_id: string;
+	role: import('./api').StoreRole;
+	invitation_token?: AccountToken | null;
+	joined_at?: number | null;
+}
+
+export interface AccountLifecycle {
+	last_login_at?: number | null;
+	onboarding_completed: boolean;
+}
+
+export interface Account {
+	id: string;
+	email: string;
+	memberships: StoreMembership[];
+	api_tokens: AccountToken[];
+	auth_tokens?: import('./api').AuthToken[];
+	verification_codes?: unknown[];
+	lifecycle?: AccountLifecycle;
+}
+
+export interface AccountUpdateResponse {
+	success: boolean;
+	newly_created_tokens: AccountToken[];
 }
 
 export interface ApiResponse<T> {

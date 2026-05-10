@@ -1,8 +1,53 @@
 import type { ApiConfig } from '../index';
 import type { RequestOptions } from '../types/api';
 
-// TODO: type as IntegrationService once exported from types/index.ts
-type IntegrationService = unknown;
+export interface IntegrationOperation {
+	name: string;
+	value: string;
+	description?: string;
+	method: 'get' | 'post' | 'put' | 'patch' | 'delete';
+	url: string;
+	body?: Record<string, unknown> | string;
+	headers?: Record<string, string>;
+}
+
+export interface IntegrationResource {
+	name: string;
+	value: string;
+	operations: IntegrationOperation[];
+}
+
+export interface IntegrationService {
+	id: string;
+	name: string;
+	description: string;
+	icon: string;
+	color: string;
+	category:
+		| 'ai'
+		| 'communication'
+		| 'email'
+		| 'productivity'
+		| 'payments'
+		| 'crm'
+		| 'ecommerce'
+		| 'developer'
+		| 'storage'
+		| 'analytics'
+		| 'deploy'
+		| 'core';
+	configurationRequired: boolean;
+	website?: string;
+	docsUrl?: string;
+	urlPatterns: string[];
+	resources: IntegrationResource[];
+	triggers?: Array<{
+		name: string;
+		value: string;
+		description: string;
+		webhookType: 'incoming' | 'polling';
+	}>;
+}
 
 export const createPlatformApi = (apiConfig: ApiConfig) => {
 	return {

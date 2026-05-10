@@ -6,20 +6,18 @@ import type {
     GetMeParams,
     RequestOptions
 } from '../types/api';
-
-// TODO: type as Account once exported from types/index.ts
-type Account = unknown;
+import type { Account, AccountUpdateResponse } from '../types';
 
 export const createAccountApi = (apiConfig: ApiConfig) => {
     return {
-        async updateAccount(params: UpdateAccountProfileParams, options?: RequestOptions): Promise<Account> {
+        async updateAccount(params: UpdateAccountProfileParams, options?: RequestOptions): Promise<AccountUpdateResponse> {
             const payload: Record<string, unknown> = {};
 
             if (params.phone_numbers !== undefined) payload.phone_numbers = params.phone_numbers;
             if (params.addresses !== undefined) payload.addresses = params.addresses;
             if (params.api_tokens !== undefined) payload.api_tokens = params.api_tokens;
 
-            return apiConfig.httpClient.put<Account>('/v1/accounts', payload, options);
+            return apiConfig.httpClient.put<AccountUpdateResponse>('/v1/accounts', payload, options);
         },
 
         async deleteAccount(_params: DeleteAccountParams, options?: RequestOptions): Promise<{ deleted: boolean }> {

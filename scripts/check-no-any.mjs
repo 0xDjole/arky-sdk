@@ -4,7 +4,7 @@
 // Walks `src/api/*.ts` and fails if it finds:
 //   1. Type annotations using `: any` (outside comments)
 //   2. `as any` assertions (outside comments)
-//   3. Hardcoded market literals like `market: "booking"` or `market: 'eshop'`
+//   3. Hardcoded market literals like `market: "default"` or `market: 'eshop'`
 //      (the SDK should always inject `market: apiConfig.market`)
 //
 // Exit code 1 if any violation is found, 0 otherwise.
