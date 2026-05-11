@@ -160,10 +160,12 @@ export type OrderQuoteCompatibleItemInput =
 
 export interface ProductCheckoutItemInput extends EshopItem {
   type: "product";
+  id?: string;
 }
 
 export interface ServiceCheckoutItemInput {
   type: "service";
+  id?: string;
   service_id: string;
   provider_id: string;
   slots: SlotRange[];
@@ -208,6 +210,69 @@ export interface OrderCheckoutParams {
   forms?: FormEntry[];
   promo_code_id?: string;
   shipping_method_id?: string;
+}
+
+export interface GetCurrentCartParams {
+  store_id?: string;
+  market?: string;
+}
+
+export interface GetCartParams {
+  id: string;
+  store_id?: string;
+  token?: string;
+}
+
+export interface FindCartsParams {
+  store_id?: string;
+  customer_id?: string;
+  statuses?: import("./index").CartStatus[];
+  has_items?: boolean;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface UpdateCartParams {
+  id: string;
+  store_id?: string;
+  market?: string;
+  items?: OrderCheckoutCompatibleItemInput[];
+  shipping_address?: Address;
+  billing_address?: Address;
+  forms?: FormEntry[];
+  promo_code?: string;
+  payment_method_id?: string;
+  shipping_method_id?: string;
+}
+
+export interface AddCartItemParams {
+  id: string;
+  store_id?: string;
+  item: OrderCheckoutCompatibleItemInput;
+}
+
+export interface RemoveCartItemParams {
+  id: string;
+  store_id?: string;
+  item_id?: string;
+  product_id?: string;
+  variant_id?: string;
+}
+
+export interface ClearCartParams {
+  id: string;
+  store_id?: string;
+}
+
+export interface QuoteCartParams {
+  id: string;
+  store_id?: string;
+}
+
+export interface CheckoutCartParams {
+  id: string;
+  store_id?: string;
+  payment_method_id?: string;
 }
 
 export interface GetProductsParams {
@@ -604,16 +669,6 @@ export interface UpdateOrderParams {
   payment?: import('./index').OrderPayment;
 }
 
-
-export interface CreateOrderParams {
-  store_id?: string;
-  market?: string;
-  customer_id: string;
-  forms?: FormEntry[];
-  items: OrderCheckoutCompatibleItemInput[];
-  shipping_address?: Address;
-  billing_address?: Address;
-}
 
 export interface CreateProviderParams {
   store_id?: string;
@@ -1451,6 +1506,7 @@ export interface Customer {
 
 export interface CustomerDetail {
   customer: Customer;
+  carts: import('./index').Cart[];
   orders: import('./index').Order[];
   audience_subscriptions: import('./index').AudienceSubscription[];
   form_submissions: import('./index').FormSubmission[];
@@ -1486,6 +1542,8 @@ export interface FindCustomersParams {
   query?: string | number;
   taxonomy_query?: TaxonomyQuery[];
   status?: CustomerStatus;
+  has_activity?: boolean;
+  has_cart?: boolean;
   limit?: number;
   cursor?: string;
   sort_field?: string;

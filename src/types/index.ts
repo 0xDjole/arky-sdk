@@ -166,6 +166,32 @@ export interface EshopCartItem {
 	max_stock?: number;
 }
 
+export type CartStatus = 'active' | 'abandoned' | 'converted' | 'expired';
+
+export interface Cart {
+	id: string;
+	store_id: string;
+	customer_id: string;
+	token: string;
+	status: CartStatus;
+	market: string;
+	items: import('./api').OrderCheckoutItemInput[];
+	shipping_address?: Address | null;
+	billing_address?: Address | null;
+	forms: FormEntry[];
+	promo_code?: string | null;
+	payment_method_id?: string | null;
+	shipping_method_id?: string | null;
+	quote_snapshot?: OrderQuote | null;
+	converted_order_id?: string | null;
+	item_count: number;
+	last_activity_at: number;
+	abandoned_at?: number | null;
+	recovery_sent_at?: number | null;
+	created_at: number;
+	updated_at: number;
+}
+
 export type IntegrationProvider =
 	| { type: 'stripe'; secret_key?: string; publishable_key: string; webhook_secret?: string; currency: string }
 	| { type: 'shippo'; api_token?: string }
@@ -401,6 +427,7 @@ export interface Order {
 	id: string;
 	number: string;
 	store_id: string;
+	source_cart_id: string;
 	customer_id: string;
 	verified: boolean;
 	items: OrderItem[];
@@ -474,6 +501,10 @@ export type WebhookEventSubscription =
 	| { event: 'order.shipment_failed' }
 	| { event: 'order.shipment_returned' }
 	| { event: 'order.shipment_status_changed' }
+	| { event: 'cart.created' }
+	| { event: 'cart.updated' }
+	| { event: 'cart.abandoned' }
+	| { event: 'cart.converted' }
 	| { event: 'product.created' }
 	| { event: 'product.updated' }
 	| { event: 'product.deleted' }

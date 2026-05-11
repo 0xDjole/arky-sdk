@@ -2,6 +2,8 @@
 export type {
   ApiResponse,
   EshopCartItem,
+  Cart,
+  CartStatus,
   EshopStoreState,
   Store,
   Webhook,
@@ -182,6 +184,15 @@ export type {
   OrderCheckoutItemInput,
   CheckoutItemInput,
   OrderCheckoutCompatibleItemInput,
+  GetCurrentCartParams,
+  GetCartParams,
+  FindCartsParams,
+  UpdateCartParams,
+  AddCartItemParams,
+  RemoveCartItemParams,
+  ClearCartParams,
+  QuoteCartParams,
+  CheckoutCartParams,
   SystemTemplateKey,
   
   GetShippingRatesParams,
@@ -236,7 +247,7 @@ export type {
   IntegrationService,
 } from "./api/platform";
 
-export const SDK_VERSION = "0.7.119";
+export const SDK_VERSION = "0.7.120";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -585,13 +596,15 @@ export function createAdmin(config: CreateAdminConfig) {
         find: eshopApi.getProducts,
       },
       order: {
-        create: eshopApi.createOrder,
         update: eshopApi.updateOrder,
         get: eshopApi.getOrder,
         find: eshopApi.getOrders,
         getQuote: eshopApi.getQuote,
-        checkout: eshopApi.checkoutOrder,
         processRefund: eshopApi.processRefund,
+      },
+      cart: {
+        get: eshopApi.getCart,
+        find: eshopApi.getCarts,
       },
       service: {
         create: eshopApi.createService,

@@ -101,6 +101,8 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
       if (params?.query) queryParams.query = params.query;
       if (params?.taxonomy_query) queryParams.taxonomy_query = params.taxonomy_query;
       if (params?.status) queryParams.status = params.status;
+      if (params?.has_activity !== undefined) queryParams.has_activity = params.has_activity;
+      if (params?.has_cart !== undefined) queryParams.has_cart = params.has_cart;
       if (params?.sort_field) queryParams.sort_field = params.sort_field;
       if (params?.sort_direction) queryParams.sort_direction = params.sort_direction;
 

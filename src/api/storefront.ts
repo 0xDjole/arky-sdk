@@ -11,7 +11,6 @@ import type {
   GetProductParams,
   GetProductsParams,
   GetQuoteParams,
-  OrderCheckoutParams,
   GetOrderParams,
   GetOrdersParams,
   GetAvailabilityParams,
@@ -25,6 +24,14 @@ import type {
   GetAudiencesParams,
   SubscribeAudienceParams,
   GetAgentsParams,
+  GetCurrentCartParams,
+  GetCartParams,
+  UpdateCartParams,
+  AddCartItemParams,
+  RemoveCartItemParams,
+  ClearCartParams,
+  QuoteCartParams,
+  CheckoutCartParams,
 } from "../types/api";
 import type {
   Node,
@@ -48,6 +55,7 @@ import type {
   AgentChatMessage,
   Customer,
   CustomerDetail,
+  Cart,
   PaginatedResponse,
 } from "../types";
 import {
@@ -311,6 +319,95 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession:
         },
       },
 
+      cart: {
+        current(params: GetCurrentCartParams = {}, options?: RequestOptions): Promise<Cart> {
+          const store_id = params.store_id || apiConfig.storeId;
+          const { store_id: _store_id, ...payload } = params;
+          return apiConfig.httpClient.post<Cart>(
+            `${base(store_id)}/carts/current`,
+            { ...payload, store_id, market: payload.market || apiConfig.market },
+            options,
+          );
+        },
+
+        get(params: GetCartParams, options?: RequestOptions): Promise<Cart> {
+          const store_id = params.store_id || apiConfig.storeId;
+          return apiConfig.httpClient.get<Cart>(`${base(store_id)}/carts/${params.id}`, {
+            ...options,
+            params: params.token ? { token: params.token } : options?.params,
+          });
+        },
+
+        update(params: UpdateCartParams, options?: RequestOptions): Promise<Cart> {
+          const { store_id, items, ...payload } = params;
+          const target = store_id || apiConfig.storeId;
+          return apiConfig.httpClient.put<Cart>(
+            `${base(target)}/carts/${params.id}`,
+            {
+              ...payload,
+              store_id: target,
+              ...(items ? { items: normalizeOrderCheckoutItems(items) } : {}),
+            },
+            options,
+          );
+        },
+
+        addItem(params: AddCartItemParams, options?: RequestOptions): Promise<Cart> {
+          const { store_id, item, ...payload } = params;
+          const target = store_id || apiConfig.storeId;
+          return apiConfig.httpClient.post<Cart>(
+            `${base(target)}/carts/${params.id}/items`,
+            {
+              ...payload,
+              store_id: target,
+              item: normalizeOrderCheckoutItems([item])[0],
+            },
+            options,
+          );
+        },
+
+        removeItem(params: RemoveCartItemParams, options?: RequestOptions): Promise<Cart> {
+          const { store_id, ...payload } = params;
+          const target = store_id || apiConfig.storeId;
+          return apiConfig.httpClient.post<Cart>(
+            `${base(target)}/carts/${params.id}/items/remove`,
+            { ...payload, store_id: target },
+            options,
+          );
+        },
+
+        clear(params: ClearCartParams, options?: RequestOptions): Promise<Cart> {
+          const store_id = params.store_id || apiConfig.storeId;
+          return apiConfig.httpClient.post<Cart>(
+            `${base(store_id)}/carts/${params.id}/clear`,
+            { id: params.id, store_id },
+            options,
+          );
+        },
+
+        quote(params: QuoteCartParams, options?: RequestOptions): Promise<OrderQuote> {
+          const store_id = params.store_id || apiConfig.storeId;
+          return apiConfig.httpClient.post<OrderQuote>(
+            `${base(store_id)}/carts/${params.id}/quote`,
+            { id: params.id, store_id },
+            options,
+          );
+        },
+
+        checkout(params: CheckoutCartParams, options?: RequestOptions): Promise<OrderCheckoutResult> {
+          const store_id = params.store_id || apiConfig.storeId;
+          return apiConfig.httpClient.post<OrderCheckoutResult>(
+            `${base(store_id)}/carts/${params.id}/checkout`,
+            {
+              id: params.id,
+              store_id,
+              payment_method_id: params.payment_method_id,
+            },
+            options,
+          );
+        },
+      },
+
       order: {
         getQuote(params: GetQuoteParams & { store_id?: string }, options?: RequestOptions): Promise<OrderQuote> {
           const store_id = params.store_id || apiConfig.storeId;
@@ -333,21 +430,6 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession:
               ...rest,
               items: normalizeOrderQuoteItems(items),
               shipping_address,
-              market: market || apiConfig.market,
-            },
-            options,
-          );
-        },
-
-        checkout(params: OrderCheckoutParams & { store_id?: string }, options?: RequestOptions): Promise<OrderCheckoutResult> {
-          const { store_id, items, market, ...rest } = params;
-          const target = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.post<OrderCheckoutResult>(
-            `${base(target)}/orders/checkout`,
-            {
-              ...rest,
-              items: normalizeOrderCheckoutItems(items),
-              store_id: target,
               market: market || apiConfig.market,
             },
             options,

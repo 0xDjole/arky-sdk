@@ -17,8 +17,8 @@ import type {
   GetQuoteParams,
   GetAvailabilityParams,
   AvailabilityResponse,
-  CreateOrderParams,
-  OrderCheckoutParams,
+  FindCartsParams,
+  GetCartParams,
   GetServiceParams,
   GetServicesParams,
   UpdateOrderParams,
@@ -37,7 +37,7 @@ import type {
   Service,
   ServiceProvider,
   OrderQuote,
-  OrderCheckoutResult,
+  Cart,
   PaginatedResponse,
 } from "../types";
 import {
@@ -320,42 +320,6 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async createOrder(params: CreateOrderParams, options?: RequestOptions): Promise<Order> {
-      const { store_id, items, ...rest } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-      const payload = {
-        ...rest,
-        market: rest.market || apiConfig.market,
-        items: normalizeOrderCheckoutItems(items),
-      };
-
-      return apiConfig.httpClient.post<Order>(
-        `/v1/stores/${target_store_id}/orders`,
-        payload,
-        options,
-      );
-    },
-
-    async checkoutOrder(
-      params: OrderCheckoutParams,
-      options?: RequestOptions,
-    ): Promise<OrderCheckoutResult> {
-      const { store_id, items, ...rest } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-      const payload = {
-        ...rest,
-        store_id: target_store_id,
-        market: rest.market || apiConfig.market,
-        items: normalizeOrderCheckoutItems(items),
-      };
-
-      return apiConfig.httpClient.post<OrderCheckoutResult>(
-        `/v1/stores/${target_store_id}/orders/checkout`,
-        payload,
-        options,
-      );
-    },
-
     async updateOrder(params: UpdateOrderParams, options?: RequestOptions): Promise<Order> {
       const { store_id, items, ...rest } = params;
       const target_store_id = store_id || apiConfig.storeId;
@@ -389,6 +353,26 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
           ...options,
           params: queryParams,
         },
+      );
+    },
+
+    async getCarts(params: FindCartsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Cart>> {
+      const { store_id, ...queryParams } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<PaginatedResponse<Cart>>(
+        `/v1/stores/${target_store_id}/carts`,
+        {
+          ...options,
+          params: queryParams,
+        },
+      );
+    },
+
+    async getCart(params: GetCartParams, options?: RequestOptions): Promise<Cart> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<Cart>(
+        `/v1/stores/${target_store_id}/carts/${params.id}`,
+        options,
       );
     },
 

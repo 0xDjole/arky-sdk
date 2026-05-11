@@ -76,19 +76,21 @@ const formatted = arky.utils.formatPrice(product.variants[0].prices); // "$29.99
 ### 3. Shop & Checkout
 
 ```typescript
-// Add to cart and checkout (like arky.io/cart)
-const order = await arky.eshop.checkout({
-  items: [{
-    productId: 'prod_123',
-    variantId: 'var_456',
-    quantity: 2
-  }],
-  paymentMethod: 'CREDIT_CARD',
-  shippingMethodId: 'standard',
-  blocks: [  // Customer info
-    { key: 'email', values: ['customer@example.com'] },
-    { key: 'shipping_address', values: ['123 Main St'] }
-  ]
+const cart = await arky.eshop.cart.current();
+
+await arky.eshop.cart.addItem({
+  id: cart.id,
+  item: {
+    type: 'product',
+    product_id: 'prod_123',
+    variant_id: 'var_456',
+    quantity: 2,
+  },
+});
+
+const order = await arky.eshop.cart.checkout({
+  id: cart.id,
+  payment_method_id: 'credit_card',
 });
 ```
 
@@ -106,10 +108,12 @@ const availability = await arky.eshop.service.getAvailability({
   to: Math.floor(Date.now() / 1000) + 86400,
 });
 
-// Create an order with a service line
-const order = await arky.eshop.order.checkout({
+const cart = await arky.eshop.cart.current();
+
+await arky.eshop.cart.update({
+  id: cart.id,
   items: [{
-    type: 'service',
+    type: 'booking',
     service_id: 'service_haircut',
     provider_id: 'provider_jane',
     slots: [{
@@ -117,8 +121,12 @@ const order = await arky.eshop.order.checkout({
       to: availability.available_slots[0].to,
     }],
   }],
-  payment_method: 'cash',
   forms: [],
+});
+
+const order = await arky.eshop.cart.checkout({
+  id: cart.id,
+  payment_method_id: 'cash',
 });
 ```
 
@@ -215,8 +223,10 @@ await arky.eshop.getProducts({ limit: 20, cursor: null })
 await arky.eshop.getProduct({ id })
 await arky.eshop.updateProduct({ id, name })
 
-// Orders
-await arky.eshop.checkout({ items, paymentMethod, shippingMethodId })
+// Carts and orders
+const cart = await arky.eshop.cart.current()
+await arky.eshop.cart.update({ id: cart.id, items, shipping_method_id })
+await arky.eshop.cart.checkout({ id: cart.id, payment_method_id })
 await arky.eshop.getOrders({})
 await arky.eshop.getOrder({ id })
 await arky.eshop.updateOrderStatus({ id, status: 'SHIPPED' })
@@ -240,9 +250,9 @@ await arky.eshop.service.getAvailability({ service_id, provider_id, from, to })
 await arky.eshop.provider.create({ name })
 await arky.eshop.provider.find({})
 
-// Service orders
+// Service cart checkout
 await arky.eshop.order.getQuote({ items, payment_method })
-await arky.eshop.order.checkout({ items, payment_method })
+await arky.eshop.cart.checkout({ id: cart.id, payment_method_id })
 await arky.eshop.order.find({})
 ```
 
