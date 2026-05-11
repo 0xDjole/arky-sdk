@@ -167,6 +167,7 @@ export interface EshopCartItem {
 }
 
 export type CartStatus = 'active' | 'abandoned' | 'converted' | 'expired';
+export type CartOrigin = 'storefront' | 'admin';
 
 export interface Cart {
 	id: string;
@@ -174,6 +175,8 @@ export interface Cart {
 	customer_id: string;
 	token: string;
 	status: CartStatus;
+	origin: CartOrigin;
+	created_by_account_id?: string | null;
 	market: string;
 	items: import('./api').OrderCheckoutItemInput[];
 	shipping_address?: Address | null;

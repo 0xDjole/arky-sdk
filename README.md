@@ -94,6 +94,38 @@ const order = await arky.eshop.cart.checkout({
 });
 ```
 
+### Framework-agnostic Cart Controller
+
+For storefront UI state, use the headless cart controller instead of wiring cart API calls directly into a framework store:
+
+```typescript
+const storefront = createStorefront({
+  baseUrl: 'https://api.arky.io',
+  storeId: 'your-store-id',
+  market: 'us',
+})
+
+const unsubscribe = storefront.cart.subscribe((state) => {
+  console.log(state.cart, state.quote, state.loading, state.error)
+})
+
+await storefront.cart.init()
+await storefront.cart.addItem({
+  item: {
+    type: 'product',
+    product_id: 'prod_123',
+    variant_id: 'var_456',
+    quantity: 1,
+  },
+})
+await storefront.cart.quote()
+await storefront.cart.checkout({ payment_method_id: 'credit_card' })
+
+unsubscribe()
+```
+
+The controller exposes `subscribe`, `getState`, `init`, `refresh`, `addItem`, `update`, `removeItem`, `clear`, `quote`, and `checkout`. It is framework-agnostic and uses the existing storefront cart API methods under the hood.
+
 ### 4. Sell Scheduled Services
 
 ```typescript

@@ -3,6 +3,7 @@ export type {
   ApiResponse,
   EshopCartItem,
   Cart,
+  CartOrigin,
   CartStatus,
   EshopStoreState,
   Store,
@@ -239,6 +240,21 @@ export type {
   CommonActivityType,
 } from "./api/storefront";
 export { COMMON_ACTIVITY_TYPES } from "./api/storefront";
+export {
+  createCartController,
+  type CartApi,
+  type CartController,
+  type CartControllerAddItemParams,
+  type CartControllerCheckoutParams,
+  type CartControllerClearParams,
+  type CartControllerInitParams,
+  type CartControllerListener,
+  type CartControllerQuoteParams,
+  type CartControllerRefreshParams,
+  type CartControllerRemoveItemParams,
+  type CartControllerState,
+  type CartControllerUpdateParams,
+} from "./cartController";
 
 export type { TimelineParams } from "./api/crm";
 export type {
@@ -327,6 +343,7 @@ import { createFormApi } from "./api/form";
 import { createTaxonomyApi } from "./api/taxonomy";
 import { createAnalyticsApi } from "./api/analytics";
 import { createStorefrontApi } from "./api/storefront";
+import { createCartController } from "./cartController";
 import {
   getImageUrl,
   getBlockValue,
@@ -603,8 +620,15 @@ export function createAdmin(config: CreateAdminConfig) {
         processRefund: eshopApi.processRefund,
       },
       cart: {
+        create: eshopApi.createCart,
+        update: eshopApi.updateCart,
         get: eshopApi.getCart,
         find: eshopApi.getCarts,
+        addItem: eshopApi.addCartItem,
+        removeItem: eshopApi.removeCartItem,
+        clear: eshopApi.clearCart,
+        quote: eshopApi.quoteCart,
+        checkout: eshopApi.checkoutCart,
       },
       service: {
         create: eshopApi.createService,
@@ -921,6 +945,7 @@ export function createStorefront(config: CreateStorefrontConfig) {
     },
 
     store: storefrontApi.store,
+    cart: createCartController(storefrontApi.eshop.cart),
     cms: storefrontApi.cms,
     eshop: storefrontApi.eshop,
     crm: storefrontApi.crm,

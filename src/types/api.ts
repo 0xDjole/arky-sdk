@@ -227,9 +227,23 @@ export interface FindCartsParams {
   store_id?: string;
   customer_id?: string;
   statuses?: import("./index").CartStatus[];
+  origins?: import("./index").CartOrigin[];
   has_items?: boolean;
   limit?: number;
   cursor?: string;
+}
+
+export interface CreateCartParams {
+  store_id?: string;
+  customer_id: string;
+  market: string;
+  items?: OrderCheckoutCompatibleItemInput[];
+  shipping_address?: Address | null;
+  billing_address?: Address | null;
+  forms?: FormEntry[];
+  promo_code?: string | null;
+  payment_method_id?: string | null;
+  shipping_method_id?: string | null;
 }
 
 export interface UpdateCartParams {

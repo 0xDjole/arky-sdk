@@ -17,6 +17,10 @@ import type {
   GetQuoteParams,
   GetAvailabilityParams,
   AvailabilityResponse,
+  AddCartItemParams,
+  CheckoutCartParams,
+  ClearCartParams,
+  CreateCartParams,
   FindCartsParams,
   GetCartParams,
   GetServiceParams,
@@ -28,7 +32,10 @@ import type {
   GetOrderParams,
   GetOrdersParams,
   ProcessOrderRefundParams,
+  QuoteCartParams,
+  RemoveCartItemParams,
   RequestOptions,
+  UpdateCartParams,
 } from "../types/api";
 import type {
   Order,
@@ -372,6 +379,80 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const target_store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<Cart>(
         `/v1/stores/${target_store_id}/carts/${params.id}`,
+        options,
+      );
+    },
+
+    async createCart(params: CreateCartParams, options?: RequestOptions): Promise<Cart> {
+      const { store_id, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<Cart>(
+        `/v1/stores/${target_store_id}/carts`,
+        {
+          ...payload,
+          items: normalizeOrderCheckoutItems(payload.items || []),
+        },
+        options,
+      );
+    },
+
+    async updateCart(params: UpdateCartParams, options?: RequestOptions): Promise<Cart> {
+      const { id, store_id, items, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.put<Cart>(
+        `/v1/stores/${target_store_id}/carts/${id}`,
+        {
+          ...payload,
+          ...(items ? { items: normalizeOrderCheckoutItems(items) } : {}),
+        },
+        options,
+      );
+    },
+
+    async addCartItem(params: AddCartItemParams, options?: RequestOptions): Promise<Cart> {
+      const { id, store_id, item } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<Cart>(
+        `/v1/stores/${target_store_id}/carts/${id}/items`,
+        { item: normalizeOrderCheckoutItems([item])[0] },
+        options,
+      );
+    },
+
+    async removeCartItem(params: RemoveCartItemParams, options?: RequestOptions): Promise<Cart> {
+      const { id, store_id, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<Cart>(
+        `/v1/stores/${target_store_id}/carts/${id}/items/remove`,
+        payload,
+        options,
+      );
+    },
+
+    async clearCart(params: ClearCartParams, options?: RequestOptions): Promise<Cart> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<Cart>(
+        `/v1/stores/${target_store_id}/carts/${params.id}/clear`,
+        {},
+        options,
+      );
+    },
+
+    async quoteCart(params: QuoteCartParams, options?: RequestOptions): Promise<OrderQuote> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<OrderQuote>(
+        `/v1/stores/${target_store_id}/carts/${params.id}/quote`,
+        {},
+        options,
+      );
+    },
+
+    async checkoutCart(params: CheckoutCartParams, options?: RequestOptions): Promise<import("../types").OrderCheckoutResult> {
+      const { id, store_id, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<import("../types").OrderCheckoutResult>(
+        `/v1/stores/${target_store_id}/carts/${id}/checkout`,
+        payload,
         options,
       );
     },

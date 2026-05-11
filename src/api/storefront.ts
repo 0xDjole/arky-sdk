@@ -10,7 +10,6 @@ import type {
   GetTaxonomyChildrenParams,
   GetProductParams,
   GetProductsParams,
-  GetQuoteParams,
   GetOrderParams,
   GetOrdersParams,
   GetAvailabilityParams,
@@ -63,10 +62,7 @@ import {
   getBlockObjectValues,
   getImageUrl,
 } from "../utils/blocks";
-import {
-  normalizeOrderCheckoutItems,
-  normalizeOrderQuoteItems,
-} from "../utils/orderItems";
+import { normalizeOrderCheckoutItems } from "../utils/orderItems";
 
 export type CustomerToken = {
   id: string;
@@ -409,33 +405,6 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession:
       },
 
       order: {
-        getQuote(params: GetQuoteParams & { store_id?: string }, options?: RequestOptions): Promise<OrderQuote> {
-          const store_id = params.store_id || apiConfig.storeId;
-          const { location, store_id: _store_id, items, market, ...rest } = params;
-          const shipping_address = location
-            ? {
-                country: location.country || "",
-                state: location.state || "",
-                city: location.city || "",
-                postal_code: location.postal_code || "",
-                name: "",
-                street1: "",
-                street2: null,
-              }
-            : rest.shipping_address;
-
-          return apiConfig.httpClient.post<OrderQuote>(
-            `${base(store_id)}/orders/quote`,
-            {
-              ...rest,
-              items: normalizeOrderQuoteItems(items),
-              shipping_address,
-              market: market || apiConfig.market,
-            },
-            options,
-          );
-        },
-
         get(params: GetOrderParams, options?: RequestOptions): Promise<Order> {
           const store_id = params.store_id || apiConfig.storeId;
           return apiConfig.httpClient.get<Order>(
