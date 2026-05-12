@@ -1,6 +1,6 @@
 {
   "name": "arky-sdk",
-  "version": "0.7.122",
+  "version": "0.7.132",
   "description": "Official TypeScript SDK for Arky - All-in-one store platform",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -22,6 +22,11 @@
       "import": "./dist/storefront.js",
       "require": "./dist/storefront.cjs"
     },
+    "./storefront-store": {
+      "types": "./dist/storefront-store.d.ts",
+      "import": "./dist/storefront-store.js",
+      "require": "./dist/storefront-store.cjs"
+    },
     "./utils": {
       "types": "./dist/utils.d.ts",
       "import": "./dist/utils.js",
@@ -35,11 +40,13 @@
   },
   "files": [
     "dist",
+    "scripts/smoke-store.mjs",
     "README.md"
   ],
   "scripts": {
     "prebuild": "node scripts/check-no-any.mjs",
     "build": "tsup",
+    "test": "npm run build && node scripts/smoke-store.mjs",
     "dev": "tsup --watch",
     "clean": "rm -rf dist"
   },
@@ -62,5 +69,8 @@
   "devDependencies": {
     "tsup": "^8.5.0",
     "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "nanostores": "^1.3.0"
   }
 }

@@ -10,8 +10,7 @@ export function normalizeOrderQuoteItems(
 ): OrderQuoteItemInput[] {
   return items.map((item) => {
     if ("type" in item) {
-      const type = (item as { type?: string }).type;
-      return type === "booking" ? ({ ...item, type: "service" } as OrderQuoteItemInput) : item;
+      return item;
     }
 
     if ("product_id" in item) {
@@ -27,8 +26,7 @@ export function normalizeOrderCheckoutItems(
 ): OrderCheckoutItemInput[] {
   return items.map((item) => {
     if ("type" in item) {
-      const type = (item as { type?: string }).type;
-      return type === "booking" ? ({ ...item, type: "service" } as OrderCheckoutItemInput) : item;
+      return item;
     }
 
     if ("product_id" in item) {

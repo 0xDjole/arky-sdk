@@ -1,0 +1,1595 @@
+import { atom, computed, map } from "nanostores";
+import { createStorefront, type CreateStorefrontConfig, type CustomerSession } from "./index";
+import type {
+  Address,
+  Block,
+  Cart,
+  EshopCartItem,
+  Form,
+  FormEntry,
+  FormField,
+  FormSchema,
+  FormSubmission,
+  Market,
+  Node,
+  OrderCheckoutResult,
+  OrderQuote,
+  PaginatedResponse,
+  PaymentMethod,
+  Price,
+  Product,
+  ProductVariant,
+  Provider,
+  Service,
+  ServiceProvider,
+  Store,
+  ZoneLocation,
+} from "./types";
+import type {
+  AvailabilityResponse,
+  CheckoutItemInput,
+  FindServiceProvidersParams,
+  GetAvailabilityParams,
+  GetNodeChildrenParams,
+  GetNodeParams,
+  GetNodesParams,
+  GetProductParams,
+  GetProductsParams,
+  GetProviderParams,
+  GetProvidersParams,
+  GetServiceParams,
+  GetServicesParams,
+  ProductCheckoutItemInput,
+  RequestOptions,
+  ServiceCheckoutItemInput,
+  SlotRange,
+  SubmitFormParams,
+} from "./types/api";
+import type { Activity, TrackParams } from "./api/storefront";
+
+type ArkyStoreClient = ReturnType<typeof createStorefront>;
+
+export interface ArkyStoreConfig extends CreateStorefrontConfig {
+  onCartChange?: (snapshot: ArkyCartSnapshot) => void;
+}
+
+export interface ArkyServiceCartItem {
+  id: string;
+  service_id: string;
+  provider_id: string;
+  from: number;
+  to: number;
+  forms?: FormEntry[];
+  price?: Price;
+  service_name?: string;
+  provider_name?: string;
+  date_text?: string;
+  time_text?: string;
+  is_multi_day?: boolean;
+}
+
+export interface ArkyCartSnapshot {
+  cart: Cart | null;
+  product_items: EshopCartItem[];
+  service_items: ArkyServiceCartItem[];
+  item_count: number;
+}
+
+export interface ArkyCartStatus {
+  loading: boolean;
+  syncing: boolean;
+  fetching_quote: boolean;
+  processing_checkout: boolean;
+  error: string | null;
+  quote_error: string | null;
+  selected_shipping_method_id: string | null;
+  user_token: string | null;
+}
+
+export interface ArkyLastOrder {
+  order_id: string;
+  number: string;
+  client_secret: string | null;
+  payment: OrderCheckoutResult["payment"];
+  product_items?: EshopCartItem[];
+  service_items?: ArkyServiceCartItem[];
+  shipping_address?: Address | null;
+  billing_address?: Address | null;
+  total?: number;
+  currency?: string | null;
+  payment_method_id?: string | null;
+  created_at: number;
+}
+
+export interface ArkyCartInput {
+  product_items?: EshopCartItem[];
+  service_items?: ArkyServiceCartItem[];
+  shipping_address?: Address | null;
+  billing_address?: Address | null;
+  forms?: FormEntry[] | Block[];
+  promo_code?: string | null;
+  payment_method_id?: string | null;
+  shipping_method_id?: string | null;
+}
+
+export interface ArkyCmsState {
+  website_node: Node | null;
+  nodes: Record<string, Node>;
+  forms: Record<string, Form>;
+  loading: boolean;
+  error: string | null;
+}
+
+export interface ArkyEshopState {
+  products: Product[];
+  services: Service[];
+  providers: Provider[];
+  product_cursor: string | null;
+  service_cursor: string | null;
+  provider_cursor: string | null;
+  availability: unknown | null;
+  loading_products: boolean;
+  loading_services: boolean;
+  loading_providers: boolean;
+  loading_availability: boolean;
+  error: string | null;
+}
+
+export interface ArkyCalendarDay {
+  date: Date;
+  iso: string;
+  available: boolean;
+  isSelected: boolean;
+  isInRange: boolean;
+  isToday: boolean;
+  blank: boolean;
+}
+
+export interface ArkyServiceOrderSlot {
+  id: string;
+  serviceId: string;
+  providerId: string;
+  from: number;
+  to: number;
+  timeText: string;
+  dateText: string;
+  isMultiDay?: boolean;
+  serviceName?: string;
+  date?: string;
+  serviceBlocks?: Block[];
+}
+
+export interface ArkyServiceOrderState {
+  service: Service | null;
+  availability: AvailabilityResponse | null;
+  providers: Provider[];
+  selectedProviderId: string | null;
+  currentMonth: Date;
+  calendar: ArkyCalendarDay[];
+  selectedDate: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  slots: ArkyServiceOrderSlot[];
+  selectedSlot: ArkyServiceOrderSlot | null;
+  cart: ArkyServiceOrderSlot[];
+  timezone: string;
+  tzGroups: Record<string, { zone: string; name: string }[]>;
+  loading: boolean;
+  weekdays: string[];
+  quote: OrderQuote | null;
+  fetchingQuote: boolean;
+  quoteError: string | null;
+  currency: string | null;
+  dateTimeConfirmed: boolean;
+  isMultiDay: boolean;
+  availablePaymentMethods: PaymentMethod[];
+  cartId: string | null;
+  promoCode: string | null;
+}
+
+function readErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "string" && error.length > 0) return error;
+  return fallback;
+}
+
+function createId(prefix: string): string {
+  const cryptoValue = globalThis.crypto;
+  if (cryptoValue && "randomUUID" in cryptoValue) return cryptoValue.randomUUID();
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
+function firstLocalized(value: unknown, locale: string): string {
+  if (typeof value === "string") return value;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const record = value as Record<string, unknown>;
+  const localeValue = record[locale];
+  if (typeof localeValue === "string") return localeValue;
+  const englishValue = record.en;
+  if (typeof englishValue === "string") return englishValue;
+  for (const entry of Object.values(record)) {
+    if (typeof entry === "string") return entry;
+  }
+  return "";
+}
+
+function findBlock(blocks: Block[] | undefined, keys: string[]): Block | null {
+  return (blocks || []).find((block) => keys.includes(block.key)) || null;
+}
+
+function blockText(blocks: Block[] | undefined, keys: string[], locale: string): string {
+  const block = findBlock(blocks, keys);
+  if (!block) return "";
+  return firstLocalized(block.value, locale);
+}
+
+function productName(product: Product, locale: string): string {
+  return blockText(product.blocks, ["name", "title"], locale) || product.key || product.id;
+}
+
+function serviceName(service: Service, locale: string): string {
+  return blockText(service.blocks, ["name", "title"], locale) || service.key || service.id;
+}
+
+function providerName(provider: Provider, locale: string): string {
+  return blockText(provider.blocks, ["name", "title"], locale) || provider.key || provider.id;
+}
+
+function entitySlug(entity: { id: string; slug?: Record<string, string> }, locale: string): string {
+  return entity.slug?.[locale] || entity.slug?.en || Object.values(entity.slug || {})[0] || entity.id;
+}
+
+function priceForMarket(prices: Price[], market: string, fallbackCurrency?: string | null): Price {
+  const price = prices.find((candidate) => candidate.market === market) || prices[0];
+  return {
+    amount: price?.amount || 0,
+    market: price?.market || market,
+    currency: price?.currency || fallbackCurrency || "",
+    compare_at: price?.compare_at,
+    audience_id: price?.audience_id,
+  };
+}
+
+function availableStock(client: ArkyStoreClient, variant: ProductVariant): number | undefined {
+  const fromUtility = client.utils.getAvailableStock(variant);
+  if (Number.isFinite(fromUtility)) return fromUtility;
+  const stock = (variant.inventory || []).reduce((total, row) => total + (row.available || 0), 0);
+  return stock > 0 ? stock : undefined;
+}
+
+function locationToAddress(location: ZoneLocation): Address {
+  return {
+    country: location.country || "",
+    state: location.state || "",
+    city: location.city || "",
+    postal_code: location.postal_code || "",
+    name: "",
+    street1: "",
+    street2: null,
+  };
+}
+
+function normalizeForms(forms: FormEntry[] | Block[] | undefined): FormEntry[] | undefined {
+  return forms as FormEntry[] | undefined;
+}
+
+function toProductCheckoutItems(items: EshopCartItem[]): ProductCheckoutItemInput[] {
+  return items.map((item) => ({
+    type: "product",
+    id: item.id,
+    product_id: item.product_id,
+    variant_id: item.variant_id,
+    quantity: item.quantity,
+  }));
+}
+
+function toServiceCheckoutItems(items: ArkyServiceCartItem[]): ServiceCheckoutItemInput[] {
+  const groups = new Map<string, ServiceCheckoutItemInput>();
+  for (const item of items) {
+    const key = `${item.service_id}:${item.provider_id}`;
+    const slot: SlotRange = { from: item.from, to: item.to };
+    const existing = groups.get(key);
+    if (existing) {
+      existing.slots.push(slot);
+      continue;
+    }
+    groups.set(key, {
+      type: "service",
+      id: item.id,
+      service_id: item.service_id,
+      provider_id: item.provider_id,
+      slots: [slot],
+      forms: item.forms || [],
+      price: item.price,
+    });
+  }
+  return [...groups.values()].map((item) => ({
+    ...item,
+    slots: [...item.slots].sort((a, b) => a.from - b.from),
+  }));
+}
+
+function formFieldsFromBlocks(blocks: Block[]): FormField[] {
+  return blocks.map((block) => ({
+    id: block.id,
+    key: block.key,
+    type: block.type as FormField["type"],
+    value: block.value,
+  }));
+}
+
+function getFormBlockType(field: FormSchema): string {
+  if (field.key === "email") return "email";
+  if (field.key === "phone") return "phone";
+  if (field.type === "geo_location") return "address";
+  return field.type;
+}
+
+function getFormBlockValue(field: FormSchema): unknown {
+  if (field.type === "boolean") return false;
+  if (field.type === "number") return field.min ?? 0;
+  if (field.type === "geo_location") return {};
+  return "";
+}
+
+function formSchemaToBlock(field: FormSchema): Block {
+  return {
+    id: field.id,
+    key: field.key,
+    type: getFormBlockType(field),
+    properties: {
+      isRequired: field.required,
+      minValues: field.required ? 1 : 0,
+      min: field.min,
+      max: field.max,
+      options: field.options,
+      pattern: field.key === "email" ? "^.+@.+\\..+$" : field.key === "phone" ? "^.{6,20}$" : undefined,
+    },
+    value: getFormBlockValue(field),
+  };
+}
+
+function formatServiceOrderTime(ts: number, tz: string): string {
+  return new Date(ts * 1000).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: tz,
+  });
+}
+
+function formatServiceOrderSlotTime(from: number, to: number, tz: string): string {
+  return `${formatServiceOrderTime(from, tz)} - ${formatServiceOrderTime(to, tz)}`;
+}
+
+function getSlotsForDate(
+  availability: AvailabilityResponse | null,
+  dateStr: string,
+  providerId?: string | null,
+): { from: number; to: number; providerId: string }[] {
+  if (!availability) return [];
+  const slots: { from: number; to: number; providerId: string }[] = [];
+  for (const provider of availability.providers) {
+    if (providerId && provider.provider_id !== providerId) continue;
+    const day = provider.days.find((candidate) => candidate.date === dateStr);
+    if (!day) continue;
+    for (const slot of day.slots) {
+      if (slot.spots > 0) slots.push({ from: slot.from, to: slot.to, providerId: provider.provider_id });
+    }
+  }
+  return slots.sort((a, b) => a.from - b.from);
+}
+
+function hasAvailableSlotsForDate(
+  availability: AvailabilityResponse | null,
+  dateStr: string,
+  providerId?: string | null,
+): boolean {
+  if (!availability) return false;
+  return availability.providers.some((provider) => {
+    if (providerId && provider.provider_id !== providerId) return false;
+    const day = provider.days.find((candidate) => candidate.date === dateStr);
+    return !!day?.slots.some((slot) => slot.spots > 0);
+  });
+}
+
+const SERVICE_ORDER_WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function createServiceOrderInitialState(): ArkyServiceOrderState {
+  return {
+    service: null,
+    availability: null,
+    providers: [],
+    selectedProviderId: null,
+    currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    calendar: [],
+    selectedDate: null,
+    startDate: null,
+    endDate: null,
+    slots: [],
+    selectedSlot: null,
+    cart: [],
+    timezone: typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC",
+    tzGroups: {},
+    loading: false,
+    weekdays: SERVICE_ORDER_WEEKDAYS,
+    quote: null,
+    fetchingQuote: false,
+    quoteError: null,
+    currency: null,
+    dateTimeConfirmed: false,
+    isMultiDay: false,
+    availablePaymentMethods: [],
+    cartId: null,
+    promoCode: null,
+  };
+}
+
+function normalizeTimezoneGroups(
+  groups: { label: string; zones: { label: string; value: string }[] }[],
+): Record<string, { zone: string; name: string }[]> {
+  const normalized: Record<string, { zone: string; name: string }[]> = {};
+  for (const group of groups) {
+    normalized[group.label] = group.zones.map((zone) => ({
+      zone: zone.value,
+      name: zone.label,
+    }));
+  }
+  return normalized;
+}
+
+export function createArkyStore(config: ArkyStoreConfig) {
+  const client = createStorefront(config);
+  const session = atom<CustomerSession | null>(client.session);
+  const locale = atom(config.locale || client.getLocale());
+  const market_key = atom(config.market || client.getMarket());
+  const market = computed(session, (value) => value?.market || null);
+  const currency = computed(market, (value) => value?.currency || null);
+  const allowed_payment_methods = computed(market, (value) => value?.payment_methods || []);
+  const payment_config = computed(session, (value) => {
+    const store = value?.store as Store & { payment?: unknown };
+    const methods = value?.market?.payment_methods || [];
+    const hasCreditCard = methods.some((method: PaymentMethod) => method.id === "credit_card");
+    return { provider: store?.payment || null, enabled: hasCreditCard && !!store?.payment };
+  });
+
+  const cart = atom<Cart | null>(null);
+  const product_items = atom<EshopCartItem[]>([]);
+  const service_items = atom<ArkyServiceCartItem[]>([]);
+  const quote = atom<OrderQuote | null>(null);
+  const promo_code = atom<string | null>(null);
+  const last_order = atom<ArkyLastOrder | null>(null);
+  const cart_status = map<ArkyCartStatus>({
+    loading: false,
+    syncing: false,
+    fetching_quote: false,
+    processing_checkout: false,
+    error: null,
+    quote_error: null,
+    selected_shipping_method_id: null,
+    user_token: null,
+  });
+
+  const product_item_count = computed(product_items, (items) =>
+    items.reduce((total, item) => total + (item.quantity || 0), 0),
+  );
+  const service_item_count = computed(service_items, (items) => items.length);
+  const item_count = computed([product_item_count, service_item_count], (products, services) => products + services);
+  const snapshot = computed([cart, product_items, service_items, item_count], (cartValue, products, services, count) => ({
+    cart: cartValue,
+    product_items: products,
+    service_items: services,
+    item_count: count,
+  }));
+
+  const cms_state = map<ArkyCmsState>({
+    website_node: null,
+    nodes: {},
+    forms: {},
+    loading: false,
+    error: null,
+  });
+  const eshop_state = map<ArkyEshopState>({
+    products: [],
+    services: [],
+    providers: [],
+    product_cursor: null,
+    service_cursor: null,
+    provider_cursor: null,
+    availability: null,
+    loading_products: false,
+    loading_services: false,
+    loading_providers: false,
+    loading_availability: false,
+    error: null,
+  });
+  const service_order_state = map<ArkyServiceOrderState>(createServiceOrderInitialState());
+  const service_order_form_node = atom<{ blocks: Block[] } | null>(null);
+  const service_order_form_blocks = computed(service_order_form_node, (node) => node?.blocks || []);
+
+  client.onAuthStateChanged((value) => session.set(value));
+  snapshot.subscribe((value) => config.onCartChange?.(value));
+  currency.subscribe((value) => service_order_state.setKey("currency", value));
+  session.subscribe((value) => {
+    const methods = value?.market?.payment_methods || [];
+    if (methods.length && service_order_state.get().availablePaymentMethods.length === 0) {
+      service_order_state.setKey("availablePaymentMethods", methods);
+    }
+  });
+
+  function currentMarketKey(): string {
+    return market_key.get() || client.getMarket() || market.get()?.key || "";
+  }
+
+  function currentLocale(): string {
+    return locale.get() || client.getLocale() || "en";
+  }
+
+  function currentCurrency(): string | null {
+    return currency.get() || market.get()?.currency || null;
+  }
+
+  async function identify(params: { email?: string; verify?: boolean; market?: string } = {}) {
+    if (params.market) setMarket(params.market);
+    const result = await client.identify({ ...params, market: params.market || currentMarketKey() });
+    session.set(result);
+    return result;
+  }
+
+  function setMarket(key: string): void {
+    market_key.set(key);
+    client.setMarket(key);
+  }
+
+  function setLocale(value: string): void {
+    locale.set(value);
+    client.setLocale(value);
+  }
+
+  async function ensureCart(): Promise<Cart> {
+    cart_status.setKey("loading", true);
+    cart_status.setKey("error", null);
+    try {
+      await identify({ market: currentMarketKey() });
+      const response = await client.cart.refresh({ market: currentMarketKey() });
+      await hydrateCart(response);
+      return response;
+    } catch (error) {
+      cart_status.setKey("error", readErrorMessage(error, "Failed to load cart."));
+      throw error;
+    } finally {
+      cart_status.setKey("loading", false);
+    }
+  }
+
+  async function hydrateProductItem(item: ProductCheckoutItemInput, source: Cart): Promise<EshopCartItem | null> {
+    try {
+      const product = await client.eshop.product.get({ id: item.product_id });
+      const variant = product.variants.find((candidate) => candidate.id === item.variant_id);
+      if (!variant) return null;
+      return {
+        id: item.id || createId("product"),
+        product_id: product.id,
+        variant_id: variant.id,
+        product_name: productName(product, currentLocale()),
+        product_slug: entitySlug(product, currentLocale()),
+        variant_attributes: variant.attributes as EshopCartItem["variant_attributes"],
+        price: priceForMarket(variant.prices, currentMarketKey(), currentCurrency()),
+        quantity: item.quantity,
+        added_at: source.created_at ? source.created_at * 1000 : Date.now(),
+        max_stock: availableStock(client, variant),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  async function hydrateServiceItems(items: ServiceCheckoutItemInput[]): Promise<ArkyServiceCartItem[]> {
+    const rows: ArkyServiceCartItem[] = [];
+    for (const item of items) {
+      let service: Service | null = null;
+      let provider: Provider | null = null;
+      try {
+        service = await client.eshop.service.get({ id: item.service_id });
+      } catch {}
+      try {
+        provider = await client.eshop.provider.get({ id: item.provider_id });
+      } catch {}
+      for (const [index, slot] of item.slots.entries()) {
+        rows.push({
+          id: item.id || createId(`service_${index}`),
+          service_id: item.service_id,
+          provider_id: item.provider_id,
+          from: slot.from,
+          to: slot.to,
+          forms: item.forms || [],
+          price: item.price,
+          service_name: service ? serviceName(service, currentLocale()) : item.service_id,
+          provider_name: provider ? providerName(provider, currentLocale()) : item.provider_id,
+        });
+      }
+    }
+    return rows;
+  }
+
+  async function hydrateCart(response: Cart): Promise<Cart> {
+    cart.set(response);
+    cart_status.setKey("user_token", response.token || null);
+    cart_status.setKey("selected_shipping_method_id", response.shipping_method_id || null);
+    promo_code.set(response.promo_code || null);
+    quote.set(response.quote_snapshot || null);
+
+    const items = response.items || [];
+    const products = await Promise.all(
+      items
+        .filter((item): item is ProductCheckoutItemInput => item.type === "product")
+        .map((item) => hydrateProductItem(item, response)),
+    );
+    const services = await hydrateServiceItems(
+      items.filter((item): item is ServiceCheckoutItemInput => item.type === "service"),
+    );
+    product_items.set(products.filter((item): item is EshopCartItem => item !== null));
+    service_items.set(services);
+    return response;
+  }
+
+  function checkoutItems(input: ArkyCartInput = {}): CheckoutItemInput[] {
+    return [
+      ...toProductCheckoutItems(input.product_items || product_items.get()),
+      ...toServiceCheckoutItems(input.service_items || service_items.get()),
+    ];
+  }
+
+  async function syncCart(input: ArkyCartInput = {}): Promise<Cart> {
+    cart_status.setKey("syncing", true);
+    cart_status.setKey("error", null);
+    try {
+      const current = cart.get() || await ensureCart();
+      const response = await client.cart.update({
+        id: current.id,
+        market: currentMarketKey(),
+        items: checkoutItems(input),
+        shipping_address: input.shipping_address || undefined,
+        billing_address: input.billing_address || undefined,
+        forms: normalizeForms(input.forms),
+        promo_code: input.promo_code === undefined ? promo_code.get() || undefined : input.promo_code || undefined,
+        payment_method_id: input.payment_method_id || undefined,
+        shipping_method_id:
+          input.shipping_method_id ||
+          cart_status.get().selected_shipping_method_id ||
+          undefined,
+      });
+      if (input.promo_code !== undefined) promo_code.set(input.promo_code);
+      if (input.shipping_method_id !== undefined) {
+        cart_status.setKey("selected_shipping_method_id", input.shipping_method_id);
+      }
+      await hydrateCart(response);
+      return response;
+    } catch (error) {
+      cart_status.setKey("error", readErrorMessage(error, "Failed to sync cart."));
+      throw error;
+    } finally {
+      cart_status.setKey("syncing", false);
+    }
+  }
+
+  async function addProduct(product: Product, variant: ProductVariant, quantity = 1): Promise<Cart> {
+    cart_status.setKey("error", null);
+    try {
+      const current = cart.get() || await ensureCart();
+      const response = await client.cart.addItem({
+        id: current.id,
+        item: {
+          type: "product",
+          product_id: product.id,
+          variant_id: variant.id,
+          quantity,
+        },
+      });
+      await hydrateCart(response);
+      await client.activity.track({ type: "cart_added", payload: { product_id: product.id, variant_id: variant.id, quantity } });
+      return response;
+    } catch (error) {
+      cart_status.setKey("error", readErrorMessage(error, "Failed to add product to cart."));
+      throw error;
+    }
+  }
+
+  async function setProductQuantity(itemId: string, quantity: number): Promise<Cart> {
+    const next = product_items.get().map((item) => {
+      if (item.id !== itemId) return item;
+      const bounded = item.max_stock ? Math.min(Math.max(1, quantity), item.max_stock) : Math.max(1, quantity);
+      return { ...item, quantity: bounded };
+    });
+    product_items.set(next);
+    return syncCart({ product_items: next });
+  }
+
+  async function removeProduct(itemId: string): Promise<Cart | null> {
+    const item = product_items.get().find((candidate) => candidate.id === itemId);
+    product_items.set(product_items.get().filter((candidate) => candidate.id !== itemId));
+    const current = cart.get();
+    if (!current || !item) return null;
+    const response = await client.cart.removeItem({
+      id: current.id,
+      item_id: item.id,
+      product_id: item.product_id,
+      variant_id: item.variant_id,
+    });
+    await hydrateCart(response);
+    await client.activity.track({ type: "cart_removed", payload: { product_id: item.product_id, variant_id: item.variant_id } });
+    return response;
+  }
+
+  async function addServiceItem(item: ArkyServiceCartItem): Promise<Cart> {
+    const next = [...service_items.get(), item];
+    service_items.set(next);
+    return syncCart({ service_items: next });
+  }
+
+  async function removeServiceItem(itemId: string): Promise<Cart> {
+    const next = service_items.get().filter((item) => item.id !== itemId);
+    service_items.set(next);
+    return syncCart({ service_items: next });
+  }
+
+  async function clearCart(): Promise<Cart | null> {
+    product_items.set([]);
+    service_items.set([]);
+    quote.set(null);
+    promo_code.set(null);
+    cart_status.setKey("selected_shipping_method_id", null);
+    const current = cart.get();
+    if (!current) return null;
+    const response = await client.cart.clear({ id: current.id });
+    await hydrateCart(response);
+    return response;
+  }
+
+  async function fetchQuote(input: ArkyCartInput = {}): Promise<OrderQuote | null> {
+    if (checkoutItems(input).length === 0) {
+      quote.set(null);
+      return null;
+    }
+    cart_status.setKey("fetching_quote", true);
+    cart_status.setKey("quote_error", null);
+    try {
+      const current = await syncCart(input);
+      const response = await client.cart.quote({ id: current.id });
+      quote.set(response);
+      return response;
+    } catch (error) {
+      quote.set(null);
+      cart_status.setKey("quote_error", readErrorMessage(error, "Failed to fetch quote."));
+      throw error;
+    } finally {
+      cart_status.setKey("fetching_quote", false);
+    }
+  }
+
+  async function checkout(input: ArkyCartInput = {}): Promise<OrderCheckoutResult> {
+    if (checkoutItems(input).length === 0) throw new Error("Cart is empty");
+    cart_status.setKey("processing_checkout", true);
+    cart_status.setKey("error", null);
+    try {
+      const current = await syncCart(input);
+      await client.activity.track({ type: "checkout_started", payload: { cart_id: current.id } });
+      const response = await client.cart.checkout({
+        id: current.id,
+        payment_method_id: input.payment_method_id || undefined,
+      });
+      const quoteValue = quote.get();
+      const stored: ArkyLastOrder = {
+        order_id: response.order_id,
+        number: response.number,
+        client_secret: response.client_secret,
+        payment: response.payment,
+        product_items: input.product_items || product_items.get(),
+        service_items: input.service_items || service_items.get(),
+        shipping_address: input.shipping_address || null,
+        billing_address: input.billing_address || null,
+        total: quoteValue?.payment?.total || quoteValue?.total || response.payment?.total,
+        currency: quoteValue?.payment?.currency || currentCurrency(),
+        payment_method_id: input.payment_method_id || null,
+        created_at: Date.now(),
+      };
+      last_order.set(stored);
+      product_items.set([]);
+      service_items.set([]);
+      cart.set(null);
+      quote.set(null);
+      promo_code.set(null);
+      cart_status.setKey("selected_shipping_method_id", null);
+      await client.activity.track({ type: "purchase", payload: { order_id: response.order_id, number: response.number } });
+      return response;
+    } catch (error) {
+      cart_status.setKey("error", readErrorMessage(error, "Checkout failed."));
+      throw error;
+    } finally {
+      cart_status.setKey("processing_checkout", false);
+    }
+  }
+
+  function serviceOrderCalendar(): ArkyCalendarDay[] {
+    const state = service_order_state.get();
+    const { currentMonth, selectedDate, startDate, endDate, availability, selectedProviderId } = state;
+    const year = currentMonth.getFullYear();
+    const monthIndex = currentMonth.getMonth();
+    const first = new Date(year, monthIndex, 1);
+    const last = new Date(year, monthIndex + 1, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const cells: ArkyCalendarDay[] = [];
+    const pad = (first.getDay() + 6) % 7;
+    for (let i = 0; i < pad; i++) {
+      cells.push({
+        date: new Date(0),
+        iso: "",
+        available: false,
+        isSelected: false,
+        isInRange: false,
+        isToday: false,
+        blank: true,
+      });
+    }
+
+    for (let day = 1; day <= last.getDate(); day++) {
+      const date = new Date(year, monthIndex, day);
+      const iso = `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const isSelected = iso === selectedDate || iso === startDate || iso === endDate;
+      let isInRange = false;
+      if (startDate && endDate) {
+        const time = date.getTime();
+        isInRange = time > new Date(startDate).getTime() && time < new Date(endDate).getTime();
+      }
+
+      cells.push({
+        date,
+        iso,
+        available: hasAvailableSlotsForDate(availability, iso, selectedProviderId),
+        isSelected,
+        isInRange,
+        isToday: date.getTime() === today.getTime(),
+        blank: false,
+      });
+    }
+
+    const suffix = (7 - (cells.length % 7)) % 7;
+    for (let i = 0; i < suffix; i++) {
+      cells.push({
+        date: new Date(0),
+        iso: "",
+        available: false,
+        isSelected: false,
+        isInRange: false,
+        isToday: false,
+        blank: true,
+      });
+    }
+
+    return cells;
+  }
+
+  function computeServiceOrderSlots(dateStr: string): ArkyServiceOrderSlot[] {
+    const state = service_order_state.get();
+    const { availability, selectedProviderId, timezone, service } = state;
+    return getSlotsForDate(availability, dateStr, selectedProviderId).map((slot, index) => ({
+      id: `${service?.id || "service"}-${slot.from}-${index}`,
+      serviceId: service?.id || "",
+      providerId: slot.providerId,
+      from: slot.from,
+      to: slot.to,
+      timeText: formatServiceOrderSlotTime(slot.from, slot.to, timezone),
+      dateText: new Date(slot.from * 1000).toLocaleDateString([], {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        timeZone: timezone,
+      }),
+    }));
+  }
+
+  function toServiceCartItem(slot: ArkyServiceOrderSlot): ArkyServiceCartItem {
+    return {
+      id: slot.id,
+      service_id: slot.serviceId,
+      provider_id: slot.providerId,
+      from: slot.from,
+      to: slot.to,
+      forms: [],
+      service_name: slot.serviceName,
+      date_text: slot.dateText,
+      time_text: slot.timeText,
+      is_multi_day: slot.isMultiDay,
+    };
+  }
+
+  function fromServiceCartItem(item: ArkyServiceCartItem): ArkyServiceOrderSlot {
+    return {
+      id: item.id,
+      serviceId: item.service_id,
+      providerId: item.provider_id,
+      from: item.from,
+      to: item.to,
+      serviceName: item.service_name || "",
+      date: item.date_text || "",
+      dateText: item.date_text || "",
+      timeText: item.time_text || formatServiceOrderSlotTime(item.from, item.to, service_order_state.get().timezone),
+      isMultiDay: item.is_multi_day,
+    };
+  }
+
+  function setServiceOrderCartFromServiceItems(items: readonly ArkyServiceCartItem[]): void {
+    const next = items.map(fromServiceCartItem);
+    const current = service_order_state.get().cart;
+    if (JSON.stringify(current) !== JSON.stringify(next)) {
+      service_order_state.setKey("cart", next);
+    }
+  }
+
+  async function syncServiceOrderCart(slots: ArkyServiceOrderSlot[]): Promise<Cart> {
+    try {
+      return await syncCart({
+        product_items: product_items.get(),
+        service_items: slots.map(toServiceCartItem),
+      });
+    } catch (error) {
+      service_order_state.setKey("quoteError", readErrorMessage(error, "Failed to sync service order cart."));
+      throw error;
+    }
+  }
+
+  function serviceOrderCurrentStepName(): string {
+    const state = service_order_state.get();
+    if (!state.service) return "";
+    if (!state.selectedSlot || !state.dateTimeConfirmed) return "datetime";
+    return "review";
+  }
+
+  const service_order_current_step_name = computed(service_order_state, serviceOrderCurrentStepName);
+  const service_order_can_proceed = computed(service_order_state, (state) => {
+    const step = serviceOrderCurrentStepName();
+    if (step === "datetime") {
+      return state.isMultiDay
+        ? !!(state.startDate && state.endDate && state.selectedSlot)
+        : !!(state.selectedDate && state.selectedSlot);
+    }
+    if (step === "review") return true;
+    return false;
+  });
+  const service_order_month_year = computed(service_order_state, (state) =>
+    state.currentMonth.toLocaleString(undefined, { month: "long", year: "numeric" }),
+  );
+  const service_order_chain_start = computed(service_order_state, (state) => {
+    if (!state.cart.length) return null;
+    return Math.max(...state.cart.map((slot) => slot.to));
+  });
+  const service_order_total_steps = computed(service_order_state, (state) => state.service ? 2 : 0);
+  const service_order_steps = computed(service_order_state, () => ({
+    1: { name: "datetime" },
+    2: { name: "review" },
+  }));
+  const service_order_current_step = computed([service_order_current_step_name, service_order_steps], (name, steps) => {
+    for (const [idx, step] of Object.entries(steps)) {
+      if (step.name === name) return Number(idx);
+    }
+    return 1;
+  });
+
+  function formatServiceOrderDateDisplay(value: string | null): string {
+    if (!value) return "";
+    return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+
+  function serviceProviderId(provider: Provider | ServiceProvider): string {
+    return "provider_id" in provider ? provider.provider_id : provider.id;
+  }
+
+  function getFirstServiceProviderEntry(state: ArkyServiceOrderState): ServiceProvider | null {
+    const serviceWithProviders = state.service as (Service & { providers?: ServiceProvider[] }) | null;
+    const providers = serviceWithProviders?.providers;
+    if (!providers?.length) return null;
+    if (state.selectedProviderId) {
+      const match = providers.find((provider) => provider.provider_id === state.selectedProviderId);
+      if (match) return match;
+    }
+    return providers[0];
+  }
+
+  async function loadServiceOrderForm(): Promise<Block[]> {
+    try {
+      const form = await loadForm({ key: "order-form" });
+      const blocks = (form.schema || []).map(formSchemaToBlock);
+      service_order_form_node.set({ blocks });
+      return blocks;
+    } catch {
+      service_order_form_node.set({ blocks: [] });
+      return [];
+    }
+  }
+
+  const service_order_actions = {
+    async initialize(): Promise<void> {
+      service_order_state.setKey("tzGroups", normalizeTimezoneGroups(client.utils.tzGroups));
+      await ensureCart();
+      setServiceOrderCartFromServiceItems(service_items.get());
+      const methods = session.get()?.market?.payment_methods || [];
+      if (methods.length) service_order_state.setKey("availablePaymentMethods", methods);
+      await loadServiceOrderForm();
+    },
+
+    setTimezone(tz: string): void {
+      service_order_state.setKey("timezone", tz);
+      service_order_state.setKey("calendar", serviceOrderCalendar());
+      const state = service_order_state.get();
+      if (state.selectedDate) {
+        service_order_state.setKey("slots", computeServiceOrderSlots(state.selectedDate));
+        service_order_state.setKey("selectedSlot", null);
+      }
+    },
+
+    async setService(service: Service): Promise<void> {
+      service_order_state.setKey("loading", true);
+      try {
+        const isMultiDayBlock = service.blocks?.find((block) => block.key === "isMultiDay");
+        const blockValue = isMultiDayBlock?.value;
+        const isMultiDay = Array.isArray(blockValue) ? blockValue[0] === true : blockValue === true;
+        const [fullService, serviceProviders] = await Promise.all([
+          client.eshop.service.get({ id: service.id }),
+          client.eshop.service.findProviders({ service_id: service.id }) as Promise<Array<Provider | ServiceProvider>>,
+        ]);
+        const providerIds = [...new Set(serviceProviders.map(serviceProviderId))];
+        const providerResults = await Promise.all(
+          providerIds.map((id) => client.eshop.provider.get({ id }).catch(() => null)),
+        );
+
+        service_order_state.set({
+          ...service_order_state.get(),
+          service: fullService,
+          providers: providerResults.filter((provider): provider is Provider => provider !== null),
+          selectedProviderId: null,
+          availability: null,
+          selectedDate: null,
+          startDate: null,
+          endDate: null,
+          slots: [],
+          selectedSlot: null,
+          currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+          loading: false,
+          isMultiDay,
+        });
+
+        await service_order_actions.loadMonth();
+      } catch (error) {
+        service_order_state.setKey("loading", false);
+        throw error;
+      }
+    },
+
+    async loadMonth(): Promise<void> {
+      const state = service_order_state.get();
+      if (!state.service) return;
+      service_order_state.setKey("loading", true);
+      try {
+        const chainedStart = service_order_chain_start.get();
+        let from: number;
+        let to: number;
+        if (chainedStart) {
+          from = chainedStart;
+          to = chainedStart;
+        } else {
+          const month = state.currentMonth;
+          from = Math.floor(Date.UTC(month.getFullYear(), month.getMonth(), 1) / 1000);
+          to = Math.floor(Date.UTC(month.getFullYear(), month.getMonth() + 1, 1) / 1000);
+        }
+        const availability = await loadAvailability({
+          service_id: state.service.id,
+          from,
+          to,
+        });
+        service_order_state.setKey("availability", availability);
+        service_order_state.setKey("calendar", serviceOrderCalendar());
+      } finally {
+        service_order_state.setKey("loading", false);
+      }
+    },
+
+    prevMonth(): void {
+      const { currentMonth } = service_order_state.get();
+      service_order_state.setKey("currentMonth", new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+      void service_order_actions.loadMonth();
+    },
+
+    nextMonth(): void {
+      const { currentMonth } = service_order_state.get();
+      service_order_state.setKey("currentMonth", new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+      void service_order_actions.loadMonth();
+    },
+
+    selectProvider(providerId: string | null): void {
+      service_order_state.set({
+        ...service_order_state.get(),
+        selectedProviderId: providerId,
+        selectedDate: null,
+        startDate: null,
+        endDate: null,
+        slots: [],
+        selectedSlot: null,
+      });
+      void service_order_actions.loadMonth();
+    },
+
+    selectDate(cell: ArkyCalendarDay): void {
+      if (cell.blank || !cell.available) return;
+      service_order_state.setKey("dateTimeConfirmed", false);
+      const state = service_order_state.get();
+      if (state.isMultiDay) {
+        if (!state.startDate) {
+          service_order_state.setKey("startDate", cell.iso);
+          service_order_state.setKey("selectedDate", cell.iso);
+          service_order_state.setKey("endDate", null);
+          service_order_state.setKey("selectedSlot", null);
+        } else if (!state.endDate) {
+          if (cell.date.getTime() < new Date(state.startDate).getTime()) {
+            service_order_state.setKey("startDate", cell.iso);
+            service_order_state.setKey("endDate", state.startDate);
+          } else {
+            service_order_state.setKey("endDate", cell.iso);
+          }
+          service_order_actions.createMultiDaySlots();
+        } else {
+          service_order_state.setKey("startDate", cell.iso);
+          service_order_state.setKey("selectedDate", cell.iso);
+          service_order_state.setKey("endDate", null);
+          service_order_state.setKey("selectedSlot", null);
+        }
+        service_order_actions.updateCalendar();
+      } else {
+        service_order_state.set({
+          ...state,
+          selectedDate: cell.iso,
+          slots: computeServiceOrderSlots(cell.iso),
+          selectedSlot: null,
+        });
+        service_order_state.setKey("calendar", serviceOrderCalendar());
+      }
+    },
+
+    createMultiDaySlots(): void {
+      const state = service_order_state.get();
+      if (!state.startDate || !state.endDate || !state.availability) return;
+      const slots: ArkyServiceOrderSlot[] = [];
+      for (let day = new Date(state.startDate); day <= new Date(state.endDate); day.setDate(day.getDate() + 1)) {
+        const iso = day.toISOString().slice(0, 10);
+        for (const slot of getSlotsForDate(state.availability, iso, state.selectedProviderId)) {
+          slots.push({
+            id: `${state.service?.id || "service"}-${slot.from}-${slots.length}`,
+            serviceId: state.service?.id || "",
+            providerId: slot.providerId,
+            from: slot.from,
+            to: slot.to,
+            timeText: formatServiceOrderSlotTime(slot.from, slot.to, state.timezone),
+            dateText: new Date(slot.from * 1000).toLocaleDateString([], {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+              timeZone: state.timezone,
+            }),
+            isMultiDay: true,
+          });
+        }
+      }
+      service_order_state.setKey("slots", slots);
+      service_order_state.setKey("selectedSlot", slots.length === 1 ? slots[0] : null);
+    },
+
+    selectTimeSlot(slot: ArkyServiceOrderSlot | null): void {
+      service_order_state.setKey("dateTimeConfirmed", false);
+      service_order_state.setKey("selectedSlot", slot);
+    },
+
+    resetDateSelection(): void {
+      service_order_state.setKey("selectedDate", null);
+      service_order_state.setKey("startDate", null);
+      service_order_state.setKey("endDate", null);
+      service_order_state.setKey("slots", []);
+      service_order_state.setKey("selectedSlot", null);
+      service_order_state.setKey("dateTimeConfirmed", false);
+    },
+
+    updateCalendar(): void {
+      service_order_state.setKey("calendar", serviceOrderCalendar());
+    },
+
+    findFirstAvailable(): void {
+      for (const day of service_order_state.get().calendar) {
+        if (!day.blank && day.available) {
+          service_order_actions.selectDate(day);
+          return;
+        }
+      }
+    },
+
+    async addToCart(): Promise<void> {
+      const state = service_order_state.get();
+      const serviceBlocks = ((state.service as (Service & { forms?: Block[] }) | null)?.forms || []);
+      const enrich = (slot: ArkyServiceOrderSlot): ArkyServiceOrderSlot => ({
+        ...slot,
+        serviceName: state.service ? serviceName(state.service, currentLocale()) : "",
+        date: slot.dateText,
+        serviceBlocks,
+      });
+      const selected = state.isMultiDay && state.slots.length > 0
+        ? state.slots.map(enrich)
+        : state.selectedSlot
+          ? [enrich(state.selectedSlot)]
+          : [];
+      if (!selected.length) return;
+      const nextCart = [...state.cart, ...selected];
+      service_order_state.set({
+        ...state,
+        cart: nextCart,
+        selectedDate: null,
+        startDate: null,
+        endDate: null,
+        slots: [],
+        selectedSlot: null,
+      });
+      await syncServiceOrderCart(nextCart);
+      service_order_state.setKey("calendar", serviceOrderCalendar());
+    },
+
+    async removeFromCart(slotId: string): Promise<void> {
+      const nextCart = service_order_state.get().cart.filter((slot) => slot.id !== slotId);
+      service_order_state.setKey("cart", nextCart);
+      await syncServiceOrderCart(nextCart);
+    },
+
+    async clearCart(): Promise<void> {
+      service_order_state.setKey("cart", []);
+      await syncServiceOrderCart([]);
+    },
+
+    async checkout(paymentMethodId?: string, forms: Block[] = []): Promise<{ success: true; data: OrderCheckoutResult } | { success: false; error: string }> {
+      const state = service_order_state.get();
+      if (!state.cart.length) return { success: false, error: "Cart is empty" };
+      service_order_state.setKey("loading", true);
+      try {
+        const result = await checkout({
+          service_items: state.cart.map((slot) => ({
+            ...toServiceCartItem(slot),
+            forms: [],
+          })),
+          payment_method_id: paymentMethodId,
+          promo_code: state.promoCode || undefined,
+          forms,
+        });
+        service_order_state.setKey("cartId", cart.get()?.id || null);
+        return { success: true, data: result };
+      } catch (error) {
+        return { success: false, error: readErrorMessage(error, "Checkout failed.") };
+      } finally {
+        service_order_state.setKey("loading", false);
+      }
+    },
+
+    async fetchQuote(paymentMethodId?: string, promoCode?: string | null): Promise<OrderQuote | null> {
+      const state = service_order_state.get();
+      if (!state.cart.length) return null;
+      service_order_state.setKey("fetchingQuote", true);
+      service_order_state.setKey("quoteError", null);
+      try {
+        service_order_state.setKey("promoCode", promoCode || null);
+        const response = await fetchQuote({
+          service_items: state.cart.map(toServiceCartItem),
+          payment_method_id: paymentMethodId,
+          promo_code: promoCode || undefined,
+        });
+        service_order_state.setKey("cartId", cart.get()?.id || null);
+        service_order_state.setKey("quote", response);
+        const methods = response?.payment_methods || session.get()?.market?.payment_methods || [];
+        if (methods.length) service_order_state.setKey("availablePaymentMethods", methods);
+        return response;
+      } catch (error) {
+        service_order_state.setKey("quoteError", readErrorMessage(error, "Failed to fetch quote."));
+        return null;
+      } finally {
+        service_order_state.setKey("fetchingQuote", false);
+      }
+    },
+
+    getProvidersList(): Provider[] {
+      return service_order_state.get().providers;
+    },
+
+    prevStep(): void {
+      const current = serviceOrderCurrentStepName();
+      if (current === "review") {
+        service_order_state.setKey("dateTimeConfirmed", false);
+        return;
+      }
+      if (current === "datetime") {
+        service_order_state.setKey("selectedSlot", null);
+        service_order_state.setKey("dateTimeConfirmed", false);
+      }
+    },
+
+    nextStep(): void {
+      if (serviceOrderCurrentStepName() === "datetime" && service_order_can_proceed.get()) {
+        service_order_state.setKey("dateTimeConfirmed", true);
+      }
+    },
+
+    getServicePrice(): string {
+      const state = service_order_state.get();
+      if (state.quote?.total !== undefined) return String(state.quote.total);
+      const provider = getFirstServiceProviderEntry(state);
+      if (!provider?.prices) return "";
+      return client.utils.formatPrice(provider.prices) || "0";
+    },
+
+    formatDateDisplay: formatServiceOrderDateDisplay,
+    serviceItemsFromSlots(slots: ArkyServiceOrderSlot[]): ArkyServiceCartItem[] {
+      return slots.map(toServiceCartItem);
+    },
+  };
+
+  service_items.subscribe((items) => setServiceOrderCartFromServiceItems(items));
+
+  async function loadNode(params: GetNodeParams, options?: RequestOptions): Promise<Node> {
+    cms_state.setKey("loading", true);
+    cms_state.setKey("error", null);
+    try {
+      const node = await client.cms.node.get(params, options);
+      const key = params.key || params.id || params.slug || node.id;
+      cms_state.setKey("nodes", { ...cms_state.get().nodes, [key]: node });
+      return node;
+    } catch (error) {
+      cms_state.setKey("error", readErrorMessage(error, "Failed to load CMS node."));
+      throw error;
+    } finally {
+      cms_state.setKey("loading", false);
+    }
+  }
+
+  async function loadWebsiteNode(options?: RequestOptions): Promise<Node> {
+    const node = await loadNode({ key: "website" }, options);
+    cms_state.setKey("website_node", node);
+    return node;
+  }
+
+  async function loadForm(params: { id?: string; key?: string }, options?: RequestOptions): Promise<Form> {
+    cms_state.setKey("loading", true);
+    cms_state.setKey("error", null);
+    try {
+      const form = await client.cms.form.get(params, options);
+      const key = params.key || params.id || form.key || form.id;
+      cms_state.setKey("forms", { ...cms_state.get().forms, [key]: form });
+      return form;
+    } catch (error) {
+      cms_state.setKey("error", readErrorMessage(error, "Failed to load CMS form."));
+      throw error;
+    } finally {
+      cms_state.setKey("loading", false);
+    }
+  }
+
+  async function submitFormByKey(
+    key: string,
+    fieldsOrBlocks: FormField[] | Block[],
+    options?: RequestOptions,
+  ): Promise<FormSubmission> {
+    const forms = cms_state.get().forms;
+    const form = forms[key] || await loadForm({ key });
+    const fields = fieldsOrBlocks.length > 0 && "properties" in fieldsOrBlocks[0]
+      ? formFieldsFromBlocks(fieldsOrBlocks as Block[])
+      : fieldsOrBlocks as FormField[];
+    const payload: SubmitFormParams = { form_id: form.id, fields };
+    return client.cms.form.submit(payload, options);
+  }
+
+  async function loadProducts(params: GetProductsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Product>> {
+    eshop_state.setKey("loading_products", true);
+    eshop_state.setKey("error", null);
+    try {
+      const response = await client.eshop.product.find(params, options);
+      eshop_state.setKey("products", response.items || []);
+      eshop_state.setKey("product_cursor", response.cursor || null);
+      return response;
+    } catch (error) {
+      eshop_state.setKey("error", readErrorMessage(error, "Failed to load products."));
+      throw error;
+    } finally {
+      eshop_state.setKey("loading_products", false);
+    }
+  }
+
+  async function loadServices(params: GetServicesParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Service>> {
+    eshop_state.setKey("loading_services", true);
+    eshop_state.setKey("error", null);
+    try {
+      const response = await client.eshop.service.find(params, options);
+      eshop_state.setKey("services", response.items || []);
+      eshop_state.setKey("service_cursor", response.cursor || null);
+      return response;
+    } catch (error) {
+      eshop_state.setKey("error", readErrorMessage(error, "Failed to load services."));
+      throw error;
+    } finally {
+      eshop_state.setKey("loading_services", false);
+    }
+  }
+
+  async function loadProviders(params: GetProvidersParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Provider>> {
+    eshop_state.setKey("loading_providers", true);
+    eshop_state.setKey("error", null);
+    try {
+      const response = await client.eshop.provider.find(params, options);
+      eshop_state.setKey("providers", response.items || []);
+      eshop_state.setKey("provider_cursor", response.cursor || null);
+      return response;
+    } catch (error) {
+      eshop_state.setKey("error", readErrorMessage(error, "Failed to load providers."));
+      throw error;
+    } finally {
+      eshop_state.setKey("loading_providers", false);
+    }
+  }
+
+  async function loadAvailability(params: GetAvailabilityParams, options?: RequestOptions) {
+    eshop_state.setKey("loading_availability", true);
+    eshop_state.setKey("error", null);
+    try {
+      const response = await client.eshop.service.getAvailability(params, options);
+      eshop_state.setKey("availability", response);
+      return response;
+    } catch (error) {
+      eshop_state.setKey("error", readErrorMessage(error, "Failed to load availability."));
+      throw error;
+    } finally {
+      eshop_state.setKey("loading_availability", false);
+    }
+  }
+
+  async function initialize(options: { hydrate_cart?: boolean; load_website?: boolean; market?: string; locale?: string } = {}) {
+    if (options.locale) setLocale(options.locale);
+    if (options.market) setMarket(options.market);
+    await identify({ market: currentMarketKey() });
+    const results: { session: CustomerSession | null; cart?: Cart; website_node?: Node } = {
+      session: session.get(),
+    };
+    if (options.hydrate_cart) results.cart = await ensureCart();
+    if (options.load_website) results.website_node = await loadWebsiteNode();
+    return results;
+  }
+
+  const cart_store = {
+    cart,
+    product_items,
+    service_items,
+    quote,
+    promo_code,
+    last_order,
+    status: cart_status,
+    product_item_count,
+    service_item_count,
+    item_count,
+    snapshot,
+    actions: {
+      ensure: ensureCart,
+      hydrate: hydrateCart,
+      sync: syncCart,
+      addProduct,
+      setProductQuantity,
+      removeProduct,
+      addServiceItem,
+      removeServiceItem,
+      clear: clearCart,
+      quote: fetchQuote,
+      checkout,
+      applyPromoCode(code: string, input: Omit<ArkyCartInput, "promo_code"> = {}) {
+        promo_code.set(code);
+        return fetchQuote({ ...input, promo_code: code });
+      },
+      removePromoCode(input: Omit<ArkyCartInput, "promo_code"> = {}) {
+        promo_code.set(null);
+        return fetchQuote({ ...input, promo_code: null });
+      },
+      selectShippingMethod(id: string | null) {
+        cart_status.setKey("selected_shipping_method_id", id);
+      },
+      locationToAddress,
+      buildItems: checkoutItems,
+      buildProductItems: toProductCheckoutItems,
+      buildServiceItems: toServiceCheckoutItems,
+    },
+  };
+
+  const service_order_store = {
+    state: service_order_state,
+    form_blocks: service_order_form_blocks,
+    current_step_name: service_order_current_step_name,
+    can_proceed: service_order_can_proceed,
+    month_year: service_order_month_year,
+    chain_start: service_order_chain_start,
+    total_steps: service_order_total_steps,
+    steps: service_order_steps,
+    current_step: service_order_current_step,
+    actions: service_order_actions,
+  };
+
+  return {
+    client,
+    session,
+    market,
+    market_key,
+    locale,
+    currency,
+    allowed_payment_methods,
+    payment_config,
+    initialize,
+    identify,
+    verify: client.verify,
+    me: client.me,
+    logout: client.logout,
+    onAuthStateChanged: client.onAuthStateChanged,
+    get currentSession() {
+      return session.get();
+    },
+    get isAuthenticated() {
+      return client.isAuthenticated;
+    },
+    setMarket,
+    setLocale,
+    getMarket: currentMarketKey,
+    getLocale: currentLocale,
+    cms: {
+      state: cms_state,
+      node: {
+        get: loadNode,
+        find: (params: GetNodesParams, options?: RequestOptions) => client.cms.node.find(params, options),
+        getChildren: (params: GetNodeChildrenParams, options?: RequestOptions) => client.cms.node.getChildren(params, options),
+        loadWebsite: loadWebsiteNode,
+      },
+      form: {
+        get: loadForm,
+        submit: (params: SubmitFormParams, options?: RequestOptions) => client.cms.form.submit(params, options),
+        submitByKey: submitFormByKey,
+      },
+      taxonomy: client.cms.taxonomy,
+    },
+    eshop: {
+      state: eshop_state,
+      product: {
+        get: (params: GetProductParams, options?: RequestOptions) => client.eshop.product.get(params, options),
+        find: loadProducts,
+      },
+      service: {
+        get: (params: GetServiceParams, options?: RequestOptions) => client.eshop.service.get(params, options),
+        find: loadServices,
+        findProviders: (params: FindServiceProvidersParams, options?: RequestOptions) => client.eshop.service.findProviders(params, options),
+        getAvailability: loadAvailability,
+      },
+      provider: {
+        get: (params: GetProviderParams, options?: RequestOptions) => client.eshop.provider.get(params, options),
+        find: loadProviders,
+      },
+      order: client.eshop.order,
+      cart: cart_store,
+      serviceOrder: service_order_store,
+    },
+    crm: client.crm,
+    activity: {
+      track(params: TrackParams) {
+        return client.activity.track(params);
+      },
+      state: atom<Activity | null>(null),
+    },
+    store: client.store,
+    automation: client.automation,
+    utils: client.utils,
+  };
+}
+
+export type ArkyStore = ReturnType<typeof createArkyStore>;
+export type ArkyCartActions = ArkyStore["eshop"]["cart"]["actions"];

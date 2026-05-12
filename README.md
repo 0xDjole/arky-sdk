@@ -35,131 +35,84 @@ npm install arky-sdk
 ### 1. Install & Initialize
 
 ```typescript
-import { createArkySDK } from 'arky-sdk'
+import { createArkyStore } from 'arky-sdk/storefront-store'
 
-const arky = createArkySDK({
+const arkyStore = createArkyStore({
   baseUrl: 'https://api.arky.io',
   storeId: 'your-store-id',
   market: 'us',
-  getToken: () => ({
-    accessToken: localStorage.getItem('accessToken') || '',
-    refreshToken: localStorage.getItem('refreshToken') || '',
-    provider: 'EMAIL',
-    expiresAt: 0,
-  }),
-  setToken: (tokens) => {
-    localStorage.setItem('accessToken', tokens.accessToken);
-    localStorage.setItem('refreshToken', tokens.refreshToken);
-  },
-  logout: () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-  },
+  locale: 'en',
 })
+
+await arkyStore.initialize({ hydrate_cart: true, load_website: true })
 ```
 
 ### 2. Browse Products
 
 ```typescript
 // List products (like on arky.io/products)
-const { items: products } = await arky.eshop.getProducts({
+const { items: products } = await arkyStore.eshop.product.find({
   limit: 20
 });
 
 // Get product details (like arky.io/products/guitar)
-const product = await arky.eshop.getProduct({ id: 'prod_123' });
+const product = await arkyStore.eshop.product.get({ id: 'prod_123' });
 
 // Format price (uses currency from price object)
-const formatted = arky.utils.formatPrice(product.variants[0].prices); // "$29.99"
+const formatted = arkyStore.utils.formatPrice(product.variants[0].prices); // "$29.99"
 ```
 
 ### 3. Shop & Checkout
 
 ```typescript
-const cart = await arky.eshop.cart.current();
+const product = await arkyStore.eshop.product.get({ id: 'prod_123' })
+const variant = product.variants[0]
 
-await arky.eshop.cart.addItem({
-  id: cart.id,
-  item: {
-    type: 'product',
-    product_id: 'prod_123',
-    variant_id: 'var_456',
-    quantity: 2,
-  },
-});
+await arkyStore.eshop.cart.actions.addProduct(product, variant, 2)
 
-const order = await arky.eshop.cart.checkout({
-  id: cart.id,
+const quote = await arkyStore.eshop.cart.actions.quote()
+
+const order = await arkyStore.eshop.cart.actions.checkout({
   payment_method_id: 'credit_card',
-});
+})
 ```
 
-### Framework-agnostic Cart Controller
+### Framework-Agnostic Store
 
-For storefront UI state, use the headless cart controller instead of wiring cart API calls directly into a framework store:
+The storefront store is framework-agnostic and built on Nano Stores. UI frameworks can subscribe to atoms directly, while app code calls actions:
 
 ```typescript
-const storefront = createStorefront({
-  baseUrl: 'https://api.arky.io',
-  storeId: 'your-store-id',
-  market: 'us',
-})
+const unsubscribe = arkyStore.eshop.cart.snapshot.subscribe((snapshot) => {
+  console.log(snapshot.item_count, snapshot.cart?.id)
+});
 
-const unsubscribe = storefront.cart.subscribe((state) => {
-  console.log(state.cart, state.quote, state.loading, state.error)
-})
+await arkyStore.eshop.cart.actions.ensure();
+await arkyStore.eshop.cart.actions.clear();
 
-await storefront.cart.init()
-await storefront.cart.addItem({
-  item: {
-    type: 'product',
-    product_id: 'prod_123',
-    variant_id: 'var_456',
-    quantity: 1,
-  },
-})
-await storefront.cart.quote()
-await storefront.cart.checkout({ payment_method_id: 'credit_card' })
-
-unsubscribe()
+unsubscribe();
 ```
 
-The controller exposes `subscribe`, `getState`, `init`, `refresh`, `addItem`, `update`, `removeItem`, `clear`, `quote`, and `checkout`. It is framework-agnostic and uses the existing storefront cart API methods under the hood.
+The low-level SDK client is still available as `arkyStore.client` for unusual cases, but normal storefronts should use the store-shaped modules: `cms`, `eshop`, `crm`, `activity`, `automation`, `store`, and `utils`.
 
 ### 4. Sell Scheduled Services
 
 ```typescript
 // Browse services (like arky.io/services)
-const { items: services } = await arky.eshop.service.find({});
+const { items: services } = await arkyStore.eshop.service.find({});
+const service = services[0];
 
-// Check available time slots
-const availability = await arky.eshop.service.getAvailability({
-  service_id: 'service_haircut',
-  provider_id: 'provider_jane',
-  from: Math.floor(Date.now() / 1000),
-  to: Math.floor(Date.now() / 1000) + 86400,
-});
+await arkyStore.eshop.serviceOrder.actions.initialize();
+await arkyStore.eshop.serviceOrder.actions.setService(service);
+arkyStore.eshop.serviceOrder.actions.findFirstAvailable();
 
-const cart = await arky.eshop.cart.current();
+const state = arkyStore.eshop.serviceOrder.state.get();
+if (state.slots[0]) {
+  arkyStore.eshop.serviceOrder.actions.selectTimeSlot(state.slots[0]);
+  arkyStore.eshop.serviceOrder.actions.nextStep();
+  await arkyStore.eshop.serviceOrder.actions.addToCart();
+}
 
-await arky.eshop.cart.update({
-  id: cart.id,
-  items: [{
-    type: 'booking',
-    service_id: 'service_haircut',
-    provider_id: 'provider_jane',
-    slots: [{
-      from: availability.available_slots[0].from,
-      to: availability.available_slots[0].to,
-    }],
-  }],
-  forms: [],
-});
-
-const order = await arky.eshop.cart.checkout({
-  id: cart.id,
-  payment_method_id: 'cash',
-});
+const order = await arkyStore.eshop.serviceOrder.actions.checkout('cash');
 ```
 
 ### 5. Subscribe to Newsletter
@@ -250,25 +203,18 @@ await arky.cms.getCollectionSubscribers({ id: 'newsletter_id' })
 ### E-shop
 ```typescript
 // Products
-await arky.eshop.createProduct({ name, description, variants })
-await arky.eshop.getProducts({ limit: 20, cursor: null })
-await arky.eshop.getProduct({ id })
-await arky.eshop.updateProduct({ id, name })
+await arkyStore.eshop.product.find({ limit: 20, cursor: null })
+await arkyStore.eshop.product.get({ id })
 
 // Carts and orders
-const cart = await arky.eshop.cart.current()
-await arky.eshop.cart.update({ id: cart.id, items, shipping_method_id })
-await arky.eshop.cart.checkout({ id: cart.id, payment_method_id })
-await arky.eshop.getOrders({})
-await arky.eshop.getOrder({ id })
-await arky.eshop.updateOrderStatus({ id, status: 'SHIPPED' })
+const cart = await arkyStore.eshop.cart.actions.ensure()
+await arkyStore.eshop.cart.actions.sync({ product_items, shipping_method_id })
+await arkyStore.eshop.cart.actions.checkout({ payment_method_id })
+await arkyStore.eshop.order.find({})
+await arkyStore.eshop.order.get({ id })
 
 // Quote
-await arky.eshop.getQuote({
-  items: [{ productId, variantId, quantity }],
-  currency: 'usd',
-  paymentMethod: 'CREDIT_CARD',
-})
+await arkyStore.eshop.cart.actions.quote()
 ```
 
 ### Services
@@ -392,17 +338,14 @@ await arky.utils.injectSvgIntoElement(mediaBlock, element, 'custom-class')
 ## Configuration Options
 
 ```typescript
-createArkySDK({
+createArkyStore({
   // Required
   baseUrl: string,        // API URL
   storeId: string,        // Your store ID
   market: string,         // Market code (e.g., 'us', 'eu')
 
-  // Token management
-  getToken: () => TokenData,
-  setToken: (tokens: TokenData) => void,
-
   // Optional
+  locale?: string,        // Storefront locale (default: SDK/client locale)
   storageUrl?: string,    // Storage URL (default: https://storage.arky.io/dev)
   autoGuest?: boolean,    // Auto-create guest token (default: true)
   logout?: () => void,    // Logout callback
