@@ -1,0 +1,160 @@
+import type { createStorefront, CreateStorefrontConfig } from "../index";
+import type {
+  Address,
+  Block,
+  Cart,
+  EshopCartItem,
+  Form,
+  FormEntry,
+  Market,
+  Node,
+  OrderCheckoutResult,
+  OrderQuote,
+  PaymentMethod,
+  Price,
+  Product,
+  ProductVariant,
+  Provider,
+  Service,
+} from "../types";
+import type { AvailabilityResponse } from "../types/api";
+
+export type ArkyStoreClient = ReturnType<typeof createStorefront>;
+
+export interface ArkyStoreConfig extends CreateStorefrontConfig {
+  onCartChange?: (snapshot: ArkyCartSnapshot) => void;
+}
+
+export interface ArkyServiceCartItem {
+  id: string;
+  service_id: string;
+  provider_id: string;
+  from: number;
+  to: number;
+  forms?: FormEntry[];
+  price?: Price;
+  service_name?: string;
+  provider_name?: string;
+  date_text?: string;
+  time_text?: string;
+  is_multi_day?: boolean;
+}
+
+export interface ArkyCartSnapshot {
+  cart: Cart | null;
+  product_items: EshopCartItem[];
+  service_items: ArkyServiceCartItem[];
+  item_count: number;
+}
+
+export interface ArkyCartStatus {
+  loading: boolean;
+  syncing: boolean;
+  fetching_quote: boolean;
+  processing_checkout: boolean;
+  error: string | null;
+  quote_error: string | null;
+  selected_shipping_method_id: string | null;
+  user_token: string | null;
+}
+
+export interface ArkyLastOrder {
+  order_id: string;
+  number: string;
+  client_secret: string | null;
+  payment: OrderCheckoutResult["payment"];
+  product_items?: EshopCartItem[];
+  service_items?: ArkyServiceCartItem[];
+  shipping_address?: Address | null;
+  billing_address?: Address | null;
+  total?: number;
+  currency?: string | null;
+  payment_method_id?: string | null;
+  created_at: number;
+}
+
+export interface ArkyCartInput {
+  product_items?: EshopCartItem[];
+  service_items?: ArkyServiceCartItem[];
+  shipping_address?: Address | null;
+  billing_address?: Address | null;
+  forms?: FormEntry[] | Block[];
+  promo_code?: string | null;
+  payment_method_id?: string | null;
+  shipping_method_id?: string | null;
+}
+
+export interface ArkyCmsState {
+  website_node: Node | null;
+  nodes: Record<string, Node>;
+  forms: Record<string, Form>;
+  loading: boolean;
+  error: string | null;
+}
+
+export interface ArkyEshopState {
+  products: Product[];
+  services: Service[];
+  providers: Provider[];
+  product_cursor: string | null;
+  service_cursor: string | null;
+  provider_cursor: string | null;
+  availability: unknown | null;
+  loading_products: boolean;
+  loading_services: boolean;
+  loading_providers: boolean;
+  loading_availability: boolean;
+  error: string | null;
+}
+
+export interface ArkyCalendarDay {
+  date: Date;
+  iso: string;
+  available: boolean;
+  isSelected: boolean;
+  isInRange: boolean;
+  isToday: boolean;
+  blank: boolean;
+}
+
+export interface ArkyServiceOrderSlot {
+  id: string;
+  serviceId: string;
+  providerId: string;
+  from: number;
+  to: number;
+  timeText: string;
+  dateText: string;
+  isMultiDay?: boolean;
+  serviceName?: string;
+  date?: string;
+  serviceBlocks?: Block[];
+}
+
+export interface ArkyServiceOrderState {
+  service: Service | null;
+  availability: AvailabilityResponse | null;
+  providers: Provider[];
+  selectedProviderId: string | null;
+  currentMonth: Date;
+  calendar: ArkyCalendarDay[];
+  selectedDate: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  slots: ArkyServiceOrderSlot[];
+  selectedSlot: ArkyServiceOrderSlot | null;
+  cart: ArkyServiceOrderSlot[];
+  timezone: string;
+  tzGroups: Record<string, { zone: string; name: string }[]>;
+  loading: boolean;
+  weekdays: string[];
+  quote: OrderQuote | null;
+  fetchingQuote: boolean;
+  quoteError: string | null;
+  currency: string | null;
+  dateTimeConfirmed: boolean;
+  isMultiDay: boolean;
+  availablePaymentMethods: PaymentMethod[];
+  cartId: string | null;
+  promoCode: string | null;
+}

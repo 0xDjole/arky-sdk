@@ -1,5 +1,5 @@
 import { atom, computed, map } from "nanostores";
-import { createStorefront, type CreateStorefrontConfig, type CustomerSession } from "./index";
+import { createStorefront, type CustomerSession } from "../index";
 import type {
   Address,
   Block,
@@ -24,7 +24,7 @@ import type {
   ServiceProvider,
   Store,
   ZoneLocation,
-} from "./types";
+} from "../types";
 import type {
   AvailabilityResponse,
   CheckoutItemInput,
@@ -44,398 +44,42 @@ import type {
   ServiceCheckoutItemInput,
   SlotRange,
   SubmitFormParams,
-} from "./types/api";
-import type { Activity, TrackParams } from "./api/storefront";
-
-type ArkyStoreClient = ReturnType<typeof createStorefront>;
-
-export interface ArkyStoreConfig extends CreateStorefrontConfig {
-  onCartChange?: (snapshot: ArkyCartSnapshot) => void;
-}
-
-export interface ArkyServiceCartItem {
-  id: string;
-  service_id: string;
-  provider_id: string;
-  from: number;
-  to: number;
-  forms?: FormEntry[];
-  price?: Price;
-  service_name?: string;
-  provider_name?: string;
-  date_text?: string;
-  time_text?: string;
-  is_multi_day?: boolean;
-}
-
-export interface ArkyCartSnapshot {
-  cart: Cart | null;
-  product_items: EshopCartItem[];
-  service_items: ArkyServiceCartItem[];
-  item_count: number;
-}
-
-export interface ArkyCartStatus {
-  loading: boolean;
-  syncing: boolean;
-  fetching_quote: boolean;
-  processing_checkout: boolean;
-  error: string | null;
-  quote_error: string | null;
-  selected_shipping_method_id: string | null;
-  user_token: string | null;
-}
-
-export interface ArkyLastOrder {
-  order_id: string;
-  number: string;
-  client_secret: string | null;
-  payment: OrderCheckoutResult["payment"];
-  product_items?: EshopCartItem[];
-  service_items?: ArkyServiceCartItem[];
-  shipping_address?: Address | null;
-  billing_address?: Address | null;
-  total?: number;
-  currency?: string | null;
-  payment_method_id?: string | null;
-  created_at: number;
-}
-
-export interface ArkyCartInput {
-  product_items?: EshopCartItem[];
-  service_items?: ArkyServiceCartItem[];
-  shipping_address?: Address | null;
-  billing_address?: Address | null;
-  forms?: FormEntry[] | Block[];
-  promo_code?: string | null;
-  payment_method_id?: string | null;
-  shipping_method_id?: string | null;
-}
-
-export interface ArkyCmsState {
-  website_node: Node | null;
-  nodes: Record<string, Node>;
-  forms: Record<string, Form>;
-  loading: boolean;
-  error: string | null;
-}
-
-export interface ArkyEshopState {
-  products: Product[];
-  services: Service[];
-  providers: Provider[];
-  product_cursor: string | null;
-  service_cursor: string | null;
-  provider_cursor: string | null;
-  availability: unknown | null;
-  loading_products: boolean;
-  loading_services: boolean;
-  loading_providers: boolean;
-  loading_availability: boolean;
-  error: string | null;
-}
-
-export interface ArkyCalendarDay {
-  date: Date;
-  iso: string;
-  available: boolean;
-  isSelected: boolean;
-  isInRange: boolean;
-  isToday: boolean;
-  blank: boolean;
-}
-
-export interface ArkyServiceOrderSlot {
-  id: string;
-  serviceId: string;
-  providerId: string;
-  from: number;
-  to: number;
-  timeText: string;
-  dateText: string;
-  isMultiDay?: boolean;
-  serviceName?: string;
-  date?: string;
-  serviceBlocks?: Block[];
-}
-
-export interface ArkyServiceOrderState {
-  service: Service | null;
-  availability: AvailabilityResponse | null;
-  providers: Provider[];
-  selectedProviderId: string | null;
-  currentMonth: Date;
-  calendar: ArkyCalendarDay[];
-  selectedDate: string | null;
-  startDate: string | null;
-  endDate: string | null;
-  slots: ArkyServiceOrderSlot[];
-  selectedSlot: ArkyServiceOrderSlot | null;
-  cart: ArkyServiceOrderSlot[];
-  timezone: string;
-  tzGroups: Record<string, { zone: string; name: string }[]>;
-  loading: boolean;
-  weekdays: string[];
-  quote: OrderQuote | null;
-  fetchingQuote: boolean;
-  quoteError: string | null;
-  currency: string | null;
-  dateTimeConfirmed: boolean;
-  isMultiDay: boolean;
-  availablePaymentMethods: PaymentMethod[];
-  cartId: string | null;
-  promoCode: string | null;
-}
-
-function readErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error && error.message) return error.message;
-  if (typeof error === "string" && error.length > 0) return error;
-  return fallback;
-}
-
-function createId(prefix: string): string {
-  const cryptoValue = globalThis.crypto;
-  if (cryptoValue && "randomUUID" in cryptoValue) return cryptoValue.randomUUID();
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-}
-
-function firstLocalized(value: unknown, locale: string): string {
-  if (typeof value === "string") return value;
-  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
-  const record = value as Record<string, unknown>;
-  const localeValue = record[locale];
-  if (typeof localeValue === "string") return localeValue;
-  const englishValue = record.en;
-  if (typeof englishValue === "string") return englishValue;
-  for (const entry of Object.values(record)) {
-    if (typeof entry === "string") return entry;
-  }
-  return "";
-}
-
-function findBlock(blocks: Block[] | undefined, keys: string[]): Block | null {
-  return (blocks || []).find((block) => keys.includes(block.key)) || null;
-}
-
-function blockText(blocks: Block[] | undefined, keys: string[], locale: string): string {
-  const block = findBlock(blocks, keys);
-  if (!block) return "";
-  return firstLocalized(block.value, locale);
-}
-
-function productName(product: Product, locale: string): string {
-  return blockText(product.blocks, ["name", "title"], locale) || product.key || product.id;
-}
-
-function serviceName(service: Service, locale: string): string {
-  return blockText(service.blocks, ["name", "title"], locale) || service.key || service.id;
-}
-
-function providerName(provider: Provider, locale: string): string {
-  return blockText(provider.blocks, ["name", "title"], locale) || provider.key || provider.id;
-}
-
-function entitySlug(entity: { id: string; slug?: Record<string, string> }, locale: string): string {
-  return entity.slug?.[locale] || entity.slug?.en || Object.values(entity.slug || {})[0] || entity.id;
-}
-
-function priceForMarket(prices: Price[], market: string, fallbackCurrency?: string | null): Price {
-  const price = prices.find((candidate) => candidate.market === market) || prices[0];
-  return {
-    amount: price?.amount || 0,
-    market: price?.market || market,
-    currency: price?.currency || fallbackCurrency || "",
-    compare_at: price?.compare_at,
-    audience_id: price?.audience_id,
-  };
-}
-
-function availableStock(client: ArkyStoreClient, variant: ProductVariant): number | undefined {
-  const fromUtility = client.utils.getAvailableStock(variant);
-  if (Number.isFinite(fromUtility)) return fromUtility;
-  const stock = (variant.inventory || []).reduce((total, row) => total + (row.available || 0), 0);
-  return stock > 0 ? stock : undefined;
-}
-
-function locationToAddress(location: ZoneLocation): Address {
-  return {
-    country: location.country || "",
-    state: location.state || "",
-    city: location.city || "",
-    postal_code: location.postal_code || "",
-    name: "",
-    street1: "",
-    street2: null,
-  };
-}
-
-function normalizeForms(forms: FormEntry[] | Block[] | undefined): FormEntry[] | undefined {
-  return forms as FormEntry[] | undefined;
-}
-
-function toProductCheckoutItems(items: EshopCartItem[]): ProductCheckoutItemInput[] {
-  return items.map((item) => ({
-    type: "product",
-    id: item.id,
-    product_id: item.product_id,
-    variant_id: item.variant_id,
-    quantity: item.quantity,
-  }));
-}
-
-function toServiceCheckoutItems(items: ArkyServiceCartItem[]): ServiceCheckoutItemInput[] {
-  const groups = new Map<string, ServiceCheckoutItemInput>();
-  for (const item of items) {
-    const key = `${item.service_id}:${item.provider_id}`;
-    const slot: SlotRange = { from: item.from, to: item.to };
-    const existing = groups.get(key);
-    if (existing) {
-      existing.slots.push(slot);
-      continue;
-    }
-    groups.set(key, {
-      type: "service",
-      id: item.id,
-      service_id: item.service_id,
-      provider_id: item.provider_id,
-      slots: [slot],
-      forms: item.forms || [],
-      price: item.price,
-    });
-  }
-  return [...groups.values()].map((item) => ({
-    ...item,
-    slots: [...item.slots].sort((a, b) => a.from - b.from),
-  }));
-}
-
-function formFieldsFromBlocks(blocks: Block[]): FormField[] {
-  return blocks.map((block) => ({
-    id: block.id,
-    key: block.key,
-    type: block.type as FormField["type"],
-    value: block.value,
-  }));
-}
-
-function getFormBlockType(field: FormSchema): string {
-  if (field.key === "email") return "email";
-  if (field.key === "phone") return "phone";
-  if (field.type === "geo_location") return "address";
-  return field.type;
-}
-
-function getFormBlockValue(field: FormSchema): unknown {
-  if (field.type === "boolean") return false;
-  if (field.type === "number") return field.min ?? 0;
-  if (field.type === "geo_location") return {};
-  return "";
-}
-
-function formSchemaToBlock(field: FormSchema): Block {
-  return {
-    id: field.id,
-    key: field.key,
-    type: getFormBlockType(field),
-    properties: {
-      isRequired: field.required,
-      minValues: field.required ? 1 : 0,
-      min: field.min,
-      max: field.max,
-      options: field.options,
-      pattern: field.key === "email" ? "^.+@.+\\..+$" : field.key === "phone" ? "^.{6,20}$" : undefined,
-    },
-    value: getFormBlockValue(field),
-  };
-}
-
-function formatServiceOrderTime(ts: number, tz: string): string {
-  return new Date(ts * 1000).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: tz,
-  });
-}
-
-function formatServiceOrderSlotTime(from: number, to: number, tz: string): string {
-  return `${formatServiceOrderTime(from, tz)} - ${formatServiceOrderTime(to, tz)}`;
-}
-
-function getSlotsForDate(
-  availability: AvailabilityResponse | null,
-  dateStr: string,
-  providerId?: string | null,
-): { from: number; to: number; providerId: string }[] {
-  if (!availability) return [];
-  const slots: { from: number; to: number; providerId: string }[] = [];
-  for (const provider of availability.providers) {
-    if (providerId && provider.provider_id !== providerId) continue;
-    const day = provider.days.find((candidate) => candidate.date === dateStr);
-    if (!day) continue;
-    for (const slot of day.slots) {
-      if (slot.spots > 0) slots.push({ from: slot.from, to: slot.to, providerId: provider.provider_id });
-    }
-  }
-  return slots.sort((a, b) => a.from - b.from);
-}
-
-function hasAvailableSlotsForDate(
-  availability: AvailabilityResponse | null,
-  dateStr: string,
-  providerId?: string | null,
-): boolean {
-  if (!availability) return false;
-  return availability.providers.some((provider) => {
-    if (providerId && provider.provider_id !== providerId) return false;
-    const day = provider.days.find((candidate) => candidate.date === dateStr);
-    return !!day?.slots.some((slot) => slot.spots > 0);
-  });
-}
-
-const SERVICE_ORDER_WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-function createServiceOrderInitialState(): ArkyServiceOrderState {
-  return {
-    service: null,
-    availability: null,
-    providers: [],
-    selectedProviderId: null,
-    currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-    calendar: [],
-    selectedDate: null,
-    startDate: null,
-    endDate: null,
-    slots: [],
-    selectedSlot: null,
-    cart: [],
-    timezone: typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC",
-    tzGroups: {},
-    loading: false,
-    weekdays: SERVICE_ORDER_WEEKDAYS,
-    quote: null,
-    fetchingQuote: false,
-    quoteError: null,
-    currency: null,
-    dateTimeConfirmed: false,
-    isMultiDay: false,
-    availablePaymentMethods: [],
-    cartId: null,
-    promoCode: null,
-  };
-}
-
-function normalizeTimezoneGroups(
-  groups: { label: string; zones: { label: string; value: string }[] }[],
-): Record<string, { zone: string; name: string }[]> {
-  const normalized: Record<string, { zone: string; name: string }[]> = {};
-  for (const group of groups) {
-    normalized[group.label] = group.zones.map((zone) => ({
-      zone: zone.value,
-      name: zone.label,
-    }));
-  }
-  return normalized;
-}
+} from "../types/api";
+import type { Activity, TrackParams } from "../api/storefront";
+import type {
+  ArkyCalendarDay,
+  ArkyCartInput,
+  ArkyCartSnapshot,
+  ArkyCartStatus,
+  ArkyCmsState,
+  ArkyEshopState,
+  ArkyLastOrder,
+  ArkyServiceCartItem,
+  ArkyServiceOrderSlot,
+  ArkyServiceOrderState,
+  ArkyStoreConfig,
+} from "./types";
+import {
+  availableStock,
+  createId,
+  createServiceOrderInitialState,
+  entitySlug,
+  formFieldsFromBlocks,
+  formSchemaToBlock,
+  formatServiceOrderSlotTime,
+  getSlotsForDate,
+  hasAvailableSlotsForDate,
+  locationToAddress,
+  normalizeForms,
+  normalizeTimezoneGroups,
+  priceForMarket,
+  productName,
+  providerName,
+  readErrorMessage,
+  serviceName,
+  toProductCheckoutItems,
+  toServiceCheckoutItems,
+} from "./utils";
 
 export function createArkyStore(config: ArkyStoreConfig) {
   const client = createStorefront(config);

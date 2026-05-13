@@ -263,7 +263,7 @@ export type {
   IntegrationService,
 } from "./api/platform";
 
-export const SDK_VERSION = "0.7.132";
+export const SDK_VERSION = "0.7.133";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
