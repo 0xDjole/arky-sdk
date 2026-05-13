@@ -48,25 +48,28 @@ import type {
 import type { Activity, TrackParams } from "../api/storefront";
 import type {
   ArkyCalendarDay,
+  ArkyCmsNodeParams,
   ArkyCartInput,
-  ArkyCartSnapshot,
   ArkyCartStatus,
   ArkyCmsState,
   ArkyEshopState,
   ArkyLastOrder,
   ArkyServiceCartItem,
-  ArkyServiceOrderSlot,
-  ArkyServiceOrderState,
+  ArkyServiceSlot,
+  ArkyServiceState,
+  ArkyStoreContext,
   ArkyStoreConfig,
+  ArkyStoreSetupOptions,
+  ArkyStoreSetupResult,
 } from "./types";
 import {
   availableStock,
   createId,
-  createServiceOrderInitialState,
+  createServiceInitialState,
   entitySlug,
   formFieldsFromBlocks,
   formSchemaToBlock,
-  formatServiceOrderSlotTime,
+  formatServiceSlotTime,
   getSlotsForDate,
   hasAvailableSlotsForDate,
   locationToAddress,
@@ -126,7 +129,6 @@ export function createArkyStore(config: ArkyStoreConfig) {
   }));
 
   const cms_state = map<ArkyCmsState>({
-    website_node: null,
     nodes: {},
     forms: {},
     loading: false,
@@ -146,17 +148,16 @@ export function createArkyStore(config: ArkyStoreConfig) {
     loading_availability: false,
     error: null,
   });
-  const service_order_state = map<ArkyServiceOrderState>(createServiceOrderInitialState());
-  const service_order_form_node = atom<{ blocks: Block[] } | null>(null);
-  const service_order_form_blocks = computed(service_order_form_node, (node) => node?.blocks || []);
+  const service_state = map<ArkyServiceState>(createServiceInitialState());
+  const service_form_node = atom<{ blocks: Block[] } | null>(null);
+  const service_form_blocks = computed(service_form_node, (node) => node?.blocks || []);
 
   client.onAuthStateChanged((value) => session.set(value));
-  snapshot.subscribe((value) => config.onCartChange?.(value));
-  currency.subscribe((value) => service_order_state.setKey("currency", value));
+  currency.subscribe((value) => service_state.setKey("currency", value));
   session.subscribe((value) => {
     const methods = value?.market?.payment_methods || [];
-    if (methods.length && service_order_state.get().availablePaymentMethods.length === 0) {
-      service_order_state.setKey("availablePaymentMethods", methods);
+    if (methods.length && service_state.get().availablePaymentMethods.length === 0) {
+      service_state.setKey("availablePaymentMethods", methods);
     }
   });
 
@@ -172,6 +173,17 @@ export function createArkyStore(config: ArkyStoreConfig) {
     return currency.get() || market.get()?.currency || null;
   }
 
+  function marketForLocale(value: string): string | null {
+    return config.marketForLocale?.(value) || null;
+  }
+
+  async function ensureSession(): Promise<CustomerSession | null> {
+    const current = session.get();
+    const marketKey = currentMarketKey();
+    if (current && (!marketKey || current.market?.key === marketKey)) return current;
+    return identify({ market: marketKey });
+  }
+
   async function identify(params: { email?: string; verify?: boolean; market?: string } = {}) {
     if (params.market) setMarket(params.market);
     const result = await client.identify({ ...params, market: params.market || currentMarketKey() });
@@ -184,16 +196,26 @@ export function createArkyStore(config: ArkyStoreConfig) {
     client.setMarket(key);
   }
 
-  function setLocale(value: string): void {
+  function setLocale(value: string, options: { market?: string } = {}): void {
     locale.set(value);
     client.setLocale(value);
+    const nextMarket = options.market || marketForLocale(value);
+    if (nextMarket) setMarket(nextMarket);
+  }
+
+  function setContext(context: ArkyStoreContext): void {
+    if (context.locale) {
+      setLocale(context.locale, { market: context.market });
+      return;
+    }
+    if (context.market) setMarket(context.market);
   }
 
   async function ensureCart(): Promise<Cart> {
     cart_status.setKey("loading", true);
     cart_status.setKey("error", null);
     try {
-      await identify({ market: currentMarketKey() });
+      await ensureSession();
       const response = await client.cart.refresh({ market: currentMarketKey() });
       await hydrateCart(response);
       return response;
@@ -453,8 +475,8 @@ export function createArkyStore(config: ArkyStoreConfig) {
     }
   }
 
-  function serviceOrderCalendar(): ArkyCalendarDay[] {
-    const state = service_order_state.get();
+  function serviceCalendar(): ArkyCalendarDay[] {
+    const state = service_state.get();
     const { currentMonth, selectedDate, startDate, endDate, availability, selectedProviderId } = state;
     const year = currentMonth.getFullYear();
     const monthIndex = currentMonth.getMonth();
@@ -514,8 +536,8 @@ export function createArkyStore(config: ArkyStoreConfig) {
     return cells;
   }
 
-  function computeServiceOrderSlots(dateStr: string): ArkyServiceOrderSlot[] {
-    const state = service_order_state.get();
+  function computeServiceSlots(dateStr: string): ArkyServiceSlot[] {
+    const state = service_state.get();
     const { availability, selectedProviderId, timezone, service } = state;
     return getSlotsForDate(availability, dateStr, selectedProviderId).map((slot, index) => ({
       id: `${service?.id || "service"}-${slot.from}-${index}`,
@@ -523,7 +545,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
       providerId: slot.providerId,
       from: slot.from,
       to: slot.to,
-      timeText: formatServiceOrderSlotTime(slot.from, slot.to, timezone),
+      timeText: formatServiceSlotTime(slot.from, slot.to, timezone),
       dateText: new Date(slot.from * 1000).toLocaleDateString([], {
         weekday: "short",
         month: "short",
@@ -533,7 +555,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
     }));
   }
 
-  function toServiceCartItem(slot: ArkyServiceOrderSlot): ArkyServiceCartItem {
+  function toServiceCartItem(slot: ArkyServiceSlot): ArkyServiceCartItem {
     return {
       id: slot.id,
       service_id: slot.serviceId,
@@ -548,7 +570,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
     };
   }
 
-  function fromServiceCartItem(item: ArkyServiceCartItem): ArkyServiceOrderSlot {
+  function fromServiceCartItem(item: ArkyServiceCartItem): ArkyServiceSlot {
     return {
       id: item.id,
       serviceId: item.service_id,
@@ -558,41 +580,41 @@ export function createArkyStore(config: ArkyStoreConfig) {
       serviceName: item.service_name || "",
       date: item.date_text || "",
       dateText: item.date_text || "",
-      timeText: item.time_text || formatServiceOrderSlotTime(item.from, item.to, service_order_state.get().timezone),
+      timeText: item.time_text || formatServiceSlotTime(item.from, item.to, service_state.get().timezone),
       isMultiDay: item.is_multi_day,
     };
   }
 
-  function setServiceOrderCartFromServiceItems(items: readonly ArkyServiceCartItem[]): void {
+  function setServiceCartFromServiceItems(items: readonly ArkyServiceCartItem[]): void {
     const next = items.map(fromServiceCartItem);
-    const current = service_order_state.get().cart;
+    const current = service_state.get().cart;
     if (JSON.stringify(current) !== JSON.stringify(next)) {
-      service_order_state.setKey("cart", next);
+      service_state.setKey("cart", next);
     }
   }
 
-  async function syncServiceOrderCart(slots: ArkyServiceOrderSlot[]): Promise<Cart> {
+  async function syncServiceCart(slots: ArkyServiceSlot[]): Promise<Cart> {
     try {
       return await syncCart({
         product_items: product_items.get(),
         service_items: slots.map(toServiceCartItem),
       });
     } catch (error) {
-      service_order_state.setKey("quoteError", readErrorMessage(error, "Failed to sync service order cart."));
+      service_state.setKey("quoteError", readErrorMessage(error, "Failed to sync service cart."));
       throw error;
     }
   }
 
-  function serviceOrderCurrentStepName(): string {
-    const state = service_order_state.get();
+  function serviceCurrentStepName(): string {
+    const state = service_state.get();
     if (!state.service) return "";
     if (!state.selectedSlot || !state.dateTimeConfirmed) return "datetime";
     return "review";
   }
 
-  const service_order_current_step_name = computed(service_order_state, serviceOrderCurrentStepName);
-  const service_order_can_proceed = computed(service_order_state, (state) => {
-    const step = serviceOrderCurrentStepName();
+  const service_current_step_name = computed(service_state, serviceCurrentStepName);
+  const service_can_proceed = computed(service_state, (state) => {
+    const step = serviceCurrentStepName();
     if (step === "datetime") {
       return state.isMultiDay
         ? !!(state.startDate && state.endDate && state.selectedSlot)
@@ -601,26 +623,26 @@ export function createArkyStore(config: ArkyStoreConfig) {
     if (step === "review") return true;
     return false;
   });
-  const service_order_month_year = computed(service_order_state, (state) =>
+  const service_month_year = computed(service_state, (state) =>
     state.currentMonth.toLocaleString(undefined, { month: "long", year: "numeric" }),
   );
-  const service_order_chain_start = computed(service_order_state, (state) => {
+  const service_chain_start = computed(service_state, (state) => {
     if (!state.cart.length) return null;
     return Math.max(...state.cart.map((slot) => slot.to));
   });
-  const service_order_total_steps = computed(service_order_state, (state) => state.service ? 2 : 0);
-  const service_order_steps = computed(service_order_state, () => ({
+  const service_total_steps = computed(service_state, (state) => state.service ? 2 : 0);
+  const service_steps = computed(service_state, () => ({
     1: { name: "datetime" },
     2: { name: "review" },
   }));
-  const service_order_current_step = computed([service_order_current_step_name, service_order_steps], (name, steps) => {
+  const service_current_step = computed([service_current_step_name, service_steps], (name, steps) => {
     for (const [idx, step] of Object.entries(steps)) {
       if (step.name === name) return Number(idx);
     }
     return 1;
   });
 
-  function formatServiceOrderDateDisplay(value: string | null): string {
+  function formatServiceDateDisplay(value: string | null): string {
     if (!value) return "";
     return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
@@ -629,7 +651,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
     return "provider_id" in provider ? provider.provider_id : provider.id;
   }
 
-  function getFirstServiceProviderEntry(state: ArkyServiceOrderState): ServiceProvider | null {
+  function getFirstServiceProviderEntry(state: ArkyServiceState): ServiceProvider | null {
     const serviceWithProviders = state.service as (Service & { providers?: ServiceProvider[] }) | null;
     const providers = serviceWithProviders?.providers;
     if (!providers?.length) return null;
@@ -640,40 +662,40 @@ export function createArkyStore(config: ArkyStoreConfig) {
     return providers[0];
   }
 
-  async function loadServiceOrderForm(): Promise<Block[]> {
+  async function loadServiceForm(): Promise<Block[]> {
     try {
       const form = await loadForm({ key: "order-form" });
       const blocks = (form.schema || []).map(formSchemaToBlock);
-      service_order_form_node.set({ blocks });
+      service_form_node.set({ blocks });
       return blocks;
     } catch {
-      service_order_form_node.set({ blocks: [] });
+      service_form_node.set({ blocks: [] });
       return [];
     }
   }
 
-  const service_order_actions = {
+  const service_controller = {
     async initialize(): Promise<void> {
-      service_order_state.setKey("tzGroups", normalizeTimezoneGroups(client.utils.tzGroups));
+      service_state.setKey("tzGroups", normalizeTimezoneGroups(client.utils.tzGroups));
       await ensureCart();
-      setServiceOrderCartFromServiceItems(service_items.get());
+      setServiceCartFromServiceItems(service_items.get());
       const methods = session.get()?.market?.payment_methods || [];
-      if (methods.length) service_order_state.setKey("availablePaymentMethods", methods);
-      await loadServiceOrderForm();
+      if (methods.length) service_state.setKey("availablePaymentMethods", methods);
+      await loadServiceForm();
     },
 
     setTimezone(tz: string): void {
-      service_order_state.setKey("timezone", tz);
-      service_order_state.setKey("calendar", serviceOrderCalendar());
-      const state = service_order_state.get();
+      service_state.setKey("timezone", tz);
+      service_state.setKey("calendar", serviceCalendar());
+      const state = service_state.get();
       if (state.selectedDate) {
-        service_order_state.setKey("slots", computeServiceOrderSlots(state.selectedDate));
-        service_order_state.setKey("selectedSlot", null);
+        service_state.setKey("slots", computeServiceSlots(state.selectedDate));
+        service_state.setKey("selectedSlot", null);
       }
     },
 
-    async setService(service: Service): Promise<void> {
-      service_order_state.setKey("loading", true);
+    async select(service: Service): Promise<void> {
+      service_state.setKey("loading", true);
       try {
         const isMultiDayBlock = service.blocks?.find((block) => block.key === "isMultiDay");
         const blockValue = isMultiDayBlock?.value;
@@ -687,8 +709,8 @@ export function createArkyStore(config: ArkyStoreConfig) {
           providerIds.map((id) => client.eshop.provider.get({ id }).catch(() => null)),
         );
 
-        service_order_state.set({
-          ...service_order_state.get(),
+        service_state.set({
+          ...service_state.get(),
           service: fullService,
           providers: providerResults.filter((provider): provider is Provider => provider !== null),
           selectedProviderId: null,
@@ -703,19 +725,19 @@ export function createArkyStore(config: ArkyStoreConfig) {
           isMultiDay,
         });
 
-        await service_order_actions.loadMonth();
+        await service_controller.loadMonth();
       } catch (error) {
-        service_order_state.setKey("loading", false);
+        service_state.setKey("loading", false);
         throw error;
       }
     },
 
     async loadMonth(): Promise<void> {
-      const state = service_order_state.get();
+      const state = service_state.get();
       if (!state.service) return;
-      service_order_state.setKey("loading", true);
+      service_state.setKey("loading", true);
       try {
-        const chainedStart = service_order_chain_start.get();
+        const chainedStart = service_chain_start.get();
         let from: number;
         let to: number;
         if (chainedStart) {
@@ -731,28 +753,28 @@ export function createArkyStore(config: ArkyStoreConfig) {
           from,
           to,
         });
-        service_order_state.setKey("availability", availability);
-        service_order_state.setKey("calendar", serviceOrderCalendar());
+        service_state.setKey("availability", availability);
+        service_state.setKey("calendar", serviceCalendar());
       } finally {
-        service_order_state.setKey("loading", false);
+        service_state.setKey("loading", false);
       }
     },
 
     prevMonth(): void {
-      const { currentMonth } = service_order_state.get();
-      service_order_state.setKey("currentMonth", new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
-      void service_order_actions.loadMonth();
+      const { currentMonth } = service_state.get();
+      service_state.setKey("currentMonth", new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+      void service_controller.loadMonth();
     },
 
     nextMonth(): void {
-      const { currentMonth } = service_order_state.get();
-      service_order_state.setKey("currentMonth", new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
-      void service_order_actions.loadMonth();
+      const { currentMonth } = service_state.get();
+      service_state.setKey("currentMonth", new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+      void service_controller.loadMonth();
     },
 
     selectProvider(providerId: string | null): void {
-      service_order_state.set({
-        ...service_order_state.get(),
+      service_state.set({
+        ...service_state.get(),
         selectedProviderId: providerId,
         selectedDate: null,
         startDate: null,
@@ -760,49 +782,49 @@ export function createArkyStore(config: ArkyStoreConfig) {
         slots: [],
         selectedSlot: null,
       });
-      void service_order_actions.loadMonth();
+      void service_controller.loadMonth();
     },
 
     selectDate(cell: ArkyCalendarDay): void {
       if (cell.blank || !cell.available) return;
-      service_order_state.setKey("dateTimeConfirmed", false);
-      const state = service_order_state.get();
+      service_state.setKey("dateTimeConfirmed", false);
+      const state = service_state.get();
       if (state.isMultiDay) {
         if (!state.startDate) {
-          service_order_state.setKey("startDate", cell.iso);
-          service_order_state.setKey("selectedDate", cell.iso);
-          service_order_state.setKey("endDate", null);
-          service_order_state.setKey("selectedSlot", null);
+          service_state.setKey("startDate", cell.iso);
+          service_state.setKey("selectedDate", cell.iso);
+          service_state.setKey("endDate", null);
+          service_state.setKey("selectedSlot", null);
         } else if (!state.endDate) {
           if (cell.date.getTime() < new Date(state.startDate).getTime()) {
-            service_order_state.setKey("startDate", cell.iso);
-            service_order_state.setKey("endDate", state.startDate);
+            service_state.setKey("startDate", cell.iso);
+            service_state.setKey("endDate", state.startDate);
           } else {
-            service_order_state.setKey("endDate", cell.iso);
+            service_state.setKey("endDate", cell.iso);
           }
-          service_order_actions.createMultiDaySlots();
+          service_controller.createMultiDaySlots();
         } else {
-          service_order_state.setKey("startDate", cell.iso);
-          service_order_state.setKey("selectedDate", cell.iso);
-          service_order_state.setKey("endDate", null);
-          service_order_state.setKey("selectedSlot", null);
+          service_state.setKey("startDate", cell.iso);
+          service_state.setKey("selectedDate", cell.iso);
+          service_state.setKey("endDate", null);
+          service_state.setKey("selectedSlot", null);
         }
-        service_order_actions.updateCalendar();
+        service_controller.updateCalendar();
       } else {
-        service_order_state.set({
+        service_state.set({
           ...state,
           selectedDate: cell.iso,
-          slots: computeServiceOrderSlots(cell.iso),
+          slots: computeServiceSlots(cell.iso),
           selectedSlot: null,
         });
-        service_order_state.setKey("calendar", serviceOrderCalendar());
+        service_state.setKey("calendar", serviceCalendar());
       }
     },
 
     createMultiDaySlots(): void {
-      const state = service_order_state.get();
+      const state = service_state.get();
       if (!state.startDate || !state.endDate || !state.availability) return;
-      const slots: ArkyServiceOrderSlot[] = [];
+      const slots: ArkyServiceSlot[] = [];
       for (let day = new Date(state.startDate); day <= new Date(state.endDate); day.setDate(day.getDate() + 1)) {
         const iso = day.toISOString().slice(0, 10);
         for (const slot of getSlotsForDate(state.availability, iso, state.selectedProviderId)) {
@@ -812,7 +834,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
             providerId: slot.providerId,
             from: slot.from,
             to: slot.to,
-            timeText: formatServiceOrderSlotTime(slot.from, slot.to, state.timezone),
+            timeText: formatServiceSlotTime(slot.from, slot.to, state.timezone),
             dateText: new Date(slot.from * 1000).toLocaleDateString([], {
               weekday: "short",
               month: "short",
@@ -823,41 +845,41 @@ export function createArkyStore(config: ArkyStoreConfig) {
           });
         }
       }
-      service_order_state.setKey("slots", slots);
-      service_order_state.setKey("selectedSlot", slots.length === 1 ? slots[0] : null);
+      service_state.setKey("slots", slots);
+      service_state.setKey("selectedSlot", slots.length === 1 ? slots[0] : null);
     },
 
-    selectTimeSlot(slot: ArkyServiceOrderSlot | null): void {
-      service_order_state.setKey("dateTimeConfirmed", false);
-      service_order_state.setKey("selectedSlot", slot);
+    selectTimeSlot(slot: ArkyServiceSlot | null): void {
+      service_state.setKey("dateTimeConfirmed", false);
+      service_state.setKey("selectedSlot", slot);
     },
 
     resetDateSelection(): void {
-      service_order_state.setKey("selectedDate", null);
-      service_order_state.setKey("startDate", null);
-      service_order_state.setKey("endDate", null);
-      service_order_state.setKey("slots", []);
-      service_order_state.setKey("selectedSlot", null);
-      service_order_state.setKey("dateTimeConfirmed", false);
+      service_state.setKey("selectedDate", null);
+      service_state.setKey("startDate", null);
+      service_state.setKey("endDate", null);
+      service_state.setKey("slots", []);
+      service_state.setKey("selectedSlot", null);
+      service_state.setKey("dateTimeConfirmed", false);
     },
 
     updateCalendar(): void {
-      service_order_state.setKey("calendar", serviceOrderCalendar());
+      service_state.setKey("calendar", serviceCalendar());
     },
 
     findFirstAvailable(): void {
-      for (const day of service_order_state.get().calendar) {
+      for (const day of service_state.get().calendar) {
         if (!day.blank && day.available) {
-          service_order_actions.selectDate(day);
+          service_controller.selectDate(day);
           return;
         }
       }
     },
 
     async addToCart(): Promise<void> {
-      const state = service_order_state.get();
+      const state = service_state.get();
       const serviceBlocks = ((state.service as (Service & { forms?: Block[] }) | null)?.forms || []);
-      const enrich = (slot: ArkyServiceOrderSlot): ArkyServiceOrderSlot => ({
+      const enrich = (slot: ArkyServiceSlot): ArkyServiceSlot => ({
         ...slot,
         serviceName: state.service ? serviceName(state.service, currentLocale()) : "",
         date: slot.dateText,
@@ -870,7 +892,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
           : [];
       if (!selected.length) return;
       const nextCart = [...state.cart, ...selected];
-      service_order_state.set({
+      service_state.set({
         ...state,
         cart: nextCart,
         selectedDate: null,
@@ -879,25 +901,25 @@ export function createArkyStore(config: ArkyStoreConfig) {
         slots: [],
         selectedSlot: null,
       });
-      await syncServiceOrderCart(nextCart);
-      service_order_state.setKey("calendar", serviceOrderCalendar());
+      await syncServiceCart(nextCart);
+      service_state.setKey("calendar", serviceCalendar());
     },
 
     async removeFromCart(slotId: string): Promise<void> {
-      const nextCart = service_order_state.get().cart.filter((slot) => slot.id !== slotId);
-      service_order_state.setKey("cart", nextCart);
-      await syncServiceOrderCart(nextCart);
+      const nextCart = service_state.get().cart.filter((slot) => slot.id !== slotId);
+      service_state.setKey("cart", nextCart);
+      await syncServiceCart(nextCart);
     },
 
     async clearCart(): Promise<void> {
-      service_order_state.setKey("cart", []);
-      await syncServiceOrderCart([]);
+      service_state.setKey("cart", []);
+      await syncServiceCart([]);
     },
 
     async checkout(paymentMethodId?: string, forms: Block[] = []): Promise<{ success: true; data: OrderCheckoutResult } | { success: false; error: string }> {
-      const state = service_order_state.get();
+      const state = service_state.get();
       if (!state.cart.length) return { success: false, error: "Cart is empty" };
-      service_order_state.setKey("loading", true);
+      service_state.setKey("loading", true);
       try {
         const result = await checkout({
           service_items: state.cart.map((slot) => ({
@@ -908,84 +930,86 @@ export function createArkyStore(config: ArkyStoreConfig) {
           promo_code: state.promoCode || undefined,
           forms,
         });
-        service_order_state.setKey("cartId", cart.get()?.id || null);
+        service_state.setKey("cartId", cart.get()?.id || null);
         return { success: true, data: result };
       } catch (error) {
         return { success: false, error: readErrorMessage(error, "Checkout failed.") };
       } finally {
-        service_order_state.setKey("loading", false);
+        service_state.setKey("loading", false);
       }
     },
 
     async fetchQuote(paymentMethodId?: string, promoCode?: string | null): Promise<OrderQuote | null> {
-      const state = service_order_state.get();
+      const state = service_state.get();
       if (!state.cart.length) return null;
-      service_order_state.setKey("fetchingQuote", true);
-      service_order_state.setKey("quoteError", null);
+      service_state.setKey("fetchingQuote", true);
+      service_state.setKey("quoteError", null);
       try {
-        service_order_state.setKey("promoCode", promoCode || null);
+        service_state.setKey("promoCode", promoCode || null);
         const response = await fetchQuote({
           service_items: state.cart.map(toServiceCartItem),
           payment_method_id: paymentMethodId,
           promo_code: promoCode || undefined,
         });
-        service_order_state.setKey("cartId", cart.get()?.id || null);
-        service_order_state.setKey("quote", response);
+        service_state.setKey("cartId", cart.get()?.id || null);
+        service_state.setKey("quote", response);
         const methods = response?.payment_methods || session.get()?.market?.payment_methods || [];
-        if (methods.length) service_order_state.setKey("availablePaymentMethods", methods);
+        if (methods.length) service_state.setKey("availablePaymentMethods", methods);
         return response;
       } catch (error) {
-        service_order_state.setKey("quoteError", readErrorMessage(error, "Failed to fetch quote."));
+        service_state.setKey("quoteError", readErrorMessage(error, "Failed to fetch quote."));
         return null;
       } finally {
-        service_order_state.setKey("fetchingQuote", false);
+        service_state.setKey("fetchingQuote", false);
       }
     },
 
     getProvidersList(): Provider[] {
-      return service_order_state.get().providers;
+      return service_state.get().providers;
     },
 
     prevStep(): void {
-      const current = serviceOrderCurrentStepName();
+      const current = serviceCurrentStepName();
       if (current === "review") {
-        service_order_state.setKey("dateTimeConfirmed", false);
+        service_state.setKey("dateTimeConfirmed", false);
         return;
       }
       if (current === "datetime") {
-        service_order_state.setKey("selectedSlot", null);
-        service_order_state.setKey("dateTimeConfirmed", false);
+        service_state.setKey("selectedSlot", null);
+        service_state.setKey("dateTimeConfirmed", false);
       }
     },
 
     nextStep(): void {
-      if (serviceOrderCurrentStepName() === "datetime" && service_order_can_proceed.get()) {
-        service_order_state.setKey("dateTimeConfirmed", true);
+      if (serviceCurrentStepName() === "datetime" && service_can_proceed.get()) {
+        service_state.setKey("dateTimeConfirmed", true);
       }
     },
 
     getServicePrice(): string {
-      const state = service_order_state.get();
+      const state = service_state.get();
       if (state.quote?.total !== undefined) return String(state.quote.total);
       const provider = getFirstServiceProviderEntry(state);
       if (!provider?.prices) return "";
       return client.utils.formatPrice(provider.prices) || "0";
     },
 
-    formatDateDisplay: formatServiceOrderDateDisplay,
-    serviceItemsFromSlots(slots: ArkyServiceOrderSlot[]): ArkyServiceCartItem[] {
+    formatDateDisplay: formatServiceDateDisplay,
+    serviceItemsFromSlots(slots: ArkyServiceSlot[]): ArkyServiceCartItem[] {
       return slots.map(toServiceCartItem);
     },
   };
 
-  service_items.subscribe((items) => setServiceOrderCartFromServiceItems(items));
+  service_items.subscribe((items) => setServiceCartFromServiceItems(items));
 
-  async function loadNode(params: GetNodeParams, options?: RequestOptions): Promise<Node> {
+  async function loadNode(params: ArkyCmsNodeParams, options?: RequestOptions): Promise<Node> {
     cms_state.setKey("loading", true);
     cms_state.setKey("error", null);
     try {
-      const node = await client.cms.node.get(params, options);
-      const key = params.key || params.id || params.slug || node.id;
+      const { locale: nextLocale, market: nextMarket, ...nodeParams } = params;
+      setContext({ locale: nextLocale, market: nextMarket });
+      const node = await client.cms.node.get(nodeParams as GetNodeParams, options);
+      const key = nodeParams.key || nodeParams.id || nodeParams.slug || node.id;
       cms_state.setKey("nodes", { ...cms_state.get().nodes, [key]: node });
       return node;
     } catch (error) {
@@ -994,12 +1018,6 @@ export function createArkyStore(config: ArkyStoreConfig) {
     } finally {
       cms_state.setKey("loading", false);
     }
-  }
-
-  async function loadWebsiteNode(options?: RequestOptions): Promise<Node> {
-    const node = await loadNode({ key: "website" }, options);
-    cms_state.setKey("website_node", node);
-    return node;
   }
 
   async function loadForm(params: { id?: string; key?: string }, options?: RequestOptions): Promise<Form> {
@@ -1095,23 +1113,30 @@ export function createArkyStore(config: ArkyStoreConfig) {
     }
   }
 
-  async function initialize(options: { hydrate_cart?: boolean; load_website?: boolean; market?: string; locale?: string } = {}) {
-    if (options.locale) setLocale(options.locale);
-    if (options.market) setMarket(options.market);
-    await identify({ market: currentMarketKey() });
-    const results: { session: CustomerSession | null; cart?: Cart; website_node?: Node } = {
+  async function setup(options: ArkyStoreSetupOptions = {}): Promise<ArkyStoreSetupResult> {
+    setContext(options);
+
+    const shouldIdentify = options.identify === true || !!options.hydrateCart || !!options.track;
+    const results: ArkyStoreSetupResult = {
       session: session.get(),
     };
-    if (options.hydrate_cart) results.cart = await ensureCart();
-    if (options.load_website) results.website_node = await loadWebsiteNode();
+
+    if (shouldIdentify) results.session = await ensureSession();
+    if (options.hydrateCart) results.cart = await ensureCart();
+    if (options.track) await client.activity.track(options.track);
+
     return results;
+  }
+
+  async function initialize(options: ArkyStoreSetupOptions = {}) {
+    return setup(options);
   }
 
   const cart_store = {
     cart,
     product_items,
     service_items,
-    quote,
+    quote_result: quote,
     promo_code,
     last_order,
     status: cart_status,
@@ -1119,47 +1144,82 @@ export function createArkyStore(config: ArkyStoreConfig) {
     service_item_count,
     item_count,
     snapshot,
-    actions: {
-      ensure: ensureCart,
-      hydrate: hydrateCart,
-      sync: syncCart,
-      addProduct,
-      setProductQuantity,
-      removeProduct,
-      addServiceItem,
-      removeServiceItem,
-      clear: clearCart,
-      quote: fetchQuote,
-      checkout,
-      applyPromoCode(code: string, input: Omit<ArkyCartInput, "promo_code"> = {}) {
-        promo_code.set(code);
-        return fetchQuote({ ...input, promo_code: code });
-      },
-      removePromoCode(input: Omit<ArkyCartInput, "promo_code"> = {}) {
-        promo_code.set(null);
-        return fetchQuote({ ...input, promo_code: null });
-      },
-      selectShippingMethod(id: string | null) {
-        cart_status.setKey("selected_shipping_method_id", id);
-      },
-      locationToAddress,
-      buildItems: checkoutItems,
-      buildProductItems: toProductCheckoutItems,
-      buildServiceItems: toServiceCheckoutItems,
+    ensure: ensureCart,
+    hydrate: hydrateCart,
+    sync: syncCart,
+    addProduct,
+    setProductQuantity,
+    removeProduct,
+    addServiceItem,
+    removeServiceItem,
+    clear: clearCart,
+    quote: fetchQuote,
+    checkout,
+    applyPromoCode(code: string, input: Omit<ArkyCartInput, "promo_code"> = {}) {
+      promo_code.set(code);
+      return fetchQuote({ ...input, promo_code: code });
     },
+    removePromoCode(input: Omit<ArkyCartInput, "promo_code"> = {}) {
+      promo_code.set(null);
+      return fetchQuote({ ...input, promo_code: null });
+    },
+    selectShippingMethod(id: string | null) {
+      cart_status.setKey("selected_shipping_method_id", id);
+    },
+    locationToAddress,
+    buildItems: checkoutItems,
+    buildProductItems: toProductCheckoutItems,
+    buildServiceItems: toServiceCheckoutItems,
   };
 
-  const service_order_store = {
-    state: service_order_state,
-    form_blocks: service_order_form_blocks,
-    current_step_name: service_order_current_step_name,
-    can_proceed: service_order_can_proceed,
-    month_year: service_order_month_year,
-    chain_start: service_order_chain_start,
-    total_steps: service_order_total_steps,
-    steps: service_order_steps,
-    current_step: service_order_current_step,
-    actions: service_order_actions,
+  const product_store = {
+    get: (params: GetProductParams, options?: RequestOptions) => client.eshop.product.get(params, options),
+    find: loadProducts,
+    list: loadProducts,
+    loadListing: loadProducts,
+    loadDetail: (params: GetProductParams, options?: RequestOptions) => client.eshop.product.get(params, options),
+  };
+
+  const service_store = {
+    get: (params: GetServiceParams, options?: RequestOptions) => client.eshop.service.get(params, options),
+    find: loadServices,
+    list: loadServices,
+    loadListing: loadServices,
+    loadDetail: (params: GetServiceParams, options?: RequestOptions) => client.eshop.service.get(params, options),
+    listProviders: (params: FindServiceProvidersParams, options?: RequestOptions) => client.eshop.service.findProviders(params, options),
+    findProviders: (params: FindServiceProvidersParams, options?: RequestOptions) => client.eshop.service.findProviders(params, options),
+    getAvailability: loadAvailability,
+    state: service_state,
+    form_blocks: service_form_blocks,
+    current_step_name: service_current_step_name,
+    can_proceed: service_can_proceed,
+    month_year: service_month_year,
+    chain_start: service_chain_start,
+    total_steps: service_total_steps,
+    steps: service_steps,
+    current_step: service_current_step,
+    initialize: service_controller.initialize,
+    select: service_controller.select,
+    setTimezone: service_controller.setTimezone,
+    loadMonth: service_controller.loadMonth,
+    prevMonth: service_controller.prevMonth,
+    nextMonth: service_controller.nextMonth,
+    selectProvider: service_controller.selectProvider,
+    selectDate: service_controller.selectDate,
+    createMultiDaySlots: service_controller.createMultiDaySlots,
+    selectTimeSlot: service_controller.selectTimeSlot,
+    resetDateSelection: service_controller.resetDateSelection,
+    updateCalendar: service_controller.updateCalendar,
+    findFirstAvailable: service_controller.findFirstAvailable,
+    addToCart: service_controller.addToCart,
+    removeFromCart: service_controller.removeFromCart,
+    clearCart: service_controller.clearCart,
+    getProvidersList: service_controller.getProvidersList,
+    prevStep: service_controller.prevStep,
+    nextStep: service_controller.nextStep,
+    getServicePrice: service_controller.getServicePrice,
+    formatDateDisplay: service_controller.formatDateDisplay,
+    serviceItemsFromSlots: service_controller.serviceItemsFromSlots,
   };
 
   return {
@@ -1171,6 +1231,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
     currency,
     allowed_payment_methods,
     payment_config,
+    setup,
     initialize,
     identify,
     verify: client.verify,
@@ -1185,6 +1246,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
     },
     setMarket,
     setLocale,
+    setContext,
     getMarket: currentMarketKey,
     getLocale: currentLocale,
     cms: {
@@ -1193,7 +1255,6 @@ export function createArkyStore(config: ArkyStoreConfig) {
         get: loadNode,
         find: (params: GetNodesParams, options?: RequestOptions) => client.cms.node.find(params, options),
         getChildren: (params: GetNodeChildrenParams, options?: RequestOptions) => client.cms.node.getChildren(params, options),
-        loadWebsite: loadWebsiteNode,
       },
       form: {
         get: loadForm,
@@ -1204,28 +1265,22 @@ export function createArkyStore(config: ArkyStoreConfig) {
     },
     eshop: {
       state: eshop_state,
-      product: {
-        get: (params: GetProductParams, options?: RequestOptions) => client.eshop.product.get(params, options),
-        find: loadProducts,
-      },
-      service: {
-        get: (params: GetServiceParams, options?: RequestOptions) => client.eshop.service.get(params, options),
-        find: loadServices,
-        findProviders: (params: FindServiceProvidersParams, options?: RequestOptions) => client.eshop.service.findProviders(params, options),
-        getAvailability: loadAvailability,
-      },
+      product: product_store,
+      service: service_store,
       provider: {
         get: (params: GetProviderParams, options?: RequestOptions) => client.eshop.provider.get(params, options),
         find: loadProviders,
       },
       order: client.eshop.order,
       cart: cart_store,
-      serviceOrder: service_order_store,
     },
     crm: client.crm,
     activity: {
       track(params: TrackParams) {
         return client.activity.track(params);
+      },
+      pageView(payload: Record<string, unknown> = {}) {
+        return client.activity.track({ type: "page_view", payload });
       },
       state: atom<Activity | null>(null),
     },
@@ -1236,4 +1291,5 @@ export function createArkyStore(config: ArkyStoreConfig) {
 }
 
 export type ArkyStore = ReturnType<typeof createArkyStore>;
-export type ArkyCartActions = ArkyStore["eshop"]["cart"]["actions"];
+export type ArkyCartStore = ArkyStore["eshop"]["cart"];
+export type ArkyServiceStore = ArkyStore["eshop"]["service"];

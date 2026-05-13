@@ -338,20 +338,20 @@ export interface GalleryItem {
 	caption?: string;
 }
 
-export interface ProductOrderItemSnapshot {
+export interface ProductLineItemSnapshot {
 	product_key: string;
 	variant_sku?: string;
 	variant_attributes: Block[];
 	price: Price;
 }
 
-export interface ServiceOrderItemSnapshot {
+export interface ServiceLineItemSnapshot {
 	service_key: string;
 	provider_key: string;
 	price: Price;
 }
 
-export type OrderItemSnapshot = ProductOrderItemSnapshot | ServiceOrderItemSnapshot;
+export type OrderItemSnapshot = ProductLineItemSnapshot | ServiceLineItemSnapshot;
 
 export type ProductQuoteLineAvailability =
 	| { ok: true; available?: number }
@@ -372,7 +372,7 @@ export interface ProductQuoteLine {
 	discount: number;
 	tax: number;
 	total: number;
-	snapshot: ProductOrderItemSnapshot;
+	snapshot: ProductLineItemSnapshot;
 	availability: ProductQuoteLineAvailability;
 }
 
@@ -389,24 +389,24 @@ export interface ServiceQuoteLine {
 	discount: number;
 	tax: number;
 	total: number;
-	snapshot: ServiceOrderItemSnapshot;
+	snapshot: ServiceLineItemSnapshot;
 	availability: ServiceQuoteLineAvailability;
 }
 
 export type QuoteLine = ProductQuoteLine | ServiceQuoteLine;
 
-export interface ProductOrderItem {
+export interface ProductLineItem {
 	type: 'product';
 	id: string;
 	product_id: string;
 	variant_id: string;
 	quantity: number;
 	location_id?: string;
-	snapshot: ProductOrderItemSnapshot;
+	snapshot: ProductLineItemSnapshot;
 	status: OrderItemStatus;
 }
 
-export interface ServiceOrderItem {
+export interface ServiceLineItem {
 	type: 'service';
 	id: string;
 	service_id: string;
@@ -414,11 +414,11 @@ export interface ServiceOrderItem {
 	from: number;
 	to: number;
 	forms: FormEntry[];
-	snapshot: ServiceOrderItemSnapshot;
+	snapshot: ServiceLineItemSnapshot;
 	status: OrderItemStatus;
 }
 
-export type OrderItem = ProductOrderItem | ServiceOrderItem;
+export type OrderItem = ProductLineItem | ServiceLineItem;
 
 export interface HistoryEntry {
 	action: string;

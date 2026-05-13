@@ -42,21 +42,30 @@ const arkyStore = createArkyStore({
   storeId: 'your-store-id',
   market: 'us',
   locale: 'en',
+  marketForLocale: (locale) => locale === 'it' ? 'ita' : 'us',
 })
 
-await arkyStore.initialize({ hydrate_cart: true, load_website: true })
+const { cart } = await arkyStore.setup({
+  locale: 'en',
+  hydrateCart: true,
+})
+
+const websiteNode = await arkyStore.cms.node.get({
+  key: 'website',
+  locale: 'en',
+})
 ```
 
 ### 2. Browse Products
 
 ```typescript
 // List products (like on arky.io/products)
-const { items: products } = await arkyStore.eshop.product.find({
+const { items: products } = await arkyStore.eshop.product.list({
   limit: 20
 });
 
 // Get product details (like arky.io/products/guitar)
-const product = await arkyStore.eshop.product.get({ id: 'prod_123' });
+const product = await arkyStore.eshop.product.loadDetail({ id: 'prod_123' });
 
 // Format price (uses currency from price object)
 const formatted = arkyStore.utils.formatPrice(product.variants[0].prices); // "$29.99"
@@ -65,31 +74,47 @@ const formatted = arkyStore.utils.formatPrice(product.variants[0].prices); // "$
 ### 3. Shop & Checkout
 
 ```typescript
-const product = await arkyStore.eshop.product.get({ id: 'prod_123' })
+const product = await arkyStore.eshop.product.loadDetail({ id: 'prod_123' })
 const variant = product.variants[0]
 
-await arkyStore.eshop.cart.actions.addProduct(product, variant, 2)
+await arkyStore.eshop.cart.addProduct(product, variant, 2)
 
-const quote = await arkyStore.eshop.cart.actions.quote()
+const quote = await arkyStore.eshop.cart.quote()
 
-const order = await arkyStore.eshop.cart.actions.checkout({
+const order = await arkyStore.eshop.cart.checkout({
   payment_method_id: 'credit_card',
 })
 ```
 
 ### Framework-Agnostic Store
 
-The storefront store is framework-agnostic and built on Nano Stores. UI frameworks can subscribe to atoms directly, while app code calls actions:
+The storefront store is framework-agnostic and built on Nano Stores. UI frameworks can subscribe to atoms directly, while app code calls direct store methods:
 
 ```typescript
+await arkyStore.setup({
+  locale: 'en',
+  hydrateCart: true,
+  track: {
+    type: 'page_view',
+    payload: { url: location.pathname },
+  },
+})
+
 const unsubscribe = arkyStore.eshop.cart.snapshot.subscribe((snapshot) => {
   console.log(snapshot.item_count, snapshot.cart?.id)
 });
 
-await arkyStore.eshop.cart.actions.ensure();
-await arkyStore.eshop.cart.actions.clear();
+await arkyStore.eshop.cart.ensure();
+await arkyStore.eshop.cart.clear();
 
 unsubscribe();
+```
+
+For content-heavy pages, a website node load can be a single context-aware call:
+
+```typescript
+const website = await arkyStore.cms.node.get({ key: "website", locale: 'en' })
+const info = website.blocks.find((block) => block.key === 'info')
 ```
 
 The low-level SDK client is still available as `arkyStore.client` for unusual cases, but normal storefronts should use the store-shaped modules: `cms`, `eshop`, `crm`, `activity`, `automation`, `store`, and `utils`.
@@ -98,239 +123,94 @@ The low-level SDK client is still available as `arkyStore.client` for unusual ca
 
 ```typescript
 // Browse services (like arky.io/services)
-const { items: services } = await arkyStore.eshop.service.find({});
+const { items: services } = await arkyStore.eshop.service.list({});
 const service = services[0];
 
-await arkyStore.eshop.serviceOrder.actions.initialize();
-await arkyStore.eshop.serviceOrder.actions.setService(service);
-arkyStore.eshop.serviceOrder.actions.findFirstAvailable();
+await arkyStore.eshop.service.initialize();
+await arkyStore.eshop.service.select(service);
+arkyStore.eshop.service.findFirstAvailable();
 
-const state = arkyStore.eshop.serviceOrder.state.get();
+const state = arkyStore.eshop.service.state.get();
 if (state.slots[0]) {
-  arkyStore.eshop.serviceOrder.actions.selectTimeSlot(state.slots[0]);
-  arkyStore.eshop.serviceOrder.actions.nextStep();
-  await arkyStore.eshop.serviceOrder.actions.addToCart();
+  arkyStore.eshop.service.selectTimeSlot(state.slots[0]);
+  arkyStore.eshop.service.nextStep();
+  await arkyStore.eshop.service.addToCart();
 }
 
-const order = await arkyStore.eshop.serviceOrder.actions.checkout('cash');
-```
-
-### 5. Subscribe to Newsletter
-
-```typescript
-// Subscribe to updates (like arky.io/newsletters)
-await arky.cms.subscribeToCollection({
-  collectionId: 'newsletter_weekly',
-  email: 'user@example.com',
-  planId: 'plan_free'
+const order = await arkyStore.eshop.cart.checkout({
+  payment_method_id: 'cash',
 });
 ```
 
-### 6. Read Content
+### 5. Read Content And Submit Forms
 
 ```typescript
-// Fetch blog posts or content
-const { items: posts } = await arky.cms.getCollectionEntries({
-  collectionId: 'blog',
-  limit: 10
-});
+const website = await arkyStore.cms.node.get({ key: "website", locale: 'en' })
+const titleBlock = website.blocks.find((block) => block.key === 'title')
+const title = arkyStore.utils.getBlockTextValue(titleBlock, 'en')
 
-// Extract content from blocks
-const title = arky.utils.getBlockTextValue(
-  posts[0].blocks.find(b => b.key === 'title'),
-  'en'
-);
-const imageUrl = arky.utils.getImageUrl(
-  posts[0].blocks.find(b => b.key === 'featured_image')
-);
-```
-
-## API Methods
-
-The SDK provides the following API modules:
-
-### User Management
-```typescript
-// Authentication
-await arky.user.loginUser({ email, password })
-await arky.user.registerUser({ email, password, name })
-await arky.user.getMe()
-await arky.user.logout()
-
-// Profile
-await arky.user.updateUser({ name, phoneNumber, addresses })
-await arky.user.resetPassword({ oldPassword, newPassword })
-```
-
-### Store
-```typescript
-// Store CRUD
-await arky.store.createStore({ name, slug })
-await arky.store.getStore()
-await arky.store.updateStore({ id, name })
-await arky.store.deleteStore({ id })
-
-// Subscriptions
-await arky.store.createSubscription({ planId })
-await arky.store.getSubscription()
-await arky.store.cancelSubscription({ immediately: true })
-```
-
-### CMS & Newsletters
-```typescript
-// Collections
-await arky.cms.createCollection({ name, slug, type: 'NEWSLETTER' })
-await arky.cms.getCollections({ type: 'NEWSLETTER' })
-await arky.cms.getCollection({ id })
-await arky.cms.updateCollection({ id, name })
-await arky.cms.deleteCollection({ id })
-
-// Entries (Content)
-await arky.cms.createCollectionEntry({ collectionId, blocks })
-await arky.cms.getCollectionEntries({ collectionId })
-await arky.cms.updateCollectionEntry({ id, blocks })
-await arky.cms.sendEntry({ entryId, scheduledAt })
-
-// Newsletter Subscriptions
-await arky.cms.subscribeToCollection({
-  collectionId: 'newsletter_id',
-  email: 'user@example.com',
-  planId: 'plan_free', // Required
+await arkyStore.cms.form.submitByKey({
+  key: 'contact',
+  entries: [
+    { key: 'email', value: 'customer@example.com' },
+    { key: 'message', value: 'Hello from the storefront' },
+  ],
 })
-await arky.cms.getCollectionSubscribers({ id: 'newsletter_id' })
 ```
 
-### E-shop
+## Storefront Modules
+
+The store-shaped API is the preferred surface for websites:
+
 ```typescript
-// Products
-await arkyStore.eshop.product.find({ limit: 20, cursor: null })
-await arkyStore.eshop.product.get({ id })
+await arkyStore.setup({ hydrateCart: true })
 
-// Carts and orders
-const cart = await arkyStore.eshop.cart.actions.ensure()
-await arkyStore.eshop.cart.actions.sync({ product_items, shipping_method_id })
-await arkyStore.eshop.cart.actions.checkout({ payment_method_id })
-await arkyStore.eshop.order.find({})
-await arkyStore.eshop.order.get({ id })
+await arkyStore.cms.node.get({ key: "website", locale: 'en' })
+await arkyStore.cms.form.submitByKey({ key: 'contact', entries: [] })
 
-// Quote
-await arkyStore.eshop.cart.actions.quote()
+await arkyStore.eshop.product.list({ limit: 20 })
+await arkyStore.eshop.cart.ensure()
+await arkyStore.eshop.cart.quote()
+await arkyStore.eshop.cart.checkout({ payment_method_id: 'cash' })
+
+await arkyStore.eshop.service.list({ limit: 20 })
+await arkyStore.eshop.service.initialize()
+
+await arkyStore.activity.pageView({ path: location.pathname })
 ```
 
-### Services
+## Low-Level Client
+
+The underlying SDK remains available for admin tools or uncommon integrations:
+
 ```typescript
-// Services
-await arky.eshop.service.create({ name, duration, price })
-await arky.eshop.service.find({})
-await arky.eshop.service.getAvailability({ service_id, provider_id, from, to })
+const sdk = arkyStore.client
 
-// Providers
-await arky.eshop.provider.create({ name })
-await arky.eshop.provider.find({})
-
-// Service cart checkout
-await arky.eshop.order.getQuote({ items, payment_method })
-await arky.eshop.cart.checkout({ id: cart.id, payment_method_id })
-await arky.eshop.order.find({})
-```
-
-### Media
-```typescript
-// Upload files
-const media = await arky.media.uploadStoreMedia({
-  files: [file1, file2],
-  urls: ['https://example.com/image.jpg'],
-})
-
-// List media
-const { items } = await arky.media.getStoreMedia({ limit: 20 })
-
-// Delete media
-await arky.media.deleteStoreMedia({ id: storeId, mediaId })
-```
-
-### Notifications
-```typescript
-// Get notifications
-const notifications = await arky.notification.getNotifications({
-  limit: 20,
-  previous_id: null,
-})
-
-// Mark as seen
-await arky.notification.updateNotifications({})
-
-// Delivery stats
-const stats = await arky.notification.getDeliveryStats({})
-```
-
-### Roles & Permissions
-```typescript
-await arky.role.createRole({ name, permissions })
-await arky.role.getRoles({ action: 'READ' })
-await arky.role.updateRole({ id, permissions })
-await arky.user.setRole({ userId, roleId })
+await sdk.eshop.product.find({ limit: 20 })
+await sdk.eshop.cart.current({ market: arkyStore.getMarket() })
+await sdk.eshop.order.find({})
+await sdk.cms.node.get({ key: 'website' })
 ```
 
 ## Utility Functions
 
-The SDK includes helpful utilities accessible via `arky.utils`:
+The SDK includes helpful utilities accessible through `arkyStore.utils`:
 
-### Block Utilities
 ```typescript
-// Get image URL from block
-const url = arky.utils.getImageUrl(imageBlock)
-
-// Get block value
-const value = arky.utils.getBlockValue(entry, 'title')
-
-// Format blocks
-const formatted = arky.utils.formatBlockValue(block)
-const forSubmit = arky.utils.prepareBlocksForSubmission(blocks)
-```
-
-### Price Utilities
-```typescript
-// Format prices
-const formatted = arky.utils.formatMinor(999, 'usd') // "$9.99"
-const payment = arky.utils.formatPayment(paymentObject)
-
-// Format prices from array
-const formatted = arky.utils.formatPrice(prices) // "$9.99"
-const amount = arky.utils.getPriceAmount(prices, 'US')
-```
-
-### Text Utilities
-```typescript
-const slug = arky.utils.slugify('Hello World') // "hello-world"
-const title = arky.utils.humanize('hello-world') // "Hello World"
-const category = arky.utils.categorify('hello-world') // "HELLO WORLD"
-const date = arky.utils.formatDate(timestamp, 'en')
-```
-
-### Validation
-```typescript
-const result = arky.utils.validatePhoneNumber('+1234567890')
-// { isValid: true } or { isValid: false, error: "..." }
-```
-
-### SVG Utilities
-```typescript
-// Fetch SVG content
-const svgString = await arky.utils.fetchSvgContent(mediaBlock)
-
-// For Astro
-const svg = await arky.utils.getSvgContentForAstro(mediaBlock)
-
-// Inject into element
-await arky.utils.injectSvgIntoElement(mediaBlock, element, 'custom-class')
+const title = arkyStore.utils.getBlockTextValue(block, 'en')
+const imageUrl = arkyStore.utils.getImageUrl(imageBlock)
+const price = arkyStore.utils.formatPrice(prices)
+const payment = arkyStore.utils.formatPayment(paymentObject)
+const slug = arkyStore.utils.slugify('Hello World')
+const date = arkyStore.utils.formatDate(Date.now(), 'en')
+const phone = arkyStore.utils.validatePhoneNumber('+1234567890')
 ```
 
 ## What Can You Build?
 
 - 🏪 **E-commerce shops** - Product catalogs, shopping carts, checkout
 - 📰 **Content websites** - Blogs, documentation, marketing sites
-- 📅 **Service businesses** - Appointment scheduling, service orders
+- 📅 **Service businesses** - Appointment scheduling, service scheduling
 - 📬 **Newsletter platforms** - Subscriber management, email campaigns
 - 🏢 **SaaS products** - Multi-tenant apps with user auth and billing
 - 🛍️ **Marketplaces** - Multi-vendor platforms with payments
@@ -342,16 +222,14 @@ createArkyStore({
   // Required
   baseUrl: string,        // API URL
   storeId: string,        // Your store ID
-  market: string,         // Market code (e.g., 'us', 'eu')
 
   // Optional
+  market?: string,        // Market key (e.g., 'us', 'eu')
   locale?: string,        // Storefront locale (default: SDK/client locale)
-  storageUrl?: string,    // Storage URL (default: https://storage.arky.io/dev)
-  autoGuest?: boolean,    // Auto-create guest token (default: true)
-  logout?: () => void,    // Logout callback
-  isAuthenticated?: () => boolean,
+  apiToken?: string,      // Trusted server-side API token
+  marketForLocale?: (locale: string) => string | null,
   navigate?: (path: string) => void,
-  notify?: (notification: { message: string; type: string }) => void,
+  loginFallbackPath?: string,
 })
 ```
 

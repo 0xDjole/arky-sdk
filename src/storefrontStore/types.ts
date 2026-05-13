@@ -1,4 +1,5 @@
-import type { createStorefront, CreateStorefrontConfig } from "../index";
+import type { createStorefront, CreateStorefrontConfig, CustomerSession } from "../index";
+import type { TrackParams } from "../api/storefront";
 import type {
   Address,
   Block,
@@ -22,8 +23,31 @@ import type { AvailabilityResponse } from "../types/api";
 export type ArkyStoreClient = ReturnType<typeof createStorefront>;
 
 export interface ArkyStoreConfig extends CreateStorefrontConfig {
-  onCartChange?: (snapshot: ArkyCartSnapshot) => void;
+  marketForLocale?: (locale: string) => string | null | undefined;
 }
+
+export interface ArkyStoreContext {
+  locale?: string;
+  market?: string;
+}
+
+export interface ArkyStoreSetupOptions extends ArkyStoreContext {
+  hydrateCart?: boolean;
+  identify?: boolean;
+  track?: TrackParams | false | null;
+}
+
+export interface ArkyStoreSetupResult {
+  session: CustomerSession | null;
+  cart?: Cart;
+}
+
+export type ArkyCmsNodeParams = ArkyStoreContext & {
+  id?: string;
+  slug?: string;
+  key?: string;
+  store_id?: string;
+};
 
 export interface ArkyServiceCartItem {
   id: string;
@@ -85,7 +109,6 @@ export interface ArkyCartInput {
 }
 
 export interface ArkyCmsState {
-  website_node: Node | null;
   nodes: Record<string, Node>;
   forms: Record<string, Form>;
   loading: boolean;
@@ -117,7 +140,7 @@ export interface ArkyCalendarDay {
   blank: boolean;
 }
 
-export interface ArkyServiceOrderSlot {
+export interface ArkyServiceSlot {
   id: string;
   serviceId: string;
   providerId: string;
@@ -131,7 +154,7 @@ export interface ArkyServiceOrderSlot {
   serviceBlocks?: Block[];
 }
 
-export interface ArkyServiceOrderState {
+export interface ArkyServiceState {
   service: Service | null;
   availability: AvailabilityResponse | null;
   providers: Provider[];
@@ -141,9 +164,9 @@ export interface ArkyServiceOrderState {
   selectedDate: string | null;
   startDate: string | null;
   endDate: string | null;
-  slots: ArkyServiceOrderSlot[];
-  selectedSlot: ArkyServiceOrderSlot | null;
-  cart: ArkyServiceOrderSlot[];
+  slots: ArkyServiceSlot[];
+  selectedSlot: ArkyServiceSlot | null;
+  cart: ArkyServiceSlot[];
   timezone: string;
   tzGroups: Record<string, { zone: string; name: string }[]>;
   loading: boolean;

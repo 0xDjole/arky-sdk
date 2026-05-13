@@ -18,7 +18,7 @@ import type {
   ServiceCheckoutItemInput,
   SlotRange,
 } from "../types/api";
-import type { ArkyServiceCartItem, ArkyServiceOrderState, ArkyStoreClient } from "./types";
+import type { ArkyServiceCartItem, ArkyServiceState, ArkyStoreClient } from "./types";
 
 export function readErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message) return error.message;
@@ -182,7 +182,7 @@ export function formSchemaToBlock(field: FormSchema): Block {
   };
 }
 
-export function formatServiceOrderTime(ts: number, tz: string): string {
+export function formatServiceTime(ts: number, tz: string): string {
   return new Date(ts * 1000).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
@@ -190,8 +190,8 @@ export function formatServiceOrderTime(ts: number, tz: string): string {
   });
 }
 
-export function formatServiceOrderSlotTime(from: number, to: number, tz: string): string {
-  return `${formatServiceOrderTime(from, tz)} - ${formatServiceOrderTime(to, tz)}`;
+export function formatServiceSlotTime(from: number, to: number, tz: string): string {
+  return `${formatServiceTime(from, tz)} - ${formatServiceTime(to, tz)}`;
 }
 
 export function getSlotsForDate(
@@ -225,9 +225,9 @@ export function hasAvailableSlotsForDate(
   });
 }
 
-export const SERVICE_ORDER_WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+export const SERVICE_WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-export function createServiceOrderInitialState(): ArkyServiceOrderState {
+export function createServiceInitialState(): ArkyServiceState {
   return {
     service: null,
     availability: null,
@@ -244,7 +244,7 @@ export function createServiceOrderInitialState(): ArkyServiceOrderState {
     timezone: typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC",
     tzGroups: {},
     loading: false,
-    weekdays: SERVICE_ORDER_WEEKDAYS,
+    weekdays: SERVICE_WEEKDAYS,
     quote: null,
     fetchingQuote: false,
     quoteError: null,

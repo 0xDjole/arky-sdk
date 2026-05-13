@@ -2,16 +2,21 @@ export { COMMON_ACTIVITY_TYPES, createStorefront } from "./index";
 export { createCartController } from "./index";
 export { createArkyStore } from "./storefrontStore";
 export type {
-  ArkyCartActions,
   ArkyCartInput,
   ArkyCartSnapshot,
+  ArkyCartStore,
   ArkyCartStatus,
+  ArkyCmsNodeParams,
   ArkyCmsState,
   ArkyEshopState,
   ArkyLastOrder,
   ArkyServiceCartItem,
   ArkyStore,
+  ArkyStoreContext,
   ArkyStoreConfig,
+  ArkyStoreSetupOptions,
+  ArkyStoreSetupResult,
+  ArkyServiceStore,
 } from "./storefrontStore";
 export type {
   Activity,

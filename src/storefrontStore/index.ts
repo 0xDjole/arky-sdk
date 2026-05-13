@@ -4,13 +4,18 @@ export type {
   ArkyCartInput,
   ArkyCartSnapshot,
   ArkyCartStatus,
+  ArkyCmsNodeParams,
   ArkyCmsState,
   ArkyEshopState,
   ArkyLastOrder,
   ArkyServiceCartItem,
-  ArkyServiceOrderSlot,
-  ArkyServiceOrderState,
+  ArkyServiceSlot,
+  ArkyServiceState,
+  ArkyStoreContext,
   ArkyStoreConfig,
+  ArkyStoreSetupOptions,
+  ArkyStoreSetupResult,
 } from "./types";
 export type ArkyStore = ReturnType<typeof import("./createArkyStore").createArkyStore>;
-export type ArkyCartActions = ArkyStore["eshop"]["cart"]["actions"];
+export type ArkyCartStore = ArkyStore["eshop"]["cart"];
+export type ArkyServiceStore = ArkyStore["eshop"]["service"];
