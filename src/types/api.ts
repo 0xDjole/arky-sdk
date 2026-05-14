@@ -1440,6 +1440,7 @@ export interface GetAgentChatsParams {
 export interface GetStoreChatsParams {
   store_id?: string;
   agent_id?: string;
+  customer_id?: string;
   status?: AgentChatStatus;
 
   query?: string | number;

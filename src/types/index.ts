@@ -1284,7 +1284,7 @@ export interface AgentChat {
 	id: string;
 	store_id: string;
 	agent_id: string;
-	account_id: string;
+	customer_id: string;
 	status: AgentChatStatus;
 	rating?: number;
 	rating_comment?: string;
