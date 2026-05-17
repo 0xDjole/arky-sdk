@@ -96,6 +96,81 @@ export interface AnalyticsQueryResponse {
   };
 }
 
+export type ActivityFeedCategory =
+  | "orders"
+  | "carts"
+  | "promo_codes"
+  | "submissions"
+  | "customers"
+  | "audiences"
+  | "products"
+  | "services"
+  | "providers"
+  | "cms"
+  | "workflows"
+  | "agents"
+  | "activities";
+
+export interface ActivityFeedQuery {
+  limit?: number;
+  since?: number;
+  cursor_created_at?: number;
+  cursor_id?: string;
+  category?: ActivityFeedCategory;
+}
+
+export interface ActivityFeedItem {
+  id: string;
+  entity: string;
+  entity_id: string;
+  action: string;
+  event_type: string;
+  status: string;
+  customer_id: string;
+  category: string;
+  title: string;
+  description: string;
+  href?: string | null;
+  booking_count: number;
+  data: unknown;
+  payload: unknown;
+  created_at: number;
+}
+
+export interface ActivityFeedSummary {
+  total: number;
+  orders: number;
+  submissions: number;
+  customers: number;
+  audiences: number;
+  abandoned_carts: number;
+  carts: number;
+  promo_codes: number;
+  products: number;
+  services: number;
+  providers: number;
+  cms: number;
+  workflows: number;
+  agents: number;
+  activities: number;
+  window_start: number;
+}
+
+export interface ActivityFeedCursor {
+  created_at: number;
+  id: string;
+}
+
+export interface ActivityFeedResponse {
+  items: ActivityFeedItem[];
+  summary: ActivityFeedSummary;
+  next_cursor?: ActivityFeedCursor | null;
+  meta: {
+    row_count: number;
+    execution_ms: number;
+  };
+}
+
 export const createAnalyticsApi = (apiConfig: ApiConfig) => {
   return {
     async query(
@@ -107,6 +182,17 @@ export const createAnalyticsApi = (apiConfig: ApiConfig) => {
         `/v1/stores/${store_id}/analytics/query`,
         spec,
         options,
+      );
+    },
+
+    async activityFeed(
+      query: ActivityFeedQuery = {},
+      options?: RequestOptions & { store_id?: string },
+    ): Promise<ActivityFeedResponse> {
+      const store_id = options?.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<ActivityFeedResponse>(
+        `/v1/stores/${store_id}/analytics/activity-feed`,
+        { ...options, params: query },
       );
     },
   };

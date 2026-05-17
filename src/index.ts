@@ -226,6 +226,12 @@ export type {
   TimeRange,
   TimeUnit,
   OrderBy,
+  ActivityFeedCategory,
+  ActivityFeedQuery,
+  ActivityFeedItem,
+  ActivityFeedSummary,
+  ActivityFeedCursor,
+  ActivityFeedResponse,
 } from "./api/analytics";
 
 export type {
@@ -701,6 +707,7 @@ export function createAdmin(config: CreateAdminConfig) {
 
     analytics: {
       query: analyticsApi.query,
+      activityFeed: analyticsApi.activityFeed,
     },
 
     setStoreId: (storeId: string) => {
