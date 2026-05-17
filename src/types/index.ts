@@ -1276,6 +1276,7 @@ export interface Agent {
 	status: import('./api').AgentStatus;
 	model_id: string;
 	channel_ids: string[];
+	tools: string[];
 	created_at: number;
 	updated_at: number;
 }

@@ -1394,6 +1394,7 @@ export interface CreateAgentParams {
   status?: AgentStatus;
   model_id: string;
   channel_ids?: string[];
+  tools?: string[];
 }
 
 export interface UpdateAgentParams {
@@ -1404,6 +1405,7 @@ export interface UpdateAgentParams {
   status: AgentStatus;
   model_id: string;
   channel_ids?: string[];
+  tools?: string[];
 }
 
 export interface DeleteAgentParams {
