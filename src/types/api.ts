@@ -1422,6 +1422,7 @@ export interface GetAgentsParams {
   store_id?: string;
   limit?: number;
   cursor?: string;
+  status?: AgentStatus;
 }
 
 export interface RunAgentParams {

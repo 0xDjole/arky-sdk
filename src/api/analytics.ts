@@ -42,6 +42,7 @@ export type Dimension =
   | "activity_type"
   | "entity"
   | "entity_status"
+  | "order_item_status"
   | { time_bucket: { granularity: Granularity } };
 
 export type FilterField =
