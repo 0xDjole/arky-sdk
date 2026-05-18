@@ -62,7 +62,7 @@ import {
   getBlockObjectValues,
   getImageUrl,
 } from "../utils/blocks";
-import { normalizeOrderCheckoutItems } from "../utils/orderItems";
+import { normalizePublicCheckoutItems } from "../utils/orderItems";
 
 export type CustomerToken = {
   id: string;
@@ -342,7 +342,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession:
             {
               ...payload,
               store_id: target,
-              ...(items ? { items: normalizeOrderCheckoutItems(items) } : {}),
+              ...(items ? { items: normalizePublicCheckoutItems(items) } : {}),
             },
             options,
           );
@@ -356,7 +356,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession:
             {
               ...payload,
               store_id: target,
-              item: normalizeOrderCheckoutItems([item])[0],
+              item: normalizePublicCheckoutItems([item])[0],
             },
             options,
           );

@@ -3,6 +3,8 @@ import type {
   OrderCheckoutItemInput,
   OrderQuoteCompatibleItemInput,
   OrderQuoteItemInput,
+  TrustedOrderCheckoutCompatibleItemInput,
+  TrustedOrderCheckoutItemInput,
 } from "../types/api";
 
 export function normalizeOrderQuoteItems(
@@ -22,8 +24,8 @@ export function normalizeOrderQuoteItems(
 }
 
 export function normalizeOrderCheckoutItems(
-  items: OrderCheckoutCompatibleItemInput[],
-): OrderCheckoutItemInput[] {
+  items: TrustedOrderCheckoutCompatibleItemInput[],
+): TrustedOrderCheckoutItemInput[] {
   return items.map((item) => {
     if ("type" in item) {
       return item;
@@ -34,5 +36,14 @@ export function normalizeOrderCheckoutItems(
     }
 
     return { type: "service", ...item };
+  });
+}
+
+export function normalizePublicCheckoutItems(
+  items: OrderCheckoutCompatibleItemInput[],
+): OrderCheckoutItemInput[] {
+  return normalizeOrderCheckoutItems(items).map((item) => {
+    const { price: _price, ...publicItem } = item;
+    return publicItem;
   });
 }

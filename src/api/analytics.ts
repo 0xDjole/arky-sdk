@@ -1,101 +1,32 @@
 import type { ApiConfig } from "../index";
 import type { RequestOptions } from "../types/api";
 
-export type EntityKind =
-  | "product"
-  | "service"
-  | "provider"
-  | "node"
-  | "customer"
-  | "audience"
-  | "agent"
-  | "workflow"
-  | "promo_code"
-  | "email_template"
-  | "form"
-  | "taxonomy"
-  | "media"
-  | "order";
+export interface AnalyticsTimeRange {
+  from: number;
+  to: number;
+}
 
-export type Granularity =
-  | "hour"
-  | "day"
-  | "week"
-  | "month"
-  | { minutes: 5 | 10 | 15 | 30 };
-
-export type Measure =
-  | "count"
-  | "uniq_customers"
+export type AnalyticsReportKey =
   | "orders_created"
-  | "new_customers"
-  | "form_submissions"
-  | { entity_state: { entity: EntityKind; status: string } };
-
-export type Dimension =
-  | "country_code"
-  | "city"
-  | "device_type"
-  | "browser"
-  | "os"
-  | "language"
-  | "activity_type"
-  | "entity"
-  | "entity_status"
-  | "order_item_status"
-  | { time_bucket: { granularity: Granularity } };
-
-export type FilterField =
-  | "type"
-  | "country_code"
-  | "device_type"
-  | "browser"
-  | "os"
-  | "language"
-  | "entity"
-  | "action"
-  | "customer_id";
-
-export type FilterOp = "eq" | "neq" | "in" | "not_in" | "contains";
-
-export interface Filter {
-  field: FilterField;
-  op: FilterOp;
-  values: string[];
-}
-
-export type TimeUnit = "hour" | "day" | "week" | "month";
-
-export type TimeRange =
-  | { from: number; unit: TimeUnit; to?: number }
-  | { from: number; to: number };
-
-export interface OrderBy {
-  field: string;
-  dir: "asc" | "desc";
-}
-
-export interface AnalyticsQuery {
-  measures: Measure[];
-  dimensions?: Dimension[];
-  filters?: Filter[];
-  time_range: TimeRange;
-  granularity?: Granularity;
-  order_by?: OrderBy[];
-  limit?: number;
-}
-
-export interface AnalyticsRow {
-  [key: string]: string | number | null;
-}
-
-export interface AnalyticsQueryResponse {
-  rows: AnalyticsRow[];
-  meta: {
-    row_count: number;
-    execution_ms: number;
-  };
-}
+  | "customers_created"
+  | "form_submissions_created"
+  | "carts_abandoned"
+  | "media_count"
+  | "products_by_status"
+  | "services_by_status"
+  | "providers_by_status"
+  | "nodes_by_status"
+  | "customers_by_status"
+  | "audiences_by_status"
+  | "agents_by_status"
+  | "workflows_by_status"
+  | "promo_codes_by_status"
+  | "email_templates_by_status"
+  | "forms_by_status"
+  | "taxonomies_by_status"
+  | "order_items_by_status"
+  | "activity_by_country"
+  | "recent_activity";
 
 export type ActivityFeedCategory =
   | "orders"
@@ -112,12 +43,33 @@ export type ActivityFeedCategory =
   | "agents"
   | "activities";
 
-export interface ActivityFeedQuery {
+export interface AnalyticsReportRequest {
+  key: AnalyticsReportKey;
   limit?: number;
-  since?: number;
+  category?: ActivityFeedCategory;
   cursor_created_at?: number;
   cursor_id?: string;
-  category?: ActivityFeedCategory;
+}
+
+export interface AnalyticsRequest {
+  time: AnalyticsTimeRange;
+  reports: AnalyticsReportRequest[];
+}
+
+export interface AnalyticsMetricData {
+  value: number;
+  execution_ms?: number;
+}
+
+export interface AnalyticsBreakdownItem {
+  key: string;
+  label: string;
+  value: number;
+  unique_customers?: number;
+}
+
+export interface AnalyticsBreakdownData {
+  items: AnalyticsBreakdownItem[];
 }
 
 export interface ActivityFeedItem {
@@ -132,7 +84,6 @@ export interface ActivityFeedItem {
   title: string;
   description: string;
   href?: string | null;
-  booking_count: number;
   data: unknown;
   payload: unknown;
   created_at: number;
@@ -162,7 +113,7 @@ export interface ActivityFeedCursor {
   id: string;
 }
 
-export interface ActivityFeedResponse {
+export interface ActivityFeedData {
   items: ActivityFeedItem[];
   summary: ActivityFeedSummary;
   next_cursor?: ActivityFeedCursor | null;
@@ -172,28 +123,27 @@ export interface ActivityFeedResponse {
   };
 }
 
+export type AnalyticsReport =
+  | { key: AnalyticsReportKey; type: "metric"; data: AnalyticsMetricData }
+  | { key: AnalyticsReportKey; type: "breakdown"; data: AnalyticsBreakdownData }
+  | { key: AnalyticsReportKey; type: "activity"; data: ActivityFeedData };
+
+export interface AnalyticsResponse {
+  time: AnalyticsTimeRange;
+  reports: AnalyticsReport[];
+}
+
 export const createAnalyticsApi = (apiConfig: ApiConfig) => {
   return {
-    async query(
-      spec: AnalyticsQuery,
+    async get(
+      request: AnalyticsRequest,
       options?: RequestOptions & { store_id?: string },
-    ): Promise<AnalyticsQueryResponse> {
+    ): Promise<AnalyticsResponse> {
       const store_id = options?.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<AnalyticsQueryResponse>(
-        `/v1/stores/${store_id}/analytics/query`,
-        spec,
+      return apiConfig.httpClient.post<AnalyticsResponse>(
+        `/v1/stores/${store_id}/analytics`,
+        request,
         options,
-      );
-    },
-
-    async activityFeed(
-      query: ActivityFeedQuery = {},
-      options?: RequestOptions & { store_id?: string },
-    ): Promise<ActivityFeedResponse> {
-      const store_id = options?.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<ActivityFeedResponse>(
-        `/v1/stores/${store_id}/analytics/activity-feed`,
-        { ...options, params: query },
       );
     },
   };

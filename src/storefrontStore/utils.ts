@@ -133,7 +133,6 @@ export function toServiceCheckoutItems(items: ArkyServiceCartItem[]): ServiceChe
       provider_id: item.provider_id,
       slots: [slot],
       forms: item.forms || [],
-      price: item.price,
     });
   }
   return [...groups.values()].map((item) => ({

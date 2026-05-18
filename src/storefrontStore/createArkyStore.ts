@@ -268,7 +268,6 @@ export function createArkyStore(config: ArkyStoreConfig) {
           from: slot.from,
           to: slot.to,
           forms: item.forms || [],
-          price: item.price,
           service_name: service ? serviceName(service, currentLocale()) : item.service_id,
           provider_name: provider ? providerName(provider, currentLocale()) : item.provider_id,
         });

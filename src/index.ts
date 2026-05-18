@@ -185,6 +185,10 @@ export type {
   OrderCheckoutItemInput,
   CheckoutItemInput,
   OrderCheckoutCompatibleItemInput,
+  TrustedProductCheckoutItemInput,
+  TrustedServiceCheckoutItemInput,
+  TrustedOrderCheckoutItemInput,
+  TrustedOrderCheckoutCompatibleItemInput,
   GetCurrentCartParams,
   GetCartParams,
   FindCartsParams,
@@ -213,25 +217,20 @@ export type {
 } from "./api/location";
 
 export type {
-  AnalyticsQuery,
-  AnalyticsQueryResponse,
-  AnalyticsRow,
-  Measure,
-  Dimension,
-  Filter,
-  FilterField,
-  FilterOp,
-  Granularity,
-  EntityKind,
-  TimeRange,
-  TimeUnit,
-  OrderBy,
+  AnalyticsTimeRange,
+  AnalyticsReportKey,
+  AnalyticsReportRequest,
+  AnalyticsRequest,
+  AnalyticsMetricData,
+  AnalyticsBreakdownItem,
+  AnalyticsBreakdownData,
+  AnalyticsReport,
+  AnalyticsResponse,
   ActivityFeedCategory,
-  ActivityFeedQuery,
   ActivityFeedItem,
   ActivityFeedSummary,
   ActivityFeedCursor,
-  ActivityFeedResponse,
+  ActivityFeedData,
 } from "./api/analytics";
 
 export type {
@@ -705,10 +704,7 @@ export function createAdmin(config: CreateAdminConfig) {
       },
     },
 
-    analytics: {
-      query: analyticsApi.query,
-      activityFeed: analyticsApi.activityFeed,
-    },
+    analytics: analyticsApi,
 
     setStoreId: (storeId: string) => {
       apiConfig.storeId = storeId;

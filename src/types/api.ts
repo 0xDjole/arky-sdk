@@ -170,7 +170,6 @@ export interface ServiceCheckoutItemInput {
   provider_id: string;
   slots: SlotRange[];
   forms?: FormEntry[];
-  price?: Price;
 }
 
 export type OrderCheckoutItemInput =
@@ -181,6 +180,23 @@ export type CheckoutItemInput = OrderCheckoutItemInput;
 
 export type OrderCheckoutCompatibleItemInput =
   | OrderCheckoutItemInput
+  | EshopItem
+  | ServiceCheckoutPart;
+
+export interface TrustedProductCheckoutItemInput extends ProductCheckoutItemInput {
+  price?: Price;
+}
+
+export interface TrustedServiceCheckoutItemInput extends ServiceCheckoutItemInput {
+  price?: Price;
+}
+
+export type TrustedOrderCheckoutItemInput =
+  | TrustedProductCheckoutItemInput
+  | TrustedServiceCheckoutItemInput;
+
+export type TrustedOrderCheckoutCompatibleItemInput =
+  | TrustedOrderCheckoutItemInput
   | EshopItem
   | ServiceCheckoutPart;
 
@@ -237,7 +253,7 @@ export interface CreateCartParams {
   store_id?: string;
   customer_id: string;
   market: string;
-  items?: OrderCheckoutCompatibleItemInput[];
+  items?: TrustedOrderCheckoutCompatibleItemInput[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   forms?: FormEntry[];
@@ -679,7 +695,7 @@ export interface UpdateOrderParams {
 
   billing_address?: Address | null;
   forms?: FormEntry[];
-  items?: OrderCheckoutCompatibleItemInput[];
+  items?: TrustedOrderCheckoutCompatibleItemInput[];
   payment?: import('./index').OrderPayment;
 }
 
