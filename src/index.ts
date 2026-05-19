@@ -107,6 +107,7 @@ export type {
   ProductQuoteLineAvailability,
   ServiceQuoteLineAvailability,
   OrderItemStatus,
+  OrderStatus,
   OrderPaymentStatus,
   OrderCancellationReason,
   HistoryEntry,

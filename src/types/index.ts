@@ -432,6 +432,7 @@ export interface Order {
 	store_id: string;
 	source_cart_id: string;
 	customer_id: string;
+	status: OrderStatus;
 	verified: boolean;
 	items: OrderItem[];
 	payment: OrderPayment;
@@ -842,6 +843,13 @@ export type OrderItemStatus =
 	| { status: 'pending'; expires_at: number }
 	| { status: 'confirmed' }
 	| { status: 'cancelled'; reason: OrderCancellationReason };
+
+export type OrderStatus =
+	| 'pending'
+	| 'partially_confirmed'
+	| 'confirmed'
+	| 'partially_cancelled'
+	| 'cancelled';
 
 export type OrderPaymentStatus =
 	| { status: 'pending'; at: number }

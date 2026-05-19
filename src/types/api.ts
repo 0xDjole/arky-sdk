@@ -667,6 +667,7 @@ export interface GetOrderParams {
 export interface GetOrdersParams {
   store_id?: string;
   customer_id?: string;
+  statuses?: string[];
   item_statuses?: string[];
   product_ids?: string[];
   verified?: boolean;
