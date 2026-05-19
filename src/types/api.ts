@@ -586,19 +586,17 @@ export interface CreatePortalSessionParams {
   return_url: string;
 }
 
-export interface InviteUserParams {
+export interface AddMemberParams {
   email: string;
   role?: StoreRole;
+  store_id?: string;
+}
+
+export interface InviteUserParams extends AddMemberParams {
 }
 
 export interface RemoveMemberParams {
   account_id: string;
-}
-
-export interface HandleInvitationParams {
-  token: string;
-  action: string;
-  store_id?: string;
 }
 
 export interface TestWebhookParams {
@@ -1125,7 +1123,6 @@ export interface ProcessOrderRefundParams {
 }
 
 export type SystemTemplateKey =
-  | "system:user-invitation"
   | "system:order-status-update"
   | "system:user-confirmation"
   | "system:forgot-password";

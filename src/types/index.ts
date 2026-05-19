@@ -525,7 +525,8 @@ export type WebhookEventSubscription =
 	| { event: 'store.deleted' }
 	| { event: 'audience.created' }
 	| { event: 'audience.updated' }
-	| { event: 'audience.deleted' };
+	| { event: 'audience.deleted' }
+	| { event: 'account.updated' };
 
 export interface Webhook {
 	id: string;

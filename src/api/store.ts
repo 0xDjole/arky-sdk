@@ -1,5 +1,4 @@
 import type { ApiConfig, AdminSessionUpdater } from "../index";
-import type { AuthToken } from "../types/api";
 import type {
   CreateStoreParams,
   UpdateStoreParams,
@@ -9,9 +8,9 @@ import type {
   GetSubscriptionPlansParams,
   SubscribeParams,
   CreatePortalSessionParams,
+  AddMemberParams,
   InviteUserParams,
   RemoveMemberParams,
-  HandleInvitationParams,
   TestWebhookParams,
   GetStoreMediaParams2,
   OAuthConnectParams,
@@ -38,12 +37,7 @@ import type {
 // TODO: type as IntegrationConfig once exported from types/index.ts
 type IntegrationConfig = unknown;
 
-export interface InvitationTokenData {
-  auth: AuthToken;
-  store_id?: string | null;
-}
-
-export const createStoreApi = (apiConfig: ApiConfig, updateSession: AdminSessionUpdater) => {
+export const createStoreApi = (apiConfig: ApiConfig, _updateSession: AdminSessionUpdater) => {
   return {
     async createStore(
       params: CreateStoreParams,
@@ -116,10 +110,20 @@ export const createStoreApi = (apiConfig: ApiConfig, updateSession: AdminSession
       );
     },
 
-    async inviteUser(params: InviteUserParams, options?: RequestOptions): Promise<{ invited: boolean }> {
-      return apiConfig.httpClient.post<{ invited: boolean }>(
-        `/v1/stores/${apiConfig.storeId}/invitation`,
-        params,
+    async addMember(params: AddMemberParams, options?: RequestOptions): Promise<boolean> {
+      const { store_id, ...payload } = params;
+      return apiConfig.httpClient.post<boolean>(
+        `/v1/stores/${store_id || apiConfig.storeId}/members`,
+        payload,
+        options
+      );
+    },
+
+    async inviteUser(params: InviteUserParams, options?: RequestOptions): Promise<boolean> {
+      const { store_id, ...payload } = params;
+      return apiConfig.httpClient.post<boolean>(
+        `/v1/stores/${store_id || apiConfig.storeId}/members`,
+        payload,
         options
       );
     },
@@ -129,26 +133,6 @@ export const createStoreApi = (apiConfig: ApiConfig, updateSession: AdminSession
         `/v1/stores/${apiConfig.storeId}/members/${params.account_id}`,
         options
       );
-    },
-
-    async handleInvitation(
-      params: HandleInvitationParams,
-      options?: RequestOptions
-    ): Promise<InvitationTokenData> {
-      const { store_id, ...payload } = params;
-      const result = await apiConfig.httpClient.put<InvitationTokenData>(
-        `/v1/stores/${store_id || apiConfig.storeId}/invitation`,
-        payload,
-        options
-      );
-      if (params.action === "accept" && result?.auth?.access_token) {
-        updateSession(() => ({
-          access_token: result.auth.access_token,
-          refresh_token: result.auth.refresh_token,
-          access_expires_at: result.auth.access_expires_at,
-        }));
-      }
-      return result;
     },
 
     async testWebhook(params: TestWebhookParams, options?: RequestOptions): Promise<{ tested: boolean }> {
