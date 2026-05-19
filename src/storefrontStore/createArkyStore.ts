@@ -116,17 +116,47 @@ export function createArkyStore(config: ArkyStoreConfig) {
     user_token: null,
   });
 
-  const product_item_count = computed(product_items, (items) =>
-    items.reduce((total, item) => total + (item.quantity || 0), 0),
+  function rawProductItemCount(value: Cart | null): number {
+    return (value?.items || []).reduce((total, item) => {
+      if (item.type !== "product") return total;
+      return total + (item.quantity || 0);
+    }, 0);
+  }
+
+  function rawServiceItemCount(value: Cart | null): number {
+    return (value?.items || []).reduce((total, item) => {
+      if (item.type !== "service") return total;
+      return total + Math.max(1, item.slots?.length || 0);
+    }, 0);
+  }
+
+  const product_item_count = computed([cart, product_items], (cartValue, items) =>
+    Math.max(
+      rawProductItemCount(cartValue),
+      items.reduce((total, item) => total + (item.quantity || 0), 0),
+    ),
   );
-  const service_item_count = computed(service_items, (items) => items.length);
-  const item_count = computed([product_item_count, service_item_count], (products, services) => products + services);
+  const service_item_count = computed([cart, service_items], (cartValue, items) =>
+    Math.max(rawServiceItemCount(cartValue), items.length),
+  );
+  const item_count = computed(
+    [cart, product_item_count, service_item_count],
+    (cartValue, products, services) => Math.max(cartValue?.item_count || 0, products + services),
+  );
   const snapshot = computed([cart, product_items, service_items, item_count], (cartValue, products, services, count) => ({
     cart: cartValue,
     product_items: products,
     service_items: services,
     item_count: count,
   }));
+  let cartWriteRevision = 0;
+  let sessionRequest: Promise<CustomerSession | null> | null = null;
+  let cartRequest: Promise<Cart> | null = null;
+
+  function nextCartWriteRevision(): number {
+    cartWriteRevision += 1;
+    return cartWriteRevision;
+  }
 
   const cms_state = map<ArkyCmsState>({
     nodes: {},
@@ -181,7 +211,12 @@ export function createArkyStore(config: ArkyStoreConfig) {
     const current = session.get();
     const marketKey = currentMarketKey();
     if (current && (!marketKey || current.market?.key === marketKey)) return current;
-    return identify({ market: marketKey });
+    if (!sessionRequest) {
+      sessionRequest = identify({ market: marketKey }).finally(() => {
+        sessionRequest = null;
+      });
+    }
+    return sessionRequest;
   }
 
   async function identify(params: { email?: string; verify?: boolean; market?: string } = {}) {
@@ -212,17 +247,25 @@ export function createArkyStore(config: ArkyStoreConfig) {
   }
 
   async function ensureCart(): Promise<Cart> {
+    if (cartRequest) return cartRequest;
+
     cart_status.setKey("loading", true);
     cart_status.setKey("error", null);
-    try {
+    const refreshRevision = cartWriteRevision;
+    cartRequest = (async () => {
       await ensureSession();
       const response = await client.cart.refresh({ market: currentMarketKey() });
-      await hydrateCart(response);
+      await hydrateCart(response, { ifRevision: refreshRevision });
       return response;
+    })();
+
+    try {
+      return await cartRequest;
     } catch (error) {
       cart_status.setKey("error", readErrorMessage(error, "Failed to load cart."));
       throw error;
     } finally {
+      cartRequest = null;
       cart_status.setKey("loading", false);
     }
   }
@@ -276,7 +319,10 @@ export function createArkyStore(config: ArkyStoreConfig) {
     return rows;
   }
 
-  async function hydrateCart(response: Cart): Promise<Cart> {
+  async function hydrateCart(response: Cart, options: { ifRevision?: number } = {}): Promise<Cart> {
+    if (options.ifRevision !== undefined && options.ifRevision !== cartWriteRevision) {
+      return cart.get() || response;
+    }
     cart.set(response);
     cart_status.setKey("user_token", response.token || null);
     cart_status.setKey("selected_shipping_method_id", response.shipping_method_id || null);
@@ -304,7 +350,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
     ];
   }
 
-  async function syncCart(input: ArkyCartInput = {}): Promise<Cart> {
+  async function syncCart(input: ArkyCartInput = {}, writeRevision = nextCartWriteRevision()): Promise<Cart> {
     cart_status.setKey("syncing", true);
     cart_status.setKey("error", null);
     try {
@@ -327,7 +373,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
       if (input.shipping_method_id !== undefined) {
         cart_status.setKey("selected_shipping_method_id", input.shipping_method_id);
       }
-      await hydrateCart(response);
+      await hydrateCart(response, { ifRevision: writeRevision });
       return response;
     } catch (error) {
       cart_status.setKey("error", readErrorMessage(error, "Failed to sync cart."));
@@ -339,6 +385,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
 
   async function addProduct(product: Product, variant: ProductVariant, quantity = 1): Promise<Cart> {
     cart_status.setKey("error", null);
+    const writeRevision = nextCartWriteRevision();
     try {
       const current = cart.get() || await ensureCart();
       const response = await client.cart.addItem({
@@ -350,7 +397,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
           quantity,
         },
       });
-      await hydrateCart(response);
+      await hydrateCart(response, { ifRevision: writeRevision });
       await client.activity.track({ type: "cart_added", payload: { product_id: product.id, variant_id: variant.id, quantity } });
       return response;
     } catch (error) {
@@ -360,16 +407,18 @@ export function createArkyStore(config: ArkyStoreConfig) {
   }
 
   async function setProductQuantity(itemId: string, quantity: number): Promise<Cart> {
+    const writeRevision = nextCartWriteRevision();
     const next = product_items.get().map((item) => {
       if (item.id !== itemId) return item;
       const bounded = item.max_stock ? Math.min(Math.max(1, quantity), item.max_stock) : Math.max(1, quantity);
       return { ...item, quantity: bounded };
     });
     product_items.set(next);
-    return syncCart({ product_items: next });
+    return syncCart({ product_items: next }, writeRevision);
   }
 
   async function removeProduct(itemId: string): Promise<Cart | null> {
+    const writeRevision = nextCartWriteRevision();
     const item = product_items.get().find((candidate) => candidate.id === itemId);
     product_items.set(product_items.get().filter((candidate) => candidate.id !== itemId));
     const current = cart.get();
@@ -380,24 +429,27 @@ export function createArkyStore(config: ArkyStoreConfig) {
       product_id: item.product_id,
       variant_id: item.variant_id,
     });
-    await hydrateCart(response);
+    await hydrateCart(response, { ifRevision: writeRevision });
     await client.activity.track({ type: "cart_removed", payload: { product_id: item.product_id, variant_id: item.variant_id } });
     return response;
   }
 
   async function addServiceItem(item: ArkyServiceCartItem): Promise<Cart> {
+    const writeRevision = nextCartWriteRevision();
     const next = [...service_items.get(), item];
     service_items.set(next);
-    return syncCart({ service_items: next });
+    return syncCart({ service_items: next }, writeRevision);
   }
 
   async function removeServiceItem(itemId: string): Promise<Cart> {
+    const writeRevision = nextCartWriteRevision();
     const next = service_items.get().filter((item) => item.id !== itemId);
     service_items.set(next);
-    return syncCart({ service_items: next });
+    return syncCart({ service_items: next }, writeRevision);
   }
 
   async function clearCart(): Promise<Cart | null> {
+    const writeRevision = nextCartWriteRevision();
     product_items.set([]);
     service_items.set([]);
     quote.set(null);
@@ -406,7 +458,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
     const current = cart.get();
     if (!current) return null;
     const response = await client.cart.clear({ id: current.id });
-    await hydrateCart(response);
+    await hydrateCart(response, { ifRevision: writeRevision });
     return response;
   }
 
