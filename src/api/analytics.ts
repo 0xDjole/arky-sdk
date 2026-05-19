@@ -24,6 +24,7 @@ export type AnalyticsReportKey =
   | "email_templates_by_status"
   | "forms_by_status"
   | "taxonomies_by_status"
+  | "carts_by_status"
   | "order_items_by_status"
   | "activity_by_country"
   | "recent_activity";
