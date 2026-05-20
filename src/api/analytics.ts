@@ -54,6 +54,13 @@ export interface AnalyticsReportRequest {
 }
 
 export interface AnalyticsRequest {
+  time?: AnalyticsTimeRange;
+  reports?: AnalyticsReportRequest[];
+  blocks?: AnalyticsBlockRequest[];
+}
+
+export interface AnalyticsBlockRequest {
+  id: string;
   time: AnalyticsTimeRange;
   reports: AnalyticsReportRequest[];
 }
@@ -125,14 +132,48 @@ export interface ActivityFeedData {
   };
 }
 
-export type AnalyticsReport =
-  | { key: AnalyticsReportKey; type: "metric"; data: AnalyticsMetricData }
-  | { key: AnalyticsReportKey; type: "breakdown"; data: AnalyticsBreakdownData }
-  | { key: AnalyticsReportKey; type: "activity"; data: ActivityFeedData };
+export type AnalyticsMetricReportKey =
+  | "orders_created"
+  | "customers_created"
+  | "form_submissions_created"
+  | "carts_abandoned"
+  | "media_count";
 
-export interface AnalyticsResponse {
+export type AnalyticsBreakdownReportKey =
+  | "products_by_status"
+  | "services_by_status"
+  | "providers_by_status"
+  | "nodes_by_status"
+  | "customers_by_status"
+  | "audiences_by_status"
+  | "agents_by_status"
+  | "workflows_by_status"
+  | "promo_codes_by_status"
+  | "email_templates_by_status"
+  | "forms_by_status"
+  | "taxonomies_by_status"
+  | "carts_by_status"
+  | "orders_by_status"
+  | "order_items_by_status"
+  | "activity_by_country";
+
+export type AnalyticsActivityReportKey = "recent_activity";
+
+export type AnalyticsReport =
+  | { key: AnalyticsMetricReportKey; data: AnalyticsMetricData }
+  | { key: AnalyticsBreakdownReportKey; data: AnalyticsBreakdownData }
+  | { key: AnalyticsActivityReportKey; data: ActivityFeedData };
+
+export interface AnalyticsBlockResponse {
+  id: string;
   time: AnalyticsTimeRange;
   reports: AnalyticsReport[];
+}
+
+export interface AnalyticsResponse {
+  time?: AnalyticsTimeRange;
+  reports: AnalyticsReport[];
+  blocks?: AnalyticsBlockResponse[];
 }
 
 export const createAnalyticsApi = (apiConfig: ApiConfig) => {
