@@ -48,7 +48,8 @@
     "build": "tsup",
     "test": "npm run build && node scripts/smoke-store.mjs",
     "dev": "tsup --watch",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepare": "npm run build"
   },
   "keywords": [
     "arky",

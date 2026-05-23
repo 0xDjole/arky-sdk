@@ -1,4 +1,4 @@
-import type { ApiConfig, CustomerSessionUpdater } from "../index";
+import type { ApiConfig, ProfileSessionUpdater } from "../index";
 import type {
   RequestOptions,
   GetNodeParams,
@@ -52,8 +52,8 @@ import type {
   Agent,
   AgentChat,
   AgentChatMessage,
-  Customer,
-  CustomerDetail,
+  Profile,
+  ProfileDetail,
   Cart,
   PaginatedResponse,
 } from "../types";
@@ -64,21 +64,21 @@ import {
 } from "../utils/blocks";
 import { normalizePublicCheckoutItems } from "../utils/orderItems";
 
-export type CustomerToken = {
+export type ProfileToken = {
   id: string;
   token: string;
   created_at: number;
 };
 
 export type IdentifyResponse = {
-  customer: Customer;
-  token: CustomerToken;
+  profile: Profile;
+  token: ProfileToken;
   store: Store;
   market: Market | null;
   code_sent: boolean;
 };
 
-export type VerifyResponse = CustomerToken;
+export type VerifyResponse = ProfileToken;
 type LogoutResponse = void;
 type Country = {
   code: string;
@@ -89,7 +89,7 @@ type CountriesResponse = { items: Country[]; cursor: string | null };
 
 export interface Activity {
   store_id: string;
-  customer_id: string;
+  profile_id: string;
   type: string;
   payload: Record<string, unknown>;
   created_at: number;
@@ -132,7 +132,7 @@ export const createActivityApi = (apiConfig: ApiConfig) => ({
   },
 });
 
-export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession: CustomerSessionUpdater) => {
+export const createStorefrontApi = (apiConfig: ApiConfig, updateProfileSession: ProfileSessionUpdater) => {
   const base = (storeId = apiConfig.storeId) =>
     `/v1/storefront/${storeId}`;
 
@@ -496,14 +496,14 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession:
     },
 
     crm: {
-      customer: {
+      profile: {
         async identify(
           params?: { email?: string; verify?: boolean; market?: string },
           options?: RequestOptions,
         ): Promise<IdentifyResponse> {
           const store_id = apiConfig.storeId;
           const result = await apiConfig.httpClient.post<IdentifyResponse>(
-            `${base(store_id)}/customers/identify`,
+            `${base(store_id)}/profiles/identify`,
             {
               store_id,
               market: params?.market || apiConfig.market || null,
@@ -513,9 +513,9 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession:
             options,
           );
           if (result?.token?.token) {
-            updateCustomerSession(() => ({
+            updateProfileSession(() => ({
               access_token: result.token.token,
-              customer: result.customer,
+              profile: result.profile,
               store: result.store,
               market: result.market,
             }));
@@ -529,12 +529,12 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession:
         ): Promise<VerifyResponse> {
           const store_id = apiConfig.storeId;
           const result = await apiConfig.httpClient.post<VerifyResponse>(
-            `${base(store_id)}/customers/verify`,
+            `${base(store_id)}/profiles/verify`,
             { store_id, code: params.code },
             options,
           );
           if (result?.token) {
-            updateCustomerSession((prev) =>
+            updateProfileSession((prev) =>
               prev ? { ...prev, access_token: result.token } : null,
             );
           }
@@ -545,17 +545,17 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession:
           const store_id = apiConfig.storeId;
           try {
             await apiConfig.httpClient.post<void>(
-              `${base(store_id)}/customers/logout`,
+              `${base(store_id)}/profiles/logout`,
               {},
               options,
             );
           } finally {
-            updateCustomerSession(() => null);
+            updateProfileSession(() => null);
           }
         },
 
-        getMe(options?: RequestOptions): Promise<CustomerDetail> {
-          return apiConfig.httpClient.get<CustomerDetail>(`${base()}/customers/me`, options);
+        getMe(options?: RequestOptions): Promise<ProfileDetail> {
+          return apiConfig.httpClient.get<ProfileDetail>(`${base()}/profiles/me`, options);
         },
       },
 
@@ -587,7 +587,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateCustomerSession:
           return apiConfig.httpClient.post<AudienceSubscribeResponse>(
             `${base()}/audiences/${params.id}/subscribe`,
             {
-              customer_id: params.customer_id,
+              profile_id: params.profile_id,
               price_id: params.price_id,
               success_url: params.success_url,
               cancel_url: params.cancel_url,

@@ -1,5 +1,5 @@
 import { atom, computed, map } from "nanostores";
-import { createStorefront, type CustomerSession } from "../index";
+import { createStorefront, type ProfileSession } from "../index";
 import type {
   Address,
   Block,
@@ -86,7 +86,7 @@ import {
 
 export function createArkyStore(config: ArkyStoreConfig) {
   const client = createStorefront(config);
-  const session = atom<CustomerSession | null>(client.session);
+  const session = atom<ProfileSession | null>(client.session);
   const locale = atom(config.locale || client.getLocale());
   const market_key = atom(config.market || client.getMarket());
   const market = computed(session, (value) => value?.market || null);
@@ -150,7 +150,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
     item_count: count,
   }));
   let cartWriteRevision = 0;
-  let sessionRequest: Promise<CustomerSession | null> | null = null;
+  let sessionRequest: Promise<ProfileSession | null> | null = null;
   let cartRequest: Promise<Cart> | null = null;
 
   function nextCartWriteRevision(): number {
@@ -207,7 +207,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
     return config.marketForLocale?.(value) || null;
   }
 
-  async function ensureSession(): Promise<CustomerSession | null> {
+  async function ensureSession(): Promise<ProfileSession | null> {
     const current = session.get();
     const marketKey = currentMarketKey();
     if (current && (!marketKey || current.market?.key === marketKey)) return current;

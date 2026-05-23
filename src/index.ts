@@ -139,7 +139,7 @@ export type {
   AgentChatMessage,
   PromoCode,
 
-  Customer,
+  Profile,
   Account,
   AccountToken,
   AccountUpdateResponse,
@@ -150,7 +150,7 @@ export type {
   ServiceStatus,
   ProviderStatus,
   ProductStatus,
-  CustomerStatus,
+  ProfileStatus,
   AudienceStatus,
   AgentChatStatus,
   WorkflowStatus,
@@ -232,8 +232,8 @@ export type {
   AnalyticsBreakdownData,
   BusinessOverviewData,
   RevenueByCurrencyData,
-  CustomerFunnelStage,
-  CustomerFunnelData,
+  ProfileFunnelStage,
+  ProfileFunnelData,
   EntityStatusOverviewData,
   DataHealthData,
   AnalyticsReport,
@@ -290,7 +290,7 @@ export const SUPPORTED_FRAMEWORKS = [
   "vanilla",
 ] as const;
 
-import type { Customer as CustomerType, Store as StoreType, Market as MarketType } from "./types";
+import type { Profile as ProfileType, Store as StoreType, Market as MarketType } from "./types";
 
 export interface ApiConfig {
   httpClient: HttpClient;
@@ -308,9 +308,9 @@ export interface AdminSessionInternal {
   email?: string;
 }
 
-export interface CustomerSessionInternal {
+export interface ProfileSessionInternal {
   access_token: string;
-  customer: CustomerType;
+  profile: ProfileType;
   store: StoreType;
   market: MarketType | null;
 }
@@ -319,8 +319,8 @@ export interface AdminSession {
   email?: string;
 }
 
-export interface CustomerSession {
-  customer: CustomerType;
+export interface ProfileSession {
+  profile: ProfileType;
   store: StoreType;
   market: MarketType | null;
 }
@@ -329,8 +329,8 @@ export type AdminSessionUpdater = (
   updater: (prev: AdminSessionInternal | null) => AdminSessionInternal | null,
 ) => void;
 
-export type CustomerSessionUpdater = (
-  updater: (prev: CustomerSessionInternal | null) => CustomerSessionInternal | null,
+export type ProfileSessionUpdater = (
+  updater: (prev: ProfileSessionInternal | null) => ProfileSessionInternal | null,
 ) => void;
 
 export type AuthStateListener<T> = (session: T | null) => void;
@@ -351,7 +351,7 @@ import { createCmsApi } from "./api/cms";
 import { createEshopApi } from "./api/eshop";
 import { createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
-import { createCustomerApi } from "./api/crm";
+import { createProfileApi } from "./api/crm";
 import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
@@ -563,7 +563,7 @@ export function createAdmin(config: CreateAdminConfig) {
   const cmsApi = createCmsApi(apiConfig);
   const eshopApi = createEshopApi(apiConfig);
   const promoCodeApi = createPromoCodeApi(apiConfig);
-  const crmApi = createCustomerApi(apiConfig);
+  const crmApi = createProfileApi(apiConfig);
   const locationApi = createLocationApi(apiConfig);
   const marketApi = createMarketApi(apiConfig);
   const agentApi = createAgentApi(apiConfig);
@@ -671,7 +671,7 @@ export function createAdmin(config: CreateAdminConfig) {
       promoCode: promoCodeApi,
     },
     crm: {
-      customer: {
+      profile: {
         create: crmApi.create,
         get: crmApi.get,
         find: crmApi.find,
@@ -775,24 +775,24 @@ export function createAdmin(config: CreateAdminConfig) {
   return sdk;
 }
 
-const CUSTOMER_STORAGE_KEY = "arky_customer_session";
+const PROFILE_STORAGE_KEY = "arky_profile_session";
 
-function readCustomerSession(): CustomerSessionInternal | null {
+function readProfileSession(): ProfileSessionInternal | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(CUSTOMER_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as CustomerSessionInternal) : null;
+    const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as ProfileSessionInternal) : null;
   } catch {
     return null;
   }
 }
 
-function writeCustomerSession(s: CustomerSessionInternal | null): void {
+function writeProfileSession(s: ProfileSessionInternal | null): void {
   if (typeof window === "undefined") return;
   if (s) {
-    localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(s));
+    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(s));
   } else {
-    localStorage.removeItem(CUSTOMER_STORAGE_KEY);
+    localStorage.removeItem(PROFILE_STORAGE_KEY);
   }
 }
 
@@ -806,15 +806,15 @@ export type CreateStorefrontConfig = Omit<HttpClientConfig, "authStorage" | "sto
 export function createStorefront(config: CreateStorefrontConfig) {
   const locale = config.locale || "en";
   const initialMarket = config.market || "";
-  const listeners = new Set<AuthStateListener<CustomerSession>>();
-  let bareIdentifyPromise: Promise<CustomerSession> | null = null;
+  const listeners = new Set<AuthStateListener<ProfileSession>>();
+  let bareIdentifyPromise: Promise<ProfileSession> | null = null;
 
-  function toPublic(s: CustomerSessionInternal | null): CustomerSession | null {
-    return s ? { customer: s.customer, store: s.store, market: s.market } : null;
+  function toPublic(s: ProfileSessionInternal | null): ProfileSession | null {
+    return s ? { profile: s.profile, store: s.store, market: s.market } : null;
   }
 
   function emit(): void {
-    const pub = toPublic(readCustomerSession());
+    const pub = toPublic(readProfileSession());
     for (const l of listeners) {
       Promise.resolve()
         .then(() => l(pub))
@@ -822,11 +822,11 @@ export function createStorefront(config: CreateStorefrontConfig) {
     }
   }
 
-  const updateSession: CustomerSessionUpdater = (updater) => {
+  const updateSession: ProfileSessionUpdater = (updater) => {
     if (config.apiToken) return;
-    const prev = readCustomerSession();
+    const prev = readProfileSession();
     const next = updater(prev);
-    writeCustomerSession(next);
+    writeProfileSession(next);
     emit();
   };
 
@@ -838,11 +838,11 @@ export function createStorefront(config: CreateStorefrontConfig) {
       }
     : {
         getTokens() {
-          const s = readCustomerSession();
+          const s = readProfileSession();
           return s ? { access_token: s.access_token } : null;
         },
         onTokensRefreshed() {
-          // Customer tokens are one-shot; no refresh on this flow.
+          // Profile tokens are one-shot; no refresh on this flow.
         },
         onForcedLogout() {
           bareIdentifyPromise = null;
@@ -869,25 +869,25 @@ export function createStorefront(config: CreateStorefrontConfig) {
   };
 
   const storefrontApi = createStorefrontApi(apiConfig, updateSession);
-  const customerApi = storefrontApi.crm.customer;
+  const profileApi = storefrontApi.crm.profile;
 
   function identify(
     params?: { email?: string; verify?: boolean; market?: string },
-  ): Promise<CustomerSession> {
+  ): Promise<ProfileSession> {
     if (params?.market !== undefined) apiConfig.market = params.market;
 
     const isBareCall = !params?.email && !params?.verify;
     if (isBareCall && bareIdentifyPromise) return bareIdentifyPromise;
 
-    const promise = (async (): Promise<CustomerSession> => {
+    const promise = (async (): Promise<ProfileSession> => {
       try {
-        const result = await customerApi.identify({
+        const result = await profileApi.identify({
           market: apiConfig.market,
           email: params?.email,
           verify: params?.verify,
         });
         return {
-          customer: result.customer,
+          profile: result.profile,
           store: result.store,
           market: result.market,
         };
@@ -896,9 +896,9 @@ export function createStorefront(config: CreateStorefrontConfig) {
         const status = e?.statusCode || e?.status || e?.response?.status;
         if (isBareCall && status === 401) {
           updateSession(() => null);
-          const result = await customerApi.identify({ market: apiConfig.market });
+          const result = await profileApi.identify({ market: apiConfig.market });
           return {
-            customer: result.customer,
+            profile: result.profile,
             store: result.store,
             market: result.market,
           };
@@ -916,7 +916,7 @@ export function createStorefront(config: CreateStorefrontConfig) {
   }
 
   async function verify(params: { code: string }) {
-    const result = await customerApi.verify(params);
+    const result = await profileApi.verify(params);
     bareIdentifyPromise = null;
     return result;
   }
@@ -925,7 +925,7 @@ export function createStorefront(config: CreateStorefrontConfig) {
     if (config.apiToken) return;
     bareIdentifyPromise = null;
     try {
-      await customerApi.logout();
+      await profileApi.logout();
     } catch {
       updateSession(() => null);
     }
@@ -935,22 +935,22 @@ export function createStorefront(config: CreateStorefrontConfig) {
     identify,
     verify,
     logout,
-    me: () => customerApi.getMe(),
+    me: () => profileApi.getMe(),
 
-    get session(): CustomerSession | null {
+    get session(): ProfileSession | null {
       if (config.apiToken) return null;
-      return toPublic(readCustomerSession());
+      return toPublic(readProfileSession());
     },
 
     get isAuthenticated(): boolean {
       if (config.apiToken) return true;
-      const s = readCustomerSession();
+      const s = readProfileSession();
       return s !== null && !!s.access_token;
     },
 
-    onAuthStateChanged(listener: AuthStateListener<CustomerSession>): () => void {
+    onAuthStateChanged(listener: AuthStateListener<ProfileSession>): () => void {
       listeners.add(listener);
-      const current = toPublic(readCustomerSession());
+      const current = toPublic(readProfileSession());
       if (current) {
         Promise.resolve()
           .then(() => listener(current))

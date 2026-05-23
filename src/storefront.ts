@@ -33,7 +33,7 @@ export type {
   CartControllerRemoveItemParams,
   CartControllerState,
   CartControllerUpdateParams,
-  CustomerSession,
+  ProfileSession,
   AuthStateListener,
   CreateStorefrontConfig,
   TrackParams,

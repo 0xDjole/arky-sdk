@@ -152,7 +152,7 @@ const title = arkyStore.utils.getBlockTextValue(titleBlock, 'en')
 await arkyStore.cms.form.submitByKey({
   key: 'contact',
   entries: [
-    { key: 'email', value: 'customer@example.com' },
+    { key: 'email', value: 'profile@example.com' },
     { key: 'message', value: 'Hello from the storefront' },
   ],
 })

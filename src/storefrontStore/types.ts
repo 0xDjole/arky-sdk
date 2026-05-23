@@ -1,4 +1,4 @@
-import type { createStorefront, CreateStorefrontConfig, CustomerSession } from "../index";
+import type { createStorefront, CreateStorefrontConfig, ProfileSession } from "../index";
 import type { TrackParams } from "../api/storefront";
 import type {
   Address,
@@ -38,7 +38,7 @@ export interface ArkyStoreSetupOptions extends ArkyStoreContext {
 }
 
 export interface ArkyStoreSetupResult {
-  session: CustomerSession | null;
+  session: ProfileSession | null;
   cart?: Cart;
 }
 

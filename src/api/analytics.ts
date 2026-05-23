@@ -8,13 +8,13 @@ export interface AnalyticsTimeRange {
 
 export type AnalyticsReportKey =
   | "business_overview"
-  | "customer_funnel"
+  | "profile_funnel"
   | "activity_by_country"
   | "top_activity_pages"
   | "entity_status_overview"
   | "data_health"
   | "orders_created"
-  | "customers_created"
+  | "profiles_created"
   | "form_submissions_created"
   | "carts_abandoned"
   | "media_count"
@@ -22,7 +22,7 @@ export type AnalyticsReportKey =
   | "services_by_status"
   | "providers_by_status"
   | "nodes_by_status"
-  | "customers_by_status"
+  | "profiles_by_status"
   | "audiences_by_status"
   | "agents_by_status"
   | "workflows_by_status"
@@ -40,7 +40,7 @@ export type ActivityFeedCategory =
   | "carts"
   | "promo_codes"
   | "submissions"
-  | "customers"
+  | "profiles"
   | "audiences"
   | "products"
   | "services"
@@ -79,7 +79,7 @@ export interface AnalyticsBreakdownItem {
   key: string;
   label: string;
   value: number;
-  unique_customers?: number;
+  unique_profiles?: number;
   unique_visitors?: number;
 }
 
@@ -90,11 +90,11 @@ export interface AnalyticsBreakdownData {
 export interface BusinessOverviewData {
   visitors: number;
   new_visitors: number;
-  known_customers: number;
-  new_known_customers: number;
-  email_known_customers: number;
-  verified_customers: number;
-  new_verified_customers: number;
+  known_profiles: number;
+  new_known_profiles: number;
+  email_known_profiles: number;
+  verified_profiles: number;
+  new_verified_profiles: number;
   buyers: number;
   orders: number;
   revenue: number;
@@ -114,19 +114,19 @@ export interface RevenueByCurrencyData {
   average_order_value: number;
 }
 
-export interface CustomerFunnelStage {
+export interface ProfileFunnelStage {
   key:
     | "visitors"
-    | "email_known_customers"
-    | "verified_customers"
+    | "email_known_profiles"
+    | "verified_profiles"
     | "buyers"
     | string;
   label: string;
   value: number;
 }
 
-export interface CustomerFunnelData {
-  stages: CustomerFunnelStage[];
+export interface ProfileFunnelData {
+  stages: ProfileFunnelStage[];
   visitor_to_known_rate?: number;
   visitor_to_buyer_rate?: number;
 }
@@ -136,8 +136,8 @@ export interface EntityStatusOverviewData {
 }
 
 export interface DataHealthData {
-  anonymous_customers: number;
-  known_customers: number;
+  anonymous_profiles: number;
+  known_profiles: number;
   duplicate_emails: number;
   unknown_country_events: number;
   unknown_device_events: number;
@@ -150,7 +150,7 @@ export interface ActivityFeedItem {
   action: string;
   event_type: string;
   status: string;
-  customer_id: string;
+  profile_id: string;
   category: string;
   title: string;
   description: string;
@@ -164,7 +164,7 @@ export interface ActivityFeedSummary {
   total: number;
   orders: number;
   submissions: number;
-  customers: number;
+  profiles: number;
   audiences: number;
   abandoned_carts: number;
   carts: number;
@@ -196,7 +196,7 @@ export interface ActivityFeedData {
 
 export type AnalyticsMetricReportKey =
   | "orders_created"
-  | "customers_created"
+  | "profiles_created"
   | "form_submissions_created"
   | "carts_abandoned"
   | "media_count";
@@ -208,7 +208,7 @@ export type AnalyticsBreakdownReportKey =
   | "services_by_status"
   | "providers_by_status"
   | "nodes_by_status"
-  | "customers_by_status"
+  | "profiles_by_status"
   | "audiences_by_status"
   | "agents_by_status"
   | "workflows_by_status"
@@ -224,7 +224,7 @@ export type AnalyticsActivityReportKey = "recent_activity";
 
 export type AnalyticsCompositeReportKey =
   | "business_overview"
-  | "customer_funnel"
+  | "profile_funnel"
   | "entity_status_overview"
   | "data_health";
 
@@ -232,7 +232,7 @@ export type AnalyticsReport =
   | { key: AnalyticsMetricReportKey; data: AnalyticsMetricData }
   | { key: AnalyticsBreakdownReportKey; data: AnalyticsBreakdownData }
   | { key: "business_overview"; data: BusinessOverviewData }
-  | { key: "customer_funnel"; data: CustomerFunnelData }
+  | { key: "profile_funnel"; data: ProfileFunnelData }
   | { key: "entity_status_overview"; data: EntityStatusOverviewData }
   | { key: "data_health"; data: DataHealthData }
   | { key: AnalyticsActivityReportKey; data: ActivityFeedData };

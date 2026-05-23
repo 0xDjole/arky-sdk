@@ -36,7 +36,7 @@ import type {
   Language,
   StoreEmails,
   AgentChatStatus,
-  CustomerStatus,
+  ProfileStatus,
   AudienceStatus,
 } from "./index";
 
@@ -241,7 +241,7 @@ export interface GetCartParams {
 
 export interface FindCartsParams {
   store_id?: string;
-  customer_id?: string;
+  profile_id?: string;
   statuses?: import("./index").CartStatus[];
   origins?: import("./index").CartOrigin[];
   has_items?: boolean;
@@ -251,7 +251,7 @@ export interface FindCartsParams {
 
 export interface CreateCartParams {
   store_id?: string;
-  customer_id: string;
+  profile_id: string;
   market: string;
   items?: TrustedOrderCheckoutCompatibleItemInput[];
   shipping_address?: Address | null;
@@ -664,7 +664,7 @@ export interface GetOrderParams {
 
 export interface GetOrdersParams {
   store_id?: string;
-  customer_id?: string;
+  profile_id?: string;
   statuses?: string[];
   item_statuses?: string[];
   product_ids?: string[];
@@ -839,7 +839,7 @@ export interface GetProviderParams {
 
 export interface SearchOrderServiceItemsParams {
   store_id?: string;
-  customer_id?: string;
+  profile_id?: string;
   service_ids?: string[];
   provider_ids?: string[];
   from?: number;
@@ -1023,7 +1023,7 @@ export interface SubmitFormParams {
 export interface GetFormSubmissionsParams {
   form_ids?: string[];
   store_id?: string;
-  customer_id?: string;
+  profile_id?: string;
 
   query?: string | number;
   limit?: number;
@@ -1036,7 +1036,7 @@ export interface GetFormSubmissionsParams {
 
 export interface FindActivitiesParams {
   store_id?: string;
-  customer_id?: string;
+  profile_id?: string;
   types?: string[];
   from?: number;
   to?: number;
@@ -1287,7 +1287,7 @@ export interface GetAudiencesParams {
 
 export interface SubscribeAudienceParams {
   id: string;
-  customer_id: string;
+  profile_id: string;
   price_id?: string;
   success_url?: string;
   cancel_url?: string;
@@ -1305,7 +1305,7 @@ export interface GetAudienceSubscribersParams {
 }
 
 export interface AudienceSubscriber {
-  customer_id: string;
+  profile_id: string;
   email: string;
   subscribed_at?: number;
   source?: AudienceSubscriptionSource;
@@ -1314,12 +1314,12 @@ export interface AudienceSubscriber {
 
 export interface RemoveAudienceSubscriberParams {
   id: string;
-  customer_id: string;
+  profile_id: string;
 }
 
 export interface AddAudienceSubscriberParams {
   id: string;
-  customer_id: string;
+  profile_id: string;
 }
 
 export interface AddAudienceSubscriberResponse {
@@ -1478,7 +1478,7 @@ export interface GetAgentChatsParams {
 export interface GetStoreChatsParams {
   store_id?: string;
   agent_id?: string;
-  customer_id?: string;
+  profile_id?: string;
   status?: AgentChatStatus;
 
   query?: string | number;
@@ -1520,18 +1520,18 @@ export interface AuthToken {
   is_verified: boolean;
 }
 
-export interface CustomerInfo {
+export interface ProfileInfo {
   id: string;
   verified: boolean;
 }
 
-export interface CustomerAuthToken {
+export interface ProfileAuthToken {
   id: string;
   token: string;
   created_at: number;
 }
 
-export interface CustomerVerificationCode {
+export interface ProfileVerificationCode {
   code: string;
   created_at: number;
   used: boolean;
@@ -1543,58 +1543,58 @@ export interface PromoUsage {
   uses: number;
 }
 
-export interface Customer {
+export interface Profile {
   id: string;
   store_id: string;
   email: string | null;
   verified: boolean;
-  status: CustomerStatus;
+  status: ProfileStatus;
   promo_usage: PromoUsage[];
   taxonomies: TaxonomyEntry[];
-  auth_tokens: CustomerAuthToken[];
-  verification_codes: CustomerVerificationCode[];
+  auth_tokens: ProfileAuthToken[];
+  verification_codes: ProfileVerificationCode[];
   created_at: number;
   updated_at: number;
 }
 
-export interface CustomerDetail {
-  customer: Customer;
+export interface ProfileDetail {
+  profile: Profile;
   carts: import('./index').Cart[];
   orders: import('./index').Order[];
   audience_subscriptions: import('./index').AudienceSubscription[];
   form_submissions: import('./index').FormSubmission[];
 }
 
-export interface SetCustomerEmailParams {
+export interface SetProfileEmailParams {
   email: string;
   store_id?: string;
 }
 
-export interface CreateCustomerParams {
+export interface CreateProfileParams {
   store_id?: string;
   email: string;
   taxonomies?: TaxonomyEntry[];
 }
 
-export interface UpdateCustomerParams {
+export interface UpdateProfileParams {
   id: string;
   store_id?: string;
   email?: string;
   taxonomies?: TaxonomyEntry[];
-  status?: CustomerStatus;
+  status?: ProfileStatus;
 }
 
-export interface GetCustomerParams {
+export interface GetProfileParams {
   id: string;
   store_id?: string;
 }
 
-export interface FindCustomersParams {
+export interface FindProfilesParams {
   store_id?: string;
 
   query?: string | number;
   taxonomy_query?: TaxonomyQuery[];
-  status?: CustomerStatus;
+  status?: ProfileStatus;
   has_activity?: boolean;
   has_cart?: boolean;
   limit?: number;
@@ -1603,7 +1603,7 @@ export interface FindCustomersParams {
   sort_direction?: 'asc' | 'desc';
 }
 
-export interface MergeCustomersParams {
+export interface MergeProfilesParams {
   target_id: string;
   source_id: string;
   store_id?: string;

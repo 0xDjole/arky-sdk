@@ -1,13 +1,13 @@
 import type { ApiConfig } from "../index";
 import type {
   RequestOptions,
-  CreateCustomerParams,
-  UpdateCustomerParams,
-  GetCustomerParams,
-  FindCustomersParams,
-  MergeCustomersParams,
-  Customer,
-  CustomerDetail,
+  CreateProfileParams,
+  UpdateProfileParams,
+  GetProfileParams,
+  FindProfilesParams,
+  MergeProfilesParams,
+  Profile,
+  ProfileDetail,
   CreateAudienceParams,
   UpdateAudienceParams,
   GetAudienceParams,
@@ -24,7 +24,7 @@ import type { Audience, PaginatedResponse } from "../types";
 export interface Activity {
   id: string;
   store_id: string;
-  customer_id: string;
+  profile_id: string;
   type: string;
   payload: Record<string, unknown>;
   created_at: number;
@@ -40,7 +40,7 @@ export interface Activity {
 }
 
 export interface TimelineParams {
-  customer_id: string;
+  profile_id: string;
   store_id?: string;
   limit?: number;
   cursor?: string;
@@ -49,7 +49,7 @@ export interface TimelineParams {
 export const createActivityAdminApi = (apiConfig: ApiConfig) => ({
   async timeline(params: TimelineParams, options?: RequestOptions): Promise<{ items: Activity[]; cursor: string | null }> {
     const store_id = params.store_id || apiConfig.storeId;
-    const queryParams: Record<string, unknown> = { customer_id: params.customer_id };
+    const queryParams: Record<string, unknown> = { profile_id: params.profile_id };
     if (params.limit !== undefined) queryParams.limit = params.limit;
     if (params.cursor) queryParams.cursor = params.cursor;
     return apiConfig.httpClient.get<{ items: Activity[]; cursor: string | null }>(
@@ -61,7 +61,7 @@ export const createActivityAdminApi = (apiConfig: ApiConfig) => ({
   async find(params: FindActivitiesParams, options?: RequestOptions): Promise<{ items: Activity[]; cursor: string | null }> {
     const store_id = params.store_id || apiConfig.storeId;
     const queryParams: Record<string, unknown> = {};
-    if (params.customer_id) queryParams.customer_id = params.customer_id;
+    if (params.profile_id) queryParams.profile_id = params.profile_id;
     if (params.types && params.types.length > 0) queryParams.types = params.types;
     if (params.from !== undefined) queryParams.from = params.from;
     if (params.to !== undefined) queryParams.to = params.to;
@@ -74,25 +74,25 @@ export const createActivityAdminApi = (apiConfig: ApiConfig) => ({
   },
 });
 
-export const createCustomerApi = (apiConfig: ApiConfig) => {
+export const createProfileApi = (apiConfig: ApiConfig) => {
   return {
-    async create(params: CreateCustomerParams, options?: RequestOptions): Promise<Customer> {
+    async create(params: CreateProfileParams, options?: RequestOptions): Promise<Profile> {
       const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<Customer>(
-        `/v1/stores/${store_id || apiConfig.storeId}/customers`,
+      return apiConfig.httpClient.post<Profile>(
+        `/v1/stores/${store_id || apiConfig.storeId}/profiles`,
         payload,
         options
       );
     },
 
-    async get(params: GetCustomerParams, options?: RequestOptions): Promise<CustomerDetail> {
-      return apiConfig.httpClient.get<CustomerDetail>(
-        `/v1/stores/${params.store_id || apiConfig.storeId}/customers/${params.id}`,
+    async get(params: GetProfileParams, options?: RequestOptions): Promise<ProfileDetail> {
+      return apiConfig.httpClient.get<ProfileDetail>(
+        `/v1/stores/${params.store_id || apiConfig.storeId}/profiles/${params.id}`,
         options
       );
     },
 
-    async find(params?: FindCustomersParams, options?: RequestOptions): Promise<{ items: Customer[]; cursor?: string }> {
+    async find(params?: FindProfilesParams, options?: RequestOptions): Promise<{ items: Profile[]; cursor?: string }> {
       const store_id = params?.store_id || apiConfig.storeId;
       const queryParams: Record<string, unknown> = {};
 
@@ -106,8 +106,8 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
       if (params?.sort_field) queryParams.sort_field = params.sort_field;
       if (params?.sort_direction) queryParams.sort_direction = params.sort_direction;
 
-      return apiConfig.httpClient.get<{ items: Customer[]; cursor?: string }>(
-        `/v1/stores/${store_id}/customers`,
+      return apiConfig.httpClient.get<{ items: Profile[]; cursor?: string }>(
+        `/v1/stores/${store_id}/profiles`,
         {
           ...options,
           params: queryParams,
@@ -115,19 +115,19 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async update(params: UpdateCustomerParams, options?: RequestOptions): Promise<Customer> {
+    async update(params: UpdateProfileParams, options?: RequestOptions): Promise<Profile> {
       const { id, store_id, ...body } = params;
-      return apiConfig.httpClient.put<Customer>(
-        `/v1/stores/${store_id || apiConfig.storeId}/customers/${id}`,
+      return apiConfig.httpClient.put<Profile>(
+        `/v1/stores/${store_id || apiConfig.storeId}/profiles/${id}`,
         body,
         options
       );
     },
 
-    async merge(params: MergeCustomersParams, options?: RequestOptions): Promise<Customer> {
+    async merge(params: MergeProfilesParams, options?: RequestOptions): Promise<Profile> {
       const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<Customer>(
-        `/v1/stores/${store_id}/customers/${params.target_id}/merge`,
+      return apiConfig.httpClient.post<Profile>(
+        `/v1/stores/${store_id}/profiles/${params.target_id}/merge`,
         { source_id: params.source_id, store_id },
         options
       );
@@ -136,7 +136,7 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
     async revokeToken(params: { id: string; token_id: string; store_id?: string }, options?: RequestOptions): Promise<{ deleted: boolean }> {
       const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${store_id}/customers/${params.id}/sessions/${params.token_id}`,
+        `/v1/stores/${store_id}/profiles/${params.id}/sessions/${params.token_id}`,
         options
       );
     },
@@ -144,7 +144,7 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
     async revokeAllTokens(params: { id: string; store_id?: string }, options?: RequestOptions): Promise<{ deleted: boolean }> {
       const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${store_id}/customers/${params.id}/sessions`,
+        `/v1/stores/${store_id}/profiles/${params.id}/sessions`,
         options
       );
     },
@@ -202,14 +202,14 @@ export const createCustomerApi = (apiConfig: ApiConfig) => {
       async addSubscriber(params: AddAudienceSubscriberParams, options?: RequestOptions): Promise<AddAudienceSubscriberResponse> {
         return apiConfig.httpClient.post<AddAudienceSubscriberResponse>(
           `/v1/stores/${apiConfig.storeId}/audiences/${params.id}/subscribers`,
-          { customer_id: params.customer_id },
+          { profile_id: params.profile_id },
           options,
         );
       },
 
       async removeSubscriber(params: RemoveAudienceSubscriberParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
         return apiConfig.httpClient.delete<{ deleted: boolean }>(
-          `/v1/stores/${apiConfig.storeId}/audiences/${params.id}/subscribers/${params.customer_id}`,
+          `/v1/stores/${apiConfig.storeId}/audiences/${params.id}/subscribers/${params.profile_id}`,
           options,
         );
       },

@@ -36,7 +36,7 @@ export interface OrderPaymentPromoCode {
 
 export type OrderPaymentProvider = {
 	type: 'stripe';
-	customer_id: string;
+	profile_id: string;
 	payment_intent_id?: string;
 };
 
@@ -172,7 +172,7 @@ export type CartOrigin = 'storefront' | 'admin';
 export interface Cart {
 	id: string;
 	store_id: string;
-	customer_id: string;
+	profile_id: string;
 	token: string;
 	status: CartStatus;
 	origin: CartOrigin;
@@ -431,7 +431,7 @@ export interface Order {
 	number: string;
 	store_id: string;
 	source_cart_id: string;
-	customer_id: string;
+	profile_id: string;
 	status: OrderStatus;
 	verified: boolean;
 	items: OrderItem[];
@@ -553,7 +553,7 @@ export type StoreSubscriptionSource = 'signup' | 'admin' | 'import';
 
 export type StoreSubscriptionProvider = {
 	type: 'stripe';
-	customer_id: string;
+	profile_id: string;
 	subscription_id?: string;
 	price_id?: string;
 };
@@ -588,7 +588,7 @@ export type AudienceSubscriptionSource = 'signup' | 'admin' | 'import';
 
 export type AudienceSubscriptionProvider = {
 	type: 'stripe';
-	customer_id: string;
+	profile_id: string;
 	subscription_id?: string;
 	price_id?: string;
 };
@@ -602,7 +602,7 @@ export interface AudienceSubscriptionPayment {
 export interface AudienceSubscription {
 	id: string;
 	store_id: string;
-	customer_id: string;
+	profile_id: string;
 	audience_id: string;
 	plan_id: string;
 	pending_plan_id: string | null;
@@ -823,7 +823,7 @@ export type ServiceStatus = 'active' | 'draft' | 'archived';
 export type ProviderStatus = 'active' | 'draft' | 'archived';
 
 export type ProductStatus = 'active' | 'draft' | 'archived';
-export type CustomerStatus = 'active' | 'archived';
+export type ProfileStatus = 'active' | 'archived';
 export type AudienceStatus = 'active' | 'draft' | 'archived';
 export type AgentChatStatus = 'active' | 'draft' | 'archived';
 export type WorkflowStatus = 'active' | 'draft' | 'archived';
@@ -836,7 +836,7 @@ export type TaxonomyStatus = 'active' | 'draft' | 'archived';
 
 export type OrderCancellationReason =
 	| 'admin_rejected'
-	| 'customer_cancelled'
+	| 'profile_cancelled'
 	| 'payment_failed'
 	| 'expired'
 	| 'other';
@@ -907,7 +907,7 @@ export interface FormSubmission {
 	id: string;
 	form_id: string;
 	store_id: string;
-	customer_id: string;
+	profile_id: string;
 	fields: FormField[];
 	created_at: number;
 }
@@ -1295,7 +1295,7 @@ export interface AgentChat {
 	id: string;
 	store_id: string;
 	agent_id: string;
-	customer_id: string;
+	profile_id: string;
 	status: AgentChatStatus;
 	rating?: number;
 	rating_comment?: string;
