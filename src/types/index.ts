@@ -830,6 +830,7 @@ export type WorkflowStatus = 'active' | 'draft' | 'archived';
 export type PromoCodeStatus = 'active' | 'draft' | 'archived';
 export type NodeStatus = 'active' | 'draft' | 'archived';
 export type EmailTemplateStatus = 'active' | 'draft' | 'archived';
+
 export type FormStatus = 'active' | 'draft' | 'archived';
 export type TaxonomyStatus = 'active' | 'draft' | 'archived';
 

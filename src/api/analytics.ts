@@ -7,6 +7,12 @@ export interface AnalyticsTimeRange {
 }
 
 export type AnalyticsReportKey =
+  | "business_overview"
+  | "customer_funnel"
+  | "activity_by_country"
+  | "top_activity_pages"
+  | "entity_status_overview"
+  | "data_health"
   | "orders_created"
   | "customers_created"
   | "form_submissions_created"
@@ -27,7 +33,6 @@ export type AnalyticsReportKey =
   | "carts_by_status"
   | "orders_by_status"
   | "order_items_by_status"
-  | "activity_by_country"
   | "recent_activity";
 
 export type ActivityFeedCategory =
@@ -75,10 +80,67 @@ export interface AnalyticsBreakdownItem {
   label: string;
   value: number;
   unique_customers?: number;
+  unique_visitors?: number;
 }
 
 export interface AnalyticsBreakdownData {
   items: AnalyticsBreakdownItem[];
+}
+
+export interface BusinessOverviewData {
+  visitors: number;
+  new_visitors: number;
+  known_customers: number;
+  new_known_customers: number;
+  email_known_customers: number;
+  verified_customers: number;
+  new_verified_customers: number;
+  buyers: number;
+  orders: number;
+  revenue: number;
+  revenue_by_currency: RevenueByCurrencyData[];
+  average_order_value: number;
+  carts: number;
+  abandoned_carts: number;
+  visitor_to_known_rate: number;
+  visitor_to_buyer_rate: number;
+  cart_abandonment_rate: number;
+}
+
+export interface RevenueByCurrencyData {
+  currency: string;
+  orders: number;
+  revenue: number;
+  average_order_value: number;
+}
+
+export interface CustomerFunnelStage {
+  key:
+    | "visitors"
+    | "email_known_customers"
+    | "verified_customers"
+    | "buyers"
+    | string;
+  label: string;
+  value: number;
+}
+
+export interface CustomerFunnelData {
+  stages: CustomerFunnelStage[];
+  visitor_to_known_rate?: number;
+  visitor_to_buyer_rate?: number;
+}
+
+export interface EntityStatusOverviewData {
+  entities: Record<string, AnalyticsBreakdownItem[]>;
+}
+
+export interface DataHealthData {
+  anonymous_customers: number;
+  known_customers: number;
+  duplicate_emails: number;
+  unknown_country_events: number;
+  unknown_device_events: number;
 }
 
 export interface ActivityFeedItem {
@@ -140,6 +202,8 @@ export type AnalyticsMetricReportKey =
   | "media_count";
 
 export type AnalyticsBreakdownReportKey =
+  | "activity_by_country"
+  | "top_activity_pages"
   | "products_by_status"
   | "services_by_status"
   | "providers_by_status"
@@ -154,14 +218,23 @@ export type AnalyticsBreakdownReportKey =
   | "taxonomies_by_status"
   | "carts_by_status"
   | "orders_by_status"
-  | "order_items_by_status"
-  | "activity_by_country";
+  | "order_items_by_status";
 
 export type AnalyticsActivityReportKey = "recent_activity";
+
+export type AnalyticsCompositeReportKey =
+  | "business_overview"
+  | "customer_funnel"
+  | "entity_status_overview"
+  | "data_health";
 
 export type AnalyticsReport =
   | { key: AnalyticsMetricReportKey; data: AnalyticsMetricData }
   | { key: AnalyticsBreakdownReportKey; data: AnalyticsBreakdownData }
+  | { key: "business_overview"; data: BusinessOverviewData }
+  | { key: "customer_funnel"; data: CustomerFunnelData }
+  | { key: "entity_status_overview"; data: EntityStatusOverviewData }
+  | { key: "data_health"; data: DataHealthData }
   | { key: AnalyticsActivityReportKey; data: ActivityFeedData };
 
 export interface AnalyticsBlockResponse {
@@ -172,7 +245,7 @@ export interface AnalyticsBlockResponse {
 
 export interface AnalyticsResponse {
   time?: AnalyticsTimeRange;
-  reports: AnalyticsReport[];
+  reports?: AnalyticsReport[];
   blocks?: AnalyticsBlockResponse[];
 }
 

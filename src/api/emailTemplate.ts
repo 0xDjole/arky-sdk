@@ -5,6 +5,8 @@ import type {
   DeleteEmailTemplateParams,
   GetEmailTemplateParams,
   GetEmailTemplatesParams,
+  PreviewEmailTemplateParams,
+  PreviewEmailTemplateResponse,
   RequestOptions,
 } from "../types/api";
 import type { EmailTemplate, PaginatedResponse } from "../types";
@@ -65,6 +67,16 @@ export const createEmailTemplateApi = (apiConfig: ApiConfig) => {
           ...options,
           params: queryParams,
         }
+      );
+    },
+
+    async previewEmailTemplate(params: PreviewEmailTemplateParams, options?: RequestOptions): Promise<PreviewEmailTemplateResponse> {
+      const { store_id, id, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<PreviewEmailTemplateResponse>(
+        `/v1/stores/${target_store_id}/email-templates/${id}/preview`,
+        payload,
+        options
       );
     },
   };

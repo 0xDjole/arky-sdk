@@ -941,6 +941,27 @@ export interface UpdateEmailTemplateParams {
   status?: EmailTemplateStatus;
 }
 
+export interface PreviewEmailTemplateParams {
+  id: string;
+  store_id?: string;
+  subject?: Record<string, string>;
+  body?: string;
+  preheader?: string | null;
+  vars?: Record<string, any>;
+}
+
+export interface PreviewEmailTemplateWarning {
+  kind: string;
+  variable: string;
+  message: string;
+}
+
+export interface PreviewEmailTemplateResponse {
+  subject: string;
+  html: string;
+  warnings: PreviewEmailTemplateWarning[];
+}
+
 export interface GetEmailTemplateParams {
   id?: string;
   key?: string;

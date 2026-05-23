@@ -80,8 +80,8 @@ export const createPlatformApi = (apiConfig: ApiConfig) => {
 		async runScript(
 			params: { name: string; value?: string; username?: string; password?: string },
 			options?: RequestOptions,
-		): Promise<{ message: string }> {
-			return apiConfig.httpClient.post<{ message: string }>('/v1/platform/scripts', params, options);
+		): Promise<{ success: boolean; message: string }> {
+			return apiConfig.httpClient.post<{ success: boolean; message: string }>('/v1/platform/scripts', params, options);
 		},
 	};
 };
