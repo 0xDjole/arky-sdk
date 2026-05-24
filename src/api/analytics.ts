@@ -9,6 +9,8 @@ export interface AnalyticsTimeRange {
 export type AnalyticsReportKey =
   | "business_overview"
   | "profile_funnel"
+  | "outreach_overview"
+  | "outreach_funnel"
   | "activity_by_country"
   | "top_activity_pages"
   | "entity_status_overview"
@@ -17,6 +19,9 @@ export type AnalyticsReportKey =
   | "profiles_created"
   | "form_submissions_created"
   | "carts_abandoned"
+  | "outreach_messages_sent"
+  | "outreach_replies_created"
+  | "suppressions_created"
   | "media_count"
   | "products_by_status"
   | "services_by_status"
@@ -24,6 +29,12 @@ export type AnalyticsReportKey =
   | "nodes_by_status"
   | "profiles_by_status"
   | "audiences_by_status"
+  | "profile_lists_by_status"
+  | "mailboxes_by_status"
+  | "outreach_campaigns_by_status"
+  | "outreach_enrollments_by_status"
+  | "outreach_messages_by_status"
+  | "suppressions_by_status"
   | "agents_by_status"
   | "workflows_by_status"
   | "promo_codes_by_status"
@@ -131,6 +142,47 @@ export interface ProfileFunnelData {
   visitor_to_buyer_rate?: number;
 }
 
+export interface OutreachOverviewData {
+  profile_lists: number;
+  active_profile_lists: number;
+  mailboxes: number;
+  active_mailboxes: number;
+  outreach_campaigns: number;
+  active_outreach_campaigns: number;
+  outreach_enrollments: number;
+  new_outreach_enrollments: number;
+  active_outreach_enrollments: number;
+  completed_outreach_enrollments: number;
+  replied_outreach_enrollments: number;
+  suppressed_outreach_enrollments: number;
+  failed_outreach_enrollments: number;
+  outreach_messages_sent: number;
+  outreach_replies: number;
+  suppressions: number;
+  active_suppressions: number;
+  new_suppressions: number;
+  reply_rate: number;
+  suppression_rate: number;
+}
+
+export interface OutreachFunnelStage {
+  key:
+    | "profile_lists"
+    | "outreach_campaigns"
+    | "outreach_enrollments"
+    | "outreach_messages_sent"
+    | "outreach_replies"
+    | string;
+  label: string;
+  value: number;
+}
+
+export interface OutreachFunnelData {
+  stages: OutreachFunnelStage[];
+  reply_rate?: number;
+  suppression_rate?: number;
+}
+
 export interface EntityStatusOverviewData {
   entities: Record<string, AnalyticsBreakdownItem[]>;
 }
@@ -199,6 +251,9 @@ export type AnalyticsMetricReportKey =
   | "profiles_created"
   | "form_submissions_created"
   | "carts_abandoned"
+  | "outreach_messages_sent"
+  | "outreach_replies_created"
+  | "suppressions_created"
   | "media_count";
 
 export type AnalyticsBreakdownReportKey =
@@ -210,6 +265,12 @@ export type AnalyticsBreakdownReportKey =
   | "nodes_by_status"
   | "profiles_by_status"
   | "audiences_by_status"
+  | "profile_lists_by_status"
+  | "mailboxes_by_status"
+  | "outreach_campaigns_by_status"
+  | "outreach_enrollments_by_status"
+  | "outreach_messages_by_status"
+  | "suppressions_by_status"
   | "agents_by_status"
   | "workflows_by_status"
   | "promo_codes_by_status"
@@ -225,6 +286,8 @@ export type AnalyticsActivityReportKey = "recent_activity";
 export type AnalyticsCompositeReportKey =
   | "business_overview"
   | "profile_funnel"
+  | "outreach_overview"
+  | "outreach_funnel"
   | "entity_status_overview"
   | "data_health";
 
@@ -233,6 +296,8 @@ export type AnalyticsReport =
   | { key: AnalyticsBreakdownReportKey; data: AnalyticsBreakdownData }
   | { key: "business_overview"; data: BusinessOverviewData }
   | { key: "profile_funnel"; data: ProfileFunnelData }
+  | { key: "outreach_overview"; data: OutreachOverviewData }
+  | { key: "outreach_funnel"; data: OutreachFunnelData }
   | { key: "entity_status_overview"; data: EntityStatusOverviewData }
   | { key: "data_health"; data: DataHealthData }
   | { key: AnalyticsActivityReportKey; data: ActivityFeedData };

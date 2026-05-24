@@ -18,8 +18,46 @@ import type {
   AddAudienceSubscriberResponse,
   AudienceSubscriber,
   FindActivitiesParams,
+  CreateProfileListParams,
+  UpdateProfileListParams,
+  FindProfileListsParams,
+  GetProfileListParams,
+  AddProfileListMemberParams,
+  RemoveProfileListMemberParams,
+  FindProfileListMembersParams,
+  CreateProfileListImportParams,
+  FindProfileListImportsParams,
+  CreateMailboxParams,
+  UpdateMailboxParams,
+  FindMailboxesParams,
+  GetMailboxParams,
+  CreateOutreachCampaignParams,
+  UpdateOutreachCampaignParams,
+  FindOutreachCampaignsParams,
+  GetOutreachCampaignParams,
+  LaunchOutreachCampaignParams,
+  FindOutreachEnrollmentsParams,
+  FindOutreachMessagesParams,
+  InjectOutreachReplyParams,
+  FindOutreachRepliesParams,
+  CreateSuppressionParams,
+  UpdateSuppressionParams,
+  FindSuppressionsParams,
+  GetSuppressionParams,
 } from "../types/api";
-import type { Audience, PaginatedResponse } from "../types";
+import type {
+  Audience,
+  Mailbox,
+  OutreachCampaign,
+  OutreachEnrollment,
+  OutreachMessage,
+  OutreachReply,
+  PaginatedResponse,
+  ProfileList,
+  ProfileListImport,
+  ProfileListMember,
+  Suppression,
+} from "../types";
 
 export interface Activity {
   id: string;
@@ -149,6 +187,266 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    profileList: {
+      async create(params: CreateProfileListParams, options?: RequestOptions): Promise<ProfileList> {
+        const { store_id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<ProfileList>(
+          `/v1/stores/${target_store_id}/profile-lists`,
+          payload,
+          options,
+        );
+      },
+
+      async update(params: UpdateProfileListParams, options?: RequestOptions): Promise<ProfileList> {
+        const { id, store_id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.put<ProfileList>(
+          `/v1/stores/${target_store_id}/profile-lists/${id}`,
+          payload,
+          options,
+        );
+      },
+
+      async get(params: GetProfileListParams, options?: RequestOptions): Promise<ProfileList> {
+        const target_store_id = params.store_id || apiConfig.storeId;
+        return apiConfig.httpClient.get<ProfileList>(
+          `/v1/stores/${target_store_id}/profile-lists/${params.id}`,
+          options,
+        );
+      },
+
+      async find(params?: FindProfileListsParams, options?: RequestOptions): Promise<PaginatedResponse<ProfileList>> {
+        const { store_id, ...queryParams } = params || {};
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.get<PaginatedResponse<ProfileList>>(
+          `/v1/stores/${target_store_id}/profile-lists`,
+          { ...options, params: queryParams },
+        );
+      },
+    },
+
+    profileListMember: {
+      async add(params: AddProfileListMemberParams, options?: RequestOptions): Promise<ProfileListMember> {
+        const { store_id, profile_list_id, profile_id, fields } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<ProfileListMember>(
+          `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/members/${profile_id}`,
+          { fields },
+          options,
+        );
+      },
+
+      async remove(params: RemoveProfileListMemberParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
+        const target_store_id = params.store_id || apiConfig.storeId;
+        return apiConfig.httpClient.delete<{ deleted: boolean }>(
+          `/v1/stores/${target_store_id}/profile-lists/${params.profile_list_id}/members/${params.profile_id}`,
+          options,
+        );
+      },
+
+      async find(params: FindProfileListMembersParams, options?: RequestOptions): Promise<PaginatedResponse<ProfileListMember>> {
+        const { store_id, profile_list_id, ...queryParams } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        const path = profile_list_id
+          ? `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/members`
+          : `/v1/stores/${target_store_id}/profile-list-members`;
+        return apiConfig.httpClient.get<PaginatedResponse<ProfileListMember>>(
+          path,
+          { ...options, params: queryParams },
+        );
+      },
+    },
+
+    profileListImport: {
+      async create(params: CreateProfileListImportParams, options?: RequestOptions): Promise<ProfileListImport> {
+        const { store_id, profile_list_id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<ProfileListImport>(
+          `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/imports`,
+          payload,
+          options,
+        );
+      },
+
+      async find(params: FindProfileListImportsParams, options?: RequestOptions): Promise<PaginatedResponse<ProfileListImport>> {
+        const { store_id, profile_list_id, ...queryParams } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.get<PaginatedResponse<ProfileListImport>>(
+          `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/imports`,
+          { ...options, params: queryParams },
+        );
+      },
+    },
+
+    mailbox: {
+      async create(params: CreateMailboxParams, options?: RequestOptions): Promise<Mailbox> {
+        const { store_id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<Mailbox>(
+          `/v1/stores/${target_store_id}/mailboxes`,
+          payload,
+          options,
+        );
+      },
+
+      async update(params: UpdateMailboxParams, options?: RequestOptions): Promise<Mailbox> {
+        const { id, store_id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.put<Mailbox>(
+          `/v1/stores/${target_store_id}/mailboxes/${id}`,
+          payload,
+          options,
+        );
+      },
+
+      async get(params: GetMailboxParams, options?: RequestOptions): Promise<Mailbox> {
+        const target_store_id = params.store_id || apiConfig.storeId;
+        return apiConfig.httpClient.get<Mailbox>(
+          `/v1/stores/${target_store_id}/mailboxes/${params.id}`,
+          options,
+        );
+      },
+
+      async find(params?: FindMailboxesParams, options?: RequestOptions): Promise<PaginatedResponse<Mailbox>> {
+        const { store_id, ...queryParams } = params || {};
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.get<PaginatedResponse<Mailbox>>(
+          `/v1/stores/${target_store_id}/mailboxes`,
+          { ...options, params: queryParams },
+        );
+      },
+    },
+
+    outreachCampaign: {
+      async create(params: CreateOutreachCampaignParams, options?: RequestOptions): Promise<OutreachCampaign> {
+        const { store_id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<OutreachCampaign>(
+          `/v1/stores/${target_store_id}/outreach-campaigns`,
+          payload,
+          options,
+        );
+      },
+
+      async update(params: UpdateOutreachCampaignParams, options?: RequestOptions): Promise<OutreachCampaign> {
+        const { id, store_id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.put<OutreachCampaign>(
+          `/v1/stores/${target_store_id}/outreach-campaigns/${id}`,
+          payload,
+          options,
+        );
+      },
+
+      async get(params: GetOutreachCampaignParams, options?: RequestOptions): Promise<OutreachCampaign> {
+        const target_store_id = params.store_id || apiConfig.storeId;
+        return apiConfig.httpClient.get<OutreachCampaign>(
+          `/v1/stores/${target_store_id}/outreach-campaigns/${params.id}`,
+          options,
+        );
+      },
+
+      async find(params?: FindOutreachCampaignsParams, options?: RequestOptions): Promise<PaginatedResponse<OutreachCampaign>> {
+        const { store_id, ...queryParams } = params || {};
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.get<PaginatedResponse<OutreachCampaign>>(
+          `/v1/stores/${target_store_id}/outreach-campaigns`,
+          { ...options, params: queryParams },
+        );
+      },
+
+      async launch(params: LaunchOutreachCampaignParams, options?: RequestOptions): Promise<OutreachCampaign> {
+        const target_store_id = params.store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<OutreachCampaign>(
+          `/v1/stores/${target_store_id}/outreach-campaigns/${params.id}/launch`,
+          {},
+          options,
+        );
+      },
+    },
+
+    outreachEnrollment: {
+      async find(params?: FindOutreachEnrollmentsParams, options?: RequestOptions): Promise<PaginatedResponse<OutreachEnrollment>> {
+        const { store_id, ...queryParams } = params || {};
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.get<PaginatedResponse<OutreachEnrollment>>(
+          `/v1/stores/${target_store_id}/outreach-enrollments`,
+          { ...options, params: queryParams },
+        );
+      },
+    },
+
+    outreachMessage: {
+      async find(params?: FindOutreachMessagesParams, options?: RequestOptions): Promise<PaginatedResponse<OutreachMessage>> {
+        const { store_id, ...queryParams } = params || {};
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.get<PaginatedResponse<OutreachMessage>>(
+          `/v1/stores/${target_store_id}/outreach-messages`,
+          { ...options, params: queryParams },
+        );
+      },
+    },
+
+    outreachReply: {
+      async find(params?: FindOutreachRepliesParams, options?: RequestOptions): Promise<PaginatedResponse<OutreachReply>> {
+        const { store_id, ...queryParams } = params || {};
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.get<PaginatedResponse<OutreachReply>>(
+          `/v1/stores/${target_store_id}/outreach-replies`,
+          { ...options, params: queryParams },
+        );
+      },
+
+      async inject(params: InjectOutreachReplyParams, options?: RequestOptions): Promise<OutreachReply> {
+        const { store_id, outreach_message_id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<OutreachReply>(
+          `/v1/stores/${target_store_id}/outreach-messages/${outreach_message_id}/replies`,
+          payload,
+          options,
+        );
+      },
+    },
+
+    suppression: {
+      async create(params: CreateSuppressionParams, options?: RequestOptions): Promise<Suppression> {
+        const { store_id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<Suppression>(
+          `/v1/stores/${target_store_id}/suppressions`,
+          payload,
+          options,
+        );
+      },
+
+      async update(params: UpdateSuppressionParams, options?: RequestOptions): Promise<Suppression> {
+        const { id, store_id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.put<Suppression>(
+          `/v1/stores/${target_store_id}/suppressions/${id}`,
+          payload,
+          options,
+        );
+      },
+
+      async get(params: GetSuppressionParams, options?: RequestOptions): Promise<Suppression> {
+        const target_store_id = params.store_id || apiConfig.storeId;
+        return apiConfig.httpClient.get<Suppression>(
+          `/v1/stores/${target_store_id}/suppressions/${params.id}`,
+          options,
+        );
+      },
+
+      async find(params?: FindSuppressionsParams, options?: RequestOptions): Promise<PaginatedResponse<Suppression>> {
+        const { store_id, ...queryParams } = params || {};
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.get<PaginatedResponse<Suppression>>(
+          `/v1/stores/${target_store_id}/suppressions`,
+          { ...options, params: queryParams },
+        );
+      },
+    },
 
     audiences: {
       async create(params: CreateAudienceParams, options?: RequestOptions): Promise<Audience> {

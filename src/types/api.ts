@@ -38,6 +38,19 @@ import type {
   AgentChatStatus,
   ProfileStatus,
   AudienceStatus,
+  ProfileListStatus,
+  ProfileListSource,
+  ProfileListMemberStatus,
+  ProfileListImportStatus,
+  MailboxStatus,
+  MailboxProvider,
+  OutreachCampaignStatus,
+  OutreachEnrollmentStatus,
+  OutreachMessageStatus,
+  OutreachStep,
+  SuppressionStatus,
+  SuppressionReason,
+  SuppressionSource,
 } from "./index";
 
 
@@ -1325,6 +1338,245 @@ export interface AddAudienceSubscriberParams {
 export interface AddAudienceSubscriberResponse {
   subscriber: AudienceSubscriber | null;
   skipped: boolean;
+}
+
+export interface CreateProfileListParams {
+  store_id?: string;
+  key: string;
+  name?: string;
+  description?: string | null;
+  source?: ProfileListSource;
+}
+
+export interface UpdateProfileListParams {
+  id: string;
+  store_id?: string;
+  key?: string;
+  name?: string;
+  description?: string | null;
+  status?: ProfileListStatus;
+}
+
+export interface FindProfileListsParams {
+  store_id?: string;
+  ids?: string[];
+  status?: ProfileListStatus;
+  query?: string | number;
+  limit?: number;
+  cursor?: string;
+  sort_field?: string;
+  sort_direction?: 'asc' | 'desc';
+}
+
+export interface GetProfileListParams {
+  id: string;
+  store_id?: string;
+}
+
+export interface AddProfileListMemberParams {
+  store_id?: string;
+  profile_list_id: string;
+  profile_id: string;
+  fields?: Record<string, unknown>;
+}
+
+export interface RemoveProfileListMemberParams {
+  store_id?: string;
+  profile_list_id: string;
+  profile_id: string;
+}
+
+export interface FindProfileListMembersParams {
+  store_id?: string;
+  profile_list_id?: string;
+  profile_id?: string;
+  import_id?: string;
+  status?: ProfileListMemberStatus;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface ProfileListImportRowInput {
+  email: string;
+  profile_id?: string;
+  fields?: Record<string, unknown>;
+}
+
+export interface CreateProfileListImportParams {
+  store_id?: string;
+  profile_list_id: string;
+  file_name?: string | null;
+  csv?: string;
+  spreadsheet_base64?: string;
+  sheet_name?: string | null;
+  rows?: ProfileListImportRowInput[];
+}
+
+export interface FindProfileListImportsParams {
+  store_id?: string;
+  profile_list_id: string;
+  status?: ProfileListImportStatus;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface CreateMailboxParams {
+  store_id?: string;
+  key: string;
+  email: string;
+  from_name?: string;
+  reply_to_email?: string | null;
+  provider: MailboxProvider;
+  password?: string;
+  daily_limit?: number;
+}
+
+export interface UpdateMailboxParams {
+  id: string;
+  store_id?: string;
+  key?: string;
+  email?: string;
+  from_name?: string;
+  reply_to_email?: string | null;
+  provider?: MailboxProvider;
+  password?: string;
+  status?: MailboxStatus;
+  daily_limit?: number;
+}
+
+export interface FindMailboxesParams {
+  store_id?: string;
+  ids?: string[];
+  status?: MailboxStatus;
+  provider_type?: 'fake' | 'smtp_imap';
+  query?: string | number;
+  limit?: number;
+  cursor?: string;
+  sort_field?: string;
+  sort_direction?: 'asc' | 'desc';
+}
+
+export interface GetMailboxParams {
+  id: string;
+  store_id?: string;
+}
+
+export interface CreateOutreachCampaignParams {
+  store_id?: string;
+  key: string;
+  name?: string;
+  profile_list_id: string;
+  mailbox_ids: string[];
+  steps: OutreachStep[];
+}
+
+export interface UpdateOutreachCampaignParams {
+  id: string;
+  store_id?: string;
+  key?: string;
+  name?: string;
+  profile_list_id?: string;
+  mailbox_ids?: string[];
+  status?: OutreachCampaignStatus;
+  steps?: OutreachStep[];
+}
+
+export interface FindOutreachCampaignsParams {
+  store_id?: string;
+  ids?: string[];
+  status?: OutreachCampaignStatus;
+  profile_list_id?: string;
+  mailbox_id?: string;
+  query?: string | number;
+  limit?: number;
+  cursor?: string;
+  sort_field?: string;
+  sort_direction?: 'asc' | 'desc';
+}
+
+export interface GetOutreachCampaignParams {
+  id: string;
+  store_id?: string;
+}
+
+export interface LaunchOutreachCampaignParams {
+  id: string;
+  store_id?: string;
+}
+
+export interface FindOutreachEnrollmentsParams {
+  store_id?: string;
+  outreach_campaign_id?: string;
+  profile_id?: string;
+  status?: OutreachEnrollmentStatus;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface FindOutreachMessagesParams {
+  store_id?: string;
+  outreach_campaign_id?: string;
+  outreach_enrollment_id?: string;
+  profile_id?: string;
+  mailbox_id?: string;
+  status?: OutreachMessageStatus;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface InjectOutreachReplyParams {
+  store_id?: string;
+  outreach_message_id: string;
+  subject?: string | null;
+  body?: string | null;
+}
+
+export interface FindOutreachRepliesParams {
+  store_id?: string;
+  outreach_campaign_id?: string;
+  outreach_enrollment_id?: string;
+  outreach_message_id?: string;
+  profile_id?: string;
+  mailbox_id?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface CreateSuppressionParams {
+  store_id?: string;
+  outreach_campaign_id?: string;
+  profile_id?: string;
+  email?: string;
+  domain?: string;
+  reason?: SuppressionReason;
+  source?: SuppressionSource;
+}
+
+export interface UpdateSuppressionParams {
+  id: string;
+  store_id?: string;
+  status?: SuppressionStatus;
+  reason?: SuppressionReason;
+}
+
+export interface FindSuppressionsParams {
+  store_id?: string;
+  status?: SuppressionStatus;
+  profile_id?: string;
+  email?: string;
+  domain?: string;
+  outreach_campaign_id?: string;
+  reason?: SuppressionReason;
+  query?: string | number;
+  limit?: number;
+  cursor?: string;
+  sort_field?: string;
+  sort_direction?: 'asc' | 'desc';
+}
+
+export interface GetSuppressionParams {
+  id: string;
+  store_id?: string;
 }
 
 

@@ -825,6 +825,46 @@ export type ProviderStatus = 'active' | 'draft' | 'archived';
 export type ProductStatus = 'active' | 'draft' | 'archived';
 export type ProfileStatus = 'active' | 'archived';
 export type AudienceStatus = 'active' | 'draft' | 'archived';
+export type ProfileListStatus = 'active' | 'draft' | 'archived';
+export type ProfileListSource = 'manual' | 'import' | 'audience';
+export type ProfileListMemberStatus = 'active' | 'archived';
+export type ProfileListImportStatus = 'pending' | 'completed' | 'failed';
+export type MailboxStatus = 'active' | 'draft' | 'archived';
+export type MailboxPreset = 'gmail' | 'zoho' | 'microsoft' | 'custom';
+export type MailboxConnectionSecurity = 'tls' | 'start_tls';
+export type SmtpImapMailboxProvider = {
+	type: 'smtp_imap';
+	preset: MailboxPreset;
+	smtp_host: string;
+	smtp_port: number;
+	smtp_security: MailboxConnectionSecurity;
+	imap_host: string;
+	imap_port: number;
+	imap_security: MailboxConnectionSecurity;
+	username: string;
+	password_configured: boolean;
+	sync_enabled: boolean;
+	sync_interval_seconds: number;
+	last_synced_at?: number | null;
+	last_seen_uid?: number | null;
+};
+export type MailboxProvider = { type: 'fake' } | SmtpImapMailboxProvider;
+export type OutreachCampaignStatus = 'draft' | 'active' | 'paused' | 'completed' | 'archived';
+export type OutreachEnrollmentStatus =
+	| 'pending'
+	| 'active'
+	| 'replied'
+	| 'completed'
+	| 'suppressed'
+	| 'failed'
+	| 'cancelled';
+export type OutreachMessageStatus = 'pending' | 'sending' | 'sent' | 'failed' | 'skipped';
+export type OutreachThreadMode = 'new_thread' | 'same_thread';
+export type SuppressionStatus = 'active' | 'archived';
+export type SuppressionTargetType = 'email' | 'domain' | 'profile';
+export type SuppressionScopeType = 'store' | 'outreach_campaign';
+export type SuppressionReason = 'manual' | 'unsubscribed' | 'bounced' | 'complained' | 'replied';
+export type SuppressionSource = 'admin' | 'import' | 'reply' | 'system';
 export type AgentChatStatus = 'active' | 'draft' | 'archived';
 export type WorkflowStatus = 'active' | 'draft' | 'archived';
 export type PromoCodeStatus = 'active' | 'draft' | 'archived';
@@ -1114,6 +1154,167 @@ export interface AudienceAccessResponse {
 export interface AudienceSubscribeResponse {
 	checkout_url?: string;
 	subscription?: AudienceSubscription;
+}
+
+export interface ProfileList {
+	id: string;
+	store_id: string;
+	key: string;
+	name: string;
+	description?: string | null;
+	status: ProfileListStatus;
+	source: ProfileListSource;
+	member_count: number;
+	created_at: number;
+	updated_at: number;
+}
+
+export interface ProfileListMember {
+	id: string;
+	store_id: string;
+	profile_list_id: string;
+	profile_id: string;
+	email?: string | null;
+	source: ProfileListSource;
+	import_id?: string | null;
+	fields: Record<string, unknown>;
+	status: ProfileListMemberStatus;
+	created_at: number;
+	updated_at: number;
+}
+
+export interface ProfileListImportError {
+	row: number;
+	field: string;
+	message: string;
+}
+
+export interface ProfileListImport {
+	id: string;
+	store_id: string;
+	profile_list_id: string;
+	file_name?: string | null;
+	status: ProfileListImportStatus;
+	rows_total: number;
+	rows_created: number;
+	rows_updated: number;
+	rows_failed: number;
+	errors: ProfileListImportError[];
+	created_at: number;
+	updated_at: number;
+}
+
+export interface Mailbox {
+	id: string;
+	store_id: string;
+	key: string;
+	email: string;
+	from_name: string;
+	reply_to_email?: string | null;
+	provider: MailboxProvider;
+	status: MailboxStatus;
+	daily_limit: number;
+	sent_today: number;
+	last_sent_at?: number | null;
+	created_at: number;
+	updated_at: number;
+}
+
+export interface OutreachStep {
+	id?: string;
+	position?: number;
+	delay_seconds?: number;
+	subject: string;
+	body: string;
+	thread_mode?: OutreachThreadMode;
+}
+
+export interface OutreachCampaign {
+	id: string;
+	store_id: string;
+	key: string;
+	name: string;
+	profile_list_id: string;
+	mailbox_ids: string[];
+	status: OutreachCampaignStatus;
+	steps: OutreachStep[];
+	launched_at?: number | null;
+	created_at: number;
+	updated_at: number;
+}
+
+export interface OutreachEnrollment {
+	id: string;
+	store_id: string;
+	outreach_campaign_id: string;
+	profile_list_id: string;
+	profile_id: string;
+	mailbox_id?: string | null;
+	status: OutreachEnrollmentStatus;
+	current_step_position: number;
+	next_send_at?: number | null;
+	replied_at?: number | null;
+	completed_at?: number | null;
+	created_at: number;
+	updated_at: number;
+}
+
+export interface OutreachMessage {
+	id: string;
+	store_id: string;
+	outreach_campaign_id: string;
+	outreach_enrollment_id: string;
+	profile_id: string;
+	mailbox_id: string;
+	step_id: string;
+	step_position: number;
+	status: OutreachMessageStatus;
+	to_email: string;
+	from_email: string;
+	subject: string;
+	body: string;
+	provider_message_id?: string | null;
+	provider_thread_id?: string | null;
+	error?: string | null;
+	sent_at?: number | null;
+	created_at: number;
+	updated_at: number;
+}
+
+export interface OutreachReply {
+	id: string;
+	store_id: string;
+	outreach_campaign_id: string;
+	outreach_enrollment_id: string;
+	outreach_message_id: string;
+	profile_id: string;
+	mailbox_id: string;
+	from_email: string;
+	subject?: string | null;
+	body?: string | null;
+	provider_message_id?: string | null;
+	provider_thread_id?: string | null;
+	received_at: number;
+	created_at: number;
+	updated_at: number;
+}
+
+export interface Suppression {
+	id: string;
+	store_id: string;
+	outreach_campaign_id?: string | null;
+	profile_id?: string | null;
+	email?: string | null;
+	domain?: string | null;
+	target_type: SuppressionTargetType;
+	target_key: string;
+	scope_type: SuppressionScopeType;
+	scope_key: string;
+	reason: SuppressionReason;
+	status: SuppressionStatus;
+	source: SuppressionSource;
+	created_at: number;
+	updated_at: number;
 }
 
 export type EventAction =
