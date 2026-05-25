@@ -79,7 +79,7 @@ export function priceForMarket(prices: Price[], market: string, fallbackCurrency
     market: price?.market || market,
     currency: price?.currency || fallbackCurrency || "",
     compare_at: price?.compare_at,
-    audience_id: price?.audience_id,
+    profile_list_id: price?.profile_list_id,
   };
 }
 

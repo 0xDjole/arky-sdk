@@ -14,8 +14,8 @@ export const createNotificationApi = (apiConfig: ApiConfig) => {
 			);
 		},
 
-		async trigger(params: TriggerNotificationParams, options?: RequestOptions): Promise<{ triggered: boolean }> {
-			return apiConfig.httpClient.post<{ triggered: boolean }>(
+		async trigger(params: TriggerNotificationParams, options?: RequestOptions): Promise<{ success: boolean; message: string }> {
+			return apiConfig.httpClient.post<{ success: boolean; message: string }>(
 				'/v1/notifications/trigger',
 				params,
 				options

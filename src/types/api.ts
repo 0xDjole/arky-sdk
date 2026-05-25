@@ -5,9 +5,6 @@ import type {
   WorkflowNode,
   WorkflowEdge,
   Address,
-  AudienceSubscriptionStatus,
-  AudienceSubscriptionSource,
-  AudienceType,
   IntegrationProvider,
   WebhookEventSubscription,
   Parcel,
@@ -37,11 +34,10 @@ import type {
   StoreEmails,
   AgentChatStatus,
   ProfileStatus,
-  AudienceStatus,
   ProfileListStatus,
+  ProfileListType,
   ProfileListSource,
-  ProfileListMemberStatus,
-  ProfileListImportStatus,
+  ProfileListMembershipStatus,
   MailboxStatus,
   MailboxProvider,
   OutreachCampaignStatus,
@@ -690,7 +686,7 @@ export interface GetOrdersParams {
   sort_direction?: 'asc' | 'desc' | null;
   created_at_from?: number | null;
   created_at_to?: number | null;
-  audience_id?: string;
+  profile_list_id?: string;
 }
 
 
@@ -865,7 +861,7 @@ export interface SearchOrderServiceItemsParams {
   verified?: boolean;
 
   query?: string | number;
-  audience_id?: string;
+  profile_list_id?: string;
 }
 
 
@@ -910,7 +906,7 @@ export interface TriggerNotificationParams {
   store_id: string;
   email_template_id?: string;
   recipients?: string[];
-  audience_id?: string;
+  profile_list_id?: string;
   vars?: Record<string, any>;
 }
 
@@ -1270,81 +1266,12 @@ export interface GetWorkflowExecutionParams {
   store_id?: string;
 }
 
-export interface CreateAudienceParams {
-  key: string;
-  type?: AudienceType;
-  confirm_template_id?: string;
-}
-
-export interface UpdateAudienceParams {
-  id: string;
-  key?: string;
-  status?: AudienceStatus;
-  confirm_template_id?: string;
-}
-
-export interface GetAudienceParams {
-  id?: string;
-  key?: string;
-}
-
-export interface GetAudiencesParams {
-  store_id?: string;
-  ids?: string[];
-  status?: import('./index').AudienceStatus;
-
-  query?: string | number;
-  limit?: number;
-  cursor?: string;
-}
-
-export interface SubscribeAudienceParams {
-  id: string;
-  profile_id: string;
-  price_id?: string;
-  success_url?: string;
-  cancel_url?: string;
-  confirm_url?: string;
-}
-
-export interface DeleteAudienceParams {
-  id: string;
-}
-
-export interface GetAudienceSubscribersParams {
-  id: string;
-  limit?: number;
-  cursor?: string;
-}
-
-export interface AudienceSubscriber {
-  profile_id: string;
-  email: string;
-  subscribed_at?: number;
-  source?: AudienceSubscriptionSource;
-  status?: AudienceSubscriptionStatus;
-}
-
-export interface RemoveAudienceSubscriberParams {
-  id: string;
-  profile_id: string;
-}
-
-export interface AddAudienceSubscriberParams {
-  id: string;
-  profile_id: string;
-}
-
-export interface AddAudienceSubscriberResponse {
-  subscriber: AudienceSubscriber | null;
-  skipped: boolean;
-}
-
 export interface CreateProfileListParams {
   store_id?: string;
   key: string;
   name?: string;
   description?: string | null;
+  type?: ProfileListType;
   source?: ProfileListSource;
 }
 
@@ -1355,6 +1282,7 @@ export interface UpdateProfileListParams {
   name?: string;
   description?: string | null;
   status?: ProfileListStatus;
+  type?: ProfileListType;
 }
 
 export interface FindProfileListsParams {
@@ -1373,51 +1301,146 @@ export interface GetProfileListParams {
   store_id?: string;
 }
 
-export interface AddProfileListMemberParams {
+export interface AddProfileListProfileParams {
   store_id?: string;
   profile_list_id: string;
   profile_id: string;
   fields?: Record<string, unknown>;
 }
 
-export interface RemoveProfileListMemberParams {
+export interface RemoveProfileListProfileParams {
   store_id?: string;
   profile_list_id: string;
   profile_id: string;
 }
 
-export interface FindProfileListMembersParams {
+export interface FindProfileListProfilesParams {
   store_id?: string;
-  profile_list_id?: string;
-  profile_id?: string;
-  import_id?: string;
-  status?: ProfileListMemberStatus;
+  profile_list_id: string;
+  status?: ProfileListMembershipStatus;
   limit?: number;
   cursor?: string;
 }
 
-export interface ProfileListImportRowInput {
+export interface ImportProfileRowInput {
   email: string;
   profile_id?: string;
   fields?: Record<string, unknown>;
 }
 
-export interface CreateProfileListImportParams {
+export interface ImportProfilesParams {
   store_id?: string;
-  profile_list_id: string;
-  file_name?: string | null;
   csv?: string;
   spreadsheet_base64?: string;
   sheet_name?: string | null;
-  rows?: ProfileListImportRowInput[];
+  email_column?: string | null;
+  field_mappings?: ImportFieldMapping[];
+  rows?: ImportProfileRowInput[];
 }
 
-export interface FindProfileListImportsParams {
+export interface ImportProfilesIntoProfileListParams {
   store_id?: string;
   profile_list_id: string;
-  status?: ProfileListImportStatus;
-  limit?: number;
-  cursor?: string;
+  csv?: string;
+  spreadsheet_base64?: string;
+  sheet_name?: string | null;
+  email_column?: string | null;
+  field_mappings?: ImportFieldMapping[];
+  rows?: ImportProfileRowInput[];
+}
+
+export interface ImportProfilesPreviewParams {
+  store_id?: string;
+  csv?: string;
+  spreadsheet_base64?: string;
+  sheet_name?: string | null;
+}
+
+export interface ImportProfileListPreviewParams extends ImportProfilesPreviewParams {
+  profile_list_id: string;
+}
+
+export interface ImportFieldMapping {
+  source: string;
+  field: string;
+}
+
+export interface ImportPreviewRow {
+  row: number;
+  values: Record<string, unknown>;
+}
+
+export interface ImportProfilesPreviewResult {
+  sheets: string[];
+  selected_sheet?: string | null;
+  header_row: number;
+  headers: string[];
+  detected_email_column?: string | null;
+  rows_total: number;
+  sample_rows: ImportPreviewRow[];
+  suggested_field_mappings: ImportFieldMapping[];
+}
+
+export interface ImportProfileRowError {
+  row: number;
+  field: string;
+  message: string;
+}
+
+export interface ImportProfileRowResult {
+  row: number;
+  email: string;
+  profile_id?: string | null;
+  created: boolean;
+  updated: boolean;
+  error?: string | null;
+}
+
+export interface ImportProfilesResult {
+  rows_total: number;
+  profiles_created: number;
+  profiles_updated: number;
+  rows_failed: number;
+  errors: ImportProfileRowError[];
+  rows: ImportProfileRowResult[];
+}
+
+export interface ImportProfileListRowResult {
+  row: number;
+  email: string;
+  profile_id?: string | null;
+  profile_created: boolean;
+  profile_updated: boolean;
+  added_to_list: boolean;
+  updated_in_list: boolean;
+  error?: string | null;
+}
+
+export interface ImportProfilesIntoProfileListResult {
+  rows_total: number;
+  profiles_created: number;
+  profiles_updated: number;
+  profiles_added: number;
+  profiles_updated_in_list: number;
+  profiles_failed_to_add: number;
+  rows_failed: number;
+  errors: ImportProfileRowError[];
+  rows: ImportProfileListRowResult[];
+}
+
+export interface SubscribeProfileListParams {
+  store_id?: string;
+  id: string;
+  profile_id: string;
+  price_id?: string;
+  success_url?: string;
+  cancel_url?: string;
+  confirm_url?: string;
+}
+
+export interface ProfileListAccessParams {
+  store_id?: string;
+  id: string;
 }
 
 export interface CreateMailboxParams {
@@ -1802,6 +1825,7 @@ export interface Profile {
   verified: boolean;
   status: ProfileStatus;
   promo_usage: PromoUsage[];
+  lists: import('./index').ProfileListMembership[];
   taxonomies: TaxonomyEntry[];
   auth_tokens: ProfileAuthToken[];
   verification_codes: ProfileVerificationCode[];
@@ -1813,7 +1837,6 @@ export interface ProfileDetail {
   profile: Profile;
   carts: import('./index').Cart[];
   orders: import('./index').Order[];
-  audience_subscriptions: import('./index').AudienceSubscription[];
   form_submissions: import('./index').FormSubmission[];
 }
 

@@ -28,7 +28,6 @@ export type AnalyticsReportKey =
   | "providers_by_status"
   | "nodes_by_status"
   | "profiles_by_status"
-  | "audiences_by_status"
   | "profile_lists_by_status"
   | "mailboxes_by_status"
   | "outreach_campaigns_by_status"
@@ -52,7 +51,7 @@ export type ActivityFeedCategory =
   | "promo_codes"
   | "submissions"
   | "profiles"
-  | "audiences"
+  | "profile_lists"
   | "products"
   | "services"
   | "providers"
@@ -217,7 +216,7 @@ export interface ActivityFeedSummary {
   orders: number;
   submissions: number;
   profiles: number;
-  audiences: number;
+  profile_lists: number;
   abandoned_carts: number;
   carts: number;
   promo_codes: number;
@@ -264,7 +263,6 @@ export type AnalyticsBreakdownReportKey =
   | "providers_by_status"
   | "nodes_by_status"
   | "profiles_by_status"
-  | "audiences_by_status"
   | "profile_lists_by_status"
   | "mailboxes_by_status"
   | "outreach_campaigns_by_status"

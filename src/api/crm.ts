@@ -6,27 +6,23 @@ import type {
   GetProfileParams,
   FindProfilesParams,
   MergeProfilesParams,
+  ImportProfilesParams,
+  ImportProfilesPreviewParams,
+  ImportProfilesPreviewResult,
+  ImportProfilesResult,
   Profile,
   ProfileDetail,
-  CreateAudienceParams,
-  UpdateAudienceParams,
-  GetAudienceParams,
-  GetAudiencesParams,
-  GetAudienceSubscribersParams,
-  RemoveAudienceSubscriberParams,
-  AddAudienceSubscriberParams,
-  AddAudienceSubscriberResponse,
-  AudienceSubscriber,
   FindActivitiesParams,
   CreateProfileListParams,
   UpdateProfileListParams,
   FindProfileListsParams,
   GetProfileListParams,
-  AddProfileListMemberParams,
-  RemoveProfileListMemberParams,
-  FindProfileListMembersParams,
-  CreateProfileListImportParams,
-  FindProfileListImportsParams,
+  AddProfileListProfileParams,
+  RemoveProfileListProfileParams,
+  FindProfileListProfilesParams,
+  ImportProfileListPreviewParams,
+  ImportProfilesIntoProfileListParams,
+  ImportProfilesIntoProfileListResult,
   CreateMailboxParams,
   UpdateMailboxParams,
   FindMailboxesParams,
@@ -46,7 +42,6 @@ import type {
   GetSuppressionParams,
 } from "../types/api";
 import type {
-  Audience,
   Mailbox,
   OutreachCampaign,
   OutreachEnrollment,
@@ -54,8 +49,6 @@ import type {
   OutreachReply,
   PaginatedResponse,
   ProfileList,
-  ProfileListImport,
-  ProfileListMember,
   Suppression,
 } from "../types";
 
@@ -171,6 +164,26 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    "import": async (params: ImportProfilesParams, options?: RequestOptions): Promise<ImportProfilesResult> => {
+      const { store_id, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<ImportProfilesResult>(
+        `/v1/stores/${target_store_id}/profiles/import`,
+        payload,
+        options,
+      );
+    },
+
+    previewImport: async (params: ImportProfilesPreviewParams, options?: RequestOptions): Promise<ImportProfilesPreviewResult> => {
+      const { store_id, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<ImportProfilesPreviewResult>(
+        `/v1/stores/${target_store_id}/profiles/import/preview`,
+        payload,
+        options,
+      );
+    },
+
     async revokeToken(params: { id: string; token_id: string; store_id?: string }, options?: RequestOptions): Promise<{ deleted: boolean }> {
       const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.delete<{ deleted: boolean }>(
@@ -224,58 +237,60 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
           { ...options, params: queryParams },
         );
       },
-    },
 
-    profileListMember: {
-      async add(params: AddProfileListMemberParams, options?: RequestOptions): Promise<ProfileListMember> {
-        const { store_id, profile_list_id, profile_id, fields } = params;
-        const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<ProfileListMember>(
-          `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/members/${profile_id}`,
-          { fields },
-          options,
-        );
-      },
-
-      async remove(params: RemoveProfileListMemberParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
-        const target_store_id = params.store_id || apiConfig.storeId;
-        return apiConfig.httpClient.delete<{ deleted: boolean }>(
-          `/v1/stores/${target_store_id}/profile-lists/${params.profile_list_id}/members/${params.profile_id}`,
-          options,
-        );
-      },
-
-      async find(params: FindProfileListMembersParams, options?: RequestOptions): Promise<PaginatedResponse<ProfileListMember>> {
-        const { store_id, profile_list_id, ...queryParams } = params;
-        const target_store_id = store_id || apiConfig.storeId;
-        const path = profile_list_id
-          ? `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/members`
-          : `/v1/stores/${target_store_id}/profile-list-members`;
-        return apiConfig.httpClient.get<PaginatedResponse<ProfileListMember>>(
-          path,
-          { ...options, params: queryParams },
-        );
-      },
-    },
-
-    profileListImport: {
-      async create(params: CreateProfileListImportParams, options?: RequestOptions): Promise<ProfileListImport> {
+      async importProfiles(
+        params: ImportProfilesIntoProfileListParams,
+        options?: RequestOptions,
+      ): Promise<ImportProfilesIntoProfileListResult> {
         const { store_id, profile_list_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<ProfileListImport>(
-          `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/imports`,
+        return apiConfig.httpClient.post<ImportProfilesIntoProfileListResult>(
+          `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/profiles/import`,
           payload,
           options,
         );
       },
 
-      async find(params: FindProfileListImportsParams, options?: RequestOptions): Promise<PaginatedResponse<ProfileListImport>> {
-        const { store_id, profile_list_id, ...queryParams } = params;
+      async previewImportProfiles(
+        params: ImportProfileListPreviewParams,
+        options?: RequestOptions,
+      ): Promise<ImportProfilesPreviewResult> {
+        const { store_id, profile_list_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<PaginatedResponse<ProfileListImport>>(
-          `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/imports`,
-          { ...options, params: queryParams },
+        return apiConfig.httpClient.post<ImportProfilesPreviewResult>(
+          `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/profiles/import/preview`,
+          payload,
+          options,
         );
+      },
+
+      profiles: {
+        async add(params: AddProfileListProfileParams, options?: RequestOptions): Promise<Profile> {
+          const { store_id, profile_list_id, profile_id, fields } = params;
+          const target_store_id = store_id || apiConfig.storeId;
+          return apiConfig.httpClient.post<Profile>(
+            `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/profiles/${profile_id}`,
+            { fields },
+            options,
+          );
+        },
+
+        async remove(params: RemoveProfileListProfileParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
+          const target_store_id = params.store_id || apiConfig.storeId;
+          return apiConfig.httpClient.delete<{ deleted: boolean }>(
+            `/v1/stores/${target_store_id}/profile-lists/${params.profile_list_id}/profiles/${params.profile_id}`,
+            options,
+          );
+        },
+
+        async find(params: FindProfileListProfilesParams, options?: RequestOptions): Promise<PaginatedResponse<Profile>> {
+          const { store_id, profile_list_id, ...queryParams } = params;
+          const target_store_id = store_id || apiConfig.storeId;
+          return apiConfig.httpClient.get<PaginatedResponse<Profile>>(
+            `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/profiles`,
+            { ...options, params: queryParams },
+          );
+        },
       },
     },
 
@@ -444,71 +459,6 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
         return apiConfig.httpClient.get<PaginatedResponse<Suppression>>(
           `/v1/stores/${target_store_id}/suppressions`,
           { ...options, params: queryParams },
-        );
-      },
-    },
-
-    audiences: {
-      async create(params: CreateAudienceParams, options?: RequestOptions): Promise<Audience> {
-        return apiConfig.httpClient.post<Audience>(
-          `/v1/stores/${apiConfig.storeId}/audiences`,
-          params,
-          options,
-        );
-      },
-
-      async update(params: UpdateAudienceParams, options?: RequestOptions): Promise<Audience> {
-        return apiConfig.httpClient.put<Audience>(
-          `/v1/stores/${apiConfig.storeId}/audiences/${params.id}`,
-          params,
-          options,
-        );
-      },
-
-      async get(params: GetAudienceParams, options?: RequestOptions): Promise<Audience> {
-        let identifier: string;
-        if (params.id) {
-          identifier = params.id;
-        } else if (params.key) {
-          identifier = `${apiConfig.storeId}:${params.key}`;
-        } else {
-          throw new Error("GetAudienceParams requires id or key");
-        }
-        return apiConfig.httpClient.get<Audience>(
-          `/v1/stores/${apiConfig.storeId}/audiences/${identifier}`,
-          options,
-        );
-      },
-
-      async find(params: GetAudiencesParams, options?: RequestOptions): Promise<PaginatedResponse<Audience>> {
-        return apiConfig.httpClient.get<PaginatedResponse<Audience>>(
-          `/v1/stores/${apiConfig.storeId}/audiences`,
-          { ...options, params },
-        );
-      },
-
-      async getSubscribers(params: GetAudienceSubscribersParams, options?: RequestOptions): Promise<{ items: AudienceSubscriber[]; cursor?: string | null }> {
-        return apiConfig.httpClient.get<{ items: AudienceSubscriber[]; cursor?: string | null }>(
-          `/v1/stores/${apiConfig.storeId}/audiences/${params.id}/subscribers`,
-          {
-            ...options,
-            params: { limit: params.limit, cursor: params.cursor },
-          },
-        );
-      },
-
-      async addSubscriber(params: AddAudienceSubscriberParams, options?: RequestOptions): Promise<AddAudienceSubscriberResponse> {
-        return apiConfig.httpClient.post<AddAudienceSubscriberResponse>(
-          `/v1/stores/${apiConfig.storeId}/audiences/${params.id}/subscribers`,
-          { profile_id: params.profile_id },
-          options,
-        );
-      },
-
-      async removeSubscriber(params: RemoveAudienceSubscriberParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
-        return apiConfig.httpClient.delete<{ deleted: boolean }>(
-          `/v1/stores/${apiConfig.storeId}/audiences/${params.id}/subscribers/${params.profile_id}`,
-          options,
         );
       },
     },

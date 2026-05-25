@@ -98,7 +98,7 @@ export interface Price {
 	market: string;
 	amount: number;
 	compare_at?: number;
-	audience_id?: string;
+	profile_list_id?: string;
 }
 
 
@@ -441,7 +441,7 @@ export interface Order {
 	forms: FormEntry[];
 	shipments: Shipment[];
 	history: HistoryEntry[];
-	audience_id?: string;
+	profile_list_id?: string;
 	fired_reminders: number[];
 	created_at: number;
 	updated_at: number;
@@ -523,9 +523,12 @@ export type WebhookEventSubscription =
 	| { event: 'store.created' }
 	| { event: 'store.updated' }
 	| { event: 'store.deleted' }
-	| { event: 'audience.created' }
-	| { event: 'audience.updated' }
-	| { event: 'audience.deleted' }
+	| { event: 'profile_list.created' }
+	| { event: 'profile_list.updated' }
+	| { event: 'profile_list.profile_added' }
+	| { event: 'profile_list.profile_pending' }
+	| { event: 'profile_list.profile_confirmed' }
+	| { event: 'profile_list.profile_cancelled' }
 	| { event: 'account.updated' };
 
 export interface Webhook {
@@ -577,43 +580,17 @@ export interface StoreSubscription {
 	source: StoreSubscriptionSource;
 }
 
-export type AudienceSubscriptionStatus =
-	| 'pending'
-	| 'active'
-	| 'cancellation_scheduled'
-	| 'cancelled'
-	| 'expired';
-
-export type AudienceSubscriptionSource = 'signup' | 'admin' | 'import';
-
-export type AudienceSubscriptionProvider = {
+export type ProfileListMembershipProvider = {
 	type: 'stripe';
-	profile_id: string;
+	stripe_customer_id: string;
 	subscription_id?: string;
 	price_id?: string;
 };
 
-export interface AudienceSubscriptionPayment {
+export interface ProfileListMembershipPayment {
 	currency: string;
 	market: string;
-	provider?: AudienceSubscriptionProvider;
-}
-
-export interface AudienceSubscription {
-	id: string;
-	store_id: string;
-	profile_id: string;
-	audience_id: string;
-	plan_id: string;
-	pending_plan_id: string | null;
-	payment: AudienceSubscriptionPayment;
-	status: AudienceSubscriptionStatus;
-	start_date: number;
-	end_date: number;
-	token: string;
-	source: AudienceSubscriptionSource;
-	created_at: number;
-	updated_at: number;
+	provider?: ProfileListMembershipProvider;
 }
 
 export interface Store {
@@ -824,11 +801,15 @@ export type ProviderStatus = 'active' | 'draft' | 'archived';
 
 export type ProductStatus = 'active' | 'draft' | 'archived';
 export type ProfileStatus = 'active' | 'archived';
-export type AudienceStatus = 'active' | 'draft' | 'archived';
 export type ProfileListStatus = 'active' | 'draft' | 'archived';
-export type ProfileListSource = 'manual' | 'import' | 'audience';
-export type ProfileListMemberStatus = 'active' | 'archived';
-export type ProfileListImportStatus = 'pending' | 'completed' | 'failed';
+export type ProfileListSource = 'manual' | 'import' | 'signup' | 'admin' | 'system';
+export type ProfileListMembershipStatus =
+	| 'pending'
+	| 'active'
+	| 'cancellation_scheduled'
+	| 'cancelled'
+	| 'expired'
+	| 'archived';
 export type MailboxStatus = 'active' | 'draft' | 'archived';
 export type MailboxPreset = 'gmail' | 'zoho' | 'microsoft' | 'custom';
 export type MailboxConnectionSecurity = 'tls' | 'start_tls';
@@ -1133,27 +1114,19 @@ export interface WorkflowExecution {
 	updated_at: number;
 }
 
-export type AudienceType =
+export type ProfileListType =
 	| { type: 'standard' }
-	| { type: 'confirmation'; confirm_template_id: string }
-	| { type: 'paid'; prices: SubscriptionPrice[]; payment_integration_id?: string };
+	| { type: 'confirmation'; confirm_template_id?: string | null }
+	| { type: 'paid'; prices: SubscriptionPrice[]; payment_integration_id?: string | null };
 
-export interface Audience {
-	id: string;
-	store_id: string;
-	key: string;
-	status: AudienceStatus;
-	type: AudienceType;
-}
-
-export interface AudienceAccessResponse {
+export interface ProfileListAccessResponse {
 	has_access: boolean;
-	subscription?: AudienceSubscription;
+	membership?: ProfileListMembership | null;
 }
 
-export interface AudienceSubscribeResponse {
-	checkout_url?: string;
-	subscription?: AudienceSubscription;
+export interface ProfileListSubscribeResponse {
+	checkout_url?: string | null;
+	membership?: ProfileListMembership | null;
 }
 
 export interface ProfileList {
@@ -1163,43 +1136,24 @@ export interface ProfileList {
 	name: string;
 	description?: string | null;
 	status: ProfileListStatus;
+	type: ProfileListType;
 	source: ProfileListSource;
 	member_count: number;
 	created_at: number;
 	updated_at: number;
 }
 
-export interface ProfileListMember {
-	id: string;
-	store_id: string;
+export interface ProfileListMembership {
 	profile_list_id: string;
-	profile_id: string;
-	email?: string | null;
 	source: ProfileListSource;
-	import_id?: string | null;
 	fields: Record<string, unknown>;
-	status: ProfileListMemberStatus;
-	created_at: number;
-	updated_at: number;
-}
-
-export interface ProfileListImportError {
-	row: number;
-	field: string;
-	message: string;
-}
-
-export interface ProfileListImport {
-	id: string;
-	store_id: string;
-	profile_list_id: string;
-	file_name?: string | null;
-	status: ProfileListImportStatus;
-	rows_total: number;
-	rows_created: number;
-	rows_updated: number;
-	rows_failed: number;
-	errors: ProfileListImportError[];
+	status: ProfileListMembershipStatus;
+	plan_id: string;
+	pending_plan_id: string | null;
+	payment: ProfileListMembershipPayment;
+	start_date: number;
+	end_date: number;
+	token: string;
 	created_at: number;
 	updated_at: number;
 }
@@ -1362,9 +1316,13 @@ export type EventAction =
 	| { action: 'store_updated' }
 	| { action: 'store_deleted' }
 	
-	| { action: 'audience_created' }
-	| { action: 'audience_updated' }
-	| { action: 'audience_deleted' };
+	| { action: 'profile_list_created' }
+	| { action: 'profile_list_updated' }
+	| { action: 'profile_list_profile_added' }
+	| { action: 'profile_list_profile_removed' }
+	| { action: 'profile_list_profile_pending' }
+	| { action: 'profile_list_profile_confirmed' }
+	| { action: 'profile_list_profile_cancelled' };
 
 export interface Event {
 	id: string;

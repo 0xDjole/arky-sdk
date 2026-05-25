@@ -19,9 +19,10 @@ import type {
   FindServiceProvidersParams,
   GetProviderParams,
   GetProvidersParams,
-  GetAudienceParams,
-  GetAudiencesParams,
-  SubscribeAudienceParams,
+  GetProfileListParams,
+  FindProfileListsParams,
+  SubscribeProfileListParams,
+  ProfileListAccessParams,
   GetAgentsParams,
   GetCurrentCartParams,
   GetCartParams,
@@ -37,9 +38,9 @@ import type {
   Form,
   FormSubmission,
   Taxonomy,
-  Audience,
-  AudienceAccessResponse,
-  AudienceSubscribeResponse,
+  ProfileList,
+  ProfileListAccessResponse,
+  ProfileListSubscribeResponse,
   Service,
   Provider,
   Store,
@@ -559,60 +560,49 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateProfileSession: 
         },
       },
 
-      audience: {
-        get(params: GetAudienceParams, options?: RequestOptions): Promise<Audience> {
-          let identifier: string;
-          if (params.id) {
-            identifier = params.id;
-          } else if (params.key) {
-            identifier = `${apiConfig.storeId}:${params.key}`;
-          } else {
-            throw new Error("GetAudienceParams requires id or key");
-          }
-
-          return apiConfig.httpClient.get<Audience>(
-            `${base(apiConfig.storeId)}/audiences/${identifier}`,
+      profileList: {
+        get(params: GetProfileListParams, options?: RequestOptions): Promise<ProfileList> {
+          const store_id = params.store_id || apiConfig.storeId;
+          return apiConfig.httpClient.get<ProfileList>(
+            `${base(store_id)}/profile-lists/${params.id}`,
             options,
           );
         },
 
-        find(params: GetAudiencesParams, options?: RequestOptions): Promise<PaginatedResponse<Audience>> {
-          return apiConfig.httpClient.get<PaginatedResponse<Audience>>(`${base()}/audiences`, {
+        find(params?: FindProfileListsParams, options?: RequestOptions): Promise<PaginatedResponse<ProfileList>> {
+          const { store_id, ...queryParams } = params || {};
+          return apiConfig.httpClient.get<PaginatedResponse<ProfileList>>(`${base(store_id)}/profile-lists`, {
             ...options,
-            params,
+            params: queryParams,
           });
         },
 
-        subscribe(params: SubscribeAudienceParams, options?: RequestOptions): Promise<AudienceSubscribeResponse> {
-          return apiConfig.httpClient.post<AudienceSubscribeResponse>(
-            `${base()}/audiences/${params.id}/subscribe`,
-            {
-              profile_id: params.profile_id,
-              price_id: params.price_id,
-              success_url: params.success_url,
-              cancel_url: params.cancel_url,
-              confirm_url: params.confirm_url,
-            },
+        subscribe(params: SubscribeProfileListParams, options?: RequestOptions): Promise<ProfileListSubscribeResponse> {
+          const { store_id, id, ...payload } = params;
+          return apiConfig.httpClient.post<ProfileListSubscribeResponse>(
+            `${base(store_id)}/profile-lists/${id}/subscribe`,
+            payload,
             options,
           );
         },
 
-        checkAccess(params: { id: string }, options?: RequestOptions): Promise<AudienceAccessResponse> {
-          return apiConfig.httpClient.get<AudienceAccessResponse>(
-            `${base()}/audiences/${params.id}/access`,
+        checkAccess(params: ProfileListAccessParams, options?: RequestOptions): Promise<ProfileListAccessResponse> {
+          const store_id = params.store_id || apiConfig.storeId;
+          return apiConfig.httpClient.get<ProfileListAccessResponse>(
+            `${base(store_id)}/profile-lists/${params.id}/access`,
             options,
           );
         },
 
         unsubscribe(token: string, options?: RequestOptions): Promise<{ unsubscribed: boolean }> {
-          return apiConfig.httpClient.get<{ unsubscribed: boolean }>(`${base()}/audiences/unsubscribe`, {
+          return apiConfig.httpClient.get<{ unsubscribed: boolean }>(`${base()}/profile-lists/unsubscribe`, {
             ...options,
             params: { token },
           });
         },
 
         confirm(token: string, options?: RequestOptions): Promise<{ confirmed: boolean }> {
-          return apiConfig.httpClient.get<{ confirmed: boolean }>(`${base()}/audiences/confirm`, {
+          return apiConfig.httpClient.get<{ confirmed: boolean }>(`${base()}/profile-lists/confirm`, {
             ...options,
             params: { token },
           });
