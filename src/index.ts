@@ -254,6 +254,8 @@ export type {
   UpdateMailboxParams,
   FindMailboxesParams,
   GetMailboxParams,
+  TestMailboxParams,
+  TestMailboxResult,
   CreateOutreachCampaignParams,
   UpdateOutreachCampaignParams,
   FindOutreachCampaignsParams,

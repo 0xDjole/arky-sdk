@@ -27,6 +27,8 @@ import type {
   UpdateMailboxParams,
   FindMailboxesParams,
   GetMailboxParams,
+  TestMailboxParams,
+  TestMailboxResult,
   CreateOutreachCampaignParams,
   UpdateOutreachCampaignParams,
   FindOutreachCampaignsParams,
@@ -319,6 +321,15 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
         const target_store_id = params.store_id || apiConfig.storeId;
         return apiConfig.httpClient.get<Mailbox>(
           `/v1/stores/${target_store_id}/mailboxes/${params.id}`,
+          options,
+        );
+      },
+
+      async test(params: TestMailboxParams, options?: RequestOptions): Promise<TestMailboxResult> {
+        const target_store_id = params.store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<TestMailboxResult>(
+          `/v1/stores/${target_store_id}/mailboxes/${params.id}/test`,
+          {},
           options,
         );
       },

@@ -1484,6 +1484,20 @@ export interface GetMailboxParams {
   store_id?: string;
 }
 
+export interface TestMailboxParams {
+  id: string;
+  store_id?: string;
+}
+
+export interface TestMailboxResult {
+  ok: boolean;
+  smtp_ok: boolean;
+  imap_ok: boolean;
+  skipped: boolean;
+  smtp_error?: string | null;
+  imap_error?: string | null;
+}
+
 export interface CreateOutreachCampaignParams {
   store_id?: string;
   key: string;
