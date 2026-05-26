@@ -847,6 +847,7 @@ export type OutreachMessageStatus = 'pending' | 'sending' | 'sent' | 'bounced' |
 export type OutreachMessageKind = 'sequence_step' | 'manual_reply';
 export type OutreachThreadMode = 'new_thread' | 'same_thread';
 export type OutreachStepVariantStatus = 'active' | 'archived';
+export type OutreachPersonalizationStatus = 'idle' | 'running' | 'completed' | 'failed';
 export type SuppressionStatus = 'active' | 'archived';
 export type SuppressionTargetType = 'email' | 'domain' | 'profile';
 export type SuppressionScopeType = 'store' | 'outreach_campaign';
@@ -1153,6 +1154,7 @@ export interface ProfileListMembership {
 	profile_list_id: string;
 	source: ProfileListSource;
 	fields: Record<string, unknown>;
+	lead_description?: string | null;
 	status: ProfileListMembershipStatus;
 	plan_id: string;
 	pending_plan_id: string | null;
@@ -1198,6 +1200,25 @@ export interface OutreachStep {
 	thread_mode?: OutreachThreadMode;
 }
 
+export interface OutreachPersonalizationCounters {
+	total_profiles: number;
+	draft_messages: number;
+	generated_messages: number;
+	failed_messages: number;
+}
+
+export interface OutreachPersonalizationState {
+	status: OutreachPersonalizationStatus;
+	model_integration_id?: string | null;
+	step_position?: number | null;
+	overwrite: boolean;
+	instructions?: string | null;
+	error?: string | null;
+	counters: OutreachPersonalizationCounters;
+	started_at?: number | null;
+	completed_at?: number | null;
+}
+
 export interface OutreachCampaign {
 	id: string;
 	store_id: string;
@@ -1207,6 +1228,7 @@ export interface OutreachCampaign {
 	mailbox_ids: string[];
 	status: OutreachCampaignStatus;
 	steps: OutreachStep[];
+	personalization: OutreachPersonalizationState;
 	launched_at?: number | null;
 	created_at: number;
 	updated_at: number;
@@ -1289,6 +1311,114 @@ export interface Suppression {
 	source: SuppressionSource;
 	created_at: number;
 	updated_at: number;
+}
+
+export type LeadGenerationRunStatus =
+	| 'draft'
+	| 'running'
+	| 'needs_review'
+	| 'ready_to_import'
+	| 'imported'
+	| 'failed'
+	| 'cancelled';
+
+export type LeadGenerationSearchProvider = 'brave' | 'direct_urls';
+
+export type LeadGenerationLeadStatus =
+	| 'accepted'
+	| 'needs_review'
+	| 'rejected'
+	| 'imported';
+
+export type LeadEmailClassification =
+	| 'official_domain'
+	| 'role_official'
+	| 'personal_official'
+	| 'free_mail'
+	| 'unusable'
+	| 'unknown';
+
+export type LeadValidationCheckStatus = 'passed' | 'warning' | 'failed' | 'unknown';
+
+export interface LeadGenerationRunCounters {
+	searched_queries: number;
+	discovered_domains: number;
+	crawled_pages: number;
+	extracted_emails: number;
+	validated_emails: number;
+	accepted_leads: number;
+	review_leads: number;
+	rejected_leads: number;
+	imported_leads: number;
+}
+
+export interface LeadGenerationRun {
+	id: string;
+	store_id: string;
+	profile_list_id?: string | null;
+	model_integration_id?: string | null;
+	search_provider: LeadGenerationSearchProvider;
+	direct_urls: string[];
+	prompt: string;
+	icp?: string | null;
+	geography?: string | null;
+	source_policy?: string | null;
+	max_leads: number;
+	status: LeadGenerationRunStatus;
+	error?: string | null;
+	counters: LeadGenerationRunCounters;
+	started_at?: number | null;
+	completed_at?: number | null;
+	created_at: number;
+	updated_at: number;
+}
+
+export interface LeadValidationCheck {
+	key: string;
+	status: LeadValidationCheckStatus;
+	message: string;
+}
+
+export interface LeadEmailValidationResult {
+	email: string;
+	normalized_email?: string | null;
+	domain?: string | null;
+	classification: LeadEmailClassification;
+	confidence: number;
+	importable: boolean;
+	hard_blockers: string[];
+	checks: LeadValidationCheck[];
+}
+
+export interface LeadGenerationLead {
+	id: string;
+	store_id: string;
+	run_id: string;
+	profile_list_id?: string | null;
+	company_name?: string | null;
+	contact_name?: string | null;
+	website_url?: string | null;
+	email: string;
+	normalized_email: string;
+	email_source_url: string;
+	source_excerpt?: string | null;
+	classification: LeadEmailClassification;
+	confidence: number;
+	validation_checks: LeadValidationCheck[];
+	hard_blockers: string[];
+	status: LeadGenerationLeadStatus;
+	profile_id?: string | null;
+	import_error?: string | null;
+	fields: Record<string, unknown>;
+	created_at: number;
+	updated_at: number;
+}
+
+export interface ImportLeadGenerationLeadsResult {
+	imported: number;
+	failed: number;
+	profile_list_id?: string | null;
+	errors: string[];
 }
 
 export type EventAction =

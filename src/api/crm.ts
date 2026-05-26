@@ -35,6 +35,7 @@ import type {
   FindOutreachCampaignsParams,
   GetOutreachCampaignParams,
   LaunchOutreachCampaignParams,
+  GenerateOutreachPersonalizedDraftsParams,
   FindOutreachEnrollmentsParams,
   FindOutreachMessagesParams,
   RespondToOutreachReplyParams,
@@ -397,6 +398,16 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
         return apiConfig.httpClient.post<OutreachCampaign>(
           `/v1/stores/${target_store_id}/outreach-campaigns/${params.id}/launch`,
           {},
+          options,
+        );
+      },
+
+      async generatePersonalizedDrafts(params: GenerateOutreachPersonalizedDraftsParams, options?: RequestOptions): Promise<OutreachCampaign> {
+        const { id, store_id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<OutreachCampaign>(
+          `/v1/stores/${target_store_id}/outreach-campaigns/${id}/personalized-drafts`,
+          payload,
           options,
         );
       },

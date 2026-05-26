@@ -47,6 +47,8 @@ import type {
   SuppressionStatus,
   SuppressionReason,
   SuppressionSource,
+  LeadGenerationSearchProvider,
+  LeadGenerationLeadStatus,
 } from "./index";
 
 
@@ -1326,6 +1328,7 @@ export interface ImportProfileRowInput {
   email: string;
   profile_id?: string;
   fields?: Record<string, unknown>;
+  lead_description?: string;
 }
 
 export interface ImportProfilesParams {
@@ -1546,6 +1549,15 @@ export interface LaunchOutreachCampaignParams {
   store_id?: string;
 }
 
+export interface GenerateOutreachPersonalizedDraftsParams {
+  id: string;
+  store_id?: string;
+  step_position?: number;
+  overwrite?: boolean;
+  model_integration_id?: string;
+  instructions?: string;
+}
+
 export interface FindOutreachEnrollmentsParams {
   store_id?: string;
   outreach_campaign_id?: string;
@@ -1619,6 +1631,85 @@ export interface FindSuppressionsParams {
 export interface GetSuppressionParams {
   id: string;
   store_id?: string;
+}
+
+export interface CreateLeadGenerationRunParams {
+  store_id?: string;
+  prompt: string;
+  geography?: string;
+  icp?: string;
+  max_leads?: number;
+  profile_list_id?: string;
+  model_integration_id?: string;
+  search_provider?: LeadGenerationSearchProvider;
+  direct_urls?: string[];
+  source_policy?: string;
+}
+
+export interface FindLeadGenerationRunsParams {
+  store_id?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface GetLeadGenerationRunParams {
+  id: string;
+  store_id?: string;
+}
+
+export interface StartLeadGenerationRunParams {
+  id: string;
+  store_id?: string;
+}
+
+export interface CancelLeadGenerationRunParams {
+  id: string;
+  store_id?: string;
+}
+
+interface LeadGenerationRunScope {
+  store_id?: string;
+  status?: LeadGenerationLeadStatus;
+  limit?: number;
+  cursor?: string;
+}
+
+export type FindLeadGenerationLeadsParams =
+  | (LeadGenerationRunScope & { run_id: string; id?: never })
+  | (LeadGenerationRunScope & {
+      /** @deprecated Use run_id. */
+      id: string;
+      run_id?: never;
+    });
+
+export interface UpdateLeadGenerationLeadParams {
+  id: string;
+  store_id?: string;
+  status?: LeadGenerationLeadStatus;
+  company_name?: string;
+  contact_name?: string;
+  website_url?: string;
+  fields?: Record<string, unknown>;
+}
+
+interface ImportLeadGenerationLeadsBaseParams {
+  store_id?: string;
+  lead_ids: string[];
+}
+
+export type ImportLeadGenerationLeadsParams =
+  | (ImportLeadGenerationLeadsBaseParams & { run_id: string; id?: never })
+  | (ImportLeadGenerationLeadsBaseParams & {
+      /** @deprecated Use run_id. */
+      id: string;
+      run_id?: never;
+    });
+
+export interface ValidateLeadEmailParams {
+  store_id?: string;
+  email: string;
+  website_url?: string;
+  email_source_url?: string;
 }
 
 

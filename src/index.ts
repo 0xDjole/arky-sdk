@@ -145,11 +145,24 @@ export type {
   SmtpImapMailboxProvider,
   OutreachStep,
   OutreachStepVariant,
+  OutreachPersonalizationCounters,
+  OutreachPersonalizationState,
   OutreachCampaign,
   OutreachEnrollment,
   OutreachMessage,
   OutreachReply,
   Suppression,
+  LeadGenerationRun,
+  LeadGenerationRunCounters,
+  LeadGenerationRunStatus,
+  LeadGenerationSearchProvider,
+  LeadGenerationLead,
+  LeadGenerationLeadStatus,
+  LeadEmailClassification,
+  LeadValidationCheck,
+  LeadValidationCheckStatus,
+  LeadEmailValidationResult,
+  ImportLeadGenerationLeadsResult,
   Account,
   AccountToken,
   AccountUpdateResponse,
@@ -169,6 +182,7 @@ export type {
   OutreachEnrollmentStatus,
   OutreachMessageKind,
   OutreachMessageStatus,
+  OutreachPersonalizationStatus,
   OutreachStepVariantStatus,
   OutreachThreadMode,
   SuppressionStatus,
@@ -266,6 +280,7 @@ export type {
   FindOutreachCampaignsParams,
   GetOutreachCampaignParams,
   LaunchOutreachCampaignParams,
+  GenerateOutreachPersonalizedDraftsParams,
   FindOutreachEnrollmentsParams,
   FindOutreachMessagesParams,
   RespondToOutreachReplyParams,
@@ -274,6 +289,15 @@ export type {
   UpdateSuppressionParams,
   FindSuppressionsParams,
   GetSuppressionParams,
+  CreateLeadGenerationRunParams,
+  FindLeadGenerationRunsParams,
+  GetLeadGenerationRunParams,
+  StartLeadGenerationRunParams,
+  CancelLeadGenerationRunParams,
+  FindLeadGenerationLeadsParams,
+  UpdateLeadGenerationLeadParams,
+  ImportLeadGenerationLeadsParams,
+  ValidateLeadEmailParams,
   AgentStatus,
 } from "./types/api";
 
@@ -423,6 +447,7 @@ import { createEshopApi } from "./api/eshop";
 import { createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
 import { createProfileApi } from "./api/crm";
+import { createLeadGenerationApi } from "./api/leadGeneration";
 import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
@@ -635,6 +660,33 @@ export function createAdmin(config: CreateAdminConfig) {
   const eshopApi = createEshopApi(apiConfig);
   const promoCodeApi = createPromoCodeApi(apiConfig);
   const crmApi = createProfileApi(apiConfig);
+  const leadGenerationApi = createLeadGenerationApi(apiConfig);
+  const leadGeneration = {
+    run: {
+      create: leadGenerationApi.createRun,
+      find: leadGenerationApi.findRuns,
+      get: leadGenerationApi.getRun,
+      start: leadGenerationApi.startRun,
+      cancel: leadGenerationApi.cancelRun,
+      import: leadGenerationApi.importLeads,
+    },
+    lead: {
+      find: leadGenerationApi.findLeads,
+      update: leadGenerationApi.updateLead,
+    },
+    email: {
+      validate: leadGenerationApi.validateEmail,
+    },
+    createRun: leadGenerationApi.createRun,
+    findRuns: leadGenerationApi.findRuns,
+    getRun: leadGenerationApi.getRun,
+    startRun: leadGenerationApi.startRun,
+    cancelRun: leadGenerationApi.cancelRun,
+    findLeads: leadGenerationApi.findLeads,
+    updateLead: leadGenerationApi.updateLead,
+    importLeads: leadGenerationApi.importLeads,
+    validateEmail: leadGenerationApi.validateEmail,
+  };
   const locationApi = createLocationApi(apiConfig);
   const marketApi = createMarketApi(apiConfig);
   const agentApi = createAgentApi(apiConfig);
@@ -759,8 +811,10 @@ export function createAdmin(config: CreateAdminConfig) {
       outreachMessage: crmApi.outreachMessage,
       outreachReply: crmApi.outreachReply,
       suppression: crmApi.suppression,
+      leadGeneration,
       activity: crmApi.activity,
     },
+    leadGeneration,
     automation: {
       agent: {
         create: agentApi.createAgent,
