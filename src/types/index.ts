@@ -1183,6 +1183,7 @@ export interface Mailbox {
 export interface OutreachStepVariant {
 	id?: string;
 	position?: number;
+	weight: number;
 	name?: string;
 	subject: string;
 	body: string;
