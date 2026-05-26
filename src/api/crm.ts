@@ -27,6 +27,7 @@ import type {
   UpdateMailboxParams,
   FindMailboxesParams,
   GetMailboxParams,
+  PrepareMailboxParams,
   TestMailboxParams,
   TestMailboxResult,
   CreateOutreachCampaignParams,
@@ -36,7 +37,7 @@ import type {
   LaunchOutreachCampaignParams,
   FindOutreachEnrollmentsParams,
   FindOutreachMessagesParams,
-  InjectOutreachReplyParams,
+  RespondToOutreachReplyParams,
   FindOutreachRepliesParams,
   CreateSuppressionParams,
   UpdateSuppressionParams,
@@ -334,6 +335,15 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
         );
       },
 
+      async prepare(params: PrepareMailboxParams, options?: RequestOptions): Promise<Mailbox> {
+        const target_store_id = params.store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<Mailbox>(
+          `/v1/stores/${target_store_id}/mailboxes/${params.id}/prepare`,
+          {},
+          options,
+        );
+      },
+
       async find(params?: FindMailboxesParams, options?: RequestOptions): Promise<PaginatedResponse<Mailbox>> {
         const { store_id, ...queryParams } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
@@ -424,11 +434,11 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async inject(params: InjectOutreachReplyParams, options?: RequestOptions): Promise<OutreachReply> {
-        const { store_id, outreach_message_id, ...payload } = params;
+      async respond(params: RespondToOutreachReplyParams, options?: RequestOptions): Promise<OutreachMessage> {
+        const { store_id, id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<OutreachReply>(
-          `/v1/stores/${target_store_id}/outreach-messages/${outreach_message_id}/replies`,
+        return apiConfig.httpClient.post<OutreachMessage>(
+          `/v1/stores/${target_store_id}/outreach-replies/${id}/respond`,
           payload,
           options,
         );

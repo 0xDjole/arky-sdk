@@ -1489,6 +1489,11 @@ export interface TestMailboxParams {
   store_id?: string;
 }
 
+export interface PrepareMailboxParams {
+  id: string;
+  store_id?: string;
+}
+
 export interface TestMailboxResult {
   ok: boolean;
   smtp_ok: boolean;
@@ -1561,11 +1566,11 @@ export interface FindOutreachMessagesParams {
   cursor?: string;
 }
 
-export interface InjectOutreachReplyParams {
+export interface RespondToOutreachReplyParams {
   store_id?: string;
-  outreach_message_id: string;
+  id: string;
   subject?: string | null;
-  body?: string | null;
+  body: string;
 }
 
 export interface FindOutreachRepliesParams {

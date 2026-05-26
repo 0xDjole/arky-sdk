@@ -813,6 +813,7 @@ export type ProfileListMembershipStatus =
 export type MailboxStatus = 'active' | 'draft' | 'archived';
 export type MailboxPreset = 'gmail' | 'zoho' | 'microsoft' | 'custom';
 export type MailboxConnectionSecurity = 'tls' | 'start_tls';
+export type MailboxSyncStatus = 'not_ready' | 'ready' | 'failed';
 export type SmtpImapMailboxProvider = {
 	type: 'smtp_imap';
 	preset: MailboxPreset;
@@ -826,6 +827,9 @@ export type SmtpImapMailboxProvider = {
 	password_configured: boolean;
 	sync_enabled: boolean;
 	sync_interval_seconds: number;
+	sync_status?: MailboxSyncStatus;
+	sync_error?: string | null;
+	sync_ready_at?: number | null;
 	last_synced_at?: number | null;
 	last_seen_uid?: number | null;
 };
@@ -839,8 +843,10 @@ export type OutreachEnrollmentStatus =
 	| 'suppressed'
 	| 'failed'
 	| 'cancelled';
-export type OutreachMessageStatus = 'pending' | 'sending' | 'sent' | 'failed' | 'skipped';
+export type OutreachMessageStatus = 'pending' | 'sending' | 'sent' | 'bounced' | 'failed' | 'skipped';
+export type OutreachMessageKind = 'sequence_step' | 'manual_reply';
 export type OutreachThreadMode = 'new_thread' | 'same_thread';
+export type OutreachStepVariantStatus = 'active' | 'archived';
 export type SuppressionStatus = 'active' | 'archived';
 export type SuppressionTargetType = 'email' | 'domain' | 'profile';
 export type SuppressionScopeType = 'store' | 'outreach_campaign';
@@ -1174,12 +1180,20 @@ export interface Mailbox {
 	updated_at: number;
 }
 
+export interface OutreachStepVariant {
+	id?: string;
+	position?: number;
+	name?: string;
+	subject: string;
+	body: string;
+	status?: OutreachStepVariantStatus;
+}
+
 export interface OutreachStep {
 	id?: string;
 	position?: number;
 	delay_seconds?: number;
-	subject: string;
-	body: string;
+	variants: OutreachStepVariant[];
 	thread_mode?: OutreachThreadMode;
 }
 
@@ -1220,8 +1234,13 @@ export interface OutreachMessage {
 	outreach_enrollment_id: string;
 	profile_id: string;
 	mailbox_id: string;
-	step_id: string;
-	step_position: number;
+	kind: OutreachMessageKind;
+	step_id?: string | null;
+	step_position?: number | null;
+	step_variant_id?: string | null;
+	step_variant_position?: number | null;
+	step_variant_name?: string | null;
+	in_reply_to_outreach_reply_id?: string | null;
 	status: OutreachMessageStatus;
 	to_email: string;
 	from_email: string;

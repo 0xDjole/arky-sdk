@@ -11,6 +11,7 @@ export type AnalyticsReportKey =
   | "profile_funnel"
   | "outreach_overview"
   | "outreach_funnel"
+  | "outreach_variant_performance"
   | "activity_by_country"
   | "top_activity_pages"
   | "entity_status_overview"
@@ -156,11 +157,13 @@ export interface OutreachOverviewData {
   suppressed_outreach_enrollments: number;
   failed_outreach_enrollments: number;
   outreach_messages_sent: number;
+  outreach_bounces: number;
   outreach_replies: number;
   suppressions: number;
   active_suppressions: number;
   new_suppressions: number;
   reply_rate: number;
+  bounce_rate: number;
   suppression_rate: number;
 }
 
@@ -170,6 +173,7 @@ export interface OutreachFunnelStage {
     | "outreach_campaigns"
     | "outreach_enrollments"
     | "outreach_messages_sent"
+    | "outreach_bounces"
     | "outreach_replies"
     | string;
   label: string;
@@ -179,7 +183,26 @@ export interface OutreachFunnelStage {
 export interface OutreachFunnelData {
   stages: OutreachFunnelStage[];
   reply_rate?: number;
+  bounce_rate?: number;
   suppression_rate?: number;
+}
+
+export interface OutreachVariantPerformanceItem {
+  outreach_campaign_id: string;
+  step_id: string;
+  step_position: number;
+  step_variant_id: string;
+  step_variant_name: string;
+  sent: number;
+  bounced: number;
+  failed: number;
+  replies: number;
+  reply_rate: number;
+  bounce_rate: number;
+}
+
+export interface OutreachVariantPerformanceData {
+  variants: OutreachVariantPerformanceItem[];
 }
 
 export interface EntityStatusOverviewData {
@@ -286,6 +309,7 @@ export type AnalyticsCompositeReportKey =
   | "profile_funnel"
   | "outreach_overview"
   | "outreach_funnel"
+  | "outreach_variant_performance"
   | "entity_status_overview"
   | "data_health";
 
@@ -296,6 +320,7 @@ export type AnalyticsReport =
   | { key: "profile_funnel"; data: ProfileFunnelData }
   | { key: "outreach_overview"; data: OutreachOverviewData }
   | { key: "outreach_funnel"; data: OutreachFunnelData }
+  | { key: "outreach_variant_performance"; data: OutreachVariantPerformanceData }
   | { key: "entity_status_overview"; data: EntityStatusOverviewData }
   | { key: "data_health"; data: DataHealthData }
   | { key: AnalyticsActivityReportKey; data: ActivityFeedData };
