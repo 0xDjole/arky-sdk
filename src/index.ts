@@ -26,6 +26,7 @@ export type {
   StoreSubscriptionStatus,
   StoreSubscriptionSource,
   SubscriptionPlan,
+  SubscriptionPrice,
   ProfileListMembershipPayment,
   ProfileListMembershipProvider,
   PaymentMethod,
@@ -163,6 +164,8 @@ export type {
   LeadValidationCheckStatus,
   LeadEmailValidationResult,
   ImportLeadGenerationLeadsResult,
+  LeadResearchMessage,
+  SendLeadResearchMessageResult,
   Account,
   AccountToken,
   AccountUpdateResponse,
@@ -295,11 +298,14 @@ export type {
   GetLeadGenerationRunParams,
   StartLeadGenerationRunParams,
   CancelLeadGenerationRunParams,
+  SendLeadResearchMessageParams,
+  FindLeadResearchMessagesParams,
   FindLeadGenerationLeadsParams,
   UpdateLeadGenerationLeadParams,
   ImportLeadGenerationLeadsParams,
   ValidateLeadEmailParams,
   AgentStatus,
+  AgentType,
 } from "./types/api";
 
 export type {
@@ -670,6 +676,12 @@ export function createAdmin(config: CreateAdminConfig) {
       start: leadGenerationApi.startRun,
       cancel: leadGenerationApi.cancelRun,
       import: leadGenerationApi.importLeads,
+      sendMessage: leadGenerationApi.sendMessage,
+      findMessages: leadGenerationApi.findMessages,
+    },
+    message: {
+      send: leadGenerationApi.sendMessage,
+      find: leadGenerationApi.findMessages,
     },
     lead: {
       find: leadGenerationApi.findLeads,
@@ -683,6 +695,8 @@ export function createAdmin(config: CreateAdminConfig) {
     getRun: leadGenerationApi.getRun,
     startRun: leadGenerationApi.startRun,
     cancelRun: leadGenerationApi.cancelRun,
+    sendMessage: leadGenerationApi.sendMessage,
+    findMessages: leadGenerationApi.findMessages,
     findLeads: leadGenerationApi.findLeads,
     updateLead: leadGenerationApi.updateLead,
     importLeads: leadGenerationApi.importLeads,

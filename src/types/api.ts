@@ -47,7 +47,6 @@ import type {
   SuppressionStatus,
   SuppressionReason,
   SuppressionSource,
-  LeadGenerationSearchProvider,
   LeadGenerationLeadStatus,
 } from "./index";
 
@@ -1643,13 +1642,11 @@ export interface GetSuppressionParams {
 
 export interface CreateLeadGenerationRunParams {
   store_id?: string;
+  agent_id: string;
   prompt: string;
   icp?: string;
   max_leads?: number;
   profile_list_id?: string;
-  model_integration_id?: string;
-  search_provider?: LeadGenerationSearchProvider;
-  direct_urls?: string[];
   source_policy?: string;
 }
 
@@ -1672,6 +1669,18 @@ export interface StartLeadGenerationRunParams {
 export interface CancelLeadGenerationRunParams {
   id: string;
   store_id?: string;
+}
+
+export interface SendLeadResearchMessageParams {
+  id: string;
+  store_id?: string;
+  message: string;
+}
+
+export interface FindLeadResearchMessagesParams {
+  id: string;
+  store_id?: string;
+  limit?: number;
 }
 
 interface LeadGenerationRunScope {
@@ -1813,13 +1822,16 @@ export interface ShipParams {
 
 
 export type AgentStatus = 'active' | 'draft' | 'archived';
+export type AgentType = 'storefront' | 'lead_generation';
 
 export interface CreateAgentParams {
   store_id?: string;
   key: string;
+  type: AgentType;
   prompt: string;
   status?: AgentStatus;
   model_id: string;
+  settings?: Record<string, unknown>;
   channel_ids?: string[];
   tools?: string[];
 }
@@ -1828,9 +1840,11 @@ export interface UpdateAgentParams {
   id: string;
   store_id?: string;
   key: string;
+  type?: AgentType;
   prompt: string;
   status: AgentStatus;
   model_id: string;
+  settings?: Record<string, unknown>;
   channel_ids?: string[];
   tools?: string[];
 }
@@ -1850,6 +1864,7 @@ export interface GetAgentsParams {
   limit?: number;
   cursor?: string;
   status?: AgentStatus;
+  type?: AgentType;
 }
 
 export interface RunAgentParams {

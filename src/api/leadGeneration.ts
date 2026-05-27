@@ -6,7 +6,9 @@ import type {
   FindLeadGenerationRunsParams,
   GetLeadGenerationRunParams,
   ImportLeadGenerationLeadsParams,
+  FindLeadResearchMessagesParams,
   RequestOptions,
+  SendLeadResearchMessageParams,
   StartLeadGenerationRunParams,
   UpdateLeadGenerationLeadParams,
   ValidateLeadEmailParams,
@@ -16,7 +18,9 @@ import type {
   LeadEmailValidationResult,
   LeadGenerationLead,
   LeadGenerationRun,
+  LeadResearchMessage,
   PaginatedResponse,
+  SendLeadResearchMessageResult,
 } from "../types";
 
 export const createLeadGenerationApi = (apiConfig: ApiConfig) => {
@@ -65,6 +69,23 @@ export const createLeadGenerationApi = (apiConfig: ApiConfig) => {
         `/v1/stores/${storeId(params.store_id)}/lead-generation/runs/${params.id}/cancel`,
         {},
         options,
+      );
+    },
+
+    async sendMessage(params: SendLeadResearchMessageParams, options?: RequestOptions): Promise<SendLeadResearchMessageResult> {
+      const { store_id, id, ...payload } = params;
+      return apiConfig.httpClient.post<SendLeadResearchMessageResult>(
+        `/v1/stores/${storeId(store_id)}/lead-generation/runs/${id}/messages`,
+        payload,
+        options,
+      );
+    },
+
+    async findMessages(params: FindLeadResearchMessagesParams, options?: RequestOptions): Promise<LeadResearchMessage[]> {
+      const { store_id, id, ...queryParams } = params;
+      return apiConfig.httpClient.get<LeadResearchMessage[]>(
+        `/v1/stores/${storeId(store_id)}/lead-generation/runs/${id}/messages`,
+        { ...options, params: queryParams },
       );
     },
 

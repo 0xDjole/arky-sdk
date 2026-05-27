@@ -1205,6 +1205,7 @@ export interface OutreachPersonalizationCounters {
 	total_profiles: number;
 	draft_messages: number;
 	generated_messages: number;
+	base_messages: number;
 	failed_messages: number;
 }
 
@@ -1264,6 +1265,7 @@ export interface OutreachMessage {
 	step_variant_id?: string | null;
 	step_variant_position?: number | null;
 	step_variant_name?: string | null;
+	base_copy_hash?: string | null;
 	in_reply_to_outreach_reply_id?: string | null;
 	status: OutreachMessageStatus;
 	to_email: string;
@@ -1356,6 +1358,7 @@ export interface LeadGenerationRunCounters {
 export interface LeadGenerationRun {
 	id: string;
 	store_id: string;
+	agent_id: string;
 	profile_list_id?: string | null;
 	model_integration_id?: string | null;
 	search_provider: LeadGenerationSearchProvider;
@@ -1417,8 +1420,23 @@ export interface LeadGenerationLead {
 export interface ImportLeadGenerationLeadsResult {
 	imported: number;
 	failed: number;
+	skipped: number;
 	profile_list_id?: string | null;
 	errors: string[];
+	skipped_reasons: string[];
+}
+
+export interface LeadResearchMessage {
+	id: string;
+	role: string;
+	content: string;
+	created_at: number;
+}
+
+export interface SendLeadResearchMessageResult {
+	response: string;
+	run: LeadGenerationRun;
+	leads: LeadGenerationLead[];
 }
 
 export type EventAction =
@@ -1591,9 +1609,11 @@ export interface Agent {
 	id: string;
 	store_id: string;
 	key: string;
+	type: import('./api').AgentType;
 	prompt: string;
 	status: import('./api').AgentStatus;
 	model_id: string;
+	settings: Record<string, unknown>;
 	channel_ids: string[];
 	tools: string[];
 	created_at: number;
