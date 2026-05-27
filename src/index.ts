@@ -283,6 +283,7 @@ export type {
   GenerateOutreachPersonalizedDraftsParams,
   FindOutreachEnrollmentsParams,
   FindOutreachMessagesParams,
+  UpdateOutreachMessageParams,
   RespondToOutreachReplyParams,
   FindOutreachRepliesParams,
   CreateSuppressionParams,

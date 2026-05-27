@@ -38,6 +38,7 @@ import type {
   GenerateOutreachPersonalizedDraftsParams,
   FindOutreachEnrollmentsParams,
   FindOutreachMessagesParams,
+  UpdateOutreachMessageParams,
   RespondToOutreachReplyParams,
   FindOutreachRepliesParams,
   CreateSuppressionParams,
@@ -270,11 +271,11 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
 
       profiles: {
         async add(params: AddProfileListProfileParams, options?: RequestOptions): Promise<Profile> {
-          const { store_id, profile_list_id, profile_id, fields } = params;
+          const { store_id, profile_list_id, profile_id, fields, lead_description } = params;
           const target_store_id = store_id || apiConfig.storeId;
           return apiConfig.httpClient.post<Profile>(
             `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/profiles/${profile_id}`,
-            { fields },
+            { fields, lead_description },
             options,
           );
         },
@@ -431,6 +432,16 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
         return apiConfig.httpClient.get<PaginatedResponse<OutreachMessage>>(
           `/v1/stores/${target_store_id}/outreach-messages`,
           { ...options, params: queryParams },
+        );
+      },
+
+      async update(params: UpdateOutreachMessageParams, options?: RequestOptions): Promise<OutreachMessage> {
+        const { id, store_id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.put<OutreachMessage>(
+          `/v1/stores/${target_store_id}/outreach-messages/${id}`,
+          payload,
+          options,
         );
       },
     },

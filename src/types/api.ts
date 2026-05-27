@@ -1308,6 +1308,7 @@ export interface AddProfileListProfileParams {
   profile_list_id: string;
   profile_id: string;
   fields?: Record<string, unknown>;
+  lead_description?: string | null;
 }
 
 export interface RemoveProfileListProfileParams {
@@ -1578,6 +1579,13 @@ export interface FindOutreachMessagesParams {
   cursor?: string;
 }
 
+export interface UpdateOutreachMessageParams {
+  id: string;
+  store_id?: string;
+  subject?: string;
+  body?: string;
+}
+
 export interface RespondToOutreachReplyParams {
   store_id?: string;
   id: string;
@@ -1636,7 +1644,6 @@ export interface GetSuppressionParams {
 export interface CreateLeadGenerationRunParams {
   store_id?: string;
   prompt: string;
-  geography?: string;
   icp?: string;
   max_leads?: number;
   profile_list_id?: string;

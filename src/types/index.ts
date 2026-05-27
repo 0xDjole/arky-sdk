@@ -202,6 +202,7 @@ export type IntegrationProvider =
 		token_expires_at?: number; scopes: string[]; account_email?: string | null; connected_at: number }
 	| { type: 'telegram_bot'; bot_token?: string }
 	| { type: 'deep_seek'; api_key?: string; model?: string }
+	| { type: 'brave_search'; api_key?: string }
 
 	| { type: 'open_ai'; api_key?: string; model?: string }
 	| { type: 'slack'; api_key?: string }
@@ -1361,7 +1362,6 @@ export interface LeadGenerationRun {
 	direct_urls: string[];
 	prompt: string;
 	icp?: string | null;
-	geography?: string | null;
 	source_policy?: string | null;
 	max_leads: number;
 	status: LeadGenerationRunStatus;
