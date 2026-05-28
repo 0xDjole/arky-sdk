@@ -846,6 +846,8 @@ export type OutreachEnrollmentStatus =
 	| 'cancelled';
 export type OutreachMessageStatus = 'pending' | 'sending' | 'sent' | 'bounced' | 'failed' | 'skipped';
 export type OutreachMessageKind = 'sequence_step' | 'manual_reply';
+export type OutreachMessageCopySource = 'base' | 'generated' | 'edited';
+export type OutreachMessageReviewStatus = 'unreviewed' | 'reviewed';
 export type OutreachThreadMode = 'new_thread' | 'same_thread';
 export type OutreachStepVariantStatus = 'active' | 'archived';
 export type OutreachPersonalizationStatus = 'idle' | 'running' | 'completed' | 'failed';
@@ -1266,6 +1268,11 @@ export interface OutreachMessage {
 	step_variant_position?: number | null;
 	step_variant_name?: string | null;
 	base_copy_hash?: string | null;
+	copy_source: OutreachMessageCopySource;
+	review_status: OutreachMessageReviewStatus;
+	personalized_at?: number | null;
+	edited_at?: number | null;
+	personalization_error?: string | null;
 	in_reply_to_outreach_reply_id?: string | null;
 	status: OutreachMessageStatus;
 	to_email: string;

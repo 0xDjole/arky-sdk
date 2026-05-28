@@ -43,6 +43,8 @@ import type {
   OutreachCampaignStatus,
   OutreachEnrollmentStatus,
   OutreachMessageStatus,
+  OutreachMessageCopySource,
+  OutreachMessageReviewStatus,
   OutreachStep,
   SuppressionStatus,
   SuppressionReason,
@@ -1574,6 +1576,10 @@ export interface FindOutreachMessagesParams {
   profile_id?: string;
   mailbox_id?: string;
   status?: OutreachMessageStatus;
+  copy_source?: OutreachMessageCopySource;
+  review_status?: OutreachMessageReviewStatus;
+  step_position?: number;
+  query?: string;
   limit?: number;
   cursor?: string;
 }
@@ -1583,6 +1589,7 @@ export interface UpdateOutreachMessageParams {
   store_id?: string;
   subject?: string;
   body?: string;
+  review_status?: OutreachMessageReviewStatus;
 }
 
 export interface RespondToOutreachReplyParams {
@@ -1710,6 +1717,7 @@ export interface UpdateLeadGenerationLeadParams {
 
 interface ImportLeadGenerationLeadsBaseParams {
   store_id?: string;
+  profile_list_id?: string;
   lead_ids: string[];
 }
 
