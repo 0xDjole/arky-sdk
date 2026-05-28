@@ -1551,6 +1551,11 @@ export interface LaunchOutreachCampaignParams {
   store_id?: string;
 }
 
+export interface GetOutreachCampaignLaunchReadinessParams {
+  id: string;
+  store_id?: string;
+}
+
 export interface GenerateOutreachPersonalizedDraftsParams {
   id: string;
   store_id?: string;
@@ -1651,10 +1656,8 @@ export interface CreateLeadGenerationRunParams {
   store_id?: string;
   agent_id: string;
   prompt: string;
-  icp?: string;
   max_leads?: number;
   profile_list_id?: string;
-  source_policy?: string;
 }
 
 export interface FindLeadGenerationRunsParams {
@@ -1664,11 +1667,6 @@ export interface FindLeadGenerationRunsParams {
 }
 
 export interface GetLeadGenerationRunParams {
-  id: string;
-  store_id?: string;
-}
-
-export interface StartLeadGenerationRunParams {
   id: string;
   store_id?: string;
 }
@@ -1839,9 +1837,6 @@ export interface CreateAgentParams {
   prompt: string;
   status?: AgentStatus;
   model_id: string;
-  settings?: Record<string, unknown>;
-  channel_ids?: string[];
-  tools?: string[];
 }
 
 export interface UpdateAgentParams {
@@ -1852,9 +1847,6 @@ export interface UpdateAgentParams {
   prompt: string;
   status: AgentStatus;
   model_id: string;
-  settings?: Record<string, unknown>;
-  channel_ids?: string[];
-  tools?: string[];
 }
 
 export interface DeleteAgentParams {

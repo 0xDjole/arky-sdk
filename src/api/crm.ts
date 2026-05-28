@@ -35,6 +35,7 @@ import type {
   FindOutreachCampaignsParams,
   GetOutreachCampaignParams,
   LaunchOutreachCampaignParams,
+  GetOutreachCampaignLaunchReadinessParams,
   GenerateOutreachPersonalizedDraftsParams,
   FindOutreachEnrollmentsParams,
   FindOutreachMessagesParams,
@@ -49,6 +50,7 @@ import type {
 import type {
   Mailbox,
   OutreachCampaign,
+  OutreachCampaignLaunchReadiness,
   OutreachEnrollment,
   OutreachMessage,
   OutreachReply,
@@ -399,6 +401,17 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
         return apiConfig.httpClient.post<OutreachCampaign>(
           `/v1/stores/${target_store_id}/outreach-campaigns/${params.id}/launch`,
           {},
+          options,
+        );
+      },
+
+      async launchReadiness(
+        params: GetOutreachCampaignLaunchReadinessParams,
+        options?: RequestOptions,
+      ): Promise<OutreachCampaignLaunchReadiness> {
+        const target_store_id = params.store_id || apiConfig.storeId;
+        return apiConfig.httpClient.get<OutreachCampaignLaunchReadiness>(
+          `/v1/stores/${target_store_id}/outreach-campaigns/${params.id}/launch-readiness`,
           options,
         );
       },

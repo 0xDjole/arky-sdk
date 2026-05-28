@@ -1238,6 +1238,27 @@ export interface OutreachCampaign {
 	updated_at: number;
 }
 
+export interface OutreachCampaignLaunchReadiness {
+	ready: boolean;
+	blockers: string[];
+	warnings: string[];
+	profile_count: number;
+	sender_count: number;
+	step_count: number;
+	daily_capacity: number;
+	expected_drafts: number;
+	draft_count: number;
+	pending_drafts: number;
+	generated_drafts: number;
+	base_drafts: number;
+	edited_drafts: number;
+	reviewed_drafts: number;
+	unreviewed_drafts: number;
+	personalization_errors: number;
+	stale_drafts: number;
+	suppression_count: number;
+}
+
 export interface OutreachEnrollment {
 	id: string;
 	store_id: string;
@@ -1332,8 +1353,6 @@ export type LeadGenerationRunStatus =
 	| 'failed'
 	| 'cancelled';
 
-export type LeadGenerationSearchProvider = 'brave' | 'direct_urls';
-
 export type LeadGenerationLeadStatus =
 	| 'accepted'
 	| 'needs_review'
@@ -1367,12 +1386,7 @@ export interface LeadGenerationRun {
 	store_id: string;
 	agent_id: string;
 	profile_list_id?: string | null;
-	model_integration_id?: string | null;
-	search_provider: LeadGenerationSearchProvider;
-	direct_urls: string[];
 	prompt: string;
-	icp?: string | null;
-	source_policy?: string | null;
 	max_leads: number;
 	status: LeadGenerationRunStatus;
 	error?: string | null;
@@ -1620,9 +1634,6 @@ export interface Agent {
 	prompt: string;
 	status: import('./api').AgentStatus;
 	model_id: string;
-	settings: Record<string, unknown>;
-	channel_ids: string[];
-	tools: string[];
 	created_at: number;
 	updated_at: number;
 }

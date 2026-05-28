@@ -9,7 +9,6 @@ import type {
   FindLeadResearchMessagesParams,
   RequestOptions,
   SendLeadResearchMessageParams,
-  StartLeadGenerationRunParams,
   UpdateLeadGenerationLeadParams,
   ValidateLeadEmailParams,
 } from "../types/api";
@@ -52,14 +51,6 @@ export const createLeadGenerationApi = (apiConfig: ApiConfig) => {
     async getRun(params: GetLeadGenerationRunParams, options?: RequestOptions): Promise<LeadGenerationRun> {
       return apiConfig.httpClient.get<LeadGenerationRun>(
         `/v1/stores/${storeId(params.store_id)}/lead-generation/runs/${params.id}`,
-        options,
-      );
-    },
-
-    async startRun(params: StartLeadGenerationRunParams, options?: RequestOptions): Promise<LeadGenerationRun> {
-      return apiConfig.httpClient.post<LeadGenerationRun>(
-        `/v1/stores/${storeId(params.store_id)}/lead-generation/runs/${params.id}/start`,
-        {},
         options,
       );
     },
