@@ -32,7 +32,6 @@ import type {
   SpecificDate,
   Language,
   StoreEmails,
-  AgentChatStatus,
   ProfileStatus,
   ProfileListStatus,
   ProfileListType,
@@ -1654,7 +1653,7 @@ export interface GetSuppressionParams {
 
 export interface CreateLeadGenerationRunParams {
   store_id?: string;
-  agent_id: string;
+  integration_id: string;
   prompt: string;
   max_leads?: number;
   profile_list_id?: string;
@@ -1824,96 +1823,6 @@ export interface ShipParams {
   service: string;
   location_id: string;
   lines: ShipmentLine[];
-}
-
-
-export type AgentStatus = 'active' | 'draft' | 'archived';
-export type AgentType = 'storefront' | 'lead_generation';
-
-export interface CreateAgentParams {
-  store_id?: string;
-  key: string;
-  type: AgentType;
-  prompt: string;
-  status?: AgentStatus;
-  model_id: string;
-}
-
-export interface UpdateAgentParams {
-  id: string;
-  store_id?: string;
-  key: string;
-  type?: AgentType;
-  prompt: string;
-  status: AgentStatus;
-  model_id: string;
-}
-
-export interface DeleteAgentParams {
-  id: string;
-  store_id?: string;
-}
-
-export interface GetAgentParams {
-  id: string;
-  store_id?: string;
-}
-
-export interface GetAgentsParams {
-  store_id?: string;
-  limit?: number;
-  cursor?: string;
-  status?: AgentStatus;
-  type?: AgentType;
-}
-
-export interface RunAgentParams {
-  id: string;
-  store_id?: string;
-  message: string;
-  chat_id?: string;
-  direct?: boolean;
-}
-
-export interface GetAgentChatsParams {
-  id: string;
-  store_id?: string;
-  limit?: number;
-  cursor?: string;
-}
-
-export interface GetStoreChatsParams {
-  store_id?: string;
-  agent_id?: string;
-  profile_id?: string;
-  status?: AgentChatStatus;
-
-  query?: string | number;
-  sort_field?: string;
-  sort_direction?: 'asc' | 'desc';
-  limit?: number;
-  cursor?: string;
-}
-
-export interface GetAgentChatParams {
-  id: string;
-  store_id?: string;
-  chat_id: string;
-}
-
-export interface UpdateAgentChatParams {
-  id: string;
-  store_id?: string;
-  chat_id: string;
-  status: 'active' | 'archived';
-}
-
-export interface RateAgentChatParams {
-  id: string;
-  store_id?: string;
-  chat_id: string;
-  rating: number;
-  comment?: string;
 }
 
 

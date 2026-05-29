@@ -856,7 +856,6 @@ export type SuppressionTargetType = 'email' | 'domain' | 'profile';
 export type SuppressionScopeType = 'store' | 'outreach_campaign';
 export type SuppressionReason = 'manual' | 'unsubscribed' | 'bounced' | 'complained' | 'replied';
 export type SuppressionSource = 'admin' | 'import' | 'reply' | 'system';
-export type AgentChatStatus = 'active' | 'draft' | 'archived';
 export type WorkflowStatus = 'active' | 'draft' | 'archived';
 export type PromoCodeStatus = 'active' | 'draft' | 'archived';
 export type NodeStatus = 'active' | 'draft' | 'archived';
@@ -1201,6 +1200,7 @@ export interface OutreachStep {
 	delay_seconds?: number;
 	variants: OutreachStepVariant[];
 	thread_mode?: OutreachThreadMode;
+	attachments?: string[];
 }
 
 export interface OutreachPersonalizationCounters {
@@ -1384,7 +1384,7 @@ export interface LeadGenerationRunCounters {
 export interface LeadGenerationRun {
 	id: string;
 	store_id: string;
-	agent_id: string;
+	integration_id: string;
 	profile_list_id?: string | null;
 	prompt: string;
 	max_leads: number;
@@ -1624,39 +1624,6 @@ export interface CustomsDeclaration {
 	certify: boolean;
 	certify_signer: string;
 	items: CustomsItem[];
-}
-
-export interface Agent {
-	id: string;
-	store_id: string;
-	key: string;
-	type: import('./api').AgentType;
-	prompt: string;
-	status: import('./api').AgentStatus;
-	model_id: string;
-	created_at: number;
-	updated_at: number;
-}
-
-export interface AgentChat {
-	id: string;
-	store_id: string;
-	agent_id: string;
-	profile_id: string;
-	status: AgentChatStatus;
-	rating?: number;
-	rating_comment?: string;
-	created_at: number;
-	updated_at: number;
-}
-
-export interface AgentChatMessage {
-	id: string;
-	store_id: string;
-	agent_id?: string;
-	chat_id?: string;
-	message: string;
-	created_at: number;
 }
 
 export interface PromoCode {

@@ -130,9 +130,6 @@ export type {
   TaxonomyField,
   TaxonomyFieldQuery,
 
-  Agent,
-  AgentChat,
-  AgentChatMessage,
   PromoCode,
 
   Profile,
@@ -193,7 +190,6 @@ export type {
   SuppressionScopeType,
   SuppressionReason,
   SuppressionSource,
-  AgentChatStatus,
   WorkflowStatus,
   PromoCodeStatus,
   NodeStatus,
@@ -251,10 +247,6 @@ export type {
   GetShippingRatesParams,
   ShipParams,
   
-  CreateAgentParams,
-  UpdateAgentParams,
-  GetAgentParams,
-  GetAgentsParams,
   CreateProfileListParams,
   UpdateProfileListParams,
   FindProfileListsParams,
@@ -304,8 +296,6 @@ export type {
   UpdateLeadGenerationLeadParams,
   ImportLeadGenerationLeadsParams,
   ValidateLeadEmailParams,
-  AgentStatus,
-  AgentType,
 } from "./types/api";
 
 export type {
@@ -383,7 +373,7 @@ export type {
   IntegrationService,
 } from "./api/platform";
 
-export const SDK_VERSION = "0.7.133";
+export const SDK_VERSION = "0.9.2";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -458,7 +448,6 @@ import { createLeadGenerationApi } from "./api/leadGeneration";
 import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
-import { createAgentApi } from "./api/agent";
 import { createEmailTemplateApi } from "./api/emailTemplate";
 import { createFormApi } from "./api/form";
 import { createTaxonomyApi } from "./api/taxonomy";
@@ -702,7 +691,6 @@ export function createAdmin(config: CreateAdminConfig) {
   };
   const locationApi = createLocationApi(apiConfig);
   const marketApi = createMarketApi(apiConfig);
-  const agentApi = createAgentApi(apiConfig);
   const workflowApi = createWorkflowApi(apiConfig);
   const formApi = createFormApi(apiConfig);
   const taxonomyApi = createTaxonomyApi(apiConfig);
@@ -829,20 +817,6 @@ export function createAdmin(config: CreateAdminConfig) {
     },
     leadGeneration,
     automation: {
-      agent: {
-        create: agentApi.createAgent,
-        update: agentApi.updateAgent,
-        delete: agentApi.deleteAgent,
-        get: agentApi.getAgent,
-        find: agentApi.getAgents,
-        sendMessage: agentApi.sendMessage,
-        getChats: agentApi.getChats,
-        getChat: agentApi.getChat,
-        updateChat: agentApi.updateChat,
-        rateChat: agentApi.rateChat,
-        getStoreChats: agentApi.getStoreChats,
-        getChatMessages: agentApi.getChatMessages,
-      },
       workflow: {
         create: workflowApi.createWorkflow,
         update: workflowApi.updateWorkflow,
@@ -1104,7 +1078,6 @@ export function createStorefront(config: CreateStorefrontConfig) {
     eshop: storefrontApi.eshop,
     crm: storefrontApi.crm,
     activity: storefrontApi.activity,
-    automation: storefrontApi.automation,
     setStoreId: (storeId: string) => {
       apiConfig.storeId = storeId;
       bareIdentifyPromise = null;

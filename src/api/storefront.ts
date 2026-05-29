@@ -23,7 +23,6 @@ import type {
   FindProfileListsParams,
   SubscribeProfileListParams,
   ProfileListAccessParams,
-  GetAgentsParams,
   GetCurrentCartParams,
   GetCartParams,
   UpdateCartParams,
@@ -50,9 +49,6 @@ import type {
   Order,
   OrderCheckoutResult,
   Product,
-  Agent,
-  AgentChat,
-  AgentChatMessage,
   Profile,
   ProfileDetail,
   Cart,
@@ -611,82 +607,5 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateProfileSession: 
     },
 
     activity: createActivityApi(apiConfig),
-
-    automation: {
-      agent: {
-        getAgents(params?: GetAgentsParams, options?: RequestOptions): Promise<PaginatedResponse<Agent>> {
-          const store_id = params?.store_id || apiConfig.storeId;
-          const queryParams: Record<string, unknown> = { ...(params || {}) };
-          delete queryParams.store_id;
-          return apiConfig.httpClient.get<PaginatedResponse<Agent>>(`${base(store_id)}/agents`, {
-            ...options,
-            params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
-          });
-        },
-
-        getAgent(params: { id: string; store_id?: string }, options?: RequestOptions): Promise<Agent> {
-          const store_id = params.store_id || apiConfig.storeId;
-          return apiConfig.httpClient.get<Agent>(
-            `${base(store_id)}/agents/${params.id}`,
-            options,
-          );
-        },
-
-        sendMessage(
-          params: { id: string; message: string; chat_id?: string; store_id?: string },
-          options?: RequestOptions,
-        ): Promise<AgentChatMessage> {
-          const store_id = params.store_id || apiConfig.storeId;
-          const body: Record<string, unknown> = { message: params.message };
-          if (params.chat_id) body.chat_id = params.chat_id;
-          return apiConfig.httpClient.post<AgentChatMessage>(
-            `${base(store_id)}/agents/${params.id}/chats/messages`,
-            body,
-            options,
-          );
-        },
-
-        getChat(
-          params: { id: string; chat_id: string; store_id?: string },
-          options?: RequestOptions,
-        ): Promise<AgentChat> {
-          const store_id = params.store_id || apiConfig.storeId;
-          return apiConfig.httpClient.get<AgentChat>(
-            `${base(store_id)}/agents/${params.id}/chats/${params.chat_id}`,
-            options,
-          );
-        },
-
-        getChatMessages(
-          params: { id: string; chat_id: string; limit?: number; store_id?: string },
-          options?: RequestOptions,
-        ): Promise<PaginatedResponse<AgentChatMessage>> {
-          const store_id = params.store_id || apiConfig.storeId;
-          const queryParams: Record<string, string> = {};
-          if (params.limit) queryParams.limit = String(params.limit);
-          return apiConfig.httpClient.get<PaginatedResponse<AgentChatMessage>>(
-            `${base(store_id)}/agents/${params.id}/chats/${params.chat_id}/messages`,
-            {
-              ...options,
-              params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
-            },
-          );
-        },
-
-        rateChat(
-          params: { id: string; chat_id: string; rating: number; comment?: string; store_id?: string },
-          options?: RequestOptions,
-        ): Promise<AgentChat> {
-          const store_id = params.store_id || apiConfig.storeId;
-          const body: Record<string, unknown> = { rating: params.rating };
-          if (params.comment) body.comment = params.comment;
-          return apiConfig.httpClient.post<AgentChat>(
-            `${base(store_id)}/agents/${params.id}/chats/${params.chat_id}/rate`,
-            body,
-            options,
-          );
-        },
-      },
-    },
   };
 };

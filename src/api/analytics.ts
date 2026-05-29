@@ -35,7 +35,7 @@ export type AnalyticsReportKey =
   | "outreach_enrollments_by_status"
   | "outreach_messages_by_status"
   | "suppressions_by_status"
-  | "agents_by_status"
+
   | "workflows_by_status"
   | "promo_codes_by_status"
   | "email_templates_by_status"
@@ -58,7 +58,6 @@ export type ActivityFeedCategory =
   | "providers"
   | "cms"
   | "workflows"
-  | "agents"
   | "activities";
 
 export interface AnalyticsReportRequest {
@@ -248,7 +247,6 @@ export interface ActivityFeedSummary {
   providers: number;
   cms: number;
   workflows: number;
-  agents: number;
   activities: number;
   window_start: number;
 }
@@ -292,7 +290,7 @@ export type AnalyticsBreakdownReportKey =
   | "outreach_enrollments_by_status"
   | "outreach_messages_by_status"
   | "suppressions_by_status"
-  | "agents_by_status"
+
   | "workflows_by_status"
   | "promo_codes_by_status"
   | "email_templates_by_status"
