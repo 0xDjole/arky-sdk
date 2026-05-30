@@ -368,6 +368,17 @@ export {
 
 export type { TimelineParams } from "./api/crm";
 export type {
+  ChatFlow,
+  ChatSession,
+  ChatMessage,
+  ChatSessionResponse,
+  ChatFlowNode,
+  ChatFlowEdge,
+  ChatAiConfig,
+  EdgeTrigger,
+  ChatAction,
+} from "./api/chat";
+export type {
   IntegrationOperation,
   IntegrationResource,
   IntegrationService,
@@ -444,6 +455,7 @@ import { createEshopApi } from "./api/eshop";
 import { createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
 import { createProfileApi } from "./api/crm";
+import { createAdminChatApi, createStorefrontChatApi } from "./api/chat";
 import { createLeadGenerationApi } from "./api/leadGeneration";
 import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
@@ -656,6 +668,7 @@ export function createAdmin(config: CreateAdminConfig) {
   const eshopApi = createEshopApi(apiConfig);
   const promoCodeApi = createPromoCodeApi(apiConfig);
   const crmApi = createProfileApi(apiConfig);
+  const chatApi = createAdminChatApi(apiConfig);
   const leadGenerationApi = createLeadGenerationApi(apiConfig);
   const leadGeneration = {
     run: {
@@ -827,6 +840,7 @@ export function createAdmin(config: CreateAdminConfig) {
         getExecutions: workflowApi.getWorkflowExecutions,
         getExecution: workflowApi.getWorkflowExecution,
       },
+      chat: chatApi,
     },
 
     analytics: analyticsApi,
@@ -1078,6 +1092,7 @@ export function createStorefront(config: CreateStorefrontConfig) {
     eshop: storefrontApi.eshop,
     crm: storefrontApi.crm,
     activity: storefrontApi.activity,
+    chat: createStorefrontChatApi(apiConfig),
     setStoreId: (storeId: string) => {
       apiConfig.storeId = storeId;
       bareIdentifyPromise = null;
