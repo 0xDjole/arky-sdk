@@ -1335,7 +1335,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
       },
       state: atom<Activity | null>(null),
     },
-    chat: client.chat,
+    supportChat: client.supportChat,
     store: client.store,
     utils: client.utils,
   };

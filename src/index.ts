@@ -368,16 +368,16 @@ export {
 
 export type { TimelineParams } from "./api/crm";
 export type {
-  ChatFlow,
-  ChatSession,
-  ChatMessage,
-  ChatSessionResponse,
-  ChatFlowNode,
-  ChatFlowEdge,
-  ChatAiConfig,
+  SupportChatFlow,
+  SupportChatSession,
+  SupportChatMessage,
+  SupportChatSessionResponse,
+  SupportChatFlowNode,
+  SupportChatFlowEdge,
+  SupportChatAiConfig,
   EdgeTrigger,
-  ChatAction,
-} from "./api/chat";
+  SupportChatAction,
+} from "./api/supportChat";
 export type {
   IntegrationOperation,
   IntegrationResource,
@@ -455,7 +455,7 @@ import { createEshopApi } from "./api/eshop";
 import { createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
 import { createProfileApi } from "./api/crm";
-import { createAdminChatApi, createStorefrontChatApi } from "./api/chat";
+import { createAdminSupportChatApi, createStorefrontSupportChatApi } from "./api/supportChat";
 import { createLeadGenerationApi } from "./api/leadGeneration";
 import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
@@ -668,7 +668,7 @@ export function createAdmin(config: CreateAdminConfig) {
   const eshopApi = createEshopApi(apiConfig);
   const promoCodeApi = createPromoCodeApi(apiConfig);
   const crmApi = createProfileApi(apiConfig);
-  const chatApi = createAdminChatApi(apiConfig);
+  const supportChatApi = createAdminSupportChatApi(apiConfig);
   const leadGenerationApi = createLeadGenerationApi(apiConfig);
   const leadGeneration = {
     run: {
@@ -840,7 +840,7 @@ export function createAdmin(config: CreateAdminConfig) {
         getExecutions: workflowApi.getWorkflowExecutions,
         getExecution: workflowApi.getWorkflowExecution,
       },
-      chat: chatApi,
+      supportChat: supportChatApi,
     },
 
     analytics: analyticsApi,
@@ -1092,7 +1092,7 @@ export function createStorefront(config: CreateStorefrontConfig) {
     eshop: storefrontApi.eshop,
     crm: storefrontApi.crm,
     activity: storefrontApi.activity,
-    chat: createStorefrontChatApi(apiConfig),
+    supportChat: createStorefrontSupportChatApi(apiConfig),
     setStoreId: (storeId: string) => {
       apiConfig.storeId = storeId;
       bareIdentifyPromise = null;
