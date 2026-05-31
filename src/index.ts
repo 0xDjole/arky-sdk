@@ -377,6 +377,7 @@ export type {
   SupportChatAiConfig,
   EdgeTrigger,
   SupportChatAction,
+  ReplySupportChatSessionParams,
 } from "./api/supportChat";
 export type {
   IntegrationOperation,

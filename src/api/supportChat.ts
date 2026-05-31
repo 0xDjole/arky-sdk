@@ -68,7 +68,7 @@ export interface SupportChatMessage {
   id: string;
   store_id: string;
   session_id: string;
-  role: "system" | "user" | "assistant" | "activity";
+  role: "system" | "user" | "assistant" | "staff" | "activity";
   content: string;
   buttons?: string[];
   metadata: Record<string, unknown>;
@@ -90,6 +90,13 @@ export interface SendSupportChatMessageParams {
   store_id: string;
   session_id: string;
   input: { type: "button"; label: string } | { type: "text"; content: string };
+}
+
+export interface ReplySupportChatSessionParams {
+  store_id: string;
+  session_id: string;
+  content: string;
+  resolve?: boolean;
 }
 
 export interface GetSupportChatSessionParams {
@@ -249,6 +256,17 @@ export function createAdminSupportChatApi(config: ApiConfig) {
       ): Promise<SupportChatSessionResponse> {
         return httpClient.post(
           `/v1/stores/${params.store_id}/support-chat/sessions/${params.session_id}/messages`,
+          params,
+          opts
+        );
+      },
+
+      async reply(
+        params: ReplySupportChatSessionParams,
+        opts?: RequestOptions
+      ): Promise<SupportChatSessionResponse> {
+        return httpClient.post(
+          `/v1/stores/${params.store_id}/support-chat/sessions/${params.session_id}/reply`,
           params,
           opts
         );

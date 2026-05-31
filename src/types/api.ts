@@ -1559,6 +1559,7 @@ export interface GenerateOutreachPersonalizedDraftsParams {
   id: string;
   store_id?: string;
   step_position?: number;
+  profile_ids?: string[];
   overwrite?: boolean;
   model_integration_id?: string;
   instructions?: string;

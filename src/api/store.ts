@@ -151,7 +151,7 @@ export const createStoreApi = (apiConfig: ApiConfig, _updateSession: AdminSessio
         limit: params.limit,
       };
       if (params.cursor) queryParams.cursor = params.cursor;
-      if (params.ids && params.ids.length > 0) queryParams.ids = params.ids.join(',');
+      if (params.ids && params.ids.length > 0) queryParams.ids = JSON.stringify(params.ids);
       if (params.query) queryParams.query = params.query;
       if (params.mime_type) queryParams.mime_type = params.mime_type;
       if (params.sort_field) queryParams.sort_field = params.sort_field;

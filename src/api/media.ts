@@ -60,7 +60,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
 
             const queryParams: Record<string, string> = { limit: String(limit) };
             if (cursor) queryParams.cursor = cursor;
-            if (ids && ids.length > 0) queryParams.ids = ids.join(',');
+            if (ids && ids.length > 0) queryParams.ids = JSON.stringify(ids);
             if (query) queryParams.query = query;
             if (mime_type) queryParams.mime_type = mime_type;
             if (sort_field) queryParams.sort_field = sort_field;

@@ -1215,6 +1215,7 @@ export interface OutreachPersonalizationState {
 	status: OutreachPersonalizationStatus;
 	model_integration_id?: string | null;
 	step_position?: number | null;
+	profile_ids: string[];
 	overwrite: boolean;
 	instructions?: string | null;
 	error?: string | null;
