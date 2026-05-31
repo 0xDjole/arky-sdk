@@ -1298,6 +1298,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
     setMarket,
     setLocale,
     setContext,
+    getStoreId: client.getStoreId,
     getMarket: currentMarketKey,
     getLocale: currentLocale,
     cms: {
