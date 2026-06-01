@@ -1511,7 +1511,6 @@ export interface CreateOutreachCampaignParams {
   store_id?: string;
   key: string;
   name?: string;
-  profile_list_id: string;
   mailbox_ids: string[];
   steps: OutreachStep[];
 }
@@ -1521,7 +1520,6 @@ export interface UpdateOutreachCampaignParams {
   store_id?: string;
   key?: string;
   name?: string;
-  profile_list_id?: string;
   mailbox_ids?: string[];
   status?: OutreachCampaignStatus;
   steps?: OutreachStep[];
@@ -1531,7 +1529,6 @@ export interface FindOutreachCampaignsParams {
   store_id?: string;
   ids?: string[];
   status?: OutreachCampaignStatus;
-  profile_list_id?: string;
   mailbox_id?: string;
   query?: string | number;
   limit?: number;
@@ -1553,6 +1550,19 @@ export interface LaunchOutreachCampaignParams {
 export interface GetOutreachCampaignLaunchReadinessParams {
   id: string;
   store_id?: string;
+}
+
+export interface ImportOutreachCampaignRecipientsParams {
+  id: string;
+  store_id?: string;
+  profile_list_id: string;
+}
+
+export interface OutreachCampaignRecipientImportResult {
+  imported_count: number;
+  existing_count: number;
+  skipped_count: number;
+  draft_count: number;
 }
 
 export interface GenerateOutreachPersonalizedDraftsParams {

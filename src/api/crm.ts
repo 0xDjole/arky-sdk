@@ -36,6 +36,8 @@ import type {
   GetOutreachCampaignParams,
   LaunchOutreachCampaignParams,
   GetOutreachCampaignLaunchReadinessParams,
+  ImportOutreachCampaignRecipientsParams,
+  OutreachCampaignRecipientImportResult,
   GenerateOutreachPersonalizedDraftsParams,
   FindOutreachEnrollmentsParams,
   FindOutreachMessagesParams,
@@ -412,6 +414,19 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
         const target_store_id = params.store_id || apiConfig.storeId;
         return apiConfig.httpClient.get<OutreachCampaignLaunchReadiness>(
           `/v1/stores/${target_store_id}/outreach-campaigns/${params.id}/launch-readiness`,
+          options,
+        );
+      },
+
+      async importRecipients(
+        params: ImportOutreachCampaignRecipientsParams,
+        options?: RequestOptions,
+      ): Promise<OutreachCampaignRecipientImportResult> {
+        const { id, store_id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<OutreachCampaignRecipientImportResult>(
+          `/v1/stores/${target_store_id}/outreach-campaigns/${id}/recipients/import`,
+          payload,
           options,
         );
       },

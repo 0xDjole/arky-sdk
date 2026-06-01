@@ -1229,7 +1229,6 @@ export interface OutreachCampaign {
 	store_id: string;
 	key: string;
 	name: string;
-	profile_list_id: string;
 	mailbox_ids: string[];
 	status: OutreachCampaignStatus;
 	steps: OutreachStep[];
@@ -1258,6 +1257,13 @@ export interface OutreachCampaignLaunchReadiness {
 	personalization_errors: number;
 	stale_drafts: number;
 	suppression_count: number;
+}
+
+export interface OutreachCampaignRecipientImportResult {
+	imported_count: number;
+	existing_count: number;
+	skipped_count: number;
+	draft_count: number;
 }
 
 export interface OutreachEnrollment {
