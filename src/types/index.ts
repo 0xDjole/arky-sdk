@@ -1270,9 +1270,10 @@ export interface OutreachEnrollment {
 	id: string;
 	store_id: string;
 	outreach_campaign_id: string;
-	profile_list_id: string;
 	profile_id: string;
 	mailbox_id?: string | null;
+	lead_description?: string | null;
+	fields: Record<string, unknown>;
 	status: OutreachEnrollmentStatus;
 	current_step_position: number;
 	next_send_at?: number | null;
@@ -1351,7 +1352,7 @@ export interface Suppression {
 	updated_at: number;
 }
 
-export type LeadGenerationRunStatus =
+export type LeadGenerationThreadStatus =
 	| 'draft'
 	| 'running'
 	| 'needs_review'
@@ -1360,7 +1361,7 @@ export type LeadGenerationRunStatus =
 	| 'failed'
 	| 'cancelled';
 
-export type LeadGenerationLeadStatus =
+export type LeadStatus =
 	| 'accepted'
 	| 'needs_review'
 	| 'rejected'
@@ -1376,28 +1377,13 @@ export type LeadEmailClassification =
 
 export type LeadValidationCheckStatus = 'passed' | 'warning' | 'failed' | 'unknown';
 
-export interface LeadGenerationRunCounters {
-	searched_queries: number;
-	discovered_domains: number;
-	crawled_pages: number;
-	extracted_emails: number;
-	validated_emails: number;
-	accepted_leads: number;
-	review_leads: number;
-	rejected_leads: number;
-	imported_leads: number;
-}
-
-export interface LeadGenerationRun {
+export interface LeadGenerationThread {
 	id: string;
 	store_id: string;
 	integration_id: string;
-	profile_list_id?: string | null;
-	prompt: string;
-	max_leads: number;
-	status: LeadGenerationRunStatus;
+	title?: string | null;
+	status: LeadGenerationThreadStatus;
 	error?: string | null;
-	counters: LeadGenerationRunCounters;
 	started_at?: number | null;
 	completed_at?: number | null;
 	created_at: number;
@@ -1421,11 +1407,10 @@ export interface LeadEmailValidationResult {
 	checks: LeadValidationCheck[];
 }
 
-export interface LeadGenerationLead {
+export interface Lead {
 	id: string;
 	store_id: string;
-	run_id: string;
-	profile_list_id?: string | null;
+	thread_id: string;
 	company_name?: string | null;
 	contact_name?: string | null;
 	website_url?: string | null;
@@ -1437,7 +1422,7 @@ export interface LeadGenerationLead {
 	confidence: number;
 	validation_checks: LeadValidationCheck[];
 	hard_blockers: string[];
-	status: LeadGenerationLeadStatus;
+	status: LeadStatus;
 	profile_id?: string | null;
 	import_error?: string | null;
 	fields: Record<string, unknown>;
@@ -1445,7 +1430,7 @@ export interface LeadGenerationLead {
 	updated_at: number;
 }
 
-export interface ImportLeadGenerationLeadsResult {
+export interface ImportLeadsResult {
 	imported: number;
 	failed: number;
 	skipped: number;
@@ -1454,17 +1439,17 @@ export interface ImportLeadGenerationLeadsResult {
 	skipped_reasons: string[];
 }
 
-export interface LeadResearchMessage {
+export interface LeadGenerationMessage {
 	id: string;
 	role: string;
 	content: string;
 	created_at: number;
 }
 
-export interface SendLeadResearchMessageResult {
+export interface SendLeadGenerationMessageResult {
 	response: string;
-	run: LeadGenerationRun;
-	leads: LeadGenerationLead[];
+	thread: LeadGenerationThread;
+	leads: Lead[];
 }
 
 export type EventAction =

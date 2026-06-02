@@ -136,6 +136,7 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
       const store_id = params?.store_id || apiConfig.storeId;
       const queryParams: Record<string, unknown> = {};
 
+      if (params?.ids && params.ids.length > 0) queryParams.ids = JSON.stringify(params.ids);
       if (params?.limit !== undefined) queryParams.limit = params.limit;
       if (params?.cursor) queryParams.cursor = params.cursor;
       if (params?.query) queryParams.query = params.query;

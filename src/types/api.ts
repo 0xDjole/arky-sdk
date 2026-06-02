@@ -48,7 +48,7 @@ import type {
   SuppressionStatus,
   SuppressionReason,
   SuppressionSource,
-  LeadGenerationLeadStatus,
+  LeadStatus,
 } from "./index";
 
 
@@ -1662,78 +1662,80 @@ export interface GetSuppressionParams {
   store_id?: string;
 }
 
-export interface CreateLeadGenerationRunParams {
+export interface CreateLeadGenerationThreadParams {
   store_id?: string;
   integration_id: string;
-  prompt: string;
-  max_leads?: number;
-  profile_list_id?: string;
+  title?: string;
 }
 
-export interface FindLeadGenerationRunsParams {
+export interface FindLeadGenerationThreadsParams {
   store_id?: string;
   limit?: number;
   cursor?: string;
 }
 
-export interface GetLeadGenerationRunParams {
+export interface GetLeadGenerationThreadParams {
   id: string;
   store_id?: string;
 }
 
-export interface CancelLeadGenerationRunParams {
+export interface CancelLeadGenerationThreadParams {
   id: string;
   store_id?: string;
 }
 
-export interface SendLeadResearchMessageParams {
+export interface SendLeadGenerationMessageParams {
   id: string;
   store_id?: string;
   message: string;
 }
 
-export interface FindLeadResearchMessagesParams {
+export interface FindLeadGenerationMessagesParams {
   id: string;
   store_id?: string;
   limit?: number;
 }
 
-interface LeadGenerationRunScope {
+interface LeadGenerationThreadScope {
   store_id?: string;
-  status?: LeadGenerationLeadStatus;
+  status?: LeadStatus;
   limit?: number;
   cursor?: string;
 }
 
-export type FindLeadGenerationLeadsParams =
-  | (LeadGenerationRunScope & { run_id: string; id?: never })
-  | (LeadGenerationRunScope & {
-      /** @deprecated Use run_id. */
+export type FindLeadsParams =
+  | (LeadGenerationThreadScope & { thread_id: string; run_id?: never; id?: never })
+  | (LeadGenerationThreadScope & { run_id: string; thread_id?: never; id?: never })
+  | (LeadGenerationThreadScope & {
+      /** @deprecated Use thread_id. */
       id: string;
+      thread_id?: never;
       run_id?: never;
     });
 
-export interface UpdateLeadGenerationLeadParams {
+export interface UpdateLeadParams {
   id: string;
   store_id?: string;
-  status?: LeadGenerationLeadStatus;
+  status?: LeadStatus;
   company_name?: string;
   contact_name?: string;
   website_url?: string;
   fields?: Record<string, unknown>;
 }
 
-interface ImportLeadGenerationLeadsBaseParams {
+interface ImportLeadsBaseParams {
   store_id?: string;
-  profile_list_id?: string;
+  profile_list_id: string;
   lead_ids: string[];
 }
 
-export type ImportLeadGenerationLeadsParams =
-  | (ImportLeadGenerationLeadsBaseParams & { run_id: string; id?: never })
-  | (ImportLeadGenerationLeadsBaseParams & {
-      /** @deprecated Use run_id. */
+export type ImportLeadsParams =
+  | (ImportLeadsBaseParams & { thread_id: string; run_id?: never; id?: never })
+  | (ImportLeadsBaseParams & { run_id: string; thread_id?: never; id?: never })
+  | (ImportLeadsBaseParams & {
+      /** @deprecated Use thread_id. */
       id: string;
+      thread_id?: never;
       run_id?: never;
     });
 
@@ -1918,6 +1920,7 @@ export interface GetProfileParams {
 
 export interface FindProfilesParams {
   store_id?: string;
+  ids?: string[];
 
   query?: string | number;
   taxonomy_query?: TaxonomyQuery[];
