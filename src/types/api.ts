@@ -40,7 +40,7 @@ import type {
   MailboxStatus,
   MailboxProvider,
   OutreachCampaignStatus,
-  OutreachEnrollmentStatus,
+  CampaignRecipientStatus,
   OutreachMessageStatus,
   OutreachMessageCopySource,
   OutreachMessageReviewStatus,
@@ -48,7 +48,6 @@ import type {
   SuppressionStatus,
   SuppressionReason,
   SuppressionSource,
-  LeadStatus,
 } from "./index";
 
 
@@ -1311,6 +1310,15 @@ export interface AddProfileListProfileParams {
   lead_description?: string | null;
 }
 
+export interface UpdateProfileListProfileParams {
+  store_id?: string;
+  profile_list_id: string;
+  profile_id: string;
+  status?: ProfileListMembershipStatus;
+  fields?: Record<string, unknown>;
+  lead_description?: string | null;
+}
+
 export interface RemoveProfileListProfileParams {
   store_id?: string;
   profile_list_id: string;
@@ -1319,7 +1327,8 @@ export interface RemoveProfileListProfileParams {
 
 export interface FindProfileListProfilesParams {
   store_id?: string;
-  profile_list_id: string;
+  profile_list_id?: string;
+  profile_id?: string;
   status?: ProfileListMembershipStatus;
   limit?: number;
   cursor?: string;
@@ -1575,11 +1584,11 @@ export interface GenerateOutreachPersonalizedDraftsParams {
   instructions?: string;
 }
 
-export interface FindOutreachEnrollmentsParams {
+export interface FindCampaignRecipientsParams {
   store_id?: string;
   outreach_campaign_id?: string;
   profile_id?: string;
-  status?: OutreachEnrollmentStatus;
+  status?: CampaignRecipientStatus;
   limit?: number;
   cursor?: string;
 }
@@ -1587,7 +1596,7 @@ export interface FindOutreachEnrollmentsParams {
 export interface FindOutreachMessagesParams {
   store_id?: string;
   outreach_campaign_id?: string;
-  outreach_enrollment_id?: string;
+  campaign_recipient_id?: string;
   profile_id?: string;
   mailbox_id?: string;
   status?: OutreachMessageStatus;
@@ -1617,7 +1626,7 @@ export interface RespondToOutreachReplyParams {
 export interface FindOutreachRepliesParams {
   store_id?: string;
   outreach_campaign_id?: string;
-  outreach_enrollment_id?: string;
+  campaign_recipient_id?: string;
   outreach_message_id?: string;
   profile_id?: string;
   mailbox_id?: string;
@@ -1679,6 +1688,12 @@ export interface GetLeadGenerationThreadParams {
   store_id?: string;
 }
 
+export interface UpdateLeadGenerationThreadParams {
+  id: string;
+  store_id?: string;
+  integration_id: string;
+}
+
 export interface CancelLeadGenerationThreadParams {
   id: string;
   store_id?: string;
@@ -1695,49 +1710,6 @@ export interface FindLeadGenerationMessagesParams {
   store_id?: string;
   limit?: number;
 }
-
-interface LeadGenerationThreadScope {
-  store_id?: string;
-  status?: LeadStatus;
-  limit?: number;
-  cursor?: string;
-}
-
-export type FindLeadsParams =
-  | (LeadGenerationThreadScope & { thread_id: string; run_id?: never; id?: never })
-  | (LeadGenerationThreadScope & { run_id: string; thread_id?: never; id?: never })
-  | (LeadGenerationThreadScope & {
-      /** @deprecated Use thread_id. */
-      id: string;
-      thread_id?: never;
-      run_id?: never;
-    });
-
-export interface UpdateLeadParams {
-  id: string;
-  store_id?: string;
-  status?: LeadStatus;
-  company_name?: string;
-  contact_name?: string;
-  website_url?: string;
-  fields?: Record<string, unknown>;
-}
-
-interface ImportLeadsBaseParams {
-  store_id?: string;
-  profile_list_id: string;
-  lead_ids: string[];
-}
-
-export type ImportLeadsParams =
-  | (ImportLeadsBaseParams & { thread_id: string; run_id?: never; id?: never })
-  | (ImportLeadsBaseParams & { run_id: string; thread_id?: never; id?: never })
-  | (ImportLeadsBaseParams & {
-      /** @deprecated Use thread_id. */
-      id: string;
-      thread_id?: never;
-      run_id?: never;
-    });
 
 export interface ValidateLeadEmailParams {
   store_id?: string;

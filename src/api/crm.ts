@@ -18,6 +18,7 @@ import type {
   FindProfileListsParams,
   GetProfileListParams,
   AddProfileListProfileParams,
+  UpdateProfileListProfileParams,
   RemoveProfileListProfileParams,
   FindProfileListProfilesParams,
   ImportProfileListPreviewParams,
@@ -39,7 +40,7 @@ import type {
   ImportOutreachCampaignRecipientsParams,
   OutreachCampaignRecipientImportResult,
   GenerateOutreachPersonalizedDraftsParams,
-  FindOutreachEnrollmentsParams,
+  FindCampaignRecipientsParams,
   FindOutreachMessagesParams,
   UpdateOutreachMessageParams,
   RespondToOutreachReplyParams,
@@ -53,11 +54,12 @@ import type {
   Mailbox,
   OutreachCampaign,
   OutreachCampaignLaunchReadiness,
-  OutreachEnrollment,
+  CampaignRecipient,
   OutreachMessage,
   OutreachReply,
   PaginatedResponse,
   ProfileList,
+  ProfileListMember,
   Suppression,
 } from "../types";
 
@@ -274,13 +276,23 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      profiles: {
-        async add(params: AddProfileListProfileParams, options?: RequestOptions): Promise<Profile> {
+      members: {
+        async add(params: AddProfileListProfileParams, options?: RequestOptions): Promise<ProfileListMember> {
           const { store_id, profile_list_id, profile_id, fields, lead_description } = params;
           const target_store_id = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.post<Profile>(
-            `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/profiles/${profile_id}`,
+          return apiConfig.httpClient.post<ProfileListMember>(
+            `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/members/${profile_id}`,
             { fields, lead_description },
+            options,
+          );
+        },
+
+        async update(params: UpdateProfileListProfileParams, options?: RequestOptions): Promise<ProfileListMember> {
+          const { store_id, profile_list_id, profile_id, status, fields, lead_description } = params;
+          const target_store_id = store_id || apiConfig.storeId;
+          return apiConfig.httpClient.patch<ProfileListMember>(
+            `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/members/${profile_id}`,
+            { status, fields, lead_description },
             options,
           );
         },
@@ -288,16 +300,57 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
         async remove(params: RemoveProfileListProfileParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
           const target_store_id = params.store_id || apiConfig.storeId;
           return apiConfig.httpClient.delete<{ deleted: boolean }>(
-            `/v1/stores/${target_store_id}/profile-lists/${params.profile_list_id}/profiles/${params.profile_id}`,
+            `/v1/stores/${target_store_id}/profile-lists/${params.profile_list_id}/members/${params.profile_id}`,
             options,
           );
         },
 
-        async find(params: FindProfileListProfilesParams, options?: RequestOptions): Promise<PaginatedResponse<Profile>> {
+        async find(params: FindProfileListProfilesParams, options?: RequestOptions): Promise<PaginatedResponse<ProfileListMember>> {
           const { store_id, profile_list_id, ...queryParams } = params;
           const target_store_id = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.get<PaginatedResponse<Profile>>(
-            `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/profiles`,
+          const path = profile_list_id
+            ? `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/members`
+            : `/v1/stores/${target_store_id}/profile-list-members`;
+          return apiConfig.httpClient.get<PaginatedResponse<ProfileListMember>>(
+            path,
+            { ...options, params: queryParams },
+          );
+        },
+      },
+      profiles: {
+        async add(params: AddProfileListProfileParams, options?: RequestOptions): Promise<ProfileListMember> {
+          const { store_id, profile_list_id, profile_id, fields, lead_description } = params;
+          const target_store_id = store_id || apiConfig.storeId;
+          return apiConfig.httpClient.post<ProfileListMember>(
+            `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/members/${profile_id}`,
+            { fields, lead_description },
+            options,
+          );
+        },
+        async update(params: UpdateProfileListProfileParams, options?: RequestOptions): Promise<ProfileListMember> {
+          const { store_id, profile_list_id, profile_id, status, fields, lead_description } = params;
+          const target_store_id = store_id || apiConfig.storeId;
+          return apiConfig.httpClient.patch<ProfileListMember>(
+            `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/members/${profile_id}`,
+            { status, fields, lead_description },
+            options,
+          );
+        },
+        async remove(params: RemoveProfileListProfileParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
+          const target_store_id = params.store_id || apiConfig.storeId;
+          return apiConfig.httpClient.delete<{ deleted: boolean }>(
+            `/v1/stores/${target_store_id}/profile-lists/${params.profile_list_id}/members/${params.profile_id}`,
+            options,
+          );
+        },
+        async find(params: FindProfileListProfilesParams, options?: RequestOptions): Promise<PaginatedResponse<ProfileListMember>> {
+          const { store_id, profile_list_id, ...queryParams } = params;
+          const target_store_id = store_id || apiConfig.storeId;
+          const path = profile_list_id
+            ? `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/members`
+            : `/v1/stores/${target_store_id}/profile-list-members`;
+          return apiConfig.httpClient.get<PaginatedResponse<ProfileListMember>>(
+            path,
             { ...options, params: queryParams },
           );
         },
@@ -443,12 +496,12 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
       },
     },
 
-    outreachEnrollment: {
-      async find(params?: FindOutreachEnrollmentsParams, options?: RequestOptions): Promise<PaginatedResponse<OutreachEnrollment>> {
+    campaignRecipient: {
+      async find(params?: FindCampaignRecipientsParams, options?: RequestOptions): Promise<PaginatedResponse<CampaignRecipient>> {
         const { store_id, ...queryParams } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<PaginatedResponse<OutreachEnrollment>>(
-          `/v1/stores/${target_store_id}/outreach-enrollments`,
+        return apiConfig.httpClient.get<PaginatedResponse<CampaignRecipient>>(
+          `/v1/stores/${target_store_id}/outreach-campaign-recipients`,
           { ...options, params: queryParams },
         );
       },

@@ -32,7 +32,7 @@ export type AnalyticsReportKey =
   | "profile_lists_by_status"
   | "mailboxes_by_status"
   | "outreach_campaigns_by_status"
-  | "outreach_enrollments_by_status"
+  | "campaign_recipients_by_status"
   | "outreach_messages_by_status"
   | "suppressions_by_status"
 
@@ -148,13 +148,13 @@ export interface OutreachOverviewData {
   active_mailboxes: number;
   outreach_campaigns: number;
   active_outreach_campaigns: number;
-  outreach_enrollments: number;
-  new_outreach_enrollments: number;
-  active_outreach_enrollments: number;
-  completed_outreach_enrollments: number;
-  replied_outreach_enrollments: number;
-  suppressed_outreach_enrollments: number;
-  failed_outreach_enrollments: number;
+  campaign_recipients: number;
+  new_campaign_recipients: number;
+  active_campaign_recipients: number;
+  completed_campaign_recipients: number;
+  replied_campaign_recipients: number;
+  suppressed_campaign_recipients: number;
+  failed_campaign_recipients: number;
   outreach_messages_sent: number;
   outreach_bounces: number;
   outreach_replies: number;
@@ -170,7 +170,7 @@ export interface OutreachFunnelStage {
   key:
     | "profile_lists"
     | "outreach_campaigns"
-    | "outreach_enrollments"
+    | "campaign_recipients"
     | "outreach_messages_sent"
     | "outreach_bounces"
     | "outreach_replies"
@@ -287,7 +287,7 @@ export type AnalyticsBreakdownReportKey =
   | "profile_lists_by_status"
   | "mailboxes_by_status"
   | "outreach_campaigns_by_status"
-  | "outreach_enrollments_by_status"
+  | "campaign_recipients_by_status"
   | "outreach_messages_by_status"
   | "suppressions_by_status"
 

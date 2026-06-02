@@ -192,12 +192,13 @@ export function createAdminSupportChatApi(config: ApiConfig) {
       },
 
       async find(
-        params: { store_id: string; status?: string; limit?: number },
+        params: { store_id: string; status?: string; limit?: number; cursor?: string },
         opts?: RequestOptions
       ): Promise<{ items: SupportChatFlow[]; cursor?: string }> {
         const qs = new URLSearchParams({ store_id: params.store_id });
         if (params.status) qs.set("status", params.status);
         if (params.limit) qs.set("limit", String(params.limit));
+        if (params.cursor) qs.set("cursor", params.cursor);
         return httpClient.get(
           `/v1/stores/${params.store_id}/support-chat/flows?${qs}`,
           opts
@@ -228,12 +229,14 @@ export function createAdminSupportChatApi(config: ApiConfig) {
 
     session: {
       async find(
-        params: { store_id: string; status?: string; limit?: number },
+        params: { store_id: string; status?: string; flow_id?: string; limit?: number; cursor?: string },
         opts?: RequestOptions
       ): Promise<{ items: SupportChatSession[]; cursor?: string }> {
         const qs = new URLSearchParams({ store_id: params.store_id });
         if (params.status) qs.set("status", params.status);
+        if (params.flow_id) qs.set("flow_id", params.flow_id);
         if (params.limit) qs.set("limit", String(params.limit));
+        if (params.cursor) qs.set("cursor", params.cursor);
         return httpClient.get(
           `/v1/stores/${params.store_id}/support-chat/sessions?${qs}`,
           opts

@@ -803,7 +803,13 @@ export type ProviderStatus = 'active' | 'draft' | 'archived';
 export type ProductStatus = 'active' | 'draft' | 'archived';
 export type ProfileStatus = 'active' | 'archived';
 export type ProfileListStatus = 'active' | 'draft' | 'archived';
-export type ProfileListSource = 'manual' | 'import' | 'signup' | 'admin' | 'system';
+export type ProfileListSource =
+	| 'manual'
+	| 'import'
+	| 'signup'
+	| 'admin'
+	| 'system'
+	| 'lead_research';
 export type ProfileListMembershipStatus =
 	| 'pending'
 	| 'active'
@@ -836,7 +842,7 @@ export type SmtpImapMailboxProvider = {
 };
 export type MailboxProvider = { type: 'fake' } | SmtpImapMailboxProvider;
 export type OutreachCampaignStatus = 'draft' | 'active' | 'paused' | 'completed' | 'archived';
-export type OutreachEnrollmentStatus =
+export type CampaignRecipientStatus =
 	| 'pending'
 	| 'active'
 	| 'replied'
@@ -1128,6 +1134,39 @@ export type ProfileListType =
 	| { type: 'confirmation'; confirm_template_id?: string | null }
 	| { type: 'paid'; prices: SubscriptionPrice[]; payment_integration_id?: string | null };
 
+export interface ProfileAuthToken {
+	id: string;
+	token: string;
+	created_at: number;
+}
+
+export interface ProfileVerificationCode {
+	code: string;
+	created_at: number;
+	used: boolean;
+	store_id?: string | null;
+}
+
+export interface PromoUsage {
+	promo_code_id: string;
+	uses: number;
+}
+
+export interface Profile {
+	id: string;
+	store_id: string;
+	email: string | null;
+	verified: boolean;
+	status: ProfileStatus;
+	promo_usage: PromoUsage[];
+	lists: ProfileListMembership[];
+	taxonomies: TaxonomyEntry[];
+	auth_tokens: ProfileAuthToken[];
+	verification_codes: ProfileVerificationCode[];
+	created_at: number;
+	updated_at: number;
+}
+
 export interface ProfileListAccessResponse {
 	has_access: boolean;
 	membership?: ProfileListMembership | null;
@@ -1153,6 +1192,9 @@ export interface ProfileList {
 }
 
 export interface ProfileListMembership {
+	id: string;
+	store_id: string;
+	profile_id: string;
 	profile_list_id: string;
 	source: ProfileListSource;
 	fields: Record<string, unknown>;
@@ -1166,6 +1208,11 @@ export interface ProfileListMembership {
 	token: string;
 	created_at: number;
 	updated_at: number;
+}
+
+export interface ProfileListMember {
+	profile: Profile;
+	membership: ProfileListMembership;
 }
 
 export interface Mailbox {
@@ -1266,15 +1313,16 @@ export interface OutreachCampaignRecipientImportResult {
 	draft_count: number;
 }
 
-export interface OutreachEnrollment {
+export interface CampaignRecipient {
 	id: string;
 	store_id: string;
 	outreach_campaign_id: string;
 	profile_id: string;
+	profile_list_membership_id?: string | null;
 	mailbox_id?: string | null;
 	lead_description?: string | null;
 	fields: Record<string, unknown>;
-	status: OutreachEnrollmentStatus;
+	status: CampaignRecipientStatus;
 	current_step_position: number;
 	next_send_at?: number | null;
 	replied_at?: number | null;
@@ -1287,7 +1335,7 @@ export interface OutreachMessage {
 	id: string;
 	store_id: string;
 	outreach_campaign_id: string;
-	outreach_enrollment_id: string;
+	campaign_recipient_id: string;
 	profile_id: string;
 	mailbox_id: string;
 	kind: OutreachMessageKind;
@@ -1320,7 +1368,7 @@ export interface OutreachReply {
 	id: string;
 	store_id: string;
 	outreach_campaign_id: string;
-	outreach_enrollment_id: string;
+	campaign_recipient_id: string;
 	outreach_message_id: string;
 	profile_id: string;
 	mailbox_id: string;
@@ -1361,12 +1409,6 @@ export type LeadGenerationThreadStatus =
 	| 'failed'
 	| 'cancelled';
 
-export type LeadStatus =
-	| 'accepted'
-	| 'needs_review'
-	| 'rejected'
-	| 'imported';
-
 export type LeadEmailClassification =
 	| 'official_domain'
 	| 'role_official'
@@ -1381,6 +1423,7 @@ export interface LeadGenerationThread {
 	id: string;
 	store_id: string;
 	integration_id: string;
+	profile_list_id: string;
 	title?: string | null;
 	status: LeadGenerationThreadStatus;
 	error?: string | null;
@@ -1407,38 +1450,6 @@ export interface LeadEmailValidationResult {
 	checks: LeadValidationCheck[];
 }
 
-export interface Lead {
-	id: string;
-	store_id: string;
-	thread_id: string;
-	company_name?: string | null;
-	contact_name?: string | null;
-	website_url?: string | null;
-	email: string;
-	normalized_email: string;
-	email_source_url: string;
-	source_excerpt?: string | null;
-	classification: LeadEmailClassification;
-	confidence: number;
-	validation_checks: LeadValidationCheck[];
-	hard_blockers: string[];
-	status: LeadStatus;
-	profile_id?: string | null;
-	import_error?: string | null;
-	fields: Record<string, unknown>;
-	created_at: number;
-	updated_at: number;
-}
-
-export interface ImportLeadsResult {
-	imported: number;
-	failed: number;
-	skipped: number;
-	profile_list_id?: string | null;
-	errors: string[];
-	skipped_reasons: string[];
-}
-
 export interface LeadGenerationMessage {
 	id: string;
 	role: string;
@@ -1446,10 +1457,15 @@ export interface LeadGenerationMessage {
 	created_at: number;
 }
 
+export interface ResearchAudienceMember {
+	profile: Profile;
+	membership: ProfileListMembership;
+}
+
 export interface SendLeadGenerationMessageResult {
 	response: string;
 	thread: LeadGenerationThread;
-	leads: Lead[];
+	audience_members: ResearchAudienceMember[];
 }
 
 export type EventAction =
