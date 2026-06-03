@@ -31,20 +31,23 @@ import type {
   PrepareMailboxParams,
   TestMailboxParams,
   TestMailboxResult,
-  CreateOutreachCampaignParams,
-  UpdateOutreachCampaignParams,
-  FindOutreachCampaignsParams,
-  GetOutreachCampaignParams,
-  LaunchOutreachCampaignParams,
-  GetOutreachCampaignLaunchReadinessParams,
-  ImportOutreachCampaignRecipientsParams,
-  OutreachCampaignRecipientImportResult,
+  CreateCampaignParams,
+  UpdateCampaignParams,
+  FindCampaignsParams,
+  GetCampaignParams,
+  LaunchCampaignParams,
+  GetCampaignLaunchReadinessParams,
+  ImportCampaignRecipientsParams,
+  CampaignRecipientImportResult,
   GenerateOutreachPersonalizedDraftsParams,
   FindCampaignRecipientsParams,
-  FindOutreachMessagesParams,
-  UpdateOutreachMessageParams,
-  RespondToOutreachReplyParams,
-  FindOutreachRepliesParams,
+  AssignCampaignSessionParams,
+  FindCampaignSessionsParams,
+  GetCampaignSessionParams,
+  ReplyCampaignSessionParams,
+  ResolveCampaignSessionParams,
+  FindCampaignSessionMessagesParams,
+  UpdateCampaignSessionMessageParams,
   CreateSuppressionParams,
   UpdateSuppressionParams,
   FindSuppressionsParams,
@@ -52,11 +55,12 @@ import type {
 } from "../types/api";
 import type {
   Mailbox,
-  OutreachCampaign,
-  OutreachCampaignLaunchReadiness,
+  Campaign,
+  CampaignLaunchReadiness,
   CampaignRecipient,
-  OutreachMessage,
-  OutreachReply,
+  CampaignSessionMessage,
+  CampaignSession,
+  CampaignSessionResponse,
   PaginatedResponse,
   ProfileList,
   ProfileListMember,
@@ -414,82 +418,82 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
       },
     },
 
-    outreachCampaign: {
-      async create(params: CreateOutreachCampaignParams, options?: RequestOptions): Promise<OutreachCampaign> {
+    campaign: {
+      async create(params: CreateCampaignParams, options?: RequestOptions): Promise<Campaign> {
         const { store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<OutreachCampaign>(
-          `/v1/stores/${target_store_id}/outreach-campaigns`,
+        return apiConfig.httpClient.post<Campaign>(
+          `/v1/stores/${target_store_id}/campaigns`,
           payload,
           options,
         );
       },
 
-      async update(params: UpdateOutreachCampaignParams, options?: RequestOptions): Promise<OutreachCampaign> {
+      async update(params: UpdateCampaignParams, options?: RequestOptions): Promise<Campaign> {
         const { id, store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.put<OutreachCampaign>(
-          `/v1/stores/${target_store_id}/outreach-campaigns/${id}`,
+        return apiConfig.httpClient.put<Campaign>(
+          `/v1/stores/${target_store_id}/campaigns/${id}`,
           payload,
           options,
         );
       },
 
-      async get(params: GetOutreachCampaignParams, options?: RequestOptions): Promise<OutreachCampaign> {
+      async get(params: GetCampaignParams, options?: RequestOptions): Promise<Campaign> {
         const target_store_id = params.store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<OutreachCampaign>(
-          `/v1/stores/${target_store_id}/outreach-campaigns/${params.id}`,
+        return apiConfig.httpClient.get<Campaign>(
+          `/v1/stores/${target_store_id}/campaigns/${params.id}`,
           options,
         );
       },
 
-      async find(params?: FindOutreachCampaignsParams, options?: RequestOptions): Promise<PaginatedResponse<OutreachCampaign>> {
+      async find(params?: FindCampaignsParams, options?: RequestOptions): Promise<PaginatedResponse<Campaign>> {
         const { store_id, ...queryParams } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<PaginatedResponse<OutreachCampaign>>(
-          `/v1/stores/${target_store_id}/outreach-campaigns`,
+        return apiConfig.httpClient.get<PaginatedResponse<Campaign>>(
+          `/v1/stores/${target_store_id}/campaigns`,
           { ...options, params: queryParams },
         );
       },
 
-      async launch(params: LaunchOutreachCampaignParams, options?: RequestOptions): Promise<OutreachCampaign> {
+      async launch(params: LaunchCampaignParams, options?: RequestOptions): Promise<Campaign> {
         const target_store_id = params.store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<OutreachCampaign>(
-          `/v1/stores/${target_store_id}/outreach-campaigns/${params.id}/launch`,
+        return apiConfig.httpClient.post<Campaign>(
+          `/v1/stores/${target_store_id}/campaigns/${params.id}/launch`,
           {},
           options,
         );
       },
 
       async launchReadiness(
-        params: GetOutreachCampaignLaunchReadinessParams,
+        params: GetCampaignLaunchReadinessParams,
         options?: RequestOptions,
-      ): Promise<OutreachCampaignLaunchReadiness> {
+      ): Promise<CampaignLaunchReadiness> {
         const target_store_id = params.store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<OutreachCampaignLaunchReadiness>(
-          `/v1/stores/${target_store_id}/outreach-campaigns/${params.id}/launch-readiness`,
+        return apiConfig.httpClient.get<CampaignLaunchReadiness>(
+          `/v1/stores/${target_store_id}/campaigns/${params.id}/launch-readiness`,
           options,
         );
       },
 
       async importRecipients(
-        params: ImportOutreachCampaignRecipientsParams,
+        params: ImportCampaignRecipientsParams,
         options?: RequestOptions,
-      ): Promise<OutreachCampaignRecipientImportResult> {
+      ): Promise<CampaignRecipientImportResult> {
         const { id, store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<OutreachCampaignRecipientImportResult>(
-          `/v1/stores/${target_store_id}/outreach-campaigns/${id}/recipients/import`,
+        return apiConfig.httpClient.post<CampaignRecipientImportResult>(
+          `/v1/stores/${target_store_id}/campaigns/${id}/recipients/import`,
           payload,
           options,
         );
       },
 
-      async generatePersonalizedDrafts(params: GenerateOutreachPersonalizedDraftsParams, options?: RequestOptions): Promise<OutreachCampaign> {
+      async generatePersonalizedDrafts(params: GenerateOutreachPersonalizedDraftsParams, options?: RequestOptions): Promise<Campaign> {
         const { id, store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<OutreachCampaign>(
-          `/v1/stores/${target_store_id}/outreach-campaigns/${id}/personalized-drafts`,
+        return apiConfig.httpClient.post<Campaign>(
+          `/v1/stores/${target_store_id}/campaigns/${id}/personalized-drafts`,
           payload,
           options,
         );
@@ -501,48 +505,77 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
         const { store_id, ...queryParams } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.get<PaginatedResponse<CampaignRecipient>>(
-          `/v1/stores/${target_store_id}/outreach-campaign-recipients`,
+          `/v1/stores/${target_store_id}/campaign-recipients`,
           { ...options, params: queryParams },
         );
       },
     },
 
-    outreachMessage: {
-      async find(params?: FindOutreachMessagesParams, options?: RequestOptions): Promise<PaginatedResponse<OutreachMessage>> {
+    campaignSession: {
+      async find(params?: FindCampaignSessionsParams, options?: RequestOptions): Promise<PaginatedResponse<CampaignSession>> {
         const { store_id, ...queryParams } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<PaginatedResponse<OutreachMessage>>(
-          `/v1/stores/${target_store_id}/outreach-messages`,
+        return apiConfig.httpClient.get<PaginatedResponse<CampaignSession>>(
+          `/v1/stores/${target_store_id}/campaign-sessions`,
           { ...options, params: queryParams },
         );
       },
 
-      async update(params: UpdateOutreachMessageParams, options?: RequestOptions): Promise<OutreachMessage> {
-        const { id, store_id, ...payload } = params;
+      async get(params: GetCampaignSessionParams, options?: RequestOptions): Promise<CampaignSessionResponse> {
+        const { store_id, id, ...queryParams } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.put<OutreachMessage>(
-          `/v1/stores/${target_store_id}/outreach-messages/${id}`,
+        return apiConfig.httpClient.get<CampaignSessionResponse>(
+          `/v1/stores/${target_store_id}/campaign-sessions/${id}`,
+          { ...options, params: { ...queryParams, store_id: target_store_id } },
+        );
+      },
+
+      async reply(params: ReplyCampaignSessionParams, options?: RequestOptions): Promise<CampaignSessionResponse> {
+        const { store_id, id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<CampaignSessionResponse>(
+          `/v1/stores/${target_store_id}/campaign-sessions/${id}/reply`,
+          payload,
+          options,
+        );
+      },
+
+      async resolve(params: ResolveCampaignSessionParams, options?: RequestOptions): Promise<CampaignSession> {
+        const { store_id, id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<CampaignSession>(
+          `/v1/stores/${target_store_id}/campaign-sessions/${id}/resolve`,
+          payload,
+          options,
+        );
+      },
+
+      async assign(params: AssignCampaignSessionParams, options?: RequestOptions): Promise<CampaignSession> {
+        const { store_id, id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<CampaignSession>(
+          `/v1/stores/${target_store_id}/campaign-sessions/${id}/assign`,
           payload,
           options,
         );
       },
     },
 
-    outreachReply: {
-      async find(params?: FindOutreachRepliesParams, options?: RequestOptions): Promise<PaginatedResponse<OutreachReply>> {
+    campaignSessionMessage: {
+      async find(params?: FindCampaignSessionMessagesParams, options?: RequestOptions): Promise<PaginatedResponse<CampaignSessionMessage>> {
         const { store_id, ...queryParams } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<PaginatedResponse<OutreachReply>>(
-          `/v1/stores/${target_store_id}/outreach-replies`,
+        return apiConfig.httpClient.get<PaginatedResponse<CampaignSessionMessage>>(
+          `/v1/stores/${target_store_id}/campaign-session-messages`,
           { ...options, params: queryParams },
         );
       },
 
-      async respond(params: RespondToOutreachReplyParams, options?: RequestOptions): Promise<OutreachMessage> {
-        const { store_id, id, ...payload } = params;
+      async update(params: UpdateCampaignSessionMessageParams, options?: RequestOptions): Promise<CampaignSessionMessage> {
+        const { id, store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<OutreachMessage>(
-          `/v1/stores/${target_store_id}/outreach-replies/${id}/respond`,
+        return apiConfig.httpClient.put<CampaignSessionMessage>(
+          `/v1/stores/${target_store_id}/campaign-session-messages/${id}`,
           payload,
           options,
         );

@@ -57,6 +57,7 @@ export interface SupportChatSession {
   flow_id?: string;
   current_node_id?: string;
   profile_id?: string;
+  assigned_account_id?: string | null;
   status: "active" | "ai_mode" | "escalated" | "resolved";
   data: Record<string, unknown>;
   metadata: Record<string, unknown>;
@@ -99,10 +100,31 @@ export interface ReplySupportChatSessionParams {
   resolve?: boolean;
 }
 
+export interface ResolveSupportChatSessionParams {
+  store_id: string;
+  session_id: string;
+}
+
+export interface AssignSupportChatSessionParams {
+  store_id: string;
+  session_id: string;
+  account_id?: string | null;
+}
+
 export interface GetSupportChatSessionParams {
   store_id: string;
   session_id: string;
   message_limit?: number;
+  after_created_at?: number;
+  after_id?: string;
+}
+
+function supportChatSessionQuery(params: GetSupportChatSessionParams): string {
+  const qs = new URLSearchParams({ store_id: params.store_id });
+  if (params.message_limit) qs.set("message_limit", String(params.message_limit));
+  if (typeof params.after_created_at === "number") qs.set("after_created_at", String(params.after_created_at));
+  if (params.after_id) qs.set("after_id", params.after_id);
+  return qs.toString();
 }
 
 export function createStorefrontSupportChatApi(config: ApiConfig) {
@@ -135,8 +157,9 @@ export function createStorefrontSupportChatApi(config: ApiConfig) {
       params: Omit<GetSupportChatSessionParams, "store_id">,
       opts?: RequestOptions
     ): Promise<SupportChatSessionResponse> {
+      const qs = supportChatSessionQuery({ store_id: storeId, ...params });
       return httpClient.get(
-        `/v1/storefront/${storeId}/support-chat/sessions/${params.session_id}?store_id=${storeId}`,
+        `/v1/storefront/${storeId}/support-chat/sessions/${params.session_id}?${qs}`,
         opts
       );
     },
@@ -244,11 +267,12 @@ export function createAdminSupportChatApi(config: ApiConfig) {
       },
 
       async get(
-        params: { store_id: string; session_id: string },
+        params: GetSupportChatSessionParams,
         opts?: RequestOptions
       ): Promise<SupportChatSessionResponse> {
+        const qs = supportChatSessionQuery(params);
         return httpClient.get(
-          `/v1/stores/${params.store_id}/support-chat/sessions/${params.session_id}?store_id=${params.store_id}`,
+          `/v1/stores/${params.store_id}/support-chat/sessions/${params.session_id}?${qs}`,
           opts
         );
       },
@@ -270,6 +294,28 @@ export function createAdminSupportChatApi(config: ApiConfig) {
       ): Promise<SupportChatSessionResponse> {
         return httpClient.post(
           `/v1/stores/${params.store_id}/support-chat/sessions/${params.session_id}/reply`,
+          params,
+          opts
+        );
+      },
+
+      async resolve(
+        params: ResolveSupportChatSessionParams,
+        opts?: RequestOptions
+      ): Promise<SupportChatSession> {
+        return httpClient.post(
+          `/v1/stores/${params.store_id}/support-chat/sessions/${params.session_id}/resolve`,
+          params,
+          opts
+        );
+      },
+
+      async assign(
+        params: AssignSupportChatSessionParams,
+        opts?: RequestOptions
+      ): Promise<SupportChatSession> {
+        return httpClient.post(
+          `/v1/stores/${params.store_id}/support-chat/sessions/${params.session_id}/assign`,
           params,
           opts
         );

@@ -20,8 +20,8 @@ export type AnalyticsReportKey =
   | "profiles_created"
   | "form_submissions_created"
   | "carts_abandoned"
-  | "outreach_messages_sent"
-  | "outreach_replies_created"
+  | "campaign_session_messages_sent"
+  | "campaign_session_messages_received"
   | "suppressions_created"
   | "media_count"
   | "products_by_status"
@@ -31,9 +31,12 @@ export type AnalyticsReportKey =
   | "profiles_by_status"
   | "profile_lists_by_status"
   | "mailboxes_by_status"
-  | "outreach_campaigns_by_status"
+  | "campaigns_by_status"
   | "campaign_recipients_by_status"
-  | "outreach_messages_by_status"
+  | "campaign_sessions_by_status"
+  | "campaign_session_messages_by_status"
+  | "support_chat_sessions_by_status"
+  | "lead_generation_sessions_by_status"
   | "suppressions_by_status"
 
   | "workflows_by_status"
@@ -146,8 +149,8 @@ export interface OutreachOverviewData {
   active_profile_lists: number;
   mailboxes: number;
   active_mailboxes: number;
-  outreach_campaigns: number;
-  active_outreach_campaigns: number;
+  campaigns: number;
+  active_campaigns: number;
   campaign_recipients: number;
   new_campaign_recipients: number;
   active_campaign_recipients: number;
@@ -155,9 +158,9 @@ export interface OutreachOverviewData {
   replied_campaign_recipients: number;
   suppressed_campaign_recipients: number;
   failed_campaign_recipients: number;
-  outreach_messages_sent: number;
+  campaign_session_messages_sent: number;
   outreach_bounces: number;
-  outreach_replies: number;
+  campaign_session_messages_received: number;
   suppressions: number;
   active_suppressions: number;
   new_suppressions: number;
@@ -169,11 +172,11 @@ export interface OutreachOverviewData {
 export interface OutreachFunnelStage {
   key:
     | "profile_lists"
-    | "outreach_campaigns"
+    | "campaigns"
     | "campaign_recipients"
-    | "outreach_messages_sent"
+    | "campaign_session_messages_sent"
     | "outreach_bounces"
-    | "outreach_replies"
+    | "campaign_session_messages_received"
     | string;
   label: string;
   value: number;
@@ -187,7 +190,7 @@ export interface OutreachFunnelData {
 }
 
 export interface OutreachVariantPerformanceItem {
-  outreach_campaign_id: string;
+  campaign_id: string;
   step_id: string;
   step_position: number;
   step_variant_id: string;
@@ -271,8 +274,8 @@ export type AnalyticsMetricReportKey =
   | "profiles_created"
   | "form_submissions_created"
   | "carts_abandoned"
-  | "outreach_messages_sent"
-  | "outreach_replies_created"
+  | "campaign_session_messages_sent"
+  | "campaign_session_messages_received"
   | "suppressions_created"
   | "media_count";
 
@@ -286,9 +289,12 @@ export type AnalyticsBreakdownReportKey =
   | "profiles_by_status"
   | "profile_lists_by_status"
   | "mailboxes_by_status"
-  | "outreach_campaigns_by_status"
+  | "campaigns_by_status"
   | "campaign_recipients_by_status"
-  | "outreach_messages_by_status"
+  | "campaign_sessions_by_status"
+  | "campaign_session_messages_by_status"
+  | "support_chat_sessions_by_status"
+  | "lead_generation_sessions_by_status"
   | "suppressions_by_status"
 
   | "workflows_by_status"

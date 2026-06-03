@@ -841,7 +841,7 @@ export type SmtpImapMailboxProvider = {
 	last_seen_uid?: number | null;
 };
 export type MailboxProvider = { type: 'fake' } | SmtpImapMailboxProvider;
-export type OutreachCampaignStatus = 'draft' | 'active' | 'paused' | 'completed' | 'archived';
+export type CampaignStatus = 'draft' | 'active' | 'paused' | 'completed' | 'archived';
 export type CampaignRecipientStatus =
 	| 'pending'
 	| 'active'
@@ -850,16 +850,37 @@ export type CampaignRecipientStatus =
 	| 'suppressed'
 	| 'failed'
 	| 'cancelled';
-export type OutreachMessageStatus = 'pending' | 'sending' | 'sent' | 'bounced' | 'failed' | 'skipped';
-export type OutreachMessageKind = 'sequence_step' | 'manual_reply';
-export type OutreachMessageCopySource = 'base' | 'generated' | 'edited';
-export type OutreachMessageReviewStatus = 'unreviewed' | 'reviewed';
+export type CampaignSessionStatus =
+	| 'pending'
+	| 'active'
+	| 'needs_reply'
+	| 'resolved'
+	| 'failed'
+	| 'cancelled'
+	| 'suppressed';
+export type CampaignSessionMessageStatus =
+	| 'pending'
+	| 'sending'
+	| 'sent'
+	| 'received'
+	| 'bounced'
+	| 'failed'
+	| 'skipped';
+export type CampaignSessionMessageKind =
+	| 'campaign_step'
+	| 'manual_reply'
+	| 'inbound_reply'
+	| 'delivery_failure'
+	| 'activity';
+export type CampaignSessionMessageDirection = 'outbound' | 'inbound' | 'activity';
+export type CampaignSessionMessageCopySource = 'base' | 'generated' | 'edited';
+export type CampaignSessionMessageReviewStatus = 'unreviewed' | 'reviewed';
 export type OutreachThreadMode = 'new_thread' | 'same_thread';
 export type OutreachStepVariantStatus = 'active' | 'archived';
 export type OutreachPersonalizationStatus = 'idle' | 'running' | 'completed' | 'failed';
 export type SuppressionStatus = 'active' | 'archived';
 export type SuppressionTargetType = 'email' | 'domain' | 'profile';
-export type SuppressionScopeType = 'store' | 'outreach_campaign';
+export type SuppressionScopeType = 'store' | 'campaign';
 export type SuppressionReason = 'manual' | 'unsubscribed' | 'bounced' | 'complained' | 'replied';
 export type SuppressionSource = 'admin' | 'import' | 'reply' | 'system';
 export type WorkflowStatus = 'active' | 'draft' | 'archived';
@@ -1271,13 +1292,13 @@ export interface OutreachPersonalizationState {
 	completed_at?: number | null;
 }
 
-export interface OutreachCampaign {
+export interface Campaign {
 	id: string;
 	store_id: string;
 	key: string;
 	name: string;
 	mailbox_ids: string[];
-	status: OutreachCampaignStatus;
+	status: CampaignStatus;
 	steps: OutreachStep[];
 	personalization: OutreachPersonalizationState;
 	launched_at?: number | null;
@@ -1285,7 +1306,7 @@ export interface OutreachCampaign {
 	updated_at: number;
 }
 
-export interface OutreachCampaignLaunchReadiness {
+export interface CampaignLaunchReadiness {
 	ready: boolean;
 	blockers: string[];
 	warnings: string[];
@@ -1306,7 +1327,7 @@ export interface OutreachCampaignLaunchReadiness {
 	suppression_count: number;
 }
 
-export interface OutreachCampaignRecipientImportResult {
+export interface CampaignRecipientImportResult {
 	imported_count: number;
 	existing_count: number;
 	skipped_count: number;
@@ -1316,7 +1337,7 @@ export interface OutreachCampaignRecipientImportResult {
 export interface CampaignRecipient {
 	id: string;
 	store_id: string;
-	outreach_campaign_id: string;
+	campaign_id: string;
 	profile_id: string;
 	profile_list_membership_id?: string | null;
 	mailbox_id?: string | null;
@@ -1331,27 +1352,47 @@ export interface CampaignRecipient {
 	updated_at: number;
 }
 
-export interface OutreachMessage {
+export interface CampaignSession {
 	id: string;
 	store_id: string;
-	outreach_campaign_id: string;
+	campaign_id: string;
+	campaign_recipient_id: string;
+	profile_id: string;
+	mailbox_id?: string | null;
+	assigned_account_id?: string | null;
+	status: CampaignSessionStatus;
+	needs_reply: boolean;
+	unread_count: number;
+	last_message_id?: string | null;
+	last_message_at?: number | null;
+	resolved_at?: number | null;
+	created_at: number;
+	updated_at: number;
+}
+
+export interface CampaignSessionMessage {
+	id: string;
+	store_id: string;
+	campaign_session_id?: string | null;
+	campaign_id: string;
 	campaign_recipient_id: string;
 	profile_id: string;
 	mailbox_id: string;
-	kind: OutreachMessageKind;
+	direction: CampaignSessionMessageDirection;
+	kind: CampaignSessionMessageKind;
 	step_id?: string | null;
 	step_position?: number | null;
 	step_variant_id?: string | null;
 	step_variant_position?: number | null;
 	step_variant_name?: string | null;
 	base_copy_hash?: string | null;
-	copy_source: OutreachMessageCopySource;
-	review_status: OutreachMessageReviewStatus;
+	copy_source: CampaignSessionMessageCopySource;
+	review_status: CampaignSessionMessageReviewStatus;
 	personalized_at?: number | null;
 	edited_at?: number | null;
 	personalization_error?: string | null;
-	in_reply_to_outreach_reply_id?: string | null;
-	status: OutreachMessageStatus;
+	in_reply_to_message_id?: string | null;
+	status: CampaignSessionMessageStatus;
 	to_email: string;
 	from_email: string;
 	subject: string;
@@ -1360,32 +1401,20 @@ export interface OutreachMessage {
 	provider_thread_id?: string | null;
 	error?: string | null;
 	sent_at?: number | null;
+	received_at?: number | null;
 	created_at: number;
 	updated_at: number;
 }
 
-export interface OutreachReply {
-	id: string;
-	store_id: string;
-	outreach_campaign_id: string;
-	campaign_recipient_id: string;
-	outreach_message_id: string;
-	profile_id: string;
-	mailbox_id: string;
-	from_email: string;
-	subject?: string | null;
-	body?: string | null;
-	provider_message_id?: string | null;
-	provider_thread_id?: string | null;
-	received_at: number;
-	created_at: number;
-	updated_at: number;
+export interface CampaignSessionResponse {
+	session: CampaignSession;
+	messages: CampaignSessionMessage[];
 }
 
 export interface Suppression {
 	id: string;
 	store_id: string;
-	outreach_campaign_id?: string | null;
+	campaign_id?: string | null;
 	profile_id?: string | null;
 	email?: string | null;
 	domain?: string | null;
@@ -1400,7 +1429,7 @@ export interface Suppression {
 	updated_at: number;
 }
 
-export type LeadGenerationThreadStatus =
+export type LeadGenerationSessionStatus =
 	| 'draft'
 	| 'running'
 	| 'needs_review'
@@ -1419,13 +1448,13 @@ export type LeadEmailClassification =
 
 export type LeadValidationCheckStatus = 'passed' | 'warning' | 'failed' | 'unknown';
 
-export interface LeadGenerationThread {
+export interface LeadGenerationSession {
 	id: string;
 	store_id: string;
 	integration_id: string;
 	profile_list_id: string;
 	title?: string | null;
-	status: LeadGenerationThreadStatus;
+	status: LeadGenerationSessionStatus;
 	error?: string | null;
 	started_at?: number | null;
 	completed_at?: number | null;
@@ -1464,7 +1493,7 @@ export interface ResearchAudienceMember {
 
 export interface SendLeadGenerationMessageResult {
 	response: string;
-	thread: LeadGenerationThread;
+	session: LeadGenerationSession;
 	audience_members: ResearchAudienceMember[];
 }
 

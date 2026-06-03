@@ -1,18 +1,18 @@
 import type { ApiConfig } from "../index";
 import type {
-  CreateLeadGenerationThreadParams,
-  CancelLeadGenerationThreadParams,
-  FindLeadGenerationThreadsParams,
-  GetLeadGenerationThreadParams,
+  CreateLeadGenerationSessionParams,
+  CancelLeadGenerationSessionParams,
+  FindLeadGenerationSessionsParams,
+  GetLeadGenerationSessionParams,
   FindLeadGenerationMessagesParams,
   RequestOptions,
   SendLeadGenerationMessageParams,
-  UpdateLeadGenerationThreadParams,
+  UpdateLeadGenerationSessionParams,
   ValidateLeadEmailParams,
 } from "../types/api";
 import type {
   LeadEmailValidationResult,
-  LeadGenerationThread,
+  LeadGenerationSession,
   LeadGenerationMessage,
   PaginatedResponse,
   SendLeadGenerationMessageResult,
@@ -22,60 +22,42 @@ export const createLeadGenerationApi = (apiConfig: ApiConfig) => {
   const storeId = (store_id?: string) => store_id || apiConfig.storeId;
 
   return {
-    async createRun(params: CreateLeadGenerationThreadParams, options?: RequestOptions): Promise<LeadGenerationThread> {
+    async createSession(params: CreateLeadGenerationSessionParams, options?: RequestOptions): Promise<LeadGenerationSession> {
       const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<LeadGenerationThread>(
-        `/v1/stores/${storeId(store_id)}/lead-generation/runs`,
+      return apiConfig.httpClient.post<LeadGenerationSession>(
+        `/v1/stores/${storeId(store_id)}/lead-generation/sessions`,
         payload,
         options,
       );
     },
 
-    async createThread(params: CreateLeadGenerationThreadParams, options?: RequestOptions): Promise<LeadGenerationThread> {
-      const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<LeadGenerationThread>(
-        `/v1/stores/${storeId(store_id)}/lead-generation/runs`,
-        payload,
-        options,
-      );
-    },
-
-    async findRuns(params?: FindLeadGenerationThreadsParams, options?: RequestOptions): Promise<PaginatedResponse<LeadGenerationThread>> {
+    async findSessions(params?: FindLeadGenerationSessionsParams, options?: RequestOptions): Promise<PaginatedResponse<LeadGenerationSession>> {
       const { store_id, ...queryParams } = params || {};
-      return apiConfig.httpClient.get<PaginatedResponse<LeadGenerationThread>>(
-        `/v1/stores/${storeId(store_id)}/lead-generation/runs`,
+      return apiConfig.httpClient.get<PaginatedResponse<LeadGenerationSession>>(
+        `/v1/stores/${storeId(store_id)}/lead-generation/sessions`,
         { ...options, params: queryParams },
       );
     },
 
-    async getRun(params: GetLeadGenerationThreadParams, options?: RequestOptions): Promise<LeadGenerationThread> {
-      return apiConfig.httpClient.get<LeadGenerationThread>(
-        `/v1/stores/${storeId(params.store_id)}/lead-generation/runs/${params.id}`,
+    async getSession(params: GetLeadGenerationSessionParams, options?: RequestOptions): Promise<LeadGenerationSession> {
+      return apiConfig.httpClient.get<LeadGenerationSession>(
+        `/v1/stores/${storeId(params.store_id)}/lead-generation/sessions/${params.id}`,
         options,
       );
     },
 
-    async updateRun(params: UpdateLeadGenerationThreadParams, options?: RequestOptions): Promise<LeadGenerationThread> {
+    async updateSession(params: UpdateLeadGenerationSessionParams, options?: RequestOptions): Promise<LeadGenerationSession> {
       const { store_id, id, ...payload } = params;
-      return apiConfig.httpClient.patch<LeadGenerationThread>(
-        `/v1/stores/${storeId(store_id)}/lead-generation/runs/${id}`,
+      return apiConfig.httpClient.patch<LeadGenerationSession>(
+        `/v1/stores/${storeId(store_id)}/lead-generation/sessions/${id}`,
         payload,
         options,
       );
     },
 
-    async updateThread(params: UpdateLeadGenerationThreadParams, options?: RequestOptions): Promise<LeadGenerationThread> {
-      const { store_id, id, ...payload } = params;
-      return apiConfig.httpClient.patch<LeadGenerationThread>(
-        `/v1/stores/${storeId(store_id)}/lead-generation/runs/${id}`,
-        payload,
-        options,
-      );
-    },
-
-    async cancelRun(params: CancelLeadGenerationThreadParams, options?: RequestOptions): Promise<LeadGenerationThread> {
-      return apiConfig.httpClient.post<LeadGenerationThread>(
-        `/v1/stores/${storeId(params.store_id)}/lead-generation/runs/${params.id}/cancel`,
+    async cancelSession(params: CancelLeadGenerationSessionParams, options?: RequestOptions): Promise<LeadGenerationSession> {
+      return apiConfig.httpClient.post<LeadGenerationSession>(
+        `/v1/stores/${storeId(params.store_id)}/lead-generation/sessions/${params.id}/cancel`,
         {},
         options,
       );
@@ -84,7 +66,7 @@ export const createLeadGenerationApi = (apiConfig: ApiConfig) => {
     async sendMessage(params: SendLeadGenerationMessageParams, options?: RequestOptions): Promise<SendLeadGenerationMessageResult> {
       const { store_id, id, ...payload } = params;
       return apiConfig.httpClient.post<SendLeadGenerationMessageResult>(
-        `/v1/stores/${storeId(store_id)}/lead-generation/runs/${id}/messages`,
+        `/v1/stores/${storeId(store_id)}/lead-generation/sessions/${id}/messages`,
         payload,
         options,
       );
@@ -93,7 +75,7 @@ export const createLeadGenerationApi = (apiConfig: ApiConfig) => {
     async findMessages(params: FindLeadGenerationMessagesParams, options?: RequestOptions): Promise<LeadGenerationMessage[]> {
       const { store_id, id, ...queryParams } = params;
       return apiConfig.httpClient.get<LeadGenerationMessage[]>(
-        `/v1/stores/${storeId(store_id)}/lead-generation/runs/${id}/messages`,
+        `/v1/stores/${storeId(store_id)}/lead-generation/sessions/${id}/messages`,
         { ...options, params: queryParams },
       );
     },
