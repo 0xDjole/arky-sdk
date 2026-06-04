@@ -1319,23 +1319,46 @@ export interface CampaignLaunchReadiness {
 	suppression_count: number;
 }
 
-export interface CampaignRecipientImportResult {
-	imported_count: number;
-	existing_count: number;
-	skipped_count: number;
-	draft_count: number;
-}
+	export interface CampaignRecipientImportResult {
+		imported_count: number;
+		existing_count: number;
+		skipped_count: number;
+		draft_count: number;
+	}
 
-export interface CampaignRecipient {
-	id: string;
-	store_id: string;
-	campaign_id: string;
+	export interface CampaignRecipientDraft {
+		id: string;
+		step_id?: string | null;
+		step_position: number;
+		step_variant_id?: string | null;
+		step_variant_position?: number | null;
+		step_variant_name?: string | null;
+		base_copy_hash?: string | null;
+		copy_source: CampaignMessageCopySource;
+		review_status: CampaignMessageReviewStatus;
+		personalized_at?: number | null;
+		edited_at?: number | null;
+		personalization_error?: string | null;
+		mailbox_id?: string | null;
+		from_email?: string | null;
+		to_email: string;
+		subject: string;
+		body: string;
+		created_at: number;
+		updated_at: number;
+	}
+
+	export interface CampaignRecipient {
+		id: string;
+		store_id: string;
+		campaign_id: string;
 	profile_id: string;
 	profile_list_membership_id?: string | null;
-	mailbox_id?: string | null;
-	lead_description?: string | null;
-	fields: Record<string, unknown>;
-	status: CampaignRecipientStatus;
+		mailbox_id?: string | null;
+		lead_description?: string | null;
+		fields: Record<string, unknown>;
+		drafts: CampaignRecipientDraft[];
+		status: CampaignRecipientStatus;
 	current_step_position: number;
 	next_send_at?: number | null;
 	replied_at?: number | null;

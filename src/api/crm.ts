@@ -41,10 +41,13 @@ import type {
   CampaignRecipientImportResult,
   GenerateOutreachPersonalizedDraftsParams,
   FindCampaignRecipientsParams,
+  UpdateCampaignRecipientParams,
+  UpdateCampaignRecipientDraftParams,
   AssignCampaignRecipientParams,
   GetCampaignRecipientConversationParams,
   ReplyCampaignRecipientParams,
   ResolveCampaignRecipientParams,
+  CancelCampaignRecipientParams,
   FindCampaignMessagesParams,
   UpdateCampaignMessageParams,
   CreateSuppressionParams,
@@ -517,6 +520,26 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
         );
       },
 
+      async update(params: UpdateCampaignRecipientParams, options?: RequestOptions): Promise<CampaignRecipient> {
+        const { store_id, id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.put<CampaignRecipient>(
+          `/v1/stores/${target_store_id}/campaign-recipients/${id}`,
+          payload,
+          options,
+        );
+      },
+
+      async updateDraft(params: UpdateCampaignRecipientDraftParams, options?: RequestOptions): Promise<CampaignRecipient> {
+        const { store_id, id, draft_id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.put<CampaignRecipient>(
+          `/v1/stores/${target_store_id}/campaign-recipients/${id}/drafts/${draft_id}`,
+          payload,
+          options,
+        );
+      },
+
       async reply(params: ReplyCampaignRecipientParams, options?: RequestOptions): Promise<CampaignRecipientConversationResponse> {
         const { store_id, id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
@@ -532,6 +555,16 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<CampaignRecipientConversationResponse>(
           `/v1/stores/${target_store_id}/campaign-recipients/${id}/resolve`,
+          payload,
+          options,
+        );
+      },
+
+      async cancel(params: CancelCampaignRecipientParams, options?: RequestOptions): Promise<CampaignRecipientConversationResponse> {
+        const { store_id, id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<CampaignRecipientConversationResponse>(
+          `/v1/stores/${target_store_id}/campaign-recipients/${id}/cancel`,
           payload,
           options,
         );

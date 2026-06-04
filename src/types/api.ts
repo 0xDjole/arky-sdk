@@ -1567,7 +1567,9 @@ export interface GetCampaignLaunchReadinessParams {
 export interface ImportCampaignRecipientsParams {
   id: string;
   store_id?: string;
-  profile_list_id: string;
+  profile_list_id?: string;
+  profile_ids?: string[];
+  emails?: string[];
 }
 
 export interface CampaignRecipientImportResult {
@@ -1596,6 +1598,23 @@ export interface FindCampaignRecipientsParams {
   needs_reply?: boolean;
   limit?: number;
   cursor?: string;
+}
+
+export interface UpdateCampaignRecipientParams {
+  store_id?: string;
+  id: string;
+  mailbox_id?: string | null;
+  lead_description?: string | null;
+  fields?: Record<string, unknown>;
+}
+
+export interface UpdateCampaignRecipientDraftParams {
+  store_id?: string;
+  id: string;
+  draft_id: string;
+  subject?: string;
+  body?: string;
+  review_status?: CampaignMessageReviewStatus;
 }
 
 export interface FindCampaignMessagesParams {
@@ -1632,6 +1651,11 @@ export interface ReplyCampaignRecipientParams {
 }
 
 export interface ResolveCampaignRecipientParams {
+  store_id?: string;
+  id: string;
+}
+
+export interface CancelCampaignRecipientParams {
   store_id?: string;
   id: string;
 }
