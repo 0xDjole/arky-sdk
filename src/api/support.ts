@@ -1,7 +1,7 @@
 import type { ApiConfig } from "../index";
 import type { RequestOptions } from "../types/api";
 
-export interface SupportChatFlowNode {
+export interface SupportAgentNode {
   type: "message" | "input" | "ai_handoff" | "action";
   text?: string;
   buttons?: string[];
@@ -11,15 +11,15 @@ export interface SupportChatFlowNode {
   validation?: string;
   system_prompt_override?: string;
   tools?: string[];
-  action?: SupportChatAction;
+  action?: SupportAction;
 }
 
-export interface SupportChatAction {
-  type: "end_chat" | "human_handoff";
+export interface SupportAction {
+  type: "end_conversation" | "human_handoff";
   message?: string;
 }
 
-export interface SupportChatFlowEdge {
+export interface SupportAgentEdge {
   source: string;
   target: string;
   trigger: EdgeTrigger;
@@ -30,31 +30,31 @@ export type EdgeTrigger =
   | { type: "input"; field: string }
   | { type: "default" };
 
-export interface SupportChatAiConfig {
+export interface SupportAgentAiConfig {
   integration_id: string;
   system_prompt: string;
   tools: string[];
   max_context_messages: number;
 }
 
-export interface SupportChatFlow {
+export interface SupportAgent {
   id: string;
   key: string;
   store_id: string;
   name: string;
   status: "draft" | "active" | "archived";
   entry_node_id: string;
-  nodes: Record<string, SupportChatFlowNode>;
-  edges: SupportChatFlowEdge[];
-  ai_config?: SupportChatAiConfig;
+  nodes: Record<string, SupportAgentNode>;
+  edges: SupportAgentEdge[];
+  ai_config?: SupportAgentAiConfig;
   created_at: number;
   updated_at: number;
 }
 
-export interface SupportChatSession {
+export interface SupportConversation {
   id: string;
   store_id: string;
-  flow_id?: string;
+  agent_id?: string;
   current_node_id?: string;
   profile_id?: string;
   assigned_account_id?: string | null;
@@ -65,10 +65,10 @@ export interface SupportChatSession {
   updated_at: number;
 }
 
-export interface SupportChatMessage {
+export interface SupportMessage {
   id: string;
   store_id: string;
-  session_id: string;
+  conversation_id: string;
   role: "system" | "user" | "assistant" | "staff" | "activity";
   content: string;
   buttons?: string[];
@@ -76,50 +76,50 @@ export interface SupportChatMessage {
   created_at: number;
 }
 
-export interface SupportChatSessionResponse {
-  session: SupportChatSession;
-  messages: SupportChatMessage[];
+export interface SupportConversationResponse {
+  conversation: SupportConversation;
+  messages: SupportMessage[];
 }
 
-export interface StartSupportChatSessionParams {
+export interface StartSupportConversationParams {
   store_id: string;
-  flow_key?: string;
+  agent_key?: string;
   metadata?: Record<string, unknown>;
 }
 
-export interface SendSupportChatMessageParams {
+export interface SendSupportMessageParams {
   store_id: string;
-  session_id: string;
+  conversation_id: string;
   input: { type: "button"; label: string } | { type: "text"; content: string };
 }
 
-export interface ReplySupportChatSessionParams {
+export interface ReplySupportConversationParams {
   store_id: string;
-  session_id: string;
+  conversation_id: string;
   content: string;
   resolve?: boolean;
 }
 
-export interface ResolveSupportChatSessionParams {
+export interface ResolveSupportConversationParams {
   store_id: string;
-  session_id: string;
+  conversation_id: string;
 }
 
-export interface AssignSupportChatSessionParams {
+export interface AssignSupportConversationParams {
   store_id: string;
-  session_id: string;
+  conversation_id: string;
   account_id?: string | null;
 }
 
-export interface GetSupportChatSessionParams {
+export interface GetSupportConversationParams {
   store_id: string;
-  session_id: string;
+  conversation_id: string;
   message_limit?: number;
   after_created_at?: number;
   after_id?: string;
 }
 
-function supportChatSessionQuery(params: GetSupportChatSessionParams): string {
+function supportConversationQuery(params: GetSupportConversationParams): string {
   const qs = new URLSearchParams({ store_id: params.store_id });
   if (params.message_limit) qs.set("message_limit", String(params.message_limit));
   if (typeof params.after_created_at === "number") qs.set("after_created_at", String(params.after_created_at));
@@ -127,78 +127,78 @@ function supportChatSessionQuery(params: GetSupportChatSessionParams): string {
   return qs.toString();
 }
 
-export function createStorefrontSupportChatApi(config: ApiConfig) {
+export function createStorefrontSupportApi(config: ApiConfig) {
   const { httpClient, storeId } = config;
 
   return {
-    async startSession(
-      params: Omit<StartSupportChatSessionParams, "store_id"> = {},
+    async startConversation(
+      params: Omit<StartSupportConversationParams, "store_id"> = {},
       opts?: RequestOptions
-    ): Promise<SupportChatSessionResponse> {
+    ): Promise<SupportConversationResponse> {
       return httpClient.post(
-        `/v1/storefront/${storeId}/support-chat/sessions`,
+        `/v1/storefront/${storeId}/support/conversations`,
         { store_id: storeId, ...params },
         opts
       );
     },
 
     async sendMessage(
-      params: Omit<SendSupportChatMessageParams, "store_id">,
+      params: Omit<SendSupportMessageParams, "store_id">,
       opts?: RequestOptions
-    ): Promise<SupportChatSessionResponse> {
+    ): Promise<SupportConversationResponse> {
       return httpClient.post(
-        `/v1/storefront/${storeId}/support-chat/sessions/${params.session_id}/messages`,
+        `/v1/storefront/${storeId}/support/conversations/${params.conversation_id}/messages`,
         { store_id: storeId, ...params },
         opts
       );
     },
 
-    async getSession(
-      params: Omit<GetSupportChatSessionParams, "store_id">,
+    async getConversation(
+      params: Omit<GetSupportConversationParams, "store_id">,
       opts?: RequestOptions
-    ): Promise<SupportChatSessionResponse> {
-      const qs = supportChatSessionQuery({ store_id: storeId, ...params });
+    ): Promise<SupportConversationResponse> {
+      const qs = supportConversationQuery({ store_id: storeId, ...params });
       return httpClient.get(
-        `/v1/storefront/${storeId}/support-chat/sessions/${params.session_id}?${qs}`,
+        `/v1/storefront/${storeId}/support/conversations/${params.conversation_id}?${qs}`,
         opts
       );
     },
   };
 }
 
-export interface CreateSupportChatFlowParams {
+export interface CreateSupportAgentParams {
   store_id: string;
   key: string;
   name: string;
   status?: "draft" | "active" | "archived";
   entry_node_id: string;
-  nodes: Record<string, SupportChatFlowNode>;
-  edges: SupportChatFlowEdge[];
-  ai_config?: SupportChatAiConfig;
+  nodes: Record<string, SupportAgentNode>;
+  edges: SupportAgentEdge[];
+  ai_config?: SupportAgentAiConfig;
 }
 
-export interface UpdateSupportChatFlowParams {
+export interface UpdateSupportAgentParams {
   store_id: string;
   id: string;
   name?: string;
   status?: "draft" | "active" | "archived";
   entry_node_id?: string;
-  nodes?: Record<string, SupportChatFlowNode>;
-  edges?: SupportChatFlowEdge[];
-  ai_config?: SupportChatAiConfig;
+  nodes?: Record<string, SupportAgentNode>;
+  edges?: SupportAgentEdge[];
+  ai_config?: SupportAgentAiConfig;
 }
 
-export function createAdminSupportChatApi(config: ApiConfig) {
+export function createAdminSupportApi(config: ApiConfig) {
   const { httpClient } = config;
 
   return {
-    flow: {
+    agent: {
       async create(
-        params: CreateSupportChatFlowParams,
+        params: CreateSupportAgentParams,
         opts?: RequestOptions
-      ): Promise<SupportChatFlow> {
+      ): Promise<SupportAgent> {
         return httpClient.post(
-          `/v1/stores/${params.store_id}/support-chat/flows`,
+          `/v1/stores/${params.store_id}/support/agents`,
           params,
           opts
         );
@@ -207,9 +207,9 @@ export function createAdminSupportChatApi(config: ApiConfig) {
       async get(
         params: { store_id: string; id: string },
         opts?: RequestOptions
-      ): Promise<SupportChatFlow> {
+      ): Promise<SupportAgent> {
         return httpClient.get(
-          `/v1/stores/${params.store_id}/support-chat/flows/${params.id}?store_id=${params.store_id}`,
+          `/v1/stores/${params.store_id}/support/agents/${params.id}?store_id=${params.store_id}`,
           opts
         );
       },
@@ -217,23 +217,23 @@ export function createAdminSupportChatApi(config: ApiConfig) {
       async find(
         params: { store_id: string; status?: string; limit?: number; cursor?: string },
         opts?: RequestOptions
-      ): Promise<{ items: SupportChatFlow[]; cursor?: string }> {
+      ): Promise<{ items: SupportAgent[]; cursor?: string }> {
         const qs = new URLSearchParams({ store_id: params.store_id });
         if (params.status) qs.set("status", params.status);
         if (params.limit) qs.set("limit", String(params.limit));
         if (params.cursor) qs.set("cursor", params.cursor);
         return httpClient.get(
-          `/v1/stores/${params.store_id}/support-chat/flows?${qs}`,
+          `/v1/stores/${params.store_id}/support/agents?${qs}`,
           opts
         );
       },
 
       async update(
-        params: UpdateSupportChatFlowParams,
+        params: UpdateSupportAgentParams,
         opts?: RequestOptions
-      ): Promise<SupportChatFlow> {
+      ): Promise<SupportAgent> {
         return httpClient.put(
-          `/v1/stores/${params.store_id}/support-chat/flows/${params.id}`,
+          `/v1/stores/${params.store_id}/support/agents/${params.id}`,
           params,
           opts
         );
@@ -244,78 +244,78 @@ export function createAdminSupportChatApi(config: ApiConfig) {
         opts?: RequestOptions
       ): Promise<void> {
         return httpClient.delete(
-          `/v1/stores/${params.store_id}/support-chat/flows/${params.id}?store_id=${params.store_id}`,
+          `/v1/stores/${params.store_id}/support/agents/${params.id}?store_id=${params.store_id}`,
           opts
         );
       },
     },
 
-    session: {
+    conversation: {
       async find(
-        params: { store_id: string; status?: string; flow_id?: string; limit?: number; cursor?: string },
+        params: { store_id: string; status?: string; agent_id?: string; limit?: number; cursor?: string },
         opts?: RequestOptions
-      ): Promise<{ items: SupportChatSession[]; cursor?: string }> {
+      ): Promise<{ items: SupportConversation[]; cursor?: string }> {
         const qs = new URLSearchParams({ store_id: params.store_id });
         if (params.status) qs.set("status", params.status);
-        if (params.flow_id) qs.set("flow_id", params.flow_id);
+        if (params.agent_id) qs.set("agent_id", params.agent_id);
         if (params.limit) qs.set("limit", String(params.limit));
         if (params.cursor) qs.set("cursor", params.cursor);
         return httpClient.get(
-          `/v1/stores/${params.store_id}/support-chat/sessions?${qs}`,
+          `/v1/stores/${params.store_id}/support/conversations?${qs}`,
           opts
         );
       },
 
       async get(
-        params: GetSupportChatSessionParams,
+        params: GetSupportConversationParams,
         opts?: RequestOptions
-      ): Promise<SupportChatSessionResponse> {
-        const qs = supportChatSessionQuery(params);
+      ): Promise<SupportConversationResponse> {
+        const qs = supportConversationQuery(params);
         return httpClient.get(
-          `/v1/stores/${params.store_id}/support-chat/sessions/${params.session_id}?${qs}`,
+          `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}?${qs}`,
           opts
         );
       },
 
       async sendMessage(
-        params: SendSupportChatMessageParams,
+        params: SendSupportMessageParams,
         opts?: RequestOptions
-      ): Promise<SupportChatSessionResponse> {
+      ): Promise<SupportConversationResponse> {
         return httpClient.post(
-          `/v1/stores/${params.store_id}/support-chat/sessions/${params.session_id}/messages`,
+          `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}/messages`,
           params,
           opts
         );
       },
 
       async reply(
-        params: ReplySupportChatSessionParams,
+        params: ReplySupportConversationParams,
         opts?: RequestOptions
-      ): Promise<SupportChatSessionResponse> {
+      ): Promise<SupportConversationResponse> {
         return httpClient.post(
-          `/v1/stores/${params.store_id}/support-chat/sessions/${params.session_id}/reply`,
+          `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}/reply`,
           params,
           opts
         );
       },
 
       async resolve(
-        params: ResolveSupportChatSessionParams,
+        params: ResolveSupportConversationParams,
         opts?: RequestOptions
-      ): Promise<SupportChatSession> {
+      ): Promise<SupportConversation> {
         return httpClient.post(
-          `/v1/stores/${params.store_id}/support-chat/sessions/${params.session_id}/resolve`,
+          `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}/resolve`,
           params,
           opts
         );
       },
 
       async assign(
-        params: AssignSupportChatSessionParams,
+        params: AssignSupportConversationParams,
         opts?: RequestOptions
-      ): Promise<SupportChatSession> {
+      ): Promise<SupportConversation> {
         return httpClient.post(
-          `/v1/stores/${params.store_id}/support-chat/sessions/${params.session_id}/assign`,
+          `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}/assign`,
           params,
           opts
         );

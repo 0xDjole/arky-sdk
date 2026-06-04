@@ -41,14 +41,13 @@ import type {
   MailboxProvider,
   CampaignStatus,
   CampaignRecipientStatus,
-  CampaignSessionStatus,
-  CampaignSessionMessageDirection,
-  CampaignSessionMessageKind,
-  CampaignSessionMessageStatus,
-  CampaignSessionMessageCopySource,
-  CampaignSessionMessageReviewStatus,
+  CampaignMessageDirection,
+  CampaignMessageKind,
+  CampaignMessageStatus,
+  CampaignMessageCopySource,
+  CampaignMessageReviewStatus,
   OutreachStep,
-  LeadGenerationSessionStatus,
+  LeadResearchRunStatus,
   SuppressionStatus,
   SuppressionReason,
   SuppressionSource,
@@ -1592,42 +1591,31 @@ export interface FindCampaignRecipientsParams {
   store_id?: string;
   campaign_id?: string;
   profile_id?: string;
+  mailbox_id?: string;
   status?: CampaignRecipientStatus;
+  needs_reply?: boolean;
   limit?: number;
   cursor?: string;
 }
 
-export interface FindCampaignSessionMessagesParams {
+export interface FindCampaignMessagesParams {
   store_id?: string;
-  campaign_session_id?: string;
   campaign_id?: string;
   campaign_recipient_id?: string;
   profile_id?: string;
   mailbox_id?: string;
-  direction?: CampaignSessionMessageDirection;
-  kind?: CampaignSessionMessageKind;
-  status?: CampaignSessionMessageStatus;
-  copy_source?: CampaignSessionMessageCopySource;
-  review_status?: CampaignSessionMessageReviewStatus;
+  direction?: CampaignMessageDirection;
+  kind?: CampaignMessageKind;
+  status?: CampaignMessageStatus;
+  copy_source?: CampaignMessageCopySource;
+  review_status?: CampaignMessageReviewStatus;
   step_position?: number;
   query?: string;
   limit?: number;
   cursor?: string;
 }
 
-export interface FindCampaignSessionsParams {
-  store_id?: string;
-  campaign_id?: string;
-  campaign_recipient_id?: string;
-  profile_id?: string;
-  mailbox_id?: string;
-  status?: CampaignSessionStatus;
-  needs_reply?: boolean;
-  limit?: number;
-  cursor?: string;
-}
-
-export interface GetCampaignSessionParams {
+export interface GetCampaignRecipientConversationParams {
   store_id?: string;
   id: string;
   message_limit?: number;
@@ -1635,7 +1623,7 @@ export interface GetCampaignSessionParams {
   after_id?: string;
 }
 
-export interface ReplyCampaignSessionParams {
+export interface ReplyCampaignRecipientParams {
   store_id?: string;
   id: string;
   subject?: string | null;
@@ -1643,23 +1631,23 @@ export interface ReplyCampaignSessionParams {
   resolve?: boolean;
 }
 
-export interface ResolveCampaignSessionParams {
+export interface ResolveCampaignRecipientParams {
   store_id?: string;
   id: string;
 }
 
-export interface AssignCampaignSessionParams {
+export interface AssignCampaignRecipientParams {
   store_id?: string;
   id: string;
   account_id?: string | null;
 }
 
-export interface UpdateCampaignSessionMessageParams {
+export interface UpdateCampaignMessageParams {
   id: string;
   store_id?: string;
   subject?: string;
   body?: string;
-  review_status?: CampaignSessionMessageReviewStatus;
+  review_status?: CampaignMessageReviewStatus;
 }
 
 export interface CreateSuppressionParams {
@@ -1699,43 +1687,45 @@ export interface GetSuppressionParams {
   store_id?: string;
 }
 
-export interface CreateLeadGenerationSessionParams {
+export interface CreateLeadResearchRunParams {
   store_id?: string;
   integration_id: string;
+  profile_list_id?: string;
   title?: string;
 }
 
-export interface FindLeadGenerationSessionsParams {
+export interface FindLeadResearchRunsParams {
   store_id?: string;
-  status?: LeadGenerationSessionStatus;
+  status?: LeadResearchRunStatus;
+  profile_list_id?: string;
   limit?: number;
   cursor?: string;
 }
 
-export interface GetLeadGenerationSessionParams {
+export interface GetLeadResearchRunParams {
   id: string;
   store_id?: string;
 }
 
-export interface UpdateLeadGenerationSessionParams {
+export interface UpdateLeadResearchRunParams {
   id: string;
   store_id?: string;
   integration_id: string;
 }
 
-export interface CancelLeadGenerationSessionParams {
+export interface CancelLeadResearchRunParams {
   id: string;
   store_id?: string;
 }
 
-export interface SendLeadGenerationMessageParams {
-  id: string;
+export interface SendLeadResearchMessageParams {
+  run_id: string;
   store_id?: string;
   message: string;
 }
 
-export interface FindLeadGenerationMessagesParams {
-  id: string;
+export interface FindLeadResearchMessagesParams {
+  run_id: string;
   store_id?: string;
   limit?: number;
   after_created_at?: number;

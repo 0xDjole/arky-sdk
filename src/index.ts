@@ -149,19 +149,18 @@ export type {
   Campaign,
   CampaignLaunchReadiness,
   CampaignRecipient,
-  CampaignSession,
-  CampaignSessionResponse,
-  CampaignSessionMessage,
+  CampaignRecipientConversationResponse,
+  CampaignMessage,
   Suppression,
-  LeadGenerationSession,
-  LeadGenerationSessionStatus,
+  LeadResearchRun,
+  LeadResearchRunStatus,
   LeadEmailClassification,
   LeadValidationCheck,
   LeadValidationCheckStatus,
   LeadEmailValidationResult,
-  LeadGenerationMessage,
-  ResearchAudienceMember,
-  SendLeadGenerationMessageResult,
+  LeadResearchMessage,
+  ResearchProfileListMember,
+  SendLeadResearchMessageResult,
   Account,
   AccountToken,
   AccountUpdateResponse,
@@ -179,10 +178,9 @@ export type {
   MailboxStatus,
   CampaignStatus,
   CampaignRecipientStatus,
-  CampaignSessionStatus,
-  CampaignSessionMessageDirection,
-  CampaignSessionMessageKind,
-  CampaignSessionMessageStatus,
+  CampaignMessageDirection,
+  CampaignMessageKind,
+  CampaignMessageStatus,
   OutreachPersonalizationStatus,
   OutreachStepVariantStatus,
   OutreachThreadMode,
@@ -280,24 +278,23 @@ export type {
   GetCampaignLaunchReadinessParams,
   GenerateOutreachPersonalizedDraftsParams,
   FindCampaignRecipientsParams,
-  AssignCampaignSessionParams,
-  FindCampaignSessionsParams,
-  GetCampaignSessionParams,
-  ReplyCampaignSessionParams,
-  ResolveCampaignSessionParams,
-  FindCampaignSessionMessagesParams,
-  UpdateCampaignSessionMessageParams,
+  AssignCampaignRecipientParams,
+  GetCampaignRecipientConversationParams,
+  ReplyCampaignRecipientParams,
+  ResolveCampaignRecipientParams,
+  FindCampaignMessagesParams,
+  UpdateCampaignMessageParams,
   CreateSuppressionParams,
   UpdateSuppressionParams,
   FindSuppressionsParams,
   GetSuppressionParams,
-  CreateLeadGenerationSessionParams,
-  FindLeadGenerationSessionsParams,
-  GetLeadGenerationSessionParams,
-  UpdateLeadGenerationSessionParams,
-  CancelLeadGenerationSessionParams,
-  SendLeadGenerationMessageParams,
-  FindLeadGenerationMessagesParams,
+  CreateLeadResearchRunParams,
+  FindLeadResearchRunsParams,
+  GetLeadResearchRunParams,
+  UpdateLeadResearchRunParams,
+  CancelLeadResearchRunParams,
+  SendLeadResearchMessageParams,
+  FindLeadResearchMessagesParams,
   ValidateLeadEmailParams,
 } from "./types/api";
 
@@ -371,20 +368,20 @@ export {
 
 export type { TimelineParams } from "./api/crm";
 export type {
-  SupportChatFlow,
-  SupportChatSession,
-  SupportChatMessage,
-  SupportChatSessionResponse,
-  SupportChatFlowNode,
-  SupportChatFlowEdge,
-  SupportChatAiConfig,
+  SupportAgent,
+  SupportConversation,
+  SupportMessage,
+  SupportConversationResponse,
+  SupportAgentNode,
+  SupportAgentEdge,
+  SupportAgentAiConfig,
   EdgeTrigger,
-  SupportChatAction,
-  AssignSupportChatSessionParams,
-  GetSupportChatSessionParams,
-  ReplySupportChatSessionParams,
-  ResolveSupportChatSessionParams,
-} from "./api/supportChat";
+  SupportAction,
+  AssignSupportConversationParams,
+  GetSupportConversationParams,
+  ReplySupportConversationParams,
+  ResolveSupportConversationParams,
+} from "./api/support";
 export type {
   IntegrationOperation,
   IntegrationResource,
@@ -462,8 +459,8 @@ import { createEshopApi } from "./api/eshop";
 import { createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
 import { createProfileApi } from "./api/crm";
-import { createAdminSupportChatApi, createStorefrontSupportChatApi } from "./api/supportChat";
-import { createLeadGenerationApi } from "./api/leadGeneration";
+import { createAdminSupportApi, createStorefrontSupportApi } from "./api/support";
+import { createLeadResearchApi } from "./api/leadResearch";
 import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
@@ -675,33 +672,33 @@ export function createAdmin(config: CreateAdminConfig) {
   const eshopApi = createEshopApi(apiConfig);
   const promoCodeApi = createPromoCodeApi(apiConfig);
   const crmApi = createProfileApi(apiConfig);
-  const supportChatApi = createAdminSupportChatApi(apiConfig);
-  const leadGenerationApi = createLeadGenerationApi(apiConfig);
-  const leadGeneration = {
-    session: {
-      create: leadGenerationApi.createSession,
-      find: leadGenerationApi.findSessions,
-      get: leadGenerationApi.getSession,
-      update: leadGenerationApi.updateSession,
-      cancel: leadGenerationApi.cancelSession,
-      sendMessage: leadGenerationApi.sendMessage,
-      findMessages: leadGenerationApi.findMessages,
+  const supportApi = createAdminSupportApi(apiConfig);
+  const leadResearchApi = createLeadResearchApi(apiConfig);
+  const leadResearch = {
+    run: {
+      create: leadResearchApi.createRun,
+      find: leadResearchApi.findRuns,
+      get: leadResearchApi.getRun,
+      update: leadResearchApi.updateRun,
+      cancel: leadResearchApi.cancelRun,
+      sendMessage: leadResearchApi.sendMessage,
+      findMessages: leadResearchApi.findMessages,
     },
     message: {
-      send: leadGenerationApi.sendMessage,
-      find: leadGenerationApi.findMessages,
+      send: leadResearchApi.sendMessage,
+      find: leadResearchApi.findMessages,
     },
     email: {
-      validate: leadGenerationApi.validateEmail,
+      validate: leadResearchApi.validateEmail,
     },
-    createSession: leadGenerationApi.createSession,
-    findSessions: leadGenerationApi.findSessions,
-    getSession: leadGenerationApi.getSession,
-    updateSession: leadGenerationApi.updateSession,
-    cancelSession: leadGenerationApi.cancelSession,
-    sendMessage: leadGenerationApi.sendMessage,
-    findMessages: leadGenerationApi.findMessages,
-    validateEmail: leadGenerationApi.validateEmail,
+    createRun: leadResearchApi.createRun,
+    findRuns: leadResearchApi.findRuns,
+    getRun: leadResearchApi.getRun,
+    updateRun: leadResearchApi.updateRun,
+    cancelRun: leadResearchApi.cancelRun,
+    sendMessage: leadResearchApi.sendMessage,
+    findMessages: leadResearchApi.findMessages,
+    validateEmail: leadResearchApi.validateEmail,
   };
   const locationApi = createLocationApi(apiConfig);
   const marketApi = createMarketApi(apiConfig);
@@ -823,13 +820,12 @@ export function createAdmin(config: CreateAdminConfig) {
       mailbox: crmApi.mailbox,
       campaign: crmApi.campaign,
       campaignRecipient: crmApi.campaignRecipient,
-      campaignSession: crmApi.campaignSession,
-      campaignSessionMessage: crmApi.campaignSessionMessage,
+      campaignMessage: crmApi.campaignMessage,
       suppression: crmApi.suppression,
-      leadGeneration,
+      leadResearch,
       activity: crmApi.activity,
     },
-    leadGeneration,
+    leadResearch,
     automation: {
       workflow: {
         create: workflowApi.createWorkflow,
@@ -841,7 +837,7 @@ export function createAdmin(config: CreateAdminConfig) {
         getExecutions: workflowApi.getWorkflowExecutions,
         getExecution: workflowApi.getWorkflowExecution,
       },
-      supportChat: supportChatApi,
+      support: supportApi,
     },
 
     analytics: analyticsApi,
@@ -1093,7 +1089,7 @@ export function createStorefront(config: CreateStorefrontConfig) {
     eshop: storefrontApi.eshop,
     crm: storefrontApi.crm,
     activity: storefrontApi.activity,
-    supportChat: createStorefrontSupportChatApi(apiConfig),
+    support: createStorefrontSupportApi(apiConfig),
     setStoreId: (storeId: string) => {
       apiConfig.storeId = storeId;
       bareIdentifyPromise = null;

@@ -850,15 +850,7 @@ export type CampaignRecipientStatus =
 	| 'suppressed'
 	| 'failed'
 	| 'cancelled';
-export type CampaignSessionStatus =
-	| 'pending'
-	| 'active'
-	| 'needs_reply'
-	| 'resolved'
-	| 'failed'
-	| 'cancelled'
-	| 'suppressed';
-export type CampaignSessionMessageStatus =
+export type CampaignMessageStatus =
 	| 'pending'
 	| 'sending'
 	| 'sent'
@@ -866,15 +858,15 @@ export type CampaignSessionMessageStatus =
 	| 'bounced'
 	| 'failed'
 	| 'skipped';
-export type CampaignSessionMessageKind =
+export type CampaignMessageKind =
 	| 'campaign_step'
 	| 'manual_reply'
 	| 'inbound_reply'
 	| 'delivery_failure'
 	| 'activity';
-export type CampaignSessionMessageDirection = 'outbound' | 'inbound' | 'activity';
-export type CampaignSessionMessageCopySource = 'base' | 'generated' | 'edited';
-export type CampaignSessionMessageReviewStatus = 'unreviewed' | 'reviewed';
+export type CampaignMessageDirection = 'outbound' | 'inbound' | 'activity';
+export type CampaignMessageCopySource = 'base' | 'generated' | 'edited';
+export type CampaignMessageReviewStatus = 'unreviewed' | 'reviewed';
 export type OutreachThreadMode = 'new_thread' | 'same_thread';
 export type OutreachStepVariantStatus = 'active' | 'archived';
 export type OutreachPersonalizationStatus = 'idle' | 'running' | 'completed' | 'failed';
@@ -1348,19 +1340,7 @@ export interface CampaignRecipient {
 	next_send_at?: number | null;
 	replied_at?: number | null;
 	completed_at?: number | null;
-	created_at: number;
-	updated_at: number;
-}
-
-export interface CampaignSession {
-	id: string;
-	store_id: string;
-	campaign_id: string;
-	campaign_recipient_id: string;
-	profile_id: string;
-	mailbox_id?: string | null;
 	assigned_account_id?: string | null;
-	status: CampaignSessionStatus;
 	needs_reply: boolean;
 	unread_count: number;
 	last_message_id?: string | null;
@@ -1370,29 +1350,28 @@ export interface CampaignSession {
 	updated_at: number;
 }
 
-export interface CampaignSessionMessage {
+export interface CampaignMessage {
 	id: string;
 	store_id: string;
-	campaign_session_id?: string | null;
 	campaign_id: string;
 	campaign_recipient_id: string;
 	profile_id: string;
 	mailbox_id: string;
-	direction: CampaignSessionMessageDirection;
-	kind: CampaignSessionMessageKind;
+	direction: CampaignMessageDirection;
+	kind: CampaignMessageKind;
 	step_id?: string | null;
 	step_position?: number | null;
 	step_variant_id?: string | null;
 	step_variant_position?: number | null;
 	step_variant_name?: string | null;
 	base_copy_hash?: string | null;
-	copy_source: CampaignSessionMessageCopySource;
-	review_status: CampaignSessionMessageReviewStatus;
+	copy_source: CampaignMessageCopySource;
+	review_status: CampaignMessageReviewStatus;
 	personalized_at?: number | null;
 	edited_at?: number | null;
 	personalization_error?: string | null;
 	in_reply_to_message_id?: string | null;
-	status: CampaignSessionMessageStatus;
+	status: CampaignMessageStatus;
 	to_email: string;
 	from_email: string;
 	subject: string;
@@ -1406,9 +1385,9 @@ export interface CampaignSessionMessage {
 	updated_at: number;
 }
 
-export interface CampaignSessionResponse {
-	session: CampaignSession;
-	messages: CampaignSessionMessage[];
+export interface CampaignRecipientConversationResponse {
+	recipient: CampaignRecipient;
+	messages: CampaignMessage[];
 }
 
 export interface Suppression {
@@ -1429,7 +1408,7 @@ export interface Suppression {
 	updated_at: number;
 }
 
-export type LeadGenerationSessionStatus =
+export type LeadResearchRunStatus =
 	| 'draft'
 	| 'running'
 	| 'needs_review'
@@ -1448,13 +1427,13 @@ export type LeadEmailClassification =
 
 export type LeadValidationCheckStatus = 'passed' | 'warning' | 'failed' | 'unknown';
 
-export interface LeadGenerationSession {
+export interface LeadResearchRun {
 	id: string;
 	store_id: string;
 	integration_id: string;
 	profile_list_id: string;
 	title?: string | null;
-	status: LeadGenerationSessionStatus;
+	status: LeadResearchRunStatus;
 	error?: string | null;
 	started_at?: number | null;
 	completed_at?: number | null;
@@ -1479,22 +1458,22 @@ export interface LeadEmailValidationResult {
 	checks: LeadValidationCheck[];
 }
 
-export interface LeadGenerationMessage {
+export interface LeadResearchMessage {
 	id: string;
 	role: string;
 	content: string;
 	created_at: number;
 }
 
-export interface ResearchAudienceMember {
+export interface ResearchProfileListMember {
 	profile: Profile;
 	membership: ProfileListMembership;
 }
 
-export interface SendLeadGenerationMessageResult {
+export interface SendLeadResearchMessageResult {
 	response: string;
-	session: LeadGenerationSession;
-	audience_members: ResearchAudienceMember[];
+	run: LeadResearchRun;
+	profile_list_members: ResearchProfileListMember[];
 }
 
 export type EventAction =

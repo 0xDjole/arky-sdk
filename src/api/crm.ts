@@ -41,13 +41,12 @@ import type {
   CampaignRecipientImportResult,
   GenerateOutreachPersonalizedDraftsParams,
   FindCampaignRecipientsParams,
-  AssignCampaignSessionParams,
-  FindCampaignSessionsParams,
-  GetCampaignSessionParams,
-  ReplyCampaignSessionParams,
-  ResolveCampaignSessionParams,
-  FindCampaignSessionMessagesParams,
-  UpdateCampaignSessionMessageParams,
+  AssignCampaignRecipientParams,
+  GetCampaignRecipientConversationParams,
+  ReplyCampaignRecipientParams,
+  ResolveCampaignRecipientParams,
+  FindCampaignMessagesParams,
+  UpdateCampaignMessageParams,
   CreateSuppressionParams,
   UpdateSuppressionParams,
   FindSuppressionsParams,
@@ -58,9 +57,8 @@ import type {
   Campaign,
   CampaignLaunchReadiness,
   CampaignRecipient,
-  CampaignSessionMessage,
-  CampaignSession,
-  CampaignSessionResponse,
+  CampaignMessage,
+  CampaignRecipientConversationResponse,
   PaginatedResponse,
   ProfileList,
   ProfileListMember,
@@ -509,73 +507,62 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
           { ...options, params: queryParams },
         );
       },
-    },
 
-    campaignSession: {
-      async find(params?: FindCampaignSessionsParams, options?: RequestOptions): Promise<PaginatedResponse<CampaignSession>> {
-        const { store_id, ...queryParams } = params || {};
-        const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<PaginatedResponse<CampaignSession>>(
-          `/v1/stores/${target_store_id}/campaign-sessions`,
-          { ...options, params: queryParams },
-        );
-      },
-
-      async get(params: GetCampaignSessionParams, options?: RequestOptions): Promise<CampaignSessionResponse> {
+      async get(params: GetCampaignRecipientConversationParams, options?: RequestOptions): Promise<CampaignRecipientConversationResponse> {
         const { store_id, id, ...queryParams } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<CampaignSessionResponse>(
-          `/v1/stores/${target_store_id}/campaign-sessions/${id}`,
+        return apiConfig.httpClient.get<CampaignRecipientConversationResponse>(
+          `/v1/stores/${target_store_id}/campaign-recipients/${id}`,
           { ...options, params: { ...queryParams, store_id: target_store_id } },
         );
       },
 
-      async reply(params: ReplyCampaignSessionParams, options?: RequestOptions): Promise<CampaignSessionResponse> {
+      async reply(params: ReplyCampaignRecipientParams, options?: RequestOptions): Promise<CampaignRecipientConversationResponse> {
         const { store_id, id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<CampaignSessionResponse>(
-          `/v1/stores/${target_store_id}/campaign-sessions/${id}/reply`,
+        return apiConfig.httpClient.post<CampaignRecipientConversationResponse>(
+          `/v1/stores/${target_store_id}/campaign-recipients/${id}/reply`,
           payload,
           options,
         );
       },
 
-      async resolve(params: ResolveCampaignSessionParams, options?: RequestOptions): Promise<CampaignSession> {
+      async resolve(params: ResolveCampaignRecipientParams, options?: RequestOptions): Promise<CampaignRecipientConversationResponse> {
         const { store_id, id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<CampaignSession>(
-          `/v1/stores/${target_store_id}/campaign-sessions/${id}/resolve`,
+        return apiConfig.httpClient.post<CampaignRecipientConversationResponse>(
+          `/v1/stores/${target_store_id}/campaign-recipients/${id}/resolve`,
           payload,
           options,
         );
       },
 
-      async assign(params: AssignCampaignSessionParams, options?: RequestOptions): Promise<CampaignSession> {
+      async assign(params: AssignCampaignRecipientParams, options?: RequestOptions): Promise<CampaignRecipientConversationResponse> {
         const { store_id, id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<CampaignSession>(
-          `/v1/stores/${target_store_id}/campaign-sessions/${id}/assign`,
+        return apiConfig.httpClient.post<CampaignRecipientConversationResponse>(
+          `/v1/stores/${target_store_id}/campaign-recipients/${id}/assign`,
           payload,
           options,
         );
       },
     },
 
-    campaignSessionMessage: {
-      async find(params?: FindCampaignSessionMessagesParams, options?: RequestOptions): Promise<PaginatedResponse<CampaignSessionMessage>> {
+    campaignMessage: {
+      async find(params?: FindCampaignMessagesParams, options?: RequestOptions): Promise<PaginatedResponse<CampaignMessage>> {
         const { store_id, ...queryParams } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<PaginatedResponse<CampaignSessionMessage>>(
-          `/v1/stores/${target_store_id}/campaign-session-messages`,
+        return apiConfig.httpClient.get<PaginatedResponse<CampaignMessage>>(
+          `/v1/stores/${target_store_id}/campaign-messages`,
           { ...options, params: queryParams },
         );
       },
 
-      async update(params: UpdateCampaignSessionMessageParams, options?: RequestOptions): Promise<CampaignSessionMessage> {
+      async update(params: UpdateCampaignMessageParams, options?: RequestOptions): Promise<CampaignMessage> {
         const { id, store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.put<CampaignSessionMessage>(
-          `/v1/stores/${target_store_id}/campaign-session-messages/${id}`,
+        return apiConfig.httpClient.put<CampaignMessage>(
+          `/v1/stores/${target_store_id}/campaign-messages/${id}`,
           payload,
           options,
         );

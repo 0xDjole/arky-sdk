@@ -20,8 +20,8 @@ export type AnalyticsReportKey =
   | "profiles_created"
   | "form_submissions_created"
   | "carts_abandoned"
-  | "campaign_session_messages_sent"
-  | "campaign_session_messages_received"
+  | "campaign_messages_sent"
+  | "campaign_messages_received"
   | "suppressions_created"
   | "media_count"
   | "products_by_status"
@@ -33,10 +33,9 @@ export type AnalyticsReportKey =
   | "mailboxes_by_status"
   | "campaigns_by_status"
   | "campaign_recipients_by_status"
-  | "campaign_sessions_by_status"
-  | "campaign_session_messages_by_status"
-  | "support_chat_sessions_by_status"
-  | "lead_generation_sessions_by_status"
+  | "campaign_messages_by_status"
+  | "support_conversations_by_status"
+  | "lead_research_runs_by_status"
   | "suppressions_by_status"
 
   | "workflows_by_status"
@@ -158,9 +157,9 @@ export interface OutreachOverviewData {
   replied_campaign_recipients: number;
   suppressed_campaign_recipients: number;
   failed_campaign_recipients: number;
-  campaign_session_messages_sent: number;
+  campaign_messages_sent: number;
   outreach_bounces: number;
-  campaign_session_messages_received: number;
+  campaign_messages_received: number;
   suppressions: number;
   active_suppressions: number;
   new_suppressions: number;
@@ -174,9 +173,9 @@ export interface OutreachFunnelStage {
     | "profile_lists"
     | "campaigns"
     | "campaign_recipients"
-    | "campaign_session_messages_sent"
+    | "campaign_messages_sent"
     | "outreach_bounces"
-    | "campaign_session_messages_received"
+    | "campaign_messages_received"
     | string;
   label: string;
   value: number;
@@ -274,8 +273,8 @@ export type AnalyticsMetricReportKey =
   | "profiles_created"
   | "form_submissions_created"
   | "carts_abandoned"
-  | "campaign_session_messages_sent"
-  | "campaign_session_messages_received"
+  | "campaign_messages_sent"
+  | "campaign_messages_received"
   | "suppressions_created"
   | "media_count";
 
@@ -291,10 +290,9 @@ export type AnalyticsBreakdownReportKey =
   | "mailboxes_by_status"
   | "campaigns_by_status"
   | "campaign_recipients_by_status"
-  | "campaign_sessions_by_status"
-  | "campaign_session_messages_by_status"
-  | "support_chat_sessions_by_status"
-  | "lead_generation_sessions_by_status"
+  | "campaign_messages_by_status"
+  | "support_conversations_by_status"
+  | "lead_research_runs_by_status"
   | "suppressions_by_status"
 
   | "workflows_by_status"
