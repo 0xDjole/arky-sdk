@@ -45,14 +45,12 @@ import type {
   CampaignMessageKind,
   CampaignMessageStatus,
   CampaignMessageCopySource,
-  CampaignMessageReviewStatus,
   OutreachStep,
   LeadResearchRunStatus,
   SuppressionStatus,
   SuppressionReason,
   SuppressionSource,
 } from "./index";
-
 
 export interface CreateLocationParams {
   key: string;
@@ -71,11 +69,10 @@ export interface DeleteLocationParams {
   id: string;
 }
 
-
 export interface CreateMarketParams {
   key: string;
   currency: string;
-  tax_mode: 'inclusive' | 'exclusive';
+  tax_mode: "inclusive" | "exclusive";
   payment_methods?: PaymentMethod[];
   zones?: Zone[];
 }
@@ -84,7 +81,7 @@ export interface UpdateMarketParams {
   id: string;
   key?: string;
   currency?: string;
-  tax_mode?: 'inclusive' | 'exclusive';
+  tax_mode?: "inclusive" | "exclusive";
   payment_methods?: PaymentMethod[];
   zones?: Zone[];
 }
@@ -160,9 +157,7 @@ export interface ServiceQuoteItemInput extends ServiceQuoteItem {
   type: "service";
 }
 
-export type OrderQuoteItemInput =
-  | ProductQuoteItemInput
-  | ServiceQuoteItemInput;
+export type OrderQuoteItemInput = ProductQuoteItemInput | ServiceQuoteItemInput;
 
 export type QuoteItemInput = OrderQuoteItemInput;
 
@@ -213,7 +208,6 @@ export type TrustedOrderCheckoutCompatibleItemInput =
   | EshopItem
   | ServiceCheckoutPart;
 
-
 export interface GetQuoteParams {
   store_id?: string;
   market?: string;
@@ -227,7 +221,6 @@ export interface GetQuoteParams {
 
   location?: ZoneLocation;
 }
-
 
 export interface OrderCheckoutParams {
   store_id?: string;
@@ -329,7 +322,7 @@ export interface GetProductsParams {
   limit?: number;
   cursor?: string;
   sort_field?: string;
-  sort_direction?: 'asc' | 'desc';
+  sort_direction?: "asc" | "desc";
   created_at_from?: number | null;
   created_at_to?: number | null;
 }
@@ -345,7 +338,7 @@ export interface GetNodesParams {
   query?: string | number;
   status?: NodeStatus;
   sort_field?: string;
-  sort_direction?: 'asc' | 'desc';
+  sort_direction?: "asc" | "desc";
   created_at_from?: number;
   created_at_to?: number;
 }
@@ -419,7 +412,7 @@ export interface GetStoreMediaParams {
   query?: string;
   mime_type?: string;
   sort_field?: string;
-  sort_direction?: 'asc' | 'desc';
+  sort_direction?: "asc" | "desc";
 }
 
 export interface LoginAccountParams {
@@ -438,7 +431,6 @@ export interface MagicLinkVerifyParams {
   code: string;
 }
 
-
 export interface GetServicesParams {
   store_id?: string;
   ids?: string[];
@@ -449,7 +441,7 @@ export interface GetServicesParams {
   query?: string | number;
   status?: ServiceStatus;
   sort_field?: string;
-  sort_direction?: 'asc' | 'desc';
+  sort_direction?: "asc" | "desc";
   created_at_from?: number;
   created_at_to?: number;
   taxonomy_query?: TaxonomyQuery[];
@@ -486,9 +478,7 @@ export interface GetAnalyticsParams {
   interval?: string;
 }
 
-export interface GetAnalyticsHealthParams {
-
-}
+export interface GetAnalyticsHealthParams {}
 
 export interface TrackEmailOpenParams {
   tracking_pixel_id: string;
@@ -496,7 +486,7 @@ export interface TrackEmailOpenParams {
 
 export interface GetDeliveryStatsParams {}
 
-export type StoreRole = 'admin' | 'owner' | 'super';
+export type StoreRole = "admin" | "owner" | "super";
 
 export type Discount =
   | { type: "items_percentage"; market_id: string; bps: number }
@@ -555,7 +545,7 @@ export interface GetPromoCodesParams {
   limit?: number;
   cursor?: string;
   sort_field?: string;
-  sort_direction?: 'asc' | 'desc';
+  sort_direction?: "asc" | "desc";
   created_at_from?: number;
   created_at_to?: number;
   starts_at_from?: number;
@@ -586,7 +576,6 @@ export interface DeleteStoreParams {
 
 export interface GetStoreParams {}
 
-
 export interface SubscribeParams {
   store_id?: string;
   plan_id: string;
@@ -605,36 +594,32 @@ export interface AddMemberParams {
   store_id?: string;
 }
 
-export interface InviteUserParams extends AddMemberParams {
-}
+export interface InviteUserParams extends AddMemberParams {}
 
 export interface RemoveMemberParams {
   account_id: string;
 }
 
 export interface TestWebhookParams {
-  webhook: import('./index').Webhook;
+  webhook: import("./index").Webhook;
 }
-
 
 export interface CreateProductVariantInput {
   sku?: string;
   prices: Price[];
-  inventory: import('./index').ProductInventory[];
+  inventory: import("./index").ProductInventory[];
   attributes: Block[];
   weight?: number;
 }
-
 
 export interface UpdateProductVariantInput {
   id: string;
   sku?: string | null;
   prices?: Price[];
-  inventory?: import('./index').ProductInventory[];
+  inventory?: import("./index").ProductInventory[];
   attributes?: Block[];
   weight?: number | null;
 }
-
 
 export interface CreateProductParams {
   store_id?: string;
@@ -645,7 +630,6 @@ export interface CreateProductParams {
   filters?: TaxonomyEntry[];
   variants?: CreateProductVariantInput[];
 }
-
 
 export interface UpdateProductParams {
   id: string;
@@ -687,15 +671,13 @@ export interface GetOrdersParams {
   limit?: number | null;
   cursor?: string | null;
   sort_field?: string | null;
-  sort_direction?: 'asc' | 'desc' | null;
+  sort_direction?: "asc" | "desc" | null;
   created_at_from?: number | null;
   created_at_to?: number | null;
   profile_list_id?: string;
 }
 
-
 export interface OrderUpdateItem extends EshopItem {}
-
 
 export interface UpdateOrderParams {
   id: string;
@@ -708,9 +690,8 @@ export interface UpdateOrderParams {
   billing_address?: Address | null;
   forms?: FormEntry[];
   items?: TrustedOrderCheckoutCompatibleItemInput[];
-  payment?: import('./index').OrderPayment;
+  payment?: import("./index").OrderPayment;
 }
-
 
 export interface CreateProviderParams {
   store_id?: string;
@@ -721,7 +702,6 @@ export interface CreateProviderParams {
   taxonomies?: TaxonomyEntry[];
   filters?: TaxonomyEntry[];
 }
-
 
 export interface UpdateProviderParams {
   id: string;
@@ -739,7 +719,6 @@ export interface DeleteProviderParams {
   store_id?: string;
 }
 
-
 export interface ServiceProviderInput {
   provider_id: string;
   store_id?: string;
@@ -748,7 +727,6 @@ export interface ServiceProviderInput {
   working_days: WorkingDay[];
   specific_dates: SpecificDate[];
 }
-
 
 export interface CreateServiceParams {
   store_id?: string;
@@ -760,7 +738,6 @@ export interface CreateServiceParams {
   location?: ZoneLocation;
   status?: ServiceStatus;
 }
-
 
 export interface UpdateServiceParams {
   id: string;
@@ -837,7 +814,7 @@ export interface GetProvidersParams {
   limit?: number;
   cursor?: string;
   sort_field?: string | null;
-  sort_direction?: 'asc' | 'desc' | null;
+  sort_direction?: "asc" | "desc" | null;
   created_at_from?: number | null;
   created_at_to?: number | null;
   from?: number;
@@ -868,12 +845,10 @@ export interface SearchOrderServiceItemsParams {
   profile_list_id?: string;
 }
 
-
 export interface AccountAddress {
   label?: string;
   address: Address;
 }
-
 
 export interface AccountApiToken {
   id: string | null;
@@ -883,7 +858,6 @@ export interface AccountApiToken {
   expires_at?: number | null;
   type?: string;
 }
-
 
 export interface UpdateAccountProfileParams {
   phone_numbers?: string[];
@@ -899,11 +873,10 @@ export interface SearchAccountsParams {
   owner?: string;
   store_id?: string;
   sort_field?: string | null;
-  sort_direction?: 'asc' | 'desc' | null;
+  sort_direction?: "asc" | "desc" | null;
 }
 
 export interface DeleteAccountParams {}
-
 
 export interface TriggerNotificationParams {
   channel: string;
@@ -913,7 +886,6 @@ export interface TriggerNotificationParams {
   profile_list_id?: string;
   vars?: Record<string, any>;
 }
-
 
 export interface GetEmailTemplatesParams {
   store_id?: string;
@@ -985,7 +957,6 @@ export interface DeleteEmailTemplateParams {
   id: string;
   store_id?: string;
 }
-
 
 export interface GetFormsParams {
   store_id?: string;
@@ -1070,7 +1041,6 @@ export interface UpdateFormSubmissionParams {
   fields: FormField[];
 }
 
-
 export interface GetTaxonomiesParams {
   store_id?: string;
   parent_id?: string;
@@ -1124,7 +1094,6 @@ export interface GetMeParams {}
 export interface LogoutParams {}
 
 export interface GetStoresParams {
-
   query?: string | number;
   limit?: number;
   cursor?: string;
@@ -1133,7 +1102,6 @@ export interface GetStoresParams {
 }
 
 export interface GetSubscriptionPlansParams {}
-
 
 export interface SetupAnalyticsParams {
   store_id?: string;
@@ -1148,7 +1116,7 @@ export interface GetStoreMediaParams2 {
   query?: string | number;
   mime_type?: string;
   sort_field?: string;
-  sort_direction?: 'asc' | 'desc';
+  sort_direction?: "asc" | "desc";
 }
 
 export interface ProcessOrderRefundParams {
@@ -1242,24 +1210,21 @@ export interface GetWorkflowsParams {
   limit?: number;
   cursor?: string;
   sort_field?: string;
-  sort_direction?: 'asc' | 'desc';
+  sort_direction?: "asc" | "desc";
   created_at_from?: number;
   created_at_to?: number;
 }
 
-
 export interface TriggerWorkflowParams {
-
   secret: string;
 
   input?: Record<string, unknown>;
 }
 
-
 export interface GetWorkflowExecutionsParams {
   workflow_id: string;
   store_id?: string;
-  status?: import('./index').ExecutionStatus;
+  status?: import("./index").ExecutionStatus;
   limit?: number;
   cursor?: string;
 }
@@ -1297,7 +1262,7 @@ export interface FindProfileListsParams {
   limit?: number;
   cursor?: string;
   sort_field?: string;
-  sort_direction?: 'asc' | 'desc';
+  sort_direction?: "asc" | "desc";
 }
 
 export interface GetProfileListParams {
@@ -1487,12 +1452,12 @@ export interface FindMailboxesParams {
   store_id?: string;
   ids?: string[];
   status?: MailboxStatus;
-  provider_type?: 'fake' | 'smtp_imap';
+  provider_type?: "fake" | "smtp_imap";
   query?: string | number;
   limit?: number;
   cursor?: string;
   sort_field?: string;
-  sort_direction?: 'asc' | 'desc';
+  sort_direction?: "asc" | "desc";
 }
 
 export interface GetMailboxParams {
@@ -1546,7 +1511,7 @@ export interface FindCampaignsParams {
   limit?: number;
   cursor?: string;
   sort_field?: string;
-  sort_direction?: 'asc' | 'desc';
+  sort_direction?: "asc" | "desc";
 }
 
 export interface GetCampaignParams {
@@ -1614,7 +1579,6 @@ export interface UpdateCampaignRecipientDraftParams {
   draft_id: string;
   subject?: string;
   body?: string;
-  review_status?: CampaignMessageReviewStatus;
 }
 
 export interface FindCampaignMessagesParams {
@@ -1627,7 +1591,6 @@ export interface FindCampaignMessagesParams {
   kind?: CampaignMessageKind;
   status?: CampaignMessageStatus;
   copy_source?: CampaignMessageCopySource;
-  review_status?: CampaignMessageReviewStatus;
   step_position?: number;
   query?: string;
   limit?: number;
@@ -1671,7 +1634,6 @@ export interface UpdateCampaignMessageParams {
   store_id?: string;
   subject?: string;
   body?: string;
-  review_status?: CampaignMessageReviewStatus;
 }
 
 export interface CreateSuppressionParams {
@@ -1703,7 +1665,7 @@ export interface FindSuppressionsParams {
   limit?: number;
   cursor?: string;
   sort_field?: string;
-  sort_direction?: 'asc' | 'desc';
+  sort_direction?: "asc" | "desc";
 }
 
 export interface GetSuppressionParams {
@@ -1763,7 +1725,6 @@ export interface ValidateLeadEmailParams {
   email_source_url?: string;
 }
 
-
 export interface OAuthConnectParams {
   store_id: string;
   provider: string;
@@ -1775,7 +1736,6 @@ export interface OAuthDisconnectParams {
   store_id: string;
   provider: string;
 }
-
 
 export interface ListIntegrationsParams {
   store_id: string;
@@ -1803,7 +1763,6 @@ export interface DeleteIntegrationParams {
   store_id: string;
   id: string;
 }
-
 
 export interface ListWebhooksParams {
   store_id: string;
@@ -1835,7 +1794,6 @@ export interface DeleteWebhookParams {
   id: string;
 }
 
-
 export interface GetShippingRatesParams {
   order_id: string;
   shipping_provider_id: string;
@@ -1845,7 +1803,6 @@ export interface GetShippingRatesParams {
   customs_declaration?: CustomsDeclaration;
 }
 
-
 export interface ShipParams {
   order_id: string;
   rate_id: string;
@@ -1854,7 +1811,6 @@ export interface ShipParams {
   location_id: string;
   lines: ShipmentLine[];
 }
-
 
 export interface AuthToken {
   id: string;
@@ -1896,7 +1852,7 @@ export interface Profile {
   verified: boolean;
   status: ProfileStatus;
   promo_usage: PromoUsage[];
-  lists: import('./index').ProfileListMembership[];
+  lists: import("./index").ProfileListMembership[];
   taxonomies: TaxonomyEntry[];
   auth_tokens: ProfileAuthToken[];
   verification_codes: ProfileVerificationCode[];
@@ -1906,9 +1862,9 @@ export interface Profile {
 
 export interface ProfileDetail {
   profile: Profile;
-  carts: import('./index').Cart[];
-  orders: import('./index').Order[];
-  form_submissions: import('./index').FormSubmission[];
+  carts: import("./index").Cart[];
+  orders: import("./index").Order[];
+  form_submissions: import("./index").FormSubmission[];
 }
 
 export interface SetProfileEmailParams {
@@ -1947,7 +1903,7 @@ export interface FindProfilesParams {
   limit?: number;
   cursor?: string;
   sort_field?: string;
-  sort_direction?: 'asc' | 'desc';
+  sort_direction?: "asc" | "desc";
 }
 
 export interface MergeProfilesParams {
