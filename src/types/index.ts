@@ -872,7 +872,7 @@ export type CampaignRecipientStatus =
   | "completed"
   | "suppressed"
   | "failed"
-  | "cancelled";
+  | "stopped";
 export type CampaignRecipientImportSource =
   | "profile_list"
   | "profile"
@@ -1404,14 +1404,6 @@ export interface CampaignRecipient {
   status: CampaignRecipientStatus;
   current_step_position: number;
   next_send_at?: number | null;
-  replied_at?: number | null;
-  completed_at?: number | null;
-  assigned_account_id?: string | null;
-  needs_reply: boolean;
-  unread_count: number;
-  last_message_id?: string | null;
-  last_message_at?: number | null;
-  resolved_at?: number | null;
   created_at: number;
   updated_at: number;
 }

@@ -1560,7 +1560,6 @@ export interface FindCampaignRecipientsParams {
   profile_id?: string;
   mailbox_id?: string;
   status?: CampaignRecipientStatus;
-  needs_reply?: boolean;
   limit?: number;
   cursor?: string;
 }
@@ -1610,24 +1609,12 @@ export interface ReplyCampaignRecipientParams {
   id: string;
   subject?: string | null;
   body: string;
-  resolve?: boolean;
   attachments?: string[];
 }
 
-export interface ResolveCampaignRecipientParams {
+export interface StopCampaignRecipientParams {
   store_id?: string;
   id: string;
-}
-
-export interface CancelCampaignRecipientParams {
-  store_id?: string;
-  id: string;
-}
-
-export interface AssignCampaignRecipientParams {
-  store_id?: string;
-  id: string;
-  account_id?: string | null;
 }
 
 export interface UpdateCampaignMessageParams {

@@ -43,11 +43,9 @@ import type {
   FindCampaignRecipientsParams,
   UpdateCampaignRecipientParams,
   UpdateCampaignRecipientDraftParams,
-  AssignCampaignRecipientParams,
   GetCampaignRecipientConversationParams,
   ReplyCampaignRecipientParams,
-  ResolveCampaignRecipientParams,
-  CancelCampaignRecipientParams,
+  StopCampaignRecipientParams,
   FindCampaignMessagesParams,
   UpdateCampaignMessageParams,
   CreateSuppressionParams,
@@ -550,31 +548,11 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async resolve(params: ResolveCampaignRecipientParams, options?: RequestOptions): Promise<CampaignRecipientConversationResponse> {
+      async stop(params: StopCampaignRecipientParams, options?: RequestOptions): Promise<CampaignRecipientConversationResponse> {
         const { store_id, id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<CampaignRecipientConversationResponse>(
-          `/v1/stores/${target_store_id}/campaign-recipients/${id}/resolve`,
-          payload,
-          options,
-        );
-      },
-
-      async cancel(params: CancelCampaignRecipientParams, options?: RequestOptions): Promise<CampaignRecipientConversationResponse> {
-        const { store_id, id, ...payload } = params;
-        const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<CampaignRecipientConversationResponse>(
-          `/v1/stores/${target_store_id}/campaign-recipients/${id}/cancel`,
-          payload,
-          options,
-        );
-      },
-
-      async assign(params: AssignCampaignRecipientParams, options?: RequestOptions): Promise<CampaignRecipientConversationResponse> {
-        const { store_id, id, ...payload } = params;
-        const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<CampaignRecipientConversationResponse>(
-          `/v1/stores/${target_store_id}/campaign-recipients/${id}/assign`,
+          `/v1/stores/${target_store_id}/campaign-recipients/${id}/stop`,
           payload,
           options,
         );
