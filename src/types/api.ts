@@ -1611,6 +1611,7 @@ export interface ReplyCampaignRecipientParams {
   subject?: string | null;
   body: string;
   resolve?: boolean;
+  attachments?: string[];
 }
 
 export interface ResolveCampaignRecipientParams {

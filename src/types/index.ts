@@ -873,6 +873,10 @@ export type CampaignRecipientStatus =
   | "suppressed"
   | "failed"
   | "cancelled";
+export type CampaignRecipientImportSource =
+  | "profile_list"
+  | "profile"
+  | "manual";
 export type CampaignMessageStatus =
   | "pending"
   | "sending"
@@ -1390,6 +1394,9 @@ export interface CampaignRecipient {
   campaign_id: string;
   profile_id: string;
   profile_list_membership_id?: string | null;
+  import_source: CampaignRecipientImportSource;
+  import_source_id?: string | null;
+  imported_at?: number | null;
   mailbox_id?: string | null;
   lead_description?: string | null;
   fields: Record<string, unknown>;
@@ -1434,6 +1441,7 @@ export interface CampaignMessage {
   from_email: string;
   subject: string;
   body: string;
+  attachments: string[];
   provider_message_id?: string | null;
   provider_thread_id?: string | null;
   error?: string | null;
