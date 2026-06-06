@@ -892,7 +892,7 @@ export type CampaignMessageKind =
   | "delivery_failure"
   | "activity";
 export type CampaignMessageDirection = "outbound" | "inbound" | "activity";
-export type CampaignMessageCopySource = "base" | "generated" | "edited";
+export type CampaignMessageCopySource = "template" | "generated" | "edited";
 export type OutreachThreadMode = "new_thread" | "same_thread";
 export type OutreachStepVariantStatus = "active" | "archived";
 export type OutreachPersonalizationStatus =
@@ -914,17 +914,6 @@ export type WorkflowStatus = "active" | "draft" | "archived";
 export type PromoCodeStatus = "active" | "draft" | "archived";
 export type NodeStatus = "active" | "draft" | "archived";
 export type EmailTemplateStatus = "active" | "draft" | "archived";
-export type EmailTemplateUsage = "workflow" | "campaign" | "both";
-export type EmailTemplateVariableType =
-  | "text"
-  | "long_text"
-  | "html"
-  | "url"
-  | "media"
-  | "object"
-  | "array"
-  | "number"
-  | "boolean";
 
 export type FormStatus = "active" | "draft" | "archived";
 export type TaxonomyStatus = "active" | "draft" | "archived";
@@ -985,7 +974,6 @@ export interface EmailTemplate {
   preheader?: string;
   variables: EmailTemplateVariable[];
   sample_data: Record<string, unknown>;
-  usage: EmailTemplateUsage;
   status: EmailTemplateStatus;
   created_at: number;
   updated_at: number;
@@ -993,11 +981,6 @@ export interface EmailTemplate {
 
 export interface EmailTemplateVariable {
   key: string;
-  label?: string | null;
-  type: EmailTemplateVariableType;
-  required: boolean;
-  default_value?: unknown;
-  help?: string | null;
 }
 
 export interface Form {
@@ -1315,8 +1298,6 @@ export interface OutreachStepVariant {
   position?: number;
   weight: number;
   name?: string;
-  subject: string;
-  body: string;
   template_id?: string | null;
   template_vars?: Record<string, unknown>;
   status?: OutreachStepVariantStatus;
@@ -1335,7 +1316,7 @@ export interface OutreachPersonalizationCounters {
   total_profiles: number;
   draft_messages: number;
   generated_messages: number;
-  base_messages: number;
+  template_messages: number;
   failed_messages: number;
 }
 
@@ -1378,7 +1359,7 @@ export interface CampaignLaunchReadiness {
   draft_count: number;
   pending_drafts: number;
   generated_drafts: number;
-  base_drafts: number;
+  template_drafts: number;
   edited_drafts: number;
   personalization_errors: number;
   stale_drafts: number;
@@ -1399,7 +1380,7 @@ export interface CampaignRecipientDraft {
   step_variant_id?: string | null;
   step_variant_position?: number | null;
   step_variant_name?: string | null;
-  base_copy_hash?: string | null;
+  template_copy_hash?: string | null;
   copy_source: CampaignMessageCopySource;
   personalized_at?: number | null;
   edited_at?: number | null;
@@ -1450,7 +1431,7 @@ export interface CampaignMessage {
   step_variant_id?: string | null;
   step_variant_position?: number | null;
   step_variant_name?: string | null;
-  base_copy_hash?: string | null;
+  template_copy_hash?: string | null;
   copy_source: CampaignMessageCopySource;
   personalized_at?: number | null;
   edited_at?: number | null;

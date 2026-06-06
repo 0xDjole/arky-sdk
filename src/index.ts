@@ -194,8 +194,6 @@ export type {
   PromoCodeStatus,
   NodeStatus,
   EmailTemplateStatus,
-  EmailTemplateUsage,
-  EmailTemplateVariableType,
   EmailTemplateVariable,
   FormStatus,
   TaxonomyStatus,

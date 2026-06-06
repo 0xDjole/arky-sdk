@@ -20,7 +20,6 @@ import type {
   ProductStatus,
   NodeStatus,
   EmailTemplateStatus,
-  EmailTemplateUsage,
   EmailTemplateVariable,
   FormStatus,
   TaxonomyStatus,
@@ -909,13 +908,12 @@ export interface CreateEmailTemplateParams {
   key: string;
   subject?: Record<string, string>;
   body?: string;
-  from_name: string;
-  from_email: string;
+  from_name?: string;
+  from_email?: string;
   reply_to?: string;
   preheader?: string;
   variables?: EmailTemplateVariable[];
   sample_data?: Record<string, unknown>;
-  usage?: EmailTemplateUsage;
 }
 
 export interface UpdateEmailTemplateParams {
@@ -930,7 +928,6 @@ export interface UpdateEmailTemplateParams {
   preheader?: string;
   variables?: EmailTemplateVariable[];
   sample_data?: Record<string, unknown>;
-  usage?: EmailTemplateUsage;
   status?: EmailTemplateStatus;
 }
 
@@ -1593,8 +1590,7 @@ export interface UpdateCampaignRecipientDraftParams {
   store_id?: string;
   id: string;
   draft_id: string;
-  subject?: string;
-  body?: string;
+  template_vars?: Record<string, any>;
 }
 
 export interface FindCampaignMessagesParams {
@@ -1637,8 +1633,7 @@ export interface StopCampaignRecipientParams {
 export interface UpdateCampaignMessageParams {
   id: string;
   store_id?: string;
-  subject?: string;
-  body?: string;
+  template_vars?: Record<string, any>;
 }
 
 export interface CreateSuppressionParams {
