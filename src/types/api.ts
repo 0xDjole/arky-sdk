@@ -20,6 +20,8 @@ import type {
   ProductStatus,
   NodeStatus,
   EmailTemplateStatus,
+  EmailTemplateUsage,
+  EmailTemplateVariable,
   FormStatus,
   TaxonomyStatus,
   FormSchema,
@@ -881,9 +883,9 @@ export interface DeleteAccountParams {}
 export interface TriggerNotificationParams {
   channel: string;
   store_id: string;
-  email_template_id?: string;
-  recipients?: string[];
-  profile_list_id?: string;
+  email_template_id: string;
+  mailbox_id: string;
+  recipients: string[];
   vars?: Record<string, any>;
 }
 
@@ -911,6 +913,9 @@ export interface CreateEmailTemplateParams {
   from_email: string;
   reply_to?: string;
   preheader?: string;
+  variables?: EmailTemplateVariable[];
+  sample_data?: Record<string, unknown>;
+  usage?: EmailTemplateUsage;
 }
 
 export interface UpdateEmailTemplateParams {
@@ -923,6 +928,9 @@ export interface UpdateEmailTemplateParams {
   from_email?: string;
   reply_to?: string;
   preheader?: string;
+  variables?: EmailTemplateVariable[];
+  sample_data?: Record<string, unknown>;
+  usage?: EmailTemplateUsage;
   status?: EmailTemplateStatus;
 }
 
@@ -1524,6 +1532,14 @@ export interface LaunchCampaignParams {
   store_id?: string;
 }
 
+export interface DuplicateCampaignParams {
+  id: string;
+  store_id?: string;
+  key?: string;
+  name?: string;
+  copy_recipients?: boolean;
+}
+
 export interface GetCampaignLaunchReadinessParams {
   id: string;
   store_id?: string;
@@ -1533,6 +1549,7 @@ export interface ImportCampaignRecipientsParams {
   id: string;
   store_id?: string;
   profile_list_id?: string;
+  profile_list_ids?: string[];
   profile_ids?: string[];
   emails?: string[];
 }

@@ -36,6 +36,7 @@ import type {
   FindCampaignsParams,
   GetCampaignParams,
   LaunchCampaignParams,
+  DuplicateCampaignParams,
   GetCampaignLaunchReadinessParams,
   ImportCampaignRecipientsParams,
   CampaignRecipientImportResult,
@@ -460,6 +461,16 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
         return apiConfig.httpClient.post<Campaign>(
           `/v1/stores/${target_store_id}/campaigns/${params.id}/launch`,
           {},
+          options,
+        );
+      },
+
+      async duplicate(params: DuplicateCampaignParams, options?: RequestOptions): Promise<Campaign> {
+        const { id, store_id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<Campaign>(
+          `/v1/stores/${target_store_id}/campaigns/${id}/duplicate`,
+          payload,
           options,
         );
       },

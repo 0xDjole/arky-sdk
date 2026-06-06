@@ -914,6 +914,17 @@ export type WorkflowStatus = "active" | "draft" | "archived";
 export type PromoCodeStatus = "active" | "draft" | "archived";
 export type NodeStatus = "active" | "draft" | "archived";
 export type EmailTemplateStatus = "active" | "draft" | "archived";
+export type EmailTemplateUsage = "workflow" | "campaign" | "both";
+export type EmailTemplateVariableType =
+  | "text"
+  | "long_text"
+  | "html"
+  | "url"
+  | "media"
+  | "object"
+  | "array"
+  | "number"
+  | "boolean";
 
 export type FormStatus = "active" | "draft" | "archived";
 export type TaxonomyStatus = "active" | "draft" | "archived";
@@ -972,9 +983,21 @@ export interface EmailTemplate {
   from_email: string;
   reply_to?: string;
   preheader?: string;
+  variables: EmailTemplateVariable[];
+  sample_data: Record<string, unknown>;
+  usage: EmailTemplateUsage;
   status: EmailTemplateStatus;
   created_at: number;
   updated_at: number;
+}
+
+export interface EmailTemplateVariable {
+  key: string;
+  label?: string | null;
+  type: EmailTemplateVariableType;
+  required: boolean;
+  default_value?: unknown;
+  help?: string | null;
 }
 
 export interface Form {
@@ -1294,6 +1317,8 @@ export interface OutreachStepVariant {
   name?: string;
   subject: string;
   body: string;
+  template_id?: string | null;
+  template_vars?: Record<string, unknown>;
   status?: OutreachStepVariantStatus;
 }
 
@@ -1384,6 +1409,9 @@ export interface CampaignRecipientDraft {
   to_email: string;
   subject: string;
   body: string;
+  body_html?: string | null;
+  template_id?: string | null;
+  template_vars: Record<string, unknown>;
   created_at: number;
   updated_at: number;
 }
@@ -1433,6 +1461,12 @@ export interface CampaignMessage {
   from_email: string;
   subject: string;
   body: string;
+  body_html?: string | null;
+  template_id?: string | null;
+  template_vars: Record<string, unknown>;
+  rendered_subject?: string | null;
+  rendered_html?: string | null;
+  rendered_text?: string | null;
   attachments: string[];
   provider_message_id?: string | null;
   provider_thread_id?: string | null;

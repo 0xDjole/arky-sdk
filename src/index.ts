@@ -194,6 +194,9 @@ export type {
   PromoCodeStatus,
   NodeStatus,
   EmailTemplateStatus,
+  EmailTemplateUsage,
+  EmailTemplateVariableType,
+  EmailTemplateVariable,
   FormStatus,
   TaxonomyStatus,
 } from "./types";
@@ -276,6 +279,8 @@ export type {
   FindCampaignsParams,
   GetCampaignParams,
   LaunchCampaignParams,
+  DuplicateCampaignParams,
+  ImportCampaignRecipientsParams,
   GetCampaignLaunchReadinessParams,
   GenerateOutreachPersonalizedDraftsParams,
   FindCampaignRecipientsParams,

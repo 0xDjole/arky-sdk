@@ -9,7 +9,7 @@ Arky is an **all-in-one platform** that gives you everything you need to run an 
 - 📝 **Headless CMS** - Manage content with flexible blocks, multilingual support, and AI-powered content generation
 - 🛒 **E-commerce** - Sell products with multi-currency pricing, inventory, orders, and Stripe payments
 - 📅 **Service Scheduling** - Sell scheduled services with providers and availability calendars
-- 📧 **Newsletters** - Send newsletters to subscribers with built-in email delivery
+- 📧 **Campaigns** - Send template-backed newsletters, broadcasts, and outreach emails through tenant mailboxes
 - 👥 **User Management** - Authentication, roles, permissions, and user profiles
 - 💳 **Payments** - Integrated Stripe checkout and promo codes
 
