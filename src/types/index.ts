@@ -717,8 +717,8 @@ export type BlockType =
   | "number"
   | "boolean"
   | "date"
-  | "list"
-  | "map"
+  | "array"
+  | "object"
   | "relationship_media"
   | "markdown"
   | "geo_location";
@@ -966,8 +966,8 @@ export type BlockSchemaType =
   | "geo_location"
   | "markdown"
   | "relationship_media"
-  | "list"
-  | "map";
+  | "array"
+  | "object";
 
 export interface BlockSchemaProperties {
   min_values?: number | null;

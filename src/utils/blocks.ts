@@ -52,9 +52,10 @@ export function prepareBlocksForSubmission(formData: any, blockTypes?: Record<st
     .filter((key) => formData[key] !== null && formData[key] !== undefined)
     .map((key) => ({
       key,
-      value: (blockTypes?.[key] === 'list') && !Array.isArray(formData[key])
-        ? [formData[key]]
-        : formData[key],
+      value:
+        ((blockTypes?.[key] || "text") === "array") && !Array.isArray(formData[key])
+          ? [formData[key]]
+          : formData[key],
     }));
 }
 
@@ -74,8 +75,9 @@ export const getBlockValue = (entry: any, blockKey: string) => {
 export const getBlockTextValue = (block: any, locale: string = "en"): string => {
   if (!block || block.value === null || block.value === undefined) return "";
 
-  
-  if (block.type === "localized_text" || block.type === "markdown") {
+  const blockType = block.type;
+
+  if (blockType === "localized_text" || blockType === "markdown") {
     if (typeof block.value === "object" && block.value !== null) {
       return block.value[locale] ?? block.value["en"] ?? "";
     }
@@ -91,8 +93,7 @@ export const getBlockValues = (entry: any, blockKey: string) => {
   const block = entry?.blocks?.find((f: any) => f.key === blockKey);
   if (!block) return [];
 
-  
-  if (block.type === "list" && Array.isArray(block.value)) {
+  if (block.type === "array" && Array.isArray(block.value)) {
     return block.value;
   }
 
@@ -102,7 +103,8 @@ export const getBlockValues = (entry: any, blockKey: string) => {
 function unwrapBlock(block: any, locale: string) {
   if (!block?.type || block.value === undefined) return block;
 
-  if (block.type === "list") {
+  const blockType = block.type;
+  if (blockType === "array") {
     return block.value.map((obj: Record<string, any>) => {
       const parsed: Record<string, any> = {};
       for (const [k, v] of Object.entries(obj)) {
@@ -112,7 +114,7 @@ function unwrapBlock(block: any, locale: string) {
     });
   }
 
-  if (block.type === "map") {
+  if (blockType === "object") {
     const parsed: Record<string, any> = {};
     for (const [k, v] of Object.entries(block.value || {})) {
       parsed[k] = unwrapBlock(v as any, locale);
@@ -120,7 +122,7 @@ function unwrapBlock(block: any, locale: string) {
     return parsed;
   }
 
-  if (block.type === "localized_text" || block.type === "markdown") {
+  if (blockType === "localized_text" || blockType === "markdown") {
     return block.value?.[locale];
   }
 
@@ -129,7 +131,7 @@ function unwrapBlock(block: any, locale: string) {
 
 export const getBlockObjectValues = (entry: any, blockKey: string, locale = "en") => {
   const block = entry?.blocks?.find((f: any) => f.key === blockKey);
-  if (!block || block.type !== "list" || !Array.isArray(block.value)) return [];
+  if (!block || block.type !== "array" || !Array.isArray(block.value)) return [];
 
   return block.value.map((obj: Record<string, any>) => {
     if (!obj?.value || !Array.isArray(obj.value)) return {};
@@ -144,14 +146,14 @@ export const getBlockFromArray = (entry: any, blockKey: string, locale = "en") =
   const block = entry?.blocks?.find((f: any) => f.key === blockKey);
   if (!block) return {};
 
-  if (block.type === "list" && Array.isArray(block.value)) {
+  if (block.type === "array" && Array.isArray(block.value)) {
     return block.value.reduce((acc: any, current: any) => {
       acc[current.key] = unwrapBlock(current, locale);
       return acc;
     }, {});
   }
 
-  if (block.type === "map" && block.value && typeof block.value === "object") {
+  if (block.type === "object" && block.value && typeof block.value === "object") {
     const result: Record<string, any> = {};
     for (const [k, v] of Object.entries(block.value)) {
       result[k] = unwrapBlock(v as any, locale);
