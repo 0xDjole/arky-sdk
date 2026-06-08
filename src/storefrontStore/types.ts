@@ -5,7 +5,7 @@ import type {
   Block,
   Cart,
   EshopCartItem,
-  Entry,
+  CollectionEntry,
   Form,
   FormEntry,
   Market,
@@ -109,7 +109,7 @@ export interface ArkyCartInput {
 }
 
 export interface ArkyCmsState {
-  entries: Record<string, Entry>;
+  entries: Record<string, CollectionEntry>;
   forms: Record<string, Form>;
   loading: boolean;
   error: string | null;

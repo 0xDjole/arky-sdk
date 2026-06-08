@@ -33,7 +33,7 @@ import type {
   CheckoutCartParams,
 } from "../types/api";
 import type {
-  Entry,
+  CollectionEntry,
   Collection,
   Form,
   FormSubmission,
@@ -187,20 +187,20 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateProfileSession: 
       },
 
       entry: {
-        get(params: GetEntryParams, options?: RequestOptions): Promise<Entry> {
+        get(params: GetEntryParams, options?: RequestOptions): Promise<CollectionEntry> {
           const store_id = params.store_id || apiConfig.storeId;
           if (!params.id) {
             throw new Error("GetEntryParams requires id");
           }
-          return apiConfig.httpClient.get<Entry>(
+          return apiConfig.httpClient.get<CollectionEntry>(
             `${base(store_id)}/entries/${params.id}`,
             options,
           );
         },
 
-        find(params: GetEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<Entry>> {
+        find(params: GetEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<CollectionEntry>> {
           const { store_id, ...queryParams } = params;
-          return apiConfig.httpClient.get<PaginatedResponse<Entry>>(`${base(store_id)}/entries`, {
+          return apiConfig.httpClient.get<PaginatedResponse<CollectionEntry>>(`${base(store_id)}/entries`, {
             ...options,
             params: queryParams,
           });

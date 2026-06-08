@@ -12,7 +12,7 @@ import type {
   GetEntriesParams,
   RequestOptions,
 } from "../types/api";
-import type { Collection, Entry, PaginatedResponse } from "../types";
+import type { Collection, CollectionEntry, PaginatedResponse } from "../types";
 
 export const createCmsApi = (apiConfig: ApiConfig) => {
   return {
@@ -73,20 +73,20 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async createEntry(params: CreateEntryParams, options?: RequestOptions): Promise<Entry> {
+    async createEntry(params: CreateEntryParams, options?: RequestOptions): Promise<CollectionEntry> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<Entry>(
+      return apiConfig.httpClient.post<CollectionEntry>(
         `/v1/stores/${target_store_id}/entries`,
         payload,
         options
       );
     },
 
-    async updateEntry(params: UpdateEntryParams, options?: RequestOptions): Promise<Entry> {
+    async updateEntry(params: UpdateEntryParams, options?: RequestOptions): Promise<CollectionEntry> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.put<Entry>(
+      return apiConfig.httpClient.put<CollectionEntry>(
         `/v1/stores/${target_store_id}/entries/${params.id}`,
         payload,
         options
@@ -101,21 +101,21 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getEntry(params: GetEntryParams, options?: RequestOptions): Promise<Entry> {
+    async getEntry(params: GetEntryParams, options?: RequestOptions): Promise<CollectionEntry> {
       const target_store_id = params.store_id || apiConfig.storeId;
       if (!params.id) {
         throw new Error("GetEntryParams requires id");
       }
-      return apiConfig.httpClient.get<Entry>(
+      return apiConfig.httpClient.get<CollectionEntry>(
         `/v1/stores/${target_store_id}/entries/${params.id}`,
         options
       );
     },
 
-    async getEntries(params: GetEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<Entry>> {
+    async getEntries(params: GetEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<CollectionEntry>> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<Entry>>(
+      return apiConfig.httpClient.get<PaginatedResponse<CollectionEntry>>(
         `/v1/stores/${target_store_id}/entries`,
         {
           ...options,

@@ -51,7 +51,7 @@ export type {
   BlockSchema,
   BlockSchemaProperties,
   BlockSchemaType,
-  Entry,
+  CollectionEntry,
   EntryBlockQuery,
   MediaRef,
   FieldOperation,

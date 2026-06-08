@@ -5,7 +5,7 @@ import type {
   Block,
   Cart,
   EshopCartItem,
-  Entry,
+  CollectionEntry,
   Form,
   FormEntry,
   FormField,
@@ -1053,7 +1053,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
 
   service_items.subscribe((items) => setServiceCartFromServiceItems(items));
 
-  async function loadEntry(params: ArkyCmsEntryParams, options?: RequestOptions): Promise<Entry> {
+  async function loadEntry(params: ArkyCmsEntryParams, options?: RequestOptions): Promise<CollectionEntry> {
     cms_state.setKey("loading", true);
     cms_state.setKey("error", null);
     try {

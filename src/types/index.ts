@@ -1022,7 +1022,7 @@ export type EntryBlockQuery =
   | { type: "boolean"; key: string; value: boolean }
   | { type: "date"; key: string; operation: FieldOperation; value: number };
 
-export interface Entry {
+export interface CollectionEntry {
   id: string;
   store_id: string;
   collection_id: string;
