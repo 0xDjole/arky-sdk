@@ -132,8 +132,13 @@ export interface Address {
   email?: string | null;
 }
 
+export interface Coordinates {
+  lat: number;
+  lon: number;
+}
+
 export interface GeoLocation {
-  coordinates?: { lat: number; lon: number } | null;
+  coordinates?: Coordinates | null;
   label?: string | null;
 }
 
@@ -496,9 +501,12 @@ export interface StoreEmails {
 }
 
 export type WebhookEventSubscription =
-  | { event: "node.created"; parent_id?: string }
-  | { event: "node.updated"; key?: string }
-  | { event: "node.deleted"; key?: string }
+  | { event: "collection.created"; key?: string }
+  | { event: "collection.updated"; key?: string }
+  | { event: "collection.deleted"; key?: string }
+  | { event: "entry.created"; collection_id?: string; key?: string }
+  | { event: "entry.updated"; collection_id?: string; key?: string }
+  | { event: "entry.deleted"; collection_id?: string; key?: string }
   | { event: "order.created" }
   | { event: "order.updated" }
   | { event: "order.confirmed" }
@@ -708,9 +716,9 @@ export type BlockType =
   | "localized_text"
   | "number"
   | "boolean"
+  | "date"
   | "list"
   | "map"
-  | "relationship_entry"
   | "relationship_media"
   | "markdown"
   | "geo_location";
@@ -912,7 +920,8 @@ export type SuppressionReason =
 export type SuppressionSource = "admin" | "import" | "reply" | "system";
 export type WorkflowStatus = "active" | "draft" | "archived";
 export type PromoCodeStatus = "active" | "draft" | "archived";
-export type NodeStatus = "active" | "draft" | "archived";
+export type CollectionStatus = "active" | "draft" | "archived";
+export type EntryStatus = "active" | "draft" | "archived";
 export type EmailTemplateStatus = "active" | "draft" | "archived";
 
 export type FormStatus = "active" | "draft" | "archived";
@@ -948,16 +957,79 @@ export interface TimeRange {
   to: number;
 }
 
-export interface Node {
+export type BlockSchemaType =
+  | "text"
+  | "localized_text"
+  | "number"
+  | "boolean"
+  | "date"
+  | "geo_location"
+  | "markdown"
+  | "relationship_media"
+  | "list"
+  | "map";
+
+export interface BlockSchemaProperties {
+  min_values?: number | null;
+  max_values?: number | null;
+  min_length?: number | null;
+  max_length?: number | null;
+  pattern?: string | null;
+  min?: number | null;
+  max?: number | null;
+}
+
+export interface BlockSchema {
   id: string;
   key: string;
+  type: BlockSchemaType;
+  required: boolean;
+  properties: BlockSchemaProperties;
+  children: BlockSchema[];
+}
+
+export interface Collection {
+  id: string;
   store_id: string;
-  parent_id?: string | null;
+  key: string;
+  schema: BlockSchema[];
   blocks: Block[];
-  taxonomies: TaxonomyEntry[];
-  status: NodeStatus;
+  status: CollectionStatus;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface MediaRef {
+  media_id: string;
+  url?: string | null;
+  mime_type?: string | null;
+  alt?: string | null;
+}
+
+export type FieldOperation =
+  | "equals"
+  | "not_equals"
+  | "contains"
+  | "in"
+  | "greater_than"
+  | "greater_than_or_equal"
+  | "less_than"
+  | "less_than_or_equal";
+
+export type EntryBlockQuery =
+  | { type: "text"; key: string; values: string[] }
+  | { type: "number"; key: string; operation: FieldOperation; value: number }
+  | { type: "boolean"; key: string; value: boolean }
+  | { type: "date"; key: string; operation: FieldOperation; value: number };
+
+export interface Entry {
+  id: string;
+  store_id: string;
+  collection_id: string;
+  key: string;
   slug: Record<string, string>;
-  children: Node[];
+  blocks: Block[];
+  status: EntryStatus;
   created_at: number;
   updated_at: number;
 }
@@ -1581,9 +1653,12 @@ export type EventAction =
   | { action: "product_created" }
   | { action: "product_updated" }
   | { action: "product_deleted" }
-  | { action: "node_created" }
-  | { action: "node_updated" }
-  | { action: "node_deleted" }
+  | { action: "collection_created" }
+  | { action: "collection_updated" }
+  | { action: "collection_deleted" }
+  | { action: "entry_created" }
+  | { action: "entry_updated" }
+  | { action: "entry_deleted" }
   | { action: "provider_created" }
   | { action: "provider_updated" }
   | { action: "provider_deleted" }

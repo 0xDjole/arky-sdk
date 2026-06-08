@@ -1,88 +1,71 @@
 import type { ApiConfig } from "../index";
 import type {
-  CreateNodeParams,
-  UpdateNodeParams,
-  DeleteNodeParams,
-  GetNodeParams,
-  GetNodesParams,
-  GetNodeChildrenParams,
+  CreateCollectionParams,
+  UpdateCollectionParams,
+  DeleteCollectionParams,
+  GetCollectionParams,
+  GetCollectionsParams,
+  CreateEntryParams,
+  UpdateEntryParams,
+  DeleteEntryParams,
+  GetEntryParams,
+  GetEntriesParams,
   RequestOptions,
 } from "../types/api";
-import type { Node, PaginatedResponse } from "../types";
-import {
-  getBlockFromArray,
-  getBlockObjectValues,
-  getImageUrl,
-} from "../utils/blocks";
+import type { Collection, Entry, PaginatedResponse } from "../types";
 
 export const createCmsApi = (apiConfig: ApiConfig) => {
   return {
-    async createNode(params: CreateNodeParams, options?: RequestOptions): Promise<Node> {
+    async createCollection(params: CreateCollectionParams, options?: RequestOptions): Promise<Collection> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<Node>(
-        `/v1/stores/${target_store_id}/nodes`,
+      return apiConfig.httpClient.post<Collection>(
+        `/v1/stores/${target_store_id}/collections`,
         payload,
         options
       );
     },
 
-    async updateNode(params: UpdateNodeParams, options?: RequestOptions): Promise<Node> {
+    async updateCollection(params: UpdateCollectionParams, options?: RequestOptions): Promise<Collection> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.put<Node>(
-        `/v1/stores/${target_store_id}/nodes/${params.id}`,
+      return apiConfig.httpClient.put<Collection>(
+        `/v1/stores/${target_store_id}/collections/${params.id}`,
         payload,
         options
       );
     },
 
-    async deleteNode(params: DeleteNodeParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
+    async deleteCollection(params: DeleteCollectionParams, options?: RequestOptions): Promise<boolean> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${target_store_id}/nodes/${params.id}`,
+      return apiConfig.httpClient.delete<boolean>(
+        `/v1/stores/${target_store_id}/collections/${params.id}`,
         options
       );
     },
 
-    async getNode(params: GetNodeParams, options?: RequestOptions) {
+    async getCollection(params: GetCollectionParams, options?: RequestOptions): Promise<Collection> {
       const target_store_id = params.store_id || apiConfig.storeId;
       let identifier: string;
       if (params.id) {
         identifier = params.id;
-      } else if (params.slug) {
-        identifier = `${target_store_id}:${apiConfig.locale}:${params.slug}`;
       } else if (params.key) {
         identifier = `${target_store_id}:${params.key}`;
       } else {
-        throw new Error("GetNodeParams requires id, slug, or key");
+        throw new Error("GetCollectionParams requires id or key");
       }
 
-      const response = await apiConfig.httpClient.get<Node>(
-        `/v1/stores/${target_store_id}/nodes/${identifier}`,
+      return apiConfig.httpClient.get<Collection>(
+        `/v1/stores/${target_store_id}/collections/${identifier}`,
         options
       );
-
-      return {
-        ...response,
-        getBlock(key: string) {
-          return getBlockFromArray(response, key, apiConfig.locale);
-        },
-        getBlockValues(key: string) {
-          return getBlockObjectValues(response, key, apiConfig.locale);
-        },
-        getImage(key: string) {
-          const block = getBlockFromArray(response, key, apiConfig.locale);
-          return getImageUrl(block, true);
-        },
-      };
     },
 
-    async getNodes(params: GetNodesParams, options?: RequestOptions): Promise<PaginatedResponse<Node>> {
+    async getCollections(params: GetCollectionsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Collection>> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<Node>>(
-        `/v1/stores/${target_store_id}/nodes`,
+      return apiConfig.httpClient.get<PaginatedResponse<Collection>>(
+        `/v1/stores/${target_store_id}/collections`,
         {
           ...options,
           params: queryParams,
@@ -90,17 +73,55 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getNodeChildren(params: GetNodeChildrenParams, options?: RequestOptions): Promise<PaginatedResponse<Node>> {
-      const { id, store_id, ...queryParams } = params;
+    async createEntry(params: CreateEntryParams, options?: RequestOptions): Promise<Entry> {
+      const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<Node>>(
-        `/v1/stores/${target_store_id}/nodes/${id}/children`,
+      return apiConfig.httpClient.post<Entry>(
+        `/v1/stores/${target_store_id}/entries`,
+        payload,
+        options
+      );
+    },
+
+    async updateEntry(params: UpdateEntryParams, options?: RequestOptions): Promise<Entry> {
+      const { store_id, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.put<Entry>(
+        `/v1/stores/${target_store_id}/entries/${params.id}`,
+        payload,
+        options
+      );
+    },
+
+    async deleteEntry(params: DeleteEntryParams, options?: RequestOptions): Promise<boolean> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.delete<boolean>(
+        `/v1/stores/${target_store_id}/entries/${params.id}`,
+        options
+      );
+    },
+
+    async getEntry(params: GetEntryParams, options?: RequestOptions): Promise<Entry> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      if (!params.id) {
+        throw new Error("GetEntryParams requires id");
+      }
+      return apiConfig.httpClient.get<Entry>(
+        `/v1/stores/${target_store_id}/entries/${params.id}`,
+        options
+      );
+    },
+
+    async getEntries(params: GetEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<Entry>> {
+      const { store_id, ...queryParams } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<PaginatedResponse<Entry>>(
+        `/v1/stores/${target_store_id}/entries`,
         {
           ...options,
           params: queryParams,
         }
       );
     },
-
   };
 };

@@ -18,7 +18,10 @@ import type {
   WorkflowStatus,
   PromoCodeStatus,
   ProductStatus,
-  NodeStatus,
+  CollectionStatus,
+  EntryStatus,
+  BlockSchema,
+  EntryBlockQuery,
   EmailTemplateStatus,
   EmailTemplateVariable,
   FormStatus,
@@ -328,59 +331,88 @@ export interface GetProductsParams {
   created_at_to?: number | null;
 }
 
-export interface GetNodesParams {
+export interface GetCollectionsParams {
   store_id?: string;
   ids?: string[];
-  parent_id?: string;
   key?: string;
   limit?: number;
   cursor?: string;
-
   query?: string | number;
-  status?: NodeStatus;
+  status?: CollectionStatus;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
   created_at_from?: number;
   created_at_to?: number;
 }
 
-export interface CreateNodeParams {
+export interface CreateCollectionParams {
   store_id?: string;
   key: string;
-  parent_id?: string | null;
+  schema?: BlockSchema[];
   blocks?: Block[];
-  taxonomies?: TaxonomyEntry[];
-  slug?: Record<string, string>;
 }
 
-export interface UpdateNodeParams {
+export interface UpdateCollectionParams {
   id: string;
   store_id?: string;
   key?: string;
-  parent_id?: string | null;
+  schema?: BlockSchema[];
   blocks?: Block[];
-  taxonomies?: TaxonomyEntry[];
-  status?: NodeStatus;
-  slug?: Record<string, string>;
+  status?: CollectionStatus;
 }
 
-export interface GetNodeParams {
+export interface GetCollectionParams {
   id?: string;
-  slug?: string;
   key?: string;
   store_id?: string;
 }
 
-export interface DeleteNodeParams {
+export interface DeleteCollectionParams {
   id: string;
   store_id?: string;
 }
 
-export interface GetNodeChildrenParams {
-  id: string;
+export interface GetEntriesParams {
   store_id?: string;
+  collection_id: string;
+  ids?: string[];
+  key?: string;
+  status?: EntryStatus;
+  query?: string | number;
+  filters?: EntryBlockQuery[];
   limit?: number;
   cursor?: string;
+  sort_field?: string;
+  sort_direction?: "asc" | "desc";
+  created_at_from?: number;
+  created_at_to?: number;
+}
+
+export interface CreateEntryParams {
+  store_id?: string;
+  collection_id: string;
+  key: string;
+  slug?: Record<string, string>;
+  blocks?: Block[];
+}
+
+export interface UpdateEntryParams {
+  id: string;
+  store_id?: string;
+  key?: string;
+  slug?: Record<string, string>;
+  blocks?: Block[];
+  status?: EntryStatus;
+}
+
+export interface GetEntryParams {
+  id?: string;
+  store_id?: string;
+}
+
+export interface DeleteEntryParams {
+  id: string;
+  store_id?: string;
 }
 
 export interface UploadStoreMediaParams {

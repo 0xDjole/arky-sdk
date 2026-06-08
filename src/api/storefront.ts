@@ -1,9 +1,9 @@
 import type { ApiConfig, ProfileSessionUpdater } from "../index";
 import type {
   RequestOptions,
-  GetNodeParams,
-  GetNodesParams,
-  GetNodeChildrenParams,
+  GetCollectionParams,
+  GetEntryParams,
+  GetEntriesParams,
   GetFormParams,
   SubmitFormParams,
   GetTaxonomyParams,
@@ -33,7 +33,8 @@ import type {
   CheckoutCartParams,
 } from "../types/api";
 import type {
-  Node,
+  Entry,
+  Collection,
   Form,
   FormSubmission,
   Taxonomy,
@@ -172,51 +173,34 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateProfileSession: 
     },
 
     cms: {
-      node: {
-        async get(params: GetNodeParams, options?: RequestOptions) {
+      collection: {
+        get(params: GetCollectionParams, options?: RequestOptions): Promise<Collection> {
           const store_id = params.store_id || apiConfig.storeId;
-          let identifier: string;
-          if (params.id) {
-            identifier = params.id;
-          } else if (params.slug) {
-            identifier = `${store_id}:${apiConfig.locale}:${params.slug}`;
-          } else if (params.key) {
-            identifier = `${store_id}:${params.key}`;
-          } else {
-            throw new Error("GetNodeParams requires id, slug, or key");
+          if (!params.id) {
+            throw new Error("GetCollectionParams requires id");
           }
-
-          const response = await apiConfig.httpClient.get<Node>(
-            `${base(store_id)}/nodes/${identifier}`,
+          return apiConfig.httpClient.get<Collection>(
+            `${base(store_id)}/collections/${params.id}`,
             options,
           );
+        },
+      },
 
-          return {
-            ...response,
-            getBlock(key: string) {
-              return getBlockFromArray(response, key, apiConfig.locale);
-            },
-            getBlockValues(key: string) {
-              return getBlockObjectValues(response, key, apiConfig.locale);
-            },
-            getImage(key: string) {
-              const block = getBlockFromArray(response, key, apiConfig.locale);
-              return getImageUrl(block, true);
-            },
-          };
+      entry: {
+        get(params: GetEntryParams, options?: RequestOptions): Promise<Entry> {
+          const store_id = params.store_id || apiConfig.storeId;
+          if (!params.id) {
+            throw new Error("GetEntryParams requires id");
+          }
+          return apiConfig.httpClient.get<Entry>(
+            `${base(store_id)}/entries/${params.id}`,
+            options,
+          );
         },
 
-        find(params: GetNodesParams, options?: RequestOptions): Promise<PaginatedResponse<Node>> {
+        find(params: GetEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<Entry>> {
           const { store_id, ...queryParams } = params;
-          return apiConfig.httpClient.get<PaginatedResponse<Node>>(`${base(store_id)}/nodes`, {
-            ...options,
-            params: queryParams,
-          });
-        },
-
-        getChildren(params: GetNodeChildrenParams, options?: RequestOptions): Promise<PaginatedResponse<Node>> {
-          const { id, store_id, ...queryParams } = params;
-          return apiConfig.httpClient.get<PaginatedResponse<Node>>(`${base(store_id)}/nodes/${id}/children`, {
+          return apiConfig.httpClient.get<PaginatedResponse<Entry>>(`${base(store_id)}/entries`, {
             ...options,
             params: queryParams,
           });

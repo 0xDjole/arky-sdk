@@ -6,7 +6,7 @@ export type {
   ArkyCartSnapshot,
   ArkyCartStore,
   ArkyCartStatus,
-  ArkyCmsNodeParams,
+  ArkyCmsEntryParams,
   ArkyCmsState,
   ArkyEshopState,
   ArkyLastOrder,

@@ -5,10 +5,10 @@ import type {
   Block,
   Cart,
   EshopCartItem,
+  Entry,
   Form,
   FormEntry,
   Market,
-  Node,
   OrderCheckoutResult,
   OrderQuote,
   PaymentMethod,
@@ -42,11 +42,11 @@ export interface ArkyStoreSetupResult {
   cart?: Cart;
 }
 
-export type ArkyCmsNodeParams = ArkyStoreContext & {
-  id?: string;
-  slug?: string;
-  key?: string;
-  store_id?: string;
+export type ArkyCmsEntryParams = ArkyStoreContext & {
+	id?: string;
+	collection_id?: string;
+	key?: string;
+	store_id?: string;
 };
 
 export interface ArkyServiceCartItem {
@@ -109,7 +109,7 @@ export interface ArkyCartInput {
 }
 
 export interface ArkyCmsState {
-  nodes: Record<string, Node>;
+  entries: Record<string, Entry>;
   forms: Record<string, Form>;
   loading: boolean;
   error: string | null;

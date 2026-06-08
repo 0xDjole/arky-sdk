@@ -4,7 +4,7 @@ export type {
   ArkyCartInput,
   ArkyCartSnapshot,
   ArkyCartStatus,
-  ArkyCmsNodeParams,
+  ArkyCmsEntryParams,
   ArkyCmsState,
   ArkyEshopState,
   ArkyLastOrder,

@@ -5,13 +5,13 @@ import type {
   Block,
   Cart,
   EshopCartItem,
+  Entry,
   Form,
   FormEntry,
   FormField,
   FormSchema,
   FormSubmission,
   Market,
-  Node,
   OrderCheckoutResult,
   OrderQuote,
   PaginatedResponse,
@@ -30,9 +30,9 @@ import type {
   CheckoutItemInput,
   FindServiceProvidersParams,
   GetAvailabilityParams,
-  GetNodeChildrenParams,
-  GetNodeParams,
-  GetNodesParams,
+  GetCollectionParams,
+  GetEntriesParams,
+  GetEntryParams,
   GetProductParams,
   GetProductsParams,
   GetProviderParams,
@@ -48,7 +48,7 @@ import type {
 import type { Activity, TrackParams } from "../api/storefront";
 import type {
   ArkyCalendarDay,
-  ArkyCmsNodeParams,
+  ArkyCmsEntryParams,
   ArkyCartInput,
   ArkyCartStatus,
   ArkyCmsState,
@@ -159,7 +159,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
   }
 
   const cms_state = map<ArkyCmsState>({
-    nodes: {},
+    entries: {},
     forms: {},
     loading: false,
     error: null,
@@ -1053,18 +1053,41 @@ export function createArkyStore(config: ArkyStoreConfig) {
 
   service_items.subscribe((items) => setServiceCartFromServiceItems(items));
 
-  async function loadNode(params: ArkyCmsNodeParams, options?: RequestOptions): Promise<Node> {
+  async function loadEntry(params: ArkyCmsEntryParams, options?: RequestOptions): Promise<Entry> {
     cms_state.setKey("loading", true);
     cms_state.setKey("error", null);
     try {
-      const { locale: nextLocale, market: nextMarket, ...nodeParams } = params;
+      const { locale: nextLocale, market: nextMarket, ...entryParams } = params;
       setContext({ locale: nextLocale, market: nextMarket });
-      const node = await client.cms.node.get(nodeParams as GetNodeParams, options);
-      const key = nodeParams.key || nodeParams.id || nodeParams.slug || node.id;
-      cms_state.setKey("nodes", { ...cms_state.get().nodes, [key]: node });
-      return node;
+
+      if (entryParams.id) {
+        const entry = await client.cms.entry.get(entryParams as GetEntryParams, options);
+        const cacheKey = entryParams.key || entryParams.id || entry.id;
+        cms_state.setKey("entries", { ...cms_state.get().entries, [cacheKey]: entry });
+        return entry;
+      }
+
+      if (!entryParams.collection_id || !entryParams.key) {
+        throw new Error("ArkyCmsEntryParams requires id, or collection_id and key");
+      }
+
+      const result = await client.cms.entry.find(
+        {
+          ...entryParams,
+          collection_id: entryParams.collection_id,
+          key: entryParams.key,
+          limit: 1,
+        } as GetEntriesParams,
+        options,
+      );
+      const entry = result.items?.[0];
+      if (!entry) {
+        throw new Error("CMS entry not found");
+      }
+      cms_state.setKey("entries", { ...cms_state.get().entries, [entryParams.key]: entry });
+      return entry;
     } catch (error) {
-      cms_state.setKey("error", readErrorMessage(error, "Failed to load CMS node."));
+      cms_state.setKey("error", readErrorMessage(error, "Failed to load CMS entry."));
       throw error;
     } finally {
       cms_state.setKey("loading", false);
@@ -1303,10 +1326,12 @@ export function createArkyStore(config: ArkyStoreConfig) {
     getLocale: currentLocale,
     cms: {
       state: cms_state,
-      node: {
-        get: loadNode,
-        find: (params: GetNodesParams, options?: RequestOptions) => client.cms.node.find(params, options),
-        getChildren: (params: GetNodeChildrenParams, options?: RequestOptions) => client.cms.node.getChildren(params, options),
+      collection: {
+        get: (params: GetCollectionParams, options?: RequestOptions) => client.cms.collection.get(params, options),
+      },
+      entry: {
+        get: loadEntry,
+        find: (params: GetEntriesParams, options?: RequestOptions) => client.cms.entry.find(params, options),
       },
       form: {
         get: loadForm,
