@@ -719,7 +719,8 @@ export type BlockType =
   | "date"
   | "array"
   | "object"
-  | "relationship_media"
+  | "media"
+  | "entry"
   | "markdown"
   | "geo_location";
 
@@ -965,7 +966,8 @@ export type BlockSchemaType =
   | "date"
   | "geo_location"
   | "markdown"
-  | "relationship_media"
+  | "media"
+  | "entry"
   | "array"
   | "object";
 
@@ -977,6 +979,8 @@ export interface BlockSchemaProperties {
   pattern?: string | null;
   min?: number | null;
   max?: number | null;
+  collection_id?: string | null;
+  on_delete?: "restrict" | "set_null" | null;
 }
 
 export interface BlockSchema {

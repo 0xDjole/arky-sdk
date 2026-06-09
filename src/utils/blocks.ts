@@ -37,7 +37,7 @@ export function formatBlockValue(block: any): string {
         return new Date(value).toLocaleDateString();
       }
       return String(value);
-    case "relationship_media":
+    case "media":
       if (value && typeof value === 'object') {
         return value.mime_type ? (value.name || value.id) : (value.title || value.name || value.id);
       }
@@ -167,7 +167,7 @@ export const getBlockFromArray = (entry: any, blockKey: string, locale = "en") =
 export const getImageUrl = (imageBlock: any, isBlock = true) => {
   if (!imageBlock) return null;
 
-  if (imageBlock.type === "relationship_media") {
+  if (imageBlock.type === "media") {
     const mediaValue = imageBlock.value;
     return mediaValue?.resolutions?.original?.url || mediaValue?.url || null;
   }
