@@ -44,12 +44,13 @@ import type {
   MailboxStatus,
   MailboxProvider,
   CampaignStatus,
-  CampaignRecipientStatus,
+  CampaignEnrollmentStatus,
   CampaignMessageDirection,
-  CampaignMessageKind,
+  CampaignMessageType,
   CampaignMessageStatus,
   CampaignMessageCopySource,
   OutreachStep,
+  CampaignEnrollmentStepExecutionOutcome,
   LeadResearchRunStatus,
   SuppressionStatus,
   SuppressionReason,
@@ -1566,7 +1567,7 @@ export interface DuplicateCampaignParams {
   store_id?: string;
   key?: string;
   name?: string;
-  copy_recipients?: boolean;
+  copy_enrollments?: boolean;
 }
 
 export interface GetCampaignLaunchReadinessParams {
@@ -1574,7 +1575,7 @@ export interface GetCampaignLaunchReadinessParams {
   store_id?: string;
 }
 
-export interface ImportCampaignRecipientsParams {
+export interface ImportCampaignEnrollmentsParams {
   id: string;
   store_id?: string;
   profile_list_id?: string;
@@ -1583,7 +1584,7 @@ export interface ImportCampaignRecipientsParams {
   emails?: string[];
 }
 
-export interface CampaignRecipientImportResult {
+export interface CampaignEnrollmentImportResult {
   imported_count: number;
   existing_count: number;
   skipped_count: number;
@@ -1600,17 +1601,17 @@ export interface GenerateOutreachPersonalizedDraftsParams {
   instructions?: string;
 }
 
-export interface FindCampaignRecipientsParams {
+export interface FindCampaignEnrollmentsParams {
   store_id?: string;
   campaign_id?: string;
   profile_id?: string;
   mailbox_id?: string;
-  status?: CampaignRecipientStatus;
+  status?: CampaignEnrollmentStatus;
   limit?: number;
   cursor?: string;
 }
 
-export interface UpdateCampaignRecipientParams {
+export interface UpdateCampaignEnrollmentParams {
   store_id?: string;
   id: string;
   mailbox_id?: string | null;
@@ -1618,21 +1619,31 @@ export interface UpdateCampaignRecipientParams {
   fields?: Record<string, unknown>;
 }
 
-export interface UpdateCampaignRecipientDraftParams {
+export interface UpdateCampaignEnrollmentDraftParams {
   store_id?: string;
   id: string;
   draft_id: string;
   template_vars?: Record<string, any>;
+  body?: string;
+  suggested_message?: string;
+}
+
+export interface UpdateCampaignEnrollmentStepExecutionParams {
+  store_id?: string;
+  id: string;
+  execution_id: string;
+  outcome: CampaignEnrollmentStepExecutionOutcome;
+  note?: string;
 }
 
 export interface FindCampaignMessagesParams {
   store_id?: string;
   campaign_id?: string;
-  campaign_recipient_id?: string;
+  campaign_enrollment_id?: string;
   profile_id?: string;
   mailbox_id?: string;
   direction?: CampaignMessageDirection;
-  kind?: CampaignMessageKind;
+  type?: CampaignMessageType;
   status?: CampaignMessageStatus;
   copy_source?: CampaignMessageCopySource;
   step_position?: number;
@@ -1641,7 +1652,7 @@ export interface FindCampaignMessagesParams {
   cursor?: string;
 }
 
-export interface GetCampaignRecipientConversationParams {
+export interface GetCampaignEnrollmentConversationParams {
   store_id?: string;
   id: string;
   message_limit?: number;
@@ -1649,7 +1660,7 @@ export interface GetCampaignRecipientConversationParams {
   after_id?: string;
 }
 
-export interface ReplyCampaignRecipientParams {
+export interface ReplyCampaignEnrollmentParams {
   store_id?: string;
   id: string;
   subject?: string | null;
@@ -1657,7 +1668,7 @@ export interface ReplyCampaignRecipientParams {
   attachments?: string[];
 }
 
-export interface StopCampaignRecipientParams {
+export interface StopCampaignEnrollmentParams {
   store_id?: string;
   id: string;
 }
@@ -1883,6 +1894,7 @@ export interface Profile {
   email: string | null;
   verified: boolean;
   status: ProfileStatus;
+  channels: import("./index").ProfileChannel[];
   promo_usage: PromoUsage[];
   lists: import("./index").ProfileListMembership[];
   taxonomies: TaxonomyEntry[];

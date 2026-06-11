@@ -217,7 +217,6 @@ export type IntegrationProvider =
   | { type: "open_ai"; api_key?: string; model?: string }
   | { type: "slack"; api_key?: string }
   | { type: "discord"; api_key?: string }
-  | { type: "whats_app"; api_key?: string }
   | { type: "resend"; api_key?: string }
   | { type: "send_grid"; api_key?: string }
   | { type: "airtable"; api_key?: string }
@@ -243,7 +242,6 @@ export type IntegrationProvider =
   | { type: "shopify"; api_key?: string; store_domain: string }
   | { type: "supabase"; api_key?: string; project_url: string }
   | { type: "mailchimp"; api_key?: string }
-  | { type: "twilio"; account_sid?: string; auth_token?: string }
   | { type: "jira"; email?: string; api_token?: string; domain: string }
   | {
       type: "woo_commerce";
@@ -874,28 +872,36 @@ export type CampaignStatus =
   | "paused"
   | "completed"
   | "archived";
-export type CampaignRecipientStatus =
+export type CampaignEnrollmentStatus =
   | "pending"
   | "active"
+  | "action_required"
   | "replied"
   | "completed"
   | "suppressed"
   | "failed"
   | "stopped";
-export type CampaignRecipientImportSource =
+export type CampaignEnrollmentImportSource =
   | "profile_list"
   | "profile"
   | "manual";
 export type CampaignMessageStatus =
+  | "draft"
+  | "scheduled"
   | "pending"
   | "sending"
   | "sent"
   | "received"
+  | "action_required"
+  | "completed"
   | "bounced"
   | "failed"
-  | "skipped";
-export type CampaignMessageKind =
-  | "campaign_step"
+  | "skipped"
+  | "stopped"
+  | "superseded";
+export type CampaignMessageType =
+  | "campaign_step_email"
+  | "manual_task"
   | "manual_reply"
   | "inbound_reply"
   | "delivery_failure"
@@ -903,14 +909,40 @@ export type CampaignMessageKind =
 export type CampaignMessageDirection = "outbound" | "inbound" | "activity";
 export type CampaignMessageCopySource = "template" | "generated" | "edited";
 export type OutreachThreadMode = "new_thread" | "same_thread";
-export type OutreachStepVariantStatus = "active" | "archived";
+export type ManualTaskContinueBehavior =
+  | "continue_after_delay"
+  | "wait_until_completed";
+export type OutreachStepType =
+  | {
+      type: "email";
+      template_id: string;
+      template_vars?: Record<string, unknown>;
+      body?: string | null;
+      thread_mode?: OutreachThreadMode;
+      attachments?: string[];
+    }
+  | {
+      type: "manual_task";
+      target_channel_type?: ChannelType | null;
+      title: string;
+      instructions: string;
+      suggested_message?: string | null;
+      external_url?: string | null;
+      continue_behavior: ManualTaskContinueBehavior;
+    };
+export type CampaignManualTaskOutcome =
+  | "done"
+  | "skipped"
+  | "got_reply"
+  | "do_not_contact";
+export type CampaignEnrollmentStepExecutionOutcome = CampaignManualTaskOutcome;
 export type OutreachPersonalizationStatus =
   | "idle"
   | "running"
   | "completed"
   | "failed";
 export type SuppressionStatus = "active" | "archived";
-export type SuppressionTargetType = "email" | "domain" | "profile";
+export type SuppressionTargetType = "email" | "domain" | "profile" | "phone";
 export type SuppressionScopeType = "store" | "campaign";
 export type SuppressionReason =
   | "manual"
@@ -1290,12 +1322,40 @@ export interface PromoUsage {
   uses: number;
 }
 
+export type ChannelType =
+  | "email"
+  | "phone"
+  | "whatsapp"
+  | "instagram"
+  | "facebook"
+  | "messenger"
+  | "linkedin_company"
+  | "linkedin_person"
+  | "contact_form"
+  | "booking_link"
+  | "telegram"
+  | "tiktok"
+  | "youtube"
+  | "other";
+
+export interface ProfileChannel {
+  type: ChannelType;
+  label?: string | null;
+  value: string;
+  source_url?: string | null;
+  confidence?: number | null;
+  notes?: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
 export interface Profile {
   id: string;
   store_id: string;
   email: string | null;
   verified: boolean;
   status: ProfileStatus;
+  channels: ProfileChannel[];
   promo_usage: PromoUsage[];
   lists: ProfileListMembership[];
   taxonomies: TaxonomyEntry[];
@@ -1337,6 +1397,7 @@ export interface ProfileListMembership {
   source: ProfileListSource;
   fields: Record<string, unknown>;
   lead_description?: string | null;
+  lead?: LeadInsight | null;
   status: ProfileListMembershipStatus;
   plan_id: string;
   pending_plan_id: string | null;
@@ -1369,23 +1430,11 @@ export interface Mailbox {
   updated_at: number;
 }
 
-export interface OutreachStepVariant {
-  id?: string;
-  position?: number;
-  weight: number;
-  name?: string;
-  template_id?: string | null;
-  template_vars?: Record<string, unknown>;
-  status?: OutreachStepVariantStatus;
-}
-
 export interface OutreachStep {
   id?: string;
   position?: number;
   delay_seconds?: number;
-  variants: OutreachStepVariant[];
-  thread_mode?: OutreachThreadMode;
-  attachments?: string[];
+  type?: OutreachStepType;
 }
 
 export interface OutreachPersonalizationCounters {
@@ -1442,53 +1491,28 @@ export interface CampaignLaunchReadiness {
   suppression_count: number;
 }
 
-export interface CampaignRecipientImportResult {
+export interface CampaignEnrollmentImportResult {
   imported_count: number;
   existing_count: number;
   skipped_count: number;
   draft_count: number;
 }
 
-export interface CampaignRecipientDraft {
-  id: string;
-  step_id?: string | null;
-  step_position: number;
-  step_variant_id?: string | null;
-  step_variant_position?: number | null;
-  step_variant_name?: string | null;
-  template_copy_hash?: string | null;
-  copy_source: CampaignMessageCopySource;
-  personalized_at?: number | null;
-  edited_at?: number | null;
-  personalization_error?: string | null;
-  mailbox_id?: string | null;
-  from_email?: string | null;
-  to_email: string;
-  subject: string;
-  body: string;
-  body_html?: string | null;
-  template_id?: string | null;
-  template_vars: Record<string, unknown>;
-  created_at: number;
-  updated_at: number;
-}
-
-export interface CampaignRecipient {
+export interface CampaignEnrollment {
   id: string;
   store_id: string;
   campaign_id: string;
   profile_id: string;
   profile_list_membership_id?: string | null;
-  import_source: CampaignRecipientImportSource;
+  import_source: CampaignEnrollmentImportSource;
   import_source_id?: string | null;
   imported_at?: number | null;
   mailbox_id?: string | null;
   lead_description?: string | null;
   fields: Record<string, unknown>;
-  drafts: CampaignRecipientDraft[];
-  status: CampaignRecipientStatus;
+  status: CampaignEnrollmentStatus;
   current_step_position: number;
-  next_send_at?: number | null;
+  next_action_at?: number | null;
   created_at: number;
   updated_at: number;
 }
@@ -1497,16 +1521,13 @@ export interface CampaignMessage {
   id: string;
   store_id: string;
   campaign_id: string;
-  campaign_recipient_id: string;
+  campaign_enrollment_id: string;
   profile_id: string;
   mailbox_id: string;
   direction: CampaignMessageDirection;
-  kind: CampaignMessageKind;
+  type: CampaignMessageType;
   step_id?: string | null;
   step_position?: number | null;
-  step_variant_id?: string | null;
-  step_variant_position?: number | null;
-  step_variant_name?: string | null;
   template_copy_hash?: string | null;
   copy_source: CampaignMessageCopySource;
   personalized_at?: number | null;
@@ -1525,17 +1546,30 @@ export interface CampaignMessage {
   rendered_html?: string | null;
   rendered_text?: string | null;
   attachments: string[];
+  target_channel_type?: ChannelType | null;
+  resolved_channel?: ProfileChannel | null;
+  title?: string | null;
+  instructions?: string | null;
+  suggested_message?: string | null;
+  external_url?: string | null;
+  continue_behavior?: ManualTaskContinueBehavior | null;
+  outcome?: CampaignManualTaskOutcome | null;
+  note?: string | null;
   provider_message_id?: string | null;
   provider_thread_id?: string | null;
   error?: string | null;
+  due_at?: number | null;
+  completed_at?: number | null;
   sent_at?: number | null;
   received_at?: number | null;
   created_at: number;
   updated_at: number;
 }
 
-export interface CampaignRecipientConversationResponse {
-  recipient: CampaignRecipient;
+export type CampaignEnrollmentDraft = CampaignMessage;
+
+export interface CampaignEnrollmentConversationResponse {
+  enrollment: CampaignEnrollment;
   messages: CampaignMessage[];
 }
 
@@ -1578,6 +1612,46 @@ export type LeadValidationCheckStatus =
   | "failed"
   | "unknown";
 
+export type CampaignRoute =
+  | "email_only"
+  | "email_manual_followup"
+  | "manual_only"
+  | "needs_review";
+
+export interface LeadScores {
+  fit: number;
+  problem: number;
+  channel: number;
+  intent: number;
+  data_quality: number;
+}
+
+export interface ChannelMessage {
+  type: ChannelType;
+  subject?: string | null;
+  body: string;
+}
+
+export interface LeadInsight {
+  company?: string | null;
+  contact_name?: string | null;
+  website?: string | null;
+  industry?: string | null;
+  location?: string | null;
+  description?: string | null;
+  pain_points: string[];
+  fit_reason?: string | null;
+  scores: LeadScores;
+  best_channel?: ChannelType | null;
+  backup_channel?: ChannelType | null;
+  route: CampaignRoute;
+  first_messages: ChannelMessage[];
+  run_id?: string | null;
+  source_url?: string | null;
+  source_excerpt?: string | null;
+  reasoning_summary?: string | null;
+}
+
 export interface LeadResearchRun {
   id: string;
   store_id: string;
@@ -1609,10 +1683,18 @@ export interface LeadEmailValidationResult {
   checks: LeadValidationCheck[];
 }
 
+export type LeadResearchMessageRole =
+  | "system"
+  | "user"
+  | "assistant"
+  | "activity"
+  | "tool";
+
 export interface LeadResearchMessage {
   id: string;
-  role: string;
+  role: LeadResearchMessageRole;
   content: string;
+  metadata?: Record<string, unknown> | null;
   created_at: number;
 }
 

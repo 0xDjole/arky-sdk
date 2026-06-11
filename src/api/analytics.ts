@@ -11,7 +11,6 @@ export type AnalyticsReportKey =
   | "profile_funnel"
   | "outreach_overview"
   | "outreach_funnel"
-  | "outreach_variant_performance"
   | "activity_by_country"
   | "top_activity_pages"
   | "entity_status_overview"
@@ -33,7 +32,7 @@ export type AnalyticsReportKey =
   | "profile_lists_by_status"
   | "mailboxes_by_status"
   | "campaigns_by_status"
-  | "campaign_recipients_by_status"
+  | "campaign_enrollments_by_status"
   | "campaign_messages_by_status"
   | "support_conversations_by_status"
   | "lead_research_runs_by_status"
@@ -151,13 +150,13 @@ export interface OutreachOverviewData {
   active_mailboxes: number;
   campaigns: number;
   active_campaigns: number;
-  campaign_recipients: number;
-  new_campaign_recipients: number;
-  active_campaign_recipients: number;
-  completed_campaign_recipients: number;
-  replied_campaign_recipients: number;
-  suppressed_campaign_recipients: number;
-  failed_campaign_recipients: number;
+  campaign_enrollments: number;
+  new_campaign_enrollments: number;
+  active_campaign_enrollments: number;
+  completed_campaign_enrollments: number;
+  replied_campaign_enrollments: number;
+  suppressed_campaign_enrollments: number;
+  failed_campaign_enrollments: number;
   campaign_messages_sent: number;
   outreach_bounces: number;
   campaign_messages_received: number;
@@ -173,7 +172,7 @@ export interface OutreachFunnelStage {
   key:
     | "profile_lists"
     | "campaigns"
-    | "campaign_recipients"
+    | "campaign_enrollments"
     | "campaign_messages_sent"
     | "outreach_bounces"
     | "campaign_messages_received"
@@ -187,24 +186,6 @@ export interface OutreachFunnelData {
   reply_rate?: number;
   bounce_rate?: number;
   suppression_rate?: number;
-}
-
-export interface OutreachVariantPerformanceItem {
-  campaign_id: string;
-  step_id: string;
-  step_position: number;
-  step_variant_id: string;
-  step_variant_name: string;
-  sent: number;
-  bounced: number;
-  failed: number;
-  replies: number;
-  reply_rate: number;
-  bounce_rate: number;
-}
-
-export interface OutreachVariantPerformanceData {
-  variants: OutreachVariantPerformanceItem[];
 }
 
 export interface EntityStatusOverviewData {
@@ -291,7 +272,7 @@ export type AnalyticsBreakdownReportKey =
   | "profile_lists_by_status"
   | "mailboxes_by_status"
   | "campaigns_by_status"
-  | "campaign_recipients_by_status"
+  | "campaign_enrollments_by_status"
   | "campaign_messages_by_status"
   | "support_conversations_by_status"
   | "lead_research_runs_by_status"
@@ -313,7 +294,6 @@ export type AnalyticsCompositeReportKey =
   | "profile_funnel"
   | "outreach_overview"
   | "outreach_funnel"
-  | "outreach_variant_performance"
   | "entity_status_overview"
   | "data_health";
 
@@ -324,7 +304,6 @@ export type AnalyticsReport =
   | { key: "profile_funnel"; data: ProfileFunnelData }
   | { key: "outreach_overview"; data: OutreachOverviewData }
   | { key: "outreach_funnel"; data: OutreachFunnelData }
-  | { key: "outreach_variant_performance"; data: OutreachVariantPerformanceData }
   | { key: "entity_status_overview"; data: EntityStatusOverviewData }
   | { key: "data_health"; data: DataHealthData }
   | { key: AnalyticsActivityReportKey; data: ActivityFeedData };

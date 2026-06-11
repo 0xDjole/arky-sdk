@@ -38,15 +38,16 @@ import type {
   LaunchCampaignParams,
   DuplicateCampaignParams,
   GetCampaignLaunchReadinessParams,
-  ImportCampaignRecipientsParams,
-  CampaignRecipientImportResult,
+  ImportCampaignEnrollmentsParams,
+  CampaignEnrollmentImportResult,
   GenerateOutreachPersonalizedDraftsParams,
-  FindCampaignRecipientsParams,
-  UpdateCampaignRecipientParams,
-  UpdateCampaignRecipientDraftParams,
-  GetCampaignRecipientConversationParams,
-  ReplyCampaignRecipientParams,
-  StopCampaignRecipientParams,
+  FindCampaignEnrollmentsParams,
+  UpdateCampaignEnrollmentParams,
+  UpdateCampaignEnrollmentDraftParams,
+  UpdateCampaignEnrollmentStepExecutionParams,
+  GetCampaignEnrollmentConversationParams,
+  ReplyCampaignEnrollmentParams,
+  StopCampaignEnrollmentParams,
   FindCampaignMessagesParams,
   UpdateCampaignMessageParams,
   CreateSuppressionParams,
@@ -58,9 +59,9 @@ import type {
   Mailbox,
   Campaign,
   CampaignLaunchReadiness,
-  CampaignRecipient,
+  CampaignEnrollment,
   CampaignMessage,
-  CampaignRecipientConversationResponse,
+  CampaignEnrollmentConversationResponse,
   PaginatedResponse,
   ProfileList,
   ProfileListMember,
@@ -486,14 +487,14 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async importRecipients(
-        params: ImportCampaignRecipientsParams,
+      async importEnrollments(
+        params: ImportCampaignEnrollmentsParams,
         options?: RequestOptions,
-      ): Promise<CampaignRecipientImportResult> {
+      ): Promise<CampaignEnrollmentImportResult> {
         const { id, store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<CampaignRecipientImportResult>(
-          `/v1/stores/${target_store_id}/campaigns/${id}/recipients/import`,
+        return apiConfig.httpClient.post<CampaignEnrollmentImportResult>(
+          `/v1/stores/${target_store_id}/campaigns/${id}/enrollments/import`,
           payload,
           options,
         );
@@ -510,60 +511,70 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
       },
     },
 
-    campaignRecipient: {
-      async find(params?: FindCampaignRecipientsParams, options?: RequestOptions): Promise<PaginatedResponse<CampaignRecipient>> {
+    campaignEnrollment: {
+      async find(params?: FindCampaignEnrollmentsParams, options?: RequestOptions): Promise<PaginatedResponse<CampaignEnrollment>> {
         const { store_id, ...queryParams } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<PaginatedResponse<CampaignRecipient>>(
-          `/v1/stores/${target_store_id}/campaign-recipients`,
+        return apiConfig.httpClient.get<PaginatedResponse<CampaignEnrollment>>(
+          `/v1/stores/${target_store_id}/campaign-enrollments`,
           { ...options, params: queryParams },
         );
       },
 
-      async get(params: GetCampaignRecipientConversationParams, options?: RequestOptions): Promise<CampaignRecipientConversationResponse> {
+      async get(params: GetCampaignEnrollmentConversationParams, options?: RequestOptions): Promise<CampaignEnrollmentConversationResponse> {
         const { store_id, id, ...queryParams } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<CampaignRecipientConversationResponse>(
-          `/v1/stores/${target_store_id}/campaign-recipients/${id}`,
+        return apiConfig.httpClient.get<CampaignEnrollmentConversationResponse>(
+          `/v1/stores/${target_store_id}/campaign-enrollments/${id}`,
           { ...options, params: { ...queryParams, store_id: target_store_id } },
         );
       },
 
-      async update(params: UpdateCampaignRecipientParams, options?: RequestOptions): Promise<CampaignRecipient> {
+      async update(params: UpdateCampaignEnrollmentParams, options?: RequestOptions): Promise<CampaignEnrollment> {
         const { store_id, id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.put<CampaignRecipient>(
-          `/v1/stores/${target_store_id}/campaign-recipients/${id}`,
+        return apiConfig.httpClient.put<CampaignEnrollment>(
+          `/v1/stores/${target_store_id}/campaign-enrollments/${id}`,
           payload,
           options,
         );
       },
 
-      async updateDraft(params: UpdateCampaignRecipientDraftParams, options?: RequestOptions): Promise<CampaignRecipient> {
+      async updateDraft(params: UpdateCampaignEnrollmentDraftParams, options?: RequestOptions): Promise<CampaignEnrollment> {
         const { store_id, id, draft_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.put<CampaignRecipient>(
-          `/v1/stores/${target_store_id}/campaign-recipients/${id}/drafts/${draft_id}`,
+        return apiConfig.httpClient.put<CampaignEnrollment>(
+          `/v1/stores/${target_store_id}/campaign-enrollments/${id}/drafts/${draft_id}`,
           payload,
           options,
         );
       },
 
-      async reply(params: ReplyCampaignRecipientParams, options?: RequestOptions): Promise<CampaignRecipientConversationResponse> {
-        const { store_id, id, ...payload } = params;
+      async updateStepExecution(params: UpdateCampaignEnrollmentStepExecutionParams, options?: RequestOptions): Promise<CampaignEnrollmentConversationResponse> {
+        const { store_id, id, execution_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<CampaignRecipientConversationResponse>(
-          `/v1/stores/${target_store_id}/campaign-recipients/${id}/reply`,
+        return apiConfig.httpClient.post<CampaignEnrollmentConversationResponse>(
+          `/v1/stores/${target_store_id}/campaign-enrollments/${id}/step-executions/${execution_id}`,
           payload,
           options,
         );
       },
 
-      async stop(params: StopCampaignRecipientParams, options?: RequestOptions): Promise<CampaignRecipientConversationResponse> {
+      async reply(params: ReplyCampaignEnrollmentParams, options?: RequestOptions): Promise<CampaignEnrollmentConversationResponse> {
         const { store_id, id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<CampaignRecipientConversationResponse>(
-          `/v1/stores/${target_store_id}/campaign-recipients/${id}/stop`,
+        return apiConfig.httpClient.post<CampaignEnrollmentConversationResponse>(
+          `/v1/stores/${target_store_id}/campaign-enrollments/${id}/reply`,
+          payload,
+          options,
+        );
+      },
+
+      async stop(params: StopCampaignEnrollmentParams, options?: RequestOptions): Promise<CampaignEnrollmentConversationResponse> {
+        const { store_id, id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<CampaignEnrollmentConversationResponse>(
+          `/v1/stores/${target_store_id}/campaign-enrollments/${id}/stop`,
           payload,
           options,
         );
