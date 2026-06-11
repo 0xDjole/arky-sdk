@@ -219,6 +219,43 @@ export type {
   FormStatus,
   TaxonomyStatus,
 } from "./types";
+export type {
+  CreateSocialAccountParams,
+  CreateSocialMessageParams,
+  CreateSocialPostParams,
+  FindSocialAccountsParams,
+  FindSocialMessagesParams,
+  FindSocialPostsParams,
+  FindSocialPublicationsParams,
+  GetSocialEntityParams,
+  ReplySocialMessageParams,
+  ScheduleSocialPostParams,
+  SocialAccount,
+  SocialAccountStatus,
+  SocialAccountType,
+  SocialActorRef,
+  SocialMessage,
+  SocialMessageCopySource,
+  SocialMessageDirection,
+  SocialMessageStatus,
+  SocialMessageType,
+  SocialMessageWorkflowStatus,
+  SocialPlatform,
+  SocialPost,
+  SocialPostScheduleResponse,
+  SocialPostStatus,
+  SocialPostVariant,
+  SocialPostVariantStatus,
+  SocialPublication,
+  SocialPublicationMessagesResponse,
+  SocialPublicationMetrics,
+  SocialPublicationStatus,
+  SocialPublicationVariantSnapshot,
+  SyncSocialAccountsParams,
+  UpdateSocialAccountParams,
+  UpdateSocialPostParams,
+  UpsertSocialPostVariantParams,
+} from "./api/social";
 
 export { PaymentMethodType } from "./types";
 
@@ -496,6 +533,7 @@ import { createMarketApi } from "./api/market";
 import { createProfileApi } from "./api/crm";
 import { createAdminSupportApi, createStorefrontSupportApi } from "./api/support";
 import { createLeadResearchApi } from "./api/leadResearch";
+import { createSocialApi } from "./api/social";
 import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
@@ -709,6 +747,7 @@ export function createAdmin(config: CreateAdminConfig) {
   const crmApi = createProfileApi(apiConfig);
   const supportApi = createAdminSupportApi(apiConfig);
   const leadResearchApi = createLeadResearchApi(apiConfig);
+  const socialApi = createSocialApi(apiConfig);
   const leadResearch = {
     run: {
       create: leadResearchApi.createRun,
@@ -867,6 +906,7 @@ export function createAdmin(config: CreateAdminConfig) {
       activity: crmApi.activity,
     },
     leadResearch,
+    social: socialApi,
     automation: {
       workflow: {
         create: workflowApi.createWorkflow,
