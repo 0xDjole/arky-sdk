@@ -72,7 +72,8 @@ export interface Activity {
   id: string;
   store_id: string;
   profile_id: string;
-  type: string;
+  key: string;
+  type?: string;
   payload: Record<string, unknown>;
   created_at: number;
   country_code?: string | null;

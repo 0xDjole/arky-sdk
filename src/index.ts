@@ -420,8 +420,22 @@ export type {
   Activity,
   TrackParams,
   CommonActivityType,
+  CommonActivityKey,
+  ExperimentUseResponse,
+  UseExperimentParams,
 } from "./api/storefront";
 export { COMMON_ACTIVITY_TYPES } from "./api/storefront";
+export type {
+  CreateExperimentParams,
+  Experiment,
+  ExperimentResults,
+  ExperimentStatus,
+  ExperimentVariant,
+  ExperimentVariantResult,
+  FindExperimentsParams,
+  GetExperimentParams,
+  UpdateExperimentParams,
+} from "./api/experiments";
 export {
   createCartController,
   type CartApi,
@@ -541,6 +555,7 @@ import { createEmailTemplateApi } from "./api/emailTemplate";
 import { createFormApi } from "./api/form";
 import { createTaxonomyApi } from "./api/taxonomy";
 import { createAnalyticsApi } from "./api/analytics";
+import { createExperimentsApi } from "./api/experiments";
 import { createStorefrontApi } from "./api/storefront";
 import { createCartController } from "./cartController";
 import {
@@ -781,6 +796,7 @@ export function createAdmin(config: CreateAdminConfig) {
   const taxonomyApi = createTaxonomyApi(apiConfig);
   const emailTemplateApi = createEmailTemplateApi(apiConfig);
   const analyticsApi = createAnalyticsApi(apiConfig);
+  const experimentsApi = createExperimentsApi(apiConfig);
 
   const sdk = {
     auth: authApi,
@@ -922,6 +938,7 @@ export function createAdmin(config: CreateAdminConfig) {
     },
 
     analytics: analyticsApi,
+    experiments: experimentsApi,
 
     setStoreId: (storeId: string) => {
       apiConfig.storeId = storeId;
@@ -1170,6 +1187,7 @@ export function createStorefront(config: CreateStorefrontConfig) {
     eshop: storefrontApi.eshop,
     crm: storefrontApi.crm,
     activity: storefrontApi.activity,
+    experiments: storefrontApi.experiments,
     support: createStorefrontSupportApi(apiConfig),
     setStoreId: (storeId: string) => {
       apiConfig.storeId = storeId;

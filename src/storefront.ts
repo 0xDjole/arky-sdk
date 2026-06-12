@@ -20,6 +20,7 @@ export type {
 } from "./storefrontStore";
 export type {
   Activity,
+  CommonActivityKey,
   CommonActivityType,
   CartApi,
   CartController,
@@ -37,5 +38,7 @@ export type {
   AuthStateListener,
   CreateStorefrontConfig,
   TrackParams,
+  ExperimentUseResponse,
+  UseExperimentParams,
 } from "./index";
 export type { HttpClientConfig, AuthStorage } from "./services/createHttpClient";

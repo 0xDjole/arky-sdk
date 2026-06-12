@@ -45,7 +45,7 @@ import type {
   SlotRange,
   SubmitFormParams,
 } from "../types/api";
-import type { Activity, TrackParams } from "../api/storefront";
+import type { Activity, ExperimentUseResponse, TrackParams, UseExperimentParams } from "../api/storefront";
 import type {
   ArkyCalendarDay,
   ArkyCmsEntryParams,
@@ -398,7 +398,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
         },
       });
       await hydrateCart(response, { ifRevision: writeRevision });
-      await client.activity.track({ type: "cart_added", payload: { product_id: product.id, variant_id: variant.id, quantity } });
+      await client.activity.track({ key: "cart_added", payload: { product_id: product.id, variant_id: variant.id, quantity } });
       return response;
     } catch (error) {
       cart_status.setKey("error", readErrorMessage(error, "Failed to add product to cart."));
@@ -430,7 +430,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
       variant_id: item.variant_id,
     });
     await hydrateCart(response, { ifRevision: writeRevision });
-    await client.activity.track({ type: "cart_removed", payload: { product_id: item.product_id, variant_id: item.variant_id } });
+    await client.activity.track({ key: "cart_removed", payload: { product_id: item.product_id, variant_id: item.variant_id } });
     return response;
   }
 
@@ -489,7 +489,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
     cart_status.setKey("error", null);
     try {
       const current = await syncCart(input);
-      await client.activity.track({ type: "checkout_started", payload: { cart_id: current.id } });
+      await client.activity.track({ key: "checkout_started", payload: { cart_id: current.id } });
       const response = await client.cart.checkout({
         id: current.id,
         payment_method_id: input.payment_method_id || undefined,
@@ -516,7 +516,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
       quote.set(null);
       promo_code.set(null);
       cart_status.setKey("selected_shipping_method_id", null);
-      await client.activity.track({ type: "purchase", payload: { order_id: response.order_id, number: response.number } });
+      await client.activity.track({ key: "purchase", payload: { order_id: response.order_id, number: response.number } });
       return response;
     } catch (error) {
       cart_status.setKey("error", readErrorMessage(error, "Checkout failed."));
@@ -1206,6 +1206,17 @@ export function createArkyStore(config: ArkyStoreConfig) {
     return setup(options);
   }
 
+  async function useExperiment(params: string | UseExperimentParams): Promise<ExperimentUseResponse> {
+    await ensureSession();
+    const input = typeof params === "string" ? { key: params } : params;
+    return client.experiments.use(input);
+  }
+
+  async function trackActivity(params: TrackParams): Promise<void> {
+    await ensureSession();
+    return client.activity.track(params);
+  }
+
   const cart_store = {
     cart,
     product_items,
@@ -1354,12 +1365,15 @@ export function createArkyStore(config: ArkyStoreConfig) {
     crm: client.crm,
     activity: {
       track(params: TrackParams) {
-        return client.activity.track(params);
+        return trackActivity(params);
       },
       pageView(payload: Record<string, unknown> = {}) {
-        return client.activity.track({ type: "page_view", payload });
+        return trackActivity({ key: "page_view", payload });
       },
       state: atom<Activity | null>(null),
+    },
+    experiments: {
+      use: useExperiment,
     },
     support: client.support,
     store: client.store,

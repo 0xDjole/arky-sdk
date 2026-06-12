@@ -88,15 +88,21 @@ type CountriesResponse = { items: Country[]; cursor: string | null };
 export interface Activity {
   store_id: string;
   profile_id: string;
-  type: string;
+  key: string;
+  type?: string;
   payload: Record<string, unknown>;
   created_at: number;
 }
 
-export interface TrackParams {
-  type: string;
+export type TrackParams = {
+  key: string;
+  type?: string;
   payload?: Record<string, unknown>;
-}
+} | {
+  type: string;
+  key?: string;
+  payload?: Record<string, unknown>;
+};
 
 export const COMMON_ACTIVITY_TYPES = [
   "page_view",
@@ -117,14 +123,28 @@ export const COMMON_ACTIVITY_TYPES = [
 ] as const;
 
 export type CommonActivityType = (typeof COMMON_ACTIVITY_TYPES)[number];
+export type CommonActivityKey = CommonActivityType;
+
+export interface UseExperimentParams {
+  key: string;
+  store_id?: string;
+}
+
+export interface ExperimentUseResponse {
+  experiment_key: string;
+  experiment_version: number;
+  variant_key: string;
+  goal_activity_key: string;
+}
 
 export const createActivityApi = (apiConfig: ApiConfig) => ({
   COMMON_ACTIVITY_TYPES,
   async track(params: TrackParams): Promise<void> {
     try {
+      const key = "key" in params && params.key ? params.key : params.type;
       await apiConfig.httpClient.post<void>(
         `/v1/storefront/${apiConfig.storeId}/activities/track`,
-        { type: params.type, payload: params.payload },
+        { key, payload: params.payload },
       );
     } catch {}
   },
@@ -591,5 +611,15 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateProfileSession: 
     },
 
     activity: createActivityApi(apiConfig),
+    experiments: {
+      use(params: UseExperimentParams, options?: RequestOptions): Promise<ExperimentUseResponse> {
+        const store_id = params.store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<ExperimentUseResponse>(
+          `${base(store_id)}/experiments/use`,
+          { key: params.key },
+          options,
+        );
+      },
+    },
   };
 };
