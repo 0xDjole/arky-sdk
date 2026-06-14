@@ -207,10 +207,15 @@ export interface SocialPublicationMessagesResponse {
   messages: SocialMessage[];
 }
 
+type SocialSortDirection = "asc" | "desc";
+
 export type FindSocialAccountsParams = {
   store_id?: string;
+  query?: string;
   platform?: SocialPlatform;
   status?: SocialAccountStatus;
+  sort_field?: string;
+  sort_direction?: SocialSortDirection;
   limit?: number;
   cursor?: string;
 };
@@ -237,7 +242,10 @@ export type UpdateSocialAccountParams = Partial<SocialAccount> & {
 
 export type FindSocialPostsParams = {
   store_id?: string;
+  query?: string;
   status?: SocialPostStatus;
+  sort_field?: string;
+  sort_direction?: SocialSortDirection;
   limit?: number;
   cursor?: string;
 };
@@ -272,10 +280,13 @@ export type ScheduleSocialPostParams = {
 
 export type FindSocialPublicationsParams = {
   store_id?: string;
+  query?: string;
   post_id?: string;
   account_id?: string;
   platform?: SocialPlatform;
   status?: SocialPublicationStatus;
+  sort_field?: string;
+  sort_direction?: SocialSortDirection;
   limit?: number;
   cursor?: string;
 };
@@ -291,6 +302,20 @@ export type FindSocialMessagesParams = {
   limit?: number;
   after_created_at?: number;
   after_id?: string;
+};
+
+export type SearchSocialMessagesParams = {
+  store_id?: string;
+  query?: string;
+  publication_id?: string;
+  account_id?: string;
+  platform?: SocialPlatform;
+  status?: SocialMessageStatus;
+  workflow_status?: SocialMessageWorkflowStatus;
+  sort_field?: string;
+  sort_direction?: SocialSortDirection;
+  limit?: number;
+  cursor?: string;
 };
 
 export type CreateSocialMessageParams = Partial<SocialMessage> & {
@@ -492,6 +517,16 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       },
     },
     messages: {
+      search: async (
+        params?: SearchSocialMessagesParams,
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<SocialMessage>> => {
+        const { store_id, ...queryParams } = params || {};
+        return apiConfig.httpClient.get<PaginatedResponse<SocialMessage>>(
+          `/v1/stores/${storeId(store_id)}/social/messages`,
+          { ...options, params: queryParams },
+        );
+      },
       find: async (
         params: FindSocialMessagesParams,
         options?: RequestOptions,

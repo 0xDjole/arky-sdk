@@ -109,6 +109,7 @@ export const createActivityAdminApi = (apiConfig: ApiConfig) => ({
   async find(params: FindActivitiesParams, options?: RequestOptions): Promise<{ items: Activity[]; cursor: string | null }> {
     const store_id = params.store_id || apiConfig.storeId;
     const queryParams: Record<string, unknown> = {};
+    if (params.query) queryParams.query = params.query;
     if (params.profile_id) queryParams.profile_id = params.profile_id;
     if (params.types && params.types.length > 0) queryParams.types = params.types;
     if (params.from !== undefined) queryParams.from = params.from;

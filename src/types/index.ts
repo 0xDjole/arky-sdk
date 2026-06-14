@@ -35,19 +35,71 @@ export interface OrderPaymentPromoCode {
 
 export type OrderPaymentProvider = {
   type: "stripe";
-  profile_id: string;
-  payment_intent_id?: string;
+  stripe_customer_id: string;
+  payment_intent_id?: string | null;
 };
+
+export type PaymentProviderKind = "manual" | "stripe" | "gift_card" | "store_credit";
+export type PaymentCaptureMethod = "automatic" | "manual";
+export type PaymentTransactionType =
+  | "authorize"
+  | "capture"
+  | "sale"
+  | "void"
+  | "cancel"
+  | "refund"
+  | "mark_paid"
+  | "adjustment";
+export type PaymentTransactionStatus =
+  | "pending"
+  | "requires_action"
+  | "processing"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
+
+export interface PaymentTransaction {
+  id: string;
+  payment_id?: string | null;
+  order_id?: string | null;
+  parent_transaction_id?: string | null;
+  type: PaymentTransactionType;
+  status: PaymentTransactionStatus;
+  amount: number;
+  currency: string;
+  provider: PaymentProviderKind;
+  provider_transaction_id?: string | null;
+  provider_payment_id?: string | null;
+  provider_status?: string | null;
+  error_code?: string | null;
+  error_message?: string | null;
+  fee_amount?: number | null;
+  net_amount?: number | null;
+  settlement_currency?: string | null;
+  settlement_exchange_rate?: number | null;
+  payout_id?: string | null;
+  idempotency_key?: string | null;
+  raw_provider_status?: string | null;
+  processed_at?: number | null;
+  created_at: number;
+}
 
 export interface OrderPaymentRefund {
   id: string;
+  type: RefundType;
   total: number;
+  tax_amount: number;
+  shipping_amount?: number | null;
   provider_refund_id?: string;
   status: string;
+  reason?: string | null;
+  lines: RefundLine[];
+  transaction_ids: string[];
   created_at: number;
 }
 
 export interface OrderPayment {
+  status: OrderPaymentStatus;
   currency: string;
   market: string;
   subtotal: number;
@@ -55,10 +107,24 @@ export interface OrderPayment {
   discount: number;
   total: number;
   paid: number;
+  authorized_amount: number;
+  captured_amount: number;
+  refunded_amount: number;
+  voided_amount: number;
+  capture_method: PaymentCaptureMethod;
   tax?: OrderPaymentTax;
   promo_code?: OrderPaymentPromoCode;
   provider?: OrderPaymentProvider;
   refunds: OrderPaymentRefund[];
+  transactions: PaymentTransaction[];
+  provider_payment_id?: string | null;
+  provider_customer_id?: string | null;
+  provider_payment_method_id?: string | null;
+  provider_status?: string | null;
+  next_action?: string | null;
+  failure_code?: string | null;
+  failure_message?: string | null;
+  idempotency_key?: string | null;
   zone_id?: string;
   payment_method_id?: string;
   shipping_method_id?: string;
@@ -318,12 +384,50 @@ export interface ProductInventory {
   updated_at: number;
 }
 
+export type DigitalAssetKind = "file" | "external_link";
+export type DigitalAssetStatus = "active" | "archived";
+export type DigitalDeliveryPolicy = "automatic_after_payment" | "manual";
+
+export interface DigitalAsset {
+  id: string;
+  name: string;
+  kind: DigitalAssetKind;
+  storage_ref?: string | null;
+  external_url?: string | null;
+  status: DigitalAssetStatus;
+}
+
+export interface TaxLineReversal {
+  tax_line_id: string;
+  amount: number;
+}
+
+export interface RefundLine {
+  order_item_id: string;
+  quantity: number;
+  subtotal_amount: number;
+  discount_amount: number;
+  taxable_base: number;
+  amount: number;
+  tax_amount: number;
+  tax_line_reversals: TaxLineReversal[];
+  restock: boolean;
+}
+
+export type RefundType = "item" | "shipping" | "goodwill" | "correction";
+
 export interface ProductVariant {
   id: string;
   sku?: string;
   prices: Price[];
   inventory: ProductInventory[];
   attributes: Block[];
+  requires_shipping: boolean;
+  digital_delivery_policy: DigitalDeliveryPolicy;
+  digital_assets: DigitalAsset[];
+  download_limit?: number | null;
+  access_expires_after_days?: number | null;
+  tax_category_id?: string | null;
   weight?: number;
 }
 
@@ -352,14 +456,63 @@ export interface ProductLineItemSnapshot {
   product_key: string;
   variant_sku?: string;
   variant_attributes: Block[];
+  requires_shipping: boolean;
+  tax_category_id?: string | null;
   price: Price;
 }
 
 export interface ServiceLineItemSnapshot {
   service_key: string;
   provider_key: string;
+  tax_category_id?: string | null;
   price: Price;
 }
+
+export interface DiscountAllocation {
+  discount_application_id?: string | null;
+  amount: number;
+}
+
+export interface TaxLine {
+  id: string;
+  title: string;
+  rate_bps: number;
+  amount: number;
+  taxable_base: number;
+  included_in_price: boolean;
+  jurisdiction_country?: string | null;
+  jurisdiction_region?: string | null;
+  jurisdiction_city?: string | null;
+  jurisdiction_postal_code?: string | null;
+  tax_category_id?: string | null;
+  tax_rate_id?: string | null;
+  source: string;
+  provider_tax_id?: string | null;
+  provider_tax_line_id?: string | null;
+}
+
+export interface LineMoneySnapshot {
+  unit_price: number;
+  subtotal: number;
+  discount_allocations: DiscountAllocation[];
+  discount_total: number;
+  taxable_base: number;
+  tax_lines: TaxLine[];
+  tax_total: number;
+  total: number;
+}
+
+export type OrderItemFulfillmentStatus =
+  | "unfulfilled"
+  | "partially_fulfilled"
+  | "fulfilled"
+  | "not_required";
+
+export type BookingOrderItemStatus =
+  | "scheduled"
+  | "completed"
+  | "no_show"
+  | "cancelled";
 
 export type OrderItemSnapshot =
   | ProductLineItemSnapshot
@@ -384,6 +537,7 @@ export interface ProductQuoteLine {
   discount: number;
   tax: number;
   total: number;
+  money: LineMoneySnapshot;
   snapshot: ProductLineItemSnapshot;
   availability: ProductQuoteLineAvailability;
 }
@@ -401,6 +555,7 @@ export interface ServiceQuoteLine {
   discount: number;
   tax: number;
   total: number;
+  money: LineMoneySnapshot;
   snapshot: ServiceLineItemSnapshot;
   availability: ServiceQuoteLineAvailability;
 }
@@ -413,9 +568,15 @@ export interface ProductLineItem {
   product_id: string;
   variant_id: string;
   quantity: number;
+  cancelled_quantity: number;
+  fulfilled_quantity: number;
+  returned_quantity: number;
+  refunded_quantity: number;
   location_id?: string;
   snapshot: ProductLineItemSnapshot;
   status: OrderItemStatus;
+  fulfillment_status: OrderItemFulfillmentStatus;
+  money: LineMoneySnapshot;
 }
 
 export interface ServiceLineItem {
@@ -425,17 +586,70 @@ export interface ServiceLineItem {
   provider_id: string;
   from: number;
   to: number;
+  quantity: number;
+  cancelled_quantity: number;
+  fulfilled_quantity: number;
+  refunded_quantity: number;
   forms: FormEntry[];
   snapshot: ServiceLineItemSnapshot;
   status: OrderItemStatus;
+  booking_status: BookingOrderItemStatus;
+  fulfillment_status: OrderItemFulfillmentStatus;
+  money: LineMoneySnapshot;
 }
 
 export type OrderItem = ProductLineItem | ServiceLineItem;
+
+export type OrderPaymentSummaryStatus =
+  | "unpaid"
+  | "pending"
+  | "authorized"
+  | "partially_paid"
+  | "paid"
+  | "partially_refunded"
+  | "refunded"
+  | "failed"
+  | "voided"
+  | "expired";
+
+export type OrderFulfillmentStatus =
+  | "unfulfilled"
+  | "partially_fulfilled"
+  | "fulfilled"
+  | "not_required";
 
 export interface HistoryEntry {
   action: string;
   reason?: string;
   timestamp: number;
+}
+
+export type DigitalAccessGrantStatus =
+  | "pending"
+  | "active"
+  | "exhausted"
+  | "revoked"
+  | "expired";
+
+export interface DigitalAccessGrant {
+  id: string;
+  order_id: string;
+  order_item_id: string;
+  product_id: string;
+  variant_id: string;
+  profile_id: string;
+  asset_id: string;
+  asset_name_snapshot: string;
+  kind: DigitalAssetKind;
+  access_url?: string | null;
+  storage_ref?: string | null;
+  status: DigitalAccessGrantStatus;
+  delivery_policy_snapshot: DigitalDeliveryPolicy;
+  download_limit?: number | null;
+  download_count: number;
+  expires_at?: number | null;
+  granted_at?: number | null;
+  revoked_at?: number | null;
 }
 
 export interface Order {
@@ -445,6 +659,8 @@ export interface Order {
   source_cart_id: string;
   profile_id: string;
   status: OrderStatus;
+  payment_status: OrderPaymentSummaryStatus;
+  fulfillment_status: OrderFulfillmentStatus;
   verified: boolean;
   items: OrderItem[];
   payment: OrderPayment;
@@ -452,6 +668,7 @@ export interface Order {
   billing_address?: Address;
   forms: FormEntry[];
   shipments: Shipment[];
+  digital_access_grants: DigitalAccessGrant[];
   history: HistoryEntry[];
   profile_list_id?: string;
   fired_reminders: number[];
@@ -977,13 +1194,22 @@ export type OrderStatus =
   | "partially_confirmed"
   | "confirmed"
   | "partially_cancelled"
-  | "cancelled";
+  | "cancelled"
+  | "completed";
 
 export type OrderPaymentStatus =
   | { status: "pending"; at: number }
+  | { status: "requires_action"; at: number; reason?: string | null }
+  | { status: "processing"; at: number }
   | { status: "authorized"; at: number; amount: number }
+  | { status: "partially_captured"; at: number; amount: number }
   | { status: "captured"; at: number; amount: number }
-  | { status: "failed"; at: number; reason?: string };
+  | { status: "partially_refunded"; at: number; amount: number }
+  | { status: "refunded"; at: number; amount: number }
+  | { status: "voided"; at: number; amount: number }
+  | { status: "cancelled"; at: number; reason?: string | null }
+  | { status: "expired"; at: number }
+  | { status: "failed"; at: number; reason?: string | null };
 
 export interface TimeRange {
   from: number;

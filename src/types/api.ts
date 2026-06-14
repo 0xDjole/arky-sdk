@@ -643,6 +643,12 @@ export interface CreateProductVariantInput {
   prices: Price[];
   inventory: import("./index").ProductInventory[];
   attributes: Block[];
+  requires_shipping?: boolean;
+  digital_delivery_policy?: import("./index").DigitalDeliveryPolicy;
+  digital_assets?: import("./index").DigitalAsset[];
+  download_limit?: number | null;
+  access_expires_after_days?: number | null;
+  tax_category_id?: string | null;
   weight?: number;
 }
 
@@ -652,6 +658,12 @@ export interface UpdateProductVariantInput {
   prices?: Price[];
   inventory?: import("./index").ProductInventory[];
   attributes?: Block[];
+  requires_shipping?: boolean;
+  digital_delivery_policy?: import("./index").DigitalDeliveryPolicy;
+  digital_assets?: import("./index").DigitalAsset[];
+  download_limit?: number | null;
+  access_expires_after_days?: number | null;
+  tax_category_id?: string | null;
   weight?: number | null;
 }
 
@@ -1058,6 +1070,7 @@ export interface GetFormSubmissionsParams {
 
 export interface FindActivitiesParams {
   store_id?: string;
+  query?: string | number;
   profile_id?: string;
   types?: string[];
   from?: number;
