@@ -711,6 +711,8 @@ export interface GetOrdersParams {
   statuses?: string[];
   item_statuses?: string[];
   product_ids?: string[];
+  service_ids?: string[];
+  provider_ids?: string[];
   verified?: boolean;
 
   query?: string | number | null;

@@ -252,12 +252,13 @@ export function createAdminSupportApi(config: ApiConfig) {
 
     conversation: {
       async find(
-        params: { store_id: string; status?: string; agent_id?: string; limit?: number; cursor?: string },
+        params: { store_id: string; status?: string; agent_id?: string; query?: string; limit?: number; cursor?: string },
         opts?: RequestOptions
       ): Promise<{ items: SupportConversation[]; cursor?: string }> {
         const qs = new URLSearchParams({ store_id: params.store_id });
         if (params.status) qs.set("status", params.status);
         if (params.agent_id) qs.set("agent_id", params.agent_id);
+        if (params.query) qs.set("query", params.query);
         if (params.limit) qs.set("limit", String(params.limit));
         if (params.cursor) qs.set("cursor", params.cursor);
         return httpClient.get(
