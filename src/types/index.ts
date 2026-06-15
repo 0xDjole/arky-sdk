@@ -152,6 +152,7 @@ export interface OrderQuote {
   market: string;
   zone: Zone | null;
   items: QuoteLine[];
+  shipping_lines: ShippingLine[];
   subtotal: number;
   shipping: number;
   discount: number;
@@ -638,8 +639,12 @@ export type OrderPaymentSummaryStatus =
 
 export type OrderFulfillmentStatus =
   | "unfulfilled"
+  | "scheduled"
+  | "on_hold"
+  | "in_progress"
   | "partially_fulfilled"
   | "fulfilled"
+  | "incomplete"
   | "not_required";
 
 export interface HistoryEntry {
@@ -682,6 +687,56 @@ export interface DigitalAccessDownloadResponse {
   grant: DigitalAccessGrant;
 }
 
+export interface ShippingLine {
+  id: string;
+  shipping_method_id?: string | null;
+  title: string;
+  code?: string | null;
+  source: string;
+  carrier_identifier?: string | null;
+  money: LineMoneySnapshot;
+  created_at: number;
+  updated_at: number;
+}
+
+export type FulfillmentOrderStatus =
+  | "open"
+  | "in_progress"
+  | "closed"
+  | "incomplete"
+  | "on_hold"
+  | "scheduled"
+  | "cancelled";
+
+export type FulfillmentOrderRequestStatus =
+  | "unsubmitted"
+  | "submitted"
+  | "accepted"
+  | "rejected"
+  | "cancellation_requested"
+  | "cancellation_accepted";
+
+export interface FulfillmentOrderLine {
+  id: string;
+  order_item_id: string;
+  quantity: number;
+  fulfilled_quantity: number;
+}
+
+export interface FulfillmentOrder {
+  id: string;
+  order_id: string;
+  assigned_location_id: string;
+  status: FulfillmentOrderStatus;
+  request_status: FulfillmentOrderRequestStatus;
+  fulfill_at?: number | null;
+  fulfill_by?: number | null;
+  destination?: Address | null;
+  lines: FulfillmentOrderLine[];
+  created_at: number;
+  updated_at: number;
+}
+
 export interface Order {
   id: string;
   number: string;
@@ -694,6 +749,8 @@ export interface Order {
   verified: boolean;
   items: OrderItem[];
   payment: OrderPayment;
+  shipping_lines: ShippingLine[];
+  fulfillment_orders: FulfillmentOrder[];
   shipping_address?: Address;
   billing_address?: Address;
   forms: FormEntry[];
@@ -2053,11 +2110,13 @@ export interface OrderShipping {
 
 export interface ShipmentLine {
   order_item_id: string;
+  fulfillment_order_line_id?: string | null;
   quantity: number;
 }
 
 export interface Shipment {
   id: string;
+  fulfillment_order_id?: string | null;
   location_id: string;
   lines: ShipmentLine[];
   carrier?: string | null;

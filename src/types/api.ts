@@ -1873,6 +1873,7 @@ export interface ShipParams {
   carrier: string;
   service: string;
   location_id: string;
+  fulfillment_order_id?: string | null;
   lines: ShipmentLine[];
 }
 

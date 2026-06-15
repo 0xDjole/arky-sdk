@@ -84,6 +84,11 @@ export type {
 
   ShippingStatus,
   OrderShipping,
+  ShippingLine,
+  FulfillmentOrderStatus,
+  FulfillmentOrderRequestStatus,
+  FulfillmentOrderLine,
+  FulfillmentOrder,
   ShippingRate,
   ShippingAddress,
   Parcel,
