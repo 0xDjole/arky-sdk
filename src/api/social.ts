@@ -17,14 +17,16 @@ export type { SocialProviderKey } from "../types";
 
 export const SOCIAL_PROVIDER_KEYS = [
   "meta",
-  "linkedin",
   "tiktok",
   "youtube",
-  "pinterest",
   "x",
 ] as const satisfies readonly SocialProviderKey[];
 
-const SOCIAL_PROVIDER_KEY_SET = new Set<string>(SOCIAL_PROVIDER_KEYS);
+const SOCIAL_PROVIDER_KEY_SET = new Set<string>([
+  ...SOCIAL_PROVIDER_KEYS,
+  "linkedin",
+  "pinterest",
+]);
 
 export function isSocialProviderKey(value: unknown): value is SocialProviderKey {
   return typeof value === "string" && SOCIAL_PROVIDER_KEY_SET.has(value);
@@ -50,11 +52,7 @@ export function socialProviderLabel(providerKey: SocialProviderKey): string {
 export function socialProviderKeyForPlatform(
   platform: SocialPlatform,
 ): SocialProviderKey | null {
-  if (
-    platform === "facebook" ||
-    platform === "instagram" ||
-    platform === "threads"
-  ) {
+  if (platform === "facebook" || platform === "instagram") {
     return "meta";
   }
   return isSocialProviderKey(platform) ? platform : null;
@@ -196,6 +194,7 @@ export interface SyncSocialProviderParams {
   store_id?: string;
   provider_key: SocialProviderKey;
   integration_id?: string | null;
+  destination_id?: string | null;
   channel_id?: string | null;
   since?: number | null;
 }
@@ -204,6 +203,7 @@ export interface SocialProviderSyncResponse {
   request_id: string;
   provider_key: SocialProviderKey;
   integration_id: string;
+  destination_id?: string | null;
   channel_id?: string | null;
   since?: number | null;
   queued_at: number;
@@ -280,6 +280,8 @@ export interface SocialChannel {
   created_at: number;
   updated_at: number;
 }
+
+export type IntegrationDestination = SocialChannel;
 
 export interface SocialPostVariant {
   id: string;
@@ -363,6 +365,7 @@ export interface SocialDelivery {
   store_id: string;
   post_id: string;
   variant_id: string;
+  destination_id: string;
   channel_id: string;
   platform: SocialPlatform;
   scheduled_at: number;
@@ -395,6 +398,7 @@ export interface SocialComment {
   id: string;
   store_id: string;
   platform: SocialPlatform;
+  destination_id: string;
   channel_id: string;
   delivery_id: string;
   root_comment_id?: string | null;
@@ -422,8 +426,13 @@ export interface SocialPostScheduleResponse {
   deliveries: SocialDelivery[];
 }
 
+export interface SocialDeliveryCreateManyResponse {
+  deliveries: SocialDelivery[];
+}
+
 type BackendSocialPost = SocialPost;
 type BackendSocialChannel = SocialChannel;
+type BackendIntegrationDestination = IntegrationDestination;
 type BackendSocialDelivery = SocialDelivery;
 type BackendSocialComment = SocialComment;
 type BackendSocialProviderCapabilities = SocialProviderCapabilities;
@@ -436,6 +445,7 @@ type BackendSocialProviderOAuthDisconnectResponse =
   SocialProviderOAuthDisconnectResponse;
 type BackendSocialProviderSyncResponse = SocialProviderSyncResponse;
 type BackendSocialPostScheduleResponse = SocialPostScheduleResponse;
+type BackendSocialDeliveryCreateManyResponse = SocialDeliveryCreateManyResponse;
 type BackendSocialDeliveryCommentsResponse = SocialDeliveryCommentsResponse;
 
 export interface SocialDeliveryCommentsResponse {
@@ -454,7 +464,7 @@ export interface SocialCommentThreadResponse {
   comment: SocialComment;
   delivery: SocialDelivery;
   channel: SocialChannel;
-  post: SocialPost;
+  post?: SocialPost | null;
   comments: SocialComment[];
 }
 
@@ -475,7 +485,7 @@ type BackendSocialCommentThreadResponse = Omit<
   comment: BackendSocialComment;
   delivery: BackendSocialDelivery;
   channel: BackendSocialChannel;
-  post: BackendSocialPost;
+  post?: BackendSocialPost | null;
   comments: BackendSocialComment[];
 };
 
@@ -522,6 +532,8 @@ export type FindSocialChannelsParams = {
   cursor?: string;
 };
 
+export type FindIntegrationDestinationsParams = FindSocialChannelsParams;
+
 export type CreateSocialChannelParams = Partial<SocialChannel> & {
   store_id?: string;
   platform: SocialPlatform;
@@ -530,17 +542,22 @@ export type CreateSocialChannelParams = Partial<SocialChannel> & {
   display_name: string;
 };
 
+export type CreateIntegrationDestinationParams = CreateSocialChannelParams;
+
 export type SyncSocialChannelsParams = {
   store_id?: string;
   integration_id?: string;
   platforms?: SocialPlatform[];
-  allow_fake_provider?: boolean;
 };
+
+export type SyncIntegrationDestinationsParams = SyncSocialChannelsParams;
 
 export type UpdateSocialChannelParams = Partial<SocialChannel> & {
   store_id?: string;
   id: string;
 };
+
+export type UpdateIntegrationDestinationParams = UpdateSocialChannelParams;
 
 export type FindSocialPostsParams = {
   store_id?: string;
@@ -598,6 +615,7 @@ export type FindSocialDeliveriesParams = {
   store_id?: string;
   query?: string;
   post_id?: string;
+  destination_id?: string;
   channel_id?: string;
   platform?: SocialPlatform;
   status?: SocialDeliveryStatus;
@@ -605,6 +623,27 @@ export type FindSocialDeliveriesParams = {
   sort_direction?: SocialSortDirection;
   limit?: number;
   cursor?: string;
+};
+
+export type CreateSocialDeliveryParams = {
+  store_id?: string;
+  destination_id: string;
+  variant_id?: string | null;
+  scheduled_at?: number | null;
+  publish_now?: boolean;
+  copy: string;
+  hashtags?: string[];
+  mentions?: string[];
+  link_url?: string | null;
+  cta?: string | null;
+  media_ids?: string[];
+  settings?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type CreateSocialDeliveriesParams = {
+  store_id?: string;
+  deliveries: CreateSocialDeliveryParams[];
 };
 
 export type GetSocialEntityParams = {
@@ -624,6 +663,7 @@ export type SearchSocialCommentsParams = {
   store_id?: string;
   query?: string;
   delivery_id?: string;
+  destination_id?: string;
   channel_id?: string;
   platform?: SocialPlatform;
   status?: SocialCommentStatus;
@@ -664,8 +704,18 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
   const mapChannel = (channel: BackendSocialChannel): SocialChannel => {
     return channel;
   };
+  const mapDestination = (
+    destination: BackendIntegrationDestination,
+  ): IntegrationDestination => {
+    return destination;
+  };
   const channelPayload = (channel: Partial<SocialChannel>) => {
     return channel;
+  };
+  const destinationPayload = (
+    destination: Partial<IntegrationDestination>,
+  ) => {
+    return destination;
   };
   const mapPost = (post: BackendSocialPost): SocialPost => {
     return post;
@@ -674,10 +724,16 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     return post;
   };
   const mapDelivery = (delivery: BackendSocialDelivery): SocialDelivery => {
-    return delivery;
+    return {
+      ...delivery,
+      destination_id: delivery.destination_id || delivery.channel_id,
+    };
   };
   const mapComment = (comment: BackendSocialComment): SocialComment => {
-    return comment;
+    return {
+      ...comment,
+      destination_id: comment.destination_id || comment.channel_id,
+    };
   };
   const commentPayload = (comment: Partial<SocialComment>) => {
     return comment;
@@ -696,7 +752,7 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     comment: mapComment(response.comment),
     delivery: mapDelivery(response.delivery),
     channel: mapChannel(response.channel),
-    post: mapPost(response.post),
+    post: response.post ? mapPost(response.post) : null,
     comments: response.comments.map(mapComment),
   });
   const schedulePayload = (targets: SocialPostTargetParams[]) => ({
@@ -706,6 +762,11 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     response: BackendSocialPostScheduleResponse,
   ): SocialPostScheduleResponse => ({
     post: mapPost(response.post),
+    deliveries: response.deliveries.map(mapDelivery),
+  });
+  const withCreatedDeliveries = (
+    response: BackendSocialDeliveryCreateManyResponse,
+  ): SocialDeliveryCreateManyResponse => ({
     deliveries: response.deliveries.map(mapDelivery),
   });
   const withDeliveryComments = (
@@ -780,6 +841,71 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
         );
       },
     },
+    destinations: {
+      find: async (
+        params?: FindIntegrationDestinationsParams,
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<IntegrationDestination>> => {
+        const { store_id, ...queryParams } = params || {};
+        const response = await apiConfig.httpClient.get<
+          PaginatedResponse<BackendIntegrationDestination>
+        >(
+          `/v1/stores/${storeId(store_id)}/social/destinations`,
+          { ...options, params: queryParams },
+        );
+        return mapPage(response, mapDestination);
+      },
+      create: async (
+        params: CreateIntegrationDestinationParams,
+        options?: RequestOptions,
+      ): Promise<IntegrationDestination> => {
+        const { store_id, ...payload } = params;
+        const response =
+          await apiConfig.httpClient.post<BackendIntegrationDestination>(
+            `/v1/stores/${storeId(store_id)}/social/destinations`,
+            destinationPayload(payload),
+            options,
+          );
+        return mapDestination(response);
+      },
+      get: async (
+        params: GetSocialEntityParams,
+        options?: RequestOptions,
+      ): Promise<IntegrationDestination> => {
+        const response =
+          await apiConfig.httpClient.get<BackendIntegrationDestination>(
+            `/v1/stores/${storeId(params.store_id)}/social/destinations/${params.id}`,
+            options,
+          );
+        return mapDestination(response);
+      },
+      refresh: async (
+        params: SyncIntegrationDestinationsParams = {},
+        options?: RequestOptions,
+      ): Promise<IntegrationDestination[]> => {
+        const { store_id, ...payload } = params;
+        const response =
+          await apiConfig.httpClient.post<BackendIntegrationDestination[]>(
+            `/v1/stores/${storeId(store_id)}/social/destinations/refresh`,
+            payload,
+            options,
+          );
+        return response.map(mapDestination);
+      },
+      update: async (
+        params: UpdateIntegrationDestinationParams,
+        options?: RequestOptions,
+      ): Promise<IntegrationDestination> => {
+        const { store_id, id, ...payload } = params;
+        const response =
+          await apiConfig.httpClient.patch<BackendIntegrationDestination>(
+            `/v1/stores/${storeId(store_id)}/social/destinations/${id}`,
+            destinationPayload(payload),
+            options,
+          );
+        return mapDestination(response);
+      },
+    },
     channels: {
       find: async (
         params?: FindSocialChannelsParams,
@@ -815,18 +941,6 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
           options,
         );
         return mapChannel(response);
-      },
-      createDemo: async (
-        params: SyncSocialChannelsParams = {},
-        options?: RequestOptions,
-      ): Promise<SocialChannel[]> => {
-        const { store_id, ...payload } = params;
-        const response = await apiConfig.httpClient.post<BackendSocialChannel[]>(
-          `/v1/stores/${storeId(store_id)}/social/channels/demo`,
-          { allow_fake_provider: true, ...payload },
-          options,
-        );
-        return response.map(mapChannel);
       },
       refresh: async (
         params: SyncSocialChannelsParams = {},
@@ -869,11 +983,34 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       },
     },
     deliveries: {
+      createMany: async (
+        params: CreateSocialDeliveriesParams,
+        options?: RequestOptions,
+      ): Promise<SocialDeliveryCreateManyResponse> => {
+        const { store_id, deliveries } = params;
+        const response =
+          await apiConfig.httpClient.post<BackendSocialDeliveryCreateManyResponse>(
+            `/v1/stores/${storeId(store_id)}/social/deliveries/create`,
+            {
+              deliveries: deliveries.map((delivery) => ({
+                ...delivery,
+                store_id: storeId(delivery.store_id || store_id),
+                hashtags: delivery.hashtags || [],
+                mentions: delivery.mentions || [],
+                media_ids: delivery.media_ids || [],
+                publish_now: delivery.publish_now || false,
+              })),
+            },
+            options,
+          );
+        return withCreatedDeliveries(response);
+      },
       find: async (
         params?: FindSocialDeliveriesParams,
         options?: RequestOptions,
       ): Promise<PaginatedResponse<SocialDelivery>> => {
-        const { store_id, channel_id, ...queryParams } = params || {};
+        const { store_id, destination_id, channel_id, ...queryParams } =
+          params || {};
         const response = await apiConfig.httpClient.get<
           PaginatedResponse<BackendSocialDelivery>
         >(
@@ -882,7 +1019,7 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
             ...options,
             params: {
               ...queryParams,
-              channel_id,
+              destination_id: destination_id || channel_id,
             },
           },
         );
@@ -960,8 +1097,13 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
         params?: SearchSocialCommentsParams,
         options?: RequestOptions,
       ): Promise<PaginatedResponse<SocialComment>> => {
-        const { store_id, delivery_id, channel_id, ...queryParams } =
-          params || {};
+        const {
+          store_id,
+          delivery_id,
+          destination_id,
+          channel_id,
+          ...queryParams
+        } = params || {};
         const response = await apiConfig.httpClient.get<
           PaginatedResponse<BackendSocialComment>
         >(
@@ -971,7 +1113,7 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
             params: {
               ...queryParams,
               delivery_id,
-              channel_id,
+              destination_id: destination_id || channel_id,
             },
           },
         );
