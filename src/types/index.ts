@@ -1,5 +1,13 @@
 export * from "./api";
 
+export type SocialProviderKey =
+  | "meta"
+  | "linkedin"
+  | "tiktok"
+  | "youtube"
+  | "pinterest"
+  | "x";
+
 export enum PaymentMethodType {
   Cash = "cash",
   CreditCard = "credit_card",
@@ -222,6 +230,7 @@ export interface EshopCartItem {
   product_name: string;
   product_slug: string;
   variant_attributes: Record<string, any>;
+  requires_shipping: boolean;
   price: Price;
   quantity: number;
   added_at: number;
@@ -276,6 +285,21 @@ export type IntegrationProvider =
       scopes: string[];
       account_email?: string | null;
       connected_at: number;
+    }
+  | {
+      type: "social_oauth";
+      provider_key: SocialProviderKey;
+      client_id?: string;
+      client_secret?: string;
+      access_token?: string;
+      refresh_token?: string;
+      token_expires_at?: number;
+      scopes: string[];
+      account_label?: string | null;
+      provider_account_id?: string | null;
+      connected_at: number;
+      webhook_secret?: string | null;
+      metadata?: Record<string, unknown> | null;
     }
   | { type: "telegram_bot"; bot_token?: string }
   | { type: "deep_seek"; api_key?: string; model?: string }
@@ -652,6 +676,12 @@ export interface DigitalAccessGrant {
   revoked_at?: number | null;
 }
 
+export interface DigitalAccessDownloadResponse {
+  url: string;
+  url_expires_at?: number | null;
+  grant: DigitalAccessGrant;
+}
+
 export interface Order {
   id: string;
   number: string;
@@ -728,6 +758,8 @@ export type WebhookEventSubscription =
   | { event: "order.payment_received" }
   | { event: "order.payment_failed" }
   | { event: "order.refunded" }
+  | { event: "order.digital_access_activated" }
+  | { event: "order.digital_access_downloaded" }
   | { event: "order.cancelled" }
   | { event: "order.reminder" }
   | { event: "order.shipment_created" }

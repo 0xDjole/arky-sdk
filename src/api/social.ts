@@ -1,5 +1,5 @@
 import type { ApiConfig } from "../index";
-import type { PaginatedResponse } from "../types";
+import type { PaginatedResponse, SocialProviderKey } from "../types";
 import type { RequestOptions } from "../types/api";
 
 export type SocialPlatform =
@@ -13,14 +13,211 @@ export type SocialPlatform =
   | "pinterest"
   | "unknown";
 
-export type SocialAccountType =
+export type { SocialProviderKey } from "../types";
+
+export const SOCIAL_PROVIDER_KEYS = [
+  "meta",
+  "linkedin",
+  "tiktok",
+  "youtube",
+  "pinterest",
+  "x",
+] as const satisfies readonly SocialProviderKey[];
+
+const SOCIAL_PROVIDER_KEY_SET = new Set<string>(SOCIAL_PROVIDER_KEYS);
+
+export function isSocialProviderKey(value: unknown): value is SocialProviderKey {
+  return typeof value === "string" && SOCIAL_PROVIDER_KEY_SET.has(value);
+}
+
+export function socialProviderLabel(providerKey: SocialProviderKey): string {
+  switch (providerKey) {
+    case "meta":
+      return "Meta";
+    case "linkedin":
+      return "LinkedIn";
+    case "tiktok":
+      return "TikTok";
+    case "youtube":
+      return "YouTube";
+    case "pinterest":
+      return "Pinterest";
+    case "x":
+      return "X";
+  }
+}
+
+export function socialProviderKeyForPlatform(
+  platform: SocialPlatform,
+): SocialProviderKey | null {
+  if (
+    platform === "facebook" ||
+    platform === "instagram" ||
+    platform === "threads"
+  ) {
+    return "meta";
+  }
+  return isSocialProviderKey(platform) ? platform : null;
+}
+
+export type SocialProviderAdapterStatus =
+  | "available"
+  | "planned"
+  | "mock_only";
+
+export type SocialProviderStrategy =
+  | "unsupported"
+  | "provider_api"
+  | "webhook"
+  | "polling"
+  | "webhook_and_polling"
+  | "status_webhook_and_polling";
+
+export interface SocialProviderDocLink {
+  label: string;
+  url: string;
+}
+
+export interface SocialProviderOauthCapability {
+  required: boolean;
+  strategy: SocialProviderStrategy;
+  notes: string;
+}
+
+export interface SocialProviderFeatureCapability {
+  supported: boolean;
+  strategy: SocialProviderStrategy;
+  notes: string;
+}
+
+export interface SocialProviderWebhookCapability {
+  supported: boolean;
+  strategy: SocialProviderStrategy;
+  events: string[];
+  notes: string;
+}
+
+export interface SocialProviderCapabilities {
+  provider_key: SocialProviderKey;
+  display_name: string;
+  platforms: SocialPlatform[];
+  adapter_status: SocialProviderAdapterStatus;
+  oauth: SocialProviderOauthCapability;
+  publishing: SocialProviderFeatureCapability;
+  comments: SocialProviderFeatureCapability;
+  metrics: SocialProviderFeatureCapability;
+  webhooks: SocialProviderWebhookCapability;
+  polling_backfill_required: boolean;
+  provider_approval_required: boolean;
+  notes: string;
+  docs: SocialProviderDocLink[];
+}
+
+export type SocialProviderConnectionStatus =
+  | "connected"
+  | "needs_reauth"
+  | "disabled"
+  | "disconnected"
+  | "not_configured";
+
+export type SocialChannelSource =
+  | "manual"
+  | "fake_provider"
+  | "provider_sync"
+  | "provider_backfill"
+  | "unknown";
+
+export type SocialChannelConnectionMode = "manual" | "connected" | "mock";
+
+export interface SocialProviderConnection {
+  provider_key: SocialProviderKey;
+  display_name: string;
+  platforms: SocialPlatform[];
+  adapter_status: SocialProviderAdapterStatus;
+  status: SocialProviderConnectionStatus;
+  integration_id?: string | null;
+  account_label?: string | null;
+  scopes: string[];
+  connected_at?: number | null;
+  token_expires_at?: number | null;
+  webhook_configured: boolean;
+  polling_backfill_required: boolean;
+  provider_approval_required: boolean;
+}
+
+export interface StartSocialProviderOAuthParams {
+  store_id?: string;
+  provider_key: SocialProviderKey;
+  integration_id?: string | null;
+  redirect_uri: string;
+  scopes?: string[];
+}
+
+export interface CompleteSocialProviderOAuthParams {
+  store_id?: string;
+  provider_key: SocialProviderKey;
+  code: string;
+  state: string;
+  redirect_uri: string;
+}
+
+export interface DisconnectSocialProviderOAuthParams {
+  store_id?: string;
+  provider_key: SocialProviderKey;
+  integration_id?: string | null;
+}
+
+export interface SocialProviderOAuthStartResponse {
+  provider_key: SocialProviderKey;
+  integration_id: string;
+  authorization_url: string;
+  state: string;
+  scopes: string[];
+  expires_at: number;
+  pkce_required: boolean;
+}
+
+export interface SocialProviderOAuthCompleteResponse {
+  provider_key: SocialProviderKey;
+  integration_id: string;
+  account_label?: string | null;
+  scopes: string[];
+  connected_at: number;
+  token_expires_at?: number | null;
+}
+
+export interface SocialProviderOAuthDisconnectResponse {
+  provider_key: SocialProviderKey;
+  integration_id: string;
+  disconnected: boolean;
+}
+
+export interface SyncSocialProviderParams {
+  store_id?: string;
+  provider_key: SocialProviderKey;
+  integration_id?: string | null;
+  channel_id?: string | null;
+  since?: number | null;
+}
+
+export interface SocialProviderSyncResponse {
+  request_id: string;
+  provider_key: SocialProviderKey;
+  integration_id: string;
+  channel_id?: string | null;
+  since?: number | null;
+  queued_at: number;
+  polling_backfill_required: boolean;
+}
+
+export type SocialChannelType =
   | "profile"
   | "page"
   | "business"
   | "channel"
   | "organization"
   | "unknown";
-export type SocialAccountStatus =
+export type SocialChannelStatus =
   | "active"
   | "paused"
   | "revoked"
@@ -32,21 +229,21 @@ export type SocialPostStatus =
   | "posted"
   | "archived";
 export type SocialPostVariantStatus = "draft" | "ready" | "invalid";
-export type SocialPublicationStatus =
+export type SocialDeliveryStatus =
   | "scheduled"
   | "sending"
   | "posted"
   | "failed"
   | "hard_failed"
   | "cancelled";
-export type SocialMessageDirection = "inbound" | "outbound" | "activity";
-export type SocialMessageType =
+export type SocialCommentDirection = "inbound" | "outbound" | "activity";
+export type SocialCommentType =
   | "comment"
   | "comment_reply"
   | "manual_reply"
   | "generated_reply"
   | "provider_activity";
-export type SocialMessageStatus =
+export type SocialCommentStatus =
   | "pending"
   | "sending"
   | "sent"
@@ -55,25 +252,30 @@ export type SocialMessageStatus =
   | "hidden"
   | "deleted"
   | "skipped";
-export type SocialMessageWorkflowStatus = "open" | "replied" | "archived";
-export type SocialMessageCopySource =
+export type SocialCommentWorkflowStatus =
+  | "open"
+  | "replied"
+  | "resolved"
+  | "archived";
+export type SocialCommentCopySource =
   | "provider"
   | "edited"
   | "generated"
   | "template";
 
-export interface SocialAccount {
+export interface SocialChannel {
   id: string;
   store_id: string;
   integration_id?: string | null;
+  provider_key?: SocialProviderKey | null;
+  source: SocialChannelSource;
+  connection_mode: SocialChannelConnectionMode;
   platform: SocialPlatform;
-  platform_account_id: string;
-  account_type: SocialAccountType;
   display_name: string;
   username?: string | null;
   avatar_url?: string | null;
   permissions: string[];
-  status: SocialAccountStatus;
+  status: SocialChannelStatus;
   metadata?: Record<string, unknown> | null;
   created_at: number;
   updated_at: number;
@@ -99,8 +301,7 @@ export interface SocialPost {
   store_id: string;
   campaign_id?: string | null;
   title?: string | null;
-  source_copy: string;
-  goal?: string | null;
+  base_copy: string;
   link_url?: string | null;
   media_ids: string[];
   base_timezone: string;
@@ -111,7 +312,7 @@ export interface SocialPost {
   updated_at: number;
 }
 
-export interface SocialPublicationVariantSnapshot {
+export interface SocialDeliveryVariantSnapshot {
   variant_id: string;
   copy: string;
   hashtags: string[];
@@ -122,7 +323,7 @@ export interface SocialPublicationVariantSnapshot {
   settings?: Record<string, unknown> | null;
 }
 
-export interface SocialPublicationMetrics {
+export interface SocialDeliveryMetrics {
   impressions: number;
   reach: number;
   likes: number;
@@ -135,33 +336,54 @@ export interface SocialPublicationMetrics {
   collected_at?: number | null;
 }
 
-export interface SocialPublication {
+export interface SocialDeliveryHistoryEntry {
+  id: string;
+  action: string;
+  at: number;
+  status: SocialDeliveryStatus;
+  scheduled_at?: number | null;
+  attempt_count: number;
+  message?: string | null;
+  error_code?: string | null;
+}
+
+export interface SocialDeliveryProviderError {
+  code?: string | null;
+  kind?: string | null;
+  message?: string | null;
+  provider_code?: string | null;
+  retryable?: boolean | null;
+  retry_after_seconds?: number | null;
+  at?: number | null;
+  provider_context: Record<string, string>;
+}
+
+export interface SocialDelivery {
   id: string;
   store_id: string;
   post_id: string;
   variant_id: string;
-  account_id: string;
+  channel_id: string;
   platform: SocialPlatform;
   scheduled_at: number;
-  status: SocialPublicationStatus;
+  status: SocialDeliveryStatus;
   attempt_count: number;
   last_attempt_at?: number | null;
   next_retry_at?: number | null;
   last_error_code?: string | null;
   last_error_message?: string | null;
-  provider_publication_id?: string | null;
-  provider_thread_id?: string | null;
   published_url?: string | null;
   published_at?: number | null;
-  latest_metrics: SocialPublicationMetrics;
-  variant_snapshot: SocialPublicationVariantSnapshot;
+  latest_metrics: SocialDeliveryMetrics;
+  variant_snapshot: SocialDeliveryVariantSnapshot;
+  history: SocialDeliveryHistoryEntry[];
+  last_provider_error?: SocialDeliveryProviderError | null;
   metadata?: Record<string, unknown> | null;
   created_at: number;
   updated_at: number;
 }
 
 export interface SocialActorRef {
-  provider_actor_id?: string | null;
   display_name?: string | null;
   handle?: string | null;
   avatar_url?: string | null;
@@ -169,26 +391,24 @@ export interface SocialActorRef {
   linked_profile_id?: string | null;
 }
 
-export interface SocialMessage {
+export interface SocialComment {
   id: string;
   store_id: string;
   platform: SocialPlatform;
-  account_id: string;
-  publication_id: string;
-  root_message_id?: string | null;
-  parent_message_id?: string | null;
-  provider_message_id?: string | null;
-  provider_parent_message_id?: string | null;
-  direction: SocialMessageDirection;
-  type: SocialMessageType;
-  status: SocialMessageStatus;
-  workflow_status?: SocialMessageWorkflowStatus | null;
+  channel_id: string;
+  delivery_id: string;
+  root_comment_id?: string | null;
+  parent_comment_id?: string | null;
+  direction: SocialCommentDirection;
+  type: SocialCommentType;
+  status: SocialCommentStatus;
+  workflow_status?: SocialCommentWorkflowStatus | null;
   author: SocialActorRef;
   body: string;
   attachments: string[];
   permalink?: string | null;
-  in_reply_to_message_id?: string | null;
-  copy_source: SocialMessageCopySource;
+  in_reply_to_comment_id?: string | null;
+  copy_source: SocialCommentCopySource;
   error?: string | null;
   sent_at?: number | null;
   received_at?: number | null;
@@ -199,43 +419,125 @@ export interface SocialMessage {
 
 export interface SocialPostScheduleResponse {
   post: SocialPost;
-  publications: SocialPublication[];
+  deliveries: SocialDelivery[];
 }
 
-export interface SocialPublicationMessagesResponse {
-  publication: SocialPublication;
-  messages: SocialMessage[];
+type BackendSocialPost = SocialPost;
+type BackendSocialChannel = SocialChannel;
+type BackendSocialDelivery = SocialDelivery;
+type BackendSocialComment = SocialComment;
+type BackendSocialProviderCapabilities = SocialProviderCapabilities;
+type BackendSocialProviderConnection = SocialProviderConnection;
+type BackendSocialProviderOAuthStartResponse =
+  SocialProviderOAuthStartResponse;
+type BackendSocialProviderOAuthCompleteResponse =
+  SocialProviderOAuthCompleteResponse;
+type BackendSocialProviderOAuthDisconnectResponse =
+  SocialProviderOAuthDisconnectResponse;
+type BackendSocialProviderSyncResponse = SocialProviderSyncResponse;
+type BackendSocialPostScheduleResponse = SocialPostScheduleResponse;
+type BackendSocialDeliveryCommentsResponse = SocialDeliveryCommentsResponse;
+
+export interface SocialDeliveryCommentsResponse {
+  delivery: SocialDelivery;
+  comments: SocialComment[];
+}
+
+export interface SocialPostDetailResponse {
+  post: SocialPost;
+  channels: SocialChannel[];
+  deliveries: SocialDelivery[];
+  comments: SocialComment[];
+}
+
+export interface SocialCommentThreadResponse {
+  comment: SocialComment;
+  delivery: SocialDelivery;
+  channel: SocialChannel;
+  post: SocialPost;
+  comments: SocialComment[];
+}
+
+type BackendSocialPostDetailResponse = Omit<
+  SocialPostDetailResponse,
+  "post" | "channels" | "deliveries" | "comments"
+> & {
+  post: BackendSocialPost;
+  channels: BackendSocialChannel[];
+  deliveries: BackendSocialDelivery[];
+  comments: BackendSocialComment[];
+};
+
+type BackendSocialCommentThreadResponse = Omit<
+  SocialCommentThreadResponse,
+  "comment" | "delivery" | "channel" | "post" | "comments"
+> & {
+  comment: BackendSocialComment;
+  delivery: BackendSocialDelivery;
+  channel: BackendSocialChannel;
+  post: BackendSocialPost;
+  comments: BackendSocialComment[];
+};
+
+export interface SocialInsightsTopPost {
+  post_id: string;
+  label: string;
+  deliveries: number;
+  engagement: number;
+  comments: number;
+}
+
+export interface SocialChannelHealth {
+  channel_id: string;
+  channel_name: string;
+  platform: string;
+  status: string;
+  scheduled: number;
+  posted: number;
+  failed: number;
+}
+
+export interface SocialInsightsResponse {
+  posts_published: number;
+  engagement: number;
+  total_comments: number;
+  comments_needing_reply: number;
+  average_response_seconds?: number | null;
+  failed_deliveries: number;
+  top_posts: SocialInsightsTopPost[];
+  channel_health: SocialChannelHealth[];
+  clickhouse_available: boolean;
 }
 
 type SocialSortDirection = "asc" | "desc";
 
-export type FindSocialAccountsParams = {
+export type FindSocialChannelsParams = {
   store_id?: string;
   query?: string;
   platform?: SocialPlatform;
-  status?: SocialAccountStatus;
+  status?: SocialChannelStatus;
   sort_field?: string;
   sort_direction?: SocialSortDirection;
   limit?: number;
   cursor?: string;
 };
 
-export type CreateSocialAccountParams = Partial<SocialAccount> & {
+export type CreateSocialChannelParams = Partial<SocialChannel> & {
   store_id?: string;
   platform: SocialPlatform;
-  platform_account_id: string;
-  account_type: SocialAccountType;
+  provider_channel_id: string;
+  channel_type: SocialChannelType;
   display_name: string;
 };
 
-export type SyncSocialAccountsParams = {
+export type SyncSocialChannelsParams = {
   store_id?: string;
   integration_id?: string;
   platforms?: SocialPlatform[];
   allow_fake_provider?: boolean;
 };
 
-export type UpdateSocialAccountParams = Partial<SocialAccount> & {
+export type UpdateSocialChannelParams = Partial<SocialChannel> & {
   store_id?: string;
   id: string;
 };
@@ -252,7 +554,7 @@ export type FindSocialPostsParams = {
 
 export type CreateSocialPostParams = Partial<SocialPost> & {
   store_id?: string;
-  source_copy: string;
+  base_copy: string;
   variants?: SocialPostVariant[];
 };
 
@@ -268,23 +570,37 @@ export type UpsertSocialPostVariantParams = {
   variant: SocialPostVariant;
 };
 
+export type SocialPostTargetParams = {
+  channel_id: string;
+  variant_id: string;
+  scheduled_at?: number;
+};
+
 export type ScheduleSocialPostParams = {
   store_id?: string;
   id: string;
-  targets: Array<{
-    account_id: string;
-    variant_id: string;
-    scheduled_at?: number;
-  }>;
+  targets: SocialPostTargetParams[];
 };
 
-export type FindSocialPublicationsParams = {
+export type RescheduleSocialDeliveryTargetParams = {
+  delivery_id: string;
+  scheduled_at: number;
+};
+
+export type RescheduleSocialPostParams = {
+  store_id?: string;
+  id: string;
+  scheduled_at?: number;
+  targets?: RescheduleSocialDeliveryTargetParams[];
+};
+
+export type FindSocialDeliveriesParams = {
   store_id?: string;
   query?: string;
   post_id?: string;
-  account_id?: string;
+  channel_id?: string;
   platform?: SocialPlatform;
-  status?: SocialPublicationStatus;
+  status?: SocialDeliveryStatus;
   sort_field?: string;
   sort_direction?: SocialSortDirection;
   limit?: number;
@@ -296,38 +612,40 @@ export type GetSocialEntityParams = {
   id: string;
 };
 
-export type FindSocialMessagesParams = {
+export type FindSocialDeliveryCommentsParams = {
   store_id?: string;
-  publication_id: string;
+  delivery_id: string;
   limit?: number;
   after_created_at?: number;
   after_id?: string;
 };
 
-export type SearchSocialMessagesParams = {
+export type SearchSocialCommentsParams = {
   store_id?: string;
   query?: string;
-  publication_id?: string;
-  account_id?: string;
+  delivery_id?: string;
+  channel_id?: string;
   platform?: SocialPlatform;
-  status?: SocialMessageStatus;
-  workflow_status?: SocialMessageWorkflowStatus;
+  status?: SocialCommentStatus;
+  workflow_status?: SocialCommentWorkflowStatus;
   sort_field?: string;
   sort_direction?: SocialSortDirection;
   limit?: number;
   cursor?: string;
 };
 
-export type CreateSocialMessageParams = Partial<SocialMessage> & {
+export type CreateSocialCommentParams = Omit<Partial<SocialComment>, "author"> & {
   store_id?: string;
-  publication_id: string;
+  delivery_id: string;
   body: string;
+  provider_comment_id?: string | null;
+  provider_parent_comment_id?: string | null;
+  author?: SocialActorRef & { provider_actor_id?: string | null };
 };
 
-export type ReplySocialMessageParams = {
+export type ReplySocialCommentParams = {
   store_id?: string;
-  publication_id: string;
-  message_id: string;
+  id: string;
   body: string;
   attachments?: string[];
   metadata?: Record<string, unknown>;
@@ -335,50 +653,408 @@ export type ReplySocialMessageParams = {
 
 export const createSocialApi = (apiConfig: ApiConfig) => {
   const storeId = (store_id?: string) => store_id || apiConfig.storeId;
+  const mapPage = <TBackend, TPublic>(
+    page: PaginatedResponse<TBackend>,
+    mapper: (item: TBackend) => TPublic,
+  ): PaginatedResponse<TPublic> => ({
+    ...page,
+    items: (page.items || []).map(mapper),
+    data: page.data?.map(mapper),
+  });
+  const mapChannel = (channel: BackendSocialChannel): SocialChannel => {
+    return channel;
+  };
+  const channelPayload = (channel: Partial<SocialChannel>) => {
+    return channel;
+  };
+  const mapPost = (post: BackendSocialPost): SocialPost => {
+    return post;
+  };
+  const postPayload = (post: Partial<SocialPost>) => {
+    return post;
+  };
+  const mapDelivery = (delivery: BackendSocialDelivery): SocialDelivery => {
+    return delivery;
+  };
+  const mapComment = (comment: BackendSocialComment): SocialComment => {
+    return comment;
+  };
+  const commentPayload = (comment: Partial<SocialComment>) => {
+    return comment;
+  };
+  const mapPostDetail = (
+    response: BackendSocialPostDetailResponse,
+  ): SocialPostDetailResponse => ({
+    post: mapPost(response.post),
+    channels: response.channels.map(mapChannel),
+    deliveries: response.deliveries.map(mapDelivery),
+    comments: response.comments.map(mapComment),
+  });
+  const mapCommentThread = (
+    response: BackendSocialCommentThreadResponse,
+  ): SocialCommentThreadResponse => ({
+    comment: mapComment(response.comment),
+    delivery: mapDelivery(response.delivery),
+    channel: mapChannel(response.channel),
+    post: mapPost(response.post),
+    comments: response.comments.map(mapComment),
+  });
+  const schedulePayload = (targets: SocialPostTargetParams[]) => ({
+    targets,
+  });
+  const withDeliveries = (
+    response: BackendSocialPostScheduleResponse,
+  ): SocialPostScheduleResponse => ({
+    post: mapPost(response.post),
+    deliveries: response.deliveries.map(mapDelivery),
+  });
+  const withDeliveryComments = (
+    response: BackendSocialDeliveryCommentsResponse,
+  ): SocialDeliveryCommentsResponse => ({
+    delivery: mapDelivery(response.delivery),
+    comments: response.comments.map(mapComment),
+  });
 
   return {
-    accounts: {
-      find: async (
-        params?: FindSocialAccountsParams,
+    providers: {
+      list: async (
+        params?: { store_id?: string },
         options?: RequestOptions,
-      ): Promise<PaginatedResponse<SocialAccount>> => {
-        const { store_id, ...queryParams } = params || {};
-        return apiConfig.httpClient.get<PaginatedResponse<SocialAccount>>(
-          `/v1/stores/${storeId(store_id)}/social/accounts`,
-          { ...options, params: queryParams },
+      ): Promise<SocialProviderCapabilities[]> => {
+        return apiConfig.httpClient.get<BackendSocialProviderCapabilities[]>(
+          `/v1/stores/${storeId(params?.store_id)}/social/providers`,
+          options,
         );
       },
-      create: async (
-        params: CreateSocialAccountParams,
+      connections: async (
+        params?: { store_id?: string },
         options?: RequestOptions,
-      ): Promise<SocialAccount> => {
-        const { store_id, ...payload } = params;
-        return apiConfig.httpClient.post<SocialAccount>(
-          `/v1/stores/${storeId(store_id)}/social/accounts`,
+      ): Promise<SocialProviderConnection[]> => {
+        return apiConfig.httpClient.get<BackendSocialProviderConnection[]>(
+          `/v1/stores/${storeId(params?.store_id)}/social/providers/connections`,
+          options,
+        );
+      },
+      oauthStart: async (
+        params: StartSocialProviderOAuthParams,
+        options?: RequestOptions,
+      ): Promise<SocialProviderOAuthStartResponse> => {
+        const { store_id, provider_key, ...payload } = params;
+        return apiConfig.httpClient.post<BackendSocialProviderOAuthStartResponse>(
+          `/v1/stores/${storeId(store_id)}/social/providers/${provider_key}/oauth/start`,
+          payload,
+          options,
+        );
+      },
+      oauthCallback: async (
+        params: CompleteSocialProviderOAuthParams,
+        options?: RequestOptions,
+      ): Promise<SocialProviderOAuthCompleteResponse> => {
+        const { store_id, provider_key, ...payload } = params;
+        return apiConfig.httpClient.post<BackendSocialProviderOAuthCompleteResponse>(
+          `/v1/stores/${storeId(store_id)}/social/providers/${provider_key}/oauth/callback`,
+          payload,
+          options,
+        );
+      },
+      oauthDisconnect: async (
+        params: DisconnectSocialProviderOAuthParams,
+        options?: RequestOptions,
+      ): Promise<SocialProviderOAuthDisconnectResponse> => {
+        const { store_id, provider_key, ...payload } = params;
+        return apiConfig.httpClient.post<BackendSocialProviderOAuthDisconnectResponse>(
+          `/v1/stores/${storeId(store_id)}/social/providers/${provider_key}/oauth/disconnect`,
           payload,
           options,
         );
       },
       sync: async (
-        params: SyncSocialAccountsParams = {},
+        params: SyncSocialProviderParams,
         options?: RequestOptions,
-      ): Promise<SocialAccount[]> => {
-        const { store_id, ...payload } = params;
-        return apiConfig.httpClient.post<SocialAccount[]>(
-          `/v1/stores/${storeId(store_id)}/social/accounts/sync`,
+      ): Promise<SocialProviderSyncResponse> => {
+        const { store_id, provider_key, ...payload } = params;
+        return apiConfig.httpClient.post<BackendSocialProviderSyncResponse>(
+          `/v1/stores/${storeId(store_id)}/social/providers/${provider_key}/sync`,
           payload,
           options,
         );
       },
-      update: async (
-        params: UpdateSocialAccountParams,
+    },
+    channels: {
+      find: async (
+        params?: FindSocialChannelsParams,
         options?: RequestOptions,
-      ): Promise<SocialAccount> => {
-        const { store_id, id, ...payload } = params;
-        return apiConfig.httpClient.patch<SocialAccount>(
-          `/v1/stores/${storeId(store_id)}/social/accounts/${id}`,
+      ): Promise<PaginatedResponse<SocialChannel>> => {
+        const { store_id, ...queryParams } = params || {};
+        const response = await apiConfig.httpClient.get<
+          PaginatedResponse<BackendSocialChannel>
+        >(
+          `/v1/stores/${storeId(store_id)}/social/channels`,
+          { ...options, params: queryParams },
+        );
+        return mapPage(response, mapChannel);
+      },
+      create: async (
+        params: CreateSocialChannelParams,
+        options?: RequestOptions,
+      ): Promise<SocialChannel> => {
+        const { store_id, ...payload } = params;
+        const response = await apiConfig.httpClient.post<BackendSocialChannel>(
+          `/v1/stores/${storeId(store_id)}/social/channels`,
+          channelPayload(payload),
+          options,
+        );
+        return mapChannel(response);
+      },
+      get: async (
+        params: GetSocialEntityParams,
+        options?: RequestOptions,
+      ): Promise<SocialChannel> => {
+        const response = await apiConfig.httpClient.get<BackendSocialChannel>(
+          `/v1/stores/${storeId(params.store_id)}/social/channels/${params.id}`,
+          options,
+        );
+        return mapChannel(response);
+      },
+      createDemo: async (
+        params: SyncSocialChannelsParams = {},
+        options?: RequestOptions,
+      ): Promise<SocialChannel[]> => {
+        const { store_id, ...payload } = params;
+        const response = await apiConfig.httpClient.post<BackendSocialChannel[]>(
+          `/v1/stores/${storeId(store_id)}/social/channels/demo`,
+          { allow_fake_provider: true, ...payload },
+          options,
+        );
+        return response.map(mapChannel);
+      },
+      refresh: async (
+        params: SyncSocialChannelsParams = {},
+        options?: RequestOptions,
+      ): Promise<SocialChannel[]> => {
+        const { store_id, ...payload } = params;
+        const response = await apiConfig.httpClient.post<BackendSocialChannel[]>(
+          `/v1/stores/${storeId(store_id)}/social/channels/refresh`,
           payload,
           options,
+        );
+        return response.map(mapChannel);
+      },
+      update: async (
+        params: UpdateSocialChannelParams,
+        options?: RequestOptions,
+      ): Promise<SocialChannel> => {
+        const { store_id, id, ...payload } = params;
+        const response = await apiConfig.httpClient.patch<BackendSocialChannel>(
+          `/v1/stores/${storeId(store_id)}/social/channels/${id}`,
+          channelPayload(payload),
+          options,
+        );
+        return mapChannel(response);
+      },
+    },
+    planner: {
+      list: async (
+        params?: FindSocialPostsParams,
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<SocialPost>> => {
+        const { store_id, ...queryParams } = params || {};
+        const response = await apiConfig.httpClient.get<
+          PaginatedResponse<BackendSocialPost>
+        >(
+          `/v1/stores/${storeId(store_id)}/social/planner`,
+          { ...options, params: queryParams },
+        );
+        return mapPage(response, mapPost);
+      },
+    },
+    deliveries: {
+      find: async (
+        params?: FindSocialDeliveriesParams,
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<SocialDelivery>> => {
+        const { store_id, channel_id, ...queryParams } = params || {};
+        const response = await apiConfig.httpClient.get<
+          PaginatedResponse<BackendSocialDelivery>
+        >(
+          `/v1/stores/${storeId(store_id)}/social/deliveries`,
+          {
+            ...options,
+            params: {
+              ...queryParams,
+              channel_id,
+            },
+          },
+        );
+        return mapPage(response, mapDelivery);
+      },
+      get: async (
+        params: GetSocialEntityParams,
+        options?: RequestOptions,
+      ): Promise<SocialDelivery> => {
+        const response = await apiConfig.httpClient.get<BackendSocialDelivery>(
+          `/v1/stores/${storeId(params.store_id)}/social/deliveries/${params.id}`,
+          options,
+        );
+        return mapDelivery(response);
+      },
+      publish: async (
+        params: GetSocialEntityParams,
+        options?: RequestOptions,
+      ): Promise<SocialDelivery> => {
+        const response = await apiConfig.httpClient.post<BackendSocialDelivery>(
+          `/v1/stores/${storeId(params.store_id)}/social/deliveries/${params.id}/publish`,
+          {},
+          options,
+        );
+        return mapDelivery(response);
+      },
+      retry: async (
+        params: GetSocialEntityParams,
+        options?: RequestOptions,
+      ): Promise<SocialDelivery> => {
+        const response = await apiConfig.httpClient.post<BackendSocialDelivery>(
+          `/v1/stores/${storeId(params.store_id)}/social/deliveries/${params.id}/retry`,
+          {},
+          options,
+        );
+        return mapDelivery(response);
+      },
+      refreshMetrics: async (
+        params: GetSocialEntityParams,
+        options?: RequestOptions,
+      ): Promise<SocialDelivery> => {
+        const response = await apiConfig.httpClient.post<BackendSocialDelivery>(
+          `/v1/stores/${storeId(params.store_id)}/social/deliveries/${params.id}/refresh-metrics`,
+          {},
+          options,
+        );
+        return mapDelivery(response);
+      },
+      syncComments: async (
+        params: GetSocialEntityParams,
+        options?: RequestOptions,
+      ): Promise<SocialDeliveryCommentsResponse> => {
+        const response =
+          await apiConfig.httpClient.post<BackendSocialDeliveryCommentsResponse>(
+          `/v1/stores/${storeId(params.store_id)}/social/deliveries/${params.id}/sync-comments`,
+          {},
+          options,
+        );
+        return withDeliveryComments(response);
+      },
+      cancel: async (
+        params: GetSocialEntityParams,
+        options?: RequestOptions,
+      ): Promise<SocialDelivery> => {
+        const response = await apiConfig.httpClient.post<BackendSocialDelivery>(
+          `/v1/stores/${storeId(params.store_id)}/social/deliveries/${params.id}/cancel`,
+          {},
+          options,
+        );
+        return mapDelivery(response);
+      },
+    },
+    community: {
+      list: async (
+        params?: SearchSocialCommentsParams,
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<SocialComment>> => {
+        const { store_id, delivery_id, channel_id, ...queryParams } =
+          params || {};
+        const response = await apiConfig.httpClient.get<
+          PaginatedResponse<BackendSocialComment>
+        >(
+          `/v1/stores/${storeId(store_id)}/social/community`,
+          {
+            ...options,
+            params: {
+              ...queryParams,
+              delivery_id,
+              channel_id,
+            },
+          },
+        );
+        return mapPage(response, mapComment);
+      },
+      create: async (
+        params: CreateSocialCommentParams,
+        options?: RequestOptions,
+      ): Promise<SocialComment> => {
+        const { store_id, ...payload } = params;
+        const response = await apiConfig.httpClient.post<BackendSocialComment>(
+          `/v1/stores/${storeId(store_id)}/social/community/comments`,
+          commentPayload(payload),
+          options,
+        );
+        return mapComment(response);
+      },
+      get: async (
+        params: GetSocialEntityParams,
+        options?: RequestOptions,
+      ): Promise<SocialCommentThreadResponse> => {
+        const response =
+          await apiConfig.httpClient.get<BackendSocialCommentThreadResponse>(
+          `/v1/stores/${storeId(params.store_id)}/social/community/comments/${params.id}`,
+          options,
+        );
+        return mapCommentThread(response);
+      },
+      reply: async (
+        params: ReplySocialCommentParams,
+        options?: RequestOptions,
+      ): Promise<SocialComment> => {
+        const { store_id, id, ...payload } = params;
+        const response = await apiConfig.httpClient.post<BackendSocialComment>(
+          `/v1/stores/${storeId(store_id)}/social/community/comments/${id}/reply`,
+          payload,
+          options,
+        );
+        return mapComment(response);
+      },
+      archive: async (
+        params: GetSocialEntityParams,
+        options?: RequestOptions,
+      ): Promise<SocialComment> => {
+        const response = await apiConfig.httpClient.post<BackendSocialComment>(
+          `/v1/stores/${storeId(params.store_id)}/social/community/comments/${params.id}/archive`,
+          {},
+          options,
+        );
+        return mapComment(response);
+      },
+      hide: async (
+        params: GetSocialEntityParams,
+        options?: RequestOptions,
+      ): Promise<SocialComment> => {
+        const response = await apiConfig.httpClient.post<BackendSocialComment>(
+          `/v1/stores/${storeId(params.store_id)}/social/community/comments/${params.id}/hide`,
+          {},
+          options,
+        );
+        return mapComment(response);
+      },
+      resolve: async (
+        params: GetSocialEntityParams,
+        options?: RequestOptions,
+      ): Promise<SocialComment> => {
+        const response = await apiConfig.httpClient.post<BackendSocialComment>(
+          `/v1/stores/${storeId(params.store_id)}/social/community/comments/${params.id}/resolve`,
+          {},
+          options,
+        );
+        return mapComment(response);
+      },
+    },
+    insights: {
+      get: async (
+        params?: FindSocialPostsParams,
+        options?: RequestOptions,
+      ): Promise<SocialInsightsResponse> => {
+        const { store_id, ...queryParams } = params || {};
+        return apiConfig.httpClient.get<SocialInsightsResponse>(
+          `/v1/stores/${storeId(store_id)}/social/insights`,
+          { ...options, params: queryParams },
         );
       },
     },
@@ -388,41 +1064,70 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
         options?: RequestOptions,
       ): Promise<PaginatedResponse<SocialPost>> => {
         const { store_id, ...queryParams } = params || {};
-        return apiConfig.httpClient.get<PaginatedResponse<SocialPost>>(
+        const response = await apiConfig.httpClient.get<
+          PaginatedResponse<BackendSocialPost>
+        >(
           `/v1/stores/${storeId(store_id)}/social/posts`,
           { ...options, params: queryParams },
         );
+        return mapPage(response, mapPost);
       },
       create: async (
         params: CreateSocialPostParams,
         options?: RequestOptions,
       ): Promise<SocialPost> => {
         const { store_id, ...payload } = params;
-        return apiConfig.httpClient.post<SocialPost>(
+        const response = await apiConfig.httpClient.post<BackendSocialPost>(
           `/v1/stores/${storeId(store_id)}/social/posts`,
-          payload,
+          postPayload(payload),
           options,
         );
+        return mapPost(response);
+      },
+      createDraft: async (
+        params: CreateSocialPostParams,
+        options?: RequestOptions,
+      ): Promise<SocialPost> => {
+        const { store_id, ...payload } = params;
+        const response = await apiConfig.httpClient.post<BackendSocialPost>(
+          `/v1/stores/${storeId(store_id)}/social/posts`,
+          { ...postPayload(payload), status: payload.status || "draft" },
+          options,
+        );
+        return mapPost(response);
       },
       get: async (
         params: GetSocialEntityParams,
         options?: RequestOptions,
       ): Promise<SocialPost> => {
-        return apiConfig.httpClient.get<SocialPost>(
+        const response = await apiConfig.httpClient.get<BackendSocialPost>(
           `/v1/stores/${storeId(params.store_id)}/social/posts/${params.id}`,
           options,
         );
+        return mapPost(response);
+      },
+      getDetail: async (
+        params: GetSocialEntityParams,
+        options?: RequestOptions,
+      ): Promise<SocialPostDetailResponse> => {
+        const response =
+          await apiConfig.httpClient.get<BackendSocialPostDetailResponse>(
+          `/v1/stores/${storeId(params.store_id)}/social/posts/${params.id}/detail`,
+          options,
+        );
+        return mapPostDetail(response);
       },
       update: async (
         params: UpdateSocialPostParams,
         options?: RequestOptions,
       ): Promise<SocialPost> => {
         const { store_id, id, ...payload } = params;
-        return apiConfig.httpClient.put<SocialPost>(
+        const response = await apiConfig.httpClient.put<BackendSocialPost>(
           `/v1/stores/${storeId(store_id)}/social/posts/${id}`,
-          payload,
+          postPayload(payload),
           options,
         );
+        return mapPost(response);
       },
       upsertVariant: async (
         params: UpsertSocialPostVariantParams,
@@ -430,154 +1135,69 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       ): Promise<SocialPost> => {
         const { store_id, id, variant_id, ...payload } = params;
         if (variant_id) {
-          return apiConfig.httpClient.put<SocialPost>(
+          const response = await apiConfig.httpClient.put<BackendSocialPost>(
             `/v1/stores/${storeId(store_id)}/social/posts/${id}/variants/${variant_id}`,
             payload,
             options,
           );
+          return mapPost(response);
         }
-        return apiConfig.httpClient.post<SocialPost>(
+        const response = await apiConfig.httpClient.post<BackendSocialPost>(
           `/v1/stores/${storeId(store_id)}/social/posts/${id}/variants`,
           payload,
           options,
         );
+        return mapPost(response);
       },
       schedule: async (
         params: ScheduleSocialPostParams,
         options?: RequestOptions,
       ): Promise<SocialPostScheduleResponse> => {
-        const { store_id, id, ...payload } = params;
-        return apiConfig.httpClient.post<SocialPostScheduleResponse>(
-          `/v1/stores/${storeId(store_id)}/social/posts/${id}/schedule`,
-          payload,
-          options,
-        );
+        const { store_id, id, targets } = params;
+        const response =
+          await apiConfig.httpClient.post<BackendSocialPostScheduleResponse>(
+            `/v1/stores/${storeId(store_id)}/social/posts/${id}/schedule`,
+            schedulePayload(targets),
+            options,
+          );
+        return withDeliveries(response);
       },
-      publishNow: async (
+      sendNow: async (
         params: ScheduleSocialPostParams,
         options?: RequestOptions,
       ): Promise<SocialPostScheduleResponse> => {
+        const { store_id, id, targets } = params;
+        const response =
+          await apiConfig.httpClient.post<BackendSocialPostScheduleResponse>(
+            `/v1/stores/${storeId(store_id)}/social/posts/${id}/send-now`,
+            schedulePayload(targets),
+            options,
+        );
+        return withDeliveries(response);
+      },
+      reschedule: async (
+        params: RescheduleSocialPostParams,
+        options?: RequestOptions,
+      ): Promise<SocialPostScheduleResponse> => {
         const { store_id, id, ...payload } = params;
-        return apiConfig.httpClient.post<SocialPostScheduleResponse>(
-          `/v1/stores/${storeId(store_id)}/social/posts/${id}/publish-now`,
-          payload,
-          options,
-        );
-      },
-    },
-    publications: {
-      find: async (
-        params?: FindSocialPublicationsParams,
-        options?: RequestOptions,
-      ): Promise<PaginatedResponse<SocialPublication>> => {
-        const { store_id, ...queryParams } = params || {};
-        return apiConfig.httpClient.get<PaginatedResponse<SocialPublication>>(
-          `/v1/stores/${storeId(store_id)}/social/publications`,
-          { ...options, params: queryParams },
-        );
-      },
-      get: async (
-        params: GetSocialEntityParams,
-        options?: RequestOptions,
-      ): Promise<SocialPublication> => {
-        return apiConfig.httpClient.get<SocialPublication>(
-          `/v1/stores/${storeId(params.store_id)}/social/publications/${params.id}`,
-          options,
-        );
-      },
-      publish: async (
-        params: GetSocialEntityParams,
-        options?: RequestOptions,
-      ): Promise<SocialPublication> => {
-        return apiConfig.httpClient.post<SocialPublication>(
-          `/v1/stores/${storeId(params.store_id)}/social/publications/${params.id}/publish`,
-          {},
-          options,
-        );
-      },
-      retry: async (
-        params: GetSocialEntityParams,
-        options?: RequestOptions,
-      ): Promise<SocialPublication> => {
-        return apiConfig.httpClient.post<SocialPublication>(
-          `/v1/stores/${storeId(params.store_id)}/social/publications/${params.id}/retry`,
-          {},
-          options,
-        );
-      },
-      cancel: async (
-        params: GetSocialEntityParams,
-        options?: RequestOptions,
-      ): Promise<SocialPublication> => {
-        return apiConfig.httpClient.post<SocialPublication>(
-          `/v1/stores/${storeId(params.store_id)}/social/publications/${params.id}/cancel`,
-          {},
-          options,
-        );
-      },
-    },
-    messages: {
-      search: async (
-        params?: SearchSocialMessagesParams,
-        options?: RequestOptions,
-      ): Promise<PaginatedResponse<SocialMessage>> => {
-        const { store_id, ...queryParams } = params || {};
-        return apiConfig.httpClient.get<PaginatedResponse<SocialMessage>>(
-          `/v1/stores/${storeId(store_id)}/social/messages`,
-          { ...options, params: queryParams },
-        );
-      },
-      find: async (
-        params: FindSocialMessagesParams,
-        options?: RequestOptions,
-      ): Promise<SocialPublicationMessagesResponse> => {
-        const { store_id, publication_id, ...queryParams } = params;
-        return apiConfig.httpClient.get<SocialPublicationMessagesResponse>(
-          `/v1/stores/${storeId(store_id)}/social/publications/${publication_id}/messages`,
-          { ...options, params: queryParams },
-        );
-      },
-      create: async (
-        params: CreateSocialMessageParams,
-        options?: RequestOptions,
-      ): Promise<SocialMessage> => {
-        const { store_id, publication_id, ...payload } = params;
-        return apiConfig.httpClient.post<SocialMessage>(
-          `/v1/stores/${storeId(store_id)}/social/publications/${publication_id}/messages`,
-          payload,
-          options,
-        );
-      },
-      reply: async (
-        params: ReplySocialMessageParams,
-        options?: RequestOptions,
-      ): Promise<SocialMessage> => {
-        const { store_id, publication_id, message_id, ...payload } = params;
-        return apiConfig.httpClient.post<SocialMessage>(
-          `/v1/stores/${storeId(store_id)}/social/publications/${publication_id}/messages/${message_id}/reply`,
-          payload,
-          options,
-        );
+        const response =
+          await apiConfig.httpClient.post<BackendSocialPostScheduleResponse>(
+            `/v1/stores/${storeId(store_id)}/social/posts/${id}/reschedule`,
+            payload,
+            options,
+          );
+        return withDeliveries(response);
       },
       archive: async (
         params: GetSocialEntityParams,
         options?: RequestOptions,
-      ): Promise<SocialMessage> => {
-        return apiConfig.httpClient.post<SocialMessage>(
-          `/v1/stores/${storeId(params.store_id)}/social/messages/${params.id}/archive`,
+      ): Promise<SocialPost> => {
+        const response = await apiConfig.httpClient.post<BackendSocialPost>(
+          `/v1/stores/${storeId(params.store_id)}/social/posts/${params.id}/archive`,
           {},
           options,
         );
-      },
-      hide: async (
-        params: GetSocialEntityParams,
-        options?: RequestOptions,
-      ): Promise<SocialMessage> => {
-        return apiConfig.httpClient.post<SocialMessage>(
-          `/v1/stores/${storeId(params.store_id)}/social/messages/${params.id}/hide`,
-          {},
-          options,
-        );
+        return mapPost(response);
       },
     },
   };

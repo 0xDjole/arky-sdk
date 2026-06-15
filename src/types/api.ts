@@ -893,6 +893,12 @@ export interface SearchOrderServiceItemsParams {
   profile_list_id?: string;
 }
 
+export interface DownloadDigitalAccessParams {
+  id: string;
+  grant_id: string;
+  store_id?: string;
+}
+
 export interface AccountAddress {
   label?: string;
   address: Address;

@@ -12,6 +12,7 @@ import type {
   GetProductsParams,
   GetOrderParams,
   GetOrdersParams,
+  DownloadDigitalAccessParams,
   GetAvailabilityParams,
   AvailabilityResponse,
   GetServiceParams,
@@ -48,6 +49,7 @@ import type {
   Market,
   OrderQuote,
   Order,
+  DigitalAccessDownloadResponse,
   OrderCheckoutResult,
   Product,
   Profile,
@@ -420,6 +422,18 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateProfileSession: 
             ...options,
             params: queryParams,
           });
+        },
+
+        downloadDigitalAccess(
+          params: DownloadDigitalAccessParams,
+          options?: RequestOptions,
+        ): Promise<DigitalAccessDownloadResponse> {
+          const store_id = params.store_id || apiConfig.storeId;
+          return apiConfig.httpClient.post<DigitalAccessDownloadResponse>(
+            `${base(store_id)}/orders/${params.id}/digital-access/${params.grant_id}/download`,
+            {},
+            options,
+          );
         },
 
       },

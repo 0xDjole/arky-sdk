@@ -31,6 +31,7 @@ import type {
   UpdateServiceProviderParams,
   GetOrderParams,
   GetOrdersParams,
+  DownloadDigitalAccessParams,
   ProcessOrderRefundParams,
   QuoteCartParams,
   RemoveCartItemParams,
@@ -39,6 +40,7 @@ import type {
 } from "../types/api";
 import type {
   Order,
+  DigitalAccessDownloadResponse,
   Product,
   Provider,
   Service,
@@ -490,6 +492,18 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<Order>(
         `/v1/stores/${apiConfig.storeId}/orders/${params.id}/refund`,
         { amount: params.amount },
+        options,
+      );
+    },
+
+    async downloadDigitalAccess(
+      params: DownloadDigitalAccessParams,
+      options?: RequestOptions,
+    ): Promise<DigitalAccessDownloadResponse> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<DigitalAccessDownloadResponse>(
+        `/v1/stores/${target_store_id}/orders/${params.id}/digital-access/${params.grant_id}/download`,
+        {},
         options,
       );
     },

@@ -282,6 +282,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
         product_name: productName(product, currentLocale()),
         product_slug: entitySlug(product, currentLocale()),
         variant_attributes: variant.attributes as EshopCartItem["variant_attributes"],
+        requires_shipping: variant.requires_shipping !== false,
         price: priceForMarket(variant.prices, currentMarketKey(), currentCurrency()),
         quantity: item.quantity,
         added_at: source.created_at ? source.created_at * 1000 : Date.now(),
@@ -450,16 +451,21 @@ export function createArkyStore(config: ArkyStoreConfig) {
 
   async function clearCart(): Promise<Cart | null> {
     const writeRevision = nextCartWriteRevision();
-    product_items.set([]);
-    service_items.set([]);
-    quote.set(null);
-    promo_code.set(null);
-    cart_status.setKey("selected_shipping_method_id", null);
     const current = cart.get();
+    clearLocalCart();
     if (!current) return null;
     const response = await client.cart.clear({ id: current.id });
     await hydrateCart(response, { ifRevision: writeRevision });
     return response;
+  }
+
+  function clearLocalCart(): void {
+    product_items.set([]);
+    service_items.set([]);
+    cart.set(null);
+    quote.set(null);
+    promo_code.set(null);
+    cart_status.setKey("selected_shipping_method_id", null);
   }
 
   async function fetchQuote(input: ArkyCartInput = {}): Promise<OrderQuote | null> {
@@ -510,12 +516,9 @@ export function createArkyStore(config: ArkyStoreConfig) {
         created_at: Date.now(),
       };
       last_order.set(stored);
-      product_items.set([]);
-      service_items.set([]);
-      cart.set(null);
-      quote.set(null);
-      promo_code.set(null);
-      cart_status.setKey("selected_shipping_method_id", null);
+      if (input.clear_after_checkout !== false) {
+        clearLocalCart();
+      }
       await client.activity.track({ key: "purchase", payload: { order_id: response.order_id, number: response.number } });
       return response;
     } catch (error) {
@@ -1238,6 +1241,7 @@ export function createArkyStore(config: ArkyStoreConfig) {
     addServiceItem,
     removeServiceItem,
     clear: clearCart,
+    clearLocal: clearLocalCart,
     quote: fetchQuote,
     checkout,
     applyPromoCode(code: string, input: Omit<ArkyCartInput, "promo_code"> = {}) {

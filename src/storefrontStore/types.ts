@@ -106,6 +106,7 @@ export interface ArkyCartInput {
   promo_code?: string | null;
   payment_method_id?: string | null;
   shipping_method_id?: string | null;
+  clear_after_checkout?: boolean;
 }
 
 export interface ArkyCmsState {
