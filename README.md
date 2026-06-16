@@ -12,10 +12,10 @@ npm install arky-sdk
 
 ## Storefront Quick Start
 
-Use `initialize` from `arky-sdk/storefront-store` for normal custom frontends. It creates the Arky integration object, keeps store/locale/market context, and exposes the backend modules the frontend needs.
+Use `initialize` from `arky-sdk/storefront` for normal custom frontends. It creates the Arky integration object, keeps store/locale/market context, and exposes the backend modules the frontend needs.
 
 ```typescript
-import { initialize } from "arky-sdk/storefront-store";
+import { initialize } from "arky-sdk/storefront";
 
 const arky = initialize({
   baseUrl: "https://api.arky.io",
@@ -176,7 +176,7 @@ initialize({
 ## TypeScript Support
 
 ```typescript
-import { initialize, type ArkyStore } from "arky-sdk/storefront-store";
+import { initialize, type ArkyStore } from "arky-sdk/storefront";
 import type { Block, Cart, Order, Price, Product, Service, Store } from "arky-sdk";
 ```
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { initialize } from "../dist/storefront-store.js";
+import { initialize } from "../dist/storefront.js";
 
 const store = initialize({
   baseUrl: "http://127.0.0.1:1",
@@ -11,8 +11,8 @@ const store = initialize({
 
 assert.equal("cart" in store, false, "cart must live under eshop.cart");
 assert.equal("booking" in store, false, "service scheduling must live under eshop.service");
-assert.equal(typeof store.setup, "function");
-assert.equal("initialize" in store, false, "setup is the boot method; initialize is only the factory export");
+assert.equal("setup" in store, false, "initialize returns the ready storefront API; no public setup boot method");
+assert.equal("initialize" in store, false, "initialize is only the factory export");
 assert.equal(typeof store.setContext, "function");
 assert.equal(typeof store.me, "function");
 assert.equal(typeof store.onAuthStateChanged, "function");

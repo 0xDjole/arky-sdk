@@ -1,7 +1,7 @@
 {
   "name": "arky-sdk",
   "version": "0.9.11",
-  "description": "Official TypeScript SDK for Arky - All-in-one store platform",
+  "description": "Official TypeScript SDK for Arky - website backend for custom frontends",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
