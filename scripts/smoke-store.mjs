@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { createArkyStore } from "../dist/storefront-store.js";
+import { initialize } from "../dist/storefront-store.js";
 
-const store = createArkyStore({
+const store = initialize({
   baseUrl: "http://127.0.0.1:1",
   storeId: "smoke-store",
   market: "us",
@@ -11,8 +11,8 @@ const store = createArkyStore({
 
 assert.equal("cart" in store, false, "cart must live under eshop.cart");
 assert.equal("booking" in store, false, "service scheduling must live under eshop.service");
-assert.equal(typeof store.initialize, "function");
 assert.equal(typeof store.setup, "function");
+assert.equal("initialize" in store, false, "setup is the boot method; initialize is only the factory export");
 assert.equal(typeof store.setContext, "function");
 assert.equal(typeof store.me, "function");
 assert.equal(typeof store.onAuthStateChanged, "function");
@@ -21,8 +21,9 @@ assert.equal(store.isAuthenticated, false);
 store.setContext({ locale: "en", market: "us" });
 assert.equal(store.getLocale(), "en");
 assert.equal(store.getMarket(), "us");
-assert.equal(typeof store.cms.node.get, "function");
-assert.equal("website" in store.cms, false, "CMS node keys must not be public SDK methods");
+assert.equal(typeof store.cms.entry.get, "function");
+assert.equal(typeof store.cms.entry.find, "function");
+assert.equal("website" in store.cms, false, "CMS entry keys must not be public SDK methods");
 assert.equal(typeof store.activity.pageView, "function");
 assert.equal("actions" in store.eshop.cart, false, "cart commands should be direct methods");
 assert.equal("actions" in store.eshop.service, false, "service commands should be direct methods");
@@ -38,4 +39,4 @@ assert.equal(legacyServiceModuleName in store.eshop, false, "scheduled service c
 assert.equal(store.eshop.cart.product_items.get().length, 0);
 assert.equal(store.eshop.service.state.get().cart.length, 0);
 
-console.log("Storefront store smoke test passed.");
+console.log("Storefront SDK smoke test passed.");

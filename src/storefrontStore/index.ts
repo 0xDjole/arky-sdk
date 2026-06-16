@@ -1,4 +1,4 @@
-export { createArkyStore } from "./createArkyStore";
+export { initialize } from "./initialize";
 export type {
   ArkyCalendarDay,
   ArkyCartInput,
@@ -16,6 +16,6 @@ export type {
   ArkyStoreSetupOptions,
   ArkyStoreSetupResult,
 } from "./types";
-export type ArkyStore = ReturnType<typeof import("./createArkyStore").createArkyStore>;
+export type ArkyStore = ReturnType<typeof import("./initialize").initialize>;
 export type ArkyCartStore = ArkyStore["eshop"]["cart"];
 export type ArkyServiceStore = ArkyStore["eshop"]["service"];

@@ -84,7 +84,7 @@ import {
   toServiceCheckoutItems,
 } from "./utils";
 
-export function createArkyStore(config: ArkyStoreConfig) {
+export function initialize(config: ArkyStoreConfig) {
   const client = createStorefront(config);
   const session = atom<ProfileSession | null>(client.session);
   const locale = atom(config.locale || client.getLocale());
@@ -1205,10 +1205,6 @@ export function createArkyStore(config: ArkyStoreConfig) {
     return results;
   }
 
-  async function initialize(options: ArkyStoreSetupOptions = {}) {
-    return setup(options);
-  }
-
   async function useExperiment(params: string | UseExperimentParams): Promise<ExperimentUseResponse> {
     await ensureSession();
     const input = typeof params === "string" ? { key: params } : params;
@@ -1321,7 +1317,6 @@ export function createArkyStore(config: ArkyStoreConfig) {
     allowed_payment_methods,
     payment_config,
     setup,
-    initialize,
     identify,
     verify: client.verify,
     me: client.me,
@@ -1385,6 +1380,6 @@ export function createArkyStore(config: ArkyStoreConfig) {
   };
 }
 
-export type ArkyStore = ReturnType<typeof createArkyStore>;
+export type ArkyStore = ReturnType<typeof initialize>;
 export type ArkyCartStore = ArkyStore["eshop"]["cart"];
 export type ArkyServiceStore = ArkyStore["eshop"]["service"];

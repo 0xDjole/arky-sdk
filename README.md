@@ -1,28 +1,8 @@
 # arky-sdk
 
-Official TypeScript SDK for [Arky](https://arky.io) — Build online stores with headless CMS, e-commerce, and service scheduling.
+Official TypeScript SDK for [Arky](https://arky.io), the backend and client Admin for custom websites.
 
-## What is Arky?
-
-Arky is an **all-in-one platform** that gives you everything you need to run an online store:
-
-- 📝 **Headless CMS** - Manage content with flexible blocks, multilingual support, and AI-powered content generation
-- 🛒 **E-commerce** - Sell products with multi-currency pricing, inventory, orders, and Stripe payments
-- 📅 **Service Scheduling** - Sell scheduled services with providers and availability calendars
-- 📧 **Campaigns** - Send template-backed newsletters, broadcasts, and outreach emails through tenant mailboxes
-- 👥 **User Management** - Authentication, roles, permissions, and user profiles
-- 💳 **Payments** - Integrated Stripe checkout and promo codes
-
-**Build any online store:** SaaS products, e-commerce shops, service businesses, content sites, newsletters, or multi-tenant marketplaces.
-
-## Why Use This SDK?
-
-Instead of manually calling REST APIs, use this TypeScript SDK to:
-
-✅ **Type-safe** - Full TypeScript support with IntelliSense  
-✅ **Auto-authentication** - Handles tokens, refresh, and guest sessions automatically  
-✅ **Utility helpers** - Extract block values, format prices, slugify text, validate phones  
-✅ **Framework-agnostic** - Works in React, Vue, Svelte, Node.js, or any JS environment  
+Arky lets you keep the frontend bespoke while using one backend for CMS, commerce, bookings, forms, profiles, activity, support, workflows, API, and SDK integration.
 
 ## Installation
 
@@ -30,244 +10,187 @@ Instead of manually calling REST APIs, use this TypeScript SDK to:
 npm install arky-sdk
 ```
 
-## Quick Start
+## Storefront Quick Start
 
-### 1. Install & Initialize
-
-```typescript
-import { createArkyStore } from 'arky-sdk/storefront-store'
-
-const arkyStore = createArkyStore({
-  baseUrl: 'https://api.arky.io',
-  storeId: 'your-store-id',
-  market: 'us',
-  locale: 'en',
-  marketForLocale: (locale) => locale === 'it' ? 'ita' : 'us',
-})
-
-const { cart } = await arkyStore.setup({
-  locale: 'en',
-  hydrateCart: true,
-})
-
-const websiteNode = await arkyStore.cms.node.get({
-  key: 'website',
-  locale: 'en',
-})
-```
-
-### 2. Browse Products
+Use `initialize` from `arky-sdk/storefront-store` for normal custom websites. It creates the storefront SDK integration object, manages session and cart state, and exposes the modules the frontend needs.
 
 ```typescript
-// List products (like on arky.io/products)
-const { items: products } = await arkyStore.eshop.product.list({
-  limit: 20
+import { initialize } from "arky-sdk/storefront-store";
+
+const arky = initialize({
+  baseUrl: "https://api.arky.io",
+  storeId: "your-store-id",
+  market: "us",
+  locale: "en",
+  marketForLocale: (locale) => (locale === "it" ? "ita" : "us"),
 });
 
-// Get product details (like arky.io/products/guitar)
-const product = await arkyStore.eshop.product.loadDetail({ id: 'prod_123' });
-
-// Format price (uses currency from price object)
-const formatted = arkyStore.utils.formatPrice(product.variants[0].prices); // "$29.99"
-```
-
-### 3. Shop & Checkout
-
-```typescript
-const product = await arkyStore.eshop.product.loadDetail({ id: 'prod_123' })
-const variant = product.variants[0]
-
-await arkyStore.eshop.cart.addProduct(product, variant, 2)
-
-const quote = await arkyStore.eshop.cart.quote()
-
-const order = await arkyStore.eshop.cart.checkout({
-  payment_method_id: 'credit_card',
-})
-```
-
-### Framework-Agnostic Store
-
-The storefront store is framework-agnostic and built on Nano Stores. UI frameworks can subscribe to atoms directly, while app code calls direct store methods:
-
-```typescript
-await arkyStore.setup({
-  locale: 'en',
+await arky.setup({
+  locale: "en",
   hydrateCart: true,
   track: {
-    type: 'page_view',
-    payload: { url: location.pathname },
+    key: "page_view",
+    payload: { path: location.pathname },
   },
-})
-
-const unsubscribe = arkyStore.eshop.cart.snapshot.subscribe((snapshot) => {
-  console.log(snapshot.item_count, snapshot.cart?.id)
 });
 
-await arkyStore.eshop.cart.ensure();
-await arkyStore.eshop.cart.clear();
-
-unsubscribe();
-```
-
-For content-heavy pages, a website node load can be a single context-aware call:
-
-```typescript
-const website = await arkyStore.cms.node.get({ key: "website", locale: 'en' })
-const info = website.blocks.find((block) => block.key === 'info')
-```
-
-The low-level SDK client is still available as `arkyStore.client` for unusual cases, but normal storefronts should use the store-shaped modules: `cms`, `eshop`, `crm`, `activity`, `automation`, `store`, and `utils`.
-
-### 4. Sell Scheduled Services
-
-```typescript
-// Browse services (like arky.io/services)
-const { items: services } = await arkyStore.eshop.service.list({});
-const service = services[0];
-
-await arkyStore.eshop.service.initialize();
-await arkyStore.eshop.service.select(service);
-arkyStore.eshop.service.findFirstAvailable();
-
-const state = arkyStore.eshop.service.state.get();
-if (state.slots[0]) {
-  arkyStore.eshop.service.selectTimeSlot(state.slots[0]);
-  arkyStore.eshop.service.nextStep();
-  await arkyStore.eshop.service.addToCart();
-}
-
-const order = await arkyStore.eshop.cart.checkout({
-  payment_method_id: 'cash',
+const homepage = await arky.cms.entry.get({
+  collection_id: "pages",
+  key: "homepage",
+  locale: "en",
 });
 ```
 
-### 5. Read Content And Submit Forms
-
-```typescript
-const website = await arkyStore.cms.node.get({ key: "website", locale: 'en' })
-const titleBlock = website.blocks.find((block) => block.key === 'title')
-const title = arkyStore.utils.getBlockTextValue(titleBlock, 'en')
-
-await arkyStore.cms.form.submitByKey({
-  key: 'contact',
-  entries: [
-    { key: 'email', value: 'profile@example.com' },
-    { key: 'message', value: 'Hello from the storefront' },
-  ],
-})
-```
+`initialize` is the public storefront factory. Use the Arky domain noun `Store` for tenant/business concepts, not for naming the SDK factory.
 
 ## Storefront Modules
 
-The store-shaped API is the preferred surface for websites:
+The storefront module API is the preferred surface for websites:
 
 ```typescript
-await arkyStore.setup({ hydrateCart: true })
+await arky.setup({ hydrateCart: true });
 
-await arkyStore.cms.node.get({ key: "website", locale: 'en' })
-await arkyStore.cms.form.submitByKey({ key: 'contact', entries: [] })
+await arky.cms.entry.get({
+  collection_id: "pages",
+  key: "homepage",
+  locale: "en",
+});
+await arky.cms.form.submitByKey({ key: "contact", entries: [] });
 
-await arkyStore.eshop.product.list({ limit: 20 })
-await arkyStore.eshop.cart.ensure()
-await arkyStore.eshop.cart.quote()
-await arkyStore.eshop.cart.checkout({ payment_method_id: 'cash' })
+const { items: products } = await arky.eshop.product.list({ limit: 20 });
+await arky.eshop.cart.addProduct(products[0], products[0].variants[0], 1);
+await arky.eshop.cart.quote();
+await arky.eshop.cart.checkout({ payment_method_id: "cash" });
 
-await arkyStore.eshop.service.list({ limit: 20 })
-await arkyStore.eshop.service.initialize()
+const { items: services } = await arky.eshop.service.list({ limit: 20 });
+await arky.eshop.service.initialize();
 
-await arkyStore.activity.pageView({ path: location.pathname })
+await arky.activity.track({
+  key: "project_inquiry_started",
+  payload: { placement: "homepage" },
+});
+```
+
+UI frameworks can subscribe to Nano Stores exposed by the modules:
+
+```typescript
+const unsubscribe = arky.eshop.cart.snapshot.subscribe((snapshot) => {
+  console.log(snapshot.item_count, snapshot.cart?.id);
+});
+
+await arky.eshop.cart.ensure();
+unsubscribe();
+```
+
+## Read Content And Submit Forms
+
+The server storefront entry route uses collection entries. Key-based content loads must include `collection_id`.
+
+```typescript
+const page = await arky.cms.entry.get({
+  collection_id: "pages",
+  key: "homepage",
+  locale: "en",
+});
+
+const titleBlock = page.blocks.find((block) => block.key === "title");
+const title = arky.utils.getBlockTextValue(titleBlock, "en");
+
+await arky.cms.form.submitByKey({
+  key: "contact",
+  entries: [
+    { key: "email", value: "profile@example.com" },
+    { key: "message", value: "Hello from the storefront" },
+  ],
+});
+```
+
+## Browse Products And Checkout
+
+```typescript
+const { items: products } = await arky.eshop.product.list({ limit: 20 });
+const product = await arky.eshop.product.loadDetail({ id: products[0].id });
+const variant = product.variants[0];
+
+await arky.eshop.cart.addProduct(product, variant, 2);
+
+const quote = await arky.eshop.cart.quote();
+
+const order = await arky.eshop.cart.checkout({
+  payment_method_id: "credit_card",
+});
+```
+
+## Sell Scheduled Services
+
+```typescript
+const { items: services } = await arky.eshop.service.list({ limit: 20 });
+
+await arky.eshop.service.initialize();
+await arky.eshop.service.select(services[0]);
+arky.eshop.service.findFirstAvailable();
+
+const state = arky.eshop.service.state.get();
+if (state.slots[0]) {
+  arky.eshop.service.selectTimeSlot(state.slots[0]);
+  arky.eshop.service.nextStep();
+  await arky.eshop.service.addToCart();
+}
+
+await arky.eshop.cart.checkout({
+  payment_method_id: "cash",
+});
 ```
 
 ## Low-Level Client
 
-The underlying SDK remains available for admin tools or uncommon integrations:
+The lower-level SDK client remains available as `arky.client` for admin tools or uncommon integrations. Normal storefronts should use the module API first.
 
 ```typescript
-const sdk = arkyStore.client
+const sdk = arky.client;
 
-await sdk.eshop.product.find({ limit: 20 })
-await sdk.eshop.cart.current({ market: arkyStore.getMarket() })
-await sdk.eshop.order.find({})
-await sdk.cms.node.get({ key: 'website' })
+await sdk.eshop.product.find({ limit: 20 });
+await sdk.eshop.cart.current({ market: arky.getMarket() });
+await sdk.eshop.order.find({});
+await sdk.cms.entry.find({
+  collection_id: "pages",
+  key: "homepage",
+  limit: 1,
+});
 ```
-
-## Utility Functions
-
-The SDK includes helpful utilities accessible through `arkyStore.utils`:
-
-```typescript
-const title = arkyStore.utils.getBlockTextValue(block, 'en')
-const imageUrl = arkyStore.utils.getImageUrl(imageBlock)
-const price = arkyStore.utils.formatPrice(prices)
-const payment = arkyStore.utils.formatPayment(paymentObject)
-const slug = arkyStore.utils.slugify('Hello World')
-const date = arkyStore.utils.formatDate(Date.now(), 'en')
-const phone = arkyStore.utils.validatePhoneNumber('+1234567890')
-```
-
-## What Can You Build?
-
-- 🏪 **E-commerce shops** - Product catalogs, shopping carts, checkout
-- 📰 **Content websites** - Blogs, documentation, marketing sites
-- 📅 **Service businesses** - Appointment scheduling, service scheduling
-- 📬 **Newsletter platforms** - Subscriber management, email campaigns
-- 🏢 **SaaS products** - Multi-tenant apps with user auth and billing
-- 🛍️ **Marketplaces** - Multi-vendor platforms with payments
 
 ## Configuration Options
 
 ```typescript
-createArkyStore({
+initialize({
   // Required
-  baseUrl: string,        // API URL
-  storeId: string,        // Your store ID
+  baseUrl: string,
+  storeId: string,
 
   // Optional
-  market?: string,        // Market key (e.g., 'us', 'eu')
-  locale?: string,        // Storefront locale (default: SDK/client locale)
-  apiToken?: string,      // Trusted server-side API token
+  market?: string,
+  locale?: string,
+  apiToken?: string,
   marketForLocale?: (locale: string) => string | null,
   navigate?: (path: string) => void,
   loginFallbackPath?: string,
-})
+});
 ```
 
 ## TypeScript Support
 
-The SDK is written in TypeScript and provides full type definitions:
-
 ```typescript
-import type {
-  HttpClientConfig,
-  ApiResponse,
-  Block,
-  Store,
-  Price,
-  // ... and many more
-} from 'arky-sdk'
+import { initialize, type ArkyStore } from "arky-sdk/storefront-store";
+import type { Block, Cart, Order, Price, Product, Service, Store } from "arky-sdk";
 ```
 
-## Adding a new endpoint
+## Adding A New Endpoint
 
 When adding a new SDK method, follow this checklist so the API surface stays typed end-to-end and request shapes stay aligned with the Rust DTOs on the server:
 
-1. **Define the entity** in `src/types/index.ts` if it does not already exist. Mirror the Rust response struct field-for-field.
-2. **Define the request params** in `src/types/api.ts`. Mirror the Rust DTO in `server/core/src/{module}/types/commands.rs` field-for-field. Two exceptions: `store_id?: string` and `market?: string` are optional in TS (the SDK auto-fills both from `apiConfig.storeId` and `apiConfig.market`). Do **not** use `[key: string]: any` index signatures.
-3. **Annotate the SDK method's return type** using the matching entity from `src/types/index.ts`.
-4. **Pass the response generic to the HTTP call**: `apiConfig.httpClient.post<EntityType>(...)`, `apiConfig.httpClient.get<PaginatedResponse<EntityType>>(...)`, etc. Never rely on inference.
-5. **Inject `market` from `apiConfig`**: when a body needs a `market` field, write `{ market: apiConfig.market, ...payload }`. Never hardcode `"default"`, `"eshop"`, or any other market string in `src/api/*.ts`.
-6. **Re-export the entity** from `src/index.ts` if consumers (admin, storefront) will import it.
-7. **Bump `SDK_VERSION`** in `src/index.ts` and the `version` in `package.json`. Patch only.
-
-A guardrail script (`scripts/check-no-any.mjs`) runs on `npm run build` (via `prebuild`) and fails red if `: any`, `as any`, or hardcoded `market: "..."` literals show up in `src/api/*.ts`.
-
-## License
-
-MIT
-
-## Links
-
-- [Documentation](https://docs.arky.io)
-- [GitHub](https://github.com/0xDjole/arky-sdk)
-- [npm](https://www.npmjs.com/package/arky-sdk)
+1. Define the entity in `src/types/index.ts` if it does not already exist. Mirror the Rust response struct field-for-field.
+2. Define the request params in `src/types/api.ts`. Mirror the Rust DTO in `server/core/src/{module}/types/commands.rs` field-for-field. Two exceptions: `store_id?: string` and `market?: string` are optional in TS because the SDK auto-fills both from `apiConfig.storeId` and `apiConfig.market`. Do not use `[key: string]: any` index signatures.
+3. Annotate the SDK method's return type using the matching entity from `src/types/index.ts`.
+4. Pass the response generic to the HTTP call: `apiConfig.httpClient.post<EntityType>(...)`, `apiConfig.httpClient.get<PaginatedResponse<EntityType>>(...)`, etc. Never rely on inference.
+5. Inject `market` from `apiConfig`: when a body needs a `market` field, write `{ market: apiConfig.market, ...payload }`. Never hardcode `"default"`, `"eshop"`, or any other market string in `src/api/*.ts`.
+6. Re-export the entity from `src/index.ts` if consumers will import it.

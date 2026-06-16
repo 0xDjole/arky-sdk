@@ -1,6 +1,6 @@
 export { COMMON_ACTIVITY_TYPES, createStorefront } from "./index";
 export { createCartController } from "./index";
-export { createArkyStore } from "./storefrontStore";
+export { initialize } from "./storefrontStore";
 export type {
   ArkyCartInput,
   ArkyCartSnapshot,
