@@ -246,77 +246,6 @@ export type {
   FormStatus,
   TaxonomyStatus,
 } from "./types";
-export type {
-  CreateSocialChannelParams,
-  CreateIntegrationDestinationParams,
-  CreateSocialCommentParams,
-  CreateSocialDeliveriesParams,
-  CreateSocialDeliveryParams,
-  CreateSocialPostParams,
-  FindSocialChannelsParams,
-  FindIntegrationDestinationsParams,
-  FindSocialDeliveryCommentsParams,
-  FindSocialDeliveriesParams,
-  FindSocialPostsParams,
-  CompleteSocialProviderOAuthParams,
-  DisconnectSocialProviderOAuthParams,
-  GetSocialEntityParams,
-  IntegrationDestination,
-  ReplySocialCommentParams,
-  ScheduleSocialPostParams,
-  SearchSocialCommentsParams,
-  SocialActorRef,
-  SocialChannel,
-  SocialChannelHealth,
-  SocialComment,
-  SocialCommentThreadResponse,
-  SocialDelivery,
-  SocialDeliveryCreateManyResponse,
-  SocialDeliveryCommentsResponse,
-  SocialInsightsResponse,
-  SocialInsightsTopPost,
-  SocialCommentCopySource,
-  SocialCommentDirection,
-  SocialCommentStatus,
-  SocialCommentType,
-  SocialCommentWorkflowStatus,
-  SocialPlatform,
-  SocialProviderAdapterStatus,
-  SocialProviderCapabilities,
-  SocialProviderConnection,
-  SocialProviderConnectionStatus,
-  SocialProviderDocLink,
-  SocialProviderFeatureCapability,
-  SocialProviderKey,
-  SocialProviderOauthCapability,
-  SocialProviderOAuthCompleteResponse,
-  SocialProviderOAuthDisconnectResponse,
-  SocialProviderOAuthStartResponse,
-  SocialProviderStrategy,
-  SocialProviderWebhookCapability,
-  SocialPost,
-  SocialPostDetailResponse,
-  SocialPostTargetParams,
-  SocialPostScheduleResponse,
-  SocialPostStatus,
-  SocialPostVariant,
-  SocialPostVariantStatus,
-  StartSocialProviderOAuthParams,
-  SyncIntegrationDestinationsParams,
-  SyncSocialChannelsParams,
-  UpdateIntegrationDestinationParams,
-  UpdateSocialChannelParams,
-  UpdateSocialPostParams,
-  UpsertSocialPostVariantParams,
-} from "./api/social";
-
-export {
-  SOCIAL_PROVIDER_KEYS,
-  isSocialProviderKey,
-  socialProviderKeyForPlatform,
-  socialProviderLabel,
-} from "./api/social";
-
 export { PaymentMethodType } from "./types";
 
 export type {
@@ -607,7 +536,6 @@ import { createMarketApi } from "./api/market";
 import { createProfileApi } from "./api/crm";
 import { createAdminSupportApi, createStorefrontSupportApi } from "./api/support";
 import { createLeadResearchApi } from "./api/leadResearch";
-import { createSocialApi } from "./api/social";
 import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
@@ -822,7 +750,6 @@ export function createAdmin(config: CreateAdminConfig) {
   const crmApi = createProfileApi(apiConfig);
   const supportApi = createAdminSupportApi(apiConfig);
   const leadResearchApi = createLeadResearchApi(apiConfig);
-  const socialApi = createSocialApi(apiConfig);
   const leadResearch = {
     run: {
       create: leadResearchApi.createRun,
@@ -983,7 +910,6 @@ export function createAdmin(config: CreateAdminConfig) {
       activity: crmApi.activity,
     },
     leadResearch,
-    social: socialApi,
     automation: {
       workflow: {
         create: workflowApi.createWorkflow,

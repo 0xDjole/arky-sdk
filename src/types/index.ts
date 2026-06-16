@@ -1,13 +1,5 @@
 export * from "./api";
 
-export type SocialProviderKey =
-  | "meta"
-  | "linkedin"
-  | "tiktok"
-  | "youtube"
-  | "pinterest"
-  | "x";
-
 export enum PaymentMethodType {
   Cash = "cash",
   CreditCard = "credit_card",
@@ -286,21 +278,6 @@ export type IntegrationProvider =
       scopes: string[];
       account_email?: string | null;
       connected_at: number;
-    }
-  | {
-      type: "social_oauth";
-      provider_key: SocialProviderKey;
-      client_id?: string;
-      client_secret?: string;
-      access_token?: string;
-      refresh_token?: string;
-      token_expires_at?: number;
-      scopes: string[];
-      account_label?: string | null;
-      provider_account_id?: string | null;
-      connected_at: number;
-      webhook_secret?: string | null;
-      metadata?: Record<string, unknown> | null;
     }
   | { type: "telegram_bot"; bot_token?: string }
   | { type: "deep_seek"; api_key?: string; model?: string }

@@ -36,10 +36,6 @@ export type AnalyticsReportKey =
   | "campaign_messages_by_status"
   | "support_conversations_by_status"
   | "lead_research_runs_by_status"
-  | "social_channels_by_status"
-  | "social_posts_by_status"
-  | "social_deliveries_by_status"
-  | "social_comments_by_workflow_status"
   | "suppressions_by_status"
 
   | "workflows_by_status"
@@ -280,10 +276,6 @@ export type AnalyticsBreakdownReportKey =
   | "campaign_messages_by_status"
   | "support_conversations_by_status"
   | "lead_research_runs_by_status"
-  | "social_channels_by_status"
-  | "social_posts_by_status"
-  | "social_deliveries_by_status"
-  | "social_comments_by_workflow_status"
   | "suppressions_by_status"
 
   | "workflows_by_status"
