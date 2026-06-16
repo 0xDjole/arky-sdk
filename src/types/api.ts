@@ -1789,18 +1789,6 @@ export interface ValidateLeadEmailParams {
   email_source_url?: string;
 }
 
-export interface OAuthConnectParams {
-  store_id: string;
-  provider: string;
-  code: string;
-  redirect_uri: string;
-}
-
-export interface OAuthDisconnectParams {
-  store_id: string;
-  provider: string;
-}
-
 export interface ListIntegrationsParams {
   store_id: string;
 }

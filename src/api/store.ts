@@ -13,8 +13,6 @@ import type {
   RemoveMemberParams,
   TestWebhookParams,
   GetStoreMediaParams2,
-  OAuthConnectParams,
-  OAuthDisconnectParams,
   ListIntegrationsParams,
   CreateIntegrationParams,
   UpdateIntegrationParams,
@@ -162,29 +160,6 @@ export const createStoreApi = (apiConfig: ApiConfig, _updateSession: AdminSessio
         params: queryParams,
       });
     },
-
-    async oauthConnect(
-      params: OAuthConnectParams,
-      options?: RequestOptions
-    ): Promise<Integration> {
-      return apiConfig.httpClient.post<Integration>(
-        `/v1/stores/${params.store_id}/oauth/connect`,
-        { provider: params.provider, code: params.code, redirect_uri: params.redirect_uri },
-        options
-      );
-    },
-
-    async oauthDisconnect(
-      params: OAuthDisconnectParams,
-      options?: RequestOptions
-    ): Promise<{ disconnected: boolean }> {
-      return apiConfig.httpClient.post<{ disconnected: boolean }>(
-        `/v1/stores/${params.store_id}/oauth/disconnect`,
-        { provider: params.provider },
-        options
-      );
-    },
-
 
     async listIntegrations(
       params: ListIntegrationsParams,

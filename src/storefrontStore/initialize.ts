@@ -59,8 +59,6 @@ import type {
   ArkyServiceState,
   ArkyStoreContext,
   ArkyStoreConfig,
-  ArkyStoreSetupOptions,
-  ArkyStoreSetupResult,
 } from "./types";
 import {
   availableStock,
@@ -1190,21 +1188,6 @@ export function initialize(config: ArkyStoreConfig) {
     }
   }
 
-  async function setup(options: ArkyStoreSetupOptions = {}): Promise<ArkyStoreSetupResult> {
-    setContext(options);
-
-    const shouldIdentify = options.identify === true || !!options.hydrateCart || !!options.track;
-    const results: ArkyStoreSetupResult = {
-      session: session.get(),
-    };
-
-    if (shouldIdentify) results.session = await ensureSession();
-    if (options.hydrateCart) results.cart = await ensureCart();
-    if (options.track) await client.activity.track(options.track);
-
-    return results;
-  }
-
   async function useExperiment(params: string | UseExperimentParams): Promise<ExperimentUseResponse> {
     await ensureSession();
     const input = typeof params === "string" ? { key: params } : params;
@@ -1316,7 +1299,7 @@ export function initialize(config: ArkyStoreConfig) {
     currency,
     allowed_payment_methods,
     payment_config,
-    setup,
+    hydrateCart: ensureCart,
     identify,
     verify: client.verify,
     me: client.me,

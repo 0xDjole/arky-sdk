@@ -13,8 +13,6 @@ export type {
   ArkyServiceState,
   ArkyStoreContext,
   ArkyStoreConfig,
-  ArkyStoreSetupOptions,
-  ArkyStoreSetupResult,
 } from "./types";
 export type ArkyStore = ReturnType<typeof import("./initialize").initialize>;
 export type ArkyCartStore = ArkyStore["eshop"]["cart"];

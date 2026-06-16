@@ -1,8 +1,8 @@
 # arky-sdk
 
-Official TypeScript SDK for [Arky](https://arky.io), the backend and client Admin for custom websites.
+Official TypeScript SDK for [Arky](https://arky.io), the website backend and client Admin for custom frontends.
 
-Arky lets you keep the frontend bespoke while using one backend for CMS, commerce, bookings, forms, profiles, activity, support, workflows, API, and SDK integration.
+Arky lets you keep frontend control while using one backend for CMS, commerce, bookings, forms, profiles, activity, experiments, support, workflows, API, and SDK integration.
 
 ## Installation
 
@@ -12,7 +12,7 @@ npm install arky-sdk
 
 ## Storefront Quick Start
 
-Use `initialize` from `arky-sdk/storefront-store` for normal custom websites. It creates the storefront SDK integration object, manages session and cart state, and exposes the modules the frontend needs.
+Use `initialize` from `arky-sdk/storefront-store` for normal custom frontends. It creates the Arky integration object, keeps store/locale/market context, and exposes the backend modules the frontend needs.
 
 ```typescript
 import { initialize } from "arky-sdk/storefront-store";
@@ -25,19 +25,15 @@ const arky = initialize({
   marketForLocale: (locale) => (locale === "it" ? "ita" : "us"),
 });
 
-await arky.setup({
-  locale: "en",
-  hydrateCart: true,
-  track: {
-    key: "page_view",
-    payload: { path: location.pathname },
-  },
-});
-
 const homepage = await arky.cms.entry.get({
   collection_id: "pages",
   key: "homepage",
   locale: "en",
+});
+
+await arky.activity.track({
+  key: "page_view",
+  payload: { path: location.pathname },
 });
 ```
 
@@ -48,7 +44,7 @@ const homepage = await arky.cms.entry.get({
 The storefront module API is the preferred surface for websites:
 
 ```typescript
-await arky.setup({ hydrateCart: true });
+await arky.hydrateCart();
 
 await arky.cms.entry.get({
   collection_id: "pages",

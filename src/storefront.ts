@@ -14,8 +14,6 @@ export type {
   ArkyStore,
   ArkyStoreContext,
   ArkyStoreConfig,
-  ArkyStoreSetupOptions,
-  ArkyStoreSetupResult,
   ArkyServiceStore,
 } from "./storefrontStore";
 export type {

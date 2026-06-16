@@ -1,5 +1,4 @@
-import type { createStorefront, CreateStorefrontConfig, ProfileSession } from "../index";
-import type { TrackParams } from "../api/storefront";
+import type { createStorefront, CreateStorefrontConfig } from "../index";
 import type {
   Address,
   Block,
@@ -29,17 +28,6 @@ export interface ArkyStoreConfig extends CreateStorefrontConfig {
 export interface ArkyStoreContext {
   locale?: string;
   market?: string;
-}
-
-export interface ArkyStoreSetupOptions extends ArkyStoreContext {
-  hydrateCart?: boolean;
-  identify?: boolean;
-  track?: TrackParams | false | null;
-}
-
-export interface ArkyStoreSetupResult {
-  session: ProfileSession | null;
-  cart?: Cart;
 }
 
 export type ArkyCmsEntryParams = ArkyStoreContext & {
