@@ -627,7 +627,9 @@ export type FindSocialDeliveriesParams = {
 
 export type CreateSocialDeliveryParams = {
   store_id?: string;
-  destination_id: string;
+  integration_id?: string | null;
+  destination_id?: string | null;
+  platform?: SocialPlatform | null;
   variant_id?: string | null;
   scheduled_at?: number | null;
   publish_now?: boolean;
