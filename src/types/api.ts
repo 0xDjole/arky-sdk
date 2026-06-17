@@ -55,6 +55,9 @@ import type {
   SuppressionStatus,
   SuppressionReason,
   SuppressionSource,
+  SocialProviderId,
+  SocialPublicationContent,
+  SocialPublicationStatus,
 } from "./index";
 
 export interface CreateLocationParams {
@@ -1814,6 +1817,77 @@ export interface UpdateIntegrationParams {
 export interface DeleteIntegrationParams {
   store_id: string;
   id: string;
+}
+
+export interface FindSocialPublicationsParams {
+  store_id?: string;
+  status?: SocialPublicationStatus;
+  query?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface GetSocialPublicationParams {
+  store_id?: string;
+  id: string;
+}
+
+export interface ValidateSocialPublicationParams {
+  store_id?: string;
+  integration_id: string;
+  scheduled_at?: number | null;
+  content: SocialPublicationContent;
+}
+
+export interface CreateSocialPublicationParams {
+  store_id?: string;
+  integration_id: string;
+  key?: string | null;
+  scheduled_at?: number | null;
+  content: SocialPublicationContent;
+}
+
+export interface UpdateSocialPublicationParams {
+  store_id?: string;
+  id: string;
+  integration_id?: string | null;
+  key?: string | null;
+  scheduled_at?: number | null;
+  content?: SocialPublicationContent | null;
+}
+
+export interface ScheduleSocialPublicationParams {
+  store_id?: string;
+  id: string;
+  scheduled_at: number;
+}
+
+export interface CancelSocialPublicationParams {
+  store_id?: string;
+  id: string;
+}
+
+export interface GetSocialCapabilitiesParams {
+  store_id?: string;
+}
+
+export interface ConnectSocialProviderParams {
+  store_id?: string;
+  provider_id: SocialProviderId;
+}
+
+export interface SelectSocialDestinationParams {
+  store_id?: string;
+  provider_id: SocialProviderId;
+  selection_token: string;
+}
+
+export interface FakeConnectSocialProviderParams {
+  store_id?: string;
+  provider_id: SocialProviderId;
+  external_account_id?: string | null;
+  external_account_name?: string | null;
+  handle?: string | null;
 }
 
 export interface ListWebhooksParams {

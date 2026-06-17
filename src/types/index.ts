@@ -312,11 +312,179 @@ export type IntegrationProvider =
   | { type: "zoom"; api_key?: string }
   | { type: "microsoft_teams"; api_key?: string }
   | { type: "firebase"; api_key?: string }
+  | SocialIntegrationProvider
   | { type: "arky"; api_key?: string }
   | { type: "vercel_deploy_hook"; url?: string }
   | { type: "netlify_deploy_hook"; url?: string }
   | { type: "cloudflare_deploy_hook"; url?: string }
   | { type: "custom_deploy_hook"; url?: string };
+
+export interface SocialOAuthCredential {
+  access_token?: string;
+  refresh_token?: string | null;
+  expires_at?: number | null;
+  scopes: string[];
+}
+
+export interface SocialDestinationMetadata {
+  external_account_id: string;
+  external_account_name: string;
+  handle?: string | null;
+  avatar_url?: string | null;
+}
+
+export type SocialIntegrationProvider =
+  | {
+      type: "facebook_page";
+      credential: SocialOAuthCredential;
+      destination: SocialDestinationMetadata;
+    }
+  | {
+      type: "instagram_business";
+      credential: SocialOAuthCredential;
+      destination: SocialDestinationMetadata;
+    }
+  | {
+      type: "youtube_channel";
+      credential: SocialOAuthCredential;
+      destination: SocialDestinationMetadata;
+    }
+  | {
+      type: "tiktok_account";
+      credential: SocialOAuthCredential;
+      destination: SocialDestinationMetadata;
+    }
+  | {
+      type: "x_account";
+      credential: SocialOAuthCredential;
+      destination: SocialDestinationMetadata;
+    };
+
+export type SocialProviderId =
+  | "facebook_page"
+  | "instagram_business"
+  | "youtube_channel"
+  | "tiktok_account"
+  | "x_account";
+
+export type SocialPublicationStatus =
+  | "draft"
+  | "scheduled"
+  | "publishing"
+  | "published"
+  | "failed"
+  | "cancelled";
+
+export type YoutubePrivacy = "public" | "unlisted" | "private";
+export type TiktokPrivacy = "public" | "friends" | "private";
+
+export interface FacebookPageContent {
+  type: "facebook_page";
+  text?: string | null;
+  media_ids: string[];
+  link_url?: string | null;
+}
+
+export interface InstagramBusinessContent {
+  type: "instagram_business";
+  caption?: string | null;
+  media_ids: string[];
+}
+
+export interface YoutubeChannelContent {
+  type: "youtube_channel";
+  title: string;
+  description?: string | null;
+  video_media_id: string;
+  privacy: YoutubePrivacy;
+}
+
+export interface TiktokAccountContent {
+  type: "tiktok_account";
+  caption?: string | null;
+  video_media_id: string;
+  privacy: TiktokPrivacy;
+}
+
+export interface XAccountContent {
+  type: "x_account";
+  text?: string | null;
+  media_ids: string[];
+}
+
+export type SocialPublicationContent =
+  | FacebookPageContent
+  | InstagramBusinessContent
+  | YoutubeChannelContent
+  | TiktokAccountContent
+  | XAccountContent;
+
+export interface ValidationError {
+  field: string;
+  error: string;
+}
+
+export interface SocialPublicationValidation {
+  valid: boolean;
+  errors: ValidationError[];
+  warnings: ValidationError[];
+}
+
+export interface SocialPublication {
+  id: string;
+  store_id: string;
+  integration_id: string;
+  key: string;
+  status: SocialPublicationStatus;
+  content: SocialPublicationContent;
+  scheduled_at: number;
+  published_at?: number | null;
+  provider_post_id?: string | null;
+  provider_post_url?: string | null;
+  error_code?: string | null;
+  error_message?: string | null;
+  attempt_count: number;
+  last_attempt_at?: number | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface SocialPublicationMutationResponse {
+  publication: SocialPublication;
+  validation: SocialPublicationValidation;
+  publish_requested: boolean;
+}
+
+export interface SocialIntegrationCapability {
+  provider_id: SocialProviderId;
+  display_name: string;
+  icon_key: string;
+  required_scopes: string[];
+  media_requirements: string[];
+  fake_connect_available: boolean;
+}
+
+export interface SocialConnectResponse {
+  authorization_url: string;
+  state: string;
+}
+
+export type SocialOAuthCallbackStatus = "code_received" | "connected" | "selection_required";
+
+export interface SocialOAuthDestinationOption extends SocialDestinationMetadata {
+  selection_token: string;
+}
+
+export interface SocialOAuthCallbackResponse {
+  status: SocialOAuthCallbackStatus;
+  store_id: string;
+  provider_id: SocialProviderId;
+  account_id: string;
+  integration_id?: string | null;
+  destination?: SocialDestinationMetadata | null;
+  options: SocialOAuthDestinationOption[];
+  message: string;
+}
 
 export interface Integration {
   id: string;

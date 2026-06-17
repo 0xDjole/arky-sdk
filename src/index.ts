@@ -11,6 +11,23 @@ export type {
   WebhookEventSubscription,
   Integration,
   IntegrationProvider,
+  SocialConnectResponse,
+  SocialDestinationMetadata,
+  SocialIntegrationCapability,
+  SocialIntegrationProvider,
+  SocialOAuthCallbackResponse,
+  SocialOAuthCallbackStatus,
+  SocialOAuthCredential,
+  SocialOAuthDestinationOption,
+  SocialProviderId,
+  SocialPublication,
+  SocialPublicationContent,
+  SocialPublicationMutationResponse,
+  SocialPublicationStatus,
+  SocialPublicationValidation,
+  TiktokPrivacy,
+  ValidationError,
+  YoutubePrivacy,
   Block,
   Price,
   OrderPayment,
@@ -359,6 +376,16 @@ export type {
   SendLeadResearchMessageParams,
   FindLeadResearchMessagesParams,
   ValidateLeadEmailParams,
+  CancelSocialPublicationParams,
+  ConnectSocialProviderParams,
+  CreateSocialPublicationParams,
+  FakeConnectSocialProviderParams,
+  FindSocialPublicationsParams,
+  GetSocialCapabilitiesParams,
+  GetSocialPublicationParams,
+  ScheduleSocialPublicationParams,
+  UpdateSocialPublicationParams,
+  ValidateSocialPublicationParams,
 } from "./types/api";
 
 export type {
@@ -536,6 +563,7 @@ import { createMarketApi } from "./api/market";
 import { createProfileApi } from "./api/crm";
 import { createAdminSupportApi, createStorefrontSupportApi } from "./api/support";
 import { createLeadResearchApi } from "./api/leadResearch";
+import { createSocialApi } from "./api/social";
 import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
@@ -750,6 +778,7 @@ export function createAdmin(config: CreateAdminConfig) {
   const crmApi = createProfileApi(apiConfig);
   const supportApi = createAdminSupportApi(apiConfig);
   const leadResearchApi = createLeadResearchApi(apiConfig);
+  const socialApi = createSocialApi(apiConfig);
   const leadResearch = {
     run: {
       create: leadResearchApi.createRun,
@@ -797,6 +826,7 @@ export function createAdmin(config: CreateAdminConfig) {
     notification: createNotificationApi(apiConfig),
     promoCode: promoCodeApi,
     platform: platformApi,
+    social: socialApi,
     shipping: createShippingApi(apiConfig),
     cms: {
       collection: {
