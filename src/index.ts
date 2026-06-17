@@ -382,6 +382,7 @@ export type {
   FakeConnectSocialProviderParams,
   FindSocialPublicationsParams,
   GetSocialCapabilitiesParams,
+  GetSocialOAuthAttemptParams,
   GetSocialPublicationParams,
   ScheduleSocialPublicationParams,
   UpdateSocialPublicationParams,

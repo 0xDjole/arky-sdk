@@ -472,7 +472,7 @@ export interface SocialConnectResponse {
 export type SocialOAuthCallbackStatus = "code_received" | "connected" | "selection_required";
 
 export interface SocialOAuthDestinationOption extends SocialDestinationMetadata {
-  selection_token: string;
+  candidate_id: string;
 }
 
 export interface SocialOAuthCallbackResponse {
@@ -480,6 +480,7 @@ export interface SocialOAuthCallbackResponse {
   store_id: string;
   provider_id: SocialProviderId;
   account_id: string;
+  attempt_id?: string | null;
   integration_id?: string | null;
   destination?: SocialDestinationMetadata | null;
   options: SocialOAuthDestinationOption[];

@@ -1879,7 +1879,13 @@ export interface ConnectSocialProviderParams {
 export interface SelectSocialDestinationParams {
   store_id?: string;
   provider_id: SocialProviderId;
-  selection_token: string;
+  attempt_id: string;
+  candidate_id: string;
+}
+
+export interface GetSocialOAuthAttemptParams {
+  store_id?: string;
+  attempt_id: string;
 }
 
 export interface FakeConnectSocialProviderParams {

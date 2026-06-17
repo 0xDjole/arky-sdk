@@ -6,6 +6,7 @@ import type {
   FakeConnectSocialProviderParams,
   FindSocialPublicationsParams,
   GetSocialCapabilitiesParams,
+  GetSocialOAuthAttemptParams,
   GetSocialPublicationParams,
   RequestOptions,
   ScheduleSocialPublicationParams,
@@ -125,9 +126,20 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       params: ConnectSocialProviderParams,
       options?: RequestOptions,
     ): Promise<SocialConnectResponse> {
+      const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<SocialConnectResponse>(
-        `/v1/stores/${storeId(params.store_id)}/integrations/social/${params.provider_id}/connect`,
-        {},
+        `/v1/stores/${storeId(store_id)}/integrations/oauth/connect`,
+        payload,
+        options,
+      );
+    },
+
+    async getOAuthAttempt(
+      params: GetSocialOAuthAttemptParams,
+      options?: RequestOptions,
+    ): Promise<SocialOAuthCallbackResponse> {
+      return apiConfig.httpClient.get<SocialOAuthCallbackResponse>(
+        `/v1/stores/${storeId(params.store_id)}/integrations/oauth/attempts/${params.attempt_id}`,
         options,
       );
     },
@@ -138,7 +150,7 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     ): Promise<SocialOAuthCallbackResponse> {
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<SocialOAuthCallbackResponse>(
-        `/v1/stores/${storeId(store_id)}/integrations/social/${params.provider_id}/select-destination`,
+        `/v1/stores/${storeId(store_id)}/integrations/oauth/select-destination`,
         payload,
         options,
       );
