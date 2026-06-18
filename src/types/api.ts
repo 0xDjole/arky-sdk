@@ -1896,6 +1896,33 @@ export interface FakeConnectSocialProviderParams {
   handle?: string | null;
 }
 
+export interface FindSocialChannelsParams {
+  store_id?: string;
+}
+
+export interface GetSocialChannelParams {
+  store_id?: string;
+  integration_id: string;
+}
+
+export interface GetSocialChannelAnalyticsParams {
+  store_id?: string;
+  integration_id: string;
+}
+
+export interface FindSocialChannelCommentsParams {
+  store_id?: string;
+  integration_id: string;
+  cursor?: string | null;
+}
+
+export interface ReplySocialChannelCommentParams {
+  store_id?: string;
+  integration_id: string;
+  comment_id: string;
+  text: string;
+}
+
 export interface ListWebhooksParams {
   store_id: string;
 }

@@ -4,11 +4,16 @@ import type {
   ConnectSocialProviderParams,
   CreateSocialPublicationParams,
   FakeConnectSocialProviderParams,
+  FindSocialChannelCommentsParams,
+  FindSocialChannelsParams,
   FindSocialPublicationsParams,
   GetSocialCapabilitiesParams,
+  GetSocialChannelAnalyticsParams,
+  GetSocialChannelParams,
   GetSocialOAuthAttemptParams,
   GetSocialPublicationParams,
   RequestOptions,
+  ReplySocialChannelCommentParams,
   ScheduleSocialPublicationParams,
   SelectSocialDestinationParams,
   UpdateSocialPublicationParams,
@@ -17,6 +22,10 @@ import type {
 import type {
   Integration,
   PaginatedResponse,
+  SocialChannel,
+  SocialChannelAnalytics,
+  SocialChannelCommentPage,
+  SocialChannelCommentReply,
   SocialConnectResponse,
   SocialIntegrationCapability,
   SocialOAuthCallbackResponse,
@@ -118,6 +127,62 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     ): Promise<SocialIntegrationCapability[]> {
       return apiConfig.httpClient.get<SocialIntegrationCapability[]>(
         `/v1/stores/${storeId(params?.store_id)}/integrations/social/capabilities`,
+        options,
+      );
+    },
+
+    async findChannels(
+      params?: FindSocialChannelsParams,
+      options?: RequestOptions,
+    ): Promise<SocialChannel[]> {
+      return apiConfig.httpClient.get<SocialChannel[]>(
+        `/v1/stores/${storeId(params?.store_id)}/social-channels`,
+        options,
+      );
+    },
+
+    async getChannel(
+      params: GetSocialChannelParams,
+      options?: RequestOptions,
+    ): Promise<SocialChannel> {
+      return apiConfig.httpClient.get<SocialChannel>(
+        `/v1/stores/${storeId(params.store_id)}/social-channels/${params.integration_id}`,
+        options,
+      );
+    },
+
+    async getChannelAnalytics(
+      params: GetSocialChannelAnalyticsParams,
+      options?: RequestOptions,
+    ): Promise<SocialChannelAnalytics> {
+      return apiConfig.httpClient.get<SocialChannelAnalytics>(
+        `/v1/stores/${storeId(params.store_id)}/social-channels/${params.integration_id}/analytics`,
+        options,
+      );
+    },
+
+    async findChannelComments(
+      params: FindSocialChannelCommentsParams,
+      options?: RequestOptions,
+    ): Promise<SocialChannelCommentPage> {
+      const { store_id, integration_id, ...queryParams } = params;
+      return apiConfig.httpClient.get<SocialChannelCommentPage>(
+        `/v1/stores/${storeId(store_id)}/social-channels/${integration_id}/comments`,
+        {
+          ...options,
+          params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+        },
+      );
+    },
+
+    async replyToChannelComment(
+      params: ReplySocialChannelCommentParams,
+      options?: RequestOptions,
+    ): Promise<SocialChannelCommentReply> {
+      const { store_id, integration_id, comment_id, ...payload } = params;
+      return apiConfig.httpClient.post<SocialChannelCommentReply>(
+        `/v1/stores/${storeId(store_id)}/social-channels/${integration_id}/comments/${comment_id}/reply`,
+        payload,
         options,
       );
     },
