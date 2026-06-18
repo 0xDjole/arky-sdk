@@ -455,12 +455,72 @@ export interface SocialPublicationMutationResponse {
   publish_requested: boolean;
 }
 
+export type SocialPublicationCommentStatus =
+  | "open"
+  | "replied"
+  | "hidden"
+  | "deleted";
+
+export interface SocialPublicationComment {
+  id: string;
+  store_id: string;
+  publication_id: string;
+  integration_id: string;
+  provider_id: SocialProviderId;
+  provider_post_id?: string | null;
+  provider_comment_id: string;
+  provider_parent_comment_id?: string | null;
+  author_name?: string | null;
+  author_handle?: string | null;
+  text: string;
+  status: SocialPublicationCommentStatus;
+  provider_created_at?: number | null;
+  last_synced_at: number;
+  replied_at?: number | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface SocialPublicationMetricSnapshot {
+  id: string;
+  store_id: string;
+  publication_id: string;
+  integration_id: string;
+  provider_id: SocialProviderId;
+  provider_post_id?: string | null;
+  metrics: Record<string, number>;
+  collected_at: number;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface SocialPublicationCommentReply {
+  provider_comment_id: string;
+  provider_comment_url?: string | null;
+}
+
+export interface SocialPublicationCommentReplyResponse {
+  comment: SocialPublicationComment;
+  reply: SocialPublicationCommentReply;
+}
+
+export interface SocialEngagementCapabilities {
+  read_comments: boolean;
+  reply_to_comments: boolean;
+}
+
+export interface SocialAnalyticsCapabilities {
+  read_post_metrics: boolean;
+}
+
 export interface SocialIntegrationCapability {
   provider_id: SocialProviderId;
   display_name: string;
   icon_key: string;
   required_scopes: string[];
   media_requirements: string[];
+  engagement: SocialEngagementCapabilities;
+  analytics: SocialAnalyticsCapabilities;
   fake_connect_available: boolean;
 }
 

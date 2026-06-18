@@ -1867,6 +1867,25 @@ export interface CancelSocialPublicationParams {
   id: string;
 }
 
+export interface GetSocialPublicationCommentsParams {
+  store_id?: string;
+  publication_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface ReplySocialPublicationCommentParams {
+  store_id?: string;
+  publication_id: string;
+  comment_id: string;
+  text: string;
+}
+
+export interface GetSocialPublicationMetricsParams {
+  store_id?: string;
+  publication_id: string;
+}
+
 export interface GetSocialCapabilitiesParams {
   store_id?: string;
 }

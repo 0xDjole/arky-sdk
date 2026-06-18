@@ -7,7 +7,10 @@ import type {
   FindSocialPublicationsParams,
   GetSocialCapabilitiesParams,
   GetSocialOAuthAttemptParams,
+  GetSocialPublicationCommentsParams,
+  GetSocialPublicationMetricsParams,
   GetSocialPublicationParams,
+  ReplySocialPublicationCommentParams,
   RequestOptions,
   ScheduleSocialPublicationParams,
   SelectSocialDestinationParams,
@@ -21,6 +24,9 @@ import type {
   SocialIntegrationCapability,
   SocialOAuthCallbackResponse,
   SocialPublication,
+  SocialPublicationComment,
+  SocialPublicationCommentReplyResponse,
+  SocialPublicationMetricSnapshot,
   SocialPublicationMutationResponse,
   SocialPublicationValidation,
 } from "../types";
@@ -108,6 +114,42 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<SocialPublication>(
         `/v1/stores/${storeId(params.store_id)}/social-publications/${params.id}/cancel`,
         {},
+        options,
+      );
+    },
+
+    async getPublicationComments(
+      params: GetSocialPublicationCommentsParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<SocialPublicationComment>> {
+      const { store_id, publication_id, ...queryParams } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<SocialPublicationComment>>(
+        `/v1/stores/${storeId(store_id)}/social-publications/${publication_id}/comments`,
+        {
+          ...options,
+          params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+        },
+      );
+    },
+
+    async replyToPublicationComment(
+      params: ReplySocialPublicationCommentParams,
+      options?: RequestOptions,
+    ): Promise<SocialPublicationCommentReplyResponse> {
+      const { store_id, publication_id, comment_id, text } = params;
+      return apiConfig.httpClient.post<SocialPublicationCommentReplyResponse>(
+        `/v1/stores/${storeId(store_id)}/social-publications/${publication_id}/comments/${comment_id}/reply`,
+        { text },
+        options,
+      );
+    },
+
+    async getPublicationMetrics(
+      params: GetSocialPublicationMetricsParams,
+      options?: RequestOptions,
+    ): Promise<SocialPublicationMetricSnapshot> {
+      return apiConfig.httpClient.get<SocialPublicationMetricSnapshot>(
+        `/v1/stores/${storeId(params.store_id)}/social-publications/${params.publication_id}/metrics`,
         options,
       );
     },
