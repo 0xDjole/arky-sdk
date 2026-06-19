@@ -1084,7 +1084,7 @@ export interface GetFormSubmissionsParams {
   created_at_to?: number;
 }
 
-export interface FindInteractionsParams {
+export interface FindActionsParams {
   store_id?: string;
   query?: string | number;
   contact_id?: string;
@@ -2087,7 +2087,7 @@ export interface FindContactsParams {
   query?: string | number;
   taxonomy_query?: TaxonomyQuery[];
   status?: ContactStatus;
-  has_activity?: boolean;
+  has_action?: boolean;
   has_cart?: boolean;
   limit?: number;
   cursor?: string;

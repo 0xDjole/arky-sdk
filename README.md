@@ -2,7 +2,7 @@
 
 Official TypeScript SDK for [Arky](https://arky.io), the website backend and client Admin for custom frontends.
 
-Arky lets you keep frontend control while using one backend for CMS, commerce, bookings, forms, profiles, activity, experiments, support, workflows, API, and SDK integration.
+Arky lets you keep frontend control while using one backend for CMS, commerce, bookings, forms, profiles, action, experiments, support, workflows, API, and SDK integration.
 
 ## Installation
 
@@ -31,7 +31,7 @@ const homepage = await arky.cms.entry.get({
   locale: "en",
 });
 
-await arky.interaction.track({
+await arky.action.track({
   key: "page.view",
   payload: { path: location.pathname },
 });
@@ -61,7 +61,7 @@ await arky.eshop.cart.checkout({ payment_method_id: "cash" });
 const { items: services } = await arky.eshop.service.list({ limit: 20 });
 await arky.eshop.service.initialize();
 
-await arky.interaction.track({
+await arky.action.track({
   key: "project.inquiry.started",
   payload: { placement: "homepage" },
 });

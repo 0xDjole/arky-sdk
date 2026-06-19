@@ -87,7 +87,7 @@ type Country = {
 };
 type CountriesResponse = { items: Country[]; cursor: string | null };
 
-export interface StorefrontInteraction {
+export interface StorefrontAction {
   store_id: string;
   contact_id: string;
   key: string;
@@ -96,7 +96,7 @@ export interface StorefrontInteraction {
   created_at: number;
 }
 
-export type TrackInteractionParams = {
+export type TrackActionParams = {
   key: string;
   type?: string;
   payload?: Record<string, unknown>;
@@ -106,7 +106,7 @@ export type TrackInteractionParams = {
   payload?: Record<string, unknown>;
 };
 
-export const COMMON_INTERACTION_KEYS = [
+export const COMMON_ACTION_KEYS = [
   "page.view",
   "product.view",
   "service.view",
@@ -123,7 +123,7 @@ export const COMMON_INTERACTION_KEYS = [
   "wishlist.added",
 ] as const;
 
-export type CommonInteractionKey = (typeof COMMON_INTERACTION_KEYS)[number];
+export type CommonActionKey = (typeof COMMON_ACTION_KEYS)[number];
 
 export interface UseExperimentParams {
   key: string;
@@ -134,16 +134,16 @@ export interface ExperimentUseResponse {
   experiment_key: string;
   experiment_version: number;
   variant_key: string;
-  goal_activity_key: string;
+  goal_action_key: string;
 }
 
-export const createInteractionApi = (apiConfig: ApiConfig) => ({
-  COMMON_INTERACTION_KEYS,
-  async track(params: TrackInteractionParams): Promise<void> {
+export const createActionApi = (apiConfig: ApiConfig) => ({
+  COMMON_ACTION_KEYS,
+  async track(params: TrackActionParams): Promise<void> {
     try {
       const key = "key" in params && params.key ? params.key : params.type;
       await apiConfig.httpClient.post<void>(
-        `/v1/storefront/${apiConfig.storeId}/interactions/track`,
+        `/v1/storefront/${apiConfig.storeId}/actions/track`,
         { key, payload: params.payload },
       );
     } catch {}
@@ -622,7 +622,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
       },
     },
 
-    interaction: createInteractionApi(apiConfig),
+    action: createActionApi(apiConfig),
     experiments: {
       use(params: UseExperimentParams, options?: RequestOptions): Promise<ExperimentUseResponse> {
         const store_id = params.store_id || apiConfig.storeId;

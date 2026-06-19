@@ -68,7 +68,7 @@ export interface SupportMessage {
   id: string;
   store_id: string;
   conversation_id: string;
-  role: "system" | "user" | "assistant" | "staff" | "activity";
+  role: "system" | "user" | "assistant" | "staff" | "action";
   content: string;
   buttons?: string[];
   metadata: Record<string, unknown>;

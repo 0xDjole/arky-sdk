@@ -1,4 +1,4 @@
-export { COMMON_INTERACTION_KEYS, createStorefront } from "./index";
+export { COMMON_ACTION_KEYS, createStorefront } from "./index";
 export { createCartController } from "./index";
 export { initialize } from "./storefrontStore";
 export type {
@@ -17,8 +17,8 @@ export type {
   ArkyServiceStore,
 } from "./storefrontStore";
 export type {
-  StorefrontInteraction,
-  CommonInteractionKey,
+  StorefrontAction,
+  CommonActionKey,
   CartApi,
   CartController,
   CartControllerAddItemParams,
@@ -34,7 +34,7 @@ export type {
   ContactSession,
   AuthStateListener,
   CreateStorefrontConfig,
-  TrackInteractionParams,
+  TrackActionParams,
   ExperimentUseResponse,
   UseExperimentParams,
 } from "./index";

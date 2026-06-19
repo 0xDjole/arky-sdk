@@ -252,7 +252,7 @@ export interface Cart {
   quote_snapshot?: OrderQuote | null;
   converted_order_id?: string | null;
   item_count: number;
-  last_activity_at: number;
+  last_action_at: number;
   abandoned_at?: number | null;
   recovery_sent_at?: number | null;
   created_at: number;
@@ -484,7 +484,7 @@ export interface SocialPublicationComment {
   provider_comment_id: string;
   provider_parent_comment_id?: string | null;
   contact_id?: string | null;
-  interaction_id?: string | null;
+  action_id?: string | null;
   opportunity_id?: string | null;
   author_name?: string | null;
   author_handle?: string | null;
@@ -1450,8 +1450,8 @@ export type CampaignMessageType =
   | "manual_reply"
   | "inbound_reply"
   | "delivery_failure"
-  | "activity";
-export type CampaignMessageDirection = "outbound" | "inbound" | "activity";
+  | "action";
+export type CampaignMessageDirection = "outbound" | "inbound" | "action";
 export type CampaignMessageCopySource = "template" | "generated" | "edited";
 export type OutreachThreadMode = "new_thread" | "same_thread";
 export type ManualTaskContinueBehavior =
@@ -1983,8 +1983,8 @@ export interface ContactListMember {
   membership: ContactListMembership;
 }
 
-export type InteractionDirection = "inbound" | "outbound" | "internal";
-export type InteractionType =
+export type ActionDirection = "inbound" | "outbound" | "internal";
+export type ActionType =
   | "event"
   | "social_comment"
   | "social_reply"
@@ -1995,7 +1995,7 @@ export type InteractionType =
   | "manual_note"
   | "other";
 
-export interface Interaction {
+export interface Action {
   id: string;
   store_id: string;
   contact_id?: string | null;
@@ -2003,8 +2003,8 @@ export interface Interaction {
   provider_id?: SocialProviderId | null;
   source_publication_id?: string | null;
   source_comment_id?: string | null;
-  type: InteractionType;
-  direction: InteractionDirection;
+  type: ActionType;
+  direction: ActionDirection;
   key: string;
   summary?: string | null;
   payload: Record<string, unknown>;
@@ -2043,7 +2043,7 @@ export interface Opportunity {
   id: string;
   store_id: string;
   contact_id: string;
-  source_interaction_id?: string | null;
+  source_action_id?: string | null;
   source_publication_id?: string | null;
   source_comment_id?: string | null;
   type: OpportunityType;
@@ -2328,7 +2328,7 @@ export type LeadResearchMessageRole =
   | "system"
   | "user"
   | "assistant"
-  | "activity"
+  | "action"
   | "tool";
 
 export interface LeadResearchMessage {

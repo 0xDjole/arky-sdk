@@ -24,7 +24,7 @@ assert.equal(store.getMarket(), "us");
 assert.equal(typeof store.cms.entry.get, "function");
 assert.equal(typeof store.cms.entry.find, "function");
 assert.equal("website" in store.cms, false, "CMS entry keys must not be public SDK methods");
-assert.equal(typeof store.interaction.pageView, "function");
+assert.equal(typeof store.action.pageView, "function");
 assert.equal("actions" in store.eshop.cart, false, "cart commands should be direct methods");
 assert.equal("actions" in store.eshop.service, false, "service commands should be direct methods");
 assert.equal(typeof store.eshop.cart.ensure, "function");

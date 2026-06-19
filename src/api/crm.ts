@@ -5,7 +5,7 @@ import type {
   UpdateContactParams,
   GetContactParams,
   FindContactsParams,
-  FindInteractionsParams,
+  FindActionsParams,
   FindOpportunitiesParams,
   MergeContactsParams,
   ImportContactsParams,
@@ -66,7 +66,7 @@ import type {
   PaginatedResponse,
   ContactList,
   ContactListMember,
-  Interaction,
+  Action,
   Opportunity,
   Suppression,
 } from "../types";
@@ -78,19 +78,19 @@ export interface TimelineParams {
   cursor?: string;
 }
 
-export const createInteractionAdminApi = (apiConfig: ApiConfig) => ({
-  async timeline(params: TimelineParams, options?: RequestOptions): Promise<{ items: Interaction[]; cursor: string | null }> {
+export const createActionAdminApi = (apiConfig: ApiConfig) => ({
+  async timeline(params: TimelineParams, options?: RequestOptions): Promise<{ items: Action[]; cursor: string | null }> {
     const store_id = params.store_id || apiConfig.storeId;
     const queryParams: Record<string, unknown> = { contact_id: params.contact_id };
     if (params.limit !== undefined) queryParams.limit = params.limit;
     if (params.cursor) queryParams.cursor = params.cursor;
-    return apiConfig.httpClient.get<{ items: Interaction[]; cursor: string | null }>(
-      `/v1/stores/${store_id}/interactions`,
+    return apiConfig.httpClient.get<{ items: Action[]; cursor: string | null }>(
+      `/v1/stores/${store_id}/contacts/${params.contact_id}/actions`,
       { ...options, params: queryParams },
     );
   },
 
-  async find(params: FindInteractionsParams, options?: RequestOptions): Promise<{ items: Interaction[]; cursor: string | null }> {
+  async find(params: FindActionsParams, options?: RequestOptions): Promise<{ items: Action[]; cursor: string | null }> {
     const store_id = params.store_id || apiConfig.storeId;
     const queryParams: Record<string, unknown> = {};
     if (params.query) queryParams.query = params.query;
@@ -100,8 +100,8 @@ export const createInteractionAdminApi = (apiConfig: ApiConfig) => ({
     if (params.to !== undefined) queryParams.to = params.to;
     if (params.limit !== undefined) queryParams.limit = params.limit;
     if (params.cursor) queryParams.cursor = params.cursor;
-    return apiConfig.httpClient.get<{ items: Interaction[]; cursor: string | null }>(
-      `/v1/stores/${store_id}/interactions`,
+    return apiConfig.httpClient.get<{ items: Action[]; cursor: string | null }>(
+      `/v1/stores/${store_id}/actions`,
       { ...options, params: queryParams }
     );
   },
@@ -135,7 +135,7 @@ export const createContactApi = (apiConfig: ApiConfig) => {
       if (params?.query) queryParams.query = params.query;
       if (params?.taxonomy_query) queryParams.taxonomy_query = params.taxonomy_query;
       if (params?.status) queryParams.status = params.status;
-      if (params?.has_activity !== undefined) queryParams.has_activity = params.has_activity;
+      if (params?.has_action !== undefined) queryParams.has_action = params.has_action;
       if (params?.has_cart !== undefined) queryParams.has_cart = params.has_cart;
       if (params?.sort_field) queryParams.sort_field = params.sort_field;
       if (params?.sort_direction) queryParams.sort_direction = params.sort_direction;
@@ -149,13 +149,13 @@ export const createContactApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async findInteractions(
-      params?: FindInteractionsParams,
+    async findActions(
+      params?: FindActionsParams,
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<Interaction>> {
+    ): Promise<PaginatedResponse<Action>> {
       const { store_id, ...queryParams } = params || {};
-      return apiConfig.httpClient.get<PaginatedResponse<Interaction>>(
-        `/v1/stores/${store_id || apiConfig.storeId}/interactions`,
+      return apiConfig.httpClient.get<PaginatedResponse<Action>>(
+        `/v1/stores/${store_id || apiConfig.storeId}/actions`,
         {
           ...options,
           params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
@@ -655,6 +655,6 @@ export const createContactApi = (apiConfig: ApiConfig) => {
       },
     },
 
-    interaction: createInteractionAdminApi(apiConfig),
+    action: createActionAdminApi(apiConfig),
   };
 };

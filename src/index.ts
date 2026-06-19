@@ -417,7 +417,7 @@ export type {
   AnalyticsReportKey,
   AnalyticsMetricReportKey,
   AnalyticsBreakdownReportKey,
-  AnalyticsActivityReportKey,
+  AnalyticsActionReportKey,
   AnalyticsCompositeReportKey,
   AnalyticsReportRequest,
   AnalyticsBlockRequest,
@@ -437,11 +437,11 @@ export type {
   AnalyticsReport,
   AnalyticsBlockResponse,
   AnalyticsResponse,
-  ActivityFeedCategory,
-  ActivityFeedItem,
-  ActivityFeedSummary,
-  ActivityFeedCursor,
-  ActivityFeedData,
+  ActionFeedCategory,
+  ActionFeedItem,
+  ActionFeedSummary,
+  ActionFeedCursor,
+  ActionFeedData,
 } from "./api/analytics";
 
 export type {
@@ -451,13 +451,13 @@ export type {
 } from "./types/api";
 
 export type {
-  StorefrontInteraction,
-  TrackInteractionParams,
-  CommonInteractionKey,
+  StorefrontAction,
+  TrackActionParams,
+  CommonActionKey,
   ExperimentUseResponse,
   UseExperimentParams,
 } from "./api/storefront";
-export { COMMON_INTERACTION_KEYS } from "./api/storefront";
+export { COMMON_ACTION_KEYS } from "./api/storefront";
 export type {
   CreateExperimentParams,
   Experiment,
@@ -954,7 +954,7 @@ export function createAdmin(config: CreateAdminConfig) {
       campaignMessage: crmApi.campaignMessage,
       suppression: crmApi.suppression,
       leadResearch,
-      interaction: crmApi.interaction,
+      action: crmApi.action,
     },
     leadResearch,
     automation: {
@@ -1220,7 +1220,7 @@ export function createStorefront(config: CreateStorefrontConfig) {
     cms: storefrontApi.cms,
     eshop: storefrontApi.eshop,
     crm: storefrontApi.crm,
-    interaction: storefrontApi.interaction,
+    action: storefrontApi.action,
     experiments: storefrontApi.experiments,
     support: createStorefrontSupportApi(apiConfig),
     setStoreId: (storeId: string) => {

@@ -47,8 +47,8 @@ import type {
 } from "../types/api";
 import type {
   ExperimentUseResponse,
-  StorefrontInteraction,
-  TrackInteractionParams,
+  StorefrontAction,
+  TrackActionParams,
   UseExperimentParams,
 } from "../api/storefront";
 import type {
@@ -402,7 +402,7 @@ export function initialize(config: ArkyStoreConfig) {
         },
       });
       await hydrateCart(response, { ifRevision: writeRevision });
-      await client.interaction.track({ key: "cart.added", payload: { product_id: product.id, variant_id: variant.id, quantity } });
+      await client.action.track({ key: "cart.added", payload: { product_id: product.id, variant_id: variant.id, quantity } });
       return response;
     } catch (error) {
       cart_status.setKey("error", readErrorMessage(error, "Failed to add product to cart."));
@@ -434,7 +434,7 @@ export function initialize(config: ArkyStoreConfig) {
       variant_id: item.variant_id,
     });
     await hydrateCart(response, { ifRevision: writeRevision });
-    await client.interaction.track({ key: "cart.removed", payload: { product_id: item.product_id, variant_id: item.variant_id } });
+    await client.action.track({ key: "cart.removed", payload: { product_id: item.product_id, variant_id: item.variant_id } });
     return response;
   }
 
@@ -498,7 +498,7 @@ export function initialize(config: ArkyStoreConfig) {
     cart_status.setKey("error", null);
     try {
       const current = await syncCart(input);
-      await client.interaction.track({ key: "checkout.started", payload: { cart_id: current.id } });
+      await client.action.track({ key: "checkout.started", payload: { cart_id: current.id } });
       const response = await client.cart.checkout({
         id: current.id,
         payment_method_id: input.payment_method_id || undefined,
@@ -522,7 +522,7 @@ export function initialize(config: ArkyStoreConfig) {
       if (input.clear_after_checkout !== false) {
         clearLocalCart();
       }
-      await client.interaction.track({ key: "order.created", payload: { order_id: response.order_id, number: response.number } });
+      await client.action.track({ key: "order.created", payload: { order_id: response.order_id, number: response.number } });
       return response;
     } catch (error) {
       cart_status.setKey("error", readErrorMessage(error, "Checkout failed."));
@@ -1199,9 +1199,9 @@ export function initialize(config: ArkyStoreConfig) {
     return client.experiments.use(input);
   }
 
-  async function trackInteraction(params: TrackInteractionParams): Promise<void> {
+  async function trackAction(params: TrackActionParams): Promise<void> {
     await ensureSession();
-    return client.interaction.track(params);
+    return client.action.track(params);
   }
 
   const cart_store = {
@@ -1347,14 +1347,14 @@ export function initialize(config: ArkyStoreConfig) {
       cart: cart_store,
     },
     crm: client.crm,
-    interaction: {
-      track(params: TrackInteractionParams) {
-        return trackInteraction(params);
+    action: {
+      track(params: TrackActionParams) {
+        return trackAction(params);
       },
       pageView(payload: Record<string, unknown> = {}) {
-        return trackInteraction({ key: "page.view", payload });
+        return trackAction({ key: "page.view", payload });
       },
-      state: atom<StorefrontInteraction | null>(null),
+      state: atom<StorefrontAction | null>(null),
     },
     experiments: {
       use: useExperiment,
