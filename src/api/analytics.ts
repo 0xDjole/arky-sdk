@@ -8,7 +8,7 @@ export interface AnalyticsTimeRange {
 
 export type AnalyticsReportKey =
   | "business_overview"
-  | "profile_funnel"
+  | "contact_funnel"
   | "outreach_overview"
   | "outreach_funnel"
   | "activity_by_country"
@@ -16,7 +16,7 @@ export type AnalyticsReportKey =
   | "entity_status_overview"
   | "data_health"
   | "orders_created"
-  | "profiles_created"
+  | "contacts_created"
   | "form_submissions_created"
   | "carts_abandoned"
   | "campaign_messages_sent"
@@ -28,8 +28,8 @@ export type AnalyticsReportKey =
   | "providers_by_status"
   | "collections_by_status"
   | "entries_by_status"
-  | "profiles_by_status"
-  | "profile_lists_by_status"
+  | "contacts_by_status"
+  | "contact_lists_by_status"
   | "mailboxes_by_status"
   | "campaigns_by_status"
   | "campaign_enrollments_by_status"
@@ -53,8 +53,8 @@ export type ActivityFeedCategory =
   | "carts"
   | "promo_codes"
   | "submissions"
-  | "profiles"
-  | "profile_lists"
+  | "contacts"
+  | "contact_lists"
   | "products"
   | "services"
   | "providers"
@@ -91,7 +91,7 @@ export interface AnalyticsBreakdownItem {
   key: string;
   label: string;
   value: number;
-  unique_profiles?: number;
+  unique_contacts?: number;
   unique_visitors?: number;
 }
 
@@ -102,11 +102,11 @@ export interface AnalyticsBreakdownData {
 export interface BusinessOverviewData {
   visitors: number;
   new_visitors: number;
-  known_profiles: number;
-  new_known_profiles: number;
-  email_known_profiles: number;
-  verified_profiles: number;
-  new_verified_profiles: number;
+  known_contacts: number;
+  new_known_contacts: number;
+  email_known_contacts: number;
+  verified_contacts: number;
+  new_verified_contacts: number;
   buyers: number;
   orders: number;
   revenue: number;
@@ -126,26 +126,26 @@ export interface RevenueByCurrencyData {
   average_order_value: number;
 }
 
-export interface ProfileFunnelStage {
+export interface ContactFunnelStage {
   key:
     | "visitors"
-    | "email_known_profiles"
-    | "verified_profiles"
+    | "email_known_contacts"
+    | "verified_contacts"
     | "buyers"
     | string;
   label: string;
   value: number;
 }
 
-export interface ProfileFunnelData {
-  stages: ProfileFunnelStage[];
+export interface ContactFunnelData {
+  stages: ContactFunnelStage[];
   visitor_to_known_rate?: number;
   visitor_to_buyer_rate?: number;
 }
 
 export interface OutreachOverviewData {
-  profile_lists: number;
-  active_profile_lists: number;
+  contact_lists: number;
+  active_contact_lists: number;
   mailboxes: number;
   active_mailboxes: number;
   campaigns: number;
@@ -170,7 +170,7 @@ export interface OutreachOverviewData {
 
 export interface OutreachFunnelStage {
   key:
-    | "profile_lists"
+    | "contact_lists"
     | "campaigns"
     | "campaign_enrollments"
     | "campaign_messages_sent"
@@ -193,8 +193,8 @@ export interface EntityStatusOverviewData {
 }
 
 export interface DataHealthData {
-  anonymous_profiles: number;
-  known_profiles: number;
+  anonymous_contacts: number;
+  known_contacts: number;
   duplicate_emails: number;
   unknown_country_events: number;
   unknown_device_events: number;
@@ -207,7 +207,7 @@ export interface ActivityFeedItem {
   action: string;
   event_type: string;
   status: string;
-  profile_id: string;
+  contact_id: string;
   category: string;
   title: string;
   description: string;
@@ -221,8 +221,8 @@ export interface ActivityFeedSummary {
   total: number;
   orders: number;
   submissions: number;
-  profiles: number;
-  profile_lists: number;
+  contacts: number;
+  contact_lists: number;
   abandoned_carts: number;
   carts: number;
   promo_codes: number;
@@ -252,7 +252,7 @@ export interface ActivityFeedData {
 
 export type AnalyticsMetricReportKey =
   | "orders_created"
-  | "profiles_created"
+  | "contacts_created"
   | "form_submissions_created"
   | "carts_abandoned"
   | "campaign_messages_sent"
@@ -268,8 +268,8 @@ export type AnalyticsBreakdownReportKey =
   | "providers_by_status"
   | "collections_by_status"
   | "entries_by_status"
-  | "profiles_by_status"
-  | "profile_lists_by_status"
+  | "contacts_by_status"
+  | "contact_lists_by_status"
   | "mailboxes_by_status"
   | "campaigns_by_status"
   | "campaign_enrollments_by_status"
@@ -291,7 +291,7 @@ export type AnalyticsActivityReportKey = "recent_activity";
 
 export type AnalyticsCompositeReportKey =
   | "business_overview"
-  | "profile_funnel"
+  | "contact_funnel"
   | "outreach_overview"
   | "outreach_funnel"
   | "entity_status_overview"
@@ -301,7 +301,7 @@ export type AnalyticsReport =
   | { key: AnalyticsMetricReportKey; data: AnalyticsMetricData }
   | { key: AnalyticsBreakdownReportKey; data: AnalyticsBreakdownData }
   | { key: "business_overview"; data: BusinessOverviewData }
-  | { key: "profile_funnel"; data: ProfileFunnelData }
+  | { key: "contact_funnel"; data: ContactFunnelData }
   | { key: "outreach_overview"; data: OutreachOverviewData }
   | { key: "outreach_funnel"; data: OutreachFunnelData }
   | { key: "entity_status_overview"; data: EntityStatusOverviewData }

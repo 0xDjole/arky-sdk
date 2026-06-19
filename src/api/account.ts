@@ -1,6 +1,6 @@
 import type { ApiConfig } from '../index';
 import type {
-    UpdateAccountProfileParams,
+    UpdateAccountContactParams,
     SearchAccountsParams,
     DeleteAccountParams,
     GetMeParams,
@@ -10,7 +10,7 @@ import type { Account, AccountUpdateResponse } from '../types';
 
 export const createAccountApi = (apiConfig: ApiConfig) => {
     return {
-        async updateAccount(params: UpdateAccountProfileParams, options?: RequestOptions): Promise<AccountUpdateResponse> {
+        async updateAccount(params: UpdateAccountContactParams, options?: RequestOptions): Promise<AccountUpdateResponse> {
             const payload: Record<string, unknown> = {};
 
             if (params.phone_numbers !== undefined) payload.phone_numbers = params.phone_numbers;

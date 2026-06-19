@@ -1,4 +1,4 @@
-export { COMMON_ACTIVITY_TYPES, createStorefront } from "./index";
+export { COMMON_INTERACTION_KEYS, createStorefront } from "./index";
 export { createCartController } from "./index";
 export { initialize } from "./storefrontStore";
 export type {
@@ -17,9 +17,8 @@ export type {
   ArkyServiceStore,
 } from "./storefrontStore";
 export type {
-  Activity,
-  CommonActivityKey,
-  CommonActivityType,
+  StorefrontInteraction,
+  CommonInteractionKey,
   CartApi,
   CartController,
   CartControllerAddItemParams,
@@ -32,10 +31,10 @@ export type {
   CartControllerRemoveItemParams,
   CartControllerState,
   CartControllerUpdateParams,
-  ProfileSession,
+  ContactSession,
   AuthStateListener,
   CreateStorefrontConfig,
-  TrackParams,
+  TrackInteractionParams,
   ExperimentUseResponse,
   UseExperimentParams,
 } from "./index";

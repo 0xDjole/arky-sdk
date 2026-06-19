@@ -1,4 +1,4 @@
-import type { ApiConfig, ProfileSessionUpdater } from "../index";
+import type { ApiConfig, ContactSessionUpdater } from "../index";
 import type {
   RequestOptions,
   GetCollectionParams,
@@ -20,10 +20,10 @@ import type {
   FindServiceProvidersParams,
   GetProviderParams,
   GetProvidersParams,
-  GetProfileListParams,
-  FindProfileListsParams,
-  SubscribeProfileListParams,
-  ProfileListAccessParams,
+  GetContactListParams,
+  FindContactListsParams,
+  SubscribeContactListParams,
+  ContactListAccessParams,
   GetCurrentCartParams,
   GetCartParams,
   UpdateCartParams,
@@ -39,9 +39,9 @@ import type {
   Form,
   FormSubmission,
   Taxonomy,
-  ProfileList,
-  ProfileListAccessResponse,
-  ProfileListSubscribeResponse,
+  ContactList,
+  ContactListAccessResponse,
+  ContactListSubscribeResponse,
   Service,
   Provider,
   Store,
@@ -52,8 +52,8 @@ import type {
   DigitalAccessDownloadResponse,
   OrderCheckoutResult,
   Product,
-  Profile,
-  ProfileDetail,
+  Contact,
+  ContactDetail,
   Cart,
   PaginatedResponse,
 } from "../types";
@@ -64,21 +64,21 @@ import {
 } from "../utils/blocks";
 import { normalizePublicCheckoutItems } from "../utils/orderItems";
 
-export type ProfileToken = {
+export type ContactToken = {
   id: string;
   token: string;
   created_at: number;
 };
 
 export type IdentifyResponse = {
-  profile: Profile;
-  token: ProfileToken;
+  contact: Contact;
+  token: ContactToken;
   store: Store;
   market: Market | null;
   code_sent: boolean;
 };
 
-export type VerifyResponse = ProfileToken;
+export type VerifyResponse = ContactToken;
 type LogoutResponse = void;
 type Country = {
   code: string;
@@ -87,16 +87,16 @@ type Country = {
 };
 type CountriesResponse = { items: Country[]; cursor: string | null };
 
-export interface Activity {
+export interface StorefrontInteraction {
   store_id: string;
-  profile_id: string;
+  contact_id: string;
   key: string;
   type?: string;
   payload: Record<string, unknown>;
   created_at: number;
 }
 
-export type TrackParams = {
+export type TrackInteractionParams = {
   key: string;
   type?: string;
   payload?: Record<string, unknown>;
@@ -106,26 +106,24 @@ export type TrackParams = {
   payload?: Record<string, unknown>;
 };
 
-export const COMMON_ACTIVITY_TYPES = [
-  "page_view",
-  "product_view",
-  "service_view",
-  "provider_view",
-  "cart_added",
-  "cart_removed",
-  "checkout_started",
-  "purchase",
-  "order_created",
+export const COMMON_INTERACTION_KEYS = [
+  "page.view",
+  "product.view",
+  "service.view",
+  "provider.view",
+  "cart.added",
+  "cart.removed",
+  "checkout.started",
+  "order.created",
   "signin",
   "signup",
-  "verified_email",
+  "verified.email",
   "search",
   "share",
-  "wishlist_added",
+  "wishlist.added",
 ] as const;
 
-export type CommonActivityType = (typeof COMMON_ACTIVITY_TYPES)[number];
-export type CommonActivityKey = CommonActivityType;
+export type CommonInteractionKey = (typeof COMMON_INTERACTION_KEYS)[number];
 
 export interface UseExperimentParams {
   key: string;
@@ -139,20 +137,20 @@ export interface ExperimentUseResponse {
   goal_activity_key: string;
 }
 
-export const createActivityApi = (apiConfig: ApiConfig) => ({
-  COMMON_ACTIVITY_TYPES,
-  async track(params: TrackParams): Promise<void> {
+export const createInteractionApi = (apiConfig: ApiConfig) => ({
+  COMMON_INTERACTION_KEYS,
+  async track(params: TrackInteractionParams): Promise<void> {
     try {
       const key = "key" in params && params.key ? params.key : params.type;
       await apiConfig.httpClient.post<void>(
-        `/v1/storefront/${apiConfig.storeId}/activities/track`,
+        `/v1/storefront/${apiConfig.storeId}/interactions/track`,
         { key, payload: params.payload },
       );
     } catch {}
   },
 });
 
-export const createStorefrontApi = (apiConfig: ApiConfig, updateProfileSession: ProfileSessionUpdater) => {
+export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: ContactSessionUpdater) => {
   const base = (storeId = apiConfig.storeId) =>
     `/v1/storefront/${storeId}`;
 
@@ -511,14 +509,14 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateProfileSession: 
     },
 
     crm: {
-      profile: {
+      contact: {
         async identify(
           params?: { email?: string; verify?: boolean; market?: string },
           options?: RequestOptions,
         ): Promise<IdentifyResponse> {
           const store_id = apiConfig.storeId;
           const result = await apiConfig.httpClient.post<IdentifyResponse>(
-            `${base(store_id)}/profiles/identify`,
+            `${base(store_id)}/account/identify`,
             {
               store_id,
               market: params?.market || apiConfig.market || null,
@@ -528,9 +526,9 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateProfileSession: 
             options,
           );
           if (result?.token?.token) {
-            updateProfileSession(() => ({
+            updateContactSession(() => ({
               access_token: result.token.token,
-              profile: result.profile,
+              contact: result.contact,
               store: result.store,
               market: result.market,
             }));
@@ -544,12 +542,12 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateProfileSession: 
         ): Promise<VerifyResponse> {
           const store_id = apiConfig.storeId;
           const result = await apiConfig.httpClient.post<VerifyResponse>(
-            `${base(store_id)}/profiles/verify`,
+            `${base(store_id)}/account/verify`,
             { store_id, code: params.code },
             options,
           );
           if (result?.token) {
-            updateProfileSession((prev) =>
+            updateContactSession((prev) =>
               prev ? { ...prev, access_token: result.token } : null,
             );
           }
@@ -560,63 +558,63 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateProfileSession: 
           const store_id = apiConfig.storeId;
           try {
             await apiConfig.httpClient.post<void>(
-              `${base(store_id)}/profiles/logout`,
+              `${base(store_id)}/account/logout`,
               {},
               options,
             );
           } finally {
-            updateProfileSession(() => null);
+            updateContactSession(() => null);
           }
         },
 
-        getMe(options?: RequestOptions): Promise<ProfileDetail> {
-          return apiConfig.httpClient.get<ProfileDetail>(`${base()}/profiles/me`, options);
+        getMe(options?: RequestOptions): Promise<ContactDetail> {
+          return apiConfig.httpClient.get<ContactDetail>(`${base()}/account/me`, options);
         },
       },
 
-      profileList: {
-        get(params: GetProfileListParams, options?: RequestOptions): Promise<ProfileList> {
+      contactList: {
+        get(params: GetContactListParams, options?: RequestOptions): Promise<ContactList> {
           const store_id = params.store_id || apiConfig.storeId;
-          return apiConfig.httpClient.get<ProfileList>(
-            `${base(store_id)}/profile-lists/${params.id}`,
+          return apiConfig.httpClient.get<ContactList>(
+            `${base(store_id)}/contact-lists/${params.id}`,
             options,
           );
         },
 
-        find(params?: FindProfileListsParams, options?: RequestOptions): Promise<PaginatedResponse<ProfileList>> {
+        find(params?: FindContactListsParams, options?: RequestOptions): Promise<PaginatedResponse<ContactList>> {
           const { store_id, ...queryParams } = params || {};
-          return apiConfig.httpClient.get<PaginatedResponse<ProfileList>>(`${base(store_id)}/profile-lists`, {
+          return apiConfig.httpClient.get<PaginatedResponse<ContactList>>(`${base(store_id)}/contact-lists`, {
             ...options,
             params: queryParams,
           });
         },
 
-        subscribe(params: SubscribeProfileListParams, options?: RequestOptions): Promise<ProfileListSubscribeResponse> {
+        subscribe(params: SubscribeContactListParams, options?: RequestOptions): Promise<ContactListSubscribeResponse> {
           const { store_id, id, ...payload } = params;
-          return apiConfig.httpClient.post<ProfileListSubscribeResponse>(
-            `${base(store_id)}/profile-lists/${id}/subscribe`,
+          return apiConfig.httpClient.post<ContactListSubscribeResponse>(
+            `${base(store_id)}/contact-lists/${id}/subscribe`,
             payload,
             options,
           );
         },
 
-        checkAccess(params: ProfileListAccessParams, options?: RequestOptions): Promise<ProfileListAccessResponse> {
+        checkAccess(params: ContactListAccessParams, options?: RequestOptions): Promise<ContactListAccessResponse> {
           const store_id = params.store_id || apiConfig.storeId;
-          return apiConfig.httpClient.get<ProfileListAccessResponse>(
-            `${base(store_id)}/profile-lists/${params.id}/access`,
+          return apiConfig.httpClient.get<ContactListAccessResponse>(
+            `${base(store_id)}/contact-lists/${params.id}/access`,
             options,
           );
         },
 
         unsubscribe(token: string, options?: RequestOptions): Promise<{ unsubscribed: boolean }> {
-          return apiConfig.httpClient.get<{ unsubscribed: boolean }>(`${base()}/profile-lists/unsubscribe`, {
+          return apiConfig.httpClient.get<{ unsubscribed: boolean }>(`${base()}/contact-lists/unsubscribe`, {
             ...options,
             params: { token },
           });
         },
 
         confirm(token: string, options?: RequestOptions): Promise<{ confirmed: boolean }> {
-          return apiConfig.httpClient.get<{ confirmed: boolean }>(`${base()}/profile-lists/confirm`, {
+          return apiConfig.httpClient.get<{ confirmed: boolean }>(`${base()}/contact-lists/confirm`, {
             ...options,
             params: { token },
           });
@@ -624,7 +622,7 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateProfileSession: 
       },
     },
 
-    activity: createActivityApi(apiConfig),
+    interaction: createInteractionApi(apiConfig),
     experiments: {
       use(params: UseExperimentParams, options?: RequestOptions): Promise<ExperimentUseResponse> {
         const store_id = params.store_id || apiConfig.storeId;

@@ -31,8 +31,8 @@ const homepage = await arky.cms.entry.get({
   locale: "en",
 });
 
-await arky.activity.track({
-  key: "page_view",
+await arky.interaction.track({
+  key: "page.view",
   payload: { path: location.pathname },
 });
 ```
@@ -61,8 +61,8 @@ await arky.eshop.cart.checkout({ payment_method_id: "cash" });
 const { items: services } = await arky.eshop.service.list({ limit: 20 });
 await arky.eshop.service.initialize();
 
-await arky.activity.track({
-  key: "project_inquiry_started",
+await arky.interaction.track({
+  key: "project.inquiry.started",
   payload: { placement: "homepage" },
 });
 ```

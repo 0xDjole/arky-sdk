@@ -1,9 +1,11 @@
 import type { ApiConfig } from "../index";
 import type {
   CancelSocialPublicationParams,
+  ClassifySocialPublicationCommentsParams,
   ConnectSocialProviderParams,
   CreateSocialPublicationParams,
   FakeConnectSocialProviderParams,
+  FindSocialPublicationCommentsParams,
   FindSocialPublicationsParams,
   GetSocialCapabilitiesParams,
   GetSocialOAuthAttemptParams,
@@ -14,6 +16,7 @@ import type {
   RequestOptions,
   ScheduleSocialPublicationParams,
   SelectSocialDestinationParams,
+  SyncSocialEngagementParams,
   UpdateSocialPublicationParams,
   ValidateSocialPublicationParams,
 } from "../types/api";
@@ -24,7 +27,9 @@ import type {
   SocialIntegrationCapability,
   SocialOAuthCallbackResponse,
   SocialPublication,
+  SocialPublicationCommentClassificationResult,
   SocialPublicationComment,
+  SocialPublicationEngagementSyncResult,
   SocialPublicationCommentReplyResponse,
   SocialPublicationMetricSnapshot,
   SocialPublicationMutationResponse,
@@ -132,6 +137,32 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    async findPublicationComments(
+      params?: FindSocialPublicationCommentsParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<SocialPublicationComment>> {
+      const { store_id, ...queryParams } = params || {};
+      return apiConfig.httpClient.get<PaginatedResponse<SocialPublicationComment>>(
+        `/v1/stores/${storeId(store_id)}/social-publications/comments`,
+        {
+          ...options,
+          params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+        },
+      );
+    },
+
+    async classifyPublicationComments(
+      params?: ClassifySocialPublicationCommentsParams,
+      options?: RequestOptions,
+    ): Promise<SocialPublicationCommentClassificationResult> {
+      const { store_id, ...payload } = params || {};
+      return apiConfig.httpClient.post<SocialPublicationCommentClassificationResult>(
+        `/v1/stores/${storeId(store_id)}/social-publications/comments/classify`,
+        payload,
+        options,
+      );
+    },
+
     async replyToPublicationComment(
       params: ReplySocialPublicationCommentParams,
       options?: RequestOptions,
@@ -150,6 +181,18 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     ): Promise<SocialPublicationMetricSnapshot> {
       return apiConfig.httpClient.get<SocialPublicationMetricSnapshot>(
         `/v1/stores/${storeId(params.store_id)}/social-publications/${params.publication_id}/metrics`,
+        options,
+      );
+    },
+
+    async syncEngagement(
+      params?: SyncSocialEngagementParams,
+      options?: RequestOptions,
+    ): Promise<SocialPublicationEngagementSyncResult> {
+      const { store_id, ...payload } = params || {};
+      return apiConfig.httpClient.post<SocialPublicationEngagementSyncResult>(
+        `/v1/stores/${storeId(store_id)}/social-publications/engagement/sync`,
+        payload,
         options,
       );
     },

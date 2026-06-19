@@ -31,7 +31,6 @@ export type EdgeTrigger =
   | { type: "default" };
 
 export interface SupportAgentAiConfig {
-  integration_id: string;
   system_prompt: string;
   tools: string[];
   max_context_messages: number;
@@ -56,7 +55,7 @@ export interface SupportConversation {
   store_id: string;
   agent_id?: string;
   current_node_id?: string;
-  profile_id?: string;
+  contact_id?: string;
   assigned_account_id?: string | null;
   status: "active" | "ai_mode" | "escalated" | "resolved";
   data: Record<string, unknown>;

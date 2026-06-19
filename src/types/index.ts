@@ -163,7 +163,7 @@ export interface Price {
   market: string;
   amount: number;
   compare_at?: number;
-  profile_list_id?: string;
+  contact_list_id?: string;
 }
 
 export type IntervalPeriod = "month" | "year";
@@ -236,7 +236,7 @@ export type CartOrigin = "storefront" | "admin";
 export interface Cart {
   id: string;
   store_id: string;
-  profile_id: string;
+  contact_id: string;
   token: string;
   status: CartStatus;
   origin: CartOrigin;
@@ -269,9 +269,7 @@ export type IntegrationProvider =
     }
   | { type: "shippo"; api_token?: string }
   | { type: "telegram_bot"; bot_token?: string }
-  | { type: "deep_seek"; api_key?: string; model?: string }
   | { type: "brave_search"; api_key?: string }
-  | { type: "open_ai"; api_key?: string; model?: string }
   | { type: "slack"; api_key?: string }
   | { type: "discord"; api_key?: string }
   | { type: "resend"; api_key?: string }
@@ -461,6 +459,21 @@ export type SocialPublicationCommentStatus =
   | "hidden"
   | "deleted";
 
+export type SocialPublicationCommentIntent =
+  | "lead"
+  | "support"
+  | "complaint"
+  | "question"
+  | "praise"
+  | "spam"
+  | "general";
+
+export type SocialPublicationCommentPriority =
+  | "urgent"
+  | "high"
+  | "normal"
+  | "low";
+
 export interface SocialPublicationComment {
   id: string;
   store_id: string;
@@ -470,6 +483,9 @@ export interface SocialPublicationComment {
   provider_post_id?: string | null;
   provider_comment_id: string;
   provider_parent_comment_id?: string | null;
+  contact_id?: string | null;
+  interaction_id?: string | null;
+  opportunity_id?: string | null;
   author_name?: string | null;
   author_handle?: string | null;
   text: string;
@@ -477,6 +493,14 @@ export interface SocialPublicationComment {
   provider_created_at?: number | null;
   last_synced_at: number;
   replied_at?: number | null;
+  classification_intent?: SocialPublicationCommentIntent | null;
+  classification_priority?: SocialPublicationCommentPriority | null;
+  classification_confidence?: number | null;
+  classification_summary?: string | null;
+  classification_reason?: string | null;
+  suggested_reply?: string | null;
+  classified_at?: number | null;
+  classification_model?: string | null;
   created_at: number;
   updated_at: number;
 }
@@ -502,6 +526,26 @@ export interface SocialPublicationCommentReply {
 export interface SocialPublicationCommentReplyResponse {
   comment: SocialPublicationComment;
   reply: SocialPublicationCommentReply;
+}
+
+export interface SocialPublicationEngagementSyncResult {
+  publications_scanned: number;
+  comment_pages_scanned: number;
+  comments_synced: number;
+  metrics_synced: number;
+  comments: SocialPublicationComment[];
+  metrics: SocialPublicationMetricSnapshot[];
+  skipped_publication_ids: string[];
+  errors: string[];
+}
+
+export interface SocialPublicationCommentClassificationResult {
+  comments_scanned: number;
+  comments_classified: number;
+  comments_skipped: number;
+  comments: SocialPublicationComment[];
+  skipped_comment_ids: string[];
+  errors: string[];
 }
 
 export interface SocialEngagementCapabilities {
@@ -861,7 +905,7 @@ export interface DigitalAccessGrant {
   order_item_id: string;
   product_id: string;
   variant_id: string;
-  profile_id: string;
+  contact_id: string;
   asset_id: string;
   asset_name_snapshot: string;
   kind: DigitalAssetKind;
@@ -937,7 +981,7 @@ export interface Order {
   number: string;
   store_id: string;
   source_cart_id: string;
-  profile_id: string;
+  contact_id: string;
   status: OrderStatus;
   payment_status: OrderPaymentSummaryStatus;
   fulfillment_status: OrderFulfillmentStatus;
@@ -952,7 +996,7 @@ export interface Order {
   shipments: Shipment[];
   digital_access_grants: DigitalAccessGrant[];
   history: HistoryEntry[];
-  profile_list_id?: string;
+  contact_list_id?: string;
   fired_reminders: number[];
   created_at: number;
   updated_at: number;
@@ -1039,12 +1083,12 @@ export type WebhookEventSubscription =
   | { event: "store.created" }
   | { event: "store.updated" }
   | { event: "store.deleted" }
-  | { event: "profile_list.created" }
-  | { event: "profile_list.updated" }
-  | { event: "profile_list.profile_added" }
-  | { event: "profile_list.profile_pending" }
-  | { event: "profile_list.profile_confirmed" }
-  | { event: "profile_list.profile_cancelled" }
+  | { event: "contact_list.created" }
+  | { event: "contact_list.updated" }
+  | { event: "contact_list.contact_added" }
+  | { event: "contact_list.contact_pending" }
+  | { event: "contact_list.contact_confirmed" }
+  | { event: "contact_list.contact_cancelled" }
   | { event: "account.updated" };
 
 export interface Webhook {
@@ -1071,7 +1115,7 @@ export type StoreSubscriptionSource = "signup" | "admin" | "import";
 
 export type StoreSubscriptionProvider = {
   type: "stripe";
-  profile_id: string;
+  contact_id: string;
   subscription_id?: string;
   price_id?: string;
 };
@@ -1095,17 +1139,17 @@ export interface StoreSubscription {
   source: StoreSubscriptionSource;
 }
 
-export type ProfileListMembershipProvider = {
+export type ContactListMembershipProvider = {
   type: "stripe";
   stripe_customer_id: string;
   subscription_id?: string;
   price_id?: string;
 };
 
-export interface ProfileListMembershipPayment {
+export interface ContactListMembershipPayment {
   currency: string;
   market: string;
-  provider?: ProfileListMembershipProvider;
+  provider?: ContactListMembershipProvider;
 }
 
 export interface Store {
@@ -1327,16 +1371,16 @@ export type ServiceStatus = "active" | "draft" | "archived";
 export type ProviderStatus = "active" | "draft" | "archived";
 
 export type ProductStatus = "active" | "draft" | "archived";
-export type ProfileStatus = "active" | "archived";
-export type ProfileListStatus = "active" | "draft" | "archived";
-export type ProfileListSource =
+export type ContactStatus = "active" | "archived";
+export type ContactListStatus = "active" | "draft" | "archived";
+export type ContactListSource =
   | "manual"
   | "import"
   | "signup"
   | "admin"
   | "system"
   | "lead_research";
-export type ProfileListMembershipStatus =
+export type ContactListMembershipStatus =
   | "pending"
   | "active"
   | "cancellation_scheduled"
@@ -1383,8 +1427,8 @@ export type CampaignEnrollmentStatus =
   | "failed"
   | "stopped";
 export type CampaignEnrollmentImportSource =
-  | "profile_list"
-  | "profile"
+  | "contact_list"
+  | "contact"
   | "manual";
 export type CampaignMessageStatus =
   | "draft"
@@ -1443,7 +1487,7 @@ export type OutreachPersonalizationStatus =
   | "completed"
   | "failed";
 export type SuppressionStatus = "active" | "archived";
-export type SuppressionTargetType = "email" | "domain" | "profile" | "phone";
+export type SuppressionTargetType = "email" | "domain" | "contact" | "phone";
 export type SuppressionScopeType = "store" | "campaign";
 export type SuppressionReason =
   | "manual"
@@ -1463,7 +1507,7 @@ export type TaxonomyStatus = "active" | "draft" | "archived";
 
 export type OrderCancellationReason =
   | "admin_rejected"
-  | "profile_cancelled"
+  | "contact_cancelled"
   | "payment_failed"
   | "expired"
   | "other";
@@ -1615,7 +1659,7 @@ export interface FormSubmission {
   id: string;
   form_id: string;
   store_id: string;
-  profile_id: string;
+  contact_id: string;
   fields: FormField[];
   created_at: number;
 }
@@ -1805,7 +1849,7 @@ export interface WorkflowExecution {
   updated_at: number;
 }
 
-export type ProfileListType =
+export type ContactListType =
   | { type: "standard" }
   | { type: "confirmation"; confirm_template_id?: string | null }
   | {
@@ -1814,13 +1858,13 @@ export type ProfileListType =
       payment_integration_id?: string | null;
     };
 
-export interface ProfileAuthToken {
+export interface ContactSessionToken {
   id: string;
   token: string;
   created_at: number;
 }
 
-export interface ProfileVerificationCode {
+export interface ContactVerificationCode {
   code: string;
   created_at: number;
   used: boolean;
@@ -1848,10 +1892,18 @@ export type ChannelType =
   | "youtube"
   | "other";
 
-export interface ProfileChannel {
+export interface ContactChannel {
   type: ChannelType;
   label?: string | null;
   value: string;
+  normalized_value?: string | null;
+  provider?: string | null;
+  provider_user_id?: string | null;
+  verified_at?: number | null;
+  is_primary?: boolean;
+  consent_status?: ContactChannelConsentStatus;
+  subscribed_at?: number | null;
+  unsubscribed_at?: number | null;
   source_url?: string | null;
   confidence?: number | null;
   notes?: string | null;
@@ -1859,59 +1911,66 @@ export interface ProfileChannel {
   updated_at: number;
 }
 
-export interface Profile {
+export type ContactChannelConsentStatus =
+  | "unknown"
+  | "subscribed"
+  | "unsubscribed"
+  | "bounced"
+  | "blocked";
+
+export interface Contact {
   id: string;
   store_id: string;
   email: string | null;
   verified: boolean;
-  status: ProfileStatus;
-  channels: ProfileChannel[];
+  status: ContactStatus;
+  channels: ContactChannel[];
   promo_usage: PromoUsage[];
-  lists: ProfileListMembership[];
+  lists: ContactListMembership[];
   taxonomies: TaxonomyEntry[];
-  auth_tokens: ProfileAuthToken[];
-  verification_codes: ProfileVerificationCode[];
+  auth_tokens: ContactSessionToken[];
+  verification_codes: ContactVerificationCode[];
   created_at: number;
   updated_at: number;
 }
 
-export interface ProfileListAccessResponse {
+export interface ContactListAccessResponse {
   has_access: boolean;
-  membership?: ProfileListMembership | null;
+  membership?: ContactListMembership | null;
 }
 
-export interface ProfileListSubscribeResponse {
+export interface ContactListSubscribeResponse {
   checkout_url?: string | null;
-  membership?: ProfileListMembership | null;
+  membership?: ContactListMembership | null;
 }
 
-export interface ProfileList {
+export interface ContactList {
   id: string;
   store_id: string;
   key: string;
   name: string;
   description?: string | null;
-  status: ProfileListStatus;
-  type: ProfileListType;
-  source: ProfileListSource;
+  status: ContactListStatus;
+  type: ContactListType;
+  source: ContactListSource;
   member_count: number;
   created_at: number;
   updated_at: number;
 }
 
-export interface ProfileListMembership {
+export interface ContactListMembership {
   id: string;
   store_id: string;
-  profile_id: string;
-  profile_list_id: string;
-  source: ProfileListSource;
+  contact_id: string;
+  contact_list_id: string;
+  source: ContactListSource;
   fields: Record<string, unknown>;
   lead_description?: string | null;
   lead?: LeadInsight | null;
-  status: ProfileListMembershipStatus;
+  status: ContactListMembershipStatus;
   plan_id: string;
   pending_plan_id: string | null;
-  payment: ProfileListMembershipPayment;
+  payment: ContactListMembershipPayment;
   start_date: number;
   end_date: number;
   token: string;
@@ -1919,9 +1978,83 @@ export interface ProfileListMembership {
   updated_at: number;
 }
 
-export interface ProfileListMember {
-  profile: Profile;
-  membership: ProfileListMembership;
+export interface ContactListMember {
+  contact: Contact;
+  membership: ContactListMembership;
+}
+
+export type InteractionDirection = "inbound" | "outbound" | "internal";
+export type InteractionType =
+  | "event"
+  | "social_comment"
+  | "social_reply"
+  | "form_submission"
+  | "campaign_reply"
+  | "order_event"
+  | "direct_message"
+  | "manual_note"
+  | "other";
+
+export interface Interaction {
+  id: string;
+  store_id: string;
+  contact_id?: string | null;
+  integration_id?: string | null;
+  provider_id?: SocialProviderId | null;
+  source_publication_id?: string | null;
+  source_comment_id?: string | null;
+  type: InteractionType;
+  direction: InteractionDirection;
+  key: string;
+  summary?: string | null;
+  payload: Record<string, unknown>;
+  occurred_at: number;
+  created_at: number;
+  updated_at: number;
+  country_code?: string | null;
+  city?: string | null;
+  region?: string | null;
+  timezone?: string | null;
+  device_type?: string | null;
+  browser?: string | null;
+  os?: string | null;
+  language?: string | null;
+  session_idx?: number | null;
+}
+
+export type OpportunityType =
+  | "lead"
+  | "support"
+  | "complaint"
+  | "question"
+  | "upsell"
+  | "partnership"
+  | "engagement";
+
+export type OpportunityStage =
+  | "new"
+  | "reviewing"
+  | "contacted"
+  | "won"
+  | "lost"
+  | "dismissed";
+
+export interface Opportunity {
+  id: string;
+  store_id: string;
+  contact_id: string;
+  source_interaction_id?: string | null;
+  source_publication_id?: string | null;
+  source_comment_id?: string | null;
+  type: OpportunityType;
+  stage: OpportunityStage;
+  score?: number | null;
+  reason?: string | null;
+  suggested_next_action?: string | null;
+  lead?: LeadInsight | null;
+  created_at: number;
+  updated_at: number;
+  closed_at?: number | null;
 }
 
 export interface Mailbox {
@@ -1948,7 +2081,7 @@ export interface OutreachStep {
 }
 
 export interface OutreachPersonalizationCounters {
-  total_profiles: number;
+  total_contacts: number;
   draft_messages: number;
   generated_messages: number;
   template_messages: number;
@@ -1957,9 +2090,8 @@ export interface OutreachPersonalizationCounters {
 
 export interface OutreachPersonalizationState {
   status: OutreachPersonalizationStatus;
-  model_integration_id?: string | null;
   step_position?: number | null;
-  profile_ids: string[];
+  contact_ids: string[];
   overwrite: boolean;
   instructions?: string | null;
   error?: string | null;
@@ -1986,7 +2118,7 @@ export interface CampaignLaunchReadiness {
   ready: boolean;
   blockers: string[];
   warnings: string[];
-  profile_count: number;
+  contact_count: number;
   sender_count: number;
   step_count: number;
   daily_capacity: number;
@@ -2012,8 +2144,8 @@ export interface CampaignEnrollment {
   id: string;
   store_id: string;
   campaign_id: string;
-  profile_id: string;
-  profile_list_membership_id?: string | null;
+  contact_id: string;
+  contact_list_membership_id?: string | null;
   import_source: CampaignEnrollmentImportSource;
   import_source_id?: string | null;
   imported_at?: number | null;
@@ -2032,7 +2164,7 @@ export interface CampaignMessage {
   store_id: string;
   campaign_id: string;
   campaign_enrollment_id: string;
-  profile_id: string;
+  contact_id: string;
   mailbox_id: string;
   direction: CampaignMessageDirection;
   type: CampaignMessageType;
@@ -2057,7 +2189,7 @@ export interface CampaignMessage {
   rendered_text?: string | null;
   attachments: string[];
   target_channel_type?: ChannelType | null;
-  resolved_channel?: ProfileChannel | null;
+  resolved_channel?: ContactChannel | null;
   title?: string | null;
   instructions?: string | null;
   suggested_message?: string | null;
@@ -2087,7 +2219,7 @@ export interface Suppression {
   id: string;
   store_id: string;
   campaign_id?: string | null;
-  profile_id?: string | null;
+  contact_id?: string | null;
   email?: string | null;
   domain?: string | null;
   target_type: SuppressionTargetType;
@@ -2165,8 +2297,7 @@ export interface LeadInsight {
 export interface LeadResearchRun {
   id: string;
   store_id: string;
-  integration_id: string;
-  profile_list_id: string;
+  contact_list_id: string;
   title?: string | null;
   status: LeadResearchRunStatus;
   error?: string | null;
@@ -2208,15 +2339,15 @@ export interface LeadResearchMessage {
   created_at: number;
 }
 
-export interface ResearchProfileListMember {
-  profile: Profile;
-  membership: ProfileListMembership;
+export interface ResearchContactListMember {
+  contact: Contact;
+  membership: ContactListMembership;
 }
 
 export interface SendLeadResearchMessageResult {
   response: string;
   run: LeadResearchRun;
-  profile_list_members: ResearchProfileListMember[];
+  contact_list_members: ResearchContactListMember[];
 }
 
 export type EventAction =
@@ -2269,13 +2400,13 @@ export type EventAction =
   | { action: "store_created" }
   | { action: "store_updated" }
   | { action: "store_deleted" }
-  | { action: "profile_list_created" }
-  | { action: "profile_list_updated" }
-  | { action: "profile_list_profile_added" }
-  | { action: "profile_list_profile_removed" }
-  | { action: "profile_list_profile_pending" }
-  | { action: "profile_list_profile_confirmed" }
-  | { action: "profile_list_profile_cancelled" };
+  | { action: "contact_list_created" }
+  | { action: "contact_list_updated" }
+  | { action: "contact_list_contact_added" }
+  | { action: "contact_list_contact_removed" }
+  | { action: "contact_list_contact_pending" }
+  | { action: "contact_list_contact_confirmed" }
+  | { action: "contact_list_contact_cancelled" };
 
 export interface Event {
   id: string;

@@ -1,5 +1,5 @@
 import { atom, computed, map } from "nanostores";
-import { createStorefront, type ProfileSession } from "../index";
+import { createStorefront, type ContactSession } from "../index";
 import type {
   Address,
   Block,
@@ -45,7 +45,12 @@ import type {
   SlotRange,
   SubmitFormParams,
 } from "../types/api";
-import type { Activity, ExperimentUseResponse, TrackParams, UseExperimentParams } from "../api/storefront";
+import type {
+  ExperimentUseResponse,
+  StorefrontInteraction,
+  TrackInteractionParams,
+  UseExperimentParams,
+} from "../api/storefront";
 import type {
   ArkyCalendarDay,
   ArkyCmsEntryParams,
@@ -84,7 +89,7 @@ import {
 
 export function initialize(config: ArkyStoreConfig) {
   const client = createStorefront(config);
-  const session = atom<ProfileSession | null>(client.session);
+  const session = atom<ContactSession | null>(client.session);
   const locale = atom(config.locale || client.getLocale());
   const market_key = atom(config.market || client.getMarket());
   const market = computed(session, (value) => value?.market || null);
@@ -148,7 +153,7 @@ export function initialize(config: ArkyStoreConfig) {
     item_count: count,
   }));
   let cartWriteRevision = 0;
-  let sessionRequest: Promise<ProfileSession | null> | null = null;
+  let sessionRequest: Promise<ContactSession | null> | null = null;
   let cartRequest: Promise<Cart> | null = null;
 
   function nextCartWriteRevision(): number {
@@ -205,7 +210,7 @@ export function initialize(config: ArkyStoreConfig) {
     return config.marketForLocale?.(value) || null;
   }
 
-  async function ensureSession(): Promise<ProfileSession | null> {
+  async function ensureSession(): Promise<ContactSession | null> {
     const current = session.get();
     const marketKey = currentMarketKey();
     if (current && (!marketKey || current.market?.key === marketKey)) return current;
@@ -397,7 +402,7 @@ export function initialize(config: ArkyStoreConfig) {
         },
       });
       await hydrateCart(response, { ifRevision: writeRevision });
-      await client.activity.track({ key: "cart_added", payload: { product_id: product.id, variant_id: variant.id, quantity } });
+      await client.interaction.track({ key: "cart.added", payload: { product_id: product.id, variant_id: variant.id, quantity } });
       return response;
     } catch (error) {
       cart_status.setKey("error", readErrorMessage(error, "Failed to add product to cart."));
@@ -429,7 +434,7 @@ export function initialize(config: ArkyStoreConfig) {
       variant_id: item.variant_id,
     });
     await hydrateCart(response, { ifRevision: writeRevision });
-    await client.activity.track({ key: "cart_removed", payload: { product_id: item.product_id, variant_id: item.variant_id } });
+    await client.interaction.track({ key: "cart.removed", payload: { product_id: item.product_id, variant_id: item.variant_id } });
     return response;
   }
 
@@ -493,7 +498,7 @@ export function initialize(config: ArkyStoreConfig) {
     cart_status.setKey("error", null);
     try {
       const current = await syncCart(input);
-      await client.activity.track({ key: "checkout_started", payload: { cart_id: current.id } });
+      await client.interaction.track({ key: "checkout.started", payload: { cart_id: current.id } });
       const response = await client.cart.checkout({
         id: current.id,
         payment_method_id: input.payment_method_id || undefined,
@@ -517,7 +522,7 @@ export function initialize(config: ArkyStoreConfig) {
       if (input.clear_after_checkout !== false) {
         clearLocalCart();
       }
-      await client.activity.track({ key: "purchase", payload: { order_id: response.order_id, number: response.number } });
+      await client.interaction.track({ key: "order.created", payload: { order_id: response.order_id, number: response.number } });
       return response;
     } catch (error) {
       cart_status.setKey("error", readErrorMessage(error, "Checkout failed."));
@@ -1194,9 +1199,9 @@ export function initialize(config: ArkyStoreConfig) {
     return client.experiments.use(input);
   }
 
-  async function trackActivity(params: TrackParams): Promise<void> {
+  async function trackInteraction(params: TrackInteractionParams): Promise<void> {
     await ensureSession();
-    return client.activity.track(params);
+    return client.interaction.track(params);
   }
 
   const cart_store = {
@@ -1305,9 +1310,6 @@ export function initialize(config: ArkyStoreConfig) {
     me: client.me,
     logout: client.logout,
     onAuthStateChanged: client.onAuthStateChanged,
-    get currentSession() {
-      return session.get();
-    },
     get isAuthenticated() {
       return client.isAuthenticated;
     },
@@ -1345,14 +1347,14 @@ export function initialize(config: ArkyStoreConfig) {
       cart: cart_store,
     },
     crm: client.crm,
-    activity: {
-      track(params: TrackParams) {
-        return trackActivity(params);
+    interaction: {
+      track(params: TrackInteractionParams) {
+        return trackInteraction(params);
       },
       pageView(payload: Record<string, unknown> = {}) {
-        return trackActivity({ key: "page_view", payload });
+        return trackInteraction({ key: "page.view", payload });
       },
-      state: atom<Activity | null>(null),
+      state: atom<StorefrontInteraction | null>(null),
     },
     experiments: {
       use: useExperiment,
