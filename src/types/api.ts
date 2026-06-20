@@ -1875,6 +1875,14 @@ export interface GetSocialPublicationCommentsParams {
   cursor?: string | null;
 }
 
+export interface GetSocialPublicationCommentThreadParams {
+  store_id?: string;
+  publication_id: string;
+  comment_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
 export interface FindSocialPublicationCommentsParams {
   store_id?: string;
   publication_id?: string;
@@ -1883,6 +1891,7 @@ export interface FindSocialPublicationCommentsParams {
   status?: SocialPublicationCommentStatus;
   intent?: SocialPublicationCommentIntent;
   priority?: SocialPublicationCommentPriority;
+  include_replies?: boolean;
   limit?: number;
   cursor?: string | null;
 }

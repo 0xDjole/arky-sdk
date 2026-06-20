@@ -402,6 +402,7 @@ export type {
   FindSocialPublicationsParams,
   GetSocialCapabilitiesParams,
   GetSocialOAuthAttemptParams,
+  GetSocialPublicationCommentThreadParams,
   GetSocialPublicationCommentsParams,
   GetSocialPublicationMetricsParams,
   GetSocialPublicationParams,

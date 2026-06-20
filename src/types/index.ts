@@ -483,6 +483,14 @@ export interface SocialPublicationComment {
   provider_post_id?: string | null;
   provider_comment_id: string;
   provider_parent_comment_id?: string | null;
+  parent_comment_id?: string | null;
+  root_comment_id?: string | null;
+  depth: number;
+  provider_reply_count?: number | null;
+  synced_reply_count: number;
+  has_more_replies: boolean;
+  thread_last_synced_at?: number | null;
+  author_is_channel: boolean;
   contact_id?: string | null;
   action_id?: string | null;
   opportunity_action_id?: string | null;

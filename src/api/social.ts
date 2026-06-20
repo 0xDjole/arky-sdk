@@ -9,6 +9,7 @@ import type {
   FindSocialPublicationsParams,
   GetSocialCapabilitiesParams,
   GetSocialOAuthAttemptParams,
+  GetSocialPublicationCommentThreadParams,
   GetSocialPublicationCommentsParams,
   GetSocialPublicationMetricsParams,
   GetSocialPublicationParams,
@@ -130,6 +131,20 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       const { store_id, publication_id, ...queryParams } = params;
       return apiConfig.httpClient.get<PaginatedResponse<SocialPublicationComment>>(
         `/v1/stores/${storeId(store_id)}/social-publications/${publication_id}/comments`,
+        {
+          ...options,
+          params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+        },
+      );
+    },
+
+    async getPublicationCommentThread(
+      params: GetSocialPublicationCommentThreadParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<SocialPublicationComment>> {
+      const { store_id, publication_id, comment_id, ...queryParams } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<SocialPublicationComment>>(
+        `/v1/stores/${storeId(store_id)}/social-publications/${publication_id}/comments/${comment_id}/thread`,
         {
           ...options,
           params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
