@@ -6,7 +6,6 @@ import type {
   GetContactParams,
   FindContactsParams,
   FindActionsParams,
-  FindOpportunitiesParams,
   MergeContactsParams,
   ImportContactsParams,
   ImportContactsPreviewParams,
@@ -67,7 +66,6 @@ import type {
   ContactList,
   ContactListMember,
   Action,
-  Opportunity,
   Suppression,
 } from "../types";
 
@@ -156,20 +154,6 @@ export const createContactApi = (apiConfig: ApiConfig) => {
       const { store_id, ...queryParams } = params || {};
       return apiConfig.httpClient.get<PaginatedResponse<Action>>(
         `/v1/stores/${store_id || apiConfig.storeId}/actions`,
-        {
-          ...options,
-          params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
-        },
-      );
-    },
-
-    async findOpportunities(
-      params?: FindOpportunitiesParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<Opportunity>> {
-      const { store_id, ...queryParams } = params || {};
-      return apiConfig.httpClient.get<PaginatedResponse<Opportunity>>(
-        `/v1/stores/${store_id || apiConfig.storeId}/opportunities`,
         {
           ...options,
           params: Object.keys(queryParams).length > 0 ? queryParams : undefined,

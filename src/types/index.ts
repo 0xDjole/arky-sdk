@@ -485,7 +485,7 @@ export interface SocialPublicationComment {
   provider_parent_comment_id?: string | null;
   contact_id?: string | null;
   action_id?: string | null;
-  opportunity_id?: string | null;
+  opportunity_action_id?: string | null;
   author_name?: string | null;
   author_handle?: string | null;
   author_provider_user_id?: string | null;
@@ -1984,43 +1984,34 @@ export interface ContactListMember {
   membership: ContactListMembership;
 }
 
-export type ActionDirection = "inbound" | "outbound" | "internal";
-export type ActionType =
-  | "event"
-  | "social_comment"
-  | "social_reply"
-  | "form_submission"
-  | "campaign_reply"
-  | "order_event"
-  | "direct_message"
-  | "manual_note"
-  | "other";
-
-export interface Action {
-  id: string;
-  store_id: string;
-  contact_id?: string | null;
-  integration_id?: string | null;
-  provider_id?: SocialProviderId | null;
-  source_publication_id?: string | null;
-  source_comment_id?: string | null;
-  type: ActionType;
-  direction: ActionDirection;
-  key: string;
-  summary?: string | null;
-  payload: Record<string, unknown>;
-  occurred_at: number;
-  created_at: number;
-  updated_at: number;
+export interface ActionLocation {
   country_code?: string | null;
   city?: string | null;
   region?: string | null;
   timezone?: string | null;
+}
+
+export interface ActionDevice {
   device_type?: string | null;
   browser?: string | null;
   os?: string | null;
   language?: string | null;
-  session_idx?: number | null;
+}
+
+export interface ActionSession {
+  idx?: number | null;
+}
+
+export interface ActionContext {
+  location?: ActionLocation | null;
+  device?: ActionDevice | null;
+  session?: ActionSession | null;
+}
+
+export interface SocialActionAuthor {
+  provider_user_id?: string | null;
+  name?: string | null;
+  handle?: string | null;
 }
 
 export type OpportunityType =
@@ -2040,22 +2031,127 @@ export type OpportunityStage =
   | "lost"
   | "dismissed";
 
-export interface Opportunity {
+export type OpportunitySource =
+  | {
+      type: "social_comment";
+      publication_id: string;
+      comment_id: string;
+      action_id?: string | null;
+    }
+  | {
+      type: "form_submission";
+      form_id: string;
+      submission_id: string;
+    }
+  | {
+      type: "tracked";
+      key: string;
+      action_id?: string | null;
+    }
+  | { type: "manual" };
+
+export type ActionData =
+  | {
+      type: "tracked";
+      value: {
+        key: string;
+        payload: Record<string, unknown>;
+        context?: ActionContext | null;
+      };
+    }
+  | {
+      type: "form_submission";
+      value: {
+        form_id: string;
+        form_key: string;
+        submission_id: string;
+        field_keys: string[];
+        context?: ActionContext | null;
+      };
+    }
+  | {
+      type: "social_comment";
+      value: {
+        integration_id: string;
+        provider_id: SocialProviderId;
+        publication_id: string;
+        comment_id: string;
+        provider_comment_id: string;
+        provider_parent_comment_id?: string | null;
+        author: SocialActionAuthor;
+        text: string;
+      };
+    }
+  | {
+      type: "social_reply";
+      value: {
+        integration_id: string;
+        provider_id: SocialProviderId;
+        publication_id: string;
+        comment_id: string;
+        provider_comment_id?: string | null;
+        provider_comment_url?: string | null;
+        text: string;
+      };
+    }
+  | {
+      type: "order";
+      value: {
+        order_id: string;
+        status: string;
+        total?: number | null;
+      };
+    }
+  | {
+      type: "campaign_reply";
+      value: {
+        campaign_id: string;
+        enrollment_id: string;
+        message_id: string;
+        text: string;
+      };
+    }
+  | {
+      type: "direct_message";
+      value: {
+        integration_id: string;
+        provider_id: SocialProviderId;
+        thread_id: string;
+        message_id: string;
+        text: string;
+      };
+    }
+  | {
+      type: "manual";
+      value: {
+        text: string;
+        account_id?: string | null;
+      };
+    }
+  | {
+      type: "opportunity";
+      value: {
+        type: OpportunityType;
+        stage: OpportunityStage;
+        score?: number | null;
+        reason?: string | null;
+        suggested_next_action?: string | null;
+        source: OpportunitySource;
+        lead?: LeadInsight | null;
+      };
+    };
+
+export interface Action {
   id: string;
   store_id: string;
   contact_id: string;
-  source_action_id?: string | null;
-  source_publication_id?: string | null;
-  source_comment_id?: string | null;
-  type: OpportunityType;
-  stage: OpportunityStage;
-  score?: number | null;
-  reason?: string | null;
-  suggested_next_action?: string | null;
-  lead?: LeadInsight | null;
+  key: string;
+  type: ActionData["type"];
+  preview_text?: string | null;
+  occurred_at: number;
   created_at: number;
   updated_at: number;
-  closed_at?: number | null;
+  data: ActionData;
 }
 
 export interface Mailbox {

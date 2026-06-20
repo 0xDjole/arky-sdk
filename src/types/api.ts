@@ -41,8 +41,6 @@ import type {
   ContactListType,
   ContactListSource,
   ContactListMembershipStatus,
-  OpportunityStage,
-  OpportunityType,
   MailboxStatus,
   MailboxProvider,
   CampaignStatus,
@@ -2093,15 +2091,6 @@ export interface FindContactsParams {
   cursor?: string;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
-}
-
-export interface FindOpportunitiesParams {
-  store_id?: string;
-  contact_id?: string;
-  type?: OpportunityType;
-  stage?: OpportunityStage;
-  limit?: number;
-  cursor?: string;
 }
 
 export interface MergeContactsParams {

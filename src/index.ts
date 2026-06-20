@@ -198,9 +198,12 @@ export type {
   Contact,
   ContactChannel,
   ChannelType,
-  Opportunity,
   OpportunityStage,
   OpportunityType,
+  OpportunitySource,
+  Action,
+  ActionData,
+  ActionContext,
   ContactList,
   ContactListMembership,
   ContactListMember,
@@ -958,9 +961,6 @@ export function createAdmin(config: CreateAdminConfig) {
       suppression: crmApi.suppression,
       leadResearch,
       action: crmApi.action,
-      opportunity: {
-        find: crmApi.findOpportunities,
-      },
     },
     leadResearch,
     automation: {
