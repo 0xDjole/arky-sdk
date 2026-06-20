@@ -488,6 +488,7 @@ export interface SocialPublicationComment {
   opportunity_id?: string | null;
   author_name?: string | null;
   author_handle?: string | null;
+  author_provider_user_id?: string | null;
   text: string;
   status: SocialPublicationCommentStatus;
   provider_created_at?: number | null;
