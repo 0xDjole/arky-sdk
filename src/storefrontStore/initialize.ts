@@ -1310,6 +1310,9 @@ export function initialize(config: ArkyStoreConfig) {
     me: client.me,
     logout: client.logout,
     onAuthStateChanged: client.onAuthStateChanged,
+    get currentSession() {
+      return client.currentSession;
+    },
     get isAuthenticated() {
       return client.isAuthenticated;
     },

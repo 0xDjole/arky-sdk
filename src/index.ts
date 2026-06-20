@@ -198,6 +198,9 @@ export type {
   Contact,
   ContactChannel,
   ChannelType,
+  Opportunity,
+  OpportunityStage,
+  OpportunityType,
   ContactList,
   ContactListMembership,
   ContactListMember,
@@ -955,6 +958,9 @@ export function createAdmin(config: CreateAdminConfig) {
       suppression: crmApi.suppression,
       leadResearch,
       action: crmApi.action,
+      opportunity: {
+        find: crmApi.findOpportunities,
+      },
     },
     leadResearch,
     automation: {
@@ -993,6 +999,11 @@ export function createAdmin(config: CreateAdminConfig) {
     getLocale: () => apiConfig.locale,
 
     get session(): AdminSession | null {
+      if (config.apiToken) return null;
+      return toPublic(readAdminSession());
+    },
+
+    get currentSession(): AdminSession | null {
       if (config.apiToken) return null;
       return toPublic(readAdminSession());
     },
@@ -1192,6 +1203,11 @@ export function createStorefront(config: CreateStorefrontConfig) {
     me: () => contactApi.getMe(),
 
     get session(): ContactSession | null {
+      if (config.apiToken) return null;
+      return toPublic(readContactSession());
+    },
+
+    get currentSession(): ContactSession | null {
       if (config.apiToken) return null;
       return toPublic(readContactSession());
     },
