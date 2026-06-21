@@ -260,6 +260,7 @@ export interface Cart {
 }
 
 export type IntegrationProvider =
+  | { type: "arky"; api_key?: string }
   | {
       type: "stripe";
       secret_key?: string;
@@ -268,50 +269,8 @@ export type IntegrationProvider =
       currency: string;
     }
   | { type: "shippo"; api_token?: string }
-  | { type: "telegram_bot"; bot_token?: string }
   | { type: "brave_search"; api_key?: string }
-  | { type: "slack"; api_key?: string }
-  | { type: "discord"; api_key?: string }
-  | { type: "resend"; api_key?: string }
-  | { type: "send_grid"; api_key?: string }
-  | { type: "airtable"; api_key?: string }
-  | { type: "linear"; api_key?: string }
-  | { type: "git_hub"; api_key?: string }
-  | { type: "git_lab"; api_key?: string }
-  | { type: "dropbox"; api_key?: string }
-  | { type: "hub_spot"; api_key?: string }
-  | { type: "monday"; api_key?: string }
-  | { type: "click_up"; api_key?: string }
-  | { type: "pipedrive"; api_key?: string }
-  | { type: "calendly"; api_key?: string }
-  | { type: "typeform"; api_key?: string }
-  | { type: "webflow"; api_key?: string }
-  | { type: "trello"; api_key?: string }
-  | { type: "replicate"; api_key?: string }
-  | { type: "asana"; api_key?: string }
-  | { type: "brevo"; api_key?: string }
-  | { type: "intercom"; api_key?: string }
-  | { type: "notion"; api_key?: string }
-  | { type: "eleven_labs"; api_key?: string }
-  | { type: "active_campaign"; api_key?: string; account_url: string }
-  | { type: "shopify"; api_key?: string; store_domain: string }
-  | { type: "supabase"; api_key?: string; project_url: string }
-  | { type: "mailchimp"; api_key?: string }
-  | { type: "jira"; email?: string; api_token?: string; domain: string }
-  | {
-      type: "woo_commerce";
-      consumer_key?: string;
-      consumer_secret?: string;
-      store_url: string;
-    }
-  | { type: "freshdesk"; api_key?: string; domain: string }
-  | { type: "zendesk"; api_token?: string; email?: string; subdomain: string }
-  | { type: "salesforce"; access_token?: string; instance_url: string }
-  | { type: "zoom"; api_key?: string }
-  | { type: "microsoft_teams"; api_key?: string }
-  | { type: "firebase"; api_key?: string }
   | SocialIntegrationProvider
-  | { type: "arky"; api_key?: string }
   | { type: "vercel_deploy_hook"; url?: string }
   | { type: "netlify_deploy_hook"; url?: string }
   | { type: "cloudflare_deploy_hook"; url?: string }
