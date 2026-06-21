@@ -4,7 +4,6 @@ import type {
   ClassifySocialPublicationCommentsParams,
   ConnectSocialProviderParams,
   CreateSocialPublicationParams,
-  FakeConnectSocialProviderParams,
   FindSocialPublicationCommentsParams,
   FindSocialPublicationsParams,
   GetSocialCapabilitiesParams,
@@ -251,18 +250,6 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<SocialOAuthCallbackResponse>(
         `/v1/stores/${storeId(store_id)}/integrations/oauth/select-destination`,
-        payload,
-        options,
-      );
-    },
-
-    async fakeConnect(
-      params: FakeConnectSocialProviderParams,
-      options?: RequestOptions,
-    ): Promise<Integration> {
-      const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<Integration>(
-        `/v1/stores/${storeId(store_id)}/integrations/social/${params.provider_id}/fake-connect`,
         payload,
         options,
       );

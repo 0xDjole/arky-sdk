@@ -398,7 +398,6 @@ export type {
   ClassifySocialPublicationCommentsParams,
   ConnectSocialProviderParams,
   CreateSocialPublicationParams,
-  FakeConnectSocialProviderParams,
   FindSocialPublicationCommentsParams,
   FindSocialPublicationsParams,
   GetSocialCapabilitiesParams,

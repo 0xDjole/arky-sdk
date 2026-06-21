@@ -1950,14 +1950,6 @@ export interface GetSocialOAuthAttemptParams {
   attempt_id: string;
 }
 
-export interface FakeConnectSocialProviderParams {
-  store_id?: string;
-  provider_id: SocialProviderId;
-  external_account_id?: string | null;
-  external_account_name?: string | null;
-  handle?: string | null;
-}
-
 export interface ListWebhooksParams {
   store_id: string;
 }

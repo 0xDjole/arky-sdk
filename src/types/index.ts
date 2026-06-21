@@ -577,7 +577,6 @@ export interface SocialIntegrationCapability {
   media_requirements: string[];
   engagement: SocialEngagementCapabilities;
   analytics: SocialAnalyticsCapabilities;
-  fake_connect_available: boolean;
 }
 
 export interface SocialConnectResponse {
