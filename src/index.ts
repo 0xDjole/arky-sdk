@@ -20,6 +20,7 @@ export type {
   SocialOAuthCredential,
   SocialOAuthDestinationOption,
   SocialProviderId,
+  InstagramPlacement,
   SocialAnalyticsCapabilities,
   SocialEngagementCapabilities,
   SocialPublication,

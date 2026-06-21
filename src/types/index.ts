@@ -375,6 +375,7 @@ export type SocialPublicationStatus =
 
 export type YoutubePrivacy = "public" | "unlisted" | "private";
 export type TiktokPrivacy = "public" | "friends" | "private";
+export type InstagramPlacement = "feed" | "reel" | "story";
 
 export interface FacebookPageContent {
   type: "facebook_page";
@@ -385,6 +386,8 @@ export interface FacebookPageContent {
 
 export interface InstagramBusinessContent {
   type: "instagram_business";
+  placement?: InstagramPlacement | null;
+  share_to_feed?: boolean | null;
   caption?: string | null;
   media_ids: string[];
 }
