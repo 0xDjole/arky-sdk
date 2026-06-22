@@ -1982,7 +1982,6 @@ export interface DeleteWebhookParams {
 
 export interface GetShippingRatesParams {
   order_id: string;
-  shipping_provider_id: string;
   from_address: Address;
   to_address: Address;
   parcel: Parcel;

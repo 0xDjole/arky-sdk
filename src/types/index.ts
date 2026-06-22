@@ -268,7 +268,6 @@ export type IntegrationProvider =
       webhook_secret?: string;
       currency: string;
     }
-  | { type: "shippo"; api_token?: string; webhook_secret?: string }
   | { type: "brave_search"; api_key?: string }
   | SocialIntegrationProvider
   | { type: "vercel_deploy_hook"; url?: string }
