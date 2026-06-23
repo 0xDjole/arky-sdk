@@ -1413,7 +1413,7 @@ export type SmtpImapMailboxProvider = {
   last_synced_at?: number | null;
   last_seen_uid?: number | null;
 };
-export type MailboxProvider = { type: "local_delivery_record" } | SmtpImapMailboxProvider;
+export type MailboxProvider = SmtpImapMailboxProvider;
 export type CampaignStatus =
   | "draft"
   | "active"
