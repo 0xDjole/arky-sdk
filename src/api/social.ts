@@ -4,6 +4,7 @@ import type {
   ClassifySocialPublicationCommentsParams,
   ConnectSocialProviderParams,
   CreateSocialPublicationParams,
+  DeleteSocialProviderParams,
   FindSocialPublicationCommentsParams,
   FindSocialPublicationsParams,
   GetSocialCapabilitiesParams,
@@ -16,16 +17,17 @@ import type {
   RequestOptions,
   ScheduleSocialPublicationParams,
   SelectSocialDestinationParams,
+  ListSocialProvidersParams,
   SyncSocialEngagementParams,
   UpdateSocialPublicationParams,
   ValidateSocialPublicationParams,
 } from "../types/api";
 import type {
-  Integration,
   PaginatedResponse,
   SocialConnectResponse,
-  SocialIntegrationCapability,
   SocialOAuthCallbackResponse,
+  SocialProviderCapability,
+  SocialProvider,
   SocialPublication,
   SocialPublicationCommentClassificationResult,
   SocialPublicationComment,
@@ -128,7 +130,9 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PaginatedResponse<SocialPublicationComment>> {
       const { store_id, publication_id, ...queryParams } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<SocialPublicationComment>>(
+      return apiConfig.httpClient.get<
+        PaginatedResponse<SocialPublicationComment>
+      >(
         `/v1/stores/${storeId(store_id)}/social-publications/${publication_id}/comments`,
         {
           ...options,
@@ -142,7 +146,9 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PaginatedResponse<SocialPublicationComment>> {
       const { store_id, publication_id, comment_id, ...queryParams } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<SocialPublicationComment>>(
+      return apiConfig.httpClient.get<
+        PaginatedResponse<SocialPublicationComment>
+      >(
         `/v1/stores/${storeId(store_id)}/social-publications/${publication_id}/comments/${comment_id}/thread`,
         {
           ...options,
@@ -156,13 +162,12 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PaginatedResponse<SocialPublicationComment>> {
       const { store_id, ...queryParams } = params || {};
-      return apiConfig.httpClient.get<PaginatedResponse<SocialPublicationComment>>(
-        `/v1/stores/${storeId(store_id)}/social-publications/comments`,
-        {
-          ...options,
-          params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
-        },
-      );
+      return apiConfig.httpClient.get<
+        PaginatedResponse<SocialPublicationComment>
+      >(`/v1/stores/${storeId(store_id)}/social-publications/comments`, {
+        ...options,
+        params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+      });
     },
 
     async classifyPublicationComments(
@@ -214,9 +219,19 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     async getCapabilities(
       params?: GetSocialCapabilitiesParams,
       options?: RequestOptions,
-    ): Promise<SocialIntegrationCapability[]> {
-      return apiConfig.httpClient.get<SocialIntegrationCapability[]>(
-        `/v1/stores/${storeId(params?.store_id)}/integrations/social/capabilities`,
+    ): Promise<SocialProviderCapability[]> {
+      return apiConfig.httpClient.get<SocialProviderCapability[]>(
+        `/v1/stores/${storeId(params?.store_id)}/social-providers/capabilities`,
+        options,
+      );
+    },
+
+    async listProviders(
+      params?: ListSocialProvidersParams,
+      options?: RequestOptions,
+    ): Promise<SocialProvider[]> {
+      return apiConfig.httpClient.get<SocialProvider[]>(
+        `/v1/stores/${storeId(params?.store_id)}/social-providers`,
         options,
       );
     },
@@ -227,7 +242,7 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     ): Promise<SocialConnectResponse> {
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<SocialConnectResponse>(
-        `/v1/stores/${storeId(store_id)}/integrations/oauth/connect`,
+        `/v1/stores/${storeId(store_id)}/social-providers/oauth/connect`,
         payload,
         options,
       );
@@ -238,7 +253,7 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<SocialOAuthCallbackResponse> {
       return apiConfig.httpClient.get<SocialOAuthCallbackResponse>(
-        `/v1/stores/${storeId(params.store_id)}/integrations/oauth/attempts/${params.attempt_id}`,
+        `/v1/stores/${storeId(params.store_id)}/social-providers/oauth/attempts/${params.attempt_id}`,
         options,
       );
     },
@@ -249,8 +264,18 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     ): Promise<SocialOAuthCallbackResponse> {
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<SocialOAuthCallbackResponse>(
-        `/v1/stores/${storeId(store_id)}/integrations/oauth/select-destination`,
+        `/v1/stores/${storeId(store_id)}/social-providers/oauth/select-destination`,
         payload,
+        options,
+      );
+    },
+
+    async deleteProvider(
+      params: DeleteSocialProviderParams,
+      options?: RequestOptions,
+    ): Promise<{ deleted: boolean }> {
+      return apiConfig.httpClient.delete<{ deleted: boolean }>(
+        `/v1/stores/${storeId(params.store_id)}/social-providers/${params.id}`,
         options,
       );
     },

@@ -53,7 +53,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
             );
         },
 
-        async getStoreMedia(params: GetStoreMediaParams, _options?: RequestOptions): Promise<PaginatedResponse<Media>> {
+        async getStoreMedia(params: GetStoreMediaParams, options?: RequestOptions): Promise<PaginatedResponse<Media>> {
             const { store_id, cursor, limit, ids, query, mime_type, sort_field, sort_direction } = params;
             const target_store_id = store_id || apiConfig.storeId;
             const url = `${apiConfig.baseUrl}/v1/stores/${target_store_id}/media`;
@@ -72,7 +72,8 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
             const response = await fetch(`${url}?${queryString}`, {
                 headers: {
                     Authorization: `Bearer ${tokens?.access_token || ''}`
-                }
+                },
+                signal: options?.signal
             });
 
             if (!response.ok) {

@@ -1,4 +1,3 @@
-
 export type {
   ApiResponse,
   EshopCartItem,
@@ -11,14 +10,15 @@ export type {
   WebhookEventSubscription,
   Integration,
   IntegrationProvider,
+  ConnectedSocialProviderData,
   SocialConnectResponse,
   SocialDestinationMetadata,
-  SocialIntegrationCapability,
-  SocialIntegrationProvider,
   SocialOAuthCallbackResponse,
   SocialOAuthCallbackStatus,
   SocialOAuthCredential,
   SocialOAuthDestinationOption,
+  SocialProvider,
+  SocialProviderCapability,
   SocialProviderId,
   InstagramPlacement,
   SocialAnalyticsCapabilities,
@@ -43,6 +43,8 @@ export type {
   Block,
   Price,
   OrderPayment,
+  PaymentProvider,
+  StripePaymentProviderConnectResponse,
   OrderPaymentTax,
   OrderPaymentTaxLine,
   OrderPaymentPromoCode,
@@ -71,7 +73,6 @@ export type {
   ShippingWeightTier,
   Zone,
   Market,
-
   Address,
   GeoLocation,
   ZoneLocation,
@@ -110,7 +111,6 @@ export type {
   ContactListSubscribeResponse,
   Event,
   EventAction,
-
   ShippingStatus,
   OrderShipping,
   ShippingLine,
@@ -127,9 +127,7 @@ export type {
   Shipment,
   CustomsItem,
   CustomsDeclaration,
-
   GeoLocationBlock,
-
   Service,
   Provider,
   ServiceProvider,
@@ -139,7 +137,6 @@ export type {
   WorkingHour,
   WorkingDay,
   SpecificDate,
-
   Order,
   OrderItem,
   OrderItemSnapshot,
@@ -167,7 +164,6 @@ export type {
   DigitalAccessGrantStatus,
   DigitalAccessGrant,
   DigitalAccessDownloadResponse,
-
   Product,
   ProductVariant,
   ProductInventory,
@@ -177,7 +173,6 @@ export type {
   DigitalAsset,
   InventoryLevel,
   GalleryItem,
-
   EmailTemplate,
   Form,
   FormSubmission,
@@ -193,9 +188,7 @@ export type {
   TaxonomySchemaType,
   TaxonomyField,
   TaxonomyFieldQuery,
-
   PromoCode,
-
   Contact,
   ContactChannel,
   ChannelType,
@@ -249,7 +242,6 @@ export type {
   StoreMembership,
   Discount,
   Condition,
-
   ServiceStatus,
   ProviderStatus,
   ProductStatus,
@@ -336,10 +328,8 @@ export type {
   UpdateEntryParams,
   GetEntryParams,
   DeleteEntryParams,
-  
   GetShippingRatesParams,
   ShipParams,
-  
   CreateContactListParams,
   UpdateContactListParams,
   FindContactListsParams,
@@ -396,8 +386,11 @@ export type {
   ValidateLeadEmailParams,
   CancelSocialPublicationParams,
   ClassifySocialPublicationCommentsParams,
+  ConnectStripePaymentProviderParams,
   ConnectSocialProviderParams,
   CreateSocialPublicationParams,
+  DeletePaymentProviderParams,
+  DeleteSocialProviderParams,
   FindSocialPublicationCommentsParams,
   FindSocialPublicationsParams,
   GetSocialCapabilitiesParams,
@@ -406,6 +399,8 @@ export type {
   GetSocialPublicationCommentsParams,
   GetSocialPublicationMetricsParams,
   GetSocialPublicationParams,
+  ListPaymentProvidersParams,
+  ListSocialProvidersParams,
   ReplySocialPublicationCommentParams,
   ScheduleSocialPublicationParams,
   SyncSocialEngagementParams,
@@ -512,6 +507,7 @@ export type {
   IntegrationOperation,
   IntegrationResource,
   IntegrationService,
+  WorkflowTool,
 } from "./api/platform";
 
 export const SDK_VERSION = "0.9.2";
@@ -523,7 +519,11 @@ export const SUPPORTED_FRAMEWORKS = [
   "vanilla",
 ] as const;
 
-import type { Contact as ContactType, Store as StoreType, Market as MarketType } from "./types";
+import type {
+  Contact as ContactType,
+  Store as StoreType,
+  Market as MarketType,
+} from "./types";
 
 export interface ApiConfig {
   httpClient: HttpClient;
@@ -563,7 +563,9 @@ export type AdminSessionUpdater = (
 ) => void;
 
 export type ContactSessionUpdater = (
-  updater: (prev: ContactSessionInternal | null) => ContactSessionInternal | null,
+  updater: (
+    prev: ContactSessionInternal | null,
+  ) => ContactSessionInternal | null,
 ) => void;
 
 export type AuthStateListener<T> = (session: T | null) => void;
@@ -585,12 +587,16 @@ import { createEshopApi } from "./api/eshop";
 import { createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
 import { createContactApi } from "./api/crm";
-import { createAdminSupportApi, createStorefrontSupportApi } from "./api/support";
+import {
+  createAdminSupportApi,
+  createStorefrontSupportApi,
+} from "./api/support";
 import { createLeadResearchApi } from "./api/leadResearch";
 import { createSocialApi } from "./api/social";
 import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
+import { createPaymentProvidersApi } from "./api/paymentProviders";
 import { createEmailTemplateApi } from "./api/emailTemplate";
 import { createFormApi } from "./api/form";
 import { createTaxonomyApi } from "./api/taxonomy";
@@ -708,7 +714,10 @@ function writeAdminSession(s: AdminSessionInternal | null): void {
   }
 }
 
-export type CreateAdminConfig = Omit<HttpClientConfig, "authStorage" | "storeId"> & {
+export type CreateAdminConfig = Omit<
+  HttpClientConfig,
+  "authStorage" | "storeId"
+> & {
   storeId: string;
   market: string;
   locale?: string;
@@ -763,7 +772,8 @@ export function createAdmin(config: CreateAdminConfig) {
                   ...prev,
                   access_token: tokens.access_token,
                   refresh_token: tokens.refresh_token ?? prev.refresh_token,
-                  access_expires_at: tokens.access_expires_at ?? prev.access_expires_at,
+                  access_expires_at:
+                    tokens.access_expires_at ?? prev.access_expires_at,
                 }
               : null,
           );
@@ -803,6 +813,7 @@ export function createAdmin(config: CreateAdminConfig) {
   const supportApi = createAdminSupportApi(apiConfig);
   const leadResearchApi = createLeadResearchApi(apiConfig);
   const socialApi = createSocialApi(apiConfig);
+  const paymentProvidersApi = createPaymentProvidersApi(apiConfig);
   const leadResearch = {
     run: {
       create: leadResearchApi.createRun,
@@ -851,6 +862,7 @@ export function createAdmin(config: CreateAdminConfig) {
     promoCode: promoCodeApi,
     platform: platformApi,
     social: socialApi,
+    paymentProviders: paymentProvidersApi,
     shipping: createShippingApi(apiConfig),
     cms: {
       collection: {
@@ -1035,7 +1047,6 @@ export function createAdmin(config: CreateAdminConfig) {
     extractBlockValues,
 
     utils: createUtilitySurface(apiConfig),
-
   };
 
   return sdk;
@@ -1062,7 +1073,10 @@ function writeContactSession(s: ContactSessionInternal | null): void {
   }
 }
 
-export type CreateStorefrontConfig = Omit<HttpClientConfig, "authStorage" | "storeId"> & {
+export type CreateStorefrontConfig = Omit<
+  HttpClientConfig,
+  "authStorage" | "storeId"
+> & {
   storeId: string;
   market?: string;
   locale?: string;
@@ -1137,9 +1151,11 @@ export function createStorefront(config: CreateStorefrontConfig) {
   const storefrontApi = createStorefrontApi(apiConfig, updateSession);
   const contactApi = storefrontApi.crm.contact;
 
-  function identify(
-    params?: { email?: string; verify?: boolean; market?: string },
-  ): Promise<ContactSession> {
+  function identify(params?: {
+    email?: string;
+    verify?: boolean;
+    market?: string;
+  }): Promise<ContactSession> {
     if (params?.market !== undefined) apiConfig.market = params.market;
 
     const isBareCall = !params?.email && !params?.verify;
@@ -1158,11 +1174,17 @@ export function createStorefront(config: CreateStorefrontConfig) {
           market: result.market,
         };
       } catch (err: unknown) {
-        const e = err as { statusCode?: number; status?: number; response?: { status?: number } };
+        const e = err as {
+          statusCode?: number;
+          status?: number;
+          response?: { status?: number };
+        };
         const status = e?.statusCode || e?.status || e?.response?.status;
         if (isBareCall && status === 401) {
           updateSession(() => null);
-          const result = await contactApi.identify({ market: apiConfig.market });
+          const result = await contactApi.identify({
+            market: apiConfig.market,
+          });
           return {
             contact: result.contact,
             store: result.store,
@@ -1219,7 +1241,9 @@ export function createStorefront(config: CreateStorefrontConfig) {
       return s !== null && !!s.access_token;
     },
 
-    onAuthStateChanged(listener: AuthStateListener<ContactSession>): () => void {
+    onAuthStateChanged(
+      listener: AuthStateListener<ContactSession>,
+    ): () => void {
       listeners.add(listener);
       const current = toPublic(readContactSession());
       if (current) {

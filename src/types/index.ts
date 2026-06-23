@@ -39,7 +39,11 @@ export type OrderPaymentProvider = {
   payment_intent_id?: string | null;
 };
 
-export type PaymentProviderKind = "manual" | "stripe" | "gift_card" | "store_credit";
+export type PaymentProviderKind =
+  | "manual"
+  | "stripe"
+  | "gift_card"
+  | "store_credit";
 export type PaymentCaptureMethod = "automatic" | "manual";
 export type PaymentTransactionType =
   | "authorize"
@@ -263,13 +267,16 @@ export type IntegrationProvider =
   | { type: "arky"; api_key?: string }
   | {
       type: "stripe";
-      secret_key?: string;
-      publishable_key: string;
-      webhook_secret?: string;
+      connected_account_id: string;
+      onboarding_status: string;
+      charges_enabled: boolean;
+      payouts_enabled: boolean;
+      details_submitted: boolean;
+      application_fee_bps?: number | null;
       currency: string;
     }
   | { type: "brave_search"; api_key?: string }
-  | SocialIntegrationProvider
+  | ConnectedSocialProviderData
   | { type: "vercel_deploy_hook"; url?: string }
   | { type: "netlify_deploy_hook"; url?: string }
   | { type: "cloudflare_deploy_hook"; url?: string }
@@ -289,7 +296,7 @@ export interface SocialDestinationMetadata {
   avatar_url?: string | null;
 }
 
-export type SocialIntegrationProvider =
+export type ConnectedSocialProviderData =
   | {
       type: "facebook_page";
       credential: SocialOAuthCredential;
@@ -527,7 +534,7 @@ export interface SocialAnalyticsCapabilities {
   read_post_metrics: boolean;
 }
 
-export interface SocialIntegrationCapability {
+export interface SocialProviderCapability {
   provider_id: SocialProviderId;
   display_name: string;
   icon_key: string;
@@ -542,7 +549,10 @@ export interface SocialConnectResponse {
   state: string;
 }
 
-export type SocialOAuthCallbackStatus = "code_received" | "connected" | "selection_required";
+export type SocialOAuthCallbackStatus =
+  | "code_received"
+  | "connected"
+  | "selection_required";
 
 export interface SocialOAuthDestinationOption extends SocialDestinationMetadata {
   candidate_id: string;
@@ -567,6 +577,29 @@ export interface Integration {
   provider: IntegrationProvider;
   created_at: number;
   updated_at: number;
+}
+
+export interface SocialProvider {
+  id: string;
+  store_id: string;
+  key: string;
+  provider: ConnectedSocialProviderData;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface PaymentProvider {
+  id: string;
+  store_id: string;
+  key: string;
+  provider: Extract<IntegrationProvider, { type: "stripe" }>;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface StripePaymentProviderConnectResponse {
+  provider: PaymentProvider;
+  onboarding_url: string;
 }
 
 export interface ShippingWeightTier {
@@ -1111,6 +1144,7 @@ export interface StoreSubscription {
 export type ContactListMembershipProvider = {
   type: "stripe";
   stripe_customer_id: string;
+  connected_account_id?: string | null;
   subscription_id?: string;
   price_id?: string;
 };

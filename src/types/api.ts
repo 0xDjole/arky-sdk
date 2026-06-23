@@ -104,6 +104,7 @@ export interface DeleteMarketParams {
 export interface RequestOptions<T = any> {
   headers?: Record<string, string>;
   params?: Record<string, any>;
+  signal?: AbortSignal;
   transformRequest?: (data: any) => any;
   onSuccess?: (ctx: {
     data: T;
@@ -1816,6 +1817,32 @@ export interface UpdateIntegrationParams {
 }
 
 export interface DeleteIntegrationParams {
+  store_id: string;
+  id: string;
+}
+
+export interface ListSocialProvidersParams {
+  store_id?: string;
+}
+
+export interface DeleteSocialProviderParams {
+  store_id: string;
+  id: string;
+}
+
+export interface ListPaymentProvidersParams {
+  store_id?: string;
+}
+
+export interface ConnectStripePaymentProviderParams {
+  store_id?: string;
+  return_url: string;
+  refresh_url: string;
+  email?: string | null;
+  country?: string | null;
+}
+
+export interface DeletePaymentProviderParams {
   store_id: string;
   id: string;
 }

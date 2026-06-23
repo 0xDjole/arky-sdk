@@ -49,6 +49,8 @@ export interface IntegrationService {
 	}>;
 }
 
+export type WorkflowTool = IntegrationService;
+
 export const createPlatformApi = (apiConfig: ApiConfig) => {
 	return {
 		async getCurrencies(options?: RequestOptions): Promise<string[]> {
@@ -56,6 +58,9 @@ export const createPlatformApi = (apiConfig: ApiConfig) => {
 		},
 		async getIntegrationServices(options?: RequestOptions): Promise<IntegrationService[]> {
 			return apiConfig.httpClient.get<IntegrationService[]>('/v1/platform/integration-services', options);
+		},
+		async getWorkflowTools(options?: RequestOptions): Promise<WorkflowTool[]> {
+			return apiConfig.httpClient.get<WorkflowTool[]>('/v1/platform/workflow-tools', options);
 		},
 		async getWebhookEvents(options?: RequestOptions): Promise<{ data: string[] }> {
 			return apiConfig.httpClient.get<{ data: string[] }>('/v1/platform/events', options);
