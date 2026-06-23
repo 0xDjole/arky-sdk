@@ -510,7 +510,7 @@ export type {
   WorkflowTool,
 } from "./api/platform";
 
-export const SDK_VERSION = "0.9.2";
+export const SDK_VERSION = "0.9.11";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",

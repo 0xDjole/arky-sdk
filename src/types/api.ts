@@ -1518,7 +1518,7 @@ export interface FindMailboxesParams {
   store_id?: string;
   ids?: string[];
   status?: MailboxStatus;
-  provider_type?: "fake" | "smtp_imap";
+  provider_type?: "local_delivery_record" | "smtp_imap";
   query?: string | number;
   limit?: number;
   cursor?: string;
