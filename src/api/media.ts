@@ -19,7 +19,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
             );
         },
 
-        async uploadStoreMedia(params: UploadStoreMediaParams, _options?: RequestOptions): Promise<Media[]> {
+        async uploadStoreMedia(params: UploadStoreMediaParams, options?: RequestOptions): Promise<Media[]> {
             const { store_id, files = [], urls = [] } = params;
             const target_store_id = store_id || apiConfig.storeId;
             const url = `${apiConfig.baseUrl}/v1/stores/${target_store_id}/media`;
@@ -34,7 +34,8 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
                 body: formData,
                 headers: {
                     Authorization: `Bearer ${tokens?.access_token || ''}`
-                }
+                },
+                signal: options?.signal
             });
 
             if (!response.ok) {
