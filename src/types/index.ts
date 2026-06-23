@@ -267,7 +267,6 @@ export type IntegrationProvider =
   | { type: "arky"; api_key?: string }
   | {
       type: "stripe";
-      connected_account_id: string;
       onboarding_status: string;
       charges_enabled: boolean;
       payouts_enabled: boolean;
@@ -281,6 +280,17 @@ export type IntegrationProvider =
   | { type: "netlify_deploy_hook"; url?: string }
   | { type: "cloudflare_deploy_hook"; url?: string }
   | { type: "custom_deploy_hook"; url?: string };
+
+export type DeployHookIntegrationProvider = Extract<
+  IntegrationProvider,
+  {
+    type:
+      | "vercel_deploy_hook"
+      | "netlify_deploy_hook"
+      | "cloudflare_deploy_hook"
+      | "custom_deploy_hook";
+  }
+>;
 
 export interface SocialOAuthCredential {
   access_token?: string;
@@ -579,6 +589,10 @@ export interface Integration {
   updated_at: number;
 }
 
+export interface DeployHookIntegration extends Omit<Integration, "provider"> {
+  provider: DeployHookIntegrationProvider;
+}
+
 export interface SocialProvider {
   id: string;
   store_id: string;
@@ -592,10 +606,26 @@ export interface PaymentProvider {
   id: string;
   store_id: string;
   key: string;
-  provider: Extract<IntegrationProvider, { type: "stripe" }>;
+  provider: {
+    type: "stripe";
+    onboarding_status: string;
+    charges_enabled: boolean;
+    payouts_enabled: boolean;
+    details_submitted: boolean;
+    application_fee_bps?: number | null;
+    currency: string;
+  };
   created_at: number;
   updated_at: number;
 }
+
+export interface PaymentIntegrationConfig {
+  provider: "stripe";
+  publishable_key: string;
+  currency: string;
+}
+
+export type IntegrationConfig = PaymentIntegrationConfig | [] | null;
 
 export interface StripePaymentProviderConnectResponse {
   provider: PaymentProvider;
@@ -1144,7 +1174,6 @@ export interface StoreSubscription {
 export type ContactListMembershipProvider = {
   type: "stripe";
   stripe_customer_id: string;
-  connected_account_id?: string | null;
   subscription_id?: string;
   price_id?: string;
 };
@@ -2556,7 +2585,6 @@ export interface Shipment {
 
 export interface ShippingRate {
   id: string;
-  provider: string;
   carrier: string;
   service: string;
   display_name: string;

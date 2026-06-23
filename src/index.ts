@@ -9,6 +9,8 @@ export type {
   Webhook,
   WebhookEventSubscription,
   Integration,
+  DeployHookIntegration,
+  DeployHookIntegrationProvider,
   IntegrationProvider,
   ConnectedSocialProviderData,
   SocialConnectResponse,

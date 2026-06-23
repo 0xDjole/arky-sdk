@@ -5,7 +5,7 @@ import type {
   WorkflowNode,
   WorkflowEdge,
   Address,
-  IntegrationProvider,
+  DeployHookIntegrationProvider,
   WebhookEventSubscription,
   Parcel,
   CustomsDeclaration,
@@ -1806,14 +1806,14 @@ export interface GetIntegrationParams {
 export interface CreateIntegrationParams {
   store_id: string;
   key: string;
-  provider: IntegrationProvider;
+  provider: DeployHookIntegrationProvider;
 }
 
 export interface UpdateIntegrationParams {
   store_id: string;
   id: string;
   key?: string;
-  provider?: IntegrationProvider;
+  provider?: DeployHookIntegrationProvider;
 }
 
 export interface DeleteIntegrationParams {
