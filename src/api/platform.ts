@@ -1,7 +1,7 @@
 import type { ApiConfig } from '../index';
 import type { RequestOptions } from '../types/api';
 
-export interface IntegrationOperation {
+export interface WorkflowToolOperation {
 	name: string;
 	value: string;
 	description?: string;
@@ -11,13 +11,13 @@ export interface IntegrationOperation {
 	headers?: Record<string, string>;
 }
 
-export interface IntegrationResource {
+export interface WorkflowToolResource {
 	name: string;
 	value: string;
-	operations: IntegrationOperation[];
+	operations: WorkflowToolOperation[];
 }
 
-export interface IntegrationService {
+export interface WorkflowTool {
 	id: string;
 	name: string;
 	description: string;
@@ -40,7 +40,7 @@ export interface IntegrationService {
 	website?: string;
 	docsUrl?: string;
 	urlPatterns: string[];
-	resources: IntegrationResource[];
+	resources: WorkflowToolResource[];
 	triggers?: Array<{
 		name: string;
 		value: string;
@@ -49,15 +49,10 @@ export interface IntegrationService {
 	}>;
 }
 
-export type WorkflowTool = IntegrationService;
-
 export const createPlatformApi = (apiConfig: ApiConfig) => {
 	return {
 		async getCurrencies(options?: RequestOptions): Promise<string[]> {
 			return apiConfig.httpClient.get<string[]>('/v1/platform/currencies', options);
-		},
-		async getIntegrationServices(options?: RequestOptions): Promise<IntegrationService[]> {
-			return apiConfig.httpClient.get<IntegrationService[]>('/v1/platform/integration-services', options);
 		},
 		async getWorkflowTools(options?: RequestOptions): Promise<WorkflowTool[]> {
 			return apiConfig.httpClient.get<WorkflowTool[]>('/v1/platform/workflow-tools', options);

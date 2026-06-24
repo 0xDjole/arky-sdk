@@ -2,9 +2,9 @@ import type { ApiConfig } from "../index";
 import type {
   CancelSocialPublicationParams,
   ClassifySocialPublicationCommentsParams,
-  ConnectSocialProviderParams,
+  ConnectSocialAccountParams,
   CreateSocialPublicationParams,
-  DeleteSocialProviderParams,
+  DeleteSocialAccountParams,
   FindSocialPublicationCommentsParams,
   FindSocialPublicationsParams,
   GetSocialCapabilitiesParams,
@@ -17,7 +17,7 @@ import type {
   RequestOptions,
   ScheduleSocialPublicationParams,
   SelectSocialDestinationParams,
-  ListSocialProvidersParams,
+  ListSocialAccountsParams,
   SyncSocialEngagementParams,
   UpdateSocialPublicationParams,
   ValidateSocialPublicationParams,
@@ -27,7 +27,7 @@ import type {
   SocialConnectResponse,
   SocialOAuthCallbackResponse,
   SocialProviderCapability,
-  SocialProvider,
+  SocialAccount,
   SocialPublication,
   SocialPublicationCommentClassificationResult,
   SocialPublicationComment,
@@ -221,28 +221,28 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<SocialProviderCapability[]> {
       return apiConfig.httpClient.get<SocialProviderCapability[]>(
-        `/v1/stores/${storeId(params?.store_id)}/social-providers/capabilities`,
+        `/v1/stores/${storeId(params?.store_id)}/social-accounts/capabilities`,
         options,
       );
     },
 
-    async listProviders(
-      params?: ListSocialProvidersParams,
+    async listAccounts(
+      params?: ListSocialAccountsParams,
       options?: RequestOptions,
-    ): Promise<SocialProvider[]> {
-      return apiConfig.httpClient.get<SocialProvider[]>(
-        `/v1/stores/${storeId(params?.store_id)}/social-providers`,
+    ): Promise<SocialAccount[]> {
+      return apiConfig.httpClient.get<SocialAccount[]>(
+        `/v1/stores/${storeId(params?.store_id)}/social-accounts`,
         options,
       );
     },
 
     async connect(
-      params: ConnectSocialProviderParams,
+      params: ConnectSocialAccountParams,
       options?: RequestOptions,
     ): Promise<SocialConnectResponse> {
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<SocialConnectResponse>(
-        `/v1/stores/${storeId(store_id)}/social-providers/oauth/connect`,
+        `/v1/stores/${storeId(store_id)}/social-accounts/oauth/connect`,
         payload,
         options,
       );
@@ -253,7 +253,7 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<SocialOAuthCallbackResponse> {
       return apiConfig.httpClient.get<SocialOAuthCallbackResponse>(
-        `/v1/stores/${storeId(params.store_id)}/social-providers/oauth/attempts/${params.attempt_id}`,
+        `/v1/stores/${storeId(params.store_id)}/social-accounts/oauth/attempts/${params.attempt_id}`,
         options,
       );
     },
@@ -264,18 +264,18 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     ): Promise<SocialOAuthCallbackResponse> {
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<SocialOAuthCallbackResponse>(
-        `/v1/stores/${storeId(store_id)}/social-providers/oauth/select-destination`,
+        `/v1/stores/${storeId(store_id)}/social-accounts/oauth/select-destination`,
         payload,
         options,
       );
     },
 
-    async deleteProvider(
-      params: DeleteSocialProviderParams,
+    async deleteAccount(
+      params: DeleteSocialAccountParams,
       options?: RequestOptions,
     ): Promise<{ deleted: boolean }> {
       return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${storeId(params.store_id)}/social-providers/${params.id}`,
+        `/v1/stores/${storeId(params.store_id)}/social-accounts/${params.id}`,
         options,
       );
     },

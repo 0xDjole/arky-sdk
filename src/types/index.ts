@@ -263,35 +263,6 @@ export interface Cart {
   updated_at: number;
 }
 
-export type IntegrationProvider =
-  | { type: "arky"; api_key?: string }
-  | {
-      type: "stripe";
-      onboarding_status: string;
-      charges_enabled: boolean;
-      payouts_enabled: boolean;
-      details_submitted: boolean;
-      application_fee_bps?: number | null;
-      currency: string;
-    }
-  | { type: "brave_search"; api_key?: string }
-  | ConnectedSocialProviderData
-  | { type: "vercel_deploy_hook"; url?: string }
-  | { type: "netlify_deploy_hook"; url?: string }
-  | { type: "cloudflare_deploy_hook"; url?: string }
-  | { type: "custom_deploy_hook"; url?: string };
-
-export type DeployHookIntegrationProvider = Extract<
-  IntegrationProvider,
-  {
-    type:
-      | "vercel_deploy_hook"
-      | "netlify_deploy_hook"
-      | "cloudflare_deploy_hook"
-      | "custom_deploy_hook";
-  }
->;
-
 export interface SocialOAuthCredential {
   access_token?: string;
   refresh_token?: string | null;
@@ -306,34 +277,7 @@ export interface SocialDestinationMetadata {
   avatar_url?: string | null;
 }
 
-export type ConnectedSocialProviderData =
-  | {
-      type: "facebook_page";
-      credential: SocialOAuthCredential;
-      destination: SocialDestinationMetadata;
-    }
-  | {
-      type: "instagram_business";
-      credential: SocialOAuthCredential;
-      destination: SocialDestinationMetadata;
-    }
-  | {
-      type: "youtube_channel";
-      credential: SocialOAuthCredential;
-      destination: SocialDestinationMetadata;
-    }
-  | {
-      type: "tiktok_account";
-      credential: SocialOAuthCredential;
-      destination: SocialDestinationMetadata;
-    }
-  | {
-      type: "x_account";
-      credential: SocialOAuthCredential;
-      destination: SocialDestinationMetadata;
-    };
-
-export type SocialProviderId =
+export type SocialProviderType =
   | "facebook_page"
   | "instagram_business"
   | "youtube_channel"
@@ -409,7 +353,7 @@ export interface SocialPublicationValidation {
 export interface SocialPublication {
   id: string;
   store_id: string;
-  integration_id: string;
+  social_account_id: string;
   key: string;
   status: SocialPublicationStatus;
   content: SocialPublicationContent;
@@ -456,8 +400,8 @@ export interface SocialPublicationComment {
   id: string;
   store_id: string;
   publication_id: string;
-  integration_id: string;
-  provider_id: SocialProviderId;
+  social_account_id: string;
+  provider_type: SocialProviderType;
   provider_post_id?: string | null;
   provider_comment_id: string;
   provider_parent_comment_id?: string | null;
@@ -496,8 +440,8 @@ export interface SocialPublicationMetricSnapshot {
   id: string;
   store_id: string;
   publication_id: string;
-  integration_id: string;
-  provider_id: SocialProviderId;
+  social_account_id: string;
+  provider_type: SocialProviderType;
   provider_post_id?: string | null;
   metrics: Record<string, number>;
   collected_at: number;
@@ -545,7 +489,7 @@ export interface SocialAnalyticsCapabilities {
 }
 
 export interface SocialProviderCapability {
-  provider_id: SocialProviderId;
+  provider_type: SocialProviderType;
   display_name: string;
   icon_key: string;
   required_scopes: string[];
@@ -571,33 +515,36 @@ export interface SocialOAuthDestinationOption extends SocialDestinationMetadata 
 export interface SocialOAuthCallbackResponse {
   status: SocialOAuthCallbackStatus;
   store_id: string;
-  provider_id: SocialProviderId;
+  provider_type: SocialProviderType;
   account_id: string;
   attempt_id?: string | null;
-  integration_id?: string | null;
+  social_account_id?: string | null;
   destination?: SocialDestinationMetadata | null;
   options: SocialOAuthDestinationOption[];
   message: string;
 }
 
-export interface Integration {
+export type BuildHookType = "vercel" | "netlify" | "cloudflare" | "custom";
+
+export interface BuildHook {
   id: string;
   store_id: string;
   key: string;
-  provider: IntegrationProvider;
+  type: BuildHookType;
+  url: string;
+  headers: Record<string, string>;
+  active: boolean;
   created_at: number;
   updated_at: number;
 }
 
-export interface DeployHookIntegration extends Omit<Integration, "provider"> {
-  provider: DeployHookIntegrationProvider;
-}
-
-export interface SocialProvider {
+export interface SocialAccount {
   id: string;
   store_id: string;
   key: string;
-  provider: ConnectedSocialProviderData;
+  provider_type: SocialProviderType;
+  credential: SocialOAuthCredential;
+  destination: SocialDestinationMetadata;
   created_at: number;
   updated_at: number;
 }
@@ -619,13 +566,13 @@ export interface PaymentProvider {
   updated_at: number;
 }
 
-export interface PaymentIntegrationConfig {
+export interface PaymentStoreConfig {
   provider: "stripe";
   publishable_key: string;
   currency: string;
 }
 
-export type IntegrationConfig = PaymentIntegrationConfig | [] | null;
+export type StoreRuntimeConfig = PaymentStoreConfig | [] | null;
 
 export interface StripePaymentProviderConnectResponse {
   provider: PaymentProvider;
@@ -637,17 +584,22 @@ export interface ShippingWeightTier {
   amount: number;
 }
 
-export interface PaymentMethod {
-  id: string;
-  integration_id?: string;
-}
+export type PaymentMethod =
+  | {
+      type: "cash";
+      id: string;
+    }
+  | {
+      type: "credit_card";
+      id: string;
+      payment_provider_id: string;
+    };
 
 export interface ShippingMethod {
   id: string;
   taxable: boolean;
   eta_text: string;
   location_id?: string;
-  integration_id?: string;
   amount: number;
   free_above?: number;
   weight_tiers?: ShippingWeightTier[];
@@ -1801,6 +1753,7 @@ export interface Workflow {
 export type WorkflowNode =
   | WorkflowTriggerNode
   | WorkflowHttpNode
+  | WorkflowDeployWebhookNode
   | WorkflowSwitchNode
   | WorkflowTransformNode
   | WorkflowLoopNode;
@@ -1819,8 +1772,15 @@ export interface WorkflowHttpNode {
   headers?: Record<string, string>;
   body?: any;
   timeout_ms?: number;
-  integration_id?: string;
-  integration_provider_id?: string;
+  delay_ms?: number;
+  retries?: number;
+  retry_delay_ms?: number;
+}
+
+export interface WorkflowDeployWebhookNode {
+  type: "deploy_webhook";
+  build_hook_id: string;
+  timeout_ms?: number;
   delay_ms?: number;
   retries?: number;
   retry_delay_ms?: number;
@@ -1887,7 +1847,7 @@ export type ContactListType =
   | {
       type: "paid";
       prices: SubscriptionPrice[];
-      payment_integration_id?: string | null;
+      payment_provider_id?: string | null;
     };
 
 export interface ContactSessionToken {
@@ -2103,8 +2063,8 @@ export type ActionData =
   | {
       type: "social_comment";
       value: {
-        integration_id: string;
-        provider_id: SocialProviderId;
+        social_account_id: string;
+        provider_type: SocialProviderType;
         publication_id: string;
         comment_id: string;
         provider_comment_id: string;
@@ -2116,8 +2076,8 @@ export type ActionData =
   | {
       type: "social_reply";
       value: {
-        integration_id: string;
-        provider_id: SocialProviderId;
+        social_account_id: string;
+        provider_type: SocialProviderType;
         publication_id: string;
         comment_id: string;
         provider_comment_id?: string | null;
@@ -2145,8 +2105,8 @@ export type ActionData =
   | {
       type: "direct_message";
       value: {
-        integration_id: string;
-        provider_id: SocialProviderId;
+        social_account_id: string;
+        provider_type: SocialProviderType;
         thread_id: string;
         message_id: string;
         text: string;

@@ -34,8 +34,8 @@ assert.equal(typeof store.eshop.product.loadDetail, "function");
 assert.equal(typeof store.eshop.service.listProviders, "function");
 assert.equal(typeof store.eshop.service.initialize, "function");
 assert.equal(typeof store.eshop.service.select, "function");
-const legacyServiceModuleName = "service" + "Order";
-assert.equal(legacyServiceModuleName in store.eshop, false, "scheduled service controls belong under eshop.service");
+const removedServiceModuleName = "service" + "Order";
+assert.equal(removedServiceModuleName in store.eshop, false, "scheduled service controls belong under eshop.service");
 assert.equal(store.eshop.cart.product_items.get().length, 0);
 assert.equal(store.eshop.service.state.get().cart.length, 0);
 

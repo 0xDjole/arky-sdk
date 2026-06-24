@@ -5,7 +5,7 @@ import type {
   WorkflowNode,
   WorkflowEdge,
   Address,
-  DeployHookIntegrationProvider,
+  BuildHookType,
   WebhookEventSubscription,
   Parcel,
   CustomsDeclaration,
@@ -55,7 +55,7 @@ import type {
   SuppressionStatus,
   SuppressionReason,
   SuppressionSource,
-  SocialProviderId,
+  SocialProviderType,
   SocialPublicationCommentIntent,
   SocialPublicationCommentPriority,
   SocialPublicationCommentStatus,
@@ -1794,38 +1794,39 @@ export interface ValidateLeadEmailParams {
   email_source_url?: string;
 }
 
-export interface ListIntegrationsParams {
+export interface ListBuildHooksParams {
   store_id: string;
 }
 
-export interface GetIntegrationParams {
-  store_id: string;
-  id: string;
-}
-
-export interface CreateIntegrationParams {
+export interface CreateBuildHookParams {
   store_id: string;
   key: string;
-  provider: DeployHookIntegrationProvider;
+  type: BuildHookType;
+  url: string;
+  headers?: Record<string, string>;
+  active?: boolean;
 }
 
-export interface UpdateIntegrationParams {
+export interface UpdateBuildHookParams {
   store_id: string;
   id: string;
   key?: string;
-  provider?: DeployHookIntegrationProvider;
+  type?: BuildHookType;
+  url?: string;
+  headers?: Record<string, string>;
+  active?: boolean;
 }
 
-export interface DeleteIntegrationParams {
+export interface DeleteBuildHookParams {
   store_id: string;
   id: string;
 }
 
-export interface ListSocialProvidersParams {
+export interface ListSocialAccountsParams {
   store_id?: string;
 }
 
-export interface DeleteSocialProviderParams {
+export interface DeleteSocialAccountParams {
   store_id: string;
   id: string;
 }
@@ -1862,14 +1863,14 @@ export interface GetSocialPublicationParams {
 
 export interface ValidateSocialPublicationParams {
   store_id?: string;
-  integration_id: string;
+  social_account_id: string;
   scheduled_at?: number | null;
   content: SocialPublicationContent;
 }
 
 export interface CreateSocialPublicationParams {
   store_id?: string;
-  integration_id: string;
+  social_account_id: string;
   key?: string | null;
   scheduled_at?: number | null;
   content: SocialPublicationContent;
@@ -1878,7 +1879,7 @@ export interface CreateSocialPublicationParams {
 export interface UpdateSocialPublicationParams {
   store_id?: string;
   id: string;
-  integration_id?: string | null;
+  social_account_id?: string | null;
   key?: string | null;
   scheduled_at?: number | null;
   content?: SocialPublicationContent | null;
@@ -1913,8 +1914,8 @@ export interface GetSocialPublicationCommentThreadParams {
 export interface FindSocialPublicationCommentsParams {
   store_id?: string;
   publication_id?: string;
-  integration_id?: string;
-  provider_id?: SocialProviderId;
+  social_account_id?: string;
+  provider_type?: SocialProviderType;
   status?: SocialPublicationCommentStatus;
   intent?: SocialPublicationCommentIntent;
   priority?: SocialPublicationCommentPriority;
@@ -1926,8 +1927,8 @@ export interface FindSocialPublicationCommentsParams {
 export interface ClassifySocialPublicationCommentsParams {
   store_id?: string;
   publication_id?: string;
-  integration_id?: string;
-  provider_id?: SocialProviderId;
+  social_account_id?: string;
+  provider_type?: SocialProviderType;
   status?: SocialPublicationCommentStatus;
   intent?: SocialPublicationCommentIntent;
   priority?: SocialPublicationCommentPriority;
@@ -1960,14 +1961,14 @@ export interface GetSocialCapabilitiesParams {
   store_id?: string;
 }
 
-export interface ConnectSocialProviderParams {
+export interface ConnectSocialAccountParams {
   store_id?: string;
-  provider_id: SocialProviderId;
+  provider_type: SocialProviderType;
 }
 
 export interface SelectSocialDestinationParams {
   store_id?: string;
-  provider_id: SocialProviderId;
+  provider_type: SocialProviderType;
   attempt_id: string;
   candidate_id: string;
 }

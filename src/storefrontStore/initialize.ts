@@ -98,7 +98,7 @@ export function initialize(config: ArkyStoreConfig) {
   const payment_config = computed(session, (value) => {
     const store = value?.store as Store & { payment?: unknown };
     const methods = value?.market?.payment_methods || [];
-    const hasCreditCard = methods.some((method: PaymentMethod) => method.id === "credit_card");
+    const hasCreditCard = methods.some((method: PaymentMethod) => method.type === "credit_card");
     return { provider: store?.payment || null, enabled: hasCreditCard && !!store?.payment };
   });
 

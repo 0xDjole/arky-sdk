@@ -13,10 +13,10 @@ import type {
   RemoveMemberParams,
   TestWebhookParams,
   GetStoreMediaParams2,
-  ListIntegrationsParams,
-  CreateIntegrationParams,
-  UpdateIntegrationParams,
-  DeleteIntegrationParams,
+  ListBuildHooksParams,
+  CreateBuildHookParams,
+  UpdateBuildHookParams,
+  DeleteBuildHookParams,
   ListWebhooksParams,
   CreateWebhookParams,
   UpdateWebhookParams,
@@ -29,8 +29,8 @@ import type {
   Media,
   PaginatedResponse,
   SubscriptionPlan,
-  IntegrationConfig,
-  DeployHookIntegration,
+  StoreRuntimeConfig,
+  BuildHook,
 } from "../types";
 
 export const createStoreApi = (
@@ -191,56 +191,56 @@ export const createStoreApi = (
       );
     },
 
-    async listIntegrations(
-      params: ListIntegrationsParams,
+    async listBuildHooks(
+      params: ListBuildHooksParams,
       options?: RequestOptions,
-    ): Promise<DeployHookIntegration[]> {
-      return apiConfig.httpClient.get<DeployHookIntegration[]>(
-        `/v1/stores/${params.store_id}/integrations`,
+    ): Promise<BuildHook[]> {
+      return apiConfig.httpClient.get<BuildHook[]>(
+        `/v1/stores/${params.store_id}/build-hooks`,
         options,
       );
     },
 
-    async createIntegration(
-      params: CreateIntegrationParams,
+    async createBuildHook(
+      params: CreateBuildHookParams,
       options?: RequestOptions,
-    ): Promise<DeployHookIntegration> {
+    ): Promise<BuildHook> {
       const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<DeployHookIntegration>(
-        `/v1/stores/${store_id}/integrations`,
+      return apiConfig.httpClient.post<BuildHook>(
+        `/v1/stores/${store_id}/build-hooks`,
         payload,
         options,
       );
     },
 
-    async updateIntegration(
-      params: UpdateIntegrationParams,
+    async updateBuildHook(
+      params: UpdateBuildHookParams,
       options?: RequestOptions,
-    ): Promise<DeployHookIntegration> {
+    ): Promise<BuildHook> {
       const { store_id, id, ...payload } = params;
-      return apiConfig.httpClient.put<DeployHookIntegration>(
-        `/v1/stores/${store_id}/integrations/${id}`,
+      return apiConfig.httpClient.put<BuildHook>(
+        `/v1/stores/${store_id}/build-hooks/${id}`,
         payload,
         options,
       );
     },
 
-    async deleteIntegration(
-      params: DeleteIntegrationParams,
+    async deleteBuildHook(
+      params: DeleteBuildHookParams,
       options?: RequestOptions,
     ): Promise<{ deleted: boolean }> {
       return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${params.store_id}/integrations/${params.id}`,
+        `/v1/stores/${params.store_id}/build-hooks/${params.id}`,
         options,
       );
     },
 
-    async getIntegrationConfig(
+    async getStoreConfig(
       params: { store_id: string; type: "payment" | "shipping" },
       options?: RequestOptions,
-    ): Promise<IntegrationConfig> {
-      return apiConfig.httpClient.get<IntegrationConfig>(
-        `/v1/stores/${params.store_id}/integrations/config/${params.type}`,
+    ): Promise<StoreRuntimeConfig> {
+      return apiConfig.httpClient.get<StoreRuntimeConfig>(
+        `/v1/stores/${params.store_id}/config/${params.type}`,
         options,
       );
     },
