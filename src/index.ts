@@ -993,8 +993,16 @@ export function createAdmin(config: CreateAdminConfig) {
         getExecutions: workflowApi.getWorkflowExecutions,
         getExecution: workflowApi.getWorkflowExecution,
         getAccounts: workflowApi.getWorkflowAccounts,
-        getGoogleDriveConnectUrl: workflowApi.getGoogleDriveWorkflowAccountConnectUrl,
-        connectGoogleDriveAccount: workflowApi.connectGoogleDriveWorkflowAccount,
+        accounts: {
+          list: workflowApi.getWorkflowAccounts,
+          getConnectUrl: workflowApi.getWorkflowAccountConnectUrl,
+          connect: workflowApi.connectWorkflowAccount,
+          delete: workflowApi.deleteWorkflowAccount,
+        },
+        getGoogleDriveConnectUrl:
+          workflowApi.getGoogleDriveWorkflowAccountConnectUrl,
+        connectGoogleDriveAccount:
+          workflowApi.connectGoogleDriveWorkflowAccount,
         deleteAccount: workflowApi.deleteWorkflowAccount,
       },
       support: supportApi,
