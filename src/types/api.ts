@@ -1301,6 +1301,22 @@ export interface GetWorkflowExecutionParams {
   store_id?: string;
 }
 
+export interface ConnectGoogleDriveWorkflowAccountParams {
+  store_id?: string;
+  key?: string;
+  code: string;
+  redirect_uri: string;
+}
+
+export interface GetWorkflowAccountsParams {
+  store_id?: string;
+}
+
+export interface DeleteWorkflowAccountParams {
+  id: string;
+  store_id?: string;
+}
+
 export interface CreateContactListParams {
   store_id?: string;
   key: string;

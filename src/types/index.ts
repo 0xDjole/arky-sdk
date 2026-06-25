@@ -39,7 +39,7 @@ export type OrderPaymentProvider = {
   payment_intent_id?: string | null;
 };
 
-export type PaymentProviderKind =
+export type PaymentTransactionProvider =
   | "manual"
   | "stripe"
   | "gift_card"
@@ -71,7 +71,7 @@ export interface PaymentTransaction {
   status: PaymentTransactionStatus;
   amount: number;
   currency: string;
-  provider: PaymentProviderKind;
+  provider: PaymentTransactionProvider;
   provider_transaction_id?: string | null;
   provider_payment_id?: string | null;
   provider_status?: string | null;
@@ -632,14 +632,14 @@ export interface ProductInventory {
   updated_at: number;
 }
 
-export type DigitalAssetKind = "file" | "external_link";
+export type DigitalAssetType = "file" | "external_link";
 export type DigitalAssetStatus = "active" | "archived";
 export type DigitalDeliveryPolicy = "automatic_after_payment" | "manual";
 
 export interface DigitalAsset {
   id: string;
   name: string;
-  kind: DigitalAssetKind;
+  type: DigitalAssetType;
   storage_ref?: string | null;
   external_url?: string | null;
   status: DigitalAssetStatus;
@@ -892,7 +892,7 @@ export interface DigitalAccessGrant {
   contact_id: string;
   asset_id: string;
   asset_name_snapshot: string;
-  kind: DigitalAssetKind;
+  type: DigitalAssetType;
   access_url?: string | null;
   storage_ref?: string | null;
   status: DigitalAccessGrantStatus;
@@ -1754,6 +1754,7 @@ export type WorkflowNode =
   | WorkflowTriggerNode
   | WorkflowHttpNode
   | WorkflowDeployWebhookNode
+  | WorkflowGoogleDriveUploadNode
   | WorkflowSwitchNode
   | WorkflowTransformNode
   | WorkflowLoopNode;
@@ -1780,6 +1781,37 @@ export interface WorkflowHttpNode {
 export interface WorkflowDeployWebhookNode {
   type: "deploy_webhook";
   build_hook_id: string;
+  timeout_ms?: number;
+  delay_ms?: number;
+  retries?: number;
+  retry_delay_ms?: number;
+}
+
+export type WorkflowAccountType = "google_drive";
+
+export interface WorkflowAccountProfile {
+  external_account_id: string;
+  display_name: string;
+  email?: string | null;
+}
+
+export interface WorkflowAccount {
+  id: string;
+  store_id: string;
+  key: string;
+  type: WorkflowAccountType;
+  profile: WorkflowAccountProfile;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface WorkflowGoogleDriveUploadNode {
+  type: "google_drive_upload";
+  workflow_account_id: string;
+  name: string;
+  mime_type: string;
+  content?: any;
+  parent_folder_id?: string | null;
   timeout_ms?: number;
   delay_ms?: number;
   retries?: number;
