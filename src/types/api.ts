@@ -1308,6 +1308,11 @@ export interface ConnectGoogleDriveWorkflowAccountParams {
   redirect_uri: string;
 }
 
+export interface GetGoogleDriveWorkflowAccountConnectUrlParams {
+  store_id?: string;
+  redirect_uri: string;
+}
+
 export interface GetWorkflowAccountsParams {
   store_id?: string;
 }
@@ -1857,6 +1862,7 @@ export interface ConnectStripePaymentProviderParams {
   refresh_url: string;
   email?: string | null;
   country?: string | null;
+  connected_account_id?: string | null;
 }
 
 export interface DeletePaymentProviderParams {

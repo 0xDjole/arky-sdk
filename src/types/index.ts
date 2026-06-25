@@ -1805,6 +1805,11 @@ export interface WorkflowAccount {
   updated_at: number;
 }
 
+export interface WorkflowAccountConnectUrl {
+  authorization_url: string;
+  state: string;
+}
+
 export interface WorkflowGoogleDriveUploadNode {
   type: "google_drive_upload";
   workflow_account_id: string;

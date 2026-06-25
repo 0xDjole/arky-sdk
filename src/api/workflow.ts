@@ -9,11 +9,18 @@ import type {
 	GetWorkflowExecutionsParams,
 	GetWorkflowExecutionParams,
 	ConnectGoogleDriveWorkflowAccountParams,
+	GetGoogleDriveWorkflowAccountConnectUrlParams,
 	GetWorkflowAccountsParams,
 	DeleteWorkflowAccountParams,
 	RequestOptions
 } from '../types/api';
-import type { Workflow, WorkflowAccount, WorkflowExecution, PaginatedResponse } from '../types';
+import type {
+	Workflow,
+	WorkflowAccount,
+	WorkflowAccountConnectUrl,
+	WorkflowExecution,
+	PaginatedResponse
+} from '../types';
 
 export const createWorkflowApi = (apiConfig: ApiConfig) => {
 	return {
@@ -91,6 +98,16 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
 		async getWorkflowAccounts(params?: GetWorkflowAccountsParams, options?: RequestOptions): Promise<WorkflowAccount[]> {
 			const store_id = params?.store_id || apiConfig.storeId;
 			return apiConfig.httpClient.get<WorkflowAccount[]>(`/v1/stores/${store_id}/workflow-accounts`, options);
+		},
+
+		async getGoogleDriveWorkflowAccountConnectUrl(params: GetGoogleDriveWorkflowAccountConnectUrlParams, options?: RequestOptions): Promise<WorkflowAccountConnectUrl> {
+			const { store_id, ...payload } = params;
+			const target_store_id = store_id || apiConfig.storeId;
+			return apiConfig.httpClient.post<WorkflowAccountConnectUrl>(
+				`/v1/stores/${target_store_id}/workflow-accounts/google-drive/connect-url`,
+				{ ...payload, store_id: target_store_id },
+				options
+			);
 		},
 
 		async connectGoogleDriveWorkflowAccount(params: ConnectGoogleDriveWorkflowAccountParams, options?: RequestOptions): Promise<WorkflowAccount> {
