@@ -419,6 +419,9 @@ export type {
   ScheduleSocialPublicationParams,
   StartPaymentOnboardingParams,
   SyncSocialEngagementParams,
+  SyncSocialPublicationCommentsParams,
+  SyncSocialPublicationCommentThreadParams,
+  SyncSocialPublicationMetricsParams,
   UpdateSocialPublicationParams,
   ValidateSocialPublicationParams,
 } from "./types/api";

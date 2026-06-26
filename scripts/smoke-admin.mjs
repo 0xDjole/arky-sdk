@@ -18,6 +18,13 @@ assert.equal(arky.payments.listConnections, arky.paymentProviders.listProviders)
 assert.equal(arky.payments.refreshConnections, arky.paymentProviders.refreshProviders);
 assert.equal(arky.payments.startOnboarding, arky.paymentProviders.connectStripe);
 
+assert.equal(typeof arky.social.getPublicationComments, "function");
+assert.equal(typeof arky.social.syncPublicationComments, "function");
+assert.equal(typeof arky.social.getPublicationCommentThread, "function");
+assert.equal(typeof arky.social.syncPublicationCommentThread, "function");
+assert.equal(typeof arky.social.getPublicationMetrics, "function");
+assert.equal(typeof arky.social.syncPublicationMetrics, "function");
+
 assert.equal(typeof arky.automation.workflow.accounts.getConnectUrl, "function");
 assert.equal(typeof arky.automation.workflow.accounts.connect, "function");
 assert.equal(typeof arky.automation.workflow.getGoogleDriveConnectUrl, "function");

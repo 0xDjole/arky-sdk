@@ -1949,6 +1949,9 @@ export interface GetSocialPublicationCommentsParams {
   cursor?: string | null;
 }
 
+export type SyncSocialPublicationCommentsParams =
+  GetSocialPublicationCommentsParams;
+
 export interface GetSocialPublicationCommentThreadParams {
   store_id?: string;
   publication_id: string;
@@ -1956,6 +1959,9 @@ export interface GetSocialPublicationCommentThreadParams {
   limit?: number;
   cursor?: string | null;
 }
+
+export type SyncSocialPublicationCommentThreadParams =
+  GetSocialPublicationCommentThreadParams;
 
 export interface FindSocialPublicationCommentsParams {
   store_id?: string;
@@ -1993,6 +1999,9 @@ export interface GetSocialPublicationMetricsParams {
   store_id?: string;
   publication_id: string;
 }
+
+export type SyncSocialPublicationMetricsParams =
+  GetSocialPublicationMetricsParams;
 
 export interface SyncSocialEngagementParams {
   store_id?: string;

@@ -19,6 +19,9 @@ import type {
   SelectSocialDestinationParams,
   ListSocialAccountsParams,
   SyncSocialEngagementParams,
+  SyncSocialPublicationCommentsParams,
+  SyncSocialPublicationCommentThreadParams,
+  SyncSocialPublicationMetricsParams,
   UpdateSocialPublicationParams,
   ValidateSocialPublicationParams,
 } from "../types/api";
@@ -141,6 +144,20 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    async syncPublicationComments(
+      params: SyncSocialPublicationCommentsParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<SocialPublicationComment>> {
+      const { store_id, publication_id, ...payload } = params;
+      return apiConfig.httpClient.post<
+        PaginatedResponse<SocialPublicationComment>
+      >(
+        `/v1/stores/${storeId(store_id)}/social-publications/${publication_id}/comments/sync`,
+        payload,
+        options,
+      );
+    },
+
     async getPublicationCommentThread(
       params: GetSocialPublicationCommentThreadParams,
       options?: RequestOptions,
@@ -154,6 +171,20 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
           ...options,
           params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
         },
+      );
+    },
+
+    async syncPublicationCommentThread(
+      params: SyncSocialPublicationCommentThreadParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<SocialPublicationComment>> {
+      const { store_id, publication_id, comment_id, ...payload } = params;
+      return apiConfig.httpClient.post<
+        PaginatedResponse<SocialPublicationComment>
+      >(
+        `/v1/stores/${storeId(store_id)}/social-publications/${publication_id}/comments/${comment_id}/thread/sync`,
+        payload,
+        options,
       );
     },
 
@@ -200,6 +231,17 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     ): Promise<SocialPublicationMetricSnapshot> {
       return apiConfig.httpClient.get<SocialPublicationMetricSnapshot>(
         `/v1/stores/${storeId(params.store_id)}/social-publications/${params.publication_id}/metrics`,
+        options,
+      );
+    },
+
+    async syncPublicationMetrics(
+      params: SyncSocialPublicationMetricsParams,
+      options?: RequestOptions,
+    ): Promise<SocialPublicationMetricSnapshot> {
+      return apiConfig.httpClient.post<SocialPublicationMetricSnapshot>(
+        `/v1/stores/${storeId(params.store_id)}/social-publications/${params.publication_id}/metrics/sync`,
+        {},
         options,
       );
     },
