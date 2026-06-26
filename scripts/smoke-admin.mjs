@@ -9,10 +9,13 @@ const arky = createAdmin({
 });
 
 assert.equal(typeof arky.paymentProviders.listProviders, "function");
+assert.equal(typeof arky.paymentProviders.refreshProviders, "function");
 assert.equal(typeof arky.paymentProviders.connectStripe, "function");
 assert.equal(typeof arky.payments.listConnections, "function");
+assert.equal(typeof arky.payments.refreshConnections, "function");
 assert.equal(typeof arky.payments.startOnboarding, "function");
 assert.equal(arky.payments.listConnections, arky.paymentProviders.listProviders);
+assert.equal(arky.payments.refreshConnections, arky.paymentProviders.refreshProviders);
 assert.equal(arky.payments.startOnboarding, arky.paymentProviders.connectStripe);
 
 assert.equal(typeof arky.automation.workflow.accounts.getConnectUrl, "function");

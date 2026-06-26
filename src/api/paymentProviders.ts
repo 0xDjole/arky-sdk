@@ -3,6 +3,7 @@ import type {
   ConnectStripePaymentProviderParams,
   DeletePaymentProviderParams,
   ListPaymentProvidersParams,
+  RefreshPaymentProvidersParams,
   RequestOptions,
 } from "../types/api";
 import type { PaymentProvider, StripePaymentProviderConnectResponse } from "../types";
@@ -17,6 +18,18 @@ export const createPaymentProvidersApi = (apiConfig: ApiConfig) => {
     ): Promise<PaymentProvider[]> {
       return apiConfig.httpClient.get<PaymentProvider[]>(
         `/v1/stores/${storeId(params?.store_id)}/payment-providers`,
+        options,
+      );
+    },
+
+    async refreshProviders(
+      params?: RefreshPaymentProvidersParams,
+      options?: RequestOptions,
+    ): Promise<PaymentProvider[]> {
+      const targetStoreId = storeId(params?.store_id);
+      return apiConfig.httpClient.post<PaymentProvider[]>(
+        `/v1/stores/${targetStoreId}/payment-providers/refresh`,
+        { store_id: targetStoreId },
         options,
       );
     },

@@ -413,6 +413,8 @@ export type {
   ListPaymentConnectionsParams,
   ListPaymentProvidersParams,
   ListSocialAccountsParams,
+  RefreshPaymentConnectionsParams,
+  RefreshPaymentProvidersParams,
   ReplySocialPublicationCommentParams,
   ScheduleSocialPublicationParams,
   StartPaymentOnboardingParams,
@@ -858,6 +860,8 @@ export function createAdmin(config: CreateAdminConfig) {
   const paymentsApi = {
     listConnections: paymentProvidersApi.listProviders,
     listProviders: paymentProvidersApi.listProviders,
+    refreshConnections: paymentProvidersApi.refreshProviders,
+    refreshProviders: paymentProvidersApi.refreshProviders,
     startOnboarding: paymentProvidersApi.connectStripe,
     connectCardPayments: paymentProvidersApi.connectStripe,
     connectStripe: paymentProvidersApi.connectStripe,

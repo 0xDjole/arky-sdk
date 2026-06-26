@@ -1870,6 +1870,10 @@ export interface ListPaymentProvidersParams {
   store_id?: string;
 }
 
+export interface RefreshPaymentProvidersParams {
+  store_id?: string;
+}
+
 export interface ConnectStripePaymentProviderParams {
   store_id?: string;
   return_url: string;
@@ -1885,6 +1889,7 @@ export interface DeletePaymentProviderParams {
 }
 
 export type ListPaymentConnectionsParams = ListPaymentProvidersParams;
+export type RefreshPaymentConnectionsParams = RefreshPaymentProvidersParams;
 export type StartPaymentOnboardingParams = ConnectStripePaymentProviderParams;
 export type ConnectCardPaymentsParams = ConnectStripePaymentProviderParams;
 export type DeletePaymentConnectionParams = DeletePaymentProviderParams;
