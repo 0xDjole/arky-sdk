@@ -1884,6 +1884,11 @@ export interface DeletePaymentProviderParams {
   id: string;
 }
 
+export type ListPaymentConnectionsParams = ListPaymentProvidersParams;
+export type StartPaymentOnboardingParams = ConnectStripePaymentProviderParams;
+export type ConnectCardPaymentsParams = ConnectStripePaymentProviderParams;
+export type DeletePaymentConnectionParams = DeletePaymentProviderParams;
+
 export interface FindSocialPublicationsParams {
   store_id?: string;
   status?: SocialPublicationStatus;

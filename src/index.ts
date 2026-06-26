@@ -45,7 +45,9 @@ export type {
   Price,
   OrderPayment,
   PaymentProvider,
+  PaymentConnection,
   StripePaymentProviderConnectResponse,
+  PaymentOnboardingResponse,
   OrderPaymentTax,
   OrderPaymentTaxLine,
   OrderPaymentPromoCode,
@@ -393,9 +395,11 @@ export type {
   ValidateLeadEmailParams,
   CancelSocialPublicationParams,
   ClassifySocialPublicationCommentsParams,
+  ConnectCardPaymentsParams,
   ConnectStripePaymentProviderParams,
   ConnectSocialAccountParams,
   CreateSocialPublicationParams,
+  DeletePaymentConnectionParams,
   DeletePaymentProviderParams,
   DeleteSocialAccountParams,
   FindSocialPublicationCommentsParams,
@@ -406,10 +410,12 @@ export type {
   GetSocialPublicationCommentsParams,
   GetSocialPublicationMetricsParams,
   GetSocialPublicationParams,
+  ListPaymentConnectionsParams,
   ListPaymentProvidersParams,
   ListSocialAccountsParams,
   ReplySocialPublicationCommentParams,
   ScheduleSocialPublicationParams,
+  StartPaymentOnboardingParams,
   SyncSocialEngagementParams,
   UpdateSocialPublicationParams,
   ValidateSocialPublicationParams,
@@ -849,6 +855,21 @@ export function createAdmin(config: CreateAdminConfig) {
   const locationApi = createLocationApi(apiConfig);
   const marketApi = createMarketApi(apiConfig);
   const workflowApi = createWorkflowApi(apiConfig);
+  const paymentsApi = {
+    listConnections: paymentProvidersApi.listProviders,
+    listProviders: paymentProvidersApi.listProviders,
+    startOnboarding: paymentProvidersApi.connectStripe,
+    connectCardPayments: paymentProvidersApi.connectStripe,
+    connectStripe: paymentProvidersApi.connectStripe,
+    deleteConnection: paymentProvidersApi.deleteProvider,
+    deleteProvider: paymentProvidersApi.deleteProvider,
+  };
+  const workflowAccountsApi = {
+    list: workflowApi.getWorkflowAccounts,
+    getConnectUrl: workflowApi.getWorkflowAccountConnectUrl,
+    connect: workflowApi.connectWorkflowAccount,
+    delete: workflowApi.deleteWorkflowAccount,
+  };
   const formApi = createFormApi(apiConfig);
   const taxonomyApi = createTaxonomyApi(apiConfig);
   const emailTemplateApi = createEmailTemplateApi(apiConfig);
@@ -869,6 +890,7 @@ export function createAdmin(config: CreateAdminConfig) {
     platform: platformApi,
     social: socialApi,
     paymentProviders: paymentProvidersApi,
+    payments: paymentsApi,
     shipping: createShippingApi(apiConfig),
     cms: {
       collection: {
@@ -993,16 +1015,19 @@ export function createAdmin(config: CreateAdminConfig) {
         getExecutions: workflowApi.getWorkflowExecutions,
         getExecution: workflowApi.getWorkflowExecution,
         getAccounts: workflowApi.getWorkflowAccounts,
-        accounts: {
-          list: workflowApi.getWorkflowAccounts,
-          getConnectUrl: workflowApi.getWorkflowAccountConnectUrl,
-          connect: workflowApi.connectWorkflowAccount,
-          delete: workflowApi.deleteWorkflowAccount,
-        },
+        accounts: workflowAccountsApi,
         getGoogleDriveConnectUrl:
           workflowApi.getGoogleDriveWorkflowAccountConnectUrl,
         connectGoogleDriveAccount:
           workflowApi.connectGoogleDriveWorkflowAccount,
+        deleteAccount: workflowApi.deleteWorkflowAccount,
+      },
+      integrations: {
+        accounts: workflowAccountsApi,
+        workflowAccounts: workflowAccountsApi,
+        listAccounts: workflowApi.getWorkflowAccounts,
+        getAccountConnectUrl: workflowApi.getWorkflowAccountConnectUrl,
+        connectAccount: workflowApi.connectWorkflowAccount,
         deleteAccount: workflowApi.deleteWorkflowAccount,
       },
       support: supportApi,

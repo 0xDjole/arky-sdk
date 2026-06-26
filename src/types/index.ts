@@ -579,6 +579,9 @@ export interface StripePaymentProviderConnectResponse {
   onboarding_url: string;
 }
 
+export type PaymentConnection = PaymentProvider;
+export type PaymentOnboardingResponse = StripePaymentProviderConnectResponse;
+
 export interface ShippingWeightTier {
   up_to_grams: number;
   amount: number;

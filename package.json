@@ -46,7 +46,7 @@
   "scripts": {
     "prebuild": "node scripts/check-no-any.mjs",
     "build": "tsup",
-    "test": "npm run build && node scripts/smoke-store.mjs",
+    "test": "npm run build && node scripts/smoke-store.mjs && node scripts/smoke-admin.mjs",
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
     "prepare": "npm run build"

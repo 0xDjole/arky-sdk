@@ -9,7 +9,12 @@ const store = initialize({
   locale: "en",
 });
 
-assert.equal("cart" in store, false, "cart must live under eshop.cart");
+assert.equal(typeof store.cart.load, "function");
+assert.equal(store.cart.load, store.eshop.cart.ensure);
+assert.equal(store.commerce.cart, store.cart);
+assert.equal(typeof store.commerce.checkout, "function");
+assert.equal(typeof store.hydrateCart, "function");
+assert.equal(store.hydrateCart, store.cart.load);
 assert.equal("booking" in store, false, "service scheduling must live under eshop.service");
 assert.equal("setup" in store, false, "initialize returns the ready storefront API; no public setup boot method");
 assert.equal("initialize" in store, false, "initialize is only the factory export");
