@@ -41,6 +41,7 @@ export interface RequestErrorContext {
 export interface RequestOptions<T = unknown> {
 	headers?: Record<string, string>;
 	params?: QueryParams | Record<string, any>;
+	signal?: AbortSignal;
 	transformRequest?: (data: unknown) => unknown;
 	onSuccess?: (ctx: RequestSuccessContext<T>) => void | Promise<void>;
 	onError?: (ctx: RequestErrorContext) => void | Promise<void>;
@@ -142,7 +143,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
 
 		const finalPath = options?.params ? path + buildQueryString(options.params as QueryParams) : path;
 
-		const fetchOpts: any = { method, headers };
+		const fetchOpts: any = { method, headers, signal: options?.signal };
 		if (!['GET', 'DELETE'].includes(method) && body !== undefined) {
 			fetchOpts.body = JSON.stringify(body);
 		}
@@ -155,13 +156,17 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
 		try {
 			res = await fetch(fullUrl, fetchOpts);
 		} catch (error) {
+			const aborted =
+				options?.signal?.aborted ||
+				(error instanceof Error && error.name === 'AbortError');
 			const err: any = new Error(error instanceof Error ? error.message : 'Network request failed');
-			err.name = 'NetworkError';
+			err.name = aborted ? 'AbortError' : 'NetworkError';
 			err.method = method;
 			err.url = fullUrl;
+			err.aborted = aborted;
 			if (options?.onError && method !== 'GET') {
 				Promise.resolve(
-					options.onError({ error: err, method, url: fullUrl, aborted: false })
+					options.onError({ error: err, method, url: fullUrl, aborted })
 				).catch(() => {});
 			}
 			throw err;

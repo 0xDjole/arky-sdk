@@ -39,7 +39,11 @@ export type OrderPaymentProvider = {
   payment_intent_id?: string | null;
 };
 
-export type PaymentProviderKind = "manual" | "stripe" | "gift_card" | "store_credit";
+export type PaymentTransactionProvider =
+  | "manual"
+  | "stripe"
+  | "gift_card"
+  | "store_credit";
 export type PaymentCaptureMethod = "automatic" | "manual";
 export type PaymentTransactionType =
   | "authorize"
@@ -67,7 +71,7 @@ export interface PaymentTransaction {
   status: PaymentTransactionStatus;
   amount: number;
   currency: string;
-  provider: PaymentProviderKind;
+  provider: PaymentTransactionProvider;
   provider_transaction_id?: string | null;
   provider_payment_id?: string | null;
   provider_status?: string | null;
@@ -163,7 +167,7 @@ export interface Price {
   market: string;
   amount: number;
   compare_at?: number;
-  profile_list_id?: string;
+  contact_list_id?: string;
 }
 
 export type IntervalPeriod = "month" | "year";
@@ -236,7 +240,7 @@ export type CartOrigin = "storefront" | "admin";
 export interface Cart {
   id: string;
   store_id: string;
-  profile_id: string;
+  contact_id: string;
   token: string;
   status: CartStatus;
   origin: CartOrigin;
@@ -252,79 +256,327 @@ export interface Cart {
   quote_snapshot?: OrderQuote | null;
   converted_order_id?: string | null;
   item_count: number;
-  last_activity_at: number;
+  last_action_at: number;
   abandoned_at?: number | null;
   recovery_sent_at?: number | null;
   created_at: number;
   updated_at: number;
 }
 
-export type IntegrationProvider =
-  | {
-      type: "stripe";
-      secret_key?: string;
-      publishable_key: string;
-      webhook_secret?: string;
-      currency: string;
-    }
-  | { type: "shippo"; api_token?: string }
-  | { type: "telegram_bot"; bot_token?: string }
-  | { type: "deep_seek"; api_key?: string; model?: string }
-  | { type: "brave_search"; api_key?: string }
-  | { type: "open_ai"; api_key?: string; model?: string }
-  | { type: "slack"; api_key?: string }
-  | { type: "discord"; api_key?: string }
-  | { type: "resend"; api_key?: string }
-  | { type: "send_grid"; api_key?: string }
-  | { type: "airtable"; api_key?: string }
-  | { type: "linear"; api_key?: string }
-  | { type: "git_hub"; api_key?: string }
-  | { type: "git_lab"; api_key?: string }
-  | { type: "dropbox"; api_key?: string }
-  | { type: "hub_spot"; api_key?: string }
-  | { type: "monday"; api_key?: string }
-  | { type: "click_up"; api_key?: string }
-  | { type: "pipedrive"; api_key?: string }
-  | { type: "calendly"; api_key?: string }
-  | { type: "typeform"; api_key?: string }
-  | { type: "webflow"; api_key?: string }
-  | { type: "trello"; api_key?: string }
-  | { type: "replicate"; api_key?: string }
-  | { type: "asana"; api_key?: string }
-  | { type: "brevo"; api_key?: string }
-  | { type: "intercom"; api_key?: string }
-  | { type: "notion"; api_key?: string }
-  | { type: "eleven_labs"; api_key?: string }
-  | { type: "active_campaign"; api_key?: string; account_url: string }
-  | { type: "shopify"; api_key?: string; store_domain: string }
-  | { type: "supabase"; api_key?: string; project_url: string }
-  | { type: "mailchimp"; api_key?: string }
-  | { type: "jira"; email?: string; api_token?: string; domain: string }
-  | {
-      type: "woo_commerce";
-      consumer_key?: string;
-      consumer_secret?: string;
-      store_url: string;
-    }
-  | { type: "freshdesk"; api_key?: string; domain: string }
-  | { type: "zendesk"; api_token?: string; email?: string; subdomain: string }
-  | { type: "salesforce"; access_token?: string; instance_url: string }
-  | { type: "zoom"; api_key?: string }
-  | { type: "microsoft_teams"; api_key?: string }
-  | { type: "firebase"; api_key?: string }
-  | { type: "arky"; api_key?: string }
-  | { type: "vercel_deploy_hook"; url?: string }
-  | { type: "netlify_deploy_hook"; url?: string }
-  | { type: "cloudflare_deploy_hook"; url?: string }
-  | { type: "custom_deploy_hook"; url?: string };
+export interface SocialOAuthCredential {
+  access_token?: string;
+  refresh_token?: string | null;
+  expires_at?: number | null;
+  scopes: string[];
+}
 
-export interface Integration {
+export interface SocialDestinationMetadata {
+  external_account_id: string;
+  external_account_name: string;
+  handle?: string | null;
+  avatar_url?: string | null;
+}
+
+export type SocialProviderType =
+  | "facebook_page"
+  | "instagram_business"
+  | "youtube_channel"
+  | "tiktok_account"
+  | "x_account";
+
+export type SocialPublicationStatus =
+  | "draft"
+  | "scheduled"
+  | "publishing"
+  | "published"
+  | "failed"
+  | "cancelled";
+
+export type YoutubePrivacy = "public" | "unlisted" | "private";
+export type TiktokPrivacy = "public" | "friends" | "private";
+export type InstagramPlacement = "feed" | "reel" | "story";
+
+export interface FacebookPageContent {
+  type: "facebook_page";
+  text?: string | null;
+  media_ids: string[];
+  link_url?: string | null;
+}
+
+export interface InstagramBusinessContent {
+  type: "instagram_business";
+  placement?: InstagramPlacement | null;
+  share_to_feed?: boolean | null;
+  caption?: string | null;
+  media_ids: string[];
+}
+
+export interface YoutubeChannelContent {
+  type: "youtube_channel";
+  title: string;
+  description?: string | null;
+  video_media_id: string;
+  privacy: YoutubePrivacy;
+}
+
+export interface TiktokAccountContent {
+  type: "tiktok_account";
+  caption?: string | null;
+  video_media_id: string;
+  privacy: TiktokPrivacy;
+}
+
+export interface XAccountContent {
+  type: "x_account";
+  text?: string | null;
+  media_ids: string[];
+}
+
+export type SocialPublicationContent =
+  | FacebookPageContent
+  | InstagramBusinessContent
+  | YoutubeChannelContent
+  | TiktokAccountContent
+  | XAccountContent;
+
+export interface ValidationError {
+  field: string;
+  error: string;
+}
+
+export interface SocialPublicationValidation {
+  valid: boolean;
+  errors: ValidationError[];
+  warnings: ValidationError[];
+}
+
+export interface SocialPublication {
+  id: string;
+  store_id: string;
+  social_account_id: string;
+  key: string;
+  status: SocialPublicationStatus;
+  content: SocialPublicationContent;
+  scheduled_at: number;
+  published_at?: number | null;
+  provider_post_id?: string | null;
+  provider_post_url?: string | null;
+  error_code?: string | null;
+  error_message?: string | null;
+  attempt_count: number;
+  last_attempt_at?: number | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface SocialPublicationMutationResponse {
+  publication: SocialPublication;
+  validation: SocialPublicationValidation;
+  publish_requested: boolean;
+}
+
+export type SocialPublicationCommentStatus =
+  | "open"
+  | "replied"
+  | "hidden"
+  | "deleted";
+
+export type SocialPublicationCommentIntent =
+  | "lead"
+  | "support"
+  | "complaint"
+  | "question"
+  | "praise"
+  | "spam"
+  | "general";
+
+export type SocialPublicationCommentPriority =
+  | "urgent"
+  | "high"
+  | "normal"
+  | "low";
+
+export interface SocialPublicationComment {
+  id: string;
+  store_id: string;
+  publication_id: string;
+  social_account_id: string;
+  provider_type: SocialProviderType;
+  provider_post_id?: string | null;
+  provider_comment_id: string;
+  provider_parent_comment_id?: string | null;
+  parent_comment_id?: string | null;
+  root_comment_id?: string | null;
+  depth: number;
+  provider_reply_count?: number | null;
+  synced_reply_count: number;
+  has_more_replies: boolean;
+  thread_last_synced_at?: number | null;
+  author_is_channel: boolean;
+  contact_id?: string | null;
+  action_id?: string | null;
+  opportunity_action_id?: string | null;
+  author_name?: string | null;
+  author_handle?: string | null;
+  author_provider_user_id?: string | null;
+  text: string;
+  status: SocialPublicationCommentStatus;
+  provider_created_at?: number | null;
+  last_synced_at: number;
+  replied_at?: number | null;
+  classification_intent?: SocialPublicationCommentIntent | null;
+  classification_priority?: SocialPublicationCommentPriority | null;
+  classification_confidence?: number | null;
+  classification_summary?: string | null;
+  classification_reason?: string | null;
+  suggested_reply?: string | null;
+  classified_at?: number | null;
+  classification_model?: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface SocialPublicationMetricSnapshot {
+  id: string;
+  store_id: string;
+  publication_id: string;
+  social_account_id: string;
+  provider_type: SocialProviderType;
+  provider_post_id?: string | null;
+  metrics: Record<string, number>;
+  collected_at: number;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface SocialPublicationCommentReply {
+  provider_comment_id: string;
+  provider_comment_url?: string | null;
+}
+
+export interface SocialPublicationCommentReplyResponse {
+  comment: SocialPublicationComment;
+  reply: SocialPublicationCommentReply;
+}
+
+export interface SocialPublicationEngagementSyncResult {
+  publications_scanned: number;
+  comment_pages_scanned: number;
+  comments_synced: number;
+  metrics_synced: number;
+  comments: SocialPublicationComment[];
+  metrics: SocialPublicationMetricSnapshot[];
+  skipped_publication_ids: string[];
+  errors: string[];
+}
+
+export interface SocialPublicationCommentClassificationResult {
+  comments_scanned: number;
+  comments_classified: number;
+  comments_skipped: number;
+  comments: SocialPublicationComment[];
+  skipped_comment_ids: string[];
+  errors: string[];
+}
+
+export interface SocialEngagementCapabilities {
+  read_comments: boolean;
+  reply_to_comments: boolean;
+}
+
+export interface SocialAnalyticsCapabilities {
+  read_post_metrics: boolean;
+}
+
+export interface SocialProviderCapability {
+  provider_type: SocialProviderType;
+  display_name: string;
+  icon_key: string;
+  required_scopes: string[];
+  media_requirements: string[];
+  engagement: SocialEngagementCapabilities;
+  analytics: SocialAnalyticsCapabilities;
+}
+
+export interface SocialConnectResponse {
+  authorization_url: string;
+  state: string;
+}
+
+export type SocialOAuthCallbackStatus =
+  | "code_received"
+  | "connected"
+  | "selection_required";
+
+export interface SocialOAuthDestinationOption extends SocialDestinationMetadata {
+  candidate_id: string;
+}
+
+export interface SocialOAuthCallbackResponse {
+  status: SocialOAuthCallbackStatus;
+  store_id: string;
+  provider_type: SocialProviderType;
+  account_id: string;
+  attempt_id?: string | null;
+  social_account_id?: string | null;
+  destination?: SocialDestinationMetadata | null;
+  options: SocialOAuthDestinationOption[];
+  message: string;
+}
+
+export type BuildHookType = "vercel" | "netlify" | "cloudflare" | "custom";
+
+export interface BuildHook {
   id: string;
   store_id: string;
   key: string;
-  provider: IntegrationProvider;
+  type: BuildHookType;
+  url: string;
+  headers: Record<string, string>;
+  active: boolean;
   created_at: number;
   updated_at: number;
+}
+
+export interface SocialAccount {
+  id: string;
+  store_id: string;
+  key: string;
+  provider_type: SocialProviderType;
+  credential: SocialOAuthCredential;
+  destination: SocialDestinationMetadata;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface PaymentProvider {
+  id: string;
+  store_id: string;
+  key: string;
+  provider: {
+    type: "stripe";
+    onboarding_status: string;
+    charges_enabled: boolean;
+    payouts_enabled: boolean;
+    details_submitted: boolean;
+    application_fee_bps?: number | null;
+    currency: string;
+  };
+  created_at: number;
+  updated_at: number;
+}
+
+export interface PaymentStoreConfig {
+  provider: "stripe";
+  publishable_key: string;
+  currency: string;
+}
+
+export type StoreRuntimeConfig = PaymentStoreConfig | [] | null;
+
+export interface StripePaymentProviderConnectResponse {
+  provider: PaymentProvider;
+  onboarding_url: string;
 }
 
 export interface ShippingWeightTier {
@@ -332,17 +584,22 @@ export interface ShippingWeightTier {
   amount: number;
 }
 
-export interface PaymentMethod {
-  id: string;
-  integration_id?: string;
-}
+export type PaymentMethod =
+  | {
+      type: "cash";
+      id: string;
+    }
+  | {
+      type: "credit_card";
+      id: string;
+      payment_provider_id: string;
+    };
 
 export interface ShippingMethod {
   id: string;
   taxable: boolean;
   eta_text: string;
   location_id?: string;
-  integration_id?: string;
   amount: number;
   free_above?: number;
   weight_tiers?: ShippingWeightTier[];
@@ -375,14 +632,14 @@ export interface ProductInventory {
   updated_at: number;
 }
 
-export type DigitalAssetKind = "file" | "external_link";
+export type DigitalAssetType = "file" | "external_link";
 export type DigitalAssetStatus = "active" | "archived";
 export type DigitalDeliveryPolicy = "automatic_after_payment" | "manual";
 
 export interface DigitalAsset {
   id: string;
   name: string;
-  kind: DigitalAssetKind;
+  type: DigitalAssetType;
   storage_ref?: string | null;
   external_url?: string | null;
   status: DigitalAssetStatus;
@@ -632,10 +889,10 @@ export interface DigitalAccessGrant {
   order_item_id: string;
   product_id: string;
   variant_id: string;
-  profile_id: string;
+  contact_id: string;
   asset_id: string;
   asset_name_snapshot: string;
-  kind: DigitalAssetKind;
+  type: DigitalAssetType;
   access_url?: string | null;
   storage_ref?: string | null;
   status: DigitalAccessGrantStatus;
@@ -708,7 +965,7 @@ export interface Order {
   number: string;
   store_id: string;
   source_cart_id: string;
-  profile_id: string;
+  contact_id: string;
   status: OrderStatus;
   payment_status: OrderPaymentSummaryStatus;
   fulfillment_status: OrderFulfillmentStatus;
@@ -723,7 +980,7 @@ export interface Order {
   shipments: Shipment[];
   digital_access_grants: DigitalAccessGrant[];
   history: HistoryEntry[];
-  profile_list_id?: string;
+  contact_list_id?: string;
   fired_reminders: number[];
   created_at: number;
   updated_at: number;
@@ -810,12 +1067,12 @@ export type WebhookEventSubscription =
   | { event: "store.created" }
   | { event: "store.updated" }
   | { event: "store.deleted" }
-  | { event: "profile_list.created" }
-  | { event: "profile_list.updated" }
-  | { event: "profile_list.profile_added" }
-  | { event: "profile_list.profile_pending" }
-  | { event: "profile_list.profile_confirmed" }
-  | { event: "profile_list.profile_cancelled" }
+  | { event: "contact_list.created" }
+  | { event: "contact_list.updated" }
+  | { event: "contact_list.contact_added" }
+  | { event: "contact_list.contact_pending" }
+  | { event: "contact_list.contact_confirmed" }
+  | { event: "contact_list.contact_cancelled" }
   | { event: "account.updated" };
 
 export interface Webhook {
@@ -842,7 +1099,7 @@ export type StoreSubscriptionSource = "signup" | "admin" | "import";
 
 export type StoreSubscriptionProvider = {
   type: "stripe";
-  profile_id: string;
+  contact_id: string;
   subscription_id?: string;
   price_id?: string;
 };
@@ -866,17 +1123,17 @@ export interface StoreSubscription {
   source: StoreSubscriptionSource;
 }
 
-export type ProfileListMembershipProvider = {
+export type ContactListMembershipProvider = {
   type: "stripe";
   stripe_customer_id: string;
   subscription_id?: string;
   price_id?: string;
 };
 
-export interface ProfileListMembershipPayment {
+export interface ContactListMembershipPayment {
   currency: string;
   market: string;
-  provider?: ProfileListMembershipProvider;
+  provider?: ContactListMembershipProvider;
 }
 
 export interface Store {
@@ -1098,16 +1355,16 @@ export type ServiceStatus = "active" | "draft" | "archived";
 export type ProviderStatus = "active" | "draft" | "archived";
 
 export type ProductStatus = "active" | "draft" | "archived";
-export type ProfileStatus = "active" | "archived";
-export type ProfileListStatus = "active" | "draft" | "archived";
-export type ProfileListSource =
+export type ContactStatus = "active" | "archived";
+export type ContactListStatus = "active" | "draft" | "archived";
+export type ContactListSource =
   | "manual"
   | "import"
   | "signup"
   | "admin"
   | "system"
   | "lead_research";
-export type ProfileListMembershipStatus =
+export type ContactListMembershipStatus =
   | "pending"
   | "active"
   | "cancellation_scheduled"
@@ -1137,7 +1394,7 @@ export type SmtpImapMailboxProvider = {
   last_synced_at?: number | null;
   last_seen_uid?: number | null;
 };
-export type MailboxProvider = { type: "fake" } | SmtpImapMailboxProvider;
+export type MailboxProvider = SmtpImapMailboxProvider;
 export type CampaignStatus =
   | "draft"
   | "active"
@@ -1154,8 +1411,8 @@ export type CampaignEnrollmentStatus =
   | "failed"
   | "stopped";
 export type CampaignEnrollmentImportSource =
-  | "profile_list"
-  | "profile"
+  | "contact_list"
+  | "contact"
   | "manual";
 export type CampaignMessageStatus =
   | "draft"
@@ -1177,8 +1434,8 @@ export type CampaignMessageType =
   | "manual_reply"
   | "inbound_reply"
   | "delivery_failure"
-  | "activity";
-export type CampaignMessageDirection = "outbound" | "inbound" | "activity";
+  | "action";
+export type CampaignMessageDirection = "outbound" | "inbound" | "action";
 export type CampaignMessageCopySource = "template" | "generated" | "edited";
 export type OutreachThreadMode = "new_thread" | "same_thread";
 export type ManualTaskContinueBehavior =
@@ -1214,7 +1471,7 @@ export type OutreachPersonalizationStatus =
   | "completed"
   | "failed";
 export type SuppressionStatus = "active" | "archived";
-export type SuppressionTargetType = "email" | "domain" | "profile" | "phone";
+export type SuppressionTargetType = "email" | "domain" | "contact" | "phone";
 export type SuppressionScopeType = "store" | "campaign";
 export type SuppressionReason =
   | "manual"
@@ -1234,7 +1491,7 @@ export type TaxonomyStatus = "active" | "draft" | "archived";
 
 export type OrderCancellationReason =
   | "admin_rejected"
-  | "profile_cancelled"
+  | "contact_cancelled"
   | "payment_failed"
   | "expired"
   | "other";
@@ -1386,7 +1643,7 @@ export interface FormSubmission {
   id: string;
   form_id: string;
   store_id: string;
-  profile_id: string;
+  contact_id: string;
   fields: FormField[];
   created_at: number;
 }
@@ -1496,6 +1753,8 @@ export interface Workflow {
 export type WorkflowNode =
   | WorkflowTriggerNode
   | WorkflowHttpNode
+  | WorkflowDeployWebhookNode
+  | WorkflowGoogleDriveUploadNode
   | WorkflowSwitchNode
   | WorkflowTransformNode
   | WorkflowLoopNode;
@@ -1514,8 +1773,51 @@ export interface WorkflowHttpNode {
   headers?: Record<string, string>;
   body?: any;
   timeout_ms?: number;
-  integration_id?: string;
-  integration_provider_id?: string;
+  delay_ms?: number;
+  retries?: number;
+  retry_delay_ms?: number;
+}
+
+export interface WorkflowDeployWebhookNode {
+  type: "deploy_webhook";
+  build_hook_id: string;
+  timeout_ms?: number;
+  delay_ms?: number;
+  retries?: number;
+  retry_delay_ms?: number;
+}
+
+export type WorkflowAccountType = "google_drive";
+
+export interface WorkflowAccountProfile {
+  external_account_id: string;
+  display_name: string;
+  email?: string | null;
+}
+
+export interface WorkflowAccount {
+  id: string;
+  store_id: string;
+  key: string;
+  type: WorkflowAccountType;
+  profile: WorkflowAccountProfile;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface WorkflowAccountConnectUrl {
+  authorization_url: string;
+  state: string;
+}
+
+export interface WorkflowGoogleDriveUploadNode {
+  type: "google_drive_upload";
+  workflow_account_id: string;
+  name: string;
+  mime_type: string;
+  content?: any;
+  parent_folder_id?: string | null;
+  timeout_ms?: number;
   delay_ms?: number;
   retries?: number;
   retry_delay_ms?: number;
@@ -1576,22 +1878,22 @@ export interface WorkflowExecution {
   updated_at: number;
 }
 
-export type ProfileListType =
+export type ContactListType =
   | { type: "standard" }
   | { type: "confirmation"; confirm_template_id?: string | null }
   | {
       type: "paid";
       prices: SubscriptionPrice[];
-      payment_integration_id?: string | null;
+      payment_provider_id?: string | null;
     };
 
-export interface ProfileAuthToken {
+export interface ContactSessionToken {
   id: string;
   token: string;
   created_at: number;
 }
 
-export interface ProfileVerificationCode {
+export interface ContactVerificationCode {
   code: string;
   created_at: number;
   used: boolean;
@@ -1619,10 +1921,18 @@ export type ChannelType =
   | "youtube"
   | "other";
 
-export interface ProfileChannel {
+export interface ContactChannel {
   type: ChannelType;
   label?: string | null;
   value: string;
+  normalized_value?: string | null;
+  provider?: string | null;
+  provider_user_id?: string | null;
+  verified_at?: number | null;
+  is_primary?: boolean;
+  consent_status?: ContactChannelConsentStatus;
+  subscribed_at?: number | null;
+  unsubscribed_at?: number | null;
   source_url?: string | null;
   confidence?: number | null;
   notes?: string | null;
@@ -1630,59 +1940,66 @@ export interface ProfileChannel {
   updated_at: number;
 }
 
-export interface Profile {
+export type ContactChannelConsentStatus =
+  | "unknown"
+  | "subscribed"
+  | "unsubscribed"
+  | "bounced"
+  | "blocked";
+
+export interface Contact {
   id: string;
   store_id: string;
   email: string | null;
   verified: boolean;
-  status: ProfileStatus;
-  channels: ProfileChannel[];
+  status: ContactStatus;
+  channels: ContactChannel[];
   promo_usage: PromoUsage[];
-  lists: ProfileListMembership[];
+  lists: ContactListMembership[];
   taxonomies: TaxonomyEntry[];
-  auth_tokens: ProfileAuthToken[];
-  verification_codes: ProfileVerificationCode[];
+  auth_tokens: ContactSessionToken[];
+  verification_codes: ContactVerificationCode[];
   created_at: number;
   updated_at: number;
 }
 
-export interface ProfileListAccessResponse {
+export interface ContactListAccessResponse {
   has_access: boolean;
-  membership?: ProfileListMembership | null;
+  membership?: ContactListMembership | null;
 }
 
-export interface ProfileListSubscribeResponse {
+export interface ContactListSubscribeResponse {
   checkout_url?: string | null;
-  membership?: ProfileListMembership | null;
+  membership?: ContactListMembership | null;
 }
 
-export interface ProfileList {
+export interface ContactList {
   id: string;
   store_id: string;
   key: string;
   name: string;
   description?: string | null;
-  status: ProfileListStatus;
-  type: ProfileListType;
-  source: ProfileListSource;
+  status: ContactListStatus;
+  type: ContactListType;
+  source: ContactListSource;
   member_count: number;
   created_at: number;
   updated_at: number;
 }
 
-export interface ProfileListMembership {
+export interface ContactListMembership {
   id: string;
   store_id: string;
-  profile_id: string;
-  profile_list_id: string;
-  source: ProfileListSource;
+  contact_id: string;
+  contact_list_id: string;
+  source: ContactListSource;
   fields: Record<string, unknown>;
   lead_description?: string | null;
   lead?: LeadInsight | null;
-  status: ProfileListMembershipStatus;
+  status: ContactListMembershipStatus;
   plan_id: string;
   pending_plan_id: string | null;
-  payment: ProfileListMembershipPayment;
+  payment: ContactListMembershipPayment;
   start_date: number;
   end_date: number;
   token: string;
@@ -1690,9 +2007,179 @@ export interface ProfileListMembership {
   updated_at: number;
 }
 
-export interface ProfileListMember {
-  profile: Profile;
-  membership: ProfileListMembership;
+export interface ContactListMember {
+  contact: Contact;
+  membership: ContactListMembership;
+}
+
+export interface ActionLocation {
+  country_code?: string | null;
+  city?: string | null;
+  region?: string | null;
+  timezone?: string | null;
+}
+
+export interface ActionDevice {
+  device_type?: string | null;
+  browser?: string | null;
+  os?: string | null;
+  language?: string | null;
+}
+
+export interface ActionSession {
+  idx?: number | null;
+}
+
+export interface ActionContext {
+  location?: ActionLocation | null;
+  device?: ActionDevice | null;
+  session?: ActionSession | null;
+}
+
+export interface SocialActionAuthor {
+  provider_user_id?: string | null;
+  name?: string | null;
+  handle?: string | null;
+}
+
+export type OpportunityType =
+  | "lead"
+  | "support"
+  | "complaint"
+  | "question"
+  | "upsell"
+  | "partnership"
+  | "engagement";
+
+export type OpportunityStage =
+  | "new"
+  | "reviewing"
+  | "contacted"
+  | "won"
+  | "lost"
+  | "dismissed";
+
+export type OpportunitySource =
+  | {
+      type: "social_comment";
+      publication_id: string;
+      comment_id: string;
+      action_id?: string | null;
+    }
+  | {
+      type: "form_submission";
+      form_id: string;
+      submission_id: string;
+    }
+  | {
+      type: "tracked";
+      key: string;
+      action_id?: string | null;
+    }
+  | { type: "manual" };
+
+export type ActionData =
+  | {
+      type: "tracked";
+      value: {
+        key: string;
+        payload: Record<string, unknown>;
+        context?: ActionContext | null;
+      };
+    }
+  | {
+      type: "form_submission";
+      value: {
+        form_id: string;
+        form_key: string;
+        submission_id: string;
+        field_keys: string[];
+        context?: ActionContext | null;
+      };
+    }
+  | {
+      type: "social_comment";
+      value: {
+        social_account_id: string;
+        provider_type: SocialProviderType;
+        publication_id: string;
+        comment_id: string;
+        provider_comment_id: string;
+        provider_parent_comment_id?: string | null;
+        author: SocialActionAuthor;
+        text: string;
+      };
+    }
+  | {
+      type: "social_reply";
+      value: {
+        social_account_id: string;
+        provider_type: SocialProviderType;
+        publication_id: string;
+        comment_id: string;
+        provider_comment_id?: string | null;
+        provider_comment_url?: string | null;
+        text: string;
+      };
+    }
+  | {
+      type: "order";
+      value: {
+        order_id: string;
+        status: string;
+        total?: number | null;
+      };
+    }
+  | {
+      type: "campaign_reply";
+      value: {
+        campaign_id: string;
+        enrollment_id: string;
+        message_id: string;
+        text: string;
+      };
+    }
+  | {
+      type: "direct_message";
+      value: {
+        social_account_id: string;
+        provider_type: SocialProviderType;
+        thread_id: string;
+        message_id: string;
+        text: string;
+      };
+    }
+  | {
+      type: "manual";
+      value: {
+        text: string;
+        account_id?: string | null;
+      };
+    }
+  | {
+      type: "opportunity";
+      value: {
+        type: OpportunityType;
+        stage: OpportunityStage;
+        score?: number | null;
+        reason?: string | null;
+        suggested_next_action?: string | null;
+        source: OpportunitySource;
+        lead?: LeadInsight | null;
+      };
+    };
+
+export interface Action {
+  id: string;
+  store_id: string;
+  contact_id: string;
+  key: string;
+  type: ActionData["type"];
+  preview_text?: string | null;
+  occurred_at: number;
+  created_at: number;
+  updated_at: number;
+  data: ActionData;
 }
 
 export interface Mailbox {
@@ -1719,7 +2206,7 @@ export interface OutreachStep {
 }
 
 export interface OutreachPersonalizationCounters {
-  total_profiles: number;
+  total_contacts: number;
   draft_messages: number;
   generated_messages: number;
   template_messages: number;
@@ -1728,9 +2215,8 @@ export interface OutreachPersonalizationCounters {
 
 export interface OutreachPersonalizationState {
   status: OutreachPersonalizationStatus;
-  model_integration_id?: string | null;
   step_position?: number | null;
-  profile_ids: string[];
+  contact_ids: string[];
   overwrite: boolean;
   instructions?: string | null;
   error?: string | null;
@@ -1757,7 +2243,7 @@ export interface CampaignLaunchReadiness {
   ready: boolean;
   blockers: string[];
   warnings: string[];
-  profile_count: number;
+  contact_count: number;
   sender_count: number;
   step_count: number;
   daily_capacity: number;
@@ -1783,8 +2269,8 @@ export interface CampaignEnrollment {
   id: string;
   store_id: string;
   campaign_id: string;
-  profile_id: string;
-  profile_list_membership_id?: string | null;
+  contact_id: string;
+  contact_list_membership_id?: string | null;
   import_source: CampaignEnrollmentImportSource;
   import_source_id?: string | null;
   imported_at?: number | null;
@@ -1803,7 +2289,7 @@ export interface CampaignMessage {
   store_id: string;
   campaign_id: string;
   campaign_enrollment_id: string;
-  profile_id: string;
+  contact_id: string;
   mailbox_id: string;
   direction: CampaignMessageDirection;
   type: CampaignMessageType;
@@ -1828,7 +2314,7 @@ export interface CampaignMessage {
   rendered_text?: string | null;
   attachments: string[];
   target_channel_type?: ChannelType | null;
-  resolved_channel?: ProfileChannel | null;
+  resolved_channel?: ContactChannel | null;
   title?: string | null;
   instructions?: string | null;
   suggested_message?: string | null;
@@ -1858,7 +2344,7 @@ export interface Suppression {
   id: string;
   store_id: string;
   campaign_id?: string | null;
-  profile_id?: string | null;
+  contact_id?: string | null;
   email?: string | null;
   domain?: string | null;
   target_type: SuppressionTargetType;
@@ -1936,8 +2422,7 @@ export interface LeadInsight {
 export interface LeadResearchRun {
   id: string;
   store_id: string;
-  integration_id: string;
-  profile_list_id: string;
+  contact_list_id: string;
   title?: string | null;
   status: LeadResearchRunStatus;
   error?: string | null;
@@ -1968,7 +2453,7 @@ export type LeadResearchMessageRole =
   | "system"
   | "user"
   | "assistant"
-  | "activity"
+  | "action"
   | "tool";
 
 export interface LeadResearchMessage {
@@ -1979,15 +2464,15 @@ export interface LeadResearchMessage {
   created_at: number;
 }
 
-export interface ResearchProfileListMember {
-  profile: Profile;
-  membership: ProfileListMembership;
+export interface ResearchContactListMember {
+  contact: Contact;
+  membership: ContactListMembership;
 }
 
 export interface SendLeadResearchMessageResult {
   response: string;
   run: LeadResearchRun;
-  profile_list_members: ResearchProfileListMember[];
+  contact_list_members: ResearchContactListMember[];
 }
 
 export type EventAction =
@@ -2040,13 +2525,13 @@ export type EventAction =
   | { action: "store_created" }
   | { action: "store_updated" }
   | { action: "store_deleted" }
-  | { action: "profile_list_created" }
-  | { action: "profile_list_updated" }
-  | { action: "profile_list_profile_added" }
-  | { action: "profile_list_profile_removed" }
-  | { action: "profile_list_profile_pending" }
-  | { action: "profile_list_profile_confirmed" }
-  | { action: "profile_list_profile_cancelled" };
+  | { action: "contact_list_created" }
+  | { action: "contact_list_updated" }
+  | { action: "contact_list_contact_added" }
+  | { action: "contact_list_contact_removed" }
+  | { action: "contact_list_contact_pending" }
+  | { action: "contact_list_contact_confirmed" }
+  | { action: "contact_list_contact_cancelled" };
 
 export interface Event {
   id: string;
@@ -2097,7 +2582,6 @@ export interface Shipment {
 
 export interface ShippingRate {
   id: string;
-  provider: string;
   carrier: string;
   service: string;
   display_name: string;

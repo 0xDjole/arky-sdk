@@ -19,7 +19,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
             );
         },
 
-        async uploadStoreMedia(params: UploadStoreMediaParams, _options?: RequestOptions): Promise<Media[]> {
+        async uploadStoreMedia(params: UploadStoreMediaParams, options?: RequestOptions): Promise<Media[]> {
             const { store_id, files = [], urls = [] } = params;
             const target_store_id = store_id || apiConfig.storeId;
             const url = `${apiConfig.baseUrl}/v1/stores/${target_store_id}/media`;
@@ -34,7 +34,8 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
                 body: formData,
                 headers: {
                     Authorization: `Bearer ${tokens?.access_token || ''}`
-                }
+                },
+                signal: options?.signal
             });
 
             if (!response.ok) {
@@ -53,7 +54,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
             );
         },
 
-        async getStoreMedia(params: GetStoreMediaParams, _options?: RequestOptions): Promise<PaginatedResponse<Media>> {
+        async getStoreMedia(params: GetStoreMediaParams, options?: RequestOptions): Promise<PaginatedResponse<Media>> {
             const { store_id, cursor, limit, ids, query, mime_type, sort_field, sort_direction } = params;
             const target_store_id = store_id || apiConfig.storeId;
             const url = `${apiConfig.baseUrl}/v1/stores/${target_store_id}/media`;
@@ -72,7 +73,8 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
             const response = await fetch(`${url}?${queryString}`, {
                 headers: {
                     Authorization: `Bearer ${tokens?.access_token || ''}`
-                }
+                },
+                signal: options?.signal
             });
 
             if (!response.ok) {

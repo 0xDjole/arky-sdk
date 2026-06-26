@@ -1,29 +1,29 @@
 import type { ApiConfig } from "../index";
 import type {
   RequestOptions,
-  CreateProfileParams,
-  UpdateProfileParams,
-  GetProfileParams,
-  FindProfilesParams,
-  MergeProfilesParams,
-  ImportProfilesParams,
-  ImportProfilesPreviewParams,
-  ImportProfilesPreviewResult,
-  ImportProfilesResult,
-  Profile,
-  ProfileDetail,
-  FindActivitiesParams,
-  CreateProfileListParams,
-  UpdateProfileListParams,
-  FindProfileListsParams,
-  GetProfileListParams,
-  AddProfileListProfileParams,
-  UpdateProfileListProfileParams,
-  RemoveProfileListProfileParams,
-  FindProfileListProfilesParams,
-  ImportProfileListPreviewParams,
-  ImportProfilesIntoProfileListParams,
-  ImportProfilesIntoProfileListResult,
+  CreateContactParams,
+  UpdateContactParams,
+  GetContactParams,
+  FindContactsParams,
+  FindActionsParams,
+  MergeContactsParams,
+  ImportContactsParams,
+  ImportContactsPreviewParams,
+  ImportContactsPreviewResult,
+  ImportContactsResult,
+  Contact,
+  ContactDetail,
+  CreateContactListParams,
+  UpdateContactListParams,
+  FindContactListsParams,
+  GetContactListParams,
+  AddContactListContactParams,
+  UpdateContactListContactParams,
+  RemoveContactListContactParams,
+  FindContactListContactsParams,
+  ImportContactListPreviewParams,
+  ImportContactsIntoContactListParams,
+  ImportContactsIntoContactListResult,
   CreateMailboxParams,
   UpdateMailboxParams,
   FindMailboxesParams,
@@ -63,85 +63,67 @@ import type {
   CampaignMessage,
   CampaignEnrollmentConversationResponse,
   PaginatedResponse,
-  ProfileList,
-  ProfileListMember,
+  ContactList,
+  ContactListMember,
+  Action,
   Suppression,
 } from "../types";
 
-export interface Activity {
-  id: string;
-  store_id: string;
-  profile_id: string;
-  key: string;
-  type?: string;
-  payload: Record<string, unknown>;
-  created_at: number;
-  country_code?: string | null;
-  city?: string | null;
-  region?: string | null;
-  timezone?: string | null;
-  device_type?: string | null;
-  browser?: string | null;
-  os?: string | null;
-  language?: string | null;
-  session_idx?: number | null;
-}
-
 export interface TimelineParams {
-  profile_id: string;
+  contact_id: string;
   store_id?: string;
   limit?: number;
   cursor?: string;
 }
 
-export const createActivityAdminApi = (apiConfig: ApiConfig) => ({
-  async timeline(params: TimelineParams, options?: RequestOptions): Promise<{ items: Activity[]; cursor: string | null }> {
+export const createActionAdminApi = (apiConfig: ApiConfig) => ({
+  async timeline(params: TimelineParams, options?: RequestOptions): Promise<{ items: Action[]; cursor: string | null }> {
     const store_id = params.store_id || apiConfig.storeId;
-    const queryParams: Record<string, unknown> = { profile_id: params.profile_id };
+    const queryParams: Record<string, unknown> = { contact_id: params.contact_id };
     if (params.limit !== undefined) queryParams.limit = params.limit;
     if (params.cursor) queryParams.cursor = params.cursor;
-    return apiConfig.httpClient.get<{ items: Activity[]; cursor: string | null }>(
-      `/v1/stores/${store_id}/activities/timeline`,
+    return apiConfig.httpClient.get<{ items: Action[]; cursor: string | null }>(
+      `/v1/stores/${store_id}/contacts/${params.contact_id}/actions`,
       { ...options, params: queryParams },
     );
   },
 
-  async find(params: FindActivitiesParams, options?: RequestOptions): Promise<{ items: Activity[]; cursor: string | null }> {
+  async find(params: FindActionsParams, options?: RequestOptions): Promise<{ items: Action[]; cursor: string | null }> {
     const store_id = params.store_id || apiConfig.storeId;
     const queryParams: Record<string, unknown> = {};
     if (params.query) queryParams.query = params.query;
-    if (params.profile_id) queryParams.profile_id = params.profile_id;
+    if (params.contact_id) queryParams.contact_id = params.contact_id;
     if (params.types && params.types.length > 0) queryParams.types = params.types;
     if (params.from !== undefined) queryParams.from = params.from;
     if (params.to !== undefined) queryParams.to = params.to;
     if (params.limit !== undefined) queryParams.limit = params.limit;
     if (params.cursor) queryParams.cursor = params.cursor;
-    return apiConfig.httpClient.get<{ items: Activity[]; cursor: string | null }>(
-      `/v1/stores/${store_id}/activities`,
+    return apiConfig.httpClient.get<{ items: Action[]; cursor: string | null }>(
+      `/v1/stores/${store_id}/actions`,
       { ...options, params: queryParams }
     );
   },
 });
 
-export const createProfileApi = (apiConfig: ApiConfig) => {
+export const createContactApi = (apiConfig: ApiConfig) => {
   return {
-    async create(params: CreateProfileParams, options?: RequestOptions): Promise<Profile> {
+    async create(params: CreateContactParams, options?: RequestOptions): Promise<Contact> {
       const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<Profile>(
-        `/v1/stores/${store_id || apiConfig.storeId}/profiles`,
+      return apiConfig.httpClient.post<Contact>(
+        `/v1/stores/${store_id || apiConfig.storeId}/contacts`,
         payload,
         options
       );
     },
 
-    async get(params: GetProfileParams, options?: RequestOptions): Promise<ProfileDetail> {
-      return apiConfig.httpClient.get<ProfileDetail>(
-        `/v1/stores/${params.store_id || apiConfig.storeId}/profiles/${params.id}`,
+    async get(params: GetContactParams, options?: RequestOptions): Promise<ContactDetail> {
+      return apiConfig.httpClient.get<ContactDetail>(
+        `/v1/stores/${params.store_id || apiConfig.storeId}/contacts/${params.id}`,
         options
       );
     },
 
-    async find(params?: FindProfilesParams, options?: RequestOptions): Promise<{ items: Profile[]; cursor?: string }> {
+    async find(params?: FindContactsParams, options?: RequestOptions): Promise<{ items: Contact[]; cursor?: string }> {
       const store_id = params?.store_id || apiConfig.storeId;
       const queryParams: Record<string, unknown> = {};
 
@@ -151,13 +133,13 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
       if (params?.query) queryParams.query = params.query;
       if (params?.taxonomy_query) queryParams.taxonomy_query = params.taxonomy_query;
       if (params?.status) queryParams.status = params.status;
-      if (params?.has_activity !== undefined) queryParams.has_activity = params.has_activity;
+      if (params?.has_action !== undefined) queryParams.has_action = params.has_action;
       if (params?.has_cart !== undefined) queryParams.has_cart = params.has_cart;
       if (params?.sort_field) queryParams.sort_field = params.sort_field;
       if (params?.sort_direction) queryParams.sort_direction = params.sort_direction;
 
-      return apiConfig.httpClient.get<{ items: Profile[]; cursor?: string }>(
-        `/v1/stores/${store_id}/profiles`,
+      return apiConfig.httpClient.get<{ items: Contact[]; cursor?: string }>(
+        `/v1/stores/${store_id}/contacts`,
         {
           ...options,
           params: queryParams,
@@ -165,39 +147,53 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async update(params: UpdateProfileParams, options?: RequestOptions): Promise<Profile> {
+    async findActions(
+      params?: FindActionsParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<Action>> {
+      const { store_id, ...queryParams } = params || {};
+      return apiConfig.httpClient.get<PaginatedResponse<Action>>(
+        `/v1/stores/${store_id || apiConfig.storeId}/actions`,
+        {
+          ...options,
+          params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+        },
+      );
+    },
+
+    async update(params: UpdateContactParams, options?: RequestOptions): Promise<Contact> {
       const { id, store_id, ...body } = params;
-      return apiConfig.httpClient.put<Profile>(
-        `/v1/stores/${store_id || apiConfig.storeId}/profiles/${id}`,
+      return apiConfig.httpClient.put<Contact>(
+        `/v1/stores/${store_id || apiConfig.storeId}/contacts/${id}`,
         body,
         options
       );
     },
 
-    async merge(params: MergeProfilesParams, options?: RequestOptions): Promise<Profile> {
+    async merge(params: MergeContactsParams, options?: RequestOptions): Promise<Contact> {
       const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<Profile>(
-        `/v1/stores/${store_id}/profiles/${params.target_id}/merge`,
+      return apiConfig.httpClient.post<Contact>(
+        `/v1/stores/${store_id}/contacts/${params.target_id}/merge`,
         { source_id: params.source_id, store_id },
         options
       );
     },
 
-    "import": async (params: ImportProfilesParams, options?: RequestOptions): Promise<ImportProfilesResult> => {
+    "import": async (params: ImportContactsParams, options?: RequestOptions): Promise<ImportContactsResult> => {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<ImportProfilesResult>(
-        `/v1/stores/${target_store_id}/profiles/import`,
+      return apiConfig.httpClient.post<ImportContactsResult>(
+        `/v1/stores/${target_store_id}/contacts/import`,
         payload,
         options,
       );
     },
 
-    previewImport: async (params: ImportProfilesPreviewParams, options?: RequestOptions): Promise<ImportProfilesPreviewResult> => {
+    previewImport: async (params: ImportContactsPreviewParams, options?: RequestOptions): Promise<ImportContactsPreviewResult> => {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<ImportProfilesPreviewResult>(
-        `/v1/stores/${target_store_id}/profiles/import/preview`,
+      return apiConfig.httpClient.post<ImportContactsPreviewResult>(
+        `/v1/stores/${target_store_id}/contacts/import/preview`,
         payload,
         options,
       );
@@ -206,7 +202,7 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
     async revokeToken(params: { id: string; token_id: string; store_id?: string }, options?: RequestOptions): Promise<{ deleted: boolean }> {
       const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${store_id}/profiles/${params.id}/sessions/${params.token_id}`,
+        `/v1/stores/${store_id}/contacts/${params.id}/sessions/${params.token_id}`,
         options
       );
     },
@@ -214,149 +210,149 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
     async revokeAllTokens(params: { id: string; store_id?: string }, options?: RequestOptions): Promise<{ deleted: boolean }> {
       const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${store_id}/profiles/${params.id}/sessions`,
+        `/v1/stores/${store_id}/contacts/${params.id}/sessions`,
         options
       );
     },
 
-    profileList: {
-      async create(params: CreateProfileListParams, options?: RequestOptions): Promise<ProfileList> {
+    contactList: {
+      async create(params: CreateContactListParams, options?: RequestOptions): Promise<ContactList> {
         const { store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<ProfileList>(
-          `/v1/stores/${target_store_id}/profile-lists`,
+        return apiConfig.httpClient.post<ContactList>(
+          `/v1/stores/${target_store_id}/contact-lists`,
           payload,
           options,
         );
       },
 
-      async update(params: UpdateProfileListParams, options?: RequestOptions): Promise<ProfileList> {
+      async update(params: UpdateContactListParams, options?: RequestOptions): Promise<ContactList> {
         const { id, store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.put<ProfileList>(
-          `/v1/stores/${target_store_id}/profile-lists/${id}`,
+        return apiConfig.httpClient.put<ContactList>(
+          `/v1/stores/${target_store_id}/contact-lists/${id}`,
           payload,
           options,
         );
       },
 
-      async get(params: GetProfileListParams, options?: RequestOptions): Promise<ProfileList> {
+      async get(params: GetContactListParams, options?: RequestOptions): Promise<ContactList> {
         const target_store_id = params.store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<ProfileList>(
-          `/v1/stores/${target_store_id}/profile-lists/${params.id}`,
+        return apiConfig.httpClient.get<ContactList>(
+          `/v1/stores/${target_store_id}/contact-lists/${params.id}`,
           options,
         );
       },
 
-      async find(params?: FindProfileListsParams, options?: RequestOptions): Promise<PaginatedResponse<ProfileList>> {
+      async find(params?: FindContactListsParams, options?: RequestOptions): Promise<PaginatedResponse<ContactList>> {
         const { store_id, ...queryParams } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<PaginatedResponse<ProfileList>>(
-          `/v1/stores/${target_store_id}/profile-lists`,
+        return apiConfig.httpClient.get<PaginatedResponse<ContactList>>(
+          `/v1/stores/${target_store_id}/contact-lists`,
           { ...options, params: queryParams },
         );
       },
 
-      async importProfiles(
-        params: ImportProfilesIntoProfileListParams,
+      async importContacts(
+        params: ImportContactsIntoContactListParams,
         options?: RequestOptions,
-      ): Promise<ImportProfilesIntoProfileListResult> {
-        const { store_id, profile_list_id, ...payload } = params;
+      ): Promise<ImportContactsIntoContactListResult> {
+        const { store_id, contact_list_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<ImportProfilesIntoProfileListResult>(
-          `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/profiles/import`,
+        return apiConfig.httpClient.post<ImportContactsIntoContactListResult>(
+          `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/contacts/import`,
           payload,
           options,
         );
       },
 
-      async previewImportProfiles(
-        params: ImportProfileListPreviewParams,
+      async previewImportContacts(
+        params: ImportContactListPreviewParams,
         options?: RequestOptions,
-      ): Promise<ImportProfilesPreviewResult> {
-        const { store_id, profile_list_id, ...payload } = params;
+      ): Promise<ImportContactsPreviewResult> {
+        const { store_id, contact_list_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<ImportProfilesPreviewResult>(
-          `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/profiles/import/preview`,
+        return apiConfig.httpClient.post<ImportContactsPreviewResult>(
+          `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/contacts/import/preview`,
           payload,
           options,
         );
       },
 
       members: {
-        async add(params: AddProfileListProfileParams, options?: RequestOptions): Promise<ProfileListMember> {
-          const { store_id, profile_list_id, profile_id, fields, lead_description } = params;
+        async add(params: AddContactListContactParams, options?: RequestOptions): Promise<ContactListMember> {
+          const { store_id, contact_list_id, contact_id, fields, lead_description } = params;
           const target_store_id = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.post<ProfileListMember>(
-            `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/members/${profile_id}`,
+          return apiConfig.httpClient.post<ContactListMember>(
+            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/members/${contact_id}`,
             { fields, lead_description },
             options,
           );
         },
 
-        async update(params: UpdateProfileListProfileParams, options?: RequestOptions): Promise<ProfileListMember> {
-          const { store_id, profile_list_id, profile_id, status, fields, lead_description } = params;
+        async update(params: UpdateContactListContactParams, options?: RequestOptions): Promise<ContactListMember> {
+          const { store_id, contact_list_id, contact_id, status, fields, lead_description } = params;
           const target_store_id = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.patch<ProfileListMember>(
-            `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/members/${profile_id}`,
+          return apiConfig.httpClient.patch<ContactListMember>(
+            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/members/${contact_id}`,
             { status, fields, lead_description },
             options,
           );
         },
 
-        async remove(params: RemoveProfileListProfileParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
+        async remove(params: RemoveContactListContactParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
           const target_store_id = params.store_id || apiConfig.storeId;
           return apiConfig.httpClient.delete<{ deleted: boolean }>(
-            `/v1/stores/${target_store_id}/profile-lists/${params.profile_list_id}/members/${params.profile_id}`,
+            `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/members/${params.contact_id}`,
             options,
           );
         },
 
-        async find(params: FindProfileListProfilesParams, options?: RequestOptions): Promise<PaginatedResponse<ProfileListMember>> {
-          const { store_id, profile_list_id, ...queryParams } = params;
+        async find(params: FindContactListContactsParams, options?: RequestOptions): Promise<PaginatedResponse<ContactListMember>> {
+          const { store_id, contact_list_id, ...queryParams } = params;
           const target_store_id = store_id || apiConfig.storeId;
-          const path = profile_list_id
-            ? `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/members`
-            : `/v1/stores/${target_store_id}/profile-list-members`;
-          return apiConfig.httpClient.get<PaginatedResponse<ProfileListMember>>(
+          const path = contact_list_id
+            ? `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/members`
+            : `/v1/stores/${target_store_id}/contact-list-members`;
+          return apiConfig.httpClient.get<PaginatedResponse<ContactListMember>>(
             path,
             { ...options, params: queryParams },
           );
         },
       },
-      profiles: {
-        async add(params: AddProfileListProfileParams, options?: RequestOptions): Promise<ProfileListMember> {
-          const { store_id, profile_list_id, profile_id, fields, lead_description } = params;
+      contacts: {
+        async add(params: AddContactListContactParams, options?: RequestOptions): Promise<ContactListMember> {
+          const { store_id, contact_list_id, contact_id, fields, lead_description } = params;
           const target_store_id = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.post<ProfileListMember>(
-            `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/members/${profile_id}`,
+          return apiConfig.httpClient.post<ContactListMember>(
+            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/members/${contact_id}`,
             { fields, lead_description },
             options,
           );
         },
-        async update(params: UpdateProfileListProfileParams, options?: RequestOptions): Promise<ProfileListMember> {
-          const { store_id, profile_list_id, profile_id, status, fields, lead_description } = params;
+        async update(params: UpdateContactListContactParams, options?: RequestOptions): Promise<ContactListMember> {
+          const { store_id, contact_list_id, contact_id, status, fields, lead_description } = params;
           const target_store_id = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.patch<ProfileListMember>(
-            `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/members/${profile_id}`,
+          return apiConfig.httpClient.patch<ContactListMember>(
+            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/members/${contact_id}`,
             { status, fields, lead_description },
             options,
           );
         },
-        async remove(params: RemoveProfileListProfileParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
+        async remove(params: RemoveContactListContactParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
           const target_store_id = params.store_id || apiConfig.storeId;
           return apiConfig.httpClient.delete<{ deleted: boolean }>(
-            `/v1/stores/${target_store_id}/profile-lists/${params.profile_list_id}/members/${params.profile_id}`,
+            `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/members/${params.contact_id}`,
             options,
           );
         },
-        async find(params: FindProfileListProfilesParams, options?: RequestOptions): Promise<PaginatedResponse<ProfileListMember>> {
-          const { store_id, profile_list_id, ...queryParams } = params;
+        async find(params: FindContactListContactsParams, options?: RequestOptions): Promise<PaginatedResponse<ContactListMember>> {
+          const { store_id, contact_list_id, ...queryParams } = params;
           const target_store_id = store_id || apiConfig.storeId;
-          const path = profile_list_id
-            ? `/v1/stores/${target_store_id}/profile-lists/${profile_list_id}/members`
-            : `/v1/stores/${target_store_id}/profile-list-members`;
-          return apiConfig.httpClient.get<PaginatedResponse<ProfileListMember>>(
+          const path = contact_list_id
+            ? `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/members`
+            : `/v1/stores/${target_store_id}/contact-list-members`;
+          return apiConfig.httpClient.get<PaginatedResponse<ContactListMember>>(
             path,
             { ...options, params: queryParams },
           );
@@ -643,6 +639,6 @@ export const createProfileApi = (apiConfig: ApiConfig) => {
       },
     },
 
-    activity: createActivityAdminApi(apiConfig),
+    action: createActionAdminApi(apiConfig),
   };
 };

@@ -5,7 +5,7 @@ import type {
   WorkflowNode,
   WorkflowEdge,
   Address,
-  IntegrationProvider,
+  BuildHookType,
   WebhookEventSubscription,
   Parcel,
   CustomsDeclaration,
@@ -36,11 +36,11 @@ import type {
   SpecificDate,
   Language,
   StoreEmails,
-  ProfileStatus,
-  ProfileListStatus,
-  ProfileListType,
-  ProfileListSource,
-  ProfileListMembershipStatus,
+  ContactStatus,
+  ContactListStatus,
+  ContactListType,
+  ContactListSource,
+  ContactListMembershipStatus,
   MailboxStatus,
   MailboxProvider,
   CampaignStatus,
@@ -55,6 +55,12 @@ import type {
   SuppressionStatus,
   SuppressionReason,
   SuppressionSource,
+  SocialProviderType,
+  SocialPublicationCommentIntent,
+  SocialPublicationCommentPriority,
+  SocialPublicationCommentStatus,
+  SocialPublicationContent,
+  SocialPublicationStatus,
 } from "./index";
 
 export interface CreateLocationParams {
@@ -98,6 +104,7 @@ export interface DeleteMarketParams {
 export interface RequestOptions<T = any> {
   headers?: Record<string, string>;
   params?: Record<string, any>;
+  signal?: AbortSignal;
   transformRequest?: (data: any) => any;
   onSuccess?: (ctx: {
     data: T;
@@ -252,7 +259,7 @@ export interface GetCartParams {
 
 export interface FindCartsParams {
   store_id?: string;
-  profile_id?: string;
+  contact_id?: string;
   statuses?: import("./index").CartStatus[];
   origins?: import("./index").CartOrigin[];
   has_items?: boolean;
@@ -262,7 +269,7 @@ export interface FindCartsParams {
 
 export interface CreateCartParams {
   store_id?: string;
-  profile_id: string;
+  contact_id: string;
   market: string;
   items?: TrustedOrderCheckoutCompatibleItemInput[];
   shipping_address?: Address | null;
@@ -707,7 +714,7 @@ export interface GetOrderParams {
 
 export interface GetOrdersParams {
   store_id?: string;
-  profile_id?: string;
+  contact_id?: string;
   statuses?: string[];
   item_statuses?: string[];
   product_ids?: string[];
@@ -722,7 +729,7 @@ export interface GetOrdersParams {
   sort_direction?: "asc" | "desc" | null;
   created_at_from?: number | null;
   created_at_to?: number | null;
-  profile_list_id?: string;
+  contact_list_id?: string;
 }
 
 export interface OrderUpdateItem extends EshopItem {}
@@ -877,7 +884,7 @@ export interface GetProviderParams {
 
 export interface SearchOrderServiceItemsParams {
   store_id?: string;
-  profile_id?: string;
+  contact_id?: string;
   service_ids?: string[];
   provider_ids?: string[];
   from?: number;
@@ -890,7 +897,7 @@ export interface SearchOrderServiceItemsParams {
   verified?: boolean;
 
   query?: string | number;
-  profile_list_id?: string;
+  contact_list_id?: string;
 }
 
 export interface DownloadDigitalAccessParams {
@@ -913,7 +920,7 @@ export interface AccountApiToken {
   type?: string;
 }
 
-export interface UpdateAccountProfileParams {
+export interface UpdateAccountContactParams {
   phone_numbers?: string[];
   addresses?: AccountAddress[];
   api_tokens?: AccountApiToken[] | null;
@@ -1065,7 +1072,7 @@ export interface SubmitFormParams {
 export interface GetFormSubmissionsParams {
   form_ids?: string[];
   store_id?: string;
-  profile_id?: string;
+  contact_id?: string;
 
   query?: string | number;
   limit?: number;
@@ -1076,10 +1083,10 @@ export interface GetFormSubmissionsParams {
   created_at_to?: number;
 }
 
-export interface FindActivitiesParams {
+export interface FindActionsParams {
   store_id?: string;
   query?: string | number;
-  profile_id?: string;
+  contact_id?: string;
   types?: string[];
   from?: number;
   to?: number;
@@ -1294,29 +1301,64 @@ export interface GetWorkflowExecutionParams {
   store_id?: string;
 }
 
-export interface CreateProfileListParams {
+export interface ConnectGoogleDriveWorkflowAccountParams {
+  store_id?: string;
+  key?: string;
+  code: string;
+  redirect_uri: string;
+}
+
+export interface GetGoogleDriveWorkflowAccountConnectUrlParams {
+  store_id?: string;
+  redirect_uri: string;
+}
+
+export interface ConnectWorkflowAccountParams {
+  store_id?: string;
+  type: import("./index").WorkflowAccountType;
+  key?: string;
+  code: string;
+  redirect_uri: string;
+}
+
+export interface GetWorkflowAccountConnectUrlParams {
+  store_id?: string;
+  type: import("./index").WorkflowAccountType;
+  redirect_uri: string;
+}
+
+export interface GetWorkflowAccountsParams {
+  store_id?: string;
+}
+
+export interface DeleteWorkflowAccountParams {
+  id: string;
+  store_id?: string;
+}
+
+export interface CreateContactListParams {
   store_id?: string;
   key: string;
   name?: string;
   description?: string | null;
-  type?: ProfileListType;
-  source?: ProfileListSource;
+  type?: ContactListType;
+  source?: ContactListSource;
 }
 
-export interface UpdateProfileListParams {
+export interface UpdateContactListParams {
   id: string;
   store_id?: string;
   key?: string;
   name?: string;
   description?: string | null;
-  status?: ProfileListStatus;
-  type?: ProfileListType;
+  status?: ContactListStatus;
+  type?: ContactListType;
 }
 
-export interface FindProfileListsParams {
+export interface FindContactListsParams {
   store_id?: string;
   ids?: string[];
-  status?: ProfileListStatus;
+  status?: ContactListStatus;
   query?: string | number;
   limit?: number;
   cursor?: string;
@@ -1324,80 +1366,80 @@ export interface FindProfileListsParams {
   sort_direction?: "asc" | "desc";
 }
 
-export interface GetProfileListParams {
+export interface GetContactListParams {
   id: string;
   store_id?: string;
 }
 
-export interface AddProfileListProfileParams {
+export interface AddContactListContactParams {
   store_id?: string;
-  profile_list_id: string;
-  profile_id: string;
+  contact_list_id: string;
+  contact_id: string;
   fields?: Record<string, unknown>;
   lead_description?: string | null;
 }
 
-export interface UpdateProfileListProfileParams {
+export interface UpdateContactListContactParams {
   store_id?: string;
-  profile_list_id: string;
-  profile_id: string;
-  status?: ProfileListMembershipStatus;
+  contact_list_id: string;
+  contact_id: string;
+  status?: ContactListMembershipStatus;
   fields?: Record<string, unknown>;
   lead_description?: string | null;
 }
 
-export interface RemoveProfileListProfileParams {
+export interface RemoveContactListContactParams {
   store_id?: string;
-  profile_list_id: string;
-  profile_id: string;
+  contact_list_id: string;
+  contact_id: string;
 }
 
-export interface FindProfileListProfilesParams {
+export interface FindContactListContactsParams {
   store_id?: string;
-  profile_list_id?: string;
-  profile_id?: string;
-  status?: ProfileListMembershipStatus;
+  contact_list_id?: string;
+  contact_id?: string;
+  status?: ContactListMembershipStatus;
   limit?: number;
   cursor?: string;
 }
 
-export interface ImportProfileRowInput {
+export interface ImportContactRowInput {
   email: string;
-  profile_id?: string;
+  contact_id?: string;
   fields?: Record<string, unknown>;
   lead_description?: string;
 }
 
-export interface ImportProfilesParams {
+export interface ImportContactsParams {
   store_id?: string;
   csv?: string;
   spreadsheet_base64?: string;
   sheet_name?: string | null;
   email_column?: string | null;
   field_mappings?: ImportFieldMapping[];
-  rows?: ImportProfileRowInput[];
+  rows?: ImportContactRowInput[];
 }
 
-export interface ImportProfilesIntoProfileListParams {
+export interface ImportContactsIntoContactListParams {
   store_id?: string;
-  profile_list_id: string;
+  contact_list_id: string;
   csv?: string;
   spreadsheet_base64?: string;
   sheet_name?: string | null;
   email_column?: string | null;
   field_mappings?: ImportFieldMapping[];
-  rows?: ImportProfileRowInput[];
+  rows?: ImportContactRowInput[];
 }
 
-export interface ImportProfilesPreviewParams {
+export interface ImportContactsPreviewParams {
   store_id?: string;
   csv?: string;
   spreadsheet_base64?: string;
   sheet_name?: string | null;
 }
 
-export interface ImportProfileListPreviewParams extends ImportProfilesPreviewParams {
-  profile_list_id: string;
+export interface ImportContactListPreviewParams extends ImportContactsPreviewParams {
+  contact_list_id: string;
 }
 
 export interface ImportFieldMapping {
@@ -1410,7 +1452,7 @@ export interface ImportPreviewRow {
   values: Record<string, unknown>;
 }
 
-export interface ImportProfilesPreviewResult {
+export interface ImportContactsPreviewResult {
   sheets: string[];
   selected_sheet?: string | null;
   header_row: number;
@@ -1421,64 +1463,64 @@ export interface ImportProfilesPreviewResult {
   suggested_field_mappings: ImportFieldMapping[];
 }
 
-export interface ImportProfileRowError {
+export interface ImportContactRowError {
   row: number;
   field: string;
   message: string;
 }
 
-export interface ImportProfileRowResult {
+export interface ImportContactRowResult {
   row: number;
   email: string;
-  profile_id?: string | null;
+  contact_id?: string | null;
   created: boolean;
   updated: boolean;
   error?: string | null;
 }
 
-export interface ImportProfilesResult {
+export interface ImportContactsResult {
   rows_total: number;
-  profiles_created: number;
-  profiles_updated: number;
+  contacts_created: number;
+  contacts_updated: number;
   rows_failed: number;
-  errors: ImportProfileRowError[];
-  rows: ImportProfileRowResult[];
+  errors: ImportContactRowError[];
+  rows: ImportContactRowResult[];
 }
 
-export interface ImportProfileListRowResult {
+export interface ImportContactListRowResult {
   row: number;
   email: string;
-  profile_id?: string | null;
-  profile_created: boolean;
-  profile_updated: boolean;
+  contact_id?: string | null;
+  contact_created: boolean;
+  contact_updated: boolean;
   added_to_list: boolean;
   updated_in_list: boolean;
   error?: string | null;
 }
 
-export interface ImportProfilesIntoProfileListResult {
+export interface ImportContactsIntoContactListResult {
   rows_total: number;
-  profiles_created: number;
-  profiles_updated: number;
-  profiles_added: number;
-  profiles_updated_in_list: number;
-  profiles_failed_to_add: number;
+  contacts_created: number;
+  contacts_updated: number;
+  contacts_added: number;
+  contacts_updated_in_list: number;
+  contacts_failed_to_add: number;
   rows_failed: number;
-  errors: ImportProfileRowError[];
-  rows: ImportProfileListRowResult[];
+  errors: ImportContactRowError[];
+  rows: ImportContactListRowResult[];
 }
 
-export interface SubscribeProfileListParams {
+export interface SubscribeContactListParams {
   store_id?: string;
   id: string;
-  profile_id: string;
+  contact_id: string;
   price_id?: string;
   success_url?: string;
   cancel_url?: string;
   confirm_url?: string;
 }
 
-export interface ProfileListAccessParams {
+export interface ContactListAccessParams {
   store_id?: string;
   id: string;
 }
@@ -1511,7 +1553,7 @@ export interface FindMailboxesParams {
   store_id?: string;
   ids?: string[];
   status?: MailboxStatus;
-  provider_type?: "fake" | "smtp_imap";
+  provider_type?: "smtp_imap";
   query?: string | number;
   limit?: number;
   cursor?: string;
@@ -1599,9 +1641,9 @@ export interface GetCampaignLaunchReadinessParams {
 export interface ImportCampaignEnrollmentsParams {
   id: string;
   store_id?: string;
-  profile_list_id?: string;
-  profile_list_ids?: string[];
-  profile_ids?: string[];
+  contact_list_id?: string;
+  contact_list_ids?: string[];
+  contact_ids?: string[];
   emails?: string[];
 }
 
@@ -1616,16 +1658,15 @@ export interface GenerateOutreachPersonalizedDraftsParams {
   id: string;
   store_id?: string;
   step_position?: number;
-  profile_ids?: string[];
+  contact_ids?: string[];
   overwrite?: boolean;
-  model_integration_id?: string;
   instructions?: string;
 }
 
 export interface FindCampaignEnrollmentsParams {
   store_id?: string;
   campaign_id?: string;
-  profile_id?: string;
+  contact_id?: string;
   mailbox_id?: string;
   status?: CampaignEnrollmentStatus;
   limit?: number;
@@ -1661,7 +1702,7 @@ export interface FindCampaignMessagesParams {
   store_id?: string;
   campaign_id?: string;
   campaign_enrollment_id?: string;
-  profile_id?: string;
+  contact_id?: string;
   mailbox_id?: string;
   direction?: CampaignMessageDirection;
   type?: CampaignMessageType;
@@ -1703,7 +1744,7 @@ export interface UpdateCampaignMessageParams {
 export interface CreateSuppressionParams {
   store_id?: string;
   campaign_id?: string;
-  profile_id?: string;
+  contact_id?: string;
   email?: string;
   domain?: string;
   reason?: SuppressionReason;
@@ -1720,7 +1761,7 @@ export interface UpdateSuppressionParams {
 export interface FindSuppressionsParams {
   store_id?: string;
   status?: SuppressionStatus;
-  profile_id?: string;
+  contact_id?: string;
   email?: string;
   domain?: string;
   campaign_id?: string;
@@ -1739,15 +1780,14 @@ export interface GetSuppressionParams {
 
 export interface CreateLeadResearchRunParams {
   store_id?: string;
-  integration_id: string;
-  profile_list_id?: string;
+  contact_list_id?: string;
   title?: string;
 }
 
 export interface FindLeadResearchRunsParams {
   store_id?: string;
   status?: LeadResearchRunStatus;
-  profile_list_id?: string;
+  contact_list_id?: string;
   limit?: number;
   cursor?: string;
 }
@@ -1760,7 +1800,7 @@ export interface GetLeadResearchRunParams {
 export interface UpdateLeadResearchRunParams {
   id: string;
   store_id?: string;
-  integration_id: string;
+  title?: string;
 }
 
 export interface CancelLeadResearchRunParams {
@@ -1789,31 +1829,189 @@ export interface ValidateLeadEmailParams {
   email_source_url?: string;
 }
 
-export interface ListIntegrationsParams {
+export interface ListBuildHooksParams {
   store_id: string;
 }
 
-export interface GetIntegrationParams {
-  store_id: string;
-  id: string;
-}
-
-export interface CreateIntegrationParams {
+export interface CreateBuildHookParams {
   store_id: string;
   key: string;
-  provider: IntegrationProvider;
+  type: BuildHookType;
+  url: string;
+  headers?: Record<string, string>;
+  active?: boolean;
 }
 
-export interface UpdateIntegrationParams {
+export interface UpdateBuildHookParams {
   store_id: string;
   id: string;
   key?: string;
-  provider?: IntegrationProvider;
+  type?: BuildHookType;
+  url?: string;
+  headers?: Record<string, string>;
+  active?: boolean;
 }
 
-export interface DeleteIntegrationParams {
+export interface DeleteBuildHookParams {
   store_id: string;
   id: string;
+}
+
+export interface ListSocialAccountsParams {
+  store_id?: string;
+}
+
+export interface DeleteSocialAccountParams {
+  store_id: string;
+  id: string;
+}
+
+export interface ListPaymentProvidersParams {
+  store_id?: string;
+}
+
+export interface ConnectStripePaymentProviderParams {
+  store_id?: string;
+  return_url: string;
+  refresh_url: string;
+  email?: string | null;
+  country?: string | null;
+  connected_account_id?: string | null;
+}
+
+export interface DeletePaymentProviderParams {
+  store_id: string;
+  id: string;
+}
+
+export interface FindSocialPublicationsParams {
+  store_id?: string;
+  status?: SocialPublicationStatus;
+  query?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface GetSocialPublicationParams {
+  store_id?: string;
+  id: string;
+}
+
+export interface ValidateSocialPublicationParams {
+  store_id?: string;
+  social_account_id: string;
+  scheduled_at?: number | null;
+  content: SocialPublicationContent;
+}
+
+export interface CreateSocialPublicationParams {
+  store_id?: string;
+  social_account_id: string;
+  key?: string | null;
+  scheduled_at?: number | null;
+  content: SocialPublicationContent;
+}
+
+export interface UpdateSocialPublicationParams {
+  store_id?: string;
+  id: string;
+  social_account_id?: string | null;
+  key?: string | null;
+  scheduled_at?: number | null;
+  content?: SocialPublicationContent | null;
+}
+
+export interface ScheduleSocialPublicationParams {
+  store_id?: string;
+  id: string;
+  scheduled_at: number;
+}
+
+export interface CancelSocialPublicationParams {
+  store_id?: string;
+  id: string;
+}
+
+export interface GetSocialPublicationCommentsParams {
+  store_id?: string;
+  publication_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface GetSocialPublicationCommentThreadParams {
+  store_id?: string;
+  publication_id: string;
+  comment_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindSocialPublicationCommentsParams {
+  store_id?: string;
+  publication_id?: string;
+  social_account_id?: string;
+  provider_type?: SocialProviderType;
+  status?: SocialPublicationCommentStatus;
+  intent?: SocialPublicationCommentIntent;
+  priority?: SocialPublicationCommentPriority;
+  include_replies?: boolean;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface ClassifySocialPublicationCommentsParams {
+  store_id?: string;
+  publication_id?: string;
+  social_account_id?: string;
+  provider_type?: SocialProviderType;
+  status?: SocialPublicationCommentStatus;
+  intent?: SocialPublicationCommentIntent;
+  priority?: SocialPublicationCommentPriority;
+  limit?: number;
+  force?: boolean;
+}
+
+export interface ReplySocialPublicationCommentParams {
+  store_id?: string;
+  publication_id: string;
+  comment_id: string;
+  text: string;
+}
+
+export interface GetSocialPublicationMetricsParams {
+  store_id?: string;
+  publication_id: string;
+}
+
+export interface SyncSocialEngagementParams {
+  store_id?: string;
+  publication_ids?: string[];
+  max_publications?: number;
+  max_comment_pages_per_publication?: number;
+  max_comments_per_publication?: number;
+  sync_metrics?: boolean;
+}
+
+export interface GetSocialCapabilitiesParams {
+  store_id?: string;
+}
+
+export interface ConnectSocialAccountParams {
+  store_id?: string;
+  provider_type: SocialProviderType;
+}
+
+export interface SelectSocialDestinationParams {
+  store_id?: string;
+  provider_type: SocialProviderType;
+  attempt_id: string;
+  candidate_id: string;
+}
+
+export interface GetSocialOAuthAttemptParams {
+  store_id?: string;
+  attempt_id: string;
 }
 
 export interface ListWebhooksParams {
@@ -1848,7 +2046,6 @@ export interface DeleteWebhookParams {
 
 export interface GetShippingRatesParams {
   order_id: string;
-  shipping_provider_id: string;
   from_address: Address;
   to_address: Address;
   parcel: Parcel;
@@ -1875,18 +2072,18 @@ export interface AuthToken {
   is_verified: boolean;
 }
 
-export interface ProfileInfo {
+export interface ContactInfo {
   id: string;
   verified: boolean;
 }
 
-export interface ProfileAuthToken {
+export interface ContactSessionToken {
   id: string;
   token: string;
   created_at: number;
 }
 
-export interface ProfileVerificationCode {
+export interface ContactVerificationCode {
   code: string;
   created_at: number;
   used: boolean;
@@ -1898,61 +2095,61 @@ export interface PromoUsage {
   uses: number;
 }
 
-export interface Profile {
+export interface Contact {
   id: string;
   store_id: string;
   email: string | null;
   verified: boolean;
-  status: ProfileStatus;
-  channels: import("./index").ProfileChannel[];
+  status: ContactStatus;
+  channels: import("./index").ContactChannel[];
   promo_usage: PromoUsage[];
-  lists: import("./index").ProfileListMembership[];
+  lists: import("./index").ContactListMembership[];
   taxonomies: TaxonomyEntry[];
-  auth_tokens: ProfileAuthToken[];
-  verification_codes: ProfileVerificationCode[];
+  auth_tokens: ContactSessionToken[];
+  verification_codes: ContactVerificationCode[];
   created_at: number;
   updated_at: number;
 }
 
-export interface ProfileDetail {
-  profile: Profile;
+export interface ContactDetail {
+  contact: Contact;
   carts: import("./index").Cart[];
   orders: import("./index").Order[];
   form_submissions: import("./index").FormSubmission[];
 }
 
-export interface SetProfileEmailParams {
+export interface SetContactEmailParams {
   email: string;
   store_id?: string;
 }
 
-export interface CreateProfileParams {
+export interface CreateContactParams {
   store_id?: string;
   email: string;
   taxonomies?: TaxonomyEntry[];
 }
 
-export interface UpdateProfileParams {
+export interface UpdateContactParams {
   id: string;
   store_id?: string;
   email?: string;
   taxonomies?: TaxonomyEntry[];
-  status?: ProfileStatus;
+  status?: ContactStatus;
 }
 
-export interface GetProfileParams {
+export interface GetContactParams {
   id: string;
   store_id?: string;
 }
 
-export interface FindProfilesParams {
+export interface FindContactsParams {
   store_id?: string;
   ids?: string[];
 
   query?: string | number;
   taxonomy_query?: TaxonomyQuery[];
-  status?: ProfileStatus;
-  has_activity?: boolean;
+  status?: ContactStatus;
+  has_action?: boolean;
   has_cart?: boolean;
   limit?: number;
   cursor?: string;
@@ -1960,7 +2157,7 @@ export interface FindProfilesParams {
   sort_direction?: "asc" | "desc";
 }
 
-export interface MergeProfilesParams {
+export interface MergeContactsParams {
   target_id: string;
   source_id: string;
   store_id?: string;

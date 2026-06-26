@@ -1,4 +1,3 @@
-
 export type {
   ApiResponse,
   EshopCartItem,
@@ -9,11 +8,44 @@ export type {
   Store,
   Webhook,
   WebhookEventSubscription,
-  Integration,
-  IntegrationProvider,
+  BuildHook,
+  BuildHookType,
+  PaymentStoreConfig,
+  StoreRuntimeConfig,
+  SocialConnectResponse,
+  SocialDestinationMetadata,
+  SocialOAuthCallbackResponse,
+  SocialOAuthCallbackStatus,
+  SocialOAuthCredential,
+  SocialOAuthDestinationOption,
+  SocialAccount,
+  SocialProviderCapability,
+  SocialProviderType,
+  InstagramPlacement,
+  SocialAnalyticsCapabilities,
+  SocialEngagementCapabilities,
+  SocialPublication,
+  SocialPublicationComment,
+  SocialPublicationCommentClassificationResult,
+  SocialPublicationCommentIntent,
+  SocialPublicationCommentPriority,
+  SocialPublicationEngagementSyncResult,
+  SocialPublicationCommentReply,
+  SocialPublicationCommentReplyResponse,
+  SocialPublicationCommentStatus,
+  SocialPublicationContent,
+  SocialPublicationMetricSnapshot,
+  SocialPublicationMutationResponse,
+  SocialPublicationStatus,
+  SocialPublicationValidation,
+  TiktokPrivacy,
+  ValidationError,
+  YoutubePrivacy,
   Block,
   Price,
   OrderPayment,
+  PaymentProvider,
+  StripePaymentProviderConnectResponse,
   OrderPaymentTax,
   OrderPaymentTaxLine,
   OrderPaymentPromoCode,
@@ -22,7 +54,7 @@ export type {
   RefundType,
   RefundLine,
   TaxLineReversal,
-  PaymentProviderKind,
+  PaymentTransactionProvider,
   PaymentCaptureMethod,
   PaymentTransactionType,
   PaymentTransactionStatus,
@@ -35,14 +67,13 @@ export type {
   StoreSubscriptionSource,
   SubscriptionPlan,
   SubscriptionPrice,
-  ProfileListMembershipPayment,
-  ProfileListMembershipProvider,
+  ContactListMembershipPayment,
+  ContactListMembershipProvider,
   PaymentMethod,
   ShippingMethod,
   ShippingWeightTier,
   Zone,
   Market,
-
   Address,
   GeoLocation,
   ZoneLocation,
@@ -68,6 +99,12 @@ export type {
   WorkflowEdge,
   WorkflowTriggerNode,
   WorkflowHttpNode,
+  WorkflowDeployWebhookNode,
+  WorkflowGoogleDriveUploadNode,
+  WorkflowAccount,
+  WorkflowAccountConnectUrl,
+  WorkflowAccountProfile,
+  WorkflowAccountType,
   WorkflowSwitchNode,
   WorkflowSwitchRule,
   WorkflowTransformNode,
@@ -76,12 +113,11 @@ export type {
   WorkflowExecution,
   ExecutionStatus,
   NodeResult,
-  ProfileListType,
-  ProfileListAccessResponse,
-  ProfileListSubscribeResponse,
+  ContactListType,
+  ContactListAccessResponse,
+  ContactListSubscribeResponse,
   Event,
   EventAction,
-
   ShippingStatus,
   OrderShipping,
   ShippingLine,
@@ -98,9 +134,7 @@ export type {
   Shipment,
   CustomsItem,
   CustomsDeclaration,
-
   GeoLocationBlock,
-
   Service,
   Provider,
   ServiceProvider,
@@ -110,7 +144,6 @@ export type {
   WorkingHour,
   WorkingDay,
   SpecificDate,
-
   Order,
   OrderItem,
   OrderItemSnapshot,
@@ -138,17 +171,15 @@ export type {
   DigitalAccessGrantStatus,
   DigitalAccessGrant,
   DigitalAccessDownloadResponse,
-
   Product,
   ProductVariant,
   ProductInventory,
-  DigitalAssetKind,
+  DigitalAssetType,
   DigitalAssetStatus,
   DigitalDeliveryPolicy,
   DigitalAsset,
   InventoryLevel,
   GalleryItem,
-
   EmailTemplate,
   Form,
   FormSubmission,
@@ -164,15 +195,19 @@ export type {
   TaxonomySchemaType,
   TaxonomyField,
   TaxonomyFieldQuery,
-
   PromoCode,
-
-  Profile,
-  ProfileChannel,
+  Contact,
+  ContactChannel,
   ChannelType,
-  ProfileList,
-  ProfileListMembership,
-  ProfileListMember,
+  OpportunityStage,
+  OpportunityType,
+  OpportunitySource,
+  Action,
+  ActionData,
+  ActionContext,
+  ContactList,
+  ContactListMembership,
+  ContactListMember,
   Mailbox,
   MailboxConnectionSecurity,
   MailboxProvider,
@@ -206,7 +241,7 @@ export type {
   LeadEmailValidationResult,
   LeadResearchMessage,
   LeadResearchMessageRole,
-  ResearchProfileListMember,
+  ResearchContactListMember,
   SendLeadResearchMessageResult,
   Account,
   AccountToken,
@@ -214,14 +249,13 @@ export type {
   StoreMembership,
   Discount,
   Condition,
-
   ServiceStatus,
   ProviderStatus,
   ProductStatus,
-  ProfileStatus,
-  ProfileListStatus,
-  ProfileListSource,
-  ProfileListMembershipStatus,
+  ContactStatus,
+  ContactListStatus,
+  ContactListSource,
+  ContactListMembershipStatus,
   MailboxStatus,
   CampaignStatus,
   CampaignEnrollmentStatus,
@@ -287,10 +321,10 @@ export type {
   SystemTemplateKey,
   ImportFieldMapping,
   ImportPreviewRow,
-  ImportProfilesParams,
-  ImportProfilesPreviewParams,
-  ImportProfilesPreviewResult,
-  ImportProfilesResult,
+  ImportContactsParams,
+  ImportContactsPreviewParams,
+  ImportContactsPreviewResult,
+  ImportContactsResult,
   GetCollectionsParams,
   CreateCollectionParams,
   UpdateCollectionParams,
@@ -301,27 +335,25 @@ export type {
   UpdateEntryParams,
   GetEntryParams,
   DeleteEntryParams,
-  
   GetShippingRatesParams,
   ShipParams,
-  
-  CreateProfileListParams,
-  UpdateProfileListParams,
-  FindProfileListsParams,
-  GetProfileListParams,
-  AddProfileListProfileParams,
-  UpdateProfileListProfileParams,
-  RemoveProfileListProfileParams,
-  FindProfileListProfilesParams,
-  ImportProfileRowInput,
-  ImportProfileRowError,
-  ImportProfileRowResult,
-  ImportProfileListRowResult,
-  ImportProfileListPreviewParams,
-  ImportProfilesIntoProfileListParams,
-  ImportProfilesIntoProfileListResult,
-  SubscribeProfileListParams,
-  ProfileListAccessParams,
+  CreateContactListParams,
+  UpdateContactListParams,
+  FindContactListsParams,
+  GetContactListParams,
+  AddContactListContactParams,
+  UpdateContactListContactParams,
+  RemoveContactListContactParams,
+  FindContactListContactsParams,
+  ImportContactRowInput,
+  ImportContactRowError,
+  ImportContactRowResult,
+  ImportContactListRowResult,
+  ImportContactListPreviewParams,
+  ImportContactsIntoContactListParams,
+  ImportContactsIntoContactListResult,
+  SubscribeContactListParams,
+  ContactListAccessParams,
   CreateMailboxParams,
   UpdateMailboxParams,
   FindMailboxesParams,
@@ -359,6 +391,28 @@ export type {
   SendLeadResearchMessageParams,
   FindLeadResearchMessagesParams,
   ValidateLeadEmailParams,
+  CancelSocialPublicationParams,
+  ClassifySocialPublicationCommentsParams,
+  ConnectStripePaymentProviderParams,
+  ConnectSocialAccountParams,
+  CreateSocialPublicationParams,
+  DeletePaymentProviderParams,
+  DeleteSocialAccountParams,
+  FindSocialPublicationCommentsParams,
+  FindSocialPublicationsParams,
+  GetSocialCapabilitiesParams,
+  GetSocialOAuthAttemptParams,
+  GetSocialPublicationCommentThreadParams,
+  GetSocialPublicationCommentsParams,
+  GetSocialPublicationMetricsParams,
+  GetSocialPublicationParams,
+  ListPaymentProvidersParams,
+  ListSocialAccountsParams,
+  ReplySocialPublicationCommentParams,
+  ScheduleSocialPublicationParams,
+  SyncSocialEngagementParams,
+  UpdateSocialPublicationParams,
+  ValidateSocialPublicationParams,
 } from "./types/api";
 
 export type {
@@ -372,7 +426,7 @@ export type {
   AnalyticsReportKey,
   AnalyticsMetricReportKey,
   AnalyticsBreakdownReportKey,
-  AnalyticsActivityReportKey,
+  AnalyticsActionReportKey,
   AnalyticsCompositeReportKey,
   AnalyticsReportRequest,
   AnalyticsBlockRequest,
@@ -382,8 +436,8 @@ export type {
   AnalyticsBreakdownData,
   BusinessOverviewData,
   RevenueByCurrencyData,
-  ProfileFunnelStage,
-  ProfileFunnelData,
+  ContactFunnelStage,
+  ContactFunnelData,
   OutreachOverviewData,
   OutreachFunnelStage,
   OutreachFunnelData,
@@ -392,11 +446,11 @@ export type {
   AnalyticsReport,
   AnalyticsBlockResponse,
   AnalyticsResponse,
-  ActivityFeedCategory,
-  ActivityFeedItem,
-  ActivityFeedSummary,
-  ActivityFeedCursor,
-  ActivityFeedData,
+  ActionFeedCategory,
+  ActionFeedItem,
+  ActionFeedSummary,
+  ActionFeedCursor,
+  ActionFeedData,
 } from "./api/analytics";
 
 export type {
@@ -406,14 +460,13 @@ export type {
 } from "./types/api";
 
 export type {
-  Activity,
-  TrackParams,
-  CommonActivityType,
-  CommonActivityKey,
+  StorefrontAction,
+  TrackActionParams,
+  CommonActionKey,
   ExperimentUseResponse,
   UseExperimentParams,
 } from "./api/storefront";
-export { COMMON_ACTIVITY_TYPES } from "./api/storefront";
+export { COMMON_ACTION_KEYS } from "./api/storefront";
 export type {
   CreateExperimentParams,
   Experiment,
@@ -458,12 +511,12 @@ export type {
   ResolveSupportConversationParams,
 } from "./api/support";
 export type {
-  IntegrationOperation,
-  IntegrationResource,
-  IntegrationService,
+  WorkflowToolOperation,
+  WorkflowToolResource,
+  WorkflowTool,
 } from "./api/platform";
 
-export const SDK_VERSION = "0.9.2";
+export const SDK_VERSION = "0.9.11";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -472,7 +525,11 @@ export const SUPPORTED_FRAMEWORKS = [
   "vanilla",
 ] as const;
 
-import type { Profile as ProfileType, Store as StoreType, Market as MarketType } from "./types";
+import type {
+  Contact as ContactType,
+  Store as StoreType,
+  Market as MarketType,
+} from "./types";
 
 export interface ApiConfig {
   httpClient: HttpClient;
@@ -490,9 +547,9 @@ export interface AdminSessionInternal {
   email?: string;
 }
 
-export interface ProfileSessionInternal {
+export interface ContactSessionInternal {
   access_token: string;
-  profile: ProfileType;
+  contact: ContactType;
   store: StoreType;
   market: MarketType | null;
 }
@@ -501,8 +558,8 @@ export interface AdminSession {
   email?: string;
 }
 
-export interface ProfileSession {
-  profile: ProfileType;
+export interface ContactSession {
+  contact: ContactType;
   store: StoreType;
   market: MarketType | null;
 }
@@ -511,8 +568,10 @@ export type AdminSessionUpdater = (
   updater: (prev: AdminSessionInternal | null) => AdminSessionInternal | null,
 ) => void;
 
-export type ProfileSessionUpdater = (
-  updater: (prev: ProfileSessionInternal | null) => ProfileSessionInternal | null,
+export type ContactSessionUpdater = (
+  updater: (
+    prev: ContactSessionInternal | null,
+  ) => ContactSessionInternal | null,
 ) => void;
 
 export type AuthStateListener<T> = (session: T | null) => void;
@@ -533,12 +592,17 @@ import { createCmsApi } from "./api/cms";
 import { createEshopApi } from "./api/eshop";
 import { createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
-import { createProfileApi } from "./api/crm";
-import { createAdminSupportApi, createStorefrontSupportApi } from "./api/support";
+import { createContactApi } from "./api/crm";
+import {
+  createAdminSupportApi,
+  createStorefrontSupportApi,
+} from "./api/support";
 import { createLeadResearchApi } from "./api/leadResearch";
+import { createSocialApi } from "./api/social";
 import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
+import { createPaymentProvidersApi } from "./api/paymentProviders";
 import { createEmailTemplateApi } from "./api/emailTemplate";
 import { createFormApi } from "./api/form";
 import { createTaxonomyApi } from "./api/taxonomy";
@@ -656,7 +720,10 @@ function writeAdminSession(s: AdminSessionInternal | null): void {
   }
 }
 
-export type CreateAdminConfig = Omit<HttpClientConfig, "authStorage" | "storeId"> & {
+export type CreateAdminConfig = Omit<
+  HttpClientConfig,
+  "authStorage" | "storeId"
+> & {
   storeId: string;
   market: string;
   locale?: string;
@@ -711,7 +778,8 @@ export function createAdmin(config: CreateAdminConfig) {
                   ...prev,
                   access_token: tokens.access_token,
                   refresh_token: tokens.refresh_token ?? prev.refresh_token,
-                  access_expires_at: tokens.access_expires_at ?? prev.access_expires_at,
+                  access_expires_at:
+                    tokens.access_expires_at ?? prev.access_expires_at,
                 }
               : null,
           );
@@ -747,9 +815,11 @@ export function createAdmin(config: CreateAdminConfig) {
   const cmsApi = createCmsApi(apiConfig);
   const eshopApi = createEshopApi(apiConfig);
   const promoCodeApi = createPromoCodeApi(apiConfig);
-  const crmApi = createProfileApi(apiConfig);
+  const crmApi = createContactApi(apiConfig);
   const supportApi = createAdminSupportApi(apiConfig);
   const leadResearchApi = createLeadResearchApi(apiConfig);
+  const socialApi = createSocialApi(apiConfig);
+  const paymentProvidersApi = createPaymentProvidersApi(apiConfig);
   const leadResearch = {
     run: {
       create: leadResearchApi.createRun,
@@ -797,6 +867,8 @@ export function createAdmin(config: CreateAdminConfig) {
     notification: createNotificationApi(apiConfig),
     promoCode: promoCodeApi,
     platform: platformApi,
+    social: socialApi,
+    paymentProviders: paymentProvidersApi,
     shipping: createShippingApi(apiConfig),
     cms: {
       collection: {
@@ -890,7 +962,7 @@ export function createAdmin(config: CreateAdminConfig) {
       promoCode: promoCodeApi,
     },
     crm: {
-      profile: {
+      contact: {
         create: crmApi.create,
         get: crmApi.get,
         find: crmApi.find,
@@ -900,14 +972,14 @@ export function createAdmin(config: CreateAdminConfig) {
         revokeToken: crmApi.revokeToken,
         revokeAllTokens: crmApi.revokeAllTokens,
       },
-      profileList: crmApi.profileList,
+      contactList: crmApi.contactList,
       mailbox: crmApi.mailbox,
       campaign: crmApi.campaign,
       campaignEnrollment: crmApi.campaignEnrollment,
       campaignMessage: crmApi.campaignMessage,
       suppression: crmApi.suppression,
       leadResearch,
-      activity: crmApi.activity,
+      action: crmApi.action,
     },
     leadResearch,
     automation: {
@@ -920,6 +992,18 @@ export function createAdmin(config: CreateAdminConfig) {
         trigger: workflowApi.triggerWorkflow,
         getExecutions: workflowApi.getWorkflowExecutions,
         getExecution: workflowApi.getWorkflowExecution,
+        getAccounts: workflowApi.getWorkflowAccounts,
+        accounts: {
+          list: workflowApi.getWorkflowAccounts,
+          getConnectUrl: workflowApi.getWorkflowAccountConnectUrl,
+          connect: workflowApi.connectWorkflowAccount,
+          delete: workflowApi.deleteWorkflowAccount,
+        },
+        getGoogleDriveConnectUrl:
+          workflowApi.getGoogleDriveWorkflowAccountConnectUrl,
+        connectGoogleDriveAccount:
+          workflowApi.connectGoogleDriveWorkflowAccount,
+        deleteAccount: workflowApi.deleteWorkflowAccount,
       },
       support: supportApi,
     },
@@ -950,6 +1034,11 @@ export function createAdmin(config: CreateAdminConfig) {
       return toPublic(readAdminSession());
     },
 
+    get currentSession(): AdminSession | null {
+      if (config.apiToken) return null;
+      return toPublic(readAdminSession());
+    },
+
     get isAuthenticated(): boolean {
       if (config.apiToken) return true;
       return readAdminSession() !== null;
@@ -976,34 +1065,36 @@ export function createAdmin(config: CreateAdminConfig) {
     extractBlockValues,
 
     utils: createUtilitySurface(apiConfig),
-
   };
 
   return sdk;
 }
 
-const PROFILE_STORAGE_KEY = "arky_profile_session";
+const CONTACT_STORAGE_KEY = "arky_contact_session";
 
-function readProfileSession(): ProfileSessionInternal | null {
+function readContactSession(): ContactSessionInternal | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as ProfileSessionInternal) : null;
+    const raw = localStorage.getItem(CONTACT_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as ContactSessionInternal) : null;
   } catch {
     return null;
   }
 }
 
-function writeProfileSession(s: ProfileSessionInternal | null): void {
+function writeContactSession(s: ContactSessionInternal | null): void {
   if (typeof window === "undefined") return;
   if (s) {
-    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(s));
+    localStorage.setItem(CONTACT_STORAGE_KEY, JSON.stringify(s));
   } else {
-    localStorage.removeItem(PROFILE_STORAGE_KEY);
+    localStorage.removeItem(CONTACT_STORAGE_KEY);
   }
 }
 
-export type CreateStorefrontConfig = Omit<HttpClientConfig, "authStorage" | "storeId"> & {
+export type CreateStorefrontConfig = Omit<
+  HttpClientConfig,
+  "authStorage" | "storeId"
+> & {
   storeId: string;
   market?: string;
   locale?: string;
@@ -1013,15 +1104,15 @@ export type CreateStorefrontConfig = Omit<HttpClientConfig, "authStorage" | "sto
 export function createStorefront(config: CreateStorefrontConfig) {
   const locale = config.locale || "en";
   const initialMarket = config.market || "";
-  const listeners = new Set<AuthStateListener<ProfileSession>>();
-  let bareIdentifyPromise: Promise<ProfileSession> | null = null;
+  const listeners = new Set<AuthStateListener<ContactSession>>();
+  let bareIdentifyPromise: Promise<ContactSession> | null = null;
 
-  function toPublic(s: ProfileSessionInternal | null): ProfileSession | null {
-    return s ? { profile: s.profile, store: s.store, market: s.market } : null;
+  function toPublic(s: ContactSessionInternal | null): ContactSession | null {
+    return s ? { contact: s.contact, store: s.store, market: s.market } : null;
   }
 
   function emit(): void {
-    const pub = toPublic(readProfileSession());
+    const pub = toPublic(readContactSession());
     for (const l of listeners) {
       Promise.resolve()
         .then(() => l(pub))
@@ -1029,11 +1120,11 @@ export function createStorefront(config: CreateStorefrontConfig) {
     }
   }
 
-  const updateSession: ProfileSessionUpdater = (updater) => {
+  const updateSession: ContactSessionUpdater = (updater) => {
     if (config.apiToken) return;
-    const prev = readProfileSession();
+    const prev = readContactSession();
     const next = updater(prev);
-    writeProfileSession(next);
+    writeContactSession(next);
     emit();
   };
 
@@ -1045,11 +1136,11 @@ export function createStorefront(config: CreateStorefrontConfig) {
       }
     : {
         getTokens() {
-          const s = readProfileSession();
+          const s = readContactSession();
           return s ? { access_token: s.access_token } : null;
         },
         onTokensRefreshed() {
-          // Profile tokens are one-shot; no refresh on this flow.
+          // Contact tokens are one-shot; no refresh on this flow.
         },
         onForcedLogout() {
           bareIdentifyPromise = null;
@@ -1076,36 +1167,44 @@ export function createStorefront(config: CreateStorefrontConfig) {
   };
 
   const storefrontApi = createStorefrontApi(apiConfig, updateSession);
-  const profileApi = storefrontApi.crm.profile;
+  const contactApi = storefrontApi.crm.contact;
 
-  function identify(
-    params?: { email?: string; verify?: boolean; market?: string },
-  ): Promise<ProfileSession> {
+  function identify(params?: {
+    email?: string;
+    verify?: boolean;
+    market?: string;
+  }): Promise<ContactSession> {
     if (params?.market !== undefined) apiConfig.market = params.market;
 
     const isBareCall = !params?.email && !params?.verify;
     if (isBareCall && bareIdentifyPromise) return bareIdentifyPromise;
 
-    const promise = (async (): Promise<ProfileSession> => {
+    const promise = (async (): Promise<ContactSession> => {
       try {
-        const result = await profileApi.identify({
+        const result = await contactApi.identify({
           market: apiConfig.market,
           email: params?.email,
           verify: params?.verify,
         });
         return {
-          profile: result.profile,
+          contact: result.contact,
           store: result.store,
           market: result.market,
         };
       } catch (err: unknown) {
-        const e = err as { statusCode?: number; status?: number; response?: { status?: number } };
+        const e = err as {
+          statusCode?: number;
+          status?: number;
+          response?: { status?: number };
+        };
         const status = e?.statusCode || e?.status || e?.response?.status;
         if (isBareCall && status === 401) {
           updateSession(() => null);
-          const result = await profileApi.identify({ market: apiConfig.market });
+          const result = await contactApi.identify({
+            market: apiConfig.market,
+          });
           return {
-            profile: result.profile,
+            contact: result.contact,
             store: result.store,
             market: result.market,
           };
@@ -1123,7 +1222,7 @@ export function createStorefront(config: CreateStorefrontConfig) {
   }
 
   async function verify(params: { code: string }) {
-    const result = await profileApi.verify(params);
+    const result = await contactApi.verify(params);
     bareIdentifyPromise = null;
     return result;
   }
@@ -1132,7 +1231,7 @@ export function createStorefront(config: CreateStorefrontConfig) {
     if (config.apiToken) return;
     bareIdentifyPromise = null;
     try {
-      await profileApi.logout();
+      await contactApi.logout();
     } catch {
       updateSession(() => null);
     }
@@ -1142,22 +1241,29 @@ export function createStorefront(config: CreateStorefrontConfig) {
     identify,
     verify,
     logout,
-    me: () => profileApi.getMe(),
+    me: () => contactApi.getMe(),
 
-    get session(): ProfileSession | null {
+    get session(): ContactSession | null {
       if (config.apiToken) return null;
-      return toPublic(readProfileSession());
+      return toPublic(readContactSession());
+    },
+
+    get currentSession(): ContactSession | null {
+      if (config.apiToken) return null;
+      return toPublic(readContactSession());
     },
 
     get isAuthenticated(): boolean {
       if (config.apiToken) return true;
-      const s = readProfileSession();
+      const s = readContactSession();
       return s !== null && !!s.access_token;
     },
 
-    onAuthStateChanged(listener: AuthStateListener<ProfileSession>): () => void {
+    onAuthStateChanged(
+      listener: AuthStateListener<ContactSession>,
+    ): () => void {
       listeners.add(listener);
-      const current = toPublic(readProfileSession());
+      const current = toPublic(readContactSession());
       if (current) {
         Promise.resolve()
           .then(() => listener(current))
@@ -1173,7 +1279,7 @@ export function createStorefront(config: CreateStorefrontConfig) {
     cms: storefrontApi.cms,
     eshop: storefrontApi.eshop,
     crm: storefrontApi.crm,
-    activity: storefrontApi.activity,
+    action: storefrontApi.action,
     experiments: storefrontApi.experiments,
     support: createStorefrontSupportApi(apiConfig),
     setStoreId: (storeId: string) => {

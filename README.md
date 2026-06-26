@@ -2,7 +2,7 @@
 
 Official TypeScript SDK for [Arky](https://arky.io), the website backend and client Admin for custom frontends.
 
-Arky lets you keep frontend control while using one backend for CMS, commerce, bookings, forms, profiles, activity, experiments, support, workflows, API, and SDK integration.
+Arky lets you keep frontend control while using one backend for CMS, commerce, bookings, forms, profiles, action, experiments, support, workflows, API, and SDK.
 
 ## Installation
 
@@ -12,7 +12,7 @@ npm install arky-sdk
 
 ## Storefront Quick Start
 
-Use `initialize` from `arky-sdk/storefront` for normal custom frontends. It creates the Arky integration object, keeps store/locale/market context, and exposes the backend modules the frontend needs.
+Use `initialize` from `arky-sdk/storefront` for normal custom frontends. It creates the Arky storefront object, keeps store/locale/market context, and exposes the backend modules the frontend needs.
 
 ```typescript
 import { initialize } from "arky-sdk/storefront";
@@ -31,8 +31,8 @@ const homepage = await arky.cms.entry.get({
   locale: "en",
 });
 
-await arky.activity.track({
-  key: "page_view",
+await arky.action.track({
+  key: "page.view",
   payload: { path: location.pathname },
 });
 ```
@@ -61,8 +61,8 @@ await arky.eshop.cart.checkout({ payment_method_id: "cash" });
 const { items: services } = await arky.eshop.service.list({ limit: 20 });
 await arky.eshop.service.initialize();
 
-await arky.activity.track({
-  key: "project_inquiry_started",
+await arky.action.track({
+  key: "project.inquiry.started",
   payload: { placement: "homepage" },
 });
 ```
@@ -140,7 +140,7 @@ await arky.eshop.cart.checkout({
 
 ## Low-Level Client
 
-The lower-level SDK client remains available as `arky.client` for admin tools or uncommon integrations. Normal storefronts should use the module API first.
+The lower-level SDK client remains available as `arky.client` for admin tools and advanced frontend utilities. Normal storefronts should use the module API first.
 
 ```typescript
 const sdk = arky.client;
