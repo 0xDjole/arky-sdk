@@ -1253,8 +1253,6 @@ export type BlockType =
 
 export interface GeoLocationBlockProperties {}
 
-export type GeoLocationValue = GeoLocation;
-
 export interface GeoLocationBlock extends Block {
   type: "geo_location";
   properties: GeoLocationBlockProperties;
@@ -1394,7 +1392,6 @@ export type SmtpImapMailboxProvider = {
   last_synced_at?: number | null;
   last_seen_uid?: number | null;
 };
-export type MailboxProvider = SmtpImapMailboxProvider;
 export type CampaignStatus =
   | "draft"
   | "active"
@@ -1464,7 +1461,6 @@ export type CampaignManualTaskOutcome =
   | "skipped"
   | "got_reply"
   | "do_not_contact";
-export type CampaignEnrollmentStepExecutionOutcome = CampaignManualTaskOutcome;
 export type OutreachPersonalizationStatus =
   | "idle"
   | "running"
@@ -2189,7 +2185,7 @@ export interface Mailbox {
   email: string;
   from_name: string;
   reply_to_email?: string | null;
-  provider: MailboxProvider;
+  provider: SmtpImapMailboxProvider;
   status: MailboxStatus;
   daily_limit: number;
   sent_today: number;
@@ -2332,8 +2328,6 @@ export interface CampaignMessage {
   created_at: number;
   updated_at: number;
 }
-
-export type CampaignEnrollmentDraft = CampaignMessage;
 
 export interface CampaignEnrollmentConversationResponse {
   enrollment: CampaignEnrollment;
@@ -2589,8 +2583,6 @@ export interface ShippingRate {
   currency: string;
   estimated_days?: number | null;
 }
-
-export type ShippingAddress = Address;
 
 export interface Parcel {
   length: number;

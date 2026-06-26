@@ -45,7 +45,7 @@
     "README.md"
   ],
   "scripts": {
-    "prebuild": "node scripts/check-no-any.mjs",
+    "prebuild": "node scripts/check-no-any.mjs && node scripts/check-public-surface.mjs",
     "build": "tsup",
     "test": "npm run build && node scripts/contract-storefront.mjs && node scripts/contract-admin.mjs",
     "dev": "tsup --watch",

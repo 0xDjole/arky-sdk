@@ -27,7 +27,7 @@ import type {
 } from "../types";
 import type {
   AvailabilityResponse,
-  CheckoutItemInput,
+  OrderCheckoutItemInput,
   FindServiceProvidersParams,
   GetAvailabilityParams,
   GetCollectionParams,
@@ -347,7 +347,7 @@ export function initialize(config: ArkyStoreConfig) {
     return response;
   }
 
-  function checkoutItems(input: ArkyCartInput = {}): CheckoutItemInput[] {
+  function checkoutItems(input: ArkyCartInput = {}): OrderCheckoutItemInput[] {
     return [
       ...toProductCheckoutItems(input.product_items || product_items.get()),
       ...toServiceCheckoutItems(input.service_items || service_items.get()),

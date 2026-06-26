@@ -67,7 +67,7 @@ export const createPlatformApi = (apiConfig: ApiConfig) => {
 					params: { key: params.key, limit: params.limit ?? 200 },
 				});
 			},
-			async put(params: { key: string; value: unknown; oldKey?: string }, options?: RequestOptions): Promise<{ ok: boolean }> {
+			async put(params: { key: string; value: unknown; previous_key?: string }, options?: RequestOptions): Promise<{ ok: boolean }> {
 				return apiConfig.httpClient.post<{ ok: boolean }>('/v1/platform/data', params, options);
 			},
 			async delete(params: { key: string }, options?: RequestOptions): Promise<{ ok: boolean }> {

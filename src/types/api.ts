@@ -42,7 +42,7 @@ import type {
   ContactListSource,
   ContactListMembershipStatus,
   MailboxStatus,
-  MailboxProvider,
+  SmtpImapMailboxProvider,
   CampaignStatus,
   CampaignEnrollmentStatus,
   CampaignMessageDirection,
@@ -50,7 +50,7 @@ import type {
   CampaignMessageStatus,
   CampaignMessageCopySource,
   OutreachStep,
-  CampaignEnrollmentStepExecutionOutcome,
+  CampaignManualTaskOutcome,
   LeadResearchRunStatus,
   SuppressionStatus,
   SuppressionReason,
@@ -171,8 +171,6 @@ export interface ServiceQuoteItemInput extends ServiceQuoteItem {
 
 export type OrderQuoteItemInput = ProductQuoteItemInput | ServiceQuoteItemInput;
 
-export type QuoteItemInput = OrderQuoteItemInput;
-
 export type OrderQuoteCompatibleItemInput =
   | OrderQuoteItemInput
   | EshopQuoteItem
@@ -195,8 +193,6 @@ export interface ServiceCheckoutItemInput {
 export type OrderCheckoutItemInput =
   | ProductCheckoutItemInput
   | ServiceCheckoutItemInput;
-
-export type CheckoutItemInput = OrderCheckoutItemInput;
 
 export type OrderCheckoutCompatibleItemInput =
   | OrderCheckoutItemInput
@@ -635,8 +631,6 @@ export interface AddMemberParams {
   store_id?: string;
 }
 
-export interface InviteUserParams extends AddMemberParams {}
-
 export interface RemoveMemberParams {
   account_id: string;
 }
@@ -731,8 +725,6 @@ export interface GetOrdersParams {
   created_at_to?: number | null;
   contact_list_id?: string;
 }
-
-export interface OrderUpdateItem extends EshopItem {}
 
 export interface UpdateOrderParams {
   id: string;
@@ -1173,7 +1165,7 @@ export interface SetupAnalyticsParams {
   store_id?: string;
 }
 
-export interface GetStoreMediaParams2 {
+export interface FindStoreMediaParams {
   id: string;
   cursor?: string | null;
   limit: number;
@@ -1519,7 +1511,7 @@ export interface CreateMailboxParams {
   email: string;
   from_name?: string;
   reply_to_email?: string | null;
-  provider: MailboxProvider;
+  provider: SmtpImapMailboxProvider;
   password?: string;
   daily_limit?: number;
 }
@@ -1531,7 +1523,7 @@ export interface UpdateMailboxParams {
   email?: string;
   from_name?: string;
   reply_to_email?: string | null;
-  provider?: MailboxProvider;
+  provider?: SmtpImapMailboxProvider;
   password?: string;
   status?: MailboxStatus;
   daily_limit?: number;
@@ -1682,7 +1674,7 @@ export interface UpdateCampaignEnrollmentStepExecutionParams {
   store_id?: string;
   id: string;
   execution_id: string;
-  outcome: CampaignEnrollmentStepExecutionOutcome;
+  outcome: CampaignManualTaskOutcome;
   note?: string;
 }
 

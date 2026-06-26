@@ -9,10 +9,9 @@ import type {
   SubscribeParams,
   CreatePortalSessionParams,
   AddMemberParams,
-  InviteUserParams,
   RemoveMemberParams,
   TestWebhookParams,
-  GetStoreMediaParams2,
+  FindStoreMediaParams,
   ListBuildHooksParams,
   CreateBuildHookParams,
   UpdateBuildHookParams,
@@ -134,7 +133,7 @@ export const createStoreApi = (
     },
 
     async inviteUser(
-      params: InviteUserParams,
+      params: AddMemberParams,
       options?: RequestOptions,
     ): Promise<boolean> {
       const { store_id, ...payload } = params;
@@ -167,7 +166,7 @@ export const createStoreApi = (
     },
 
     async getStoreMedia(
-      params: GetStoreMediaParams2,
+      params: FindStoreMediaParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<Media>> {
       const queryParams: Record<string, unknown> = {
