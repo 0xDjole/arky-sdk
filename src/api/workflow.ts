@@ -23,13 +23,6 @@ import type {
 } from "../types";
 
 export const createWorkflowApi = (apiConfig: ApiConfig) => {
-  const workflowAccountProviderPath = (
-    type: ConnectWorkflowAccountParams["type"],
-  ) => {
-    if (type === "google_drive") return "google-drive";
-    throw new Error(`Unsupported workflow account type: ${type}`);
-  };
-
   const getWorkflowAccountConnectUrl = async (
     params: GetWorkflowAccountConnectUrlParams,
     options?: RequestOptions,
@@ -37,8 +30,8 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
     const { store_id, type, ...payload } = params;
     const target_store_id = store_id || apiConfig.storeId;
     return apiConfig.httpClient.post<WorkflowAccountConnectUrl>(
-      `/v1/stores/${target_store_id}/workflow-accounts/${workflowAccountProviderPath(type)}/connect-url`,
-      { ...payload, store_id: target_store_id },
+      `/v1/stores/${target_store_id}/workflow-accounts/connect-url`,
+      { ...payload, type, store_id: target_store_id },
       options,
     );
   };
@@ -50,8 +43,8 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
     const { store_id, type, ...payload } = params;
     const target_store_id = store_id || apiConfig.storeId;
     return apiConfig.httpClient.post<WorkflowAccount>(
-      `/v1/stores/${target_store_id}/workflow-accounts/${workflowAccountProviderPath(type)}/connect`,
-      { ...payload, store_id: target_store_id },
+      `/v1/stores/${target_store_id}/workflow-accounts/connect`,
+      { ...payload, type, store_id: target_store_id },
       options,
     );
   };

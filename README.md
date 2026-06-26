@@ -56,7 +56,7 @@ await arky.cms.form.submitByKey({ key: "contact", entries: [] });
 const { items: products } = await arky.eshop.product.list({ limit: 20 });
 await arky.cart.addProduct(products[0], products[0].variants[0], 1);
 await arky.cart.quote();
-await arky.commerce.checkout({ payment_method_id: "cash" });
+await arky.cart.checkout({ payment_method_id: "cash" });
 
 const { items: services } = await arky.eshop.service.list({ limit: 20 });
 await arky.eshop.service.initialize();
@@ -74,7 +74,7 @@ const unsubscribe = arky.eshop.cart.snapshot.subscribe((snapshot) => {
   console.log(snapshot.item_count, snapshot.cart?.id);
 });
 
-await arky.eshop.cart.ensure();
+await arky.eshop.cart.load();
 unsubscribe();
 ```
 

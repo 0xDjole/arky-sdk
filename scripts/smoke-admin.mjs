@@ -68,6 +68,57 @@ assert.equal("accounts" in arky.automation.workflow, false);
 assert.equal("getGoogleDriveConnectUrl" in arky.automation.workflow, false);
 assert.equal("connectGoogleDriveAccount" in arky.automation.workflow, false);
 assert.equal("integrations" in arky.automation, false);
+
+const workflowFetchCalls = [];
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (url, init = {}) => {
+  workflowFetchCalls.push({
+    url: String(url),
+    method: init.method,
+    body: init.body,
+  });
+  return new Response(JSON.stringify({ authorization_url: "https://oauth.test", state: "state" }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+};
+
+try {
+  await arky.automation.workflow.getAccountConnectUrl({
+    type: "google_drive",
+    redirect_uri: "https://admin.test/workflow-accounts/callback",
+  });
+  await arky.automation.workflow.connectAccount({
+    type: "google_drive",
+    code: "oauth-code",
+    redirect_uri: "https://admin.test/workflow-accounts/callback",
+  });
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+assert.equal(workflowFetchCalls[0].method, "POST");
+assert.equal(
+  workflowFetchCalls[0].url,
+  "http://127.0.0.1:1/v1/stores/smoke-store/workflow-accounts/connect-url",
+);
+assert.deepEqual(JSON.parse(workflowFetchCalls[0].body), {
+  type: "google_drive",
+  redirect_uri: "https://admin.test/workflow-accounts/callback",
+  store_id: "smoke-store",
+});
+assert.equal(workflowFetchCalls[1].method, "POST");
+assert.equal(
+  workflowFetchCalls[1].url,
+  "http://127.0.0.1:1/v1/stores/smoke-store/workflow-accounts/connect",
+);
+assert.deepEqual(JSON.parse(workflowFetchCalls[1].body), {
+  type: "google_drive",
+  code: "oauth-code",
+  redirect_uri: "https://admin.test/workflow-accounts/callback",
+  store_id: "smoke-store",
+});
+
 assert.equal(typeof arky.automation.support.createAgent, "function");
 assert.equal(typeof arky.automation.support.findAgents, "function");
 assert.equal(typeof arky.automation.support.findConversations, "function");
