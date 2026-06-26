@@ -44,7 +44,7 @@ await arky.action.track({
 The storefront module API is the preferred surface for websites:
 
 ```typescript
-await arky.hydrateCart();
+await arky.cart.load();
 
 await arky.cms.entry.get({
   collection_id: "pages",
@@ -54,9 +54,9 @@ await arky.cms.entry.get({
 await arky.cms.form.submitByKey({ key: "contact", entries: [] });
 
 const { items: products } = await arky.eshop.product.list({ limit: 20 });
-await arky.eshop.cart.addProduct(products[0], products[0].variants[0], 1);
-await arky.eshop.cart.quote();
-await arky.eshop.cart.checkout({ payment_method_id: "cash" });
+await arky.cart.addProduct(products[0], products[0].variants[0], 1);
+await arky.cart.quote();
+await arky.commerce.checkout({ payment_method_id: "cash" });
 
 const { items: services } = await arky.eshop.service.list({ limit: 20 });
 await arky.eshop.service.initialize();
