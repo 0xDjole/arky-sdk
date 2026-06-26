@@ -1301,18 +1301,6 @@ export interface GetWorkflowExecutionParams {
   store_id?: string;
 }
 
-export interface ConnectGoogleDriveWorkflowAccountParams {
-  store_id?: string;
-  key?: string;
-  code: string;
-  redirect_uri: string;
-}
-
-export interface GetGoogleDriveWorkflowAccountConnectUrlParams {
-  store_id?: string;
-  redirect_uri: string;
-}
-
 export interface ConnectWorkflowAccountParams {
   store_id?: string;
   type: import("./index").WorkflowAccountType;
@@ -1887,12 +1875,6 @@ export interface DeletePaymentProviderParams {
   store_id: string;
   id: string;
 }
-
-export type ListPaymentConnectionsParams = ListPaymentProvidersParams;
-export type RefreshPaymentConnectionsParams = RefreshPaymentProvidersParams;
-export type StartPaymentOnboardingParams = ConnectStripePaymentProviderParams;
-export type ConnectCardPaymentsParams = ConnectStripePaymentProviderParams;
-export type DeletePaymentConnectionParams = DeletePaymentProviderParams;
 
 export interface FindSocialPublicationsParams {
   store_id?: string;

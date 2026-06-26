@@ -8,34 +8,95 @@ const arky = createAdmin({
   apiToken: "smoke-token",
 });
 
-assert.equal(typeof arky.paymentProviders.listProviders, "function");
-assert.equal(typeof arky.paymentProviders.refreshProviders, "function");
-assert.equal(typeof arky.paymentProviders.connectStripe, "function");
-assert.equal(typeof arky.payments.listConnections, "function");
-assert.equal(typeof arky.payments.refreshConnections, "function");
-assert.equal(typeof arky.payments.startOnboarding, "function");
-assert.equal(arky.payments.listConnections, arky.paymentProviders.listProviders);
-assert.equal(arky.payments.refreshConnections, arky.paymentProviders.refreshProviders);
-assert.equal(arky.payments.startOnboarding, arky.paymentProviders.connectStripe);
+assert.equal(typeof arky.account.auth.code, "function");
+assert.equal(typeof arky.account.auth.verify, "function");
+assert.equal(typeof arky.account.auth.refresh, "function");
+assert.equal(typeof arky.account.update, "function");
+assert.equal(typeof arky.account.delete, "function");
+assert.equal(typeof arky.account.getMe, "function");
+assert.equal(typeof arky.account.search, "function");
+assert.equal("updateAccount" in arky.account, false);
+assert.equal("deleteAccount" in arky.account, false);
+assert.equal("searchAccounts" in arky.account, false);
+assert.equal("auth" in arky, false);
 
-assert.equal(typeof arky.social.getPublicationComments, "function");
-assert.equal(typeof arky.social.syncPublicationComments, "function");
-assert.equal(typeof arky.social.getPublicationCommentThread, "function");
-assert.equal(typeof arky.social.syncPublicationCommentThread, "function");
-assert.equal(typeof arky.social.getPublicationMetrics, "function");
-assert.equal(typeof arky.social.syncPublicationMetrics, "function");
+assert.equal(typeof arky.store.create, "function");
+assert.equal(typeof arky.store.update, "function");
+assert.equal(typeof arky.store.delete, "function");
+assert.equal(typeof arky.store.get, "function");
+assert.equal(typeof arky.store.find, "function");
+assert.equal(typeof arky.store.subscription.getPlans, "function");
+assert.equal(typeof arky.store.subscription.subscribe, "function");
+assert.equal(typeof arky.store.subscription.createPortalSession, "function");
+assert.equal(typeof arky.store.member.add, "function");
+assert.equal(typeof arky.store.member.invite, "function");
+assert.equal(typeof arky.store.member.remove, "function");
+assert.equal(typeof arky.store.buildHook.list, "function");
+assert.equal(typeof arky.store.webhook.list, "function");
+assert.equal(typeof arky.store.config.get, "function");
+assert.equal(typeof arky.store.media.find, "function");
+assert.equal(typeof arky.store.paymentProvider.list, "function");
+assert.equal(typeof arky.store.paymentProvider.refresh, "function");
+assert.equal(typeof arky.store.paymentProvider.connectStripe, "function");
+assert.equal(typeof arky.store.paymentProvider.delete, "function");
+assert.equal("createStore" in arky.store, false);
+assert.equal("getSubscriptionPlans" in arky.store, false);
+assert.equal("listBuildHooks" in arky.store, false);
+assert.equal("listWebhooks" in arky.store, false);
+assert.equal("paymentProviders" in arky, false);
+assert.equal("payments" in arky, false);
 
-assert.equal(typeof arky.automation.workflow.accounts.getConnectUrl, "function");
-assert.equal(typeof arky.automation.workflow.accounts.connect, "function");
-assert.equal(typeof arky.automation.workflow.getGoogleDriveConnectUrl, "function");
-assert.equal(typeof arky.automation.workflow.connectGoogleDriveAccount, "function");
-assert.equal(typeof arky.automation.integrations.accounts.list, "function");
-assert.equal(typeof arky.automation.integrations.accounts.getConnectUrl, "function");
-assert.equal(typeof arky.automation.integrations.accounts.connect, "function");
-assert.equal(typeof arky.automation.integrations.accounts.delete, "function");
-assert.equal(
-  arky.automation.integrations.accounts.getConnectUrl,
-  arky.automation.workflow.accounts.getConnectUrl,
-);
+assert.equal(typeof arky.social.account.list, "function");
+assert.equal(typeof arky.social.account.connect, "function");
+assert.equal(typeof arky.social.account.getOAuthAttempt, "function");
+assert.equal(typeof arky.social.account.selectDestination, "function");
+assert.equal(typeof arky.social.account.delete, "function");
+assert.equal(typeof arky.social.publication.getComments, "function");
+assert.equal(typeof arky.social.publication.syncComments, "function");
+assert.equal(typeof arky.social.publication.getCommentThread, "function");
+assert.equal(typeof arky.social.publication.syncCommentThread, "function");
+assert.equal(typeof arky.social.publication.getMetrics, "function");
+assert.equal(typeof arky.social.publication.syncMetrics, "function");
+assert.equal("syncPublicationComments" in arky.social, false);
+assert.equal("getPublicationMetrics" in arky.social, false);
+
+assert.equal(typeof arky.automation.workflow.listAccounts, "function");
+assert.equal(typeof arky.automation.workflow.getAccountConnectUrl, "function");
+assert.equal(typeof arky.automation.workflow.connectAccount, "function");
+assert.equal(typeof arky.automation.workflow.deleteAccount, "function");
+assert.equal("accounts" in arky.automation.workflow, false);
+assert.equal("getGoogleDriveConnectUrl" in arky.automation.workflow, false);
+assert.equal("connectGoogleDriveAccount" in arky.automation.workflow, false);
+assert.equal("integrations" in arky.automation, false);
+assert.equal(typeof arky.automation.support.createAgent, "function");
+assert.equal(typeof arky.automation.support.findAgents, "function");
+assert.equal(typeof arky.automation.support.findConversations, "function");
+assert.equal(typeof arky.automation.support.replyToConversation, "function");
+assert.equal("agent" in arky.automation.support, false);
+assert.equal("conversation" in arky.automation.support, false);
+
+assert.equal(typeof arky.notification.mailbox.find, "function");
+assert.equal(typeof arky.notification.email.trackOpen, "function");
+assert.equal(typeof arky.notification.trigger.send, "function");
+assert.equal("mailbox" in arky.crm, false);
+
+assert.equal(typeof arky.outreach.campaign.find, "function");
+assert.equal(typeof arky.outreach.campaignEnrollment.find, "function");
+assert.equal(typeof arky.outreach.campaignMessage.find, "function");
+assert.equal(typeof arky.outreach.suppression.find, "function");
+assert.equal(typeof arky.outreach.leadResearch.createRun, "function");
+assert.equal("campaign" in arky.crm, false);
+assert.equal("leadResearch" in arky.crm, false);
+assert.equal("leadResearch" in arky, false);
+
+assert.equal(typeof arky.crm.contactList.addMember, "function");
+assert.equal(typeof arky.crm.contactList.findMembers, "function");
+assert.equal("members" in arky.crm.contactList, false);
+assert.equal("contacts" in arky.crm.contactList, false);
+
+assert.equal(typeof arky.eshop.order.getShippingRates, "function");
+assert.equal(typeof arky.eshop.order.ship, "function");
+assert.equal("shipping" in arky, false);
+assert.equal("promoCode" in arky, false);
 
 console.log("Admin SDK smoke test passed.");

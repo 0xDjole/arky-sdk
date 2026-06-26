@@ -10,11 +10,13 @@ const store = initialize({
 });
 
 assert.equal(typeof store.cart.load, "function");
-assert.equal(store.cart.load, store.eshop.cart.ensure);
-assert.equal(store.commerce.cart, store.cart);
-assert.equal(typeof store.commerce.checkout, "function");
-assert.equal(typeof store.hydrateCart, "function");
-assert.equal(store.hydrateCart, store.cart.load);
+assert.equal(store.cart, store.eshop.cart);
+assert.equal(typeof store.cart.refresh, "function");
+assert.equal("ensure" in store.cart, false);
+assert.equal("hydrate" in store.cart, false);
+assert.equal("sync" in store.cart, false);
+assert.equal("commerce" in store, false);
+assert.equal("hydrateCart" in store, false);
 assert.equal("booking" in store, false, "service scheduling must live under eshop.service");
 assert.equal("setup" in store, false, "initialize returns the ready storefront API; no public setup boot method");
 assert.equal("initialize" in store, false, "initialize is only the factory export");
@@ -32,7 +34,7 @@ assert.equal("website" in store.cms, false, "CMS entry keys must not be public S
 assert.equal(typeof store.action.pageView, "function");
 assert.equal("actions" in store.eshop.cart, false, "cart commands should be direct methods");
 assert.equal("actions" in store.eshop.service, false, "service commands should be direct methods");
-assert.equal(typeof store.eshop.cart.ensure, "function");
+assert.equal(typeof store.eshop.cart.load, "function");
 assert.equal(typeof store.eshop.cart.checkout, "function");
 assert.equal(typeof store.eshop.product.list, "function");
 assert.equal(typeof store.eshop.product.loadDetail, "function");

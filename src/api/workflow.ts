@@ -9,9 +9,7 @@ import type {
   GetWorkflowExecutionsParams,
   GetWorkflowExecutionParams,
   ConnectWorkflowAccountParams,
-  ConnectGoogleDriveWorkflowAccountParams,
   GetWorkflowAccountConnectUrlParams,
-  GetGoogleDriveWorkflowAccountConnectUrlParams,
   GetWorkflowAccountsParams,
   DeleteWorkflowAccountParams,
   RequestOptions,
@@ -175,26 +173,6 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
     getWorkflowAccountConnectUrl,
 
     connectWorkflowAccount,
-
-    async getGoogleDriveWorkflowAccountConnectUrl(
-      params: GetGoogleDriveWorkflowAccountConnectUrlParams,
-      options?: RequestOptions,
-    ): Promise<WorkflowAccountConnectUrl> {
-      return getWorkflowAccountConnectUrl(
-        { ...params, type: "google_drive" },
-        options,
-      );
-    },
-
-    async connectGoogleDriveWorkflowAccount(
-      params: ConnectGoogleDriveWorkflowAccountParams,
-      options?: RequestOptions,
-    ): Promise<WorkflowAccount> {
-      return connectWorkflowAccount(
-        { ...params, type: "google_drive" },
-        options,
-      );
-    },
 
     async deleteWorkflowAccount(
       params: DeleteWorkflowAccountParams,
