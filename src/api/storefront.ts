@@ -606,18 +606,20 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        unsubscribe(token: string, options?: RequestOptions): Promise<{ unsubscribed: boolean }> {
-          return apiConfig.httpClient.get<{ unsubscribed: boolean }>(`${base()}/contact-lists/unsubscribe`, {
-            ...options,
-            params: { token },
-          });
+        unsubscribe(token: string, options?: RequestOptions): Promise<{ success: boolean }> {
+          return apiConfig.httpClient.post<{ success: boolean }>(
+            `${base()}/contact-lists/unsubscribe`,
+            { token },
+            options,
+          );
         },
 
-        confirm(token: string, options?: RequestOptions): Promise<{ confirmed: boolean }> {
-          return apiConfig.httpClient.get<{ confirmed: boolean }>(`${base()}/contact-lists/confirm`, {
-            ...options,
-            params: { token },
-          });
+        confirm(token: string, options?: RequestOptions): Promise<{ success: boolean }> {
+          return apiConfig.httpClient.post<{ success: boolean }>(
+            `${base()}/contact-lists/confirm`,
+            { token },
+            options,
+          );
         },
       },
     },

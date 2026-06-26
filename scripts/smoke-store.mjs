@@ -44,4 +44,40 @@ assert.equal(removedServiceModuleName in store.eshop, false, "scheduled service 
 assert.equal(store.eshop.cart.product_items.get().length, 0);
 assert.equal(store.eshop.service.state.get().cart.length, 0);
 
+const fetchCalls = [];
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (url, init = {}) => {
+  fetchCalls.push({
+    url: String(url),
+    method: init.method,
+    body: init.body,
+  });
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+};
+
+try {
+  const unsubscribe = await store.crm.contactList.unsubscribe("unsubscribe-token");
+  const confirm = await store.crm.contactList.confirm("confirm-token");
+  assert.deepEqual(unsubscribe, { success: true });
+  assert.deepEqual(confirm, { success: true });
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+assert.equal(fetchCalls[0].method, "POST");
+assert.equal(
+  fetchCalls[0].url,
+  "http://127.0.0.1:1/v1/storefront/smoke-store/contact-lists/unsubscribe",
+);
+assert.deepEqual(JSON.parse(fetchCalls[0].body), { token: "unsubscribe-token" });
+assert.equal(fetchCalls[1].method, "POST");
+assert.equal(
+  fetchCalls[1].url,
+  "http://127.0.0.1:1/v1/storefront/smoke-store/contact-lists/confirm",
+);
+assert.deepEqual(JSON.parse(fetchCalls[1].body), { token: "confirm-token" });
+
 console.log("Storefront SDK smoke test passed.");
