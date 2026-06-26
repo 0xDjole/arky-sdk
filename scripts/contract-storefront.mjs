@@ -4,7 +4,7 @@ import { initialize } from "../dist/storefront.js";
 
 const store = initialize({
   baseUrl: "http://127.0.0.1:1",
-  storeId: "smoke-store",
+  storeId: "contract-store",
   market: "us",
   locale: "en",
 });
@@ -72,14 +72,14 @@ try {
 assert.equal(fetchCalls[0].method, "POST");
 assert.equal(
   fetchCalls[0].url,
-  "http://127.0.0.1:1/v1/storefront/smoke-store/contact-lists/unsubscribe",
+  "http://127.0.0.1:1/v1/storefront/contract-store/contact-lists/unsubscribe",
 );
 assert.deepEqual(JSON.parse(fetchCalls[0].body), { token: "unsubscribe-token" });
 assert.equal(fetchCalls[1].method, "POST");
 assert.equal(
   fetchCalls[1].url,
-  "http://127.0.0.1:1/v1/storefront/smoke-store/contact-lists/confirm",
+  "http://127.0.0.1:1/v1/storefront/contract-store/contact-lists/confirm",
 );
 assert.deepEqual(JSON.parse(fetchCalls[1].body), { token: "confirm-token" });
 
-console.log("Storefront SDK smoke test passed.");
+console.log("Storefront SDK contract test passed.");

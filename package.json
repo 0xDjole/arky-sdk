@@ -40,13 +40,14 @@
   },
   "files": [
     "dist",
-    "scripts/smoke-store.mjs",
+    "scripts/contract-admin.mjs",
+    "scripts/contract-storefront.mjs",
     "README.md"
   ],
   "scripts": {
     "prebuild": "node scripts/check-no-any.mjs",
     "build": "tsup",
-    "test": "npm run build && node scripts/smoke-store.mjs && node scripts/smoke-admin.mjs",
+    "test": "npm run build && node scripts/contract-storefront.mjs && node scripts/contract-admin.mjs",
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
     "prepare": "npm run build"

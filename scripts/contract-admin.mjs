@@ -4,8 +4,8 @@ import { createAdmin } from "../dist/admin.js";
 
 const arky = createAdmin({
   baseUrl: "http://127.0.0.1:1",
-  storeId: "smoke-store",
-  apiToken: "smoke-token",
+  storeId: "contract-store",
+  apiToken: "contract-token",
 });
 
 assert.equal(typeof arky.account.auth.code, "function");
@@ -100,23 +100,23 @@ try {
 assert.equal(workflowFetchCalls[0].method, "POST");
 assert.equal(
   workflowFetchCalls[0].url,
-  "http://127.0.0.1:1/v1/stores/smoke-store/workflow-accounts/connect-url",
+  "http://127.0.0.1:1/v1/stores/contract-store/workflow-accounts/connect-url",
 );
 assert.deepEqual(JSON.parse(workflowFetchCalls[0].body), {
   type: "google_drive",
   redirect_uri: "https://admin.test/workflow-accounts/callback",
-  store_id: "smoke-store",
+  store_id: "contract-store",
 });
 assert.equal(workflowFetchCalls[1].method, "POST");
 assert.equal(
   workflowFetchCalls[1].url,
-  "http://127.0.0.1:1/v1/stores/smoke-store/workflow-accounts/connect",
+  "http://127.0.0.1:1/v1/stores/contract-store/workflow-accounts/connect",
 );
 assert.deepEqual(JSON.parse(workflowFetchCalls[1].body), {
   type: "google_drive",
   code: "oauth-code",
   redirect_uri: "https://admin.test/workflow-accounts/callback",
-  store_id: "smoke-store",
+  store_id: "contract-store",
 });
 
 assert.equal(typeof arky.automation.support.createAgent, "function");
@@ -150,4 +150,4 @@ assert.equal(typeof arky.eshop.order.ship, "function");
 assert.equal("shipping" in arky, false);
 assert.equal("promoCode" in arky, false);
 
-console.log("Admin SDK smoke test passed.");
+console.log("Admin SDK contract test passed.");
