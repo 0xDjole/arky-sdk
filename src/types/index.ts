@@ -686,7 +686,6 @@ export interface Product {
   slug: Record<string, string>;
   blocks: Block[];
   taxonomies: TaxonomyEntry[];
-  filters?: TaxonomyEntry[];
   variants: ProductVariant[];
   status: ProductStatus;
   created_at: number;
@@ -1700,7 +1699,6 @@ export interface Service {
   store_id: string;
   blocks: Block[];
   taxonomies: TaxonomyEntry[];
-  filters?: TaxonomyEntry[];
   created_at: number;
   updated_at: number;
   status: ServiceStatus;
@@ -1719,7 +1717,6 @@ export interface Provider {
   status: ProviderStatus;
   blocks: Block[];
   taxonomies: TaxonomyEntry[];
-  filters?: TaxonomyEntry[];
   timeline: ProviderTimelinePoint[];
   created_at: number;
   updated_at: number;

@@ -600,7 +600,7 @@ import { createSocialApi } from "./api/social";
 import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
-import { createPaymentProvidersApi } from "./api/paymentProviders";
+import { createPaymentProviderApi } from "./api/paymentProvider";
 import { createEmailTemplateApi } from "./api/emailTemplate";
 import { createFormApi } from "./api/form";
 import { createTaxonomyApi } from "./api/taxonomy";
@@ -817,17 +817,17 @@ export function createAdmin(config: CreateAdminConfig) {
   const supportApi = createAdminSupportApi(apiConfig);
   const leadResearchApi = createLeadResearchApi(apiConfig);
   const socialApi = createSocialApi(apiConfig);
-  const paymentProvidersApi = createPaymentProvidersApi(apiConfig);
+  const paymentProviderApi = createPaymentProviderApi(apiConfig);
   const notificationApi = createNotificationApi(apiConfig);
   const shippingApi = createShippingApi(apiConfig);
   const locationApi = createLocationApi(apiConfig);
   const marketApi = createMarketApi(apiConfig);
   const workflowApi = createWorkflowApi(apiConfig);
-  const paymentProviderApi = {
-    list: paymentProvidersApi.listProviders,
-    refresh: paymentProvidersApi.refreshProviders,
-    connectStripe: paymentProvidersApi.connectStripe,
-    delete: paymentProvidersApi.deleteProvider,
+  const storePaymentProviderApi = {
+    list: paymentProviderApi.list,
+    refresh: paymentProviderApi.refresh,
+    connectStripe: paymentProviderApi.connectStripe,
+    delete: paymentProviderApi.delete,
   };
   const workflowPublicApi = {
     create: workflowApi.createWorkflow,
@@ -894,7 +894,7 @@ export function createAdmin(config: CreateAdminConfig) {
       },
       location: locationApi,
       market: marketApi,
-      paymentProvider: paymentProviderApi,
+      paymentProvider: storePaymentProviderApi,
     },
     media: createMediaApi(apiConfig),
     notification: {
@@ -1104,11 +1104,6 @@ export function createAdmin(config: CreateAdminConfig) {
       return toPublic(readAdminSession());
     },
 
-    get currentSession(): AdminSession | null {
-      if (config.apiToken) return null;
-      return toPublic(readAdminSession());
-    },
-
     get isAuthenticated(): boolean {
       if (config.apiToken) return true;
       return readAdminSession() !== null;
@@ -1131,8 +1126,6 @@ export function createAdmin(config: CreateAdminConfig) {
       if (config.apiToken) return;
       updateSession(() => null);
     },
-
-    extractBlockValues,
 
     utils: createUtilitySurface(apiConfig),
   };
@@ -1318,11 +1311,6 @@ export function createStorefront(config: CreateStorefrontConfig) {
       return toPublic(readContactSession());
     },
 
-    get currentSession(): ContactSession | null {
-      if (config.apiToken) return null;
-      return toPublic(readContactSession());
-    },
-
     get isAuthenticated(): boolean {
       if (config.apiToken) return true;
       const s = readContactSession();
@@ -1366,7 +1354,6 @@ export function createStorefront(config: CreateStorefrontConfig) {
       apiConfig.locale = l;
     },
     getLocale: () => apiConfig.locale,
-    extractBlockValues,
     utils: createUtilitySurface(apiConfig),
   };
 }

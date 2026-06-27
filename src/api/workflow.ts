@@ -23,32 +23,6 @@ import type {
 } from "../types";
 
 export const createWorkflowApi = (apiConfig: ApiConfig) => {
-  const getWorkflowAccountConnectUrl = async (
-    params: GetWorkflowAccountConnectUrlParams,
-    options?: RequestOptions,
-  ): Promise<WorkflowAccountConnectUrl> => {
-    const { store_id, type, ...payload } = params;
-    const target_store_id = store_id || apiConfig.storeId;
-    return apiConfig.httpClient.post<WorkflowAccountConnectUrl>(
-      `/v1/stores/${target_store_id}/workflow-accounts/connect-url`,
-      { ...payload, type, store_id: target_store_id },
-      options,
-    );
-  };
-
-  const connectWorkflowAccount = async (
-    params: ConnectWorkflowAccountParams,
-    options?: RequestOptions,
-  ): Promise<WorkflowAccount> => {
-    const { store_id, type, ...payload } = params;
-    const target_store_id = store_id || apiConfig.storeId;
-    return apiConfig.httpClient.post<WorkflowAccount>(
-      `/v1/stores/${target_store_id}/workflow-accounts/connect`,
-      { ...payload, type, store_id: target_store_id },
-      options,
-    );
-  };
-
   return {
     async createWorkflow(
       params: CreateWorkflowParams,
@@ -163,9 +137,31 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    getWorkflowAccountConnectUrl,
+    async getWorkflowAccountConnectUrl(
+      params: GetWorkflowAccountConnectUrlParams,
+      options?: RequestOptions,
+    ): Promise<WorkflowAccountConnectUrl> {
+      const { store_id, type, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<WorkflowAccountConnectUrl>(
+        `/v1/stores/${target_store_id}/workflow-accounts/connect-url`,
+        { ...payload, type, store_id: target_store_id },
+        options,
+      );
+    },
 
-    connectWorkflowAccount,
+    async connectWorkflowAccount(
+      params: ConnectWorkflowAccountParams,
+      options?: RequestOptions,
+    ): Promise<WorkflowAccount> {
+      const { store_id, type, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<WorkflowAccount>(
+        `/v1/stores/${target_store_id}/workflow-accounts/connect`,
+        { ...payload, type, store_id: target_store_id },
+        options,
+      );
+    },
 
     async deleteWorkflowAccount(
       params: DeleteWorkflowAccountParams,

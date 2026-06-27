@@ -22,11 +22,6 @@
       "import": "./dist/storefront.js",
       "require": "./dist/storefront.cjs"
     },
-    "./storefront-store": {
-      "types": "./dist/storefront-store.d.ts",
-      "import": "./dist/storefront-store.js",
-      "require": "./dist/storefront-store.cjs"
-    },
     "./utils": {
       "types": "./dist/utils.d.ts",
       "import": "./dist/utils.js",

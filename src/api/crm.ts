@@ -284,7 +284,7 @@ export const createContactApi = (apiConfig: ApiConfig) => {
           const { store_id, contact_list_id, contact_id, fields, lead_description } = params;
           const target_store_id = store_id || apiConfig.storeId;
           return apiConfig.httpClient.post<ContactListMember>(
-            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/members/${contact_id}`,
+            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/contacts/${contact_id}`,
             { fields, lead_description },
             options,
           );
@@ -294,7 +294,7 @@ export const createContactApi = (apiConfig: ApiConfig) => {
           const { store_id, contact_list_id, contact_id, status, fields, lead_description } = params;
           const target_store_id = store_id || apiConfig.storeId;
           return apiConfig.httpClient.patch<ContactListMember>(
-            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/members/${contact_id}`,
+            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/contacts/${contact_id}`,
             { status, fields, lead_description },
             options,
           );
@@ -303,55 +303,20 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         async remove(params: RemoveContactListContactParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
           const target_store_id = params.store_id || apiConfig.storeId;
           return apiConfig.httpClient.delete<{ deleted: boolean }>(
-            `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/members/${params.contact_id}`,
+            `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/contacts/${params.contact_id}`,
             options,
           );
         },
 
         async find(params: FindContactListContactsParams, options?: RequestOptions): Promise<PaginatedResponse<ContactListMember>> {
           const { store_id, contact_list_id, ...queryParams } = params;
+          if (!contact_list_id && !queryParams.contact_id) {
+            throw new Error("contact_list_id or contact_id is required");
+          }
           const target_store_id = store_id || apiConfig.storeId;
           const path = contact_list_id
-            ? `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/members`
-            : `/v1/stores/${target_store_id}/contact-list-members`;
-          return apiConfig.httpClient.get<PaginatedResponse<ContactListMember>>(
-            path,
-            { ...options, params: queryParams },
-          );
-        },
-      },
-      contacts: {
-        async add(params: AddContactListContactParams, options?: RequestOptions): Promise<ContactListMember> {
-          const { store_id, contact_list_id, contact_id, fields, lead_description } = params;
-          const target_store_id = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.post<ContactListMember>(
-            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/members/${contact_id}`,
-            { fields, lead_description },
-            options,
-          );
-        },
-        async update(params: UpdateContactListContactParams, options?: RequestOptions): Promise<ContactListMember> {
-          const { store_id, contact_list_id, contact_id, status, fields, lead_description } = params;
-          const target_store_id = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.patch<ContactListMember>(
-            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/members/${contact_id}`,
-            { status, fields, lead_description },
-            options,
-          );
-        },
-        async remove(params: RemoveContactListContactParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
-          const target_store_id = params.store_id || apiConfig.storeId;
-          return apiConfig.httpClient.delete<{ deleted: boolean }>(
-            `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/members/${params.contact_id}`,
-            options,
-          );
-        },
-        async find(params: FindContactListContactsParams, options?: RequestOptions): Promise<PaginatedResponse<ContactListMember>> {
-          const { store_id, contact_list_id, ...queryParams } = params;
-          const target_store_id = store_id || apiConfig.storeId;
-          const path = contact_list_id
-            ? `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/members`
-            : `/v1/stores/${target_store_id}/contact-list-members`;
+            ? `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/contacts`
+            : `/v1/stores/${target_store_id}/contact-lists/contacts`;
           return apiConfig.httpClient.get<PaginatedResponse<ContactListMember>>(
             path,
             { ...options, params: queryParams },

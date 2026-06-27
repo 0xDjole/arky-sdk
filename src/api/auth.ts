@@ -1,6 +1,5 @@
 import type { ApiConfig, AdminSessionInternal, AdminSessionUpdater } from '../index';
 import type {
-    MagicLinkRequestParams,
     MagicLinkVerifyParams,
     AuthToken,
     RequestOptions
@@ -53,10 +52,6 @@ export const createAuthApi = (apiConfig: ApiConfig, updateSession: AdminSessionU
                 applyAuthToken(result, params.email);
             }
             return result;
-        },
-
-        async magicLink(params: MagicLinkRequestParams, options?: RequestOptions): Promise<{ sent: boolean }> {
-            return apiConfig.httpClient.post<{ sent: boolean }>('/v1/auth/code', params, options);
         }
     };
 };

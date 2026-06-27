@@ -8,11 +8,11 @@ import type {
 } from "../types/api";
 import type { PaymentProvider, StripePaymentProviderConnectResponse } from "../types";
 
-export const createPaymentProvidersApi = (apiConfig: ApiConfig) => {
+export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
   const storeId = (store_id?: string) => store_id || apiConfig.storeId;
 
   return {
-    async listProviders(
+    async list(
       params?: ListPaymentProvidersParams,
       options?: RequestOptions,
     ): Promise<PaymentProvider[]> {
@@ -22,7 +22,7 @@ export const createPaymentProvidersApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async refreshProviders(
+    async refresh(
       params?: RefreshPaymentProvidersParams,
       options?: RequestOptions,
     ): Promise<PaymentProvider[]> {
@@ -45,7 +45,7 @@ export const createPaymentProvidersApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async deleteProvider(
+    async delete(
       params: DeletePaymentProviderParams,
       options?: RequestOptions,
     ): Promise<{ deleted: boolean }> {

@@ -54,16 +54,6 @@ import {
   normalizeOrderQuoteItems,
 } from "../utils/orderItems";
 
-const normalizeTaxonomyAliases = <T extends { taxonomies?: unknown; filters?: unknown }>(
-  payload: T,
-) => {
-  const { filters, ...rest } = payload;
-  return {
-    ...rest,
-    ...(!rest.taxonomies && filters ? { taxonomies: filters } : {}),
-  };
-};
-
 export const createEshopApi = (apiConfig: ApiConfig) => {
   return {
 
@@ -72,7 +62,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<Product>(
         `/v1/stores/${target_store_id}/products`,
-        normalizeTaxonomyAliases(payload),
+        payload,
         options,
       );
     },
@@ -82,7 +72,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.put<Product>(
         `/v1/stores/${target_store_id}/products/${params.id}`,
-        normalizeTaxonomyAliases(payload),
+        payload,
         options,
       );
     },
@@ -132,7 +122,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<Service>(
         `/v1/stores/${target_store_id}/services`,
-        normalizeTaxonomyAliases(payload),
+        payload,
         options,
       );
     },
@@ -145,7 +135,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.put<Service>(
         `/v1/stores/${target_store_id}/services/${params.id}`,
-        normalizeTaxonomyAliases(payload),
+        payload,
         options,
       );
     },
@@ -216,7 +206,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<Provider>(
         `/v1/stores/${target_store_id}/providers`,
-        normalizeTaxonomyAliases(payload),
+        payload,
         options,
       );
     },
@@ -229,7 +219,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.put<Provider>(
         `/v1/stores/${target_store_id}/providers/${params.id}`,
-        normalizeTaxonomyAliases(payload),
+        payload,
         options,
       );
     },

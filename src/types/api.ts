@@ -458,11 +458,6 @@ export interface LoginAccountParams {
   token?: string;
 }
 
-export interface MagicLinkRequestParams {
-  email: string;
-  store_id?: string;
-}
-
 export interface MagicLinkVerifyParams {
   email: string;
   code: string;
@@ -677,7 +672,6 @@ export interface CreateProductParams {
   slug?: Record<string, string>;
   blocks?: Block[];
   taxonomies?: TaxonomyEntry[];
-  filters?: TaxonomyEntry[];
   variants?: CreateProductVariantInput[];
 }
 
@@ -688,7 +682,6 @@ export interface UpdateProductParams {
   slug?: Record<string, string>;
   blocks?: Block[];
   taxonomies?: TaxonomyEntry[];
-  filters?: TaxonomyEntry[];
   variants?: UpdateProductVariantInput[];
   status?: ProductStatus;
 }
@@ -750,7 +743,6 @@ export interface CreateProviderParams {
   status?: ProviderStatus;
   blocks?: Block[];
   taxonomies?: TaxonomyEntry[];
-  filters?: TaxonomyEntry[];
 }
 
 export interface UpdateProviderParams {
@@ -761,7 +753,6 @@ export interface UpdateProviderParams {
   status?: ProviderStatus;
   blocks?: Block[];
   taxonomies?: TaxonomyEntry[];
-  filters?: TaxonomyEntry[];
 }
 
 export interface DeleteProviderParams {
@@ -784,7 +775,6 @@ export interface CreateServiceParams {
   slug?: Record<string, string>;
   blocks?: Block[];
   taxonomies?: TaxonomyEntry[];
-  filters?: TaxonomyEntry[];
   location?: ZoneLocation;
   status?: ServiceStatus;
 }
@@ -796,7 +786,6 @@ export interface UpdateServiceParams {
   slug?: Record<string, string>;
   blocks?: Block[];
   taxonomies?: TaxonomyEntry[];
-  filters?: TaxonomyEntry[];
   location?: ZoneLocation | null;
   status?: ServiceStatus;
 }

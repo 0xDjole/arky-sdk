@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Public SDK surface guardrail.
 //
-// Keep exported SDK names canonical. This fails on compatibility-style type
+// Keep exported SDK names canonical. This fails on alias-style type
 // aliases, numeric suffixes, and "old" public input names.
 
 import { readFileSync } from "node:fs";

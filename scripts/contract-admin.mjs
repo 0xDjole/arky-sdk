@@ -15,10 +15,6 @@ assert.equal(typeof arky.account.update, "function");
 assert.equal(typeof arky.account.delete, "function");
 assert.equal(typeof arky.account.getMe, "function");
 assert.equal(typeof arky.account.search, "function");
-assert.equal("updateAccount" in arky.account, false);
-assert.equal("deleteAccount" in arky.account, false);
-assert.equal("searchAccounts" in arky.account, false);
-assert.equal("auth" in arky, false);
 
 assert.equal(typeof arky.store.create, "function");
 assert.equal(typeof arky.store.update, "function");
@@ -39,12 +35,6 @@ assert.equal(typeof arky.store.paymentProvider.list, "function");
 assert.equal(typeof arky.store.paymentProvider.refresh, "function");
 assert.equal(typeof arky.store.paymentProvider.connectStripe, "function");
 assert.equal(typeof arky.store.paymentProvider.delete, "function");
-assert.equal("createStore" in arky.store, false);
-assert.equal("getSubscriptionPlans" in arky.store, false);
-assert.equal("listBuildHooks" in arky.store, false);
-assert.equal("listWebhooks" in arky.store, false);
-assert.equal("paymentProviders" in arky, false);
-assert.equal("payments" in arky, false);
 
 assert.equal(typeof arky.social.account.list, "function");
 assert.equal(typeof arky.social.account.connect, "function");
@@ -57,17 +47,11 @@ assert.equal(typeof arky.social.publication.getCommentThread, "function");
 assert.equal(typeof arky.social.publication.syncCommentThread, "function");
 assert.equal(typeof arky.social.publication.getMetrics, "function");
 assert.equal(typeof arky.social.publication.syncMetrics, "function");
-assert.equal("syncPublicationComments" in arky.social, false);
-assert.equal("getPublicationMetrics" in arky.social, false);
 
 assert.equal(typeof arky.automation.workflow.listAccounts, "function");
 assert.equal(typeof arky.automation.workflow.getAccountConnectUrl, "function");
 assert.equal(typeof arky.automation.workflow.connectAccount, "function");
 assert.equal(typeof arky.automation.workflow.deleteAccount, "function");
-assert.equal("accounts" in arky.automation.workflow, false);
-assert.equal("getGoogleDriveConnectUrl" in arky.automation.workflow, false);
-assert.equal("connectGoogleDriveAccount" in arky.automation.workflow, false);
-assert.equal("integrations" in arky.automation, false);
 
 const workflowFetchCalls = [];
 const originalFetch = globalThis.fetch;

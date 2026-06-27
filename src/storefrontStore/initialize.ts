@@ -258,7 +258,7 @@ export function initialize(config: ArkyStoreConfig) {
     cartRequest = (async () => {
       await ensureSession();
       const response = await client.cart.refresh({ market: currentMarketKey() });
-      await hydrateCart(response, { ifRevision: refreshRevision });
+      await applyCartResponse(response, { ifRevision: refreshRevision });
       return response;
     })();
 
@@ -273,7 +273,7 @@ export function initialize(config: ArkyStoreConfig) {
     }
   }
 
-  async function hydrateProductItem(item: ProductCheckoutItemInput, source: Cart): Promise<EshopCartItem | null> {
+  async function buildProductCartItem(item: ProductCheckoutItemInput, source: Cart): Promise<EshopCartItem | null> {
     try {
       const product = await client.eshop.product.get({ id: item.product_id });
       const variant = product.variants.find((candidate) => candidate.id === item.variant_id);
@@ -296,7 +296,7 @@ export function initialize(config: ArkyStoreConfig) {
     }
   }
 
-  async function hydrateServiceItems(items: ServiceCheckoutItemInput[]): Promise<ArkyServiceCartItem[]> {
+  async function buildServiceCartItems(items: ServiceCheckoutItemInput[]): Promise<ArkyServiceCartItem[]> {
     const rows: ArkyServiceCartItem[] = [];
     for (const item of items) {
       let service: Service | null = null;
@@ -323,7 +323,7 @@ export function initialize(config: ArkyStoreConfig) {
     return rows;
   }
 
-  async function hydrateCart(response: Cart, options: { ifRevision?: number } = {}): Promise<Cart> {
+  async function applyCartResponse(response: Cart, options: { ifRevision?: number } = {}): Promise<Cart> {
     if (options.ifRevision !== undefined && options.ifRevision !== cartWriteRevision) {
       return cart.get() || response;
     }
@@ -337,9 +337,9 @@ export function initialize(config: ArkyStoreConfig) {
     const products = await Promise.all(
       items
         .filter((item): item is ProductCheckoutItemInput => item.type === "product")
-        .map((item) => hydrateProductItem(item, response)),
+        .map((item) => buildProductCartItem(item, response)),
     );
-    const services = await hydrateServiceItems(
+    const services = await buildServiceCartItems(
       items.filter((item): item is ServiceCheckoutItemInput => item.type === "service"),
     );
     product_items.set(products.filter((item): item is EshopCartItem => item !== null));
@@ -377,7 +377,7 @@ export function initialize(config: ArkyStoreConfig) {
       if (input.shipping_method_id !== undefined) {
         cart_status.setKey("selected_shipping_method_id", input.shipping_method_id);
       }
-      await hydrateCart(response, { ifRevision: writeRevision });
+      await applyCartResponse(response, { ifRevision: writeRevision });
       return response;
     } catch (error) {
       cart_status.setKey("error", readErrorMessage(error, "Failed to sync cart."));
@@ -401,7 +401,7 @@ export function initialize(config: ArkyStoreConfig) {
           quantity,
         },
       });
-      await hydrateCart(response, { ifRevision: writeRevision });
+      await applyCartResponse(response, { ifRevision: writeRevision });
       await client.action.track({ key: "cart.added", payload: { product_id: product.id, variant_id: variant.id, quantity } });
       return response;
     } catch (error) {
@@ -433,7 +433,7 @@ export function initialize(config: ArkyStoreConfig) {
       product_id: item.product_id,
       variant_id: item.variant_id,
     });
-    await hydrateCart(response, { ifRevision: writeRevision });
+    await applyCartResponse(response, { ifRevision: writeRevision });
     await client.action.track({ key: "cart.removed", payload: { product_id: item.product_id, variant_id: item.variant_id } });
     return response;
   }
@@ -458,7 +458,7 @@ export function initialize(config: ArkyStoreConfig) {
     clearLocalCart();
     if (!current) return null;
     const response = await client.cart.clear({ id: current.id });
-    await hydrateCart(response, { ifRevision: writeRevision });
+    await applyCartResponse(response, { ifRevision: writeRevision });
     return response;
   }
 
@@ -1309,9 +1309,6 @@ export function initialize(config: ArkyStoreConfig) {
     me: client.me,
     logout: client.logout,
     onAuthStateChanged: client.onAuthStateChanged,
-    get currentSession() {
-      return client.currentSession;
-    },
     get isAuthenticated() {
       return client.isAuthenticated;
     },
