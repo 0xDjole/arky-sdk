@@ -99,11 +99,11 @@ export const createStoreApi = (
       params: SubscribeParams,
       options?: RequestOptions,
     ): Promise<{ checkout_url?: string }> {
-      const { store_id, plan_id, success_url, cancel_url } = params;
+      const { store_id, plan_id, action, success_url, cancel_url } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.put<{ checkout_url?: string }>(
         `/v1/stores/${target_store_id}/subscribe`,
-        { plan_id, success_url, cancel_url },
+        { plan_id, action, success_url, cancel_url },
         options,
       );
     },

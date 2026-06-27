@@ -613,9 +613,12 @@ export interface DeleteStoreParams {
 
 export interface GetStoreParams {}
 
+export type SubscriptionAction = "select_plan" | "cancel_at_period_end" | "reactivate";
+
 export interface SubscribeParams {
   store_id?: string;
   plan_id: string;
+  action: SubscriptionAction;
   success_url: string;
   cancel_url: string;
 }
