@@ -18,8 +18,14 @@ import type {
   Service,
 } from "../types";
 import type { AvailabilityResponse } from "../types/api";
+import type {
+  StripeConfirmationTokenController,
+  StripeConfirmationTokenControllerConfig,
+} from "../payments/stripe";
 
 export type ArkyStoreClient = ReturnType<typeof createStorefront>;
+export type ArkyPaymentController = StripeConfirmationTokenController;
+export type ArkyStripePaymentMountOptions = Partial<StripeConfirmationTokenControllerConfig>;
 
 export interface ArkyStoreConfig extends CreateStorefrontConfig {
   marketForLocale?: (locale: string) => string | null | undefined;
@@ -73,7 +79,7 @@ export interface ArkyCartStatus {
 export interface ArkyLastOrder {
   order_id: string;
   number: string;
-  client_secret: string | null;
+  payment_action: OrderCheckoutResult["payment_action"];
   payment: OrderCheckoutResult["payment"];
   product_items?: EshopCartItem[];
   service_items?: ArkyServiceCartItem[];
@@ -81,7 +87,7 @@ export interface ArkyLastOrder {
   billing_address?: Address | null;
   total?: number;
   currency?: string | null;
-  payment_method_id?: string | null;
+  payment_method_key?: string | null;
   created_at: number;
 }
 
@@ -92,8 +98,15 @@ export interface ArkyCartInput {
   billing_address?: Address | null;
   forms?: FormEntry[] | Block[];
   promo_code?: string | null;
-  payment_method_id?: string | null;
+  payment_method_key?: string | null;
   shipping_method_id?: string | null;
+  payment?: ArkyPaymentController | null;
+  return_url?: string;
+  billing_details?: {
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  };
   clear_after_checkout?: boolean;
 }
 

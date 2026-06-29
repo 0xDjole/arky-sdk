@@ -60,6 +60,7 @@ export type {
   PaymentTransactionStatus,
   PaymentTransaction,
   OrderQuote,
+  CheckoutPaymentAction,
   StoreSubscription,
   StoreSubscriptionPayment,
   StoreSubscriptionProvider,

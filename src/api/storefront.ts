@@ -398,7 +398,9 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
             {
               id: params.id,
               store_id,
-              payment_method_id: params.payment_method_id,
+              payment_method_key: params.payment_method_key,
+              confirmation_token_id: params.confirmation_token_id,
+              return_url: params.return_url,
             },
             options,
           );

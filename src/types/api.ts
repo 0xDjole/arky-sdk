@@ -223,7 +223,7 @@ export interface GetQuoteParams {
   shipping_address?: Address;
   billing_address?: Address;
   forms?: FormEntry[];
-  payment_method_id?: string;
+  payment_method_key?: string;
   promo_code?: string;
   shipping_method_id?: string;
 
@@ -234,7 +234,7 @@ export interface OrderCheckoutParams {
   store_id?: string;
   market?: string;
   items: OrderCheckoutCompatibleItemInput[];
-  payment_method_id?: string;
+  payment_method_key?: string;
   shipping_address?: Address;
   billing_address?: Address;
   forms?: FormEntry[];
@@ -272,7 +272,7 @@ export interface CreateCartParams {
   billing_address?: Address | null;
   forms?: FormEntry[];
   promo_code?: string | null;
-  payment_method_id?: string | null;
+  payment_method_key?: string | null;
   shipping_method_id?: string | null;
 }
 
@@ -285,7 +285,7 @@ export interface UpdateCartParams {
   billing_address?: Address;
   forms?: FormEntry[];
   promo_code?: string;
-  payment_method_id?: string;
+  payment_method_key?: string;
   shipping_method_id?: string;
 }
 
@@ -316,7 +316,9 @@ export interface QuoteCartParams {
 export interface CheckoutCartParams {
   id: string;
   store_id?: string;
-  payment_method_id?: string;
+  payment_method_key?: string;
+  confirmation_token_id?: string;
+  return_url?: string;
 }
 
 export interface GetProductsParams {

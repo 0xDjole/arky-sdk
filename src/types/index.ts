@@ -37,6 +37,8 @@ export type OrderPaymentProvider = {
   type: "stripe";
   stripe_customer_id: string;
   payment_intent_id?: string | null;
+  payment_provider_id?: string | null;
+  connected_account_id?: string | null;
 };
 
 export type PaymentTransactionProvider =
@@ -130,7 +132,7 @@ export interface OrderPayment {
   failure_message?: string | null;
   idempotency_key?: string | null;
   zone_id?: string;
-  payment_method_id?: string;
+  payment_method_key?: string;
   shipping_method_id?: string;
   method_type: PaymentMethodType;
 }
@@ -251,7 +253,7 @@ export interface Cart {
   billing_address?: Address | null;
   forms: FormEntry[];
   promo_code?: string | null;
-  payment_method_id?: string | null;
+  payment_method_key?: string | null;
   shipping_method_id?: string | null;
   quote_snapshot?: OrderQuote | null;
   converted_order_id?: string | null;
@@ -588,10 +590,12 @@ export type PaymentMethod =
   | {
       type: "cash";
       id: string;
+      key: string;
     }
   | {
       type: "credit_card";
       id: string;
+      key: string;
       payment_provider_id: string;
     };
 
@@ -985,10 +989,14 @@ export interface Order {
   updated_at: number;
 }
 
+export type CheckoutPaymentAction =
+  | { type: "none" }
+  | { type: "handle_next_action"; client_secret: string };
+
 export interface OrderCheckoutResult {
   order_id: string;
   number: string;
-  client_secret: string | null;
+  payment_action: CheckoutPaymentAction;
   payment: OrderPayment;
 }
 

@@ -8,9 +8,11 @@ export type {
   ArkyCmsState,
   ArkyEshopState,
   ArkyLastOrder,
+  ArkyPaymentController,
   ArkyServiceCartItem,
   ArkyServiceSlot,
   ArkyServiceState,
+  ArkyStripePaymentMountOptions,
   ArkyStoreContext,
   ArkyStoreConfig,
 } from "./types";

@@ -1,6 +1,13 @@
 export { COMMON_ACTION_KEYS, createStorefront } from "./index";
 export { createCartController } from "./index";
 export { initialize } from "./storefrontStore";
+export { createStripeConfirmationTokenController } from "./payments/stripe";
+export type {
+  StripeConfirmationTokenController,
+  StripeConfirmationTokenControllerConfig,
+  StripeConfirmationTokenOptions,
+  StripeConfirmationTokenResult,
+} from "./payments/stripe";
 export type {
   ArkyCartInput,
   ArkyCartSnapshot,
@@ -10,11 +17,13 @@ export type {
   ArkyCmsState,
   ArkyEshopState,
   ArkyLastOrder,
+  ArkyPaymentController,
   ArkyServiceCartItem,
   ArkyStore,
   ArkyStoreContext,
   ArkyStoreConfig,
   ArkyServiceStore,
+  ArkyStripePaymentMountOptions,
 } from "./storefrontStore";
 export type {
   StorefrontAction,

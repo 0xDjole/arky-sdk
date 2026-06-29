@@ -64,7 +64,12 @@ import type {
   ArkyServiceState,
   ArkyStoreContext,
   ArkyStoreConfig,
+  ArkyStripePaymentMountOptions,
 } from "./types";
+import {
+  createStripeConfirmationTokenController,
+  type StripeConfirmationTokenController,
+} from "../payments/stripe";
 import {
   availableStock,
   createId,
@@ -87,6 +92,10 @@ import {
   toServiceCheckoutItems,
 } from "./utils";
 
+function firstFiniteNumber(...values: Array<number | null | undefined>): number | undefined {
+  return values.find((value): value is number => typeof value === "number" && Number.isFinite(value));
+}
+
 export function initialize(config: ArkyStoreConfig) {
   const client = createStorefront(config);
   const session = atom<ContactSession | null>(client.session);
@@ -108,6 +117,8 @@ export function initialize(config: ArkyStoreConfig) {
   const quote = atom<OrderQuote | null>(null);
   const promo_code = atom<string | null>(null);
   const last_order = atom<ArkyLastOrder | null>(null);
+  const payment_controller = atom<StripeConfirmationTokenController | null>(null);
+  const payment_ready = computed(payment_controller, (value) => value !== null);
   const cart_status = map<ArkyCartStatus>({
     loading: false,
     syncing: false,
@@ -204,6 +215,63 @@ export function initialize(config: ArkyStoreConfig) {
 
   function currentCurrency(): string | null {
     return currency.get() || market.get()?.currency || null;
+  }
+
+  function currentStripePublishableKey(): string | null {
+    const provider = payment_config.get()?.provider as
+      | { publishable_key?: string | null; publishableKey?: string | null; publicKey?: string | null }
+      | null
+      | undefined;
+    return provider?.publishable_key || provider?.publishableKey || provider?.publicKey || null;
+  }
+
+  function currentPaymentAmount(): number {
+    return Math.max(
+      0,
+      firstFiniteNumber(
+        quote.get()?.charge_amount,
+        quote.get()?.payment?.total,
+        cart.get()?.quote_snapshot?.charge_amount,
+        cart.get()?.quote_snapshot?.payment?.total,
+        cart.get()?.quote_snapshot?.total,
+      ) ?? 0,
+    );
+  }
+
+  function setPaymentController(controller: StripeConfirmationTokenController | null): StripeConfirmationTokenController | null {
+    const current = payment_controller.get();
+    if (current && current !== controller) {
+      current.destroy();
+    }
+    payment_controller.set(controller);
+    return controller;
+  }
+
+  function destroyPaymentController(): void {
+    setPaymentController(null);
+  }
+
+  async function mountStripePayment(
+    target: string | HTMLElement,
+    options: ArkyStripePaymentMountOptions = {},
+  ): Promise<StripeConfirmationTokenController> {
+    const publishableKey = options.publishableKey || currentStripePublishableKey();
+    if (!publishableKey) {
+      throw new Error("Stripe publishable key is required to mount card payment");
+    }
+    const controller = await createStripeConfirmationTokenController({
+      publishableKey,
+      amount: Math.max(0, options.amount ?? currentPaymentAmount()),
+      currency: options.currency || currentCurrency() || "usd",
+      ...(options.appearance ? { appearance: options.appearance } : {}),
+    });
+    controller.mount(target);
+    setPaymentController(controller);
+    return controller;
+  }
+
+  function updatePaymentController(input: { amount?: number; currency?: string }): void {
+    payment_controller.get()?.update(input);
   }
 
   function marketForLocale(value: string): string | null {
@@ -367,7 +435,7 @@ export function initialize(config: ArkyStoreConfig) {
         billing_address: input.billing_address || undefined,
         forms: normalizeForms(input.forms),
         promo_code: input.promo_code === undefined ? promo_code.get() || undefined : input.promo_code || undefined,
-        payment_method_id: input.payment_method_id || undefined,
+        payment_method_key: input.payment_method_key || undefined,
         shipping_method_id:
           input.shipping_method_id ||
           cart_status.get().selected_shipping_method_id ||
@@ -402,7 +470,6 @@ export function initialize(config: ArkyStoreConfig) {
         },
       });
       await applyCartResponse(response, { ifRevision: writeRevision });
-      await client.action.track({ key: "cart.added", payload: { product_id: product.id, variant_id: variant.id, quantity } });
       return response;
     } catch (error) {
       cart_status.setKey("error", readErrorMessage(error, "Failed to add product to cart."));
@@ -434,7 +501,6 @@ export function initialize(config: ArkyStoreConfig) {
       variant_id: item.variant_id,
     });
     await applyCartResponse(response, { ifRevision: writeRevision });
-    await client.action.track({ key: "cart.removed", payload: { product_id: item.product_id, variant_id: item.variant_id } });
     return response;
   }
 
@@ -498,16 +564,62 @@ export function initialize(config: ArkyStoreConfig) {
     cart_status.setKey("error", null);
     try {
       const current = await syncCart(input);
-      await client.action.track({ key: "checkout.started", payload: { cart_id: current.id } });
+      const quoteValue = quote.get();
+      const paymentMethodKey =
+        input.payment_method_key ||
+        current.payment_method_key ||
+        quoteValue?.payment?.payment_method_key ||
+        undefined;
+      let chargeAmount = firstFiniteNumber(
+        quoteValue?.charge_amount,
+        quoteValue?.payment?.total,
+        current.quote_snapshot?.charge_amount,
+        current.quote_snapshot?.payment?.total,
+      );
+      if (paymentMethodKey === "credit_card" && chargeAmount === undefined) {
+        const latestQuote = await client.cart.quote({ id: current.id });
+        quote.set(latestQuote);
+        chargeAmount = firstFiniteNumber(
+          latestQuote.charge_amount,
+          latestQuote.payment?.total,
+          latestQuote.total,
+        );
+      }
+      const needsConfirmationToken =
+        paymentMethodKey === "credit_card" && (chargeAmount === undefined || chargeAmount > 0);
+      let confirmationTokenId: string | undefined;
+      let returnUrl = input.return_url;
+      const paymentController = input.payment ?? payment_controller.get();
+
+      if (needsConfirmationToken) {
+        if (!paymentController) throw new Error("Payment controller is required for card checkout");
+        returnUrl =
+          returnUrl ||
+          (typeof window !== "undefined" ? window.location.href : undefined);
+        const token = await paymentController.createConfirmationToken({
+          return_url: returnUrl,
+          billing_details: input.billing_details,
+        });
+        confirmationTokenId = token.confirmation_token_id;
+        returnUrl = token.return_url || returnUrl;
+      }
+
       const response = await client.cart.checkout({
         id: current.id,
-        payment_method_id: input.payment_method_id || undefined,
+        payment_method_key: paymentMethodKey,
+        confirmation_token_id: confirmationTokenId,
+        return_url: returnUrl,
       });
-      const quoteValue = quote.get();
+
+      if (response.payment_action.type === "handle_next_action") {
+        if (!paymentController) throw new Error("Payment controller is required for card authentication");
+        await paymentController.handleNextAction(response.payment_action.client_secret);
+      }
+
       const stored: ArkyLastOrder = {
         order_id: response.order_id,
         number: response.number,
-        client_secret: response.client_secret,
+        payment_action: response.payment_action,
         payment: response.payment,
         product_items: input.product_items || product_items.get(),
         service_items: input.service_items || service_items.get(),
@@ -515,14 +627,13 @@ export function initialize(config: ArkyStoreConfig) {
         billing_address: input.billing_address || null,
         total: quoteValue?.payment?.total || quoteValue?.total || response.payment?.total,
         currency: quoteValue?.payment?.currency || currentCurrency(),
-        payment_method_id: input.payment_method_id || null,
+        payment_method_key: paymentMethodKey || null,
         created_at: Date.now(),
       };
       last_order.set(stored);
       if (input.clear_after_checkout !== false) {
         clearLocalCart();
       }
-      await client.action.track({ key: "order.created", payload: { order_id: response.order_id, number: response.number } });
       return response;
     } catch (error) {
       cart_status.setKey("error", readErrorMessage(error, "Checkout failed."));
@@ -983,7 +1094,7 @@ export function initialize(config: ArkyStoreConfig) {
             ...toServiceCartItem(slot),
             forms: [],
           })),
-          payment_method_id: paymentMethodId,
+          payment_method_key: paymentMethodId,
           promo_code: state.promoCode || undefined,
           forms,
         });
@@ -1005,7 +1116,7 @@ export function initialize(config: ArkyStoreConfig) {
         service_state.setKey("promoCode", promoCode || null);
         const response = await fetchQuote({
           service_items: state.cart.map(toServiceCartItem),
-          payment_method_id: paymentMethodId,
+          payment_method_key: paymentMethodId,
           promo_code: promoCode || undefined,
         });
         service_state.setKey("cartId", cart.get()?.id || null);
@@ -1227,6 +1338,15 @@ export function initialize(config: ArkyStoreConfig) {
     clearLocal: clearLocalCart,
     quote: fetchQuote,
     checkout,
+    payment: {
+      controller: payment_controller,
+      ready: payment_ready,
+      setController: setPaymentController,
+      getController: () => payment_controller.get(),
+      mountStripe: mountStripePayment,
+      update: updatePaymentController,
+      destroy: destroyPaymentController,
+    },
     applyPromoCode(code: string, input: Omit<ArkyCartInput, "promo_code"> = {}) {
       promo_code.set(code);
       return fetchQuote({ ...input, promo_code: code });
