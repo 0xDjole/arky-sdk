@@ -33,6 +33,7 @@ import type {
   GetOrdersParams,
   DownloadDigitalAccessParams,
   ProcessOrderRefundParams,
+  ProcessOrderRefundResponse,
   QuoteCartParams,
   RemoveCartItemParams,
   RequestOptions,
@@ -478,8 +479,8 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     async processRefund(
       params: ProcessOrderRefundParams,
       options?: RequestOptions,
-    ): Promise<Order> {
-      return apiConfig.httpClient.post<Order>(
+    ): Promise<ProcessOrderRefundResponse> {
+      return apiConfig.httpClient.post<ProcessOrderRefundResponse>(
         `/v1/stores/${apiConfig.storeId}/orders/${params.id}/refund`,
         { amount: params.amount },
         options,

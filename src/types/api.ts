@@ -1176,6 +1176,19 @@ export interface ProcessOrderRefundParams {
   amount: number;
 }
 
+export type RefundStatus =
+  | "requested"
+  | "processing"
+  | "succeeded"
+  | "failed"
+  | "unknown";
+
+export interface ProcessOrderRefundResponse {
+  refund_id: string;
+  amount: number;
+  status: RefundStatus;
+}
+
 export type SystemTemplateKey =
   | "system:order-status-update"
   | "system:user-confirmation"

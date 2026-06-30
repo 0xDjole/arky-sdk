@@ -96,13 +96,33 @@ export interface OrderPaymentRefund {
   total: number;
   tax_amount: number;
   shipping_amount?: number | null;
-  provider_refund_id?: string;
-  status: string;
+  provider_refund_id?: string | null;
+  status: import("./api").RefundStatus;
+  error?: OrderRefundError | null;
   reason?: string | null;
   lines: RefundLine[];
   transaction_ids: string[];
   created_at: number;
 }
+
+export type OrderRefundError =
+  | {
+      type: "provider_rejected";
+      message: string;
+      provider_code?: string | null;
+      provider_status?: number | null;
+      at: number;
+    }
+  | {
+      type: "unknown_outcome";
+      message: string;
+      at: number;
+    }
+  | {
+      type: "missing_payment_intent";
+      message: string;
+      at: number;
+    };
 
 export interface OrderPayment {
   status: OrderPaymentStatus;
@@ -292,6 +312,7 @@ export type SocialPublicationStatus =
   | "publishing"
   | "published"
   | "failed"
+  | "unknown"
   | "cancelled";
 
 export type YoutubePrivacy = "public" | "unlisted" | "private";
@@ -383,6 +404,28 @@ export type SocialPublicationCommentStatus =
   | "hidden"
   | "deleted";
 
+export type SocialPublicationCommentReplyStatus =
+  | "none"
+  | "requested"
+  | "processing"
+  | "succeeded"
+  | "failed"
+  | "unknown";
+
+export type SocialPublicationCommentReplyError =
+  | {
+      type: "provider_rejected";
+      message: string;
+      provider_code?: string | null;
+      provider_status?: number | null;
+      at: number;
+    }
+  | {
+      type: "unknown_outcome";
+      message: string;
+      at: number;
+    };
+
 export type SocialPublicationCommentIntent =
   | "lead"
   | "support"
@@ -423,6 +466,13 @@ export interface SocialPublicationComment {
   author_provider_user_id?: string | null;
   text: string;
   status: SocialPublicationCommentStatus;
+  reply_status: SocialPublicationCommentReplyStatus;
+  reply_error?: SocialPublicationCommentReplyError | null;
+  reply_requested_text?: string | null;
+  reply_provider_comment_id?: string | null;
+  reply_provider_comment_url?: string | null;
+  reply_error_code?: string | null;
+  reply_error_message?: string | null;
   provider_created_at?: number | null;
   last_synced_at: number;
   replied_at?: number | null;
@@ -1106,15 +1156,61 @@ export type StoreSubscriptionSource = "signup" | "admin" | "import";
 
 export type StoreSubscriptionProvider = {
   type: "stripe";
-  contact_id: string;
-  subscription_id?: string;
-  price_id?: string;
+  stripe_customer_id: string;
+  subscription_id?: string | null;
+  price_id?: string | null;
 };
+
+export type StoreSubscriptionProviderLifecycleStatus =
+  | "requested"
+  | "processing"
+  | "succeeded"
+  | "provider_rejected"
+  | "unknown";
+
+export type StoreSubscriptionProviderOperation =
+  | { type: "cancel_at_period_end" }
+  | { type: "cancel_immediately"; plan_id?: string | null }
+  | { type: "reactivate" }
+  | {
+      type: "update_plan";
+      plan_id: string;
+      price_id: string;
+      proration_behavior: string;
+    }
+  | { type: "schedule_plan_change"; plan_id: string; price_id: string };
+
+export type StoreSubscriptionProviderError =
+  | {
+      type: "provider_rejected";
+      message: string;
+      provider_code?: string | null;
+      provider_status?: number | null;
+      at: number;
+    }
+  | {
+      type: "unknown_outcome";
+      message: string;
+      at: number;
+    }
+  | {
+      type: "missing_configuration";
+      message: string;
+      at: number;
+    };
+
+export interface StoreSubscriptionProviderLifecycle {
+  operation_id?: string | null;
+  status: StoreSubscriptionProviderLifecycleStatus;
+  operation?: StoreSubscriptionProviderOperation | null;
+  error?: StoreSubscriptionProviderError | null;
+  updated_at: number;
+}
 
 export interface StoreSubscriptionPayment {
   currency: string;
   market: string;
-  provider?: StoreSubscriptionProvider;
+  provider?: StoreSubscriptionProvider | null;
 }
 
 export interface StoreSubscription {
@@ -1124,6 +1220,7 @@ export interface StoreSubscription {
   pending_plan_id: string | null;
   payment: StoreSubscriptionPayment;
   status: StoreSubscriptionStatus;
+  provider_lifecycle: StoreSubscriptionProviderLifecycle;
   start_date: number;
   end_date: number;
   token: string;
@@ -1429,6 +1526,7 @@ export type CampaignMessageStatus =
   | "completed"
   | "bounced"
   | "failed"
+  | "unknown"
   | "skipped"
   | "stopped"
   | "superseded";
@@ -2564,10 +2662,37 @@ export interface ShipmentLine {
   quantity: number;
 }
 
+export type ShipmentLabelStatus =
+  | "requested"
+  | "processing"
+  | "succeeded"
+  | "failed"
+  | "unknown";
+
+export type ShipmentLabelError =
+  | {
+      type: "provider_rejected";
+      message: string;
+      provider_code?: string | null;
+      provider_status?: number | null;
+      at: number;
+    }
+  | {
+      type: "unknown_outcome";
+      message: string;
+      at: number;
+    }
+  | {
+      type: "missing_configuration";
+      message: string;
+      at: number;
+    };
+
 export interface Shipment {
   id: string;
   fulfillment_order_id?: string | null;
   location_id: string;
+  rate_id?: string | null;
   lines: ShipmentLine[];
   carrier?: string | null;
   service?: string | null;
@@ -2575,6 +2700,8 @@ export interface Shipment {
   tracking_url?: string | null;
   label_url?: string | null;
   status: ShippingStatus;
+  label_status: ShipmentLabelStatus;
+  label_error?: ShipmentLabelError | null;
   created_at: number;
   updated_at: number;
 }
@@ -2608,9 +2735,10 @@ export interface PurchaseLabelResult {
 
 export interface ShipResult {
   shipment_id: string;
-  tracking_number: string;
+  tracking_number?: string | null;
   tracking_url?: string | null;
-  label_url: string;
+  label_url?: string | null;
+  label_status: ShipmentLabelStatus;
 }
 
 export interface CustomsItem {
