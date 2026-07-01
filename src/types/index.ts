@@ -1240,6 +1240,39 @@ export interface ContactListMembershipPayment {
   provider?: ContactListMembershipProvider;
 }
 
+export type ContactListMembershipProviderCancellationStatus =
+  | "requested"
+  | "processing"
+  | "succeeded"
+  | "provider_rejected"
+  | "unknown";
+
+export type ContactListMembershipProviderCancellationError =
+  | {
+      type: "provider_rejected";
+      message: string;
+      provider_code?: string | null;
+      provider_status?: number | null;
+      at: number;
+    }
+  | {
+      type: "unknown_outcome";
+      message: string;
+      at: number;
+    }
+  | {
+      type: "missing_configuration";
+      message: string;
+      at: number;
+    };
+
+export interface ContactListMembershipProviderCancellation {
+  operation_id?: string | null;
+  status: ContactListMembershipProviderCancellationStatus;
+  error?: ContactListMembershipProviderCancellationError | null;
+  updated_at: number;
+}
+
 export interface Store {
   id: string;
   key: string;
@@ -2099,6 +2132,7 @@ export interface ContactListMembership {
   plan_id: string;
   pending_plan_id: string | null;
   payment: ContactListMembershipPayment;
+  provider_cancellation: ContactListMembershipProviderCancellation;
   start_date: number;
   end_date: number;
   token: string;
