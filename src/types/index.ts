@@ -1165,7 +1165,7 @@ export type StoreSubscriptionProviderLifecycleStatus =
   | "requested"
   | "processing"
   | "succeeded"
-  | "provider_rejected"
+  | "rejected"
   | "unknown";
 
 export type StoreSubscriptionProviderOperation =
@@ -1244,7 +1244,7 @@ export type ContactListMembershipProviderCancellationStatus =
   | "requested"
   | "processing"
   | "succeeded"
-  | "provider_rejected"
+  | "rejected"
   | "unknown";
 
 export type ContactListMembershipProviderCancellationError =
