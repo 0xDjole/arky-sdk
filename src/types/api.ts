@@ -40,6 +40,9 @@ import type {
   ContactListStatus,
   ContactListType,
   ContactListSource,
+  ContactListPlan,
+  ContactListContentAccess,
+  ContactListContentAccessTarget,
   ContactListMembershipStatus,
   MailboxStatus,
   SmtpImapMailboxProvider,
@@ -1329,6 +1332,8 @@ export interface CreateContactListParams {
   name?: string;
   description?: string | null;
   type?: ContactListType;
+  plans?: ContactListPlan[];
+  content_access?: ContactListContentAccess[];
   source?: ContactListSource;
 }
 
@@ -1340,6 +1345,8 @@ export interface UpdateContactListParams {
   description?: string | null;
   status?: ContactListStatus;
   type?: ContactListType;
+  plans?: ContactListPlan[];
+  content_access?: ContactListContentAccess[];
 }
 
 export interface FindContactListsParams {
@@ -1505,11 +1512,18 @@ export interface SubscribeContactListParams {
   success_url?: string;
   cancel_url?: string;
   confirm_url?: string;
+  confirmation_token_id?: string;
+  return_url?: string;
 }
 
 export interface ContactListAccessParams {
   store_id?: string;
   id: string;
+}
+
+export interface ContactListContentAccessParams {
+  store_id?: string;
+  target: ContactListContentAccessTarget;
 }
 
 export interface CreateMailboxParams {
@@ -2103,7 +2117,6 @@ export interface Contact {
   status: ContactStatus;
   channels: import("./index").ContactChannel[];
   promo_usage: PromoUsage[];
-  lists: import("./index").ContactListMembership[];
   taxonomies: TaxonomyEntry[];
   auth_tokens: ContactSessionToken[];
   verification_codes: ContactVerificationCode[];

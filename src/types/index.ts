@@ -1229,9 +1229,12 @@ export interface StoreSubscription {
 
 export type ContactListMembershipProvider = {
   type: "stripe";
-  stripe_customer_id: string;
-  subscription_id?: string;
-  price_id?: string;
+  customer_id: string;
+  connected_account_id?: string | null;
+  subscription_id?: string | null;
+  payment_intent_id?: string | null;
+  payment_intent_client_secret?: string | null;
+  price_id?: string | null;
 };
 
 export interface ContactListMembershipPayment {
@@ -1506,6 +1509,8 @@ export type ContactListMembershipStatus =
   | "cancelled"
   | "expired"
   | "archived";
+export type ContactListPlanStatus = "active" | "archived";
+export type ContactListContentAccessStatus = "active" | "archived";
 export type MailboxStatus = "active" | "draft" | "archived";
 export type MailboxPreset = "gmail" | "zoho" | "microsoft" | "custom";
 export type MailboxConnectionSecurity = "tls" | "start_tls";
@@ -2013,11 +2018,31 @@ export interface WorkflowExecution {
 export type ContactListType =
   | { type: "standard" }
   | { type: "confirmation"; confirm_template_id?: string | null }
-  | {
-      type: "paid";
-      prices: SubscriptionPrice[];
-      payment_provider_id?: string | null;
-    };
+  | { type: "paid" };
+
+export interface ContactListPlan {
+  id: string;
+  key: string;
+  name: string;
+  description?: string | null;
+  status: ContactListPlanStatus;
+  prices: SubscriptionPrice[];
+  payment_provider_id?: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export type ContactListContentAccessTarget =
+  | { type: "cms_entry"; entry_id: string }
+  | { type: "cms_collection"; collection_id: string };
+
+export interface ContactListContentAccess {
+  id: string;
+  target: ContactListContentAccessTarget;
+  status: ContactListContentAccessStatus;
+  created_at: number;
+  updated_at: number;
+}
 
 export interface ContactSessionToken {
   id: string;
@@ -2087,7 +2112,6 @@ export interface Contact {
   status: ContactStatus;
   channels: ContactChannel[];
   promo_usage: PromoUsage[];
-  lists: ContactListMembership[];
   taxonomies: TaxonomyEntry[];
   auth_tokens: ContactSessionToken[];
   verification_codes: ContactVerificationCode[];
@@ -2100,8 +2124,15 @@ export interface ContactListAccessResponse {
   membership?: ContactListMembership | null;
 }
 
+export interface ContactListContentAccessResponse {
+  has_access: boolean;
+  contact_list?: ContactList | null;
+  membership?: ContactListMembership | null;
+}
+
 export interface ContactListSubscribeResponse {
   checkout_url?: string | null;
+  payment_action: CheckoutPaymentAction;
   membership?: ContactListMembership | null;
 }
 
@@ -2113,6 +2144,8 @@ export interface ContactList {
   description?: string | null;
   status: ContactListStatus;
   type: ContactListType;
+  plans: ContactListPlan[];
+  content_access: ContactListContentAccess[];
   source: ContactListSource;
   member_count: number;
   created_at: number;

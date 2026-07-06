@@ -24,6 +24,7 @@ import type {
   FindContactListsParams,
   SubscribeContactListParams,
   ContactListAccessParams,
+  ContactListContentAccessParams,
   GetCurrentCartParams,
   GetCartParams,
   UpdateCartParams,
@@ -41,6 +42,7 @@ import type {
   Taxonomy,
   ContactList,
   ContactListAccessResponse,
+  ContactListContentAccessResponse,
   ContactListSubscribeResponse,
   Service,
   Provider,
@@ -604,6 +606,15 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           const store_id = params.store_id || apiConfig.storeId;
           return apiConfig.httpClient.get<ContactListAccessResponse>(
             `${base(store_id)}/contact-lists/${params.id}/access`,
+            options,
+          );
+        },
+
+        checkContentAccess(params: ContactListContentAccessParams, options?: RequestOptions): Promise<ContactListContentAccessResponse> {
+          const { store_id, ...payload } = params;
+          return apiConfig.httpClient.post<ContactListContentAccessResponse>(
+            `${base(store_id)}/contact-lists/access`,
+            payload,
             options,
           );
         },
