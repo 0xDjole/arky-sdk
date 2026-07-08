@@ -36,11 +36,12 @@ assert.equal(typeof arky.store.paymentProvider.refresh, "function");
 assert.equal(typeof arky.store.paymentProvider.connectStripe, "function");
 assert.equal(typeof arky.store.paymentProvider.delete, "function");
 
-assert.equal(typeof arky.social.account.list, "function");
-assert.equal(typeof arky.social.account.connect, "function");
-assert.equal(typeof arky.social.account.getOAuthAttempt, "function");
-assert.equal(typeof arky.social.account.selectDestination, "function");
-assert.equal(typeof arky.social.account.delete, "function");
+assert.equal(typeof arky.social.connection.list, "function");
+assert.equal(typeof arky.social.connection.connect, "function");
+assert.equal(typeof arky.social.connection.getOAuthAttempt, "function");
+assert.equal(typeof arky.social.connection.selectDestination, "function");
+assert.equal(typeof arky.social.connection.delete, "function");
+assert.equal("account" in arky.social, false);
 assert.equal(typeof arky.social.publication.getComments, "function");
 assert.equal(typeof arky.social.publication.syncComments, "function");
 assert.equal(typeof arky.social.publication.getCommentThread, "function");
@@ -48,10 +49,13 @@ assert.equal(typeof arky.social.publication.syncCommentThread, "function");
 assert.equal(typeof arky.social.publication.getMetrics, "function");
 assert.equal(typeof arky.social.publication.syncMetrics, "function");
 
-assert.equal(typeof arky.automation.workflow.listAccounts, "function");
-assert.equal(typeof arky.automation.workflow.getAccountConnectUrl, "function");
+assert.equal(typeof arky.automation.workflow.listConnections, "function");
+assert.equal(typeof arky.automation.workflow.getConnectionConnectUrl, "function");
+assert.equal("listAccounts" in arky.automation.workflow, false);
+assert.equal("getAccountConnectUrl" in arky.automation.workflow, false);
 assert.equal("connectAccount" in arky.automation.workflow, false);
-assert.equal(typeof arky.automation.workflow.deleteAccount, "function");
+assert.equal(typeof arky.automation.workflow.deleteConnection, "function");
+assert.equal("deleteAccount" in arky.automation.workflow, false);
 
 const workflowFetchCalls = [];
 const originalFetch = globalThis.fetch;
@@ -68,7 +72,7 @@ globalThis.fetch = async (url, init = {}) => {
 };
 
 try {
-  await arky.automation.workflow.getAccountConnectUrl({
+  await arky.automation.workflow.getConnectionConnectUrl({
     type: "google_drive",
   });
 } finally {
@@ -78,7 +82,7 @@ try {
 assert.equal(workflowFetchCalls[0].method, "POST");
 assert.equal(
   workflowFetchCalls[0].url,
-  "http://127.0.0.1:1/v1/stores/contract-store/workflow-accounts/connect-url",
+  "http://127.0.0.1:1/v1/stores/contract-store/workflow-connections/connect-url",
 );
 assert.deepEqual(JSON.parse(workflowFetchCalls[0].body), {
   type: "google_drive",

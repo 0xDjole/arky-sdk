@@ -8,15 +8,15 @@ import type {
   TriggerWorkflowParams,
   GetWorkflowExecutionsParams,
   GetWorkflowExecutionParams,
-  GetWorkflowAccountConnectUrlParams,
-  GetWorkflowAccountsParams,
-  DeleteWorkflowAccountParams,
+  GetWorkflowConnectionConnectUrlParams,
+  GetWorkflowConnectionsParams,
+  DeleteWorkflowConnectionParams,
   RequestOptions,
 } from "../types/api";
 import type {
   Workflow,
-  WorkflowAccount,
-  WorkflowAccountConnectUrl,
+  WorkflowConnection,
+  WorkflowConnectionConnectUrl,
   WorkflowExecution,
   PaginatedResponse,
 } from "../types";
@@ -125,37 +125,37 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getWorkflowAccounts(
-      params?: GetWorkflowAccountsParams,
+    async getWorkflowConnections(
+      params?: GetWorkflowConnectionsParams,
       options?: RequestOptions,
-    ): Promise<WorkflowAccount[]> {
+    ): Promise<WorkflowConnection[]> {
       const store_id = params?.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<WorkflowAccount[]>(
-        `/v1/stores/${store_id}/workflow-accounts`,
+      return apiConfig.httpClient.get<WorkflowConnection[]>(
+        `/v1/stores/${store_id}/workflow-connections`,
         options,
       );
     },
 
-    async getWorkflowAccountConnectUrl(
-      params: GetWorkflowAccountConnectUrlParams,
+    async getWorkflowConnectionConnectUrl(
+      params: GetWorkflowConnectionConnectUrlParams,
       options?: RequestOptions,
-    ): Promise<WorkflowAccountConnectUrl> {
+    ): Promise<WorkflowConnectionConnectUrl> {
       const { store_id, type, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<WorkflowAccountConnectUrl>(
-        `/v1/stores/${target_store_id}/workflow-accounts/connect-url`,
+      return apiConfig.httpClient.post<WorkflowConnectionConnectUrl>(
+        `/v1/stores/${target_store_id}/workflow-connections/connect-url`,
         { ...payload, type, store_id: target_store_id },
         options,
       );
     },
 
-    async deleteWorkflowAccount(
-      params: DeleteWorkflowAccountParams,
+    async deleteWorkflowConnection(
+      params: DeleteWorkflowConnectionParams,
       options?: RequestOptions,
     ): Promise<boolean> {
       const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.delete<boolean>(
-        `/v1/stores/${store_id}/workflow-accounts/${params.id}`,
+        `/v1/stores/${store_id}/workflow-connections/${params.id}`,
         options,
       );
     },

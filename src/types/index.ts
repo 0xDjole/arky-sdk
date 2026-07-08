@@ -299,12 +299,109 @@ export interface SocialDestinationMetadata {
   avatar_url?: string | null;
 }
 
-export type SocialProviderType =
+export type SocialConnectionType =
   | "facebook_page"
   | "instagram_business"
   | "youtube_channel"
   | "tiktok_account"
   | "x_account";
+
+export interface FacebookPageSocialCredential {
+  access_token?: string;
+  refresh_token?: string | null;
+  expires_at?: number | null;
+  scopes: string[];
+}
+
+export interface InstagramBusinessSocialCredential {
+  access_token?: string;
+  refresh_token?: string | null;
+  expires_at?: number | null;
+  scopes: string[];
+}
+
+export interface YoutubeChannelSocialCredential {
+  access_token?: string;
+  refresh_token?: string | null;
+  expires_at?: number | null;
+  scopes: string[];
+}
+
+export interface TiktokAccountSocialCredential {
+  access_token?: string;
+  refresh_token?: string | null;
+  expires_at?: number | null;
+  scopes: string[];
+}
+
+export interface XAccountSocialCredential {
+  access_token?: string;
+  refresh_token?: string | null;
+  expires_at?: number | null;
+  scopes: string[];
+}
+
+export interface FacebookPageSocialDestination {
+  external_account_id: string;
+  external_account_name: string;
+  handle?: string | null;
+  avatar_url?: string | null;
+}
+
+export interface InstagramBusinessSocialDestination {
+  external_account_id: string;
+  external_account_name: string;
+  handle?: string | null;
+  avatar_url?: string | null;
+}
+
+export interface YoutubeChannelSocialDestination {
+  external_account_id: string;
+  external_account_name: string;
+  handle?: string | null;
+  avatar_url?: string | null;
+}
+
+export interface TiktokAccountSocialDestination {
+  external_account_id: string;
+  external_account_name: string;
+  handle?: string | null;
+  avatar_url?: string | null;
+}
+
+export interface XAccountSocialDestination {
+  external_account_id: string;
+  external_account_name: string;
+  handle?: string | null;
+  avatar_url?: string | null;
+}
+
+export type SocialConnectionData =
+  | {
+      type: "facebook_page";
+      credential: FacebookPageSocialCredential;
+      destination: FacebookPageSocialDestination;
+    }
+  | {
+      type: "instagram_business";
+      credential: InstagramBusinessSocialCredential;
+      destination: InstagramBusinessSocialDestination;
+    }
+  | {
+      type: "youtube_channel";
+      credential: YoutubeChannelSocialCredential;
+      destination: YoutubeChannelSocialDestination;
+    }
+  | {
+      type: "tiktok_account";
+      credential: TiktokAccountSocialCredential;
+      destination: TiktokAccountSocialDestination;
+    }
+  | {
+      type: "x_account";
+      credential: XAccountSocialCredential;
+      destination: XAccountSocialDestination;
+    };
 
 export type SocialPublicationStatus =
   | "draft"
@@ -376,7 +473,7 @@ export interface SocialPublicationValidation {
 export interface SocialPublication {
   id: string;
   store_id: string;
-  social_account_id: string;
+  social_connection_id: string;
   key: string;
   status: SocialPublicationStatus;
   content: SocialPublicationContent;
@@ -445,8 +542,8 @@ export interface SocialPublicationComment {
   id: string;
   store_id: string;
   publication_id: string;
-  social_account_id: string;
-  provider_type: SocialProviderType;
+  social_connection_id: string;
+  type: SocialConnectionType;
   provider_post_id?: string | null;
   provider_comment_id: string;
   provider_parent_comment_id?: string | null;
@@ -492,8 +589,8 @@ export interface SocialPublicationMetricSnapshot {
   id: string;
   store_id: string;
   publication_id: string;
-  social_account_id: string;
-  provider_type: SocialProviderType;
+  social_connection_id: string;
+  type: SocialConnectionType;
   provider_post_id?: string | null;
   metrics: Record<string, number>;
   collected_at: number;
@@ -541,7 +638,7 @@ export interface SocialAnalyticsCapabilities {
 }
 
 export interface SocialProviderCapability {
-  provider_type: SocialProviderType;
+  type: SocialConnectionType;
   display_name: string;
   icon_key: string;
   required_scopes: string[];
@@ -567,10 +664,10 @@ export interface SocialOAuthDestinationOption extends SocialDestinationMetadata 
 export interface SocialOAuthCallbackResponse {
   status: SocialOAuthCallbackStatus;
   store_id: string;
-  provider_type: SocialProviderType;
+  type: SocialConnectionType;
   account_id: string;
   attempt_id?: string | null;
-  social_account_id?: string | null;
+  social_connection_id?: string | null;
   destination?: SocialDestinationMetadata | null;
   options: SocialOAuthDestinationOption[];
   message: string;
@@ -590,13 +687,11 @@ export interface BuildHook {
   updated_at: number;
 }
 
-export interface SocialAccount {
+export interface SocialConnection {
   id: string;
   store_id: string;
-  key: string;
-  provider_type: SocialProviderType;
-  credential: SocialOAuthCredential;
-  destination: SocialDestinationMetadata;
+  type: SocialConnectionType;
+  data: SocialConnectionData;
   created_at: number;
   updated_at: number;
 }
@@ -1924,32 +2019,47 @@ export interface WorkflowDeployWebhookNode {
   retry_delay_ms?: number;
 }
 
-export type WorkflowAccountType = "google_drive";
+export type WorkflowConnectionType = "google_drive";
 
-export interface WorkflowAccountProfile {
+export interface GoogleDriveWorkflowCredential {
+  access_token?: string;
+  refresh_token?: string | null;
+  expires_at?: number | null;
+  scopes: string[];
+  token_type?: string | null;
+}
+
+export interface GoogleDriveWorkflowProfile {
   external_account_id: string;
   display_name: string;
   email?: string | null;
 }
 
-export interface WorkflowAccount {
+export interface GoogleDriveWorkflowConnectionData {
+  type: "google_drive";
+  credential: GoogleDriveWorkflowCredential;
+  profile: GoogleDriveWorkflowProfile;
+}
+
+export type WorkflowConnectionData = GoogleDriveWorkflowConnectionData;
+
+export interface WorkflowConnection {
   id: string;
   store_id: string;
-  key: string;
-  type: WorkflowAccountType;
-  profile: WorkflowAccountProfile;
+  type: WorkflowConnectionType;
+  data: WorkflowConnectionData;
   created_at: number;
   updated_at: number;
 }
 
-export interface WorkflowAccountConnectUrl {
+export interface WorkflowConnectionConnectUrl {
   authorization_url: string;
   state: string;
 }
 
 export interface WorkflowGoogleDriveUploadNode {
   type: "google_drive_upload";
-  workflow_account_id: string;
+  workflow_connection_id: string;
   name: string;
   mime_type: string;
   content?: any;
@@ -2266,8 +2376,8 @@ export type ActionData =
   | {
       type: "social_comment";
       value: {
-        social_account_id: string;
-        provider_type: SocialProviderType;
+        social_connection_id: string;
+        type: SocialConnectionType;
         publication_id: string;
         comment_id: string;
         provider_comment_id: string;
@@ -2279,8 +2389,8 @@ export type ActionData =
   | {
       type: "social_reply";
       value: {
-        social_account_id: string;
-        provider_type: SocialProviderType;
+        social_connection_id: string;
+        type: SocialConnectionType;
         publication_id: string;
         comment_id: string;
         provider_comment_id?: string | null;
@@ -2308,8 +2418,8 @@ export type ActionData =
   | {
       type: "direct_message";
       value: {
-        social_account_id: string;
-        provider_type: SocialProviderType;
+        social_connection_id: string;
+        type: SocialConnectionType;
         thread_id: string;
         message_id: string;
         text: string;

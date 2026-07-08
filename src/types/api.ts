@@ -58,7 +58,7 @@ import type {
   SuppressionStatus,
   SuppressionReason,
   SuppressionSource,
-  SocialProviderType,
+  SocialConnectionType,
   SocialPublicationCommentIntent,
   SocialPublicationCommentPriority,
   SocialPublicationCommentStatus,
@@ -1303,16 +1303,16 @@ export interface GetWorkflowExecutionParams {
   store_id?: string;
 }
 
-export interface GetWorkflowAccountConnectUrlParams {
+export interface GetWorkflowConnectionConnectUrlParams {
   store_id?: string;
-  type: import("./index").WorkflowAccountType;
+  type: import("./index").WorkflowConnectionType;
 }
 
-export interface GetWorkflowAccountsParams {
+export interface GetWorkflowConnectionsParams {
   store_id?: string;
 }
 
-export interface DeleteWorkflowAccountParams {
+export interface DeleteWorkflowConnectionParams {
   id: string;
   store_id?: string;
 }
@@ -1849,11 +1849,11 @@ export interface DeleteBuildHookParams {
   id: string;
 }
 
-export interface ListSocialAccountsParams {
+export interface ListSocialConnectionsParams {
   store_id?: string;
 }
 
-export interface DeleteSocialAccountParams {
+export interface DeleteSocialConnectionParams {
   store_id: string;
   id: string;
 }
@@ -1895,14 +1895,14 @@ export interface GetSocialPublicationParams {
 
 export interface ValidateSocialPublicationParams {
   store_id?: string;
-  social_account_id: string;
+  social_connection_id: string;
   scheduled_at?: number | null;
   content: SocialPublicationContent;
 }
 
 export interface CreateSocialPublicationParams {
   store_id?: string;
-  social_account_id: string;
+  social_connection_id: string;
   key?: string | null;
   scheduled_at?: number | null;
   content: SocialPublicationContent;
@@ -1911,7 +1911,7 @@ export interface CreateSocialPublicationParams {
 export interface UpdateSocialPublicationParams {
   store_id?: string;
   id: string;
-  social_account_id?: string | null;
+  social_connection_id?: string | null;
   key?: string | null;
   scheduled_at?: number | null;
   content?: SocialPublicationContent | null;
@@ -1952,8 +1952,8 @@ export type SyncSocialPublicationCommentThreadParams =
 export interface FindSocialPublicationCommentsParams {
   store_id?: string;
   publication_id?: string;
-  social_account_id?: string;
-  provider_type?: SocialProviderType;
+  social_connection_id?: string;
+  type?: SocialConnectionType;
   status?: SocialPublicationCommentStatus;
   intent?: SocialPublicationCommentIntent;
   priority?: SocialPublicationCommentPriority;
@@ -1965,8 +1965,8 @@ export interface FindSocialPublicationCommentsParams {
 export interface ClassifySocialPublicationCommentsParams {
   store_id?: string;
   publication_id?: string;
-  social_account_id?: string;
-  provider_type?: SocialProviderType;
+  social_connection_id?: string;
+  type?: SocialConnectionType;
   status?: SocialPublicationCommentStatus;
   intent?: SocialPublicationCommentIntent;
   priority?: SocialPublicationCommentPriority;
@@ -2002,14 +2002,14 @@ export interface GetSocialCapabilitiesParams {
   store_id?: string;
 }
 
-export interface ConnectSocialAccountParams {
+export interface ConnectSocialConnectionParams {
   store_id?: string;
-  provider_type: SocialProviderType;
+  type: SocialConnectionType;
 }
 
 export interface SelectSocialDestinationParams {
   store_id?: string;
-  provider_type: SocialProviderType;
+  type: SocialConnectionType;
   attempt_id: string;
   candidate_id: string;
 }
