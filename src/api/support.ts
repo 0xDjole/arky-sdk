@@ -3,13 +3,7 @@ import type { RequestOptions } from "../types/api";
 
 export type SupportAgentStatus = "draft" | "active" | "archived";
 export type SupportChannelStatus = "draft" | "active" | "disabled" | "archived";
-export type SupportChannelType =
-  | "web"
-  | "whatsapp"
-  | "instagram"
-  | "email"
-  | "sms"
-  | "viber";
+export type SupportChannelType = "web" | "email";
 
 export interface SupportAgentNode {
   type: "message" | "input" | "ai_handoff" | "action";
@@ -69,34 +63,8 @@ export type SupportChannelConfig =
       allowed_origins?: string[];
     }
   | {
-      type: "whatsapp";
-      phone_number_id: string;
-      business_account_id?: string | null;
-      display_phone_number?: string | null;
-      webhook_verify_token_secret_id?: string | null;
-      access_token_secret_id?: string | null;
-    }
-  | {
-      type: "instagram";
-      page_id: string;
-      instagram_business_account_id?: string | null;
-      access_token_secret_id?: string | null;
-    }
-  | {
       type: "email";
       mailbox_id: string;
-    }
-  | {
-      type: "sms";
-      phone_e164: string;
-      account_ref?: string | null;
-      access_token_secret_id?: string | null;
-    }
-  | {
-      type: "viber";
-      bot_id: string;
-      account_ref?: string | null;
-      access_token_secret_id?: string | null;
     };
 
 export interface SupportChannel {
@@ -118,32 +86,11 @@ export type SupportConversationChannelContext =
       session_id?: string | null;
     }
   | {
-      type: "whatsapp";
-      wa_id: string;
-      phone_e164?: string | null;
-      conversation_id?: string | null;
-    }
-  | {
-      type: "instagram";
-      ig_user_id: string;
-      thread_id?: string | null;
-    }
-  | {
       type: "email";
       thread_id: string;
       reply_to: string;
       message_id?: string | null;
       references: string[];
-    }
-  | {
-      type: "sms";
-      phone_e164: string;
-    }
-  | {
-      type: "viber";
-      user_id: string;
-      conversation_id?: string | null;
-      phone_e164?: string | null;
     };
 
 export interface SupportConversation {
