@@ -530,7 +530,13 @@ export {
 export type { TimelineParams } from "./api/crm";
 export type {
   SupportAgent,
+  SupportAgentStatus,
+  SupportChannel,
+  SupportChannelConfig,
+  SupportChannelStatus,
+  SupportChannelType,
   SupportConversation,
+  SupportConversationChannelContext,
   SupportMessage,
   SupportConversationResponse,
   SupportAgentNode,
@@ -542,6 +548,11 @@ export type {
   GetSupportConversationParams,
   ReplySupportConversationParams,
   ResolveSupportConversationParams,
+  CreateSupportChannelParams,
+  UpdateSupportChannelParams,
+  FindSupportChannelsParams,
+  FindSupportConversationsParams,
+  ReceiveSupportChannelMessageParams,
 } from "./api/support";
 export type {
   WorkflowToolOperation,
@@ -1100,6 +1111,12 @@ export function createAdmin(config: CreateAdminConfig) {
     automation: {
       workflow: workflowPublicApi,
       support: {
+        createChannel: supportApi.channel.create,
+        getChannel: supportApi.channel.get,
+        findChannels: supportApi.channel.find,
+        updateChannel: supportApi.channel.update,
+        deleteChannel: supportApi.channel.delete,
+        receiveChannelMessage: supportApi.channel.receiveMessage,
         createAgent: supportApi.agent.create,
         getAgent: supportApi.agent.get,
         findAgents: supportApi.agent.find,

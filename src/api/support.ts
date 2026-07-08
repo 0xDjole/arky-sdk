@@ -1,6 +1,16 @@
 import type { ApiConfig } from "../index";
 import type { RequestOptions } from "../types/api";
 
+export type SupportAgentStatus = "draft" | "active" | "archived";
+export type SupportChannelStatus = "draft" | "active" | "disabled" | "archived";
+export type SupportChannelType =
+  | "web"
+  | "whatsapp"
+  | "instagram"
+  | "email"
+  | "sms"
+  | "viber";
+
 export interface SupportAgentNode {
   type: "message" | "input" | "ai_handoff" | "action";
   text?: string;
@@ -41,19 +51,108 @@ export interface SupportAgent {
   key: string;
   store_id: string;
   name: string;
-  status: "draft" | "active" | "archived";
+  status: SupportAgentStatus;
   entry_node_id: string;
   nodes: Record<string, SupportAgentNode>;
   edges: SupportAgentEdge[];
   ai_config?: SupportAgentAiConfig;
+  channel_ids: string[];
+  notes?: string | null;
   created_at: number;
   updated_at: number;
 }
+
+export type SupportChannelConfig =
+  | {
+      type: "web";
+      widget_key: string;
+      allowed_origins?: string[];
+    }
+  | {
+      type: "whatsapp";
+      phone_number_id: string;
+      business_account_id?: string | null;
+      display_phone_number?: string | null;
+      webhook_verify_token_secret_id?: string | null;
+      access_token_secret_id?: string | null;
+    }
+  | {
+      type: "instagram";
+      page_id: string;
+      instagram_business_account_id?: string | null;
+      access_token_secret_id?: string | null;
+    }
+  | {
+      type: "email";
+      mailbox_id: string;
+    }
+  | {
+      type: "sms";
+      phone_e164: string;
+      account_ref?: string | null;
+      access_token_secret_id?: string | null;
+    }
+  | {
+      type: "viber";
+      bot_id: string;
+      account_ref?: string | null;
+      access_token_secret_id?: string | null;
+    };
+
+export interface SupportChannel {
+  id: string;
+  store_id: string;
+  key: string;
+  name: string;
+  status: SupportChannelStatus;
+  channel_type: SupportChannelType;
+  config: SupportChannelConfig;
+  created_at: number;
+  updated_at: number;
+}
+
+export type SupportConversationChannelContext =
+  | {
+      type: "web";
+      visitor_id?: string | null;
+      session_id?: string | null;
+    }
+  | {
+      type: "whatsapp";
+      wa_id: string;
+      phone_e164?: string | null;
+      conversation_id?: string | null;
+    }
+  | {
+      type: "instagram";
+      ig_user_id: string;
+      thread_id?: string | null;
+    }
+  | {
+      type: "email";
+      thread_id: string;
+      reply_to: string;
+      message_id?: string | null;
+      references: string[];
+    }
+  | {
+      type: "sms";
+      phone_e164: string;
+    }
+  | {
+      type: "viber";
+      user_id: string;
+      conversation_id?: string | null;
+      phone_e164?: string | null;
+    };
 
 export interface SupportConversation {
   id: string;
   store_id: string;
   agent_id?: string;
+  channel_id?: string | null;
+  channel_type: SupportChannelType;
+  channel_context: SupportConversationChannelContext;
   current_node_id?: string;
   contact_id?: string;
   assigned_account_id?: string | null;
@@ -83,6 +182,10 @@ export interface SupportConversationResponse {
 export interface StartSupportConversationParams {
   store_id: string;
   agent_key?: string;
+  channel_id?: string;
+  visitor_id?: string;
+  session_id?: string;
+  contact_id?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -90,6 +193,16 @@ export interface SendSupportMessageParams {
   store_id: string;
   conversation_id: string;
   input: { type: "button"; label: string } | { type: "text"; content: string };
+}
+
+export interface ReceiveSupportChannelMessageParams {
+  store_id: string;
+  channel_id: string;
+  channel_context: SupportConversationChannelContext;
+  external_message_id?: string;
+  content: string;
+  metadata?: Record<string, unknown>;
+  received_at?: number;
 }
 
 export interface ReplySupportConversationParams {
@@ -116,6 +229,17 @@ export interface GetSupportConversationParams {
   message_limit?: number;
   after_created_at?: number;
   after_id?: string;
+}
+
+export interface FindSupportConversationsParams {
+  store_id: string;
+  status?: string;
+  agent_id?: string;
+  channel_id?: string;
+  channel_type?: SupportChannelType;
+  query?: string;
+  limit?: number;
+  cursor?: string;
 }
 
 function supportConversationQuery(params: GetSupportConversationParams): string {
@@ -169,28 +293,129 @@ export interface CreateSupportAgentParams {
   store_id: string;
   key: string;
   name: string;
-  status?: "draft" | "active" | "archived";
+  status?: SupportAgentStatus;
   entry_node_id: string;
   nodes: Record<string, SupportAgentNode>;
   edges: SupportAgentEdge[];
   ai_config?: SupportAgentAiConfig;
+  channel_ids?: string[];
+  notes?: string | null;
 }
 
 export interface UpdateSupportAgentParams {
   store_id: string;
   id: string;
   name?: string;
-  status?: "draft" | "active" | "archived";
+  status?: SupportAgentStatus;
   entry_node_id?: string;
   nodes?: Record<string, SupportAgentNode>;
   edges?: SupportAgentEdge[];
   ai_config?: SupportAgentAiConfig;
+  channel_ids?: string[];
+  notes?: string | null;
+}
+
+export interface CreateSupportChannelParams {
+  store_id: string;
+  key: string;
+  name: string;
+  status?: SupportChannelStatus;
+  channel_type: SupportChannelType;
+  config: SupportChannelConfig;
+}
+
+export interface UpdateSupportChannelParams {
+  store_id: string;
+  id: string;
+  key?: string;
+  name?: string;
+  status?: SupportChannelStatus;
+  channel_type?: SupportChannelType;
+  config?: SupportChannelConfig;
+}
+
+export interface FindSupportChannelsParams {
+  store_id: string;
+  status?: SupportChannelStatus;
+  channel_type?: SupportChannelType;
+  limit?: number;
+  cursor?: string;
 }
 
 export function createAdminSupportApi(config: ApiConfig) {
   const { httpClient } = config;
 
   return {
+    channel: {
+      async create(
+        params: CreateSupportChannelParams,
+        opts?: RequestOptions
+      ): Promise<SupportChannel> {
+        return httpClient.post(
+          `/v1/stores/${params.store_id}/support/channels`,
+          params,
+          opts
+        );
+      },
+
+      async get(
+        params: { store_id: string; id: string },
+        opts?: RequestOptions
+      ): Promise<SupportChannel> {
+        return httpClient.get(
+          `/v1/stores/${params.store_id}/support/channels/${params.id}?store_id=${params.store_id}`,
+          opts
+        );
+      },
+
+      async find(
+        params: FindSupportChannelsParams,
+        opts?: RequestOptions
+      ): Promise<{ items: SupportChannel[]; cursor?: string }> {
+        const qs = new URLSearchParams({ store_id: params.store_id });
+        if (params.status) qs.set("status", params.status);
+        if (params.channel_type) qs.set("channel_type", params.channel_type);
+        if (params.limit) qs.set("limit", String(params.limit));
+        if (params.cursor) qs.set("cursor", params.cursor);
+        return httpClient.get(
+          `/v1/stores/${params.store_id}/support/channels?${qs}`,
+          opts
+        );
+      },
+
+      async update(
+        params: UpdateSupportChannelParams,
+        opts?: RequestOptions
+      ): Promise<SupportChannel> {
+        return httpClient.put(
+          `/v1/stores/${params.store_id}/support/channels/${params.id}`,
+          params,
+          opts
+        );
+      },
+
+      async delete(
+        params: { store_id: string; id: string },
+        opts?: RequestOptions
+      ): Promise<void> {
+        return httpClient.delete(
+          `/v1/stores/${params.store_id}/support/channels/${params.id}?store_id=${params.store_id}`,
+          opts
+        );
+      },
+
+      async receiveMessage(
+        params: ReceiveSupportChannelMessageParams,
+        opts?: RequestOptions
+      ): Promise<SupportConversationResponse> {
+        return httpClient.post(
+          `/v1/stores/${params.store_id}/support/channels/${params.channel_id}/messages`,
+          params,
+          opts
+        );
+      },
+    },
+
     agent: {
       async create(
         params: CreateSupportAgentParams,
@@ -251,12 +476,14 @@ export function createAdminSupportApi(config: ApiConfig) {
 
     conversation: {
       async find(
-        params: { store_id: string; status?: string; agent_id?: string; query?: string; limit?: number; cursor?: string },
+        params: FindSupportConversationsParams,
         opts?: RequestOptions
       ): Promise<{ items: SupportConversation[]; cursor?: string }> {
         const qs = new URLSearchParams({ store_id: params.store_id });
         if (params.status) qs.set("status", params.status);
         if (params.agent_id) qs.set("agent_id", params.agent_id);
+        if (params.channel_id) qs.set("channel_id", params.channel_id);
+        if (params.channel_type) qs.set("channel_type", params.channel_type);
         if (params.query) qs.set("query", params.query);
         if (params.limit) qs.set("limit", String(params.limit));
         if (params.cursor) qs.set("cursor", params.cursor);
