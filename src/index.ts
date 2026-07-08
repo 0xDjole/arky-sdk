@@ -886,7 +886,6 @@ export function createAdmin(config: CreateAdminConfig) {
     getExecution: workflowApi.getWorkflowExecution,
     listAccounts: workflowApi.getWorkflowAccounts,
     getAccountConnectUrl: workflowApi.getWorkflowAccountConnectUrl,
-    connectAccount: workflowApi.connectWorkflowAccount,
     deleteAccount: workflowApi.deleteWorkflowAccount,
   };
   const formApi = createFormApi(apiConfig);

@@ -50,7 +50,7 @@ assert.equal(typeof arky.social.publication.syncMetrics, "function");
 
 assert.equal(typeof arky.automation.workflow.listAccounts, "function");
 assert.equal(typeof arky.automation.workflow.getAccountConnectUrl, "function");
-assert.equal(typeof arky.automation.workflow.connectAccount, "function");
+assert.equal("connectAccount" in arky.automation.workflow, false);
 assert.equal(typeof arky.automation.workflow.deleteAccount, "function");
 
 const workflowFetchCalls = [];
@@ -70,12 +70,6 @@ globalThis.fetch = async (url, init = {}) => {
 try {
   await arky.automation.workflow.getAccountConnectUrl({
     type: "google_drive",
-    redirect_uri: "https://admin.test/workflow-accounts/callback",
-  });
-  await arky.automation.workflow.connectAccount({
-    type: "google_drive",
-    code: "oauth-code",
-    redirect_uri: "https://admin.test/workflow-accounts/callback",
   });
 } finally {
   globalThis.fetch = originalFetch;
@@ -88,20 +82,9 @@ assert.equal(
 );
 assert.deepEqual(JSON.parse(workflowFetchCalls[0].body), {
   type: "google_drive",
-  redirect_uri: "https://admin.test/workflow-accounts/callback",
   store_id: "contract-store",
 });
-assert.equal(workflowFetchCalls[1].method, "POST");
-assert.equal(
-  workflowFetchCalls[1].url,
-  "http://127.0.0.1:1/v1/stores/contract-store/workflow-accounts/connect",
-);
-assert.deepEqual(JSON.parse(workflowFetchCalls[1].body), {
-  type: "google_drive",
-  code: "oauth-code",
-  redirect_uri: "https://admin.test/workflow-accounts/callback",
-  store_id: "contract-store",
-});
+assert.equal(workflowFetchCalls.length, 1);
 
 assert.equal(typeof arky.automation.support.createAgent, "function");
 assert.equal(typeof arky.automation.support.findAgents, "function");

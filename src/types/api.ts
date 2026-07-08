@@ -1303,18 +1303,9 @@ export interface GetWorkflowExecutionParams {
   store_id?: string;
 }
 
-export interface ConnectWorkflowAccountParams {
-  store_id?: string;
-  type: import("./index").WorkflowAccountType;
-  key?: string;
-  code: string;
-  redirect_uri: string;
-}
-
 export interface GetWorkflowAccountConnectUrlParams {
   store_id?: string;
   type: import("./index").WorkflowAccountType;
-  redirect_uri: string;
 }
 
 export interface GetWorkflowAccountsParams {

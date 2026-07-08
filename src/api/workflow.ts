@@ -8,7 +8,6 @@ import type {
   TriggerWorkflowParams,
   GetWorkflowExecutionsParams,
   GetWorkflowExecutionParams,
-  ConnectWorkflowAccountParams,
   GetWorkflowAccountConnectUrlParams,
   GetWorkflowAccountsParams,
   DeleteWorkflowAccountParams,
@@ -145,19 +144,6 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<WorkflowAccountConnectUrl>(
         `/v1/stores/${target_store_id}/workflow-accounts/connect-url`,
-        { ...payload, type, store_id: target_store_id },
-        options,
-      );
-    },
-
-    async connectWorkflowAccount(
-      params: ConnectWorkflowAccountParams,
-      options?: RequestOptions,
-    ): Promise<WorkflowAccount> {
-      const { store_id, type, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<WorkflowAccount>(
-        `/v1/stores/${target_store_id}/workflow-accounts/connect`,
         { ...payload, type, store_id: target_store_id },
         options,
       );
