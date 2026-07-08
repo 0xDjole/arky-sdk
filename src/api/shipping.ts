@@ -1,10 +1,11 @@
 import type { ApiConfig } from "../index";
 import type {
   GetShippingRatesParams,
+  RefundShippingLabelParams,
   ShipParams,
   RequestOptions,
 } from "../types/api";
-import type { ShippingRate, ShipResult } from "../types";
+import type { ShippingLabelRefund, ShippingRate, ShipResult } from "../types";
 
 export const createShippingApi = (apiConfig: ApiConfig) => {
   return {
@@ -30,6 +31,18 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<ShipResult>(
         `/v1/stores/${apiConfig.storeId}/orders/${order_id}/ship`,
         payload,
+        options
+      );
+    },
+
+    async refundLabel(
+      params: RefundShippingLabelParams,
+      options?: RequestOptions
+    ): Promise<{ refund: ShippingLabelRefund }> {
+      const { order_id, shipment_id } = params;
+      return apiConfig.httpClient.post<{ refund: ShippingLabelRefund }>(
+        `/v1/stores/${apiConfig.storeId}/orders/${order_id}/shipments/${shipment_id}/label/refund`,
+        {},
         options
       );
     },

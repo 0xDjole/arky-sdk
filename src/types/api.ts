@@ -2076,6 +2076,11 @@ export interface ShipParams {
   lines: ShipmentLine[];
 }
 
+export interface RefundShippingLabelParams {
+  order_id: string;
+  shipment_id: string;
+}
+
 export interface AuthToken {
   id: string;
   access_token: string;

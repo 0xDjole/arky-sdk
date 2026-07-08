@@ -2729,14 +2729,23 @@ export interface ShipmentLine {
   quantity: number;
 }
 
-export type ShipmentLabelStatus =
+export type ShippingLabelPurchaseStatus =
   | "requested"
-  | "processing"
-  | "succeeded"
-  | "failed"
+  | "merchant_recovery_processing"
+  | "merchant_recovery_succeeded"
+  | "merchant_recovery_failed"
+  | "label_purchase_processing"
+  | "purchased"
+  | "label_purchase_failed"
+  | "merchant_credit_processing"
+  | "failed_merchant_credited"
+  | "merchant_credit_failed"
   | "unknown";
 
-export type ShipmentLabelError =
+export type MerchantRecoveryStatus = "processing" | "succeeded" | "failed" | "unknown";
+export type MerchantCreditStatus = "processing" | "succeeded" | "failed" | "unknown";
+
+export type ShippingLabelPurchaseError =
   | {
       type: "provider_rejected";
       message: string;
@@ -2755,6 +2764,116 @@ export type ShipmentLabelError =
       at: number;
     };
 
+export type MerchantRecovery = {
+  type: "stripe_connect_account_debit";
+  payment_provider_id: string;
+  connected_account_id: string;
+  stripe_payment_id?: string | null;
+  amount: number;
+  currency: string;
+  status: MerchantRecoveryStatus;
+  error?: ShippingLabelPurchaseError | null;
+};
+
+export type MerchantCreditReason =
+  | "shipping_label_purchase_failed"
+  | "shipping_label_refund_succeeded"
+  | "shipping_label_negative_adjustment";
+
+export type MerchantCredit = {
+  type: "stripe_connect_transfer";
+  payment_provider_id: string;
+  connected_account_id: string;
+  stripe_transfer_id?: string | null;
+  amount: number;
+  currency: string;
+  reason: MerchantCreditReason;
+  status: MerchantCreditStatus;
+  error?: ShippingLabelPurchaseError | null;
+};
+
+export type ShippingLabelProviderPurchase = {
+  type: "shippo";
+  transaction_id?: string | null;
+  rate_id: string;
+  tracking_number?: string | null;
+  tracking_url?: string | null;
+  label_url?: string | null;
+  carrier?: string | null;
+  service?: string | null;
+};
+
+export type ShippingLabelRefundStatus =
+  | "requested"
+  | "provider_pending"
+  | "provider_rejected"
+  | "merchant_credit_processing"
+  | "succeeded"
+  | "merchant_credit_failed"
+  | "unknown";
+
+export type ShippingLabelProviderRefund = {
+  type: "shippo";
+  refund_id?: string | null;
+  transaction_id: string;
+  status: string;
+};
+
+export interface ShippingLabelRefund {
+  id: string;
+  status: ShippingLabelRefundStatus;
+  requested_amount?: number | null;
+  approved_amount?: number | null;
+  currency?: string | null;
+  provider_refund?: ShippingLabelProviderRefund | null;
+  merchant_credit?: MerchantCredit | null;
+  error?: ShippingLabelPurchaseError | null;
+  requested_at: number;
+  updated_at: number;
+}
+
+export type ShippingLabelAdjustmentStatus =
+  | "requested"
+  | "merchant_recovery_processing"
+  | "merchant_recovery_succeeded"
+  | "merchant_recovery_failed"
+  | "merchant_credit_processing"
+  | "merchant_credit_succeeded"
+  | "merchant_credit_failed"
+  | "unknown";
+
+export interface ShippingLabelAdjustment {
+  id: string;
+  provider_adjustment_id?: string | null;
+  amount: number;
+  currency: string;
+  reason: string;
+  status: ShippingLabelAdjustmentStatus;
+  merchant_recovery?: MerchantRecovery | null;
+  merchant_credit?: MerchantCredit | null;
+  error?: ShippingLabelPurchaseError | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface ShippingLabelPurchase {
+  id: string;
+  rate_id: string;
+  status: ShippingLabelPurchaseStatus;
+  postage_amount?: number | null;
+  fee_amount: number;
+  total_amount?: number | null;
+  currency?: string | null;
+  provider_purchase?: ShippingLabelProviderPurchase | null;
+  merchant_recovery?: MerchantRecovery | null;
+  merchant_credit?: MerchantCredit | null;
+  refund?: ShippingLabelRefund | null;
+  adjustments: ShippingLabelAdjustment[];
+  error?: ShippingLabelPurchaseError | null;
+  created_at: number;
+  updated_at: number;
+}
+
 export interface Shipment {
   id: string;
   fulfillment_order_id?: string | null;
@@ -2767,8 +2886,7 @@ export interface Shipment {
   tracking_url?: string | null;
   label_url?: string | null;
   status: ShippingStatus;
-  label_status: ShipmentLabelStatus;
-  label_error?: ShipmentLabelError | null;
+  shipping_label_purchase?: ShippingLabelPurchase | null;
   created_at: number;
   updated_at: number;
 }
@@ -2793,11 +2911,14 @@ export interface Parcel {
 }
 
 export interface PurchaseLabelResult {
+  transaction_id?: string | null;
   tracking_number: string;
   tracking_url?: string | null;
   label_url: string;
   carrier: string;
   service: string;
+  postage_amount?: number | null;
+  postage_currency?: string | null;
 }
 
 export interface ShipResult {
@@ -2805,7 +2926,6 @@ export interface ShipResult {
   tracking_number?: string | null;
   tracking_url?: string | null;
   label_url?: string | null;
-  label_status: ShipmentLabelStatus;
 }
 
 export interface CustomsItem {
