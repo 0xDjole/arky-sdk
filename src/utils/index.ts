@@ -11,6 +11,8 @@ export {
   formatMinor,
   convertToMajor,
   convertToMinor,
+  getCurrencyMinorUnits,
+  SUPPORTED_STORE_CURRENCIES,
 } from "./price";
 
 export {

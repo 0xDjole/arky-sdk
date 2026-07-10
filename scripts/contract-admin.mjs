@@ -1,6 +1,33 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { createAdmin } from "../dist/admin.js";
+import {
+  SUPPORTED_STORE_CURRENCIES,
+  convertToMajor,
+  convertToMinor,
+  formatMinor,
+  getCurrencyMinorUnits,
+} from "../dist/utils.js";
+
+const expectedStoreCurrencies = [
+  "USD", "EUR", "GBP", "JPY", "CNY", "CHF", "AUD", "CAD", "HKD", "SGD",
+  "NZD", "KRW", "SEK", "NOK", "DKK", "INR", "MXN", "BRL", "ZAR", "RUB",
+  "TRY", "PLN", "THB", "IDR", "MYR", "PHP", "CZK", "ILS", "AED", "SAR",
+  "HUF", "RON", "BGN", "HRK", "BAM", "RSD", "MKD", "ALL",
+];
+
+assert.deepEqual([...SUPPORTED_STORE_CURRENCIES], expectedStoreCurrencies);
+assert.equal(getCurrencyMinorUnits("USD"), 2);
+assert.equal(getCurrencyMinorUnits("jpy"), 0);
+assert.equal(convertToMinor(12.34, "USD"), 1234);
+assert.equal(convertToMajor(1234, "USD"), 12.34);
+assert.equal(convertToMinor(100, "JPY"), 100);
+assert.equal(convertToMajor(100, "JPY"), 100);
+assert.equal(convertToMinor(100, "KRW"), 100);
+assert.equal(convertToMajor(100, "KRW"), 100);
+assert.match(formatMinor(100, "JPY"), /100/);
+assert.equal(formatMinor(100, " jpy "), formatMinor(100, "JPY"));
+assert.throws(() => convertToMinor(1, "ZZZ"), /Unsupported currency/);
 
 const arky = createAdmin({
   baseUrl: "http://127.0.0.1:1",
