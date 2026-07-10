@@ -46,7 +46,7 @@ import type {
   ContactListContentAccessTarget,
   ContactListMembershipStatus,
   MailboxStatus,
-  SmtpImapMailboxProvider,
+  SmtpImapMailboxProviderInput,
   CampaignStatus,
   CampaignEnrollmentStatus,
   CampaignMessageDirection,
@@ -929,15 +929,6 @@ export interface SearchAccountsParams {
 
 export interface DeleteAccountParams {}
 
-export interface TriggerNotificationParams {
-  channel: string;
-  store_id: string;
-  email_template_id: string;
-  mailbox_id: string;
-  recipients: string[];
-  vars?: Record<string, any>;
-}
-
 export interface GetEmailTemplatesParams {
   store_id?: string;
   ids?: string[];
@@ -956,12 +947,9 @@ export interface GetEmailTemplatesParams {
 export interface CreateEmailTemplateParams {
   store_id?: string;
   key: string;
-  type?: EmailTemplateType;
-  subject?: Record<string, string>;
-  body?: string;
-  from_name?: string;
-  from_email?: string;
-  reply_to?: string;
+  type: EmailTemplateType;
+  subject: Record<string, string>;
+  body: string;
   preheader?: string;
   variables?: EmailTemplateVariable[];
   sample_data?: Record<string, unknown>;
@@ -974,9 +962,6 @@ export interface UpdateEmailTemplateParams {
   type?: EmailTemplateType;
   subject?: Record<string, string>;
   body?: string;
-  from_name?: string;
-  from_email?: string;
-  reply_to?: string;
   preheader?: string;
   variables?: EmailTemplateVariable[];
   sample_data?: Record<string, unknown>;
@@ -1526,7 +1511,7 @@ export interface CreateMailboxParams {
   email: string;
   from_name?: string;
   reply_to_email?: string | null;
-  provider: SmtpImapMailboxProvider;
+  provider: SmtpImapMailboxProviderInput;
   password?: string;
   daily_limit?: number;
 }
@@ -1538,17 +1523,19 @@ export interface UpdateMailboxParams {
   email?: string;
   from_name?: string;
   reply_to_email?: string | null;
-  provider?: SmtpImapMailboxProvider;
+  provider?: SmtpImapMailboxProviderInput;
   password?: string;
   status?: MailboxStatus;
   daily_limit?: number;
+  sync_enabled?: boolean;
+  sync_interval_seconds?: number;
 }
 
 export interface FindMailboxesParams {
   store_id?: string;
   ids?: string[];
   status?: MailboxStatus;
-  provider_type?: "smtp_imap";
+  provider_type?: "smtp_imap" | "google";
   query?: string | number;
   limit?: number;
   cursor?: string;
@@ -1571,14 +1558,38 @@ export interface PrepareMailboxParams {
   store_id?: string;
 }
 
-export interface TestMailboxResult {
-  ok: boolean;
-  smtp_ok: boolean;
-  imap_ok: boolean;
-  skipped: boolean;
-  smtp_error?: string | null;
-  imap_error?: string | null;
+export interface ConnectGoogleMailboxParams {
+  id?: string | null;
+  store_id?: string;
+  key: string;
+  from_name?: string | null;
+  reply_to_email?: string | null;
+  daily_limit?: number;
+  sync_enabled: boolean;
+  sync_interval_seconds: number;
 }
+
+export interface GoogleMailboxConnectUrl {
+  authorization_url: string;
+  state: string;
+}
+
+export type TestMailboxResult =
+  | {
+      type: 'smtp_imap';
+      ok: boolean;
+      smtp_ok: boolean;
+      imap_ok: boolean;
+      skipped: boolean;
+      smtp_error?: string | null;
+      imap_error?: string | null;
+    }
+  | {
+      type: 'google';
+      ok: boolean;
+      skipped: boolean;
+      error?: string | null;
+    };
 
 export interface CreateCampaignParams {
   store_id?: string;

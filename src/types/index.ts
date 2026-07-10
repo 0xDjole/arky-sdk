@@ -1610,7 +1610,7 @@ export type MailboxStatus = "active" | "draft" | "archived";
 export type MailboxPreset = "gmail" | "zoho" | "microsoft" | "custom";
 export type MailboxConnectionSecurity = "tls" | "start_tls";
 export type MailboxSyncStatus = "not_ready" | "ready" | "failed";
-export type SmtpImapMailboxProvider = {
+export type SmtpImapMailboxProviderInput = {
   type: "smtp_imap";
   preset: MailboxPreset;
   smtp_host: string;
@@ -1620,14 +1620,38 @@ export type SmtpImapMailboxProvider = {
   imap_port: number;
   imap_security: MailboxConnectionSecurity;
   username: string;
+  sync_enabled: boolean;
+  sync_interval_seconds: number;
+};
+export type SmtpImapMailboxProvider = SmtpImapMailboxProviderInput & {
   password_configured: boolean;
+  sync_status?: MailboxSyncStatus;
+  sync_error?: string | null;
+  sync_ready_at?: number | null;
+  last_synced_at?: number | null;
+  last_seen_uid?: number | null;
+};
+export interface GoogleMailboxProfile {
+  external_account_id: string;
+  email: string;
+  display_name: string;
+  avatar_url?: string | null;
+}
+export type GoogleMailboxProvider = {
+  type: "google";
+  profile: GoogleMailboxProfile;
+  access_configured: boolean;
+  refresh_configured: boolean;
+  token_expires_at?: number | null;
+  token_type?: string | null;
+  scopes: string[];
   sync_enabled: boolean;
   sync_interval_seconds: number;
   sync_status?: MailboxSyncStatus;
   sync_error?: string | null;
   sync_ready_at?: number | null;
   last_synced_at?: number | null;
-  last_seen_uid?: number | null;
+  last_history_id?: string | null;
 };
 export type CampaignStatus =
   | "draft"
@@ -1858,9 +1882,6 @@ export interface EmailTemplate {
   type: EmailTemplateType;
   subject: Record<string, string>;
   body: string;
-  from_name: string;
-  from_email: string;
-  reply_to?: string;
   preheader?: string;
   variables: EmailTemplateVariable[];
   sample_data: Record<string, unknown>;
@@ -2041,9 +2062,20 @@ export type EmailSend =
   | { type: "order_reminder_contact"; data: EmailSendTemplateData }
   | { type: "digital_access_ready_contact"; data: EmailSendTemplateData }
   | { type: "contact_store_notification"; data: EmailSendTemplateData }
-  | { type: "subscription_confirmation"; data: EmailSendTemplateData }
-  | { type: "campaign_email"; data: EmailSendTemplateData }
-  | { type: "newsletter_email"; data: EmailSendTemplateData };
+  | { type: "subscription_confirmation"; data: EmailSendTemplateData };
+
+export interface EmailSendMessageResult {
+  recipient: string;
+  mailbox_id: string;
+  template_id: string;
+  provider_message_id: string;
+  provider_thread_id?: string | null;
+}
+
+export interface EmailSendResult {
+  sent: number;
+  messages: EmailSendMessageResult[];
+}
 
 export interface WorkflowSendEmailNode {
   type: "send_email";
@@ -2281,6 +2313,31 @@ export interface ContactListContentAccessResponse {
   membership?: ContactListMembership | null;
 }
 
+export interface ContactListManagementContactList {
+  id: string;
+  key: string;
+  name: string;
+  description?: string | null;
+  type: ContactListType;
+  content_access: ContactListContentAccess[];
+}
+
+export interface ContactListManagementMembership {
+  id: string;
+  status: ContactListMembershipStatus;
+  source: ContactListSource;
+  start_date: number;
+  end_date: number;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface ContactListManagementResponse {
+  has_access: boolean;
+  contact_list: ContactListManagementContactList;
+  membership: ContactListManagementMembership;
+}
+
 export interface ContactListSubscribeResponse {
   checkout_url?: string | null;
   payment_action: CheckoutPaymentAction;
@@ -2506,7 +2563,7 @@ export interface Mailbox {
   email: string;
   from_name: string;
   reply_to_email?: string | null;
-  provider: SmtpImapMailboxProvider;
+  provider: SmtpImapMailboxProvider | GoogleMailboxProvider;
   status: MailboxStatus;
   daily_limit: number;
   sent_today: number;

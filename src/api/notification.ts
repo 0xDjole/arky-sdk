@@ -1,9 +1,6 @@
 import type { ApiConfig } from '../index';
-import type {
-	TrackEmailOpenParams,
-	TriggerNotificationParams,
-	RequestOptions
-} from '../types/api';
+import type { EmailSend, EmailSendResult } from '../types';
+import type { TrackEmailOpenParams, RequestOptions } from '../types/api';
 
 export const createNotificationApi = (apiConfig: ApiConfig) => {
 	return {
@@ -14,10 +11,10 @@ export const createNotificationApi = (apiConfig: ApiConfig) => {
 			);
 		},
 
-		async trigger(params: TriggerNotificationParams, options?: RequestOptions): Promise<{ success: boolean; message: string }> {
-			return apiConfig.httpClient.post<{ success: boolean; message: string }>(
-				'/v1/notifications/trigger',
-				params,
+		async sendEmail(send: EmailSend, options?: RequestOptions): Promise<EmailSendResult> {
+			return apiConfig.httpClient.post<EmailSendResult>(
+				'/v1/notifications/email',
+				send,
 				options
 			);
 		}

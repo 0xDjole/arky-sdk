@@ -98,9 +98,79 @@ assert.equal("agent" in arky.automation.support, false);
 assert.equal("conversation" in arky.automation.support, false);
 
 assert.equal(typeof arky.notification.mailbox.find, "function");
+assert.equal(typeof arky.notification.mailbox.connectGoogle, "function");
 assert.equal(typeof arky.notification.email.trackOpen, "function");
-assert.equal(typeof arky.notification.trigger.send, "function");
+assert.equal(typeof arky.notification.email.send, "function");
+assert.equal("trigger" in arky.notification, false);
 assert.equal("mailbox" in arky.crm, false);
+
+const emailFetchCalls = [];
+globalThis.fetch = async (url, init = {}) => {
+  emailFetchCalls.push({
+    url: String(url),
+    method: init.method,
+    body: init.body,
+  });
+  return new Response(JSON.stringify({ sent: 1, messages: [] }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+};
+
+try {
+  await arky.notification.email.send({
+    type: "contact_store_notification",
+    data: {
+      store_id: "contract-store",
+      mailbox_id: "mailbox-1",
+      template_id: "template-1",
+      recipients: ["owner@example.com"],
+      vars: { submission: { id: "submission-1" } },
+    },
+  });
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+assert.equal(emailFetchCalls[0].method, "POST");
+assert.equal(emailFetchCalls[0].url, "http://127.0.0.1:1/v1/notifications/email");
+assert.equal(JSON.parse(emailFetchCalls[0].body).type, "contact_store_notification");
+
+const mailboxFetchCalls = [];
+globalThis.fetch = async (url, init = {}) => {
+  mailboxFetchCalls.push({
+    url: String(url),
+    method: init.method,
+    body: init.body,
+  });
+  return new Response(JSON.stringify({ authorization_url: "https://oauth.test", state: "state" }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+};
+
+try {
+  await arky.notification.mailbox.connectGoogle({
+    key: "founder",
+    from_name: "Founder",
+    sync_enabled: true,
+    sync_interval_seconds: 300,
+  });
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+assert.equal(mailboxFetchCalls[0].method, "POST");
+assert.equal(
+  mailboxFetchCalls[0].url,
+  "http://127.0.0.1:1/v1/stores/contract-store/mailboxes/google/connect-url",
+);
+assert.deepEqual(JSON.parse(mailboxFetchCalls[0].body), {
+  key: "founder",
+  from_name: "Founder",
+  sync_enabled: true,
+  sync_interval_seconds: 300,
+});
 
 assert.equal(typeof arky.outreach.campaign.find, "function");
 assert.equal(typeof arky.outreach.campaignEnrollment.find, "function");

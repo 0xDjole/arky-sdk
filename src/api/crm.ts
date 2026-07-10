@@ -25,6 +25,8 @@ import type {
   ImportContactsIntoContactListParams,
   ImportContactsIntoContactListResult,
   CreateMailboxParams,
+  ConnectGoogleMailboxParams,
+  GoogleMailboxConnectUrl,
   UpdateMailboxParams,
   FindMailboxesParams,
   GetMailboxParams,
@@ -326,6 +328,16 @@ export const createContactApi = (apiConfig: ApiConfig) => {
     },
 
     mailbox: {
+      async connectGoogle(params: ConnectGoogleMailboxParams, options?: RequestOptions): Promise<GoogleMailboxConnectUrl> {
+        const { store_id, ...payload } = params;
+        const target_store_id = store_id || apiConfig.storeId;
+        return apiConfig.httpClient.post<GoogleMailboxConnectUrl>(
+          `/v1/stores/${target_store_id}/mailboxes/google/connect-url`,
+          payload,
+          options,
+        );
+      },
+
       async create(params: CreateMailboxParams, options?: RequestOptions): Promise<Mailbox> {
         const { store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;

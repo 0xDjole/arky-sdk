@@ -43,6 +43,7 @@ import type {
   ContactList,
   ContactListAccessResponse,
   ContactListContentAccessResponse,
+  ContactListManagementResponse,
   ContactListSubscribeResponse,
   Service,
   Provider,
@@ -615,6 +616,14 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           return apiConfig.httpClient.post<ContactListContentAccessResponse>(
             `${base(store_id)}/contact-lists/access`,
             payload,
+            options,
+          );
+        },
+
+        manage(token: string, options?: RequestOptions): Promise<ContactListManagementResponse> {
+          return apiConfig.httpClient.post<ContactListManagementResponse>(
+            `${base()}/contact-lists/manage`,
+            { token },
             options,
           );
         },

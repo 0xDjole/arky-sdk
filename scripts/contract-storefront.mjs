@@ -56,8 +56,10 @@ globalThis.fetch = async (url, init = {}) => {
 };
 
 try {
+  const management = await store.crm.contactList.manage("manage-token");
   const unsubscribe = await store.crm.contactList.unsubscribe("unsubscribe-token");
   const confirm = await store.crm.contactList.confirm("confirm-token");
+  assert.deepEqual(management, { success: true });
   assert.deepEqual(unsubscribe, { success: true });
   assert.deepEqual(confirm, { success: true });
 } finally {
@@ -67,15 +69,21 @@ try {
 assert.equal(fetchCalls[0].method, "POST");
 assert.equal(
   fetchCalls[0].url,
-  "http://127.0.0.1:1/v1/storefront/contract-store/contact-lists/unsubscribe",
+  "http://127.0.0.1:1/v1/storefront/contract-store/contact-lists/manage",
 );
-assert.deepEqual(JSON.parse(fetchCalls[0].body), { token: "unsubscribe-token" });
+assert.deepEqual(JSON.parse(fetchCalls[0].body), { token: "manage-token" });
 assert.equal(fetchCalls[1].method, "POST");
 assert.equal(
   fetchCalls[1].url,
+  "http://127.0.0.1:1/v1/storefront/contract-store/contact-lists/unsubscribe",
+);
+assert.deepEqual(JSON.parse(fetchCalls[1].body), { token: "unsubscribe-token" });
+assert.equal(fetchCalls[2].method, "POST");
+assert.equal(
+  fetchCalls[2].url,
   "http://127.0.0.1:1/v1/storefront/contract-store/contact-lists/confirm",
 );
-assert.deepEqual(JSON.parse(fetchCalls[1].body), { token: "confirm-token" });
+assert.deepEqual(JSON.parse(fetchCalls[2].body), { token: "confirm-token" });
 
 const checkoutFetchCalls = [];
 const paymentCalls = [];

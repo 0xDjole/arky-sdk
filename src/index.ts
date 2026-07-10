@@ -146,6 +146,9 @@ export type {
   ContactListContentAccessTarget,
   ContactListAccessResponse,
   ContactListContentAccessResponse,
+  ContactListManagementContactList,
+  ContactListManagementMembership,
+  ContactListManagementResponse,
   ContactListSubscribeResponse,
   Event,
   EventAction,
@@ -260,6 +263,8 @@ export type {
   MailboxConnectionSecurity,
   MailboxPreset,
   MailboxSyncStatus,
+  GoogleMailboxProvider,
+  SmtpImapMailboxProviderInput,
   SmtpImapMailboxProvider,
   OutreachStep,
   OutreachStepType,
@@ -965,9 +970,7 @@ export function createAdmin(config: CreateAdminConfig) {
     notification: {
       email: {
         trackOpen: notificationApi.trackEmailOpen,
-      },
-      trigger: {
-        send: notificationApi.trigger,
+        send: notificationApi.sendEmail,
       },
       mailbox: crmApi.mailbox,
     },
