@@ -1046,6 +1046,7 @@ export interface DigitalAccessGrant {
   status: DigitalAccessGrantStatus;
   delivery_policy_snapshot: DigitalDeliveryPolicy;
   download_limit?: number | null;
+  access_expires_after_days_snapshot?: number | null;
   download_count: number;
   expires_at?: number | null;
   granted_at?: number | null;
