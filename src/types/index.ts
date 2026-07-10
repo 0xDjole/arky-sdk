@@ -1719,6 +1719,15 @@ export type PromoCodeStatus = "active" | "draft" | "archived";
 export type CollectionStatus = "active" | "draft" | "archived";
 export type EntryStatus = "active" | "draft" | "archived";
 export type EmailTemplateStatus = "active" | "draft" | "archived";
+export type EmailTemplateType =
+  | "order_store_notification"
+  | "order_contact_notification"
+  | "order_reminder_contact"
+  | "digital_access_ready_contact"
+  | "contact_store_notification"
+  | "subscription_confirmation"
+  | "campaign_email"
+  | "newsletter_email";
 
 export type FormStatus = "active" | "draft" | "archived";
 export type TaxonomyStatus = "active" | "draft" | "archived";
@@ -1846,6 +1855,7 @@ export interface EmailTemplate {
   id: string;
   key: string;
   store_id: string;
+  type: EmailTemplateType;
   subject: Record<string, string>;
   body: string;
   from_name: string;
@@ -1859,8 +1869,12 @@ export interface EmailTemplate {
   updated_at: number;
 }
 
+export type EmailTemplateVariableSource = "template" | "system";
+
 export interface EmailTemplateVariable {
   key: string;
+  required: boolean;
+  source: EmailTemplateVariableSource;
 }
 
 export interface Form {
@@ -1985,6 +1999,7 @@ export interface Workflow {
 export type WorkflowNode =
   | WorkflowTriggerNode
   | WorkflowHttpNode
+  | WorkflowSendEmailNode
   | WorkflowDeployWebhookNode
   | WorkflowGoogleDriveUploadNode
   | WorkflowSwitchNode
@@ -2008,6 +2023,32 @@ export interface WorkflowHttpNode {
   delay_ms?: number;
   retries?: number;
   retry_delay_ms?: number;
+}
+
+export type EmailRecipients = string | string[];
+
+export interface EmailSendTemplateData {
+  store_id: string;
+  mailbox_id: string;
+  template_id: string;
+  recipients: EmailRecipients;
+  vars?: Record<string, unknown>;
+}
+
+export type EmailSend =
+  | { type: "order_store_notification"; data: EmailSendTemplateData }
+  | { type: "order_contact_notification"; data: EmailSendTemplateData }
+  | { type: "order_reminder_contact"; data: EmailSendTemplateData }
+  | { type: "digital_access_ready_contact"; data: EmailSendTemplateData }
+  | { type: "contact_store_notification"; data: EmailSendTemplateData }
+  | { type: "subscription_confirmation"; data: EmailSendTemplateData }
+  | { type: "campaign_email"; data: EmailSendTemplateData }
+  | { type: "newsletter_email"; data: EmailSendTemplateData };
+
+export interface WorkflowSendEmailNode {
+  type: "send_email";
+  send: EmailSend;
+  delay_ms?: number;
 }
 
 export interface WorkflowDeployWebhookNode {

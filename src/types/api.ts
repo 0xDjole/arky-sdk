@@ -23,6 +23,7 @@ import type {
   BlockSchema,
   EntryBlockQuery,
   EmailTemplateStatus,
+  EmailTemplateType,
   EmailTemplateVariable,
   FormStatus,
   TaxonomyStatus,
@@ -955,6 +956,7 @@ export interface GetEmailTemplatesParams {
 export interface CreateEmailTemplateParams {
   store_id?: string;
   key: string;
+  type?: EmailTemplateType;
   subject?: Record<string, string>;
   body?: string;
   from_name?: string;
@@ -969,6 +971,7 @@ export interface UpdateEmailTemplateParams {
   id: string;
   store_id?: string;
   key?: string;
+  type?: EmailTemplateType;
   subject?: Record<string, string>;
   body?: string;
   from_name?: string;
