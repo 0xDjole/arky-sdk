@@ -13,12 +13,19 @@ const SUPPORTED_STORE_CURRENCY_SET: ReadonlySet<string> = Object.freeze(
     new Set<string>(SUPPORTED_STORE_CURRENCIES),
 );
 
+const ZERO_MINOR_UNIT_STORE_CURRENCIES: ReadonlySet<string> = Object.freeze(
+    new Set<string>(['JPY', 'KRW']),
+);
+
 function formatCurrency(amount: number, currencyCode: string, locale: string = 'en'): string {
     const normalized = currencyCode.trim().toUpperCase();
     if (!normalized) return '';
+    const minorUnits = getCurrencyMinorUnits(normalized);
     return new Intl.NumberFormat(locale, {
         style: 'currency',
         currency: normalized,
+        minimumFractionDigits: minorUnits,
+        maximumFractionDigits: minorUnits,
     }).format(amount);
 }
 
@@ -27,15 +34,7 @@ export function getCurrencyMinorUnits(currency: string): number {
     if (!SUPPORTED_STORE_CURRENCY_SET.has(normalized)) {
         throw new RangeError(`Unsupported currency '${currency}'`);
     }
-
-    const units = new Intl.NumberFormat('en', {
-        style: 'currency',
-        currency: normalized,
-    }).resolvedOptions().maximumFractionDigits;
-    if (typeof units !== 'number') {
-        throw new RangeError(`Currency metadata unavailable for '${currency}'`);
-    }
-    return units;
+    return ZERO_MINOR_UNIT_STORE_CURRENCIES.has(normalized) ? 0 : 2;
 }
 
 export function convertToMajor(minorAmount: number, currency: string): number {

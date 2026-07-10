@@ -17,8 +17,18 @@ const expectedStoreCurrencies = [
 ];
 
 assert.deepEqual([...SUPPORTED_STORE_CURRENCIES], expectedStoreCurrencies);
-assert.equal(getCurrencyMinorUnits("USD"), 2);
-assert.equal(getCurrencyMinorUnits("jpy"), 0);
+for (const currency of expectedStoreCurrencies) {
+  const expectedMinorUnits = currency === "JPY" || currency === "KRW" ? 0 : 2;
+  assert.equal(
+    getCurrencyMinorUnits(currency),
+    expectedMinorUnits,
+    `${currency} minor units must match the server currency contract`,
+  );
+}
+assert.equal(getCurrencyMinorUnits(" jpy "), 0);
+assert.equal(getCurrencyMinorUnits("IDR"), 2);
+assert.equal(getCurrencyMinorUnits("HUF"), 2);
+assert.equal(getCurrencyMinorUnits("ALL"), 2);
 assert.equal(convertToMinor(12.34, "USD"), 1234);
 assert.equal(convertToMajor(1234, "USD"), 12.34);
 assert.equal(convertToMinor(100, "JPY"), 100);
@@ -26,6 +36,16 @@ assert.equal(convertToMajor(100, "JPY"), 100);
 assert.equal(convertToMinor(100, "KRW"), 100);
 assert.equal(convertToMajor(100, "KRW"), 100);
 assert.match(formatMinor(100, "JPY"), /100/);
+assert.doesNotMatch(formatMinor(100, "JPY"), /100[.,]00/);
+for (const currency of ["IDR", "HUF", "ALL"]) {
+  assert.equal(convertToMajor(1234, currency), 12.34);
+  assert.equal(convertToMinor(12.34, currency), 1234);
+  assert.match(
+    formatMinor(1234, currency),
+    /12[.,]34/,
+    `${currency} formatting must retain the server's two minor-unit digits`,
+  );
+}
 assert.equal(formatMinor(100, " jpy "), formatMinor(100, "JPY"));
 assert.throws(() => convertToMinor(1, "ZZZ"), /Unsupported currency/);
 
