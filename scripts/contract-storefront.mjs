@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { initialize } from "../dist/storefront.js";
+import {
+  createStripeConfirmationTokenController,
+  initialize,
+} from "../dist/storefront.js";
 
 const store = initialize({
   baseUrl: "http://127.0.0.1:1",
@@ -40,6 +43,44 @@ const removedServiceModuleName = "service" + "Order";
 assert.equal(removedServiceModuleName in store.eshop, false, "scheduled service controls belong under eshop.service");
 assert.equal(store.eshop.cart.product_items.get().length, 0);
 assert.equal(store.eshop.service.state.get().cart.length, 0);
+
+const stripeLoadCalls = [];
+const fakeElements = {
+  create() {
+    return { mount() {}, destroy() {} };
+  },
+  update() {},
+  async submit() {
+    return {};
+  },
+};
+const fakeStripe = {
+  elements() {
+    return fakeElements;
+  },
+  async createConfirmationToken() {
+    return { confirmationToken: { id: "ct_contract" } };
+  },
+  async handleNextAction() {
+    return {};
+  },
+};
+const accountController = await createStripeConfirmationTokenController(
+  {
+    publishableKey: "pk_test_contract",
+    connectedAccountId: "acct_contract",
+    amount: 1000,
+    currency: "usd",
+  },
+  async (publishableKey, options) => {
+    stripeLoadCalls.push([publishableKey, options]);
+    return fakeStripe;
+  },
+);
+assert.deepEqual(stripeLoadCalls, [
+  ["pk_test_contract", { stripeAccount: "acct_contract" }],
+]);
+accountController.destroy();
 
 const fetchCalls = [];
 const originalFetch = globalThis.fetch;

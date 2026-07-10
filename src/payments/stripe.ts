@@ -7,6 +7,7 @@ import type {
 
 export interface StripeConfirmationTokenControllerConfig {
   publishableKey: string;
+  connectedAccountId?: string;
   amount: number;
   currency: string;
   appearance?: StripeElementsOptions["appearance"];
@@ -36,15 +37,33 @@ export interface StripeConfirmationTokenController {
   destroy(): void;
 }
 
+type StripeLoader = (
+  publishableKey: string,
+  options?: { stripeAccount: string },
+) => PromiseLike<Stripe | null>;
+
+async function defaultStripeLoader(
+  publishableKey: string,
+  options?: { stripeAccount: string },
+): Promise<Stripe | null> {
+  const { loadStripe } = await import("@stripe/stripe-js");
+  return loadStripe(publishableKey, options);
+}
+
 function normalizeCurrency(currency: string): string {
   return currency.trim().toLowerCase();
 }
 
 export async function createStripeConfirmationTokenController(
   config: StripeConfirmationTokenControllerConfig,
+  stripeLoader: StripeLoader = defaultStripeLoader,
 ): Promise<StripeConfirmationTokenController> {
-  const { loadStripe } = await import("@stripe/stripe-js");
-  const stripe = await loadStripe(config.publishableKey);
+  const stripe = await stripeLoader(
+    config.publishableKey,
+    config.connectedAccountId
+      ? { stripeAccount: config.connectedAccountId }
+      : undefined,
+  );
   if (!stripe) throw new Error("Stripe failed to initialize");
 
   let elements = createElements(stripe, config);

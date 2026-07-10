@@ -225,6 +225,14 @@ export function initialize(config: ArkyStoreConfig) {
     return provider?.publishable_key || provider?.publishableKey || provider?.publicKey || null;
   }
 
+  function currentStripeConnectedAccountId(): string | null {
+    const provider = payment_config.get()?.provider as
+      | { connected_account_id?: string | null; connectedAccountId?: string | null }
+      | null
+      | undefined;
+    return provider?.connected_account_id || provider?.connectedAccountId || null;
+  }
+
   function currentPaymentAmount(): number {
     return Math.max(
       0,
@@ -261,6 +269,8 @@ export function initialize(config: ArkyStoreConfig) {
     }
     const controller = await createStripeConfirmationTokenController({
       publishableKey,
+      connectedAccountId:
+        options.connectedAccountId || currentStripeConnectedAccountId() || undefined,
       amount: Math.max(0, options.amount ?? currentPaymentAmount()),
       currency: options.currency || currentCurrency() || "usd",
       ...(options.appearance ? { appearance: options.appearance } : {}),

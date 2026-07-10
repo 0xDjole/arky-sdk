@@ -716,6 +716,7 @@ export interface PaymentProvider {
 export interface PaymentStoreConfig {
   provider: "stripe";
   publishable_key: string;
+  connected_account_id: string;
   currency: string;
 }
 
@@ -1378,6 +1379,7 @@ export interface Store {
   timezone: string;
   languages?: Language[];
   emails?: StoreEmails;
+  payment?: PaymentStoreConfig | null;
   subscription?: StoreSubscription;
   counts?: Record<string, number>;
 }
