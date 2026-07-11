@@ -1165,6 +1165,7 @@ export interface FindStoreMediaParams {
 export interface ProcessOrderRefundParams {
   id: string;
   amount: number;
+  operation_id: string;
 }
 
 export type RefundStatus =

@@ -482,7 +482,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     ): Promise<ProcessOrderRefundResponse> {
       return apiConfig.httpClient.post<ProcessOrderRefundResponse>(
         `/v1/stores/${apiConfig.storeId}/orders/${params.id}/refund`,
-        { amount: params.amount },
+        { amount: params.amount, operation_id: params.operation_id },
         options,
       );
     },

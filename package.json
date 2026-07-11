@@ -1,6 +1,6 @@
 {
   "name": "arky-sdk",
-  "version": "0.9.14",
+  "version": "0.9.15",
   "description": "Official TypeScript SDK for Arky - website backend for custom frontends",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -42,7 +42,7 @@
   "scripts": {
     "prebuild": "node scripts/check-no-any.mjs && node scripts/check-public-surface.mjs",
     "build": "tsup",
-    "test": "npm run build && node scripts/contract-storefront.mjs && node scripts/contract-admin.mjs",
+    "test": "npm run build && node scripts/contract-storefront.mjs && node scripts/contract-admin.mjs && node --test tests/*.test.mjs",
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
     "prepare": "npm run build"
