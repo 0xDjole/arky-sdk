@@ -2328,6 +2328,7 @@ export interface ContactListManagementContactList {
 export interface ContactListManagementMembership {
   id: string;
   status: ContactListMembershipStatus;
+  provider_cancellation: ContactListMembershipProviderCancellation;
   source: ContactListSource;
   start_date: number;
   end_date: number;
