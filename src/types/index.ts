@@ -1324,20 +1324,108 @@ export interface StoreSubscription {
   source: StoreSubscriptionSource;
 }
 
-export type ContactListMembershipProvider = {
-  type: "stripe";
+export interface ContactListMembershipStripe {
   customer_id: string;
   connected_account_id?: string | null;
   subscription_id?: string | null;
   payment_intent_id?: string | null;
   payment_intent_client_secret?: string | null;
   price_id?: string | null;
+}
+
+export type ContactListMembershipProvider = {
+  type: "stripe";
+  data: ContactListMembershipStripe;
 };
+
+export type ContactListMembershipPaymentAttemptStatus =
+  | "pending"
+  | "confirming"
+  | "requires_action"
+  | "processing"
+  | "declined"
+  | "succeeded"
+  | "cancellation_scheduled"
+  | "cancelled"
+  | "refunded"
+  | "expired";
+
+export interface ContactListMembershipProviderObjectState {
+  object_id: string;
+  event_id?: string | null;
+  event_created_at: number;
+  provider_status: string;
+}
+
+export interface ContactListMembershipPaymentAttempt {
+  id: string;
+  generation: number;
+  status: ContactListMembershipPaymentAttemptStatus;
+  plan_id: string;
+  amount: number;
+  currency: string;
+  interval?: SubscriptionInterval | null;
+  payment_provider_id: string;
+  connected_account_id: string;
+  price_id: string;
+  customer_email?: string | null;
+  confirmation_idempotency_key?: string | null;
+  confirmation_claimed_at?: number | null;
+  payment_intent_state?: ContactListMembershipProviderObjectState | null;
+  subscription_state?: ContactListMembershipProviderObjectState | null;
+  invoice_state?: ContactListMembershipProviderObjectState | null;
+  started_at: number;
+  updated_at: number;
+}
 
 export interface ContactListMembershipPayment {
   currency: string;
   market: string;
-  provider?: ContactListMembershipProvider;
+  provider?: ContactListMembershipProvider | null;
+  attempt?: ContactListMembershipPaymentAttempt | null;
+}
+
+export type ContactListMembershipRefundStatus =
+  | "requested"
+  | "processing"
+  | "succeeded"
+  | "failed"
+  | "unknown";
+
+export type ContactListMembershipRefundError =
+  | {
+      type: "provider_rejected";
+      message: string;
+      provider_code?: string | null;
+      provider_status?: number | null;
+      at: number;
+    }
+  | {
+      type: "unknown_outcome";
+      message: string;
+      at: number;
+    }
+  | {
+      type: "missing_configuration";
+      message: string;
+      at: number;
+    };
+
+export interface ContactListMembershipRefund {
+  id: string;
+  payment_attempt_id?: string | null;
+  payment_provider_id?: string | null;
+  price_id?: string | null;
+  payment_intent_id: string;
+  connected_account_id?: string | null;
+  subscription_id?: string | null;
+  provider_refund_id?: string | null;
+  amount: number;
+  currency: string;
+  status: ContactListMembershipRefundStatus;
+  error?: ContactListMembershipRefundError | null;
+  created_at: number;
+  updated_at: number;
 }
 
 export type ContactListMembershipProviderCancellationStatus =
@@ -2378,6 +2466,7 @@ export interface ContactListMembership {
   pending_plan_id: string | null;
   payment: ContactListMembershipPayment;
   provider_cancellation: ContactListMembershipProviderCancellation;
+  refunds: ContactListMembershipRefund[];
   start_date: number;
   end_date: number;
   token: string;
