@@ -2074,6 +2074,7 @@ export interface GetShippingRatesParams {
 
 export interface ShipParams {
   order_id: string;
+  operation_id: string;
   rate_id: string;
   carrier: string;
   service: string;

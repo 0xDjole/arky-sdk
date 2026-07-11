@@ -3159,6 +3159,8 @@ export interface ShippingLabelAdjustment {
 
 export interface ShippingLabelPurchase {
   id: string;
+  operation_id?: string | null;
+  request_fingerprint?: string | null;
   rate_id: string;
   status: ShippingLabelPurchaseStatus;
   postage_amount?: number | null;
