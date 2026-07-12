@@ -68,6 +68,9 @@ export function getCurrencyName(currency: string): string {
 }
 
 export function formatMinor(amountMinor: number, currency: string): string {
+    if (!Number.isSafeInteger(amountMinor)) {
+        throw new RangeError('Minor-unit amount must be a safe integer');
+    }
     return formatCurrency(convertToMajor(amountMinor, currency), currency);
 }
 
@@ -76,19 +79,16 @@ export function formatPayment(payment: AnyPayment): string {
 }
 
 export function formatPrice(prices: Price[], marketId?: string): string {
-    if (!prices || prices.length === 0) return '';
+    if (!prices || prices.length === 0 || !marketId) return '';
 
-    const price = marketId
-        ? prices.find(p => p.market === marketId) || prices[0]
-        : prices[0];
-
-    if (!price) return '';
+    const price = prices.find(p => p.market === marketId);
+    if (!price || !Number.isSafeInteger(price.amount) || price.amount < 0 || !price.currency) return '';
 
     return formatMinor(price.amount, price.currency);
 }
 
-export function getPriceAmount(prices: Price[], marketId: string): number {
-    if (!prices || prices.length === 0) return 0;
-    const price = prices.find(p => p.market === marketId) || prices[0];
-    return price?.amount || 0;
+export function getPriceAmount(prices: Price[], marketId: string): number | null {
+    if (!prices || prices.length === 0 || !marketId) return null;
+    const price = prices.find(p => p.market === marketId);
+    return price && Number.isSafeInteger(price.amount) && price.amount >= 0 ? price.amount : null;
 }

@@ -28,11 +28,17 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions
     ): Promise<ShipResult> {
       const { order_id, ...payload } = params;
-      return apiConfig.httpClient.post<ShipResult>(
+      const response = await apiConfig.httpClient.post<ShipResult>(
         `/v1/stores/${apiConfig.storeId}/orders/${order_id}/ship`,
         payload,
         options
       );
+      if (response.operation_id !== params.operation_id) {
+        throw new Error(
+          "Shipping response did not match the requested operation_id"
+        );
+      }
+      return response;
     },
 
     async refundLabel(

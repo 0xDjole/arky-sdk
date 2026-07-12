@@ -618,6 +618,8 @@ export type SubscriptionAction = "select_plan" | "cancel_at_period_end" | "react
 
 export interface SubscribeParams {
   store_id?: string;
+  operation_id: string;
+  accept_duplicate_risk: boolean;
   plan_id: string;
   action: SubscriptionAction;
   success_url: string;
@@ -640,7 +642,23 @@ export interface RemoveMemberParams {
 }
 
 export interface TestWebhookParams {
-  webhook: import("./index").Webhook;
+  operation_id: string;
+  webhook_id: string;
+}
+
+export type WebhookDeliveryStatus =
+  | "requested"
+  | "processing"
+  | "succeeded"
+  | "rejected"
+  | "failed"
+  | "unknown";
+
+export interface TestWebhookResponse {
+  operation_id: string;
+  status: WebhookDeliveryStatus;
+  provider_status_code?: number | null;
+  error?: string | null;
 }
 
 export interface CreateProductVariantInput {
@@ -1274,8 +1292,7 @@ export interface GetWorkflowsParams {
 
 export interface TriggerWorkflowParams {
   secret: string;
-
-  input?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 export interface GetWorkflowExecutionsParams {
@@ -1375,6 +1392,21 @@ export interface FindContactListContactsParams {
   status?: ContactListMembershipStatus;
   limit?: number;
   cursor?: string;
+}
+
+export interface RefundContactListMembershipParams {
+  store_id?: string;
+  contact_list_id: string;
+  membership_id: string;
+  operation_id: string;
+  amount?: number | null;
+}
+
+export interface RefundContactListMembershipResult {
+  refund_id: string;
+  amount: number;
+  status: import("./index").ContactListMembershipRefundStatus;
+  membership: import("./index").ContactListMembership;
 }
 
 export interface ImportContactRowInput {
@@ -1730,6 +1762,7 @@ export interface GetCampaignEnrollmentConversationParams {
 }
 
 export interface ReplyCampaignEnrollmentParams {
+  operation_id: string;
   store_id?: string;
   id: string;
   subject?: string | null;
@@ -1816,6 +1849,7 @@ export interface CancelLeadResearchRunParams {
 }
 
 export interface SendLeadResearchMessageParams {
+  operation_id: string;
   run_id: string;
   store_id?: string;
   message: string;
@@ -2051,12 +2085,12 @@ export interface CreateWebhookParams {
 export interface UpdateWebhookParams {
   store_id: string;
   id: string;
-  key: string;
-  url: string;
-  events: WebhookEventSubscription[];
-  headers: Record<string, string>;
-  secret: string;
-  enabled: boolean;
+  key?: string;
+  url?: string;
+  events?: WebhookEventSubscription[];
+  headers?: Record<string, string>;
+  secret?: string;
+  enabled?: boolean;
 }
 
 export interface DeleteWebhookParams {
@@ -2109,13 +2143,6 @@ export interface ContactSessionToken {
   created_at: number;
 }
 
-export interface ContactVerificationCode {
-  code: string;
-  created_at: number;
-  used: boolean;
-  store_id?: string | null;
-}
-
 export interface PromoUsage {
   promo_code_id: string;
   uses: number;
@@ -2131,7 +2158,6 @@ export interface Contact {
   promo_usage: PromoUsage[];
   taxonomies: TaxonomyEntry[];
   auth_tokens: ContactSessionToken[];
-  verification_codes: ContactVerificationCode[];
   created_at: number;
   updated_at: number;
 }

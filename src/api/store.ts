@@ -11,6 +11,7 @@ import type {
   AddMemberParams,
   RemoveMemberParams,
   TestWebhookParams,
+  TestWebhookResponse,
   FindStoreMediaParams,
   ListBuildHooksParams,
   CreateBuildHookParams,
@@ -30,6 +31,7 @@ import type {
   SubscriptionPlan,
   StoreRuntimeConfig,
   BuildHook,
+  SubscriptionCheckoutResponse,
 } from "../types";
 
 export const createStoreApi = (
@@ -98,14 +100,35 @@ export const createStoreApi = (
     async subscribe(
       params: SubscribeParams,
       options?: RequestOptions,
-    ): Promise<{ checkout_url?: string }> {
-      const { store_id, plan_id, action, success_url, cancel_url } = params;
+    ): Promise<SubscriptionCheckoutResponse> {
+      const {
+        store_id,
+        operation_id,
+        accept_duplicate_risk,
+        plan_id,
+        action,
+        success_url,
+        cancel_url,
+      } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.put<{ checkout_url?: string }>(
+      const response = await apiConfig.httpClient.put<SubscriptionCheckoutResponse>(
         `/v1/stores/${target_store_id}/subscribe`,
-        { plan_id, action, success_url, cancel_url },
+        {
+          operation_id,
+          accept_duplicate_risk,
+          plan_id,
+          action,
+          success_url,
+          cancel_url,
+        },
         options,
       );
+      if (response.operation_id !== operation_id) {
+        throw new Error(
+          "Subscription response did not match the requested operation_id",
+        );
+      }
+      return response;
     },
 
     async createPortalSession(
@@ -157,8 +180,8 @@ export const createStoreApi = (
     async testWebhook(
       params: TestWebhookParams,
       options?: RequestOptions,
-    ): Promise<{ tested: boolean }> {
-      return apiConfig.httpClient.post<{ tested: boolean }>(
+    ): Promise<TestWebhookResponse> {
+      return apiConfig.httpClient.post<TestWebhookResponse>(
         `/v1/stores/${apiConfig.storeId}/webhooks/test`,
         params,
         options,

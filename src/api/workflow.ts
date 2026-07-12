@@ -52,9 +52,9 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
     async deleteWorkflow(
       params: DeleteWorkflowParams,
       options?: RequestOptions,
-    ): Promise<{ deleted: boolean }> {
+    ): Promise<boolean> {
       const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.delete<{ deleted: boolean }>(
+      return apiConfig.httpClient.delete<boolean>(
         `/v1/stores/${store_id}/workflows/${params.id}`,
         options,
       );

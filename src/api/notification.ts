@@ -1,5 +1,5 @@
 import type { ApiConfig } from '../index';
-import type { EmailSend, EmailSendResult } from '../types';
+import type { EmailSendRequest, EmailSendResult } from '../types';
 import type { TrackEmailOpenParams, RequestOptions } from '../types/api';
 
 export const createNotificationApi = (apiConfig: ApiConfig) => {
@@ -11,10 +11,10 @@ export const createNotificationApi = (apiConfig: ApiConfig) => {
 			);
 		},
 
-		async sendEmail(send: EmailSend, options?: RequestOptions): Promise<EmailSendResult> {
+		async sendEmail(request: EmailSendRequest, options?: RequestOptions): Promise<EmailSendResult> {
 			return apiConfig.httpClient.post<EmailSendResult>(
 				'/v1/notifications/email',
-				send,
+				request,
 				options
 			);
 		}

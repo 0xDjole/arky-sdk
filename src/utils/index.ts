@@ -22,3 +22,13 @@ export {
   getInventoryAt,
   getFirstAvailableFCId,
 } from "./inventory";
+
+export {
+  ProviderOperationStorageError,
+  clearProviderOperation,
+  providerOperationFor,
+  providerOperationRequest,
+  readProviderOperation,
+  withProviderOperationLock,
+} from "./providerOperation";
+export type { ProviderOperation } from "./providerOperation";

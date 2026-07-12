@@ -213,24 +213,20 @@ export function initialize(config: ArkyStoreConfig) {
     return locale.get() || client.getLocale() || "en";
   }
 
-  function currentCurrency(): string | null {
-    return currency.get() || market.get()?.currency || null;
-  }
-
   function currentStripePublishableKey(): string | null {
     const provider = payment_config.get()?.provider as
-      | { publishable_key?: string | null; publishableKey?: string | null; publicKey?: string | null }
+      | { publishable_key?: string | null }
       | null
       | undefined;
-    return provider?.publishable_key || provider?.publishableKey || provider?.publicKey || null;
+    return provider?.publishable_key || null;
   }
 
   function currentStripeConnectedAccountId(): string | null {
     const provider = payment_config.get()?.provider as
-      | { connected_account_id?: string | null; connectedAccountId?: string | null }
+      | { connected_account_id?: string | null }
       | null
       | undefined;
-    return provider?.connected_account_id || provider?.connectedAccountId || null;
+    return provider?.connected_account_id || null;
   }
 
   function currentPaymentAmount(): number {
@@ -243,6 +239,14 @@ export function initialize(config: ArkyStoreConfig) {
         cart.get()?.quote_snapshot?.payment?.total,
         cart.get()?.quote_snapshot?.total,
       ) ?? 0,
+    );
+  }
+
+  function currentPaymentCurrency(): string | null {
+    return (
+      quote.get()?.payment?.currency?.trim() ||
+      cart.get()?.quote_snapshot?.payment?.currency?.trim() ||
+      null
     );
   }
 
@@ -267,12 +271,27 @@ export function initialize(config: ArkyStoreConfig) {
     if (!publishableKey) {
       throw new Error("Stripe publishable key is required to mount card payment");
     }
+    const hasExplicitAmount = options.amount !== undefined;
+    const hasExplicitCurrency = Boolean(options.currency?.trim());
+    if (hasExplicitAmount !== hasExplicitCurrency) {
+      throw new Error("Stripe amount and currency must be supplied together");
+    }
+    const amount = hasExplicitAmount ? options.amount! : currentPaymentAmount();
+    if (!Number.isSafeInteger(amount) || amount <= 0) {
+      throw new Error("A positive minor-unit payment amount is required to mount card payment");
+    }
+    const paymentCurrency = hasExplicitCurrency
+      ? options.currency!.trim()
+      : currentPaymentCurrency();
+    if (!paymentCurrency || !/^[a-z]{3}$/i.test(paymentCurrency)) {
+      throw new Error("An explicit three-letter payment currency is required to mount card payment");
+    }
     const controller = await createStripeConfirmationTokenController({
       publishableKey,
       connectedAccountId:
         options.connectedAccountId || currentStripeConnectedAccountId() || undefined,
-      amount: Math.max(0, options.amount ?? currentPaymentAmount()),
-      currency: options.currency || currentCurrency() || "usd",
+      amount,
+      currency: paymentCurrency,
       ...(options.appearance ? { appearance: options.appearance } : {}),
     });
     controller.mount(target);
@@ -364,7 +383,11 @@ export function initialize(config: ArkyStoreConfig) {
         product_slug: entitySlug(product, currentLocale()),
         variant_attributes: variant.attributes as EshopCartItem["variant_attributes"],
         requires_shipping: variant.requires_shipping !== false,
-        price: priceForMarket(variant.prices, currentMarketKey(), currentCurrency()),
+        price: priceForMarket(
+          variant.prices,
+          currentMarketKey(),
+          market.get()?.currency,
+        ),
         quantity: item.quantity,
         added_at: source.created_at ? source.created_at * 1000 : Date.now(),
         max_stock: availableStock(client, variant),
@@ -595,8 +618,20 @@ export function initialize(config: ArkyStoreConfig) {
           latestQuote.total,
         );
       }
+      if (
+        paymentMethodKey === "credit_card" &&
+        (typeof chargeAmount !== "number" ||
+          !Number.isSafeInteger(chargeAmount) ||
+          chargeAmount < 0)
+      ) {
+        throw new Error(
+          "Card checkout requires a non-negative integer charge amount in minor units",
+        );
+      }
       const needsConfirmationToken =
-        paymentMethodKey === "credit_card" && (chargeAmount === undefined || chargeAmount > 0);
+        paymentMethodKey === "credit_card" &&
+        typeof chargeAmount === "number" &&
+        chargeAmount > 0;
       let confirmationTokenId: string | undefined;
       let returnUrl = input.return_url;
       const paymentController = input.payment ?? payment_controller.get();
@@ -635,8 +670,8 @@ export function initialize(config: ArkyStoreConfig) {
         service_items: input.service_items || service_items.get(),
         shipping_address: input.shipping_address || null,
         billing_address: input.billing_address || null,
-        total: quoteValue?.payment?.total || quoteValue?.total || response.payment?.total,
-        currency: quoteValue?.payment?.currency || currentCurrency(),
+        total: response.payment.total,
+        currency: response.payment.currency,
         payment_method_key: paymentMethodKey || null,
         created_at: Date.now(),
       };
@@ -1094,9 +1129,9 @@ export function initialize(config: ArkyStoreConfig) {
       await syncServiceCart([]);
     },
 
-    async checkout(paymentMethodId?: string, forms: Block[] = []): Promise<{ success: true; data: OrderCheckoutResult } | { success: false; error: string }> {
+    async checkout(paymentMethodId?: string, forms: Block[] = []): Promise<OrderCheckoutResult> {
       const state = service_state.get();
-      if (!state.cart.length) return { success: false, error: "Cart is empty" };
+      if (!state.cart.length) throw new Error("Cart is empty");
       service_state.setKey("loading", true);
       try {
         const result = await checkout({
@@ -1109,9 +1144,7 @@ export function initialize(config: ArkyStoreConfig) {
           forms,
         });
         service_state.setKey("cartId", cart.get()?.id || null);
-        return { success: true, data: result };
-      } catch (error) {
-        return { success: false, error: readErrorMessage(error, "Checkout failed.") };
+        return result;
       } finally {
         service_state.setKey("loading", false);
       }
@@ -1169,7 +1202,7 @@ export function initialize(config: ArkyStoreConfig) {
       if (state.quote?.total !== undefined) return String(state.quote.total);
       const provider = getFirstServiceProviderEntry(state);
       if (!provider?.prices) return "";
-      return client.utils.formatPrice(provider.prices) || "0";
+      return client.utils.formatPrice(provider.prices);
     },
 
     formatDateDisplay: formatServiceDateDisplay,

@@ -72,15 +72,44 @@ export function entitySlug(entity: { id: string; slug?: Record<string, string> }
   return entity.slug?.[locale] || entity.slug?.en || Object.values(entity.slug || {})[0] || entity.id;
 }
 
-export function priceForMarket(prices: Price[], market: string, fallbackCurrency?: string | null): Price {
-  const price = prices.find((candidate) => candidate.market === market) || prices[0];
-  return {
-    amount: price?.amount || 0,
-    market: price?.market || market,
-    currency: price?.currency || fallbackCurrency || "",
-    compare_at: price?.compare_at,
-    contact_list_id: price?.contact_list_id,
-  };
+export function priceForMarket(
+  prices: Price[],
+  market: string,
+  marketCurrency: string | null | undefined,
+): Price {
+  const marketKey = market.trim();
+  if (!marketKey) throw new Error("A market is required to select a product price");
+  const currency = marketCurrency?.trim().toUpperCase();
+  if (!currency) throw new Error(`Market ${marketKey} does not have an authoritative currency`);
+
+  const marketPrices = prices.filter((candidate) => candidate.market === marketKey);
+  if (marketPrices.length === 0) {
+    throw new Error(`Product is not priced for market ${marketKey}`);
+  }
+  if (
+    marketPrices.some(
+      (candidate) =>
+        !Number.isSafeInteger(candidate.amount) ||
+        candidate.amount < 0 ||
+        candidate.currency.trim().toUpperCase() !== currency,
+    )
+  ) {
+    throw new Error(`Product has an invalid price for market ${marketKey}`);
+  }
+
+  const authorizedPrices = marketPrices.filter((candidate) => candidate.contact_list_id);
+  if (authorizedPrices.length > 0) {
+    return authorizedPrices.reduce((lowest, candidate) =>
+      candidate.amount < lowest.amount ? candidate : lowest,
+    );
+  }
+
+  const basePrices = marketPrices.filter((candidate) => !candidate.contact_list_id);
+  if (basePrices.length !== 1) {
+    throw new Error(`Product does not have one base price for market ${marketKey}`);
+  }
+  const price = basePrices[0];
+  return price;
 }
 
 export function availableStock(client: ArkyStoreClient, variant: ProductVariant): number | undefined {

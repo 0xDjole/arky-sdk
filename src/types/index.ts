@@ -42,10 +42,7 @@ export type OrderPaymentProvider = {
 };
 
 export type PaymentTransactionProvider =
-  | "manual"
-  | "stripe"
-  | "gift_card"
-  | "store_credit";
+  "manual" | "stripe" | "gift_card" | "store_credit";
 export type PaymentCaptureMethod = "automatic" | "manual";
 export type PaymentTransactionType =
   | "authorize"
@@ -84,7 +81,7 @@ export interface PaymentTransaction {
   settlement_currency?: string | null;
   settlement_exchange_rate?: number | null;
   payout_id?: string | null;
-  idempotency_key?: string | null;
+  source_operation_id?: string | null;
   raw_provider_status?: string | null;
   processed_at?: number | null;
   created_at: number;
@@ -122,6 +119,11 @@ export type OrderRefundError =
       type: "missing_payment_intent";
       message: string;
       at: number;
+    }
+  | {
+      type: "provider_call_not_started";
+      message: string;
+      at: number;
     };
 
 export interface OrderPayment {
@@ -150,7 +152,6 @@ export interface OrderPayment {
   next_action?: string | null;
   failure_code?: string | null;
   failure_message?: string | null;
-  idempotency_key?: string | null;
   zone_id?: string;
   payment_method_key?: string;
   shipping_method_id?: string;
@@ -464,10 +465,93 @@ export interface ValidationError {
   error: string;
 }
 
+export type AiProviderCallOperationStatus =
+  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
+
+export type AiProviderCallOperationError =
+  | { type: "provider_call_not_started"; message: string; at: number }
+  | { type: "provider_rejected"; message: string; at: number }
+  | { type: "unknown_outcome"; message: string; at: number };
+
+export interface AiProviderCallOperation {
+  id: string;
+  sequence: number;
+  request_fingerprint: string;
+  model: string;
+  recovery_epoch: string;
+  status: AiProviderCallOperationStatus;
+  requested_at: number;
+  processing_started_at?: number | null;
+  processing_deadline_at?: number | null;
+  completed_at?: number | null;
+  response_fingerprint?: string | null;
+  error?: AiProviderCallOperationError | null;
+}
+
 export interface SocialPublicationValidation {
   valid: boolean;
   errors: ValidationError[];
   warnings: ValidationError[];
+}
+
+export type SocialProviderOperationStatus =
+  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
+
+export type SocialProviderOperationError =
+  | { type: "provider_call_not_started"; message: string; at: number }
+  | {
+      type: "provider_rejected";
+      message: string;
+      provider_code?: string | null;
+      provider_status?: number | null;
+      at: number;
+    }
+  | { type: "unknown_outcome"; message: string; at: number };
+
+export type SocialPublicationProviderOperationKind =
+  | { type: "x_upload_media"; media_id: string }
+  | { type: "x_publish_post" }
+  | { type: "facebook_create_unpublished_photo"; media_id: string }
+  | { type: "facebook_publish_post" }
+  | {
+      type: "instagram_create_media_container";
+      media_id: string;
+      placement: InstagramPlacement;
+      carousel_item: boolean;
+    }
+  | { type: "instagram_create_carousel_container" }
+  | { type: "instagram_publish_container" }
+  | { type: "tiktok_initialize_upload"; media_id: string }
+  | {
+      type: "tiktok_upload_chunk";
+      media_id: string;
+      byte_start: number;
+      byte_end_exclusive: number;
+      total_bytes: number;
+    }
+  | { type: "youtube_initialize_upload"; media_id: string }
+  | { type: "youtube_upload"; media_id: string; total_bytes: number };
+
+export interface SocialPublicationProviderOperationEvidence {
+  provider_object_id?: string | null;
+  provider_object_url?: string | null;
+  encrypted_upload_url?: string | null;
+  upload_total_bytes?: number | null;
+  upload_chunk_bytes?: number | null;
+  upload_chunk_count?: number | null;
+}
+
+export interface SocialPublicationProviderOperation {
+  id: string;
+  operation: SocialPublicationProviderOperationKind;
+  recovery_epoch: string;
+  status: SocialProviderOperationStatus;
+  requested_at: number;
+  processing_started_at?: number | null;
+  processing_deadline_at?: number | null;
+  completed_at?: number | null;
+  evidence?: SocialPublicationProviderOperationEvidence | null;
+  error?: SocialProviderOperationError | null;
 }
 
 export interface SocialPublication {
@@ -485,6 +569,7 @@ export interface SocialPublication {
   error_message?: string | null;
   attempt_count: number;
   last_attempt_at?: number | null;
+  provider_operations: SocialPublicationProviderOperation[];
   created_at: number;
   updated_at: number;
 }
@@ -496,47 +581,33 @@ export interface SocialPublicationMutationResponse {
 }
 
 export type SocialPublicationCommentStatus =
-  | "open"
-  | "replied"
-  | "hidden"
-  | "deleted";
+  "open" | "replied" | "hidden" | "deleted";
 
-export type SocialPublicationCommentReplyStatus =
-  | "none"
-  | "requested"
-  | "processing"
-  | "succeeded"
-  | "failed"
-  | "unknown";
+export interface SocialPublicationCommentReplyOperation {
+  id: string;
+  text: string;
+  recovery_epoch: string;
+  status: SocialProviderOperationStatus;
+  requested_at: number;
+  processing_started_at?: number | null;
+  processing_deadline_at?: number | null;
+  completed_at?: number | null;
+  provider_comment_id?: string | null;
+  provider_comment_url?: string | null;
+  error?: SocialProviderOperationError | null;
+}
 
-export type SocialPublicationCommentReplyError =
-  | {
-      type: "provider_rejected";
-      message: string;
-      provider_code?: string | null;
-      provider_status?: number | null;
-      at: number;
-    }
-  | {
-      type: "unknown_outcome";
-      message: string;
-      at: number;
-    };
+export interface SocialCommentClassificationBatchOperation {
+  comment_ids: string[];
+  comment_text_fingerprint: string;
+  provider_call: AiProviderCallOperation;
+}
 
 export type SocialPublicationCommentIntent =
-  | "lead"
-  | "support"
-  | "complaint"
-  | "question"
-  | "praise"
-  | "spam"
-  | "general";
+  "lead" | "support" | "complaint" | "question" | "praise" | "spam" | "general";
 
 export type SocialPublicationCommentPriority =
-  | "urgent"
-  | "high"
-  | "normal"
-  | "low";
+  "urgent" | "high" | "normal" | "low";
 
 export interface SocialPublicationComment {
   id: string;
@@ -563,13 +634,8 @@ export interface SocialPublicationComment {
   author_provider_user_id?: string | null;
   text: string;
   status: SocialPublicationCommentStatus;
-  reply_status: SocialPublicationCommentReplyStatus;
-  reply_error?: SocialPublicationCommentReplyError | null;
-  reply_requested_text?: string | null;
-  reply_provider_comment_id?: string | null;
-  reply_provider_comment_url?: string | null;
-  reply_error_code?: string | null;
-  reply_error_message?: string | null;
+  reply_operations: SocialPublicationCommentReplyOperation[];
+  classification_operations: SocialCommentClassificationBatchOperation[];
   provider_created_at?: number | null;
   last_synced_at: number;
   replied_at?: number | null;
@@ -641,6 +707,7 @@ export interface SocialProviderCapability {
   type: SocialConnectionType;
   display_name: string;
   icon_key: string;
+  publishing_supported: boolean;
   required_scopes: string[];
   media_requirements: string[];
   engagement: SocialEngagementCapabilities;
@@ -653,9 +720,7 @@ export interface SocialConnectResponse {
 }
 
 export type SocialOAuthCallbackStatus =
-  | "code_received"
-  | "connected"
-  | "selection_required";
+  "code_received" | "connected" | "selection_required";
 
 export interface SocialOAuthDestinationOption extends SocialDestinationMetadata {
   candidate_id: string;
@@ -680,7 +745,9 @@ export interface BuildHook {
   store_id: string;
   key: string;
   type: BuildHookType;
+  /** Write-only endpoint; API responses contain a redacted placeholder. */
   url: string;
+  /** Header values are write-only and redacted in API responses. */
   headers: Record<string, string>;
   active: boolean;
   created_at: number;
@@ -900,28 +967,19 @@ export interface LineMoneySnapshot {
 }
 
 export type OrderItemFulfillmentStatus =
-  | "unfulfilled"
-  | "partially_fulfilled"
-  | "fulfilled"
-  | "not_required";
+  "unfulfilled" | "partially_fulfilled" | "fulfilled" | "not_required";
 
 export type BookingOrderItemStatus =
-  | "scheduled"
-  | "completed"
-  | "no_show"
-  | "cancelled";
+  "scheduled" | "completed" | "no_show" | "cancelled";
 
 export type OrderItemSnapshot =
-  | ProductLineItemSnapshot
-  | ServiceLineItemSnapshot;
+  ProductLineItemSnapshot | ServiceLineItemSnapshot;
 
 export type ProductQuoteLineAvailability =
-  | { ok: true; available?: number }
-  | { ok: false; reason: string };
+  { ok: true; available?: number } | { ok: false; reason: string };
 
 export type ServiceQuoteLineAvailability =
-  | { ok: true; spots: number }
-  | { ok: false; reason: string };
+  { ok: true; spots: number } | { ok: false; reason: string };
 
 export interface ProductQuoteLine {
   type: "product";
@@ -1026,11 +1084,7 @@ export interface HistoryEntry {
 }
 
 export type DigitalAccessGrantStatus =
-  | "pending"
-  | "active"
-  | "exhausted"
-  | "revoked"
-  | "expired";
+  "pending" | "active" | "exhausted" | "revoked" | "expired";
 
 export interface DigitalAccessGrant {
   id: string;
@@ -1137,8 +1191,7 @@ export interface Order {
 }
 
 export type CheckoutPaymentAction =
-  | { type: "none" }
-  | { type: "handle_next_action"; client_secret: string };
+  { type: "none" } | { type: "handle_next_action"; client_secret: string };
 
 export interface OrderCheckoutResult {
   order_id: string;
@@ -1227,15 +1280,21 @@ export type WebhookEventSubscription =
   | { event: "contact_list.contact_pending" }
   | { event: "contact_list.contact_confirmed" }
   | { event: "contact_list.contact_cancelled" }
+  | { event: "contact.created" }
+  | { event: "contact.updated" }
+  | { event: "form_submission.created"; form_id?: string }
   | { event: "account.updated" };
 
 export interface Webhook {
   id: string;
   store_id: string;
   key: string;
+  /** Write-only endpoint; API responses contain a redacted placeholder. */
   url: string;
   events: WebhookEventSubscription[];
+  /** Header values are write-only and redacted in API responses. */
   headers: Record<string, string>;
+  /** Write-only signing secret; API responses contain a redacted placeholder. */
   secret: string;
   enabled: boolean;
   created_at: number;
@@ -1243,11 +1302,7 @@ export interface Webhook {
 }
 
 export type StoreSubscriptionStatus =
-  | "pending"
-  | "active"
-  | "cancellation_scheduled"
-  | "cancelled"
-  | "expired";
+  "pending" | "active" | "cancellation_scheduled" | "cancelled" | "expired";
 
 export type StoreSubscriptionSource = "signup" | "admin" | "import";
 
@@ -1256,14 +1311,11 @@ export type StoreSubscriptionProvider = {
   stripe_customer_id: string;
   subscription_id?: string | null;
   price_id?: string | null;
+  default_payment_method_id?: string | null;
 };
 
 export type StoreSubscriptionProviderLifecycleStatus =
-  | "requested"
-  | "processing"
-  | "succeeded"
-  | "rejected"
-  | "unknown";
+  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
 
 export type StoreSubscriptionProviderOperation =
   | { type: "cancel_at_period_end" }
@@ -1276,6 +1328,36 @@ export type StoreSubscriptionProviderOperation =
       proration_behavior: string;
     }
   | { type: "schedule_plan_change"; plan_id: string; price_id: string };
+
+export type StoreSubscriptionProviderEffect =
+  | { type: "cancel_at_period_end"; subscription_id: string }
+  | { type: "cancel_immediately"; subscription_id: string }
+  | { type: "reactivate"; subscription_id: string }
+  | {
+      type: "update_plan";
+      subscription_id: string;
+      subscription_item_id: string;
+      price_id: string;
+      proration_behavior: string;
+    }
+  | {
+      type: "create_schedule";
+      subscription_id: string;
+      plan_id: string;
+      price_id: string;
+      current_price_id: string;
+      current_period_start: number;
+      current_period_end: number;
+    }
+  | {
+      type: "update_schedule";
+      schedule_id: string;
+      plan_id: string;
+      price_id: string;
+      current_price_id: string;
+      current_period_start: number;
+      current_period_end: number;
+    };
 
 export type StoreSubscriptionProviderError =
   | {
@@ -1291,16 +1373,35 @@ export type StoreSubscriptionProviderError =
       at: number;
     }
   | {
-      type: "missing_configuration";
+      type: "provider_call_not_started";
       message: string;
       at: number;
     };
 
-export interface StoreSubscriptionProviderLifecycle {
-  operation_id?: string | null;
+export interface StoreSubscriptionProviderEffectLifecycle {
+  operation_id: string;
+  effect: StoreSubscriptionProviderEffect;
+  recovery_epoch: string;
   status: StoreSubscriptionProviderLifecycleStatus;
-  operation?: StoreSubscriptionProviderOperation | null;
+  requested_at: number;
+  processing_started_at?: number | null;
+  processing_deadline_at?: number | null;
+  completed_at?: number | null;
+  provider_object_id?: string | null;
+  provider_status?: string | null;
+  provider_error_code?: string | null;
+  provider_http_status?: number | null;
   error?: StoreSubscriptionProviderError | null;
+}
+
+export interface StoreSubscriptionProviderLifecycle {
+  operation_id: string;
+  status: StoreSubscriptionProviderLifecycleStatus;
+  operation: StoreSubscriptionProviderOperation;
+  error?: StoreSubscriptionProviderError | null;
+  requested_at: number;
+  completed_at?: number | null;
+  provider_effects: StoreSubscriptionProviderEffectLifecycle[];
   updated_at: number;
 }
 
@@ -1317,11 +1418,18 @@ export interface StoreSubscription {
   pending_plan_id: string | null;
   payment: StoreSubscriptionPayment;
   status: StoreSubscriptionStatus;
-  provider_lifecycle: StoreSubscriptionProviderLifecycle;
+  provider_lifecycle: StoreSubscriptionProviderLifecycle | null;
   start_date: number;
   end_date: number;
-  token: string;
   source: StoreSubscriptionSource;
+}
+
+export interface SubscriptionCheckoutResponse {
+  operation_id: string;
+  status: StoreSubscriptionProviderLifecycleStatus;
+  error?: StoreSubscriptionProviderError | null;
+  checkout_url: string | null;
+  subscription: StoreSubscription | null;
 }
 
 export interface ContactListMembershipStripe {
@@ -1348,7 +1456,73 @@ export type ContactListMembershipPaymentAttemptStatus =
   | "cancellation_scheduled"
   | "cancelled"
   | "refunded"
-  | "expired";
+  | "expired"
+  | "unknown";
+
+export type ContactListMembershipPaymentProviderOperationStatus =
+  "requested" | "processing" | "succeeded" | "failed" | "unknown";
+
+export type ContactListMembershipPaymentProviderOperationType =
+  | {
+      type: "create_customer";
+      connected_account_id: string;
+      email: string;
+    }
+  | {
+      type: "create_payment_intent";
+      connected_account_id: string;
+      amount: number;
+      currency: string;
+    }
+  | {
+      type: "create_subscription";
+      connected_account_id: string;
+      customer_id: string;
+      price_id: string;
+    }
+  | {
+      type: "confirm_payment_intent";
+      connected_account_id: string;
+      payment_intent_id: string;
+      confirmation_token_id: string;
+      return_url?: string | null;
+    };
+
+export type ContactListMembershipPaymentProviderOperationError =
+  | {
+      type: "provider_rejected";
+      message: string;
+      provider_code?: string | null;
+      provider_status?: number | null;
+      at: number;
+    }
+  | {
+      type: "provider_call_not_started";
+      message: string;
+      at: number;
+    }
+  | {
+      type: "unknown_outcome";
+      message: string;
+      at: number;
+    };
+
+export interface ContactListMembershipPaymentProviderOperation {
+  id: string;
+  operation: ContactListMembershipPaymentProviderOperationType;
+  recovery_epoch: string;
+  status: ContactListMembershipPaymentProviderOperationStatus;
+  requested_at: number;
+  processing_started_at?: number | null;
+  processing_deadline_at?: number | null;
+  completed_at?: number | null;
+  provider_object_id?: string | null;
+  provider_secondary_object_id?: string | null;
+  provider_status?: string | null;
+  provider_error_code?: string | null;
+  provider_http_status?: number | null;
+  error?: ContactListMembershipPaymentProviderOperationError | null;
+}
 
 export interface ContactListMembershipProviderObjectState {
   object_id: string;
@@ -1369,8 +1543,9 @@ export interface ContactListMembershipPaymentAttempt {
   connected_account_id: string;
   price_id: string;
   customer_email?: string | null;
-  confirmation_idempotency_key?: string | null;
-  confirmation_claimed_at?: number | null;
+  confirmation_token_id: string;
+  confirmation_return_url?: string | null;
+  provider_operations: ContactListMembershipPaymentProviderOperation[];
   payment_intent_state?: ContactListMembershipProviderObjectState | null;
   subscription_state?: ContactListMembershipProviderObjectState | null;
   invoice_state?: ContactListMembershipProviderObjectState | null;
@@ -1386,11 +1561,7 @@ export interface ContactListMembershipPayment {
 }
 
 export type ContactListMembershipRefundStatus =
-  | "requested"
-  | "processing"
-  | "succeeded"
-  | "failed"
-  | "unknown";
+  "requested" | "processing" | "succeeded" | "failed" | "unknown";
 
 export type ContactListMembershipRefundError =
   | {
@@ -1409,6 +1580,11 @@ export type ContactListMembershipRefundError =
       type: "missing_configuration";
       message: string;
       at: number;
+    }
+  | {
+      type: "provider_call_not_started";
+      message: string;
+      at: number;
     };
 
 export interface ContactListMembershipRefund {
@@ -1419,7 +1595,17 @@ export interface ContactListMembershipRefund {
   payment_intent_id: string;
   connected_account_id?: string | null;
   subscription_id?: string | null;
+  provider_cancellation?: ContactListMembershipProviderCancellation | null;
+  recovery_epoch: string;
+  requested_at: number;
+  processing_started_at?: number | null;
+  processing_deadline_at?: number | null;
+  completed_at?: number | null;
   provider_refund_id?: string | null;
+  provider_response_id?: string | null;
+  provider_status?: string | null;
+  provider_error_code?: string | null;
+  provider_http_status?: number | null;
   amount: number;
   currency: string;
   status: ContactListMembershipRefundStatus;
@@ -1429,11 +1615,10 @@ export interface ContactListMembershipRefund {
 }
 
 export type ContactListMembershipProviderCancellationStatus =
-  | "requested"
-  | "processing"
-  | "succeeded"
-  | "rejected"
-  | "unknown";
+  "requested" | "processing" | "succeeded" | "rejected" | "unknown";
+
+export type ContactListMembershipProviderCancellationKind =
+  "at_period_end" | "immediate";
 
 export type ContactListMembershipProviderCancellationError =
   | {
@@ -1452,10 +1637,27 @@ export type ContactListMembershipProviderCancellationError =
       type: "missing_configuration";
       message: string;
       at: number;
+    }
+  | {
+      type: "provider_call_not_started";
+      message: string;
+      at: number;
     };
 
 export interface ContactListMembershipProviderCancellation {
   operation_id?: string | null;
+  kind: ContactListMembershipProviderCancellationKind;
+  subscription_id?: string | null;
+  connected_account_id?: string | null;
+  recovery_epoch: string;
+  requested_at: number;
+  processing_started_at?: number | null;
+  processing_deadline_at?: number | null;
+  completed_at?: number | null;
+  provider_object_id?: string | null;
+  provider_status?: string | null;
+  provider_error_code?: string | null;
+  provider_http_status?: number | null;
   status: ContactListMembershipProviderCancellationStatus;
   error?: ContactListMembershipProviderCancellationError | null;
   updated_at: number;
@@ -1527,12 +1729,7 @@ export interface TaxonomyQuery {
 }
 
 export type FormSchemaType =
-  | "text"
-  | "number"
-  | "boolean"
-  | "date"
-  | "geo_location"
-  | "select";
+  "text" | "number" | "boolean" | "date" | "geo_location" | "select";
 
 export interface FormSchema {
   id: string;
@@ -1545,12 +1742,7 @@ export interface FormSchema {
 }
 
 export type FormFieldType =
-  | "text"
-  | "number"
-  | "boolean"
-  | "date"
-  | "geo_location"
-  | "select";
+  "text" | "number" | "boolean" | "date" | "geo_location" | "select";
 
 export interface FormField {
   id: string;
@@ -1647,7 +1839,6 @@ export interface Account {
   memberships: StoreMembership[];
   api_tokens: AccountToken[];
   auth_tokens?: import("./api").AuthToken[];
-  verification_codes?: unknown[];
   lifecycle?: AccountLifecycle;
 }
 
@@ -1656,23 +1847,9 @@ export interface AccountUpdateResponse {
   newly_created_tokens: AccountToken[];
 }
 
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  cursor?: string;
-  total?: number;
-}
-
 export interface PaginatedResponse<T> {
   items: T[];
   cursor: string | null;
-  data?: T[];
-  meta?: {
-    total: number;
-    page: number;
-    per_page: number;
-  };
 }
 
 export type ServiceStatus = "active" | "draft" | "archived";
@@ -1682,12 +1859,7 @@ export type ProductStatus = "active" | "draft" | "archived";
 export type ContactStatus = "active" | "archived";
 export type ContactListStatus = "active" | "draft" | "archived";
 export type ContactListSource =
-  | "manual"
-  | "import"
-  | "signup"
-  | "admin"
-  | "system"
-  | "lead_research";
+  "manual" | "import" | "signup" | "admin" | "system" | "lead_research";
 export type ContactListMembershipStatus =
   | "pending"
   | "active"
@@ -1701,6 +1873,28 @@ export type MailboxStatus = "active" | "draft" | "archived";
 export type MailboxPreset = "gmail" | "zoho" | "microsoft" | "custom";
 export type MailboxConnectionSecurity = "tls" | "start_tls";
 export type MailboxSyncStatus = "not_ready" | "ready" | "failed";
+export type GoogleMailboxOAuthOperationKind =
+  "authorization_code_exchange" | "refresh_token";
+export type GoogleMailboxOAuthOperationStatus =
+  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
+export type GoogleMailboxOAuthOperationErrorKind =
+  "provider_call_not_started" | "provider_rejected" | "unknown_outcome";
+export interface GoogleMailboxOAuthOperation {
+  id: string;
+  kind: GoogleMailboxOAuthOperationKind;
+  request_fingerprint: string;
+  status: GoogleMailboxOAuthOperationStatus;
+  requested_at: number;
+  processing_started_at?: number | null;
+  processing_deadline_at?: number | null;
+  completed_at?: number | null;
+  recovery_epoch: string;
+  provider_status_code?: number | null;
+  credential_expires_at?: number | null;
+  refresh_token_rotated?: boolean | null;
+  error_kind?: GoogleMailboxOAuthOperationErrorKind | null;
+  error?: string | null;
+}
 export type SmtpImapMailboxProviderInput = {
   type: "smtp_imap";
   preset: MailboxPreset;
@@ -1743,13 +1937,11 @@ export type GoogleMailboxProvider = {
   sync_ready_at?: number | null;
   last_synced_at?: number | null;
   last_history_id?: string | null;
+  authorization_code_exchanges: GoogleMailboxOAuthOperation[];
+  token_refresh: GoogleMailboxOAuthOperation | null;
 };
 export type CampaignStatus =
-  | "draft"
-  | "active"
-  | "paused"
-  | "completed"
-  | "archived";
+  "draft" | "active" | "paused" | "completed" | "archived";
 export type CampaignEnrollmentStatus =
   | "pending"
   | "active"
@@ -1760,9 +1952,7 @@ export type CampaignEnrollmentStatus =
   | "failed"
   | "stopped";
 export type CampaignEnrollmentImportSource =
-  | "contact_list"
-  | "contact"
-  | "manual";
+  "contact_list" | "contact" | "manual";
 export type CampaignMessageStatus =
   | "draft"
   | "scheduled"
@@ -1789,8 +1979,7 @@ export type CampaignMessageDirection = "outbound" | "inbound" | "action";
 export type CampaignMessageCopySource = "template" | "generated" | "edited";
 export type OutreachThreadMode = "new_thread" | "same_thread";
 export type ManualTaskContinueBehavior =
-  | "continue_after_delay"
-  | "wait_until_completed";
+  "continue_after_delay" | "wait_until_completed";
 export type OutreachStepType =
   | {
       type: "email";
@@ -1810,24 +1999,14 @@ export type OutreachStepType =
       continue_behavior: ManualTaskContinueBehavior;
     };
 export type CampaignManualTaskOutcome =
-  | "done"
-  | "skipped"
-  | "got_reply"
-  | "do_not_contact";
+  "done" | "skipped" | "got_reply" | "do_not_contact";
 export type OutreachPersonalizationStatus =
-  | "idle"
-  | "running"
-  | "completed"
-  | "failed";
+  "idle" | "running" | "completed" | "failed";
 export type SuppressionStatus = "active" | "archived";
 export type SuppressionTargetType = "email" | "domain" | "contact" | "phone";
 export type SuppressionScopeType = "store" | "campaign";
 export type SuppressionReason =
-  | "manual"
-  | "unsubscribed"
-  | "bounced"
-  | "complained"
-  | "replied";
+  "manual" | "unsubscribed" | "bounced" | "complained" | "replied";
 export type SuppressionSource = "admin" | "import" | "reply" | "system";
 export type WorkflowStatus = "active" | "draft" | "archived";
 export type PromoCodeStatus = "active" | "draft" | "archived";
@@ -2099,6 +2278,7 @@ export interface Workflow {
   key: string;
   store_id: string;
   secret: string;
+  trigger_url: string;
   status: WorkflowStatus;
   nodes: Record<string, WorkflowNode>;
   edges: WorkflowEdge[];
@@ -2120,22 +2300,32 @@ export type WorkflowNode =
 
 export interface WorkflowTriggerNode {
   type: "trigger";
-  event?: string;
   delay_ms?: number;
   schema?: Block[];
 }
 
-export interface WorkflowHttpNode {
+interface WorkflowHttpNodeBase {
   type: "http";
-  method: WorkflowHttpMethod;
   url: string;
-  headers?: Record<string, string>;
-  body?: any;
-  timeout_ms?: number;
-  delay_ms?: number;
-  retries?: number;
-  retry_delay_ms?: number;
+  headers: Record<string, string>;
+  body?: unknown;
+  timeout_ms: number;
+  delay_ms: number;
 }
+
+export type WorkflowHttpNode = WorkflowHttpNodeBase &
+  (
+    | {
+        method: "get";
+        retries: number;
+        retry_delay_ms: number;
+      }
+    | {
+        method: Exclude<WorkflowHttpMethod, "get">;
+        retries: 0;
+        retry_delay_ms: 0;
+      }
+  );
 
 export type EmailRecipients = string | string[];
 
@@ -2154,6 +2344,14 @@ export type EmailSend =
   | { type: "digital_access_ready_contact"; data: EmailSendTemplateData }
   | { type: "contact_store_notification"; data: EmailSendTemplateData }
   | { type: "subscription_confirmation"; data: EmailSendTemplateData };
+
+export interface EmailSendRequest {
+  operation_id: string;
+  send: EmailSend;
+}
+
+export type EmailDeliveryErrorKind =
+  "provider_call_not_started" | "provider_rejected" | "unknown_outcome";
 
 export interface EmailSendMessageResult {
   recipient: string;
@@ -2179,14 +2377,12 @@ export interface WorkflowDeployWebhookNode {
   build_hook_id: string;
   timeout_ms?: number;
   delay_ms?: number;
-  retries?: number;
-  retry_delay_ms?: number;
 }
 
 export type WorkflowConnectionType = "google_drive";
 
 export interface GoogleDriveWorkflowCredential {
-  access_token?: string;
+  access_token: string;
   refresh_token?: string | null;
   expires_at?: number | null;
   scopes: string[];
@@ -2201,8 +2397,8 @@ export interface GoogleDriveWorkflowProfile {
 
 export interface GoogleDriveWorkflowConnectionData {
   type: "google_drive";
-  credential: GoogleDriveWorkflowCredential;
-  profile: GoogleDriveWorkflowProfile;
+  credential: GoogleDriveWorkflowCredential | null;
+  profile: GoogleDriveWorkflowProfile | null;
 }
 
 export type WorkflowConnectionData = GoogleDriveWorkflowConnectionData;
@@ -2225,13 +2421,11 @@ export interface WorkflowGoogleDriveUploadNode {
   type: "google_drive_upload";
   workflow_connection_id: string;
   name: string;
-  mime_type: string;
-  content?: any;
+  mime_type?: string;
+  content?: unknown;
   parent_folder_id?: string | null;
   timeout_ms?: number;
   delay_ms?: number;
-  retries?: number;
-  retry_delay_ms?: number;
 }
 
 export interface WorkflowSwitchRule {
@@ -2259,11 +2453,7 @@ export interface WorkflowLoopNode {
 export type WorkflowHttpMethod = "get" | "post" | "put" | "patch" | "delete";
 
 export type ExecutionStatus =
-  | "pending"
-  | "running"
-  | "completed"
-  | "failed"
-  | "cancelled";
+  "pending" | "running" | "completed" | "failed" | "cancelled";
 
 export interface NodeResult {
   output: any;
@@ -2274,12 +2464,16 @@ export interface NodeResult {
   error?: string;
 }
 
+export type WorkflowExecutionInput =
+  | { type: "webhook"; payload: unknown }
+  | { type: "schedule"; schedule: string };
+
 export interface WorkflowExecution {
   id: string;
   workflow_id: string;
   store_id: string;
   status: ExecutionStatus;
-  input: Record<string, any>;
+  input: WorkflowExecutionInput;
   results: Record<string, NodeResult>;
   error?: string;
   scheduled_at: number;
@@ -2294,6 +2488,57 @@ export type ContactListType =
   | { type: "confirmation"; confirm_template_id?: string | null }
   | { type: "paid" };
 
+export type ContactListPlanCatalogOperationStatus =
+  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
+
+export type ContactListPlanCatalogOperationKind =
+  | {
+      type: "stripe_product";
+      payment_provider_id: string;
+      connected_account_id: string;
+      name: string;
+      metadata: Record<string, string>;
+    }
+  | {
+      type: "stripe_price";
+      product_operation_id: string;
+      product_id: string;
+      payment_provider_id: string;
+      connected_account_id: string;
+      price_index: number;
+      amount: number;
+      currency: string;
+      interval?: SubscriptionInterval | null;
+      metadata: Record<string, string>;
+    };
+
+export type ContactListPlanCatalogOperationError =
+  | {
+      type: "provider_rejected";
+      message: string;
+      provider_code?: string | null;
+      provider_status?: number | null;
+      at: number;
+    }
+  | { type: "provider_call_not_started"; message: string; at: number }
+  | { type: "unknown_outcome"; message: string; at: number };
+
+export interface ContactListPlanCatalogOperation {
+  id: string;
+  operation: ContactListPlanCatalogOperationKind;
+  recovery_epoch: string;
+  status: ContactListPlanCatalogOperationStatus;
+  requested_at: number;
+  processing_started_at?: number | null;
+  processing_deadline_at?: number | null;
+  completed_at?: number | null;
+  provider_object_id?: string | null;
+  provider_status?: string | null;
+  provider_error_code?: string | null;
+  provider_http_status?: number | null;
+  error?: ContactListPlanCatalogOperationError | null;
+}
+
 export interface ContactListPlan {
   id: string;
   key: string;
@@ -2302,6 +2547,7 @@ export interface ContactListPlan {
   status: ContactListPlanStatus;
   prices: SubscriptionPrice[];
   payment_provider_id?: string | null;
+  catalog_operations: ContactListPlanCatalogOperation[];
   created_at: number;
   updated_at: number;
 }
@@ -2322,13 +2568,6 @@ export interface ContactSessionToken {
   id: string;
   token: string;
   created_at: number;
-}
-
-export interface ContactVerificationCode {
-  code: string;
-  created_at: number;
-  used: boolean;
-  store_id?: string | null;
 }
 
 export interface PromoUsage {
@@ -2372,11 +2611,7 @@ export interface ContactChannel {
 }
 
 export type ContactChannelConsentStatus =
-  | "unknown"
-  | "subscribed"
-  | "unsubscribed"
-  | "bounced"
-  | "blocked";
+  "unknown" | "subscribed" | "unsubscribed" | "bounced" | "blocked";
 
 export interface Contact {
   id: string;
@@ -2388,7 +2623,6 @@ export interface Contact {
   promo_usage: PromoUsage[];
   taxonomies: TaxonomyEntry[];
   auth_tokens: ContactSessionToken[];
-  verification_codes: ContactVerificationCode[];
   created_at: number;
   updated_at: number;
 }
@@ -2519,12 +2753,7 @@ export type OpportunityType =
   | "engagement";
 
 export type OpportunityStage =
-  | "new"
-  | "reviewing"
-  | "contacted"
-  | "won"
-  | "lost"
-  | "dismissed";
+  "new" | "reviewing" | "contacted" | "won" | "lost" | "dismissed";
 
 export type OpportunitySource =
   | {
@@ -2791,6 +3020,15 @@ export interface CampaignMessage {
   note?: string | null;
   provider_message_id?: string | null;
   provider_thread_id?: string | null;
+  provider_status_code?: number | null;
+  delivery_from_name?: string | null;
+  delivery_operation_id?: string | null;
+  delivery_requested_at?: number | null;
+  delivery_processing_started_at?: number | null;
+  delivery_processing_deadline_at?: number | null;
+  delivery_completed_at?: number | null;
+  delivery_recovery_epoch?: string | null;
+  delivery_error_kind?: EmailDeliveryErrorKind | null;
   error?: string | null;
   due_at?: number | null;
   completed_at?: number | null;
@@ -2824,11 +3062,7 @@ export interface Suppression {
 }
 
 export type LeadResearchRunStatus =
-  | "draft"
-  | "running"
-  | "completed"
-  | "failed"
-  | "cancelled";
+  "draft" | "running" | "completed" | "failed" | "cancelled";
 
 export type LeadEmailClassification =
   | "official_domain"
@@ -2839,16 +3073,10 @@ export type LeadEmailClassification =
   | "unknown";
 
 export type LeadValidationCheckStatus =
-  | "passed"
-  | "warning"
-  | "failed"
-  | "unknown";
+  "passed" | "warning" | "failed" | "unknown";
 
 export type CampaignRoute =
-  | "email_only"
-  | "email_manual_followup"
-  | "manual_only"
-  | "needs_review";
+  "email_only" | "email_manual_followup" | "manual_only" | "needs_review";
 
 export interface LeadScores {
   fit: number;
@@ -2893,6 +3121,7 @@ export interface LeadResearchRun {
   error?: string | null;
   started_at?: number | null;
   completed_at?: number | null;
+  ai_provider_operations: AiProviderCallOperation[];
   created_at: number;
   updated_at: number;
 }
@@ -2915,11 +3144,7 @@ export interface LeadEmailValidationResult {
 }
 
 export type LeadResearchMessageRole =
-  | "system"
-  | "user"
-  | "assistant"
-  | "action"
-  | "tool";
+  "system" | "user" | "assistant" | "action" | "tool";
 
 export interface LeadResearchMessage {
   id: string;
@@ -3033,7 +3258,6 @@ export interface ShipmentLine {
 export type ShippingLabelPurchaseStatus =
   | "requested"
   | "merchant_recovery_processing"
-  | "merchant_recovery_succeeded"
   | "merchant_recovery_failed"
   | "label_purchase_processing"
   | "purchased"
@@ -3043,8 +3267,10 @@ export type ShippingLabelPurchaseStatus =
   | "merchant_credit_failed"
   | "unknown";
 
-export type MerchantRecoveryStatus = "processing" | "succeeded" | "failed" | "unknown";
-export type MerchantCreditStatus = "processing" | "succeeded" | "failed" | "unknown";
+export type MerchantRecoveryStatus =
+  "processing" | "succeeded" | "failed" | "unknown";
+export type MerchantCreditStatus =
+  "processing" | "succeeded" | "failed" | "unknown";
 
 export type ShippingLabelPurchaseError =
   | {
@@ -3108,6 +3334,7 @@ export type ShippingLabelRefundStatus =
   | "requested"
   | "provider_pending"
   | "provider_rejected"
+  | "failed"
   | "merchant_credit_processing"
   | "succeeded"
   | "merchant_credit_failed"
@@ -3122,6 +3349,7 @@ export type ShippingLabelProviderRefund = {
 
 export interface ShippingLabelRefund {
   id: string;
+  recovery_epoch: string;
   status: ShippingLabelRefundStatus;
   requested_amount?: number | null;
   approved_amount?: number | null;
@@ -3149,6 +3377,15 @@ export interface ShippingLabelAdjustment {
   amount: number;
   currency: string;
   reason: string;
+  recovery_epoch: string;
+  requested_at: number;
+  processing_started_at?: number | null;
+  processing_deadline_at?: number | null;
+  completed_at?: number | null;
+  provider_response_id?: string | null;
+  provider_status?: string | null;
+  provider_error_code?: string | null;
+  provider_http_status?: number | null;
   status: ShippingLabelAdjustmentStatus;
   merchant_recovery?: MerchantRecovery | null;
   merchant_credit?: MerchantCredit | null;
@@ -3159,6 +3396,7 @@ export interface ShippingLabelAdjustment {
 
 export interface ShippingLabelPurchase {
   id: string;
+  recovery_epoch: string;
   operation_id?: string | null;
   request_fingerprint?: string | null;
   rate_id: string;
@@ -3225,6 +3463,7 @@ export interface PurchaseLabelResult {
 }
 
 export interface ShipResult {
+  operation_id: string;
   shipment_id: string;
   tracking_number?: string | null;
   tracking_url?: string | null;

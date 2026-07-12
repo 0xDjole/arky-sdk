@@ -110,6 +110,39 @@ export interface SupportConversation {
   updated_at: number;
 }
 
+export type SupportMessageEmailDeliveryStatus =
+  | "pending"
+  | "sending"
+  | "sent"
+  | "failed"
+  | "unknown"
+  | "received"
+  | "skipped";
+
+export interface SupportMessageEmailDelivery {
+  operation_id: string;
+  mailbox_id: string;
+  to_email: string;
+  from_name: string;
+  from_email: string;
+  subject: string;
+  status: SupportMessageEmailDeliveryStatus;
+  requested_at?: number | null;
+  processing_started_at?: number | null;
+  processing_deadline_at?: number | null;
+  completed_at?: number | null;
+  recovery_epoch?: string | null;
+  provider_message_id?: string | null;
+  provider_thread_id?: string | null;
+  provider_status_code?: number | null;
+  provider_in_reply_to?: string | null;
+  provider_references: string[];
+  error_kind?: import("../types").EmailDeliveryErrorKind | null;
+  error?: string | null;
+  sent_at?: number | null;
+  received_at?: number | null;
+}
+
 export interface SupportMessage {
   id: string;
   store_id: string;
@@ -117,6 +150,7 @@ export interface SupportMessage {
   role: "system" | "user" | "assistant" | "staff" | "action";
   content: string;
   buttons?: string[];
+  email_delivery: SupportMessageEmailDelivery | null;
   metadata: Record<string, unknown>;
   created_at: number;
 }
@@ -124,6 +158,10 @@ export interface SupportMessage {
 export interface SupportConversationResponse {
   conversation: SupportConversation;
   messages: SupportMessage[];
+}
+
+export interface SupportConversationStartResponse extends SupportConversationResponse {
+  support_token: string;
 }
 
 export interface StartSupportConversationParams {
@@ -137,6 +175,7 @@ export interface StartSupportConversationParams {
 }
 
 export interface SendSupportMessageParams {
+  operation_id: string;
   store_id: string;
   conversation_id: string;
   input: { type: "button"; label: string } | { type: "text"; content: string };
@@ -149,10 +188,12 @@ export interface ReceiveSupportChannelMessageParams {
   external_message_id?: string;
   content: string;
   metadata?: Record<string, unknown>;
+  email_delivery?: SupportMessageEmailDelivery | null;
   received_at?: number;
 }
 
 export interface ReplySupportConversationParams {
+  operation_id: string;
   store_id: string;
   conversation_id: string;
   content: string;
@@ -178,6 +219,16 @@ export interface GetSupportConversationParams {
   after_id?: string;
 }
 
+export type StorefrontSendSupportMessageParams = Omit<
+  SendSupportMessageParams,
+  "store_id"
+> & { support_token: string };
+
+export type StorefrontGetSupportConversationParams = Omit<
+  GetSupportConversationParams,
+  "store_id"
+> & { support_token: string };
+
 export interface FindSupportConversationsParams {
   store_id: string;
   status?: string;
@@ -197,40 +248,65 @@ function supportConversationQuery(params: GetSupportConversationParams): string 
   return qs.toString();
 }
 
+function storefrontSupportOptions(
+  supportToken: string,
+  options?: RequestOptions,
+): RequestOptions {
+  if (!/^[0-9a-f]{64}$/.test(supportToken)) {
+    throw new Error("support_token must be a 64-character lowercase hexadecimal token");
+  }
+  const headers = { ...options?.headers };
+  for (const name of Object.keys(headers)) {
+    if (name.toLowerCase() === "x-arky-support-token") delete headers[name];
+  }
+  return {
+    ...options,
+    headers: {
+      ...headers,
+      "X-Arky-Support-Token": supportToken,
+    },
+  };
+}
+
 export function createStorefrontSupportApi(config: ApiConfig) {
-  const { httpClient, storeId } = config;
+  const { httpClient } = config;
 
   return {
     async startConversation(
       params: Omit<StartSupportConversationParams, "store_id"> = {},
       opts?: RequestOptions
-    ): Promise<SupportConversationResponse> {
-      return httpClient.post(
+    ): Promise<SupportConversationStartResponse> {
+      const storeId = config.storeId;
+      return httpClient.post<SupportConversationStartResponse>(
         `/v1/storefront/${storeId}/support/conversations`,
-        { store_id: storeId, ...params },
+        { ...params, store_id: storeId },
         opts
       );
     },
 
     async sendMessage(
-      params: Omit<SendSupportMessageParams, "store_id">,
+      params: StorefrontSendSupportMessageParams,
       opts?: RequestOptions
     ): Promise<SupportConversationResponse> {
-      return httpClient.post(
-        `/v1/storefront/${storeId}/support/conversations/${params.conversation_id}/messages`,
-        { store_id: storeId, ...params },
-        opts
+      const { support_token, ...request } = params;
+      const storeId = config.storeId;
+      return httpClient.post<SupportConversationResponse>(
+        `/v1/storefront/${storeId}/support/conversations/${request.conversation_id}/messages`,
+        { ...request, store_id: storeId },
+        storefrontSupportOptions(support_token, opts)
       );
     },
 
     async getConversation(
-      params: Omit<GetSupportConversationParams, "store_id">,
+      params: StorefrontGetSupportConversationParams,
       opts?: RequestOptions
     ): Promise<SupportConversationResponse> {
-      const qs = supportConversationQuery({ store_id: storeId, ...params });
-      return httpClient.get(
-        `/v1/storefront/${storeId}/support/conversations/${params.conversation_id}?${qs}`,
-        opts
+      const { support_token, ...request } = params;
+      const storeId = config.storeId;
+      const qs = supportConversationQuery({ ...request, store_id: storeId });
+      return httpClient.get<SupportConversationResponse>(
+        `/v1/storefront/${storeId}/support/conversations/${request.conversation_id}?${qs}`,
+        storefrontSupportOptions(support_token, opts)
       );
     },
   };

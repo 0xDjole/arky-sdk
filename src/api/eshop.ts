@@ -480,11 +480,17 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: ProcessOrderRefundParams,
       options?: RequestOptions,
     ): Promise<ProcessOrderRefundResponse> {
-      return apiConfig.httpClient.post<ProcessOrderRefundResponse>(
+      const response = await apiConfig.httpClient.post<ProcessOrderRefundResponse>(
         `/v1/stores/${apiConfig.storeId}/orders/${params.id}/refund`,
         { amount: params.amount, operation_id: params.operation_id },
         options,
       );
+      if (response.refund_id !== params.operation_id) {
+        throw new Error(
+          "Refund response did not match the requested operation_id",
+        );
+      }
+      return response;
     },
 
     async downloadDigitalAccess(

@@ -21,6 +21,8 @@ import type {
   UpdateContactListContactParams,
   RemoveContactListContactParams,
   FindContactListContactsParams,
+  RefundContactListMembershipParams,
+  RefundContactListMembershipResult,
   ImportContactListPreviewParams,
   ImportContactsIntoContactListParams,
   ImportContactsIntoContactListResult,
@@ -323,6 +325,27 @@ export const createContactApi = (apiConfig: ApiConfig) => {
             path,
             { ...options, params: queryParams },
           );
+        },
+      },
+
+      memberships: {
+        async refund(
+          params: RefundContactListMembershipParams,
+          options?: RequestOptions,
+        ): Promise<RefundContactListMembershipResult> {
+          const { store_id, contact_list_id, membership_id, ...payload } = params;
+          const target_store_id = store_id || apiConfig.storeId;
+          const response = await apiConfig.httpClient.post<RefundContactListMembershipResult>(
+            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/memberships/${membership_id}/refund`,
+            payload,
+            options,
+          );
+          if (response.refund_id !== params.operation_id) {
+            throw new Error(
+              "Membership refund response did not match the requested operation_id",
+            );
+          }
+          return response;
         },
       },
     },

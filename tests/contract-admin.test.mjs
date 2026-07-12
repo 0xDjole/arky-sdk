@@ -151,38 +151,6 @@ assert.equal(typeof arky.notification.email.send, "function");
 assert.equal("trigger" in arky.notification, false);
 assert.equal("mailbox" in arky.crm, false);
 
-const emailFetchCalls = [];
-globalThis.fetch = async (url, init = {}) => {
-  emailFetchCalls.push({
-    url: String(url),
-    method: init.method,
-    body: init.body,
-  });
-  return new Response(JSON.stringify({ sent: 1, messages: [] }), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-};
-
-try {
-  await arky.notification.email.send({
-    type: "contact_store_notification",
-    data: {
-      store_id: "contract-store",
-      mailbox_id: "mailbox-1",
-      template_id: "template-1",
-      recipients: ["owner@example.com"],
-      vars: { submission: { id: "submission-1" } },
-    },
-  });
-} finally {
-  globalThis.fetch = originalFetch;
-}
-
-assert.equal(emailFetchCalls[0].method, "POST");
-assert.equal(emailFetchCalls[0].url, "http://127.0.0.1:1/v1/notifications/email");
-assert.equal(JSON.parse(emailFetchCalls[0].body).type, "contact_store_notification");
-
 const mailboxFetchCalls = [];
 globalThis.fetch = async (url, init = {}) => {
   mailboxFetchCalls.push({

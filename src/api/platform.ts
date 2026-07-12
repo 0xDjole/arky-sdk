@@ -14,6 +14,7 @@ export interface WorkflowToolOperation {
 export interface WorkflowToolResource {
 	name: string;
 	value: string;
+	description: string;
 	operations: WorkflowToolOperation[];
 }
 
@@ -27,26 +28,37 @@ export interface WorkflowTool {
 		| 'ai'
 		| 'communication'
 		| 'email'
-		| 'productivity'
-		| 'payments'
+			| 'productivity'
+			| 'database'
+			| 'payments'
 		| 'crm'
 		| 'ecommerce'
 		| 'developer'
 		| 'storage'
-		| 'analytics'
-		| 'deploy'
-		| 'core';
-	configurationRequired: boolean;
+			| 'analytics'
+			| 'core';
+	configuration_required: boolean;
 	website?: string;
-	docsUrl?: string;
-	urlPatterns: string[];
+	docs_url?: string;
+	url_patterns: string[];
 	resources: WorkflowToolResource[];
 	triggers?: Array<{
 		name: string;
 		value: string;
 		description: string;
-		webhookType: 'incoming' | 'polling';
+		webhook_type: 'incoming' | 'polling';
 	}>;
+}
+
+export interface EventScopeField {
+	field: string;
+	label: string;
+	placeholder: string;
+}
+
+export interface EventMetadata {
+	event: string;
+	scopes: EventScopeField[];
 }
 
 export const createPlatformApi = (apiConfig: ApiConfig) => {
@@ -57,8 +69,8 @@ export const createPlatformApi = (apiConfig: ApiConfig) => {
 		async getWorkflowTools(options?: RequestOptions): Promise<WorkflowTool[]> {
 			return apiConfig.httpClient.get<WorkflowTool[]>('/v1/platform/workflow-tools', options);
 		},
-		async getWebhookEvents(options?: RequestOptions): Promise<{ data: string[] }> {
-			return apiConfig.httpClient.get<{ data: string[] }>('/v1/platform/events', options);
+		async getWebhookEvents(options?: RequestOptions): Promise<EventMetadata[]> {
+			return apiConfig.httpClient.get<EventMetadata[]>('/v1/platform/events', options);
 		},
 		data: {
 			async scan(params: { key: string; limit?: number }, options?: RequestOptions): Promise<{ value: Array<{ key: string; value: unknown }> }> {

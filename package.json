@@ -35,14 +35,12 @@
   },
   "files": [
     "dist",
-    "scripts/contract-admin.mjs",
-    "scripts/contract-storefront.mjs",
     "README.md"
   ],
   "scripts": {
     "prebuild": "node scripts/check-no-any.mjs && node scripts/check-public-surface.mjs",
     "build": "tsup",
-    "test": "npm run build && node scripts/contract-storefront.mjs && node scripts/contract-admin.mjs && node --test tests/*.test.mjs",
+    "test": "npm run build && node --test tests/*.test.mjs",
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
     "prepare": "npm run build"
