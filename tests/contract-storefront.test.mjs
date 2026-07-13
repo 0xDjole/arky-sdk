@@ -40,7 +40,11 @@ assert.equal(typeof store.eshop.service.listProviders, "function");
 assert.equal(typeof store.eshop.service.initialize, "function");
 assert.equal(typeof store.eshop.service.select, "function");
 const removedServiceModuleName = "service" + "Order";
-assert.equal(removedServiceModuleName in store.eshop, false, "scheduled service controls belong under eshop.service");
+assert.equal(
+  removedServiceModuleName in store.eshop,
+  false,
+  "scheduled service controls belong under eshop.service",
+);
 assert.equal(store.eshop.cart.product_items.get().length, 0);
 assert.equal(store.eshop.service.state.get().cart.length, 0);
 
@@ -89,6 +93,7 @@ globalThis.fetch = async (url, init = {}) => {
     url: String(url),
     method: init.method,
     body: init.body,
+    headers: init.headers,
   });
   return new Response(JSON.stringify({ success: true }), {
     status: 200,
@@ -98,7 +103,8 @@ globalThis.fetch = async (url, init = {}) => {
 
 try {
   const management = await store.crm.contactList.manage("manage-token");
-  const unsubscribe = await store.crm.contactList.unsubscribe("unsubscribe-token");
+  const unsubscribe =
+    await store.crm.contactList.unsubscribe("unsubscribe-token");
   const confirm = await store.crm.contactList.confirm("confirm-token");
   assert.deepEqual(management, { success: true });
   assert.deepEqual(unsubscribe, { success: true });
@@ -116,9 +122,13 @@ assert.deepEqual(JSON.parse(fetchCalls[0].body), { token: "manage-token" });
 assert.equal(fetchCalls[1].method, "POST");
 assert.equal(
   fetchCalls[1].url,
-  "http://127.0.0.1:1/v1/storefront/contract-store/contact-lists/unsubscribe",
+  "http://127.0.0.1:1/v1/storefront/contract-store/contact-lists/unsubscribe?token=unsubscribe-token",
 );
-assert.deepEqual(JSON.parse(fetchCalls[1].body), { token: "unsubscribe-token" });
+assert.equal(fetchCalls[1].body, "List-Unsubscribe=One-Click");
+assert.equal(
+  fetchCalls[1].headers["Content-Type"],
+  "application/x-www-form-urlencoded",
+);
 assert.equal(fetchCalls[2].method, "POST");
 assert.equal(
   fetchCalls[2].url,
@@ -162,7 +172,9 @@ const quoteSnapshot = {
   total: 1000,
   shipping_method: null,
   payment_method: null,
-  payment_methods: [{ id: "pm_card", key: "credit_card", type: "credit_card", name: "Card" }],
+  payment_methods: [
+    { id: "pm_card", key: "credit_card", type: "credit_card", name: "Card" },
+  ],
   promo_code: null,
   payment: {
     id: "payment_quote",
@@ -207,7 +219,9 @@ globalThis.fetch = async (url, init = {}) => {
     body: init.body,
   });
   if (String(url).endsWith("/actions/track")) {
-    throw new Error("commerce cart helpers must not call generic action tracking");
+    throw new Error(
+      "commerce cart helpers must not call generic action tracking",
+    );
   }
   if (String(url).endsWith("/carts/cart_contract/items")) {
     return new Response(JSON.stringify(cartSnapshot), {
@@ -293,22 +307,28 @@ globalThis.fetch = async (url, init = {}) => {
     const body = JSON.parse(init.body);
     assert.equal(body.payment_method_key, "credit_card");
     assert.equal(body.confirmation_token_id, "ct_store_owned");
-    return new Response(JSON.stringify({
-      order_id: "order_contract",
-      number: "1001",
-      payment_action: { type: "handle_next_action", client_secret: "pi_secret_contract" },
-      payment: {
-        id: "payment_contract",
-        status: "pending",
-        total: 1000,
-        currency: "usd",
-        payment_method_key: "credit_card",
-        method_type: "credit_card",
+    return new Response(
+      JSON.stringify({
+        order_id: "order_contract",
+        number: "1001",
+        payment_action: {
+          type: "handle_next_action",
+          client_secret: "pi_secret_contract",
+        },
+        payment: {
+          id: "payment_contract",
+          status: "pending",
+          total: 1000,
+          currency: "usd",
+          payment_method_key: "credit_card",
+          method_type: "credit_card",
+        },
+      }),
+      {
+        status: 200,
+        headers: { "content-type": "application/json" },
       },
-    }), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    });
+    );
   }
   throw new Error(`Unexpected checkout contract request: ${url}`);
 };
@@ -331,7 +351,9 @@ assert.deepEqual(paymentCalls[0], [
 ]);
 assert.deepEqual(paymentCalls[1], ["next_action", "pi_secret_contract"]);
 assert.equal(
-  checkoutFetchCalls.some((call) => call.url.endsWith("/carts/cart_contract/checkout")),
+  checkoutFetchCalls.some((call) =>
+    call.url.endsWith("/carts/cart_contract/checkout"),
+  ),
   true,
 );
 assert.deepEqual(

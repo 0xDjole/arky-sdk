@@ -482,13 +482,35 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     ): Promise<ProcessOrderRefundResponse> {
       const response = await apiConfig.httpClient.post<ProcessOrderRefundResponse>(
         `/v1/stores/${apiConfig.storeId}/orders/${params.id}/refund`,
-        { amount: params.amount, operation_id: params.operation_id },
+        {
+          amount: params.amount,
+          operation_id: params.operation_id,
+          follows_operation_id: params.follows_operation_id,
+          accept_duplicate_risk: params.accept_duplicate_risk,
+        },
         options,
       );
       if (response.refund_id !== params.operation_id) {
         throw new Error(
           "Refund response did not match the requested operation_id",
         );
+      }
+      if (
+        !Number.isSafeInteger(response.amount) ||
+        response.amount !== params.amount
+      ) {
+        throw new Error("Refund response did not match the requested amount");
+      }
+      if (
+        ![
+          "requested",
+          "processing",
+          "succeeded",
+          "failed",
+          "unknown",
+        ].includes(response.status)
+      ) {
+        throw new Error("Refund response contained an invalid status");
       }
       return response;
     },

@@ -99,15 +99,17 @@ export interface StorefrontAction {
   created_at: number;
 }
 
-export type TrackActionParams = {
-  key: string;
-  type?: string;
-  payload?: Record<string, unknown>;
-} | {
-  type: string;
-  key?: string;
-  payload?: Record<string, unknown>;
-};
+export type TrackActionParams =
+  | {
+      key: string;
+      type?: string;
+      payload?: Record<string, unknown>;
+    }
+  | {
+      type: string;
+      key?: string;
+      payload?: Record<string, unknown>;
+    };
 
 export const COMMON_ACTION_KEYS = [
   "page.view",
@@ -153,9 +155,11 @@ export const createActionApi = (apiConfig: ApiConfig) => ({
   },
 });
 
-export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: ContactSessionUpdater) => {
-  const base = (storeId = apiConfig.storeId) =>
-    `/v1/storefront/${storeId}`;
+export const createStorefrontApi = (
+  apiConfig: ApiConfig,
+  updateContactSession: ContactSessionUpdater,
+) => {
+  const base = (storeId = apiConfig.storeId) => `/v1/storefront/${storeId}`;
 
   return {
     store: {
@@ -165,10 +169,16 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
 
       location: {
         getCountries(options?: RequestOptions): Promise<CountriesResponse> {
-          return apiConfig.httpClient.get<CountriesResponse>(`/v1/platform/countries`, options);
+          return apiConfig.httpClient.get<CountriesResponse>(
+            `/v1/platform/countries`,
+            options,
+          );
         },
 
-        getCountry(countryCode: string, options?: RequestOptions): Promise<Country> {
+        getCountry(
+          countryCode: string,
+          options?: RequestOptions,
+        ): Promise<Country> {
           return apiConfig.httpClient.get<Country>(
             `/v1/platform/countries/${countryCode}`,
             options,
@@ -176,28 +186,43 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
         },
 
         list(options?: RequestOptions): Promise<Location[]> {
-          return apiConfig.httpClient.get<Location[]>(`${base()}/locations`, options);
+          return apiConfig.httpClient.get<Location[]>(
+            `${base()}/locations`,
+            options,
+          );
         },
 
         get(id: string, options?: RequestOptions): Promise<Location> {
-          return apiConfig.httpClient.get<Location>(`${base()}/locations/${id}`, options);
+          return apiConfig.httpClient.get<Location>(
+            `${base()}/locations/${id}`,
+            options,
+          );
         },
       },
 
       market: {
         list(options?: RequestOptions): Promise<Market[]> {
-          return apiConfig.httpClient.get<Market[]>(`${base()}/markets`, options);
+          return apiConfig.httpClient.get<Market[]>(
+            `${base()}/markets`,
+            options,
+          );
         },
 
         get(id: string, options?: RequestOptions): Promise<Market> {
-          return apiConfig.httpClient.get<Market>(`${base()}/markets/${id}`, options);
+          return apiConfig.httpClient.get<Market>(
+            `${base()}/markets/${id}`,
+            options,
+          );
         },
       },
     },
 
     cms: {
       collection: {
-        get(params: GetCollectionParams, options?: RequestOptions): Promise<Collection> {
+        get(
+          params: GetCollectionParams,
+          options?: RequestOptions,
+        ): Promise<Collection> {
           const store_id = params.store_id || apiConfig.storeId;
           if (!params.id) {
             throw new Error("GetCollectionParams requires id");
@@ -210,7 +235,10 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
       },
 
       entry: {
-        get(params: GetEntryParams, options?: RequestOptions): Promise<CollectionEntry> {
+        get(
+          params: GetEntryParams,
+          options?: RequestOptions,
+        ): Promise<CollectionEntry> {
           const store_id = params.store_id || apiConfig.storeId;
           if (!params.id) {
             throw new Error("GetEntryParams requires id");
@@ -221,12 +249,18 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        find(params: GetEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<CollectionEntry>> {
+        find(
+          params: GetEntriesParams,
+          options?: RequestOptions,
+        ): Promise<PaginatedResponse<CollectionEntry>> {
           const { store_id, ...queryParams } = params;
-          return apiConfig.httpClient.get<PaginatedResponse<CollectionEntry>>(`${base(store_id)}/entries`, {
-            ...options,
-            params: queryParams,
-          });
+          return apiConfig.httpClient.get<PaginatedResponse<CollectionEntry>>(
+            `${base(store_id)}/entries`,
+            {
+              ...options,
+              params: queryParams,
+            },
+          );
         },
       },
 
@@ -248,7 +282,10 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        submit(params: SubmitFormParams, options?: RequestOptions): Promise<FormSubmission> {
+        submit(
+          params: SubmitFormParams,
+          options?: RequestOptions,
+        ): Promise<FormSubmission> {
           const { store_id, form_id, ...payload } = params;
           const target_store_id = store_id || apiConfig.storeId;
           if (!form_id) {
@@ -264,7 +301,10 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
       },
 
       taxonomy: {
-        get(params: GetTaxonomyParams, options?: RequestOptions): Promise<Taxonomy> {
+        get(
+          params: GetTaxonomyParams,
+          options?: RequestOptions,
+        ): Promise<Taxonomy> {
           const store_id = params.store_id || apiConfig.storeId;
           let identifier: string;
           if (params.id) {
@@ -281,7 +321,10 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        getChildren(params: GetTaxonomyChildrenParams, options?: RequestOptions): Promise<PaginatedResponse<Taxonomy>> {
+        getChildren(
+          params: GetTaxonomyChildrenParams,
+          options?: RequestOptions,
+        ): Promise<PaginatedResponse<Taxonomy>> {
           const store_id = params.store_id || apiConfig.storeId;
           return apiConfig.httpClient.get<PaginatedResponse<Taxonomy>>(
             `${base(store_id)}/taxonomies/${params.id}/children`,
@@ -293,7 +336,10 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
 
     eshop: {
       product: {
-        get(params: GetProductParams, options?: RequestOptions): Promise<Product> {
+        get(
+          params: GetProductParams,
+          options?: RequestOptions,
+        ): Promise<Product> {
           const store_id = params.store_id || apiConfig.storeId;
           let identifier: string;
           if (params.id) {
@@ -310,35 +356,54 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        find(params: GetProductsParams, options?: RequestOptions): Promise<PaginatedResponse<Product>> {
+        find(
+          params: GetProductsParams,
+          options?: RequestOptions,
+        ): Promise<PaginatedResponse<Product>> {
           const { store_id, ...queryParams } = params;
-          return apiConfig.httpClient.get<PaginatedResponse<Product>>(`${base(store_id)}/products`, {
-            ...options,
-            params: queryParams,
-          });
+          return apiConfig.httpClient.get<PaginatedResponse<Product>>(
+            `${base(store_id)}/products`,
+            {
+              ...options,
+              params: queryParams,
+            },
+          );
         },
       },
 
       cart: {
-        current(params: GetCurrentCartParams = {}, options?: RequestOptions): Promise<Cart> {
+        current(
+          params: GetCurrentCartParams = {},
+          options?: RequestOptions,
+        ): Promise<Cart> {
           const store_id = params.store_id || apiConfig.storeId;
           const { store_id: _store_id, ...payload } = params;
           return apiConfig.httpClient.post<Cart>(
             `${base(store_id)}/carts/current`,
-            { ...payload, store_id, market: payload.market || apiConfig.market },
+            {
+              ...payload,
+              store_id,
+              market: payload.market || apiConfig.market,
+            },
             options,
           );
         },
 
         get(params: GetCartParams, options?: RequestOptions): Promise<Cart> {
           const store_id = params.store_id || apiConfig.storeId;
-          return apiConfig.httpClient.get<Cart>(`${base(store_id)}/carts/${params.id}`, {
-            ...options,
-            params: params.token ? { token: params.token } : options?.params,
-          });
+          return apiConfig.httpClient.get<Cart>(
+            `${base(store_id)}/carts/${params.id}`,
+            {
+              ...options,
+              params: params.token ? { token: params.token } : options?.params,
+            },
+          );
         },
 
-        update(params: UpdateCartParams, options?: RequestOptions): Promise<Cart> {
+        update(
+          params: UpdateCartParams,
+          options?: RequestOptions,
+        ): Promise<Cart> {
           const { store_id, items, ...payload } = params;
           const target = store_id || apiConfig.storeId;
           return apiConfig.httpClient.put<Cart>(
@@ -352,7 +417,10 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        addItem(params: AddCartItemParams, options?: RequestOptions): Promise<Cart> {
+        addItem(
+          params: AddCartItemParams,
+          options?: RequestOptions,
+        ): Promise<Cart> {
           const { store_id, item, ...payload } = params;
           const target = store_id || apiConfig.storeId;
           return apiConfig.httpClient.post<Cart>(
@@ -366,7 +434,10 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        removeItem(params: RemoveCartItemParams, options?: RequestOptions): Promise<Cart> {
+        removeItem(
+          params: RemoveCartItemParams,
+          options?: RequestOptions,
+        ): Promise<Cart> {
           const { store_id, ...payload } = params;
           const target = store_id || apiConfig.storeId;
           return apiConfig.httpClient.post<Cart>(
@@ -376,7 +447,10 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        clear(params: ClearCartParams, options?: RequestOptions): Promise<Cart> {
+        clear(
+          params: ClearCartParams,
+          options?: RequestOptions,
+        ): Promise<Cart> {
           const store_id = params.store_id || apiConfig.storeId;
           return apiConfig.httpClient.post<Cart>(
             `${base(store_id)}/carts/${params.id}/clear`,
@@ -385,7 +459,10 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        quote(params: QuoteCartParams, options?: RequestOptions): Promise<OrderQuote> {
+        quote(
+          params: QuoteCartParams,
+          options?: RequestOptions,
+        ): Promise<OrderQuote> {
           const store_id = params.store_id || apiConfig.storeId;
           return apiConfig.httpClient.post<OrderQuote>(
             `${base(store_id)}/carts/${params.id}/quote`,
@@ -394,7 +471,10 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        checkout(params: CheckoutCartParams, options?: RequestOptions): Promise<OrderCheckoutResult> {
+        checkout(
+          params: CheckoutCartParams,
+          options?: RequestOptions,
+        ): Promise<OrderCheckoutResult> {
           const store_id = params.store_id || apiConfig.storeId;
           return apiConfig.httpClient.post<OrderCheckoutResult>(
             `${base(store_id)}/carts/${params.id}/checkout`,
@@ -419,12 +499,18 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        find(params: GetOrdersParams, options?: RequestOptions): Promise<PaginatedResponse<Order>> {
+        find(
+          params: GetOrdersParams,
+          options?: RequestOptions,
+        ): Promise<PaginatedResponse<Order>> {
           const { store_id, ...queryParams } = params;
-          return apiConfig.httpClient.get<PaginatedResponse<Order>>(`${base(store_id)}/orders`, {
-            ...options,
-            params: queryParams,
-          });
+          return apiConfig.httpClient.get<PaginatedResponse<Order>>(
+            `${base(store_id)}/orders`,
+            {
+              ...options,
+              params: queryParams,
+            },
+          );
         },
 
         downloadDigitalAccess(
@@ -438,11 +524,13 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
             options,
           );
         },
-
       },
 
       service: {
-        get(params: GetServiceParams, options?: RequestOptions): Promise<Service> {
+        get(
+          params: GetServiceParams,
+          options?: RequestOptions,
+        ): Promise<Service> {
           const store_id = params.store_id || apiConfig.storeId;
           let identifier: string;
           if (params.id) {
@@ -459,23 +547,38 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        find(params: GetServicesParams, options?: RequestOptions): Promise<PaginatedResponse<Service>> {
+        find(
+          params: GetServicesParams,
+          options?: RequestOptions,
+        ): Promise<PaginatedResponse<Service>> {
           const { store_id, ...queryParams } = params;
-          return apiConfig.httpClient.get<PaginatedResponse<Service>>(`${base(store_id)}/services`, {
-            ...options,
-            params: queryParams,
-          });
+          return apiConfig.httpClient.get<PaginatedResponse<Service>>(
+            `${base(store_id)}/services`,
+            {
+              ...options,
+              params: queryParams,
+            },
+          );
         },
 
-        findProviders(params: FindServiceProvidersParams, options?: RequestOptions): Promise<Provider[]> {
+        findProviders(
+          params: FindServiceProvidersParams,
+          options?: RequestOptions,
+        ): Promise<Provider[]> {
           const { store_id, ...queryParams } = params;
-          return apiConfig.httpClient.get<Provider[]>(`${base(store_id)}/service-providers`, {
-            ...options,
-            params: queryParams,
-          });
+          return apiConfig.httpClient.get<Provider[]>(
+            `${base(store_id)}/service-providers`,
+            {
+              ...options,
+              params: queryParams,
+            },
+          );
         },
 
-        getAvailability(params: GetAvailabilityParams, options?: RequestOptions): Promise<AvailabilityResponse> {
+        getAvailability(
+          params: GetAvailabilityParams,
+          options?: RequestOptions,
+        ): Promise<AvailabilityResponse> {
           const { store_id, ...queryParams } = params;
           const target_store_id = store_id || apiConfig.storeId;
           return apiConfig.httpClient.get<AvailabilityResponse>(
@@ -486,7 +589,10 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
       },
 
       provider: {
-        get(params: GetProviderParams, options?: RequestOptions): Promise<Provider> {
+        get(
+          params: GetProviderParams,
+          options?: RequestOptions,
+        ): Promise<Provider> {
           const store_id = params.store_id || apiConfig.storeId;
           let identifier: string;
           if (params.id) {
@@ -503,12 +609,18 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        find(params: GetProvidersParams, options?: RequestOptions): Promise<PaginatedResponse<Provider>> {
+        find(
+          params: GetProvidersParams,
+          options?: RequestOptions,
+        ): Promise<PaginatedResponse<Provider>> {
           const { store_id, ...queryParams } = params;
-          return apiConfig.httpClient.get<PaginatedResponse<Provider>>(`${base(store_id)}/providers`, {
-            ...options,
-            params: queryParams,
-          });
+          return apiConfig.httpClient.get<PaginatedResponse<Provider>>(
+            `${base(store_id)}/providers`,
+            {
+              ...options,
+              params: queryParams,
+            },
+          );
         },
       },
     },
@@ -573,12 +685,18 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
         },
 
         getMe(options?: RequestOptions): Promise<ContactDetail> {
-          return apiConfig.httpClient.get<ContactDetail>(`${base()}/account/me`, options);
+          return apiConfig.httpClient.get<ContactDetail>(
+            `${base()}/account/me`,
+            options,
+          );
         },
       },
 
       contactList: {
-        get(params: GetContactListParams, options?: RequestOptions): Promise<ContactList> {
+        get(
+          params: GetContactListParams,
+          options?: RequestOptions,
+        ): Promise<ContactList> {
           const store_id = params.store_id || apiConfig.storeId;
           return apiConfig.httpClient.get<ContactList>(
             `${base(store_id)}/contact-lists/${params.id}`,
@@ -586,15 +704,24 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        find(params?: FindContactListsParams, options?: RequestOptions): Promise<PaginatedResponse<ContactList>> {
+        find(
+          params?: FindContactListsParams,
+          options?: RequestOptions,
+        ): Promise<PaginatedResponse<ContactList>> {
           const { store_id, ...queryParams } = params || {};
-          return apiConfig.httpClient.get<PaginatedResponse<ContactList>>(`${base(store_id)}/contact-lists`, {
-            ...options,
-            params: queryParams,
-          });
+          return apiConfig.httpClient.get<PaginatedResponse<ContactList>>(
+            `${base(store_id)}/contact-lists`,
+            {
+              ...options,
+              params: queryParams,
+            },
+          );
         },
 
-        subscribe(params: SubscribeContactListParams, options?: RequestOptions): Promise<ContactListSubscribeResponse> {
+        subscribe(
+          params: SubscribeContactListParams,
+          options?: RequestOptions,
+        ): Promise<ContactListSubscribeResponse> {
           const { store_id, id, ...payload } = params;
           return apiConfig.httpClient.post<ContactListSubscribeResponse>(
             `${base(store_id)}/contact-lists/${id}/subscribe`,
@@ -603,7 +730,10 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        checkAccess(params: ContactListAccessParams, options?: RequestOptions): Promise<ContactListAccessResponse> {
+        checkAccess(
+          params: ContactListAccessParams,
+          options?: RequestOptions,
+        ): Promise<ContactListAccessResponse> {
           const store_id = params.store_id || apiConfig.storeId;
           return apiConfig.httpClient.get<ContactListAccessResponse>(
             `${base(store_id)}/contact-lists/${params.id}/access`,
@@ -611,7 +741,10 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        checkContentAccess(params: ContactListContentAccessParams, options?: RequestOptions): Promise<ContactListContentAccessResponse> {
+        checkContentAccess(
+          params: ContactListContentAccessParams,
+          options?: RequestOptions,
+        ): Promise<ContactListContentAccessResponse> {
           const { store_id, ...payload } = params;
           return apiConfig.httpClient.post<ContactListContentAccessResponse>(
             `${base(store_id)}/contact-lists/access`,
@@ -620,7 +753,10 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        manage(token: string, options?: RequestOptions): Promise<ContactListManagementResponse> {
+        manage(
+          token: string,
+          options?: RequestOptions,
+        ): Promise<ContactListManagementResponse> {
           return apiConfig.httpClient.post<ContactListManagementResponse>(
             `${base()}/contact-lists/manage`,
             { token },
@@ -628,15 +764,32 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
           );
         },
 
-        unsubscribe(token: string, options?: RequestOptions): Promise<{ success: boolean }> {
+        unsubscribe(
+          token: string,
+          options?: RequestOptions,
+        ): Promise<{ success: boolean }> {
+          const headers = { ...options?.headers };
+          for (const name of Object.keys(headers)) {
+            if (name.toLowerCase() === "content-type") delete headers[name];
+          }
           return apiConfig.httpClient.post<{ success: boolean }>(
             `${base()}/contact-lists/unsubscribe`,
-            { token },
-            options,
+            new URLSearchParams({ "List-Unsubscribe": "One-Click" }),
+            {
+              ...options,
+              params: { ...(options?.params || {}), token },
+              headers: {
+                ...headers,
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+            },
           );
         },
 
-        confirm(token: string, options?: RequestOptions): Promise<{ success: boolean }> {
+        confirm(
+          token: string,
+          options?: RequestOptions,
+        ): Promise<{ success: boolean }> {
           return apiConfig.httpClient.post<{ success: boolean }>(
             `${base()}/contact-lists/confirm`,
             { token },
@@ -648,7 +801,10 @@ export const createStorefrontApi = (apiConfig: ApiConfig, updateContactSession: 
 
     action: createActionApi(apiConfig),
     experiments: {
-      use(params: UseExperimentParams, options?: RequestOptions): Promise<ExperimentUseResponse> {
+      use(
+        params: UseExperimentParams,
+        options?: RequestOptions,
+      ): Promise<ExperimentUseResponse> {
         const store_id = params.store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<ExperimentUseResponse>(
           `${base(store_id)}/experiments/use`,

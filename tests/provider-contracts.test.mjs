@@ -254,12 +254,41 @@ test('provider-effect APIs send one operation identity and return direct server 
 				arky.eshop.order.processRefund({
 					id: 'order-refund-contract',
 					amount: 1250,
-					operation_id: operationId
+					operation_id: operationId,
+					follows_operation_id: null,
+					accept_duplicate_risk: false
 				}),
 			expected: {
 				url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-refund-contract/refund`,
 				method: 'POST',
-				body: { amount: 1250, operation_id: operationId }
+				body: {
+					amount: 1250,
+					operation_id: operationId,
+					follows_operation_id: null,
+					accept_duplicate_risk: false
+				}
+			}
+		},
+		{
+			name: 'explicit order refund replacement',
+			response: { refund_id: operationId, amount: 1250, status: 'requested' },
+			request: (arky) =>
+				arky.eshop.order.processRefund({
+					id: 'order-refund-contract',
+					amount: 1250,
+					operation_id: operationId,
+					follows_operation_id: '018f477d-1cae-7c12-bf12-111111111111',
+					accept_duplicate_risk: true
+				}),
+			expected: {
+				url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-refund-contract/refund`,
+				method: 'POST',
+				body: {
+					amount: 1250,
+					operation_id: operationId,
+					follows_operation_id: '018f477d-1cae-7c12-bf12-111111111111',
+					accept_duplicate_risk: true
+				}
 			}
 		},
 		{
@@ -350,7 +379,9 @@ test('money and shipping clients reject evidence for any other operation', async
 				arky.eshop.order.processRefund({
 					id: 'order-refund-contract',
 					amount: 1250,
-					operation_id: operationId
+					operation_id: operationId,
+					follows_operation_id: null,
+					accept_duplicate_risk: false
 				}),
 			error: /Refund response did not match the requested operation_id/
 		},
@@ -402,6 +433,47 @@ test('money and shipping clients reject evidence for any other operation', async
 			}
 		});
 	}
+});
+
+test('order refunds reject mismatched money and statuses outside the closed lifecycle', async (t) => {
+	const request = () =>
+		admin().eshop.order.processRefund({
+			id: 'order-refund-contract',
+			amount: 1250,
+			operation_id: operationId,
+			follows_operation_id: null,
+			accept_duplicate_risk: false
+		});
+
+	await t.test('mismatched amount', async () => {
+		await assert.rejects(
+			captureFetch(
+				{ refund_id: operationId, amount: 1251, status: 'succeeded' },
+				request
+			),
+			/Refund response did not match the requested amount/
+		);
+	});
+
+	await t.test('unsafe amount', async () => {
+		await assert.rejects(
+			captureFetch(
+				{ refund_id: operationId, amount: Number.MAX_SAFE_INTEGER + 1, status: 'succeeded' },
+				request
+			),
+			/Refund response did not match the requested amount/
+		);
+	});
+
+	await t.test('unknown status value', async () => {
+		await assert.rejects(
+			captureFetch(
+				{ refund_id: operationId, amount: 1250, status: 'pending' },
+				request
+			),
+			/Refund response contained an invalid status/
+		);
+	});
 });
 
 test('order reads preserve operation and shipping lifecycle evidence directly', async () => {

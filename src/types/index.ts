@@ -89,6 +89,8 @@ export interface PaymentTransaction {
 
 export interface OrderPaymentRefund {
   id: string;
+  follows_operation_id: string | null;
+  duplicate_risk_accepted: boolean;
   type: RefundType;
   total: number;
   tax_amount: number;

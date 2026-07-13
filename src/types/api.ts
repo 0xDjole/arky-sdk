@@ -1184,6 +1184,8 @@ export interface ProcessOrderRefundParams {
   id: string;
   amount: number;
   operation_id: string;
+  follows_operation_id: string | null;
+  accept_duplicate_risk: boolean;
 }
 
 export type RefundStatus =
