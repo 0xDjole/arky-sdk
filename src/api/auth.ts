@@ -1,11 +1,14 @@
 import type { ApiConfig, AdminSessionInternal, AdminSessionUpdater } from '../index';
 import type {
-    MagicLinkVerifyParams,
+    AuthCodeVerifyParams,
     AuthToken,
-    RequestOptions
+    RequestOptions,
+    VerificationChallengeResponse,
 } from '../types/api';
 
 export const createAuthApi = (apiConfig: ApiConfig, updateSession: AdminSessionUpdater) => {
+    const pendingEmails = new Map<string, string>();
+
     function applyAuthToken(result: AuthToken, email?: string) {
         const next: AdminSessionInternal = {
             access_token: result.access_token,
@@ -18,18 +21,21 @@ export const createAuthApi = (apiConfig: ApiConfig, updateSession: AdminSessionU
 
     return {
 
-        async code(params: { email: string }, options?: RequestOptions): Promise<{ sent: boolean }> {
-            return apiConfig.httpClient.post<{ sent: boolean }>('/v1/auth/code', params, options);
+        async code(params: { email: string }, options?: RequestOptions): Promise<VerificationChallengeResponse> {
+            const result = await apiConfig.httpClient.post<VerificationChallengeResponse>('/v1/auth/code', params, options);
+            pendingEmails.set(result.challenge_id, params.email);
+            return result;
         },
 
-        async verify(params: MagicLinkVerifyParams, options?: RequestOptions): Promise<AuthToken> {
+        async verify(params: AuthCodeVerifyParams, options?: RequestOptions): Promise<AuthToken> {
             const result = await apiConfig.httpClient.post<AuthToken>(
                 '/v1/auth/verify',
                 params,
                 options,
             );
             if (result?.access_token) {
-                applyAuthToken(result, params.email);
+                applyAuthToken(result, pendingEmails.get(params.challenge_id));
+                pendingEmails.delete(params.challenge_id);
             }
             return result;
         },
@@ -38,18 +44,21 @@ export const createAuthApi = (apiConfig: ApiConfig, updateSession: AdminSessionU
             return apiConfig.httpClient.post<AuthToken>('/v1/auth/refresh', params, options);
         },
 
-        async storeCode(storeId: string, params: { email: string }, options?: RequestOptions): Promise<{ sent: boolean }> {
-            return apiConfig.httpClient.post<{ sent: boolean }>(`/v1/stores/${storeId}/auth/code`, params, options);
+        async storeCode(storeId: string, params: { email: string }, options?: RequestOptions): Promise<VerificationChallengeResponse> {
+            const result = await apiConfig.httpClient.post<VerificationChallengeResponse>(`/v1/stores/${storeId}/auth/code`, params, options);
+            pendingEmails.set(result.challenge_id, params.email);
+            return result;
         },
 
-        async storeVerify(storeId: string, params: MagicLinkVerifyParams, options?: RequestOptions): Promise<AuthToken> {
+        async storeVerify(storeId: string, params: AuthCodeVerifyParams, options?: RequestOptions): Promise<AuthToken> {
             const result = await apiConfig.httpClient.post<AuthToken>(
                 `/v1/stores/${storeId}/auth/verify`,
                 params,
                 options,
             );
             if (result?.access_token) {
-                applyAuthToken(result, params.email);
+                applyAuthToken(result, pendingEmails.get(params.challenge_id));
+                pendingEmails.delete(params.challenge_id);
             }
             return result;
         }

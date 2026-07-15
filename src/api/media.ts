@@ -45,11 +45,12 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
             return await response.json();
         },
 
-        async deleteStoreMedia(params: DeleteStoreMediaParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
-            const { id, media_id } = params;
+        async deleteStoreMedia(params: DeleteStoreMediaParams, options?: RequestOptions): Promise<boolean> {
+            const { store_id, media_id } = params;
+            const target_store_id = store_id || apiConfig.storeId;
 
-            return apiConfig.httpClient.delete<{ deleted: boolean }>(
-                `/v1/stores/${id}/media/${media_id}`,
+            return apiConfig.httpClient.delete<boolean>(
+                `/v1/stores/${target_store_id}/media/${media_id}`,
                 options
             );
         },

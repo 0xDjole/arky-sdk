@@ -110,39 +110,6 @@ export interface SupportConversation {
   updated_at: number;
 }
 
-export type SupportMessageEmailDeliveryStatus =
-  | "pending"
-  | "sending"
-  | "sent"
-  | "failed"
-  | "unknown"
-  | "received"
-  | "skipped";
-
-export interface SupportMessageEmailDelivery {
-  operation_id: string;
-  mailbox_id: string;
-  to_email: string;
-  from_name: string;
-  from_email: string;
-  subject: string;
-  status: SupportMessageEmailDeliveryStatus;
-  requested_at?: number | null;
-  processing_started_at?: number | null;
-  processing_deadline_at?: number | null;
-  completed_at?: number | null;
-  recovery_epoch?: string | null;
-  provider_message_id?: string | null;
-  provider_thread_id?: string | null;
-  provider_status_code?: number | null;
-  provider_in_reply_to?: string | null;
-  provider_references: string[];
-  error_kind?: import("../types").EmailDeliveryErrorKind | null;
-  error?: string | null;
-  sent_at?: number | null;
-  received_at?: number | null;
-}
-
 export interface SupportMessage {
   id: string;
   store_id: string;
@@ -150,7 +117,6 @@ export interface SupportMessage {
   role: "system" | "user" | "assistant" | "staff" | "action";
   content: string;
   buttons?: string[];
-  email_delivery: SupportMessageEmailDelivery | null;
   metadata: Record<string, unknown>;
   created_at: number;
 }
@@ -175,7 +141,7 @@ export interface StartSupportConversationParams {
 }
 
 export interface SendSupportMessageParams {
-  operation_id: string;
+  message_id: string;
   store_id: string;
   conversation_id: string;
   input: { type: "button"; label: string } | { type: "text"; content: string };
@@ -188,12 +154,11 @@ export interface ReceiveSupportChannelMessageParams {
   external_message_id?: string;
   content: string;
   metadata?: Record<string, unknown>;
-  email_delivery?: SupportMessageEmailDelivery | null;
   received_at?: number;
 }
 
 export interface ReplySupportConversationParams {
-  operation_id: string;
+  message_id: string;
   store_id: string;
   conversation_id: string;
   content: string;

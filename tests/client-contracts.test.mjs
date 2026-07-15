@@ -12,7 +12,7 @@ const storeId = 'store-client-contract';
 function jsonResponse(body, status = 200) {
 	return new Response(JSON.stringify(body), {
 		status,
-		headers: { 'content-type': 'application/json' }
+		headers: { 'content-type': 'application/json' },
 	});
 }
 
@@ -27,7 +27,7 @@ function productItem() {
 		requires_shipping: false,
 		price: { amount: 1250, currency: 'USD', market: 'us' },
 		quantity: 1,
-		added_at: 1
+		added_at: 1,
 	};
 }
 
@@ -48,12 +48,12 @@ function productCatalog(prices) {
 				attributes: [],
 				requires_shipping: false,
 				digital_delivery_policy: 'manual',
-				digital_assets: []
-			}
+				digital_assets: [],
+			},
 		],
 		status: 'active',
 		created_at: 1,
-		updated_at: 1
+		updated_at: 1,
 	};
 }
 
@@ -76,13 +76,13 @@ function cartSnapshot() {
 		quote_snapshot: {
 			charge_amount: 1250,
 			total: 1250,
-			payment: { total: 1250, currency: 'USD', payment_method_key: 'cash' }
+			money: { total: 1250, currency: 'USD', payment_method_key: 'cash' },
 		},
 		converted_order_id: null,
 		item_count: 1,
 		last_action_at: 1,
 		created_at: 1,
-		updated_at: 1
+		updated_at: 1,
 	};
 }
 
@@ -92,12 +92,12 @@ function checkoutResult() {
 		number: '1001',
 		payment_action: { type: 'none' },
 		payment: {
-			status: 'succeeded',
-			total: 1250,
+			status: { status: 'captured', at: 1, amount: 1250 },
+			amount: 1250,
 			currency: 'USD',
 			paid: 1250,
-			method_type: 'cash'
-		}
+			method_type: 'cash',
+		},
 	};
 }
 
@@ -114,9 +114,9 @@ async function cartProductForPrices(prices, marketCurrency) {
 		market: {
 			key: 'us',
 			currency: marketCurrency,
-			payment_methods: []
+			payment_methods: [],
 		},
-		store: {}
+		store: {},
 	});
 	const emptyCart = cartSnapshot();
 	emptyCart.items = [];
@@ -133,10 +133,10 @@ async function cartProductForPrices(prices, marketCurrency) {
 				id: 'line-client-contract',
 				product_id: product.id,
 				variant_id: product.variants[0].id,
-				quantity: 1
-			}
+				quantity: 1,
+			},
 		],
-		item_count: 1
+		item_count: 1,
 	};
 	const originalFetch = globalThis.fetch;
 	globalThis.fetch = async (url) => {
@@ -157,6 +157,94 @@ async function cartProductForPrices(prices, marketCurrency) {
 		globalThis.fetch = originalFetch;
 	}
 }
+
+test('storefront identify returns the verification challenge without exposing its session token', async () => {
+	const storefront = createStorefront({ baseUrl, storeId, market: 'us' });
+	const contact = {
+		id: 'contact-client-contract',
+		store_id: storeId,
+		email: 'contact@example.test',
+		verified: false,
+		status: 'active',
+		channels: [],
+		promo_usage: [],
+		taxonomies: [],
+		created_at: 1,
+		updated_at: 1,
+	};
+	const store = { id: storeId };
+	const challenge = {
+		challenge_id: 'challenge-client-contract',
+		expires_at: 1000,
+	};
+	const calls = [];
+	const originalFetch = globalThis.fetch;
+	globalThis.fetch = async (url, init = {}) => {
+		calls.push({ url: String(url), body: JSON.parse(String(init.body)) });
+		if (String(url).endsWith('/account/identify')) {
+			return jsonResponse({
+				contact,
+				token: null,
+				store,
+				market: null,
+				verification_challenge: challenge,
+			});
+		}
+		if (String(url).endsWith('/account/verify')) {
+			return jsonResponse({
+				contact: { ...contact, verified: true },
+				token: {
+					id: 'session-client-contract',
+					token: 'private-contact-token',
+					status: 'active',
+					created_at: 2,
+					expires_at: 1000,
+				},
+			});
+		}
+		throw new Error(`Unexpected storefront auth contract request: ${url}`);
+	};
+
+	try {
+		const result = await storefront.identify({
+			email: contact.email,
+			verify: true,
+		});
+		assert.deepEqual(result, {
+			contact,
+			store,
+			market: null,
+			verification_challenge: challenge,
+		});
+		assert.equal('token' in result, false);
+		await storefront.verify({
+			challenge_id: challenge.challenge_id,
+			code: '123456',
+		});
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+
+	assert.deepEqual(calls, [
+		{
+			url: `${baseUrl}/v1/storefront/${storeId}/account/identify`,
+			body: {
+				store_id: storeId,
+				market: 'us',
+				email: contact.email,
+				verify: true,
+			},
+		},
+		{
+			url: `${baseUrl}/v1/storefront/${storeId}/account/verify`,
+			body: {
+				store_id: storeId,
+				challenge_id: challenge.challenge_id,
+				code: '123456',
+			},
+		},
+	]);
+});
 
 test('storefront checkout returns the direct OrderCheckoutResult', async () => {
 	const store = checkoutStore();
@@ -188,12 +276,12 @@ test('storefront checkout returns the direct OrderCheckoutResult', async () => {
 	assert.deepEqual(calls, [
 		{
 			url: `${baseUrl}/v1/storefront/${storeId}/carts/cart-client-contract`,
-			method: 'PUT'
+			method: 'PUT',
 		},
 		{
 			url: `${baseUrl}/v1/storefront/${storeId}/carts/cart-client-contract/checkout`,
-			method: 'POST'
-		}
+			method: 'POST',
+		},
 	]);
 });
 
@@ -230,9 +318,9 @@ test('storefront checkout preserves the typed API error instead of returning a w
 				{
 					message: 'Checkout rejected',
 					statusCode: 422,
-					validationErrors: [{ field: 'payment_method_key', error: 'unsupported' }]
+					validationErrors: [{ field: 'payment_method_key', error: 'unsupported' }],
 				},
-				422
+				422,
 			);
 		}
 		throw new Error(`Unexpected client contract request: ${url}`);
@@ -243,9 +331,7 @@ test('storefront checkout preserves the typed API error instead of returning a w
 			assert.equal(error.name, 'ApiError');
 			assert.equal(error.message, 'Checkout rejected');
 			assert.equal(error.statusCode, 422);
-			assert.deepEqual(error.validationErrors, [
-				{ field: 'payment_method_key', error: 'unsupported' }
-			]);
+			assert.deepEqual(error.validationErrors, [{ field: 'payment_method_key', error: 'unsupported' }]);
 			assert.equal('ok' in error, false);
 			assert.equal('val' in error, false);
 			return true;
@@ -265,32 +351,32 @@ test('zero-total card checkout skips Stripe while preserving authoritative order
 			...cartSnapshot().quote_snapshot,
 			charge_amount: 0,
 			total: 0,
-			payment: {
-				...cartSnapshot().quote_snapshot.payment,
+			money: {
+				...cartSnapshot().quote_snapshot.money,
 				total: 0,
 				currency: 'EUR',
-				payment_method_key: 'credit_card'
-			}
-		}
+				payment_method_key: 'credit_card',
+			},
+		},
 	};
 	store.cart.cart.set(freeCart);
 	store.cart.product_items.set([
 		{
 			...productItem(),
-			price: { amount: 0, currency: 'EUR', market: 'us' }
-		}
+			price: { amount: 0, currency: 'EUR', market: 'us' },
+		},
 	]);
 	const response = {
 		order_id: 'order-free-contract',
 		number: 'FREE-1',
 		payment_action: { type: 'none' },
 		payment: {
-			status: 'succeeded',
-			total: 0,
+			status: { status: 'captured', at: 1, amount: 0 },
+			amount: 0,
 			currency: 'EUR',
 			paid: 0,
-			method_type: 'credit_card'
-		}
+			method_type: 'credit_card',
+		},
 	};
 	const checkoutBodies = [];
 	const originalFetch = globalThis.fetch;
@@ -309,9 +395,9 @@ test('zero-total card checkout skips Stripe while preserving authoritative order
 		assert.deepEqual(
 			await store.cart.checkout({
 				payment_method_key: 'credit_card',
-				clear_after_checkout: false
+				clear_after_checkout: false,
 			}),
-			response
+			response,
 		);
 	} finally {
 		globalThis.fetch = originalFetch;
@@ -321,8 +407,8 @@ test('zero-total card checkout skips Stripe while preserving authoritative order
 		{
 			id: 'cart-client-contract',
 			store_id: storeId,
-			payment_method_key: 'credit_card'
-		}
+			payment_method_key: 'credit_card',
+		},
 	]);
 	assert.equal(store.cart.last_order.get().total, 0);
 	assert.equal(store.cart.last_order.get().currency, 'EUR');
@@ -338,11 +424,11 @@ test('card checkout rejects invalid minor-unit charge evidence before the provid
 				quote_snapshot: {
 					...cartSnapshot().quote_snapshot,
 					charge_amount: chargeAmount,
-					payment: {
-						...cartSnapshot().quote_snapshot.payment,
-						payment_method_key: 'credit_card'
-					}
-				}
+					money: {
+						...cartSnapshot().quote_snapshot.money,
+						payment_method_key: 'credit_card',
+					},
+				},
 			};
 			store.cart.cart.set(invalidCart);
 			let checkoutCalls = 0;
@@ -358,7 +444,7 @@ test('card checkout rejects invalid minor-unit charge evidence before the provid
 			try {
 				await assert.rejects(
 					store.cart.checkout({ payment_method_key: 'credit_card' }),
-					/non-negative integer charge amount in minor units/
+					/non-negative integer charge amount in minor units/,
 				);
 			} finally {
 				globalThis.fetch = originalFetch;
@@ -373,31 +459,25 @@ test('Stripe mounting requires an amount/currency pair and trusts the current qu
 	const mount = (options) =>
 		store.cart.payment.mountStripe('#payment-contract', {
 			publishableKey: 'pk_test_contract',
-			...options
+			...options,
 		});
 
 	await assert.rejects(mount({ amount: 1250 }), /amount and currency must be supplied together/);
 	await assert.rejects(mount({ currency: 'USD' }), /amount and currency must be supplied together/);
-	await assert.rejects(
-		mount({ amount: 0, currency: 'USD' }),
-		/positive minor-unit payment amount/
-	);
-	await assert.rejects(
-		mount({ amount: 1250, currency: 'US' }),
-		/three-letter payment currency/
-	);
+	await assert.rejects(mount({ amount: 0, currency: 'USD' }), /positive minor-unit payment amount/);
+	await assert.rejects(mount({ amount: 1250, currency: 'US' }), /three-letter payment currency/);
 
 	store.cart.quote_result.set({
 		...cartSnapshot().quote_snapshot,
 		charge_amount: 1.5,
-		payment: { ...cartSnapshot().quote_snapshot.payment, currency: 'EUR' }
+		money: { ...cartSnapshot().quote_snapshot.money, currency: 'EUR' },
 	});
 	await assert.rejects(mount({}), /positive minor-unit payment amount/);
 
 	store.cart.quote_result.set({
 		...cartSnapshot().quote_snapshot,
 		charge_amount: 1250,
-		payment: { ...cartSnapshot().quote_snapshot.payment, currency: 'EURO' }
+		money: { ...cartSnapshot().quote_snapshot.money, currency: 'EURO' },
 	});
 	await assert.rejects(mount({}), /three-letter payment currency/);
 });
@@ -405,7 +485,7 @@ test('Stripe mounting requires an amount/currency pair and trusts the current qu
 test('paginated SDK methods return the canonical items and cursor page directly', async () => {
 	const page = {
 		items: [{ id: 'product-1', key: 'product-1', variants: [] }],
-		cursor: 'cursor-2'
+		cursor: 'cursor-2',
 	};
 	const arky = createAdmin({ baseUrl, storeId, apiToken: 'contract-token' });
 	const originalFetch = globalThis.fetch;
@@ -426,7 +506,7 @@ test('storefront money helpers distinguish an exact zero price from a missing ma
 	const storefront = createStorefront({ baseUrl, storeId, market: 'ita' });
 	const prices = [
 		{ market: 'other', amount: 999, currency: 'USD' },
-		{ market: 'ita', amount: 1234, currency: 'EUR' }
+		{ market: 'ita', amount: 1234, currency: 'EUR' },
 	];
 
 	assert.equal(storefront.utils.getPriceAmount(prices), 1234);
@@ -434,28 +514,16 @@ test('storefront money helpers distinguish an exact zero price from a missing ma
 	storefront.setMarket('missing');
 	assert.equal(storefront.utils.getPriceAmount(prices), null);
 	assert.equal(storefront.utils.formatPrice(prices), '');
-	assert.equal(
-		storefront.utils.getPriceAmount([{ market: 'missing', amount: 0, currency: 'EUR' }]),
-		0
-	);
-	assert.notEqual(
-		storefront.utils.formatPrice([{ market: 'missing', amount: 0, currency: 'EUR' }]),
-		''
-	);
-	assert.equal(
-		storefront.utils.getPriceAmount([{ market: 'missing', amount: 1.5, currency: 'EUR' }]),
-		null
-	);
-	assert.equal(
-		storefront.utils.formatPrice([{ market: 'missing', amount: 1.5, currency: 'EUR' }]),
-		''
-	);
+	assert.equal(storefront.utils.getPriceAmount([{ market: 'missing', amount: 0, currency: 'EUR' }]), 0);
+	assert.notEqual(storefront.utils.formatPrice([{ market: 'missing', amount: 0, currency: 'EUR' }]), '');
+	assert.equal(storefront.utils.getPriceAmount([{ market: 'missing', amount: 1.5, currency: 'EUR' }]), null);
+	assert.equal(storefront.utils.formatPrice([{ market: 'missing', amount: 1.5, currency: 'EUR' }]), '');
 	assert.throws(() => storefront.utils.formatMinor(1.5, 'EUR'), /safe integer/);
 
 	const store = initialize({ baseUrl, storeId, market: 'ita', locale: 'en' });
 	const provider = {
 		provider_id: 'provider-contract',
-		prices: [{ market: 'other', amount: 999, currency: 'USD' }]
+		prices: [{ market: 'other', amount: 999, currency: 'USD' }],
 	};
 	store.eshop.service.state.setKey('service', { providers: [provider] });
 	assert.equal(store.eshop.service.getServicePrice(), '');
@@ -470,26 +538,38 @@ test('cart product pricing follows the authoritative session market and server p
 			[
 				{ market: 'other', amount: 1, currency: 'USD' },
 				{ market: 'us', amount: 100, currency: 'EUR' },
-				{ market: 'us', amount: 900, currency: 'EUR', contact_list_id: 'list-one' },
-				{ market: 'us', amount: 700, currency: 'EUR', contact_list_id: 'list-two' },
-				{ market: 'us', amount: 800, currency: 'EUR', contact_list_id: 'list-three' }
+				{
+					market: 'us',
+					amount: 900,
+					currency: 'EUR',
+					contact_list_id: 'list-one',
+				},
+				{
+					market: 'us',
+					amount: 700,
+					currency: 'EUR',
+					contact_list_id: 'list-two',
+				},
+				{
+					market: 'us',
+					amount: 800,
+					currency: 'EUR',
+					contact_list_id: 'list-three',
+				},
 			],
-			'EUR'
+			'EUR',
 		);
 		assert.equal(items.length, 1);
 		assert.deepEqual(items[0].price, {
 			market: 'us',
 			amount: 700,
 			currency: 'EUR',
-			contact_list_id: 'list-two'
+			contact_list_id: 'list-two',
 		});
 	});
 
 	await t.test('one exact base price may be zero', async () => {
-		const items = await cartProductForPrices(
-			[{ market: 'us', amount: 0, currency: 'eur' }],
-			'EUR'
-		);
+		const items = await cartProductForPrices([{ market: 'us', amount: 0, currency: 'eur' }], 'EUR');
 		assert.equal(items.length, 1);
 		assert.equal(items[0].price.amount, 0);
 		assert.equal(items[0].price.currency, 'eur');
@@ -499,41 +579,41 @@ test('cart product pricing follows the authoritative session market and server p
 		{
 			name: 'missing exact market',
 			prices: [{ market: 'other', amount: 500, currency: 'EUR' }],
-			currency: 'EUR'
+			currency: 'EUR',
 		},
 		{
 			name: 'duplicate base prices',
 			prices: [
 				{ market: 'us', amount: 500, currency: 'EUR' },
-				{ market: 'us', amount: 600, currency: 'EUR' }
+				{ market: 'us', amount: 600, currency: 'EUR' },
 			],
-			currency: 'EUR'
+			currency: 'EUR',
 		},
 		{
 			name: 'missing authoritative market currency',
 			prices: [{ market: 'us', amount: 500, currency: 'EUR' }],
-			currency: null
+			currency: null,
 		},
 		{
 			name: 'currency different from the session market',
 			prices: [{ market: 'us', amount: 500, currency: 'USD' }],
-			currency: 'EUR'
+			currency: 'EUR',
 		},
 		{
 			name: 'fractional minor units',
 			prices: [{ market: 'us', amount: 1.5, currency: 'EUR' }],
-			currency: 'EUR'
+			currency: 'EUR',
 		},
 		{
 			name: 'negative minor units',
 			prices: [{ market: 'us', amount: -1, currency: 'EUR' }],
-			currency: 'EUR'
+			currency: 'EUR',
 		},
 		{
 			name: 'unsafe minor units',
 			prices: [{ market: 'us', amount: Number.MAX_SAFE_INTEGER + 1, currency: 'EUR' }],
-			currency: 'EUR'
-		}
+			currency: 'EUR',
+		},
 	]) {
 		await t.test(contract.name, async () => {
 			assert.deepEqual(await cartProductForPrices(contract.prices, contract.currency), []);
@@ -542,8 +622,6 @@ test('cart product pricing follows the authoritative session market and server p
 });
 
 test('SDK_VERSION equals the package version', async () => {
-	const packageJson = JSON.parse(
-		await readFile(new URL('../package.json', import.meta.url), 'utf8')
-	);
+	const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 	assert.equal(SDK_VERSION, packageJson.version);
 });

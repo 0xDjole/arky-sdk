@@ -3,18 +3,23 @@ import type {
   CancelSocialPublicationParams,
   ClassifySocialPublicationCommentsParams,
   ConnectSocialConnectionParams,
+  CreateSocialCommentReplyParams,
   CreateSocialPublicationParams,
   DeleteSocialConnectionParams,
   FindSocialPublicationCommentsParams,
   FindSocialPublicationsParams,
   GetSocialCapabilitiesParams,
+  GetSocialCommentReplyParams,
   GetSocialOAuthAttemptParams,
+  GetSocialPublicationEffectParams,
   GetSocialPublicationCommentThreadParams,
   GetSocialPublicationCommentsParams,
   GetSocialPublicationMetricsParams,
   GetSocialPublicationParams,
-  ReplySocialPublicationCommentParams,
+  ListSocialCommentRepliesParams,
+  ListSocialPublicationEffectsParams,
   RequestOptions,
+  RetrySocialCommentReplyParams,
   ScheduleSocialPublicationParams,
   SelectSocialDestinationParams,
   ListSocialConnectionsParams,
@@ -31,11 +36,13 @@ import type {
   SocialOAuthCallbackResponse,
   SocialProviderCapability,
   SocialConnection,
+  SocialCommentReply,
   SocialPublication,
   SocialPublicationCommentClassificationResult,
   SocialPublicationComment,
   SocialPublicationEngagementSyncResult,
   SocialPublicationCommentReplyResponse,
+  SocialPublicationEffect,
   SocialPublicationMetricSnapshot,
   SocialPublicationMutationResponse,
   SocialPublicationValidation,
@@ -213,14 +220,73 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async replyToPublicationComment(
-      params: ReplySocialPublicationCommentParams,
+    async createCommentReply(
+      params: CreateSocialCommentReplyParams,
       options?: RequestOptions,
     ): Promise<SocialPublicationCommentReplyResponse> {
-      const { store_id, publication_id, comment_id, text } = params;
+      const { store_id, publication_id, comment_id, ...payload } = params;
       return apiConfig.httpClient.post<SocialPublicationCommentReplyResponse>(
-        `/v1/stores/${storeId(store_id)}/social-publications/${publication_id}/comments/${comment_id}/reply`,
-        { text },
+        `/v1/stores/${storeId(store_id)}/social-publications/${publication_id}/comments/${comment_id}/replies`,
+        payload,
+        options,
+      );
+    },
+
+    async listCommentReplies(
+      params: ListSocialCommentRepliesParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<SocialCommentReply>> {
+      const { store_id, publication_id, comment_id, ...queryParams } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<SocialCommentReply>>(
+        `/v1/stores/${storeId(store_id)}/social-publications/${publication_id}/comments/${comment_id}/replies`,
+        {
+          ...options,
+          params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+        },
+      );
+    },
+
+    async getCommentReply(
+      params: GetSocialCommentReplyParams,
+      options?: RequestOptions,
+    ): Promise<SocialCommentReply> {
+      return apiConfig.httpClient.get<SocialCommentReply>(
+        `/v1/stores/${storeId(params.store_id)}/social-publications/${params.publication_id}/comments/${params.comment_id}/replies/${params.reply_id}`,
+        options,
+      );
+    },
+
+    async retryCommentReply(
+      params: RetrySocialCommentReplyParams,
+      options?: RequestOptions,
+    ): Promise<SocialCommentReply> {
+      return apiConfig.httpClient.post<SocialCommentReply>(
+        `/v1/stores/${storeId(params.store_id)}/social-publications/${params.publication_id}/comments/${params.comment_id}/replies/${params.reply_id}/retry`,
+        {},
+        options,
+      );
+    },
+
+    async listPublicationEffects(
+      params: ListSocialPublicationEffectsParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<SocialPublicationEffect>> {
+      const { store_id, publication_id, ...queryParams } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<SocialPublicationEffect>>(
+        `/v1/stores/${storeId(store_id)}/social-publications/${publication_id}/effects`,
+        {
+          ...options,
+          params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+        },
+      );
+    },
+
+    async getPublicationEffect(
+      params: GetSocialPublicationEffectParams,
+      options?: RequestOptions,
+    ): Promise<SocialPublicationEffect> {
+      return apiConfig.httpClient.get<SocialPublicationEffect>(
+        `/v1/stores/${storeId(params.store_id)}/social-publications/${params.publication_id}/effects/${params.effect_id}`,
         options,
       );
     },

@@ -1,6 +1,6 @@
-import type { OrderPayment, Price } from '../types';
+import type { OrderMoney, Price } from '../types';
 
-type AnyPayment = Pick<OrderPayment, 'total' | 'currency'>;
+type OrderTotal = Pick<OrderMoney, 'total' | 'currency'>;
 
 export const SUPPORTED_STORE_CURRENCIES = Object.freeze([
     'USD', 'EUR', 'GBP', 'JPY', 'CNY', 'CHF', 'AUD', 'CAD', 'HKD', 'SGD',
@@ -74,7 +74,7 @@ export function formatMinor(amountMinor: number, currency: string): string {
     return formatCurrency(convertToMajor(amountMinor, currency), currency);
 }
 
-export function formatPayment(payment: AnyPayment): string {
+export function formatPayment(payment: OrderTotal): string {
     return formatMinor(payment.total, payment.currency);
 }
 

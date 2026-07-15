@@ -41,6 +41,7 @@ export type {
   CartControllerState,
   CartControllerUpdateParams,
   ContactSession,
+  StorefrontIdentifyResult,
   AuthStateListener,
   CreateStorefrontConfig,
   TrackActionParams,

@@ -12,17 +12,33 @@ import type {
   ImportContactsPreviewResult,
   ImportContactsResult,
   Contact,
-  ContactDetail,
+  ContactSessionRecord,
+  FindContactSessionsParams,
+  RevokeContactSessionParams,
+  RevokeAllContactSessionsParams,
   CreateContactListParams,
   UpdateContactListParams,
   FindContactListsParams,
   GetContactListParams,
+  CreateContactListPlanParams,
+  UpdateContactListPlanParams,
+  FindContactListPlansParams,
+  GetContactListPlanParams,
+  RetryContactListPlanCatalogParams,
   AddContactListContactParams,
   UpdateContactListContactParams,
   RemoveContactListContactParams,
   FindContactListContactsParams,
   RefundContactListMembershipParams,
   RefundContactListMembershipResult,
+  FindContactListMembershipPaymentAttemptsParams,
+  GetContactListMembershipPaymentAttemptParams,
+  FindContactListMembershipRefundsParams,
+  GetContactListMembershipRefundParams,
+  RetryContactListMembershipRefundParams,
+  FindContactListMembershipCancellationsParams,
+  GetContactListMembershipCancellationParams,
+  RetryContactListMembershipCancellationParams,
   ImportContactListPreviewParams,
   ImportContactsIntoContactListParams,
   ImportContactsIntoContactListResult,
@@ -68,6 +84,10 @@ import type {
   CampaignEnrollmentConversationResponse,
   PaginatedResponse,
   ContactList,
+  ContactListPlan,
+  ContactListMembershipPaymentAttempt,
+  ContactListMembershipRefund,
+  ContactListMembershipCancellation,
   ContactListMember,
   Action,
   Suppression,
@@ -120,8 +140,8 @@ export const createContactApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async get(params: GetContactParams, options?: RequestOptions): Promise<ContactDetail> {
-      return apiConfig.httpClient.get<ContactDetail>(
+    async get(params: GetContactParams, options?: RequestOptions): Promise<Contact> {
+      return apiConfig.httpClient.get<Contact>(
         `/v1/stores/${params.store_id || apiConfig.storeId}/contacts/${params.id}`,
         options
       );
@@ -203,19 +223,39 @@ export const createContactApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async revokeToken(params: { id: string; token_id: string; store_id?: string }, options?: RequestOptions): Promise<{ deleted: boolean }> {
+    async findSessions(
+      params: FindContactSessionsParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<ContactSessionRecord>> {
       const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${store_id}/contacts/${params.id}/sessions/${params.token_id}`,
-        options
+      const queryParams: Record<string, unknown> = {};
+      if (params.limit !== undefined) queryParams.limit = params.limit;
+      if (params.cursor) queryParams.cursor = params.cursor;
+      return apiConfig.httpClient.get<PaginatedResponse<ContactSessionRecord>>(
+        `/v1/stores/${store_id}/contacts/${params.contact_id}/sessions`,
+        { ...options, params: queryParams },
       );
     },
 
-    async revokeAllTokens(params: { id: string; store_id?: string }, options?: RequestOptions): Promise<{ deleted: boolean }> {
+    async revokeSession(
+      params: RevokeContactSessionParams,
+      options?: RequestOptions,
+    ): Promise<{ success: boolean }> {
       const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${store_id}/contacts/${params.id}/sessions`,
-        options
+      return apiConfig.httpClient.delete<{ success: boolean }>(
+        `/v1/stores/${store_id}/contacts/${params.contact_id}/sessions/${params.session_id}`,
+        options,
+      );
+    },
+
+    async revokeAllSessions(
+      params: RevokeAllContactSessionsParams,
+      options?: RequestOptions,
+    ): Promise<{ success: boolean }> {
+      const store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.delete<{ success: boolean }>(
+        `/v1/stores/${store_id}/contacts/${params.contact_id}/sessions`,
+        options,
       );
     },
 
@@ -255,6 +295,69 @@ export const createContactApi = (apiConfig: ApiConfig) => {
           `/v1/stores/${target_store_id}/contact-lists`,
           { ...options, params: queryParams },
         );
+      },
+
+      plans: {
+        async create(
+          params: CreateContactListPlanParams,
+          options?: RequestOptions,
+        ): Promise<ContactListPlan> {
+          const { store_id, contact_list_id, ...payload } = params;
+          const target_store_id = store_id || apiConfig.storeId;
+          return apiConfig.httpClient.post<ContactListPlan>(
+            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/plans`,
+            payload,
+            options,
+          );
+        },
+
+        async update(
+          params: UpdateContactListPlanParams,
+          options?: RequestOptions,
+        ): Promise<ContactListPlan> {
+          const { id, store_id, contact_list_id, ...payload } = params;
+          const target_store_id = store_id || apiConfig.storeId;
+          return apiConfig.httpClient.put<ContactListPlan>(
+            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/plans/${id}`,
+            payload,
+            options,
+          );
+        },
+
+        async get(
+          params: GetContactListPlanParams,
+          options?: RequestOptions,
+        ): Promise<ContactListPlan> {
+          const target_store_id = params.store_id || apiConfig.storeId;
+          return apiConfig.httpClient.get<ContactListPlan>(
+            `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/plans/${params.id}`,
+            options,
+          );
+        },
+
+        async find(
+          params: FindContactListPlansParams,
+          options?: RequestOptions,
+        ): Promise<PaginatedResponse<ContactListPlan>> {
+          const { store_id, contact_list_id, ...queryParams } = params;
+          const target_store_id = store_id || apiConfig.storeId;
+          return apiConfig.httpClient.get<PaginatedResponse<ContactListPlan>>(
+            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/plans`,
+            { ...options, params: queryParams },
+          );
+        },
+
+        async retryCatalog(
+          params: RetryContactListPlanCatalogParams,
+          options?: RequestOptions,
+        ): Promise<ContactListPlan> {
+          const target_store_id = params.store_id || apiConfig.storeId;
+          return apiConfig.httpClient.post<ContactListPlan>(
+            `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/plans/${params.plan_id}/catalog/retry`,
+            {},
+            options,
+          );
+        },
       },
 
       async importContacts(
@@ -340,12 +443,111 @@ export const createContactApi = (apiConfig: ApiConfig) => {
             payload,
             options,
           );
-          if (response.refund_id !== params.operation_id) {
+          if (response.refund_id !== params.refund_id) {
             throw new Error(
-              "Membership refund response did not match the requested operation_id",
+              "Membership refund response did not match the requested refund_id",
             );
           }
           return response;
+        },
+
+        paymentAttempts: {
+          async find(
+            params: FindContactListMembershipPaymentAttemptsParams,
+            options?: RequestOptions,
+          ): Promise<PaginatedResponse<ContactListMembershipPaymentAttempt>> {
+            const { store_id, contact_list_id, membership_id, ...queryParams } = params;
+            const target_store_id = store_id || apiConfig.storeId;
+            return apiConfig.httpClient.get<PaginatedResponse<ContactListMembershipPaymentAttempt>>(
+              `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/memberships/${membership_id}/payment-attempts`,
+              { ...options, params: queryParams },
+            );
+          },
+
+          async get(
+            params: GetContactListMembershipPaymentAttemptParams,
+            options?: RequestOptions,
+          ): Promise<ContactListMembershipPaymentAttempt> {
+            const target_store_id = params.store_id || apiConfig.storeId;
+            return apiConfig.httpClient.get<ContactListMembershipPaymentAttempt>(
+              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/memberships/${params.membership_id}/payment-attempts/${params.id}`,
+              options,
+            );
+          },
+        },
+
+        refunds: {
+          async find(
+            params: FindContactListMembershipRefundsParams,
+            options?: RequestOptions,
+          ): Promise<PaginatedResponse<ContactListMembershipRefund>> {
+            const { store_id, contact_list_id, membership_id, ...queryParams } = params;
+            const target_store_id = store_id || apiConfig.storeId;
+            return apiConfig.httpClient.get<PaginatedResponse<ContactListMembershipRefund>>(
+              `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/memberships/${membership_id}/refunds`,
+              { ...options, params: queryParams },
+            );
+          },
+
+          async get(
+            params: GetContactListMembershipRefundParams,
+            options?: RequestOptions,
+          ): Promise<ContactListMembershipRefund> {
+            const target_store_id = params.store_id || apiConfig.storeId;
+            return apiConfig.httpClient.get<ContactListMembershipRefund>(
+              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/memberships/${params.membership_id}/refunds/${params.id}`,
+              options,
+            );
+          },
+
+          async retry(
+            params: RetryContactListMembershipRefundParams,
+            options?: RequestOptions,
+          ): Promise<ContactListMembershipRefund> {
+            const target_store_id = params.store_id || apiConfig.storeId;
+            return apiConfig.httpClient.post<ContactListMembershipRefund>(
+              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/memberships/${params.membership_id}/refunds/${params.id}/retry`,
+              {},
+              options,
+            );
+          },
+        },
+
+        cancellations: {
+          async find(
+            params: FindContactListMembershipCancellationsParams,
+            options?: RequestOptions,
+          ): Promise<PaginatedResponse<ContactListMembershipCancellation>> {
+            const { store_id, contact_list_id, membership_id, ...queryParams } = params;
+            const target_store_id = store_id || apiConfig.storeId;
+            return apiConfig.httpClient.get<PaginatedResponse<ContactListMembershipCancellation>>(
+              `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/memberships/${membership_id}/cancellations`,
+              { ...options, params: queryParams },
+            );
+          },
+
+          async get(
+            params: GetContactListMembershipCancellationParams,
+            options?: RequestOptions,
+          ): Promise<ContactListMembershipCancellation> {
+            const target_store_id = params.store_id || apiConfig.storeId;
+            return apiConfig.httpClient.get<ContactListMembershipCancellation>(
+              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/memberships/${params.membership_id}/cancellations/${params.id}`,
+              options,
+            );
+          },
+
+          async retry(
+            params: RetryContactListMembershipCancellationParams,
+            options?: RequestOptions,
+          ): Promise<ContactListMembershipCancellation> {
+            const target_store_id = params.store_id || apiConfig.storeId;
+            return apiConfig.httpClient.post<ContactListMembershipCancellation>(
+              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/memberships/${params.membership_id}/cancellations/${params.id}/retry`,
+              {},
+              options,
+            );
+          },
         },
       },
     },

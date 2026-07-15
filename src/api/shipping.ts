@@ -1,55 +1,193 @@
 import type { ApiConfig } from "../index";
 import type {
+  CreateShipmentParams,
+  FindFulfillmentOrdersParams,
+  FindShipmentsParams,
+  FindShippingLabelAdjustmentsParams,
+  FindShippingLabelRefundsParams,
+  FindShippingLabelSettlementsParams,
+  GetShipmentParams,
+  GetFulfillmentOrderParams,
+  GetShippingLabelRefundParams,
   GetShippingRatesParams,
-  RefundShippingLabelParams,
-  ShipParams,
   RequestOptions,
+  RequestShippingLabelRefundParams,
+  RetryShipmentParams,
+  RetryShippingLabelRefundParams,
+  RetryShippingLabelSettlementParams,
 } from "../types/api";
-import type { ShippingLabelRefund, ShippingRate, ShipResult } from "../types";
+import type {
+  CreateShipmentResponse,
+  FulfillmentOrder,
+  PaginatedResponse,
+  Shipment,
+  ShippingLabelAdjustment,
+  ShippingLabelRefund,
+  ShippingLabelSettlement,
+  ShippingRate,
+} from "../types";
 
 export const createShippingApi = (apiConfig: ApiConfig) => {
+  const storeId = (value?: string) => value || apiConfig.storeId;
+
   return {
-    
-    async getRates(
-      params: GetShippingRatesParams,
-      options?: RequestOptions
-    ): Promise<{ rates: ShippingRate[] }> {
-      const { order_id, ...payload } = params;
-      return apiConfig.httpClient.post<{ rates: ShippingRate[] }>(
-        `/v1/stores/${apiConfig.storeId}/orders/${order_id}/shipping/rates`,
-        payload,
-        options
+    async findFulfillmentOrders(
+      params: FindFulfillmentOrdersParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<FulfillmentOrder>> {
+      const { store_id, order_id, ...queryParams } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<FulfillmentOrder>>(
+        `/v1/stores/${storeId(store_id)}/orders/${order_id}/fulfillment-orders`,
+        { ...options, params: queryParams },
       );
     },
 
-
-    async ship(
-      params: ShipParams,
-      options?: RequestOptions
-    ): Promise<ShipResult> {
-      const { order_id, ...payload } = params;
-      const response = await apiConfig.httpClient.post<ShipResult>(
-        `/v1/stores/${apiConfig.storeId}/orders/${order_id}/ship`,
-        payload,
-        options
+    async getFulfillmentOrder(
+      params: GetFulfillmentOrderParams,
+      options?: RequestOptions,
+    ): Promise<FulfillmentOrder> {
+      return apiConfig.httpClient.get<FulfillmentOrder>(
+        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/fulfillment-orders/${params.fulfillment_order_id}`,
+        options,
       );
-      if (response.operation_id !== params.operation_id) {
-        throw new Error(
-          "Shipping response did not match the requested operation_id"
-        );
+    },
+
+    async getRates(
+      params: GetShippingRatesParams,
+      options?: RequestOptions,
+    ): Promise<ShippingRate[]> {
+      const { store_id, order_id, ...payload } = params;
+      return apiConfig.httpClient.post<ShippingRate[]>(
+        `/v1/stores/${storeId(store_id)}/orders/${order_id}/shipping/rates`,
+        payload,
+        options,
+      );
+    },
+
+    async findShipments(
+      params: FindShipmentsParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<Shipment>> {
+      const { store_id, order_id, ...queryParams } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<Shipment>>(
+        `/v1/stores/${storeId(store_id)}/orders/${order_id}/shipments`,
+        { ...options, params: queryParams },
+      );
+    },
+
+    async getShipment(
+      params: GetShipmentParams,
+      options?: RequestOptions,
+    ): Promise<Shipment> {
+      return apiConfig.httpClient.get<Shipment>(
+        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}`,
+        options,
+      );
+    },
+
+    async createShipment(
+      params: CreateShipmentParams,
+      options?: RequestOptions,
+    ): Promise<CreateShipmentResponse> {
+      const { store_id, order_id, ...payload } = params;
+      const response = await apiConfig.httpClient.post<CreateShipmentResponse>(
+        `/v1/stores/${storeId(store_id)}/orders/${order_id}/shipments`,
+        payload,
+        options,
+      );
+      if (
+        response.shipment_id !== params.shipment_id ||
+        response.shipment.id !== params.shipment_id
+      ) {
+        throw new Error("Shipping response did not match the requested shipment_id");
       }
       return response;
     },
 
-    async refundLabel(
-      params: RefundShippingLabelParams,
-      options?: RequestOptions
-    ): Promise<{ refund: ShippingLabelRefund }> {
-      const { order_id, shipment_id } = params;
-      return apiConfig.httpClient.post<{ refund: ShippingLabelRefund }>(
-        `/v1/stores/${apiConfig.storeId}/orders/${order_id}/shipments/${shipment_id}/label/refund`,
+    async retryShipment(
+      params: RetryShipmentParams,
+      options?: RequestOptions,
+    ): Promise<Shipment> {
+      return apiConfig.httpClient.post<Shipment>(
+        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/retry`,
         {},
-        options
+        options,
+      );
+    },
+
+    async requestRefund(
+      params: RequestShippingLabelRefundParams,
+      options?: RequestOptions,
+    ): Promise<ShippingLabelRefund> {
+      return apiConfig.httpClient.post<ShippingLabelRefund>(
+        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/refunds`,
+        {},
+        options,
+      );
+    },
+
+    async findRefunds(
+      params: FindShippingLabelRefundsParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<ShippingLabelRefund>> {
+      const { store_id, order_id, shipment_id, ...queryParams } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<ShippingLabelRefund>>(
+        `/v1/stores/${storeId(store_id)}/orders/${order_id}/shipments/${shipment_id}/refunds`,
+        { ...options, params: queryParams },
+      );
+    },
+
+    async getRefund(
+      params: GetShippingLabelRefundParams,
+      options?: RequestOptions,
+    ): Promise<ShippingLabelRefund> {
+      return apiConfig.httpClient.get<ShippingLabelRefund>(
+        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/refunds/${params.refund_id}`,
+        options,
+      );
+    },
+
+    async retryRefund(
+      params: RetryShippingLabelRefundParams,
+      options?: RequestOptions,
+    ): Promise<ShippingLabelRefund> {
+      return apiConfig.httpClient.post<ShippingLabelRefund>(
+        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/refunds/${params.refund_id}/retry`,
+        {},
+        options,
+      );
+    },
+
+    async findAdjustments(
+      params: FindShippingLabelAdjustmentsParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<ShippingLabelAdjustment>> {
+      const { store_id, order_id, shipment_id, ...queryParams } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<ShippingLabelAdjustment>>(
+        `/v1/stores/${storeId(store_id)}/orders/${order_id}/shipments/${shipment_id}/adjustments`,
+        { ...options, params: queryParams },
+      );
+    },
+
+    async findSettlements(
+      params: FindShippingLabelSettlementsParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<ShippingLabelSettlement>> {
+      const { store_id, order_id, shipment_id, ...queryParams } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<ShippingLabelSettlement>>(
+        `/v1/stores/${storeId(store_id)}/orders/${order_id}/shipments/${shipment_id}/settlements`,
+        { ...options, params: queryParams },
+      );
+    },
+
+    async retrySettlement(
+      params: RetryShippingLabelSettlementParams,
+      options?: RequestOptions,
+    ): Promise<ShippingLabelSettlement> {
+      return apiConfig.httpClient.post<ShippingLabelSettlement>(
+        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/settlements/${params.settlement_id}/retry`,
+        {},
+        options,
       );
     },
   };

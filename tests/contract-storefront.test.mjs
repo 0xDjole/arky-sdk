@@ -1,9 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import {
-  createStripeConfirmationTokenController,
-  initialize,
-} from "../dist/storefront.js";
+import { createStripeConfirmationTokenController, initialize } from "../dist/storefront.js";
 
 const store = initialize({
   baseUrl: "http://127.0.0.1:1",
@@ -39,12 +36,9 @@ assert.equal(typeof store.eshop.product.loadDetail, "function");
 assert.equal(typeof store.eshop.service.listProviders, "function");
 assert.equal(typeof store.eshop.service.initialize, "function");
 assert.equal(typeof store.eshop.service.select, "function");
-const removedServiceModuleName = "service" + "Order";
-assert.equal(
-  removedServiceModuleName in store.eshop,
-  false,
-  "scheduled service controls belong under eshop.service",
-);
+assert.equal(typeof store.eshop.order.findDigitalAccess, "function");
+assert.equal(typeof store.eshop.order.getDigitalAccess, "function");
+assert.equal(typeof store.eshop.order.downloadDigitalAccess, "function");
 assert.equal(store.eshop.cart.product_items.get().length, 0);
 assert.equal(store.eshop.service.state.get().cart.length, 0);
 
@@ -81,9 +75,7 @@ const accountController = await createStripeConfirmationTokenController(
     return fakeStripe;
   },
 );
-assert.deepEqual(stripeLoadCalls, [
-  ["pk_test_contract", { stripeAccount: "acct_contract" }],
-]);
+assert.deepEqual(stripeLoadCalls, [["pk_test_contract", { stripeAccount: "acct_contract" }]]);
 accountController.destroy();
 
 const fetchCalls = [];
@@ -103,8 +95,7 @@ globalThis.fetch = async (url, init = {}) => {
 
 try {
   const management = await store.crm.contactList.manage("manage-token");
-  const unsubscribe =
-    await store.crm.contactList.unsubscribe("unsubscribe-token");
+  const unsubscribe = await store.crm.contactList.unsubscribe("unsubscribe-token");
   const confirm = await store.crm.contactList.confirm("confirm-token");
   assert.deepEqual(management, { success: true });
   assert.deepEqual(unsubscribe, { success: true });
@@ -114,26 +105,14 @@ try {
 }
 
 assert.equal(fetchCalls[0].method, "POST");
-assert.equal(
-  fetchCalls[0].url,
-  "http://127.0.0.1:1/v1/storefront/contract-store/contact-lists/manage",
-);
+assert.equal(fetchCalls[0].url, "http://127.0.0.1:1/v1/storefront/contract-store/contact-lists/manage");
 assert.deepEqual(JSON.parse(fetchCalls[0].body), { token: "manage-token" });
 assert.equal(fetchCalls[1].method, "POST");
-assert.equal(
-  fetchCalls[1].url,
-  "http://127.0.0.1:1/v1/storefront/contract-store/contact-lists/unsubscribe?token=unsubscribe-token",
-);
+assert.equal(fetchCalls[1].url, "http://127.0.0.1:1/v1/storefront/contract-store/contact-lists/unsubscribe?token=unsubscribe-token");
 assert.equal(fetchCalls[1].body, "List-Unsubscribe=One-Click");
-assert.equal(
-  fetchCalls[1].headers["Content-Type"],
-  "application/x-www-form-urlencoded",
-);
+assert.equal(fetchCalls[1].headers["Content-Type"], "application/x-www-form-urlencoded");
 assert.equal(fetchCalls[2].method, "POST");
-assert.equal(
-  fetchCalls[2].url,
-  "http://127.0.0.1:1/v1/storefront/contract-store/contact-lists/confirm",
-);
+assert.equal(fetchCalls[2].url, "http://127.0.0.1:1/v1/storefront/contract-store/contact-lists/confirm");
 assert.deepEqual(JSON.parse(fetchCalls[2].body), { token: "confirm-token" });
 
 const checkoutFetchCalls = [];
@@ -172,16 +151,20 @@ const quoteSnapshot = {
   total: 1000,
   shipping_method: null,
   payment_method: null,
-  payment_methods: [
-    { id: "pm_card", key: "credit_card", type: "credit_card", name: "Card" },
-  ],
+  payment_methods: [{ id: "pm_card", key: "credit_card", type: "credit_card", name: "Card" }],
   promo_code: null,
-  payment: {
-    id: "payment_quote",
-    status: "pending",
-    total: 1000,
+  money: {
     currency: "usd",
+    market: "us",
+    subtotal: 1000,
+    shipping: 0,
+    discount: 0,
+    total: 1000,
+    tax: null,
+    promo_code: null,
+    zone_id: null,
     payment_method_key: "credit_card",
+    shipping_method_id: null,
     method_type: "credit_card",
   },
   charge_amount: 1000,
@@ -219,9 +202,7 @@ globalThis.fetch = async (url, init = {}) => {
     body: init.body,
   });
   if (String(url).endsWith("/actions/track")) {
-    throw new Error(
-      "commerce cart helpers must not call generic action tracking",
-    );
+    throw new Error("commerce cart helpers must not call generic action tracking");
   }
   if (String(url).endsWith("/carts/cart_contract/items")) {
     return new Response(JSON.stringify(cartSnapshot), {
@@ -239,11 +220,7 @@ globalThis.fetch = async (url, init = {}) => {
 };
 
 try {
-  await store.eshop.cart.addProduct(
-    { id: "product_contract" },
-    { id: "variant_contract" },
-    1,
-  );
+  await store.eshop.cart.addProduct({ id: "product_contract" }, { id: "variant_contract" }, 1);
   store.eshop.cart.product_items.set([
     {
       id: "line_contract",
@@ -263,9 +240,7 @@ try {
   globalThis.fetch = originalFetch;
 }
 assert.deepEqual(
-  checkoutFetchCalls
-    .filter((call) => call.url.endsWith("/actions/track"))
-    .map((call) => call.url),
+  checkoutFetchCalls.filter((call) => call.url.endsWith("/actions/track")).map((call) => call.url),
   [],
   "cart mutations should rely on backend commerce actions instead of generic action tracking",
 );
@@ -317,11 +292,20 @@ globalThis.fetch = async (url, init = {}) => {
         },
         payment: {
           id: "payment_contract",
-          status: "pending",
-          total: 1000,
+          store_id: "contract-store",
+          order_id: "order_contract",
+          status: { status: "pending", at: 1 },
+          amount: 1000,
           currency: "usd",
-          payment_method_key: "credit_card",
+          paid: 0,
+          authorized_amount: 0,
+          captured_amount: 0,
+          refunded_amount: 0,
+          voided_amount: 0,
           method_type: "credit_card",
+          latest_transaction_id: null,
+          created_at: 1,
+          updated_at: 1,
         },
       }),
       {
@@ -351,15 +335,11 @@ assert.deepEqual(paymentCalls[0], [
 ]);
 assert.deepEqual(paymentCalls[1], ["next_action", "pi_secret_contract"]);
 assert.equal(
-  checkoutFetchCalls.some((call) =>
-    call.url.endsWith("/carts/cart_contract/checkout"),
-  ),
+  checkoutFetchCalls.some((call) => call.url.endsWith("/carts/cart_contract/checkout")),
   true,
 );
 assert.deepEqual(
-  checkoutFetchCalls
-    .filter((call) => call.url.endsWith("/actions/track"))
-    .map((call) => call.url),
+  checkoutFetchCalls.filter((call) => call.url.endsWith("/actions/track")).map((call) => call.url),
   [],
   "checkout should rely on backend commerce actions instead of generic action tracking",
 );

@@ -38,7 +38,8 @@
     "README.md"
   ],
   "scripts": {
-    "prebuild": "node scripts/check-no-any.mjs && node scripts/check-public-surface.mjs",
+    "check:public-surface": "node scripts/check-public-surface.mjs",
+    "prebuild": "node scripts/check-no-any.mjs && npm run check:public-surface",
     "build": "tsup",
     "test": "npm run build && node --test tests/*.test.mjs",
     "dev": "tsup --watch",

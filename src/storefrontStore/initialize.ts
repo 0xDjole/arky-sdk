@@ -1,5 +1,5 @@
 import { atom, computed, map } from "nanostores";
-import { createStorefront, type ContactSession } from "../index";
+import { createStorefront, type ContactSession, type StorefrontIdentifyResult } from "../index";
 import type {
   Address,
   Block,
@@ -22,7 +22,6 @@ import type {
   Provider,
   Service,
   ServiceProvider,
-  Store,
   ZoneLocation,
 } from "../types";
 import type {
@@ -45,12 +44,7 @@ import type {
   SlotRange,
   SubmitFormParams,
 } from "../types/api";
-import type {
-  ExperimentUseResponse,
-  StorefrontAction,
-  TrackActionParams,
-  UseExperimentParams,
-} from "../api/storefront";
+import type { ExperimentUseResponse, StorefrontAction, TrackActionParams, UseExperimentParams } from "../api/storefront";
 import type {
   ArkyCalendarDay,
   ArkyCmsEntryParams,
@@ -66,10 +60,7 @@ import type {
   ArkyStoreConfig,
   ArkyStripePaymentMountOptions,
 } from "./types";
-import {
-  createStripeConfirmationTokenController,
-  type StripeConfirmationTokenController,
-} from "../payments/stripe";
+import { createStripeConfirmationTokenController, type StripeConfirmationTokenController } from "../payments/stripe";
 import {
   availableStock,
   createId,
@@ -105,10 +96,13 @@ export function initialize(config: ArkyStoreConfig) {
   const currency = computed(market, (value) => value?.currency || null);
   const allowed_payment_methods = computed(market, (value) => value?.payment_methods || []);
   const payment_config = computed(session, (value) => {
-    const store = value?.store as Store & { payment?: unknown };
+    const store = value?.store;
     const methods = value?.market?.payment_methods || [];
     const hasCreditCard = methods.some((method: PaymentMethod) => method.type === "credit_card");
-    return { provider: store?.payment || null, enabled: hasCreditCard && !!store?.payment };
+    return {
+      provider: store?.payment || null,
+      enabled: hasCreditCard && !!store?.payment,
+    };
   });
 
   const cart = atom<Cart | null>(null);
@@ -150,12 +144,9 @@ export function initialize(config: ArkyStoreConfig) {
       items.reduce((total, item) => total + (item.quantity || 0), 0),
     ),
   );
-  const service_item_count = computed([cart, service_items], (cartValue, items) =>
-    Math.max(rawServiceItemCount(cartValue), items.length),
-  );
-  const item_count = computed(
-    [cart, product_item_count, service_item_count],
-    (cartValue, products, services) => Math.max(cartValue?.item_count || 0, products + services),
+  const service_item_count = computed([cart, service_items], (cartValue, items) => Math.max(rawServiceItemCount(cartValue), items.length));
+  const item_count = computed([cart, product_item_count, service_item_count], (cartValue, products, services) =>
+    Math.max(cartValue?.item_count || 0, products + services),
   );
   const snapshot = computed([cart, product_items, service_items, item_count], (cartValue, products, services, count) => ({
     cart: cartValue,
@@ -214,40 +205,24 @@ export function initialize(config: ArkyStoreConfig) {
   }
 
   function currentStripePublishableKey(): string | null {
-    const provider = payment_config.get()?.provider as
-      | { publishable_key?: string | null }
-      | null
-      | undefined;
+    const provider = payment_config.get()?.provider;
     return provider?.publishable_key || null;
   }
 
   function currentStripeConnectedAccountId(): string | null {
-    const provider = payment_config.get()?.provider as
-      | { connected_account_id?: string | null }
-      | null
-      | undefined;
+    const provider = payment_config.get()?.provider;
     return provider?.connected_account_id || null;
   }
 
   function currentPaymentAmount(): number {
     return Math.max(
       0,
-      firstFiniteNumber(
-        quote.get()?.charge_amount,
-        quote.get()?.payment?.total,
-        cart.get()?.quote_snapshot?.charge_amount,
-        cart.get()?.quote_snapshot?.payment?.total,
-        cart.get()?.quote_snapshot?.total,
-      ) ?? 0,
+      firstFiniteNumber(quote.get()?.charge_amount, cart.get()?.quote_snapshot?.charge_amount, cart.get()?.quote_snapshot?.total) ?? 0,
     );
   }
 
   function currentPaymentCurrency(): string | null {
-    return (
-      quote.get()?.payment?.currency?.trim() ||
-      cart.get()?.quote_snapshot?.payment?.currency?.trim() ||
-      null
-    );
+    return quote.get()?.money?.currency?.trim() || cart.get()?.quote_snapshot?.money?.currency?.trim() || null;
   }
 
   function setPaymentController(controller: StripeConfirmationTokenController | null): StripeConfirmationTokenController | null {
@@ -280,16 +255,13 @@ export function initialize(config: ArkyStoreConfig) {
     if (!Number.isSafeInteger(amount) || amount <= 0) {
       throw new Error("A positive minor-unit payment amount is required to mount card payment");
     }
-    const paymentCurrency = hasExplicitCurrency
-      ? options.currency!.trim()
-      : currentPaymentCurrency();
+    const paymentCurrency = hasExplicitCurrency ? options.currency!.trim() : currentPaymentCurrency();
     if (!paymentCurrency || !/^[a-z]{3}$/i.test(paymentCurrency)) {
       throw new Error("An explicit three-letter payment currency is required to mount card payment");
     }
     const controller = await createStripeConfirmationTokenController({
       publishableKey,
-      connectedAccountId:
-        options.connectedAccountId || currentStripeConnectedAccountId() || undefined,
+      connectedAccountId: options.connectedAccountId || currentStripeConnectedAccountId() || undefined,
       amount,
       currency: paymentCurrency,
       ...(options.appearance ? { appearance: options.appearance } : {}),
@@ -319,10 +291,17 @@ export function initialize(config: ArkyStoreConfig) {
     return sessionRequest;
   }
 
-  async function identify(params: { email?: string; verify?: boolean; market?: string } = {}) {
+  async function identify(params: { email?: string; verify?: boolean; market?: string } = {}): Promise<StorefrontIdentifyResult> {
     if (params.market) setMarket(params.market);
-    const result = await client.identify({ ...params, market: params.market || currentMarketKey() });
-    session.set(result);
+    const result = await client.identify({
+      ...params,
+      market: params.market || currentMarketKey(),
+    });
+    session.set({
+      contact: result.contact,
+      store: result.store,
+      market: result.market,
+    });
     return result;
   }
 
@@ -354,7 +333,9 @@ export function initialize(config: ArkyStoreConfig) {
     const refreshRevision = cartWriteRevision;
     cartRequest = (async () => {
       await ensureSession();
-      const response = await client.cart.refresh({ market: currentMarketKey() });
+      const response = await client.cart.refresh({
+        market: currentMarketKey(),
+      });
       await applyCartResponse(response, { ifRevision: refreshRevision });
       return response;
     })();
@@ -383,11 +364,7 @@ export function initialize(config: ArkyStoreConfig) {
         product_slug: entitySlug(product, currentLocale()),
         variant_attributes: variant.attributes as EshopCartItem["variant_attributes"],
         requires_shipping: variant.requires_shipping !== false,
-        price: priceForMarket(
-          variant.prices,
-          currentMarketKey(),
-          market.get()?.currency,
-        ),
+        price: priceForMarket(variant.prices, currentMarketKey(), market.get()?.currency),
         quantity: item.quantity,
         added_at: source.created_at ? source.created_at * 1000 : Date.now(),
         max_stock: availableStock(client, variant),
@@ -436,13 +413,9 @@ export function initialize(config: ArkyStoreConfig) {
 
     const items = response.items || [];
     const products = await Promise.all(
-      items
-        .filter((item): item is ProductCheckoutItemInput => item.type === "product")
-        .map((item) => buildProductCartItem(item, response)),
+      items.filter((item): item is ProductCheckoutItemInput => item.type === "product").map((item) => buildProductCartItem(item, response)),
     );
-    const services = await buildServiceCartItems(
-      items.filter((item): item is ServiceCheckoutItemInput => item.type === "service"),
-    );
+    const services = await buildServiceCartItems(items.filter((item): item is ServiceCheckoutItemInput => item.type === "service"));
     product_items.set(products.filter((item): item is EshopCartItem => item !== null));
     service_items.set(services);
     return response;
@@ -459,7 +432,7 @@ export function initialize(config: ArkyStoreConfig) {
     cart_status.setKey("syncing", true);
     cart_status.setKey("error", null);
     try {
-      const current = cart.get() || await ensureCart();
+      const current = cart.get() || (await ensureCart());
       const response = await client.cart.update({
         id: current.id,
         market: currentMarketKey(),
@@ -469,10 +442,7 @@ export function initialize(config: ArkyStoreConfig) {
         forms: normalizeForms(input.forms),
         promo_code: input.promo_code === undefined ? promo_code.get() || undefined : input.promo_code || undefined,
         payment_method_key: input.payment_method_key || undefined,
-        shipping_method_id:
-          input.shipping_method_id ||
-          cart_status.get().selected_shipping_method_id ||
-          undefined,
+        shipping_method_id: input.shipping_method_id || cart_status.get().selected_shipping_method_id || undefined,
       });
       if (input.promo_code !== undefined) promo_code.set(input.promo_code);
       if (input.shipping_method_id !== undefined) {
@@ -492,7 +462,7 @@ export function initialize(config: ArkyStoreConfig) {
     cart_status.setKey("error", null);
     const writeRevision = nextCartWriteRevision();
     try {
-      const current = cart.get() || await ensureCart();
+      const current = cart.get() || (await ensureCart());
       const response = await client.cart.addItem({
         id: current.id,
         item: {
@@ -598,49 +568,27 @@ export function initialize(config: ArkyStoreConfig) {
     try {
       const current = await syncCart(input);
       const quoteValue = quote.get();
-      const paymentMethodKey =
-        input.payment_method_key ||
-        current.payment_method_key ||
-        quoteValue?.payment?.payment_method_key ||
-        undefined;
-      let chargeAmount = firstFiniteNumber(
-        quoteValue?.charge_amount,
-        quoteValue?.payment?.total,
-        current.quote_snapshot?.charge_amount,
-        current.quote_snapshot?.payment?.total,
-      );
+      const paymentMethodKey = input.payment_method_key || current.payment_method_key || quoteValue?.money?.payment_method_key || undefined;
+      let chargeAmount = firstFiniteNumber(quoteValue?.charge_amount, current.quote_snapshot?.charge_amount);
       if (paymentMethodKey === "credit_card" && chargeAmount === undefined) {
         const latestQuote = await client.cart.quote({ id: current.id });
         quote.set(latestQuote);
-        chargeAmount = firstFiniteNumber(
-          latestQuote.charge_amount,
-          latestQuote.payment?.total,
-          latestQuote.total,
-        );
+        chargeAmount = firstFiniteNumber(latestQuote.charge_amount, latestQuote.total);
       }
       if (
         paymentMethodKey === "credit_card" &&
-        (typeof chargeAmount !== "number" ||
-          !Number.isSafeInteger(chargeAmount) ||
-          chargeAmount < 0)
+        (typeof chargeAmount !== "number" || !Number.isSafeInteger(chargeAmount) || chargeAmount < 0)
       ) {
-        throw new Error(
-          "Card checkout requires a non-negative integer charge amount in minor units",
-        );
+        throw new Error("Card checkout requires a non-negative integer charge amount in minor units");
       }
-      const needsConfirmationToken =
-        paymentMethodKey === "credit_card" &&
-        typeof chargeAmount === "number" &&
-        chargeAmount > 0;
+      const needsConfirmationToken = paymentMethodKey === "credit_card" && typeof chargeAmount === "number" && chargeAmount > 0;
       let confirmationTokenId: string | undefined;
       let returnUrl = input.return_url;
       const paymentController = input.payment ?? payment_controller.get();
 
       if (needsConfirmationToken) {
         if (!paymentController) throw new Error("Payment controller is required for card checkout");
-        returnUrl =
-          returnUrl ||
-          (typeof window !== "undefined" ? window.location.href : undefined);
+        returnUrl = returnUrl || (typeof window !== "undefined" ? window.location.href : undefined);
         const token = await paymentController.createConfirmationToken({
           return_url: returnUrl,
           billing_details: input.billing_details,
@@ -670,7 +618,7 @@ export function initialize(config: ArkyStoreConfig) {
         service_items: input.service_items || service_items.get(),
         shipping_address: input.shipping_address || null,
         billing_address: input.billing_address || null,
-        total: response.payment.total,
+        total: response.payment.amount,
         currency: response.payment.currency,
         payment_method_key: paymentMethodKey || null,
         created_at: Date.now(),
@@ -829,21 +777,22 @@ export function initialize(config: ArkyStoreConfig) {
   const service_can_proceed = computed(service_state, (state) => {
     const step = serviceCurrentStepName();
     if (step === "datetime") {
-      return state.isMultiDay
-        ? !!(state.startDate && state.endDate && state.selectedSlot)
-        : !!(state.selectedDate && state.selectedSlot);
+      return state.isMultiDay ? !!(state.startDate && state.endDate && state.selectedSlot) : !!(state.selectedDate && state.selectedSlot);
     }
     if (step === "review") return true;
     return false;
   });
   const service_month_year = computed(service_state, (state) =>
-    state.currentMonth.toLocaleString(undefined, { month: "long", year: "numeric" }),
+    state.currentMonth.toLocaleString(undefined, {
+      month: "long",
+      year: "numeric",
+    }),
   );
   const service_chain_start = computed(service_state, (state) => {
     if (!state.cart.length) return null;
     return Math.max(...state.cart.map((slot) => slot.to));
   });
-  const service_total_steps = computed(service_state, (state) => state.service ? 2 : 0);
+  const service_total_steps = computed(service_state, (state) => (state.service ? 2 : 0));
   const service_steps = computed(service_state, () => ({
     1: { name: "datetime" },
     2: { name: "review" },
@@ -857,7 +806,10 @@ export function initialize(config: ArkyStoreConfig) {
 
   function formatServiceDateDisplay(value: string | null): string {
     if (!value) return "";
-    return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    return new Date(value).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
   }
 
   function serviceProviderId(provider: Provider | ServiceProvider): string {
@@ -915,12 +867,12 @@ export function initialize(config: ArkyStoreConfig) {
         const isMultiDay = Array.isArray(blockValue) ? blockValue[0] === true : blockValue === true;
         const [fullService, serviceProviders] = await Promise.all([
           client.eshop.service.get({ id: service.id }),
-          client.eshop.service.findProviders({ service_id: service.id }) as Promise<Array<Provider | ServiceProvider>>,
+          client.eshop.service.findProviders({
+            service_id: service.id,
+          }) as Promise<Array<Provider | ServiceProvider>>,
         ]);
         const providerIds = [...new Set(serviceProviders.map(serviceProviderId))];
-        const providerResults = await Promise.all(
-          providerIds.map((id) => client.eshop.provider.get({ id }).catch(() => null)),
-        );
+        const providerResults = await Promise.all(providerIds.map((id) => client.eshop.provider.get({ id }).catch(() => null)));
 
         service_state.set({
           ...service_state.get(),
@@ -1091,18 +1043,15 @@ export function initialize(config: ArkyStoreConfig) {
 
     async addToCart(): Promise<void> {
       const state = service_state.get();
-      const serviceBlocks = ((state.service as (Service & { forms?: Block[] }) | null)?.forms || []);
+      const serviceBlocks = (state.service as (Service & { forms?: Block[] }) | null)?.forms || [];
       const enrich = (slot: ArkyServiceSlot): ArkyServiceSlot => ({
         ...slot,
         serviceName: state.service ? serviceName(state.service, currentLocale()) : "",
         date: slot.dateText,
         serviceBlocks,
       });
-      const selected = state.isMultiDay && state.slots.length > 0
-        ? state.slots.map(enrich)
-        : state.selectedSlot
-          ? [enrich(state.selectedSlot)]
-          : [];
+      const selected =
+        state.isMultiDay && state.slots.length > 0 ? state.slots.map(enrich) : state.selectedSlot ? [enrich(state.selectedSlot)] : [];
       if (!selected.length) return;
       const nextCart = [...state.cart, ...selected];
       service_state.set({
@@ -1223,7 +1172,10 @@ export function initialize(config: ArkyStoreConfig) {
       if (entryParams.id) {
         const entry = await client.cms.entry.get(entryParams as GetEntryParams, options);
         const cacheKey = entryParams.key || entryParams.id || entry.id;
-        cms_state.setKey("entries", { ...cms_state.get().entries, [cacheKey]: entry });
+        cms_state.setKey("entries", {
+          ...cms_state.get().entries,
+          [cacheKey]: entry,
+        });
         return entry;
       }
 
@@ -1244,7 +1196,10 @@ export function initialize(config: ArkyStoreConfig) {
       if (!entry) {
         throw new Error("CMS entry not found");
       }
-      cms_state.setKey("entries", { ...cms_state.get().entries, [entryParams.key]: entry });
+      cms_state.setKey("entries", {
+        ...cms_state.get().entries,
+        [entryParams.key]: entry,
+      });
       return entry;
     } catch (error) {
       cms_state.setKey("error", readErrorMessage(error, "Failed to load CMS entry."));
@@ -1270,16 +1225,13 @@ export function initialize(config: ArkyStoreConfig) {
     }
   }
 
-  async function submitFormByKey(
-    key: string,
-    fieldsOrBlocks: FormField[] | Block[],
-    options?: RequestOptions,
-  ): Promise<FormSubmission> {
+  async function submitFormByKey(key: string, fieldsOrBlocks: FormField[] | Block[], options?: RequestOptions): Promise<FormSubmission> {
     const forms = cms_state.get().forms;
-    const form = forms[key] || await loadForm({ key });
-    const fields = fieldsOrBlocks.length > 0 && "properties" in fieldsOrBlocks[0]
-      ? formFieldsFromBlocks(fieldsOrBlocks as Block[])
-      : fieldsOrBlocks as FormField[];
+    const form = forms[key] || (await loadForm({ key }));
+    const fields =
+      fieldsOrBlocks.length > 0 && "properties" in fieldsOrBlocks[0]
+        ? formFieldsFromBlocks(fieldsOrBlocks as Block[])
+        : (fieldsOrBlocks as FormField[]);
     const payload: SubmitFormParams = { form_id: form.id, fields };
     return client.cms.form.submit(payload, options);
   }

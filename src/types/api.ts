@@ -9,6 +9,7 @@ import type {
   WebhookEventSubscription,
   Parcel,
   CustomsDeclaration,
+  ShippingRateLine,
   ShipmentLine,
   TaxonomyEntry,
   TaxonomyQuery,
@@ -41,7 +42,7 @@ import type {
   ContactListStatus,
   ContactListType,
   ContactListSource,
-  ContactListPlan,
+  ContactListPlanStatus,
   ContactListContentAccess,
   ContactListContentAccessTarget,
   ContactListMembershipStatus,
@@ -65,6 +66,7 @@ import type {
   SocialPublicationCommentStatus,
   SocialPublicationContent,
   SocialPublicationStatus,
+  SubscriptionPrice,
 } from "./index";
 
 export interface CreateLocationParams {
@@ -176,9 +178,7 @@ export interface ServiceQuoteItemInput extends ServiceQuoteItem {
 export type OrderQuoteItemInput = ProductQuoteItemInput | ServiceQuoteItemInput;
 
 export type OrderQuoteCompatibleItemInput =
-  | OrderQuoteItemInput
-  | EshopQuoteItem
-  | ServiceQuoteItem;
+  OrderQuoteItemInput | EshopQuoteItem | ServiceQuoteItem;
 
 export interface ProductCheckoutItemInput extends EshopItem {
   type: "product";
@@ -195,13 +195,10 @@ export interface ServiceCheckoutItemInput {
 }
 
 export type OrderCheckoutItemInput =
-  | ProductCheckoutItemInput
-  | ServiceCheckoutItemInput;
+  ProductCheckoutItemInput | ServiceCheckoutItemInput;
 
 export type OrderCheckoutCompatibleItemInput =
-  | OrderCheckoutItemInput
-  | EshopItem
-  | ServiceCheckoutPart;
+  OrderCheckoutItemInput | EshopItem | ServiceCheckoutPart;
 
 export interface TrustedProductCheckoutItemInput extends ProductCheckoutItemInput {
   price?: Price;
@@ -212,13 +209,10 @@ export interface TrustedServiceCheckoutItemInput extends ServiceCheckoutItemInpu
 }
 
 export type TrustedOrderCheckoutItemInput =
-  | TrustedProductCheckoutItemInput
-  | TrustedServiceCheckoutItemInput;
+  TrustedProductCheckoutItemInput | TrustedServiceCheckoutItemInput;
 
 export type TrustedOrderCheckoutCompatibleItemInput =
-  | TrustedOrderCheckoutItemInput
-  | EshopItem
-  | ServiceCheckoutPart;
+  TrustedOrderCheckoutItemInput | EshopItem | ServiceCheckoutPart;
 
 export interface GetQuoteParams {
   store_id?: string;
@@ -285,8 +279,8 @@ export interface UpdateCartParams {
   store_id?: string;
   market?: string;
   items?: OrderCheckoutCompatibleItemInput[];
-  shipping_address?: Address;
-  billing_address?: Address;
+  shipping_address?: Address | null;
+  billing_address?: Address | null;
   forms?: FormEntry[];
   promo_code?: string;
   payment_method_key?: string;
@@ -432,7 +426,7 @@ export interface UploadStoreMediaParams {
 }
 
 export interface DeleteStoreMediaParams {
-  id: string;
+  store_id?: string;
   media_id: string;
 }
 
@@ -464,9 +458,14 @@ export interface LoginAccountParams {
   token?: string;
 }
 
-export interface MagicLinkVerifyParams {
-  email: string;
+export interface AuthCodeVerifyParams {
+  challenge_id: string;
   code: string;
+}
+
+export interface VerificationChallengeResponse {
+  challenge_id: string;
+  expires_at: number;
 }
 
 export interface GetServicesParams {
@@ -517,10 +516,6 @@ export interface GetAnalyticsParams {
 }
 
 export interface GetAnalyticsHealthParams {}
-
-export interface TrackEmailOpenParams {
-  tracking_pixel_id: string;
-}
 
 export interface GetDeliveryStatsParams {}
 
@@ -595,9 +590,8 @@ export interface GetPromoCodesParams {
 export interface CreateStoreParams {
   key: string;
   timezone: string;
-  billing_email: string;
   languages?: Language[];
-  emails?: StoreEmails;
+  emails: StoreEmails;
 }
 
 export interface UpdateStoreParams {
@@ -614,16 +608,51 @@ export interface DeleteStoreParams {
 
 export interface GetStoreParams {}
 
-export type SubscriptionAction = "select_plan" | "cancel_at_period_end" | "reactivate";
-
-export interface SubscribeParams {
+export type CreateStoreSubscriptionActionParams = {
   store_id?: string;
-  operation_id: string;
-  accept_duplicate_risk: boolean;
-  plan_id: string;
-  action: SubscriptionAction;
-  success_url: string;
-  cancel_url: string;
+  action_id: string;
+} & (
+  | {
+      type: "select_plan";
+      plan_id: string;
+      success_url: string;
+      cancel_url: string;
+    }
+  | { type: "cancel_at_period_end" }
+  | { type: "reactivate" }
+);
+
+export interface GetStoreSubscriptionParams {
+  store_id?: string;
+}
+
+export interface RetryStoreSubscriptionActionParams {
+  store_id?: string;
+  action_id: string;
+}
+
+export interface GetStoreSubscriptionActionParams {
+  store_id?: string;
+  action_id: string;
+}
+
+export interface FindStoreSubscriptionActionsParams {
+  store_id?: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindStoreSubscriptionActionEffectsParams {
+  store_id?: string;
+  action_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface GetStoreSubscriptionActionEffectParams {
+  store_id?: string;
+  action_id: string;
+  effect_id: string;
 }
 
 export interface CreatePortalSessionParams {
@@ -639,23 +668,30 @@ export interface AddMemberParams {
 
 export interface RemoveMemberParams {
   account_id: string;
+  store_id?: string;
+}
+
+export type AccountSortField = "email";
+
+export interface FindStoreMembersParams {
+  store_id?: string;
+  query?: string | number;
+  limit?: number;
+  cursor?: string | null;
+  sort_field?: AccountSortField | null;
+  sort_direction?: "asc" | "desc" | null;
 }
 
 export interface TestWebhookParams {
-  operation_id: string;
+  delivery_id: string;
   webhook_id: string;
 }
 
 export type WebhookDeliveryStatus =
-  | "requested"
-  | "processing"
-  | "succeeded"
-  | "rejected"
-  | "failed"
-  | "unknown";
+  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
 
 export interface TestWebhookResponse {
-  operation_id: string;
+  delivery_id: string;
   status: WebhookDeliveryStatus;
   provider_status_code?: number | null;
   error?: string | null;
@@ -748,6 +784,7 @@ export interface GetOrdersParams {
 
 export interface UpdateOrderParams {
   id: string;
+  revision: number;
   store_id?: string;
   confirm?: boolean;
   cancel?: boolean;
@@ -757,7 +794,6 @@ export interface UpdateOrderParams {
   billing_address?: Address | null;
   forms?: FormEntry[];
   items?: TrustedOrderCheckoutCompatibleItemInput[];
-  payment?: import("./index").OrderPayment;
 }
 
 export interface CreateProviderParams {
@@ -908,30 +944,35 @@ export interface SearchOrderServiceItemsParams {
   contact_list_id?: string;
 }
 
-export interface DownloadDigitalAccessParams {
-  id: string;
+export interface FindDigitalAccessGrantsParams {
+  order_id: string;
+  store_id?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface GetDigitalAccessGrantParams {
+  order_id: string;
   grant_id: string;
   store_id?: string;
 }
 
-export interface AccountAddress {
-  label?: string;
-  address: Address;
-}
+export type DownloadDigitalAccessParams = GetDigitalAccessGrantParams;
 
-export interface AccountApiToken {
-  id: string | null;
-  value?: string;
-  name?: string | null;
-  created_at?: number;
+export interface ActivateDigitalAccessGrantParams extends GetDigitalAccessGrantParams {}
+
+export interface RevokeDigitalAccessGrantParams extends GetDigitalAccessGrantParams {}
+
+export interface UpdateAccountContactParams {}
+
+export interface CreateAccountApiTokenParams {
+  name: string;
   expires_at?: number | null;
-  type?: string;
 }
 
-export interface UpdateAccountContactParams {
-  phone_numbers?: string[];
-  addresses?: AccountAddress[];
-  api_tokens?: AccountApiToken[] | null;
+export interface UpdateAccountApiTokenParams {
+  id: string;
+  name: string;
 }
 
 export interface SearchAccountsParams {
@@ -939,9 +980,7 @@ export interface SearchAccountsParams {
   cursor?: string | null;
 
   query?: string | number;
-  owner?: string;
-  store_id?: string;
-  sort_field?: string | null;
+  sort_field?: AccountSortField | null;
   sort_direction?: "asc" | "desc" | null;
 }
 
@@ -1168,34 +1207,60 @@ export interface SetupAnalyticsParams {
   store_id?: string;
 }
 
-export interface FindStoreMediaParams {
-  id: string;
-  cursor?: string | null;
-  limit: number;
-  ids?: string[];
-
-  query?: string | number;
-  mime_type?: string;
-  sort_field?: string;
-  sort_direction?: "asc" | "desc";
+export interface CreateOrderRefundParams {
+  order_id: string;
+  refund_id: string;
+  amount: number;
+  store_id?: string;
 }
 
-export interface ProcessOrderRefundParams {
-  id: string;
-  amount: number;
-  operation_id: string;
-  follows_operation_id: string | null;
-  accept_duplicate_risk: boolean;
+export interface RetryOrderRefundParams {
+  order_id: string;
+  refund_id: string;
+  store_id?: string;
+}
+
+export interface GetOrderPaymentParams {
+  order_id: string;
+  store_id?: string;
+}
+
+export interface RetryPaymentTransactionParams {
+  order_id: string;
+  transaction_id: string;
+  store_id?: string;
+}
+
+export interface FindPaymentTransactionsParams {
+  order_id: string;
+  store_id?: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface GetPaymentTransactionParams {
+  order_id: string;
+  transaction_id: string;
+  store_id?: string;
+}
+
+export interface FindOrderRefundsParams {
+  order_id: string;
+  store_id?: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface GetOrderRefundParams {
+  order_id: string;
+  refund_id: string;
+  store_id?: string;
 }
 
 export type RefundStatus =
-  | "requested"
-  | "processing"
-  | "succeeded"
-  | "failed"
-  | "unknown";
+  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
 
-export interface ProcessOrderRefundResponse {
+export interface CreateOrderRefundResponse {
   refund_id: string;
   amount: number;
   status: RefundStatus;
@@ -1311,6 +1376,21 @@ export interface GetWorkflowExecutionParams {
   store_id?: string;
 }
 
+export interface GetWorkflowEffectsParams {
+  workflow_id: string;
+  execution_id: string;
+  store_id?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface GetWorkflowEffectParams {
+  workflow_id: string;
+  execution_id: string;
+  effect_id: string;
+  store_id?: string;
+}
+
 export interface GetWorkflowConnectionConnectUrlParams {
   store_id?: string;
   type: import("./index").WorkflowConnectionType;
@@ -1331,7 +1411,6 @@ export interface CreateContactListParams {
   name?: string;
   description?: string | null;
   type?: ContactListType;
-  plans?: ContactListPlan[];
   content_access?: ContactListContentAccess[];
   source?: ContactListSource;
 }
@@ -1344,8 +1423,50 @@ export interface UpdateContactListParams {
   description?: string | null;
   status?: ContactListStatus;
   type?: ContactListType;
-  plans?: ContactListPlan[];
   content_access?: ContactListContentAccess[];
+}
+
+export interface CreateContactListPlanParams {
+  store_id?: string;
+  contact_list_id: string;
+  key: string;
+  name?: string;
+  description?: string | null;
+  status?: ContactListPlanStatus;
+  prices: SubscriptionPrice[];
+  payment_provider_id?: string;
+}
+
+export interface UpdateContactListPlanParams {
+  id: string;
+  store_id?: string;
+  contact_list_id: string;
+  key?: string;
+  name?: string;
+  description?: string | null;
+  status?: ContactListPlanStatus;
+  prices?: SubscriptionPrice[];
+  payment_provider_id?: string;
+}
+
+export interface FindContactListPlansParams {
+  store_id?: string;
+  contact_list_id: string;
+  status?: ContactListPlanStatus;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface GetContactListPlanParams {
+  id: string;
+  store_id?: string;
+  contact_list_id: string;
+}
+
+export interface RetryContactListPlanCatalogParams {
+  store_id?: string;
+  contact_list_id: string;
+  plan_id: string;
 }
 
 export interface FindContactListsParams {
@@ -1400,7 +1521,7 @@ export interface RefundContactListMembershipParams {
   store_id?: string;
   contact_list_id: string;
   membership_id: string;
-  operation_id: string;
+  refund_id: string;
   amount?: number | null;
 }
 
@@ -1410,6 +1531,64 @@ export interface RefundContactListMembershipResult {
   status: import("./index").ContactListMembershipRefundStatus;
   membership: import("./index").ContactListMembership;
 }
+
+export interface FindContactListMembershipPaymentAttemptsParams {
+  store_id?: string;
+  contact_list_id: string;
+  membership_id: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface FindStorefrontContactListMembershipsParams {
+  store_id?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface GetContactListMembershipPaymentAttemptParams {
+  store_id?: string;
+  contact_list_id: string;
+  membership_id: string;
+  id: string;
+}
+
+export interface FindContactListMembershipRefundsParams {
+  store_id?: string;
+  contact_list_id: string;
+  membership_id: string;
+  payment_attempt_id?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface GetContactListMembershipRefundParams {
+  store_id?: string;
+  contact_list_id: string;
+  membership_id: string;
+  id: string;
+}
+
+export interface RetryContactListMembershipRefundParams extends GetContactListMembershipRefundParams {}
+
+export interface FindContactListMembershipCancellationsParams {
+  store_id?: string;
+  contact_list_id: string;
+  membership_id: string;
+  payment_attempt_id?: string;
+  refund_id?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface GetContactListMembershipCancellationParams {
+  store_id?: string;
+  contact_list_id: string;
+  membership_id: string;
+  id: string;
+}
+
+export interface RetryContactListMembershipCancellationParams extends GetContactListMembershipCancellationParams {}
 
 export interface ImportContactRowInput {
   email: string;
@@ -1523,8 +1702,6 @@ export interface SubscribeContactListParams {
   id: string;
   contact_id: string;
   price_id?: string;
-  success_url?: string;
-  cancel_url?: string;
   confirm_url?: string;
   confirmation_token_id?: string;
   return_url?: string;
@@ -1611,7 +1788,7 @@ export interface GoogleMailboxConnectUrl {
 
 export type TestMailboxResult =
   | {
-      type: 'smtp_imap';
+      type: "smtp_imap";
       ok: boolean;
       smtp_ok: boolean;
       imap_ok: boolean;
@@ -1620,7 +1797,7 @@ export type TestMailboxResult =
       imap_error?: string | null;
     }
   | {
-      type: 'google';
+      type: "google";
       ok: boolean;
       skipped: boolean;
       error?: string | null;
@@ -1764,7 +1941,7 @@ export interface GetCampaignEnrollmentConversationParams {
 }
 
 export interface ReplyCampaignEnrollmentParams {
-  operation_id: string;
+  message_id: string;
   store_id?: string;
   id: string;
   subject?: string | null;
@@ -1851,7 +2028,7 @@ export interface CancelLeadResearchRunParams {
 }
 
 export interface SendLeadResearchMessageParams {
-  operation_id: string;
+  message_id: string;
   run_id: string;
   store_id?: string;
   message: string;
@@ -2025,11 +2202,42 @@ export interface ClassifySocialPublicationCommentsParams {
   force?: boolean;
 }
 
-export interface ReplySocialPublicationCommentParams {
+export interface CreateSocialCommentReplyParams {
   store_id?: string;
   publication_id: string;
   comment_id: string;
+  reply_id: string;
   text: string;
+}
+
+export interface ListSocialCommentRepliesParams {
+  store_id?: string;
+  publication_id: string;
+  comment_id: string;
+  limit: number;
+  cursor?: string | null;
+}
+
+export interface GetSocialCommentReplyParams {
+  store_id?: string;
+  publication_id: string;
+  comment_id: string;
+  reply_id: string;
+}
+
+export type RetrySocialCommentReplyParams = GetSocialCommentReplyParams;
+
+export interface ListSocialPublicationEffectsParams {
+  store_id?: string;
+  publication_id: string;
+  limit: number;
+  cursor?: string | null;
+}
+
+export interface GetSocialPublicationEffectParams {
+  store_id?: string;
+  publication_id: string;
+  effect_id: string;
 }
 
 export interface GetSocialPublicationMetricsParams {
@@ -2101,27 +2309,69 @@ export interface DeleteWebhookParams {
 }
 
 export interface GetShippingRatesParams {
+  store_id?: string;
   order_id: string;
-  from_address: Address;
-  to_address: Address;
+  location_id: string;
+  lines: ShippingRateLine[];
   parcel: Parcel;
   customs_declaration?: CustomsDeclaration;
 }
 
-export interface ShipParams {
+export interface FindShipmentsParams {
+  store_id?: string;
   order_id: string;
-  operation_id: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export type FindFulfillmentOrdersParams = FindShipmentsParams;
+
+export interface GetFulfillmentOrderParams {
+  store_id?: string;
+  order_id: string;
+  fulfillment_order_id: string;
+}
+
+export interface GetShipmentParams {
+  store_id?: string;
+  order_id: string;
+  shipment_id: string;
+}
+
+export interface CreateShipmentParams {
+  store_id?: string;
+  order_id: string;
+  shipment_id: string;
   rate_id: string;
-  carrier: string;
-  service: string;
   location_id: string;
   fulfillment_order_id?: string | null;
   lines: ShipmentLine[];
 }
 
-export interface RefundShippingLabelParams {
-  order_id: string;
+export type RetryShipmentParams = GetShipmentParams;
+
+export type RequestShippingLabelRefundParams = GetShipmentParams;
+
+export interface FindShippingLabelRefundsParams extends FindShipmentsParams {
   shipment_id: string;
+}
+
+export interface GetShippingLabelRefundParams extends GetShipmentParams {
+  refund_id: string;
+}
+
+export type RetryShippingLabelRefundParams = GetShippingLabelRefundParams;
+
+export interface FindShippingLabelAdjustmentsParams extends FindShipmentsParams {
+  shipment_id: string;
+}
+
+export interface FindShippingLabelSettlementsParams extends FindShipmentsParams {
+  shipment_id: string;
+}
+
+export interface RetryShippingLabelSettlementParams extends GetShipmentParams {
+  settlement_id: string;
 }
 
 export interface AuthToken {
@@ -2139,10 +2389,43 @@ export interface ContactInfo {
   verified: boolean;
 }
 
-export interface ContactSessionToken {
+export type ContactSessionStatus = "active" | "revoked" | "expired";
+
+export interface ContactSessionRecord {
+  id: string;
+  store_id: string;
+  contact_id: string;
+  status: ContactSessionStatus;
+  created_at: number;
+  expires_at: number;
+  revoked_at: number | null;
+  last_seen_at: number | null;
+}
+
+export interface ContactSessionIssued {
   id: string;
   token: string;
+  status: ContactSessionStatus;
   created_at: number;
+  expires_at: number;
+}
+
+export interface FindContactSessionsParams {
+  contact_id: string;
+  store_id?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface RevokeContactSessionParams {
+  contact_id: string;
+  session_id: string;
+  store_id?: string;
+}
+
+export interface RevokeAllContactSessionsParams {
+  contact_id: string;
+  store_id?: string;
 }
 
 export interface PromoUsage {
@@ -2159,16 +2442,8 @@ export interface Contact {
   channels: import("./index").ContactChannel[];
   promo_usage: PromoUsage[];
   taxonomies: TaxonomyEntry[];
-  auth_tokens: ContactSessionToken[];
   created_at: number;
   updated_at: number;
-}
-
-export interface ContactDetail {
-  contact: Contact;
-  carts: import("./index").Cart[];
-  orders: import("./index").Order[];
-  form_submissions: import("./index").FormSubmission[];
 }
 
 export interface SetContactEmailParams {

@@ -24,11 +24,11 @@ export {
 } from "./inventory";
 
 export {
-  ProviderOperationStorageError,
-  clearProviderOperation,
-  providerOperationFor,
-  providerOperationRequest,
-  readProviderOperation,
-  withProviderOperationLock,
-} from "./providerOperation";
-export type { ProviderOperation } from "./providerOperation";
+  DurableRequestStorageError,
+  clearDurableRequest,
+  durableRequestPayload,
+  getOrCreateDurableRequest,
+  readDurableRequest,
+  withDurableRequestLock,
+} from "./durableRequest";
+export type { DurableRequest } from "./durableRequest";

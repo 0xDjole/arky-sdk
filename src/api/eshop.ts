@@ -31,9 +31,20 @@ import type {
   UpdateServiceProviderParams,
   GetOrderParams,
   GetOrdersParams,
+  FindDigitalAccessGrantsParams,
+  GetDigitalAccessGrantParams,
   DownloadDigitalAccessParams,
-  ProcessOrderRefundParams,
-  ProcessOrderRefundResponse,
+  ActivateDigitalAccessGrantParams,
+  RevokeDigitalAccessGrantParams,
+  CreateOrderRefundParams,
+  CreateOrderRefundResponse,
+  RetryOrderRefundParams,
+  FindOrderRefundsParams,
+  GetOrderRefundParams,
+  GetOrderPaymentParams,
+  RetryPaymentTransactionParams,
+  FindPaymentTransactionsParams,
+  GetPaymentTransactionParams,
   QuoteCartParams,
   RemoveCartItemParams,
   RequestOptions,
@@ -41,12 +52,16 @@ import type {
 } from "../types/api";
 import type {
   Order,
+  DigitalAccessGrant,
   DigitalAccessDownloadResponse,
   Product,
   Provider,
   Service,
   ServiceProvider,
   OrderQuote,
+  OrderRefund,
+  OrderPayment,
+  PaymentTransaction,
   Cart,
   PaginatedResponse,
 } from "../types";
@@ -476,23 +491,22 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async processRefund(
-      params: ProcessOrderRefundParams,
+    async createRefund(
+      params: CreateOrderRefundParams,
       options?: RequestOptions,
-    ): Promise<ProcessOrderRefundResponse> {
-      const response = await apiConfig.httpClient.post<ProcessOrderRefundResponse>(
-        `/v1/stores/${apiConfig.storeId}/orders/${params.id}/refund`,
+    ): Promise<CreateOrderRefundResponse> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      const response = await apiConfig.httpClient.post<CreateOrderRefundResponse>(
+        `/v1/stores/${target_store_id}/orders/${params.order_id}/refunds`,
         {
           amount: params.amount,
-          operation_id: params.operation_id,
-          follows_operation_id: params.follows_operation_id,
-          accept_duplicate_risk: params.accept_duplicate_risk,
+          refund_id: params.refund_id,
         },
         options,
       );
-      if (response.refund_id !== params.operation_id) {
+      if (response.refund_id !== params.refund_id) {
         throw new Error(
-          "Refund response did not match the requested operation_id",
+          "Refund response did not match the requested refund_id",
         );
       }
       if (
@@ -506,6 +520,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
           "requested",
           "processing",
           "succeeded",
+          "rejected",
           "failed",
           "unknown",
         ].includes(response.status)
@@ -515,14 +530,142 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       return response;
     },
 
+    async retryRefund(
+      params: RetryOrderRefundParams,
+      options?: RequestOptions,
+    ): Promise<OrderRefund> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<OrderRefund>(
+        `/v1/stores/${target_store_id}/orders/${params.order_id}/refunds/${params.refund_id}/retry`,
+        {},
+        options,
+      );
+    },
+
+    async getPayment(
+      params: GetOrderPaymentParams,
+      options?: RequestOptions,
+    ): Promise<OrderPayment> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<OrderPayment>(
+        `/v1/stores/${target_store_id}/orders/${params.order_id}/payment`,
+        options,
+      );
+    },
+
+    async retryPaymentTransaction(
+      params: RetryPaymentTransactionParams,
+      options?: RequestOptions,
+    ): Promise<PaymentTransaction> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<PaymentTransaction>(
+        `/v1/stores/${target_store_id}/orders/${params.order_id}/payment/transactions/${params.transaction_id}/retry`,
+        {},
+        options,
+      );
+    },
+
+    async getPaymentTransactions(
+      params: FindPaymentTransactionsParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<PaymentTransaction>> {
+      const { order_id, store_id, ...queryParams } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<PaginatedResponse<PaymentTransaction>>(
+        `/v1/stores/${target_store_id}/orders/${order_id}/payment/transactions`,
+        { ...options, params: queryParams },
+      );
+    },
+
+    async getPaymentTransaction(
+      params: GetPaymentTransactionParams,
+      options?: RequestOptions,
+    ): Promise<PaymentTransaction> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<PaymentTransaction>(
+        `/v1/stores/${target_store_id}/orders/${params.order_id}/payment/transactions/${params.transaction_id}`,
+        options,
+      );
+    },
+
+    async getRefund(
+      params: GetOrderRefundParams,
+      options?: RequestOptions,
+    ): Promise<OrderRefund> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<OrderRefund>(
+        `/v1/stores/${target_store_id}/orders/${params.order_id}/refunds/${params.refund_id}`,
+        options,
+      );
+    },
+
+    async getRefunds(
+      params: FindOrderRefundsParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<OrderRefund>> {
+      const { order_id, store_id, ...queryParams } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<PaginatedResponse<OrderRefund>>(
+        `/v1/stores/${target_store_id}/orders/${order_id}/refunds`,
+        { ...options, params: queryParams },
+      );
+    },
+
     async downloadDigitalAccess(
       params: DownloadDigitalAccessParams,
       options?: RequestOptions,
     ): Promise<DigitalAccessDownloadResponse> {
       const target_store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<DigitalAccessDownloadResponse>(
-        `/v1/stores/${target_store_id}/orders/${params.id}/digital-access/${params.grant_id}/download`,
+        `/v1/stores/${target_store_id}/orders/${params.order_id}/digital-access/${params.grant_id}/download`,
         {},
+        options,
+      );
+    },
+
+    async activateDigitalAccess(
+      params: ActivateDigitalAccessGrantParams,
+      options?: RequestOptions,
+    ): Promise<DigitalAccessGrant> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<DigitalAccessGrant>(
+        `/v1/stores/${target_store_id}/orders/${params.order_id}/digital-access/${params.grant_id}/activate`,
+        {},
+        options,
+      );
+    },
+
+    async revokeDigitalAccess(
+      params: RevokeDigitalAccessGrantParams,
+      options?: RequestOptions,
+    ): Promise<DigitalAccessGrant> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<DigitalAccessGrant>(
+        `/v1/stores/${target_store_id}/orders/${params.order_id}/digital-access/${params.grant_id}/revoke`,
+        {},
+        options,
+      );
+    },
+
+    async findDigitalAccess(
+      params: FindDigitalAccessGrantsParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<DigitalAccessGrant>> {
+      const { order_id, store_id, ...queryParams } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<PaginatedResponse<DigitalAccessGrant>>(
+        `/v1/stores/${target_store_id}/orders/${order_id}/digital-access`,
+        { ...options, params: queryParams },
+      );
+    },
+
+    async getDigitalAccess(
+      params: GetDigitalAccessGrantParams,
+      options?: RequestOptions,
+    ): Promise<DigitalAccessGrant> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<DigitalAccessGrant>(
+        `/v1/stores/${target_store_id}/orders/${params.order_id}/digital-access/${params.grant_id}`,
         options,
       );
     },

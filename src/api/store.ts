@@ -6,13 +6,19 @@ import type {
   GetStoreParams,
   GetStoresParams,
   GetSubscriptionPlansParams,
-  SubscribeParams,
+  GetStoreSubscriptionParams,
+  CreateStoreSubscriptionActionParams,
+  RetryStoreSubscriptionActionParams,
+  GetStoreSubscriptionActionParams,
+  FindStoreSubscriptionActionsParams,
+  FindStoreSubscriptionActionEffectsParams,
+  GetStoreSubscriptionActionEffectParams,
   CreatePortalSessionParams,
   AddMemberParams,
   RemoveMemberParams,
+  FindStoreMembersParams,
   TestWebhookParams,
   TestWebhookResponse,
-  FindStoreMediaParams,
   ListBuildHooksParams,
   CreateBuildHookParams,
   UpdateBuildHookParams,
@@ -26,61 +32,36 @@ import type {
 import type {
   Store,
   Webhook,
-  Media,
   PaginatedResponse,
   SubscriptionPlan,
-  StoreRuntimeConfig,
+  PaymentStoreConfig,
   BuildHook,
-  SubscriptionCheckoutResponse,
+  StoreSubscription,
+  StoreSubscriptionAction,
+  StoreSubscriptionEffect,
+  StoreMember,
+  StoreMembership,
 } from "../types";
 
-export const createStoreApi = (
-  apiConfig: ApiConfig,
-  _updateSession: AdminSessionUpdater,
-) => {
+export const createStoreApi = (apiConfig: ApiConfig, _updateSession: AdminSessionUpdater) => {
   return {
-    async createStore(
-      params: CreateStoreParams,
-      options?: RequestOptions,
-    ): Promise<Store> {
+    async createStore(params: CreateStoreParams, options?: RequestOptions): Promise<Store> {
       return apiConfig.httpClient.post<Store>(`/v1/stores`, params, options);
     },
 
-    async updateStore(
-      params: UpdateStoreParams,
-      options?: RequestOptions,
-    ): Promise<Store> {
-      return apiConfig.httpClient.put<Store>(
-        `/v1/stores/${params.id}`,
-        params,
-        options,
-      );
+    async updateStore(params: UpdateStoreParams, options?: RequestOptions): Promise<Store> {
+      return apiConfig.httpClient.put<Store>(`/v1/stores/${params.id}`, params, options);
     },
 
-    async deleteStore(
-      params: DeleteStoreParams,
-      options?: RequestOptions,
-    ): Promise<{ deleted: boolean }> {
-      return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${params.id}`,
-        options,
-      );
+    async deleteStore(params: DeleteStoreParams, options?: RequestOptions): Promise<boolean> {
+      return apiConfig.httpClient.delete<boolean>(`/v1/stores/${params.id}`, options);
     },
 
-    async getStore(
-      _params: GetStoreParams,
-      options?: RequestOptions,
-    ): Promise<Store> {
-      return apiConfig.httpClient.get<Store>(
-        `/v1/stores/${apiConfig.storeId}`,
-        options,
-      );
+    async getStore(_params: GetStoreParams, options?: RequestOptions): Promise<Store> {
+      return apiConfig.httpClient.get<Store>(`/v1/stores/${apiConfig.storeId}`, options);
     },
 
-    async getStores(
-      params?: GetStoresParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<Store>> {
+    async getStores(params?: GetStoresParams, options?: RequestOptions): Promise<PaginatedResponse<Store>> {
       return apiConfig.httpClient.get<PaginatedResponse<Store>>(`/v1/stores`, {
         ...options,
         params,
@@ -91,50 +72,79 @@ export const createStoreApi = (
       _params: GetSubscriptionPlansParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<SubscriptionPlan>> {
-      return apiConfig.httpClient.get<PaginatedResponse<SubscriptionPlan>>(
-        "/v1/stores/plans",
-        options,
-      );
+      return apiConfig.httpClient.get<PaginatedResponse<SubscriptionPlan>>("/v1/stores/plans", options);
     },
 
-    async subscribe(
-      params: SubscribeParams,
+    async createSubscriptionAction(
+      params: CreateStoreSubscriptionActionParams,
       options?: RequestOptions,
-    ): Promise<SubscriptionCheckoutResponse> {
-      const {
-        store_id,
-        operation_id,
-        accept_duplicate_risk,
-        plan_id,
-        action,
-        success_url,
-        cancel_url,
-      } = params;
+    ): Promise<StoreSubscriptionAction> {
+      const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      const response = await apiConfig.httpClient.put<SubscriptionCheckoutResponse>(
-        `/v1/stores/${target_store_id}/subscribe`,
-        {
-          operation_id,
-          accept_duplicate_risk,
-          plan_id,
-          action,
-          success_url,
-          cancel_url,
-        },
+      const response = await apiConfig.httpClient.post<StoreSubscriptionAction>(
+        `/v1/stores/${target_store_id}/subscription/actions`,
+        payload,
         options,
       );
-      if (response.operation_id !== operation_id) {
-        throw new Error(
-          "Subscription response did not match the requested operation_id",
-        );
+      if (response.id !== params.action_id) {
+        throw new Error("Subscription response did not match the requested action_id");
       }
       return response;
     },
 
-    async createPortalSession(
-      params: CreatePortalSessionParams,
+    async getSubscription(params: GetStoreSubscriptionParams = {}, options?: RequestOptions): Promise<StoreSubscription> {
+      const store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<StoreSubscription>(`/v1/stores/${store_id}/subscription`, options);
+    },
+
+    async retrySubscriptionAction(params: RetryStoreSubscriptionActionParams, options?: RequestOptions): Promise<StoreSubscriptionAction> {
+      const store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<StoreSubscriptionAction>(
+        `/v1/stores/${store_id}/subscription/actions/${params.action_id}/retry`,
+        {},
+        options,
+      );
+    },
+
+    async getSubscriptionAction(params: GetStoreSubscriptionActionParams, options?: RequestOptions): Promise<StoreSubscriptionAction> {
+      const store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<StoreSubscriptionAction>(`/v1/stores/${store_id}/subscription/actions/${params.action_id}`, options);
+    },
+
+    async findSubscriptionActionEffects(
+      params: FindStoreSubscriptionActionEffectsParams,
       options?: RequestOptions,
-    ): Promise<{ portal_url: string }> {
+    ): Promise<PaginatedResponse<StoreSubscriptionEffect>> {
+      const { store_id, action_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<StoreSubscriptionEffect>>(
+        `/v1/stores/${store_id || apiConfig.storeId}/subscription/actions/${action_id}/effects`,
+        { ...options, params: query },
+      );
+    },
+
+    async getSubscriptionActionEffect(
+      params: GetStoreSubscriptionActionEffectParams,
+      options?: RequestOptions,
+    ): Promise<StoreSubscriptionEffect> {
+      const store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<StoreSubscriptionEffect>(
+        `/v1/stores/${store_id}/subscription/actions/${params.action_id}/effects/${params.effect_id}`,
+        options,
+      );
+    },
+
+    async findSubscriptionActions(
+      params: FindStoreSubscriptionActionsParams = {},
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<StoreSubscriptionAction>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<StoreSubscriptionAction>>(
+        `/v1/stores/${store_id || apiConfig.storeId}/subscription/actions`,
+        { ...options, params: query },
+      );
+    },
+
+    async createPortalSession(params: CreatePortalSessionParams, options?: RequestOptions): Promise<{ portal_url: string }> {
       const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<{ portal_url: string }>(
         `/v1/stores/${store_id}/subscription/portal`,
@@ -143,172 +153,77 @@ export const createStoreApi = (
       );
     },
 
-    async addMember(
-      params: AddMemberParams,
-      options?: RequestOptions,
-    ): Promise<boolean> {
+    async addMember(params: AddMemberParams, options?: RequestOptions): Promise<boolean> {
       const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<boolean>(
-        `/v1/stores/${store_id || apiConfig.storeId}/members`,
-        payload,
-        options,
-      );
+      return apiConfig.httpClient.post<boolean>(`/v1/stores/${store_id || apiConfig.storeId}/members`, payload, options);
     },
 
-    async inviteUser(
-      params: AddMemberParams,
-      options?: RequestOptions,
-    ): Promise<boolean> {
+    async inviteUser(params: AddMemberParams, options?: RequestOptions): Promise<boolean> {
       const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<boolean>(
-        `/v1/stores/${store_id || apiConfig.storeId}/members`,
-        payload,
+      return apiConfig.httpClient.post<boolean>(`/v1/stores/${store_id || apiConfig.storeId}/invitation`, payload, options);
+    },
+
+    async findMembers(params: FindStoreMembersParams = {}, options?: RequestOptions): Promise<PaginatedResponse<StoreMember>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<StoreMember>>(`/v1/stores/${store_id || apiConfig.storeId}/members`, {
+        ...options,
+        params: query,
+      });
+    },
+
+    async findOwnMemberships(options?: RequestOptions): Promise<PaginatedResponse<StoreMembership>> {
+      return apiConfig.httpClient.get<PaginatedResponse<StoreMembership>>("/v1/stores/memberships", options);
+    },
+
+    async removeMember(params: RemoveMemberParams, options?: RequestOptions): Promise<boolean> {
+      return apiConfig.httpClient.delete<boolean>(
+        `/v1/stores/${params.store_id || apiConfig.storeId}/members/${params.account_id}`,
         options,
       );
     },
 
-    async removeMember(
-      params: RemoveMemberParams,
-      options?: RequestOptions,
-    ): Promise<{ removed: boolean }> {
-      return apiConfig.httpClient.delete<{ removed: boolean }>(
-        `/v1/stores/${apiConfig.storeId}/members/${params.account_id}`,
-        options,
-      );
+    async testWebhook(params: TestWebhookParams, options?: RequestOptions): Promise<TestWebhookResponse> {
+      return apiConfig.httpClient.post<TestWebhookResponse>(`/v1/stores/${apiConfig.storeId}/webhooks/test`, params, options);
     },
 
-    async testWebhook(
-      params: TestWebhookParams,
-      options?: RequestOptions,
-    ): Promise<TestWebhookResponse> {
-      return apiConfig.httpClient.post<TestWebhookResponse>(
-        `/v1/stores/${apiConfig.storeId}/webhooks/test`,
-        params,
-        options,
-      );
+    async listBuildHooks(params: ListBuildHooksParams, options?: RequestOptions): Promise<BuildHook[]> {
+      return apiConfig.httpClient.get<BuildHook[]>(`/v1/stores/${params.store_id}/build-hooks`, options);
     },
 
-    async getStoreMedia(
-      params: FindStoreMediaParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<Media>> {
-      const queryParams: Record<string, unknown> = {
-        limit: params.limit,
-      };
-      if (params.cursor) queryParams.cursor = params.cursor;
-      if (params.ids && params.ids.length > 0)
-        queryParams.ids = JSON.stringify(params.ids);
-      if (params.query) queryParams.query = params.query;
-      if (params.mime_type) queryParams.mime_type = params.mime_type;
-      if (params.sort_field) queryParams.sort_field = params.sort_field;
-      if (params.sort_direction)
-        queryParams.sort_direction = params.sort_direction;
-
-      return apiConfig.httpClient.get<PaginatedResponse<Media>>(
-        `/v1/stores/${params.id}/media`,
-        {
-          ...options,
-          params: queryParams,
-        },
-      );
-    },
-
-    async listBuildHooks(
-      params: ListBuildHooksParams,
-      options?: RequestOptions,
-    ): Promise<BuildHook[]> {
-      return apiConfig.httpClient.get<BuildHook[]>(
-        `/v1/stores/${params.store_id}/build-hooks`,
-        options,
-      );
-    },
-
-    async createBuildHook(
-      params: CreateBuildHookParams,
-      options?: RequestOptions,
-    ): Promise<BuildHook> {
+    async createBuildHook(params: CreateBuildHookParams, options?: RequestOptions): Promise<BuildHook> {
       const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<BuildHook>(
-        `/v1/stores/${store_id}/build-hooks`,
-        payload,
-        options,
-      );
+      return apiConfig.httpClient.post<BuildHook>(`/v1/stores/${store_id}/build-hooks`, payload, options);
     },
 
-    async updateBuildHook(
-      params: UpdateBuildHookParams,
-      options?: RequestOptions,
-    ): Promise<BuildHook> {
+    async updateBuildHook(params: UpdateBuildHookParams, options?: RequestOptions): Promise<BuildHook> {
       const { store_id, id, ...payload } = params;
-      return apiConfig.httpClient.put<BuildHook>(
-        `/v1/stores/${store_id}/build-hooks/${id}`,
-        payload,
-        options,
-      );
+      return apiConfig.httpClient.put<BuildHook>(`/v1/stores/${store_id}/build-hooks/${id}`, payload, options);
     },
 
-    async deleteBuildHook(
-      params: DeleteBuildHookParams,
-      options?: RequestOptions,
-    ): Promise<{ deleted: boolean }> {
-      return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${params.store_id}/build-hooks/${params.id}`,
-        options,
-      );
+    async deleteBuildHook(params: DeleteBuildHookParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
+      return apiConfig.httpClient.delete<{ deleted: boolean }>(`/v1/stores/${params.store_id}/build-hooks/${params.id}`, options);
     },
 
-    async getStoreConfig(
-      params: { store_id: string; type: "payment" | "shipping" },
-      options?: RequestOptions,
-    ): Promise<StoreRuntimeConfig> {
-      return apiConfig.httpClient.get<StoreRuntimeConfig>(
-        `/v1/stores/${params.store_id}/config/${params.type}`,
-        options,
-      );
+    async getPaymentConfig(params: { store_id: string }, options?: RequestOptions): Promise<PaymentStoreConfig | null> {
+      return apiConfig.httpClient.get<PaymentStoreConfig | null>(`/v1/stores/${params.store_id}/config/payment`, options);
     },
 
-    async listWebhooks(
-      params: ListWebhooksParams,
-      options?: RequestOptions,
-    ): Promise<Webhook[]> {
-      return apiConfig.httpClient.get<Webhook[]>(
-        `/v1/stores/${params.store_id}/webhooks`,
-        options,
-      );
+    async listWebhooks(params: ListWebhooksParams, options?: RequestOptions): Promise<Webhook[]> {
+      return apiConfig.httpClient.get<Webhook[]>(`/v1/stores/${params.store_id}/webhooks`, options);
     },
 
-    async createWebhook(
-      params: CreateWebhookParams,
-      options?: RequestOptions,
-    ): Promise<Webhook> {
+    async createWebhook(params: CreateWebhookParams, options?: RequestOptions): Promise<Webhook> {
       const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<Webhook>(
-        `/v1/stores/${store_id}/webhooks`,
-        payload,
-        options,
-      );
+      return apiConfig.httpClient.post<Webhook>(`/v1/stores/${store_id}/webhooks`, payload, options);
     },
 
-    async updateWebhook(
-      params: UpdateWebhookParams,
-      options?: RequestOptions,
-    ): Promise<Webhook> {
+    async updateWebhook(params: UpdateWebhookParams, options?: RequestOptions): Promise<Webhook> {
       const { store_id, id, ...payload } = params;
-      return apiConfig.httpClient.put<Webhook>(
-        `/v1/stores/${store_id}/webhooks/${id}`,
-        payload,
-        options,
-      );
+      return apiConfig.httpClient.put<Webhook>(`/v1/stores/${store_id}/webhooks/${id}`, payload, options);
     },
 
-    async deleteWebhook(
-      params: DeleteWebhookParams,
-      options?: RequestOptions,
-    ): Promise<{ deleted: boolean }> {
-      return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${params.store_id}/webhooks/${params.id}`,
-        options,
-      );
+    async deleteWebhook(params: DeleteWebhookParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
+      return apiConfig.httpClient.delete<{ deleted: boolean }>(`/v1/stores/${params.store_id}/webhooks/${params.id}`, options);
     },
   };
 };

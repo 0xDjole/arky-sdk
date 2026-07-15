@@ -8,6 +8,8 @@ import type {
   TriggerWorkflowParams,
   GetWorkflowExecutionsParams,
   GetWorkflowExecutionParams,
+  GetWorkflowEffectsParams,
+  GetWorkflowEffectParams,
   GetWorkflowConnectionConnectUrlParams,
   GetWorkflowConnectionsParams,
   DeleteWorkflowConnectionParams,
@@ -18,6 +20,7 @@ import type {
   WorkflowConnection,
   WorkflowConnectionConnectUrl,
   WorkflowExecution,
+  WorkflowEffect,
   PaginatedResponse,
 } from "../types";
 
@@ -121,6 +124,32 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<WorkflowExecution>(
         `/v1/stores/${store_id}/workflows/${params.workflow_id}/executions/${params.execution_id}`,
+        options,
+      );
+    },
+
+    async getWorkflowEffects(
+      params: GetWorkflowEffectsParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<WorkflowEffect>> {
+      const store_id = params.store_id || apiConfig.storeId;
+      const { store_id: _, workflow_id, execution_id, ...queryParams } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<WorkflowEffect>>(
+        `/v1/stores/${store_id}/workflows/${workflow_id}/executions/${execution_id}/effects`,
+        {
+          ...options,
+          params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+        },
+      );
+    },
+
+    async getWorkflowEffect(
+      params: GetWorkflowEffectParams,
+      options?: RequestOptions,
+    ): Promise<WorkflowEffect> {
+      const store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<WorkflowEffect>(
+        `/v1/stores/${store_id}/workflows/${params.workflow_id}/executions/${params.execution_id}/effects/${params.effect_id}`,
         options,
       );
     },

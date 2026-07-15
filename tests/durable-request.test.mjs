@@ -3,13 +3,13 @@ import { afterEach, test } from 'node:test';
 import {
 	ExclusiveLockManager,
 	MemoryStorage
-} from './helpers/provider-operation-fixtures.mjs';
+} from './helpers/durable-request-fixtures.mjs';
 
 let importNonce = 0;
 
-async function importProviderOperations() {
+async function importDurableRequests() {
 	const url = new URL('../dist/utils.js', import.meta.url);
-	url.searchParams.set('provider-operation-test', String(++importNonce));
+	url.searchParams.set('durable-request-test', String(++importNonce));
 	return import(url.href);
 }
 
@@ -43,33 +43,33 @@ function installBrowserState(storage = new MemoryStorage(), locks = new Exclusiv
 	return { storage, locks };
 }
 
-test('provider operations persist the immutable request and reuse it after a module remount', async () => {
+test('durable requests persist the immutable request and reuse it after a module remount', async () => {
 	const { storage } = installBrowserState();
-	const firstModule = await importProviderOperations();
+	const firstModule = await importDurableRequests();
 	const storageKey = 'arky:order-refund:store-1:order-1';
 	const request = { order_id: 'order-1', amount: 1250 };
 
-	const first = await firstModule.withProviderOperationLock(storageKey, 'refund', async () =>
-		firstModule.providerOperationFor(storageKey, request, 'refund')
+	const first = await firstModule.withDurableRequestLock(storageKey, 'refund', async () =>
+		firstModule.getOrCreateDurableRequest(storageKey, request, 'refund')
 	);
 	const envelope = JSON.parse(storage.getItem(storageKey));
-	assert.deepEqual(Object.keys(envelope).sort(), ['operation_id', 'request_json']);
-	assert.equal(envelope.request_json, JSON.stringify(request));
-	assert.equal(envelope.operation_id, first.operation_id);
+	assert.deepEqual(Object.keys(envelope).sort(), ['id', 'requestJson']);
+	assert.equal(envelope.requestJson, JSON.stringify(request));
+	assert.equal(envelope.id, first.id);
 
-	const remountedModule = await importProviderOperations();
-	const remounted = await remountedModule.withProviderOperationLock(
+	const remountedModule = await importDurableRequests();
+	const remounted = await remountedModule.withDurableRequestLock(
 		storageKey,
 		'refund',
-		async () => remountedModule.providerOperationFor(storageKey, request, 'refund')
+		async () => remountedModule.getOrCreateDurableRequest(storageKey, request, 'refund')
 	);
-	assert.equal(remounted.operation_id, first.operation_id);
-	assert.deepEqual(remountedModule.providerOperationRequest(remounted), request);
+	assert.equal(remounted.id, first.id);
+	assert.deepEqual(remountedModule.durableRequestPayload(remounted), request);
 	assert.notEqual(storage.getItem(storageKey), null, 'a read or remount must not clear the operation');
 });
 
-test('provider operation storage fails closed for unavailable, corrupt, unreadable, or unverifiable state', async (t) => {
-	const operations = await importProviderOperations();
+test('durable request storage fails closed for unavailable, corrupt, unreadable, or unverifiable state', async (t) => {
+	const operations = await importDurableRequests();
 	const storageKey = 'arky:provider:test-storage';
 	const request = { action: 'charge', amount: 500 };
 
@@ -81,17 +81,17 @@ test('provider operation storage fails closed for unavailable, corrupt, unreadab
 			}
 		});
 		assert.throws(
-			() => operations.providerOperationFor(storageKey, request, 'payment'),
-			/persistent operation storage is unavailable/
+			() => operations.getOrCreateDurableRequest(storageKey, request, 'payment'),
+			/durable request storage is unavailable/
 		);
 	});
 
 	for (const [name, raw] of [
 		['invalid JSON', '{'],
-		['invalid envelope', JSON.stringify({ operation_id: 'operation-only' })],
+		['invalid envelope', JSON.stringify({ id: 'operation-only' })],
 		[
 			'invalid saved request',
-			JSON.stringify({ operation_id: 'operation-1', request_json: '{' })
+			JSON.stringify({ id: 'operation-1', requestJson: '{' })
 		]
 	]) {
 		await t.test(name, () => {
@@ -99,9 +99,9 @@ test('provider operation storage fails closed for unavailable, corrupt, unreadab
 			storage.seed(storageKey, raw);
 			installBrowserState(storage);
 			assert.throws(
-				() => operations.providerOperationFor(storageKey, request, 'payment'),
+				() => operations.getOrCreateDurableRequest(storageKey, request, 'payment'),
 				(error) =>
-					error?.name === 'ProviderOperationStorageError' &&
+					error?.name === 'DurableRequestStorageError' &&
 					/corrupt|invalid/.test(error.message)
 			);
 		});
@@ -110,38 +110,38 @@ test('provider operation storage fails closed for unavailable, corrupt, unreadab
 	await t.test('unreadable state', () => {
 		installBrowserState(new MemoryStorage({ readError: new Error('read failed') }));
 		assert.throws(
-			() => operations.providerOperationFor(storageKey, request, 'payment'),
-			/operation state cannot be read/
+			() => operations.getOrCreateDurableRequest(storageKey, request, 'payment'),
+			/durable request state cannot be read/
 		);
 	});
 
 	await t.test('unwritable state', () => {
 		installBrowserState(new MemoryStorage({ writeError: new Error('write failed') }));
 		assert.throws(
-			() => operations.providerOperationFor(storageKey, request, 'payment'),
-			/operation state cannot be saved/
+			() => operations.getOrCreateDurableRequest(storageKey, request, 'payment'),
+			/durable request state cannot be saved/
 		);
 	});
 
 	await t.test('discarded write fails read-back verification', () => {
 		installBrowserState(new MemoryStorage({ discardWrites: true }));
 		assert.throws(
-			() => operations.providerOperationFor(storageKey, request, 'payment'),
-			/operation state was not saved/
+			() => operations.getOrCreateDurableRequest(storageKey, request, 'payment'),
+			/durable request state was not saved/
 		);
 	});
 });
 
-test('provider operation clear verifies the exact saved state and physical removal', async (t) => {
-	const operations = await importProviderOperations();
+test('durable request clear verifies the exact saved state and physical removal', async (t) => {
+	const operations = await importDurableRequests();
 	const storageKey = 'arky:provider:test-clear';
 	const request = { action: 'refund', amount: 250 };
 
 	await t.test('exact state is physically removed', () => {
 		const storage = new MemoryStorage();
 		installBrowserState(storage);
-		const saved = operations.providerOperationFor(storageKey, request, 'refund');
-		operations.clearProviderOperation(saved, 'refund');
+		const saved = operations.getOrCreateDurableRequest(storageKey, request, 'refund');
+		operations.clearDurableRequest(saved, 'refund');
 		assert.equal(storage.getItem(storageKey), null);
 	});
 
@@ -149,29 +149,29 @@ test('provider operation clear verifies the exact saved state and physical remov
 		installBrowserState();
 		assert.throws(
 			() =>
-				operations.clearProviderOperation(
-					{ storageKey, request_json: JSON.stringify(request), operation_id: 'missing' },
+				operations.clearDurableRequest(
+					{ storageKey, requestJson: JSON.stringify(request), id: 'missing' },
 					'refund'
 				),
-			/saved operation state is missing/
+			/durable request state changed before it could be cleared/
 		);
 	});
 
 	await t.test('changed state cannot be cleared', () => {
 		installBrowserState();
-		const saved = operations.providerOperationFor(storageKey, request, 'refund');
+		const saved = operations.getOrCreateDurableRequest(storageKey, request, 'refund');
 		assert.throws(
-			() => operations.clearProviderOperation({ ...saved, operation_id: 'different' }, 'refund'),
-			/saved operation state changed/
+			() => operations.clearDurableRequest({ ...saved, id: 'different' }, 'refund'),
+			/durable request state changed before it could be cleared/
 		);
 	});
 
 	await t.test('remove failure retains the operation', () => {
 		const storage = new MemoryStorage({ removeError: new Error('remove failed') });
 		installBrowserState(storage);
-		const saved = operations.providerOperationFor(storageKey, request, 'refund');
+		const saved = operations.getOrCreateDurableRequest(storageKey, request, 'refund');
 		assert.throws(
-			() => operations.clearProviderOperation(saved, 'refund'),
+			() => operations.clearDurableRequest(saved, 'refund'),
 			/could not be cleared/
 		);
 		assert.notEqual(storage.getItem(storageKey), null);
@@ -180,9 +180,9 @@ test('provider operation clear verifies the exact saved state and physical remov
 	await t.test('discarded remove fails read-back verification', () => {
 		const storage = new MemoryStorage({ discardRemoves: true });
 		installBrowserState(storage);
-		const saved = operations.providerOperationFor(storageKey, request, 'refund');
+		const saved = operations.getOrCreateDurableRequest(storageKey, request, 'refund');
 		assert.throws(
-			() => operations.clearProviderOperation(saved, 'refund'),
+			() => operations.clearDurableRequest(saved, 'refund'),
 			/was not cleared/
 		);
 		assert.notEqual(storage.getItem(storageKey), null);
@@ -190,17 +190,17 @@ test('provider operation clear verifies the exact saved state and physical remov
 });
 
 test('unavailable or contended Web Locks execute zero protected tasks', async (t) => {
-	const operations = await importProviderOperations();
+	const operations = await importDurableRequests();
 	const storageKey = 'arky:provider:test-lock';
 
 	await t.test('unavailable Web Locks', async () => {
 		installGlobal('navigator', {});
 		let calls = 0;
 		await assert.rejects(
-			operations.withProviderOperationLock(storageKey, 'payment', async () => {
+			operations.withDurableRequestLock(storageKey, 'payment', async () => {
 				calls += 1;
 			}),
-			/cross-tab operation locking is unavailable/
+			/cross-tab lock is unavailable/
 		);
 		assert.equal(calls, 0);
 	});
@@ -211,10 +211,10 @@ test('unavailable or contended Web Locks execute zero protected tasks', async (t
 		});
 		let calls = 0;
 		await assert.rejects(
-			operations.withProviderOperationLock(storageKey, 'payment', async () => {
+			operations.withDurableRequestLock(storageKey, 'payment', async () => {
 				calls += 1;
 			}),
-			/already running in another tab/
+			/already active in another tab/
 		);
 		assert.equal(calls, 0);
 	});
@@ -229,17 +229,17 @@ test('unavailable or contended Web Locks execute zero protected tasks', async (t
 		let firstCalls = 0;
 		let secondCalls = 0;
 
-		const first = operations.withProviderOperationLock(storageKey, 'payment', async () => {
+		const first = operations.withDurableRequestLock(storageKey, 'payment', async () => {
 			firstCalls += 1;
 			markEntered();
 			await gate;
 		});
 		await entered;
 		await assert.rejects(
-			operations.withProviderOperationLock(storageKey, 'payment', async () => {
+			operations.withDurableRequestLock(storageKey, 'payment', async () => {
 				secondCalls += 1;
 			}),
-			/already running in another tab/
+			/already active in another tab/
 		);
 		releaseFirst();
 		await first;
@@ -250,13 +250,11 @@ test('unavailable or contended Web Locks execute zero protected tasks', async (t
 
 test('the exact saved shipping request survives a changed signed rate and can be resumed', async () => {
 	const { storage } = installBrowserState();
-	const operations = await importProviderOperations();
+	const operations = await importDurableRequests();
 	const storageKey = 'arky:shipping-label:store-1:order-1';
 	const originalRequest = {
 		order_id: 'order-1',
 		rate_id: 'signed-rate-original',
-		carrier: 'USPS',
-		service: 'priority',
 		location_id: 'location-1',
 		fulfillment_order_id: 'fulfillment-1',
 		lines: [
@@ -267,7 +265,7 @@ test('the exact saved shipping request survives a changed signed rate and can be
 			}
 		]
 	};
-	const saved = operations.providerOperationFor(
+	const saved = operations.getOrCreateDurableRequest(
 		storageKey,
 		originalRequest,
 		'shipping-label purchase'
@@ -275,34 +273,34 @@ test('the exact saved shipping request survives a changed signed rate and can be
 
 	let changedRequestCalls = 0;
 	await assert.rejects(
-		operations.withProviderOperationLock(storageKey, 'shipping-label purchase', async () => {
-			operations.providerOperationFor(
+		operations.withDurableRequestLock(storageKey, 'shipping-label purchase', async () => {
+			operations.getOrCreateDurableRequest(
 				storageKey,
 				{ ...originalRequest, rate_id: 'signed-rate-after-remount' },
 				'shipping-label purchase'
 			);
 			changedRequestCalls += 1;
 		}),
-		/different saved operation still needs review/
+		/different unresolved payload/
 	);
 	assert.equal(changedRequestCalls, 0);
-	const remounted = operations.readProviderOperation(storageKey, 'shipping-label purchase');
-	assert.equal(remounted.operation_id, saved.operation_id);
-	assert.deepEqual(operations.providerOperationRequest(remounted), originalRequest);
+	const remounted = operations.readDurableRequest(storageKey, 'shipping-label purchase');
+	assert.equal(remounted.id, saved.id);
+	assert.deepEqual(operations.durableRequestPayload(remounted), originalRequest);
 	assert.notEqual(storage.getItem(storageKey), null, 'an unrelated order state must retain the request');
 });
 
-test('provider operations never reuse an in-memory fallback after durable storage changes', async () => {
-	const operations = await importProviderOperations();
+test('durable requests never reuse an in-memory fallback after durable storage changes', async () => {
+	const operations = await importDurableRequests();
 	const storageKey = 'arky:provider:no-memory-fallback';
 	const request = { order_id: 'order-1', amount: 500 };
 	const firstStorage = new MemoryStorage();
 	installGlobal('localStorage', firstStorage);
-	const first = operations.providerOperationFor(storageKey, request, 'refund');
+	const first = operations.getOrCreateDurableRequest(storageKey, request, 'refund');
 	const secondStorage = new MemoryStorage();
 	installGlobal('localStorage', secondStorage);
-	const second = operations.providerOperationFor(storageKey, request, 'refund');
-	assert.notEqual(second.operation_id, first.operation_id);
+	const second = operations.getOrCreateDurableRequest(storageKey, request, 'refund');
+	assert.notEqual(second.id, first.id);
 	assert.equal(firstStorage.getItem(storageKey) !== null, true);
 	assert.equal(secondStorage.getItem(storageKey) !== null, true);
 });

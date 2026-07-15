@@ -12,6 +12,8 @@ import type {
   GetProductsParams,
   GetOrderParams,
   GetOrdersParams,
+  FindDigitalAccessGrantsParams,
+  GetDigitalAccessGrantParams,
   DownloadDigitalAccessParams,
   GetAvailabilityParams,
   AvailabilityResponse,
@@ -22,6 +24,8 @@ import type {
   GetProvidersParams,
   GetContactListParams,
   FindContactListsParams,
+  FindContactListPlansParams,
+  FindStorefrontContactListMembershipsParams,
   SubscribeContactListParams,
   ContactListAccessParams,
   ContactListContentAccessParams,
@@ -33,6 +37,7 @@ import type {
   ClearCartParams,
   QuoteCartParams,
   CheckoutCartParams,
+  VerificationChallengeResponse,
 } from "../types/api";
 import type {
   CollectionEntry,
@@ -41,10 +46,12 @@ import type {
   FormSubmission,
   Taxonomy,
   ContactList,
+  ContactListPlan,
   ContactListAccessResponse,
   ContactListContentAccessResponse,
   ContactListManagementResponse,
   ContactListSubscribeResponse,
+  StorefrontContactListMembership,
   Service,
   Provider,
   Store,
@@ -52,11 +59,12 @@ import type {
   Market,
   OrderQuote,
   Order,
+  DigitalAccessGrant,
   DigitalAccessDownloadResponse,
   OrderCheckoutResult,
   Product,
   Contact,
-  ContactDetail,
+  ContactSessionIssued,
   Cart,
   PaginatedResponse,
 } from "../types";
@@ -67,21 +75,18 @@ import {
 } from "../utils/blocks";
 import { normalizePublicCheckoutItems } from "../utils/orderItems";
 
-export type ContactToken = {
-  id: string;
-  token: string;
-  created_at: number;
-};
-
 export type IdentifyResponse = {
   contact: Contact;
-  token: ContactToken;
+  token: ContactSessionIssued | null;
   store: Store;
   market: Market | null;
-  code_sent: boolean;
+  verification_challenge: VerificationChallengeResponse | null;
 };
 
-export type VerifyResponse = ContactToken;
+export type VerifyResponse = {
+  contact: Contact;
+  token: ContactSessionIssued;
+};
 type LogoutResponse = void;
 type Country = {
   code: string;
@@ -160,6 +165,10 @@ export const createStorefrontApi = (
   updateContactSession: ContactSessionUpdater,
 ) => {
   const base = (storeId = apiConfig.storeId) => `/v1/storefront/${storeId}`;
+  const pendingVerifications = new Map<
+    string,
+    Pick<IdentifyResponse, "store" | "market">
+  >();
 
   return {
     store: {
@@ -519,8 +528,30 @@ export const createStorefrontApi = (
         ): Promise<DigitalAccessDownloadResponse> {
           const store_id = params.store_id || apiConfig.storeId;
           return apiConfig.httpClient.post<DigitalAccessDownloadResponse>(
-            `${base(store_id)}/orders/${params.id}/digital-access/${params.grant_id}/download`,
+            `${base(store_id)}/orders/${params.order_id}/digital-access/${params.grant_id}/download`,
             {},
+            options,
+          );
+        },
+
+        findDigitalAccess(
+          params: FindDigitalAccessGrantsParams,
+          options?: RequestOptions,
+        ): Promise<PaginatedResponse<DigitalAccessGrant>> {
+          const { order_id, store_id, ...queryParams } = params;
+          return apiConfig.httpClient.get<PaginatedResponse<DigitalAccessGrant>>(
+            `${base(store_id)}/orders/${order_id}/digital-access`,
+            { ...options, params: queryParams },
+          );
+        },
+
+        getDigitalAccess(
+          params: GetDigitalAccessGrantParams,
+          options?: RequestOptions,
+        ): Promise<DigitalAccessGrant> {
+          const store_id = params.store_id || apiConfig.storeId;
+          return apiConfig.httpClient.get<DigitalAccessGrant>(
+            `${base(store_id)}/orders/${params.order_id}/digital-access/${params.grant_id}`,
             options,
           );
         },
@@ -642,31 +673,65 @@ export const createStorefrontApi = (
             },
             options,
           );
-          if (result?.token?.token) {
+          const issued = result.token;
+          if (issued?.token) {
             updateContactSession(() => ({
-              access_token: result.token.token,
+              access_token: issued.token,
               contact: result.contact,
               store: result.store,
               market: result.market,
             }));
+          } else {
+            if (result.verification_challenge) {
+              pendingVerifications.set(result.verification_challenge.challenge_id, {
+                store: result.store,
+                market: result.market,
+              });
+            }
+            updateContactSession((current) =>
+              current
+                ? {
+                    ...current,
+                    contact: result.contact,
+                    store: result.store,
+                    market: result.market,
+                  }
+                : null,
+            );
           }
           return result;
         },
 
         async verify(
-          params: { code: string },
+          params: { challenge_id: string; code: string },
           options?: RequestOptions,
         ): Promise<VerifyResponse> {
           const store_id = apiConfig.storeId;
           const result = await apiConfig.httpClient.post<VerifyResponse>(
             `${base(store_id)}/account/verify`,
-            { store_id, code: params.code },
+            { store_id, challenge_id: params.challenge_id, code: params.code },
             options,
           );
-          if (result?.token) {
+          if (result?.token?.token) {
+            const pending = pendingVerifications.get(params.challenge_id);
+            const identifiedStore =
+              pending?.store ||
+              (await apiConfig.httpClient.get<Store>(base(store_id), options));
             updateContactSession((prev) =>
-              prev ? { ...prev, access_token: result.token } : null,
+              prev
+                ? {
+                    ...prev,
+                    access_token: result.token.token,
+                    contact: result.contact,
+                  }
+                : {
+                    access_token: result.token.token,
+                    contact: result.contact,
+                    store: identifiedStore,
+                    market: pending?.market || null,
+                  },
             );
+            pendingVerifications.delete(params.challenge_id);
           }
           return result;
         },
@@ -684,8 +749,8 @@ export const createStorefrontApi = (
           }
         },
 
-        getMe(options?: RequestOptions): Promise<ContactDetail> {
-          return apiConfig.httpClient.get<ContactDetail>(
+        getMe(options?: RequestOptions): Promise<Contact> {
+          return apiConfig.httpClient.get<Contact>(
             `${base()}/account/me`,
             options,
           );
@@ -716,6 +781,34 @@ export const createStorefrontApi = (
               params: queryParams,
             },
           );
+        },
+
+        plans: {
+          find(
+            params: FindContactListPlansParams,
+            options?: RequestOptions,
+          ): Promise<PaginatedResponse<ContactListPlan>> {
+            const { store_id, contact_list_id, ...queryParams } = params;
+            return apiConfig.httpClient.get<PaginatedResponse<ContactListPlan>>(
+              `${base(store_id)}/contact-lists/${contact_list_id}/plans`,
+              { ...options, params: queryParams },
+            );
+          },
+        },
+
+        memberships: {
+          find(
+            params?: FindStorefrontContactListMembershipsParams,
+            options?: RequestOptions,
+          ): Promise<PaginatedResponse<StorefrontContactListMembership>> {
+            const { store_id, ...queryParams } = params || {};
+            return apiConfig.httpClient.get<
+              PaginatedResponse<StorefrontContactListMembership>
+            >(`${base(store_id)}/contact-lists/memberships`, {
+              ...options,
+              params: queryParams,
+            });
+          },
         },
 
         subscribe(
