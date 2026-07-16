@@ -1,5 +1,45 @@
 export * from "./api";
 
+export type Currency =
+  | "usd"
+  | "eur"
+  | "gbp"
+  | "jpy"
+  | "cny"
+  | "chf"
+  | "aud"
+  | "cad"
+  | "hkd"
+  | "sgd"
+  | "nzd"
+  | "krw"
+  | "sek"
+  | "nok"
+  | "dkk"
+  | "inr"
+  | "mxn"
+  | "brl"
+  | "zar"
+  | "rub"
+  | "try"
+  | "pln"
+  | "thb"
+  | "idr"
+  | "myr"
+  | "php"
+  | "czk"
+  | "ils"
+  | "aed"
+  | "sar"
+  | "huf"
+  | "ron"
+  | "bgn"
+  | "hrk"
+  | "bam"
+  | "rsd"
+  | "mkd"
+  | "all";
+
 export enum PaymentMethodType {
   Cash = "cash",
   CreditCard = "credit_card",
@@ -59,7 +99,7 @@ export interface PaymentTransaction {
   revision: number;
   attempt_count: number;
   amount: number;
-  currency: string;
+  currency: Currency;
   provider: PaymentTransactionProvider;
   requested_at?: number | null;
   processing_started_at?: number | null;
@@ -77,7 +117,7 @@ export interface OrderRefund {
   revision: number;
   attempt_count: number;
   total: number;
-  currency: string;
+  currency: Currency;
   provider: PaymentTransactionProvider;
   status: import("./api").RefundStatus;
   safe_error?: string | null;
@@ -95,7 +135,7 @@ export interface OrderPayment {
   order_id: string;
   status: OrderPaymentStatus;
   amount: number;
-  currency: string;
+  currency: Currency;
   paid: number;
   authorized_amount: number;
   captured_amount: number;
@@ -108,7 +148,7 @@ export interface OrderPayment {
 }
 
 export interface OrderMoney {
-  currency: string;
+  currency: Currency;
   market: string;
   subtotal: number;
   shipping: number;
@@ -160,7 +200,7 @@ export interface OrderQuote {
 }
 
 export interface Price {
-  currency: string;
+  currency: Currency;
   market: string;
   amount: number;
   compare_at?: number;
@@ -175,12 +215,12 @@ export interface SubscriptionInterval {
 }
 
 export interface PriceProvider {
-  type: string;
+  type: "stripe";
   id: string;
 }
 
 export interface SubscriptionPrice {
-  currency: string;
+  currency: Currency;
   amount: number;
   compare_at?: number;
   interval?: SubscriptionInterval;
@@ -530,6 +570,14 @@ export type SocialPublicationEffectRequest =
   | {
       type: "youtube_upload";
       media_id: string;
+      total_bytes: number;
+      has_upload_session: boolean;
+    }
+  | { type: "tiktok_initialize_upload"; media_id: string }
+  | {
+      type: "tiktok_upload";
+      media_id: string;
+      publish_id: string;
       total_bytes: number;
       has_upload_session: boolean;
     };
@@ -902,9 +950,8 @@ export interface ProductLineItem {
   variant_id: string;
   quantity: number;
   cancelled_quantity: number;
+  allocated_quantity: number;
   fulfilled_quantity: number;
-  returned_quantity: number;
-  refunded_quantity: number;
   location_id?: string;
   snapshot: ProductLineItemSnapshot;
   status: OrderItemStatus;
@@ -922,7 +969,6 @@ export interface ServiceLineItem {
   quantity: number;
   cancelled_quantity: number;
   fulfilled_quantity: number;
-  refunded_quantity: number;
   forms: FormEntry[];
   snapshot: ServiceLineItemSnapshot;
   status: OrderItemStatus;
@@ -958,6 +1004,7 @@ export type OrderFulfillmentStatus =
 export interface OrderFulfillmentSummary {
   status: OrderFulfillmentStatus;
   required_quantity: number;
+  allocated_quantity: number;
   fulfilled_quantity: number;
   open_order_count: number;
   updated_at: number;
@@ -1034,6 +1081,7 @@ export interface FulfillmentOrderLine {
   id: string;
   order_item_id: string;
   quantity: number;
+  allocated_quantity: number;
   fulfilled_quantity: number;
   remaining_quantity: number;
 }
@@ -1105,7 +1153,7 @@ export interface Market {
   id: string;
   store_id: string;
   key: string;
-  currency: string;
+  currency: Currency;
   tax_mode: "exclusive" | "inclusive";
   payment_methods: PaymentMethod[];
   zones: Zone[];
@@ -1164,7 +1212,6 @@ export type WebhookEventSubscription =
   | { event: "media.deleted" }
   | { event: "store.created" }
   | { event: "store.updated" }
-  | { event: "store.deleted" }
   | { event: "contact_list.created" }
   | { event: "contact_list.updated" }
   | { event: "contact_list.contact_added" }
@@ -1195,24 +1242,13 @@ export interface Webhook {
 export type StoreSubscriptionStatus =
   "pending" | "active" | "cancellation_scheduled" | "cancelled" | "expired";
 
-export type StoreSubscriptionSource = "signup" | "admin" | "import";
-
 export type StoreSubscriptionActionStatus =
   "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
-
-export type StoreSubscriptionActionType =
-  | "select_plan"
-  | "cancel_at_period_end"
-  | "cancel_immediately"
-  | "reactivate"
-  | "update_plan"
-  | "schedule_plan_change";
 
 export type StoreSubscriptionActionRequest =
   | { type: "select_plan"; data: { plan_id: string } }
   | { type: "cancel_at_period_end" }
-  | { type: "reactivate" }
-  | { type: "store_deletion" };
+  | { type: "reactivate" };
 
 export type StoreSubscriptionActionError =
   | {
@@ -1241,7 +1277,6 @@ export interface StoreSubscriptionAction {
   id: string;
   subscription_id: string;
   store_id: string;
-  type: StoreSubscriptionActionType;
   request: StoreSubscriptionActionRequest;
   status: StoreSubscriptionActionStatus;
   error?: StoreSubscriptionActionError | null;
@@ -1283,21 +1318,19 @@ export interface StoreSubscriptionEffect {
 }
 
 export interface StoreSubscriptionPayment {
-  currency: string;
+  currency: Currency;
   market: string;
 }
 
 export interface StoreSubscription {
   id: string;
   store_id: string;
-  type: "platform";
   plan_id: string;
   pending_plan_id: string | null;
   payment: StoreSubscriptionPayment;
   status: StoreSubscriptionStatus;
   start_date: number;
   end_date: number;
-  source: StoreSubscriptionSource;
   created_at: number;
   updated_at: number;
 }
@@ -1315,10 +1348,10 @@ export type ContactListMembershipPaymentAttemptStatus =
   | "unknown";
 
 export type ContactListMembershipPaymentAttemptType =
-  | { type: "create_customer" }
-  | { type: "create_payment_intent" }
-  | { type: "create_subscription" }
-  | { type: "confirm_payment_intent" };
+  | "create_customer"
+  | "create_payment_intent"
+  | "create_subscription"
+  | "confirm_payment_intent";
 
 export type ContactListMembershipPaymentAttemptSafeError =
   "payment_rejected" | "invalid_payment_state" | "unknown_outcome";
@@ -1335,7 +1368,7 @@ export interface ContactListMembershipPaymentAttempt {
   status: ContactListMembershipPaymentAttemptStatus;
   plan_id: string;
   amount: number;
-  currency: string;
+  currency: Currency;
   interval?: SubscriptionInterval | null;
   safe_error?: ContactListMembershipPaymentAttemptSafeError | null;
   started_at: number;
@@ -1359,7 +1392,7 @@ export interface ContactListMembershipRefund {
   revision: number;
   type: ContactListMembershipRefundType;
   amount: number;
-  currency: string;
+  currency: Currency;
   status: ContactListMembershipRefundStatus;
   safe_error?: ContactListMembershipRefundSafeError | null;
   created_at: number;
@@ -1456,25 +1489,42 @@ export interface TaxonomyQuery {
 export type FormSchemaType =
   "text" | "number" | "boolean" | "date" | "geo_location" | "select";
 
-export interface FormSchema {
+interface FormSchemaBase {
   id: string;
   key: string;
-  type: FormSchemaType;
-  required?: boolean;
-  min?: number | null;
-  max?: number | null;
-  options?: string[];
+  required: boolean;
 }
+
+export type FormSchema =
+  | (FormSchemaBase & { type: "text" })
+  | (FormSchemaBase & {
+      type: "number";
+      min?: number | null;
+      max?: number | null;
+    })
+  | (FormSchemaBase & { type: "boolean" })
+  | (FormSchemaBase & { type: "date" })
+  | (FormSchemaBase & { type: "geo_location" })
+  | (FormSchemaBase & { type: "select"; options: string[] });
 
 export type FormFieldType =
   "text" | "number" | "boolean" | "date" | "geo_location" | "select";
 
-export interface FormField {
+interface FormFieldBase {
   id: string;
   key: string;
-  type: FormFieldType;
-  value?: any;
 }
+
+export type FormField =
+  | (FormFieldBase & { type: "text"; value: string })
+  | (FormFieldBase & { type: "number"; value: number })
+  | (FormFieldBase & { type: "boolean"; value: boolean })
+  | (FormFieldBase & { type: "date"; value: number })
+  | (FormFieldBase & { type: "geo_location"; value: GeoLocation })
+  | (FormFieldBase & { type: "select"; value: string[] });
+
+export type FormValue = FormField["value"];
+export type FormValues = Record<string, FormValue | undefined>;
 
 export interface FormEntry {
   form_id: string;
@@ -1514,8 +1564,6 @@ export interface MediaResolution {
 
 export interface Media {
   id: string;
-  status: MediaStatus;
-  processing_error?: MediaProcessingError | null;
   resolutions: Partial<Record<MediaSize, MediaResolution>>;
   mime_type: string;
   title?: string | null;
@@ -1527,25 +1575,42 @@ export interface Media {
   slug: Record<string, string>;
 }
 
-export type MediaStatus = "processing" | "failed" | "ready";
+export type SubscriptionPlanFeatureType =
+  | "collections"
+  | "entries"
+  | "services"
+  | "products"
+  | "providers"
+  | "workflows"
+  | "contact_lists"
+  | "crm_contacts"
+  | "media"
+  | "members"
+  | "taxonomies"
+  | "email_templates"
+  | "forms"
+  | "mailboxes"
+  | "social_connections"
+  | "webhooks"
+  | "support_agents"
+  | "lead_research_runs"
+  | "outreach_campaigns";
 
-export type MediaProcessingError = {
-  type: "storage_write_failed";
-  message: string;
-  at: number;
-};
+export interface SubscriptionPlanFeature {
+  limit: number | null;
+  reset: "never" | "monthly";
+}
 
 export interface SubscriptionPlan {
   id: string;
-  provider_price_id?: string | null;
-  provider_product_id?: string | null;
+  provider_price_id: string | null;
   name: string;
   tier: number;
   amount: number;
-  currency: string;
-  interval: string;
+  currency: Currency;
+  interval: "lifetime" | "month" | "year";
   interval_count: number;
-  trial_period_days: number;
+  features: Record<SubscriptionPlanFeatureType, SubscriptionPlanFeature>;
 }
 
 export type AccountApiTokenStatus = "active" | "revoked" | "expired";
@@ -1679,6 +1744,8 @@ export type GoogleMailboxProvider = {
 };
 export type CampaignStatus =
   "draft" | "active" | "paused" | "completed" | "archived";
+export type CampaignLaunchStatus =
+  "idle" | "requested" | "processing" | "succeeded" | "failed";
 export type CampaignEnrollmentStatus =
   | "pending"
   | "active"
@@ -1745,7 +1812,8 @@ export type SuppressionScopeType = "store" | "campaign";
 export type SuppressionReason =
   "manual" | "unsubscribed" | "bounced" | "complained" | "replied";
 export type SuppressionSource = "admin" | "import" | "reply" | "system";
-export type WorkflowStatus = "active" | "draft" | "archived";
+export type WorkflowStatus = "active" | "draft" | "archived" | "deleting";
+export type MutableWorkflowStatus = Exclude<WorkflowStatus, "deleting">;
 export type PromoCodeStatus = "active" | "draft" | "archived";
 export type CollectionStatus = "active" | "draft" | "archived";
 export type EntryStatus = "active" | "draft" | "archived";
@@ -2167,17 +2235,21 @@ export interface RetryEmailDeliveryParams {
   revision: number;
 }
 
-export interface EmailSendMessageResult {
+export interface EmailSendDeliveryResult {
+  delivery_id: string;
+  revision: number;
   recipient: string;
   mailbox_id: string;
   template_id: string;
-  provider_message_id: string;
+  status: EmailDeliveryStatus;
+  error?: EmailDeliveryError | null;
+  provider_message_id?: string | null;
   provider_thread_id?: string | null;
 }
 
 export interface EmailSendResult {
   sent: number;
-  messages: EmailSendMessageResult[];
+  deliveries: EmailSendDeliveryResult[];
 }
 
 export interface WorkflowSendEmailNode {
@@ -2481,6 +2553,7 @@ export interface ContactListManagementResponse {
 
 export interface ContactListSubscribeResponse {
   payment_action: CheckoutPaymentAction;
+  payment_attempt?: StorefrontContactListPaymentAttemptSummary | null;
   membership?: ContactListMembership | null;
 }
 
@@ -2516,21 +2589,29 @@ export interface ContactListMembership {
   updated_at: number;
 }
 
-export type StorefrontContactListDisplayType =
+export type StorefrontContactListType =
   "standard" | "confirmation" | "paid";
 
-export interface StorefrontContactListDisplay {
+export interface StorefrontContactList {
   id: string;
   key: string;
   name: string;
   description?: string | null;
-  type: StorefrontContactListDisplayType;
+  type: StorefrontContactListType;
+}
+
+export interface StorefrontContactListPlan {
+  id: string;
+  key: string;
+  name: string;
+  description?: string | null;
+  prices: SubscriptionPrice[];
 }
 
 export interface StorefrontContactListPaymentAttemptSummary {
   plan_id: string;
   amount: number;
-  currency: string;
+  currency: Currency;
   interval?: SubscriptionInterval | null;
   status: ContactListMembershipPaymentAttemptStatus;
 }
@@ -2538,7 +2619,7 @@ export interface StorefrontContactListPaymentAttemptSummary {
 export interface StorefrontContactListMembership {
   id: string;
   status: ContactListMembershipStatus;
-  contact_list: StorefrontContactListDisplay;
+  contact_list: StorefrontContactList;
   payment_attempt?: StorefrontContactListPaymentAttemptSummary | null;
   start_date: number;
   end_date: number;
@@ -2742,7 +2823,7 @@ export interface OutreachStep {
 }
 
 export interface OutreachPersonalizationCounters {
-  total_contacts: number;
+  total_profiles: number;
   draft_messages: number;
   generated_messages: number;
   template_messages: number;
@@ -2750,6 +2831,7 @@ export interface OutreachPersonalizationCounters {
 }
 
 export interface OutreachPersonalizationState {
+  run_id: string;
   status: OutreachPersonalizationStatus;
   step_position?: number | null;
   contact_ids: string[];
@@ -2761,6 +2843,15 @@ export interface OutreachPersonalizationState {
   completed_at?: number | null;
 }
 
+export interface CampaignLaunchState {
+  revision: number;
+  status: CampaignLaunchStatus;
+  requested_at: number | null;
+  processing_started_at: number | null;
+  completed_at: number | null;
+  error: string | null;
+}
+
 export interface Campaign {
   id: string;
   store_id: string;
@@ -2768,6 +2859,7 @@ export interface Campaign {
   name: string;
   mailbox_ids: string[];
   status: CampaignStatus;
+  launch: CampaignLaunchState;
   steps: OutreachStep[];
   personalization: OutreachPersonalizationState;
   launched_at?: number | null;
@@ -3003,12 +3095,12 @@ export type EventAction =
   | { action: "order_confirmed" }
   | {
       action: "order_payment_received";
-      data: { amount: number; currency: string };
+      data: { amount: number; currency: Currency };
     }
   | { action: "order_payment_failed"; data: { reason?: string } }
   | {
       action: "order_refunded";
-      data: { amount: number; currency: string; reason?: string };
+      data: { amount: number; currency: Currency; reason?: string };
     }
   | { action: "order_cancelled"; data: { reason?: string } }
   | { action: "order_shipment_created"; data: { shipment_id: string } }
@@ -3046,7 +3138,6 @@ export type EventAction =
   | { action: "media_deleted" }
   | { action: "store_created" }
   | { action: "store_updated" }
-  | { action: "store_deleted" }
   | { action: "contact_list_created" }
   | { action: "contact_list_updated" }
   | { action: "contact_list_contact_added" }
@@ -3092,17 +3183,23 @@ export type ShippingLabelStatus =
 export type ShippingLabelRefundStatus =
   "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
 
+export type ShippingLabelRefundReconciliationStatus =
+  "not_started" | "succeeded" | "conflict";
+
 export interface ShippingLabelRefund {
   id: string;
   shipment_id: string;
   amount: number;
-  currency: string;
+  currency: Currency;
   status: ShippingLabelRefundStatus;
   revision: number;
   attempt_count: number;
   provider_refund_id?: string | null;
   provider_status?: string | null;
   credit_settlement_id?: string | null;
+  allocation_reconciliation_status: ShippingLabelRefundReconciliationStatus;
+  allocation_reconciliation_completed_at?: number | null;
+  safe_allocation_reconciliation_error?: string | null;
   safe_error?: string | null;
   requested_at: number;
   completed_at?: number | null;
@@ -3118,7 +3215,7 @@ export interface ShippingLabelAdjustment {
   shipment_id: string;
   provider_adjustment_id: string;
   amount: number;
-  currency: string;
+  currency: Currency;
   reason: string;
   status: ShippingLabelAdjustmentStatus;
   settlement_id: string;
@@ -3132,7 +3229,7 @@ export type ShippingLabelSettlementDirection = "debit" | "credit";
 export type ShippingLabelSettlementStatus =
   "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
 
-export type ShipmentAllocationStatus = "reserved" | "consumed" | "released";
+export type ShipmentAllocationStatus = "reserved" | "fulfilled" | "released";
 
 export type ShippingLabelSettlementType =
   | { type: "purchase_debit" }
@@ -3147,7 +3244,7 @@ export interface ShippingLabelSettlement {
   type: ShippingLabelSettlementType;
   direction: ShippingLabelSettlementDirection;
   amount: number;
-  currency: string;
+  currency: Currency;
   status: ShippingLabelSettlementStatus;
   revision: number;
   attempt_count: number;
@@ -3175,7 +3272,7 @@ export interface Shipment {
   postage_amount: number;
   fee_amount: number;
   total_amount: number;
-  currency: string;
+  currency: Currency;
   tracking_number?: string | null;
   tracking_url?: string | null;
   label_url?: string | null;
@@ -3200,7 +3297,7 @@ export interface ShippingRate {
   service: string;
   display_name: string;
   amount: number;
-  currency: string;
+  currency: Currency;
   estimated_days?: number | null;
 }
 
@@ -3224,7 +3321,7 @@ export interface CustomsItem {
   net_weight: string;
   mass_unit: string;
   value_amount: string;
-  value_currency: string;
+  value_currency: Currency;
   origin_country: string;
   tariff_number?: string | null;
 }

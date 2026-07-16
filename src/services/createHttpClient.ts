@@ -40,7 +40,7 @@ export interface RequestErrorContext {
 
 export interface RequestOptions<T = unknown> {
   headers?: Record<string, string>;
-  params?: QueryParams | Record<string, any>;
+  params?: QueryParams;
   signal?: AbortSignal;
   transformRequest?: (data: unknown) => unknown;
   onSuccess?: (ctx: RequestSuccessContext<T>) => void | Promise<void>;
@@ -62,6 +62,64 @@ export interface HttpClientConfig {
   refreshPath?: string | (() => string);
   navigate?: (path: string) => void;
   loginFallbackPath?: string;
+}
+
+interface HttpRequestErrorDetails {
+  statusCode?: number;
+  validationErrors?: ServerError["validationErrors"];
+  method?: string;
+  url?: string;
+  requestId?: string;
+  aborted?: boolean;
+}
+
+function requestError(
+  name: "ApiError" | "NetworkError" | "ParseError" | "AbortError",
+  message: string,
+  details: HttpRequestErrorDetails = {},
+): Error & HttpRequestErrorDetails {
+  return Object.assign(new Error(message), { name }, details);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isTokenSet(value: unknown): value is TokenSet {
+  return (
+    isRecord(value) &&
+    typeof value.access_token === "string" &&
+    (value.refresh_token === undefined ||
+      typeof value.refresh_token === "string") &&
+    (value.access_expires_at === undefined ||
+      typeof value.access_expires_at === "number")
+  );
+}
+
+function isValidationError(
+  value: unknown,
+): value is ServerError["validationErrors"][number] {
+  return (
+    isRecord(value) &&
+    typeof value.field === "string" &&
+    typeof value.error === "string"
+  );
+}
+
+function toServerError(value: unknown, statusCode: number): ServerError {
+  const payload = isRecord(value) ? value : {};
+  const validationErrors = Array.isArray(payload.validationErrors)
+    ? payload.validationErrors.filter(isValidationError)
+    : [];
+
+  return {
+    message:
+      typeof payload.message === "string" ? payload.message : "Request failed",
+    error: typeof payload.error === "string" ? payload.error : "REQUEST_FAILED",
+    statusCode:
+      typeof payload.statusCode === "number" ? payload.statusCode : statusCode,
+    validationErrors,
+  };
 }
 
 export function createHttpClient(cfg: HttpClientConfig): HttpClient {
@@ -86,10 +144,9 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       const refresh_token = tokens?.refresh_token;
       if (!refresh_token) {
         authStorage.onForcedLogout();
-        const err: any = new Error("No refresh token available");
-        err.name = "ApiError";
-        err.statusCode = 401;
-        throw err;
+        throw requestError("ApiError", "No refresh token available", {
+          statusCode: 401,
+        });
       }
 
       const refRes = await fetch(getRefreshEndpoint(), {
@@ -103,13 +160,20 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
 
       if (!refRes.ok) {
         authStorage.onForcedLogout();
-        const err: any = new Error("Token refresh failed");
-        err.name = "ApiError";
-        err.statusCode = 401;
-        throw err;
+        throw requestError("ApiError", "Token refresh failed", {
+          statusCode: 401,
+        });
       }
 
-      const data = await refRes.json();
+      const data: unknown = await refRes.json();
+      if (!isTokenSet(data)) {
+        authStorage.onForcedLogout();
+        throw requestError(
+          "ParseError",
+          "Token refresh returned an invalid response",
+          { statusCode: refRes.status },
+        );
+      }
       authStorage.onTokensRefreshed(data);
     })().finally(() => {
       refreshPromise = null;
@@ -122,9 +186,10 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
     method: string,
     path: string,
     body?: unknown,
-    options?: RequestOptions<T> & { _retried?: boolean },
+    options?: RequestOptions<T>,
+    retried = false,
   ): Promise<T> {
-    if (options?.transformRequest) {
+    if (!retried && options?.transformRequest) {
       body = options.transformRequest(body);
     }
 
@@ -146,12 +211,16 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
     }
 
     const finalPath = options?.params
-      ? path + buildQueryString(options.params as QueryParams)
+      ? path + buildQueryString(options.params)
       : path;
 
-    const fetchOpts: any = { method, headers, signal: options?.signal };
+    const fetchOptions: RequestInit = {
+      method,
+      headers,
+      signal: options?.signal,
+    };
     if (!["GET", "DELETE"].includes(method) && body !== undefined) {
-      fetchOpts.body =
+      fetchOptions.body =
         body instanceof URLSearchParams
           ? body.toString()
           : JSON.stringify(body);
@@ -159,22 +228,20 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
 
     const fullUrl = `${cfg.baseUrl}${finalPath}`;
     let res: Response;
-    let data: any;
+    let data: unknown;
     const startedAt = Date.now();
 
     try {
-      res = await fetch(fullUrl, fetchOpts);
+      res = await fetch(fullUrl, fetchOptions);
     } catch (error) {
       const aborted =
         options?.signal?.aborted ||
         (error instanceof Error && error.name === "AbortError");
-      const err: any = new Error(
+      const err = requestError(
+        aborted ? "AbortError" : "NetworkError",
         error instanceof Error ? error.message : "Network request failed",
+        { method, url: fullUrl, aborted },
       );
-      err.name = aborted ? "AbortError" : "NetworkError";
-      err.method = method;
-      err.url = fullUrl;
-      err.aborted = aborted;
       if (options?.onError && method !== "GET") {
         Promise.resolve(
           options.onError({ error: err, method, url: fullUrl, aborted }),
@@ -183,18 +250,9 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       throw err;
     }
 
-    if (res.status === 401 && !options?.["_retried"]) {
-      try {
-        await ensureFreshToken();
-        const refreshed = authStorage.getTokens();
-        if (refreshed?.access_token) {
-          headers["Authorization"] = `Bearer ${refreshed.access_token}`;
-          fetchOpts.headers = headers;
-        }
-        return request<T>(method, path, body, { ...options, _retried: true });
-      } catch (refreshError) {
-        throw refreshError;
-      }
+    if (res.status === 401 && !retried) {
+      await ensureFreshToken();
+      return request<T>(method, path, body, options, true);
     }
 
     try {
@@ -210,11 +268,11 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
         data = await res.json();
       }
     } catch (error) {
-      const err: any = new Error("Failed to parse response");
-      err.name = "ParseError";
-      err.method = method;
-      err.url = fullUrl;
-      err.status = res.status;
+      const err = requestError("ParseError", "Failed to parse response", {
+        method,
+        url: fullUrl,
+        statusCode: res.status,
+      });
       if (options?.onError && method !== "GET") {
         Promise.resolve(
           options.onError({
@@ -229,17 +287,17 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
     }
 
     if (!res.ok) {
-      const serverErr: ServerError = data;
+      const serverErr = toServerError(data, res.status);
       const reqErr = convertServerErrorToRequestError(serverErr);
-      const err: any = new Error(serverErr.message || "Request failed");
-      err.name = "ApiError";
-      err.statusCode = serverErr.statusCode || res.status;
-      err.validationErrors = reqErr.validationErrors;
-      err.method = method;
-      err.url = fullUrl;
       const requestId =
         res.headers.get("x-request-id") || res.headers.get("request-id");
-      if (requestId) err.requestId = requestId;
+      const err = requestError("ApiError", serverErr.message, {
+        statusCode: serverErr.statusCode,
+        validationErrors: reqErr.validationErrors,
+        method,
+        url: fullUrl,
+        requestId: requestId || undefined,
+      });
       if (options?.onError && method !== "GET") {
         Promise.resolve(
           options.onError({

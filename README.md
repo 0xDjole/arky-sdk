@@ -44,19 +44,19 @@ await arky.action.track({
 The storefront module API is the preferred surface for websites:
 
 ```typescript
-await arky.cart.load();
+await arky.eshop.cart.load();
 
 await arky.cms.entry.get({
   collection_id: "pages",
   key: "homepage",
   locale: "en",
 });
-await arky.cms.form.submitByKey({ key: "contact", entries: [] });
+await arky.cms.form.submitByKey({ key: "contact", values: {} });
 
 const { items: products } = await arky.eshop.product.list({ limit: 20 });
-await arky.cart.addProduct(products[0], products[0].variants[0], 1);
-await arky.cart.quote();
-await arky.cart.checkout({ payment_method_id: "cash" });
+await arky.eshop.cart.addProduct(products[0], products[0].variants[0], 1);
+await arky.eshop.cart.quote();
+await arky.eshop.cart.checkout({ payment_method_key: "cash" });
 
 const { items: services } = await arky.eshop.service.list({ limit: 20 });
 await arky.eshop.service.initialize();
@@ -94,10 +94,10 @@ const title = arky.utils.getBlockTextValue(titleBlock, "en");
 
 await arky.cms.form.submitByKey({
   key: "contact",
-  entries: [
-    { key: "email", value: "profile@example.com" },
-    { key: "message", value: "Hello from the storefront" },
-  ],
+  values: {
+    email: "profile@example.com",
+    message: "Hello from the storefront",
+  },
 });
 ```
 
@@ -105,7 +105,7 @@ await arky.cms.form.submitByKey({
 
 ```typescript
 const { items: products } = await arky.eshop.product.list({ limit: 20 });
-const product = await arky.eshop.product.loadDetail({ id: products[0].id });
+const product = await arky.eshop.product.get({ id: products[0].id });
 const variant = product.variants[0];
 
 await arky.eshop.cart.addProduct(product, variant, 2);
@@ -113,7 +113,7 @@ await arky.eshop.cart.addProduct(product, variant, 2);
 const quote = await arky.eshop.cart.quote();
 
 const order = await arky.eshop.cart.checkout({
-  payment_method_id: "credit_card",
+  payment_method_key: "credit_card",
 });
 ```
 
@@ -129,14 +129,18 @@ arky.eshop.service.findFirstAvailable();
 const state = arky.eshop.service.state.get();
 if (state.slots[0]) {
   arky.eshop.service.selectTimeSlot(state.slots[0]);
+  const configuredForms = arky.eshop.service.form_groups.get();
+  // Render and bind each configuredForms[i].blocks before adding the booking.
   arky.eshop.service.nextStep();
   await arky.eshop.service.addToCart();
 }
 
 await arky.eshop.cart.checkout({
-  payment_method_id: "cash",
+  payment_method_key: "cash",
 });
 ```
+
+Booking forms are resolved from the selected service-provider relation by exact form ID. A provider with no configured forms sends `[]`. For a longer booking, pass an explicit list of adjacent slots for the same service and provider to `addToCart(slots)`.
 
 ## Low-Level Client
 

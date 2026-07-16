@@ -9,9 +9,9 @@ const store = initialize({
   locale: "en",
 });
 
-assert.equal(typeof store.cart.load, "function");
-assert.equal(store.cart, store.eshop.cart);
-assert.equal(typeof store.cart.refresh, "function");
+assert.equal(typeof store.eshop.cart.load, "function");
+assert.equal("cart" in store, false);
+assert.equal(typeof store.eshop.cart.refresh, "function");
 assert.equal(typeof store.setContext, "function");
 assert.equal(typeof store.me, "function");
 assert.equal(typeof store.onAuthStateChanged, "function");
@@ -31,8 +31,10 @@ assert.equal(typeof store.eshop.cart.payment.getController, "function");
 assert.equal(typeof store.eshop.cart.payment.mountStripe, "function");
 assert.equal(typeof store.eshop.cart.payment.update, "function");
 assert.equal(typeof store.eshop.cart.payment.destroy, "function");
+assert.equal(typeof store.eshop.product.get, "function");
 assert.equal(typeof store.eshop.product.list, "function");
-assert.equal(typeof store.eshop.product.loadDetail, "function");
+assert.equal("find" in store.eshop.product, false);
+assert.equal("loadDetail" in store.eshop.product, false);
 assert.equal(typeof store.eshop.service.listProviders, "function");
 assert.equal(typeof store.eshop.service.initialize, "function");
 assert.equal(typeof store.eshop.service.select, "function");
@@ -40,7 +42,7 @@ assert.equal(typeof store.eshop.order.findDigitalAccess, "function");
 assert.equal(typeof store.eshop.order.getDigitalAccess, "function");
 assert.equal(typeof store.eshop.order.downloadDigitalAccess, "function");
 assert.equal(store.eshop.cart.product_items.get().length, 0);
-assert.equal(store.eshop.service.state.get().cart.length, 0);
+assert.equal(store.eshop.cart.service_items.get().length, 0);
 
 const stripeLoadCalls = [];
 const fakeElements = {

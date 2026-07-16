@@ -65,10 +65,6 @@ import type {
   Cart,
   PaginatedResponse,
 } from "../types";
-import {
-  normalizeOrderCheckoutItems,
-  normalizeOrderQuoteItems,
-} from "../utils/orderItems";
 
 export const createEshopApi = (apiConfig: ApiConfig) => {
   return {
@@ -340,7 +336,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const target_store_id = store_id || apiConfig.storeId;
       const payload = {
         ...rest,
-        ...(items ? { items: normalizeOrderCheckoutItems(items) } : {}),
+        ...(items ? { items } : {}),
       };
 
       return apiConfig.httpClient.put<Order>(
@@ -398,7 +394,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         `/v1/stores/${target_store_id}/carts`,
         {
           ...payload,
-          items: normalizeOrderCheckoutItems(payload.items || []),
+          items: payload.items || [],
         },
         options,
       );
@@ -411,7 +407,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         `/v1/stores/${target_store_id}/carts/${id}`,
         {
           ...payload,
-          ...(items ? { items: normalizeOrderCheckoutItems(items) } : {}),
+          ...(items ? { items } : {}),
         },
         options,
       );
@@ -422,7 +418,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<Cart>(
         `/v1/stores/${target_store_id}/carts/${id}/items`,
-        { item: normalizeOrderCheckoutItems([item])[0] },
+        { item },
         options,
       );
     },
@@ -483,7 +479,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         `/v1/stores/${target_store_id}/orders/quote`,
         {
           ...rest,
-          items: normalizeOrderQuoteItems(items),
+          items,
           shipping_address,
           market: rest.market || apiConfig.market,
         },

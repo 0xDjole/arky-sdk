@@ -1,5 +1,6 @@
 import type {
   Block,
+  Currency,
   Zone,
   ZoneLocation,
   WorkflowNode,
@@ -16,6 +17,7 @@ import type {
   PaymentMethod,
   ServiceStatus,
   ProviderStatus,
+  MutableWorkflowStatus,
   WorkflowStatus,
   PromoCodeStatus,
   ProductStatus,
@@ -67,7 +69,10 @@ import type {
   SocialPublicationContent,
   SocialPublicationStatus,
   SubscriptionPrice,
+  ProductInventory,
 } from "./index";
+
+export type { RequestOptions } from "../services/createHttpClient";
 
 export interface CreateLocationParams {
   key: string;
@@ -86,61 +91,41 @@ export interface DeleteLocationParams {
   id: string;
 }
 
+export type MarketZoneInput = Omit<Zone, "id" | "store_id" | "market_id"> & {
+  id?: string;
+};
+
 export interface CreateMarketParams {
   key: string;
-  currency: string;
+  currency: Currency;
   tax_mode: "inclusive" | "exclusive";
   payment_methods?: PaymentMethod[];
-  zones?: Zone[];
+  zones?: MarketZoneInput[];
 }
 
 export interface UpdateMarketParams {
   id: string;
   key?: string;
-  currency?: string;
+  currency?: Currency;
   tax_mode?: "inclusive" | "exclusive";
   payment_methods?: PaymentMethod[];
-  zones?: Zone[];
+  zones?: MarketZoneInput[];
 }
 
 export interface DeleteMarketParams {
   id: string;
 }
 
-export interface RequestOptions<T = any> {
-  headers?: Record<string, string>;
-  params?: Record<string, any>;
-  signal?: AbortSignal;
-  transformRequest?: (data: any) => any;
-  onSuccess?: (ctx: {
-    data: T;
-    method: string;
-    url: string;
-    status: number;
-    request?: any;
-    duration_ms?: number;
-    request_id?: string | null;
-  }) => void | Promise<void>;
-  onError?: (ctx: {
-    error: any;
-    method: string;
-    url: string;
-    status?: number;
-    request?: any;
-    response?: any;
-    duration_ms?: number;
-    request_id?: string | null;
-    aborted?: boolean;
-  }) => void | Promise<void>;
-}
-
-export interface EshopItem {
+export interface ProductCheckoutItemInput {
+  type: "product";
+  id?: string;
   product_id: string;
   variant_id: string;
   quantity: number;
 }
 
-export interface EshopQuoteItem {
+export interface ProductQuoteItemInput {
+  type: "product";
   product_id: string;
   variant_id: string;
   quantity: number;
@@ -152,37 +137,13 @@ export interface SlotRange {
   to: number;
 }
 
-export interface ServiceQuoteItem {
+export interface ServiceQuoteItemInput {
+  type: "service";
   service_id: string;
   provider_id: string;
   slots: SlotRange[];
   forms?: FormEntry[];
   price?: Price;
-}
-
-export interface ServiceCheckoutPart {
-  service_id: string;
-  provider_id: string;
-  slots: SlotRange[];
-  forms: FormEntry[];
-}
-
-export interface ProductQuoteItemInput extends EshopQuoteItem {
-  type: "product";
-}
-
-export interface ServiceQuoteItemInput extends ServiceQuoteItem {
-  type: "service";
-}
-
-export type OrderQuoteItemInput = ProductQuoteItemInput | ServiceQuoteItemInput;
-
-export type OrderQuoteCompatibleItemInput =
-  OrderQuoteItemInput | EshopQuoteItem | ServiceQuoteItem;
-
-export interface ProductCheckoutItemInput extends EshopItem {
-  type: "product";
-  id?: string;
 }
 
 export interface ServiceCheckoutItemInput {
@@ -194,11 +155,10 @@ export interface ServiceCheckoutItemInput {
   forms?: FormEntry[];
 }
 
+export type OrderQuoteItemInput = ProductQuoteItemInput | ServiceQuoteItemInput;
+
 export type OrderCheckoutItemInput =
   ProductCheckoutItemInput | ServiceCheckoutItemInput;
-
-export type OrderCheckoutCompatibleItemInput =
-  OrderCheckoutItemInput | EshopItem | ServiceCheckoutPart;
 
 export interface TrustedProductCheckoutItemInput extends ProductCheckoutItemInput {
   price?: Price;
@@ -211,13 +171,10 @@ export interface TrustedServiceCheckoutItemInput extends ServiceCheckoutItemInpu
 export type TrustedOrderCheckoutItemInput =
   TrustedProductCheckoutItemInput | TrustedServiceCheckoutItemInput;
 
-export type TrustedOrderCheckoutCompatibleItemInput =
-  TrustedOrderCheckoutItemInput | EshopItem | ServiceCheckoutPart;
-
 export interface GetQuoteParams {
   store_id?: string;
   market?: string;
-  items: OrderQuoteCompatibleItemInput[];
+  items: OrderQuoteItemInput[];
   shipping_address?: Address;
   billing_address?: Address;
   forms?: FormEntry[];
@@ -231,7 +188,7 @@ export interface GetQuoteParams {
 export interface OrderCheckoutParams {
   store_id?: string;
   market?: string;
-  items: OrderCheckoutCompatibleItemInput[];
+  items: OrderCheckoutItemInput[];
   payment_method_key?: string;
   shipping_address?: Address;
   billing_address?: Address;
@@ -265,7 +222,7 @@ export interface CreateCartParams {
   store_id?: string;
   contact_id: string;
   market: string;
-  items?: TrustedOrderCheckoutCompatibleItemInput[];
+  items?: TrustedOrderCheckoutItemInput[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   forms?: FormEntry[];
@@ -278,7 +235,7 @@ export interface UpdateCartParams {
   id: string;
   store_id?: string;
   market?: string;
-  items?: OrderCheckoutCompatibleItemInput[];
+  items?: OrderCheckoutItemInput[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   forms?: FormEntry[];
@@ -290,16 +247,16 @@ export interface UpdateCartParams {
 export interface AddCartItemParams {
   id: string;
   store_id?: string;
-  item: OrderCheckoutCompatibleItemInput;
+  item: OrderCheckoutItemInput;
 }
 
-export interface RemoveCartItemParams {
+export type RemoveCartItemParams = {
   id: string;
   store_id?: string;
-  item_id?: string;
-  product_id?: string;
-  variant_id?: string;
-}
+} & (
+  | { item_id: string; product_id?: never; variant_id?: never }
+  | { item_id?: never; product_id: string; variant_id: string }
+);
 
 export interface ClearCartParams {
   id: string;
@@ -365,11 +322,12 @@ export interface UpdateCollectionParams {
   status?: CollectionStatus;
 }
 
-export interface GetCollectionParams {
-  id?: string;
-  key?: string;
+export type GetCollectionParams = {
   store_id?: string;
-}
+} & (
+  | { id: string; key?: never }
+  | { id?: never; key: string }
+);
 
 export interface DeleteCollectionParams {
   id: string;
@@ -410,7 +368,7 @@ export interface UpdateEntryParams {
 }
 
 export interface GetEntryParams {
-  id?: string;
+  id: string;
   store_id?: string;
 }
 
@@ -602,10 +560,6 @@ export interface UpdateStoreParams {
   emails?: StoreEmails;
 }
 
-export interface DeleteStoreParams {
-  id: string;
-}
-
 export interface GetStoreParams {}
 
 export type CreateStoreSubscriptionActionParams = {
@@ -697,10 +651,15 @@ export interface TestWebhookResponse {
   error?: string | null;
 }
 
+export type ProductInventoryInput = Pick<
+  ProductInventory,
+  "location_id" | "available" | "reserved"
+>;
+
 export interface CreateProductVariantInput {
   sku?: string;
   prices: Price[];
-  inventory: import("./index").ProductInventory[];
+  inventory: ProductInventoryInput[];
   attributes: Block[];
   requires_shipping?: boolean;
   digital_delivery_policy?: import("./index").DigitalDeliveryPolicy;
@@ -715,7 +674,7 @@ export interface UpdateProductVariantInput {
   id: string;
   sku?: string | null;
   prices?: Price[];
-  inventory?: import("./index").ProductInventory[];
+  inventory?: ProductInventoryInput[];
   attributes?: Block[];
   requires_shipping?: boolean;
   digital_delivery_policy?: import("./index").DigitalDeliveryPolicy;
@@ -751,11 +710,12 @@ export interface DeleteProductParams {
   store_id?: string;
 }
 
-export interface GetProductParams {
-  id?: string;
-  slug?: string;
+export type GetProductParams = {
   store_id?: string;
-}
+} & (
+  | { id: string; slug?: never }
+  | { id?: never; slug: string }
+);
 
 export interface GetOrderParams {
   id: string;
@@ -793,7 +753,7 @@ export interface UpdateOrderParams {
 
   billing_address?: Address | null;
   forms?: FormEntry[];
-  items?: TrustedOrderCheckoutCompatibleItemInput[];
+  items?: TrustedOrderCheckoutItemInput[];
 }
 
 export interface CreateProviderParams {
@@ -884,22 +844,24 @@ export interface DeleteServiceProviderParams {
   id: string;
 }
 
-export interface FindServiceProvidersParams {
+export type FindServiceProvidersParams = {
   store_id?: string;
-  service_id?: string;
-  provider_id?: string;
-}
+} & (
+  | { service_id: string; provider_id?: string }
+  | { service_id?: string; provider_id: string }
+);
 
 export interface DeleteServiceParams {
   id: string;
   store_id?: string;
 }
 
-export interface GetServiceParams {
-  id?: string;
-  slug?: string;
+export type GetServiceParams = {
   store_id?: string;
-}
+} & (
+  | { id: string; slug?: never }
+  | { id?: never; slug: string }
+);
 
 export interface GetProvidersParams {
   store_id?: string;
@@ -920,11 +882,12 @@ export interface GetProvidersParams {
   to?: number;
 }
 
-export interface GetProviderParams {
-  id?: string;
-  slug?: string;
+export type GetProviderParams = {
   store_id?: string;
-}
+} & (
+  | { id: string; slug?: never }
+  | { id?: never; slug: string }
+);
 
 export interface SearchOrderServiceItemsParams {
   store_id?: string;
@@ -1031,7 +994,7 @@ export interface PreviewEmailTemplateParams {
   subject?: Record<string, string>;
   body?: string;
   preheader?: string | null;
-  vars?: Record<string, any>;
+  vars?: Record<string, unknown>;
 }
 
 export interface PreviewEmailTemplateWarning {
@@ -1315,7 +1278,7 @@ export interface Slot {
 export interface CreateWorkflowParams {
   store_id?: string;
   key: string;
-  status?: WorkflowStatus;
+  status?: MutableWorkflowStatus;
   nodes: Record<string, WorkflowNode>;
   edges: WorkflowEdge[];
 
@@ -1326,7 +1289,7 @@ export interface UpdateWorkflowParams {
   id: string;
   store_id?: string;
   key: string;
-  status?: WorkflowStatus;
+  status?: MutableWorkflowStatus;
   nodes: Record<string, WorkflowNode>;
   edges: WorkflowEdge[];
 
@@ -1433,7 +1396,7 @@ export interface CreateContactListPlanParams {
   name?: string;
   description?: string | null;
   status?: ContactListPlanStatus;
-  prices: SubscriptionPrice[];
+  prices: ContactListPlanPriceInput[];
   payment_provider_id?: string;
 }
 
@@ -1445,14 +1408,23 @@ export interface UpdateContactListPlanParams {
   name?: string;
   description?: string | null;
   status?: ContactListPlanStatus;
-  prices?: SubscriptionPrice[];
+  prices?: ContactListPlanPriceInput[];
   payment_provider_id?: string;
 }
+
+export type ContactListPlanPriceInput = Omit<SubscriptionPrice, "providers">;
 
 export interface FindContactListPlansParams {
   store_id?: string;
   contact_list_id: string;
   status?: ContactListPlanStatus;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface FindStorefrontContactListPlansParams {
+  store_id?: string;
+  contact_list_id: string;
   limit?: number;
   cursor?: string;
 }
@@ -1474,6 +1446,16 @@ export interface FindContactListsParams {
   ids?: string[];
   status?: ContactListStatus;
   query?: string | number;
+  limit?: number;
+  cursor?: string;
+  sort_field?: string;
+  sort_direction?: "asc" | "desc";
+}
+
+export interface FindStorefrontContactListsParams {
+  store_id?: string;
+  ids?: string[];
+  query?: string;
   limit?: number;
   cursor?: string;
   sort_field?: string;
@@ -1903,7 +1885,7 @@ export interface UpdateCampaignEnrollmentDraftParams {
   store_id?: string;
   id: string;
   draft_id: string;
-  template_vars?: Record<string, any>;
+  template_vars?: Record<string, unknown>;
   body?: string;
   suggested_message?: string;
 }
@@ -1957,7 +1939,7 @@ export interface StopCampaignEnrollmentParams {
 export interface UpdateCampaignMessageParams {
   id: string;
   store_id?: string;
-  template_vars?: Record<string, any>;
+  template_vars?: Record<string, unknown>;
 }
 
 export interface CreateSuppressionParams {

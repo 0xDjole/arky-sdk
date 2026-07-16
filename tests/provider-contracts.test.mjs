@@ -171,8 +171,7 @@ test('storefront support keeps the capability token in one forced header for the
 	const storefront = createStorefront({
 		baseUrl,
 		storeId: 'store-before-switch',
-	});
-	storefront.setStoreId('store-after-switch');
+	}).forStore('store-after-switch');
 	const calls = [];
 	const originalFetch = globalThis.fetch;
 	globalThis.fetch = async (url, init = {}) => {
@@ -357,7 +356,7 @@ test('provider-effect APIs send one resource identity and return direct server e
 		},
 		{
 			name: 'email delivery',
-			response: { sent: 1, messages: [] },
+			response: { sent: 1, deliveries: [] },
 			request: (arky) => arky.notification.email.send({ send_id: resourceId, send }),
 			expected: {
 				url: `${baseUrl}/v1/notifications/email`,
@@ -621,7 +620,6 @@ test('workflow and platform methods preserve snake_case wire DTOs and direct res
 			color: '#000000',
 			category: 'core',
 			configuration_required: false,
-			docs_url: 'https://arky.io/docs',
 			url_patterns: ['^https://api\\.arky\\.io/'],
 			resources: [],
 			triggers: [

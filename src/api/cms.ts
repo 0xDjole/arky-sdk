@@ -46,14 +46,9 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
 
     async getCollection(params: GetCollectionParams, options?: RequestOptions): Promise<Collection> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      let identifier: string;
-      if (params.id) {
-        identifier = params.id;
-      } else if (params.key) {
-        identifier = `${target_store_id}:${params.key}`;
-      } else {
-        throw new Error("GetCollectionParams requires id or key");
-      }
+      const identifier = params.id !== undefined
+        ? params.id
+        : `${target_store_id}:${params.key}`;
 
       return apiConfig.httpClient.get<Collection>(
         `/v1/stores/${target_store_id}/collections/${identifier}`,

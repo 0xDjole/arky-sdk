@@ -1,7 +1,8 @@
 export { COMMON_ACTION_KEYS, createStorefront } from "./index";
 export { createCartController } from "./index";
-export { initialize } from "./storefrontStore";
+export { buildFormFields, createFormEntry, createFormEntryFromValues, initialize } from "./storefrontStore";
 export { createStripeConfirmationTokenController } from "./payments/stripe";
+export { getBlockContentValue } from "./utils/blocks";
 export type {
   StripeConfirmationTokenController,
   StripeConfirmationTokenControllerConfig,
@@ -19,9 +20,14 @@ export type {
   ArkyLastOrder,
   ArkyPaymentController,
   ArkyServiceCartItem,
+  ArkyServiceFormGroup,
+  ArkyServiceFormState,
+  ArkyServiceSlot,
+  ArkyServiceState,
   ArkyStore,
   ArkyStoreContext,
   ArkyStoreConfig,
+  ArkySubmitFormByKeyParams,
   ArkyServiceStore,
   ArkyStripePaymentMountOptions,
 } from "./storefrontStore";
@@ -41,11 +47,17 @@ export type {
   CartControllerState,
   CartControllerUpdateParams,
   ContactSession,
+  StorefrontClient,
   StorefrontIdentifyResult,
+  StorefrontSessionStorage,
   AuthStateListener,
   CreateStorefrontConfig,
   TrackActionParams,
   ExperimentUseResponse,
   UseExperimentParams,
+  FormValue,
+  FormValues,
+  FormField,
+  FormSchema,
 } from "./index";
 export type { HttpClientConfig, AuthStorage } from "./services/createHttpClient";

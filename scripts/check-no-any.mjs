@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Drift-prevention guardrail for the SDK.
 //
-// Walks `src/api/*.ts` and fails if it finds:
+// Walks the exported transport/storefront surfaces and fails if it finds:
 //   1. Type annotations using `: any` (outside comments)
 //   2. `as any` assertions (outside comments)
 //   3. Hardcoded market literals like `market: "default"` or `market: 'eshop'`
@@ -14,7 +14,17 @@ import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const apiDir = resolve(__dirname, "..", "src", "api");
+const sourceRoot = resolve(__dirname, "..", "src");
+const guardedPaths = [
+  resolve(sourceRoot, "api"),
+  resolve(sourceRoot, "storefrontStore"),
+  resolve(sourceRoot, "index.ts"),
+  resolve(sourceRoot, "services", "createHttpClient.ts"),
+  resolve(sourceRoot, "types", "api.ts"),
+  resolve(sourceRoot, "utils", "blocks.ts"),
+  resolve(sourceRoot, "utils", "queryParams.ts"),
+  resolve(sourceRoot, "utils", "svg.ts"),
+];
 
 const ANY_RE = /(:\s*any\b|\bas\s+any\b)/;
 const MARKET_LITERAL_RE = /\bmarket\s*:\s*["'][^"']+["']/;
@@ -83,7 +93,9 @@ function checkFile(file) {
 }
 
 function main() {
-  const files = listTsFiles(apiDir);
+  const files = guardedPaths.flatMap((path) =>
+    statSync(path).isDirectory() ? listTsFiles(path) : [path],
+  );
   let anyCount = 0;
   let marketCount = 0;
 

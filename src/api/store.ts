@@ -2,7 +2,6 @@ import type { ApiConfig, AdminSessionUpdater } from "../index";
 import type {
   CreateStoreParams,
   UpdateStoreParams,
-  DeleteStoreParams,
   GetStoreParams,
   GetStoresParams,
   GetSubscriptionPlansParams,
@@ -51,10 +50,6 @@ export const createStoreApi = (apiConfig: ApiConfig, _updateSession: AdminSessio
 
     async updateStore(params: UpdateStoreParams, options?: RequestOptions): Promise<Store> {
       return apiConfig.httpClient.put<Store>(`/v1/stores/${params.id}`, params, options);
-    },
-
-    async deleteStore(params: DeleteStoreParams, options?: RequestOptions): Promise<boolean> {
-      return apiConfig.httpClient.delete<boolean>(`/v1/stores/${params.id}`, options);
     },
 
     async getStore(_params: GetStoreParams, options?: RequestOptions): Promise<Store> {

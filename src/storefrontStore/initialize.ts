@@ -8,8 +8,6 @@ import type {
   CollectionEntry,
   Form,
   FormEntry,
-  FormField,
-  FormSchema,
   FormSubmission,
   Market,
   OrderCheckoutResult,
@@ -32,6 +30,7 @@ import type {
   GetCollectionParams,
   GetEntriesParams,
   GetEntryParams,
+  GetFormParams,
   GetProductParams,
   GetProductsParams,
   GetProviderParams,
@@ -54,25 +53,28 @@ import type {
   ArkyEshopState,
   ArkyLastOrder,
   ArkyServiceCartItem,
+  ArkyServiceFormGroup,
+  ArkyServiceFormState,
   ArkyServiceSlot,
   ArkyServiceState,
   ArkyStoreContext,
   ArkyStoreConfig,
   ArkyStripePaymentMountOptions,
+  ArkySubmitFormByKeyParams,
 } from "./types";
 import { createStripeConfirmationTokenController, type StripeConfirmationTokenController } from "../payments/stripe";
 import {
   availableStock,
+  createFormEntryFromValues,
+  createFormEntry,
   createId,
   createServiceInitialState,
   entitySlug,
-  formFieldsFromBlocks,
   formSchemaToBlock,
   formatServiceSlotTime,
   getSlotsForDate,
   hasAvailableSlotsForDate,
   locationToAddress,
-  normalizeForms,
   normalizeTimezoneGroups,
   priceForMarket,
   productName,
@@ -87,8 +89,9 @@ function firstFiniteNumber(...values: Array<number | null | undefined>): number 
   return values.find((value): value is number => typeof value === "number" && Number.isFinite(value));
 }
 
-export function initialize(config: ArkyStoreConfig) {
+function initializeStore(config: ArkyStoreConfig) {
   const client = createStorefront(config);
+  const formClients = new Map<string, typeof client>([[client.getStoreId(), client]]);
   const session = atom<ContactSession | null>(client.session);
   const locale = atom(config.locale || client.getLocale());
   const market_key = atom(config.market || client.getMarket());
@@ -144,7 +147,12 @@ export function initialize(config: ArkyStoreConfig) {
       items.reduce((total, item) => total + (item.quantity || 0), 0),
     ),
   );
-  const service_item_count = computed([cart, service_items], (cartValue, items) => Math.max(rawServiceItemCount(cartValue), items.length));
+  const service_item_count = computed([cart, service_items], (cartValue, items) =>
+    Math.max(
+      rawServiceItemCount(cartValue),
+      items.reduce((total, item) => total + Math.max(1, item.slots.length), 0),
+    ),
+  );
   const item_count = computed([cart, product_item_count, service_item_count], (cartValue, products, services) =>
     Math.max(cartValue?.item_count || 0, products + services),
   );
@@ -184,8 +192,15 @@ export function initialize(config: ArkyStoreConfig) {
     error: null,
   });
   const service_state = map<ArkyServiceState>(createServiceInitialState());
-  const service_form_node = atom<{ blocks: Block[] } | null>(null);
-  const service_form_blocks = computed(service_form_node, (node) => node?.blocks || []);
+  const service_form_definitions = new Map<string, Form>();
+  const service_form_state = map<ArkyServiceFormState>({
+    provider_id: null,
+    groups: [],
+    loading: false,
+    error: null,
+  });
+  const service_form_groups = computed(service_form_state, (state) => state.groups);
+  const service_form_blocks = computed(service_form_groups, (groups) => groups.flatMap((group) => group.blocks));
 
   client.onAuthStateChanged((value) => session.set(value));
   currency.subscribe((value) => service_state.setKey("currency", value));
@@ -202,6 +217,14 @@ export function initialize(config: ArkyStoreConfig) {
 
   function currentLocale(): string {
     return locale.get() || client.getLocale() || "en";
+  }
+
+  function clientForStore(storeId: string): typeof client {
+    const existing = formClients.get(storeId);
+    if (existing) return existing;
+    const scoped = client.forStore(storeId);
+    formClients.set(storeId, scoped);
+    return scoped;
   }
 
   function currentStripePublishableKey(): string | null {
@@ -305,6 +328,15 @@ export function initialize(config: ArkyStoreConfig) {
     return result;
   }
 
+  async function identifyContactEmailIfMissing(email: string): Promise<ContactSession> {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) throw new Error("Contact email is required");
+
+    const current = session.get();
+    if (current?.contact.email === normalizedEmail) return current;
+    return identify({ email: normalizedEmail });
+  }
+
   function setMarket(key: string): void {
     market_key.set(key);
     client.setMarket(key);
@@ -333,7 +365,7 @@ export function initialize(config: ArkyStoreConfig) {
     const refreshRevision = cartWriteRevision;
     cartRequest = (async () => {
       await ensureSession();
-      const response = await client.cart.refresh({
+      const response = await client.eshop.cart.current({
         market: currentMarketKey(),
       });
       await applyCartResponse(response, { ifRevision: refreshRevision });
@@ -351,9 +383,16 @@ export function initialize(config: ArkyStoreConfig) {
     }
   }
 
-  async function buildProductCartItem(item: ProductCheckoutItemInput, source: Cart): Promise<EshopCartItem | null> {
+  async function buildProductCartItem(
+    item: ProductCheckoutItemInput,
+    source: Cart,
+    productHint?: Product,
+  ): Promise<EshopCartItem | null> {
     try {
-      const product = await client.eshop.product.get({ id: item.product_id });
+      const product =
+        productHint?.id === item.product_id
+          ? productHint
+          : await client.eshop.product.get({ id: item.product_id });
       const variant = product.variants.find((candidate) => candidate.id === item.variant_id);
       if (!variant) return null;
       return {
@@ -385,23 +424,23 @@ export function initialize(config: ArkyStoreConfig) {
       try {
         provider = await client.eshop.provider.get({ id: item.provider_id });
       } catch {}
-      for (const [index, slot] of item.slots.entries()) {
-        rows.push({
-          id: item.id || createId(`service_${index}`),
-          service_id: item.service_id,
-          provider_id: item.provider_id,
-          from: slot.from,
-          to: slot.to,
-          forms: item.forms || [],
-          service_name: service ? serviceName(service, currentLocale()) : item.service_id,
-          provider_name: provider ? providerName(provider, currentLocale()) : item.provider_id,
-        });
-      }
+      rows.push({
+        id: item.id || createId("service"),
+        service_id: item.service_id,
+        provider_id: item.provider_id,
+        slots: item.slots,
+        forms: item.forms || [],
+        service_name: service ? serviceName(service, currentLocale()) : item.service_id,
+        provider_name: provider ? providerName(provider, currentLocale()) : item.provider_id,
+      });
     }
     return rows;
   }
 
-  async function applyCartResponse(response: Cart, options: { ifRevision?: number } = {}): Promise<Cart> {
+  async function applyCartResponse(
+    response: Cart,
+    options: { ifRevision?: number; productHint?: Product } = {},
+  ): Promise<Cart> {
     if (options.ifRevision !== undefined && options.ifRevision !== cartWriteRevision) {
       return cart.get() || response;
     }
@@ -413,7 +452,9 @@ export function initialize(config: ArkyStoreConfig) {
 
     const items = response.items || [];
     const products = await Promise.all(
-      items.filter((item): item is ProductCheckoutItemInput => item.type === "product").map((item) => buildProductCartItem(item, response)),
+      items
+        .filter((item): item is ProductCheckoutItemInput => item.type === "product")
+        .map((item) => buildProductCartItem(item, response, options.productHint)),
     );
     const services = await buildServiceCartItems(items.filter((item): item is ServiceCheckoutItemInput => item.type === "service"));
     product_items.set(products.filter((item): item is EshopCartItem => item !== null));
@@ -433,21 +474,27 @@ export function initialize(config: ArkyStoreConfig) {
     cart_status.setKey("error", null);
     try {
       const current = cart.get() || (await ensureCart());
-      const response = await client.cart.update({
+      const response = await client.eshop.cart.update({
         id: current.id,
         market: currentMarketKey(),
         items: checkoutItems(input),
-        shipping_address: input.shipping_address || undefined,
-        billing_address: input.billing_address || undefined,
-        forms: normalizeForms(input.forms),
-        promo_code: input.promo_code === undefined ? promo_code.get() || undefined : input.promo_code || undefined,
-        payment_method_key: input.payment_method_key || undefined,
-        shipping_method_id: input.shipping_method_id || cart_status.get().selected_shipping_method_id || undefined,
+        shipping_address: input.shipping_address,
+        billing_address: input.billing_address,
+        forms: input.forms,
+        promo_code:
+          input.promo_code === null
+            ? ""
+            : input.promo_code === undefined
+              ? promo_code.get() || undefined
+              : input.promo_code,
+        payment_method_key: input.payment_method_key === null ? "" : input.payment_method_key,
+        shipping_method_id:
+          input.shipping_method_id === null
+            ? ""
+            : input.shipping_method_id === undefined
+              ? cart_status.get().selected_shipping_method_id || undefined
+              : input.shipping_method_id,
       });
-      if (input.promo_code !== undefined) promo_code.set(input.promo_code);
-      if (input.shipping_method_id !== undefined) {
-        cart_status.setKey("selected_shipping_method_id", input.shipping_method_id);
-      }
       await applyCartResponse(response, { ifRevision: writeRevision });
       return response;
     } catch (error) {
@@ -463,7 +510,7 @@ export function initialize(config: ArkyStoreConfig) {
     const writeRevision = nextCartWriteRevision();
     try {
       const current = cart.get() || (await ensureCart());
-      const response = await client.cart.addItem({
+      const response = await client.eshop.cart.addItem({
         id: current.id,
         item: {
           type: "product",
@@ -472,7 +519,7 @@ export function initialize(config: ArkyStoreConfig) {
           quantity,
         },
       });
-      await applyCartResponse(response, { ifRevision: writeRevision });
+      await applyCartResponse(response, { ifRevision: writeRevision, productHint: product });
       return response;
     } catch (error) {
       cart_status.setKey("error", readErrorMessage(error, "Failed to add product to cart."));
@@ -497,11 +544,9 @@ export function initialize(config: ArkyStoreConfig) {
     product_items.set(product_items.get().filter((candidate) => candidate.id !== itemId));
     const current = cart.get();
     if (!current || !item) return null;
-    const response = await client.cart.removeItem({
+    const response = await client.eshop.cart.removeItem({
       id: current.id,
       item_id: item.id,
-      product_id: item.product_id,
-      variant_id: item.variant_id,
     });
     await applyCartResponse(response, { ifRevision: writeRevision });
     return response;
@@ -526,7 +571,7 @@ export function initialize(config: ArkyStoreConfig) {
     const current = cart.get();
     clearLocalCart();
     if (!current) return null;
-    const response = await client.cart.clear({ id: current.id });
+    const response = await client.eshop.cart.clear({ id: current.id });
     await applyCartResponse(response, { ifRevision: writeRevision });
     return response;
   }
@@ -549,7 +594,7 @@ export function initialize(config: ArkyStoreConfig) {
     cart_status.setKey("quote_error", null);
     try {
       const current = await syncCart(input);
-      const response = await client.cart.quote({ id: current.id });
+      const response = await client.eshop.cart.quote({ id: current.id });
       quote.set(response);
       return response;
     } catch (error) {
@@ -571,7 +616,7 @@ export function initialize(config: ArkyStoreConfig) {
       const paymentMethodKey = input.payment_method_key || current.payment_method_key || quoteValue?.money?.payment_method_key || undefined;
       let chargeAmount = firstFiniteNumber(quoteValue?.charge_amount, current.quote_snapshot?.charge_amount);
       if (paymentMethodKey === "credit_card" && chargeAmount === undefined) {
-        const latestQuote = await client.cart.quote({ id: current.id });
+        const latestQuote = await client.eshop.cart.quote({ id: current.id });
         quote.set(latestQuote);
         chargeAmount = firstFiniteNumber(latestQuote.charge_amount, latestQuote.total);
       }
@@ -597,7 +642,7 @@ export function initialize(config: ArkyStoreConfig) {
         returnUrl = token.return_url || returnUrl;
       }
 
-      const response = await client.cart.checkout({
+      const response = await client.eshop.cart.checkout({
         id: current.id,
         payment_method_key: paymentMethodKey,
         confirmation_token_id: confirmationTokenId,
@@ -638,7 +683,7 @@ export function initialize(config: ArkyStoreConfig) {
 
   function serviceCalendar(): ArkyCalendarDay[] {
     const state = service_state.get();
-    const { currentMonth, selectedDate, startDate, endDate, availability, selectedProviderId } = state;
+    const { currentMonth, selectedDate, availability, selectedProviderId } = state;
     const year = currentMonth.getFullYear();
     const monthIndex = currentMonth.getMonth();
     const first = new Date(year, monthIndex, 1);
@@ -663,19 +708,12 @@ export function initialize(config: ArkyStoreConfig) {
     for (let day = 1; day <= last.getDate(); day++) {
       const date = new Date(year, monthIndex, day);
       const iso = `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      const isSelected = iso === selectedDate || iso === startDate || iso === endDate;
-      let isInRange = false;
-      if (startDate && endDate) {
-        const time = date.getTime();
-        isInRange = time > new Date(startDate).getTime() && time < new Date(endDate).getTime();
-      }
-
       cells.push({
         date,
         iso,
         available: hasAvailableSlotsForDate(availability, iso, selectedProviderId),
-        isSelected,
-        isInRange,
+        isSelected: iso === selectedDate,
+        isInRange: false,
         isToday: date.getTime() === today.getTime(),
         blank: false,
       });
@@ -716,49 +754,39 @@ export function initialize(config: ArkyStoreConfig) {
     }));
   }
 
-  function toServiceCartItem(slot: ArkyServiceSlot): ArkyServiceCartItem {
-    return {
-      id: slot.id,
-      service_id: slot.serviceId,
-      provider_id: slot.providerId,
-      from: slot.from,
-      to: slot.to,
-      forms: [],
-      service_name: slot.serviceName,
-      date_text: slot.dateText,
-      time_text: slot.timeText,
-      is_multi_day: slot.isMultiDay,
-    };
-  }
-
-  function fromServiceCartItem(item: ArkyServiceCartItem): ArkyServiceSlot {
-    return {
-      id: item.id,
-      serviceId: item.service_id,
-      providerId: item.provider_id,
-      from: item.from,
-      to: item.to,
-      serviceName: item.service_name || "",
-      date: item.date_text || "",
-      dateText: item.date_text || "",
-      timeText: item.time_text || formatServiceSlotTime(item.from, item.to, service_state.get().timezone),
-      isMultiDay: item.is_multi_day,
-    };
-  }
-
-  function setServiceCartFromServiceItems(items: readonly ArkyServiceCartItem[]): void {
-    const next = items.map(fromServiceCartItem);
-    const current = service_state.get().cart;
-    if (JSON.stringify(current) !== JSON.stringify(next)) {
-      service_state.setKey("cart", next);
+  function toServiceCartItem(slots: ArkyServiceSlot[], forms: FormEntry[] = []): ArkyServiceCartItem {
+    const orderedSlots = [...slots].sort((left, right) => left.from - right.from || left.to - right.to);
+    const [first] = orderedSlots;
+    if (!first) throw new Error("At least one service slot is required");
+    if (orderedSlots.some((slot) => slot.serviceId !== first.serviceId || slot.providerId !== first.providerId)) {
+      throw new Error("A booking can only contain slots for one service and provider");
     }
+    if (orderedSlots.some((slot) => !Number.isSafeInteger(slot.from) || !Number.isSafeInteger(slot.to) || slot.from >= slot.to)) {
+      throw new Error("A booking contains an invalid service slot");
+    }
+    for (let index = 1; index < orderedSlots.length; index += 1) {
+      if (orderedSlots[index - 1].to !== orderedSlots[index].from) {
+        throw new Error("A multi-slot booking must contain adjacent slots");
+      }
+    }
+    return {
+      id: createId("booking"),
+      service_id: first.serviceId,
+      provider_id: first.providerId,
+      slots: orderedSlots.map(({ from, to }) => ({ from, to })),
+      forms,
+      service_name: first.serviceName,
+      date_text: first.dateText,
+      time_text: first.timeText,
+      is_multi_day: orderedSlots.length > 1,
+    };
   }
 
-  async function syncServiceCart(slots: ArkyServiceSlot[]): Promise<Cart> {
+  async function syncServiceCart(items: ArkyServiceCartItem[]): Promise<Cart> {
     try {
       return await syncCart({
         product_items: product_items.get(),
-        service_items: slots.map(toServiceCartItem),
+        service_items: items,
       });
     } catch (error) {
       service_state.setKey("quoteError", readErrorMessage(error, "Failed to sync service cart."));
@@ -777,7 +805,7 @@ export function initialize(config: ArkyStoreConfig) {
   const service_can_proceed = computed(service_state, (state) => {
     const step = serviceCurrentStepName();
     if (step === "datetime") {
-      return state.isMultiDay ? !!(state.startDate && state.endDate && state.selectedSlot) : !!(state.selectedDate && state.selectedSlot);
+      return !!(state.selectedDate && state.selectedSlot);
     }
     if (step === "review") return true;
     return false;
@@ -788,9 +816,10 @@ export function initialize(config: ArkyStoreConfig) {
       year: "numeric",
     }),
   );
-  const service_chain_start = computed(service_state, (state) => {
-    if (!state.cart.length) return null;
-    return Math.max(...state.cart.map((slot) => slot.to));
+  const service_chain_start = computed(service_items, (items) => {
+    const slots = items.flatMap((item) => item.slots);
+    if (!slots.length) return null;
+    return Math.max(...slots.map((slot) => slot.to));
   });
   const service_total_steps = computed(service_state, (state) => (state.service ? 2 : 0));
   const service_steps = computed(service_state, () => ({
@@ -812,41 +841,120 @@ export function initialize(config: ArkyStoreConfig) {
     });
   }
 
-  function serviceProviderId(provider: Provider | ServiceProvider): string {
-    return "provider_id" in provider ? provider.provider_id : provider.id;
+  function configuredServiceFormIds(relationship: ServiceProvider): string[] {
+    const formIds = relationship.forms.map((entry) => entry.form_id.trim());
+    if (formIds.some((formId) => !formId) || new Set(formIds).size !== formIds.length) {
+      throw new Error(`Service provider ${relationship.provider_id} has blank or duplicate configured form IDs`);
+    }
+    return formIds;
   }
 
-  function getFirstServiceProviderEntry(state: ArkyServiceState): ServiceProvider | null {
-    const serviceWithProviders = state.service as (Service & { providers?: ServiceProvider[] }) | null;
-    const providers = serviceWithProviders?.providers;
-    if (!providers?.length) return null;
-    if (state.selectedProviderId) {
-      const match = providers.find((provider) => provider.provider_id === state.selectedProviderId);
-      if (match) return match;
+  function resolveServiceProvider(
+    state: ArkyServiceState,
+    providerId?: string | null,
+  ): ServiceProvider | null {
+    const serviceId = state.service?.id;
+    if (!serviceId) return null;
+    const relationships = state.serviceProviders.filter((relationship) => relationship.service_id === serviceId);
+    const targetProviderId = providerId ?? state.selectedSlot?.providerId ?? state.selectedProviderId;
+    if (targetProviderId) {
+      return relationships.find((relationship) => relationship.provider_id === targetProviderId) || null;
     }
-    return providers[0];
+    return relationships.length === 1 ? relationships[0] : null;
   }
 
-  async function loadServiceForm(): Promise<Block[]> {
-    try {
-      const form = await loadForm({ key: "order-form" });
-      const blocks = (form.schema || []).map(formSchemaToBlock);
-      service_form_node.set({ blocks });
-      return blocks;
-    } catch {
-      service_form_node.set({ blocks: [] });
-      return [];
+  function clearServiceFormState(error: string | null = null, loading = false): void {
+    service_form_state.set({
+      provider_id: null,
+      groups: [],
+      loading,
+      error,
+    });
+  }
+
+  function activateServiceProviderForms(
+    providerId?: string | null,
+    reset = false,
+  ): ServiceProvider | null {
+    const relationship = resolveServiceProvider(service_state.get(), providerId);
+    if (!relationship) {
+      clearServiceFormState();
+      return null;
     }
+
+    const formIds = configuredServiceFormIds(relationship);
+    const current = service_form_state.get();
+    const currentFormIds = current.groups.map((group) => group.form.id);
+    if (
+      !reset &&
+      current.provider_id === relationship.provider_id &&
+      currentFormIds.length === formIds.length &&
+      currentFormIds.every((formId, index) => formId === formIds[index])
+    ) {
+      if (current.error) service_form_state.setKey("error", null);
+      return relationship;
+    }
+
+    const groups: ArkyServiceFormGroup[] = formIds.map((formId) => {
+      const form = service_form_definitions.get(formId);
+      if (!form) throw new Error(`Configured booking form '${formId}' was not loaded`);
+      return {
+        form,
+        blocks: form.schema.map(formSchemaToBlock),
+      };
+    });
+    service_form_state.set({
+      provider_id: relationship.provider_id,
+      groups,
+      loading: false,
+      error: null,
+    });
+    return relationship;
+  }
+
+  async function loadServiceFormDefinitions(relationships: ServiceProvider[]): Promise<void> {
+    const formIds = [
+      ...new Set(relationships.flatMap((relationship) => configuredServiceFormIds(relationship))),
+    ];
+    if (formIds.length === 0) return;
+
+    const forms = await Promise.all(formIds.map((formId) => loadForm({ id: formId })));
+    for (let index = 0; index < forms.length; index += 1) {
+      const form = forms[index];
+      const formId = formIds[index];
+      if (form.id !== formId) {
+        throw new Error(`Configured booking form '${formId}' resolved to '${form.id}'`);
+      }
+    }
+    for (const form of forms) service_form_definitions.set(form.id, form);
+  }
+
+  function configuredServiceFormEntries(relationship: ServiceProvider): FormEntry[] {
+    const formIds = configuredServiceFormIds(relationship);
+    if (formIds.length === 0) return [];
+    activateServiceProviderForms(relationship.provider_id);
+    const state = service_form_state.get();
+    if (
+      state.provider_id !== relationship.provider_id ||
+      state.groups.length !== formIds.length ||
+      state.groups.some((group, index) => group.form.id !== formIds[index])
+    ) {
+      throw new Error(`Booking forms are not ready for provider ${relationship.provider_id}`);
+    }
+    return state.groups.map((group) =>
+      createFormEntryFromValues(
+        group.form,
+        Object.fromEntries(group.blocks.map((block) => [block.key, block.value])),
+      ),
+    );
   }
 
   const service_controller = {
     async initialize(): Promise<void> {
       service_state.setKey("tzGroups", normalizeTimezoneGroups(client.utils.tzGroups));
       await ensureCart();
-      setServiceCartFromServiceItems(service_items.get());
       const methods = session.get()?.market?.payment_methods || [];
       if (methods.length) service_state.setKey("availablePaymentMethods", methods);
-      await loadServiceForm();
     },
 
     setTimezone(tz: string): void {
@@ -856,42 +964,64 @@ export function initialize(config: ArkyStoreConfig) {
       if (state.selectedDate) {
         service_state.setKey("slots", computeServiceSlots(state.selectedDate));
         service_state.setKey("selectedSlot", null);
+        service_state.setKey("quote", null);
+        service_state.setKey("quoteError", null);
+        activateServiceProviderForms();
       }
     },
 
     async select(service: Service): Promise<void> {
-      service_state.setKey("loading", true);
+      service_form_definitions.clear();
+      clearServiceFormState(null, true);
+      service_state.set({
+        ...service_state.get(),
+        service: null,
+        serviceProviders: [],
+        providers: [],
+        selectedProviderId: null,
+        availability: null,
+        selectedDate: null,
+        slots: [],
+        selectedSlot: null,
+        dateTimeConfirmed: false,
+        quote: null,
+        quoteError: null,
+        loading: true,
+      });
       try {
-        const isMultiDayBlock = service.blocks?.find((block) => block.key === "isMultiDay");
-        const blockValue = isMultiDayBlock?.value;
-        const isMultiDay = Array.isArray(blockValue) ? blockValue[0] === true : blockValue === true;
         const [fullService, serviceProviders] = await Promise.all([
           client.eshop.service.get({ id: service.id }),
           client.eshop.service.findProviders({
             service_id: service.id,
-          }) as Promise<Array<Provider | ServiceProvider>>,
+          }),
         ]);
-        const providerIds = [...new Set(serviceProviders.map(serviceProviderId))];
-        const providerResults = await Promise.all(providerIds.map((id) => client.eshop.provider.get({ id }).catch(() => null)));
+        const providerIds = [...new Set(serviceProviders.map((relationship) => relationship.provider_id))];
+        const [providerResults] = await Promise.all([
+          Promise.all(providerIds.map((id) => client.eshop.provider.get({ id }).catch(() => null))),
+          loadServiceFormDefinitions(serviceProviders),
+        ]);
 
         service_state.set({
           ...service_state.get(),
           service: fullService,
+          serviceProviders,
           providers: providerResults.filter((provider): provider is Provider => provider !== null),
           selectedProviderId: null,
           availability: null,
           selectedDate: null,
-          startDate: null,
-          endDate: null,
           slots: [],
           selectedSlot: null,
           currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
           loading: false,
-          isMultiDay,
+          dateTimeConfirmed: false,
+          quote: null,
+          quoteError: null,
         });
-
+        activateServiceProviderForms();
         await service_controller.loadMonth();
       } catch (error) {
+        service_form_definitions.clear();
+        clearServiceFormState(readErrorMessage(error, "Failed to load booking forms."));
         service_state.setKey("loading", false);
         throw error;
       }
@@ -938,94 +1068,74 @@ export function initialize(config: ArkyStoreConfig) {
     },
 
     selectProvider(providerId: string | null): void {
+      const state = service_state.get();
+      if (providerId && !resolveServiceProvider(state, providerId)) {
+        throw new Error(`Provider ${providerId} is not configured for the selected service`);
+      }
       service_state.set({
-        ...service_state.get(),
+        ...state,
         selectedProviderId: providerId,
         selectedDate: null,
-        startDate: null,
-        endDate: null,
         slots: [],
         selectedSlot: null,
+        dateTimeConfirmed: false,
+        quote: null,
+        quoteError: null,
       });
+      activateServiceProviderForms(providerId);
       void service_controller.loadMonth();
     },
 
     selectDate(cell: ArkyCalendarDay): void {
       if (cell.blank || !cell.available) return;
-      service_state.setKey("dateTimeConfirmed", false);
       const state = service_state.get();
-      if (state.isMultiDay) {
-        if (!state.startDate) {
-          service_state.setKey("startDate", cell.iso);
-          service_state.setKey("selectedDate", cell.iso);
-          service_state.setKey("endDate", null);
-          service_state.setKey("selectedSlot", null);
-        } else if (!state.endDate) {
-          if (cell.date.getTime() < new Date(state.startDate).getTime()) {
-            service_state.setKey("startDate", cell.iso);
-            service_state.setKey("endDate", state.startDate);
-          } else {
-            service_state.setKey("endDate", cell.iso);
-          }
-          service_controller.createMultiDaySlots();
-        } else {
-          service_state.setKey("startDate", cell.iso);
-          service_state.setKey("selectedDate", cell.iso);
-          service_state.setKey("endDate", null);
-          service_state.setKey("selectedSlot", null);
-        }
-        service_controller.updateCalendar();
-      } else {
-        service_state.set({
-          ...state,
-          selectedDate: cell.iso,
-          slots: computeServiceSlots(cell.iso),
-          selectedSlot: null,
-        });
-        service_state.setKey("calendar", serviceCalendar());
-      }
-    },
-
-    createMultiDaySlots(): void {
-      const state = service_state.get();
-      if (!state.startDate || !state.endDate || !state.availability) return;
-      const slots: ArkyServiceSlot[] = [];
-      for (let day = new Date(state.startDate); day <= new Date(state.endDate); day.setDate(day.getDate() + 1)) {
-        const iso = day.toISOString().slice(0, 10);
-        for (const slot of getSlotsForDate(state.availability, iso, state.selectedProviderId)) {
-          slots.push({
-            id: `${state.service?.id || "service"}-${slot.from}-${slots.length}`,
-            serviceId: state.service?.id || "",
-            providerId: slot.providerId,
-            from: slot.from,
-            to: slot.to,
-            timeText: formatServiceSlotTime(slot.from, slot.to, state.timezone),
-            dateText: new Date(slot.from * 1000).toLocaleDateString([], {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-              timeZone: state.timezone,
-            }),
-            isMultiDay: true,
-          });
-        }
-      }
-      service_state.setKey("slots", slots);
-      service_state.setKey("selectedSlot", slots.length === 1 ? slots[0] : null);
+      service_state.set({
+        ...state,
+        selectedDate: cell.iso,
+        slots: computeServiceSlots(cell.iso),
+        selectedSlot: null,
+        dateTimeConfirmed: false,
+        quote: null,
+        quoteError: null,
+      });
+      activateServiceProviderForms();
+      service_state.setKey("calendar", serviceCalendar());
     },
 
     selectTimeSlot(slot: ArkyServiceSlot | null): void {
-      service_state.setKey("dateTimeConfirmed", false);
-      service_state.setKey("selectedSlot", slot);
+      const state = service_state.get();
+      if (slot) {
+        if (!state.service || slot.serviceId !== state.service.id) {
+          throw new Error("The selected slot does not belong to the selected service");
+        }
+        if (state.selectedProviderId && slot.providerId !== state.selectedProviderId) {
+          throw new Error("The selected slot does not belong to the selected provider");
+        }
+        if (!resolveServiceProvider(state, slot.providerId)) {
+          throw new Error(`Provider ${slot.providerId} is not configured for the selected service`);
+        }
+      }
+      service_state.set({
+        ...state,
+        selectedSlot: slot,
+        dateTimeConfirmed: false,
+        quote: null,
+        quoteError: null,
+      });
+      activateServiceProviderForms(slot?.providerId);
     },
 
     resetDateSelection(): void {
-      service_state.setKey("selectedDate", null);
-      service_state.setKey("startDate", null);
-      service_state.setKey("endDate", null);
-      service_state.setKey("slots", []);
-      service_state.setKey("selectedSlot", null);
-      service_state.setKey("dateTimeConfirmed", false);
+      service_state.set({
+        ...service_state.get(),
+        selectedDate: null,
+        slots: [],
+        selectedSlot: null,
+        dateTimeConfirmed: false,
+        quote: null,
+        quoteError: null,
+      });
+      activateServiceProviderForms();
     },
 
     updateCalendar(): void {
@@ -1041,53 +1151,62 @@ export function initialize(config: ArkyStoreConfig) {
       }
     },
 
-    async addToCart(): Promise<void> {
+    async addToCart(explicitSlots?: ArkyServiceSlot[]): Promise<void> {
       const state = service_state.get();
-      const serviceBlocks = (state.service as (Service & { forms?: Block[] }) | null)?.forms || [];
-      const enrich = (slot: ArkyServiceSlot): ArkyServiceSlot => ({
+      const slots = explicitSlots || (state.selectedSlot ? [state.selectedSlot] : []);
+      if (slots.length === 0) return;
+      const first = slots[0];
+      if (!state.service || first.serviceId !== state.service.id) {
+        throw new Error("The booking slots do not belong to the selected service");
+      }
+      const relationship = resolveServiceProvider(state, first.providerId);
+      if (!relationship) {
+        throw new Error(`Provider ${first.providerId} is not configured for the selected service`);
+      }
+      let forms: FormEntry[];
+      try {
+        forms = configuredServiceFormEntries(relationship);
+      } catch (error) {
+        service_form_state.setKey("error", readErrorMessage(error, "Booking forms are invalid."));
+        throw error;
+      }
+      const displayName = serviceName(state.service, currentLocale());
+      const enriched = slots.map((slot) => ({
         ...slot,
-        serviceName: state.service ? serviceName(state.service, currentLocale()) : "",
+        serviceName: displayName,
         date: slot.dateText,
-        serviceBlocks,
-      });
-      const selected =
-        state.isMultiDay && state.slots.length > 0 ? state.slots.map(enrich) : state.selectedSlot ? [enrich(state.selectedSlot)] : [];
-      if (!selected.length) return;
-      const nextCart = [...state.cart, ...selected];
+      }));
+      const nextItems = [...service_items.get(), toServiceCartItem(enriched, forms)];
+      await syncServiceCart(nextItems);
       service_state.set({
-        ...state,
-        cart: nextCart,
+        ...service_state.get(),
         selectedDate: null,
-        startDate: null,
-        endDate: null,
         slots: [],
         selectedSlot: null,
+        dateTimeConfirmed: false,
+        quote: null,
+        quoteError: null,
       });
-      await syncServiceCart(nextCart);
+      activateServiceProviderForms(service_state.get().selectedProviderId, true);
       service_state.setKey("calendar", serviceCalendar());
     },
 
-    async removeFromCart(slotId: string): Promise<void> {
-      const nextCart = service_state.get().cart.filter((slot) => slot.id !== slotId);
-      service_state.setKey("cart", nextCart);
-      await syncServiceCart(nextCart);
+    async removeFromCart(bookingId: string): Promise<void> {
+      await syncServiceCart(service_items.get().filter((item) => item.id !== bookingId));
     },
 
     async clearCart(): Promise<void> {
-      service_state.setKey("cart", []);
       await syncServiceCart([]);
     },
 
-    async checkout(paymentMethodId?: string, forms: Block[] = []): Promise<OrderCheckoutResult> {
+    async checkout(paymentMethodId?: string, forms: FormEntry[] = []): Promise<OrderCheckoutResult> {
       const state = service_state.get();
-      if (!state.cart.length) throw new Error("Cart is empty");
+      const items = service_items.get();
+      if (!items.length) throw new Error("Cart is empty");
       service_state.setKey("loading", true);
       try {
         const result = await checkout({
-          service_items: state.cart.map((slot) => ({
-            ...toServiceCartItem(slot),
-            forms: [],
-          })),
+          service_items: items,
           payment_method_key: paymentMethodId,
           promo_code: state.promoCode || undefined,
           forms,
@@ -1101,13 +1220,14 @@ export function initialize(config: ArkyStoreConfig) {
 
     async fetchQuote(paymentMethodId?: string, promoCode?: string | null): Promise<OrderQuote | null> {
       const state = service_state.get();
-      if (!state.cart.length) return null;
+      const items = service_items.get();
+      if (!items.length) return null;
       service_state.setKey("fetchingQuote", true);
       service_state.setKey("quoteError", null);
       try {
         service_state.setKey("promoCode", promoCode || null);
         const response = await fetchQuote({
-          service_items: state.cart.map(toServiceCartItem),
+          service_items: items,
           payment_method_key: paymentMethodId,
           promo_code: promoCode || undefined,
         });
@@ -1137,6 +1257,9 @@ export function initialize(config: ArkyStoreConfig) {
       if (current === "datetime") {
         service_state.setKey("selectedSlot", null);
         service_state.setKey("dateTimeConfirmed", false);
+        service_state.setKey("quote", null);
+        service_state.setKey("quoteError", null);
+        activateServiceProviderForms();
       }
     },
 
@@ -1148,19 +1271,21 @@ export function initialize(config: ArkyStoreConfig) {
 
     getServicePrice(): string {
       const state = service_state.get();
-      if (state.quote?.total !== undefined) return String(state.quote.total);
-      const provider = getFirstServiceProviderEntry(state);
-      if (!provider?.prices) return "";
-      return client.utils.formatPrice(provider.prices);
+      const relationship = resolveServiceProvider(state);
+      if (!relationship) return "";
+      try {
+        const price = priceForMarket(relationship.prices, currentMarketKey(), market.get()?.currency);
+        return client.utils.formatPrice([price]);
+      } catch {
+        return "";
+      }
     },
 
     formatDateDisplay: formatServiceDateDisplay,
-    serviceItemsFromSlots(slots: ArkyServiceSlot[]): ArkyServiceCartItem[] {
-      return slots.map(toServiceCartItem);
+    serviceItemsFromSlots(slots: ArkyServiceSlot[], forms: FormEntry[] = []): ArkyServiceCartItem[] {
+      return slots.length ? [toServiceCartItem(slots, forms)] : [];
     },
   };
-
-  service_items.subscribe((items) => setServiceCartFromServiceItems(items));
 
   async function loadEntry(params: ArkyCmsEntryParams, options?: RequestOptions): Promise<CollectionEntry> {
     cms_state.setKey("loading", true);
@@ -1209,13 +1334,23 @@ export function initialize(config: ArkyStoreConfig) {
     }
   }
 
-  async function loadForm(params: { id?: string; key?: string }, options?: RequestOptions): Promise<Form> {
+  function formCacheKey(params: GetFormParams): string {
+    const storeId = params.store_id || client.getStoreId();
+    const identifier = params.id ? `id:${params.id}` : params.key ? `key:${params.key}` : "missing";
+    return `${storeId}:${identifier}`;
+  }
+
+  async function loadForm(params: GetFormParams, options?: RequestOptions): Promise<Form> {
     cms_state.setKey("loading", true);
     cms_state.setKey("error", null);
     try {
-      const form = await client.cms.form.get(params, options);
-      const key = params.key || params.id || form.key || form.id;
-      cms_state.setKey("forms", { ...cms_state.get().forms, [key]: form });
+      const storeId = params.store_id || client.getStoreId();
+      const formClient = clientForStore(storeId);
+      const form = await formClient.cms.form.get({ ...params, store_id: storeId }, options);
+      const forms = { ...cms_state.get().forms };
+      forms[formCacheKey({ id: form.id, store_id: storeId })] = form;
+      forms[formCacheKey({ key: form.key, store_id: storeId })] = form;
+      cms_state.setKey("forms", forms);
       return form;
     } catch (error) {
       cms_state.setKey("error", readErrorMessage(error, "Failed to load CMS form."));
@@ -1225,15 +1360,31 @@ export function initialize(config: ArkyStoreConfig) {
     }
   }
 
-  async function submitFormByKey(key: string, fieldsOrBlocks: FormField[] | Block[], options?: RequestOptions): Promise<FormSubmission> {
-    const forms = cms_state.get().forms;
-    const form = forms[key] || (await loadForm({ key }));
-    const fields =
-      fieldsOrBlocks.length > 0 && "properties" in fieldsOrBlocks[0]
-        ? formFieldsFromBlocks(fieldsOrBlocks as Block[])
-        : (fieldsOrBlocks as FormField[]);
-    const payload: SubmitFormParams = { form_id: form.id, fields };
-    return client.cms.form.submit(payload, options);
+  async function ensureFormClient(storeId: string) {
+    const formClient = clientForStore(storeId);
+    const marketKey = currentMarketKey();
+    if (formClient === client) {
+      await ensureSession();
+    } else if (!formClient.session || (marketKey && formClient.session.market?.key !== marketKey)) {
+      await formClient.identify({ market: marketKey });
+    }
+    return formClient;
+  }
+
+  async function submitForm(params: SubmitFormParams, options?: RequestOptions): Promise<FormSubmission> {
+    const storeId = params.store_id || client.getStoreId();
+    const formClient = await ensureFormClient(storeId);
+    return formClient.cms.form.submit({ ...params, store_id: storeId }, options);
+  }
+
+  async function submitFormByKey(
+    params: ArkySubmitFormByKeyParams,
+    options?: RequestOptions,
+  ): Promise<FormSubmission> {
+    const storeId = params.store_id || client.getStoreId();
+    const form = await loadForm({ key: params.key, store_id: storeId }, options);
+    const entry = createFormEntryFromValues(form, params.values);
+    return submitForm({ store_id: storeId, form_id: form.id, fields: entry.fields }, options);
   }
 
   async function loadProducts(params: GetProductsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Product>> {
@@ -1343,17 +1494,16 @@ export function initialize(config: ArkyStoreConfig) {
       destroy: destroyPaymentController,
     },
     applyPromoCode(code: string, input: Omit<ArkyCartInput, "promo_code"> = {}) {
-      promo_code.set(code);
       return fetchQuote({ ...input, promo_code: code });
     },
     removePromoCode(input: Omit<ArkyCartInput, "promo_code"> = {}) {
-      promo_code.set(null);
       return fetchQuote({ ...input, promo_code: null });
     },
     selectShippingMethod(id: string | null) {
       cart_status.setKey("selected_shipping_method_id", id);
     },
     locationToAddress,
+    createFormEntry,
     buildItems: checkoutItems,
     buildProductItems: toProductCheckoutItems,
     buildServiceItems: toServiceCheckoutItems,
@@ -1361,22 +1511,17 @@ export function initialize(config: ArkyStoreConfig) {
 
   const product_store = {
     get: (params: GetProductParams, options?: RequestOptions) => client.eshop.product.get(params, options),
-    find: loadProducts,
     list: loadProducts,
-    loadListing: loadProducts,
-    loadDetail: (params: GetProductParams, options?: RequestOptions) => client.eshop.product.get(params, options),
   };
 
   const service_store = {
     get: (params: GetServiceParams, options?: RequestOptions) => client.eshop.service.get(params, options),
-    find: loadServices,
     list: loadServices,
-    loadListing: loadServices,
-    loadDetail: (params: GetServiceParams, options?: RequestOptions) => client.eshop.service.get(params, options),
     listProviders: (params: FindServiceProvidersParams, options?: RequestOptions) => client.eshop.service.findProviders(params, options),
-    findProviders: (params: FindServiceProvidersParams, options?: RequestOptions) => client.eshop.service.findProviders(params, options),
     getAvailability: loadAvailability,
     state: service_state,
+    form_state: service_form_state,
+    form_groups: service_form_groups,
     form_blocks: service_form_blocks,
     current_step_name: service_current_step_name,
     can_proceed: service_can_proceed,
@@ -1393,7 +1538,6 @@ export function initialize(config: ArkyStoreConfig) {
     nextMonth: service_controller.nextMonth,
     selectProvider: service_controller.selectProvider,
     selectDate: service_controller.selectDate,
-    createMultiDaySlots: service_controller.createMultiDaySlots,
     selectTimeSlot: service_controller.selectTimeSlot,
     resetDateSelection: service_controller.resetDateSelection,
     updateCalendar: service_controller.updateCalendar,
@@ -1418,8 +1562,8 @@ export function initialize(config: ArkyStoreConfig) {
     currency,
     allowed_payment_methods,
     payment_config,
-    cart: cart_store,
     identify,
+    identifyContactEmailIfMissing,
     verify: client.verify,
     me: client.me,
     logout: client.logout,
@@ -1444,7 +1588,7 @@ export function initialize(config: ArkyStoreConfig) {
       },
       form: {
         get: loadForm,
-        submit: (params: SubmitFormParams, options?: RequestOptions) => client.cms.form.submit(params, options),
+        submit: submitForm,
         submitByKey: submitFormByKey,
       },
       taxonomy: client.cms.taxonomy,
@@ -1455,7 +1599,7 @@ export function initialize(config: ArkyStoreConfig) {
       service: service_store,
       provider: {
         get: (params: GetProviderParams, options?: RequestOptions) => client.eshop.provider.get(params, options),
-        find: loadProviders,
+        list: loadProviders,
       },
       order: client.eshop.order,
       cart: cart_store,
@@ -1477,6 +1621,39 @@ export function initialize(config: ArkyStoreConfig) {
     store: client.store,
     utils: client.utils,
   };
+}
+
+type InitializedStoreBase = ReturnType<typeof initializeStore>;
+
+export type InitializedStore = InitializedStoreBase & {
+  forStore(storeId: string): InitializedStore;
+};
+
+export function initialize(config: ArkyStoreConfig): InitializedStore {
+  const stores = new Map<string, InitializedStore>();
+
+  const createScope = (scopeConfig: ArkyStoreConfig): InitializedStore => {
+    const existing = stores.get(scopeConfig.storeId);
+    if (existing) return existing;
+
+    const store = initializeStore(scopeConfig) as InitializedStore;
+    stores.set(scopeConfig.storeId, store);
+    Object.defineProperty(store, "forStore", {
+      enumerable: true,
+      configurable: false,
+      writable: false,
+      value: (storeId: string) =>
+        createScope({
+          ...config,
+          storeId,
+          market: store.getMarket(),
+          locale: store.getLocale(),
+        }),
+    });
+    return store;
+  };
+
+  return createScope(config);
 }
 
 export type ArkyStore = ReturnType<typeof initialize>;

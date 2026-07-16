@@ -37,7 +37,11 @@ export type CartControllerInitParams = GetCurrentCartParams | GetCartParams;
 export type CartControllerRefreshParams = GetCurrentCartParams | GetCartParams;
 export type CartControllerUpdateParams = Omit<UpdateCartParams, "id"> & { id?: string };
 export type CartControllerAddItemParams = Omit<AddCartItemParams, "id"> & { id?: string };
-export type CartControllerRemoveItemParams = Omit<RemoveCartItemParams, "id"> & { id?: string };
+export type CartControllerRemoveItemParams = RemoveCartItemParams extends infer Params
+  ? Params extends { id: string }
+    ? Omit<Params, "id"> & { id?: string }
+    : never
+  : never;
 export type CartControllerClearParams = Omit<ClearCartParams, "id"> & { id?: string };
 export type CartControllerQuoteParams = Omit<QuoteCartParams, "id"> & { id?: string };
 export type CartControllerCheckoutParams = Omit<CheckoutCartParams, "id"> & { id?: string };

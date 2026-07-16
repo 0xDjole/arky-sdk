@@ -23,8 +23,8 @@ import type {
   GetProviderParams,
   GetProvidersParams,
   GetContactListParams,
-  FindContactListsParams,
-  FindContactListPlansParams,
+  FindStorefrontContactListPlansParams,
+  FindStorefrontContactListsParams,
   FindStorefrontContactListMembershipsParams,
   SubscribeContactListParams,
   ContactListAccessParams,
@@ -45,14 +45,15 @@ import type {
   Form,
   FormSubmission,
   Taxonomy,
-  ContactList,
-  ContactListPlan,
+  StorefrontContactList,
+  StorefrontContactListPlan,
   ContactListAccessResponse,
   ContactListContentAccessResponse,
   ContactListManagementResponse,
   ContactListSubscribeResponse,
   StorefrontContactListMembership,
   Service,
+  ServiceProvider,
   Provider,
   Store,
   Location,
@@ -68,12 +69,7 @@ import type {
   Cart,
   PaginatedResponse,
 } from "../types";
-import {
-  getBlockFromArray,
-  getBlockObjectValues,
-  getImageUrl,
-} from "../utils/blocks";
-import { normalizePublicCheckoutItems } from "../utils/orderItems";
+import { sanitizePublicCheckoutItems } from "../utils/orderItems";
 
 export type IdentifyResponse = {
   contact: Contact;
@@ -99,22 +95,14 @@ export interface StorefrontAction {
   store_id: string;
   contact_id: string;
   key: string;
-  type?: string;
   payload: Record<string, unknown>;
   created_at: number;
 }
 
-export type TrackActionParams =
-  | {
-      key: string;
-      type?: string;
-      payload?: Record<string, unknown>;
-    }
-  | {
-      type: string;
-      key?: string;
-      payload?: Record<string, unknown>;
-    };
+export interface TrackActionParams {
+  key: string;
+  payload?: Record<string, unknown>;
+}
 
 export const COMMON_ACTION_KEYS = [
   "page.view",
@@ -151,10 +139,9 @@ export const createActionApi = (apiConfig: ApiConfig) => ({
   COMMON_ACTION_KEYS,
   async track(params: TrackActionParams): Promise<void> {
     try {
-      const key = "key" in params && params.key ? params.key : params.type;
       await apiConfig.httpClient.post<void>(
         `/v1/storefront/${apiConfig.storeId}/actions/track`,
-        { key, payload: params.payload },
+        { key: params.key, payload: params.payload },
       );
     } catch {}
   },
@@ -169,6 +156,54 @@ export const createStorefrontApi = (
     string,
     Pick<IdentifyResponse, "store" | "market">
   >();
+
+  function persistIdentification(result: IdentifyResponse): IdentifyResponse {
+    const issued = result.token;
+    if (issued?.token) {
+      updateContactSession(() => ({
+        access_token: issued.token,
+        contact: result.contact,
+        store: result.store,
+        market: result.market,
+      }));
+    } else {
+      if (result.verification_challenge) {
+        pendingVerifications.set(result.verification_challenge.challenge_id, {
+          store: result.store,
+          market: result.market,
+        });
+      }
+      updateContactSession((current) =>
+        current
+          ? {
+              ...current,
+              contact: result.contact,
+              store: result.store,
+              market: result.market,
+            }
+          : null,
+      );
+    }
+    return result;
+  }
+
+  async function submitIdentification(
+    path: "identify" | "code",
+    params?: { email?: string; market?: string },
+    options?: RequestOptions,
+  ): Promise<IdentifyResponse> {
+    const store_id = apiConfig.storeId;
+    const result = await apiConfig.httpClient.post<IdentifyResponse>(
+      `${base(store_id)}/account/${path}`,
+      {
+        store_id,
+        market: params?.market || apiConfig.market || null,
+        email: params?.email,
+      },
+      options,
+    );
+    return persistIdentification(result);
+  }
 
   return {
     store: {
@@ -233,11 +268,11 @@ export const createStorefrontApi = (
           options?: RequestOptions,
         ): Promise<Collection> {
           const store_id = params.store_id || apiConfig.storeId;
-          if (!params.id) {
-            throw new Error("GetCollectionParams requires id");
-          }
+          const identifier = params.id !== undefined
+            ? params.id
+            : `${store_id}:${params.key}`;
           return apiConfig.httpClient.get<Collection>(
-            `${base(store_id)}/collections/${params.id}`,
+            `${base(store_id)}/collections/${identifier}`,
             options,
           );
         },
@@ -420,7 +455,7 @@ export const createStorefrontApi = (
             {
               ...payload,
               store_id: target,
-              ...(items ? { items: normalizePublicCheckoutItems(items) } : {}),
+              ...(items ? { items: sanitizePublicCheckoutItems(items) } : {}),
             },
             options,
           );
@@ -437,7 +472,7 @@ export const createStorefrontApi = (
             {
               ...payload,
               store_id: target,
-              item: normalizePublicCheckoutItems([item])[0],
+              item: sanitizePublicCheckoutItems([item])[0],
             },
             options,
           );
@@ -595,9 +630,9 @@ export const createStorefrontApi = (
         findProviders(
           params: FindServiceProvidersParams,
           options?: RequestOptions,
-        ): Promise<Provider[]> {
+        ): Promise<ServiceProvider[]> {
           const { store_id, ...queryParams } = params;
-          return apiConfig.httpClient.get<Provider[]>(
+          return apiConfig.httpClient.get<ServiceProvider[]>(
             `${base(store_id)}/service-providers`,
             {
               ...options,
@@ -658,48 +693,18 @@ export const createStorefrontApi = (
 
     crm: {
       contact: {
-        async identify(
-          params?: { email?: string; verify?: boolean; market?: string },
+        identify(
+          params?: { email?: string; market?: string },
           options?: RequestOptions,
         ): Promise<IdentifyResponse> {
-          const store_id = apiConfig.storeId;
-          const result = await apiConfig.httpClient.post<IdentifyResponse>(
-            `${base(store_id)}/account/identify`,
-            {
-              store_id,
-              market: params?.market || apiConfig.market || null,
-              email: params?.email,
-              verify: params?.verify ?? false,
-            },
-            options,
-          );
-          const issued = result.token;
-          if (issued?.token) {
-            updateContactSession(() => ({
-              access_token: issued.token,
-              contact: result.contact,
-              store: result.store,
-              market: result.market,
-            }));
-          } else {
-            if (result.verification_challenge) {
-              pendingVerifications.set(result.verification_challenge.challenge_id, {
-                store: result.store,
-                market: result.market,
-              });
-            }
-            updateContactSession((current) =>
-              current
-                ? {
-                    ...current,
-                    contact: result.contact,
-                    store: result.store,
-                    market: result.market,
-                  }
-                : null,
-            );
-          }
-          return result;
+          return submitIdentification("identify", params, options);
+        },
+
+        requestCode(
+          params?: { email?: string; market?: string },
+          options?: RequestOptions,
+        ): Promise<IdentifyResponse> {
+          return submitIdentification("code", params, options);
         },
 
         async verify(
@@ -761,20 +766,20 @@ export const createStorefrontApi = (
         get(
           params: GetContactListParams,
           options?: RequestOptions,
-        ): Promise<ContactList> {
+        ): Promise<StorefrontContactList> {
           const store_id = params.store_id || apiConfig.storeId;
-          return apiConfig.httpClient.get<ContactList>(
+          return apiConfig.httpClient.get<StorefrontContactList>(
             `${base(store_id)}/contact-lists/${params.id}`,
             options,
           );
         },
 
         find(
-          params?: FindContactListsParams,
+          params?: FindStorefrontContactListsParams,
           options?: RequestOptions,
-        ): Promise<PaginatedResponse<ContactList>> {
+        ): Promise<PaginatedResponse<StorefrontContactList>> {
           const { store_id, ...queryParams } = params || {};
-          return apiConfig.httpClient.get<PaginatedResponse<ContactList>>(
+          return apiConfig.httpClient.get<PaginatedResponse<StorefrontContactList>>(
             `${base(store_id)}/contact-lists`,
             {
               ...options,
@@ -785,11 +790,11 @@ export const createStorefrontApi = (
 
         plans: {
           find(
-            params: FindContactListPlansParams,
+            params: FindStorefrontContactListPlansParams,
             options?: RequestOptions,
-          ): Promise<PaginatedResponse<ContactListPlan>> {
+          ): Promise<PaginatedResponse<StorefrontContactListPlan>> {
             const { store_id, contact_list_id, ...queryParams } = params;
-            return apiConfig.httpClient.get<PaginatedResponse<ContactListPlan>>(
+            return apiConfig.httpClient.get<PaginatedResponse<StorefrontContactListPlan>>(
               `${base(store_id)}/contact-lists/${contact_list_id}/plans`,
               { ...options, params: queryParams },
             );

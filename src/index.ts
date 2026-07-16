@@ -50,6 +50,7 @@ export type {
   ValidationError,
   YoutubePrivacy,
   Block,
+  Currency,
   Price,
   OrderPayment,
   OrderMoney,
@@ -77,15 +78,15 @@ export type {
   StoreSubscriptionActionRequest,
   StoreSubscriptionActionResult,
   StoreSubscriptionActionStatus,
-  StoreSubscriptionActionType,
   StoreSubscriptionEffect,
   StoreSubscriptionEffectError,
   StoreSubscriptionEffectStatus,
   StoreSubscriptionEffectType,
   StoreSubscriptionPayment,
   StoreSubscriptionStatus,
-  StoreSubscriptionSource,
   SubscriptionPlan,
+  SubscriptionPlanFeature,
+  SubscriptionPlanFeatureType,
   SubscriptionPrice,
   ContactListMembershipCancellation,
   ContactListMembershipCancellationSafeError,
@@ -99,8 +100,9 @@ export type {
   ContactListMembershipRefundSafeError,
   ContactListMembershipRefundStatus,
   ContactListMembershipRefundType,
-  StorefrontContactListDisplay,
-  StorefrontContactListDisplayType,
+  StorefrontContactList,
+  StorefrontContactListType,
+  StorefrontContactListPlan,
   StorefrontContactListMembership,
   StorefrontContactListPaymentAttemptSummary,
   PaymentMethod,
@@ -187,6 +189,7 @@ export type {
   ShippingLabelStatus,
   ShippingLabelRefund,
   ShippingLabelRefundStatus,
+  ShippingLabelRefundReconciliationStatus,
   ShippingLabelAdjustment,
   ShippingLabelAdjustmentStatus,
   ShippingLabelSettlement,
@@ -250,6 +253,8 @@ export type {
   EmailRecipients,
   EmailSend,
   EmailSendRequest,
+  EmailSendResult,
+  EmailSendDeliveryResult,
   EmailDelivery,
   EmailDeliveryError,
   EmailDeliveryErrorKind,
@@ -264,6 +269,8 @@ export type {
   FormSchemaType,
   FormField,
   FormFieldType,
+  FormValue,
+  FormValues,
   FormEntry,
   Taxonomy,
   TaxonomyEntry,
@@ -301,6 +308,7 @@ export type {
   CampaignManualTaskOutcome,
   OutreachPersonalizationCounters,
   OutreachPersonalizationState,
+  CampaignLaunchState,
   Campaign,
   CampaignLaunchReadiness,
   CampaignEnrollment,
@@ -340,6 +348,7 @@ export type {
   ContactListMembershipStatus,
   MailboxStatus,
   CampaignStatus,
+  CampaignLaunchStatus,
   CampaignEnrollmentStatus,
   CampaignEnrollmentImportSource,
   CampaignMessageCopySource,
@@ -354,6 +363,7 @@ export type {
   SuppressionReason,
   SuppressionSource,
   WorkflowStatus,
+  MutableWorkflowStatus,
   WorkflowSendEmailNode,
   PromoCodeStatus,
   CollectionStatus,
@@ -377,23 +387,16 @@ export type {
   AvailabilityResponse,
   Slot,
   SlotRange,
-  EshopItem,
-  EshopQuoteItem,
-  ServiceCheckoutPart,
-  ServiceQuoteItem,
   ConditionValue,
   ProductQuoteItemInput,
   ServiceQuoteItemInput,
   OrderQuoteItemInput,
-  OrderQuoteCompatibleItemInput,
   ProductCheckoutItemInput,
   ServiceCheckoutItemInput,
   OrderCheckoutItemInput,
-  OrderCheckoutCompatibleItemInput,
   TrustedProductCheckoutItemInput,
   TrustedServiceCheckoutItemInput,
   TrustedOrderCheckoutItemInput,
-  TrustedOrderCheckoutCompatibleItemInput,
   CreateOrderRefundParams,
   CreateOrderRefundResponse,
   RetryOrderRefundParams,
@@ -461,10 +464,13 @@ export type {
   CreateContactListParams,
   UpdateContactListParams,
   FindContactListsParams,
+  FindStorefrontContactListsParams,
   GetContactListParams,
   CreateContactListPlanParams,
   UpdateContactListPlanParams,
+  ContactListPlanPriceInput,
   FindContactListPlansParams,
+  FindStorefrontContactListPlansParams,
   GetContactListPlanParams,
   RetryContactListPlanCatalogParams,
   AddContactListContactParams,
@@ -604,6 +610,12 @@ export type {
   CreateLocationParams,
   UpdateLocationParams,
   DeleteLocationParams,
+  CreateMarketParams,
+  UpdateMarketParams,
+  MarketZoneInput,
+  CreateProductVariantInput,
+  UpdateProductVariantInput,
+  ProductInventoryInput,
 } from "./types/api";
 
 export type {
@@ -680,7 +692,7 @@ export type {
   EventScopeField,
 } from "./api/platform";
 
-export const SDK_VERSION = "0.9.15";
+export const SDK_VERSION = "0.9.17";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -693,6 +705,7 @@ import type {
   Contact as ContactType,
   Store as StoreType,
   Market as MarketType,
+  Price,
 } from "./types";
 
 export interface ApiConfig {
@@ -778,11 +791,11 @@ import { createTaxonomyApi } from "./api/taxonomy";
 import { createAnalyticsApi } from "./api/analytics";
 import { createExperimentsApi } from "./api/experiments";
 import { createStorefrontApi } from "./api/storefront";
-import { createCartController } from "./cartController";
 import {
   getImageUrl,
   getBlockValue,
   getBlockTextValue,
+  getBlockContentValue,
   getBlockValues,
   getBlockLabel,
   getBlockObjectValues,
@@ -823,10 +836,11 @@ import {
 
 function createUtilitySurface(apiConfig: ApiConfig) {
   return {
-    getImageUrl: (imageBlock: any, isBlock = true) =>
+    getImageUrl: (imageBlock: unknown, isBlock = true) =>
       getImageUrl(imageBlock, isBlock),
     getBlockValue,
     getBlockTextValue,
+    getBlockContentValue,
     getBlockValues,
     getBlockLabel,
     getBlockObjectValues,
@@ -835,8 +849,8 @@ function createUtilitySurface(apiConfig: ApiConfig) {
     prepareBlocksForSubmission,
     extractBlockValues,
 
-    formatPrice: (prices: any[]) => formatPrice(prices, apiConfig.market),
-    getPriceAmount: (prices: any[]) => getPriceAmount(prices, apiConfig.market),
+    formatPrice: (prices: Price[]) => formatPrice(prices, apiConfig.market),
+    getPriceAmount: (prices: Price[]) => getPriceAmount(prices, apiConfig.market),
     formatPayment,
     formatMinor,
     getCurrencySymbol,
@@ -1042,7 +1056,6 @@ export function createAdmin(config: CreateAdminConfig) {
     store: {
       create: storeApi.createStore,
       update: storeApi.updateStore,
-      delete: storeApi.deleteStore,
       get: storeApi.getStore,
       find: storeApi.getStores,
       subscription: {
@@ -1379,25 +1392,24 @@ export function createAdmin(config: CreateAdminConfig) {
   return sdk;
 }
 
-const CONTACT_STORAGE_KEY = "arky_contact_session";
+export interface StorefrontSessionStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
 
-function readContactSession(): ContactSessionInternal | null {
+function defaultStorefrontSessionStorage(): StorefrontSessionStorage | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(CONTACT_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as ContactSessionInternal) : null;
+    return window.localStorage;
   } catch {
     return null;
   }
 }
 
-function writeContactSession(s: ContactSessionInternal | null): void {
-  if (typeof window === "undefined") return;
-  if (s) {
-    localStorage.setItem(CONTACT_STORAGE_KEY, JSON.stringify(s));
-  } else {
-    localStorage.removeItem(CONTACT_STORAGE_KEY);
-  }
+function storefrontSessionStorageKey(baseUrl: string, storeId: string): string {
+  const normalizedBaseUrl = baseUrl.trim().replace(/\/+$/, "").toLowerCase();
+  return `arky_contact_session:${encodeURIComponent(normalizedBaseUrl)}:${encodeURIComponent(storeId)}`;
 }
 
 export type CreateStorefrontConfig = Omit<
@@ -1408,13 +1420,44 @@ export type CreateStorefrontConfig = Omit<
   market?: string;
   locale?: string;
   apiToken?: string;
+  sessionStorage?: StorefrontSessionStorage;
 };
 
-export function createStorefront(config: CreateStorefrontConfig) {
+function createStorefrontClient(config: CreateStorefrontConfig) {
   const locale = config.locale || "en";
   const initialMarket = config.market || "";
   const listeners = new Set<AuthStateListener<ContactSession>>();
   let bareIdentifyPromise: Promise<StorefrontIdentifyResult> | null = null;
+  let identityTail: Promise<void> = Promise.resolve();
+  const sessionStorage = config.sessionStorage || defaultStorefrontSessionStorage();
+  let memorySession: ContactSessionInternal | null = null;
+
+  function readContactSession(): ContactSessionInternal | null {
+    if (!sessionStorage) return memorySession;
+    try {
+      const raw = sessionStorage.getItem(
+        storefrontSessionStorageKey(config.baseUrl, config.storeId),
+      );
+      return raw ? (JSON.parse(raw) as ContactSessionInternal) : null;
+    } catch {
+      return memorySession;
+    }
+  }
+
+  function writeContactSession(session: ContactSessionInternal | null): void {
+    memorySession = session;
+    if (!sessionStorage) return;
+    const key = storefrontSessionStorageKey(config.baseUrl, config.storeId);
+    try {
+      if (session) {
+        sessionStorage.setItem(key, JSON.stringify(session));
+      } else {
+        sessionStorage.removeItem(key);
+      }
+    } catch {
+      // The in-memory copy keeps this client usable when persistence fails.
+    }
+  }
 
   function toPublic(s: ContactSessionInternal | null): ContactSession | null {
     return s ? { contact: s.contact, store: s.store, market: s.market } : null;
@@ -1484,17 +1527,22 @@ export function createStorefront(config: CreateStorefrontConfig) {
     market?: string;
   }): Promise<StorefrontIdentifyResult> {
     if (params?.market !== undefined) apiConfig.market = params.market;
+    const market = apiConfig.market;
 
     const isBareCall = !params?.email && !params?.verify;
     if (isBareCall && bareIdentifyPromise) return bareIdentifyPromise;
 
-    const promise = (async (): Promise<StorefrontIdentifyResult> => {
+    const run = async (): Promise<StorefrontIdentifyResult> => {
       try {
-        const result = await contactApi.identify({
-          market: apiConfig.market,
-          email: params?.email,
-          verify: params?.verify,
-        });
+        const result = await (params?.verify
+          ? contactApi.requestCode({
+              market,
+              email: params.email,
+            })
+          : contactApi.identify({
+              market,
+              email: params?.email,
+            }));
         return {
           contact: result.contact,
           store: result.store,
@@ -1511,7 +1559,7 @@ export function createStorefront(config: CreateStorefrontConfig) {
         if (isBareCall && status === 401) {
           updateSession(() => null);
           const result = await contactApi.identify({
-            market: apiConfig.market,
+            market,
           });
           return {
             contact: result.contact,
@@ -1522,12 +1570,25 @@ export function createStorefront(config: CreateStorefrontConfig) {
         }
         throw err;
       }
-    })().catch((err) => {
-      if (isBareCall) bareIdentifyPromise = null;
-      throw err;
-    });
+    };
 
-    if (isBareCall) bareIdentifyPromise = promise;
+    const promise = identityTail.then(run);
+    identityTail = promise.then(
+      () => undefined,
+      () => undefined,
+    );
+
+    if (isBareCall) {
+      bareIdentifyPromise = promise;
+      void promise.then(
+        () => {
+          if (bareIdentifyPromise === promise) bareIdentifyPromise = null;
+        },
+        () => {
+          if (bareIdentifyPromise === promise) bareIdentifyPromise = null;
+        },
+      );
+    }
 
     return promise;
   }
@@ -1581,17 +1642,12 @@ export function createStorefront(config: CreateStorefrontConfig) {
     },
 
     store: storefrontApi.store,
-    cart: createCartController(storefrontApi.eshop.cart),
     cms: storefrontApi.cms,
     eshop: storefrontApi.eshop,
     crm: storefrontApi.crm,
     action: storefrontApi.action,
     experiments: storefrontApi.experiments,
     support: createStorefrontSupportApi(apiConfig),
-    setStoreId: (storeId: string) => {
-      apiConfig.storeId = storeId;
-      bareIdentifyPromise = null;
-    },
     getStoreId: () => apiConfig.storeId,
     setMarket: (key: string) => {
       apiConfig.market = key;
@@ -1604,6 +1660,39 @@ export function createStorefront(config: CreateStorefrontConfig) {
     getLocale: () => apiConfig.locale,
     utils: createUtilitySurface(apiConfig),
   };
+}
+
+type StorefrontClientBase = ReturnType<typeof createStorefrontClient>;
+
+export type StorefrontClient = StorefrontClientBase & {
+  forStore(storeId: string): StorefrontClient;
+};
+
+export function createStorefront(
+  config: CreateStorefrontConfig,
+): StorefrontClient {
+  const sessionStorage =
+    config.sessionStorage || defaultStorefrontSessionStorage() || undefined;
+  const scopedConfig: CreateStorefrontConfig = {
+    ...config,
+    sessionStorage,
+  };
+  const client = createStorefrontClient(scopedConfig);
+
+  Object.defineProperty(client, "forStore", {
+    enumerable: true,
+    configurable: false,
+    writable: false,
+    value: (storeId: string) =>
+      createStorefront({
+        ...scopedConfig,
+        storeId,
+        market: client.getMarket(),
+        locale: client.getLocale(),
+      }),
+  });
+
+  return client as StorefrontClient;
 }
 
 export type { HttpClientConfig } from "./services/createHttpClient";

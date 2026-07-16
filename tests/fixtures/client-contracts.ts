@@ -1,40 +1,187 @@
 import type {
   Account,
   Contact,
+  ContactListSubscribeResponse,
   ContactListMembershipPaymentAttemptStatus,
+  ContactListMembershipPaymentAttemptType,
+  ContactListPlanPriceInput,
   CreateShipmentParams,
   FindStoreSubscriptionActionEffectsParams,
+  GetCollectionParams,
   GetShippingRatesParams,
   GetStoreSubscriptionActionEffectParams,
   OrderMoney,
   PaginatedResponse,
+  ProductInventoryInput,
   ProductVariant,
+  ServiceProvider,
   Shipment,
   ShippingStatus,
   SocialConnectionCredential,
   SocialConnectionData,
+  SocialConnectionType,
   SocialOAuthCallbackStatus,
+  SocialPublicationContent,
+  SocialPublicationEffectRequest,
   SocialProviderCapability,
   StoreSubscriptionAction,
   StoreSubscriptionEffect,
+  SubscriptionPlanFeatureType,
+  TiktokPrivacy,
   StorefrontIdentifyResult,
   StorefrontGetSupportConversationParams,
   StorefrontSendSupportMessageParams,
   SupportConversationStartResponse,
   UpdateCartParams,
+  MarketZoneInput,
   WorkflowHttpNode,
   WorkflowTool,
   WorkflowTriggerNode,
 } from "../../dist/index.js";
+import type { RequestOptions } from "../../dist/types.js";
 import { PaymentMethodType, SDK_VERSION } from "../../dist/index.js";
-import type { StorefrontIdentifyResult as StorefrontEntryIdentifyResult } from "../../dist/storefront.js";
+import {
+  createStorefront,
+  initialize,
+  type FormField,
+  type FormSchema,
+  type FormValues,
+  type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
+} from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.9.15" = SDK_VERSION;
+const sdkVersionLiteral: "0.9.17" = SDK_VERSION;
+const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
+// @ts-expect-error the server's serialized feature key is crm_contacts.
+const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
+const contactListPlanPriceInput: ContactListPlanPriceInput = {
+  currency: "usd",
+  amount: 1200,
+  interval: { period: "month", count: 1 },
+};
+const contactListPlanPriceWithProvider: ContactListPlanPriceInput = {
+  currency: "usd",
+  amount: 1200,
+  // @ts-expect-error payment-provider bindings are server-owned output fields.
+  providers: [{ type: "stripe", id: "price_untrusted" }],
+};
 
 const clearCartAddresses: UpdateCartParams = {
   id: "cart-contract",
   shipping_address: null,
   billing_address: null,
+};
+
+const inventoryInput: ProductInventoryInput = {
+  location_id: "location-contract",
+  available: 10,
+  reserved: 0,
+};
+const zoneInput: MarketZoneInput = {
+  countries: ["US"],
+  states: [],
+  postal_codes: [],
+  tax_bps: 0,
+  shipping_methods: [],
+};
+const collectionById: GetCollectionParams = { id: "collection-contract" };
+const collectionByKey: GetCollectionParams = {
+  key: "articles",
+  store_id: "store-contract",
+};
+// @ts-expect-error collection lookup requires exactly one identifier.
+const collectionWithoutIdentifier: GetCollectionParams = {};
+// @ts-expect-error collection lookup cannot mix an ID and key.
+const ambiguousCollection: GetCollectionParams = {
+  id: "collection-contract",
+  key: "articles",
+};
+
+const typedRequestOptions: RequestOptions<{ ok: true }> = {
+  params: { filters: [{ type: "text", key: "title", values: ["Arky"] }] },
+  transformRequest: (data: unknown) => data,
+  onSuccess: ({ data }) => {
+    const requestSucceeded: true = data.ok;
+    void requestSucceeded;
+  },
+  onError: ({ error }) => {
+    if (error instanceof Error) error.message;
+  },
+};
+const unsafeRequestTransform: RequestOptions = {
+  // @ts-expect-error request transforms must accept unknown input safely.
+  transformRequest: (data: string) => data,
+};
+// @ts-expect-error inventory persistence IDs are assigned by the server.
+inventoryInput.product_id = "product-contract";
+// @ts-expect-error market ownership is assigned by the server.
+zoneInput.market_id = "market-contract";
+
+declare const storefrontClient: ReturnType<typeof createStorefront>;
+const storefrontServiceProviders: Promise<ServiceProvider[]> =
+  storefrontClient.eshop.service.findProviders({
+    service_id: "service-contract",
+  });
+
+declare const initializedStorefront: ReturnType<typeof initialize>;
+const typedFormValues: FormValues = {
+  name: "Jane",
+  guests: 2,
+  accepted: false,
+  date: 1_725_000_000,
+  location: { coordinates: { lat: 43.8563, lon: 18.4131 } },
+  channels: ["email"],
+};
+initializedStorefront.cms.form.submitByKey({
+  key: "contact-form",
+  store_id: "store-contract",
+  values: typedFormValues,
+});
+initializedStorefront.cms.form.submitByKey({
+  key: "contact-form",
+  values: {
+    // @ts-expect-error form values cannot contain arbitrary objects.
+    invalid: new Date(),
+  },
+});
+const textFormSchema: FormSchema = {
+  id: "field-name",
+  key: "name",
+  type: "text",
+  required: true,
+};
+const textFormField: FormField = {
+  id: "field-name",
+  key: "name",
+  type: "text",
+  value: "Jane",
+};
+// @ts-expect-error text fields require string values.
+const invalidTextFormField: FormField = {
+  id: "field-name",
+  key: "name",
+  type: "text",
+  value: 42,
+};
+void textFormSchema;
+void textFormField;
+void invalidTextFormField;
+
+const subscribeResult: ContactListSubscribeResponse = {
+  payment_action: { type: "none" },
+  payment_attempt: {
+    plan_id: "plan-contract",
+    amount: 1200,
+    currency: "usd",
+    interval: { period: "month", count: 1 },
+    status: "unknown",
+  },
+};
+const subscribeAttemptStatus: ContactListMembershipPaymentAttemptStatus | undefined =
+  subscribeResult.payment_attempt?.status;
+const paymentAttemptType: ContactListMembershipPaymentAttemptType = "create_payment_intent";
+// @ts-expect-error payment attempt type is one flat discriminator, not a nested type object.
+const nestedPaymentAttemptType: ContactListMembershipPaymentAttemptType = {
+  type: "create_payment_intent",
 };
 
 declare const storefrontIdentify: StorefrontIdentifyResult;
@@ -46,7 +193,7 @@ const verificationChallengeId: string | undefined =
 storefrontIdentify.token;
 
 const orderMoney: OrderMoney = {
-  currency: "USD",
+	currency: "usd",
   market: "us",
   subtotal: 1250,
   shipping: 0,
@@ -86,6 +233,25 @@ const safeSocialConnectionData: SocialConnectionData = {
     handle: null,
     avatar_url: null,
   },
+};
+const tiktokConnectionType: SocialConnectionType = "tiktok_account";
+const tiktokPrivacy: TiktokPrivacy = "private";
+const tiktokContent: SocialPublicationContent = {
+  type: "tiktok_account",
+  caption: "Launch",
+  video_media_id: "media-contract",
+  privacy: tiktokPrivacy,
+};
+const tiktokInitializeEffect: SocialPublicationEffectRequest = {
+  type: "tiktok_initialize_upload",
+  media_id: "media-contract",
+};
+const tiktokUploadEffect: SocialPublicationEffectRequest = {
+  type: "tiktok_upload",
+  media_id: "media-contract",
+  publish_id: "publish-contract",
+  total_bytes: 1024,
+  has_upload_session: true,
 };
 // @ts-expect-error the provider discriminator belongs to SocialConnection.type, not data.
 safeSocialConnectionData.type;
@@ -138,7 +304,7 @@ declare const contact: Contact;
 declare const productVariant: ProductVariant;
 declare const shipment: Shipment;
 const shippingProvider: "shippo" = shipment.provider;
-const shipmentAllocation: "reserved" | "consumed" | "released" =
+const shipmentAllocation: "reserved" | "fulfilled" | "released" =
   shipment.allocation_status;
 const shipmentTrackingStatusAtMs: number | null =
   shipment.tracking_status_at_ms;
@@ -243,22 +409,6 @@ const canonicalPage: PaginatedResponse<{ id: string }> = {
   cursor: "cursor-2",
 };
 
-const tiktokConnectionOnlyCapability: SocialProviderCapability = {
-  type: "tiktok_account",
-  display_name: "TikTok Account",
-  icon_key: "tiktok_account",
-  publishing_supported: false,
-  required_scopes: ["user.info.basic"],
-  media_requirements: [],
-  engagement: {
-    read_comments: false,
-    reply_to_comments: false,
-  },
-  analytics: {
-    read_post_metrics: false,
-  },
-};
-
 // @ts-expect-error provider capabilities must state whether publishing is supported.
 const missingPublishingCapability: SocialProviderCapability = {
   type: "x_account",
@@ -283,7 +433,6 @@ const workflowToolWireDto: WorkflowTool = {
   color: "#000000",
   category: "core",
   configuration_required: false,
-  docs_url: "https://arky.io/docs",
   url_patterns: ["^https://api\\.arky\\.io/"],
   resources: [],
   triggers: [
@@ -313,6 +462,10 @@ void [
   safeSocialCredential,
   unsafeSocialCredential,
   safeSocialConnectionData,
+  tiktokConnectionType,
+  tiktokContent,
+  tiktokInitializeEffect,
+  tiktokUploadEffect,
   clearCartAddresses,
   shipmentTrackingStatusAtMs,
   supportCapability,
@@ -335,9 +488,14 @@ void [
   retryingMutation,
   delayedMutationRetry,
   canonicalPage,
-  tiktokConnectionOnlyCapability,
   missingPublishingCapability,
   workflowToolWireDto,
   camelCaseWorkflowTool,
+  crmContactFeature,
+  nonWireCrmProfileFeature,
+  contactListPlanPriceInput,
+  contactListPlanPriceWithProvider,
+  paymentAttemptType,
+  nestedPaymentAttemptType,
 ];
 void sdkVersionLiteral;

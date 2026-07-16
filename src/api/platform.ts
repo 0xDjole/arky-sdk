@@ -39,7 +39,6 @@ export interface WorkflowTool {
 			| 'core';
 	configuration_required: boolean;
 	website?: string;
-	docs_url?: string;
 	url_patterns: string[];
 	resources: WorkflowToolResource[];
 	triggers?: Array<{

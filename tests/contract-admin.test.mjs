@@ -85,7 +85,6 @@ assert.equal(typeof arky.account.search, "function");
 
 assert.equal(typeof arky.store.create, "function");
 assert.equal(typeof arky.store.update, "function");
-assert.equal(typeof arky.store.delete, "function");
 assert.equal(typeof arky.store.get, "function");
 assert.equal(typeof arky.store.find, "function");
 assert.equal(typeof arky.store.subscription.getPlans, "function");

@@ -1,49 +1,25 @@
-import type {
-  OrderCheckoutCompatibleItemInput,
-  OrderCheckoutItemInput,
-  OrderQuoteCompatibleItemInput,
-  OrderQuoteItemInput,
-  TrustedOrderCheckoutCompatibleItemInput,
-  TrustedOrderCheckoutItemInput,
-} from "../types/api";
+import type { OrderCheckoutItemInput } from "../types/api";
 
-export function normalizeOrderQuoteItems(
-  items: OrderQuoteCompatibleItemInput[],
-): OrderQuoteItemInput[] {
-  return items.map((item) => {
-    if ("type" in item) {
-      return item;
-    }
-
-    if ("product_id" in item) {
-      return { type: "product", ...item };
-    }
-
-    return { type: "service", ...item };
-  });
-}
-
-export function normalizeOrderCheckoutItems(
-  items: TrustedOrderCheckoutCompatibleItemInput[],
-): TrustedOrderCheckoutItemInput[] {
-  return items.map((item) => {
-    if ("type" in item) {
-      return item;
-    }
-
-    if ("product_id" in item) {
-      return { type: "product", ...item };
-    }
-
-    return { type: "service", ...item };
-  });
-}
-
-export function normalizePublicCheckoutItems(
-  items: OrderCheckoutCompatibleItemInput[],
+export function sanitizePublicCheckoutItems(
+  items: OrderCheckoutItemInput[],
 ): OrderCheckoutItemInput[] {
-  return normalizeOrderCheckoutItems(items).map((item) => {
-    const { price: _price, ...publicItem } = item;
-    return publicItem;
+  return items.map((item) => {
+    if (item.type === "product") {
+      return {
+        type: "product",
+        ...(item.id ? { id: item.id } : {}),
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+        quantity: item.quantity,
+      };
+    }
+    return {
+      type: "service",
+      ...(item.id ? { id: item.id } : {}),
+      service_id: item.service_id,
+      provider_id: item.provider_id,
+      slots: item.slots,
+      ...(item.forms ? { forms: item.forms } : {}),
+    };
   });
 }

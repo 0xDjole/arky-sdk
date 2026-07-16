@@ -2,9 +2,13 @@ import type {
   Address,
   Block,
   EshopCartItem,
+  Form,
   FormEntry,
   FormField,
   FormSchema,
+  FormValue,
+  FormValues,
+  GeoLocation,
   Price,
   Product,
   ProductVariant,
@@ -16,7 +20,6 @@ import type {
   AvailabilityResponse,
   ProductCheckoutItemInput,
   ServiceCheckoutItemInput,
-  SlotRange,
 } from "../types/api";
 import type { ArkyServiceCartItem, ArkyServiceState, ArkyStoreClient } from "./types";
 
@@ -131,8 +134,9 @@ export function locationToAddress(location: ZoneLocation): Address {
   };
 }
 
-export function normalizeForms(forms: FormEntry[] | Block[] | undefined): FormEntry[] | undefined {
-  return forms as FormEntry[] | undefined;
+export function createFormEntry(formId: string, fields: FormField[]): FormEntry {
+  if (!formId.trim()) throw new Error("formId is required");
+  return { form_id: formId, fields };
 }
 
 export function toProductCheckoutItems(items: EshopCartItem[]): ProductCheckoutItemInput[] {
@@ -146,37 +150,114 @@ export function toProductCheckoutItems(items: EshopCartItem[]): ProductCheckoutI
 }
 
 export function toServiceCheckoutItems(items: ArkyServiceCartItem[]): ServiceCheckoutItemInput[] {
-  const groups = new Map<string, ServiceCheckoutItemInput>();
-  for (const item of items) {
-    const key = `${item.service_id}:${item.provider_id}`;
-    const slot: SlotRange = { from: item.from, to: item.to };
-    const existing = groups.get(key);
-    if (existing) {
-      existing.slots.push(slot);
-      continue;
-    }
-    groups.set(key, {
-      type: "service",
-      id: item.id,
-      service_id: item.service_id,
-      provider_id: item.provider_id,
-      slots: [slot],
-      forms: item.forms || [],
-    });
-  }
-  return [...groups.values()].map((item) => ({
-    ...item,
+  return items.map((item) => ({
+    type: "service",
+    id: item.id,
+    service_id: item.service_id,
+    provider_id: item.provider_id,
     slots: [...item.slots].sort((a, b) => a.from - b.from),
+    forms: item.forms,
   }));
 }
 
-export function formFieldsFromBlocks(blocks: Block[]): FormField[] {
-  return blocks.map((block) => ({
-    id: block.id,
-    key: block.key,
-    type: block.type as FormField["type"],
-    value: block.value,
-  }));
+function formValueError(field: FormSchema, message: string): Error {
+  return new Error(`Invalid value for form field '${field.key}': ${message}`);
+}
+
+function isValidGeoLocation(value: unknown): value is GeoLocation {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const location = value as GeoLocation;
+  if (location.label !== undefined && location.label !== null && typeof location.label !== "string") {
+    return false;
+  }
+  const coordinates = location.coordinates;
+  if (!coordinates || typeof coordinates !== "object") return false;
+  return (
+    Number.isFinite(coordinates.lat) &&
+    Number.isFinite(coordinates.lon) &&
+    coordinates.lat >= -90 &&
+    coordinates.lat <= 90 &&
+    coordinates.lon >= -180 &&
+    coordinates.lon <= 180
+  );
+}
+
+function buildFormField(field: FormSchema, value: FormValue): FormField {
+  const common = { id: field.id, key: field.key };
+  switch (field.type) {
+    case "text":
+      if (typeof value !== "string") throw formValueError(field, "expected text");
+      if (field.required && value.trim().length === 0) throw formValueError(field, "required text is blank");
+      return { ...common, type: "text", value };
+    case "number":
+      if (typeof value !== "number" || !Number.isFinite(value)) {
+        throw formValueError(field, "expected a finite number");
+      }
+      if (field.min !== null && field.min !== undefined && value < field.min) {
+        throw formValueError(field, `must be at least ${field.min}`);
+      }
+      if (field.max !== null && field.max !== undefined && value > field.max) {
+        throw formValueError(field, `must be at most ${field.max}`);
+      }
+      return { ...common, type: "number", value };
+    case "boolean":
+      if (typeof value !== "boolean") throw formValueError(field, "expected a boolean");
+      return { ...common, type: "boolean", value };
+    case "date":
+      if (typeof value !== "number" || !Number.isSafeInteger(value)) {
+        throw formValueError(field, "expected an integer timestamp");
+      }
+      return { ...common, type: "date", value };
+    case "geo_location":
+      if (!isValidGeoLocation(value)) throw formValueError(field, "expected valid coordinates");
+      return { ...common, type: "geo_location", value };
+    case "select": {
+      if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+        throw formValueError(field, "expected a list of options");
+      }
+      const selected = value as string[];
+      if (field.required && selected.length === 0) throw formValueError(field, "at least one option is required");
+      if (new Set(selected).size !== selected.length || selected.some((item) => !field.options.includes(item))) {
+        throw formValueError(field, "contains an unknown or duplicate option");
+      }
+      return { ...common, type: "select", value: selected };
+    }
+  }
+}
+
+function isEmptyOptionalValue(field: FormSchema, value: FormValue): boolean {
+  if (field.required) return false;
+  if (field.type === "text") return value === "";
+  if (field.type === "select") return Array.isArray(value) && value.length === 0;
+  if (field.type === "geo_location") {
+    return Boolean(value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0);
+  }
+  return false;
+}
+
+export function buildFormFields(schema: FormSchema[], values: FormValues): FormField[] {
+  const knownKeys = new Set(schema.map((field) => field.key));
+  const unknownKey = Object.keys(values).find((key) => !knownKeys.has(key));
+  if (unknownKey) throw new Error(`Form field '${unknownKey}' is not defined by the form schema`);
+
+  const fields: FormField[] = [];
+  for (const field of schema) {
+    const value = values[field.key];
+    if (value === undefined) {
+      if (field.required) throw formValueError(field, "required value is missing");
+      continue;
+    }
+    if (isEmptyOptionalValue(field, value)) continue;
+    fields.push(buildFormField(field, value));
+  }
+  return fields;
+}
+
+export function createFormEntryFromValues(
+  form: Pick<Form, "id" | "schema">,
+  values: FormValues,
+): FormEntry {
+  return createFormEntry(form.id, buildFormFields(form.schema, values));
 }
 
 export function getFormBlockType(field: FormSchema): string {
@@ -188,12 +269,16 @@ export function getFormBlockType(field: FormSchema): string {
 
 export function getFormBlockValue(field: FormSchema): unknown {
   if (field.type === "boolean") return false;
-  if (field.type === "number") return field.min ?? 0;
+  if (field.type === "select") return [];
   if (field.type === "geo_location") return {};
+  if (field.type === "number" || field.type === "date") return undefined;
   return "";
 }
 
 export function formSchemaToBlock(field: FormSchema): Block {
+  const min = field.type === "number" ? field.min : undefined;
+  const max = field.type === "number" ? field.max : undefined;
+  const options = field.type === "select" ? field.options : undefined;
   return {
     id: field.id,
     key: field.key,
@@ -201,9 +286,9 @@ export function formSchemaToBlock(field: FormSchema): Block {
     properties: {
       isRequired: field.required,
       minValues: field.required ? 1 : 0,
-      min: field.min,
-      max: field.max,
-      options: field.options,
+      min,
+      max,
+      options,
       pattern: field.key === "email" ? "^.+@.+\\..+$" : field.key === "phone" ? "^.{6,20}$" : undefined,
     },
     value: getFormBlockValue(field),
@@ -260,15 +345,13 @@ export function createServiceInitialState(): ArkyServiceState {
     service: null,
     availability: null,
     providers: [],
+    serviceProviders: [],
     selectedProviderId: null,
     currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
     calendar: [],
     selectedDate: null,
-    startDate: null,
-    endDate: null,
     slots: [],
     selectedSlot: null,
-    cart: [],
     timezone: typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC",
     tzGroups: {},
     loading: false,
@@ -278,7 +361,6 @@ export function createServiceInitialState(): ArkyServiceState {
     quoteError: null,
     currency: null,
     dateTimeConfirmed: false,
-    isMultiDay: false,
     availablePaymentMethods: [],
     cartId: null,
     promoCode: null,

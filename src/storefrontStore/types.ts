@@ -5,8 +5,10 @@ import type {
   Cart,
   EshopCartItem,
   CollectionEntry,
+  Currency,
   Form,
   FormEntry,
+  FormValues,
   Market,
   OrderCheckoutResult,
   OrderQuote,
@@ -17,7 +19,7 @@ import type {
   Provider,
   Service,
 } from "../types";
-import type { AvailabilityResponse } from "../types/api";
+import type { AvailabilityResponse, SlotRange } from "../types/api";
 import type {
   StripeConfirmationTokenController,
   StripeConfirmationTokenControllerConfig,
@@ -43,13 +45,18 @@ export type ArkyCmsEntryParams = ArkyStoreContext & {
 	store_id?: string;
 };
 
+export interface ArkySubmitFormByKeyParams {
+  key: string;
+  store_id?: string;
+  values: FormValues;
+}
+
 export interface ArkyServiceCartItem {
   id: string;
   service_id: string;
   provider_id: string;
-  from: number;
-  to: number;
-  forms?: FormEntry[];
+  slots: SlotRange[];
+  forms: FormEntry[];
   price?: Price;
   service_name?: string;
   provider_name?: string;
@@ -96,7 +103,7 @@ export interface ArkyCartInput {
   service_items?: ArkyServiceCartItem[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
-  forms?: FormEntry[] | Block[];
+  forms?: FormEntry[];
   promo_code?: string | null;
   payment_method_key?: string | null;
   shipping_method_id?: string | null;
@@ -156,19 +163,29 @@ export interface ArkyServiceSlot {
   serviceBlocks?: Block[];
 }
 
+export interface ArkyServiceFormGroup {
+  form: Form;
+  blocks: Block[];
+}
+
+export interface ArkyServiceFormState {
+  provider_id: string | null;
+  groups: ArkyServiceFormGroup[];
+  loading: boolean;
+  error: string | null;
+}
+
 export interface ArkyServiceState {
   service: Service | null;
   availability: AvailabilityResponse | null;
   providers: Provider[];
+  serviceProviders: import("../types").ServiceProvider[];
   selectedProviderId: string | null;
   currentMonth: Date;
   calendar: ArkyCalendarDay[];
   selectedDate: string | null;
-  startDate: string | null;
-  endDate: string | null;
   slots: ArkyServiceSlot[];
   selectedSlot: ArkyServiceSlot | null;
-  cart: ArkyServiceSlot[];
   timezone: string;
   tzGroups: Record<string, { zone: string; name: string }[]>;
   loading: boolean;
@@ -176,9 +193,8 @@ export interface ArkyServiceState {
   quote: OrderQuote | null;
   fetchingQuote: boolean;
   quoteError: string | null;
-  currency: string | null;
+  currency: Currency | null;
   dateTimeConfirmed: boolean;
-  isMultiDay: boolean;
   availablePaymentMethods: PaymentMethod[];
   cartId: string | null;
   promoCode: string | null;

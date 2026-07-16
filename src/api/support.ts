@@ -339,7 +339,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: CreateSupportChannelParams,
         opts?: RequestOptions
       ): Promise<SupportChannel> {
-        return httpClient.post(
+        return httpClient.post<SupportChannel>(
           `/v1/stores/${params.store_id}/support/channels`,
           params,
           opts
@@ -350,7 +350,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: { store_id: string; id: string },
         opts?: RequestOptions
       ): Promise<SupportChannel> {
-        return httpClient.get(
+        return httpClient.get<SupportChannel>(
           `/v1/stores/${params.store_id}/support/channels/${params.id}?store_id=${params.store_id}`,
           opts
         );
@@ -365,7 +365,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         if (params.channel_type) qs.set("channel_type", params.channel_type);
         if (params.limit) qs.set("limit", String(params.limit));
         if (params.cursor) qs.set("cursor", params.cursor);
-        return httpClient.get(
+        return httpClient.get<{ items: SupportChannel[]; cursor?: string }>(
           `/v1/stores/${params.store_id}/support/channels?${qs}`,
           opts
         );
@@ -375,7 +375,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: UpdateSupportChannelParams,
         opts?: RequestOptions
       ): Promise<SupportChannel> {
-        return httpClient.put(
+        return httpClient.put<SupportChannel>(
           `/v1/stores/${params.store_id}/support/channels/${params.id}`,
           params,
           opts
@@ -386,7 +386,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: { store_id: string; id: string },
         opts?: RequestOptions
       ): Promise<void> {
-        return httpClient.delete(
+        return httpClient.delete<void>(
           `/v1/stores/${params.store_id}/support/channels/${params.id}?store_id=${params.store_id}`,
           opts
         );
@@ -396,7 +396,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: ReceiveSupportChannelMessageParams,
         opts?: RequestOptions
       ): Promise<SupportConversationResponse> {
-        return httpClient.post(
+        return httpClient.post<SupportConversationResponse>(
           `/v1/stores/${params.store_id}/support/channels/${params.channel_id}/messages`,
           params,
           opts
@@ -409,7 +409,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: CreateSupportAgentParams,
         opts?: RequestOptions
       ): Promise<SupportAgent> {
-        return httpClient.post(
+        return httpClient.post<SupportAgent>(
           `/v1/stores/${params.store_id}/support/agents`,
           params,
           opts
@@ -420,7 +420,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: { store_id: string; id: string },
         opts?: RequestOptions
       ): Promise<SupportAgent> {
-        return httpClient.get(
+        return httpClient.get<SupportAgent>(
           `/v1/stores/${params.store_id}/support/agents/${params.id}?store_id=${params.store_id}`,
           opts
         );
@@ -434,7 +434,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         if (params.status) qs.set("status", params.status);
         if (params.limit) qs.set("limit", String(params.limit));
         if (params.cursor) qs.set("cursor", params.cursor);
-        return httpClient.get(
+        return httpClient.get<{ items: SupportAgent[]; cursor?: string }>(
           `/v1/stores/${params.store_id}/support/agents?${qs}`,
           opts
         );
@@ -444,7 +444,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: UpdateSupportAgentParams,
         opts?: RequestOptions
       ): Promise<SupportAgent> {
-        return httpClient.put(
+        return httpClient.put<SupportAgent>(
           `/v1/stores/${params.store_id}/support/agents/${params.id}`,
           params,
           opts
@@ -455,7 +455,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: { store_id: string; id: string },
         opts?: RequestOptions
       ): Promise<void> {
-        return httpClient.delete(
+        return httpClient.delete<void>(
           `/v1/stores/${params.store_id}/support/agents/${params.id}?store_id=${params.store_id}`,
           opts
         );
@@ -475,7 +475,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         if (params.query) qs.set("query", params.query);
         if (params.limit) qs.set("limit", String(params.limit));
         if (params.cursor) qs.set("cursor", params.cursor);
-        return httpClient.get(
+        return httpClient.get<{ items: SupportConversation[]; cursor?: string }>(
           `/v1/stores/${params.store_id}/support/conversations?${qs}`,
           opts
         );
@@ -486,7 +486,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         opts?: RequestOptions
       ): Promise<SupportConversationResponse> {
         const qs = supportConversationQuery(params);
-        return httpClient.get(
+        return httpClient.get<SupportConversationResponse>(
           `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}?${qs}`,
           opts
         );
@@ -496,7 +496,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: SendSupportMessageParams,
         opts?: RequestOptions
       ): Promise<SupportConversationResponse> {
-        return httpClient.post(
+        return httpClient.post<SupportConversationResponse>(
           `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}/messages`,
           params,
           opts
@@ -507,7 +507,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: ReplySupportConversationParams,
         opts?: RequestOptions
       ): Promise<SupportConversationResponse> {
-        return httpClient.post(
+        return httpClient.post<SupportConversationResponse>(
           `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}/reply`,
           params,
           opts
@@ -518,7 +518,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: ResolveSupportConversationParams,
         opts?: RequestOptions
       ): Promise<SupportConversation> {
-        return httpClient.post(
+        return httpClient.post<SupportConversation>(
           `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}/resolve`,
           params,
           opts
@@ -529,7 +529,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: AssignSupportConversationParams,
         opts?: RequestOptions
       ): Promise<SupportConversation> {
-        return httpClient.post(
+        return httpClient.post<SupportConversation>(
           `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}/assign`,
           params,
           opts

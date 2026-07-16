@@ -103,10 +103,31 @@ function checkoutResult() {
 
 function checkoutStore() {
 	const store = initialize({ baseUrl, storeId, market: 'us', locale: 'en' });
-	store.cart.cart.set(cartSnapshot());
-	store.cart.product_items.set([productItem()]);
+	store.eshop.cart.cart.set(cartSnapshot());
+	store.eshop.cart.product_items.set([productItem()]);
 	return store;
 }
+
+test('storefront collection lookup encodes a key as the server composite identifier', async () => {
+	const storefront = createStorefront({ baseUrl, storeId, market: 'us' });
+	const originalFetch = globalThis.fetch;
+	let requestedUrl = '';
+	globalThis.fetch = async (url) => {
+		requestedUrl = String(url);
+		return jsonResponse({ id: 'collection-contract', key: 'articles' });
+	};
+
+	try {
+		await storefront.cms.collection.get({ key: 'articles' });
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+
+	assert.equal(
+		requestedUrl,
+		`${baseUrl}/v1/storefront/${storeId}/collections/${storeId}:articles`,
+	);
+});
 
 async function cartProductForPrices(prices, marketCurrency) {
 	const store = initialize({ baseUrl, storeId, market: 'us', locale: 'en' });
@@ -122,7 +143,7 @@ async function cartProductForPrices(prices, marketCurrency) {
 	emptyCart.items = [];
 	emptyCart.quote_snapshot = null;
 	emptyCart.item_count = 0;
-	store.cart.cart.set(emptyCart);
+	store.eshop.cart.cart.set(emptyCart);
 
 	const product = productCatalog(prices);
 	const responseCart = {
@@ -139,20 +160,23 @@ async function cartProductForPrices(prices, marketCurrency) {
 		item_count: 1,
 	};
 	const originalFetch = globalThis.fetch;
+	let productFetches = 0;
 	globalThis.fetch = async (url) => {
 		const requestUrl = String(url);
 		if (requestUrl.endsWith('/carts/cart-client-contract/items')) {
 			return jsonResponse(responseCart);
 		}
 		if (requestUrl.includes('/products/product-client-contract')) {
+			productFetches += 1;
 			return jsonResponse(product);
 		}
 		throw new Error(`Unexpected price contract request: ${requestUrl}`);
 	};
 
 	try {
-		await store.cart.addProduct(product, product.variants[0], 1);
-		return store.cart.product_items.get();
+		await store.eshop.cart.addProduct(product, product.variants[0], 1);
+		assert.equal(productFetches, 0, 'adding a known product must not fetch it again');
+		return store.eshop.cart.product_items.get();
 	} finally {
 		globalThis.fetch = originalFetch;
 	}
@@ -181,7 +205,7 @@ test('storefront identify returns the verification challenge without exposing it
 	const originalFetch = globalThis.fetch;
 	globalThis.fetch = async (url, init = {}) => {
 		calls.push({ url: String(url), body: JSON.parse(String(init.body)) });
-		if (String(url).endsWith('/account/identify')) {
+		if (String(url).endsWith('/account/code')) {
 			return jsonResponse({
 				contact,
 				token: null,
@@ -227,12 +251,11 @@ test('storefront identify returns the verification challenge without exposing it
 
 	assert.deepEqual(calls, [
 		{
-			url: `${baseUrl}/v1/storefront/${storeId}/account/identify`,
+			url: `${baseUrl}/v1/storefront/${storeId}/account/code`,
 			body: {
 				store_id: storeId,
 				market: 'us',
 				email: contact.email,
-				verify: true,
 			},
 		},
 		{
@@ -244,6 +267,192 @@ test('storefront identify returns the verification challenge without exposing it
 			},
 		},
 	]);
+});
+
+test('storefront serializes anonymous and email identification', async () => {
+	const storefront = createStorefront({ baseUrl, storeId, market: 'us' });
+	const store = { id: storeId };
+	const anonymousContact = {
+		id: 'contact-anonymous-race',
+		store_id: storeId,
+		email: null,
+		verified: false,
+		status: 'active',
+		channels: [],
+		promo_usage: [],
+		taxonomies: [],
+		created_at: 1,
+		updated_at: 1,
+	};
+	const emailContact = {
+		...anonymousContact,
+		id: 'contact-email-race',
+		email: 'race@example.test',
+		updated_at: 2,
+	};
+	const issued = (id, token) => ({
+		id,
+		token,
+		status: 'active',
+		created_at: 1,
+		expires_at: 1000,
+	});
+	const response = (contact, token) =>
+		jsonResponse({
+			contact,
+			token,
+			store,
+			market: null,
+			verification_challenge: null,
+		});
+
+	let releaseAnonymous;
+	const anonymousResponse = new Promise((resolve) => {
+		releaseAnonymous = resolve;
+	});
+	let markAnonymousStarted;
+	const anonymousStarted = new Promise((resolve) => {
+		markAnonymousStarted = resolve;
+	});
+	const calls = [];
+	const originalFetch = globalThis.fetch;
+	globalThis.fetch = async (url, init = {}) => {
+		calls.push({
+			url: String(url),
+			body: JSON.parse(String(init.body)),
+			authorization: new Headers(init.headers).get('authorization'),
+		});
+		if (calls.length === 1) {
+			markAnonymousStarted();
+			return anonymousResponse;
+		}
+		return response(emailContact, issued('session-email-race', 'email-token'));
+	};
+
+	try {
+		const anonymous = storefront.identify();
+		const email = storefront.identify({ email: emailContact.email, market: 'eu' });
+		await anonymousStarted;
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.equal(calls.length, 1, 'email identification waits for the anonymous session');
+
+		releaseAnonymous(
+			response(anonymousContact, issued('session-anonymous-race', 'anonymous-token')),
+		);
+		await anonymous;
+		await email;
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+
+	assert.equal(calls.length, 2);
+	assert.equal(calls[0].body.market, 'us');
+	assert.equal(calls[1].url, `${baseUrl}/v1/storefront/${storeId}/account/identify`);
+	assert.equal(calls[1].body.email, emailContact.email);
+	assert.equal(calls[1].body.market, 'eu');
+	assert.equal(calls[1].authorization, 'Bearer anonymous-token');
+	assert.equal(storefront.session.contact.id, emailContact.id);
+});
+
+test('storefront sessions are isolated by API origin and store', async () => {
+	const values = new Map();
+	const sessionStorage = {
+		getItem: (key) => values.get(key) ?? null,
+		setItem: (key, value) => values.set(key, value),
+		removeItem: (key) => values.delete(key),
+	};
+	const originalFetch = globalThis.fetch;
+	globalThis.fetch = async (url, init = {}) => {
+		const match = String(url).match(/\/v1\/storefront\/([^/]+)\/account\/identify$/);
+		if (!match) throw new Error(`Unexpected scoped-session request: ${url}`);
+		const scopedStoreId = match[1];
+		const body = JSON.parse(String(init.body));
+		return jsonResponse({
+			contact: {
+				id: `contact-${scopedStoreId}`,
+				store_id: scopedStoreId,
+				email: body.email,
+				verified: true,
+				status: 'active',
+				channels: [],
+				promo_usage: [],
+				taxonomies: [],
+				created_at: 1,
+				updated_at: 1,
+			},
+			token: {
+				id: `session-${scopedStoreId}`,
+				token: `token-${scopedStoreId}`,
+				status: 'active',
+				created_at: 1,
+				expires_at: 1000,
+			},
+			store: { id: scopedStoreId },
+			market: null,
+			verification_challenge: null,
+		});
+	};
+
+	try {
+		const storeA = createStorefront({ baseUrl, storeId: 'store-a', sessionStorage });
+		const storeB = createStorefront({ baseUrl, storeId: 'store-b', sessionStorage });
+		await storeA.identify({ email: 'a@example.test' });
+		await storeB.identify({ email: 'b@example.test' });
+
+		assert.equal(storeA.session.contact.id, 'contact-store-a');
+		assert.equal(storeB.session.contact.id, 'contact-store-b');
+		assert.equal(values.size, 2);
+
+		const scopedStoreB = storeA.forStore('store-b');
+		assert.equal(storeA.session.contact.id, 'contact-store-a');
+		assert.equal(scopedStoreB.session.contact.id, 'contact-store-b');
+		const otherOrigin = createStorefront({
+			baseUrl: 'https://other.example.test',
+			storeId: 'store-a',
+			sessionStorage,
+		});
+		assert.equal(otherOrigin.session, null);
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+});
+
+test('booking lines retain independent IDs, slots, and form values', () => {
+	const store = initialize({ baseUrl, storeId, market: 'us', locale: 'en' });
+	const firstForm = store.eshop.cart.createFormEntry('booking-form', [
+		{ id: 'field-name', key: 'name', type: 'text', value: 'First booking' },
+	]);
+	const secondForm = store.eshop.cart.createFormEntry('booking-form', [
+		{ id: 'field-name', key: 'name', type: 'text', value: 'Second booking' },
+	]);
+	const lines = store.eshop.cart.buildServiceItems([
+		{
+			id: 'booking-one',
+			service_id: 'service-contract',
+			provider_id: 'provider-contract',
+			slots: [
+				{ from: 200, to: 250 },
+				{ from: 100, to: 150 },
+			],
+			forms: [firstForm],
+		},
+		{
+			id: 'booking-two',
+			service_id: 'service-contract',
+			provider_id: 'provider-contract',
+			slots: [{ from: 300, to: 350 }],
+			forms: [secondForm],
+		},
+	]);
+
+	assert.equal(lines.length, 2);
+	assert.deepEqual(lines.map((line) => line.id), ['booking-one', 'booking-two']);
+	assert.deepEqual(lines[0].slots, [
+		{ from: 100, to: 150 },
+		{ from: 200, to: 250 },
+	]);
+	assert.equal(lines[0].forms[0].fields[0].value, 'First booking');
+	assert.equal(lines[1].forms[0].fields[0].value, 'Second booking');
 });
 
 test('storefront checkout returns the direct OrderCheckoutResult', async () => {
@@ -263,7 +472,7 @@ test('storefront checkout returns the direct OrderCheckoutResult', async () => {
 	};
 
 	try {
-		const result = await store.cart.checkout({ payment_method_key: 'cash' });
+		const result = await store.eshop.cart.checkout({ payment_method_key: 'cash' });
 		assert.deepEqual(result, expected);
 		assert.deepEqual(Object.keys(result).sort(), ['number', 'order_id', 'payment', 'payment_action']);
 		assert.equal('ok' in result, false);
@@ -295,7 +504,7 @@ test('storefront checkout throws before HTTP when the cart is empty', async () =
 	};
 
 	try {
-		await assert.rejects(store.cart.checkout(), (error) => {
+		await assert.rejects(store.eshop.cart.checkout(), (error) => {
 			assert.equal(error instanceof Error, true);
 			assert.equal(error.message, 'Cart is empty');
 			return true;
@@ -327,7 +536,8 @@ test('storefront checkout preserves the typed API error instead of returning a w
 	};
 
 	try {
-		await assert.rejects(store.cart.checkout({ payment_method_key: 'cash' }), (error) => {
+		await assert.rejects(store.eshop.cart.checkout({ payment_method_key: 'cash' }), (error) => {
+			assert.equal(error instanceof Error, true);
 			assert.equal(error.name, 'ApiError');
 			assert.equal(error.message, 'Checkout rejected');
 			assert.equal(error.statusCode, 422);
@@ -336,7 +546,7 @@ test('storefront checkout preserves the typed API error instead of returning a w
 			assert.equal('val' in error, false);
 			return true;
 		});
-		assert.equal(store.cart.status.get().error, 'Checkout rejected');
+		assert.equal(store.eshop.cart.status.get().error, 'Checkout rejected');
 	} finally {
 		globalThis.fetch = originalFetch;
 	}
@@ -359,8 +569,8 @@ test('zero-total card checkout skips Stripe while preserving authoritative order
 			},
 		},
 	};
-	store.cart.cart.set(freeCart);
-	store.cart.product_items.set([
+	store.eshop.cart.cart.set(freeCart);
+	store.eshop.cart.product_items.set([
 		{
 			...productItem(),
 			price: { amount: 0, currency: 'EUR', market: 'us' },
@@ -393,7 +603,7 @@ test('zero-total card checkout skips Stripe while preserving authoritative order
 
 	try {
 		assert.deepEqual(
-			await store.cart.checkout({
+			await store.eshop.cart.checkout({
 				payment_method_key: 'credit_card',
 				clear_after_checkout: false,
 			}),
@@ -410,8 +620,8 @@ test('zero-total card checkout skips Stripe while preserving authoritative order
 			payment_method_key: 'credit_card',
 		},
 	]);
-	assert.equal(store.cart.last_order.get().total, 0);
-	assert.equal(store.cart.last_order.get().currency, 'EUR');
+	assert.equal(store.eshop.cart.last_order.get().total, 0);
+	assert.equal(store.eshop.cart.last_order.get().currency, 'EUR');
 });
 
 test('card checkout rejects invalid minor-unit charge evidence before the provider step', async (t) => {
@@ -430,7 +640,7 @@ test('card checkout rejects invalid minor-unit charge evidence before the provid
 					},
 				},
 			};
-			store.cart.cart.set(invalidCart);
+			store.eshop.cart.cart.set(invalidCart);
 			let checkoutCalls = 0;
 			const originalFetch = globalThis.fetch;
 			globalThis.fetch = async (url) => {
@@ -443,7 +653,7 @@ test('card checkout rejects invalid minor-unit charge evidence before the provid
 
 			try {
 				await assert.rejects(
-					store.cart.checkout({ payment_method_key: 'credit_card' }),
+					store.eshop.cart.checkout({ payment_method_key: 'credit_card' }),
 					/non-negative integer charge amount in minor units/,
 				);
 			} finally {
@@ -457,7 +667,7 @@ test('card checkout rejects invalid minor-unit charge evidence before the provid
 test('Stripe mounting requires an amount/currency pair and trusts the current quote first', async () => {
 	const store = checkoutStore();
 	const mount = (options) =>
-		store.cart.payment.mountStripe('#payment-contract', {
+		store.eshop.cart.payment.mountStripe('#payment-contract', {
 			publishableKey: 'pk_test_contract',
 			...options,
 		});
@@ -467,14 +677,14 @@ test('Stripe mounting requires an amount/currency pair and trusts the current qu
 	await assert.rejects(mount({ amount: 0, currency: 'USD' }), /positive minor-unit payment amount/);
 	await assert.rejects(mount({ amount: 1250, currency: 'US' }), /three-letter payment currency/);
 
-	store.cart.quote_result.set({
+	store.eshop.cart.quote_result.set({
 		...cartSnapshot().quote_snapshot,
 		charge_amount: 1.5,
 		money: { ...cartSnapshot().quote_snapshot.money, currency: 'EUR' },
 	});
 	await assert.rejects(mount({}), /positive minor-unit payment amount/);
 
-	store.cart.quote_result.set({
+	store.eshop.cart.quote_result.set({
 		...cartSnapshot().quote_snapshot,
 		charge_amount: 1250,
 		money: { ...cartSnapshot().quote_snapshot.money, currency: 'EURO' },
@@ -521,14 +731,24 @@ test('storefront money helpers distinguish an exact zero price from a missing ma
 	assert.throws(() => storefront.utils.formatMinor(1.5, 'EUR'), /safe integer/);
 
 	const store = initialize({ baseUrl, storeId, market: 'ita', locale: 'en' });
+	store.session.set({
+		market: { key: 'ita', currency: 'EUR', payment_methods: [] },
+		store: {},
+	});
 	const provider = {
 		provider_id: 'provider-contract',
+		service_id: 'service-contract',
 		prices: [{ market: 'other', amount: 999, currency: 'USD' }],
+		forms: [],
 	};
-	store.eshop.service.state.setKey('service', { providers: [provider] });
+	store.eshop.service.state.set({
+		...store.eshop.service.state.get(),
+		service: { id: 'service-contract' },
+		serviceProviders: [provider],
+	});
 	assert.equal(store.eshop.service.getServicePrice(), '');
 	provider.prices = [{ market: 'ita', amount: 0, currency: 'EUR' }];
-	store.eshop.service.state.setKey('service', { providers: [provider] });
+	store.eshop.service.state.setKey('serviceProviders', [provider]);
 	assert.notEqual(store.eshop.service.getServicePrice(), '');
 });
 

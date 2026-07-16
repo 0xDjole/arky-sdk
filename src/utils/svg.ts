@@ -1,9 +1,10 @@
 import { getImageUrl } from "./blocks";
 
-export async function fetchSvgContent(mediaObject: any): Promise<string | null> {
+export async function fetchSvgContent(mediaObject: unknown): Promise<string | null> {
 	if (!mediaObject) return null;
 
 	const svgUrl = getImageUrl(mediaObject, false);
+	if (!svgUrl) return null;
 
 	try {
 		const response = await fetch(svgUrl);
@@ -21,7 +22,7 @@ export async function fetchSvgContent(mediaObject: any): Promise<string | null> 
 	}
 }
 
-export async function getSvgContentForAstro(mediaObject: any): Promise<string> {
+export async function getSvgContentForAstro(mediaObject: unknown): Promise<string> {
 	try {
 		const svgContent = await fetchSvgContent(mediaObject);
 		return svgContent || "";
@@ -32,7 +33,7 @@ export async function getSvgContentForAstro(mediaObject: any): Promise<string> {
 }
 
 export async function injectSvgIntoElement(
-	mediaObject: any,
+	mediaObject: unknown,
 	targetElement: HTMLElement,
 	className?: string,
 ): Promise<void> {
