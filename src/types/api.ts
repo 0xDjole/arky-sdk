@@ -1177,12 +1177,6 @@ export interface CreateOrderRefundParams {
   store_id?: string;
 }
 
-export interface RetryOrderRefundParams {
-  order_id: string;
-  refund_id: string;
-  store_id?: string;
-}
-
 export interface GetOrderPaymentParams {
   order_id: string;
   store_id?: string;

@@ -399,7 +399,6 @@ export type {
   TrustedOrderCheckoutItemInput,
   CreateOrderRefundParams,
   CreateOrderRefundResponse,
-  RetryOrderRefundParams,
   FindOrderRefundsParams,
   GetOrderRefundParams,
   GetOrderPaymentParams,
@@ -692,7 +691,7 @@ export type {
   EventScopeField,
 } from "./api/platform";
 
-export const SDK_VERSION = "0.9.17";
+export const SDK_VERSION = "0.9.18";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -1207,7 +1206,6 @@ export function createAdmin(config: CreateAdminConfig) {
         createRefund: eshopApi.createRefund,
         getRefund: eshopApi.getRefund,
         getRefunds: eshopApi.getRefunds,
-        retryRefund: eshopApi.retryRefund,
         getPayment: eshopApi.getPayment,
         retryPaymentTransaction: eshopApi.retryPaymentTransaction,
         getPaymentTransactions: eshopApi.getPaymentTransactions,

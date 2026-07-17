@@ -38,7 +38,6 @@ import type {
   RevokeDigitalAccessGrantParams,
   CreateOrderRefundParams,
   CreateOrderRefundResponse,
-  RetryOrderRefundParams,
   FindOrderRefundsParams,
   GetOrderRefundParams,
   GetOrderPaymentParams,
@@ -524,18 +523,6 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         throw new Error("Refund response contained an invalid status");
       }
       return response;
-    },
-
-    async retryRefund(
-      params: RetryOrderRefundParams,
-      options?: RequestOptions,
-    ): Promise<OrderRefund> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<OrderRefund>(
-        `/v1/stores/${target_store_id}/orders/${params.order_id}/refunds/${params.refund_id}/retry`,
-        {},
-        options,
-      );
     },
 
     async getPayment(

@@ -114,7 +114,6 @@ export interface OrderRefund {
   id: string;
   store_id: string;
   order_id: string;
-  revision: number;
   attempt_count: number;
   total: number;
   currency: Currency;
