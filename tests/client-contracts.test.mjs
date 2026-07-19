@@ -108,6 +108,48 @@ function checkoutStore() {
 	return store;
 }
 
+test('admin verification sends only the challenge identifier and code', async () => {
+	const admin = createAdmin({ baseUrl, storeId, market: 'us' });
+	const calls = [];
+	const originalFetch = globalThis.fetch;
+	globalThis.fetch = async (url, init = {}) => {
+		calls.push({
+			url: String(url),
+			method: init.method,
+			body: JSON.parse(String(init.body)),
+		});
+		return jsonResponse({
+			id: 'session-client-contract',
+			access_token: 'access-client-contract',
+			refresh_token: 'refresh-client-contract',
+			access_expires_at: 1000,
+			refresh_expires_at: 2000,
+			created_at: 1,
+			is_verified: true,
+		});
+	};
+
+	try {
+		await admin.account.auth.verify({
+			challenge_id: 'challenge-client-contract',
+			code: '123456',
+		});
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+
+	assert.deepEqual(calls, [
+		{
+			url: `${baseUrl}/v1/auth/verify`,
+			method: 'POST',
+			body: {
+				challenge_id: 'challenge-client-contract',
+				code: '123456',
+			},
+		},
+	]);
+});
+
 test('storefront collection lookup encodes a key as the server composite identifier', async () => {
 	const storefront = createStorefront({ baseUrl, storeId, market: 'us' });
 	const originalFetch = globalThis.fetch;
