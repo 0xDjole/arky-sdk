@@ -38,7 +38,7 @@ import type {
   WorkflowTool,
   WorkflowTriggerNode,
 } from "../../dist/index.js";
-import type { RequestOptions } from "../../dist/types.js";
+import type { FindActionsParams, RequestOptions } from "../../dist/types.js";
 import { PaymentMethodType, SDK_VERSION } from "../../dist/index.js";
 import {
   createStorefront,
@@ -409,6 +409,17 @@ const canonicalPage: PaginatedResponse<{ id: string }> = {
   cursor: "cursor-2",
 };
 
+const actionPageParams: FindActionsParams = {
+  store_id: "store-contract",
+  contact_id: "contact-contract",
+  limit: 20,
+  cursor: "cursor-contract",
+};
+type AssertNever<T extends never> = T;
+type UnsupportedActionFilterKeys = AssertNever<
+  Extract<keyof FindActionsParams, "query" | "types" | "from" | "to">
+>;
+
 // @ts-expect-error provider capabilities must state whether publishing is supported.
 const missingPublishingCapability: SocialProviderCapability = {
   type: "x_account",
@@ -488,6 +499,7 @@ void [
   retryingMutation,
   delayedMutationRetry,
   canonicalPage,
+  actionPageParams,
   missingPublishingCapability,
   workflowToolWireDto,
   camelCaseWorkflowTool,

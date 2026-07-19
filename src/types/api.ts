@@ -1082,11 +1082,7 @@ export interface GetFormSubmissionsParams {
 
 export interface FindActionsParams {
   store_id?: string;
-  query?: string | number;
   contact_id?: string;
-  types?: string[];
-  from?: number;
-  to?: number;
   limit?: number;
   cursor?: string;
 }
