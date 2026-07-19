@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-// Public SDK surface guardrail.
-//
-// Keep removed aliases and the legacy provider-operation abstraction out of
-// source, and reject numbered exported declarations such as `SomeParams2`.
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";

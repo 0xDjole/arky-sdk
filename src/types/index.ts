@@ -675,9 +675,7 @@ export interface BuildHook {
   store_id: string;
   key: string;
   type: BuildHookType;
-  /** Write-only endpoint; API responses contain a redacted placeholder. */
   url: string;
-  /** Header values are write-only and redacted in API responses. */
   headers: Record<string, string>;
   active: boolean;
   created_at: number;
@@ -1226,12 +1224,9 @@ export interface Webhook {
   id: string;
   store_id: string;
   key: string;
-  /** Write-only endpoint; API responses contain a redacted placeholder. */
   url: string;
   events: WebhookEventSubscription[];
-  /** Header values are write-only and redacted in API responses. */
   headers: Record<string, string>;
-  /** Write-only signing secret; API responses contain a redacted placeholder. */
   secret: string;
   enabled: boolean;
   created_at: number;
