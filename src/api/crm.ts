@@ -115,11 +115,7 @@ export const createActionAdminApi = (apiConfig: ApiConfig) => ({
   async find(params: FindActionsParams, options?: RequestOptions): Promise<{ items: Action[]; cursor: string | null }> {
     const store_id = params.store_id || apiConfig.storeId;
     const queryParams: Record<string, unknown> = {};
-    if (params.query) queryParams.query = params.query;
     if (params.contact_id) queryParams.contact_id = params.contact_id;
-    if (params.types && params.types.length > 0) queryParams.types = params.types;
-    if (params.from !== undefined) queryParams.from = params.from;
-    if (params.to !== undefined) queryParams.to = params.to;
     if (params.limit !== undefined) queryParams.limit = params.limit;
     if (params.cursor) queryParams.cursor = params.cursor;
     return apiConfig.httpClient.get<{ items: Action[]; cursor: string | null }>(
@@ -168,20 +164,6 @@ export const createContactApi = (apiConfig: ApiConfig) => {
           ...options,
           params: queryParams,
         }
-      );
-    },
-
-    async findActions(
-      params?: FindActionsParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<Action>> {
-      const { store_id, ...queryParams } = params || {};
-      return apiConfig.httpClient.get<PaginatedResponse<Action>>(
-        `/v1/stores/${store_id || apiConfig.storeId}/actions`,
-        {
-          ...options,
-          params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
-        },
       );
     },
 

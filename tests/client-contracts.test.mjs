@@ -150,6 +150,36 @@ test('admin verification sends only the challenge identifier and code', async ()
 	]);
 });
 
+test('admin action queries send only contact pagination fields', async () => {
+	const admin = createAdmin({ baseUrl, storeId, market: 'us' });
+	const calls = [];
+	const originalFetch = globalThis.fetch;
+	globalThis.fetch = async (url, init = {}) => {
+		calls.push({ url: String(url), method: init.method });
+		return jsonResponse({ items: [], cursor: null });
+	};
+
+	const params = {
+		store_id: storeId,
+		contact_id: 'contact-client-contract',
+		limit: 25,
+		cursor: 'cursor-client-contract',
+	};
+
+	try {
+		await admin.crm.action.find(params);
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+
+	assert.deepEqual(calls, [
+		{
+			url: `${baseUrl}/v1/stores/${storeId}/actions?contact_id=contact-client-contract&limit=25&cursor=cursor-client-contract`,
+			method: 'GET',
+		},
+	]);
+});
+
 test('request errors preserve the server response while normalizing thrown validation details', async () => {
 	const admin = createAdmin({ baseUrl, storeId, market: 'us' });
 	const originalFetch = globalThis.fetch;
