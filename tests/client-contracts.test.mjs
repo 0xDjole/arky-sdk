@@ -150,6 +150,47 @@ test('admin verification sends only the challenge identifier and code', async ()
 	]);
 });
 
+test('request errors preserve the server response while normalizing thrown validation details', async () => {
+	const admin = createAdmin({ baseUrl, storeId, market: 'us' });
+	const originalFetch = globalThis.fetch;
+	const response = {
+		message: 'Email is invalid',
+		error: 'GENERAL.VALIDATION_ERROR',
+		statusCode: 422,
+		validationErrors: [{ field: 'email', error: '' }],
+	};
+	let errorContext;
+	globalThis.fetch = async () => jsonResponse(response, 422);
+
+	try {
+		await assert.rejects(
+			admin.account.auth.code(
+				{ email: 'invalid' },
+				{
+					onError: (context) => {
+						errorContext = context;
+					},
+				},
+			),
+			(error) => {
+				assert.equal(error instanceof Error, true);
+				assert.equal(error.name, 'ApiError');
+				assert.equal(error.message, response.message);
+				assert.equal(error.statusCode, response.statusCode);
+				assert.deepEqual(error.validationErrors, [
+					{ field: 'email', error: 'GENERAL.VALIDATION_ERROR' },
+				]);
+				return true;
+			},
+		);
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+
+	assert.equal(errorContext.status, 422);
+	assert.deepEqual(errorContext.response, response);
+});
+
 test('storefront collection lookup encodes a key as the server composite identifier', async () => {
 	const storefront = createStorefront({ baseUrl, storeId, market: 'us' });
 	const originalFetch = globalThis.fetch;
