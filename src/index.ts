@@ -1453,7 +1453,6 @@ function createStorefrontClient(config: CreateStorefrontConfig) {
         sessionStorage.removeItem(key);
       }
     } catch {
-      // The in-memory copy keeps this client usable when persistence fails.
     }
   }
 
@@ -1490,7 +1489,6 @@ function createStorefrontClient(config: CreateStorefrontConfig) {
           return s ? { access_token: s.access_token } : null;
         },
         onTokensRefreshed() {
-          // Contact tokens are one-shot; no refresh on this flow.
         },
         onForcedLogout() {
           bareIdentifyPromise = null;

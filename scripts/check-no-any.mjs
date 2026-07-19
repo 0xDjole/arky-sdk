@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-// Drift-prevention guardrail for the SDK.
-//
-// Walks the exported transport/storefront surfaces and fails if it finds:
-//   1. Type annotations using `: any` (outside comments)
-//   2. `as any` assertions (outside comments)
-//   3. Hardcoded market literals like `market: "default"` or `market: 'eshop'`
-//      (the SDK should always inject `market: apiConfig.market`)
-//
-// Exit code 1 if any violation is found, 0 otherwise.
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
@@ -54,7 +45,6 @@ function checkFile(file) {
     const raw = lines[i];
     let line = raw;
 
-    // Strip block-comment regions from the line for matching purposes.
     if (inBlockComment) {
       const end = line.indexOf("*/");
       if (end === -1) continue;
@@ -73,7 +63,6 @@ function checkFile(file) {
       line = line.slice(0, start) + line.slice(end + 2);
     }
 
-    // Strip line comment.
     const lineCommentIdx = line.indexOf("//");
     if (lineCommentIdx !== -1) {
       line = line.slice(0, lineCommentIdx);
