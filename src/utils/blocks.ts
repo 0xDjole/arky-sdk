@@ -98,11 +98,8 @@ export function getBlockLabel(block: Pick<Block, "key"> | null | undefined): str
 export function formatBlockValue(block: Block | null | undefined): string {
   if (block?.value === null || block?.value === undefined) return "";
   if (block.type === "boolean") return block.value ? "Yes" : "No";
-  if (block.type === "number") {
-    const properties = isRecord(block.properties) ? block.properties : {};
-    if (properties.variant === "DATE" || properties.variant === "DATE_TIME") {
-      return new Date(Number(block.value)).toLocaleDateString();
-    }
+  if (block.type === "date") {
+    return new Date(Number(block.value) * 1000).toLocaleDateString();
   }
   if (block.type === "media" && isRecord(block.value)) {
     const label = block.value.name ?? block.value.title ?? block.value.id;
@@ -202,8 +199,4 @@ export function getImageUrl(value: unknown, isBlock = true): string | null {
   if (value.type === "media" && isRecord(value.value)) return nestedUrl(value.value);
   if (isBlock && typeof value.url === "string") return value.url;
   return nestedUrl(value);
-}
-
-export function translateMap(labels: unknown, language: string): unknown {
-  return isRecord(labels) ? labels[language] : undefined;
 }

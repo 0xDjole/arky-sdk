@@ -1,7 +1,3 @@
-import {
-  convertServerErrorToRequestError,
-  type ServerError,
-} from "../utils/errors";
 import { buildQueryString, type QueryParams } from "../utils/queryParams";
 
 export interface TokenSet {
@@ -64,6 +60,13 @@ export interface HttpClientConfig {
   loginFallbackPath?: string;
 }
 
+interface ServerError {
+  message: string;
+  error: string;
+  statusCode: number;
+  validationErrors: Array<{ field: string; error: string }>;
+}
+
 interface HttpRequestErrorDetails {
   statusCode?: number;
   validationErrors?: ServerError["validationErrors"];
@@ -120,6 +123,15 @@ function toServerError(value: unknown, statusCode: number): ServerError {
       typeof payload.statusCode === "number" ? payload.statusCode : statusCode,
     validationErrors,
   };
+}
+
+function normalizeValidationErrors(
+  validationErrors: ServerError["validationErrors"],
+): ServerError["validationErrors"] {
+  return validationErrors.map((validationError) => ({
+    field: validationError.field,
+    error: validationError.error || "GENERAL.VALIDATION_ERROR",
+  }));
 }
 
 export function createHttpClient(cfg: HttpClientConfig): HttpClient {
@@ -288,12 +300,11 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
 
     if (!res.ok) {
       const serverErr = toServerError(data, res.status);
-      const reqErr = convertServerErrorToRequestError(serverErr);
       const requestId =
         res.headers.get("x-request-id") || res.headers.get("request-id");
       const err = requestError("ApiError", serverErr.message, {
         statusCode: serverErr.statusCode,
-        validationErrors: reqErr.validationErrors,
+        validationErrors: normalizeValidationErrors(serverErr.validationErrors),
         method,
         url: fullUrl,
         requestId: requestId || undefined,
