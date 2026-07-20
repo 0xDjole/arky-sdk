@@ -114,6 +114,7 @@ export interface UpdateMarketParams {
 
 export interface DeleteMarketParams {
   id: string;
+  replacement_default_market_id?: string;
 }
 
 export interface ProductCheckoutItemInput {
@@ -555,6 +556,7 @@ export interface CreateStoreParams {
 export interface UpdateStoreParams {
   id: string;
   key?: string;
+  default_market_id?: string;
   timezone?: string;
   languages?: Language[];
   emails?: StoreEmails;

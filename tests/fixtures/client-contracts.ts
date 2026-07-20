@@ -29,6 +29,7 @@ import type {
   SubscriptionPlanFeatureType,
   TiktokPrivacy,
   StorefrontIdentifyResult,
+  StorefrontDto,
   StorefrontGetSupportConversationParams,
   StorefrontSendSupportMessageParams,
   SupportConversationStartResponse,
@@ -46,10 +47,11 @@ import {
   type FormField,
   type FormSchema,
   type FormValues,
+  type ArkyStripePaymentMountOptions,
   type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
 } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.9.20" = SDK_VERSION;
+const sdkVersionLiteral: "0.10.0" = SDK_VERSION;
 const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
 // @ts-expect-error the server's serialized feature key is crm_contacts.
 const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
@@ -117,10 +119,89 @@ inventoryInput.product_id = "product-contract";
 zoneInput.market_id = "market-contract";
 
 declare const storefrontClient: ReturnType<typeof createStorefront>;
-const storefrontServiceProviders: Promise<ServiceProvider[]> =
+const storefrontServiceProviders: Promise<StorefrontDto<ServiceProvider>[]> =
   storefrontClient.eshop.service.findProviders({
     service_id: "service-contract",
   });
+declare const storefrontProduct: Awaited<
+  ReturnType<typeof storefrontClient.eshop.product.get>
+>;
+declare const storefrontCart: Awaited<
+  ReturnType<typeof storefrontClient.eshop.cart.current>
+>;
+declare const storefrontSupport: Awaited<
+  ReturnType<typeof storefrontClient.support.startConversation>
+>;
+declare const storefrontVerification: Awaited<
+  ReturnType<typeof storefrontClient.verify>
+>;
+declare const nestedStorefrontIdentification: Awaited<
+  ReturnType<typeof storefrontClient.crm.contact.identify>
+>;
+// @ts-expect-error Store ownership is not exposed by public catalog DTOs.
+storefrontProduct.store_id;
+// @ts-expect-error Nested Store ownership is not exposed by public inventory DTOs.
+storefrontProduct.variants[0].inventory[0].store_id;
+// @ts-expect-error Store ownership is not exposed by public cart DTOs.
+storefrontCart.store_id;
+// @ts-expect-error Store ownership is not exposed by public support DTOs.
+storefrontSupport.conversation.store_id;
+// @ts-expect-error Visitor credentials stay private after verification.
+storefrontVerification.token;
+// @ts-expect-error Visitor credentials stay private on the nested CRM facade.
+nestedStorefrontIdentification.token;
+const userAuthoredStoreId: unknown =
+  storefrontSupport.conversation.metadata.store_id;
+// @ts-expect-error Market context is sent in X-Arky-Market, not cart bodies.
+storefrontClient.eshop.cart.current({ market: "ita" });
+
+type StorefrontOpaqueContract = StorefrontDto<{
+  store_id: string;
+  outside: {
+    store_id: string;
+    child: { store_id: string };
+    payload: { store_id: string };
+  };
+  attributes: { store_id: string };
+  blocks: Array<{ store_id: string }>;
+  context: { store_id: string };
+  data: { store_id: string };
+  fields: { store_id: string };
+  metadata: { store_id: string };
+  payload: { store_id: string };
+  properties: { store_id: string };
+  schema: { store_id: string };
+  value: { store_id: string };
+}>;
+declare const storefrontOpaqueContract: StorefrontOpaqueContract;
+// @ts-expect-error Top-level routing Store IDs are stripped.
+storefrontOpaqueContract.store_id;
+// @ts-expect-error Routing Store IDs outside opaque user JSON are stripped.
+storefrontOpaqueContract.outside.store_id;
+// @ts-expect-error Routing Store IDs remain stripped recursively outside opaque user JSON.
+storefrontOpaqueContract.outside.child.store_id;
+const preservedOpaqueStoreIds: string[] = [
+  storefrontOpaqueContract.attributes.store_id,
+  storefrontOpaqueContract.blocks[0].store_id,
+  storefrontOpaqueContract.context.store_id,
+  storefrontOpaqueContract.data.store_id,
+  storefrontOpaqueContract.fields.store_id,
+  storefrontOpaqueContract.metadata.store_id,
+  storefrontOpaqueContract.payload.store_id,
+  storefrontOpaqueContract.properties.store_id,
+  storefrontOpaqueContract.schema.store_id,
+  storefrontOpaqueContract.value.store_id,
+  storefrontOpaqueContract.outside.payload.store_id,
+];
+void preservedOpaqueStoreIds;
+
+initialize(`arky_pk_${"a".repeat(42)}A`, {
+  apiUrl: "http://localhost:8000",
+  locale: "it",
+  market: "ita",
+});
+// @ts-expect-error storefront initialization accepts a publishable key, not legacy connection fields.
+initialize({ baseUrl: "http://localhost:8000", storeId: "store-contract" });
 
 declare const initializedStorefront: ReturnType<typeof initialize>;
 const typedFormValues: FormValues = {
@@ -133,6 +214,11 @@ const typedFormValues: FormValues = {
 };
 initializedStorefront.cms.form.submitByKey({
   key: "contact-form",
+  values: typedFormValues,
+});
+initializedStorefront.cms.form.submitByKey({
+  key: "contact-form",
+  // @ts-expect-error Store IDs are not part of storefront request inputs.
   store_id: "store-contract",
   values: typedFormValues,
 });
@@ -191,6 +277,20 @@ const verificationChallengeId: string | undefined =
   storefrontIdentify.verification_challenge?.challenge_id;
 // @ts-expect-error session tokens stay private to the storefront client.
 storefrontIdentify.token;
+// @ts-expect-error storefront Contact DTOs do not expose tenant routing IDs.
+storefrontIdentify.contact.store_id;
+
+const stripeMountOptions: ArkyStripePaymentMountOptions = {
+  amount: 1200,
+  currency: "EUR",
+  appearance: { theme: "stripe" },
+};
+const callerOwnedStripeMountOptions: ArkyStripePaymentMountOptions = {
+  // @ts-expect-error Stripe identifiers are loaded from Store setup.
+  publishableKey: "pk_test_untrusted",
+};
+void stripeMountOptions;
+void callerOwnedStripeMountOptions;
 
 const orderMoney: OrderMoney = {
 	currency: "usd",

@@ -21,7 +21,13 @@ import type {
   ProductCheckoutItemInput,
   ServiceCheckoutItemInput,
 } from "../types/api";
+import type { StorefrontDto } from "../api/storefront";
 import type { ArkyServiceCartItem, ArkyServiceState, ArkyStoreClient } from "./types";
+
+type StorefrontProduct = StorefrontDto<Product>;
+type StorefrontProductVariant = StorefrontDto<ProductVariant>;
+type StorefrontProvider = StorefrontDto<Provider>;
+type StorefrontService = StorefrontDto<Service>;
 
 export function readErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message) return error.message;
@@ -59,15 +65,15 @@ export function blockText(blocks: Block[] | undefined, keys: string[], locale: s
   return firstLocalized(block.value, locale);
 }
 
-export function productName(product: Product, locale: string): string {
+export function productName(product: StorefrontProduct, locale: string): string {
   return blockText(product.blocks, ["name", "title"], locale) || product.key || product.id;
 }
 
-export function serviceName(service: Service, locale: string): string {
+export function serviceName(service: StorefrontService, locale: string): string {
   return blockText(service.blocks, ["name", "title"], locale) || service.key || service.id;
 }
 
-export function providerName(provider: Provider, locale: string): string {
+export function providerName(provider: StorefrontProvider, locale: string): string {
   return blockText(provider.blocks, ["name", "title"], locale) || provider.key || provider.id;
 }
 
@@ -115,7 +121,10 @@ export function priceForMarket(
   return price;
 }
 
-export function availableStock(client: ArkyStoreClient, variant: ProductVariant): number | undefined {
+export function availableStock(
+  client: ArkyStoreClient,
+  variant: StorefrontProductVariant,
+): number | undefined {
   const fromUtility = client.utils.getAvailableStock(variant);
   if (Number.isFinite(fromUtility)) return fromUtility;
   const stock = (variant.inventory || []).reduce((total, row) => total + (row.available || 0), 0);

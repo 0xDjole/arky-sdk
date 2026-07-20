@@ -1,4 +1,5 @@
-import type { ApiConfig } from "../index";
+import type { ApiConfig, StorefrontApiConfig } from "../index";
+import type { StorefrontDto } from "./storefront";
 import type { RequestOptions } from "../types/api";
 
 export type SupportAgentStatus = "draft" | "active" | "archived";
@@ -130,6 +131,11 @@ export interface SupportConversationStartResponse extends SupportConversationRes
   support_token: string;
 }
 
+export type StorefrontSupportConversationResponse =
+  StorefrontDto<SupportConversationResponse>;
+export type StorefrontSupportConversationStartResponse =
+  StorefrontDto<SupportConversationStartResponse>;
+
 export interface StartSupportConversationParams {
   store_id: string;
   agent_key?: string;
@@ -233,18 +239,21 @@ function storefrontSupportOptions(
   };
 }
 
-export function createStorefrontSupportApi(config: ApiConfig) {
+export function createStorefrontSupportApi(
+  config: Pick<StorefrontApiConfig, "httpClient">,
+  ensureVisitorSession: () => Promise<void>,
+) {
   const { httpClient } = config;
 
   return {
     async startConversation(
       params: Omit<StartSupportConversationParams, "store_id"> = {},
       opts?: RequestOptions
-    ): Promise<SupportConversationStartResponse> {
-      const storeId = config.storeId;
-      return httpClient.post<SupportConversationStartResponse>(
-        `/v1/storefront/${storeId}/support/conversations`,
-        { ...params, store_id: storeId },
+    ): Promise<StorefrontSupportConversationStartResponse> {
+      await ensureVisitorSession();
+      return httpClient.post<StorefrontSupportConversationStartResponse>(
+        "/v1/storefront/support/conversations",
+        params,
         opts
       );
     },
@@ -252,12 +261,12 @@ export function createStorefrontSupportApi(config: ApiConfig) {
     async sendMessage(
       params: StorefrontSendSupportMessageParams,
       opts?: RequestOptions
-    ): Promise<SupportConversationResponse> {
+    ): Promise<StorefrontSupportConversationResponse> {
+      await ensureVisitorSession();
       const { support_token, ...request } = params;
-      const storeId = config.storeId;
-      return httpClient.post<SupportConversationResponse>(
-        `/v1/storefront/${storeId}/support/conversations/${request.conversation_id}/messages`,
-        { ...request, store_id: storeId },
+      return httpClient.post<StorefrontSupportConversationResponse>(
+        `/v1/storefront/support/conversations/${request.conversation_id}/messages`,
+        request,
         storefrontSupportOptions(support_token, opts)
       );
     },
@@ -265,12 +274,18 @@ export function createStorefrontSupportApi(config: ApiConfig) {
     async getConversation(
       params: StorefrontGetSupportConversationParams,
       opts?: RequestOptions
-    ): Promise<SupportConversationResponse> {
+    ): Promise<StorefrontSupportConversationResponse> {
+      await ensureVisitorSession();
       const { support_token, ...request } = params;
-      const storeId = config.storeId;
-      const qs = supportConversationQuery({ ...request, store_id: storeId });
-      return httpClient.get<SupportConversationResponse>(
-        `/v1/storefront/${storeId}/support/conversations/${request.conversation_id}?${qs}`,
+      const query = new URLSearchParams();
+      if (request.message_limit) query.set("message_limit", String(request.message_limit));
+      if (typeof request.after_created_at === "number") {
+        query.set("after_created_at", String(request.after_created_at));
+      }
+      if (request.after_id) query.set("after_id", request.after_id);
+      const suffix = query.size ? `?${query}` : "";
+      return httpClient.get<StorefrontSupportConversationResponse>(
+        `/v1/storefront/support/conversations/${request.conversation_id}${suffix}`,
         storefrontSupportOptions(support_token, opts)
       );
     },

@@ -1,6 +1,11 @@
 import { atom, computed, map } from "nanostores";
 import { createStorefront, type ContactSession, type StorefrontIdentifyResult } from "../index";
 import type {
+  StorefrontDto,
+  StorefrontMarket,
+  StorefrontSetup,
+} from "../api/storefront";
+import type {
   Address,
   Block,
   Cart,
@@ -9,7 +14,6 @@ import type {
   Form,
   FormEntry,
   FormSubmission,
-  Market,
   OrderCheckoutResult,
   OrderQuote,
   PaginatedResponse,
@@ -85,33 +89,55 @@ import {
   toServiceCheckoutItems,
 } from "./utils";
 
+type StorefrontParams<T> = T extends unknown
+  ? Omit<T, "store_id" | "market">
+  : never;
+type StorefrontCart = StorefrontDto<Cart>;
+type StorefrontCollectionEntry = StorefrontDto<CollectionEntry>;
+type StorefrontForm = StorefrontDto<Form>;
+type StorefrontFormSubmission = StorefrontDto<FormSubmission>;
+type StorefrontOrderCheckoutResult = StorefrontDto<OrderCheckoutResult>;
+type StorefrontOrderQuote = StorefrontDto<OrderQuote>;
+type StorefrontProduct = StorefrontDto<Product>;
+type StorefrontProductVariant = StorefrontDto<ProductVariant>;
+type StorefrontProvider = StorefrontDto<Provider>;
+type StorefrontService = StorefrontDto<Service>;
+type StorefrontServiceProvider = StorefrontDto<ServiceProvider>;
+type StorefrontPage<T> = StorefrontDto<PaginatedResponse<T>>;
+
 function firstFiniteNumber(...values: Array<number | null | undefined>): number | undefined {
   return values.find((value): value is number => typeof value === "number" && Number.isFinite(value));
 }
 
-function initializeStore(config: ArkyStoreConfig) {
-  const client = createStorefront(config);
-  const formClients = new Map<string, typeof client>([[client.getStoreId(), client]]);
+function initializeStoreCore(
+  publishableKey: string,
+  config: ArkyStoreConfig,
+  scopedClient?: ReturnType<typeof createStorefront>,
+) {
+  const client = scopedClient || createStorefront(publishableKey, config);
   const session = atom<ContactSession | null>(client.session);
+  const setup = atom<StorefrontSetup | null>(null);
   const locale = atom(config.locale || client.getLocale());
   const market_key = atom(config.market || client.getMarket());
-  const market = computed(session, (value) => value?.market || null);
+  const market = computed([setup, market_key], (setupValue, marketKey) => {
+    const resolvedKey = marketKey || setupValue?.markets.default;
+    return setupValue?.markets.available.find((candidate) => candidate.key === resolvedKey) || null;
+  });
   const currency = computed(market, (value) => value?.currency || null);
   const allowed_payment_methods = computed(market, (value) => value?.payment_methods || []);
-  const payment_config = computed(session, (value) => {
-    const store = value?.store;
-    const methods = value?.market?.payment_methods || [];
+  const payment_config = computed([setup, market], (setupValue, marketValue) => {
+    const methods = marketValue?.payment_methods || [];
     const hasCreditCard = methods.some((method: PaymentMethod) => method.type === "credit_card");
     return {
-      provider: store?.payment || null,
-      enabled: hasCreditCard && !!store?.payment,
+      provider: setupValue?.payment || null,
+      enabled: hasCreditCard && Boolean(setupValue?.readiness.payment),
     };
   });
 
-  const cart = atom<Cart | null>(null);
+  const cart = atom<StorefrontCart | null>(null);
   const product_items = atom<EshopCartItem[]>([]);
   const service_items = atom<ArkyServiceCartItem[]>([]);
-  const quote = atom<OrderQuote | null>(null);
+  const quote = atom<StorefrontOrderQuote | null>(null);
   const promo_code = atom<string | null>(null);
   const last_order = atom<ArkyLastOrder | null>(null);
   const payment_controller = atom<StripeConfirmationTokenController | null>(null);
@@ -127,14 +153,14 @@ function initializeStore(config: ArkyStoreConfig) {
     user_token: null,
   });
 
-  function rawProductItemCount(value: Cart | null): number {
+  function rawProductItemCount(value: StorefrontCart | null): number {
     return (value?.items || []).reduce((total, item) => {
       if (item.type !== "product") return total;
       return total + (item.quantity || 0);
     }, 0);
   }
 
-  function rawServiceItemCount(value: Cart | null): number {
+  function rawServiceItemCount(value: StorefrontCart | null): number {
     return (value?.items || []).reduce((total, item) => {
       if (item.type !== "service") return total;
       return total + Math.max(1, item.slots?.length || 0);
@@ -164,7 +190,7 @@ function initializeStore(config: ArkyStoreConfig) {
   }));
   let cartWriteRevision = 0;
   let sessionRequest: Promise<ContactSession | null> | null = null;
-  let cartRequest: Promise<Cart> | null = null;
+  let cartRequest: Promise<StorefrontCart> | null = null;
 
   function nextCartWriteRevision(): number {
     cartWriteRevision += 1;
@@ -192,7 +218,7 @@ function initializeStore(config: ArkyStoreConfig) {
     error: null,
   });
   const service_state = map<ArkyServiceState>(createServiceInitialState());
-  const service_form_definitions = new Map<string, Form>();
+  const service_form_definitions = new Map<string, StorefrontForm>();
   const service_form_state = map<ArkyServiceFormState>({
     provider_id: null,
     groups: [],
@@ -204,27 +230,19 @@ function initializeStore(config: ArkyStoreConfig) {
 
   client.onAuthStateChanged((value) => session.set(value));
   currency.subscribe((value) => service_state.setKey("currency", value));
-  session.subscribe((value) => {
-    const methods = value?.market?.payment_methods || [];
+  market.subscribe((value) => {
+    const methods = value?.payment_methods || [];
     if (methods.length && service_state.get().availablePaymentMethods.length === 0) {
       service_state.setKey("availablePaymentMethods", methods);
     }
   });
 
   function currentMarketKey(): string {
-    return market_key.get() || client.getMarket() || market.get()?.key || "";
+    return market_key.get() || client.getMarket() || setup.get()?.markets.default || "";
   }
 
   function currentLocale(): string {
-    return locale.get() || client.getLocale() || "en";
-  }
-
-  function clientForStore(storeId: string): typeof client {
-    const existing = formClients.get(storeId);
-    if (existing) return existing;
-    const scoped = client.forStore(storeId);
-    formClients.set(storeId, scoped);
-    return scoped;
+    return locale.get() || client.getLocale() || setup.get()?.languages.default || "en";
   }
 
   function currentStripePublishableKey(): string | null {
@@ -261,13 +279,28 @@ function initializeStore(config: ArkyStoreConfig) {
     setPaymentController(null);
   }
 
+  async function loadSetup(): Promise<StorefrontSetup> {
+    const current = setup.get();
+    if (current) return current;
+    const result = await client.getSetup();
+    setup.set(result);
+    if (!market_key.get() && result.markets.default) {
+      market_key.set(result.markets.default);
+    }
+    if (!locale.get() && result.languages.default) {
+      locale.set(result.languages.default);
+    }
+    return result;
+  }
+
   async function mountStripePayment(
     target: string | HTMLElement,
     options: ArkyStripePaymentMountOptions = {},
   ): Promise<StripeConfirmationTokenController> {
-    const publishableKey = options.publishableKey || currentStripePublishableKey();
+    await loadSetup();
+    const publishableKey = currentStripePublishableKey();
     if (!publishableKey) {
-      throw new Error("Stripe publishable key is required to mount card payment");
+      throw new Error("Stripe card payment is not configured for this Store");
     }
     const hasExplicitAmount = options.amount !== undefined;
     const hasExplicitCurrency = Boolean(options.currency?.trim());
@@ -284,7 +317,7 @@ function initializeStore(config: ArkyStoreConfig) {
     }
     const controller = await createStripeConfirmationTokenController({
       publishableKey,
-      connectedAccountId: options.connectedAccountId || currentStripeConnectedAccountId() || undefined,
+      connectedAccountId: currentStripeConnectedAccountId() || undefined,
       amount,
       currency: paymentCurrency,
       ...(options.appearance ? { appearance: options.appearance } : {}),
@@ -298,16 +331,11 @@ function initializeStore(config: ArkyStoreConfig) {
     payment_controller.get()?.update(input);
   }
 
-  function marketForLocale(value: string): string | null {
-    return config.marketForLocale?.(value) || null;
-  }
-
   async function ensureSession(): Promise<ContactSession | null> {
     const current = session.get();
-    const marketKey = currentMarketKey();
-    if (current && (!marketKey || current.market?.key === marketKey)) return current;
+    if (client.isAuthenticated) return current;
     if (!sessionRequest) {
-      sessionRequest = identify({ market: marketKey }).finally(() => {
+      sessionRequest = identify().finally(() => {
         sessionRequest = null;
       });
     }
@@ -322,8 +350,6 @@ function initializeStore(config: ArkyStoreConfig) {
     });
     session.set({
       contact: result.contact,
-      store: result.store,
-      market: result.market,
     });
     return result;
   }
@@ -338,26 +364,34 @@ function initializeStore(config: ArkyStoreConfig) {
   }
 
   function setMarket(key: string): void {
-    market_key.set(key);
-    client.setMarket(key);
+    const next = key.trim();
+    const current = currentMarketKey();
+    if (
+      next &&
+      current &&
+      next !== current &&
+      (cart.get()?.item_count || item_count.get()) > 0
+    ) {
+      throw Object.assign(
+        new Error("Market cannot change while the cart contains items"),
+        { code: "CART_MARKET_LOCKED" },
+      );
+    }
+    market_key.set(next);
+    client.setMarket(next);
   }
 
-  function setLocale(value: string, options: { market?: string } = {}): void {
+  function setLocale(value: string): void {
     locale.set(value);
     client.setLocale(value);
-    const nextMarket = options.market || marketForLocale(value);
-    if (nextMarket) setMarket(nextMarket);
   }
 
   function setContext(context: ArkyStoreContext): void {
-    if (context.locale) {
-      setLocale(context.locale, { market: context.market });
-      return;
-    }
-    if (context.market) setMarket(context.market);
+    if (context.market !== undefined) setMarket(context.market);
+    if (context.locale !== undefined) setLocale(context.locale);
   }
 
-  async function ensureCart(): Promise<Cart> {
+  async function ensureCart(): Promise<StorefrontCart> {
     if (cartRequest) return cartRequest;
 
     cart_status.setKey("loading", true);
@@ -365,9 +399,7 @@ function initializeStore(config: ArkyStoreConfig) {
     const refreshRevision = cartWriteRevision;
     cartRequest = (async () => {
       await ensureSession();
-      const response = await client.eshop.cart.current({
-        market: currentMarketKey(),
-      });
+      const response = await client.eshop.cart.current();
       await applyCartResponse(response, { ifRevision: refreshRevision });
       return response;
     })();
@@ -385,8 +417,8 @@ function initializeStore(config: ArkyStoreConfig) {
 
   async function buildProductCartItem(
     item: ProductCheckoutItemInput,
-    source: Cart,
-    productHint?: Product,
+    source: StorefrontCart,
+    productHint?: StorefrontProduct,
   ): Promise<EshopCartItem | null> {
     try {
       const product =
@@ -416,8 +448,8 @@ function initializeStore(config: ArkyStoreConfig) {
   async function buildServiceCartItems(items: ServiceCheckoutItemInput[]): Promise<ArkyServiceCartItem[]> {
     const rows: ArkyServiceCartItem[] = [];
     for (const item of items) {
-      let service: Service | null = null;
-      let provider: Provider | null = null;
+      let service: StorefrontService | null = null;
+      let provider: StorefrontProvider | null = null;
       try {
         service = await client.eshop.service.get({ id: item.service_id });
       } catch {}
@@ -438,9 +470,9 @@ function initializeStore(config: ArkyStoreConfig) {
   }
 
   async function applyCartResponse(
-    response: Cart,
-    options: { ifRevision?: number; productHint?: Product } = {},
-  ): Promise<Cart> {
+    response: StorefrontCart,
+    options: { ifRevision?: number; productHint?: StorefrontProduct } = {},
+  ): Promise<StorefrontCart> {
     if (options.ifRevision !== undefined && options.ifRevision !== cartWriteRevision) {
       return cart.get() || response;
     }
@@ -469,14 +501,16 @@ function initializeStore(config: ArkyStoreConfig) {
     ];
   }
 
-  async function syncCart(input: ArkyCartInput = {}, writeRevision = nextCartWriteRevision()): Promise<Cart> {
+  async function syncCart(
+    input: ArkyCartInput = {},
+    writeRevision = nextCartWriteRevision(),
+  ): Promise<StorefrontCart> {
     cart_status.setKey("syncing", true);
     cart_status.setKey("error", null);
     try {
       const current = cart.get() || (await ensureCart());
       const response = await client.eshop.cart.update({
         id: current.id,
-        market: currentMarketKey(),
         items: checkoutItems(input),
         shipping_address: input.shipping_address,
         billing_address: input.billing_address,
@@ -505,7 +539,11 @@ function initializeStore(config: ArkyStoreConfig) {
     }
   }
 
-  async function addProduct(product: Product, variant: ProductVariant, quantity = 1): Promise<Cart> {
+  async function addProduct(
+    product: StorefrontProduct,
+    variant: StorefrontProductVariant,
+    quantity = 1,
+  ): Promise<StorefrontCart> {
     cart_status.setKey("error", null);
     const writeRevision = nextCartWriteRevision();
     try {
@@ -527,7 +565,7 @@ function initializeStore(config: ArkyStoreConfig) {
     }
   }
 
-  async function setProductQuantity(itemId: string, quantity: number): Promise<Cart> {
+  async function setProductQuantity(itemId: string, quantity: number): Promise<StorefrontCart> {
     const writeRevision = nextCartWriteRevision();
     const next = product_items.get().map((item) => {
       if (item.id !== itemId) return item;
@@ -538,7 +576,7 @@ function initializeStore(config: ArkyStoreConfig) {
     return syncCart({ product_items: next }, writeRevision);
   }
 
-  async function removeProduct(itemId: string): Promise<Cart | null> {
+  async function removeProduct(itemId: string): Promise<StorefrontCart | null> {
     const writeRevision = nextCartWriteRevision();
     const item = product_items.get().find((candidate) => candidate.id === itemId);
     product_items.set(product_items.get().filter((candidate) => candidate.id !== itemId));
@@ -552,21 +590,21 @@ function initializeStore(config: ArkyStoreConfig) {
     return response;
   }
 
-  async function addServiceItem(item: ArkyServiceCartItem): Promise<Cart> {
+  async function addServiceItem(item: ArkyServiceCartItem): Promise<StorefrontCart> {
     const writeRevision = nextCartWriteRevision();
     const next = [...service_items.get(), item];
     service_items.set(next);
     return syncCart({ service_items: next }, writeRevision);
   }
 
-  async function removeServiceItem(itemId: string): Promise<Cart> {
+  async function removeServiceItem(itemId: string): Promise<StorefrontCart> {
     const writeRevision = nextCartWriteRevision();
     const next = service_items.get().filter((item) => item.id !== itemId);
     service_items.set(next);
     return syncCart({ service_items: next }, writeRevision);
   }
 
-  async function clearCart(): Promise<Cart | null> {
+  async function clearCart(): Promise<StorefrontCart | null> {
     const writeRevision = nextCartWriteRevision();
     const current = cart.get();
     clearLocalCart();
@@ -585,7 +623,7 @@ function initializeStore(config: ArkyStoreConfig) {
     cart_status.setKey("selected_shipping_method_id", null);
   }
 
-  async function fetchQuote(input: ArkyCartInput = {}): Promise<OrderQuote | null> {
+  async function fetchQuote(input: ArkyCartInput = {}): Promise<StorefrontOrderQuote | null> {
     if (checkoutItems(input).length === 0) {
       quote.set(null);
       return null;
@@ -606,7 +644,9 @@ function initializeStore(config: ArkyStoreConfig) {
     }
   }
 
-  async function checkout(input: ArkyCartInput = {}): Promise<OrderCheckoutResult> {
+  async function checkout(
+    input: ArkyCartInput = {},
+  ): Promise<StorefrontOrderCheckoutResult> {
     if (checkoutItems(input).length === 0) throw new Error("Cart is empty");
     cart_status.setKey("processing_checkout", true);
     cart_status.setKey("error", null);
@@ -782,7 +822,7 @@ function initializeStore(config: ArkyStoreConfig) {
     };
   }
 
-  async function syncServiceCart(items: ArkyServiceCartItem[]): Promise<Cart> {
+  async function syncServiceCart(items: ArkyServiceCartItem[]): Promise<StorefrontCart> {
     try {
       return await syncCart({
         product_items: product_items.get(),
@@ -841,7 +881,7 @@ function initializeStore(config: ArkyStoreConfig) {
     });
   }
 
-  function configuredServiceFormIds(relationship: ServiceProvider): string[] {
+  function configuredServiceFormIds(relationship: StorefrontServiceProvider): string[] {
     const formIds = relationship.forms.map((entry) => entry.form_id.trim());
     if (formIds.some((formId) => !formId) || new Set(formIds).size !== formIds.length) {
       throw new Error(`Service provider ${relationship.provider_id} has blank or duplicate configured form IDs`);
@@ -852,7 +892,7 @@ function initializeStore(config: ArkyStoreConfig) {
   function resolveServiceProvider(
     state: ArkyServiceState,
     providerId?: string | null,
-  ): ServiceProvider | null {
+  ): StorefrontServiceProvider | null {
     const serviceId = state.service?.id;
     if (!serviceId) return null;
     const relationships = state.serviceProviders.filter((relationship) => relationship.service_id === serviceId);
@@ -875,7 +915,7 @@ function initializeStore(config: ArkyStoreConfig) {
   function activateServiceProviderForms(
     providerId?: string | null,
     reset = false,
-  ): ServiceProvider | null {
+  ): StorefrontServiceProvider | null {
     const relationship = resolveServiceProvider(service_state.get(), providerId);
     if (!relationship) {
       clearServiceFormState();
@@ -912,7 +952,9 @@ function initializeStore(config: ArkyStoreConfig) {
     return relationship;
   }
 
-  async function loadServiceFormDefinitions(relationships: ServiceProvider[]): Promise<void> {
+  async function loadServiceFormDefinitions(
+    relationships: StorefrontServiceProvider[],
+  ): Promise<void> {
     const formIds = [
       ...new Set(relationships.flatMap((relationship) => configuredServiceFormIds(relationship))),
     ];
@@ -929,7 +971,9 @@ function initializeStore(config: ArkyStoreConfig) {
     for (const form of forms) service_form_definitions.set(form.id, form);
   }
 
-  function configuredServiceFormEntries(relationship: ServiceProvider): FormEntry[] {
+  function configuredServiceFormEntries(
+    relationship: StorefrontServiceProvider,
+  ): FormEntry[] {
     const formIds = configuredServiceFormIds(relationship);
     if (formIds.length === 0) return [];
     activateServiceProviderForms(relationship.provider_id);
@@ -953,7 +997,7 @@ function initializeStore(config: ArkyStoreConfig) {
     async initialize(): Promise<void> {
       service_state.setKey("tzGroups", normalizeTimezoneGroups(client.utils.tzGroups));
       await ensureCart();
-      const methods = session.get()?.market?.payment_methods || [];
+      const methods = market.get()?.payment_methods || [];
       if (methods.length) service_state.setKey("availablePaymentMethods", methods);
     },
 
@@ -970,7 +1014,7 @@ function initializeStore(config: ArkyStoreConfig) {
       }
     },
 
-    async select(service: Service): Promise<void> {
+    async select(service: StorefrontService): Promise<void> {
       service_form_definitions.clear();
       clearServiceFormState(null, true);
       service_state.set({
@@ -1005,7 +1049,9 @@ function initializeStore(config: ArkyStoreConfig) {
           ...service_state.get(),
           service: fullService,
           serviceProviders,
-          providers: providerResults.filter((provider): provider is Provider => provider !== null),
+          providers: providerResults.filter(
+            (provider): provider is StorefrontProvider => provider !== null,
+          ),
           selectedProviderId: null,
           availability: null,
           selectedDate: null,
@@ -1199,7 +1245,10 @@ function initializeStore(config: ArkyStoreConfig) {
       await syncServiceCart([]);
     },
 
-    async checkout(paymentMethodId?: string, forms: FormEntry[] = []): Promise<OrderCheckoutResult> {
+    async checkout(
+      paymentMethodId?: string,
+      forms: FormEntry[] = [],
+    ): Promise<StorefrontOrderCheckoutResult> {
       const state = service_state.get();
       const items = service_items.get();
       if (!items.length) throw new Error("Cart is empty");
@@ -1218,7 +1267,10 @@ function initializeStore(config: ArkyStoreConfig) {
       }
     },
 
-    async fetchQuote(paymentMethodId?: string, promoCode?: string | null): Promise<OrderQuote | null> {
+    async fetchQuote(
+      paymentMethodId?: string,
+      promoCode?: string | null,
+    ): Promise<StorefrontOrderQuote | null> {
       const state = service_state.get();
       const items = service_items.get();
       if (!items.length) return null;
@@ -1233,7 +1285,7 @@ function initializeStore(config: ArkyStoreConfig) {
         });
         service_state.setKey("cartId", cart.get()?.id || null);
         service_state.setKey("quote", response);
-        const methods = response?.payment_methods || session.get()?.market?.payment_methods || [];
+        const methods = response?.payment_methods || market.get()?.payment_methods || [];
         if (methods.length) service_state.setKey("availablePaymentMethods", methods);
         return response;
       } catch (error) {
@@ -1244,7 +1296,7 @@ function initializeStore(config: ArkyStoreConfig) {
       }
     },
 
-    getProvidersList(): Provider[] {
+    getProvidersList(): StorefrontProvider[] {
       return service_state.get().providers;
     },
 
@@ -1287,7 +1339,10 @@ function initializeStore(config: ArkyStoreConfig) {
     },
   };
 
-  async function loadEntry(params: ArkyCmsEntryParams, options?: RequestOptions): Promise<CollectionEntry> {
+  async function loadEntry(
+    params: ArkyCmsEntryParams,
+    options?: RequestOptions,
+  ): Promise<StorefrontCollectionEntry> {
     cms_state.setKey("loading", true);
     cms_state.setKey("error", null);
     try {
@@ -1334,22 +1389,22 @@ function initializeStore(config: ArkyStoreConfig) {
     }
   }
 
-  function formCacheKey(params: GetFormParams): string {
-    const storeId = params.store_id || client.getStoreId();
+  function formCacheKey(params: StorefrontParams<GetFormParams>): string {
     const identifier = params.id ? `id:${params.id}` : params.key ? `key:${params.key}` : "missing";
-    return `${storeId}:${identifier}`;
+    return identifier;
   }
 
-  async function loadForm(params: GetFormParams, options?: RequestOptions): Promise<Form> {
+  async function loadForm(
+    params: StorefrontParams<GetFormParams>,
+    options?: RequestOptions,
+  ): Promise<StorefrontForm> {
     cms_state.setKey("loading", true);
     cms_state.setKey("error", null);
     try {
-      const storeId = params.store_id || client.getStoreId();
-      const formClient = clientForStore(storeId);
-      const form = await formClient.cms.form.get({ ...params, store_id: storeId }, options);
+      const form = await client.cms.form.get(params, options);
       const forms = { ...cms_state.get().forms };
-      forms[formCacheKey({ id: form.id, store_id: storeId })] = form;
-      forms[formCacheKey({ key: form.key, store_id: storeId })] = form;
+      forms[formCacheKey({ id: form.id })] = form;
+      forms[formCacheKey({ key: form.key })] = form;
       cms_state.setKey("forms", forms);
       return form;
     } catch (error) {
@@ -1360,34 +1415,27 @@ function initializeStore(config: ArkyStoreConfig) {
     }
   }
 
-  async function ensureFormClient(storeId: string) {
-    const formClient = clientForStore(storeId);
-    const marketKey = currentMarketKey();
-    if (formClient === client) {
-      await ensureSession();
-    } else if (!formClient.session || (marketKey && formClient.session.market?.key !== marketKey)) {
-      await formClient.identify({ market: marketKey });
-    }
-    return formClient;
-  }
-
-  async function submitForm(params: SubmitFormParams, options?: RequestOptions): Promise<FormSubmission> {
-    const storeId = params.store_id || client.getStoreId();
-    const formClient = await ensureFormClient(storeId);
-    return formClient.cms.form.submit({ ...params, store_id: storeId }, options);
+  async function submitForm(
+    params: StorefrontParams<SubmitFormParams>,
+    options?: RequestOptions,
+  ): Promise<StorefrontFormSubmission> {
+    await ensureSession();
+    return client.cms.form.submit(params, options);
   }
 
   async function submitFormByKey(
     params: ArkySubmitFormByKeyParams,
     options?: RequestOptions,
-  ): Promise<FormSubmission> {
-    const storeId = params.store_id || client.getStoreId();
-    const form = await loadForm({ key: params.key, store_id: storeId }, options);
+  ): Promise<StorefrontFormSubmission> {
+    const form = await loadForm({ key: params.key }, options);
     const entry = createFormEntryFromValues(form, params.values);
-    return submitForm({ store_id: storeId, form_id: form.id, fields: entry.fields }, options);
+    return submitForm({ form_id: form.id, fields: entry.fields }, options);
   }
 
-  async function loadProducts(params: GetProductsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Product>> {
+  async function loadProducts(
+    params: StorefrontParams<GetProductsParams> = {},
+    options?: RequestOptions,
+  ): Promise<StorefrontPage<Product>> {
     eshop_state.setKey("loading_products", true);
     eshop_state.setKey("error", null);
     try {
@@ -1403,7 +1451,10 @@ function initializeStore(config: ArkyStoreConfig) {
     }
   }
 
-  async function loadServices(params: GetServicesParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Service>> {
+  async function loadServices(
+    params: StorefrontParams<GetServicesParams> = {},
+    options?: RequestOptions,
+  ): Promise<StorefrontPage<Service>> {
     eshop_state.setKey("loading_services", true);
     eshop_state.setKey("error", null);
     try {
@@ -1419,7 +1470,10 @@ function initializeStore(config: ArkyStoreConfig) {
     }
   }
 
-  async function loadProviders(params: GetProvidersParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Provider>> {
+  async function loadProviders(
+    params: StorefrontParams<GetProvidersParams> = {},
+    options?: RequestOptions,
+  ): Promise<StorefrontPage<Provider>> {
     eshop_state.setKey("loading_providers", true);
     eshop_state.setKey("error", null);
     try {
@@ -1435,7 +1489,10 @@ function initializeStore(config: ArkyStoreConfig) {
     }
   }
 
-  async function loadAvailability(params: GetAvailabilityParams, options?: RequestOptions) {
+  async function loadAvailability(
+    params: StorefrontParams<GetAvailabilityParams>,
+    options?: RequestOptions,
+  ) {
     eshop_state.setKey("loading_availability", true);
     eshop_state.setKey("error", null);
     try {
@@ -1510,14 +1567,19 @@ function initializeStore(config: ArkyStoreConfig) {
   };
 
   const product_store = {
-    get: (params: GetProductParams, options?: RequestOptions) => client.eshop.product.get(params, options),
+    get: (params: StorefrontParams<GetProductParams>, options?: RequestOptions) =>
+      client.eshop.product.get(params, options),
     list: loadProducts,
   };
 
   const service_store = {
-    get: (params: GetServiceParams, options?: RequestOptions) => client.eshop.service.get(params, options),
+    get: (params: StorefrontParams<GetServiceParams>, options?: RequestOptions) =>
+      client.eshop.service.get(params, options),
     list: loadServices,
-    listProviders: (params: FindServiceProvidersParams, options?: RequestOptions) => client.eshop.service.findProviders(params, options),
+    listProviders: (
+      params: StorefrontParams<FindServiceProvidersParams>,
+      options?: RequestOptions,
+    ) => client.eshop.service.findProviders(params, options),
     getAvailability: loadAvailability,
     state: service_state,
     form_state: service_form_state,
@@ -1556,6 +1618,7 @@ function initializeStore(config: ArkyStoreConfig) {
   return {
     client,
     session,
+    setup,
     market,
     market_key,
     locale,
@@ -1574,17 +1637,22 @@ function initializeStore(config: ArkyStoreConfig) {
     setMarket,
     setLocale,
     setContext,
-    getStoreId: client.getStoreId,
     getMarket: currentMarketKey,
     getLocale: currentLocale,
     cms: {
       state: cms_state,
       collection: {
-        get: (params: GetCollectionParams, options?: RequestOptions) => client.cms.collection.get(params, options),
+        get: (
+          params: StorefrontParams<GetCollectionParams>,
+          options?: RequestOptions,
+        ) => client.cms.collection.get(params, options),
       },
       entry: {
         get: loadEntry,
-        find: (params: GetEntriesParams, options?: RequestOptions) => client.cms.entry.find(params, options),
+        find: (
+          params: StorefrontParams<GetEntriesParams>,
+          options?: RequestOptions,
+        ) => client.cms.entry.find(params, options),
       },
       form: {
         get: loadForm,
@@ -1598,7 +1666,10 @@ function initializeStore(config: ArkyStoreConfig) {
       product: product_store,
       service: service_store,
       provider: {
-        get: (params: GetProviderParams, options?: RequestOptions) => client.eshop.provider.get(params, options),
+        get: (
+          params: StorefrontParams<GetProviderParams>,
+          options?: RequestOptions,
+        ) => client.eshop.provider.get(params, options),
         list: loadProviders,
       },
       order: client.eshop.order,
@@ -1618,44 +1689,49 @@ function initializeStore(config: ArkyStoreConfig) {
       use: useExperiment,
     },
     support: client.support,
-    store: client.store,
+    store: {
+      ...client.store,
+      setup,
+      load: loadSetup,
+    },
     utils: client.utils,
   };
 }
 
-type InitializedStoreBase = ReturnType<typeof initializeStore>;
+type InitializedStoreCore = ReturnType<typeof initializeStoreCore>;
 
-export type InitializedStore = InitializedStoreBase & {
-  forStore(storeId: string): InitializedStore;
+export type InitializedStore = InitializedStoreCore & {
+  withContext(context: ArkyStoreContext): InitializedStore;
 };
 
-export function initialize(config: ArkyStoreConfig): InitializedStore {
-  const stores = new Map<string, InitializedStore>();
-
-  const createScope = (scopeConfig: ArkyStoreConfig): InitializedStore => {
-    const existing = stores.get(scopeConfig.storeId);
-    if (existing) return existing;
-
-    const store = initializeStore(scopeConfig) as InitializedStore;
-    stores.set(scopeConfig.storeId, store);
-    Object.defineProperty(store, "forStore", {
-      enumerable: true,
-      configurable: false,
-      writable: false,
-      value: (storeId: string) =>
-        createScope({
+function initializeStore(
+  publishableKey: string,
+  config: ArkyStoreConfig,
+  scopedClient?: ReturnType<typeof createStorefront>,
+): InitializedStore {
+  const store = initializeStoreCore(publishableKey, config, scopedClient);
+  return Object.assign(store, {
+    withContext(context: ArkyStoreContext): InitializedStore {
+      return initializeStore(
+        publishableKey,
+        {
           ...config,
-          storeId,
-          market: store.getMarket(),
-          locale: store.getLocale(),
-        }),
-    });
-    return store;
-  };
-
-  return createScope(config);
+          locale: context.locale ?? store.getLocale(),
+          market: context.market ?? store.getMarket(),
+        },
+        store.client.withContext(context),
+      );
+    },
+  });
 }
 
-export type ArkyStore = ReturnType<typeof initialize>;
+export function initialize(
+  publishableKey: string,
+  options: ArkyStoreConfig = {},
+): InitializedStore {
+  return initializeStore(publishableKey, options);
+}
+
+export type ArkyStore = InitializedStore;
 export type ArkyCartStore = ArkyStore["eshop"]["cart"];
 export type ArkyServiceStore = ArkyStore["eshop"]["service"];

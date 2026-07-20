@@ -622,6 +622,12 @@ export type {
   TrackActionParams,
   CommonActionKey,
   ExperimentUseResponse,
+  StorefrontContact,
+  StorefrontDto,
+  StorefrontLocation,
+  StorefrontMarket,
+  StorefrontSetup,
+  StorefrontZone,
   UseExperimentParams,
 } from "./api/storefront";
 export { COMMON_ACTION_KEYS } from "./api/storefront";
@@ -665,6 +671,8 @@ export type {
   SupportMessage,
   SupportConversationResponse,
   SupportConversationStartResponse,
+  StorefrontSupportConversationResponse,
+  StorefrontSupportConversationStartResponse,
   SendSupportMessageParams,
   StorefrontSendSupportMessageParams,
   StorefrontGetSupportConversationParams,
@@ -691,7 +699,7 @@ export type {
   EventScopeField,
 } from "./api/platform";
 
-export const SDK_VERSION = "0.9.20";
+export const SDK_VERSION = "0.10.0";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -701,9 +709,6 @@ export const SUPPORTED_FRAMEWORKS = [
 ] as const;
 
 import type {
-  Contact as ContactType,
-  Store as StoreType,
-  Market as MarketType,
   Price,
 } from "./types";
 
@@ -711,6 +716,15 @@ export interface ApiConfig {
   httpClient: HttpClient;
   storeId: string;
   baseUrl: string;
+  market: string;
+  locale: string;
+  authStorage: AuthStorage;
+}
+
+export interface StorefrontApiConfig {
+  httpClient: HttpClient;
+  apiUrl: string;
+  publishableKey: string;
   market: string;
   locale: string;
   authStorage: AuthStorage;
@@ -724,10 +738,8 @@ export interface AdminSessionInternal {
 }
 
 export interface ContactSessionInternal {
-  access_token: string;
-  contact: ContactType;
-  store: StoreType;
-  market: MarketType | null;
+  sessionToken: string;
+  contact: import("./api/storefront").StorefrontContact;
 }
 
 export interface AdminSession {
@@ -735,14 +747,17 @@ export interface AdminSession {
 }
 
 export interface ContactSession {
-  contact: ContactType;
-  store: StoreType;
-  market: MarketType | null;
+  contact: import("./api/storefront").StorefrontContact;
 }
 
-export interface StorefrontIdentifyResult extends ContactSession {
+export interface StorefrontIdentifyResult {
+  contact: import("./api/storefront").StorefrontContact;
   verification_challenge:
     import("./types/api").VerificationChallengeResponse | null;
+}
+
+export interface StorefrontVerifyResult {
+  contact: import("./api/storefront").StorefrontContact;
 }
 
 export type AdminSessionUpdater = (
@@ -833,7 +848,7 @@ import {
   getFirstAvailableFCId,
 } from "./utils/inventory";
 
-function createUtilitySurface(apiConfig: ApiConfig) {
+function createUtilitySurface(apiConfig: Pick<ApiConfig, "market">) {
   return {
     getImageUrl: (imageBlock: unknown, isBlock = true) =>
       getImageUrl(imageBlock, isBlock),
@@ -1057,6 +1072,7 @@ export function createAdmin(config: CreateAdminConfig) {
       update: storeApi.updateStore,
       get: storeApi.getStore,
       find: storeApi.getStores,
+      regeneratePublishableKey: storeApi.regeneratePublishableKey,
       subscription: {
         get: storeApi.getSubscription,
         getPlans: storeApi.getSubscriptionPlans,
@@ -1396,6 +1412,19 @@ export interface StorefrontSessionStorage {
   removeItem(key: string): void;
 }
 
+export interface StorefrontContext {
+  locale?: string;
+  market?: string;
+}
+
+export interface StorefrontOptions extends StorefrontContext {
+  apiUrl?: string;
+  sessionStorage?: StorefrontSessionStorage;
+}
+
+export const DEFAULT_STOREFRONT_API_URL = "https://api.arky.io";
+let storefrontScopeSequence = 0;
+
 function defaultStorefrontSessionStorage(): StorefrontSessionStorage | null {
   if (typeof window === "undefined") return null;
   try {
@@ -1405,63 +1434,113 @@ function defaultStorefrontSessionStorage(): StorefrontSessionStorage | null {
   }
 }
 
-function storefrontSessionStorageKey(baseUrl: string, storeId: string): string {
-  const normalizedBaseUrl = baseUrl.trim().replace(/\/+$/, "").toLowerCase();
-  return `arky_contact_session:${encodeURIComponent(normalizedBaseUrl)}:${encodeURIComponent(storeId)}`;
+function normalizeStorefrontApiUrl(value: string | undefined): string {
+  const input = value?.trim() || DEFAULT_STOREFRONT_API_URL;
+  let parsed: URL;
+  try {
+    parsed = new URL(input);
+  } catch {
+    throw new Error("Storefront apiUrl must be a valid HTTP(S) URL");
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("Storefront apiUrl must use HTTP or HTTPS");
+  }
+  return input.replace(/\/+$/, "");
 }
 
-export type CreateStorefrontConfig = Omit<
-  HttpClientConfig,
-  "authStorage" | "storeId"
-> & {
-  storeId: string;
-  market?: string;
-  locale?: string;
-  apiToken?: string;
-  sessionStorage?: StorefrontSessionStorage;
-};
+function validatePublishableKey(publishableKey: string): string {
+  if (typeof publishableKey !== "string") {
+    throw new Error(
+      "A valid Arky publishable key is required (arky_pk_ followed by 43 URL-safe characters)",
+    );
+  }
+  const key = publishableKey.trim();
+  if (!/^arky_pk_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(key)) {
+    throw new Error(
+      "A valid Arky publishable key is required (arky_pk_ followed by 43 URL-safe characters)",
+    );
+  }
+  return key;
+}
 
-function createStorefrontClient(config: CreateStorefrontConfig) {
-  const locale = config.locale || "en";
-  const initialMarket = config.market || "";
+function publishableKeyFingerprint(publishableKey: string): string {
+  let hashA = 0x811c9dc5;
+  let hashB = 0x9e3779b9;
+  for (let index = 0; index < publishableKey.length; index += 1) {
+    const code = publishableKey.charCodeAt(index);
+    hashA = Math.imul(hashA ^ code, 0x01000193);
+    hashB = Math.imul(hashB ^ code, 0x85ebca6b);
+  }
+  return `${(hashA >>> 0).toString(36)}${(hashB >>> 0).toString(36)}`;
+}
+
+function storefrontSessionStorageKey(
+  apiUrl: string,
+  publishableKey: string,
+): string {
+  return `arky_visitor_session:${encodeURIComponent(apiUrl.toLowerCase())}:${publishableKeyFingerprint(publishableKey)}`;
+}
+
+function isVisitorSessionToken(value: string | null): value is string {
+  return Boolean(value && /^arky_vst_[0-9a-f]{64}$/.test(value));
+}
+
+function createStorefrontClientCore(
+  publishableKeyInput: string,
+  options: StorefrontOptions = {},
+  isolatedSession = false,
+) {
+  const publishableKey = validatePublishableKey(publishableKeyInput);
+  const apiUrl = normalizeStorefrontApiUrl(options.apiUrl);
+  let locale = options.locale?.trim() || "";
+  let market = options.market?.trim() || "";
   const listeners = new Set<AuthStateListener<ContactSession>>();
-  let bareIdentifyPromise: Promise<StorefrontIdentifyResult> | null = null;
+  let identifyPromise: Promise<StorefrontIdentifyResult> | null = null;
   let identityTail: Promise<void> = Promise.resolve();
-  const sessionStorage = config.sessionStorage || defaultStorefrontSessionStorage();
+  let setupPromise: Promise<import("./api/storefront").StorefrontSetup> | null = null;
+  let setupValue: import("./api/storefront").StorefrontSetup | null = null;
+  const explicitSessionStorage = options.sessionStorage;
+  const sessionStorage = isolatedSession
+    ? explicitSessionStorage || null
+    : explicitSessionStorage || defaultStorefrontSessionStorage();
+  const canCreateVisitorSession =
+    typeof window !== "undefined" || Boolean(explicitSessionStorage);
+  const storageKey = `${storefrontSessionStorageKey(apiUrl, publishableKey)}${
+    isolatedSession ? `:scope:${++storefrontScopeSequence}` : ""
+  }`;
   let memorySession: ContactSessionInternal | null = null;
+  let memorySessionToken: string | null = null;
 
-  function readContactSession(): ContactSessionInternal | null {
-    if (!sessionStorage) return memorySession;
+  function readSessionToken(): string | null {
+    if (!sessionStorage) return memorySessionToken;
     try {
-      const raw = sessionStorage.getItem(
-        storefrontSessionStorageKey(config.baseUrl, config.storeId),
-      );
-      return raw ? (JSON.parse(raw) as ContactSessionInternal) : null;
+      const stored = sessionStorage.getItem(storageKey);
+      return isVisitorSessionToken(stored) ? stored : memorySessionToken;
     } catch {
-      return memorySession;
+      return memorySessionToken;
     }
   }
 
   function writeContactSession(session: ContactSessionInternal | null): void {
     memorySession = session;
+    memorySessionToken = session?.sessionToken || null;
     if (!sessionStorage) return;
-    const key = storefrontSessionStorageKey(config.baseUrl, config.storeId);
     try {
       if (session) {
-        sessionStorage.setItem(key, JSON.stringify(session));
+        sessionStorage.setItem(storageKey, session.sessionToken);
       } else {
-        sessionStorage.removeItem(key);
+        sessionStorage.removeItem(storageKey);
       }
     } catch {
     }
   }
 
   function toPublic(s: ContactSessionInternal | null): ContactSession | null {
-    return s ? { contact: s.contact, store: s.store, market: s.market } : null;
+    return s ? { contact: s.contact } : null;
   }
 
   function emit(): void {
-    const pub = toPublic(readContactSession());
+    const pub = toPublic(memorySession);
     for (const l of listeners) {
       Promise.resolve()
         .then(() => l(pub))
@@ -1470,51 +1549,89 @@ function createStorefrontClient(config: CreateStorefrontConfig) {
   }
 
   const updateSession: ContactSessionUpdater = (updater) => {
-    if (config.apiToken) return;
-    const prev = readContactSession();
-    const next = updater(prev);
+    const next = updater(memorySession);
     writeContactSession(next);
     emit();
   };
 
-  const authStorage: AuthStorage = config.apiToken
-    ? {
-        getTokens: () => ({ access_token: config.apiToken! }),
-        onTokensRefreshed: () => {},
-        onForcedLogout: () => {},
-      }
-    : {
-        getTokens() {
-          const s = readContactSession();
-          return s ? { access_token: s.access_token } : null;
-        },
-        onTokensRefreshed() {
-        },
-        onForcedLogout() {
-          bareIdentifyPromise = null;
-          updateSession(() => null);
-        },
-      };
+  const authStorage: AuthStorage = {
+    getTokens() {
+      const sessionToken = readSessionToken();
+      return sessionToken ? { access_token: sessionToken } : null;
+    },
+    onTokensRefreshed() {},
+    onForcedLogout() {
+      identifyPromise = null;
+      updateSession(() => null);
+    },
+  };
+
+  let recoverUnauthorized: (
+    authorizationToken: string | null,
+    path: string,
+  ) => Promise<boolean> = async () => false;
+  let visitorRecoveryPromise: Promise<void> | null = null;
 
   const httpClient = createHttpClient({
-    baseUrl: config.baseUrl,
-    storeId: config.storeId,
-    refreshPath: config.refreshPath,
-    navigate: config.navigate,
-    loginFallbackPath: config.loginFallbackPath,
+    baseUrl: apiUrl,
     authStorage,
+    storefrontMode: true,
+    forcedHeaders: () => ({
+      "X-Arky-Publishable-Key": publishableKey,
+      ...(locale ? { "X-Arky-Locale": locale } : {}),
+      ...(market ? { "X-Arky-Market": market } : {}),
+    }),
+    onUnauthorized: ({ authorizationToken, path }) =>
+      recoverUnauthorized(authorizationToken, path),
   });
 
-  const apiConfig: ApiConfig = {
+  const apiConfig: StorefrontApiConfig = {
     httpClient,
-    storeId: config.storeId,
-    baseUrl: config.baseUrl,
-    market: initialMarket,
+    apiUrl,
+    publishableKey,
+    market,
     locale,
     authStorage,
   };
 
-  const storefrontApi = createStorefrontApi(apiConfig, updateSession);
+  function requireVisitorSessionCapability(): void {
+    if (!canCreateVisitorSession) {
+      throw new Error(
+        "Stateful storefront operations during SSR require an explicit request-local sessionStorage adapter",
+      );
+    }
+  }
+
+  async function getSetup(
+    requestOptions?: import("./types/api").RequestOptions,
+  ): Promise<import("./api/storefront").StorefrontSetup> {
+    if (setupValue) return setupValue;
+    if (setupPromise) return setupPromise;
+    setupPromise = httpClient
+      .get<import("./api/storefront").StorefrontSetup>(
+        "/v1/storefront",
+        requestOptions,
+      )
+      .then((setup) => {
+        setupValue = setup;
+        return setup;
+      })
+      .finally(() => {
+        setupPromise = null;
+      });
+    return setupPromise;
+  }
+
+  async function ensureVisitorSession(): Promise<void> {
+    if (readSessionToken()) return;
+    requireVisitorSessionCapability();
+    await identify();
+  }
+
+  const storefrontApi = createStorefrontApi(apiConfig, updateSession, {
+    ensureVisitorSession,
+    getSetup,
+  });
   const contactApi = storefrontApi.crm.contact;
 
   function identify(params?: {
@@ -1522,50 +1639,20 @@ function createStorefrontClient(config: CreateStorefrontConfig) {
     verify?: boolean;
     market?: string;
   }): Promise<StorefrontIdentifyResult> {
-    if (params?.market !== undefined) apiConfig.market = params.market;
-    const market = apiConfig.market;
+    requireVisitorSessionCapability();
+    if (params?.market !== undefined) setMarket(params.market);
 
     const isBareCall = !params?.email && !params?.verify;
-    if (isBareCall && bareIdentifyPromise) return bareIdentifyPromise;
+    if (isBareCall && identifyPromise) return identifyPromise;
 
     const run = async (): Promise<StorefrontIdentifyResult> => {
-      try {
-        const result = await (params?.verify
-          ? contactApi.requestCode({
-              market,
-              email: params.email,
-            })
-          : contactApi.identify({
-              market,
-              email: params?.email,
-            }));
-        return {
-          contact: result.contact,
-          store: result.store,
-          market: result.market,
-          verification_challenge: result.verification_challenge,
-        };
-      } catch (err: unknown) {
-        const e = err as {
-          statusCode?: number;
-          status?: number;
-          response?: { status?: number };
-        };
-        const status = e?.statusCode || e?.status || e?.response?.status;
-        if (isBareCall && status === 401) {
-          updateSession(() => null);
-          const result = await contactApi.identify({
-            market,
-          });
-          return {
-            contact: result.contact,
-            store: result.store,
-            market: result.market,
-            verification_challenge: result.verification_challenge,
-          };
-        }
-        throw err;
-      }
+      const result = await (params?.verify
+        ? contactApi.requestCode({ email: params.email })
+        : contactApi.identify({ email: params?.email }));
+      return {
+        contact: result.contact,
+        verification_challenge: result.verification_challenge,
+      };
     };
 
     const promise = identityTail.then(run);
@@ -1575,13 +1662,13 @@ function createStorefrontClient(config: CreateStorefrontConfig) {
     );
 
     if (isBareCall) {
-      bareIdentifyPromise = promise;
+      identifyPromise = promise;
       void promise.then(
         () => {
-          if (bareIdentifyPromise === promise) bareIdentifyPromise = null;
+          if (identifyPromise === promise) identifyPromise = null;
         },
         () => {
-          if (bareIdentifyPromise === promise) bareIdentifyPromise = null;
+          if (identifyPromise === promise) identifyPromise = null;
         },
       );
     }
@@ -1589,15 +1676,26 @@ function createStorefrontClient(config: CreateStorefrontConfig) {
     return promise;
   }
 
-  async function verify(params: { challenge_id: string; code: string }) {
+  async function verify(
+    params: { challenge_id: string; code: string },
+  ): Promise<StorefrontVerifyResult> {
+    requireVisitorSessionCapability();
     const result = await contactApi.verify(params);
-    bareIdentifyPromise = null;
-    return result;
+    identifyPromise = null;
+    return { contact: result.contact };
+  }
+
+  async function me(): Promise<import("./api/storefront").StorefrontContact> {
+    await ensureVisitorSession();
+    return contactApi.getMe();
   }
 
   async function logout(): Promise<void> {
-    if (config.apiToken) return;
-    bareIdentifyPromise = null;
+    identifyPromise = null;
+    if (!readSessionToken()) {
+      updateSession(() => null);
+      return;
+    }
     try {
       await contactApi.logout();
     } catch {
@@ -1605,28 +1703,66 @@ function createStorefrontClient(config: CreateStorefrontConfig) {
     }
   }
 
+  function setMarket(value: string): void {
+    market = value.trim();
+    apiConfig.market = market;
+    identifyPromise = null;
+  }
+
+  function setLocale(value: string): void {
+    locale = value.trim();
+    apiConfig.locale = locale;
+  }
+
+  function setContext(context: StorefrontContext): void {
+    if (context.locale !== undefined) setLocale(context.locale);
+    if (context.market !== undefined) setMarket(context.market);
+  }
+
+  recoverUnauthorized = async (
+    authorizationToken: string | null,
+    path: string,
+  ) => {
+    if (!authorizationToken) return false;
+    const currentToken = readSessionToken();
+    if (currentToken !== authorizationToken) {
+      if (currentToken) return true;
+      if (!visitorRecoveryPromise) return false;
+      await visitorRecoveryPromise;
+      return Boolean(readSessionToken());
+    }
+    updateSession(() => null);
+    if (/\/account\/(identify|code)$/.test(path)) return true;
+    const recovery = ensureVisitorSession();
+    const trackedRecovery = recovery.finally(() => {
+      if (visitorRecoveryPromise === trackedRecovery) {
+        visitorRecoveryPromise = null;
+      }
+    });
+    visitorRecoveryPromise = trackedRecovery;
+    await trackedRecovery;
+    return true;
+  };
+
   return {
     identify,
     verify,
     logout,
-    me: () => contactApi.getMe(),
+    me,
 
     get session(): ContactSession | null {
-      if (config.apiToken) return null;
-      return toPublic(readContactSession());
+      return toPublic(memorySession);
     },
 
     get isAuthenticated(): boolean {
-      if (config.apiToken) return true;
-      const s = readContactSession();
-      return s !== null && !!s.access_token;
+      return Boolean(readSessionToken());
     },
 
     onAuthStateChanged(
       listener: AuthStateListener<ContactSession>,
     ): () => void {
       listeners.add(listener);
-      const current = toPublic(readContactSession());
+      const current = toPublic(memorySession);
       if (current) {
         Promise.resolve()
           .then(() => listener(current))
@@ -1640,55 +1776,80 @@ function createStorefrontClient(config: CreateStorefrontConfig) {
     store: storefrontApi.store,
     cms: storefrontApi.cms,
     eshop: storefrontApi.eshop,
-    crm: storefrontApi.crm,
+    crm: {
+      ...storefrontApi.crm,
+      contact: {
+        identify: (params?: { email?: string }) => identify(params),
+        requestCode: (params?: { email?: string }) =>
+          identify({ ...params, verify: true }),
+        verify,
+        logout,
+        getMe: me,
+      },
+    },
     action: storefrontApi.action,
     experiments: storefrontApi.experiments,
-    support: createStorefrontSupportApi(apiConfig),
-    getStoreId: () => apiConfig.storeId,
-    setMarket: (key: string) => {
-      apiConfig.market = key;
-      bareIdentifyPromise = null;
-    },
-    getMarket: () => apiConfig.market,
-    setLocale: (l: string) => {
-      apiConfig.locale = l;
-    },
-    getLocale: () => apiConfig.locale,
+    support: createStorefrontSupportApi(apiConfig, ensureVisitorSession),
+    getSetup,
+    setContext,
+    setMarket,
+    getMarket: () => market,
+    setLocale,
+    getLocale: () => locale,
     utils: createUtilitySurface(apiConfig),
   };
 }
 
-type StorefrontClientBase = ReturnType<typeof createStorefrontClient>;
+type StorefrontClientCore = ReturnType<typeof createStorefrontClientCore>;
 
-export type StorefrontClient = StorefrontClientBase & {
-  forStore(storeId: string): StorefrontClient;
+export type StorefrontClient = StorefrontClientCore & {
+  withContext(context: StorefrontContext): StorefrontClient;
 };
 
-export function createStorefront(
-  config: CreateStorefrontConfig,
+function createStorefrontClient(
+  publishableKey: string,
+  options: StorefrontOptions = {},
+  isolatedSession = false,
 ): StorefrontClient {
-  const sessionStorage =
-    config.sessionStorage || defaultStorefrontSessionStorage() || undefined;
-  const scopedConfig: CreateStorefrontConfig = {
-    ...config,
-    sessionStorage,
-  };
-  const client = createStorefrontClient(scopedConfig);
-
-  Object.defineProperty(client, "forStore", {
-    enumerable: true,
-    configurable: false,
-    writable: false,
-    value: (storeId: string) =>
-      createStorefront({
-        ...scopedConfig,
-        storeId,
-        market: client.getMarket(),
-        locale: client.getLocale(),
-      }),
+  const client = createStorefrontClientCore(
+    publishableKey,
+    options,
+    isolatedSession,
+  );
+  return Object.assign(client, {
+    withContext(context: StorefrontContext): StorefrontClient {
+      return createStorefrontClient(
+        publishableKey,
+        {
+          ...options,
+          locale: context.locale ?? client.getLocale(),
+          market: context.market ?? client.getMarket(),
+        },
+        true,
+      );
+    },
   });
+}
 
-  return client as StorefrontClient;
+export function createStorefront(
+  publishableKey: string,
+  options: StorefrontOptions = {},
+): StorefrontClient {
+  return createStorefrontClient(publishableKey, options);
 }
 
 export type { HttpClientConfig } from "./services/createHttpClient";
+export {
+  buildFormFields,
+  createFormEntry,
+  createFormEntryFromValues,
+  initialize,
+} from "./storefrontStore";
+export type {
+  ArkyCartStore,
+  ArkyServiceStore,
+  ArkyStore,
+  ArkyStoreConfig,
+  ArkyStoreContext,
+  ArkyStripePaymentMountOptions,
+} from "./storefrontStore";

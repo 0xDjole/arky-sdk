@@ -63,6 +63,18 @@ export const createStoreApi = (apiConfig: ApiConfig, _updateSession: AdminSessio
       });
     },
 
+    async regeneratePublishableKey(
+      params: { store_id?: string } = {},
+      options?: RequestOptions,
+    ): Promise<Store> {
+      const store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<Store>(
+        `/v1/stores/${store_id}/publishable-key/regenerate`,
+        {},
+        options,
+      );
+    },
+
     async getSubscriptionPlans(
       _params: GetSubscriptionPlansParams,
       options?: RequestOptions,

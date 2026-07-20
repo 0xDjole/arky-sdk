@@ -1420,6 +1420,8 @@ export interface ContactListMembershipCancellation {
 export interface Store {
   id: string;
   key: string;
+  publishable_key: string;
+  default_market_id: string | null;
   timezone: string;
   languages?: Language[];
   emails?: StoreEmails;

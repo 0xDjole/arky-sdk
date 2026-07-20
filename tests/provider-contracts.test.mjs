@@ -166,12 +166,18 @@ test('subscription action effects use their own parent-bound endpoints', async (
 	]);
 });
 
-test('storefront support keeps the capability token in one forced header for the current store', async () => {
+test('storefront support keeps its capability token in one forced header on the connected Store', async () => {
 	const supportToken = 'a'.repeat(64);
-	const storefront = createStorefront({
-		baseUrl,
-		storeId: 'store-before-switch',
-	}).forStore('store-after-switch');
+	const publishableKey = `arky_pk_${'s'.repeat(43)}`;
+	const visitorToken = `arky_vst_${'a'.repeat(64)}`;
+	const storefront = createStorefront(publishableKey, {
+		apiUrl: baseUrl,
+		sessionStorage: {
+			getItem: () => visitorToken,
+			setItem() {},
+			removeItem() {},
+		},
+	});
 	const calls = [];
 	const originalFetch = globalThis.fetch;
 	globalThis.fetch = async (url, init = {}) => {
@@ -233,11 +239,8 @@ test('storefront support keeps the capability token in one forced header for the
 	}
 
 	assert.equal(calls.length, 3, 'invalid support credentials must execute no HTTP request');
-	assert.deepEqual(calls[0].body, {
-		agent_key: 'default',
-		store_id: 'store-after-switch',
-	});
-	assert.equal(calls[0].url, `${baseUrl}/v1/storefront/store-after-switch/support/conversations`);
+	assert.deepEqual(calls[0].body, { agent_key: 'default' });
+	assert.equal(calls[0].url, `${baseUrl}/v1/storefront/support/conversations`);
 	assert.equal(
 		Object.keys(calls[0].headers).some((name) => name.toLowerCase() === 'x-arky-support-token'),
 		false,
@@ -247,16 +250,19 @@ test('storefront support keeps the capability token in one forced header for the
 		conversation_id: 'conversation-contract',
 		message_id: resourceId,
 		input: { type: 'text', content: 'Help' },
-		store_id: 'store-after-switch',
 	});
 	assert.equal(calls[1].url.includes(supportToken), false);
 	assert.equal(calls[2].url.includes(supportToken), false);
-	assert.equal(calls[2].url.includes('store_id=store-after-switch'), true);
+	assert.equal(calls[2].url.includes('store_id='), false);
 	assert.equal(calls[2].body, undefined);
 
 	for (const call of calls.slice(1)) {
 		const supportHeaders = Object.entries(call.headers).filter(([name]) => name.toLowerCase() === 'x-arky-support-token');
 		assert.deepEqual(supportHeaders, [['X-Arky-Support-Token', supportToken]]);
+	}
+	for (const call of calls) {
+		assert.equal(call.headers['X-Arky-Publishable-Key'], publishableKey);
+		assert.equal(call.headers.Authorization, `Bearer ${visitorToken}`);
 	}
 	assert.equal(calls[1].headers['X-Test-Header'], 'preserved');
 });
