@@ -1,4 +1,5 @@
-import type { createStorefront, CreateStorefrontConfig } from "../index";
+import type { createStorefront, StorefrontOptions } from "../index";
+import type { StorefrontDto } from "../api/storefront";
 import type {
   Address,
   Block,
@@ -9,15 +10,14 @@ import type {
   Form,
   FormEntry,
   FormValues,
-  Market,
   OrderCheckoutResult,
   OrderQuote,
   PaymentMethod,
   Price,
   Product,
-  ProductVariant,
   Provider,
   Service,
+  ServiceProvider,
 } from "../types";
 import type { AvailabilityResponse, SlotRange } from "../types/api";
 import type {
@@ -26,12 +26,24 @@ import type {
 } from "../payments/stripe";
 
 export type ArkyStoreClient = ReturnType<typeof createStorefront>;
+type StorefrontCart = StorefrontDto<Cart>;
+type StorefrontCollectionEntry = StorefrontDto<CollectionEntry>;
+type StorefrontForm = StorefrontDto<Form>;
+type StorefrontOrderCheckoutResult = StorefrontDto<OrderCheckoutResult>;
+type StorefrontOrderQuote = StorefrontDto<OrderQuote>;
+type StorefrontProduct = StorefrontDto<Product>;
+type StorefrontProvider = StorefrontDto<Provider>;
+type StorefrontService = StorefrontDto<Service>;
+type StorefrontServiceProvider = StorefrontDto<ServiceProvider>;
 export type ArkyPaymentController = StripeConfirmationTokenController;
-export type ArkyStripePaymentMountOptions = Partial<StripeConfirmationTokenControllerConfig>;
+export type ArkyStripePaymentMountOptions = Partial<
+  Pick<
+    StripeConfirmationTokenControllerConfig,
+    "amount" | "currency" | "appearance" | "setupFutureUsage"
+  >
+>;
 
-export interface ArkyStoreConfig extends CreateStorefrontConfig {
-  marketForLocale?: (locale: string) => string | null | undefined;
-}
+export type ArkyStoreConfig = StorefrontOptions;
 
 export interface ArkyStoreContext {
   locale?: string;
@@ -39,15 +51,13 @@ export interface ArkyStoreContext {
 }
 
 export type ArkyCmsEntryParams = ArkyStoreContext & {
-	id?: string;
-	collection_id?: string;
-	key?: string;
-	store_id?: string;
+  id?: string;
+  collection_id?: string;
+  key?: string;
 };
 
 export interface ArkySubmitFormByKeyParams {
   key: string;
-  store_id?: string;
   values: FormValues;
 }
 
@@ -66,7 +76,7 @@ export interface ArkyServiceCartItem {
 }
 
 export interface ArkyCartSnapshot {
-  cart: Cart | null;
+  cart: StorefrontCart | null;
   product_items: EshopCartItem[];
   service_items: ArkyServiceCartItem[];
   item_count: number;
@@ -86,8 +96,8 @@ export interface ArkyCartStatus {
 export interface ArkyLastOrder {
   order_id: string;
   number: string;
-  payment_action: OrderCheckoutResult["payment_action"];
-  payment: OrderCheckoutResult["payment"];
+  payment_action: StorefrontOrderCheckoutResult["payment_action"];
+  payment: StorefrontOrderCheckoutResult["payment"];
   product_items?: EshopCartItem[];
   service_items?: ArkyServiceCartItem[];
   shipping_address?: Address | null;
@@ -118,16 +128,16 @@ export interface ArkyCartInput {
 }
 
 export interface ArkyCmsState {
-  entries: Record<string, CollectionEntry>;
-  forms: Record<string, Form>;
+  entries: Record<string, StorefrontCollectionEntry>;
+  forms: Record<string, StorefrontForm>;
   loading: boolean;
   error: string | null;
 }
 
 export interface ArkyEshopState {
-  products: Product[];
-  services: Service[];
-  providers: Provider[];
+  products: StorefrontProduct[];
+  services: StorefrontService[];
+  providers: StorefrontProvider[];
   product_cursor: string | null;
   service_cursor: string | null;
   provider_cursor: string | null;
@@ -164,7 +174,7 @@ export interface ArkyServiceSlot {
 }
 
 export interface ArkyServiceFormGroup {
-  form: Form;
+  form: StorefrontForm;
   blocks: Block[];
 }
 
@@ -176,10 +186,10 @@ export interface ArkyServiceFormState {
 }
 
 export interface ArkyServiceState {
-  service: Service | null;
+  service: StorefrontService | null;
   availability: AvailabilityResponse | null;
-  providers: Provider[];
-  serviceProviders: import("../types").ServiceProvider[];
+  providers: StorefrontProvider[];
+  serviceProviders: StorefrontServiceProvider[];
   selectedProviderId: string | null;
   currentMonth: Date;
   calendar: ArkyCalendarDay[];
@@ -190,7 +200,7 @@ export interface ArkyServiceState {
   tzGroups: Record<string, { zone: string; name: string }[]>;
   loading: boolean;
   weekdays: string[];
-  quote: OrderQuote | null;
+  quote: StorefrontOrderQuote | null;
   fetchingQuote: boolean;
   quoteError: string | null;
   currency: Currency | null;

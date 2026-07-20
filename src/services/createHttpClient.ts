@@ -53,8 +53,15 @@ export interface HttpClient {
 
 export interface HttpClientConfig {
   baseUrl: string;
-  storeId: string;
+  storeId?: string;
   authStorage: AuthStorage;
+  storefrontMode?: boolean;
+  forcedHeaders?: Record<string, string> | (() => Record<string, string>);
+  onUnauthorized?: (context: {
+    hadAuthorization: boolean;
+    authorizationToken: string | null;
+    path: string;
+  }) => boolean | Promise<boolean>;
   refreshPath?: string | (() => string);
   navigate?: (path: string) => void;
   loginFallbackPath?: string;
@@ -86,6 +93,16 @@ function requestError(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function omitStorefrontRouting(value: unknown): unknown {
+  if (!isRecord(value) || Array.isArray(value)) return value;
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return value;
+  const result = { ...value };
+  delete result.store_id;
+  delete result.market;
+  return result;
 }
 
 function isTokenSet(value: unknown): value is TokenSet {
@@ -205,10 +222,30 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       body = options.transformRequest(body);
     }
 
+    if (cfg.storefrontMode) {
+      body = omitStorefrontRouting(body);
+    }
+
+    const forcedHeaders =
+      typeof cfg.forcedHeaders === "function"
+        ? cfg.forcedHeaders()
+        : cfg.forcedHeaders || {};
+    const callerHeaders = { ...(options?.headers || {}) };
+    const protectedHeaderNames = new Set(
+      Object.keys(forcedHeaders).map((name) => name.toLowerCase()),
+    );
+    if (cfg.storefrontMode) protectedHeaderNames.add("authorization");
+    for (const name of Object.keys(callerHeaders)) {
+      if (protectedHeaderNames.has(name.toLowerCase())) {
+        delete callerHeaders[name];
+      }
+    }
+
     const headers: Record<string, string> = {
       Accept: "application/json",
       "Content-Type": "application/json",
-      ...(options?.headers || {}),
+      ...callerHeaders,
+      ...forcedHeaders,
     };
 
     let tokens = authStorage.getTokens();
@@ -222,8 +259,11 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       headers["Authorization"] = `Bearer ${tokens.access_token}`;
     }
 
-    const finalPath = options?.params
-      ? path + buildQueryString(options.params)
+    const requestParams = cfg.storefrontMode
+      ? (omitStorefrontRouting(options?.params) as QueryParams | undefined)
+      : options?.params;
+    const finalPath = requestParams
+      ? path + buildQueryString(requestParams)
       : path;
 
     const fetchOptions: RequestInit = {
@@ -263,8 +303,19 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
     }
 
     if (res.status === 401 && !retried) {
-      await ensureFreshToken();
-      return request<T>(method, path, body, options, true);
+      if (cfg.onUnauthorized) {
+        const recovered = await cfg.onUnauthorized({
+          hadAuthorization: Boolean(tokens?.access_token),
+          authorizationToken: tokens?.access_token || null,
+          path,
+        });
+        if (recovered) {
+          return request<T>(method, path, body, options, true);
+        }
+      } else {
+        await ensureFreshToken();
+        return request<T>(method, path, body, options, true);
+      }
     }
 
     try {

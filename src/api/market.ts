@@ -52,7 +52,12 @@ export const createMarketApi = (apiConfig: ApiConfig) => {
     ): Promise<{ deleted: boolean }> {
       return apiConfig.httpClient.delete<{ deleted: boolean }>(
         `/v1/stores/${apiConfig.storeId}/markets/${params.id}`,
-        options,
+        {
+          ...options,
+          params: params.replacement_default_market_id
+            ? { replacement_default_market_id: params.replacement_default_market_id }
+            : options?.params,
+        },
       );
     },
   };

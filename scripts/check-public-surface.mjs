@@ -20,6 +20,7 @@ const removedIdentifiers = [
   "CampaignEnrollmentDraft",
   "ShippingAddress",
   "oldKey",
+  "mountStripe",
 ];
 
 const removedIdentifierPattern = new RegExp(

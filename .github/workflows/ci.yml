@@ -1,8 +1,6 @@
 name: SDK CI
 
 on:
-  pull_request:
-    branches: [develop, master]
   push:
     branches: [master]
 

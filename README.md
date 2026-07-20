@@ -1,8 +1,6 @@
 # arky-sdk
 
-Official TypeScript SDK for [Arky](https://arky.io), the website backend and client Admin for custom frontends.
-
-Arky lets you keep frontend control while using one backend for CMS, commerce, bookings, forms, profiles, action, experiments, support, workflows, API, and SDK.
+Official TypeScript SDK for [Arky](https://arky.io), the website backend and Admin client for custom frontends.
 
 ## Installation
 
@@ -10,114 +8,80 @@ Arky lets you keep frontend control while using one backend for CMS, commerce, b
 npm install arky-sdk
 ```
 
-## Storefront Quick Start
+## Storefront quick start
 
-Use `initialize` from `arky-sdk/storefront` for normal custom frontends. It creates the Arky storefront object, keeps store/locale/market context, and exposes the backend modules the frontend needs.
+The current browser contract is `arky-sdk@0.11.2`. Pin that exact version during the coordinated
+prelaunch cutover so the Server, App, and storefront route/header contracts move together:
+
+```bash
+npm install --save-exact arky-sdk@0.11.2
+```
+
+Copy the Store publishable key from Developer and initialize one client:
 
 ```typescript
-import { initialize } from "arky-sdk/storefront";
+import { initialize } from "arky-sdk";
 
-const arky = initialize({
-  baseUrl: "https://api.arky.io",
-  storeId: "your-store-id",
-  market: "us",
-  locale: "en",
-  marketForLocale: (locale) => (locale === "it" ? "ita" : "us"),
-});
+export const arky = initialize(import.meta.env.PUBLIC_ARKY_PUBLISHABLE_KEY);
+```
 
-const homepage = await arky.cms.entry.get({
-  collection_id: "pages",
-  key: "homepage",
-  locale: "en",
-});
+`initialize` is synchronous. It makes no request and creates no visitor. Production requests use `https://api.arky.io` by default.
 
-await arky.action.track({
-  key: "page.view",
-  payload: { path: location.pathname },
+For local development or an explicit initial context:
+
+```typescript
+export const arky = initialize("arky_pk_...", {
+  apiUrl: "http://localhost:8000",
+  locale: "it",
+  market: "ita",
 });
 ```
 
-`initialize` is the public storefront factory. Use the Arky domain noun `Store` for tenant/business concepts, not for naming the SDK factory.
+The SDK accepts only an `arky_pk_...` publishable key. A personal `arky_api_...` token or an `arky_vst_...` visitor session is rejected at initialization. Publishable keys identify a Store; they grant no Admin access and are safe to include in browser code.
 
-## Storefront Modules
+## Read content and submit forms
 
-The storefront module API is the preferred surface for websites:
-
-```typescript
-await arky.eshop.cart.load();
-
-await arky.cms.entry.get({
-  collection_id: "pages",
-  key: "homepage",
-  locale: "en",
-});
-await arky.cms.form.submitByKey({ key: "contact", values: {} });
-
-const { items: products } = await arky.eshop.product.list({ limit: 20 });
-await arky.eshop.cart.addProduct(products[0], products[0].variants[0], 1);
-await arky.eshop.cart.quote();
-await arky.eshop.cart.checkout({ payment_method_key: "cash" });
-
-const { items: services } = await arky.eshop.service.list({ limit: 20 });
-await arky.eshop.service.initialize();
-
-await arky.action.track({
-  key: "project.inquiry.started",
-  payload: { placement: "homepage" },
-});
-```
-
-UI frameworks can subscribe to Nano Stores exposed by the modules:
-
-```typescript
-const unsubscribe = arky.eshop.cart.snapshot.subscribe((snapshot) => {
-  console.log(snapshot.item_count, snapshot.cart?.id);
-});
-
-await arky.eshop.cart.load();
-unsubscribe();
-```
-
-## Read Content And Submit Forms
-
-The server storefront entry route uses collection entries. Key-based content loads must include `collection_id`.
+Anonymous CMS and catalog reads do not create a visitor:
 
 ```typescript
 const page = await arky.cms.entry.get({
   collection_id: "pages",
   key: "homepage",
-  locale: "en",
 });
 
 const titleBlock = page.blocks.find((block) => block.key === "title");
-const title = arky.utils.getBlockTextValue(titleBlock, "en");
+const title = arky.utils.getBlockTextValue(titleBlock, arky.getLocale());
+```
 
+Stateful operations identify the visitor lazily. Concurrent first operations share one identify request:
+
+```typescript
 await arky.cms.form.submitByKey({
   key: "contact",
   values: {
-    email: "profile@example.com",
+    email: "visitor@example.com",
     message: "Hello from the storefront",
   },
 });
 ```
 
-## Browse Products And Checkout
+The browser persists only the `arky_vst_...` visitor-session token. Storage is isolated by API endpoint and a fingerprint of the publishable key.
+
+## Products, services, and checkout
 
 ```typescript
 const { items: products } = await arky.eshop.product.list({ limit: 20 });
 const product = await arky.eshop.product.get({ id: products[0].id });
-const variant = product.variants[0];
 
-await arky.eshop.cart.addProduct(product, variant, 2);
-
-const quote = await arky.eshop.cart.quote();
+await arky.eshop.cart.addProduct(product, product.variants[0], 2);
+await arky.eshop.cart.quote();
 
 const order = await arky.eshop.cart.checkout({
-  payment_method_key: "credit_card",
+  payment_method_key: "cash",
 });
 ```
 
-## Sell Scheduled Services
+Scheduled services use the same cart:
 
 ```typescript
 const { items: services } = await arky.eshop.service.list({ limit: 20 });
@@ -129,68 +93,202 @@ arky.eshop.service.findFirstAvailable();
 const state = arky.eshop.service.state.get();
 if (state.slots[0]) {
   arky.eshop.service.selectTimeSlot(state.slots[0]);
-  const configuredForms = arky.eshop.service.form_groups.get();
-  // Render and bind each configuredForms[i].blocks before adding the booking.
   arky.eshop.service.nextStep();
   await arky.eshop.service.addToCart();
 }
+```
 
-await arky.eshop.cart.checkout({
-  payment_method_key: "cash",
+Nano Stores expose reactive module state:
+
+```typescript
+const unsubscribe = arky.eshop.cart.snapshot.subscribe((snapshot) => {
+  console.log(snapshot.item_count, snapshot.cart?.id);
+});
+
+await arky.eshop.cart.load();
+unsubscribe();
+```
+
+## Locale and market context
+
+Locale and market are independent. Neither is inferred from the other, browser language, IP address, or geolocation:
+
+```typescript
+arky.setContext({ locale: "bs" });
+arky.setContext({ market: "bih" });
+```
+
+Use an isolated scoped client for SSR, static generation, or parallel contexts:
+
+```typescript
+const italian = arky.withContext({ locale: "it", market: "ita" });
+const page = await italian.cms.entry.get({
+  collection_id: "pages",
+  key: "homepage",
 });
 ```
 
-Booking forms are resolved from the selected service-provider relation by exact form ID. A provider with no configured forms sends `[]`. For a longer booking, pass an explicit list of adjacent slots for the same service and provider to `addToCart(slots)`.
+Changing the scoped client does not mutate the original client. A market change while the cart contains items throws `CART_MARKET_LOCKED`; the SDK never silently clears or reprices the cart.
 
-## Low-Level Client
+## Store setup and Stripe
 
-The lower-level SDK client remains available as `arky.client` for admin tools and advanced frontend utilities. Normal storefronts should use the module API first.
+Store setup is fetched lazily and deduplicated:
 
 ```typescript
-const sdk = arky.client;
+const setup = await arky.store.load();
+console.log(setup.languages.default, setup.markets.default);
+```
 
-await sdk.eshop.product.find({ limit: 20 });
-await sdk.eshop.cart.current({ market: arky.getMarket() });
-await sdk.eshop.order.find({});
-await sdk.cms.entry.find({
+Payment configuration belongs to Arky. Mounting card payment waits for setup internally and accepts no Stripe publishable key or connected Account ID:
+
+```typescript
+await arky.eshop.cart.payment.mount("#payment", {
+  appearance: { theme: "stripe" },
+});
+```
+
+For a paid flow outside the cart, pass only customer-facing amount and currency:
+
+```typescript
+await arky.eshop.cart.payment.mount("#payment", {
+  amount: 2500,
+  currency: "EUR",
+  setupFutureUsage: "off_session",
+});
+```
+
+`setupFutureUsage` is optional. Use `"off_session"` when the paid flow will
+reuse the payment method later, such as a subscription.
+
+## SSR and static generation
+
+Anonymous reads work without browser storage. Stateful SSR requires an explicit request-local adapter so a server module cannot retain one visitor across requests:
+
+```typescript
+const arky = initialize(process.env.ARKY_PUBLISHABLE_KEY!, {
+  locale: requestLocale,
+  market: requestMarket,
+  sessionStorage: {
+    getItem: (key) => requestSession.get(key) ?? null,
+    setItem: (key, value) => requestSession.set(key, value),
+    removeItem: (key) => requestSession.delete(key),
+  },
+});
+```
+
+Create one client per request. `withContext` also creates an isolated visitor session; when used during SSR it reuses the request-local adapter under a separate scoped storage key. The SDK does not ship framework-specific cookie adapters.
+
+## Low-level storefront client
+
+The module facade exposes its low-level client as `arky.client`:
+
+```typescript
+await arky.client.eshop.product.find({ limit: 20 });
+const cart = await arky.client.eshop.cart.current();
+await arky.client.eshop.cart.get({ id: cart.id, token: cart.token });
+await arky.client.cms.entry.find({
   collection_id: "pages",
   key: "homepage",
   limit: 1,
 });
 ```
 
-## Configuration Options
+Low-level requests use Store-ID-free `/v1/storefront` routes and send connection context as headers:
+
+```http
+X-Arky-Publishable-Key: arky_pk_...
+X-Arky-Locale: it
+X-Arky-Market: ita
+Authorization: Bearer arky_vst_...
+```
+
+For cart recovery, `cart.get({ id, token })` sends the recovery credential as
+`X-Arky-Cart-Token`. It is never placed in the request URL or body, and the corresponding response
+is private and non-cacheable.
+
+Locale and market headers are omitted when no explicit context is set, allowing the server to use Store defaults.
+
+## Configuration
 
 ```typescript
-initialize({
-  // Required
-  baseUrl: string,
-  storeId: string,
-
-  // Optional
-  market?: string,
+initialize(publishableKey: string, {
+  apiUrl?: string,
   locale?: string,
-  apiToken?: string,
-  marketForLocale?: (locale: string) => string | null,
-  navigate?: (path: string) => void,
-  loginFallbackPath?: string,
+  market?: string,
+  sessionStorage?: StorefrontSessionStorage,
 });
 ```
 
-## TypeScript Support
+One storefront client always represents one publishable key and one Store. To connect to another Store, initialize a second explicit client with its publishable key.
+
+## Releasing
+
+SDK packages are released only by tagging the current protected `master` commit with the exact
+`v<package.json version>` tag. The `Publish SDK` workflow reruns `npm test` and publishes through
+npm trusted publishing with provenance; configure that workflow as the package's trusted publisher
+instead of storing a long-lived npm token.
+
+## Admin client
+
+Private operator integrations use the separate Admin client. Personal API tokens must never be exposed in browser code:
 
 ```typescript
-import { initialize, type ArkyStore } from "arky-sdk/storefront";
-import type { Block, Cart, Order, Price, Product, Service, Store } from "arky-sdk";
+import { createAdmin } from "arky-sdk/admin";
+
+const admin = createAdmin({
+  baseUrl: "https://api.arky.io",
+  storeId: "internal-store-id",
+  apiToken: process.env.ARKY_PERSONAL_API_TOKEN,
+});
 ```
 
-## Adding A New Endpoint
+Store connection management is available through the Admin surface:
 
-When adding a new SDK method, follow this checklist so the API surface stays typed end-to-end and request shapes stay aligned with the Rust DTOs on the server:
+```typescript
+const store = await admin.store.regeneratePublishableKey({
+  store_id: "internal-store-id",
+});
 
-1. Define the entity in `src/types/index.ts` if it does not already exist. Mirror the Rust response struct field-for-field.
-2. Define the request params in `src/types/api.ts`. Mirror the Rust DTO in `server/core/src/{module}/types/commands.rs` field-for-field. Two exceptions: `store_id?: string` and `market?: string` are optional in TS because the SDK auto-fills both from `apiConfig.storeId` and `apiConfig.market`. Do not use `[key: string]: any` index signatures.
-3. Annotate the SDK method's return type using the matching entity from `src/types/index.ts`.
-4. Pass the response generic to the HTTP call: `apiConfig.httpClient.post<EntityType>(...)`, `apiConfig.httpClient.get<PaginatedResponse<EntityType>>(...)`, etc. Never rely on inference.
-5. Inject `market` from `apiConfig`: when a body needs a `market` field, write `{ market: apiConfig.market, ...payload }`. Never hardcode `"default"`, `"eshop"`, or any other market string in `src/api/*.ts`.
-6. Re-export the entity from `src/index.ts` if consumers will import it.
+await admin.store.update({
+  id: store.id,
+  default_market_id: "market-id",
+});
+```
+
+## TypeScript
+
+```typescript
+import {
+  initialize,
+  type ArkyStore,
+  type StorefrontDto,
+  type StorefrontSetup,
+} from "arky-sdk";
+import type { Block, Cart, Order, Price, Product, Service } from "arky-sdk";
+
+type StorefrontProduct = StorefrontDto<Product>;
+type StorefrontCart = StorefrontDto<Cart>;
+```
+
+Storefront request types intentionally contain no Store routing ID. Admin request types remain Store-explicit.
+
+## Verification
+
+Run the complete SDK package contract with one command:
+
+```bash
+npm test
+```
+
+It builds the distributable package and runs every SDK contract case. Consumer compatibility is
+then owned by App and each storefront's `npm test` against the same immutable Server image digest.
+
+## Adding an endpoint
+
+When adding SDK methods:
+
+1. Mirror server response DTOs in `src/types/index.ts` or the relevant API module.
+2. Keep Admin inputs Store-explicit, but omit `store_id` from every storefront input, URL, and body.
+3. Use `/v1/storefront/...` keyless routes and let the shared client attach publishable-key, locale, market, and visitor headers.
+4. Mark customer mutations as stateful so they call the deduplicated visitor-session lifecycle.
+5. Add explicit response generics to every HTTP call and re-export consumer-facing types.
