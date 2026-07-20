@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing unpublished release tag to retry
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -18,19 +24,41 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
 
       - name: Verify protected release identity
+        env:
+          RELEASE_EVENT: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
         run: |
           set -euo pipefail
           package_version="$(node --print 'require("./package.json").version')"
-          if [[ "$GITHUB_REF_NAME" != "v$package_version" ]]; then
-            echo "Tag $GITHUB_REF_NAME does not match package version $package_version." >&2
+          if [[ "$RELEASE_TAG" != "v$package_version" ]]; then
+            echo "Tag $RELEASE_TAG does not match package version $package_version." >&2
             exit 1
           fi
           git fetch --no-tags origin master
-          if [[ "$GITHUB_SHA" != "$(git rev-parse origin/master)" ]]; then
+          tagged_sha="$(git rev-list -n 1 "$RELEASE_TAG")"
+          if [[ "$(git rev-parse HEAD)" != "$tagged_sha" ]]; then
+            echo "Release checkout does not match tag $RELEASE_TAG." >&2
+            exit 1
+          fi
+          if [[ "$RELEASE_EVENT" == "push" && "$tagged_sha" != "$(git rev-parse origin/master)" ]]; then
             echo "SDK releases must tag the current protected master commit." >&2
             exit 1
+          fi
+          if [[ "$RELEASE_EVENT" == "workflow_dispatch" ]] && ! git merge-base --is-ancestor "$tagged_sha" origin/master; then
+            echo "SDK release retries must use a tag reachable from protected master." >&2
+            exit 1
+          fi
+          if [[ "$RELEASE_EVENT" == "workflow_dispatch" ]]; then
+            mapfile -t retry_changes < <(git diff --name-only "$tagged_sha" origin/master)
+            for changed_path in "${retry_changes[@]}"; do
+              if [[ "$changed_path" != ".github/workflows/publish.yml" ]]; then
+                echo "Protected master differs from $RELEASE_TAG outside the publish workflow: $changed_path" >&2
+                exit 1
+              fi
+            done
           fi
           if [[ -n "$(git status --porcelain)" ]]; then
             echo "SDK release checkout is not clean." >&2
@@ -54,3 +82,5 @@ jobs:
 
       - name: Publish with npm provenance
         run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
