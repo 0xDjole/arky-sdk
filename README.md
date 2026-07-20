@@ -20,7 +20,7 @@ npm install --save-exact arky-sdk@0.11.2
 Copy the Store publishable key from Developer and initialize one client:
 
 ```typescript
-import { initialize } from "arky-sdk";
+import { initialize } from "arky-sdk/storefront";
 
 export const arky = initialize(import.meta.env.PUBLIC_ARKY_PUBLISHABLE_KEY);
 ```
@@ -263,7 +263,7 @@ import {
   type ArkyStore,
   type StorefrontDto,
   type StorefrontSetup,
-} from "arky-sdk";
+} from "arky-sdk/storefront";
 import type { Block, Cart, Order, Price, Product, Service } from "arky-sdk";
 
 type StorefrontProduct = StorefrontDto<Product>;
@@ -280,8 +280,10 @@ Run the complete SDK package contract with one command:
 npm test
 ```
 
-It builds the distributable package and runs every SDK contract case. Consumer compatibility is
-then owned by App and each storefront's `npm test` against the same immutable Server image digest.
+It builds the distributable package and runs every SDK contract case. App alone owns cross-repository
+Server compatibility against the exact immutable test Server image digest. Each storefront owns a
+hermetic repo-local build/preview Playwright smoke through its own `npm test`; storefronts never pull
+or run the shared test Server image.
 
 ## Adding an endpoint
 
