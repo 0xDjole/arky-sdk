@@ -204,7 +204,7 @@ test("storefront collection lookup uses a keyless route and publishable-key head
 
 test("storefront cart recovery sends its credential only in the cart-token header", async () => {
   const visitorToken = `arky_vst_${"c".repeat(64)}`;
-  const recoveryToken = "2ee405e1-7dd6-4bed-a935-b1f9a30a2074";
+  const recoveryToken = "cart-recovery-contract-token";
   const storefront = createStorefront(publishableKey, {
     apiUrl: baseUrl,
     sessionStorage: {
