@@ -221,6 +221,13 @@ initialize(publishableKey: string, {
 
 One storefront client always represents one publishable key and one Store. To connect to another Store, initialize a second explicit client with its publishable key.
 
+## Releasing
+
+SDK packages are released only by tagging the current protected `master` commit with the exact
+`v<package.json version>` tag. The `Publish SDK` workflow reruns `npm test` and publishes through
+npm trusted publishing with provenance; configure that workflow as the package's trusted publisher
+instead of storing a long-lived npm token.
+
 ## Admin client
 
 Private operator integrations use the separate Admin client. Personal API tokens must never be exposed in browser code:
