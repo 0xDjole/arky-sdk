@@ -202,6 +202,54 @@ test("storefront collection lookup uses a keyless route and publishable-key head
   assert.equal(call.headers.get("authorization"), null);
 });
 
+test("storefront cart recovery sends its credential only in the cart-token header", async () => {
+  const visitorToken = `arky_vst_${"c".repeat(64)}`;
+  const recoveryToken = "2ee405e1-7dd6-4bed-a935-b1f9a30a2074";
+  const storefront = createStorefront(publishableKey, {
+    apiUrl: baseUrl,
+    sessionStorage: {
+      getItem: () => visitorToken,
+      setItem() {},
+      removeItem() {},
+    },
+  });
+  let call;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    call = {
+      url: String(url),
+      headers: new Headers(init.headers),
+      body: init.body,
+    };
+    return jsonResponse({ id: "cart-recovery-contract", token: recoveryToken });
+  };
+
+  try {
+    await storefront.eshop.cart.get(
+      { id: "cart-recovery-contract", token: recoveryToken },
+      {
+        headers: { "x-arky-cart-token": "caller-cannot-override" },
+        params: {
+          token: "legacy-query-token",
+          cart_token: "legacy-query-cart-token",
+          include: "summary",
+        },
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(
+    call.url,
+    `${baseUrl}/v1/storefront/carts/cart-recovery-contract?include=summary`,
+  );
+  assert.equal(call.headers.get("x-arky-cart-token"), recoveryToken);
+  assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
+  assert.equal(call.body, undefined);
+  assert.equal(call.url.includes("token"), false);
+});
+
 test("storefront money helpers preserve exact zero and reject invalid minor units", () => {
   const storefront = createStorefront(publishableKey, {
     apiUrl: baseUrl,

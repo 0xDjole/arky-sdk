@@ -11,6 +11,7 @@ export interface StripeConfirmationTokenControllerConfig {
   amount: number;
   currency: string;
   appearance?: StripeElementsOptions["appearance"];
+  setupFutureUsage?: "off_session" | "on_session";
 }
 
 export interface StripeConfirmationTokenOptions {
@@ -138,5 +139,8 @@ function createElements(
     currency: normalizeCurrency(config.currency),
     paymentMethodCreation: "manual",
     ...(config.appearance ? { appearance: config.appearance } : {}),
+    ...(config.setupFutureUsage
+      ? { setupFutureUsage: config.setupFutureUsage }
+      : {}),
   });
 }

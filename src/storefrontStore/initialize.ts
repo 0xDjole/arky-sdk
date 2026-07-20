@@ -293,7 +293,7 @@ function initializeStoreCore(
     return result;
   }
 
-  async function mountStripePayment(
+  async function mountPayment(
     target: string | HTMLElement,
     options: ArkyStripePaymentMountOptions = {},
   ): Promise<StripeConfirmationTokenController> {
@@ -321,6 +321,9 @@ function initializeStoreCore(
       amount,
       currency: paymentCurrency,
       ...(options.appearance ? { appearance: options.appearance } : {}),
+      ...(options.setupFutureUsage
+        ? { setupFutureUsage: options.setupFutureUsage }
+        : {}),
     });
     controller.mount(target);
     setPaymentController(controller);
@@ -425,8 +428,16 @@ function initializeStoreCore(
         productHint?.id === item.product_id
           ? productHint
           : await client.eshop.product.get({ id: item.product_id });
-      const variant = product.variants.find((candidate) => candidate.id === item.variant_id);
-      if (!variant) return null;
+      const variant = product.variants.find(
+        (candidate) => candidate.id === item.variant_id,
+      );
+      if (!variant) {
+        cart_status.setKey(
+          "error",
+          `Cart product ${item.product_id} references unavailable variant ${item.variant_id}.`,
+        );
+        return null;
+      }
       return {
         id: item.id || createId("product"),
         product_id: product.id,
@@ -440,7 +451,14 @@ function initializeStoreCore(
         added_at: source.created_at ? source.created_at * 1000 : Date.now(),
         max_stock: availableStock(client, variant),
       };
-    } catch {
+    } catch (error) {
+      cart_status.setKey(
+        "error",
+        readErrorMessage(
+          error,
+          `Failed to load cart product ${item.product_id}.`,
+        ),
+      );
       return null;
     }
   }
@@ -483,6 +501,7 @@ function initializeStoreCore(
     quote.set(response.quote_snapshot || null);
 
     const items = response.items || [];
+    if (items.length > 0) await loadSetup();
     const products = await Promise.all(
       items
         .filter((item): item is ProductCheckoutItemInput => item.type === "product")
@@ -1546,7 +1565,7 @@ function initializeStoreCore(
       ready: payment_ready,
       setController: setPaymentController,
       getController: () => payment_controller.get(),
-      mountStripe: mountStripePayment,
+      mount: mountPayment,
       update: updatePaymentController,
       destroy: destroyPaymentController,
     },

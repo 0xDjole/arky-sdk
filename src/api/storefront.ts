@@ -223,16 +223,15 @@ export const createStorefrontApi = (
   const base = "/v1/storefront";
 
   function persistIdentification(result: IdentifyResponse): IdentifyResponse {
-    const sessionToken = result.token?.token;
+    const sessionToken =
+      result.token?.token ?? apiConfig.authStorage.getTokens()?.access_token;
     if (sessionToken) {
       updateContactSession(() => ({
         sessionToken,
         contact: result.contact,
       }));
     } else {
-      updateContactSession((current) =>
-        current ? { ...current, contact: result.contact } : null,
-      );
+      updateContactSession(() => null);
     }
     return result;
   }
@@ -420,11 +419,28 @@ export const createStorefrontApi = (
           options?: RequestOptions,
         ): Promise<StorefrontDto<Cart>> {
           await lifecycle.ensureVisitorSession();
+          const queryParams = Object.fromEntries(
+            Object.entries(
+              (options?.params || {}) as Record<string, unknown>,
+            ).filter(
+              ([name]) => !["token", "cart_token"].includes(name.toLowerCase()),
+            ),
+          );
+          const headers = Object.fromEntries(
+            Object.entries(options?.headers || {}).filter(
+              ([name]) => name.toLowerCase() !== "x-arky-cart-token",
+            ),
+          );
           return apiConfig.httpClient.get<StorefrontDto<Cart>>(
             `${base}/carts/${params.id}`,
             {
               ...options,
-              params: params.token ? { token: params.token } : options?.params,
+              headers: {
+                ...headers,
+                ...(params.token ? { "X-Arky-Cart-Token": params.token } : {}),
+              },
+              params:
+                Object.keys(queryParams).length > 0 ? queryParams : undefined,
             },
           );
         },

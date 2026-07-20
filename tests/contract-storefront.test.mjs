@@ -98,6 +98,8 @@ test("initialize is the production root API and exposes the module facade withou
 
   assert.equal(typeof rootStore.cms.entry.get, "function");
   assert.equal(typeof store.eshop.cart.load, "function");
+  assert.equal(typeof store.eshop.cart.payment.mount, "function");
+  assert.equal("mountStripe" in store.eshop.cart.payment, false);
   assert.equal(typeof store.setContext, "function");
   assert.equal(typeof store.withContext, "function");
   assert.equal("getStoreId" in store, false);
@@ -140,11 +142,11 @@ test("Stripe payment mount loads Store setup and never accepts caller-owned Stri
 
   try {
     await assert.rejects(
-      store.eshop.cart.payment.mountStripe("#payment", { amount: 1250 }),
+      store.eshop.cart.payment.mount("#payment", { amount: 1250 }),
       /amount and currency must be supplied together/,
     );
     await assert.rejects(
-      store.eshop.cart.payment.mountStripe("#payment", { currency: "EUR" }),
+      store.eshop.cart.payment.mount("#payment", { currency: "EUR" }),
       /amount and currency must be supplied together/,
     );
     assert.equal(setupCalls, 1);
@@ -229,6 +231,7 @@ test("high-level checkout uses keyless routes, visitor authorization, and Store-
 
 test("the standalone Stripe controller still uses only setup-derived provider values from its caller", async () => {
   const loads = [];
+  const elementsOptions = [];
   const fakeElements = {
     create() {
       return { mount() {}, destroy() {} };
@@ -239,7 +242,8 @@ test("the standalone Stripe controller still uses only setup-derived provider va
     },
   };
   const fakeStripe = {
-    elements() {
+    elements(options) {
+      elementsOptions.push(options);
       return fakeElements;
     },
     async createConfirmationToken() {
@@ -255,6 +259,7 @@ test("the standalone Stripe controller still uses only setup-derived provider va
       connectedAccountId: "acct_store_owned",
       amount: 1250,
       currency: "EUR",
+      setupFutureUsage: "off_session",
     },
     async (key, options) => {
       loads.push([key, options]);
@@ -263,6 +268,15 @@ test("the standalone Stripe controller still uses only setup-derived provider va
   );
   assert.deepEqual(loads, [
     ["pk_test_store_owned", { stripeAccount: "acct_store_owned" }],
+  ]);
+  assert.deepEqual(elementsOptions, [
+    {
+      mode: "payment",
+      amount: 1250,
+      currency: "eur",
+      paymentMethodCreation: "manual",
+      setupFutureUsage: "off_session",
+    },
   ]);
   controller.destroy();
 });

@@ -51,7 +51,7 @@ import {
   type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
 } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.10.0" = SDK_VERSION;
+const sdkVersionLiteral: "0.11.2" = SDK_VERSION;
 const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
 // @ts-expect-error the server's serialized feature key is crm_contacts.
 const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
@@ -284,12 +284,25 @@ const stripeMountOptions: ArkyStripePaymentMountOptions = {
   amount: 1200,
   currency: "EUR",
   appearance: { theme: "stripe" },
+  setupFutureUsage: "off_session",
+};
+const invalidFutureUsage: ArkyStripePaymentMountOptions = {
+  // @ts-expect-error only Stripe's supported future-usage values are accepted.
+  setupFutureUsage: "always",
 };
 const callerOwnedStripeMountOptions: ArkyStripePaymentMountOptions = {
   // @ts-expect-error Stripe identifiers are loaded from Store setup.
   publishableKey: "pk_test_untrusted",
 };
+declare const paymentStorefront: ReturnType<typeof initialize>;
+paymentStorefront.eshop.cart.payment.mount("#payment", stripeMountOptions);
+// @ts-expect-error the prelaunch mountStripe name was removed without an alias.
+paymentStorefront.eshop.cart.payment.mountStripe(
+  "#payment",
+  stripeMountOptions,
+);
 void stripeMountOptions;
+void invalidFutureUsage;
 void callerOwnedStripeMountOptions;
 
 const orderMoney: OrderMoney = {

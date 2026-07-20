@@ -75,6 +75,130 @@ function form() {
   };
 }
 
+test("a fresh cart load resolves Store defaults before hydrating persisted product items", async () => {
+  const calls = [];
+  const store = initialize(publishableKey, {
+    apiUrl,
+    sessionStorage: {
+      getItem: () => visitorToken,
+      setItem() {},
+      removeItem() {},
+    },
+  });
+  const cart = {
+    id: "cart-hydration-contract",
+    contact_id: "contact-form-contract",
+    token: "cart-recovery-contract",
+    status: "active",
+    origin: "storefront",
+    market: "ita",
+    items: [
+      {
+        type: "product",
+        id: "line-hydration-contract",
+        product_id: "product-hydration-contract",
+        variant_id: "variant-hydration-contract",
+        quantity: 1,
+      },
+    ],
+    forms: [],
+    item_count: 1,
+    created_at: 1,
+    updated_at: 1,
+  };
+  const setup = {
+    timezone: "Europe/Rome",
+    languages: { default: "it", available: ["it"] },
+    markets: {
+      default: "ita",
+      available: [
+        {
+          id: "market-ita",
+          key: "ita",
+          currency: "EUR",
+          payment_methods: [],
+          zones: [],
+        },
+      ],
+    },
+    support: { email: "support@example.test" },
+    payment: null,
+    readiness: { market: true, payment: false, commerce: true },
+  };
+  const product = {
+    id: "product-hydration-contract",
+    key: "hydrated-product",
+    slug: { it: "prodotto-idratato" },
+    blocks: [{ key: "name", value: { it: "Prodotto idratato" } }],
+    variants: [
+      {
+        id: "variant-hydration-contract",
+        prices: [{ market: "ita", amount: 1250, currency: "EUR" }],
+        inventory: [],
+        attributes: [],
+        requires_shipping: false,
+      },
+    ],
+    status: "active",
+    created_at: 1,
+    updated_at: 1,
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    const call = {
+      url: String(url),
+      method: init.method,
+      authorization: new Headers(init.headers).get("authorization"),
+    };
+    calls.push(call);
+    if (call.url.endsWith("/carts/current")) return jsonResponse(cart);
+    if (call.url === `${apiUrl}/v1/storefront`) return jsonResponse(setup);
+    if (call.url.endsWith("/products/product-hydration-contract")) {
+      return jsonResponse(product);
+    }
+    throw new Error(
+      `Unexpected cart hydration request: ${call.method} ${call.url}`,
+    );
+  };
+
+  try {
+    assert.equal((await store.eshop.cart.load()).id, cart.id);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.deepEqual(
+    calls.map((call) => call.url),
+    [
+      `${apiUrl}/v1/storefront/carts/current`,
+      `${apiUrl}/v1/storefront`,
+      `${apiUrl}/v1/storefront/products/product-hydration-contract`,
+    ],
+  );
+  assert.equal(
+    calls.every((call) => call.authorization === `Bearer ${visitorToken}`),
+    true,
+  );
+  assert.deepEqual(store.eshop.cart.product_items.get(), [
+    {
+      id: "line-hydration-contract",
+      product_id: product.id,
+      variant_id: "variant-hydration-contract",
+      product_name: "Prodotto idratato",
+      product_slug: "prodotto-idratato",
+      variant_attributes: [],
+      requires_shipping: false,
+      price: { market: "ita", amount: 1250, currency: "EUR" },
+      quantity: 1,
+      added_at: 1000,
+      max_stock: 0,
+    },
+  ]);
+  assert.equal(store.eshop.cart.status.get().error, null);
+  assert.equal(store.getMarket(), "ita");
+  assert.equal(store.getLocale(), "it");
+});
+
 test("submitByKey reads anonymously, identifies lazily, and submits no Store routing fields", async () => {
   const storage = memoryStorage();
   const store = initialize(publishableKey, {
@@ -225,6 +349,83 @@ test("email identification normalizes the address and reuses the exact identifie
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].body, { email: "person@example.com" });
   assert.equal(calls[0].url, `${apiUrl}/v1/storefront/account/identify`);
+});
+
+test("email identification after a page reload preserves the stored visitor session", async () => {
+  const storage = memoryStorage();
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    const request = {
+      url: String(url),
+      authorization: new Headers(init.headers).get("authorization"),
+      body: init.body ? JSON.parse(String(init.body)) : null,
+    };
+    calls.push(request);
+    if (request.url.endsWith("/account/identify") && !request.authorization) {
+      return jsonResponse(identifyResponse());
+    }
+    if (request.url.endsWith("/account/identify")) {
+      return jsonResponse({
+        ...identifyResponse("person@example.com"),
+        token: null,
+      });
+    }
+    if (request.url.endsWith("/carts/current")) {
+      return jsonResponse({
+        id: "cart-reload-contract",
+        contact_id: "contact-form-contract",
+        token: "cart-recovery-contract",
+        status: "active",
+        origin: "storefront",
+        market: "ita",
+        items: [],
+        forms: [],
+        item_count: 0,
+        created_at: 1,
+        updated_at: 1,
+      });
+    }
+    throw new Error(`Unexpected reload request: ${request.url}`);
+  };
+
+  try {
+    const firstPage = initialize(publishableKey, {
+      apiUrl,
+      market: "ita",
+      sessionStorage: storage.adapter,
+    });
+    await firstPage.eshop.cart.load();
+
+    const reloadedPage = initialize(publishableKey, {
+      apiUrl,
+      market: "ita",
+      sessionStorage: storage.adapter,
+    });
+    await reloadedPage.identifyContactEmailIfMissing("person@example.com");
+    await reloadedPage.eshop.cart.load();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.deepEqual(
+    calls.map(({ url, authorization, body }) => [
+      url.slice(apiUrl.length),
+      authorization,
+      body,
+    ]),
+    [
+      ["/v1/storefront/account/identify", null, {}],
+      ["/v1/storefront/carts/current", `Bearer ${visitorToken}`, {}],
+      [
+        "/v1/storefront/account/identify",
+        `Bearer ${visitorToken}`,
+        { email: "person@example.com" },
+      ],
+      ["/v1/storefront/carts/current", `Bearer ${visitorToken}`, {}],
+    ],
+  );
+  assert.deepEqual([...storage.values.values()], [visitorToken]);
 });
 
 test("raw form submission remains stateful and keeps only caller form fields", async () => {

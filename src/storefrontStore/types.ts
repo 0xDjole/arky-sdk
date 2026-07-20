@@ -37,7 +37,10 @@ type StorefrontService = StorefrontDto<Service>;
 type StorefrontServiceProvider = StorefrontDto<ServiceProvider>;
 export type ArkyPaymentController = StripeConfirmationTokenController;
 export type ArkyStripePaymentMountOptions = Partial<
-  Pick<StripeConfirmationTokenControllerConfig, "amount" | "currency" | "appearance">
+  Pick<
+    StripeConfirmationTokenControllerConfig,
+    "amount" | "currency" | "appearance" | "setupFutureUsage"
+  >
 >;
 
 export type ArkyStoreConfig = StorefrontOptions;

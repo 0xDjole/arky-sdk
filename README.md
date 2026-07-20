@@ -10,14 +10,19 @@ npm install arky-sdk
 
 ## Storefront quick start
 
+The current browser contract is `arky-sdk@0.11.2`. Pin that exact version during the coordinated
+prelaunch cutover so the Server, App, and storefront route/header contracts move together:
+
+```bash
+npm install --save-exact arky-sdk@0.11.2
+```
+
 Copy the Store publishable key from Developer and initialize one client:
 
 ```typescript
 import { initialize } from "arky-sdk";
 
-export const arky = initialize(
-  import.meta.env.PUBLIC_ARKY_PUBLISHABLE_KEY,
-);
+export const arky = initialize(import.meta.env.PUBLIC_ARKY_PUBLISHABLE_KEY);
 ```
 
 `initialize` is synchronous. It makes no request and creates no visitor. Production requests use `https://api.arky.io` by default.
@@ -137,7 +142,7 @@ console.log(setup.languages.default, setup.markets.default);
 Payment configuration belongs to Arky. Mounting card payment waits for setup internally and accepts no Stripe publishable key or connected Account ID:
 
 ```typescript
-await arky.eshop.cart.payment.mountStripe("#payment", {
+await arky.eshop.cart.payment.mount("#payment", {
   appearance: { theme: "stripe" },
 });
 ```
@@ -145,11 +150,15 @@ await arky.eshop.cart.payment.mountStripe("#payment", {
 For a paid flow outside the cart, pass only customer-facing amount and currency:
 
 ```typescript
-await arky.eshop.cart.payment.mountStripe("#payment", {
+await arky.eshop.cart.payment.mount("#payment", {
   amount: 2500,
   currency: "EUR",
+  setupFutureUsage: "off_session",
 });
 ```
+
+`setupFutureUsage` is optional. Use `"off_session"` when the paid flow will
+reuse the payment method later, such as a subscription.
 
 ## SSR and static generation
 
@@ -175,7 +184,8 @@ The module facade exposes its low-level client as `arky.client`:
 
 ```typescript
 await arky.client.eshop.product.find({ limit: 20 });
-await arky.client.eshop.cart.current();
+const cart = await arky.client.eshop.cart.current();
+await arky.client.eshop.cart.get({ id: cart.id, token: cart.token });
 await arky.client.cms.entry.find({
   collection_id: "pages",
   key: "homepage",
@@ -191,6 +201,10 @@ X-Arky-Locale: it
 X-Arky-Market: ita
 Authorization: Bearer arky_vst_...
 ```
+
+For cart recovery, `cart.get({ id, token })` sends the recovery credential as
+`X-Arky-Cart-Token`. It is never placed in the request URL or body, and the corresponding response
+is private and non-cacheable.
 
 Locale and market headers are omitted when no explicit context is set, allowing the server to use Store defaults.
 
@@ -250,6 +264,17 @@ type StorefrontCart = StorefrontDto<Cart>;
 ```
 
 Storefront request types intentionally contain no Store routing ID. Admin request types remain Store-explicit.
+
+## Verification
+
+Run the complete SDK package contract with one command:
+
+```bash
+npm test
+```
+
+It builds the distributable package and runs every SDK contract case. Consumer compatibility is
+then owned by App and each storefront's `npm test` against the same immutable Server image digest.
 
 ## Adding an endpoint
 
