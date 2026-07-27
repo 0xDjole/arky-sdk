@@ -28,6 +28,7 @@ import type {
   GetProvidersParams,
   GetServiceParams,
   GetServicesParams,
+  GetStorefrontContactListSubscriptionAttemptParams,
   GetTaxonomyChildrenParams,
   GetTaxonomyParams,
   QuoteCartParams,
@@ -804,6 +805,20 @@ export const createStorefrontApi = (
               result.payment_attempt?.status === "processing",
             options?.signal,
           );
+        },
+        subscriptionAttempts: {
+          async get(
+            params: StorefrontParams<GetStorefrontContactListSubscriptionAttemptParams>,
+            options?: RequestOptions,
+          ): Promise<StorefrontDto<ContactListSubscribeResponse>> {
+            await lifecycle.ensureVisitorSession();
+            return apiConfig.httpClient.get<
+              StorefrontDto<ContactListSubscribeResponse>
+            >(
+              `${base}/contact-lists/${params.id}/subscription-attempts/${params.payment_attempt_id}`,
+              options,
+            );
+          },
         },
         async checkAccess(
           params: StorefrontParams<ContactListAccessParams>,

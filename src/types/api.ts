@@ -1686,6 +1686,12 @@ export interface SubscribeContactListParams {
   return_url?: string;
 }
 
+export interface GetStorefrontContactListSubscriptionAttemptParams {
+  store_id?: string;
+  id: string;
+  payment_attempt_id: string;
+}
+
 export interface ContactListAccessParams {
   store_id?: string;
   id: string;

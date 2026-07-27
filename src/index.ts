@@ -511,6 +511,7 @@ export type {
   ImportContactsIntoContactListParams,
   ImportContactsIntoContactListResult,
   SubscribeContactListParams,
+  GetStorefrontContactListSubscriptionAttemptParams,
   ContactListAccessParams,
   ContactListContentAccessParams,
   CreateMailboxParams,

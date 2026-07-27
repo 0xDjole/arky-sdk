@@ -376,6 +376,70 @@ test("storefront subscription POSTs once and observes the exact payment attempt"
   );
 });
 
+test("storefront reload observes one exact subscription attempt without repeating the mutation", async () => {
+  const publishableKey = `arky_pk_${"s".repeat(43)}`;
+  const visitorToken = `arky_vst_${"d".repeat(64)}`;
+  const response = {
+    payment_action: {
+      type: "handle_next_action",
+      client_secret: "pi_subscription_secret",
+    },
+    payment_attempt: {
+      plan_id: "plan-resume",
+      amount: 900,
+      currency: "EUR",
+      status: "requires_action",
+    },
+    membership: {
+      id: "membership-resume",
+      contact_id: "contact-resume",
+      contact_list_id: "list-resume",
+      current_payment_attempt_id: "attempt-resume",
+      status: "pending",
+    },
+  };
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({
+      url: String(url),
+      method: init.method || "GET",
+      headers: new Headers(init.headers),
+    });
+    return jsonResponse(response);
+  };
+
+  try {
+    const storefront = createStorefront(publishableKey, {
+      apiUrl: baseUrl,
+      sessionStorage: {
+        getItem: () => visitorToken,
+        setItem() {},
+        removeItem() {},
+      },
+    });
+    const result = await storefront.crm.contactList.subscriptionAttempts.get({
+      id: "list-resume",
+      payment_attempt_id: "attempt-resume",
+    });
+    assert.deepEqual(result, response);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(calls.length, 1);
+  assert.equal(
+    calls[0].url,
+    `${baseUrl}/v1/storefront/contact-lists/list-resume/subscription-attempts/attempt-resume`,
+  );
+  assert.equal(calls[0].method, "GET");
+  assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
+  assert.equal(
+    calls[0].headers.get("x-arky-publishable-key"),
+    publishableKey,
+  );
+});
+
 test("support AI POSTs once, polls the exact message, then loads the conversation once", async () => {
   const publishableKey = `arky_pk_${"s".repeat(43)}`;
   const visitorToken = `arky_vst_${"a".repeat(64)}`;
