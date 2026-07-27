@@ -11,6 +11,7 @@ import type {
   GetWorkflowEffectsParams,
   GetWorkflowEffectParams,
   GetWorkflowConnectionConnectUrlParams,
+  GetWorkflowConnectionOAuthAttemptParams,
   GetWorkflowConnectionsParams,
   DeleteWorkflowConnectionParams,
   RequestOptions,
@@ -19,6 +20,7 @@ import type {
   Workflow,
   WorkflowConnection,
   WorkflowConnectionConnectUrl,
+  WorkflowConnectionOAuthAttempt,
   WorkflowExecution,
   WorkflowEffect,
   PaginatedResponse,
@@ -174,6 +176,17 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<WorkflowConnectionConnectUrl>(
         `/v1/stores/${target_store_id}/workflow-connections/connect-url`,
         { ...payload, type, store_id: target_store_id },
+        options,
+      );
+    },
+
+    async getWorkflowConnectionOAuthAttempt(
+      params: GetWorkflowConnectionOAuthAttemptParams,
+      options?: RequestOptions,
+    ): Promise<WorkflowConnectionOAuthAttempt> {
+      const store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<WorkflowConnectionOAuthAttempt>(
+        `/v1/stores/${store_id}/workflow-connections/oauth/attempts/${params.attempt_id}`,
         options,
       );
     },

@@ -64,7 +64,7 @@ import type {
   ServiceProvider,
   OrderQuote,
   OrderRefund,
-  OrderPayment,
+  OrderPaymentObservation,
   PaymentTransaction,
   Cart,
   PaginatedResponse,
@@ -468,12 +468,19 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         );
       return pollScheduledResult(
         requested,
-        (observationSignal) =>
-          apiConfig.httpClient.post<import("../types").OrderCheckoutResult>(
-            path,
-            mutation.body,
-            scheduledObservationOptions(options, observationSignal),
-          ),
+        async (observationSignal) => {
+          const observation =
+            await apiConfig.httpClient.get<import("../types").OrderPaymentObservation>(
+              `/v1/stores/${target_store_id}/orders/${requested.order_id}/payment`,
+              scheduledObservationOptions(options, observationSignal),
+            );
+          const { payment_action, ...payment } = observation;
+          return {
+            ...requested,
+            payment_action,
+            payment,
+          };
+        },
         (result) =>
           result.payment.status.status === "pending" ||
           result.payment.status.status === "processing",
@@ -549,9 +556,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     async getPayment(
       params: GetOrderPaymentParams,
       options?: RequestOptions,
-    ): Promise<OrderPayment> {
+    ): Promise<OrderPaymentObservation> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<OrderPayment>(
+      return apiConfig.httpClient.get<OrderPaymentObservation>(
         `/v1/stores/${target_store_id}/orders/${params.order_id}/payment`,
         options,
       );

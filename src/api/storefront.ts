@@ -55,6 +55,7 @@ import type {
   Market,
   Order,
   OrderCheckoutResult,
+  OrderPaymentObservation,
   OrderQuote,
   PaginatedResponse,
   PaymentStoreConfig,
@@ -530,12 +531,20 @@ export const createStorefrontApi = (
             );
           return pollScheduledResult(
             requested,
-            (observationSignal) =>
-              apiConfig.httpClient.post<StorefrontDto<OrderCheckoutResult>>(
-                path,
-                mutation.body,
+            async (observationSignal) => {
+              const observation = await apiConfig.httpClient.get<
+                StorefrontDto<OrderPaymentObservation>
+              >(
+                `${base}/orders/${requested.order_id}/payment`,
                 scheduledObservationOptions(options, observationSignal),
-              ),
+              );
+              const { payment_action, ...payment } = observation;
+              return {
+                ...requested,
+                payment_action,
+                payment,
+              };
+            },
             (result) =>
               result.payment.status.status === "pending" ||
               result.payment.status.status === "processing",
@@ -770,12 +779,24 @@ export const createStorefrontApi = (
             await apiConfig.httpClient.post<
               StorefrontDto<ContactListSubscribeResponse>
             >(path, mutation.body, mutation.options);
+          const paymentAttemptId =
+            requested.membership?.current_payment_attempt_id;
+          if (
+            (requested.payment_attempt?.status === "pending" ||
+              requested.payment_attempt?.status === "processing") &&
+            !paymentAttemptId
+          ) {
+            throw new Error(
+              "Contact-list subscription response omitted its payment attempt identity",
+            );
+          }
           return pollScheduledResult(
             requested,
             (observationSignal) =>
-              apiConfig.httpClient.post<StorefrontDto<ContactListSubscribeResponse>>(
-                path,
-                mutation.body,
+              apiConfig.httpClient.get<
+                StorefrontDto<ContactListSubscribeResponse>
+              >(
+                `${base}/contact-lists/${id}/subscription-attempts/${paymentAttemptId}`,
                 scheduledObservationOptions(options, observationSignal),
               ),
             (result) =>

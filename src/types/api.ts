@@ -1355,6 +1355,11 @@ export interface GetWorkflowConnectionsParams {
   store_id?: string;
 }
 
+export interface GetWorkflowConnectionOAuthAttemptParams {
+  store_id?: string;
+  attempt_id: string;
+}
+
 export interface DeleteWorkflowConnectionParams {
   id: string;
   store_id?: string;
@@ -1755,6 +1760,11 @@ export interface ConnectGoogleMailboxParams {
   sync_interval_seconds: number;
 }
 
+export interface GetGoogleMailboxOAuthAttemptParams {
+  store_id?: string;
+  attempt_id: string;
+}
+
 export interface GoogleMailboxConnectUrl {
   authorization_url: string;
   state: string;
@@ -2087,6 +2097,11 @@ export interface GetPaymentProviderDeletionParams {
   id: string;
 }
 
+export interface GetPaymentProviderConnectionParams {
+  store_id: string;
+  id: string;
+}
+
 export interface RetryPaymentProviderDeletionParams {
   store_id: string;
   id: string;
@@ -2185,6 +2200,11 @@ export interface ClassifySocialPublicationCommentsParams {
   priority?: SocialPublicationCommentPriority;
   limit?: number;
   force?: boolean;
+}
+
+export interface GetSocialCommentClassificationRunParams {
+  store_id?: string;
+  run_id: string;
 }
 
 export interface CreateSocialCommentReplyParams {

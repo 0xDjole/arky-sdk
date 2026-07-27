@@ -104,6 +104,7 @@ assert.equal(typeof arky.store.config.getPayment, "function");
 assert.equal(typeof arky.store.paymentProvider.list, "function");
 assert.equal(typeof arky.store.paymentProvider.refresh, "function");
 assert.equal(typeof arky.store.paymentProvider.connectStripe, "function");
+assert.equal(typeof arky.store.paymentProvider.getConnection, "function");
 assert.equal(typeof arky.store.paymentProvider.delete, "function");
 assert.equal(typeof arky.store.paymentProvider.getDeletion, "function");
 assert.equal(typeof arky.store.paymentProvider.retryDeletion, "function");
@@ -168,7 +169,6 @@ const requestedDeletion = {
   payment_provider_id: "provider-scheduled",
   revision: 1,
   status: "processing",
-  deleted: false,
   terminal: false,
   requested_at: 1,
   processing_started_at: 2,
@@ -178,7 +178,6 @@ const requestedDeletion = {
 const completedDeletion = {
   ...requestedDeletion,
   status: "succeeded",
-  deleted: true,
   terminal: true,
   completed_at: 3,
 };
@@ -189,15 +188,14 @@ globalThis.fetch = async (url, init = {}) => {
   scheduledAdminCalls.push([target, method]);
   let body;
   if (target.endsWith("/payment-providers/stripe/connect")) {
-    body =
-      scheduledAdminCalls.filter(([candidate]) =>
-        candidate.endsWith("/payment-providers/stripe/connect"),
-      ).length === 1
-        ? { provider: requestedProvider, onboarding_url: "" }
-        : {
-            provider: succeededProvider,
-            onboarding_url: "https://connect.test/onboarding",
-          };
+    body = { provider: requestedProvider, onboarding_url: "" };
+  } else if (
+    target.endsWith("/payment-providers/provider-scheduled/connection")
+  ) {
+    body = {
+      provider: succeededProvider,
+      onboarding_url: "https://connect.test/onboarding",
+    };
   } else if (target.endsWith("/subscription/actions") && method === "POST") {
     body = scheduledAction;
   } else if (target.endsWith("/subscription/actions/action-scheduled")) {
@@ -253,7 +251,10 @@ assert.deepEqual(
   ]),
   [
     ["/v1/stores/contract-store/payment-providers/stripe/connect", "POST"],
-    ["/v1/stores/contract-store/payment-providers/stripe/connect", "POST"],
+    [
+      "/v1/stores/contract-store/payment-providers/provider-scheduled/connection",
+      "GET",
+    ],
     ["/v1/stores/contract-store/subscription/actions", "POST"],
     [
       "/v1/stores/contract-store/subscription/actions/action-scheduled",
@@ -279,11 +280,17 @@ assert.equal(typeof arky.social.publication.getComments, "function");
 assert.equal(typeof arky.social.publication.syncComments, "function");
 assert.equal(typeof arky.social.publication.getCommentThread, "function");
 assert.equal(typeof arky.social.publication.syncCommentThread, "function");
+assert.equal(typeof arky.social.publication.classifyComments, "function");
+assert.equal(
+  typeof arky.social.publication.getCommentClassificationRun,
+  "function",
+);
 assert.equal(typeof arky.social.publication.getMetrics, "function");
 assert.equal(typeof arky.social.publication.syncMetrics, "function");
 
 assert.equal(typeof arky.automation.workflow.listConnections, "function");
 assert.equal(typeof arky.automation.workflow.getConnectionConnectUrl, "function");
+assert.equal(typeof arky.automation.workflow.getConnectionOAuthAttempt, "function");
 assert.equal(typeof arky.automation.workflow.deleteConnection, "function");
 
 const workflowFetchCalls = [];
@@ -321,7 +328,18 @@ globalThis.fetch = async (url, init = {}) => {
     method: init.method,
     body: init.body,
   });
-  return new Response(JSON.stringify({ authorization_url: "https://oauth.test", state: "state" }), {
+  const body = String(url).includes("/oauth/attempts/")
+    ? {
+        attempt_id: "workflow-attempt",
+        store_id: "contract-store",
+        workflow_connection_id: "workflow-connection",
+        type: "google_drive",
+        status: "processing",
+        completed_at: null,
+        error: null,
+      }
+    : { authorization_url: "https://oauth.test", state: "state" };
+  return new Response(JSON.stringify(body), {
     status: 200,
     headers: { "content-type": "application/json" },
   });
@@ -330,6 +348,9 @@ globalThis.fetch = async (url, init = {}) => {
 try {
   await arky.automation.workflow.getConnectionConnectUrl({
     type: "google_drive",
+  });
+  await arky.automation.workflow.getConnectionOAuthAttempt({
+    attempt_id: "workflow-attempt",
   });
 } finally {
   globalThis.fetch = originalFetch;
@@ -341,7 +362,12 @@ assert.deepEqual(JSON.parse(workflowFetchCalls[0].body), {
   type: "google_drive",
   store_id: "contract-store",
 });
-assert.equal(workflowFetchCalls.length, 1);
+assert.equal(workflowFetchCalls[1].method, "GET");
+assert.equal(
+  workflowFetchCalls[1].url,
+  "http://127.0.0.1:1/v1/stores/contract-store/workflow-connections/oauth/attempts/workflow-attempt",
+);
+assert.equal(workflowFetchCalls.length, 2);
 
 assert.equal(typeof arky.automation.support.createAgent, "function");
 assert.equal(typeof arky.automation.support.findAgents, "function");
@@ -350,6 +376,7 @@ assert.equal(typeof arky.automation.support.replyToConversation, "function");
 
 assert.equal(typeof arky.notification.mailbox.find, "function");
 assert.equal(typeof arky.notification.mailbox.connectGoogle, "function");
+assert.equal(typeof arky.notification.mailbox.getGoogleOAuthAttempt, "function");
 assert.equal(typeof arky.notification.email.send, "function");
 assert.equal(typeof arky.notification.email.getDelivery, "function");
 assert.equal(typeof arky.notification.email.retryDelivery, "function");
@@ -361,7 +388,17 @@ globalThis.fetch = async (url, init = {}) => {
     method: init.method,
     body: init.body,
   });
-  return new Response(JSON.stringify({ authorization_url: "https://oauth.test", state: "state" }), {
+  const body = String(url).includes("/oauth/attempts/")
+    ? {
+        attempt_id: "mailbox-attempt",
+        store_id: "contract-store",
+        mailbox_id: "mailbox-contract",
+        status: "processing",
+        completed_at: null,
+        error: null,
+      }
+    : { authorization_url: "https://oauth.test", state: "state" };
+  return new Response(JSON.stringify(body), {
     status: 200,
     headers: { "content-type": "application/json" },
   });
@@ -373,6 +410,9 @@ try {
     from_name: "Founder",
     sync_enabled: true,
     sync_interval_seconds: 300,
+  });
+  await arky.notification.mailbox.getGoogleOAuthAttempt({
+    attempt_id: "mailbox-attempt",
   });
 } finally {
   globalThis.fetch = originalFetch;
@@ -386,6 +426,11 @@ assert.deepEqual(JSON.parse(mailboxFetchCalls[0].body), {
   sync_enabled: true,
   sync_interval_seconds: 300,
 });
+assert.equal(mailboxFetchCalls[1].method, "GET");
+assert.equal(
+  mailboxFetchCalls[1].url,
+  "http://127.0.0.1:1/v1/stores/contract-store/mailboxes/google/oauth/attempts/mailbox-attempt",
+);
 
 assert.equal(typeof arky.outreach.campaign.find, "function");
 assert.equal(typeof arky.outreach.campaignEnrollment.find, "function");

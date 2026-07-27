@@ -8,6 +8,7 @@ import type {
   DeleteSocialConnectionParams,
   FindSocialPublicationCommentsParams,
   FindSocialPublicationsParams,
+  GetSocialCommentClassificationRunParams,
   GetSocialCapabilitiesParams,
   GetSocialCommentReplyParams,
   GetSocialOAuthAttemptParams,
@@ -47,6 +48,11 @@ import type {
   SocialPublicationMutationResponse,
   SocialPublicationValidation,
 } from "../types";
+import {
+  pollScheduledResult,
+  prepareScheduledMutation,
+  scheduledObservationOptions,
+} from "../utils/scheduledResult";
 
 export const createSocialApi = (apiConfig: ApiConfig) => {
   const storeId = (store_id?: string) => store_id || apiConfig.storeId;
@@ -213,9 +219,33 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<SocialPublicationCommentClassificationResult> {
       const { store_id, ...payload } = params || {};
-      return apiConfig.httpClient.post<SocialPublicationCommentClassificationResult>(
-        `/v1/stores/${storeId(store_id)}/social-publications/comments/classify`,
-        payload,
+      const targetStoreId = storeId(store_id);
+      const mutation = prepareScheduledMutation(payload, options);
+      const requested =
+        await apiConfig.httpClient.post<SocialPublicationCommentClassificationResult>(
+          `/v1/stores/${targetStoreId}/social-publications/comments/classify`,
+          mutation.body,
+          mutation.options,
+        );
+      return pollScheduledResult(
+        requested,
+        (observationSignal) =>
+          apiConfig.httpClient.get<SocialPublicationCommentClassificationResult>(
+            `/v1/stores/${targetStoreId}/social-publications/comments/classifications/${requested.run_id}`,
+            scheduledObservationOptions(mutation.options, observationSignal),
+          ),
+        (result) =>
+          result.status === "requested" || result.status === "processing",
+        options?.signal,
+      );
+    },
+
+    async getCommentClassificationRun(
+      params: GetSocialCommentClassificationRunParams,
+      options?: RequestOptions,
+    ): Promise<SocialPublicationCommentClassificationResult> {
+      return apiConfig.httpClient.get<SocialPublicationCommentClassificationResult>(
+        `/v1/stores/${storeId(params.store_id)}/social-publications/comments/classifications/${params.run_id}`,
         options,
       );
     },

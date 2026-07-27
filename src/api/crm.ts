@@ -44,6 +44,7 @@ import type {
   ImportContactsIntoContactListResult,
   CreateMailboxParams,
   ConnectGoogleMailboxParams,
+  GetGoogleMailboxOAuthAttemptParams,
   GoogleMailboxConnectUrl,
   UpdateMailboxParams,
   FindMailboxesParams,
@@ -77,6 +78,7 @@ import type {
 } from "../types/api";
 import type {
   Mailbox,
+  GoogleMailboxOAuthAttempt,
   Campaign,
   CampaignLaunchReadiness,
   CampaignEnrollment,
@@ -610,6 +612,17 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         return apiConfig.httpClient.post<GoogleMailboxConnectUrl>(
           `/v1/stores/${target_store_id}/mailboxes/google/connect-url`,
           payload,
+          options,
+        );
+      },
+
+      async getGoogleOAuthAttempt(
+        params: GetGoogleMailboxOAuthAttemptParams,
+        options?: RequestOptions,
+      ): Promise<GoogleMailboxOAuthAttempt> {
+        const target_store_id = params.store_id || apiConfig.storeId;
+        return apiConfig.httpClient.get<GoogleMailboxOAuthAttempt>(
+          `/v1/stores/${target_store_id}/mailboxes/google/oauth/attempts/${params.attempt_id}`,
           options,
         );
       },

@@ -32,12 +32,31 @@ export const createNotificationApi = (apiConfig: ApiConfig) => {
 
 			return pollScheduledResult(
 				requested,
-				(observationSignal) =>
-					apiConfig.httpClient.post<EmailSendResult>(
-						'/v1/notifications/email',
-						mutation.body,
-						scheduledObservationOptions(options, observationSignal)
-					),
+				async (observationSignal) => {
+					const observations = await Promise.all(
+						requested.deliveries.map((delivery) =>
+							apiConfig.httpClient.get<EmailDelivery>(
+								`/v1/notifications/email-deliveries/${delivery.delivery_id}`,
+								scheduledObservationOptions(options, observationSignal)
+							)
+						)
+					);
+					const deliveries = requested.deliveries.map((delivery, index) => {
+						const observation = observations[index];
+						return {
+							...delivery,
+							revision: observation.revision,
+							status: observation.status,
+							provider_message_id: observation.provider_message_id,
+							provider_thread_id: observation.provider_thread_id,
+							...(observation.error === undefined ? {} : { error: observation.error })
+						};
+					});
+					return {
+						sent: deliveries.filter((delivery) => delivery.status === 'sent').length,
+						deliveries
+					};
+				},
 				(current) =>
 					current.deliveries.some(
 						(delivery) => delivery.status === 'pending' || delivery.status === 'sending'

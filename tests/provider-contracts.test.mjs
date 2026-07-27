@@ -138,17 +138,17 @@ test('payment-provider deletion returns terminal blocked domain evidence', async
 		id: 'deletion-contract',
 		store_id: 'store-deletion',
 		payment_provider_id: 'provider-contract',
-		revision: 4,
-		status: 'blocked',
-		deleted: false,
-		terminal: true,
+			revision: 4,
+			status: 'blocked',
+			terminal: true,
 		requested_at: 1,
 		processing_started_at: 2,
 		completed_at: 3,
 		error: {
-			type: 'connection_unresolved',
-			message: 'The payment-provider connection has an unresolved outcome',
-			at: 3,
+				type: 'connection_unresolved',
+				message: 'The payment-provider connection has an unresolved outcome',
+				status: 'unknown',
+				at: 3,
 		},
 	};
 	const { calls, result } = await captureFetch(blocked, () =>
@@ -173,20 +173,18 @@ test('payment-provider deletion retry starts once then observes exact domain sta
 		id: 'deletion-contract',
 		store_id: 'store-deletion',
 		payment_provider_id: 'provider-contract',
-		revision: 5,
-		status: 'requested',
-		deleted: false,
-		terminal: false,
+			revision: 5,
+			status: 'requested',
+			terminal: false,
 		requested_at: 4,
 		processing_started_at: null,
 		completed_at: null,
 		error: null,
 	};
 	const succeeded = {
-		...requested,
-		status: 'succeeded',
-		deleted: true,
-		terminal: true,
+			...requested,
+			status: 'succeeded',
+			terminal: true,
 		processing_started_at: 5,
 		completed_at: 6,
 	};
@@ -316,10 +314,19 @@ test('storefront support keeps its capability token in one forced header on the 
 				support_token: supportToken,
 			});
 		}
-		return jsonResponse({
-			conversation: { id: 'conversation-contract', status: 'active' },
-			messages: [],
-		});
+			return jsonResponse({
+				conversation: { id: 'conversation-contract', status: 'active' },
+				messages: [
+					{
+						id: resourceId,
+						conversation_id: 'conversation-contract',
+						role: 'user',
+						content: 'Help',
+						metadata: {},
+						ai_response: null,
+					},
+				],
+			});
 	};
 
 	try {

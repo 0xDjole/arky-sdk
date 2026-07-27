@@ -1,6 +1,11 @@
 import type { ApiConfig, StorefrontApiConfig } from "../index";
 import type { StorefrontDto } from "./storefront";
 import type { RequestOptions } from "../types/api";
+import {
+  pollScheduledResult,
+  prepareScheduledMutation,
+  scheduledObservationOptions,
+} from "../utils/scheduledResult";
 
 export type SupportAgentStatus = "draft" | "active" | "archived";
 export type SupportChannelStatus = "draft" | "active" | "disabled" | "archived";
@@ -119,7 +124,23 @@ export interface SupportMessage {
   content: string;
   buttons?: string[];
   metadata: Record<string, unknown>;
+  ai_response?: SupportAiResponse | null;
   created_at: number;
+}
+
+export type SupportAiResponseStatus =
+  | "requested"
+  | "processing"
+  | "succeeded"
+  | "failed"
+  | "unknown";
+
+export interface SupportAiResponse {
+  status: SupportAiResponseStatus;
+  processing_started_at?: number | null;
+  processing_deadline_at?: number | null;
+  completed_at?: number | null;
+  error?: string | null;
 }
 
 export interface SupportConversationResponse {
@@ -190,6 +211,12 @@ export interface GetSupportConversationParams {
   after_id?: string;
 }
 
+export interface GetSupportMessageParams {
+  store_id: string;
+  conversation_id: string;
+  message_id: string;
+}
+
 export type StorefrontSendSupportMessageParams = Omit<
   SendSupportMessageParams,
   "store_id"
@@ -197,6 +224,11 @@ export type StorefrontSendSupportMessageParams = Omit<
 
 export type StorefrontGetSupportConversationParams = Omit<
   GetSupportConversationParams,
+  "store_id"
+> & { support_token: string };
+
+export type StorefrontGetSupportMessageParams = Omit<
+  GetSupportMessageParams,
   "store_id"
 > & { support_token: string };
 
@@ -217,6 +249,13 @@ function supportConversationQuery(params: GetSupportConversationParams): string 
   if (typeof params.after_created_at === "number") qs.set("after_created_at", String(params.after_created_at));
   if (params.after_id) qs.set("after_id", params.after_id);
   return qs.toString();
+}
+
+function supportAiResponsePending(
+  message: Pick<SupportMessage, "ai_response">,
+): boolean {
+  const status = message.ai_response?.status;
+  return status === "requested" || status === "processing";
 }
 
 function storefrontSupportOptions(
@@ -264,10 +303,37 @@ export function createStorefrontSupportApi(
     ): Promise<StorefrontSupportConversationResponse> {
       await ensureVisitorSession();
       const { support_token, ...request } = params;
-      return httpClient.post<StorefrontSupportConversationResponse>(
-        `/v1/storefront/support/conversations/${request.conversation_id}/messages`,
+      const path =
+        `/v1/storefront/support/conversations/${request.conversation_id}`;
+      const mutation = prepareScheduledMutation(
         request,
-        storefrontSupportOptions(support_token, opts)
+        storefrontSupportOptions(support_token, opts),
+      );
+      const requested = await httpClient.post<StorefrontSupportConversationResponse>(
+        `${path}/messages`,
+        mutation.body,
+        mutation.options,
+      );
+      const requestedMessage = requested.messages.find(
+        (message) => message.id === request.message_id,
+      );
+      if (!requestedMessage) {
+        throw new Error("Support response omitted the requested message");
+      }
+      if (!supportAiResponsePending(requestedMessage)) return requested;
+      await pollScheduledResult(
+        requestedMessage,
+        (observationSignal) =>
+          httpClient.get<StorefrontDto<SupportMessage>>(
+            `${path}/messages/${request.message_id}`,
+            scheduledObservationOptions(mutation.options, observationSignal),
+          ),
+        supportAiResponsePending,
+        opts?.signal,
+      );
+      return httpClient.get<StorefrontSupportConversationResponse>(
+        path,
+        scheduledObservationOptions(mutation.options, opts?.signal),
       );
     },
 
@@ -287,6 +353,18 @@ export function createStorefrontSupportApi(
       return httpClient.get<StorefrontSupportConversationResponse>(
         `/v1/storefront/support/conversations/${request.conversation_id}${suffix}`,
         storefrontSupportOptions(support_token, opts)
+      );
+    },
+
+    async getMessage(
+      params: StorefrontGetSupportMessageParams,
+      opts?: RequestOptions,
+    ): Promise<StorefrontDto<SupportMessage>> {
+      await ensureVisitorSession();
+      const { support_token, ...request } = params;
+      return httpClient.get<StorefrontDto<SupportMessage>>(
+        `/v1/storefront/support/conversations/${request.conversation_id}/messages/${request.message_id}`,
+        storefrontSupportOptions(support_token, opts),
       );
     },
   };
@@ -511,10 +589,48 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: SendSupportMessageParams,
         opts?: RequestOptions
       ): Promise<SupportConversationResponse> {
-        return httpClient.post<SupportConversationResponse>(
-          `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}/messages`,
-          params,
-          opts
+        const path =
+          `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}`;
+        const mutation = prepareScheduledMutation(params, opts);
+        const requested = await httpClient.post<SupportConversationResponse>(
+          `${path}/messages`,
+          mutation.body,
+          mutation.options,
+        );
+        const requestedMessage = requested.messages.find(
+          (message) => message.id === params.message_id,
+        );
+        if (!requestedMessage) {
+          throw new Error("Support response omitted the requested message");
+        }
+        if (!supportAiResponsePending(requestedMessage)) return requested;
+        await pollScheduledResult(
+          requestedMessage,
+          (observationSignal) =>
+            httpClient.get<SupportMessage>(
+              `${path}/messages/${params.message_id}`,
+              scheduledObservationOptions(mutation.options, observationSignal),
+            ),
+          supportAiResponsePending,
+          opts?.signal,
+        );
+        const query = supportConversationQuery({
+          store_id: params.store_id,
+          conversation_id: params.conversation_id,
+        });
+        return httpClient.get<SupportConversationResponse>(
+          `${path}?${query}`,
+          scheduledObservationOptions(mutation.options, opts?.signal),
+        );
+      },
+
+      async getMessage(
+        params: GetSupportMessageParams,
+        opts?: RequestOptions,
+      ): Promise<SupportMessage> {
+        return httpClient.get<SupportMessage>(
+          `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}/messages/${params.message_id}`,
+          opts,
         );
       },
 

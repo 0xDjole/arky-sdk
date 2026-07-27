@@ -2,6 +2,7 @@ import type { ApiConfig } from "../index";
 import type {
   ConnectStripePaymentProviderParams,
   DeletePaymentProviderParams,
+  GetPaymentProviderConnectionParams,
   GetPaymentProviderDeletionParams,
   ListPaymentProvidersParams,
   RefreshPaymentProvidersParams,
@@ -60,7 +61,8 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
       params: ConnectStripePaymentProviderParams,
       options?: RequestOptions,
     ): Promise<StripePaymentProviderConnectResponse> {
-      const path = `/v1/stores/${storeId(params.store_id)}/payment-providers/stripe/connect`;
+      const targetStoreId = storeId(params.store_id);
+      const path = `/v1/stores/${targetStoreId}/payment-providers/stripe/connect`;
       const mutation = prepareScheduledMutation(params, options);
       const requested = await apiConfig.httpClient.post<StripePaymentProviderConnectResponse>(
         path,
@@ -77,15 +79,24 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
       return pollScheduledResult(
         requested,
         (observationSignal) =>
-          apiConfig.httpClient.post<StripePaymentProviderConnectResponse>(
-            path,
-            mutation.body,
+          apiConfig.httpClient.get<StripePaymentProviderConnectResponse>(
+            `/v1/stores/${targetStoreId}/payment-providers/${requested.provider.id}/connection`,
             scheduledObservationOptions(options, observationSignal),
           ),
         (response) =>
           response.provider.connection.status === "requested" ||
           response.provider.connection.status === "processing",
         options?.signal,
+      );
+    },
+
+    async getConnection(
+      params: GetPaymentProviderConnectionParams,
+      options?: RequestOptions,
+    ): Promise<StripePaymentProviderConnectResponse> {
+      return apiConfig.httpClient.get<StripePaymentProviderConnectResponse>(
+        `/v1/stores/${storeId(params.store_id)}/payment-providers/${params.id}/connection`,
+        options,
       );
     },
 

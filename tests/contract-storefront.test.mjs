@@ -229,7 +229,7 @@ test("high-level checkout uses keyless routes, visitor authorization, and Store-
   }
 });
 
-test("checkout waits on domain state while Tito is the only provider executor", async () => {
+test("checkout POSTs once and waits on its exact order payment", async () => {
   const store = initialize(publishableKey, {
     apiUrl,
     market: "ita",
@@ -252,24 +252,35 @@ test("checkout waits on domain state while Tito is the only provider executor", 
     },
   ]);
   let checkoutCalls = 0;
+  let paymentObservationCalls = 0;
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
-    if (!String(url).endsWith("/checkout")) {
+  globalThis.fetch = async (url, init = {}) => {
+    const target = String(url);
+    if (target.endsWith("/orders/order-scheduled/payment")) {
+      paymentObservationCalls += 1;
+      return jsonResponse({
+        status: { status: "captured", at: 2, amount: 1250 },
+        payment_action: { type: "none" },
+        amount: 1250,
+        currency: "EUR",
+        paid: 1250,
+        method_type: "credit_card",
+      });
+    }
+    if (!target.endsWith("/checkout")) {
       return jsonResponse(cart);
     }
+    assert.equal(init.method, "POST");
     checkoutCalls += 1;
     return jsonResponse({
       order_id: "order-scheduled",
       number: "1002",
       payment_action: { type: "none" },
       payment: {
-        status:
-          checkoutCalls === 1
-            ? { status: "processing", at: 1 }
-            : { status: "captured", at: 2, amount: 1250 },
+        status: { status: "processing", at: 1 },
         amount: 1250,
         currency: "EUR",
-        paid: checkoutCalls === 1 ? 0 : 1250,
+        paid: 0,
         method_type: "credit_card",
       },
     });
@@ -280,7 +291,8 @@ test("checkout waits on domain state while Tito is the only provider executor", 
       payment_method_key: "cash",
     });
     assert.equal(result.payment.status.status, "captured");
-    assert.equal(checkoutCalls, 2);
+    assert.equal(checkoutCalls, 1);
+    assert.equal(paymentObservationCalls, 1);
   } finally {
     globalThis.fetch = originalFetch;
   }

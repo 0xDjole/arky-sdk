@@ -617,13 +617,25 @@ export interface SocialPublicationEngagementSyncResult {
 }
 
 export interface SocialPublicationCommentClassificationResult {
+  run_id: string;
+  status: SocialCommentClassificationRunStatus;
   comments_scanned: number;
   comments_classified: number;
   comments_skipped: number;
   comments: SocialPublicationComment[];
   skipped_comment_ids: string[];
   errors: string[];
+  processing_started_at?: number | null;
+  processing_deadline_at?: number | null;
+  completed_at?: number | null;
 }
+
+export type SocialCommentClassificationRunStatus =
+  | "requested"
+  | "processing"
+  | "succeeded"
+  | "failed"
+  | "unknown";
 
 export interface SocialEngagementCapabilities {
   read_comments: boolean;
@@ -650,7 +662,13 @@ export interface SocialConnectResponse {
   state: string;
 }
 
-export type SocialOAuthCallbackStatus = "connected" | "selection_required";
+export type SocialOAuthCallbackStatus =
+  | "pending"
+  | "processing"
+  | "connected"
+  | "selection_required"
+  | "failed"
+  | "unknown";
 
 export interface SocialOAuthDestinationOption extends SocialDestinationMetadata {
   candidate_id: string;
@@ -731,12 +749,56 @@ export type PaymentProviderDeletionStatus =
   | "succeeded"
   | "blocked";
 
+export type PaymentProviderDeletionCatalogStatus = "processing" | "unknown";
+
+export type PaymentProviderDeletionCancellationStatus =
+  | "not_created"
+  | "requested"
+  | "processing"
+  | "succeeded_unreconciled"
+  | "failed"
+  | "rejected"
+  | "unknown";
+
+export type PaymentProviderDeletionSubscriptionStatus =
+  | "requires_action"
+  | "succeeded_without_subscription"
+  | "unknown";
+
 export type PaymentProviderDeletionError =
-  | { type: "connection_unresolved"; message: string; at: number }
-  | { type: "catalog_operation_unresolved"; message: string; at: number }
+  | {
+      type: "connection_unresolved";
+      message: string;
+      status: PaymentProviderConnectionStatus;
+      at: number;
+    }
+  | {
+      type: "catalog_operation_unresolved";
+      message: string;
+      plan_id: string;
+      status: PaymentProviderDeletionCatalogStatus;
+      at: number;
+    }
   | {
       type: "subscription_cancellation_unresolved";
       message: string;
+      payment_attempt_id: string;
+      cancellation_id?: string | null;
+      status: PaymentProviderDeletionCancellationStatus;
+      at: number;
+    }
+  | {
+      type: "subscription_verification_mismatch";
+      message: string;
+      discovered: number;
+      verified: number;
+      at: number;
+    }
+  | {
+      type: "subscription_creation_unresolved";
+      message: string;
+      payment_attempt_id: string;
+      status: PaymentProviderDeletionSubscriptionStatus;
       at: number;
     }
   | { type: "provider_binding_changed"; message: string; at: number }
@@ -748,7 +810,6 @@ export interface PaymentProviderDeletion {
   payment_provider_id: string;
   revision: number;
   status: PaymentProviderDeletionStatus;
-  deleted: boolean;
   terminal: boolean;
   requested_at: number;
   processing_started_at?: number | null;
@@ -1159,6 +1220,10 @@ export interface Order {
 export type CheckoutPaymentAction =
   { type: "none" } | { type: "handle_next_action"; client_secret: string };
 
+export interface OrderPaymentObservation extends OrderPayment {
+  payment_action: CheckoutPaymentAction;
+}
+
 export interface OrderCheckoutResult {
   order_id: string;
   number: string;
@@ -1362,7 +1427,6 @@ export interface StoreSubscription {
 
 export type ContactListMembershipPaymentAttemptStatus =
   | "pending"
-  | "confirming"
   | "requires_action"
   | "processing"
   | "declined"
@@ -1752,6 +1816,39 @@ export interface GoogleMailboxProfile {
   email: string;
   display_name: string;
   avatar_url?: string | null;
+}
+export type GoogleMailboxOAuthAttemptStatus =
+  | "pending"
+  | "requested"
+  | "processing"
+  | "succeeded"
+  | "rejected"
+  | "failed"
+  | "unknown";
+export type GoogleMailboxOAuthAttemptError =
+  | {
+      type: "provider_rejected";
+      provider_status?: number | null;
+      at: number;
+    }
+  | {
+      type: "provider_call_not_started";
+      message: string;
+      at: number;
+    }
+  | {
+      type: "unknown_outcome";
+      message: string;
+      provider_status?: number | null;
+      at: number;
+    };
+export interface GoogleMailboxOAuthAttempt {
+  attempt_id: string;
+  store_id: string;
+  mailbox_id: string;
+  status: GoogleMailboxOAuthAttemptStatus;
+  completed_at?: number | null;
+  error?: GoogleMailboxOAuthAttemptError | null;
 }
 export type GoogleMailboxProvider = {
   type: "google";
@@ -2245,6 +2342,8 @@ export interface EmailDelivery {
   type: EmailDeliveryType;
   status: EmailDeliveryStatus;
   error?: EmailDeliveryError | null;
+  provider_message_id?: string | null;
+  provider_thread_id?: string | null;
   requested_at: number;
   processing_started_at?: number | null;
   completed_at?: number | null;
@@ -2320,6 +2419,34 @@ export interface WorkflowConnection {
 export interface WorkflowConnectionConnectUrl {
   authorization_url: string;
   state: string;
+}
+
+export type WorkflowConnectionOAuthAttemptStatus =
+  | "pending"
+  | "requested"
+  | "processing"
+  | "succeeded"
+  | "rejected"
+  | "failed"
+  | "unknown";
+
+export type WorkflowConnectionOAuthAttemptError =
+  | {
+      type: "provider_rejected";
+      provider_status?: number | null;
+      at: number;
+    }
+  | { type: "provider_call_not_started"; at: number }
+  | { type: "unknown_outcome"; at: number };
+
+export interface WorkflowConnectionOAuthAttempt {
+  attempt_id: string;
+  store_id: string;
+  workflow_connection_id: string;
+  type: WorkflowConnectionType;
+  status: WorkflowConnectionOAuthAttemptStatus;
+  completed_at?: number | null;
+  error?: WorkflowConnectionOAuthAttemptError | null;
 }
 
 export interface WorkflowGoogleDriveUploadNode {
