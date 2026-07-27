@@ -1,7 +1,6 @@
 export interface DurableRequest {
   storageKey: string;
   requestJson: string;
-  id: string;
 }
 
 type StoredDurableRequest = Omit<DurableRequest, "storageKey">;
@@ -51,11 +50,9 @@ function readStoredRequest(
   if (
     typeof value !== "object" ||
     value === null ||
-    Object.keys(value).length !== 2 ||
+    Object.keys(value).length !== 1 ||
     typeof (value as Record<string, unknown>).requestJson !== "string" ||
-    !(value as Record<string, unknown>).requestJson ||
-    typeof (value as Record<string, unknown>).id !== "string" ||
-    !(value as Record<string, unknown>).id
+    !(value as Record<string, unknown>).requestJson
   ) {
     throw unavailable(label, "state is invalid");
   }
@@ -138,7 +135,6 @@ export function getOrCreateDurableRequest(
 
   const request: StoredDurableRequest = {
     requestJson,
-    id: crypto.randomUUID(),
   };
   try {
     storage.setItem(storageKey, JSON.stringify(request));
@@ -146,7 +142,7 @@ export function getOrCreateDurableRequest(
     throw unavailable(label, "state cannot be saved");
   }
   const persisted = readStoredRequest(storage, storageKey, label);
-  if (persisted?.requestJson !== request.requestJson || persisted.id !== request.id) {
+  if (persisted?.requestJson !== request.requestJson) {
     throw unavailable(label, "state was not saved exactly");
   }
   return { storageKey, ...request };
@@ -155,10 +151,7 @@ export function getOrCreateDurableRequest(
 export function clearDurableRequest(request: DurableRequest, label: string): void {
   const storage = requestStorage(label);
   const stored = readStoredRequest(storage, request.storageKey, label);
-  if (
-    stored?.requestJson !== request.requestJson ||
-    stored.id !== request.id
-  ) {
+  if (stored?.requestJson !== request.requestJson) {
     throw unavailable(label, "state changed before it could be cleared");
   }
   try {

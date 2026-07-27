@@ -21,6 +21,7 @@ import type {
   ListSocialPublicationEffectsParams,
   RequestOptions,
   RetrySocialCommentReplyParams,
+  ScheduledMutationOptions,
   ScheduleSocialPublicationParams,
   SelectSocialDestinationParams,
   ListSocialConnectionsParams,
@@ -215,10 +216,10 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     },
 
     async classifyPublicationComments(
-      params?: ClassifySocialPublicationCommentsParams,
-      options?: RequestOptions,
+      params: ClassifySocialPublicationCommentsParams,
+      options?: ScheduledMutationOptions<SocialPublicationCommentClassificationResult>,
     ): Promise<SocialPublicationCommentClassificationResult> {
-      const { store_id, ...payload } = params || {};
+      const { store_id, ...payload } = params;
       const targetStoreId = storeId(store_id);
       const mutation = prepareScheduledMutation(payload, options);
       const requested =
@@ -227,6 +228,7 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
           mutation.body,
           mutation.options,
         );
+      await mutation.afterResponse(requested);
       return pollScheduledResult(
         requested,
         (observationSignal) =>
@@ -302,7 +304,9 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PaginatedResponse<SocialPublicationEffect>> {
       const { store_id, publication_id, ...queryParams } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<SocialPublicationEffect>>(
+      return apiConfig.httpClient.get<
+        PaginatedResponse<SocialPublicationEffect>
+      >(
         `/v1/stores/${storeId(store_id)}/social-publications/${publication_id}/effects`,
         {
           ...options,

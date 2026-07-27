@@ -12,6 +12,7 @@ export type {
   StripeConfirmationTokenControllerConfig,
   StripeConfirmationTokenOptions,
   StripeConfirmationTokenResult,
+  StripeNextActionOptions,
 } from "./payments/stripe";
 export type {
   ArkyCartInput,
@@ -74,3 +75,4 @@ export type {
   FormField,
   FormSchema,
 } from "./index";
+export type { ScheduledMutationOptions } from "./services/createHttpClient";

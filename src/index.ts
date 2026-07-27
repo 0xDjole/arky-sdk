@@ -1,4 +1,5 @@
 export { ScheduledResultTimeoutError } from "./utils/scheduledResult";
+export type { ScheduledMutationOptions } from "./services/createHttpClient";
 
 export type {
   EshopCartItem,
@@ -63,12 +64,6 @@ export type {
   PaymentProviderConnection,
   PaymentProviderConnectionError,
   PaymentProviderConnectionStatus,
-  PaymentProviderDeletion,
-  PaymentProviderDeletionCancellationStatus,
-  PaymentProviderDeletionCatalogStatus,
-  PaymentProviderDeletionError,
-  PaymentProviderDeletionStatus,
-  PaymentProviderDeletionSubscriptionStatus,
   StripePaymentProviderConnectResponse,
   OrderPaymentTax,
   OrderPaymentTaxLine,
@@ -565,7 +560,6 @@ export type {
   GetSocialCommentClassificationRunParams,
   GetSocialCapabilitiesParams,
   GetPaymentProviderConnectionParams,
-  GetPaymentProviderDeletionParams,
   GetSocialOAuthAttemptParams,
   GetWorkflowConnectionOAuthAttemptParams,
   GetSocialCommentReplyParams,
@@ -579,7 +573,6 @@ export type {
   ListSocialConnectionsParams,
   ListSocialPublicationEffectsParams,
   RefreshPaymentProvidersParams,
-  RetryPaymentProviderDeletionParams,
   RetrySocialCommentReplyParams,
   ScheduleSocialPublicationParams,
   SyncSocialEngagementParams,
@@ -1055,8 +1048,6 @@ export function createAdmin(config: CreateAdminConfig) {
     connectStripe: paymentProviderApi.connectStripe,
     getConnection: paymentProviderApi.getConnection,
     delete: paymentProviderApi.delete,
-    getDeletion: paymentProviderApi.getDeletion,
-    retryDeletion: paymentProviderApi.retryDeletion,
   };
   const workflowPublicApi = {
     create: workflowApi.createWorkflow,

@@ -72,7 +72,10 @@ import type {
   ProductInventory,
 } from "./index";
 
-export type { RequestOptions } from "../services/createHttpClient";
+export type {
+  RequestOptions,
+  ScheduledMutationOptions,
+} from "../services/createHttpClient";
 
 export interface CreateLocationParams {
   key: string;
@@ -2098,20 +2101,9 @@ export interface DeletePaymentProviderParams {
   id: string;
 }
 
-export interface GetPaymentProviderDeletionParams {
-  store_id: string;
-  id: string;
-}
-
 export interface GetPaymentProviderConnectionParams {
   store_id: string;
   id: string;
-}
-
-export interface RetryPaymentProviderDeletionParams {
-  store_id: string;
-  id: string;
-  expected_revision: number;
 }
 
 export interface FindSocialPublicationsParams {
@@ -2198,6 +2190,7 @@ export interface FindSocialPublicationCommentsParams {
 
 export interface ClassifySocialPublicationCommentsParams {
   store_id?: string;
+  run_id: string;
   publication_id?: string;
   social_connection_id?: string;
   type?: SocialConnectionType;

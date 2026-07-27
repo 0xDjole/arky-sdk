@@ -9,6 +9,14 @@ export class MemoryStorage {
 		return this.values.get(key) ?? null;
 	}
 
+	get length() {
+		return this.values.size;
+	}
+
+	key(index) {
+		return [...this.values.keys()][index] ?? null;
+	}
+
 	setItem(key, value) {
 		if (this.options.writeError) throw this.options.writeError;
 		if (!this.options.discardWrites) this.values.set(key, String(value));

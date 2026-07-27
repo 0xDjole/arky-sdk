@@ -1,6 +1,6 @@
 import type { ApiConfig, StorefrontApiConfig } from "../index";
 import type { StorefrontDto } from "./storefront";
-import type { RequestOptions } from "../types/api";
+import type { RequestOptions, ScheduledMutationOptions } from "../types/api";
 import {
   pollScheduledResult,
   prepareScheduledMutation,
@@ -137,7 +137,6 @@ export type SupportAiResponseStatus =
 
 export interface SupportAiResponse {
   status: SupportAiResponseStatus;
-  processing_started_at?: number | null;
   processing_deadline_at?: number | null;
   completed_at?: number | null;
   error?: string | null;
@@ -258,10 +257,10 @@ function supportAiResponsePending(
   return status === "requested" || status === "processing";
 }
 
-function storefrontSupportOptions(
+function storefrontSupportOptions<T>(
   supportToken: string,
-  options?: RequestOptions,
-): RequestOptions {
+  options?: RequestOptions<T>,
+): RequestOptions<T> {
   if (!/^[0-9a-f]{64}$/.test(supportToken)) {
     throw new Error("support_token must be a 64-character lowercase hexadecimal token");
   }
@@ -299,7 +298,7 @@ export function createStorefrontSupportApi(
 
     async sendMessage(
       params: StorefrontSendSupportMessageParams,
-      opts?: RequestOptions
+      opts?: ScheduledMutationOptions<StorefrontSupportConversationResponse>
     ): Promise<StorefrontSupportConversationResponse> {
       await ensureVisitorSession();
       const { support_token, ...request } = params;
@@ -314,6 +313,7 @@ export function createStorefrontSupportApi(
         mutation.body,
         mutation.options,
       );
+      await mutation.afterResponse(requested);
       const requestedMessage = requested.messages.find(
         (message) => message.id === request.message_id,
       );
@@ -587,7 +587,7 @@ export function createAdminSupportApi(config: ApiConfig) {
 
       async sendMessage(
         params: SendSupportMessageParams,
-        opts?: RequestOptions
+        opts?: ScheduledMutationOptions<SupportConversationResponse>
       ): Promise<SupportConversationResponse> {
         const path =
           `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}`;
@@ -597,6 +597,7 @@ export function createAdminSupportApi(config: ApiConfig) {
           mutation.body,
           mutation.options,
         );
+        await mutation.afterResponse(requested);
         const requestedMessage = requested.messages.find(
           (message) => message.id === params.message_id,
         );

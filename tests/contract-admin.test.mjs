@@ -106,8 +106,6 @@ assert.equal(typeof arky.store.paymentProvider.refresh, "function");
 assert.equal(typeof arky.store.paymentProvider.connectStripe, "function");
 assert.equal(typeof arky.store.paymentProvider.getConnection, "function");
 assert.equal(typeof arky.store.paymentProvider.delete, "function");
-assert.equal(typeof arky.store.paymentProvider.getDeletion, "function");
-assert.equal(typeof arky.store.paymentProvider.retryDeletion, "function");
 
 const scheduledAdminCalls = [];
 const requestedProvider = {
@@ -163,24 +161,6 @@ const completedAction = {
   completed_at: 2,
   updated_at: 2,
 };
-const requestedDeletion = {
-  id: "deletion-scheduled",
-  store_id: "contract-store",
-  payment_provider_id: "provider-scheduled",
-  revision: 1,
-  status: "processing",
-  terminal: false,
-  requested_at: 1,
-  processing_started_at: 2,
-  completed_at: null,
-  error: null,
-};
-const completedDeletion = {
-  ...requestedDeletion,
-  status: "succeeded",
-  terminal: true,
-  completed_at: 3,
-};
 const scheduledOriginalFetch = globalThis.fetch;
 globalThis.fetch = async (url, init = {}) => {
   const target = String(url);
@@ -188,7 +168,7 @@ globalThis.fetch = async (url, init = {}) => {
   scheduledAdminCalls.push([target, method]);
   let body;
   if (target.endsWith("/payment-providers/stripe/connect")) {
-    body = { provider: requestedProvider, onboarding_url: "" };
+    body = { provider: requestedProvider, onboarding_url: null };
   } else if (
     target.endsWith("/payment-providers/provider-scheduled/connection")
   ) {
@@ -201,11 +181,7 @@ globalThis.fetch = async (url, init = {}) => {
   } else if (target.endsWith("/subscription/actions/action-scheduled")) {
     body = completedAction;
   } else if (target.endsWith("/payment-providers/provider-scheduled")) {
-    body = requestedDeletion;
-  } else if (
-    target.endsWith("/payment-providers/provider-scheduled/deletion")
-  ) {
-    body = completedDeletion;
+    body = { deleted: true };
   } else {
     throw new Error(`Unexpected scheduled admin request: ${method} ${target}`);
   }
@@ -239,7 +215,7 @@ try {
       store_id: "contract-store",
       id: "provider-scheduled",
     }),
-    completedDeletion,
+    { deleted: true },
   );
 } finally {
   globalThis.fetch = scheduledOriginalFetch;
@@ -263,10 +239,6 @@ assert.deepEqual(
     [
       "/v1/stores/contract-store/payment-providers/provider-scheduled",
       "DELETE",
-    ],
-    [
-      "/v1/stores/contract-store/payment-providers/provider-scheduled/deletion",
-      "GET",
     ],
   ],
 );

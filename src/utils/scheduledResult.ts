@@ -1,4 +1,7 @@
-import type { RequestOptions } from "../services/createHttpClient";
+import type {
+  RequestOptions,
+  ScheduledMutationOptions,
+} from "../services/createHttpClient";
 
 const SCHEDULED_RESULT_TIMEOUT_MS = 20_000;
 const SCHEDULED_RESULT_INITIAL_DELAY_MS = 50;
@@ -18,14 +21,13 @@ export class ScheduledResultTimeoutError<T = unknown> extends Error {
 }
 
 export function scheduledObservationOptions<T>(
-  options?: RequestOptions,
+  options?: Pick<RequestOptions, "headers" | "signal">,
   signal?: AbortSignal,
 ): RequestOptions<T> | undefined {
   if (!options && !signal) return undefined;
 
   const observation: RequestOptions<T> = {};
   if (options?.headers !== undefined) observation.headers = options.headers;
-  if (options?.params !== undefined) observation.params = options.params;
   if (signal !== undefined) {
     observation.signal = signal;
   } else if (options?.signal !== undefined) {
@@ -35,16 +37,33 @@ export function scheduledObservationOptions<T>(
   return observation;
 }
 
-export function prepareScheduledMutation(
+export function prepareScheduledMutation<T = unknown>(
   body: unknown,
-  options?: RequestOptions,
-): { body: unknown; options: RequestOptions | undefined } {
-  if (!options?.transformRequest) return { body, options };
+  options?: ScheduledMutationOptions<T>,
+): {
+  body: unknown;
+  options: RequestOptions<T> | undefined;
+  afterResponse(response: T): Promise<void>;
+} {
+  if (!options) {
+    return {
+      body,
+      options: undefined,
+      async afterResponse() {},
+    };
+  }
 
-  const { transformRequest, ...initialOptions } = options;
+  const {
+    transformRequest,
+    onScheduledResponse,
+    ...initialOptions
+  } = options;
   return {
-    body: transformRequest(body),
+    body: transformRequest ? transformRequest(body) : body,
     options: initialOptions,
+    async afterResponse(response) {
+      await onScheduledResponse?.(response);
+    },
   };
 }
 

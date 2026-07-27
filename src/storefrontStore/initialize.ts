@@ -15,6 +15,7 @@ import type {
   FormEntry,
   FormSubmission,
   OrderCheckoutResult,
+  OrderPaymentObservation,
   OrderQuote,
   PaginatedResponse,
   PaymentMethod,
@@ -68,6 +69,10 @@ import type {
 } from "./types";
 import { createStripeConfirmationTokenController, type StripeConfirmationTokenController } from "../payments/stripe";
 import {
+  pollScheduledResult,
+  ScheduledResultTimeoutError,
+} from "../utils/scheduledResult";
+import {
   availableStock,
   createFormEntryFromValues,
   createFormEntry,
@@ -97,6 +102,8 @@ type StorefrontCollectionEntry = StorefrontDto<CollectionEntry>;
 type StorefrontForm = StorefrontDto<Form>;
 type StorefrontFormSubmission = StorefrontDto<FormSubmission>;
 type StorefrontOrderCheckoutResult = StorefrontDto<OrderCheckoutResult>;
+type StorefrontOrderPaymentObservation =
+  StorefrontDto<OrderPaymentObservation>;
 type StorefrontOrderQuote = StorefrontDto<OrderQuote>;
 type StorefrontProduct = StorefrontDto<Product>;
 type StorefrontProductVariant = StorefrontDto<ProductVariant>;
@@ -107,6 +114,41 @@ type StorefrontPage<T> = StorefrontDto<PaginatedResponse<T>>;
 
 function firstFiniteNumber(...values: Array<number | null | undefined>): number | undefined {
   return values.find((value): value is number => typeof value === "number" && Number.isFinite(value));
+}
+
+function isUnresolvedPaymentStatus(status: string): boolean {
+  return (
+    status === "pending" ||
+    status === "processing" ||
+    status === "requires_action"
+  );
+}
+
+function checkoutResultFromPayment(
+  checkout: StorefrontOrderCheckoutResult,
+  observation: StorefrontOrderPaymentObservation,
+): StorefrontOrderCheckoutResult {
+  const { payment_action, ...payment } = observation;
+  return {
+    ...checkout,
+    payment_action,
+    payment,
+  };
+}
+
+function isStorefrontOrderCheckoutResult(
+  value: unknown,
+): value is StorefrontOrderCheckoutResult {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.order_id === "string" &&
+    typeof candidate.number === "string" &&
+    typeof candidate.payment_action === "object" &&
+    candidate.payment_action !== null &&
+    typeof candidate.payment === "object" &&
+    candidate.payment !== null
+  );
 }
 
 function initializeStoreCore(
@@ -689,6 +731,30 @@ function initializeStoreCore(
       let confirmationTokenId: string | undefined;
       let returnUrl = input.return_url;
       const paymentController = input.payment ?? payment_controller.get();
+      const orderCreatedAt = Date.now();
+      const orderProductItems =
+        input.product_items || product_items.get();
+      const orderServiceItems =
+        input.service_items || service_items.get();
+
+      const rememberOrder = (
+        result: StorefrontOrderCheckoutResult,
+      ): void => {
+        last_order.set({
+          order_id: result.order_id,
+          number: result.number,
+          payment_action: result.payment_action,
+          payment: result.payment,
+          product_items: orderProductItems,
+          service_items: orderServiceItems,
+          shipping_address: input.shipping_address || null,
+          billing_address: input.billing_address || null,
+          total: result.payment.amount,
+          currency: result.payment.currency,
+          payment_method_key: paymentMethodKey || null,
+          created_at: orderCreatedAt,
+        });
+      };
 
       if (needsConfirmationToken) {
         if (!paymentController) throw new Error("Payment controller is required for card checkout");
@@ -701,34 +767,64 @@ function initializeStoreCore(
         returnUrl = token.return_url || returnUrl;
       }
 
-      const response = await client.eshop.cart.checkout({
-        id: current.id,
-        payment_method_key: paymentMethodKey,
-        confirmation_token_id: confirmationTokenId,
-        return_url: returnUrl,
-      });
+      let response: StorefrontOrderCheckoutResult;
+      try {
+        response = await client.eshop.cart.checkout(
+          {
+            id: current.id,
+            payment_method_key: paymentMethodKey,
+            confirmation_token_id: confirmationTokenId,
+            return_url: returnUrl,
+          },
+          { onScheduledResponse: rememberOrder },
+        );
+      } catch (error) {
+        if (
+          error instanceof ScheduledResultTimeoutError &&
+          isStorefrontOrderCheckoutResult(error.lastResult)
+        ) {
+          rememberOrder(error.lastResult);
+        }
+        throw error;
+      }
+      rememberOrder(response);
 
       if (response.payment_action.type === "handle_next_action") {
-        if (!paymentController) throw new Error("Payment controller is required for card authentication");
-        await paymentController.handleNextAction(response.payment_action.client_secret);
+        if (!paymentController) {
+          throw new Error(
+            "Payment controller is required for card authentication",
+          );
+        }
+        await paymentController.handleNextAction(
+          response.payment_action.client_secret,
+          {
+            connectedAccountId:
+              response.payment_action.connected_account_id,
+          },
+        );
+        response = await pollScheduledResult(
+          response,
+          async (observationSignal) => {
+            const observation = await client.eshop.order.getPayment(
+              { id: response.order_id },
+              { signal: observationSignal },
+            );
+            const observed = checkoutResultFromPayment(
+              response,
+              observation,
+            );
+            rememberOrder(observed);
+            return observed;
+          },
+          (result) => isUnresolvedPaymentStatus(result.payment.status.status),
+        );
       }
 
-      const stored: ArkyLastOrder = {
-        order_id: response.order_id,
-        number: response.number,
-        payment_action: response.payment_action,
-        payment: response.payment,
-        product_items: input.product_items || product_items.get(),
-        service_items: input.service_items || service_items.get(),
-        shipping_address: input.shipping_address || null,
-        billing_address: input.billing_address || null,
-        total: response.payment.amount,
-        currency: response.payment.currency,
-        payment_method_key: paymentMethodKey || null,
-        created_at: Date.now(),
-      };
-      last_order.set(stored);
-      if (input.clear_after_checkout !== false) {
+      rememberOrder(response);
+      if (
+        input.clear_after_checkout !== false &&
+        !isUnresolvedPaymentStatus(response.payment.status.status)
+      ) {
         clearLocalCart();
       }
       return response;

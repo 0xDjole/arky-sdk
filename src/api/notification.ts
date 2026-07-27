@@ -6,7 +6,7 @@ import type {
 	GetEmailDeliveryParams,
 	RetryEmailDeliveryParams
 } from '../types';
-import type { RequestOptions } from '../types/api';
+import type { RequestOptions, ScheduledMutationOptions } from '../types/api';
 import {
 	pollScheduledResult,
 	prepareScheduledMutation,
@@ -15,13 +15,17 @@ import {
 
 export const createNotificationApi = (apiConfig: ApiConfig) => {
 	return {
-		async sendEmail(request: EmailSendRequest, options?: RequestOptions): Promise<EmailSendResult> {
+		async sendEmail(
+			request: EmailSendRequest,
+			options?: ScheduledMutationOptions<EmailSendResult>
+		): Promise<EmailSendResult> {
 			const mutation = prepareScheduledMutation(request, options);
 			const requested = await apiConfig.httpClient.post<EmailSendResult>(
 				'/v1/notifications/email',
 				mutation.body,
 				mutation.options
 			);
+			await mutation.afterResponse(requested);
 			if (
 				!requested.deliveries.some(
 					(delivery) => delivery.status === 'pending' || delivery.status === 'sending'

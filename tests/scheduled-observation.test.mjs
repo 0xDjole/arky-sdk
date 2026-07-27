@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  ScheduledResultTimeoutError,
-  createAdmin,
-} from "../dist/admin.js";
+import { ScheduledResultTimeoutError, createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
 
 const baseUrl = "https://api.example.test";
@@ -112,7 +109,10 @@ test("aggregate email sends once and observes only its exact delivery resources"
     });
 
     assert.deepEqual(result, sent);
-    assert.equal(result.deliveries[0].provider_message_id, "provider-message-1");
+    assert.equal(
+      result.deliveries[0].provider_message_id,
+      "provider-message-1",
+    );
     assert.equal(result.deliveries[1].provider_thread_id, "provider-thread-2");
   } finally {
     globalThis.fetch = originalFetch;
@@ -124,20 +124,13 @@ test("aggregate email sends once and observes only its exact delivery resources"
     calls.map((call) => [call.url, call.method]),
     [
       [`${baseUrl}/v1/notifications/email`, "POST"],
-      [
-        `${baseUrl}/v1/notifications/email-deliveries/delivery-one`,
-        "GET",
-      ],
-      [
-        `${baseUrl}/v1/notifications/email-deliveries/delivery-two`,
-        "GET",
-      ],
+      [`${baseUrl}/v1/notifications/email-deliveries/delivery-one`, "GET"],
+      [`${baseUrl}/v1/notifications/email-deliveries/delivery-two`, "GET"],
     ],
   );
   assert.ok(
     calls.every(
-      (call) =>
-        call.headers.get("x-observation-contract") === "preserved",
+      (call) => call.headers.get("x-observation-contract") === "preserved",
     ),
   );
   assert.equal(transforms, 1);
@@ -163,6 +156,7 @@ test("checkout POSTs once and observes the exact order payment", async () => {
     payment_action: {
       type: "handle_next_action",
       client_secret: "pi_scheduled_secret",
+      connected_account_id: "acct_scheduled",
     },
     payment: {
       ...pending.payment,
@@ -170,6 +164,7 @@ test("checkout POSTs once and observes the exact order payment", async () => {
       payment_action: {
         type: "handle_next_action",
         client_secret: "pi_scheduled_secret",
+        connected_account_id: "acct_scheduled",
       },
     },
   };
@@ -218,14 +213,8 @@ test("checkout POSTs once and observes the exact order payment", async () => {
   assert.deepEqual(
     calls.map((call) => [call.url, call.method]),
     [
-      [
-        `${baseUrl}/v1/stores/${storeId}/carts/cart-scheduled/checkout`,
-        "POST",
-      ],
-      [
-        `${baseUrl}/v1/stores/${storeId}/orders/order-scheduled/payment`,
-        "GET",
-      ],
+      [`${baseUrl}/v1/stores/${storeId}/carts/cart-scheduled/checkout`, "POST"],
+      [`${baseUrl}/v1/stores/${storeId}/orders/order-scheduled/payment`, "GET"],
     ],
   );
   assert.equal(calls[0].body.transformed_once, true);
@@ -235,37 +224,141 @@ test("checkout POSTs once and observes the exact order payment", async () => {
   assert.equal(errors, 0);
 });
 
-test("storefront checkout observes the exact payment action without repeating checkout", async () => {
+test("storefront scheduled mutations await exact response persistence before observation or return", async () => {
   const publishableKey = `arky_pk_${"s".repeat(43)}`;
   const visitorToken = `arky_vst_${"c".repeat(64)}`;
+  const storefront = createStorefront(publishableKey, {
+    apiUrl: baseUrl,
+    sessionStorage: {
+      getItem: () => visitorToken,
+      setItem() {},
+      removeItem() {},
+    },
+  });
   const pending = {
-    order_id: "storefront-order-scheduled",
-    number: "1002",
+    order_id: "storefront-order-hook",
+    number: "1004",
     payment_action: { type: "none" },
     payment: {
       status: { status: "processing", at: 1 },
-      payment_action: { type: "none" },
       amount: 1250,
       currency: "EUR",
       paid: 0,
       method_type: "credit_card",
     },
   };
-  const observedPayment = {
+  const captured = {
     ...pending.payment,
-    status: { status: "requires_action", at: 2 },
-    payment_action: {
-      type: "handle_next_action",
-      client_secret: "pi_storefront_scheduled_secret",
+    status: { status: "captured", at: 2, amount: 1250 },
+    payment_action: { type: "none" },
+  };
+  const calls = [];
+  let enterHook;
+  let releaseHook;
+  const hookEntered = new Promise((resolve) => {
+    enterHook = resolve;
+  });
+  const hookGate = new Promise((resolve) => {
+    releaseHook = resolve;
+  });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), method: init.method || "GET" });
+    return jsonResponse(init.method === "POST" ? pending : captured);
+  };
+
+  try {
+    const checkoutPromise = storefront.eshop.cart.checkout(
+      {
+        id: "storefront-cart-hook",
+        payment_method_key: "credit_card",
+      },
+      {
+        async onScheduledResponse(response) {
+          assert.equal(response.order_id, "storefront-order-hook");
+          enterHook();
+          await hookGate;
+        },
+      },
+    );
+    await hookEntered;
+    assert.deepEqual(
+      calls.map((call) => call.method),
+      ["POST"],
+      "observation must not start until exact response persistence completes",
+    );
+    releaseHook();
+    const result = await checkoutPromise;
+    assert.equal(result.payment.status.status, "captured");
+
+    calls.length = 0;
+    globalThis.fetch = async (url, init = {}) => {
+      calls.push({ url: String(url), method: init.method || "GET" });
+      return jsonResponse({
+        payment_action: { type: "none" },
+        payment_attempt: null,
+        membership: {
+          id: "membership-hook",
+          contact_id: "contact-hook",
+          contact_list_id: "list-hook",
+          status: "active",
+        },
+      });
+    };
+    await assert.rejects(
+      storefront.crm.contactList.subscribe(
+        {
+          id: "list-hook",
+          contact_id: "contact-hook",
+        },
+        {
+          async onScheduledResponse(response) {
+            assert.equal(response.membership.id, "membership-hook");
+            throw new Error("durable transition failed");
+          },
+        },
+      ),
+      /durable transition failed/,
+    );
+    assert.deepEqual(
+      calls.map((call) => call.method),
+      ["POST"],
+      "a failed durable transition must reject before return or observation",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("storefront checkout preserves an unknown provider outcome without repeating checkout", async () => {
+  const publishableKey = `arky_pk_${"u".repeat(42)}A`;
+  const visitorToken = `arky_vst_${"c".repeat(64)}`;
+  const pending = {
+    order_id: "storefront-order-unknown",
+    number: "1003",
+    payment_action: { type: "none" },
+    payment: {
+      status: { status: "processing", at: 1 },
+      amount: 1250,
+      currency: "EUR",
+      paid: 0,
+      method_type: "credit_card",
     },
+  };
+  const unknownPayment = {
+    ...pending.payment,
+    status: {
+      status: "unknown",
+      at: 2,
+      reason: "Provider outcome is unknown",
+    },
+    payment_action: { type: "none" },
   };
   const calls = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     calls.push({ url: String(url), method: init.method || "GET" });
-    return jsonResponse(
-      init.method === "POST" ? pending : observedPayment,
-    );
+    return jsonResponse(init.method === "POST" ? pending : unknownPayment);
   };
 
   try {
@@ -278,14 +371,12 @@ test("storefront checkout observes the exact payment action without repeating ch
       },
     });
     const result = await storefront.eshop.cart.checkout({
-      id: "storefront-cart-scheduled",
+      id: "storefront-cart-unknown",
       payment_method_key: "credit_card",
     });
-    assert.equal(result.payment.status.status, "requires_action");
-    assert.deepEqual(
-      result.payment_action,
-      observedPayment.payment_action,
-    );
+    assert.equal(result.payment.status.status, "unknown");
+    assert.equal(result.payment.status.reason, "Provider outcome is unknown");
+    assert.deepEqual(result.payment_action, { type: "none" });
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -294,11 +385,11 @@ test("storefront checkout observes the exact payment action without repeating ch
     calls.map((call) => [call.url, call.method]),
     [
       [
-        `${baseUrl}/v1/storefront/carts/storefront-cart-scheduled/checkout`,
+        `${baseUrl}/v1/storefront/carts/storefront-cart-unknown/checkout`,
         "POST",
       ],
       [
-        `${baseUrl}/v1/storefront/orders/storefront-order-scheduled/payment`,
+        `${baseUrl}/v1/storefront/orders/storefront-order-unknown/payment`,
         "GET",
       ],
     ],
@@ -376,6 +467,70 @@ test("storefront subscription POSTs once and observes the exact payment attempt"
   );
 });
 
+test("storefront subscription preserves an unknown exact attempt without repeating subscribe", async () => {
+  const publishableKey = `arky_pk_${"n".repeat(42)}A`;
+  const visitorToken = `arky_vst_${"c".repeat(64)}`;
+  const attemptId = "payment-attempt-unknown";
+  const pending = {
+    payment_action: { type: "none" },
+    payment_attempt: {
+      plan_id: "plan-unknown",
+      amount: 900,
+      currency: "EUR",
+      status: "processing",
+    },
+    membership: {
+      id: "membership-unknown",
+      contact_id: "contact-unknown",
+      contact_list_id: "list-unknown",
+      current_payment_attempt_id: attemptId,
+      status: "pending",
+    },
+  };
+  const unknown = {
+    ...pending,
+    payment_attempt: { ...pending.payment_attempt, status: "unknown" },
+  };
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), method: init.method || "GET" });
+    return jsonResponse(init.method === "POST" ? pending : unknown);
+  };
+
+  try {
+    const storefront = createStorefront(publishableKey, {
+      apiUrl: baseUrl,
+      sessionStorage: {
+        getItem: () => visitorToken,
+        setItem() {},
+        removeItem() {},
+      },
+    });
+    const result = await storefront.crm.contactList.subscribe({
+      id: "list-unknown",
+      contact_id: "contact-unknown",
+      price_id: "price-unknown",
+      confirmation_token_id: "confirmation-unknown",
+    });
+    assert.equal(result.payment_attempt.status, "unknown");
+    assert.equal(result.membership.current_payment_attempt_id, attemptId);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.deepEqual(
+    calls.map((call) => [call.url, call.method]),
+    [
+      [`${baseUrl}/v1/storefront/contact-lists/list-unknown/subscribe`, "POST"],
+      [
+        `${baseUrl}/v1/storefront/contact-lists/list-unknown/subscription-attempts/${attemptId}`,
+        "GET",
+      ],
+    ],
+  );
+});
+
 test("storefront reload observes one exact subscription attempt without repeating the mutation", async () => {
   const publishableKey = `arky_pk_${"s".repeat(43)}`;
   const visitorToken = `arky_vst_${"d".repeat(64)}`;
@@ -383,6 +538,7 @@ test("storefront reload observes one exact subscription attempt without repeatin
     payment_action: {
       type: "handle_next_action",
       client_secret: "pi_subscription_secret",
+      connected_account_id: "acct_subscription",
     },
     payment_attempt: {
       plan_id: "plan-resume",
@@ -434,10 +590,7 @@ test("storefront reload observes one exact subscription attempt without repeatin
   );
   assert.equal(calls[0].method, "GET");
   assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
-  assert.equal(
-    calls[0].headers.get("x-arky-publishable-key"),
-    publishableKey,
-  );
+  assert.equal(calls[0].headers.get("x-arky-publishable-key"), publishableKey);
 });
 
 test("support AI POSTs once, polls the exact message, then loads the conversation once", async () => {
@@ -568,6 +721,7 @@ test("social classification POSTs once and observes the exact run with GET", asy
     const result = await admin().social.publication.classifyComments(
       {
         store_id: storeId,
+        run_id: runId,
         publication_id: "publication-scheduled",
         force: true,
       },
@@ -652,7 +806,7 @@ test("scheduled observations stay scoped to the store captured by their mutation
       if (target.endsWith("/payment-providers/stripe/connect")) {
         return jsonResponse({
           provider: requestedProvider,
-          onboarding_url: "",
+          onboarding_url: null,
         });
       }
       return jsonResponse(requestedRun);
@@ -685,16 +839,15 @@ test("scheduled observations stay scoped to the store captured by their mutation
       country: "BA",
     });
     client.setStoreId(originalStoreId);
-    await client.social.publication.classifyComments();
+    await client.social.publication.classifyComments({
+      run_id: requestedRun.run_id,
+    });
   } finally {
     globalThis.fetch = originalFetch;
   }
 
   assert.deepEqual(
-    calls.map(({ target, method }) => [
-      target.replace(baseUrl, ""),
-      method,
-    ]),
+    calls.map(({ target, method }) => [target.replace(baseUrl, ""), method]),
     [
       [
         `/v1/stores/${originalStoreId}/payment-providers/stripe/connect`,
@@ -732,12 +885,16 @@ test("explicit provider retries POST once and then observe their exact resource 
         status: method === "POST" ? "requested" : "succeeded",
       });
     }
-    if (
-      target.includes("/shipments/shipment-one/refunds/refund-one")
-    ) {
+    if (target.includes("/shipments/shipment-one/refunds/refund-one")) {
       return jsonResponse({
         id: "refund-one",
         status: method === "POST" ? "processing" : "succeeded",
+      });
+    }
+    if (target.includes("/shipments/shipment-one/settlements/settlement-one")) {
+      return jsonResponse({
+        id: "settlement-one",
+        status: method === "POST" ? "requested" : "succeeded",
       });
     }
     if (target.includes("/shipments/shipment-one")) {
@@ -819,6 +976,20 @@ test("explicit provider retries POST once and then observe their exact resource 
     );
     assert.equal(
       (
+        await admin().eshop.shipment.settlement.retry(
+          {
+            store_id: storeId,
+            order_id: "order-one",
+            shipment_id: "shipment-one",
+            settlement_id: "settlement-one",
+          },
+          options,
+        )
+      ).status,
+      "succeeded",
+    );
+    assert.equal(
+      (
         await admin().crm.contactList.memberships.refunds.retry(
           {
             store_id: storeId,
@@ -862,85 +1033,15 @@ test("explicit provider retries POST once and then observe their exact resource 
     globalThis.fetch = originalFetch;
   }
 
-  assert.equal(transforms, 6);
-  assert.equal(successes, 6);
-  assert.equal(calls.length, 12);
+  assert.equal(transforms, 7);
+  assert.equal(successes, 7);
+  assert.equal(calls.length, 14);
   for (let index = 0; index < calls.length; index += 2) {
     assert.equal(calls[index].method, "POST");
     assert.match(calls[index].target, /\/retry$/);
     assert.equal(calls[index + 1].method, "GET");
     assert.doesNotMatch(calls[index + 1].target, /\/retry$/);
   }
-});
-
-test("shipping settlement retry POSTs once and observes the exact settlement resource", async () => {
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({ url: String(url), method: init.method });
-    return jsonResponse({
-      id: "settlement-one",
-      status: init.method === "POST" ? "requested" : "succeeded",
-    });
-  };
-
-  try {
-    const result = await admin().eshop.shipment.settlement.retry({
-      store_id: storeId,
-      order_id: "order-one",
-      shipment_id: "shipment-one",
-      settlement_id: "settlement-one",
-    });
-    assert.equal(result.status, "succeeded");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.equal(calls.length, 2);
-  assert.equal(calls[0].method, "POST");
-  assert.match(calls[0].url, /\/settlements\/settlement-one\/retry$/);
-  assert.equal(calls[1].method, "GET");
-  assert.match(calls[1].url, /\/settlements\/settlement-one$/);
-});
-
-test("blocked payment-provider deletion returns authoritative evidence without polling", async () => {
-  const calls = [];
-  const blocked = {
-    id: "deletion-blocked",
-    store_id: storeId,
-    payment_provider_id: "provider-blocked",
-    revision: 3,
-    status: "blocked",
-    terminal: true,
-    requested_at: 1,
-    processing_started_at: 2,
-    completed_at: 3,
-    error: {
-      type: "provider_binding_changed",
-      message: "provider is still in use",
-      at: 3,
-    },
-  };
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({ url: String(url), method: init.method });
-    return jsonResponse(blocked);
-  };
-
-  try {
-    assert.deepEqual(
-      await admin().store.paymentProvider.delete({
-        store_id: storeId,
-        id: "provider-blocked",
-      }),
-      blocked,
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].method, "DELETE");
 });
 
 test("observation timeout is typed, fast-testable, and carries the last authoritative result", async () => {
@@ -964,11 +1065,9 @@ test("observation timeout is typed, fast-testable, and carries the last authorit
     observationSignal = init.signal;
     queueMicrotask(() => triggerDeadline());
     return new Promise((_resolve, reject) => {
-      init.signal.addEventListener(
-        "abort",
-        () => reject(init.signal.reason),
-        { once: true },
-      );
+      init.signal.addEventListener("abort", () => reject(init.signal.reason), {
+        once: true,
+      });
     });
   };
   globalThis.setTimeout = (callback, delay = 0, ...args) => {
@@ -999,10 +1098,7 @@ test("observation timeout is typed, fast-testable, and carries the last authorit
       ),
       (error) => {
         assert.ok(error instanceof ScheduledResultTimeoutError);
-        assert.equal(
-          error.lastResult.payment.status.status,
-          "processing",
-        );
+        assert.equal(error.lastResult.payment.status.status, "processing");
         assert.match(error.message, /observation timed out/i);
         assert.doesNotMatch(error.message, /delivery failed/i);
         return true;

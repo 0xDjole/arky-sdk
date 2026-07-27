@@ -3,15 +3,13 @@ import type {
   ConnectStripePaymentProviderParams,
   DeletePaymentProviderParams,
   GetPaymentProviderConnectionParams,
-  GetPaymentProviderDeletionParams,
   ListPaymentProvidersParams,
   RefreshPaymentProvidersParams,
   RequestOptions,
-  RetryPaymentProviderDeletionParams,
+  ScheduledMutationOptions,
 } from "../types/api";
 import type {
   PaymentProvider,
-  PaymentProviderDeletion,
   StripePaymentProviderConnectResponse,
 } from "../types";
 import {
@@ -22,17 +20,6 @@ import {
 
 export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
   const storeId = (store_id?: string) => store_id || apiConfig.storeId;
-  const deletionPath = (params: GetPaymentProviderDeletionParams) =>
-    `/v1/stores/${storeId(params.store_id)}/payment-providers/${params.id}/deletion`;
-
-  const observeDeletion = (
-    params: GetPaymentProviderDeletionParams,
-    options?: RequestOptions,
-  ) => (observationSignal: AbortSignal) =>
-    apiConfig.httpClient.get<PaymentProviderDeletion>(
-      deletionPath(params),
-      scheduledObservationOptions(options, observationSignal),
-    );
 
   return {
     async list(
@@ -59,7 +46,7 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
 
     async connectStripe(
       params: ConnectStripePaymentProviderParams,
-      options?: RequestOptions,
+      options?: ScheduledMutationOptions<StripePaymentProviderConnectResponse>,
     ): Promise<StripePaymentProviderConnectResponse> {
       const targetStoreId = storeId(params.store_id);
       const path = `/v1/stores/${targetStoreId}/payment-providers/stripe/connect`;
@@ -69,6 +56,7 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
         mutation.body,
         mutation.options,
       );
+      await mutation.afterResponse(requested);
       if (
         requested.provider.connection.status !== "requested" &&
         requested.provider.connection.status !== "processing"
@@ -76,7 +64,8 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
         return requested;
       }
 
-      return pollScheduledResult(
+      const revision = requested.provider.connection.revision;
+      const observed = await pollScheduledResult(
         requested,
         (observationSignal) =>
           apiConfig.httpClient.get<StripePaymentProviderConnectResponse>(
@@ -84,10 +73,21 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
             scheduledObservationOptions(options, observationSignal),
           ),
         (response) =>
-          response.provider.connection.status === "requested" ||
-          response.provider.connection.status === "processing",
+          response.provider.id === requested.provider.id &&
+          response.provider.connection.revision === revision &&
+          (response.provider.connection.status === "requested" ||
+            response.provider.connection.status === "processing"),
         options?.signal,
       );
+      if (
+        observed.provider.id !== requested.provider.id ||
+        observed.provider.connection.revision !== revision
+      ) {
+        throw new Error(
+          "Stripe connection changed before its exact result could be observed",
+        );
+      }
+      return observed;
     },
 
     async getConnection(
@@ -103,47 +103,10 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
     async delete(
       params: DeletePaymentProviderParams,
       options?: RequestOptions,
-    ): Promise<PaymentProviderDeletion> {
-      const providerPath = `/v1/stores/${storeId(params.store_id)}/payment-providers/${params.id}`;
-      const requested =
-        await apiConfig.httpClient.delete<PaymentProviderDeletion>(
-          providerPath,
-          options,
-        );
-      return pollScheduledResult(
-        requested,
-        observeDeletion(params, options),
-        (result) => !result.terminal,
-        options?.signal,
-      );
-    },
-
-    async getDeletion(
-      params: GetPaymentProviderDeletionParams,
-      options?: RequestOptions,
-    ): Promise<PaymentProviderDeletion> {
-      return apiConfig.httpClient.get<PaymentProviderDeletion>(
-        deletionPath(params),
+    ): Promise<{ deleted: boolean }> {
+      return apiConfig.httpClient.delete<{ deleted: boolean }>(
+        `/v1/stores/${storeId(params.store_id)}/payment-providers/${params.id}`,
         options,
-      );
-    },
-
-    async retryDeletion(
-      params: RetryPaymentProviderDeletionParams,
-      options?: RequestOptions,
-    ): Promise<PaymentProviderDeletion> {
-      const path = `${deletionPath(params)}/retry`;
-      const mutation = prepareScheduledMutation(params, options);
-      const requested = await apiConfig.httpClient.post<PaymentProviderDeletion>(
-        path,
-        mutation.body,
-        mutation.options,
-      );
-      return pollScheduledResult(
-        requested,
-        observeDeletion(params, options),
-        (result) => !result.terminal,
-        options?.signal,
       );
     },
   };

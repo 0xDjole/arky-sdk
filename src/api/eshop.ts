@@ -47,6 +47,7 @@ import type {
   QuoteCartParams,
   RemoveCartItemParams,
   RequestOptions,
+  ScheduledMutationOptions,
   UpdateCartParams,
 } from "../types/api";
 import {
@@ -455,7 +456,12 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async checkoutCart(params: CheckoutCartParams, options?: RequestOptions): Promise<import("../types").OrderCheckoutResult> {
+    async checkoutCart(
+      params: CheckoutCartParams,
+      options?: ScheduledMutationOptions<
+        import("../types").OrderCheckoutResult
+      >,
+    ): Promise<import("../types").OrderCheckoutResult> {
       const { id, store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
       const path = `/v1/stores/${target_store_id}/carts/${id}/checkout`;
@@ -466,6 +472,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
           mutation.body,
           mutation.options,
         );
+      await mutation.afterResponse(requested);
       return pollScheduledResult(
         requested,
         async (observationSignal) => {

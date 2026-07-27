@@ -34,6 +34,7 @@ import type {
   QuoteCartParams,
   RemoveCartItemParams,
   RequestOptions,
+  ScheduledMutationOptions,
   SubmitFormParams,
   SubscribeContactListParams,
   UpdateCartParams,
@@ -513,7 +514,9 @@ export const createStorefrontApi = (
         },
         async checkout(
           params: StorefrontParams<CheckoutCartParams>,
-          options?: RequestOptions,
+          options?: ScheduledMutationOptions<
+            StorefrontDto<OrderCheckoutResult>
+          >,
         ): Promise<StorefrontDto<OrderCheckoutResult>> {
           await lifecycle.ensureVisitorSession();
           const payload = {
@@ -530,6 +533,7 @@ export const createStorefrontApi = (
               mutation.body,
               mutation.options,
             );
+          await mutation.afterResponse(requested);
           return pollScheduledResult(
             requested,
             async (observationSignal) => {
@@ -563,6 +567,15 @@ export const createStorefrontApi = (
             `${base}/orders/${params.id}`,
             options,
           );
+        },
+        async getPayment(
+          params: StorefrontParams<GetOrderParams>,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<OrderPaymentObservation>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<
+            StorefrontDto<OrderPaymentObservation>
+          >(`${base}/orders/${params.id}/payment`, options);
         },
         async find(
           params: StorefrontParams<GetOrdersParams>,
@@ -770,7 +783,9 @@ export const createStorefrontApi = (
         },
         async subscribe(
           params: StorefrontParams<SubscribeContactListParams>,
-          options?: RequestOptions,
+          options?: ScheduledMutationOptions<
+            StorefrontDto<ContactListSubscribeResponse>
+          >,
         ): Promise<StorefrontDto<ContactListSubscribeResponse>> {
           await lifecycle.ensureVisitorSession();
           const { id, ...payload } = params;
@@ -780,6 +795,7 @@ export const createStorefrontApi = (
             await apiConfig.httpClient.post<
               StorefrontDto<ContactListSubscribeResponse>
             >(path, mutation.body, mutation.options);
+          await mutation.afterResponse(requested);
           const paymentAttemptId =
             requested.membership?.current_payment_attempt_id;
           if (

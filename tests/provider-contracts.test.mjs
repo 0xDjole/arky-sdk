@@ -133,97 +133,19 @@ test('subscription checkout rejects server evidence for another action', async (
 	}
 });
 
-test('payment-provider deletion returns terminal blocked domain evidence', async () => {
-	const blocked = {
-		id: 'deletion-contract',
-		store_id: 'store-deletion',
-		payment_provider_id: 'provider-contract',
-			revision: 4,
-			status: 'blocked',
-			terminal: true,
-		requested_at: 1,
-		processing_started_at: 2,
-		completed_at: 3,
-		error: {
-				type: 'connection_unresolved',
-				message: 'The payment-provider connection has an unresolved outcome',
-				status: 'unknown',
-				at: 3,
-		},
-	};
-	const { calls, result } = await captureFetch(blocked, () =>
+test('payment-provider deletion uses one request', async () => {
+	const { calls, result } = await captureFetch({ deleted: true }, () =>
 		admin().store.paymentProvider.delete({
 			store_id: 'store-deletion',
 			id: 'provider-contract',
 		}),
 	);
 
-	assert.deepEqual(result, blocked);
+	assert.deepEqual(result, { deleted: true });
 	assert.deepEqual(calls, [
 		{
 			url: `${baseUrl}/v1/stores/store-deletion/payment-providers/provider-contract`,
 			method: 'DELETE',
-			body: undefined,
-		},
-	]);
-});
-
-test('payment-provider deletion retry starts once then observes exact domain state', async () => {
-	const requested = {
-		id: 'deletion-contract',
-		store_id: 'store-deletion',
-		payment_provider_id: 'provider-contract',
-			revision: 5,
-			status: 'requested',
-			terminal: false,
-		requested_at: 4,
-		processing_started_at: null,
-		completed_at: null,
-		error: null,
-	};
-	const succeeded = {
-			...requested,
-			status: 'succeeded',
-			terminal: true,
-		processing_started_at: 5,
-		completed_at: 6,
-	};
-	const calls = [];
-	const originalFetch = globalThis.fetch;
-	globalThis.fetch = async (url, init = {}) => {
-		calls.push({
-			url: String(url),
-			method: init.method,
-			body: init.body === undefined ? undefined : JSON.parse(init.body),
-		});
-		return jsonResponse(calls.length === 1 ? requested : succeeded);
-	};
-
-	let result;
-	try {
-		result = await admin().store.paymentProvider.retryDeletion({
-			store_id: 'store-deletion',
-			id: 'provider-contract',
-			expected_revision: 4,
-		});
-	} finally {
-		globalThis.fetch = originalFetch;
-	}
-
-	assert.deepEqual(result, succeeded);
-	assert.deepEqual(calls, [
-		{
-			url: `${baseUrl}/v1/stores/store-deletion/payment-providers/provider-contract/deletion/retry`,
-			method: 'POST',
-			body: {
-				store_id: 'store-deletion',
-				id: 'provider-contract',
-				expected_revision: 4,
-			},
-		},
-		{
-			url: `${baseUrl}/v1/stores/store-deletion/payment-providers/provider-contract/deletion`,
-			method: 'GET',
 			body: undefined,
 		},
 	]);

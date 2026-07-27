@@ -625,7 +625,6 @@ export interface SocialPublicationCommentClassificationResult {
   comments: SocialPublicationComment[];
   skipped_comment_ids: string[];
   errors: string[];
-  processing_started_at?: number | null;
   processing_deadline_at?: number | null;
   completed_at?: number | null;
 }
@@ -743,80 +742,6 @@ export interface PaymentProvider {
   updated_at: number;
 }
 
-export type PaymentProviderDeletionStatus =
-  | "requested"
-  | "processing"
-  | "succeeded"
-  | "blocked";
-
-export type PaymentProviderDeletionCatalogStatus = "processing" | "unknown";
-
-export type PaymentProviderDeletionCancellationStatus =
-  | "not_created"
-  | "requested"
-  | "processing"
-  | "succeeded_unreconciled"
-  | "failed"
-  | "rejected"
-  | "unknown";
-
-export type PaymentProviderDeletionSubscriptionStatus =
-  | "requires_action"
-  | "succeeded_without_subscription"
-  | "unknown";
-
-export type PaymentProviderDeletionError =
-  | {
-      type: "connection_unresolved";
-      message: string;
-      status: PaymentProviderConnectionStatus;
-      at: number;
-    }
-  | {
-      type: "catalog_operation_unresolved";
-      message: string;
-      plan_id: string;
-      status: PaymentProviderDeletionCatalogStatus;
-      at: number;
-    }
-  | {
-      type: "subscription_cancellation_unresolved";
-      message: string;
-      payment_attempt_id: string;
-      cancellation_id?: string | null;
-      status: PaymentProviderDeletionCancellationStatus;
-      at: number;
-    }
-  | {
-      type: "subscription_verification_mismatch";
-      message: string;
-      discovered: number;
-      verified: number;
-      at: number;
-    }
-  | {
-      type: "subscription_creation_unresolved";
-      message: string;
-      payment_attempt_id: string;
-      status: PaymentProviderDeletionSubscriptionStatus;
-      at: number;
-    }
-  | { type: "provider_binding_changed"; message: string; at: number }
-  | { type: "coordination_interrupted"; message: string; at: number };
-
-export interface PaymentProviderDeletion {
-  id: string;
-  store_id: string;
-  payment_provider_id: string;
-  revision: number;
-  status: PaymentProviderDeletionStatus;
-  terminal: boolean;
-  requested_at: number;
-  processing_started_at?: number | null;
-  completed_at?: number | null;
-  error?: PaymentProviderDeletionError | null;
-}
-
 export interface PaymentStoreConfig {
   provider: "stripe";
   publishable_key: string;
@@ -825,7 +750,7 @@ export interface PaymentStoreConfig {
 
 export interface StripePaymentProviderConnectResponse {
   provider: PaymentProvider;
-  onboarding_url: string;
+  onboarding_url: string | null;
 }
 
 export interface ShippingWeightTier {
@@ -1076,6 +1001,7 @@ export type OrderPaymentSummaryStatus =
   | "paid"
   | "partially_refunded"
   | "refunded"
+  | "unknown"
   | "failed"
   | "voided"
   | "expired";
@@ -1218,7 +1144,12 @@ export interface Order {
 }
 
 export type CheckoutPaymentAction =
-  { type: "none" } | { type: "handle_next_action"; client_secret: string };
+  | { type: "none" }
+  | {
+      type: "handle_next_action";
+      client_secret: string;
+      connected_account_id: string;
+    };
 
 export interface OrderPaymentObservation extends OrderPayment {
   payment_action: CheckoutPaymentAction;
@@ -1987,6 +1918,7 @@ export type OrderPaymentStatus =
   | { status: "voided"; at: number; amount: number }
   | { status: "cancelled"; at: number; reason?: string | null }
   | { status: "expired"; at: number }
+  | { status: "unknown"; at: number; reason?: string | null }
   | { status: "failed"; at: number; reason?: string | null };
 
 export interface TimeRange {
@@ -3002,7 +2934,6 @@ export interface CampaignLaunchState {
   revision: number;
   status: CampaignLaunchStatus;
   requested_at: number | null;
-  processing_started_at: number | null;
   completed_at: number | null;
   error: string | null;
 }

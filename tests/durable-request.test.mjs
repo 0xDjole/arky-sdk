@@ -47,15 +47,14 @@ test('durable requests persist the immutable request and reuse it after a module
 	const { storage } = installBrowserState();
 	const firstModule = await importDurableRequests();
 	const storageKey = 'arky:order-refund:store-1:order-1';
-	const request = { order_id: 'order-1', amount: 1250 };
+	const request = { order_id: 'order-1', refund_id: 'refund-1', amount: 1250 };
 
 	const first = await firstModule.withDurableRequestLock(storageKey, 'refund', async () =>
 		firstModule.getOrCreateDurableRequest(storageKey, request, 'refund')
 	);
 	const envelope = JSON.parse(storage.getItem(storageKey));
-	assert.deepEqual(Object.keys(envelope).sort(), ['id', 'requestJson']);
+	assert.deepEqual(Object.keys(envelope), ['requestJson']);
 	assert.equal(envelope.requestJson, JSON.stringify(request));
-	assert.equal(envelope.id, first.id);
 
 	const remountedModule = await importDurableRequests();
 	const remounted = await remountedModule.withDurableRequestLock(
@@ -63,7 +62,7 @@ test('durable requests persist the immutable request and reuse it after a module
 		'refund',
 		async () => remountedModule.getOrCreateDurableRequest(storageKey, request, 'refund')
 	);
-	assert.equal(remounted.id, first.id);
+	assert.equal(remounted.requestJson, first.requestJson);
 	assert.deepEqual(remountedModule.durableRequestPayload(remounted), request);
 	assert.notEqual(storage.getItem(storageKey), null, 'a read or remount must not clear the operation');
 });
@@ -88,10 +87,10 @@ test('durable request storage fails closed for unavailable, corrupt, unreadable,
 
 	for (const [name, raw] of [
 		['invalid JSON', '{'],
-		['invalid envelope', JSON.stringify({ id: 'operation-only' })],
+		['invalid envelope', JSON.stringify({ unexpected: 'operation-only' })],
 		[
 			'invalid saved request',
-			JSON.stringify({ id: 'operation-1', requestJson: '{' })
+			JSON.stringify({ requestJson: '{' })
 		]
 	]) {
 		await t.test(name, () => {
@@ -135,7 +134,7 @@ test('durable request storage fails closed for unavailable, corrupt, unreadable,
 test('durable request clear verifies the exact saved state and physical removal', async (t) => {
 	const operations = await importDurableRequests();
 	const storageKey = 'arky:provider:test-clear';
-	const request = { action: 'refund', amount: 250 };
+	const request = { action: 'refund', refund_id: 'refund-1', amount: 250 };
 
 	await t.test('exact state is physically removed', () => {
 		const storage = new MemoryStorage();
@@ -150,7 +149,7 @@ test('durable request clear verifies the exact saved state and physical removal'
 		assert.throws(
 			() =>
 				operations.clearDurableRequest(
-					{ storageKey, requestJson: JSON.stringify(request), id: 'missing' },
+					{ storageKey, requestJson: JSON.stringify(request) },
 					'refund'
 				),
 			/durable request state changed before it could be cleared/
@@ -158,10 +157,15 @@ test('durable request clear verifies the exact saved state and physical removal'
 	});
 
 	await t.test('changed state cannot be cleared', () => {
-		installBrowserState();
+		const storage = new MemoryStorage();
+		installBrowserState(storage);
 		const saved = operations.getOrCreateDurableRequest(storageKey, request, 'refund');
+		storage.seed(
+			storageKey,
+			JSON.stringify({ requestJson: JSON.stringify({ ...request, amount: 251 }) })
+		);
 		assert.throws(
-			() => operations.clearDurableRequest({ ...saved, id: 'different' }, 'refund'),
+			() => operations.clearDurableRequest(saved, 'refund'),
 			/durable request state changed before it could be cleared/
 		);
 	});
@@ -254,6 +258,7 @@ test('the exact saved shipping request survives a changed signed rate and can be
 	const storageKey = 'arky:shipping-label:store-1:order-1';
 	const originalRequest = {
 		order_id: 'order-1',
+		shipment_id: 'shipment-1',
 		rate_id: 'signed-rate-original',
 		location_id: 'location-1',
 		fulfillment_order_id: 'fulfillment-1',
@@ -285,7 +290,7 @@ test('the exact saved shipping request survives a changed signed rate and can be
 	);
 	assert.equal(changedRequestCalls, 0);
 	const remounted = operations.readDurableRequest(storageKey, 'shipping-label purchase');
-	assert.equal(remounted.id, saved.id);
+	assert.equal(remounted.requestJson, saved.requestJson);
 	assert.deepEqual(operations.durableRequestPayload(remounted), originalRequest);
 	assert.notEqual(storage.getItem(storageKey), null, 'an unrelated order state must retain the request');
 });
@@ -293,14 +298,15 @@ test('the exact saved shipping request survives a changed signed rate and can be
 test('durable requests never reuse an in-memory fallback after durable storage changes', async () => {
 	const operations = await importDurableRequests();
 	const storageKey = 'arky:provider:no-memory-fallback';
-	const request = { order_id: 'order-1', amount: 500 };
+	const request = { order_id: 'order-1', refund_id: 'refund-1', amount: 500 };
 	const firstStorage = new MemoryStorage();
 	installGlobal('localStorage', firstStorage);
 	const first = operations.getOrCreateDurableRequest(storageKey, request, 'refund');
 	const secondStorage = new MemoryStorage();
 	installGlobal('localStorage', secondStorage);
 	const second = operations.getOrCreateDurableRequest(storageKey, request, 'refund');
-	assert.notEqual(second.id, first.id);
+	assert.notStrictEqual(second, first);
+	assert.equal(second.requestJson, first.requestJson);
 	assert.equal(firstStorage.getItem(storageKey) !== null, true);
 	assert.equal(secondStorage.getItem(storageKey) !== null, true);
 });
