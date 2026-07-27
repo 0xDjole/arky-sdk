@@ -17,11 +17,6 @@ export class ScheduledResultTimeoutError<T = unknown> extends Error {
   }
 }
 
-/**
- * Scheduled observations are transport continuations, not caller mutations.
- * Keep authentication/routing headers, query parameters, and cancellation, but
- * never replay body transforms or mutation lifecycle callbacks.
- */
 export function scheduledObservationOptions<T>(
   options?: RequestOptions,
   signal?: AbortSignal,
@@ -40,10 +35,6 @@ export function scheduledObservationOptions<T>(
   return observation;
 }
 
-/**
- * Replayed observation mutations must use the exact body sent initially while
- * still running a caller transform only once.
- */
 export function prepareScheduledMutation(
   body: unknown,
   options?: RequestOptions,
@@ -115,11 +106,6 @@ async function awaitObservation<T>(
   });
 }
 
-/**
- * Observe a mutation result until its domain state is terminal. The mutation
- * itself is deliberately performed by the caller before entering this helper.
- * The observer must use the supplied signal for its transport request.
- */
 export async function pollScheduledResult<T>(
   initialResult: T,
   observe: (signal: AbortSignal) => Promise<T>,
