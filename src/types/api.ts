@@ -2082,6 +2082,17 @@ export interface DeletePaymentProviderParams {
   id: string;
 }
 
+export interface GetPaymentProviderDeletionParams {
+  store_id: string;
+  id: string;
+}
+
+export interface RetryPaymentProviderDeletionParams {
+  store_id: string;
+  id: string;
+  expected_revision: number;
+}
+
 export interface FindSocialPublicationsParams {
   store_id?: string;
   status?: SocialPublicationStatus;
@@ -2344,9 +2355,12 @@ export interface FindShippingLabelSettlementsParams extends FindShipmentsParams 
   shipment_id: string;
 }
 
-export interface RetryShippingLabelSettlementParams extends GetShipmentParams {
+export interface GetShippingLabelSettlementParams extends GetShipmentParams {
   settlement_id: string;
 }
+
+export type RetryShippingLabelSettlementParams =
+  GetShippingLabelSettlementParams;
 
 export interface AuthToken {
   id: string;

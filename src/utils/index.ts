@@ -32,3 +32,8 @@ export {
   withDurableRequestLock,
 } from "./durableRequest";
 export type { DurableRequest } from "./durableRequest";
+
+export {
+  ScheduledResultTimeoutError,
+  pollScheduledResult,
+} from "./scheduledResult";

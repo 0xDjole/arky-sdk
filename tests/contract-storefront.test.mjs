@@ -229,6 +229,63 @@ test("high-level checkout uses keyless routes, visitor authorization, and Store-
   }
 });
 
+test("checkout waits on domain state while Tito is the only provider executor", async () => {
+  const store = initialize(publishableKey, {
+    apiUrl,
+    market: "ita",
+    sessionStorage: sessionStorage(),
+  });
+  const cart = cartSnapshot(1);
+  store.eshop.cart.cart.set(cart);
+  store.eshop.cart.product_items.set([
+    {
+      id: "line-scheduled",
+      product_id: "product-scheduled",
+      variant_id: "variant-scheduled",
+      product_name: "Scheduled product",
+      product_slug: "scheduled-product",
+      variant_attributes: {},
+      requires_shipping: false,
+      price: { amount: 1250, currency: "EUR", market: "ita" },
+      quantity: 1,
+      added_at: 1,
+    },
+  ]);
+  let checkoutCalls = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (!String(url).endsWith("/checkout")) {
+      return jsonResponse(cart);
+    }
+    checkoutCalls += 1;
+    return jsonResponse({
+      order_id: "order-scheduled",
+      number: "1002",
+      payment_action: { type: "none" },
+      payment: {
+        status:
+          checkoutCalls === 1
+            ? { status: "processing", at: 1 }
+            : { status: "captured", at: 2, amount: 1250 },
+        amount: 1250,
+        currency: "EUR",
+        paid: checkoutCalls === 1 ? 0 : 1250,
+        method_type: "credit_card",
+      },
+    });
+  };
+
+  try {
+    const result = await store.eshop.cart.checkout({
+      payment_method_key: "cash",
+    });
+    assert.equal(result.payment.status.status, "captured");
+    assert.equal(checkoutCalls, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("the standalone Stripe controller still uses only setup-derived provider values from its caller", async () => {
   const loads = [];
   const elementsOptions = [];

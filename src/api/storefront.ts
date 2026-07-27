@@ -68,6 +68,11 @@ import type {
   Taxonomy,
   Zone,
 } from "../types";
+import {
+  pollScheduledResult,
+  prepareScheduledMutation,
+  scheduledObservationOptions,
+} from "../utils/scheduledResult";
 import { sanitizePublicCheckoutItems } from "../utils/orderItems";
 
 type StorefrontParams<T> = T extends unknown
@@ -509,15 +514,32 @@ export const createStorefrontApi = (
           options?: RequestOptions,
         ): Promise<StorefrontDto<OrderCheckoutResult>> {
           await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.post<StorefrontDto<OrderCheckoutResult>>(
-            `${base}/carts/${params.id}/checkout`,
-            {
-              id: params.id,
-              payment_method_key: params.payment_method_key,
-              confirmation_token_id: params.confirmation_token_id,
-              return_url: params.return_url,
-            },
-            options,
+          const payload = {
+            id: params.id,
+            payment_method_key: params.payment_method_key,
+            confirmation_token_id: params.confirmation_token_id,
+            return_url: params.return_url,
+          };
+          const path = `${base}/carts/${params.id}/checkout`;
+          const mutation = prepareScheduledMutation(payload, options);
+          const requested =
+            await apiConfig.httpClient.post<StorefrontDto<OrderCheckoutResult>>(
+              path,
+              mutation.body,
+              mutation.options,
+            );
+          return pollScheduledResult(
+            requested,
+            (observationSignal) =>
+              apiConfig.httpClient.post<StorefrontDto<OrderCheckoutResult>>(
+                path,
+                mutation.body,
+                scheduledObservationOptions(options, observationSignal),
+              ),
+            (result) =>
+              result.payment.status.status === "pending" ||
+              result.payment.status.status === "processing",
+            options?.signal,
           );
         },
       },
@@ -742,10 +764,24 @@ export const createStorefrontApi = (
         ): Promise<StorefrontDto<ContactListSubscribeResponse>> {
           await lifecycle.ensureVisitorSession();
           const { id, ...payload } = params;
-          return apiConfig.httpClient.post<StorefrontDto<ContactListSubscribeResponse>>(
-            `${base}/contact-lists/${id}/subscribe`,
-            payload,
-            options,
+          const path = `${base}/contact-lists/${id}/subscribe`;
+          const mutation = prepareScheduledMutation(payload, options);
+          const requested =
+            await apiConfig.httpClient.post<
+              StorefrontDto<ContactListSubscribeResponse>
+            >(path, mutation.body, mutation.options);
+          return pollScheduledResult(
+            requested,
+            (observationSignal) =>
+              apiConfig.httpClient.post<StorefrontDto<ContactListSubscribeResponse>>(
+                path,
+                mutation.body,
+                scheduledObservationOptions(options, observationSignal),
+              ),
+            (result) =>
+              result.payment_attempt?.status === "pending" ||
+              result.payment_attempt?.status === "processing",
+            options?.signal,
           );
         },
         async checkAccess(

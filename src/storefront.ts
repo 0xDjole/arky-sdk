@@ -1,4 +1,8 @@
-export { COMMON_ACTION_KEYS, createStorefront } from "./index";
+export {
+  COMMON_ACTION_KEYS,
+  ScheduledResultTimeoutError,
+  createStorefront,
+} from "./index";
 export { createCartController } from "./index";
 export { buildFormFields, createFormEntry, createFormEntryFromValues, initialize } from "./storefrontStore";
 export { createStripeConfirmationTokenController } from "./payments/stripe";

@@ -9,6 +9,7 @@ import type {
   GetShipmentParams,
   GetFulfillmentOrderParams,
   GetShippingLabelRefundParams,
+  GetShippingLabelSettlementParams,
   GetShippingRatesParams,
   RequestOptions,
   RequestShippingLabelRefundParams,
@@ -26,6 +27,10 @@ import type {
   ShippingLabelSettlement,
   ShippingRate,
 } from "../types";
+import {
+  pollScheduledResult,
+  scheduledObservationOptions,
+} from "../utils/scheduledResult";
 
 export const createShippingApi = (apiConfig: ApiConfig) => {
   const storeId = (value?: string) => value || apiConfig.storeId;
@@ -108,10 +113,31 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       params: RetryShipmentParams,
       options?: RequestOptions,
     ): Promise<Shipment> {
-      return apiConfig.httpClient.post<Shipment>(
-        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/retry`,
+      const path =
+        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}` +
+        `/shipments/${params.shipment_id}`;
+      const requested = await apiConfig.httpClient.post<Shipment>(
+        `${path}/retry`,
         {},
         options,
+      );
+      if (
+        requested.label_status !== "requested" &&
+        requested.label_status !== "processing"
+      ) {
+        return requested;
+      }
+      return pollScheduledResult(
+        requested,
+        (observationSignal) =>
+          apiConfig.httpClient.get<Shipment>(
+            path,
+            scheduledObservationOptions(options, observationSignal),
+          ),
+        (shipment) =>
+          shipment.label_status === "requested" ||
+          shipment.label_status === "processing",
+        options?.signal,
       );
     },
 
@@ -151,10 +177,30 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       params: RetryShippingLabelRefundParams,
       options?: RequestOptions,
     ): Promise<ShippingLabelRefund> {
-      return apiConfig.httpClient.post<ShippingLabelRefund>(
-        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/refunds/${params.refund_id}/retry`,
+      const path =
+        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}` +
+        `/shipments/${params.shipment_id}/refunds/${params.refund_id}`;
+      const requested = await apiConfig.httpClient.post<ShippingLabelRefund>(
+        `${path}/retry`,
         {},
         options,
+      );
+      if (
+        requested.status !== "requested" &&
+        requested.status !== "processing"
+      ) {
+        return requested;
+      }
+      return pollScheduledResult(
+        requested,
+        (observationSignal) =>
+          apiConfig.httpClient.get<ShippingLabelRefund>(
+            path,
+            scheduledObservationOptions(options, observationSignal),
+          ),
+        (refund) =>
+          refund.status === "requested" || refund.status === "processing",
+        options?.signal,
       );
     },
 
@@ -180,14 +226,46 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    async getSettlement(
+      params: GetShippingLabelSettlementParams,
+      options?: RequestOptions,
+    ): Promise<ShippingLabelSettlement> {
+      return apiConfig.httpClient.get<ShippingLabelSettlement>(
+        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/settlements/${params.settlement_id}`,
+        options,
+      );
+    },
+
     async retrySettlement(
       params: RetryShippingLabelSettlementParams,
       options?: RequestOptions,
     ): Promise<ShippingLabelSettlement> {
-      return apiConfig.httpClient.post<ShippingLabelSettlement>(
-        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/settlements/${params.settlement_id}/retry`,
-        {},
-        options,
+      const path =
+        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}` +
+        `/shipments/${params.shipment_id}/settlements/${params.settlement_id}`;
+      const requested =
+        await apiConfig.httpClient.post<ShippingLabelSettlement>(
+          `${path}/retry`,
+          {},
+          options,
+        );
+      if (
+        requested.status !== "requested" &&
+        requested.status !== "processing"
+      ) {
+        return requested;
+      }
+      return pollScheduledResult(
+        requested,
+        (observationSignal) =>
+          apiConfig.httpClient.get<ShippingLabelSettlement>(
+            path,
+            scheduledObservationOptions(options, observationSignal),
+          ),
+        (settlement) =>
+          settlement.status === "requested" ||
+          settlement.status === "processing",
+        options?.signal,
       );
     },
   };

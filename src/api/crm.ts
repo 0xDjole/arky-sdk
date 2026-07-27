@@ -92,6 +92,10 @@ import type {
   Action,
   Suppression,
 } from "../types";
+import {
+  pollScheduledResult,
+  scheduledObservationOptions,
+} from "../utils/scheduledResult";
 
 export interface TimelineParams {
   contact_id: string;
@@ -334,10 +338,31 @@ export const createContactApi = (apiConfig: ApiConfig) => {
           options?: RequestOptions,
         ): Promise<ContactListPlan> {
           const target_store_id = params.store_id || apiConfig.storeId;
-          return apiConfig.httpClient.post<ContactListPlan>(
-            `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/plans/${params.plan_id}/catalog/retry`,
+          const path =
+            `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}` +
+            `/plans/${params.plan_id}`;
+          const requested = await apiConfig.httpClient.post<ContactListPlan>(
+            `${path}/catalog/retry`,
             {},
             options,
+          );
+          if (
+            requested.catalog_status !== "requested" &&
+            requested.catalog_status !== "processing"
+          ) {
+            return requested;
+          }
+          return pollScheduledResult(
+            requested,
+            (observationSignal) =>
+              apiConfig.httpClient.get<ContactListPlan>(
+                path,
+                scheduledObservationOptions(options, observationSignal),
+              ),
+            (plan) =>
+              plan.catalog_status === "requested" ||
+              plan.catalog_status === "processing",
+            options?.signal,
           );
         },
       },
@@ -487,10 +512,32 @@ export const createContactApi = (apiConfig: ApiConfig) => {
             options?: RequestOptions,
           ): Promise<ContactListMembershipRefund> {
             const target_store_id = params.store_id || apiConfig.storeId;
-            return apiConfig.httpClient.post<ContactListMembershipRefund>(
-              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/memberships/${params.membership_id}/refunds/${params.id}/retry`,
-              {},
-              options,
+            const path =
+              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}` +
+              `/memberships/${params.membership_id}/refunds/${params.id}`;
+            const requested =
+              await apiConfig.httpClient.post<ContactListMembershipRefund>(
+                `${path}/retry`,
+                {},
+                options,
+              );
+            if (
+              requested.status !== "requested" &&
+              requested.status !== "processing"
+            ) {
+              return requested;
+            }
+            return pollScheduledResult(
+              requested,
+              (observationSignal) =>
+                apiConfig.httpClient.get<ContactListMembershipRefund>(
+                  path,
+                  scheduledObservationOptions(options, observationSignal),
+                ),
+              (refund) =>
+                refund.status === "requested" ||
+                refund.status === "processing",
+              options?.signal,
             );
           },
         },
@@ -524,10 +571,32 @@ export const createContactApi = (apiConfig: ApiConfig) => {
             options?: RequestOptions,
           ): Promise<ContactListMembershipCancellation> {
             const target_store_id = params.store_id || apiConfig.storeId;
-            return apiConfig.httpClient.post<ContactListMembershipCancellation>(
-              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/memberships/${params.membership_id}/cancellations/${params.id}/retry`,
-              {},
-              options,
+            const path =
+              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}` +
+              `/memberships/${params.membership_id}/cancellations/${params.id}`;
+            const requested =
+              await apiConfig.httpClient.post<ContactListMembershipCancellation>(
+                `${path}/retry`,
+                {},
+                options,
+              );
+            if (
+              requested.status !== "requested" &&
+              requested.status !== "processing"
+            ) {
+              return requested;
+            }
+            return pollScheduledResult(
+              requested,
+              (observationSignal) =>
+                apiConfig.httpClient.get<ContactListMembershipCancellation>(
+                  path,
+                  scheduledObservationOptions(options, observationSignal),
+                ),
+              (cancellation) =>
+                cancellation.status === "requested" ||
+                cancellation.status === "processing",
+              options?.signal,
             );
           },
         },

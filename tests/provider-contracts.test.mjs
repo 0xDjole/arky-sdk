@@ -43,7 +43,7 @@ async function captureFetch(responseBody, request) {
 }
 
 test('subscription checkout sends one caller-owned action identity', async () => {
-	const response = {
+	const requested = {
 		id: resourceId,
 		subscription_id: 'subscription-contract',
 		store_id: 'store-subscription',
@@ -56,16 +56,35 @@ test('subscription checkout sends one caller-owned action identity', async () =>
 		completed_at: null,
 		updated_at: 1,
 	};
-	const { calls, result } = await captureFetch(response, () =>
-		admin().store.subscription.action.create({
+	const completed = {
+		...requested,
+		status: 'succeeded',
+		completed_at: 2,
+		updated_at: 2,
+	};
+	const calls = [];
+	const originalFetch = globalThis.fetch;
+	globalThis.fetch = async (url, init = {}) => {
+		calls.push({
+			url: String(url),
+			method: init.method,
+			body: init.body === undefined ? undefined : JSON.parse(init.body),
+		});
+		return jsonResponse(calls.length === 1 ? requested : completed);
+	};
+	let result;
+	try {
+		result = await admin().store.subscription.action.create({
 			store_id: 'store-subscription',
 			action_id: resourceId,
 			plan_id: 'pro',
 			type: 'select_plan',
 			success_url: 'https://merchant.test/success',
 			cancel_url: 'https://merchant.test/cancel',
-		}),
-	);
+		});
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
 
 	assert.deepEqual(calls, [
 		{
@@ -79,8 +98,13 @@ test('subscription checkout sends one caller-owned action identity', async () =>
 				cancel_url: 'https://merchant.test/cancel',
 			},
 		},
+		{
+			url: `${baseUrl}/v1/stores/store-subscription/subscription/actions/${resourceId}`,
+			method: 'GET',
+			body: undefined,
+		},
 	]);
-	assert.deepEqual(result, response);
+	assert.deepEqual(result, completed);
 });
 
 test('subscription checkout rejects server evidence for another action', async () => {
@@ -107,6 +131,104 @@ test('subscription checkout rejects server evidence for another action', async (
 	} finally {
 		globalThis.fetch = originalFetch;
 	}
+});
+
+test('payment-provider deletion returns terminal blocked domain evidence', async () => {
+	const blocked = {
+		id: 'deletion-contract',
+		store_id: 'store-deletion',
+		payment_provider_id: 'provider-contract',
+		revision: 4,
+		status: 'blocked',
+		deleted: false,
+		terminal: true,
+		requested_at: 1,
+		processing_started_at: 2,
+		completed_at: 3,
+		error: {
+			type: 'connection_unresolved',
+			message: 'The payment-provider connection has an unresolved outcome',
+			at: 3,
+		},
+	};
+	const { calls, result } = await captureFetch(blocked, () =>
+		admin().store.paymentProvider.delete({
+			store_id: 'store-deletion',
+			id: 'provider-contract',
+		}),
+	);
+
+	assert.deepEqual(result, blocked);
+	assert.deepEqual(calls, [
+		{
+			url: `${baseUrl}/v1/stores/store-deletion/payment-providers/provider-contract`,
+			method: 'DELETE',
+			body: undefined,
+		},
+	]);
+});
+
+test('payment-provider deletion retry starts once then observes exact domain state', async () => {
+	const requested = {
+		id: 'deletion-contract',
+		store_id: 'store-deletion',
+		payment_provider_id: 'provider-contract',
+		revision: 5,
+		status: 'requested',
+		deleted: false,
+		terminal: false,
+		requested_at: 4,
+		processing_started_at: null,
+		completed_at: null,
+		error: null,
+	};
+	const succeeded = {
+		...requested,
+		status: 'succeeded',
+		deleted: true,
+		terminal: true,
+		processing_started_at: 5,
+		completed_at: 6,
+	};
+	const calls = [];
+	const originalFetch = globalThis.fetch;
+	globalThis.fetch = async (url, init = {}) => {
+		calls.push({
+			url: String(url),
+			method: init.method,
+			body: init.body === undefined ? undefined : JSON.parse(init.body),
+		});
+		return jsonResponse(calls.length === 1 ? requested : succeeded);
+	};
+
+	let result;
+	try {
+		result = await admin().store.paymentProvider.retryDeletion({
+			store_id: 'store-deletion',
+			id: 'provider-contract',
+			expected_revision: 4,
+		});
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+
+	assert.deepEqual(result, succeeded);
+	assert.deepEqual(calls, [
+		{
+			url: `${baseUrl}/v1/stores/store-deletion/payment-providers/provider-contract/deletion/retry`,
+			method: 'POST',
+			body: {
+				store_id: 'store-deletion',
+				id: 'provider-contract',
+				expected_revision: 4,
+			},
+		},
+		{
+			url: `${baseUrl}/v1/stores/store-deletion/payment-providers/provider-contract/deletion`,
+			method: 'GET',
+			body: undefined,
+		},
+	]);
 });
 
 test('subscription action effects use their own parent-bound endpoints', async () => {

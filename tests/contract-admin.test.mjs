@@ -105,6 +105,170 @@ assert.equal(typeof arky.store.paymentProvider.list, "function");
 assert.equal(typeof arky.store.paymentProvider.refresh, "function");
 assert.equal(typeof arky.store.paymentProvider.connectStripe, "function");
 assert.equal(typeof arky.store.paymentProvider.delete, "function");
+assert.equal(typeof arky.store.paymentProvider.getDeletion, "function");
+assert.equal(typeof arky.store.paymentProvider.retryDeletion, "function");
+
+const scheduledAdminCalls = [];
+const requestedProvider = {
+  id: "provider-scheduled",
+  store_id: "contract-store",
+  key: "stripe",
+  provider: {
+    type: "stripe",
+    onboarding_status: "pending",
+    charges_enabled: false,
+    payouts_enabled: false,
+    details_submitted: false,
+  },
+  connection: {
+    status: "requested",
+    revision: 1,
+    attempts: 0,
+    requested_at: 1,
+  },
+  created_at: 1,
+  updated_at: 1,
+};
+const succeededProvider = {
+  ...requestedProvider,
+  connection: {
+    ...requestedProvider.connection,
+    status: "succeeded",
+    attempts: 1,
+    completed_at: 2,
+  },
+  updated_at: 2,
+};
+const scheduledAction = {
+  id: "action-scheduled",
+  subscription_id: "subscription-contract",
+  store_id: "contract-store",
+  request: { type: "select_plan", data: { plan_id: "basic" } },
+  status: "requested",
+  requested_at: 1,
+  updated_at: 1,
+};
+const completedAction = {
+  ...scheduledAction,
+  status: "succeeded",
+  result: {
+    type: "checkout",
+    data: {
+      session_id: "checkout-session",
+      checkout_url: "https://checkout.test/session",
+      expires_at: 10,
+    },
+  },
+  completed_at: 2,
+  updated_at: 2,
+};
+const requestedDeletion = {
+  id: "deletion-scheduled",
+  store_id: "contract-store",
+  payment_provider_id: "provider-scheduled",
+  revision: 1,
+  status: "processing",
+  deleted: false,
+  terminal: false,
+  requested_at: 1,
+  processing_started_at: 2,
+  completed_at: null,
+  error: null,
+};
+const completedDeletion = {
+  ...requestedDeletion,
+  status: "succeeded",
+  deleted: true,
+  terminal: true,
+  completed_at: 3,
+};
+const scheduledOriginalFetch = globalThis.fetch;
+globalThis.fetch = async (url, init = {}) => {
+  const target = String(url);
+  const method = init.method || "GET";
+  scheduledAdminCalls.push([target, method]);
+  let body;
+  if (target.endsWith("/payment-providers/stripe/connect")) {
+    body =
+      scheduledAdminCalls.filter(([candidate]) =>
+        candidate.endsWith("/payment-providers/stripe/connect"),
+      ).length === 1
+        ? { provider: requestedProvider, onboarding_url: "" }
+        : {
+            provider: succeededProvider,
+            onboarding_url: "https://connect.test/onboarding",
+          };
+  } else if (target.endsWith("/subscription/actions") && method === "POST") {
+    body = scheduledAction;
+  } else if (target.endsWith("/subscription/actions/action-scheduled")) {
+    body = completedAction;
+  } else if (target.endsWith("/payment-providers/provider-scheduled")) {
+    body = requestedDeletion;
+  } else if (
+    target.endsWith("/payment-providers/provider-scheduled/deletion")
+  ) {
+    body = completedDeletion;
+  } else {
+    throw new Error(`Unexpected scheduled admin request: ${method} ${target}`);
+  }
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+};
+try {
+  const connected = await arky.store.paymentProvider.connectStripe({
+    store_id: "contract-store",
+    return_url: "https://admin.test/return",
+    refresh_url: "https://admin.test/refresh",
+    country: "BA",
+  });
+  assert.equal(connected.onboarding_url, "https://connect.test/onboarding");
+
+  const action = await arky.store.subscription.action.create({
+    store_id: "contract-store",
+    action_id: "action-scheduled",
+    type: "select_plan",
+    plan_id: "basic",
+    success_url: "https://admin.test/success",
+    cancel_url: "https://admin.test/cancel",
+  });
+  assert.equal(action.status, "succeeded");
+  assert.equal(action.result.data.checkout_url, "https://checkout.test/session");
+
+  assert.deepEqual(
+    await arky.store.paymentProvider.delete({
+      store_id: "contract-store",
+      id: "provider-scheduled",
+    }),
+    completedDeletion,
+  );
+} finally {
+  globalThis.fetch = scheduledOriginalFetch;
+}
+assert.deepEqual(
+  scheduledAdminCalls.map(([url, method]) => [
+    url.replace("http://127.0.0.1:1", ""),
+    method,
+  ]),
+  [
+    ["/v1/stores/contract-store/payment-providers/stripe/connect", "POST"],
+    ["/v1/stores/contract-store/payment-providers/stripe/connect", "POST"],
+    ["/v1/stores/contract-store/subscription/actions", "POST"],
+    [
+      "/v1/stores/contract-store/subscription/actions/action-scheduled",
+      "GET",
+    ],
+    [
+      "/v1/stores/contract-store/payment-providers/provider-scheduled",
+      "DELETE",
+    ],
+    [
+      "/v1/stores/contract-store/payment-providers/provider-scheduled/deletion",
+      "GET",
+    ],
+  ],
+);
 
 assert.equal(typeof arky.social.connection.list, "function");
 assert.equal(typeof arky.social.connection.connect, "function");
@@ -248,6 +412,8 @@ assert.equal(typeof arky.eshop.shipment.create, "function");
 assert.equal(typeof arky.eshop.shipment.fulfillment.find, "function");
 assert.equal(typeof arky.eshop.shipment.fulfillment.get, "function");
 assert.equal(typeof arky.eshop.shipment.refund.retry, "function");
+assert.equal(typeof arky.eshop.shipment.settlement.get, "function");
+assert.equal(typeof arky.eshop.shipment.settlement.retry, "function");
 
 const digitalAccessCalls = [];
 globalThis.fetch = async (url, init = {}) => {

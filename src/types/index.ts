@@ -725,6 +725,37 @@ export interface PaymentProvider {
   updated_at: number;
 }
 
+export type PaymentProviderDeletionStatus =
+  | "requested"
+  | "processing"
+  | "succeeded"
+  | "blocked";
+
+export type PaymentProviderDeletionError =
+  | { type: "connection_unresolved"; message: string; at: number }
+  | { type: "catalog_operation_unresolved"; message: string; at: number }
+  | {
+      type: "subscription_cancellation_unresolved";
+      message: string;
+      at: number;
+    }
+  | { type: "provider_binding_changed"; message: string; at: number }
+  | { type: "coordination_interrupted"; message: string; at: number };
+
+export interface PaymentProviderDeletion {
+  id: string;
+  store_id: string;
+  payment_provider_id: string;
+  revision: number;
+  status: PaymentProviderDeletionStatus;
+  deleted: boolean;
+  terminal: boolean;
+  requested_at: number;
+  processing_started_at?: number | null;
+  completed_at?: number | null;
+  error?: PaymentProviderDeletionError | null;
+}
+
 export interface PaymentStoreConfig {
   provider: "stripe";
   publishable_key: string;

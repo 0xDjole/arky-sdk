@@ -41,6 +41,10 @@ import type {
   StoreMember,
   StoreMembership,
 } from "../types";
+import {
+  pollScheduledResult,
+  scheduledObservationOptions,
+} from "../utils/scheduledResult";
 
 export const createStoreApi = (apiConfig: ApiConfig, _updateSession: AdminSessionUpdater) => {
   return {
@@ -96,7 +100,19 @@ export const createStoreApi = (apiConfig: ApiConfig, _updateSession: AdminSessio
       if (response.id !== params.action_id) {
         throw new Error("Subscription response did not match the requested action_id");
       }
-      return response;
+      if (response.status !== "requested" && response.status !== "processing") {
+        return response;
+      }
+      return pollScheduledResult(
+        response,
+        (observationSignal) =>
+          apiConfig.httpClient.get<StoreSubscriptionAction>(
+            `/v1/stores/${target_store_id}/subscription/actions/${params.action_id}`,
+            scheduledObservationOptions(options, observationSignal),
+          ),
+        (action) => action.status === "requested" || action.status === "processing",
+        options?.signal,
+      );
     },
 
     async getSubscription(params: GetStoreSubscriptionParams = {}, options?: RequestOptions): Promise<StoreSubscription> {
@@ -106,10 +122,23 @@ export const createStoreApi = (apiConfig: ApiConfig, _updateSession: AdminSessio
 
     async retrySubscriptionAction(params: RetryStoreSubscriptionActionParams, options?: RequestOptions): Promise<StoreSubscriptionAction> {
       const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<StoreSubscriptionAction>(
+      const response = await apiConfig.httpClient.post<StoreSubscriptionAction>(
         `/v1/stores/${store_id}/subscription/actions/${params.action_id}/retry`,
         {},
         options,
+      );
+      if (response.status !== "requested" && response.status !== "processing") {
+        return response;
+      }
+      return pollScheduledResult(
+        response,
+        (observationSignal) =>
+          apiConfig.httpClient.get<StoreSubscriptionAction>(
+            `/v1/stores/${store_id}/subscription/actions/${params.action_id}`,
+            scheduledObservationOptions(options, observationSignal),
+          ),
+        (action) => action.status === "requested" || action.status === "processing",
+        options?.signal,
       );
     },
 

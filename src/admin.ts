@@ -1,4 +1,4 @@
-export { createAdmin } from "./index";
+export { createAdmin, ScheduledResultTimeoutError } from "./index";
 export type {
   ApiConfig,
   AdminSession,
