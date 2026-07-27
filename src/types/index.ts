@@ -1801,7 +1801,7 @@ export type OutreachStepType =
 export type CampaignManualTaskOutcome =
   "done" | "skipped" | "got_reply" | "do_not_contact";
 export type OutreachPersonalizationStatus =
-  "idle" | "running" | "completed" | "failed";
+  "idle" | "running" | "completed" | "failed" | "unknown";
 export type SuppressionStatus = "active" | "archived";
 export type SuppressionTargetType = "email" | "domain" | "contact" | "phone";
 export type SuppressionScopeType = "store" | "campaign";
@@ -2829,6 +2829,7 @@ export interface OutreachPersonalizationCounters {
 export interface OutreachPersonalizationState {
   run_id: string;
   status: OutreachPersonalizationStatus;
+  processing_deadline_at?: number | null;
   step_position?: number | null;
   contact_ids: string[];
   overwrite: boolean;
@@ -2981,7 +2982,7 @@ export interface Suppression {
 }
 
 export type LeadResearchRunStatus =
-  "draft" | "running" | "completed" | "failed" | "cancelled";
+  "draft" | "running" | "completed" | "failed" | "unknown" | "cancelled";
 
 export type LeadEmailClassification =
   | "official_domain"
@@ -3038,7 +3039,9 @@ export interface LeadResearchRun {
   title?: string | null;
   status: LeadResearchRunStatus;
   error?: string | null;
+  request_message_id?: string | null;
   started_at?: number | null;
+  processing_deadline_at?: number | null;
   completed_at?: number | null;
   created_at: number;
   updated_at: number;
