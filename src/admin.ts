@@ -5,4 +5,7 @@ export type {
   AuthStateListener,
   CreateAdminConfig,
 } from "./index";
-export type { HttpClientConfig, AuthStorage } from "./services/createHttpClient";
+export type {
+  HttpClientConfig,
+  AuthStorage,
+} from "./services/createHttpClient";

@@ -3,7 +3,12 @@ import test from "node:test";
 
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
-import { admin, baseUrl, jsonResponse, storeId } from "./helpers/scheduled-observation-fixtures.mjs";
+import {
+  admin,
+  baseUrl,
+  jsonResponse,
+  storeId,
+} from "./helpers/scheduled-observation-fixtures.mjs";
 
 test("aggregate email sends once and observes only its exact delivery resources", async () => {
   const request = {
@@ -43,7 +48,6 @@ test("aggregate email sends once and observes only its exact delivery resources"
     sent: 2,
     deliveries: pending.deliveries.map((delivery, index) => ({
       ...delivery,
-      revision: 2,
       status: "sent",
       provider_message_id: `provider-message-${index + 1}`,
       provider_thread_id: `provider-thread-${index + 1}`,
@@ -325,6 +329,7 @@ test("scheduled observations stay scoped to the store captured by their mutation
     errors: [],
   };
   const calls = [];
+  let connectPosts = 0;
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     const target = String(url);
@@ -332,9 +337,24 @@ test("scheduled observations stay scoped to the store captured by their mutation
     if (init.method === "POST") {
       client.setStoreId(replacementStoreId);
       if (target.endsWith("/payment-providers/stripe/connect")) {
+        connectPosts += 1;
         return jsonResponse({
-          provider: requestedProvider,
-          onboarding_url: null,
+          provider:
+            connectPosts === 1
+              ? requestedProvider
+              : {
+                  ...requestedProvider,
+                  connection: {
+                    ...requestedProvider.connection,
+                    status: "succeeded",
+                    attempts: 1,
+                    completed_at: 2,
+                  },
+                },
+          onboarding_url:
+            connectPosts === 1
+              ? null
+              : "https://connect.example.test/onboarding",
         });
       }
       return jsonResponse(requestedRun);
@@ -350,7 +370,7 @@ test("scheduled observations stay scoped to the store captured by their mutation
             completed_at: 2,
           },
         },
-        onboarding_url: "https://connect.example.test/onboarding",
+        onboarding_url: null,
       });
     }
     return jsonResponse({
@@ -384,6 +404,10 @@ test("scheduled observations stay scoped to the store captured by their mutation
       [
         `/v1/stores/${originalStoreId}/payment-providers/${providerId}/connection`,
         "GET",
+      ],
+      [
+        `/v1/stores/${originalStoreId}/payment-providers/stripe/connect`,
+        "POST",
       ],
       [
         `/v1/stores/${originalStoreId}/social-publications/comments/classify`,

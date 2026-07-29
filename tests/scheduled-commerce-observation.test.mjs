@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createStorefront } from "../dist/storefront.js";
-import { admin, baseUrl, jsonResponse, storeId } from "./helpers/scheduled-observation-fixtures.mjs";
+import {
+  admin,
+  baseUrl,
+  jsonResponse,
+  storeId,
+} from "./helpers/scheduled-observation-fixtures.mjs";
 
 test("checkout POSTs once and observes the exact order payment", async () => {
   const pending = {
@@ -10,6 +15,8 @@ test("checkout POSTs once and observes the exact order payment", async () => {
     number: "1001",
     payment_action: { type: "none" },
     payment: {
+      id: "payment-scheduled",
+      order_id: "order-scheduled",
       status: { status: "processing", at: 1 },
       amount: 1250,
       currency: "EUR",

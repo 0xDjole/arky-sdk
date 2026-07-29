@@ -53,11 +53,7 @@ export function prepareScheduledMutation<T = unknown>(
     };
   }
 
-  const {
-    transformRequest,
-    onScheduledResponse,
-    ...initialOptions
-  } = options;
+  const { transformRequest, onScheduledResponse, ...initialOptions } = options;
   return {
     body: transformRequest ? transformRequest(body) : body,
     options: initialOptions,

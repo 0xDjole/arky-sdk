@@ -630,11 +630,7 @@ export interface SocialPublicationCommentClassificationResult {
 }
 
 export type SocialCommentClassificationRunStatus =
-  | "requested"
-  | "processing"
-  | "succeeded"
-  | "failed"
-  | "unknown";
+  "requested" | "processing" | "succeeded" | "failed" | "unknown";
 
 export interface SocialEngagementCapabilities {
   read_comments: boolean;
@@ -661,13 +657,7 @@ export interface SocialConnectResponse {
   state: string;
 }
 
-export type SocialOAuthCallbackStatus =
-  | "pending"
-  | "processing"
-  | "connected"
-  | "selection_required"
-  | "failed"
-  | "unknown";
+export type SocialOAuthCallbackStatus = "connected" | "selection_required";
 
 export interface SocialOAuthDestinationOption extends SocialDestinationMetadata {
   candidate_id: string;
@@ -1748,39 +1738,6 @@ export interface GoogleMailboxProfile {
   display_name: string;
   avatar_url?: string | null;
 }
-export type GoogleMailboxOAuthAttemptStatus =
-  | "pending"
-  | "requested"
-  | "processing"
-  | "succeeded"
-  | "rejected"
-  | "failed"
-  | "unknown";
-export type GoogleMailboxOAuthAttemptError =
-  | {
-      type: "provider_rejected";
-      provider_status?: number | null;
-      at: number;
-    }
-  | {
-      type: "provider_call_not_started";
-      message: string;
-      at: number;
-    }
-  | {
-      type: "unknown_outcome";
-      message: string;
-      provider_status?: number | null;
-      at: number;
-    };
-export interface GoogleMailboxOAuthAttempt {
-  attempt_id: string;
-  store_id: string;
-  mailbox_id: string;
-  status: GoogleMailboxOAuthAttemptStatus;
-  completed_at?: number | null;
-  error?: GoogleMailboxOAuthAttemptError | null;
-}
 export type GoogleMailboxProvider = {
   type: "google";
   profile: GoogleMailboxProfile;
@@ -2353,34 +2310,6 @@ export interface WorkflowConnectionConnectUrl {
   state: string;
 }
 
-export type WorkflowConnectionOAuthAttemptStatus =
-  | "pending"
-  | "requested"
-  | "processing"
-  | "succeeded"
-  | "rejected"
-  | "failed"
-  | "unknown";
-
-export type WorkflowConnectionOAuthAttemptError =
-  | {
-      type: "provider_rejected";
-      provider_status?: number | null;
-      at: number;
-    }
-  | { type: "provider_call_not_started"; at: number }
-  | { type: "unknown_outcome"; at: number };
-
-export interface WorkflowConnectionOAuthAttempt {
-  attempt_id: string;
-  store_id: string;
-  workflow_connection_id: string;
-  type: WorkflowConnectionType;
-  status: WorkflowConnectionOAuthAttemptStatus;
-  completed_at?: number | null;
-  error?: WorkflowConnectionOAuthAttemptError | null;
-}
-
 export interface WorkflowGoogleDriveUploadNode {
   type: "google_drive_upload";
   workflow_connection_id: string;
@@ -2675,8 +2604,7 @@ export interface ContactListMembership {
   updated_at: number;
 }
 
-export type StorefrontContactListType =
-  "standard" | "confirmation" | "paid";
+export type StorefrontContactListType = "standard" | "confirmation" | "paid";
 
 export interface StorefrontContactList {
   id: string;
@@ -2934,6 +2862,7 @@ export interface CampaignLaunchState {
   revision: number;
   status: CampaignLaunchStatus;
   requested_at: number | null;
+  processing_started_at: number | null;
   completed_at: number | null;
   error: string | null;
 }
@@ -3011,6 +2940,8 @@ export interface CampaignMessage {
   step_position?: number | null;
   template_copy_hash?: string | null;
   copy_source: CampaignMessageCopySource;
+  personalization_run_id?: string | null;
+  personalization_processing_deadline_at?: number | null;
   personalized_at?: number | null;
   edited_at?: number | null;
   personalization_error?: string | null;

@@ -1,9 +1,4 @@
-export {
-  isValidKey,
-  validateKey,
-  toKey,
-  nameToKey,
-} from "./keyValidation";
+export { isValidKey, validateKey, toKey, nameToKey } from "./keyValidation";
 
 export {
   getCurrencySymbol,

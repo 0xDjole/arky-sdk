@@ -328,10 +328,7 @@ export interface UpdateCollectionParams {
 
 export type GetCollectionParams = {
   store_id?: string;
-} & (
-  | { id: string; key?: never }
-  | { id?: never; key: string }
-);
+} & ({ id: string; key?: never } | { id?: never; key: string });
 
 export interface DeleteCollectionParams {
   id: string;
@@ -717,10 +714,7 @@ export interface DeleteProductParams {
 
 export type GetProductParams = {
   store_id?: string;
-} & (
-  | { id: string; slug?: never }
-  | { id?: never; slug: string }
-);
+} & ({ id: string; slug?: never } | { id?: never; slug: string });
 
 export interface GetOrderParams {
   id: string;
@@ -863,10 +857,7 @@ export interface DeleteServiceParams {
 
 export type GetServiceParams = {
   store_id?: string;
-} & (
-  | { id: string; slug?: never }
-  | { id?: never; slug: string }
-);
+} & ({ id: string; slug?: never } | { id?: never; slug: string });
 
 export interface GetProvidersParams {
   store_id?: string;
@@ -889,10 +880,7 @@ export interface GetProvidersParams {
 
 export type GetProviderParams = {
   store_id?: string;
-} & (
-  | { id: string; slug?: never }
-  | { id?: never; slug: string }
-);
+} & ({ id: string; slug?: never } | { id?: never; slug: string });
 
 export interface SearchOrderServiceItemsParams {
   store_id?: string;
@@ -1358,11 +1346,6 @@ export interface GetWorkflowConnectionsParams {
   store_id?: string;
 }
 
-export interface GetWorkflowConnectionOAuthAttemptParams {
-  store_id?: string;
-  attempt_id: string;
-}
-
 export interface DeleteWorkflowConnectionParams {
   id: string;
   store_id?: string;
@@ -1767,11 +1750,6 @@ export interface ConnectGoogleMailboxParams {
   daily_limit?: number;
   sync_enabled: boolean;
   sync_interval_seconds: number;
-}
-
-export interface GetGoogleMailboxOAuthAttemptParams {
-  store_id?: string;
-  attempt_id: string;
 }
 
 export interface GoogleMailboxConnectUrl {

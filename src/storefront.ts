@@ -4,7 +4,12 @@ export {
   createStorefront,
 } from "./index";
 export { createCartController } from "./index";
-export { buildFormFields, createFormEntry, createFormEntryFromValues, initialize } from "./storefrontStore";
+export {
+  buildFormFields,
+  createFormEntry,
+  createFormEntryFromValues,
+  initialize,
+} from "./storefrontStore";
 export { createStripeConfirmationTokenController } from "./payments/stripe";
 export { getBlockContentValue } from "./utils/blocks";
 export type {

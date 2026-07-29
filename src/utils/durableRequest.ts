@@ -12,7 +12,10 @@ export class DurableRequestStorageError extends Error {
   }
 }
 
-function unavailable(label: string, reason: string): DurableRequestStorageError {
+function unavailable(
+  label: string,
+  reason: string,
+): DurableRequestStorageError {
   return new DurableRequestStorageError(
     `Cannot safely start ${label} because its durable request ${reason}`,
   );
@@ -148,7 +151,10 @@ export function getOrCreateDurableRequest(
   return { storageKey, ...request };
 }
 
-export function clearDurableRequest(request: DurableRequest, label: string): void {
+export function clearDurableRequest(
+  request: DurableRequest,
+  label: string,
+): void {
   const storage = requestStorage(label);
   const stored = readStoredRequest(storage, request.storageKey, label);
   if (stored?.requestJson !== request.requestJson) {

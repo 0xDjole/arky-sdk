@@ -104,7 +104,9 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
         response.shipment_id !== params.shipment_id ||
         response.shipment.id !== params.shipment_id
       ) {
-        throw new Error("Shipping response did not match the requested shipment_id");
+        throw new Error(
+          "Shipping response did not match the requested shipment_id",
+        );
       }
       return response;
     },
@@ -129,11 +131,21 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       }
       return pollScheduledResult(
         requested,
-        (observationSignal) =>
-          apiConfig.httpClient.get<Shipment>(
+        async (observationSignal) => {
+          const observation = await apiConfig.httpClient.get<Shipment>(
             path,
             scheduledObservationOptions(options, observationSignal),
-          ),
+          );
+          if (
+            observation.id !== requested.id ||
+            observation.label_revision !== requested.label_revision
+          ) {
+            throw new Error(
+              "Shipment changed before its exact label retry result could be observed",
+            );
+          }
+          return observation;
+        },
         (shipment) =>
           shipment.label_status === "requested" ||
           shipment.label_status === "processing",
@@ -193,11 +205,22 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       }
       return pollScheduledResult(
         requested,
-        (observationSignal) =>
-          apiConfig.httpClient.get<ShippingLabelRefund>(
-            path,
-            scheduledObservationOptions(options, observationSignal),
-          ),
+        async (observationSignal) => {
+          const observation =
+            await apiConfig.httpClient.get<ShippingLabelRefund>(
+              path,
+              scheduledObservationOptions(options, observationSignal),
+            );
+          if (
+            observation.id !== requested.id ||
+            observation.revision !== requested.revision
+          ) {
+            throw new Error(
+              "Shipping label refund changed before its exact retry result could be observed",
+            );
+          }
+          return observation;
+        },
         (refund) =>
           refund.status === "requested" || refund.status === "processing",
         options?.signal,
@@ -209,7 +232,9 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PaginatedResponse<ShippingLabelAdjustment>> {
       const { store_id, order_id, shipment_id, ...queryParams } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<ShippingLabelAdjustment>>(
+      return apiConfig.httpClient.get<
+        PaginatedResponse<ShippingLabelAdjustment>
+      >(
         `/v1/stores/${storeId(store_id)}/orders/${order_id}/shipments/${shipment_id}/adjustments`,
         { ...options, params: queryParams },
       );
@@ -220,7 +245,9 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PaginatedResponse<ShippingLabelSettlement>> {
       const { store_id, order_id, shipment_id, ...queryParams } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<ShippingLabelSettlement>>(
+      return apiConfig.httpClient.get<
+        PaginatedResponse<ShippingLabelSettlement>
+      >(
         `/v1/stores/${storeId(store_id)}/orders/${order_id}/shipments/${shipment_id}/settlements`,
         { ...options, params: queryParams },
       );
@@ -257,11 +284,22 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       }
       return pollScheduledResult(
         requested,
-        (observationSignal) =>
-          apiConfig.httpClient.get<ShippingLabelSettlement>(
-            path,
-            scheduledObservationOptions(options, observationSignal),
-          ),
+        async (observationSignal) => {
+          const observation =
+            await apiConfig.httpClient.get<ShippingLabelSettlement>(
+              path,
+              scheduledObservationOptions(options, observationSignal),
+            );
+          if (
+            observation.id !== requested.id ||
+            observation.revision !== requested.revision
+          ) {
+            throw new Error(
+              "Shipping settlement changed before its exact retry result could be observed",
+            );
+          }
+          return observation;
+        },
         (settlement) =>
           settlement.status === "requested" ||
           settlement.status === "processing",

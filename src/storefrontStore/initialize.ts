@@ -1,5 +1,9 @@
 import { atom, computed, map } from "nanostores";
-import { createStorefront, type ContactSession, type StorefrontIdentifyResult } from "../index";
+import {
+  createStorefront,
+  type ContactSession,
+  type StorefrontIdentifyResult,
+} from "../index";
 import type {
   StorefrontDto,
   StorefrontMarket,
@@ -48,7 +52,12 @@ import type {
   SlotRange,
   SubmitFormParams,
 } from "../types/api";
-import type { ExperimentUseResponse, StorefrontAction, TrackActionParams, UseExperimentParams } from "../api/storefront";
+import type {
+  ExperimentUseResponse,
+  StorefrontAction,
+  TrackActionParams,
+  UseExperimentParams,
+} from "../api/storefront";
 import type {
   ArkyCalendarDay,
   ArkyCmsEntryParams,
@@ -67,7 +76,10 @@ import type {
   ArkyStripePaymentMountOptions,
   ArkySubmitFormByKeyParams,
 } from "./types";
-import { createStripeConfirmationTokenController, type StripeConfirmationTokenController } from "../payments/stripe";
+import {
+  createStripeConfirmationTokenController,
+  type StripeConfirmationTokenController,
+} from "../payments/stripe";
 import {
   pollScheduledResult,
   ScheduledResultTimeoutError,
@@ -102,8 +114,7 @@ type StorefrontCollectionEntry = StorefrontDto<CollectionEntry>;
 type StorefrontForm = StorefrontDto<Form>;
 type StorefrontFormSubmission = StorefrontDto<FormSubmission>;
 type StorefrontOrderCheckoutResult = StorefrontDto<OrderCheckoutResult>;
-type StorefrontOrderPaymentObservation =
-  StorefrontDto<OrderPaymentObservation>;
+type StorefrontOrderPaymentObservation = StorefrontDto<OrderPaymentObservation>;
 type StorefrontOrderQuote = StorefrontDto<OrderQuote>;
 type StorefrontProduct = StorefrontDto<Product>;
 type StorefrontProductVariant = StorefrontDto<ProductVariant>;
@@ -112,8 +123,13 @@ type StorefrontService = StorefrontDto<Service>;
 type StorefrontServiceProvider = StorefrontDto<ServiceProvider>;
 type StorefrontPage<T> = StorefrontDto<PaginatedResponse<T>>;
 
-function firstFiniteNumber(...values: Array<number | null | undefined>): number | undefined {
-  return values.find((value): value is number => typeof value === "number" && Number.isFinite(value));
+function firstFiniteNumber(
+  ...values: Array<number | null | undefined>
+): number | undefined {
+  return values.find(
+    (value): value is number =>
+      typeof value === "number" && Number.isFinite(value),
+  );
 }
 
 function isUnresolvedPaymentStatus(status: string): boolean {
@@ -163,18 +179,30 @@ function initializeStoreCore(
   const market_key = atom(config.market || client.getMarket());
   const market = computed([setup, market_key], (setupValue, marketKey) => {
     const resolvedKey = marketKey || setupValue?.markets.default;
-    return setupValue?.markets.available.find((candidate) => candidate.key === resolvedKey) || null;
+    return (
+      setupValue?.markets.available.find(
+        (candidate) => candidate.key === resolvedKey,
+      ) || null
+    );
   });
   const currency = computed(market, (value) => value?.currency || null);
-  const allowed_payment_methods = computed(market, (value) => value?.payment_methods || []);
-  const payment_config = computed([setup, market], (setupValue, marketValue) => {
-    const methods = marketValue?.payment_methods || [];
-    const hasCreditCard = methods.some((method: PaymentMethod) => method.type === "credit_card");
-    return {
-      provider: setupValue?.payment || null,
-      enabled: hasCreditCard && Boolean(setupValue?.readiness.payment),
-    };
-  });
+  const allowed_payment_methods = computed(
+    market,
+    (value) => value?.payment_methods || [],
+  );
+  const payment_config = computed(
+    [setup, market],
+    (setupValue, marketValue) => {
+      const methods = marketValue?.payment_methods || [];
+      const hasCreditCard = methods.some(
+        (method: PaymentMethod) => method.type === "credit_card",
+      );
+      return {
+        provider: setupValue?.payment || null,
+        enabled: hasCreditCard && Boolean(setupValue?.readiness.payment),
+      };
+    },
+  );
 
   const cart = atom<StorefrontCart | null>(null);
   const product_items = atom<EshopCartItem[]>([]);
@@ -182,7 +210,9 @@ function initializeStoreCore(
   const quote = atom<StorefrontOrderQuote | null>(null);
   const promo_code = atom<string | null>(null);
   const last_order = atom<ArkyLastOrder | null>(null);
-  const payment_controller = atom<StripeConfirmationTokenController | null>(null);
+  const payment_controller = atom<StripeConfirmationTokenController | null>(
+    null,
+  );
   const payment_ready = computed(payment_controller, (value) => value !== null);
   const cart_status = map<ArkyCartStatus>({
     loading: false,
@@ -209,27 +239,39 @@ function initializeStoreCore(
     }, 0);
   }
 
-  const product_item_count = computed([cart, product_items], (cartValue, items) =>
-    Math.max(
-      rawProductItemCount(cartValue),
-      items.reduce((total, item) => total + (item.quantity || 0), 0),
-    ),
+  const product_item_count = computed(
+    [cart, product_items],
+    (cartValue, items) =>
+      Math.max(
+        rawProductItemCount(cartValue),
+        items.reduce((total, item) => total + (item.quantity || 0), 0),
+      ),
   );
-  const service_item_count = computed([cart, service_items], (cartValue, items) =>
-    Math.max(
-      rawServiceItemCount(cartValue),
-      items.reduce((total, item) => total + Math.max(1, item.slots.length), 0),
-    ),
+  const service_item_count = computed(
+    [cart, service_items],
+    (cartValue, items) =>
+      Math.max(
+        rawServiceItemCount(cartValue),
+        items.reduce(
+          (total, item) => total + Math.max(1, item.slots.length),
+          0,
+        ),
+      ),
   );
-  const item_count = computed([cart, product_item_count, service_item_count], (cartValue, products, services) =>
-    Math.max(cartValue?.item_count || 0, products + services),
+  const item_count = computed(
+    [cart, product_item_count, service_item_count],
+    (cartValue, products, services) =>
+      Math.max(cartValue?.item_count || 0, products + services),
   );
-  const snapshot = computed([cart, product_items, service_items, item_count], (cartValue, products, services, count) => ({
-    cart: cartValue,
-    product_items: products,
-    service_items: services,
-    item_count: count,
-  }));
+  const snapshot = computed(
+    [cart, product_items, service_items, item_count],
+    (cartValue, products, services, count) => ({
+      cart: cartValue,
+      product_items: products,
+      service_items: services,
+      item_count: count,
+    }),
+  );
   let cartWriteRevision = 0;
   let sessionRequest: Promise<ContactSession | null> | null = null;
   let cartRequest: Promise<StorefrontCart> | null = null;
@@ -267,24 +309,42 @@ function initializeStoreCore(
     loading: false,
     error: null,
   });
-  const service_form_groups = computed(service_form_state, (state) => state.groups);
-  const service_form_blocks = computed(service_form_groups, (groups) => groups.flatMap((group) => group.blocks));
+  const service_form_groups = computed(
+    service_form_state,
+    (state) => state.groups,
+  );
+  const service_form_blocks = computed(service_form_groups, (groups) =>
+    groups.flatMap((group) => group.blocks),
+  );
 
   client.onAuthStateChanged((value) => session.set(value));
   currency.subscribe((value) => service_state.setKey("currency", value));
   market.subscribe((value) => {
     const methods = value?.payment_methods || [];
-    if (methods.length && service_state.get().availablePaymentMethods.length === 0) {
+    if (
+      methods.length &&
+      service_state.get().availablePaymentMethods.length === 0
+    ) {
       service_state.setKey("availablePaymentMethods", methods);
     }
   });
 
   function currentMarketKey(): string {
-    return market_key.get() || client.getMarket() || setup.get()?.markets.default || "";
+    return (
+      market_key.get() ||
+      client.getMarket() ||
+      setup.get()?.markets.default ||
+      ""
+    );
   }
 
   function currentLocale(): string {
-    return locale.get() || client.getLocale() || setup.get()?.languages.default || "en";
+    return (
+      locale.get() ||
+      client.getLocale() ||
+      setup.get()?.languages.default ||
+      "en"
+    );
   }
 
   function currentStripePublishableKey(): string | null {
@@ -300,15 +360,25 @@ function initializeStoreCore(
   function currentPaymentAmount(): number {
     return Math.max(
       0,
-      firstFiniteNumber(quote.get()?.charge_amount, cart.get()?.quote_snapshot?.charge_amount, cart.get()?.quote_snapshot?.total) ?? 0,
+      firstFiniteNumber(
+        quote.get()?.charge_amount,
+        cart.get()?.quote_snapshot?.charge_amount,
+        cart.get()?.quote_snapshot?.total,
+      ) ?? 0,
     );
   }
 
   function currentPaymentCurrency(): string | null {
-    return quote.get()?.money?.currency?.trim() || cart.get()?.quote_snapshot?.money?.currency?.trim() || null;
+    return (
+      quote.get()?.money?.currency?.trim() ||
+      cart.get()?.quote_snapshot?.money?.currency?.trim() ||
+      null
+    );
   }
 
-  function setPaymentController(controller: StripeConfirmationTokenController | null): StripeConfirmationTokenController | null {
+  function setPaymentController(
+    controller: StripeConfirmationTokenController | null,
+  ): StripeConfirmationTokenController | null {
     const current = payment_controller.get();
     if (current && current !== controller) {
       current.destroy();
@@ -351,11 +421,17 @@ function initializeStoreCore(
     }
     const amount = hasExplicitAmount ? options.amount! : currentPaymentAmount();
     if (!Number.isSafeInteger(amount) || amount <= 0) {
-      throw new Error("A positive minor-unit payment amount is required to mount card payment");
+      throw new Error(
+        "A positive minor-unit payment amount is required to mount card payment",
+      );
     }
-    const paymentCurrency = hasExplicitCurrency ? options.currency!.trim() : currentPaymentCurrency();
+    const paymentCurrency = hasExplicitCurrency
+      ? options.currency!.trim()
+      : currentPaymentCurrency();
     if (!paymentCurrency || !/^[a-z]{3}$/i.test(paymentCurrency)) {
-      throw new Error("An explicit three-letter payment currency is required to mount card payment");
+      throw new Error(
+        "An explicit three-letter payment currency is required to mount card payment",
+      );
     }
     const controller = await createStripeConfirmationTokenController({
       publishableKey,
@@ -372,7 +448,10 @@ function initializeStoreCore(
     return controller;
   }
 
-  function updatePaymentController(input: { amount?: number; currency?: string }): void {
+  function updatePaymentController(input: {
+    amount?: number;
+    currency?: string;
+  }): void {
     payment_controller.get()?.update(input);
   }
 
@@ -387,7 +466,9 @@ function initializeStoreCore(
     return sessionRequest;
   }
 
-  async function identify(params: { email?: string; verify?: boolean; market?: string } = {}): Promise<StorefrontIdentifyResult> {
+  async function identify(
+    params: { email?: string; verify?: boolean; market?: string } = {},
+  ): Promise<StorefrontIdentifyResult> {
     if (params.market) setMarket(params.market);
     const result = await client.identify({
       ...params,
@@ -399,7 +480,9 @@ function initializeStoreCore(
     return result;
   }
 
-  async function identifyContactEmailIfMissing(email: string): Promise<ContactSession> {
+  async function identifyContactEmailIfMissing(
+    email: string,
+  ): Promise<ContactSession> {
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) throw new Error("Contact email is required");
 
@@ -452,7 +535,10 @@ function initializeStoreCore(
     try {
       return await cartRequest;
     } catch (error) {
-      cart_status.setKey("error", readErrorMessage(error, "Failed to load cart."));
+      cart_status.setKey(
+        "error",
+        readErrorMessage(error, "Failed to load cart."),
+      );
       throw error;
     } finally {
       cartRequest = null;
@@ -486,9 +572,14 @@ function initializeStoreCore(
         variant_id: variant.id,
         product_name: productName(product, currentLocale()),
         product_slug: entitySlug(product, currentLocale()),
-        variant_attributes: variant.attributes as EshopCartItem["variant_attributes"],
+        variant_attributes:
+          variant.attributes as EshopCartItem["variant_attributes"],
         requires_shipping: variant.requires_shipping !== false,
-        price: priceForMarket(variant.prices, currentMarketKey(), market.get()?.currency),
+        price: priceForMarket(
+          variant.prices,
+          currentMarketKey(),
+          market.get()?.currency,
+        ),
         quantity: item.quantity,
         added_at: source.created_at ? source.created_at * 1000 : Date.now(),
         max_stock: availableStock(client, variant),
@@ -505,7 +596,9 @@ function initializeStoreCore(
     }
   }
 
-  async function buildServiceCartItems(items: ServiceCheckoutItemInput[]): Promise<ArkyServiceCartItem[]> {
+  async function buildServiceCartItems(
+    items: ServiceCheckoutItemInput[],
+  ): Promise<ArkyServiceCartItem[]> {
     const rows: ArkyServiceCartItem[] = [];
     for (const item of items) {
       let service: StorefrontService | null = null;
@@ -522,8 +615,12 @@ function initializeStoreCore(
         provider_id: item.provider_id,
         slots: item.slots,
         forms: item.forms || [],
-        service_name: service ? serviceName(service, currentLocale()) : item.service_id,
-        provider_name: provider ? providerName(provider, currentLocale()) : item.provider_id,
+        service_name: service
+          ? serviceName(service, currentLocale())
+          : item.service_id,
+        provider_name: provider
+          ? providerName(provider, currentLocale())
+          : item.provider_id,
       });
     }
     return rows;
@@ -533,12 +630,18 @@ function initializeStoreCore(
     response: StorefrontCart,
     options: { ifRevision?: number; productHint?: StorefrontProduct } = {},
   ): Promise<StorefrontCart> {
-    if (options.ifRevision !== undefined && options.ifRevision !== cartWriteRevision) {
+    if (
+      options.ifRevision !== undefined &&
+      options.ifRevision !== cartWriteRevision
+    ) {
       return cart.get() || response;
     }
     cart.set(response);
     cart_status.setKey("user_token", response.token || null);
-    cart_status.setKey("selected_shipping_method_id", response.shipping_method_id || null);
+    cart_status.setKey(
+      "selected_shipping_method_id",
+      response.shipping_method_id || null,
+    );
     promo_code.set(response.promo_code || null);
     quote.set(response.quote_snapshot || null);
 
@@ -546,11 +649,21 @@ function initializeStoreCore(
     if (items.length > 0) await loadSetup();
     const products = await Promise.all(
       items
-        .filter((item): item is ProductCheckoutItemInput => item.type === "product")
-        .map((item) => buildProductCartItem(item, response, options.productHint)),
+        .filter(
+          (item): item is ProductCheckoutItemInput => item.type === "product",
+        )
+        .map((item) =>
+          buildProductCartItem(item, response, options.productHint),
+        ),
     );
-    const services = await buildServiceCartItems(items.filter((item): item is ServiceCheckoutItemInput => item.type === "service"));
-    product_items.set(products.filter((item): item is EshopCartItem => item !== null));
+    const services = await buildServiceCartItems(
+      items.filter(
+        (item): item is ServiceCheckoutItemInput => item.type === "service",
+      ),
+    );
+    product_items.set(
+      products.filter((item): item is EshopCartItem => item !== null),
+    );
     service_items.set(services);
     return response;
   }
@@ -582,7 +695,8 @@ function initializeStoreCore(
             : input.promo_code === undefined
               ? promo_code.get() || undefined
               : input.promo_code,
-        payment_method_key: input.payment_method_key === null ? "" : input.payment_method_key,
+        payment_method_key:
+          input.payment_method_key === null ? "" : input.payment_method_key,
         shipping_method_id:
           input.shipping_method_id === null
             ? ""
@@ -593,7 +707,10 @@ function initializeStoreCore(
       await applyCartResponse(response, { ifRevision: writeRevision });
       return response;
     } catch (error) {
-      cart_status.setKey("error", readErrorMessage(error, "Failed to sync cart."));
+      cart_status.setKey(
+        "error",
+        readErrorMessage(error, "Failed to sync cart."),
+      );
       throw error;
     } finally {
       cart_status.setKey("syncing", false);
@@ -618,19 +735,30 @@ function initializeStoreCore(
           quantity,
         },
       });
-      await applyCartResponse(response, { ifRevision: writeRevision, productHint: product });
+      await applyCartResponse(response, {
+        ifRevision: writeRevision,
+        productHint: product,
+      });
       return response;
     } catch (error) {
-      cart_status.setKey("error", readErrorMessage(error, "Failed to add product to cart."));
+      cart_status.setKey(
+        "error",
+        readErrorMessage(error, "Failed to add product to cart."),
+      );
       throw error;
     }
   }
 
-  async function setProductQuantity(itemId: string, quantity: number): Promise<StorefrontCart> {
+  async function setProductQuantity(
+    itemId: string,
+    quantity: number,
+  ): Promise<StorefrontCart> {
     const writeRevision = nextCartWriteRevision();
     const next = product_items.get().map((item) => {
       if (item.id !== itemId) return item;
-      const bounded = item.max_stock ? Math.min(Math.max(1, quantity), item.max_stock) : Math.max(1, quantity);
+      const bounded = item.max_stock
+        ? Math.min(Math.max(1, quantity), item.max_stock)
+        : Math.max(1, quantity);
       return { ...item, quantity: bounded };
     });
     product_items.set(next);
@@ -639,8 +767,12 @@ function initializeStoreCore(
 
   async function removeProduct(itemId: string): Promise<StorefrontCart | null> {
     const writeRevision = nextCartWriteRevision();
-    const item = product_items.get().find((candidate) => candidate.id === itemId);
-    product_items.set(product_items.get().filter((candidate) => candidate.id !== itemId));
+    const item = product_items
+      .get()
+      .find((candidate) => candidate.id === itemId);
+    product_items.set(
+      product_items.get().filter((candidate) => candidate.id !== itemId),
+    );
     const current = cart.get();
     if (!current || !item) return null;
     const response = await client.eshop.cart.removeItem({
@@ -651,7 +783,9 @@ function initializeStoreCore(
     return response;
   }
 
-  async function addServiceItem(item: ArkyServiceCartItem): Promise<StorefrontCart> {
+  async function addServiceItem(
+    item: ArkyServiceCartItem,
+  ): Promise<StorefrontCart> {
     const writeRevision = nextCartWriteRevision();
     const next = [...service_items.get(), item];
     service_items.set(next);
@@ -684,7 +818,9 @@ function initializeStoreCore(
     cart_status.setKey("selected_shipping_method_id", null);
   }
 
-  async function fetchQuote(input: ArkyCartInput = {}): Promise<StorefrontOrderQuote | null> {
+  async function fetchQuote(
+    input: ArkyCartInput = {},
+  ): Promise<StorefrontOrderQuote | null> {
     if (checkoutItems(input).length === 0) {
       quote.set(null);
       return null;
@@ -698,7 +834,10 @@ function initializeStoreCore(
       return response;
     } catch (error) {
       quote.set(null);
-      cart_status.setKey("quote_error", readErrorMessage(error, "Failed to fetch quote."));
+      cart_status.setKey(
+        "quote_error",
+        readErrorMessage(error, "Failed to fetch quote."),
+      );
       throw error;
     } finally {
       cart_status.setKey("fetching_quote", false);
@@ -714,32 +853,45 @@ function initializeStoreCore(
     try {
       const current = await syncCart(input);
       const quoteValue = quote.get();
-      const paymentMethodKey = input.payment_method_key || current.payment_method_key || quoteValue?.money?.payment_method_key || undefined;
-      let chargeAmount = firstFiniteNumber(quoteValue?.charge_amount, current.quote_snapshot?.charge_amount);
+      const paymentMethodKey =
+        input.payment_method_key ||
+        current.payment_method_key ||
+        quoteValue?.money?.payment_method_key ||
+        undefined;
+      let chargeAmount = firstFiniteNumber(
+        quoteValue?.charge_amount,
+        current.quote_snapshot?.charge_amount,
+      );
       if (paymentMethodKey === "credit_card" && chargeAmount === undefined) {
         const latestQuote = await client.eshop.cart.quote({ id: current.id });
         quote.set(latestQuote);
-        chargeAmount = firstFiniteNumber(latestQuote.charge_amount, latestQuote.total);
+        chargeAmount = firstFiniteNumber(
+          latestQuote.charge_amount,
+          latestQuote.total,
+        );
       }
       if (
         paymentMethodKey === "credit_card" &&
-        (typeof chargeAmount !== "number" || !Number.isSafeInteger(chargeAmount) || chargeAmount < 0)
+        (typeof chargeAmount !== "number" ||
+          !Number.isSafeInteger(chargeAmount) ||
+          chargeAmount < 0)
       ) {
-        throw new Error("Card checkout requires a non-negative integer charge amount in minor units");
+        throw new Error(
+          "Card checkout requires a non-negative integer charge amount in minor units",
+        );
       }
-      const needsConfirmationToken = paymentMethodKey === "credit_card" && typeof chargeAmount === "number" && chargeAmount > 0;
+      const needsConfirmationToken =
+        paymentMethodKey === "credit_card" &&
+        typeof chargeAmount === "number" &&
+        chargeAmount > 0;
       let confirmationTokenId: string | undefined;
       let returnUrl = input.return_url;
       const paymentController = input.payment ?? payment_controller.get();
       const orderCreatedAt = Date.now();
-      const orderProductItems =
-        input.product_items || product_items.get();
-      const orderServiceItems =
-        input.service_items || service_items.get();
+      const orderProductItems = input.product_items || product_items.get();
+      const orderServiceItems = input.service_items || service_items.get();
 
-      const rememberOrder = (
-        result: StorefrontOrderCheckoutResult,
-      ): void => {
+      const rememberOrder = (result: StorefrontOrderCheckoutResult): void => {
         last_order.set({
           order_id: result.order_id,
           number: result.number,
@@ -757,8 +909,11 @@ function initializeStoreCore(
       };
 
       if (needsConfirmationToken) {
-        if (!paymentController) throw new Error("Payment controller is required for card checkout");
-        returnUrl = returnUrl || (typeof window !== "undefined" ? window.location.href : undefined);
+        if (!paymentController)
+          throw new Error("Payment controller is required for card checkout");
+        returnUrl =
+          returnUrl ||
+          (typeof window !== "undefined" ? window.location.href : undefined);
         const token = await paymentController.createConfirmationToken({
           return_url: returnUrl,
           billing_details: input.billing_details,
@@ -798,8 +953,7 @@ function initializeStoreCore(
         await paymentController.handleNextAction(
           response.payment_action.client_secret,
           {
-            connectedAccountId:
-              response.payment_action.connected_account_id,
+            connectedAccountId: response.payment_action.connected_account_id,
           },
         );
         response = await pollScheduledResult(
@@ -809,10 +963,7 @@ function initializeStoreCore(
               { id: response.order_id },
               { signal: observationSignal },
             );
-            const observed = checkoutResultFromPayment(
-              response,
-              observation,
-            );
+            const observed = checkoutResultFromPayment(response, observation);
             rememberOrder(observed);
             return observed;
           },
@@ -838,7 +989,8 @@ function initializeStoreCore(
 
   function serviceCalendar(): ArkyCalendarDay[] {
     const state = service_state.get();
-    const { currentMonth, selectedDate, availability, selectedProviderId } = state;
+    const { currentMonth, selectedDate, availability, selectedProviderId } =
+      state;
     const year = currentMonth.getFullYear();
     const monthIndex = currentMonth.getMonth();
     const first = new Date(year, monthIndex, 1);
@@ -866,7 +1018,11 @@ function initializeStoreCore(
       cells.push({
         date,
         iso,
-        available: hasAvailableSlotsForDate(availability, iso, selectedProviderId),
+        available: hasAvailableSlotsForDate(
+          availability,
+          iso,
+          selectedProviderId,
+        ),
         isSelected: iso === selectedDate,
         isInRange: false,
         isToday: date.getTime() === today.getTime(),
@@ -893,30 +1049,52 @@ function initializeStoreCore(
   function computeServiceSlots(dateStr: string): ArkyServiceSlot[] {
     const state = service_state.get();
     const { availability, selectedProviderId, timezone, service } = state;
-    return getSlotsForDate(availability, dateStr, selectedProviderId).map((slot, index) => ({
-      id: `${service?.id || "service"}-${slot.from}-${index}`,
-      serviceId: service?.id || "",
-      providerId: slot.providerId,
-      from: slot.from,
-      to: slot.to,
-      timeText: formatServiceSlotTime(slot.from, slot.to, timezone),
-      dateText: new Date(slot.from * 1000).toLocaleDateString([], {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        timeZone: timezone,
+    return getSlotsForDate(availability, dateStr, selectedProviderId).map(
+      (slot, index) => ({
+        id: `${service?.id || "service"}-${slot.from}-${index}`,
+        serviceId: service?.id || "",
+        providerId: slot.providerId,
+        from: slot.from,
+        to: slot.to,
+        timeText: formatServiceSlotTime(slot.from, slot.to, timezone),
+        dateText: new Date(slot.from * 1000).toLocaleDateString([], {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          timeZone: timezone,
+        }),
       }),
-    }));
+    );
   }
 
-  function toServiceCartItem(slots: ArkyServiceSlot[], forms: FormEntry[] = []): ArkyServiceCartItem {
-    const orderedSlots = [...slots].sort((left, right) => left.from - right.from || left.to - right.to);
+  function toServiceCartItem(
+    slots: ArkyServiceSlot[],
+    forms: FormEntry[] = [],
+  ): ArkyServiceCartItem {
+    const orderedSlots = [...slots].sort(
+      (left, right) => left.from - right.from || left.to - right.to,
+    );
     const [first] = orderedSlots;
     if (!first) throw new Error("At least one service slot is required");
-    if (orderedSlots.some((slot) => slot.serviceId !== first.serviceId || slot.providerId !== first.providerId)) {
-      throw new Error("A booking can only contain slots for one service and provider");
+    if (
+      orderedSlots.some(
+        (slot) =>
+          slot.serviceId !== first.serviceId ||
+          slot.providerId !== first.providerId,
+      )
+    ) {
+      throw new Error(
+        "A booking can only contain slots for one service and provider",
+      );
     }
-    if (orderedSlots.some((slot) => !Number.isSafeInteger(slot.from) || !Number.isSafeInteger(slot.to) || slot.from >= slot.to)) {
+    if (
+      orderedSlots.some(
+        (slot) =>
+          !Number.isSafeInteger(slot.from) ||
+          !Number.isSafeInteger(slot.to) ||
+          slot.from >= slot.to,
+      )
+    ) {
       throw new Error("A booking contains an invalid service slot");
     }
     for (let index = 1; index < orderedSlots.length; index += 1) {
@@ -937,14 +1115,19 @@ function initializeStoreCore(
     };
   }
 
-  async function syncServiceCart(items: ArkyServiceCartItem[]): Promise<StorefrontCart> {
+  async function syncServiceCart(
+    items: ArkyServiceCartItem[],
+  ): Promise<StorefrontCart> {
     try {
       return await syncCart({
         product_items: product_items.get(),
         service_items: items,
       });
     } catch (error) {
-      service_state.setKey("quoteError", readErrorMessage(error, "Failed to sync service cart."));
+      service_state.setKey(
+        "quoteError",
+        readErrorMessage(error, "Failed to sync service cart."),
+      );
       throw error;
     }
   }
@@ -956,7 +1139,10 @@ function initializeStoreCore(
     return "review";
   }
 
-  const service_current_step_name = computed(service_state, serviceCurrentStepName);
+  const service_current_step_name = computed(
+    service_state,
+    serviceCurrentStepName,
+  );
   const service_can_proceed = computed(service_state, (state) => {
     const step = serviceCurrentStepName();
     if (step === "datetime") {
@@ -976,17 +1162,22 @@ function initializeStoreCore(
     if (!slots.length) return null;
     return Math.max(...slots.map((slot) => slot.to));
   });
-  const service_total_steps = computed(service_state, (state) => (state.service ? 2 : 0));
+  const service_total_steps = computed(service_state, (state) =>
+    state.service ? 2 : 0,
+  );
   const service_steps = computed(service_state, () => ({
     1: { name: "datetime" },
     2: { name: "review" },
   }));
-  const service_current_step = computed([service_current_step_name, service_steps], (name, steps) => {
-    for (const [idx, step] of Object.entries(steps)) {
-      if (step.name === name) return Number(idx);
-    }
-    return 1;
-  });
+  const service_current_step = computed(
+    [service_current_step_name, service_steps],
+    (name, steps) => {
+      for (const [idx, step] of Object.entries(steps)) {
+        if (step.name === name) return Number(idx);
+      }
+      return 1;
+    },
+  );
 
   function formatServiceDateDisplay(value: string | null): string {
     if (!value) return "";
@@ -996,10 +1187,17 @@ function initializeStoreCore(
     });
   }
 
-  function configuredServiceFormIds(relationship: StorefrontServiceProvider): string[] {
+  function configuredServiceFormIds(
+    relationship: StorefrontServiceProvider,
+  ): string[] {
     const formIds = relationship.forms.map((entry) => entry.form_id.trim());
-    if (formIds.some((formId) => !formId) || new Set(formIds).size !== formIds.length) {
-      throw new Error(`Service provider ${relationship.provider_id} has blank or duplicate configured form IDs`);
+    if (
+      formIds.some((formId) => !formId) ||
+      new Set(formIds).size !== formIds.length
+    ) {
+      throw new Error(
+        `Service provider ${relationship.provider_id} has blank or duplicate configured form IDs`,
+      );
     }
     return formIds;
   }
@@ -1010,15 +1208,25 @@ function initializeStoreCore(
   ): StorefrontServiceProvider | null {
     const serviceId = state.service?.id;
     if (!serviceId) return null;
-    const relationships = state.serviceProviders.filter((relationship) => relationship.service_id === serviceId);
-    const targetProviderId = providerId ?? state.selectedSlot?.providerId ?? state.selectedProviderId;
+    const relationships = state.serviceProviders.filter(
+      (relationship) => relationship.service_id === serviceId,
+    );
+    const targetProviderId =
+      providerId ?? state.selectedSlot?.providerId ?? state.selectedProviderId;
     if (targetProviderId) {
-      return relationships.find((relationship) => relationship.provider_id === targetProviderId) || null;
+      return (
+        relationships.find(
+          (relationship) => relationship.provider_id === targetProviderId,
+        ) || null
+      );
     }
     return relationships.length === 1 ? relationships[0] : null;
   }
 
-  function clearServiceFormState(error: string | null = null, loading = false): void {
+  function clearServiceFormState(
+    error: string | null = null,
+    loading = false,
+  ): void {
     service_form_state.set({
       provider_id: null,
       groups: [],
@@ -1031,7 +1239,10 @@ function initializeStoreCore(
     providerId?: string | null,
     reset = false,
   ): StorefrontServiceProvider | null {
-    const relationship = resolveServiceProvider(service_state.get(), providerId);
+    const relationship = resolveServiceProvider(
+      service_state.get(),
+      providerId,
+    );
     if (!relationship) {
       clearServiceFormState();
       return null;
@@ -1052,7 +1263,8 @@ function initializeStoreCore(
 
     const groups: ArkyServiceFormGroup[] = formIds.map((formId) => {
       const form = service_form_definitions.get(formId);
-      if (!form) throw new Error(`Configured booking form '${formId}' was not loaded`);
+      if (!form)
+        throw new Error(`Configured booking form '${formId}' was not loaded`);
       return {
         form,
         blocks: form.schema.map(formSchemaToBlock),
@@ -1071,16 +1283,24 @@ function initializeStoreCore(
     relationships: StorefrontServiceProvider[],
   ): Promise<void> {
     const formIds = [
-      ...new Set(relationships.flatMap((relationship) => configuredServiceFormIds(relationship))),
+      ...new Set(
+        relationships.flatMap((relationship) =>
+          configuredServiceFormIds(relationship),
+        ),
+      ),
     ];
     if (formIds.length === 0) return;
 
-    const forms = await Promise.all(formIds.map((formId) => loadForm({ id: formId })));
+    const forms = await Promise.all(
+      formIds.map((formId) => loadForm({ id: formId })),
+    );
     for (let index = 0; index < forms.length; index += 1) {
       const form = forms[index];
       const formId = formIds[index];
       if (form.id !== formId) {
-        throw new Error(`Configured booking form '${formId}' resolved to '${form.id}'`);
+        throw new Error(
+          `Configured booking form '${formId}' resolved to '${form.id}'`,
+        );
       }
     }
     for (const form of forms) service_form_definitions.set(form.id, form);
@@ -1098,22 +1318,30 @@ function initializeStoreCore(
       state.groups.length !== formIds.length ||
       state.groups.some((group, index) => group.form.id !== formIds[index])
     ) {
-      throw new Error(`Booking forms are not ready for provider ${relationship.provider_id}`);
+      throw new Error(
+        `Booking forms are not ready for provider ${relationship.provider_id}`,
+      );
     }
     return state.groups.map((group) =>
       createFormEntryFromValues(
         group.form,
-        Object.fromEntries(group.blocks.map((block) => [block.key, block.value])),
+        Object.fromEntries(
+          group.blocks.map((block) => [block.key, block.value]),
+        ),
       ),
     );
   }
 
   const service_controller = {
     async initialize(): Promise<void> {
-      service_state.setKey("tzGroups", normalizeTimezoneGroups(client.utils.tzGroups));
+      service_state.setKey(
+        "tzGroups",
+        normalizeTimezoneGroups(client.utils.tzGroups),
+      );
       await ensureCart();
       const methods = market.get()?.payment_methods || [];
-      if (methods.length) service_state.setKey("availablePaymentMethods", methods);
+      if (methods.length)
+        service_state.setKey("availablePaymentMethods", methods);
     },
 
     setTimezone(tz: string): void {
@@ -1154,9 +1382,17 @@ function initializeStoreCore(
             service_id: service.id,
           }),
         ]);
-        const providerIds = [...new Set(serviceProviders.map((relationship) => relationship.provider_id))];
+        const providerIds = [
+          ...new Set(
+            serviceProviders.map((relationship) => relationship.provider_id),
+          ),
+        ];
         const [providerResults] = await Promise.all([
-          Promise.all(providerIds.map((id) => client.eshop.provider.get({ id }).catch(() => null))),
+          Promise.all(
+            providerIds.map((id) =>
+              client.eshop.provider.get({ id }).catch(() => null),
+            ),
+          ),
           loadServiceFormDefinitions(serviceProviders),
         ]);
 
@@ -1172,7 +1408,11 @@ function initializeStoreCore(
           selectedDate: null,
           slots: [],
           selectedSlot: null,
-          currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+          currentMonth: new Date(
+            new Date().getFullYear(),
+            new Date().getMonth(),
+            1,
+          ),
           loading: false,
           dateTimeConfirmed: false,
           quote: null,
@@ -1182,7 +1422,9 @@ function initializeStoreCore(
         await service_controller.loadMonth();
       } catch (error) {
         service_form_definitions.clear();
-        clearServiceFormState(readErrorMessage(error, "Failed to load booking forms."));
+        clearServiceFormState(
+          readErrorMessage(error, "Failed to load booking forms."),
+        );
         service_state.setKey("loading", false);
         throw error;
       }
@@ -1201,8 +1443,12 @@ function initializeStoreCore(
           to = chainedStart;
         } else {
           const month = state.currentMonth;
-          from = Math.floor(Date.UTC(month.getFullYear(), month.getMonth(), 1) / 1000);
-          to = Math.floor(Date.UTC(month.getFullYear(), month.getMonth() + 1, 1) / 1000);
+          from = Math.floor(
+            Date.UTC(month.getFullYear(), month.getMonth(), 1) / 1000,
+          );
+          to = Math.floor(
+            Date.UTC(month.getFullYear(), month.getMonth() + 1, 1) / 1000,
+          );
         }
         const availability = await loadAvailability({
           service_id: state.service.id,
@@ -1218,20 +1464,28 @@ function initializeStoreCore(
 
     prevMonth(): void {
       const { currentMonth } = service_state.get();
-      service_state.setKey("currentMonth", new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+      service_state.setKey(
+        "currentMonth",
+        new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1),
+      );
       void service_controller.loadMonth();
     },
 
     nextMonth(): void {
       const { currentMonth } = service_state.get();
-      service_state.setKey("currentMonth", new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+      service_state.setKey(
+        "currentMonth",
+        new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1),
+      );
       void service_controller.loadMonth();
     },
 
     selectProvider(providerId: string | null): void {
       const state = service_state.get();
       if (providerId && !resolveServiceProvider(state, providerId)) {
-        throw new Error(`Provider ${providerId} is not configured for the selected service`);
+        throw new Error(
+          `Provider ${providerId} is not configured for the selected service`,
+        );
       }
       service_state.set({
         ...state,
@@ -1267,13 +1521,22 @@ function initializeStoreCore(
       const state = service_state.get();
       if (slot) {
         if (!state.service || slot.serviceId !== state.service.id) {
-          throw new Error("The selected slot does not belong to the selected service");
+          throw new Error(
+            "The selected slot does not belong to the selected service",
+          );
         }
-        if (state.selectedProviderId && slot.providerId !== state.selectedProviderId) {
-          throw new Error("The selected slot does not belong to the selected provider");
+        if (
+          state.selectedProviderId &&
+          slot.providerId !== state.selectedProviderId
+        ) {
+          throw new Error(
+            "The selected slot does not belong to the selected provider",
+          );
         }
         if (!resolveServiceProvider(state, slot.providerId)) {
-          throw new Error(`Provider ${slot.providerId} is not configured for the selected service`);
+          throw new Error(
+            `Provider ${slot.providerId} is not configured for the selected service`,
+          );
         }
       }
       service_state.set({
@@ -1314,21 +1577,29 @@ function initializeStoreCore(
 
     async addToCart(explicitSlots?: ArkyServiceSlot[]): Promise<void> {
       const state = service_state.get();
-      const slots = explicitSlots || (state.selectedSlot ? [state.selectedSlot] : []);
+      const slots =
+        explicitSlots || (state.selectedSlot ? [state.selectedSlot] : []);
       if (slots.length === 0) return;
       const first = slots[0];
       if (!state.service || first.serviceId !== state.service.id) {
-        throw new Error("The booking slots do not belong to the selected service");
+        throw new Error(
+          "The booking slots do not belong to the selected service",
+        );
       }
       const relationship = resolveServiceProvider(state, first.providerId);
       if (!relationship) {
-        throw new Error(`Provider ${first.providerId} is not configured for the selected service`);
+        throw new Error(
+          `Provider ${first.providerId} is not configured for the selected service`,
+        );
       }
       let forms: FormEntry[];
       try {
         forms = configuredServiceFormEntries(relationship);
       } catch (error) {
-        service_form_state.setKey("error", readErrorMessage(error, "Booking forms are invalid."));
+        service_form_state.setKey(
+          "error",
+          readErrorMessage(error, "Booking forms are invalid."),
+        );
         throw error;
       }
       const displayName = serviceName(state.service, currentLocale());
@@ -1337,7 +1608,10 @@ function initializeStoreCore(
         serviceName: displayName,
         date: slot.dateText,
       }));
-      const nextItems = [...service_items.get(), toServiceCartItem(enriched, forms)];
+      const nextItems = [
+        ...service_items.get(),
+        toServiceCartItem(enriched, forms),
+      ];
       await syncServiceCart(nextItems);
       service_state.set({
         ...service_state.get(),
@@ -1348,12 +1622,17 @@ function initializeStoreCore(
         quote: null,
         quoteError: null,
       });
-      activateServiceProviderForms(service_state.get().selectedProviderId, true);
+      activateServiceProviderForms(
+        service_state.get().selectedProviderId,
+        true,
+      );
       service_state.setKey("calendar", serviceCalendar());
     },
 
     async removeFromCart(bookingId: string): Promise<void> {
-      await syncServiceCart(service_items.get().filter((item) => item.id !== bookingId));
+      await syncServiceCart(
+        service_items.get().filter((item) => item.id !== bookingId),
+      );
     },
 
     async clearCart(): Promise<void> {
@@ -1400,11 +1679,16 @@ function initializeStoreCore(
         });
         service_state.setKey("cartId", cart.get()?.id || null);
         service_state.setKey("quote", response);
-        const methods = response?.payment_methods || market.get()?.payment_methods || [];
-        if (methods.length) service_state.setKey("availablePaymentMethods", methods);
+        const methods =
+          response?.payment_methods || market.get()?.payment_methods || [];
+        if (methods.length)
+          service_state.setKey("availablePaymentMethods", methods);
         return response;
       } catch (error) {
-        service_state.setKey("quoteError", readErrorMessage(error, "Failed to fetch quote."));
+        service_state.setKey(
+          "quoteError",
+          readErrorMessage(error, "Failed to fetch quote."),
+        );
         return null;
       } finally {
         service_state.setKey("fetchingQuote", false);
@@ -1431,7 +1715,10 @@ function initializeStoreCore(
     },
 
     nextStep(): void {
-      if (serviceCurrentStepName() === "datetime" && service_can_proceed.get()) {
+      if (
+        serviceCurrentStepName() === "datetime" &&
+        service_can_proceed.get()
+      ) {
         service_state.setKey("dateTimeConfirmed", true);
       }
     },
@@ -1441,7 +1728,11 @@ function initializeStoreCore(
       const relationship = resolveServiceProvider(state);
       if (!relationship) return "";
       try {
-        const price = priceForMarket(relationship.prices, currentMarketKey(), market.get()?.currency);
+        const price = priceForMarket(
+          relationship.prices,
+          currentMarketKey(),
+          market.get()?.currency,
+        );
         return client.utils.formatPrice([price]);
       } catch {
         return "";
@@ -1449,7 +1740,10 @@ function initializeStoreCore(
     },
 
     formatDateDisplay: formatServiceDateDisplay,
-    serviceItemsFromSlots(slots: ArkyServiceSlot[], forms: FormEntry[] = []): ArkyServiceCartItem[] {
+    serviceItemsFromSlots(
+      slots: ArkyServiceSlot[],
+      forms: FormEntry[] = [],
+    ): ArkyServiceCartItem[] {
       return slots.length ? [toServiceCartItem(slots, forms)] : [];
     },
   };
@@ -1465,7 +1759,10 @@ function initializeStoreCore(
       setContext({ locale: nextLocale, market: nextMarket });
 
       if (entryParams.id) {
-        const entry = await client.cms.entry.get(entryParams as GetEntryParams, options);
+        const entry = await client.cms.entry.get(
+          entryParams as GetEntryParams,
+          options,
+        );
         const cacheKey = entryParams.key || entryParams.id || entry.id;
         cms_state.setKey("entries", {
           ...cms_state.get().entries,
@@ -1475,7 +1772,9 @@ function initializeStoreCore(
       }
 
       if (!entryParams.collection_id || !entryParams.key) {
-        throw new Error("ArkyCmsEntryParams requires id, or collection_id and key");
+        throw new Error(
+          "ArkyCmsEntryParams requires id, or collection_id and key",
+        );
       }
 
       const result = await client.cms.entry.find(
@@ -1497,7 +1796,10 @@ function initializeStoreCore(
       });
       return entry;
     } catch (error) {
-      cms_state.setKey("error", readErrorMessage(error, "Failed to load CMS entry."));
+      cms_state.setKey(
+        "error",
+        readErrorMessage(error, "Failed to load CMS entry."),
+      );
       throw error;
     } finally {
       cms_state.setKey("loading", false);
@@ -1505,7 +1807,11 @@ function initializeStoreCore(
   }
 
   function formCacheKey(params: StorefrontParams<GetFormParams>): string {
-    const identifier = params.id ? `id:${params.id}` : params.key ? `key:${params.key}` : "missing";
+    const identifier = params.id
+      ? `id:${params.id}`
+      : params.key
+        ? `key:${params.key}`
+        : "missing";
     return identifier;
   }
 
@@ -1523,7 +1829,10 @@ function initializeStoreCore(
       cms_state.setKey("forms", forms);
       return form;
     } catch (error) {
-      cms_state.setKey("error", readErrorMessage(error, "Failed to load CMS form."));
+      cms_state.setKey(
+        "error",
+        readErrorMessage(error, "Failed to load CMS form."),
+      );
       throw error;
     } finally {
       cms_state.setKey("loading", false);
@@ -1559,7 +1868,10 @@ function initializeStoreCore(
       eshop_state.setKey("product_cursor", response.cursor || null);
       return response;
     } catch (error) {
-      eshop_state.setKey("error", readErrorMessage(error, "Failed to load products."));
+      eshop_state.setKey(
+        "error",
+        readErrorMessage(error, "Failed to load products."),
+      );
       throw error;
     } finally {
       eshop_state.setKey("loading_products", false);
@@ -1578,7 +1890,10 @@ function initializeStoreCore(
       eshop_state.setKey("service_cursor", response.cursor || null);
       return response;
     } catch (error) {
-      eshop_state.setKey("error", readErrorMessage(error, "Failed to load services."));
+      eshop_state.setKey(
+        "error",
+        readErrorMessage(error, "Failed to load services."),
+      );
       throw error;
     } finally {
       eshop_state.setKey("loading_services", false);
@@ -1597,7 +1912,10 @@ function initializeStoreCore(
       eshop_state.setKey("provider_cursor", response.cursor || null);
       return response;
     } catch (error) {
-      eshop_state.setKey("error", readErrorMessage(error, "Failed to load providers."));
+      eshop_state.setKey(
+        "error",
+        readErrorMessage(error, "Failed to load providers."),
+      );
       throw error;
     } finally {
       eshop_state.setKey("loading_providers", false);
@@ -1611,18 +1929,26 @@ function initializeStoreCore(
     eshop_state.setKey("loading_availability", true);
     eshop_state.setKey("error", null);
     try {
-      const response = await client.eshop.service.getAvailability(params, options);
+      const response = await client.eshop.service.getAvailability(
+        params,
+        options,
+      );
       eshop_state.setKey("availability", response);
       return response;
     } catch (error) {
-      eshop_state.setKey("error", readErrorMessage(error, "Failed to load availability."));
+      eshop_state.setKey(
+        "error",
+        readErrorMessage(error, "Failed to load availability."),
+      );
       throw error;
     } finally {
       eshop_state.setKey("loading_availability", false);
     }
   }
 
-  async function useExperiment(params: string | UseExperimentParams): Promise<ExperimentUseResponse> {
+  async function useExperiment(
+    params: string | UseExperimentParams,
+  ): Promise<ExperimentUseResponse> {
     await ensureSession();
     const input = typeof params === "string" ? { key: params } : params;
     return client.experiments.use(input);
@@ -1665,7 +1991,10 @@ function initializeStoreCore(
       update: updatePaymentController,
       destroy: destroyPaymentController,
     },
-    applyPromoCode(code: string, input: Omit<ArkyCartInput, "promo_code"> = {}) {
+    applyPromoCode(
+      code: string,
+      input: Omit<ArkyCartInput, "promo_code"> = {},
+    ) {
       return fetchQuote({ ...input, promo_code: code });
     },
     removePromoCode(input: Omit<ArkyCartInput, "promo_code"> = {}) {
@@ -1682,14 +2011,18 @@ function initializeStoreCore(
   };
 
   const product_store = {
-    get: (params: StorefrontParams<GetProductParams>, options?: RequestOptions) =>
-      client.eshop.product.get(params, options),
+    get: (
+      params: StorefrontParams<GetProductParams>,
+      options?: RequestOptions,
+    ) => client.eshop.product.get(params, options),
     list: loadProducts,
   };
 
   const service_store = {
-    get: (params: StorefrontParams<GetServiceParams>, options?: RequestOptions) =>
-      client.eshop.service.get(params, options),
+    get: (
+      params: StorefrontParams<GetServiceParams>,
+      options?: RequestOptions,
+    ) => client.eshop.service.get(params, options),
     list: loadServices,
     listProviders: (
       params: StorefrontParams<FindServiceProvidersParams>,

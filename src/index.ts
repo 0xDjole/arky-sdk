@@ -145,9 +145,6 @@ export type {
   WorkflowGoogleDriveUploadNode,
   WorkflowConnection,
   WorkflowConnectionConnectUrl,
-  WorkflowConnectionOAuthAttempt,
-  WorkflowConnectionOAuthAttemptError,
-  WorkflowConnectionOAuthAttemptStatus,
   WorkflowConnectionData,
   WorkflowConnectionType,
   GoogleDriveWorkflowConnectionData,
@@ -307,9 +304,6 @@ export type {
   MailboxConnectionSecurity,
   MailboxPreset,
   MailboxSyncStatus,
-  GoogleMailboxOAuthAttempt,
-  GoogleMailboxOAuthAttemptError,
-  GoogleMailboxOAuthAttemptStatus,
   GoogleMailboxProvider,
   SmtpImapMailboxProviderInput,
   SmtpImapMailboxProvider,
@@ -510,7 +504,6 @@ export type {
   ContactListAccessParams,
   ContactListContentAccessParams,
   CreateMailboxParams,
-  GetGoogleMailboxOAuthAttemptParams,
   UpdateMailboxParams,
   FindMailboxesParams,
   GetMailboxParams,
@@ -561,7 +554,6 @@ export type {
   GetSocialCapabilitiesParams,
   GetPaymentProviderConnectionParams,
   GetSocialOAuthAttemptParams,
-  GetWorkflowConnectionOAuthAttemptParams,
   GetSocialCommentReplyParams,
   GetSocialPublicationCommentThreadParams,
   GetSocialPublicationCommentsParams,
@@ -728,9 +720,7 @@ export const SUPPORTED_FRAMEWORKS = [
   "vanilla",
 ] as const;
 
-import type {
-  Price,
-} from "./types";
+import type { Price } from "./types";
 
 export interface ApiConfig {
   httpClient: HttpClient;
@@ -884,7 +874,8 @@ function createUtilitySurface(apiConfig: Pick<ApiConfig, "market">) {
     extractBlockValues,
 
     formatPrice: (prices: Price[]) => formatPrice(prices, apiConfig.market),
-    getPriceAmount: (prices: Price[]) => getPriceAmount(prices, apiConfig.market),
+    getPriceAmount: (prices: Price[]) =>
+      getPriceAmount(prices, apiConfig.market),
     formatPayment,
     formatMinor,
     getCurrencySymbol,
@@ -1062,7 +1053,6 @@ export function createAdmin(config: CreateAdminConfig) {
     getEffect: workflowApi.getWorkflowEffect,
     listConnections: workflowApi.getWorkflowConnections,
     getConnectionConnectUrl: workflowApi.getWorkflowConnectionConnectUrl,
-    getConnectionOAuthAttempt: workflowApi.getWorkflowConnectionOAuthAttempt,
     deleteConnection: workflowApi.deleteWorkflowConnection,
   };
   const formApi = createFormApi(apiConfig);
@@ -1522,7 +1512,8 @@ function createStorefrontClientCore(
   const listeners = new Set<AuthStateListener<ContactSession>>();
   let identifyPromise: Promise<StorefrontIdentifyResult> | null = null;
   let identityTail: Promise<void> = Promise.resolve();
-  let setupPromise: Promise<import("./api/storefront").StorefrontSetup> | null = null;
+  let setupPromise: Promise<import("./api/storefront").StorefrontSetup> | null =
+    null;
   let setupValue: import("./api/storefront").StorefrontSetup | null = null;
   const explicitSessionStorage = options.sessionStorage;
   const sessionStorage = isolatedSession
@@ -1556,8 +1547,7 @@ function createStorefrontClientCore(
       } else {
         sessionStorage.removeItem(storageKey);
       }
-    } catch {
-    }
+    } catch {}
   }
 
   function toPublic(s: ContactSessionInternal | null): ContactSession | null {
@@ -1701,9 +1691,10 @@ function createStorefrontClientCore(
     return promise;
   }
 
-  async function verify(
-    params: { challenge_id: string; code: string },
-  ): Promise<StorefrontVerifyResult> {
+  async function verify(params: {
+    challenge_id: string;
+    code: string;
+  }): Promise<StorefrontVerifyResult> {
     requireVisitorSessionCapability();
     const result = await contactApi.verify(params);
     identifyPromise = null;

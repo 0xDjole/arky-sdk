@@ -129,11 +129,7 @@ export interface SupportMessage {
 }
 
 export type SupportAiResponseStatus =
-  | "requested"
-  | "processing"
-  | "succeeded"
-  | "failed"
-  | "unknown";
+  "requested" | "processing" | "succeeded" | "failed" | "unknown";
 
 export interface SupportAiResponse {
   status: SupportAiResponseStatus;
@@ -242,10 +238,14 @@ export interface FindSupportConversationsParams {
   cursor?: string;
 }
 
-function supportConversationQuery(params: GetSupportConversationParams): string {
+function supportConversationQuery(
+  params: GetSupportConversationParams,
+): string {
   const qs = new URLSearchParams({ store_id: params.store_id });
-  if (params.message_limit) qs.set("message_limit", String(params.message_limit));
-  if (typeof params.after_created_at === "number") qs.set("after_created_at", String(params.after_created_at));
+  if (params.message_limit)
+    qs.set("message_limit", String(params.message_limit));
+  if (typeof params.after_created_at === "number")
+    qs.set("after_created_at", String(params.after_created_at));
   if (params.after_id) qs.set("after_id", params.after_id);
   return qs.toString();
 }
@@ -262,7 +262,9 @@ function storefrontSupportOptions<T>(
   options?: RequestOptions<T>,
 ): RequestOptions<T> {
   if (!/^[0-9a-f]{64}$/.test(supportToken)) {
-    throw new Error("support_token must be a 64-character lowercase hexadecimal token");
+    throw new Error(
+      "support_token must be a 64-character lowercase hexadecimal token",
+    );
   }
   const headers = { ...options?.headers };
   for (const name of Object.keys(headers)) {
@@ -286,33 +288,33 @@ export function createStorefrontSupportApi(
   return {
     async startConversation(
       params: Omit<StartSupportConversationParams, "store_id"> = {},
-      opts?: RequestOptions
+      opts?: RequestOptions,
     ): Promise<StorefrontSupportConversationStartResponse> {
       await ensureVisitorSession();
       return httpClient.post<StorefrontSupportConversationStartResponse>(
         "/v1/storefront/support/conversations",
         params,
-        opts
+        opts,
       );
     },
 
     async sendMessage(
       params: StorefrontSendSupportMessageParams,
-      opts?: ScheduledMutationOptions<StorefrontSupportConversationResponse>
+      opts?: ScheduledMutationOptions<StorefrontSupportConversationResponse>,
     ): Promise<StorefrontSupportConversationResponse> {
       await ensureVisitorSession();
       const { support_token, ...request } = params;
-      const path =
-        `/v1/storefront/support/conversations/${request.conversation_id}`;
+      const path = `/v1/storefront/support/conversations/${request.conversation_id}`;
       const mutation = prepareScheduledMutation(
         request,
         storefrontSupportOptions(support_token, opts),
       );
-      const requested = await httpClient.post<StorefrontSupportConversationResponse>(
-        `${path}/messages`,
-        mutation.body,
-        mutation.options,
-      );
+      const requested =
+        await httpClient.post<StorefrontSupportConversationResponse>(
+          `${path}/messages`,
+          mutation.body,
+          mutation.options,
+        );
       await mutation.afterResponse(requested);
       const requestedMessage = requested.messages.find(
         (message) => message.id === request.message_id,
@@ -339,12 +341,13 @@ export function createStorefrontSupportApi(
 
     async getConversation(
       params: StorefrontGetSupportConversationParams,
-      opts?: RequestOptions
+      opts?: RequestOptions,
     ): Promise<StorefrontSupportConversationResponse> {
       await ensureVisitorSession();
       const { support_token, ...request } = params;
       const query = new URLSearchParams();
-      if (request.message_limit) query.set("message_limit", String(request.message_limit));
+      if (request.message_limit)
+        query.set("message_limit", String(request.message_limit));
       if (typeof request.after_created_at === "number") {
         query.set("after_created_at", String(request.after_created_at));
       }
@@ -352,7 +355,7 @@ export function createStorefrontSupportApi(
       const suffix = query.size ? `?${query}` : "";
       return httpClient.get<StorefrontSupportConversationResponse>(
         `/v1/storefront/support/conversations/${request.conversation_id}${suffix}`,
-        storefrontSupportOptions(support_token, opts)
+        storefrontSupportOptions(support_token, opts),
       );
     },
 
@@ -430,28 +433,28 @@ export function createAdminSupportApi(config: ApiConfig) {
     channel: {
       async create(
         params: CreateSupportChannelParams,
-        opts?: RequestOptions
+        opts?: RequestOptions,
       ): Promise<SupportChannel> {
         return httpClient.post<SupportChannel>(
           `/v1/stores/${params.store_id}/support/channels`,
           params,
-          opts
+          opts,
         );
       },
 
       async get(
         params: { store_id: string; id: string },
-        opts?: RequestOptions
+        opts?: RequestOptions,
       ): Promise<SupportChannel> {
         return httpClient.get<SupportChannel>(
           `/v1/stores/${params.store_id}/support/channels/${params.id}?store_id=${params.store_id}`,
-          opts
+          opts,
         );
       },
 
       async find(
         params: FindSupportChannelsParams,
-        opts?: RequestOptions
+        opts?: RequestOptions,
       ): Promise<{ items: SupportChannel[]; cursor?: string }> {
         const qs = new URLSearchParams({ store_id: params.store_id });
         if (params.status) qs.set("status", params.status);
@@ -460,39 +463,39 @@ export function createAdminSupportApi(config: ApiConfig) {
         if (params.cursor) qs.set("cursor", params.cursor);
         return httpClient.get<{ items: SupportChannel[]; cursor?: string }>(
           `/v1/stores/${params.store_id}/support/channels?${qs}`,
-          opts
+          opts,
         );
       },
 
       async update(
         params: UpdateSupportChannelParams,
-        opts?: RequestOptions
+        opts?: RequestOptions,
       ): Promise<SupportChannel> {
         return httpClient.put<SupportChannel>(
           `/v1/stores/${params.store_id}/support/channels/${params.id}`,
           params,
-          opts
+          opts,
         );
       },
 
       async delete(
         params: { store_id: string; id: string },
-        opts?: RequestOptions
+        opts?: RequestOptions,
       ): Promise<void> {
         return httpClient.delete<void>(
           `/v1/stores/${params.store_id}/support/channels/${params.id}?store_id=${params.store_id}`,
-          opts
+          opts,
         );
       },
 
       async receiveMessage(
         params: ReceiveSupportChannelMessageParams,
-        opts?: RequestOptions
+        opts?: RequestOptions,
       ): Promise<SupportConversationResponse> {
         return httpClient.post<SupportConversationResponse>(
           `/v1/stores/${params.store_id}/support/channels/${params.channel_id}/messages`,
           params,
-          opts
+          opts,
         );
       },
     },
@@ -500,28 +503,33 @@ export function createAdminSupportApi(config: ApiConfig) {
     agent: {
       async create(
         params: CreateSupportAgentParams,
-        opts?: RequestOptions
+        opts?: RequestOptions,
       ): Promise<SupportAgent> {
         return httpClient.post<SupportAgent>(
           `/v1/stores/${params.store_id}/support/agents`,
           params,
-          opts
+          opts,
         );
       },
 
       async get(
         params: { store_id: string; id: string },
-        opts?: RequestOptions
+        opts?: RequestOptions,
       ): Promise<SupportAgent> {
         return httpClient.get<SupportAgent>(
           `/v1/stores/${params.store_id}/support/agents/${params.id}?store_id=${params.store_id}`,
-          opts
+          opts,
         );
       },
 
       async find(
-        params: { store_id: string; status?: string; limit?: number; cursor?: string },
-        opts?: RequestOptions
+        params: {
+          store_id: string;
+          status?: string;
+          limit?: number;
+          cursor?: string;
+        },
+        opts?: RequestOptions,
       ): Promise<{ items: SupportAgent[]; cursor?: string }> {
         const qs = new URLSearchParams({ store_id: params.store_id });
         if (params.status) qs.set("status", params.status);
@@ -529,28 +537,28 @@ export function createAdminSupportApi(config: ApiConfig) {
         if (params.cursor) qs.set("cursor", params.cursor);
         return httpClient.get<{ items: SupportAgent[]; cursor?: string }>(
           `/v1/stores/${params.store_id}/support/agents?${qs}`,
-          opts
+          opts,
         );
       },
 
       async update(
         params: UpdateSupportAgentParams,
-        opts?: RequestOptions
+        opts?: RequestOptions,
       ): Promise<SupportAgent> {
         return httpClient.put<SupportAgent>(
           `/v1/stores/${params.store_id}/support/agents/${params.id}`,
           params,
-          opts
+          opts,
         );
       },
 
       async delete(
         params: { store_id: string; id: string },
-        opts?: RequestOptions
+        opts?: RequestOptions,
       ): Promise<void> {
         return httpClient.delete<void>(
           `/v1/stores/${params.store_id}/support/agents/${params.id}?store_id=${params.store_id}`,
-          opts
+          opts,
         );
       },
     },
@@ -558,7 +566,7 @@ export function createAdminSupportApi(config: ApiConfig) {
     conversation: {
       async find(
         params: FindSupportConversationsParams,
-        opts?: RequestOptions
+        opts?: RequestOptions,
       ): Promise<{ items: SupportConversation[]; cursor?: string }> {
         const qs = new URLSearchParams({ store_id: params.store_id });
         if (params.status) qs.set("status", params.status);
@@ -568,29 +576,28 @@ export function createAdminSupportApi(config: ApiConfig) {
         if (params.query) qs.set("query", params.query);
         if (params.limit) qs.set("limit", String(params.limit));
         if (params.cursor) qs.set("cursor", params.cursor);
-        return httpClient.get<{ items: SupportConversation[]; cursor?: string }>(
-          `/v1/stores/${params.store_id}/support/conversations?${qs}`,
-          opts
-        );
+        return httpClient.get<{
+          items: SupportConversation[];
+          cursor?: string;
+        }>(`/v1/stores/${params.store_id}/support/conversations?${qs}`, opts);
       },
 
       async get(
         params: GetSupportConversationParams,
-        opts?: RequestOptions
+        opts?: RequestOptions,
       ): Promise<SupportConversationResponse> {
         const qs = supportConversationQuery(params);
         return httpClient.get<SupportConversationResponse>(
           `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}?${qs}`,
-          opts
+          opts,
         );
       },
 
       async sendMessage(
         params: SendSupportMessageParams,
-        opts?: ScheduledMutationOptions<SupportConversationResponse>
+        opts?: ScheduledMutationOptions<SupportConversationResponse>,
       ): Promise<SupportConversationResponse> {
-        const path =
-          `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}`;
+        const path = `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}`;
         const mutation = prepareScheduledMutation(params, opts);
         const requested = await httpClient.post<SupportConversationResponse>(
           `${path}/messages`,
@@ -637,34 +644,34 @@ export function createAdminSupportApi(config: ApiConfig) {
 
       async reply(
         params: ReplySupportConversationParams,
-        opts?: RequestOptions
+        opts?: RequestOptions,
       ): Promise<SupportConversationResponse> {
         return httpClient.post<SupportConversationResponse>(
           `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}/reply`,
           params,
-          opts
+          opts,
         );
       },
 
       async resolve(
         params: ResolveSupportConversationParams,
-        opts?: RequestOptions
+        opts?: RequestOptions,
       ): Promise<SupportConversation> {
         return httpClient.post<SupportConversation>(
           `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}/resolve`,
           params,
-          opts
+          opts,
         );
       },
 
       async assign(
         params: AssignSupportConversationParams,
-        opts?: RequestOptions
+        opts?: RequestOptions,
       ): Promise<SupportConversation> {
         return httpClient.post<SupportConversation>(
           `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}/assign`,
           params,
-          opts
+          opts,
         );
       },
     },

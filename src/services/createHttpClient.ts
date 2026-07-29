@@ -43,8 +43,9 @@ export interface RequestOptions<T = unknown> {
   onError?: (ctx: RequestErrorContext) => void | Promise<void>;
 }
 
-export interface ScheduledMutationOptions<T = unknown>
-  extends RequestOptions<T> {
+export interface ScheduledMutationOptions<
+  T = unknown,
+> extends RequestOptions<T> {
   onScheduledResponse?: (response: T) => void | Promise<void>;
 }
 

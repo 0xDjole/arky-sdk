@@ -73,8 +73,10 @@ import type {
 
 export const createEshopApi = (apiConfig: ApiConfig) => {
   return {
-
-    async createProduct(params: CreateProductParams, options?: RequestOptions): Promise<Product> {
+    async createProduct(
+      params: CreateProductParams,
+      options?: RequestOptions,
+    ): Promise<Product> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<Product>(
@@ -84,7 +86,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async updateProduct(params: UpdateProductParams, options?: RequestOptions): Promise<Product> {
+    async updateProduct(
+      params: UpdateProductParams,
+      options?: RequestOptions,
+    ): Promise<Product> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.put<Product>(
@@ -94,7 +99,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async deleteProduct(params: DeleteProductParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
+    async deleteProduct(
+      params: DeleteProductParams,
+      options?: RequestOptions,
+    ): Promise<{ deleted: boolean }> {
       const target_store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.delete<{ deleted: boolean }>(
         `/v1/stores/${target_store_id}/products/${params.id}`,
@@ -102,7 +110,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getProduct(params: GetProductParams, options?: RequestOptions): Promise<Product> {
+    async getProduct(
+      params: GetProductParams,
+      options?: RequestOptions,
+    ): Promise<Product> {
       const target_store_id = params.store_id || apiConfig.storeId;
       let identifier: string;
       if (params.id) {
@@ -119,7 +130,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getProducts(params: GetProductsParams, options?: RequestOptions): Promise<PaginatedResponse<Product>> {
+    async getProducts(
+      params: GetProductsParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<Product>> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<PaginatedResponse<Product>>(
@@ -336,7 +350,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async updateOrder(params: UpdateOrderParams, options?: RequestOptions): Promise<Order> {
+    async updateOrder(
+      params: UpdateOrderParams,
+      options?: RequestOptions,
+    ): Promise<Order> {
       const { store_id, items, ...rest } = params;
       const target_store_id = store_id || apiConfig.storeId;
       const payload = {
@@ -351,7 +368,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getOrder(params: GetOrderParams, options?: RequestOptions): Promise<Order> {
+    async getOrder(
+      params: GetOrderParams,
+      options?: RequestOptions,
+    ): Promise<Order> {
       const target_store_id = params.store_id || apiConfig.storeId;
 
       return apiConfig.httpClient.get<Order>(
@@ -360,7 +380,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getOrders(params: GetOrdersParams, options?: RequestOptions): Promise<PaginatedResponse<Order>> {
+    async getOrders(
+      params: GetOrdersParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<Order>> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<PaginatedResponse<Order>>(
@@ -372,7 +395,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getCarts(params: FindCartsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Cart>> {
+    async getCarts(
+      params: FindCartsParams = {},
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<Cart>> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<PaginatedResponse<Cart>>(
@@ -384,7 +410,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getCart(params: GetCartParams, options?: RequestOptions): Promise<Cart> {
+    async getCart(
+      params: GetCartParams,
+      options?: RequestOptions,
+    ): Promise<Cart> {
       const target_store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<Cart>(
         `/v1/stores/${target_store_id}/carts/${params.id}`,
@@ -392,7 +421,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async createCart(params: CreateCartParams, options?: RequestOptions): Promise<Cart> {
+    async createCart(
+      params: CreateCartParams,
+      options?: RequestOptions,
+    ): Promise<Cart> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<Cart>(
@@ -405,7 +437,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async updateCart(params: UpdateCartParams, options?: RequestOptions): Promise<Cart> {
+    async updateCart(
+      params: UpdateCartParams,
+      options?: RequestOptions,
+    ): Promise<Cart> {
       const { id, store_id, items, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.put<Cart>(
@@ -418,7 +453,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async addCartItem(params: AddCartItemParams, options?: RequestOptions): Promise<Cart> {
+    async addCartItem(
+      params: AddCartItemParams,
+      options?: RequestOptions,
+    ): Promise<Cart> {
       const { id, store_id, item } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<Cart>(
@@ -428,7 +466,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async removeCartItem(params: RemoveCartItemParams, options?: RequestOptions): Promise<Cart> {
+    async removeCartItem(
+      params: RemoveCartItemParams,
+      options?: RequestOptions,
+    ): Promise<Cart> {
       const { id, store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<Cart>(
@@ -438,7 +479,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async clearCart(params: ClearCartParams, options?: RequestOptions): Promise<Cart> {
+    async clearCart(
+      params: ClearCartParams,
+      options?: RequestOptions,
+    ): Promise<Cart> {
       const target_store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<Cart>(
         `/v1/stores/${target_store_id}/carts/${params.id}/clear`,
@@ -447,7 +491,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async quoteCart(params: QuoteCartParams, options?: RequestOptions): Promise<OrderQuote> {
+    async quoteCart(
+      params: QuoteCartParams,
+      options?: RequestOptions,
+    ): Promise<OrderQuote> {
       const target_store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<OrderQuote>(
         `/v1/stores/${target_store_id}/carts/${params.id}/quote`,
@@ -466,21 +513,27 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const target_store_id = store_id || apiConfig.storeId;
       const path = `/v1/stores/${target_store_id}/carts/${id}/checkout`;
       const mutation = prepareScheduledMutation(payload, options);
-      const requested =
-        await apiConfig.httpClient.post<import("../types").OrderCheckoutResult>(
-          path,
-          mutation.body,
-          mutation.options,
-        );
+      const requested = await apiConfig.httpClient.post<
+        import("../types").OrderCheckoutResult
+      >(path, mutation.body, mutation.options);
       await mutation.afterResponse(requested);
       return pollScheduledResult(
         requested,
         async (observationSignal) => {
-          const observation =
-            await apiConfig.httpClient.get<import("../types").OrderPaymentObservation>(
-              `/v1/stores/${target_store_id}/orders/${requested.order_id}/payment`,
-              scheduledObservationOptions(options, observationSignal),
+          const observation = await apiConfig.httpClient.get<
+            import("../types").OrderPaymentObservation
+          >(
+            `/v1/stores/${target_store_id}/orders/${requested.order_id}/payment`,
+            scheduledObservationOptions(options, observationSignal),
+          );
+          if (
+            observation.order_id !== requested.order_id ||
+            observation.id !== requested.payment.id
+          ) {
+            throw new Error(
+              "Order payment changed before its exact checkout result could be observed",
             );
+          }
           const { payment_action, ...payment } = observation;
           return {
             ...requested,
@@ -495,7 +548,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getQuote(params: GetQuoteParams, options?: RequestOptions): Promise<OrderQuote> {
+    async getQuote(
+      params: GetQuoteParams,
+      options?: RequestOptions,
+    ): Promise<OrderQuote> {
       const { location, store_id, items, ...rest } = params;
       const target_store_id = store_id || apiConfig.storeId;
       const shipping_address = location
@@ -526,14 +582,15 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<CreateOrderRefundResponse> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      const response = await apiConfig.httpClient.post<CreateOrderRefundResponse>(
-        `/v1/stores/${target_store_id}/orders/${params.order_id}/refunds`,
-        {
-          amount: params.amount,
-          refund_id: params.refund_id,
-        },
-        options,
-      );
+      const response =
+        await apiConfig.httpClient.post<CreateOrderRefundResponse>(
+          `/v1/stores/${target_store_id}/orders/${params.order_id}/refunds`,
+          {
+            amount: params.amount,
+            refund_id: params.refund_id,
+          },
+          options,
+        );
       if (response.refund_id !== params.refund_id) {
         throw new Error(
           "Refund response did not match the requested refund_id",
@@ -592,11 +649,22 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       }
       return pollScheduledResult(
         requested,
-        (observationSignal) =>
-          apiConfig.httpClient.get<PaymentTransaction>(
-            path,
-            scheduledObservationOptions(options, observationSignal),
-          ),
+        async (observationSignal) => {
+          const observation =
+            await apiConfig.httpClient.get<PaymentTransaction>(
+              path,
+              scheduledObservationOptions(options, observationSignal),
+            );
+          if (
+            observation.id !== requested.id ||
+            observation.revision !== requested.revision
+          ) {
+            throw new Error(
+              "Payment transaction changed before its exact retry result could be observed",
+            );
+          }
+          return observation;
+        },
         (transaction) =>
           transaction.status === "requested" ||
           transaction.status === "processing",

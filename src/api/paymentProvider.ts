@@ -51,11 +51,12 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
       const targetStoreId = storeId(params.store_id);
       const path = `/v1/stores/${targetStoreId}/payment-providers/stripe/connect`;
       const mutation = prepareScheduledMutation(params, options);
-      const requested = await apiConfig.httpClient.post<StripePaymentProviderConnectResponse>(
-        path,
-        mutation.body,
-        mutation.options,
-      );
+      const requested =
+        await apiConfig.httpClient.post<StripePaymentProviderConnectResponse>(
+          path,
+          mutation.body,
+          mutation.options,
+        );
       await mutation.afterResponse(requested);
       if (
         requested.provider.connection.status !== "requested" &&
@@ -87,7 +88,17 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
           "Stripe connection changed before its exact result could be observed",
         );
       }
-      return observed;
+      if (
+        observed.provider.connection.status !== "succeeded" ||
+        params.connected_account_id
+      ) {
+        return observed;
+      }
+      return apiConfig.httpClient.post<StripePaymentProviderConnectResponse>(
+        path,
+        mutation.body,
+        mutation.options,
+      );
     },
 
     async getConnection(

@@ -107,7 +107,9 @@ export async function createStripeConfirmationTokenController(
       };
       elements?.update({
         ...(input.amount !== undefined ? { amount: input.amount } : {}),
-        ...(input.currency ? { currency: normalizeCurrency(input.currency) } : {}),
+        ...(input.currency
+          ? { currency: normalizeCurrency(input.currency) }
+          : {}),
       });
     },
 
@@ -115,7 +117,9 @@ export async function createStripeConfirmationTokenController(
       const activeElements = ensureElements();
       const submitResult = await activeElements.submit();
       if (submitResult.error) {
-        throw new Error(submitResult.error.message || "Payment details are incomplete");
+        throw new Error(
+          submitResult.error.message || "Payment details are incomplete",
+        );
       }
 
       const tokenInput: Parameters<Stripe["createConfirmationToken"]>[0] = {
@@ -123,13 +127,19 @@ export async function createStripeConfirmationTokenController(
         params: {
           ...(options.return_url ? { return_url: options.return_url } : {}),
           ...(options.billing_details
-            ? { payment_method_data: { billing_details: options.billing_details } }
+            ? {
+                payment_method_data: {
+                  billing_details: options.billing_details,
+                },
+              }
             : {}),
         },
       };
       const result = await stripe.createConfirmationToken(tokenInput);
       if (result.error) {
-        throw new Error(result.error.message || "Payment confirmation token failed");
+        throw new Error(
+          result.error.message || "Payment confirmation token failed",
+        );
       }
       if (!result.confirmationToken?.id) {
         throw new Error("Stripe did not return a confirmation token");
@@ -160,7 +170,9 @@ export async function createStripeConfirmationTokenController(
         clientSecret: exactClientSecret,
       });
       if (result.error) {
-        throw new Error(result.error.message || "Payment authentication failed");
+        throw new Error(
+          result.error.message || "Payment authentication failed",
+        );
       }
     },
 

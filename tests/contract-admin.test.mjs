@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { createAdmin } from "../dist/admin.js";
-import { SUPPORTED_STORE_CURRENCIES, convertToMajor, convertToMinor, formatMinor, getCurrencyMinorUnits } from "../dist/utils.js";
+import {
+  SUPPORTED_STORE_CURRENCIES,
+  convertToMajor,
+  convertToMinor,
+  formatMinor,
+  getCurrencyMinorUnits,
+} from "../dist/utils.js";
 
 const expectedStoreCurrencies = [
   "USD",
@@ -47,7 +53,11 @@ const expectedStoreCurrencies = [
 assert.deepEqual([...SUPPORTED_STORE_CURRENCIES], expectedStoreCurrencies);
 for (const currency of expectedStoreCurrencies) {
   const expectedMinorUnits = currency === "JPY" || currency === "KRW" ? 0 : 2;
-  assert.equal(getCurrencyMinorUnits(currency), expectedMinorUnits, `${currency} minor units must match the server currency contract`);
+  assert.equal(
+    getCurrencyMinorUnits(currency),
+    expectedMinorUnits,
+    `${currency} minor units must match the server currency contract`,
+  );
 }
 assert.equal(getCurrencyMinorUnits(" jpy "), 0);
 assert.equal(getCurrencyMinorUnits("IDR"), 2);
@@ -64,7 +74,11 @@ assert.doesNotMatch(formatMinor(100, "JPY"), /100[.,]00/);
 for (const currency of ["IDR", "HUF", "ALL"]) {
   assert.equal(convertToMajor(1234, currency), 12.34);
   assert.equal(convertToMinor(12.34, currency), 1234);
-  assert.match(formatMinor(1234, currency), /12[.,]34/, `${currency} formatting must retain the server's two minor-unit digits`);
+  assert.match(
+    formatMinor(1234, currency),
+    /12[.,]34/,
+    `${currency} formatting must retain the server's two minor-unit digits`,
+  );
 }
 assert.equal(formatMinor(100, " jpy "), formatMinor(100, "JPY"));
 assert.throws(() => convertToMinor(1, "ZZZ"), /Unsupported currency/);
@@ -108,6 +122,7 @@ assert.equal(typeof arky.store.paymentProvider.getConnection, "function");
 assert.equal(typeof arky.store.paymentProvider.delete, "function");
 
 const scheduledAdminCalls = [];
+let stripeConnectPosts = 0;
 const requestedProvider = {
   id: "provider-scheduled",
   store_id: "contract-store",
@@ -168,7 +183,14 @@ globalThis.fetch = async (url, init = {}) => {
   scheduledAdminCalls.push([target, method]);
   let body;
   if (target.endsWith("/payment-providers/stripe/connect")) {
-    body = { provider: requestedProvider, onboarding_url: null };
+    stripeConnectPosts += 1;
+    body =
+      stripeConnectPosts === 1
+        ? { provider: requestedProvider, onboarding_url: null }
+        : {
+            provider: succeededProvider,
+            onboarding_url: "https://connect.test/onboarding",
+          };
   } else if (
     target.endsWith("/payment-providers/provider-scheduled/connection")
   ) {
@@ -208,7 +230,10 @@ try {
     cancel_url: "https://admin.test/cancel",
   });
   assert.equal(action.status, "succeeded");
-  assert.equal(action.result.data.checkout_url, "https://checkout.test/session");
+  assert.equal(
+    action.result.data.checkout_url,
+    "https://checkout.test/session",
+  );
 
   assert.deepEqual(
     await arky.store.paymentProvider.delete({
@@ -231,11 +256,9 @@ assert.deepEqual(
       "/v1/stores/contract-store/payment-providers/provider-scheduled/connection",
       "GET",
     ],
+    ["/v1/stores/contract-store/payment-providers/stripe/connect", "POST"],
     ["/v1/stores/contract-store/subscription/actions", "POST"],
-    [
-      "/v1/stores/contract-store/subscription/actions/action-scheduled",
-      "GET",
-    ],
+    ["/v1/stores/contract-store/subscription/actions/action-scheduled", "GET"],
     [
       "/v1/stores/contract-store/payment-providers/provider-scheduled",
       "DELETE",
@@ -261,8 +284,10 @@ assert.equal(typeof arky.social.publication.getMetrics, "function");
 assert.equal(typeof arky.social.publication.syncMetrics, "function");
 
 assert.equal(typeof arky.automation.workflow.listConnections, "function");
-assert.equal(typeof arky.automation.workflow.getConnectionConnectUrl, "function");
-assert.equal(typeof arky.automation.workflow.getConnectionOAuthAttempt, "function");
+assert.equal(
+  typeof arky.automation.workflow.getConnectionConnectUrl,
+  "function",
+);
 assert.equal(typeof arky.automation.workflow.deleteConnection, "function");
 
 const workflowFetchCalls = [];
@@ -283,7 +308,10 @@ globalThis.fetch = async (url, init = {}) => {
   });
 };
 try {
-  assert.deepEqual(await arky.store.config.getPayment({ store_id: "store-config" }), paymentConfig);
+  assert.deepEqual(
+    await arky.store.config.getPayment({ store_id: "store-config" }),
+    paymentConfig,
+  );
 } finally {
   globalThis.fetch = originalFetch;
 }
@@ -300,46 +328,33 @@ globalThis.fetch = async (url, init = {}) => {
     method: init.method,
     body: init.body,
   });
-  const body = String(url).includes("/oauth/attempts/")
-    ? {
-        attempt_id: "workflow-attempt",
-        store_id: "contract-store",
-        workflow_connection_id: "workflow-connection",
-        type: "google_drive",
-        status: "processing",
-        completed_at: null,
-        error: null,
-      }
-    : { authorization_url: "https://oauth.test", state: "state" };
-  return new Response(JSON.stringify(body), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({ authorization_url: "https://oauth.test", state: "state" }),
+    {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    },
+  );
 };
 
 try {
   await arky.automation.workflow.getConnectionConnectUrl({
     type: "google_drive",
   });
-  await arky.automation.workflow.getConnectionOAuthAttempt({
-    attempt_id: "workflow-attempt",
-  });
 } finally {
   globalThis.fetch = originalFetch;
 }
 
 assert.equal(workflowFetchCalls[0].method, "POST");
-assert.equal(workflowFetchCalls[0].url, "http://127.0.0.1:1/v1/stores/contract-store/workflow-connections/connect-url");
+assert.equal(
+  workflowFetchCalls[0].url,
+  "http://127.0.0.1:1/v1/stores/contract-store/workflow-connections/connect-url",
+);
 assert.deepEqual(JSON.parse(workflowFetchCalls[0].body), {
   type: "google_drive",
   store_id: "contract-store",
 });
-assert.equal(workflowFetchCalls[1].method, "GET");
-assert.equal(
-  workflowFetchCalls[1].url,
-  "http://127.0.0.1:1/v1/stores/contract-store/workflow-connections/oauth/attempts/workflow-attempt",
-);
-assert.equal(workflowFetchCalls.length, 2);
+assert.equal(workflowFetchCalls.length, 1);
 
 assert.equal(typeof arky.automation.support.createAgent, "function");
 assert.equal(typeof arky.automation.support.findAgents, "function");
@@ -348,7 +363,6 @@ assert.equal(typeof arky.automation.support.replyToConversation, "function");
 
 assert.equal(typeof arky.notification.mailbox.find, "function");
 assert.equal(typeof arky.notification.mailbox.connectGoogle, "function");
-assert.equal(typeof arky.notification.mailbox.getGoogleOAuthAttempt, "function");
 assert.equal(typeof arky.notification.email.send, "function");
 assert.equal(typeof arky.notification.email.getDelivery, "function");
 assert.equal(typeof arky.notification.email.retryDelivery, "function");
@@ -360,20 +374,13 @@ globalThis.fetch = async (url, init = {}) => {
     method: init.method,
     body: init.body,
   });
-  const body = String(url).includes("/oauth/attempts/")
-    ? {
-        attempt_id: "mailbox-attempt",
-        store_id: "contract-store",
-        mailbox_id: "mailbox-contract",
-        status: "processing",
-        completed_at: null,
-        error: null,
-      }
-    : { authorization_url: "https://oauth.test", state: "state" };
-  return new Response(JSON.stringify(body), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({ authorization_url: "https://oauth.test", state: "state" }),
+    {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    },
+  );
 };
 
 try {
@@ -383,27 +390,21 @@ try {
     sync_enabled: true,
     sync_interval_seconds: 300,
   });
-  await arky.notification.mailbox.getGoogleOAuthAttempt({
-    attempt_id: "mailbox-attempt",
-  });
 } finally {
   globalThis.fetch = originalFetch;
 }
 
 assert.equal(mailboxFetchCalls[0].method, "POST");
-assert.equal(mailboxFetchCalls[0].url, "http://127.0.0.1:1/v1/stores/contract-store/mailboxes/google/connect-url");
+assert.equal(
+  mailboxFetchCalls[0].url,
+  "http://127.0.0.1:1/v1/stores/contract-store/mailboxes/google/connect-url",
+);
 assert.deepEqual(JSON.parse(mailboxFetchCalls[0].body), {
   key: "founder",
   from_name: "Founder",
   sync_enabled: true,
   sync_interval_seconds: 300,
 });
-assert.equal(mailboxFetchCalls[1].method, "GET");
-assert.equal(
-  mailboxFetchCalls[1].url,
-  "http://127.0.0.1:1/v1/stores/contract-store/mailboxes/google/oauth/attempts/mailbox-attempt",
-);
-
 assert.equal(typeof arky.outreach.campaign.find, "function");
 assert.equal(typeof arky.outreach.campaignEnrollment.find, "function");
 assert.equal(typeof arky.outreach.campaignMessage.find, "function");
@@ -436,7 +437,8 @@ const digitalAccessCalls = [];
 globalThis.fetch = async (url, init = {}) => {
   digitalAccessCalls.push({ url: String(url), method: init.method });
   const body =
-    String(url).endsWith("/digital-access") || String(url).endsWith("/fulfillment-orders")
+    String(url).endsWith("/digital-access") ||
+    String(url).endsWith("/fulfillment-orders")
       ? { items: [], cursor: null }
       : String(url).endsWith("/download")
         ? { url: "https://download.test", grant: {} }
@@ -478,20 +480,43 @@ try {
 assert.deepEqual(
   digitalAccessCalls.map(({ url, method }) => [url, method]),
   [
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access?limit=20", "GET"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1", "GET"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1/download", "POST"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1/activate", "POST"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1/revoke", "POST"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/fulfillment-orders?limit=20", "GET"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/fulfillment-orders/fulfillment-1", "GET"],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access?limit=20",
+      "GET",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1",
+      "GET",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1/download",
+      "POST",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1/activate",
+      "POST",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1/revoke",
+      "POST",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/fulfillment-orders?limit=20",
+      "GET",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/fulfillment-orders/fulfillment-1",
+      "GET",
+    ],
   ],
 );
 
 const paymentCalls = [];
 globalThis.fetch = async (url, init = {}) => {
   paymentCalls.push({ url: String(url), method: init.method });
-  const body = String(url).endsWith("/transactions") ? { items: [], cursor: null } : {};
+  const body = String(url).endsWith("/transactions")
+    ? { items: [], cursor: null }
+    : {};
   return new Response(JSON.stringify(body), {
     status: 200,
     headers: { "content-type": "application/json" },
@@ -517,10 +542,22 @@ try {
 assert.deepEqual(
   paymentCalls.map(({ url, method }) => [url, method]),
   [
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment", "GET"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/transactions?limit=20", "GET"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/transactions/transaction-1", "GET"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/transactions/transaction-1/retry", "POST"],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment",
+      "GET",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/transactions?limit=20",
+      "GET",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/transactions/transaction-1",
+      "GET",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/transactions/transaction-1/retry",
+      "POST",
+    ],
   ],
 );
 

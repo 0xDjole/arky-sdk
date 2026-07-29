@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ScheduledResultTimeoutError } from "../dist/admin.js";
-import { admin, jsonResponse, storeId } from "./helpers/scheduled-observation-fixtures.mjs";
+import {
+  admin,
+  jsonResponse,
+  storeId,
+} from "./helpers/scheduled-observation-fixtures.mjs";
 
 test("observation timeout is typed, fast-testable, and carries the last authoritative result", async () => {
   const pending = {

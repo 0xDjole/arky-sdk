@@ -152,7 +152,10 @@ test("Stripe payment mount loads Store setup and never accepts caller-owned Stri
     );
     assert.equal(setupCalls, 1);
     assert.deepEqual(store.store.setup.get(), setup());
-    assert.equal(store.payment_config.get().provider.publishable_key, "pk_test_store_owned");
+    assert.equal(
+      store.payment_config.get().provider.publishable_key,
+      "pk_test_store_owned",
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -451,10 +454,7 @@ test("high-level checkout authenticates with the exact connected account returne
   }
 
   assert.deepEqual(nextActionCalls, [
-    [
-      "pi_action_account_secret",
-      { connectedAccountId: "acct_exact_action" },
-    ],
+    ["pi_action_account_secret", { connectedAccountId: "acct_exact_action" }],
   ]);
   assert.equal(checkoutCalls, 1);
   assert.equal(paymentObservationCalls, 2);
