@@ -43,6 +43,12 @@ export interface RequestOptions<T = unknown> {
   onError?: (ctx: RequestErrorContext) => void | Promise<void>;
 }
 
+export interface ScheduledMutationOptions<
+  T = unknown,
+> extends RequestOptions<T> {
+  onScheduledResponse?: (response: T) => void | Promise<void>;
+}
+
 export interface HttpClient {
   get<T>(path: string, opts?: RequestOptions<T>): Promise<T>;
   post<T>(path: string, body: unknown, opts?: RequestOptions<T>): Promise<T>;

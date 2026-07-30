@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { createAdmin } from "../dist/admin.js";
-import { SUPPORTED_STORE_CURRENCIES, convertToMajor, convertToMinor, formatMinor, getCurrencyMinorUnits } from "../dist/utils.js";
+import {
+  SUPPORTED_STORE_CURRENCIES,
+  convertToMajor,
+  convertToMinor,
+  formatMinor,
+  getCurrencyMinorUnits,
+} from "../dist/utils.js";
 
 const expectedStoreCurrencies = [
   "USD",
@@ -47,7 +53,11 @@ const expectedStoreCurrencies = [
 assert.deepEqual([...SUPPORTED_STORE_CURRENCIES], expectedStoreCurrencies);
 for (const currency of expectedStoreCurrencies) {
   const expectedMinorUnits = currency === "JPY" || currency === "KRW" ? 0 : 2;
-  assert.equal(getCurrencyMinorUnits(currency), expectedMinorUnits, `${currency} minor units must match the server currency contract`);
+  assert.equal(
+    getCurrencyMinorUnits(currency),
+    expectedMinorUnits,
+    `${currency} minor units must match the server currency contract`,
+  );
 }
 assert.equal(getCurrencyMinorUnits(" jpy "), 0);
 assert.equal(getCurrencyMinorUnits("IDR"), 2);
@@ -64,7 +74,11 @@ assert.doesNotMatch(formatMinor(100, "JPY"), /100[.,]00/);
 for (const currency of ["IDR", "HUF", "ALL"]) {
   assert.equal(convertToMajor(1234, currency), 12.34);
   assert.equal(convertToMinor(12.34, currency), 1234);
-  assert.match(formatMinor(1234, currency), /12[.,]34/, `${currency} formatting must retain the server's two minor-unit digits`);
+  assert.match(
+    formatMinor(1234, currency),
+    /12[.,]34/,
+    `${currency} formatting must retain the server's two minor-unit digits`,
+  );
 }
 assert.equal(formatMinor(100, " jpy "), formatMinor(100, "JPY"));
 assert.throws(() => convertToMinor(1, "ZZZ"), /Unsupported currency/);
@@ -104,7 +118,153 @@ assert.equal(typeof arky.store.config.getPayment, "function");
 assert.equal(typeof arky.store.paymentProvider.list, "function");
 assert.equal(typeof arky.store.paymentProvider.refresh, "function");
 assert.equal(typeof arky.store.paymentProvider.connectStripe, "function");
+assert.equal(typeof arky.store.paymentProvider.getConnection, "function");
 assert.equal(typeof arky.store.paymentProvider.delete, "function");
+
+const scheduledAdminCalls = [];
+let stripeConnectPosts = 0;
+const requestedProvider = {
+  id: "provider-scheduled",
+  store_id: "contract-store",
+  key: "stripe",
+  provider: {
+    type: "stripe",
+    onboarding_status: "pending",
+    charges_enabled: false,
+    payouts_enabled: false,
+    details_submitted: false,
+  },
+  connection: {
+    status: "requested",
+    revision: 1,
+    attempts: 0,
+    requested_at: 1,
+  },
+  created_at: 1,
+  updated_at: 1,
+};
+const succeededProvider = {
+  ...requestedProvider,
+  connection: {
+    ...requestedProvider.connection,
+    status: "succeeded",
+    attempts: 1,
+    completed_at: 2,
+  },
+  updated_at: 2,
+};
+const scheduledAction = {
+  id: "action-scheduled",
+  subscription_id: "subscription-contract",
+  store_id: "contract-store",
+  request: { type: "select_plan", data: { plan_id: "basic" } },
+  status: "requested",
+  requested_at: 1,
+  updated_at: 1,
+};
+const completedAction = {
+  ...scheduledAction,
+  status: "succeeded",
+  result: {
+    type: "checkout",
+    data: {
+      session_id: "checkout-session",
+      checkout_url: "https://checkout.test/session",
+      expires_at: 10,
+    },
+  },
+  completed_at: 2,
+  updated_at: 2,
+};
+const scheduledOriginalFetch = globalThis.fetch;
+globalThis.fetch = async (url, init = {}) => {
+  const target = String(url);
+  const method = init.method || "GET";
+  scheduledAdminCalls.push([target, method]);
+  let body;
+  if (target.endsWith("/payment-providers/stripe/connect")) {
+    stripeConnectPosts += 1;
+    body =
+      stripeConnectPosts === 1
+        ? { provider: requestedProvider, onboarding_url: null }
+        : {
+            provider: succeededProvider,
+            onboarding_url: "https://connect.test/onboarding",
+          };
+  } else if (
+    target.endsWith("/payment-providers/provider-scheduled/connection")
+  ) {
+    body = {
+      provider: succeededProvider,
+      onboarding_url: "https://connect.test/onboarding",
+    };
+  } else if (target.endsWith("/subscription/actions") && method === "POST") {
+    body = scheduledAction;
+  } else if (target.endsWith("/subscription/actions/action-scheduled")) {
+    body = completedAction;
+  } else if (target.endsWith("/payment-providers/provider-scheduled")) {
+    body = { deleted: true };
+  } else {
+    throw new Error(`Unexpected scheduled admin request: ${method} ${target}`);
+  }
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+};
+try {
+  const connected = await arky.store.paymentProvider.connectStripe({
+    store_id: "contract-store",
+    return_url: "https://admin.test/return",
+    refresh_url: "https://admin.test/refresh",
+    country: "BA",
+  });
+  assert.equal(connected.onboarding_url, "https://connect.test/onboarding");
+
+  const action = await arky.store.subscription.action.create({
+    store_id: "contract-store",
+    action_id: "action-scheduled",
+    type: "select_plan",
+    plan_id: "basic",
+    success_url: "https://admin.test/success",
+    cancel_url: "https://admin.test/cancel",
+  });
+  assert.equal(action.status, "succeeded");
+  assert.equal(
+    action.result.data.checkout_url,
+    "https://checkout.test/session",
+  );
+
+  assert.deepEqual(
+    await arky.store.paymentProvider.delete({
+      store_id: "contract-store",
+      id: "provider-scheduled",
+    }),
+    { deleted: true },
+  );
+} finally {
+  globalThis.fetch = scheduledOriginalFetch;
+}
+assert.deepEqual(
+  scheduledAdminCalls.map(([url, method]) => [
+    url.replace("http://127.0.0.1:1", ""),
+    method,
+  ]),
+  [
+    ["/v1/stores/contract-store/payment-providers/stripe/connect", "POST"],
+    [
+      "/v1/stores/contract-store/payment-providers/provider-scheduled/connection",
+      "GET",
+    ],
+    ["/v1/stores/contract-store/payment-providers/stripe/connect", "POST"],
+    ["/v1/stores/contract-store/subscription/actions", "POST"],
+    ["/v1/stores/contract-store/subscription/actions/action-scheduled", "GET"],
+    [
+      "/v1/stores/contract-store/payment-providers/provider-scheduled",
+      "DELETE",
+    ],
+  ],
+);
 
 assert.equal(typeof arky.social.connection.list, "function");
 assert.equal(typeof arky.social.connection.connect, "function");
@@ -115,11 +275,19 @@ assert.equal(typeof arky.social.publication.getComments, "function");
 assert.equal(typeof arky.social.publication.syncComments, "function");
 assert.equal(typeof arky.social.publication.getCommentThread, "function");
 assert.equal(typeof arky.social.publication.syncCommentThread, "function");
+assert.equal(typeof arky.social.publication.classifyComments, "function");
+assert.equal(
+  typeof arky.social.publication.getCommentClassificationRun,
+  "function",
+);
 assert.equal(typeof arky.social.publication.getMetrics, "function");
 assert.equal(typeof arky.social.publication.syncMetrics, "function");
 
 assert.equal(typeof arky.automation.workflow.listConnections, "function");
-assert.equal(typeof arky.automation.workflow.getConnectionConnectUrl, "function");
+assert.equal(
+  typeof arky.automation.workflow.getConnectionConnectUrl,
+  "function",
+);
 assert.equal(typeof arky.automation.workflow.deleteConnection, "function");
 
 const workflowFetchCalls = [];
@@ -140,7 +308,10 @@ globalThis.fetch = async (url, init = {}) => {
   });
 };
 try {
-  assert.deepEqual(await arky.store.config.getPayment({ store_id: "store-config" }), paymentConfig);
+  assert.deepEqual(
+    await arky.store.config.getPayment({ store_id: "store-config" }),
+    paymentConfig,
+  );
 } finally {
   globalThis.fetch = originalFetch;
 }
@@ -157,10 +328,13 @@ globalThis.fetch = async (url, init = {}) => {
     method: init.method,
     body: init.body,
   });
-  return new Response(JSON.stringify({ authorization_url: "https://oauth.test", state: "state" }), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({ authorization_url: "https://oauth.test", state: "state" }),
+    {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    },
+  );
 };
 
 try {
@@ -172,7 +346,10 @@ try {
 }
 
 assert.equal(workflowFetchCalls[0].method, "POST");
-assert.equal(workflowFetchCalls[0].url, "http://127.0.0.1:1/v1/stores/contract-store/workflow-connections/connect-url");
+assert.equal(
+  workflowFetchCalls[0].url,
+  "http://127.0.0.1:1/v1/stores/contract-store/workflow-connections/connect-url",
+);
 assert.deepEqual(JSON.parse(workflowFetchCalls[0].body), {
   type: "google_drive",
   store_id: "contract-store",
@@ -197,10 +374,13 @@ globalThis.fetch = async (url, init = {}) => {
     method: init.method,
     body: init.body,
   });
-  return new Response(JSON.stringify({ authorization_url: "https://oauth.test", state: "state" }), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({ authorization_url: "https://oauth.test", state: "state" }),
+    {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    },
+  );
 };
 
 try {
@@ -215,14 +395,16 @@ try {
 }
 
 assert.equal(mailboxFetchCalls[0].method, "POST");
-assert.equal(mailboxFetchCalls[0].url, "http://127.0.0.1:1/v1/stores/contract-store/mailboxes/google/connect-url");
+assert.equal(
+  mailboxFetchCalls[0].url,
+  "http://127.0.0.1:1/v1/stores/contract-store/mailboxes/google/connect-url",
+);
 assert.deepEqual(JSON.parse(mailboxFetchCalls[0].body), {
   key: "founder",
   from_name: "Founder",
   sync_enabled: true,
   sync_interval_seconds: 300,
 });
-
 assert.equal(typeof arky.outreach.campaign.find, "function");
 assert.equal(typeof arky.outreach.campaignEnrollment.find, "function");
 assert.equal(typeof arky.outreach.campaignMessage.find, "function");
@@ -248,12 +430,15 @@ assert.equal(typeof arky.eshop.shipment.create, "function");
 assert.equal(typeof arky.eshop.shipment.fulfillment.find, "function");
 assert.equal(typeof arky.eshop.shipment.fulfillment.get, "function");
 assert.equal(typeof arky.eshop.shipment.refund.retry, "function");
+assert.equal(typeof arky.eshop.shipment.settlement.get, "function");
+assert.equal(typeof arky.eshop.shipment.settlement.retry, "function");
 
 const digitalAccessCalls = [];
 globalThis.fetch = async (url, init = {}) => {
   digitalAccessCalls.push({ url: String(url), method: init.method });
   const body =
-    String(url).endsWith("/digital-access") || String(url).endsWith("/fulfillment-orders")
+    String(url).endsWith("/digital-access") ||
+    String(url).endsWith("/fulfillment-orders")
       ? { items: [], cursor: null }
       : String(url).endsWith("/download")
         ? { url: "https://download.test", grant: {} }
@@ -295,20 +480,43 @@ try {
 assert.deepEqual(
   digitalAccessCalls.map(({ url, method }) => [url, method]),
   [
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access?limit=20", "GET"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1", "GET"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1/download", "POST"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1/activate", "POST"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1/revoke", "POST"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/fulfillment-orders?limit=20", "GET"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/fulfillment-orders/fulfillment-1", "GET"],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access?limit=20",
+      "GET",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1",
+      "GET",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1/download",
+      "POST",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1/activate",
+      "POST",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1/revoke",
+      "POST",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/fulfillment-orders?limit=20",
+      "GET",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/fulfillment-orders/fulfillment-1",
+      "GET",
+    ],
   ],
 );
 
 const paymentCalls = [];
 globalThis.fetch = async (url, init = {}) => {
   paymentCalls.push({ url: String(url), method: init.method });
-  const body = String(url).endsWith("/transactions") ? { items: [], cursor: null } : {};
+  const body = String(url).endsWith("/transactions")
+    ? { items: [], cursor: null }
+    : {};
   return new Response(JSON.stringify(body), {
     status: 200,
     headers: { "content-type": "application/json" },
@@ -334,10 +542,22 @@ try {
 assert.deepEqual(
   paymentCalls.map(({ url, method }) => [url, method]),
   [
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment", "GET"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/transactions?limit=20", "GET"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/transactions/transaction-1", "GET"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/transactions/transaction-1/retry", "POST"],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment",
+      "GET",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/transactions?limit=20",
+      "GET",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/transactions/transaction-1",
+      "GET",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/transactions/transaction-1/retry",
+      "POST",
+    ],
   ],
 );
 

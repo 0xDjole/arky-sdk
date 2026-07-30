@@ -72,7 +72,10 @@ import type {
   ProductInventory,
 } from "./index";
 
-export type { RequestOptions } from "../services/createHttpClient";
+export type {
+  RequestOptions,
+  ScheduledMutationOptions,
+} from "../services/createHttpClient";
 
 export interface CreateLocationParams {
   key: string;
@@ -325,10 +328,7 @@ export interface UpdateCollectionParams {
 
 export type GetCollectionParams = {
   store_id?: string;
-} & (
-  | { id: string; key?: never }
-  | { id?: never; key: string }
-);
+} & ({ id: string; key?: never } | { id?: never; key: string });
 
 export interface DeleteCollectionParams {
   id: string;
@@ -714,10 +714,7 @@ export interface DeleteProductParams {
 
 export type GetProductParams = {
   store_id?: string;
-} & (
-  | { id: string; slug?: never }
-  | { id?: never; slug: string }
-);
+} & ({ id: string; slug?: never } | { id?: never; slug: string });
 
 export interface GetOrderParams {
   id: string;
@@ -860,10 +857,7 @@ export interface DeleteServiceParams {
 
 export type GetServiceParams = {
   store_id?: string;
-} & (
-  | { id: string; slug?: never }
-  | { id?: never; slug: string }
-);
+} & ({ id: string; slug?: never } | { id?: never; slug: string });
 
 export interface GetProvidersParams {
   store_id?: string;
@@ -886,10 +880,7 @@ export interface GetProvidersParams {
 
 export type GetProviderParams = {
   store_id?: string;
-} & (
-  | { id: string; slug?: never }
-  | { id?: never; slug: string }
-);
+} & ({ id: string; slug?: never } | { id?: never; slug: string });
 
 export interface SearchOrderServiceItemsParams {
   store_id?: string;
@@ -1681,6 +1672,12 @@ export interface SubscribeContactListParams {
   return_url?: string;
 }
 
+export interface GetStorefrontContactListSubscriptionAttemptParams {
+  store_id?: string;
+  id: string;
+  payment_attempt_id: string;
+}
+
 export interface ContactListAccessParams {
   store_id?: string;
   id: string;
@@ -2082,6 +2079,11 @@ export interface DeletePaymentProviderParams {
   id: string;
 }
 
+export interface GetPaymentProviderConnectionParams {
+  store_id: string;
+  id: string;
+}
+
 export interface FindSocialPublicationsParams {
   store_id?: string;
   status?: SocialPublicationStatus;
@@ -2166,6 +2168,7 @@ export interface FindSocialPublicationCommentsParams {
 
 export interface ClassifySocialPublicationCommentsParams {
   store_id?: string;
+  run_id: string;
   publication_id?: string;
   social_connection_id?: string;
   type?: SocialConnectionType;
@@ -2174,6 +2177,11 @@ export interface ClassifySocialPublicationCommentsParams {
   priority?: SocialPublicationCommentPriority;
   limit?: number;
   force?: boolean;
+}
+
+export interface GetSocialCommentClassificationRunParams {
+  store_id?: string;
+  run_id: string;
 }
 
 export interface CreateSocialCommentReplyParams {
@@ -2344,9 +2352,12 @@ export interface FindShippingLabelSettlementsParams extends FindShipmentsParams 
   shipment_id: string;
 }
 
-export interface RetryShippingLabelSettlementParams extends GetShipmentParams {
+export interface GetShippingLabelSettlementParams extends GetShipmentParams {
   settlement_id: string;
 }
+
+export type RetryShippingLabelSettlementParams =
+  GetShippingLabelSettlementParams;
 
 export interface AuthToken {
   id: string;

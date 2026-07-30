@@ -92,6 +92,10 @@ import type {
   Action,
   Suppression,
 } from "../types";
+import {
+  pollScheduledResult,
+  scheduledObservationOptions,
+} from "../utils/scheduledResult";
 
 export interface TimelineParams {
   contact_id: string;
@@ -101,9 +105,14 @@ export interface TimelineParams {
 }
 
 export const createActionAdminApi = (apiConfig: ApiConfig) => ({
-  async timeline(params: TimelineParams, options?: RequestOptions): Promise<{ items: Action[]; cursor: string | null }> {
+  async timeline(
+    params: TimelineParams,
+    options?: RequestOptions,
+  ): Promise<{ items: Action[]; cursor: string | null }> {
     const store_id = params.store_id || apiConfig.storeId;
-    const queryParams: Record<string, unknown> = { contact_id: params.contact_id };
+    const queryParams: Record<string, unknown> = {
+      contact_id: params.contact_id,
+    };
     if (params.limit !== undefined) queryParams.limit = params.limit;
     if (params.cursor) queryParams.cursor = params.cursor;
     return apiConfig.httpClient.get<{ items: Action[]; cursor: string | null }>(
@@ -112,7 +121,10 @@ export const createActionAdminApi = (apiConfig: ApiConfig) => ({
     );
   },
 
-  async find(params: FindActionsParams, options?: RequestOptions): Promise<{ items: Action[]; cursor: string | null }> {
+  async find(
+    params: FindActionsParams,
+    options?: RequestOptions,
+  ): Promise<{ items: Action[]; cursor: string | null }> {
     const store_id = params.store_id || apiConfig.storeId;
     const queryParams: Record<string, unknown> = {};
     if (params.contact_id) queryParams.contact_id = params.contact_id;
@@ -120,72 +132,95 @@ export const createActionAdminApi = (apiConfig: ApiConfig) => ({
     if (params.cursor) queryParams.cursor = params.cursor;
     return apiConfig.httpClient.get<{ items: Action[]; cursor: string | null }>(
       `/v1/stores/${store_id}/actions`,
-      { ...options, params: queryParams }
+      { ...options, params: queryParams },
     );
   },
 });
 
 export const createContactApi = (apiConfig: ApiConfig) => {
   return {
-    async create(params: CreateContactParams, options?: RequestOptions): Promise<Contact> {
+    async create(
+      params: CreateContactParams,
+      options?: RequestOptions,
+    ): Promise<Contact> {
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<Contact>(
         `/v1/stores/${store_id || apiConfig.storeId}/contacts`,
         payload,
-        options
+        options,
       );
     },
 
-    async get(params: GetContactParams, options?: RequestOptions): Promise<Contact> {
+    async get(
+      params: GetContactParams,
+      options?: RequestOptions,
+    ): Promise<Contact> {
       return apiConfig.httpClient.get<Contact>(
         `/v1/stores/${params.store_id || apiConfig.storeId}/contacts/${params.id}`,
-        options
+        options,
       );
     },
 
-    async find(params?: FindContactsParams, options?: RequestOptions): Promise<{ items: Contact[]; cursor?: string }> {
+    async find(
+      params?: FindContactsParams,
+      options?: RequestOptions,
+    ): Promise<{ items: Contact[]; cursor?: string }> {
       const store_id = params?.store_id || apiConfig.storeId;
       const queryParams: Record<string, unknown> = {};
 
-      if (params?.ids && params.ids.length > 0) queryParams.ids = JSON.stringify(params.ids);
+      if (params?.ids && params.ids.length > 0)
+        queryParams.ids = JSON.stringify(params.ids);
       if (params?.limit !== undefined) queryParams.limit = params.limit;
       if (params?.cursor) queryParams.cursor = params.cursor;
       if (params?.query) queryParams.query = params.query;
-      if (params?.taxonomy_query) queryParams.taxonomy_query = params.taxonomy_query;
+      if (params?.taxonomy_query)
+        queryParams.taxonomy_query = params.taxonomy_query;
       if (params?.status) queryParams.status = params.status;
-      if (params?.has_action !== undefined) queryParams.has_action = params.has_action;
-      if (params?.has_cart !== undefined) queryParams.has_cart = params.has_cart;
+      if (params?.has_action !== undefined)
+        queryParams.has_action = params.has_action;
+      if (params?.has_cart !== undefined)
+        queryParams.has_cart = params.has_cart;
       if (params?.sort_field) queryParams.sort_field = params.sort_field;
-      if (params?.sort_direction) queryParams.sort_direction = params.sort_direction;
+      if (params?.sort_direction)
+        queryParams.sort_direction = params.sort_direction;
 
       return apiConfig.httpClient.get<{ items: Contact[]; cursor?: string }>(
         `/v1/stores/${store_id}/contacts`,
         {
           ...options,
           params: queryParams,
-        }
+        },
       );
     },
 
-    async update(params: UpdateContactParams, options?: RequestOptions): Promise<Contact> {
+    async update(
+      params: UpdateContactParams,
+      options?: RequestOptions,
+    ): Promise<Contact> {
       const { id, store_id, ...body } = params;
       return apiConfig.httpClient.put<Contact>(
         `/v1/stores/${store_id || apiConfig.storeId}/contacts/${id}`,
         body,
-        options
+        options,
       );
     },
 
-    async merge(params: MergeContactsParams, options?: RequestOptions): Promise<Contact> {
+    async merge(
+      params: MergeContactsParams,
+      options?: RequestOptions,
+    ): Promise<Contact> {
       const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<Contact>(
         `/v1/stores/${store_id}/contacts/${params.target_id}/merge`,
         { source_id: params.source_id, store_id },
-        options
+        options,
       );
     },
 
-    "import": async (params: ImportContactsParams, options?: RequestOptions): Promise<ImportContactsResult> => {
+    import: async (
+      params: ImportContactsParams,
+      options?: RequestOptions,
+    ): Promise<ImportContactsResult> => {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<ImportContactsResult>(
@@ -195,7 +230,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    previewImport: async (params: ImportContactsPreviewParams, options?: RequestOptions): Promise<ImportContactsPreviewResult> => {
+    previewImport: async (
+      params: ImportContactsPreviewParams,
+      options?: RequestOptions,
+    ): Promise<ImportContactsPreviewResult> => {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<ImportContactsPreviewResult>(
@@ -242,7 +280,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
     },
 
     contactList: {
-      async create(params: CreateContactListParams, options?: RequestOptions): Promise<ContactList> {
+      async create(
+        params: CreateContactListParams,
+        options?: RequestOptions,
+      ): Promise<ContactList> {
         const { store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<ContactList>(
@@ -252,7 +293,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async update(params: UpdateContactListParams, options?: RequestOptions): Promise<ContactList> {
+      async update(
+        params: UpdateContactListParams,
+        options?: RequestOptions,
+      ): Promise<ContactList> {
         const { id, store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.put<ContactList>(
@@ -262,7 +306,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async get(params: GetContactListParams, options?: RequestOptions): Promise<ContactList> {
+      async get(
+        params: GetContactListParams,
+        options?: RequestOptions,
+      ): Promise<ContactList> {
         const target_store_id = params.store_id || apiConfig.storeId;
         return apiConfig.httpClient.get<ContactList>(
           `/v1/stores/${target_store_id}/contact-lists/${params.id}`,
@@ -270,7 +317,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async find(params?: FindContactListsParams, options?: RequestOptions): Promise<PaginatedResponse<ContactList>> {
+      async find(
+        params?: FindContactListsParams,
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<ContactList>> {
         const { store_id, ...queryParams } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.get<PaginatedResponse<ContactList>>(
@@ -334,10 +384,42 @@ export const createContactApi = (apiConfig: ApiConfig) => {
           options?: RequestOptions,
         ): Promise<ContactListPlan> {
           const target_store_id = params.store_id || apiConfig.storeId;
-          return apiConfig.httpClient.post<ContactListPlan>(
-            `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/plans/${params.plan_id}/catalog/retry`,
+          const path =
+            `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}` +
+            `/plans/${params.plan_id}`;
+          const requested = await apiConfig.httpClient.post<ContactListPlan>(
+            `${path}/catalog/retry`,
             {},
             options,
+          );
+          if (
+            requested.catalog_status !== "requested" &&
+            requested.catalog_status !== "processing"
+          ) {
+            return requested;
+          }
+          return pollScheduledResult(
+            requested,
+            async (observationSignal) => {
+              const observation =
+                await apiConfig.httpClient.get<ContactListPlan>(
+                  path,
+                  scheduledObservationOptions(options, observationSignal),
+                );
+              if (
+                observation.id !== requested.id ||
+                observation.catalog_revision !== requested.catalog_revision
+              ) {
+                throw new Error(
+                  "Contact-list catalog changed before its exact retry result could be observed",
+                );
+              }
+              return observation;
+            },
+            (plan) =>
+              plan.catalog_status === "requested" ||
+              plan.catalog_status === "processing",
+            options?.signal,
           );
         },
       },
@@ -369,8 +451,17 @@ export const createContactApi = (apiConfig: ApiConfig) => {
       },
 
       members: {
-        async add(params: AddContactListContactParams, options?: RequestOptions): Promise<ContactListMember> {
-          const { store_id, contact_list_id, contact_id, fields, lead_description } = params;
+        async add(
+          params: AddContactListContactParams,
+          options?: RequestOptions,
+        ): Promise<ContactListMember> {
+          const {
+            store_id,
+            contact_list_id,
+            contact_id,
+            fields,
+            lead_description,
+          } = params;
           const target_store_id = store_id || apiConfig.storeId;
           return apiConfig.httpClient.post<ContactListMember>(
             `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/contacts/${contact_id}`,
@@ -379,8 +470,18 @@ export const createContactApi = (apiConfig: ApiConfig) => {
           );
         },
 
-        async update(params: UpdateContactListContactParams, options?: RequestOptions): Promise<ContactListMember> {
-          const { store_id, contact_list_id, contact_id, status, fields, lead_description } = params;
+        async update(
+          params: UpdateContactListContactParams,
+          options?: RequestOptions,
+        ): Promise<ContactListMember> {
+          const {
+            store_id,
+            contact_list_id,
+            contact_id,
+            status,
+            fields,
+            lead_description,
+          } = params;
           const target_store_id = store_id || apiConfig.storeId;
           return apiConfig.httpClient.patch<ContactListMember>(
             `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/contacts/${contact_id}`,
@@ -389,7 +490,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
           );
         },
 
-        async remove(params: RemoveContactListContactParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
+        async remove(
+          params: RemoveContactListContactParams,
+          options?: RequestOptions,
+        ): Promise<{ deleted: boolean }> {
           const target_store_id = params.store_id || apiConfig.storeId;
           return apiConfig.httpClient.delete<{ deleted: boolean }>(
             `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/contacts/${params.contact_id}`,
@@ -397,7 +501,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
           );
         },
 
-        async find(params: FindContactListContactsParams, options?: RequestOptions): Promise<PaginatedResponse<ContactListMember>> {
+        async find(
+          params: FindContactListContactsParams,
+          options?: RequestOptions,
+        ): Promise<PaginatedResponse<ContactListMember>> {
           const { store_id, contact_list_id, ...queryParams } = params;
           if (!contact_list_id && !queryParams.contact_id) {
             throw new Error("contact_list_id or contact_id is required");
@@ -418,13 +525,15 @@ export const createContactApi = (apiConfig: ApiConfig) => {
           params: RefundContactListMembershipParams,
           options?: RequestOptions,
         ): Promise<RefundContactListMembershipResult> {
-          const { store_id, contact_list_id, membership_id, ...payload } = params;
+          const { store_id, contact_list_id, membership_id, ...payload } =
+            params;
           const target_store_id = store_id || apiConfig.storeId;
-          const response = await apiConfig.httpClient.post<RefundContactListMembershipResult>(
-            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/memberships/${membership_id}/refund`,
-            payload,
-            options,
-          );
+          const response =
+            await apiConfig.httpClient.post<RefundContactListMembershipResult>(
+              `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/memberships/${membership_id}/refund`,
+              payload,
+              options,
+            );
           if (response.refund_id !== params.refund_id) {
             throw new Error(
               "Membership refund response did not match the requested refund_id",
@@ -438,9 +547,12 @@ export const createContactApi = (apiConfig: ApiConfig) => {
             params: FindContactListMembershipPaymentAttemptsParams,
             options?: RequestOptions,
           ): Promise<PaginatedResponse<ContactListMembershipPaymentAttempt>> {
-            const { store_id, contact_list_id, membership_id, ...queryParams } = params;
+            const { store_id, contact_list_id, membership_id, ...queryParams } =
+              params;
             const target_store_id = store_id || apiConfig.storeId;
-            return apiConfig.httpClient.get<PaginatedResponse<ContactListMembershipPaymentAttempt>>(
+            return apiConfig.httpClient.get<
+              PaginatedResponse<ContactListMembershipPaymentAttempt>
+            >(
               `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/memberships/${membership_id}/payment-attempts`,
               { ...options, params: queryParams },
             );
@@ -463,9 +575,12 @@ export const createContactApi = (apiConfig: ApiConfig) => {
             params: FindContactListMembershipRefundsParams,
             options?: RequestOptions,
           ): Promise<PaginatedResponse<ContactListMembershipRefund>> {
-            const { store_id, contact_list_id, membership_id, ...queryParams } = params;
+            const { store_id, contact_list_id, membership_id, ...queryParams } =
+              params;
             const target_store_id = store_id || apiConfig.storeId;
-            return apiConfig.httpClient.get<PaginatedResponse<ContactListMembershipRefund>>(
+            return apiConfig.httpClient.get<
+              PaginatedResponse<ContactListMembershipRefund>
+            >(
               `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/memberships/${membership_id}/refunds`,
               { ...options, params: queryParams },
             );
@@ -487,10 +602,42 @@ export const createContactApi = (apiConfig: ApiConfig) => {
             options?: RequestOptions,
           ): Promise<ContactListMembershipRefund> {
             const target_store_id = params.store_id || apiConfig.storeId;
-            return apiConfig.httpClient.post<ContactListMembershipRefund>(
-              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/memberships/${params.membership_id}/refunds/${params.id}/retry`,
-              {},
-              options,
+            const path =
+              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}` +
+              `/memberships/${params.membership_id}/refunds/${params.id}`;
+            const requested =
+              await apiConfig.httpClient.post<ContactListMembershipRefund>(
+                `${path}/retry`,
+                {},
+                options,
+              );
+            if (
+              requested.status !== "requested" &&
+              requested.status !== "processing"
+            ) {
+              return requested;
+            }
+            return pollScheduledResult(
+              requested,
+              async (observationSignal) => {
+                const observation =
+                  await apiConfig.httpClient.get<ContactListMembershipRefund>(
+                    path,
+                    scheduledObservationOptions(options, observationSignal),
+                  );
+                if (
+                  observation.id !== requested.id ||
+                  observation.revision !== requested.revision
+                ) {
+                  throw new Error(
+                    "Membership refund changed before its exact retry result could be observed",
+                  );
+                }
+                return observation;
+              },
+              (refund) =>
+                refund.status === "requested" || refund.status === "processing",
+              options?.signal,
             );
           },
         },
@@ -500,9 +647,12 @@ export const createContactApi = (apiConfig: ApiConfig) => {
             params: FindContactListMembershipCancellationsParams,
             options?: RequestOptions,
           ): Promise<PaginatedResponse<ContactListMembershipCancellation>> {
-            const { store_id, contact_list_id, membership_id, ...queryParams } = params;
+            const { store_id, contact_list_id, membership_id, ...queryParams } =
+              params;
             const target_store_id = store_id || apiConfig.storeId;
-            return apiConfig.httpClient.get<PaginatedResponse<ContactListMembershipCancellation>>(
+            return apiConfig.httpClient.get<
+              PaginatedResponse<ContactListMembershipCancellation>
+            >(
               `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/memberships/${membership_id}/cancellations`,
               { ...options, params: queryParams },
             );
@@ -524,10 +674,43 @@ export const createContactApi = (apiConfig: ApiConfig) => {
             options?: RequestOptions,
           ): Promise<ContactListMembershipCancellation> {
             const target_store_id = params.store_id || apiConfig.storeId;
-            return apiConfig.httpClient.post<ContactListMembershipCancellation>(
-              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/memberships/${params.membership_id}/cancellations/${params.id}/retry`,
-              {},
-              options,
+            const path =
+              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}` +
+              `/memberships/${params.membership_id}/cancellations/${params.id}`;
+            const requested =
+              await apiConfig.httpClient.post<ContactListMembershipCancellation>(
+                `${path}/retry`,
+                {},
+                options,
+              );
+            if (
+              requested.status !== "requested" &&
+              requested.status !== "processing"
+            ) {
+              return requested;
+            }
+            return pollScheduledResult(
+              requested,
+              async (observationSignal) => {
+                const observation =
+                  await apiConfig.httpClient.get<ContactListMembershipCancellation>(
+                    path,
+                    scheduledObservationOptions(options, observationSignal),
+                  );
+                if (
+                  observation.id !== requested.id ||
+                  observation.revision !== requested.revision
+                ) {
+                  throw new Error(
+                    "Membership cancellation changed before its exact retry result could be observed",
+                  );
+                }
+                return observation;
+              },
+              (cancellation) =>
+                cancellation.status === "requested" ||
+                cancellation.status === "processing",
+              options?.signal,
             );
           },
         },
@@ -535,7 +718,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
     },
 
     mailbox: {
-      async connectGoogle(params: ConnectGoogleMailboxParams, options?: RequestOptions): Promise<GoogleMailboxConnectUrl> {
+      async connectGoogle(
+        params: ConnectGoogleMailboxParams,
+        options?: RequestOptions,
+      ): Promise<GoogleMailboxConnectUrl> {
         const { store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<GoogleMailboxConnectUrl>(
@@ -545,7 +731,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async create(params: CreateMailboxParams, options?: RequestOptions): Promise<Mailbox> {
+      async create(
+        params: CreateMailboxParams,
+        options?: RequestOptions,
+      ): Promise<Mailbox> {
         const { store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<Mailbox>(
@@ -555,7 +744,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async update(params: UpdateMailboxParams, options?: RequestOptions): Promise<Mailbox> {
+      async update(
+        params: UpdateMailboxParams,
+        options?: RequestOptions,
+      ): Promise<Mailbox> {
         const { id, store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.put<Mailbox>(
@@ -565,7 +757,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async get(params: GetMailboxParams, options?: RequestOptions): Promise<Mailbox> {
+      async get(
+        params: GetMailboxParams,
+        options?: RequestOptions,
+      ): Promise<Mailbox> {
         const target_store_id = params.store_id || apiConfig.storeId;
         return apiConfig.httpClient.get<Mailbox>(
           `/v1/stores/${target_store_id}/mailboxes/${params.id}`,
@@ -573,7 +768,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async test(params: TestMailboxParams, options?: RequestOptions): Promise<TestMailboxResult> {
+      async test(
+        params: TestMailboxParams,
+        options?: RequestOptions,
+      ): Promise<TestMailboxResult> {
         const target_store_id = params.store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<TestMailboxResult>(
           `/v1/stores/${target_store_id}/mailboxes/${params.id}/test`,
@@ -582,7 +780,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async prepare(params: PrepareMailboxParams, options?: RequestOptions): Promise<Mailbox> {
+      async prepare(
+        params: PrepareMailboxParams,
+        options?: RequestOptions,
+      ): Promise<Mailbox> {
         const target_store_id = params.store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<Mailbox>(
           `/v1/stores/${target_store_id}/mailboxes/${params.id}/prepare`,
@@ -591,7 +792,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async find(params?: FindMailboxesParams, options?: RequestOptions): Promise<PaginatedResponse<Mailbox>> {
+      async find(
+        params?: FindMailboxesParams,
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<Mailbox>> {
         const { store_id, ...queryParams } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.get<PaginatedResponse<Mailbox>>(
@@ -602,7 +806,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
     },
 
     campaign: {
-      async create(params: CreateCampaignParams, options?: RequestOptions): Promise<Campaign> {
+      async create(
+        params: CreateCampaignParams,
+        options?: RequestOptions,
+      ): Promise<Campaign> {
         const { store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<Campaign>(
@@ -612,7 +819,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async update(params: UpdateCampaignParams, options?: RequestOptions): Promise<Campaign> {
+      async update(
+        params: UpdateCampaignParams,
+        options?: RequestOptions,
+      ): Promise<Campaign> {
         const { id, store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.put<Campaign>(
@@ -622,7 +832,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async get(params: GetCampaignParams, options?: RequestOptions): Promise<Campaign> {
+      async get(
+        params: GetCampaignParams,
+        options?: RequestOptions,
+      ): Promise<Campaign> {
         const target_store_id = params.store_id || apiConfig.storeId;
         return apiConfig.httpClient.get<Campaign>(
           `/v1/stores/${target_store_id}/campaigns/${params.id}`,
@@ -630,7 +843,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async find(params?: FindCampaignsParams, options?: RequestOptions): Promise<PaginatedResponse<Campaign>> {
+      async find(
+        params?: FindCampaignsParams,
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<Campaign>> {
         const { store_id, ...queryParams } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.get<PaginatedResponse<Campaign>>(
@@ -639,7 +855,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async launch(params: LaunchCampaignParams, options?: RequestOptions): Promise<Campaign> {
+      async launch(
+        params: LaunchCampaignParams,
+        options?: RequestOptions,
+      ): Promise<Campaign> {
         const target_store_id = params.store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<Campaign>(
           `/v1/stores/${target_store_id}/campaigns/${params.id}/launch`,
@@ -648,7 +867,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async duplicate(params: DuplicateCampaignParams, options?: RequestOptions): Promise<Campaign> {
+      async duplicate(
+        params: DuplicateCampaignParams,
+        options?: RequestOptions,
+      ): Promise<Campaign> {
         const { id, store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<Campaign>(
@@ -682,7 +904,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async generatePersonalizedDrafts(params: GenerateOutreachPersonalizedDraftsParams, options?: RequestOptions): Promise<Campaign> {
+      async generatePersonalizedDrafts(
+        params: GenerateOutreachPersonalizedDraftsParams,
+        options?: RequestOptions,
+      ): Promise<Campaign> {
         const { id, store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<Campaign>(
@@ -694,7 +919,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
     },
 
     campaignEnrollment: {
-      async find(params?: FindCampaignEnrollmentsParams, options?: RequestOptions): Promise<PaginatedResponse<CampaignEnrollment>> {
+      async find(
+        params?: FindCampaignEnrollmentsParams,
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<CampaignEnrollment>> {
         const { store_id, ...queryParams } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.get<PaginatedResponse<CampaignEnrollment>>(
@@ -703,7 +931,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async get(params: GetCampaignEnrollmentConversationParams, options?: RequestOptions): Promise<CampaignEnrollmentConversationResponse> {
+      async get(
+        params: GetCampaignEnrollmentConversationParams,
+        options?: RequestOptions,
+      ): Promise<CampaignEnrollmentConversationResponse> {
         const { store_id, id, ...queryParams } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.get<CampaignEnrollmentConversationResponse>(
@@ -712,7 +943,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async update(params: UpdateCampaignEnrollmentParams, options?: RequestOptions): Promise<CampaignEnrollment> {
+      async update(
+        params: UpdateCampaignEnrollmentParams,
+        options?: RequestOptions,
+      ): Promise<CampaignEnrollment> {
         const { store_id, id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.put<CampaignEnrollment>(
@@ -722,7 +956,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async updateDraft(params: UpdateCampaignEnrollmentDraftParams, options?: RequestOptions): Promise<CampaignEnrollment> {
+      async updateDraft(
+        params: UpdateCampaignEnrollmentDraftParams,
+        options?: RequestOptions,
+      ): Promise<CampaignEnrollment> {
         const { store_id, id, draft_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.put<CampaignEnrollment>(
@@ -732,7 +969,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async updateStepExecution(params: UpdateCampaignEnrollmentStepExecutionParams, options?: RequestOptions): Promise<CampaignEnrollmentConversationResponse> {
+      async updateStepExecution(
+        params: UpdateCampaignEnrollmentStepExecutionParams,
+        options?: RequestOptions,
+      ): Promise<CampaignEnrollmentConversationResponse> {
         const { store_id, id, execution_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<CampaignEnrollmentConversationResponse>(
@@ -742,7 +982,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async reply(params: ReplyCampaignEnrollmentParams, options?: RequestOptions): Promise<CampaignEnrollmentConversationResponse> {
+      async reply(
+        params: ReplyCampaignEnrollmentParams,
+        options?: RequestOptions,
+      ): Promise<CampaignEnrollmentConversationResponse> {
         const { store_id, id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<CampaignEnrollmentConversationResponse>(
@@ -752,7 +995,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async stop(params: StopCampaignEnrollmentParams, options?: RequestOptions): Promise<CampaignEnrollmentConversationResponse> {
+      async stop(
+        params: StopCampaignEnrollmentParams,
+        options?: RequestOptions,
+      ): Promise<CampaignEnrollmentConversationResponse> {
         const { store_id, id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<CampaignEnrollmentConversationResponse>(
@@ -764,7 +1010,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
     },
 
     campaignMessage: {
-      async find(params?: FindCampaignMessagesParams, options?: RequestOptions): Promise<PaginatedResponse<CampaignMessage>> {
+      async find(
+        params?: FindCampaignMessagesParams,
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<CampaignMessage>> {
         const { store_id, ...queryParams } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.get<PaginatedResponse<CampaignMessage>>(
@@ -773,7 +1022,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async update(params: UpdateCampaignMessageParams, options?: RequestOptions): Promise<CampaignMessage> {
+      async update(
+        params: UpdateCampaignMessageParams,
+        options?: RequestOptions,
+      ): Promise<CampaignMessage> {
         const { id, store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.put<CampaignMessage>(
@@ -785,7 +1037,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
     },
 
     suppression: {
-      async create(params: CreateSuppressionParams, options?: RequestOptions): Promise<Suppression> {
+      async create(
+        params: CreateSuppressionParams,
+        options?: RequestOptions,
+      ): Promise<Suppression> {
         const { store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<Suppression>(
@@ -795,7 +1050,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async update(params: UpdateSuppressionParams, options?: RequestOptions): Promise<Suppression> {
+      async update(
+        params: UpdateSuppressionParams,
+        options?: RequestOptions,
+      ): Promise<Suppression> {
         const { id, store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.put<Suppression>(
@@ -805,7 +1063,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async get(params: GetSuppressionParams, options?: RequestOptions): Promise<Suppression> {
+      async get(
+        params: GetSuppressionParams,
+        options?: RequestOptions,
+      ): Promise<Suppression> {
         const target_store_id = params.store_id || apiConfig.storeId;
         return apiConfig.httpClient.get<Suppression>(
           `/v1/stores/${target_store_id}/suppressions/${params.id}`,
@@ -813,7 +1074,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
-      async find(params?: FindSuppressionsParams, options?: RequestOptions): Promise<PaginatedResponse<Suppression>> {
+      async find(
+        params?: FindSuppressionsParams,
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<Suppression>> {
         const { store_id, ...queryParams } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.get<PaginatedResponse<Suppression>>(

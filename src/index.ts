@@ -1,3 +1,6 @@
+export { ScheduledResultTimeoutError } from "./utils/scheduledResult";
+export type { ScheduledMutationOptions } from "./services/createHttpClient";
+
 export type {
   EshopCartItem,
   Cart,
@@ -27,6 +30,7 @@ export type {
   SocialPublication,
   SocialPublicationComment,
   SocialPublicationCommentClassificationResult,
+  SocialCommentClassificationRunStatus,
   SocialPublicationCommentIntent,
   SocialPublicationCommentPriority,
   SocialPublicationEngagementSyncResult,
@@ -53,6 +57,7 @@ export type {
   Currency,
   Price,
   OrderPayment,
+  OrderPaymentObservation,
   OrderMoney,
   OrderFinancialSummary,
   PaymentProvider,
@@ -495,6 +500,7 @@ export type {
   ImportContactsIntoContactListParams,
   ImportContactsIntoContactListResult,
   SubscribeContactListParams,
+  GetStorefrontContactListSubscriptionAttemptParams,
   ContactListAccessParams,
   ContactListContentAccessParams,
   CreateMailboxParams,
@@ -544,7 +550,9 @@ export type {
   DeleteSocialConnectionParams,
   FindSocialPublicationCommentsParams,
   FindSocialPublicationsParams,
+  GetSocialCommentClassificationRunParams,
   GetSocialCapabilitiesParams,
+  GetPaymentProviderConnectionParams,
   GetSocialOAuthAttemptParams,
   GetSocialCommentReplyParams,
   GetSocialPublicationCommentThreadParams,
@@ -668,6 +676,8 @@ export type {
   SupportChannelType,
   SupportConversation,
   SupportConversationChannelContext,
+  SupportAiResponse,
+  SupportAiResponseStatus,
   SupportMessage,
   SupportConversationResponse,
   SupportConversationStartResponse,
@@ -676,6 +686,7 @@ export type {
   SendSupportMessageParams,
   StorefrontSendSupportMessageParams,
   StorefrontGetSupportConversationParams,
+  StorefrontGetSupportMessageParams,
   SupportAgentNode,
   SupportAgentEdge,
   SupportAgentAiConfig,
@@ -683,6 +694,7 @@ export type {
   SupportAction,
   AssignSupportConversationParams,
   GetSupportConversationParams,
+  GetSupportMessageParams,
   ReplySupportConversationParams,
   ResolveSupportConversationParams,
   CreateSupportChannelParams,
@@ -708,9 +720,7 @@ export const SUPPORTED_FRAMEWORKS = [
   "vanilla",
 ] as const;
 
-import type {
-  Price,
-} from "./types";
+import type { Price } from "./types";
 
 export interface ApiConfig {
   httpClient: HttpClient;
@@ -864,7 +874,8 @@ function createUtilitySurface(apiConfig: Pick<ApiConfig, "market">) {
     extractBlockValues,
 
     formatPrice: (prices: Price[]) => formatPrice(prices, apiConfig.market),
-    getPriceAmount: (prices: Price[]) => getPriceAmount(prices, apiConfig.market),
+    getPriceAmount: (prices: Price[]) =>
+      getPriceAmount(prices, apiConfig.market),
     formatPayment,
     formatMinor,
     getCurrencySymbol,
@@ -1026,6 +1037,7 @@ export function createAdmin(config: CreateAdminConfig) {
     list: paymentProviderApi.list,
     refresh: paymentProviderApi.refresh,
     connectStripe: paymentProviderApi.connectStripe,
+    getConnection: paymentProviderApi.getConnection,
     delete: paymentProviderApi.delete,
   };
   const workflowPublicApi = {
@@ -1148,6 +1160,7 @@ export function createAdmin(config: CreateAdminConfig) {
         syncCommentThread: socialApi.syncPublicationCommentThread,
         findComments: socialApi.findPublicationComments,
         classifyComments: socialApi.classifyPublicationComments,
+        getCommentClassificationRun: socialApi.getCommentClassificationRun,
         commentReply: {
           create: socialApi.createCommentReply,
           list: socialApi.listCommentReplies,
@@ -1253,6 +1266,7 @@ export function createAdmin(config: CreateAdminConfig) {
         },
         settlement: {
           find: shippingApi.findSettlements,
+          get: shippingApi.getSettlement,
           retry: shippingApi.retrySettlement,
         },
       },
@@ -1344,6 +1358,7 @@ export function createAdmin(config: CreateAdminConfig) {
         deleteAgent: supportApi.agent.delete,
         findConversations: supportApi.conversation.find,
         getConversation: supportApi.conversation.get,
+        getConversationMessage: supportApi.conversation.getMessage,
         sendConversationMessage: supportApi.conversation.sendMessage,
         replyToConversation: supportApi.conversation.reply,
         resolveConversation: supportApi.conversation.resolve,
@@ -1497,7 +1512,8 @@ function createStorefrontClientCore(
   const listeners = new Set<AuthStateListener<ContactSession>>();
   let identifyPromise: Promise<StorefrontIdentifyResult> | null = null;
   let identityTail: Promise<void> = Promise.resolve();
-  let setupPromise: Promise<import("./api/storefront").StorefrontSetup> | null = null;
+  let setupPromise: Promise<import("./api/storefront").StorefrontSetup> | null =
+    null;
   let setupValue: import("./api/storefront").StorefrontSetup | null = null;
   const explicitSessionStorage = options.sessionStorage;
   const sessionStorage = isolatedSession
@@ -1531,8 +1547,7 @@ function createStorefrontClientCore(
       } else {
         sessionStorage.removeItem(storageKey);
       }
-    } catch {
-    }
+    } catch {}
   }
 
   function toPublic(s: ContactSessionInternal | null): ContactSession | null {
@@ -1676,9 +1691,10 @@ function createStorefrontClientCore(
     return promise;
   }
 
-  async function verify(
-    params: { challenge_id: string; code: string },
-  ): Promise<StorefrontVerifyResult> {
+  async function verify(params: {
+    challenge_id: string;
+    code: string;
+  }): Promise<StorefrontVerifyResult> {
     requireVisitorSessionCapability();
     const result = await contactApi.verify(params);
     identifyPromise = null;

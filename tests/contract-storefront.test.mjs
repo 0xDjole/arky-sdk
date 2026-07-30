@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { initialize as initializeFromRoot } from "../dist/index.js";
 import {
+  createStorefront,
   createStripeConfirmationTokenController,
   initialize,
 } from "../dist/storefront.js";
@@ -151,7 +152,10 @@ test("Stripe payment mount loads Store setup and never accepts caller-owned Stri
     );
     assert.equal(setupCalls, 1);
     assert.deepEqual(store.store.setup.get(), setup());
-    assert.equal(store.payment_config.get().provider.publishable_key, "pk_test_store_owned");
+    assert.equal(
+      store.payment_config.get().provider.publishable_key,
+      "pk_test_store_owned",
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -229,6 +233,239 @@ test("high-level checkout uses keyless routes, visitor authorization, and Store-
   }
 });
 
+test("checkout POSTs once and waits on its exact order payment", async () => {
+  const store = initialize(publishableKey, {
+    apiUrl,
+    market: "ita",
+    sessionStorage: sessionStorage(),
+  });
+  const cart = cartSnapshot(1);
+  store.eshop.cart.cart.set(cart);
+  store.eshop.cart.product_items.set([
+    {
+      id: "line-scheduled",
+      product_id: "product-scheduled",
+      variant_id: "variant-scheduled",
+      product_name: "Scheduled product",
+      product_slug: "scheduled-product",
+      variant_attributes: {},
+      requires_shipping: false,
+      price: { amount: 1250, currency: "EUR", market: "ita" },
+      quantity: 1,
+      added_at: 1,
+    },
+  ]);
+  let checkoutCalls = 0;
+  let paymentObservationCalls = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    const target = String(url);
+    if (target.endsWith("/orders/order-scheduled/payment")) {
+      paymentObservationCalls += 1;
+      return jsonResponse({
+        status: { status: "captured", at: 2, amount: 1250 },
+        payment_action: { type: "none" },
+        amount: 1250,
+        currency: "EUR",
+        paid: 1250,
+        method_type: "credit_card",
+      });
+    }
+    if (!target.endsWith("/checkout")) {
+      return jsonResponse(cart);
+    }
+    assert.equal(init.method, "POST");
+    checkoutCalls += 1;
+    return jsonResponse({
+      order_id: "order-scheduled",
+      number: "1002",
+      payment_action: { type: "none" },
+      payment: {
+        status: { status: "processing", at: 1 },
+        amount: 1250,
+        currency: "EUR",
+        paid: 0,
+        method_type: "credit_card",
+      },
+    });
+  };
+
+  try {
+    const result = await store.eshop.cart.checkout({
+      payment_method_key: "cash",
+    });
+    assert.equal(result.payment.status.status, "captured");
+    assert.equal(checkoutCalls, 1);
+    assert.equal(paymentObservationCalls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("storefront order payment lookup is an authenticated exact GET", async () => {
+  const storefront = createStorefront(publishableKey, {
+    apiUrl,
+    sessionStorage: sessionStorage(),
+  });
+  const payment = {
+    status: { status: "unknown", at: 2, reason: "Provider outcome unknown" },
+    payment_action: { type: "none" },
+    amount: 1250,
+    currency: "EUR",
+    paid: 0,
+    method_type: "credit_card",
+  };
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({
+      url: String(url),
+      method: init.method || "GET",
+      headers: new Headers(init.headers),
+    });
+    return jsonResponse(payment);
+  };
+
+  try {
+    assert.deepEqual(
+      await storefront.eshop.order.getPayment({ id: "order-exact" }),
+      payment,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(calls.length, 1);
+  assert.equal(
+    calls[0].url,
+    `${apiUrl}/v1/storefront/orders/order-exact/payment`,
+  );
+  assert.equal(calls[0].method, "GET");
+  assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
+});
+
+test("high-level checkout authenticates with the exact connected account returned by the payment action", async () => {
+  const store = initialize(publishableKey, {
+    apiUrl,
+    market: "ita",
+    sessionStorage: sessionStorage(),
+  });
+  const cart = {
+    ...cartSnapshot(1),
+    payment_method_key: "credit_card",
+    quote_snapshot: {
+      charge_amount: 1250,
+      total: 1250,
+      money: {
+        total: 1250,
+        currency: "EUR",
+        payment_method_key: "credit_card",
+      },
+    },
+  };
+  store.eshop.cart.cart.set(cart);
+  store.eshop.cart.product_items.set([
+    {
+      id: "line-action-account",
+      product_id: "product-action-account",
+      variant_id: "variant-action-account",
+      product_name: "Action account product",
+      product_slug: "action-account-product",
+      variant_attributes: {},
+      requires_shipping: false,
+      price: { amount: 1250, currency: "EUR", market: "ita" },
+      quantity: 1,
+      added_at: 1,
+    },
+  ]);
+  const nextActionCalls = [];
+  let checkoutCalls = 0;
+  let paymentObservationCalls = 0;
+  const paymentController = {
+    mount() {},
+    update() {},
+    async createConfirmationToken() {
+      return { confirmation_token_id: "ct_action_account" };
+    },
+    async handleNextAction(clientSecret, options) {
+      nextActionCalls.push([clientSecret, options]);
+      assert.notEqual(store.eshop.cart.cart.get(), null);
+      assert.equal(
+        store.eshop.cart.last_order.get().payment.status.status,
+        "requires_action",
+      );
+    },
+    destroy() {},
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    const target = String(url);
+    if (target.endsWith("/orders/order-action-account/payment")) {
+      paymentObservationCalls += 1;
+      assert.equal(init.method, "GET");
+      if (paymentObservationCalls === 1) {
+        assert.notEqual(store.eshop.cart.cart.get(), null);
+        return jsonResponse({
+          status: { status: "processing", at: 2 },
+          payment_action: { type: "none" },
+          amount: 1250,
+          currency: "EUR",
+          paid: 0,
+          method_type: "credit_card",
+        });
+      }
+      return jsonResponse({
+        status: { status: "captured", at: 3, amount: 1250 },
+        payment_action: { type: "none" },
+        amount: 1250,
+        currency: "EUR",
+        paid: 1250,
+        method_type: "credit_card",
+      });
+    }
+    if (!target.endsWith("/checkout")) return jsonResponse(cart);
+    checkoutCalls += 1;
+    return jsonResponse({
+      order_id: "order-action-account",
+      number: "1003",
+      payment_action: {
+        type: "handle_next_action",
+        client_secret: "pi_action_account_secret",
+        connected_account_id: "acct_exact_action",
+      },
+      payment: {
+        status: { status: "requires_action", at: 1 },
+        amount: 1250,
+        currency: "EUR",
+        paid: 0,
+        method_type: "credit_card",
+      },
+    });
+  };
+
+  let result;
+  try {
+    result = await store.eshop.cart.checkout({
+      payment_method_key: "credit_card",
+      payment: paymentController,
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.deepEqual(nextActionCalls, [
+    ["pi_action_account_secret", { connectedAccountId: "acct_exact_action" }],
+  ]);
+  assert.equal(checkoutCalls, 1);
+  assert.equal(paymentObservationCalls, 2);
+  assert.equal(result.payment.status.status, "captured");
+  assert.equal(
+    store.eshop.cart.last_order.get().payment.status.status,
+    "captured",
+  );
+  assert.equal(store.eshop.cart.cart.get(), null);
+});
+
 test("the standalone Stripe controller still uses only setup-derived provider values from its caller", async () => {
   const loads = [];
   const elementsOptions = [];
@@ -269,6 +506,7 @@ test("the standalone Stripe controller still uses only setup-derived provider va
   assert.deepEqual(loads, [
     ["pk_test_store_owned", { stripeAccount: "acct_store_owned" }],
   ]);
+  controller.mount("#payment");
   assert.deepEqual(elementsOptions, [
     {
       mode: "payment",

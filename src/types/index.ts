@@ -617,13 +617,20 @@ export interface SocialPublicationEngagementSyncResult {
 }
 
 export interface SocialPublicationCommentClassificationResult {
+  run_id: string;
+  status: SocialCommentClassificationRunStatus;
   comments_scanned: number;
   comments_classified: number;
   comments_skipped: number;
   comments: SocialPublicationComment[];
   skipped_comment_ids: string[];
   errors: string[];
+  processing_deadline_at?: number | null;
+  completed_at?: number | null;
 }
+
+export type SocialCommentClassificationRunStatus =
+  "requested" | "processing" | "succeeded" | "failed" | "unknown";
 
 export interface SocialEngagementCapabilities {
   read_comments: boolean;
@@ -733,7 +740,7 @@ export interface PaymentStoreConfig {
 
 export interface StripePaymentProviderConnectResponse {
   provider: PaymentProvider;
-  onboarding_url: string;
+  onboarding_url: string | null;
 }
 
 export interface ShippingWeightTier {
@@ -984,6 +991,7 @@ export type OrderPaymentSummaryStatus =
   | "paid"
   | "partially_refunded"
   | "refunded"
+  | "unknown"
   | "failed"
   | "voided"
   | "expired";
@@ -1126,7 +1134,16 @@ export interface Order {
 }
 
 export type CheckoutPaymentAction =
-  { type: "none" } | { type: "handle_next_action"; client_secret: string };
+  | { type: "none" }
+  | {
+      type: "handle_next_action";
+      client_secret: string;
+      connected_account_id: string;
+    };
+
+export interface OrderPaymentObservation extends OrderPayment {
+  payment_action: CheckoutPaymentAction;
+}
 
 export interface OrderCheckoutResult {
   order_id: string;
@@ -1331,7 +1348,6 @@ export interface StoreSubscription {
 
 export type ContactListMembershipPaymentAttemptStatus =
   | "pending"
-  | "confirming"
   | "requires_action"
   | "processing"
   | "declined"
@@ -1801,7 +1817,7 @@ export type OutreachStepType =
 export type CampaignManualTaskOutcome =
   "done" | "skipped" | "got_reply" | "do_not_contact";
 export type OutreachPersonalizationStatus =
-  "idle" | "running" | "completed" | "failed";
+  "idle" | "running" | "completed" | "failed" | "unknown";
 export type SuppressionStatus = "active" | "archived";
 export type SuppressionTargetType = "email" | "domain" | "contact" | "phone";
 export type SuppressionScopeType = "store" | "campaign";
@@ -1859,6 +1875,7 @@ export type OrderPaymentStatus =
   | { status: "voided"; at: number; amount: number }
   | { status: "cancelled"; at: number; reason?: string | null }
   | { status: "expired"; at: number }
+  | { status: "unknown"; at: number; reason?: string | null }
   | { status: "failed"; at: number; reason?: string | null };
 
 export interface TimeRange {
@@ -2214,6 +2231,8 @@ export interface EmailDelivery {
   type: EmailDeliveryType;
   status: EmailDeliveryStatus;
   error?: EmailDeliveryError | null;
+  provider_message_id?: string | null;
+  provider_thread_id?: string | null;
   requested_at: number;
   processing_started_at?: number | null;
   completed_at?: number | null;
@@ -2585,8 +2604,7 @@ export interface ContactListMembership {
   updated_at: number;
 }
 
-export type StorefrontContactListType =
-  "standard" | "confirmation" | "paid";
+export type StorefrontContactListType = "standard" | "confirmation" | "paid";
 
 export interface StorefrontContactList {
   id: string;
@@ -2829,6 +2847,7 @@ export interface OutreachPersonalizationCounters {
 export interface OutreachPersonalizationState {
   run_id: string;
   status: OutreachPersonalizationStatus;
+  processing_deadline_at?: number | null;
   step_position?: number | null;
   contact_ids: string[];
   overwrite: boolean;
@@ -2921,6 +2940,8 @@ export interface CampaignMessage {
   step_position?: number | null;
   template_copy_hash?: string | null;
   copy_source: CampaignMessageCopySource;
+  personalization_run_id?: string | null;
+  personalization_processing_deadline_at?: number | null;
   personalized_at?: number | null;
   edited_at?: number | null;
   personalization_error?: string | null;
@@ -2981,7 +3002,7 @@ export interface Suppression {
 }
 
 export type LeadResearchRunStatus =
-  "draft" | "running" | "completed" | "failed" | "cancelled";
+  "draft" | "running" | "completed" | "failed" | "unknown" | "cancelled";
 
 export type LeadEmailClassification =
   | "official_domain"
@@ -3038,7 +3059,9 @@ export interface LeadResearchRun {
   title?: string | null;
   status: LeadResearchRunStatus;
   error?: string | null;
+  request_message_id?: string | null;
   started_at?: number | null;
+  processing_deadline_at?: number | null;
   completed_at?: number | null;
   created_at: number;
   updated_at: number;

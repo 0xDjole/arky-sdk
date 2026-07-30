@@ -28,11 +28,13 @@ import type {
   GetProvidersParams,
   GetServiceParams,
   GetServicesParams,
+  GetStorefrontContactListSubscriptionAttemptParams,
   GetTaxonomyChildrenParams,
   GetTaxonomyParams,
   QuoteCartParams,
   RemoveCartItemParams,
   RequestOptions,
+  ScheduledMutationOptions,
   SubmitFormParams,
   SubscribeContactListParams,
   UpdateCartParams,
@@ -55,6 +57,7 @@ import type {
   Market,
   Order,
   OrderCheckoutResult,
+  OrderPaymentObservation,
   OrderQuote,
   PaginatedResponse,
   PaymentStoreConfig,
@@ -68,6 +71,11 @@ import type {
   Taxonomy,
   Zone,
 } from "../types";
+import {
+  pollScheduledResult,
+  prepareScheduledMutation,
+  scheduledObservationOptions,
+} from "../utils/scheduledResult";
 import { sanitizePublicCheckoutItems } from "../utils/orderItems";
 
 type StorefrontParams<T> = T extends unknown
@@ -97,8 +105,9 @@ export type StorefrontDto<T> = T extends readonly (infer Item)[]
   ? StorefrontDto<Item>[]
   : T extends object
     ? {
-        [Key in keyof T as Key extends "store_id" ? never : Key]:
-          Key extends StorefrontOpaqueKey ? T[Key] : StorefrontDto<T[Key]>;
+        [
+          Key in keyof T as Key extends "store_id" ? never : Key
+        ]: Key extends StorefrontOpaqueKey ? T[Key] : StorefrontDto<T[Key]>;
       }
     : T;
 
@@ -325,10 +334,7 @@ export const createStorefrontApi = (
         ): Promise<StorefrontDto<PaginatedResponse<CollectionEntry>>> {
           return apiConfig.httpClient.get<
             StorefrontDto<PaginatedResponse<CollectionEntry>>
-          >(
-            `${base}/entries`,
-            { ...options, params },
-          );
+          >(`${base}/entries`, { ...options, params });
         },
       },
       form: {
@@ -363,7 +369,8 @@ export const createStorefrontApi = (
           options?: RequestOptions,
         ): Promise<StorefrontDto<Taxonomy>> {
           const identifier = params.id ?? params.key;
-          if (!identifier) throw new Error("GetTaxonomyParams requires id or key");
+          if (!identifier)
+            throw new Error("GetTaxonomyParams requires id or key");
           return apiConfig.httpClient.get<StorefrontDto<Taxonomy>>(
             `${base}/taxonomies/${identifier}`,
             options,
@@ -373,10 +380,9 @@ export const createStorefrontApi = (
           params: StorefrontParams<GetTaxonomyChildrenParams>,
           options?: RequestOptions,
         ): Promise<StorefrontDto<PaginatedResponse<Taxonomy>>> {
-          return apiConfig.httpClient.get<StorefrontDto<PaginatedResponse<Taxonomy>>>(
-            `${base}/taxonomies/${params.id}/children`,
-            options,
-          );
+          return apiConfig.httpClient.get<
+            StorefrontDto<PaginatedResponse<Taxonomy>>
+          >(`${base}/taxonomies/${params.id}/children`, options);
         },
       },
     },
@@ -387,7 +393,8 @@ export const createStorefrontApi = (
           options?: RequestOptions,
         ): Promise<StorefrontDto<Product>> {
           const identifier = params.id ?? params.slug;
-          if (!identifier) throw new Error("GetProductParams requires id or slug");
+          if (!identifier)
+            throw new Error("GetProductParams requires id or slug");
           return apiConfig.httpClient.get<StorefrontDto<Product>>(
             `${base}/products/${identifier}`,
             options,
@@ -397,16 +404,13 @@ export const createStorefrontApi = (
           params: StorefrontParams<GetProductsParams>,
           options?: RequestOptions,
         ): Promise<StorefrontDto<PaginatedResponse<Product>>> {
-          return apiConfig.httpClient.get<StorefrontDto<PaginatedResponse<Product>>>(
-            `${base}/products`,
-            { ...options, params },
-          );
+          return apiConfig.httpClient.get<
+            StorefrontDto<PaginatedResponse<Product>>
+          >(`${base}/products`, { ...options, params });
         },
       },
       cart: {
-        async current(
-          options?: RequestOptions,
-        ): Promise<StorefrontDto<Cart>> {
+        async current(options?: RequestOptions): Promise<StorefrontDto<Cart>> {
           await lifecycle.ensureVisitorSession();
           return apiConfig.httpClient.post<StorefrontDto<Cart>>(
             `${base}/carts/current`,
@@ -506,18 +510,43 @@ export const createStorefrontApi = (
         },
         async checkout(
           params: StorefrontParams<CheckoutCartParams>,
-          options?: RequestOptions,
+          options?: ScheduledMutationOptions<
+            StorefrontDto<OrderCheckoutResult>
+          >,
         ): Promise<StorefrontDto<OrderCheckoutResult>> {
           await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.post<StorefrontDto<OrderCheckoutResult>>(
-            `${base}/carts/${params.id}/checkout`,
-            {
-              id: params.id,
-              payment_method_key: params.payment_method_key,
-              confirmation_token_id: params.confirmation_token_id,
-              return_url: params.return_url,
+          const payload = {
+            id: params.id,
+            payment_method_key: params.payment_method_key,
+            confirmation_token_id: params.confirmation_token_id,
+            return_url: params.return_url,
+          };
+          const path = `${base}/carts/${params.id}/checkout`;
+          const mutation = prepareScheduledMutation(payload, options);
+          const requested = await apiConfig.httpClient.post<
+            StorefrontDto<OrderCheckoutResult>
+          >(path, mutation.body, mutation.options);
+          await mutation.afterResponse(requested);
+          return pollScheduledResult(
+            requested,
+            async (observationSignal) => {
+              const observation = await apiConfig.httpClient.get<
+                StorefrontDto<OrderPaymentObservation>
+              >(
+                `${base}/orders/${requested.order_id}/payment`,
+                scheduledObservationOptions(options, observationSignal),
+              );
+              const { payment_action, ...payment } = observation;
+              return {
+                ...requested,
+                payment_action,
+                payment,
+              };
             },
-            options,
+            (result) =>
+              result.payment.status.status === "pending" ||
+              result.payment.status.status === "processing",
+            options?.signal,
           );
         },
       },
@@ -532,15 +561,23 @@ export const createStorefrontApi = (
             options,
           );
         },
+        async getPayment(
+          params: StorefrontParams<GetOrderParams>,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<OrderPaymentObservation>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<
+            StorefrontDto<OrderPaymentObservation>
+          >(`${base}/orders/${params.id}/payment`, options);
+        },
         async find(
           params: StorefrontParams<GetOrdersParams>,
           options?: RequestOptions,
         ): Promise<StorefrontDto<PaginatedResponse<Order>>> {
           await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.get<StorefrontDto<PaginatedResponse<Order>>>(
-            `${base}/orders`,
-            { ...options, params },
-          );
+          return apiConfig.httpClient.get<
+            StorefrontDto<PaginatedResponse<Order>>
+          >(`${base}/orders`, { ...options, params });
         },
         async downloadDigitalAccess(
           params: StorefrontParams<DownloadDigitalAccessParams>,
@@ -563,10 +600,10 @@ export const createStorefrontApi = (
           const { order_id, ...queryParams } = params;
           return apiConfig.httpClient.get<
             StorefrontDto<PaginatedResponse<DigitalAccessGrant>>
-          >(
-            `${base}/orders/${order_id}/digital-access`,
-            { ...options, params: queryParams },
-          );
+          >(`${base}/orders/${order_id}/digital-access`, {
+            ...options,
+            params: queryParams,
+          });
         },
         async getDigitalAccess(
           params: StorefrontParams<GetDigitalAccessGrantParams>,
@@ -585,7 +622,8 @@ export const createStorefrontApi = (
           options?: RequestOptions,
         ): Promise<StorefrontDto<Service>> {
           const identifier = params.id ?? params.slug;
-          if (!identifier) throw new Error("GetServiceParams requires id or slug");
+          if (!identifier)
+            throw new Error("GetServiceParams requires id or slug");
           return apiConfig.httpClient.get<StorefrontDto<Service>>(
             `${base}/services/${identifier}`,
             options,
@@ -595,10 +633,9 @@ export const createStorefrontApi = (
           params: StorefrontParams<GetServicesParams>,
           options?: RequestOptions,
         ): Promise<StorefrontDto<PaginatedResponse<Service>>> {
-          return apiConfig.httpClient.get<StorefrontDto<PaginatedResponse<Service>>>(
-            `${base}/services`,
-            { ...options, params },
-          );
+          return apiConfig.httpClient.get<
+            StorefrontDto<PaginatedResponse<Service>>
+          >(`${base}/services`, { ...options, params });
         },
         findProviders(
           params: StorefrontParams<FindServiceProvidersParams>,
@@ -625,7 +662,8 @@ export const createStorefrontApi = (
           options?: RequestOptions,
         ): Promise<StorefrontDto<Provider>> {
           const identifier = params.id ?? params.slug;
-          if (!identifier) throw new Error("GetProviderParams requires id or slug");
+          if (!identifier)
+            throw new Error("GetProviderParams requires id or slug");
           return apiConfig.httpClient.get<StorefrontDto<Provider>>(
             `${base}/providers/${identifier}`,
             options,
@@ -635,10 +673,9 @@ export const createStorefrontApi = (
           params: StorefrontParams<GetProvidersParams>,
           options?: RequestOptions,
         ): Promise<StorefrontDto<PaginatedResponse<Provider>>> {
-          return apiConfig.httpClient.get<StorefrontDto<PaginatedResponse<Provider>>>(
-            `${base}/providers`,
-            { ...options, params },
-          );
+          return apiConfig.httpClient.get<
+            StorefrontDto<PaginatedResponse<Provider>>
+          >(`${base}/providers`, { ...options, params });
         },
       },
     },
@@ -705,10 +742,9 @@ export const createStorefrontApi = (
           params: StorefrontParams<FindStorefrontContactListsParams> = {},
           options?: RequestOptions,
         ): Promise<PaginatedResponse<StorefrontContactList>> {
-          return apiConfig.httpClient.get<PaginatedResponse<StorefrontContactList>>(
-            `${base}/contact-lists`,
-            { ...options, params },
-          );
+          return apiConfig.httpClient.get<
+            PaginatedResponse<StorefrontContactList>
+          >(`${base}/contact-lists`, { ...options, params });
         },
         plans: {
           find(
@@ -716,17 +752,21 @@ export const createStorefrontApi = (
             options?: RequestOptions,
           ): Promise<PaginatedResponse<StorefrontContactListPlan>> {
             const { contact_list_id, ...queryParams } = params;
-            return apiConfig.httpClient.get<PaginatedResponse<StorefrontContactListPlan>>(
-              `${base}/contact-lists/${contact_list_id}/plans`,
-              { ...options, params: queryParams },
-            );
+            return apiConfig.httpClient.get<
+              PaginatedResponse<StorefrontContactListPlan>
+            >(`${base}/contact-lists/${contact_list_id}/plans`, {
+              ...options,
+              params: queryParams,
+            });
           },
         },
         memberships: {
           async find(
             params: StorefrontParams<FindStorefrontContactListMembershipsParams> = {},
             options?: RequestOptions,
-        ): Promise<StorefrontDto<PaginatedResponse<StorefrontContactListMembership>>> {
+          ): Promise<
+            StorefrontDto<PaginatedResponse<StorefrontContactListMembership>>
+          > {
             await lifecycle.ensureVisitorSession();
             return apiConfig.httpClient.get<
               StorefrontDto<PaginatedResponse<StorefrontContactListMembership>>
@@ -738,25 +778,66 @@ export const createStorefrontApi = (
         },
         async subscribe(
           params: StorefrontParams<SubscribeContactListParams>,
-          options?: RequestOptions,
+          options?: ScheduledMutationOptions<
+            StorefrontDto<ContactListSubscribeResponse>
+          >,
         ): Promise<StorefrontDto<ContactListSubscribeResponse>> {
           await lifecycle.ensureVisitorSession();
           const { id, ...payload } = params;
-          return apiConfig.httpClient.post<StorefrontDto<ContactListSubscribeResponse>>(
-            `${base}/contact-lists/${id}/subscribe`,
-            payload,
-            options,
+          const path = `${base}/contact-lists/${id}/subscribe`;
+          const mutation = prepareScheduledMutation(payload, options);
+          const requested = await apiConfig.httpClient.post<
+            StorefrontDto<ContactListSubscribeResponse>
+          >(path, mutation.body, mutation.options);
+          await mutation.afterResponse(requested);
+          const paymentAttemptId =
+            requested.membership?.current_payment_attempt_id;
+          if (
+            (requested.payment_attempt?.status === "pending" ||
+              requested.payment_attempt?.status === "processing") &&
+            !paymentAttemptId
+          ) {
+            throw new Error(
+              "Contact-list subscription response omitted its payment attempt identity",
+            );
+          }
+          return pollScheduledResult(
+            requested,
+            (observationSignal) =>
+              apiConfig.httpClient.get<
+                StorefrontDto<ContactListSubscribeResponse>
+              >(
+                `${base}/contact-lists/${id}/subscription-attempts/${paymentAttemptId}`,
+                scheduledObservationOptions(options, observationSignal),
+              ),
+            (result) =>
+              result.payment_attempt?.status === "pending" ||
+              result.payment_attempt?.status === "processing",
+            options?.signal,
           );
+        },
+        subscriptionAttempts: {
+          async get(
+            params: StorefrontParams<GetStorefrontContactListSubscriptionAttemptParams>,
+            options?: RequestOptions,
+          ): Promise<StorefrontDto<ContactListSubscribeResponse>> {
+            await lifecycle.ensureVisitorSession();
+            return apiConfig.httpClient.get<
+              StorefrontDto<ContactListSubscribeResponse>
+            >(
+              `${base}/contact-lists/${params.id}/subscription-attempts/${params.payment_attempt_id}`,
+              options,
+            );
+          },
         },
         async checkAccess(
           params: StorefrontParams<ContactListAccessParams>,
           options?: RequestOptions,
         ): Promise<StorefrontDto<ContactListAccessResponse>> {
           await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.get<StorefrontDto<ContactListAccessResponse>>(
-            `${base}/contact-lists/${params.id}/access`,
-            options,
-          );
+          return apiConfig.httpClient.get<
+            StorefrontDto<ContactListAccessResponse>
+          >(`${base}/contact-lists/${params.id}/access`, options);
         },
         async checkContentAccess(
           params: StorefrontParams<ContactListContentAccessParams>,
@@ -765,11 +846,7 @@ export const createStorefrontApi = (
           await lifecycle.ensureVisitorSession();
           return apiConfig.httpClient.post<
             StorefrontDto<ContactListContentAccessResponse>
-          >(
-            `${base}/contact-lists/access`,
-            params,
-            options,
-          );
+          >(`${base}/contact-lists/access`, params, options);
         },
       },
     },

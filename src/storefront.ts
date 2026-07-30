@@ -1,6 +1,15 @@
-export { COMMON_ACTION_KEYS, createStorefront } from "./index";
+export {
+  COMMON_ACTION_KEYS,
+  ScheduledResultTimeoutError,
+  createStorefront,
+} from "./index";
 export { createCartController } from "./index";
-export { buildFormFields, createFormEntry, createFormEntryFromValues, initialize } from "./storefrontStore";
+export {
+  buildFormFields,
+  createFormEntry,
+  createFormEntryFromValues,
+  initialize,
+} from "./storefrontStore";
 export { createStripeConfirmationTokenController } from "./payments/stripe";
 export { getBlockContentValue } from "./utils/blocks";
 export type {
@@ -8,6 +17,7 @@ export type {
   StripeConfirmationTokenControllerConfig,
   StripeConfirmationTokenOptions,
   StripeConfirmationTokenResult,
+  StripeNextActionOptions,
 } from "./payments/stripe";
 export type {
   ArkyCartInput,
@@ -70,3 +80,4 @@ export type {
   FormField,
   FormSchema,
 } from "./index";
+export type { ScheduledMutationOptions } from "./services/createHttpClient";

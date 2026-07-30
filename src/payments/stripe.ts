@@ -28,13 +28,20 @@ export interface StripeConfirmationTokenResult {
   return_url?: string;
 }
 
+export interface StripeNextActionOptions {
+  connectedAccountId: string;
+}
+
 export interface StripeConfirmationTokenController {
   mount(target: string | HTMLElement): void;
   update(input: { amount?: number; currency?: string }): void;
   createConfirmationToken(
     options?: StripeConfirmationTokenOptions,
   ): Promise<StripeConfirmationTokenResult>;
-  handleNextAction(clientSecret: string): Promise<void>;
+  handleNextAction(
+    clientSecret: string,
+    options: StripeNextActionOptions,
+  ): Promise<void>;
   destroy(): void;
 }
 
@@ -59,52 +66,80 @@ export async function createStripeConfirmationTokenController(
   config: StripeConfirmationTokenControllerConfig,
   stripeLoader: StripeLoader = defaultStripeLoader,
 ): Promise<StripeConfirmationTokenController> {
+  const publishableKey = config.publishableKey.trim();
+  if (!publishableKey) throw new Error("Stripe publishable key is required");
+  const initialConnectedAccountId =
+    config.connectedAccountId?.trim() || undefined;
+  let currentConfig: StripeConfirmationTokenControllerConfig = {
+    ...config,
+    publishableKey,
+    connectedAccountId: initialConnectedAccountId,
+  };
   const stripe = await stripeLoader(
-    config.publishableKey,
-    config.connectedAccountId
-      ? { stripeAccount: config.connectedAccountId }
+    publishableKey,
+    initialConnectedAccountId
+      ? { stripeAccount: initialConnectedAccountId }
       : undefined,
   );
   if (!stripe) throw new Error("Stripe failed to initialize");
 
-  let elements = createElements(stripe, config);
-  let paymentElement: StripePaymentElement | null = elements.create("payment", {
-    layout: "tabs",
-  });
+  let elements: StripeElements | null = null;
+  let paymentElement: StripePaymentElement | null = null;
+
+  const ensureElements = (): StripeElements => {
+    if (!elements) elements = createElements(stripe, currentConfig);
+    return elements;
+  };
 
   return {
     mount(target) {
       if (!paymentElement) {
-        paymentElement = elements.create("payment", { layout: "tabs" });
+        paymentElement = ensureElements().create("payment", { layout: "tabs" });
       }
       paymentElement.mount(target);
     },
 
     update(input) {
-      elements.update({
+      currentConfig = {
+        ...currentConfig,
         ...(input.amount !== undefined ? { amount: input.amount } : {}),
-        ...(input.currency ? { currency: normalizeCurrency(input.currency) } : {}),
+        ...(input.currency ? { currency: input.currency } : {}),
+      };
+      elements?.update({
+        ...(input.amount !== undefined ? { amount: input.amount } : {}),
+        ...(input.currency
+          ? { currency: normalizeCurrency(input.currency) }
+          : {}),
       });
     },
 
     async createConfirmationToken(options = {}) {
-      const submitResult = await elements.submit();
+      const activeElements = ensureElements();
+      const submitResult = await activeElements.submit();
       if (submitResult.error) {
-        throw new Error(submitResult.error.message || "Payment details are incomplete");
+        throw new Error(
+          submitResult.error.message || "Payment details are incomplete",
+        );
       }
 
       const tokenInput: Parameters<Stripe["createConfirmationToken"]>[0] = {
-        elements,
+        elements: activeElements,
         params: {
           ...(options.return_url ? { return_url: options.return_url } : {}),
           ...(options.billing_details
-            ? { payment_method_data: { billing_details: options.billing_details } }
+            ? {
+                payment_method_data: {
+                  billing_details: options.billing_details,
+                },
+              }
             : {}),
         },
       };
       const result = await stripe.createConfirmationToken(tokenInput);
       if (result.error) {
-        throw new Error(result.error.message || "Payment confirmation token failed");
+        throw new Error(
+          result.error.message || "Payment confirmation token failed",
+        );
       }
       if (!result.confirmationToken?.id) {
         throw new Error("Stripe did not return a confirmation token");
@@ -115,10 +150,29 @@ export async function createStripeConfirmationTokenController(
       };
     },
 
-    async handleNextAction(clientSecret) {
-      const result = await stripe.handleNextAction({ clientSecret });
+    async handleNextAction(clientSecret, options) {
+      const exactClientSecret = clientSecret.trim();
+      if (!exactClientSecret) {
+        throw new Error("Stripe client secret is required");
+      }
+      const exactConnectedAccountId = options.connectedAccountId.trim();
+      if (!exactConnectedAccountId) {
+        throw new Error("Stripe connected account is required");
+      }
+      const actionStripe =
+        exactConnectedAccountId !== initialConnectedAccountId
+          ? await stripeLoader(publishableKey, {
+              stripeAccount: exactConnectedAccountId,
+            })
+          : stripe;
+      if (!actionStripe) throw new Error("Stripe failed to initialize");
+      const result = await actionStripe.handleNextAction({
+        clientSecret: exactClientSecret,
+      });
       if (result.error) {
-        throw new Error(result.error.message || "Payment authentication failed");
+        throw new Error(
+          result.error.message || "Payment authentication failed",
+        );
       }
     },
 
