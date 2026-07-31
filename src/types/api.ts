@@ -400,6 +400,12 @@ export interface UpdateMediaParams {
   slug?: Record<string, string>;
 }
 
+export interface ReplaceMediaContentParams {
+  media_id: string;
+  store_id?: string;
+  file: File;
+}
+
 export interface GetStoreMediaParams {
   store_id?: string;
   cursor?: string | null;
