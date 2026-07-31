@@ -120,6 +120,7 @@ assert.equal(typeof arky.store.paymentProvider.refresh, "function");
 assert.equal(typeof arky.store.paymentProvider.connectStripe, "function");
 assert.equal(typeof arky.store.paymentProvider.getConnection, "function");
 assert.equal(typeof arky.store.paymentProvider.delete, "function");
+assert.equal(typeof arky.media.replaceMediaContent, "function");
 
 const scheduledAdminCalls = [];
 let stripeConnectPosts = 0;
@@ -264,6 +265,34 @@ assert.deepEqual(
       "DELETE",
     ],
   ],
+);
+
+const mediaOriginalFetch = globalThis.fetch;
+let mediaReplacementRequest;
+globalThis.fetch = async (url, init = {}) => {
+  mediaReplacementRequest = { url: String(url), init };
+  return new Response(JSON.stringify({ id: "media-contract" }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+};
+try {
+  const replacement = await arky.media.replaceMediaContent({
+    media_id: "media-contract",
+    file: new Blob(["replacement"], { type: "text/plain" }),
+  });
+  assert.equal(replacement.id, "media-contract");
+} finally {
+  globalThis.fetch = mediaOriginalFetch;
+}
+assert.equal(
+  mediaReplacementRequest.url,
+  "http://127.0.0.1:1/v1/stores/contract-store/media/media-contract/content",
+);
+assert.equal(mediaReplacementRequest.init.method, "PUT");
+assert.equal(
+  await mediaReplacementRequest.init.body.get("file").text(),
+  "replacement",
 );
 
 assert.equal(typeof arky.social.connection.list, "function");

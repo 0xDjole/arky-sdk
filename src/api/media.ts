@@ -5,6 +5,7 @@ import type {
     GetStoreMediaParams,
     GetMediaParams,
     UpdateMediaParams,
+    ReplaceMediaContentParams,
     RequestOptions
 } from '../types/api';
 import type { Media, PaginatedResponse } from '../types';
@@ -95,6 +96,31 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
                 payload,
                 options
             );
+        },
+
+        async replaceMediaContent(params: ReplaceMediaContentParams, options?: RequestOptions): Promise<Media> {
+            const { media_id, store_id, file } = params;
+            const target_store_id = store_id || apiConfig.storeId;
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const tokens = apiConfig.authStorage.getTokens();
+            const response = await fetch(
+                `${apiConfig.baseUrl}/v1/stores/${target_store_id}/media/${media_id}/content`,
+                {
+                    method: 'PUT',
+                    body: formData,
+                    headers: {
+                        Authorization: `Bearer ${tokens?.access_token || ''}`
+                    },
+                    signal: options?.signal
+                }
+            );
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || 'Media replacement failed');
+            }
+            return await response.json();
         }
     };
 };
