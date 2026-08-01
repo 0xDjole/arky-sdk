@@ -556,7 +556,7 @@ export interface CreateStoreParams {
   key: string;
   timezone: string;
   languages?: Language[];
-  emails: StoreEmails;
+  emails?: StoreEmails;
 }
 
 export interface UpdateStoreParams {
