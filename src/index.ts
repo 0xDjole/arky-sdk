@@ -706,7 +706,7 @@ export type {
   EventScopeField,
 } from "./api/platform";
 
-export const SDK_VERSION = "0.12.2";
+export const SDK_VERSION = "0.12.3";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",

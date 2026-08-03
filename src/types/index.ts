@@ -1281,10 +1281,15 @@ export interface Webhook {
 }
 
 export type StoreSubscriptionStatus =
-  "pending" | "active" | "cancellation_scheduled" | "cancelled" | "expired";
+  | "pending"
+  | "active"
+  | "past_due"
+  | "cancellation_scheduled"
+  | "unpaid"
+  | "cancelled"
+  | "expired";
 
-export type StoreSubscriptionCheckoutStatus =
-  "creating" | "ready" | "unknown";
+export type StoreSubscriptionCheckoutStatus = "creating" | "ready";
 
 export interface StoreSubscriptionCheckout {
   plan_id: string;
