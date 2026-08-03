@@ -1,22 +1,19 @@
 import type { ApiConfig } from "../index";
 import type {
   ConnectStripePaymentProviderParams,
+  ConnectMonriPaymentProviderParams,
   DeletePaymentProviderParams,
-  GetPaymentProviderConnectionParams,
+  OpenStripeDashboardParams,
   ListPaymentProvidersParams,
-  RefreshPaymentProvidersParams,
+  RefreshStripePaymentProvidersParams,
   RequestOptions,
-  ScheduledMutationOptions,
 } from "../types/api";
 import type {
+  MonriPaymentProvider,
   PaymentProvider,
+  StripePaymentProvider,
   StripePaymentProviderConnectResponse,
 } from "../types";
-import {
-  pollScheduledResult,
-  prepareScheduledMutation,
-  scheduledObservationOptions,
-} from "../utils/scheduledResult";
 
 export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
   const storeId = (store_id?: string) => store_id || apiConfig.storeId;
@@ -32,13 +29,13 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async refresh(
-      params?: RefreshPaymentProvidersParams,
+    async refreshStripe(
+      params?: RefreshStripePaymentProvidersParams,
       options?: RequestOptions,
-    ): Promise<PaymentProvider[]> {
+    ): Promise<StripePaymentProvider[]> {
       const targetStoreId = storeId(params?.store_id);
-      return apiConfig.httpClient.post<PaymentProvider[]>(
-        `/v1/stores/${targetStoreId}/payment-providers/refresh`,
+      return apiConfig.httpClient.post<StripePaymentProvider[]>(
+        `/v1/stores/${targetStoreId}/payment-providers/stripe/refresh`,
         { store_id: targetStoreId },
         options,
       );
@@ -46,67 +43,35 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
 
     async connectStripe(
       params: ConnectStripePaymentProviderParams,
-      options?: ScheduledMutationOptions<StripePaymentProviderConnectResponse>,
+      options?: RequestOptions,
     ): Promise<StripePaymentProviderConnectResponse> {
       const targetStoreId = storeId(params.store_id);
-      const path = `/v1/stores/${targetStoreId}/payment-providers/stripe/connect`;
-      const mutation = prepareScheduledMutation(params, options);
-      const requested =
-        await apiConfig.httpClient.post<StripePaymentProviderConnectResponse>(
-          path,
-          mutation.body,
-          mutation.options,
-        );
-      await mutation.afterResponse(requested);
-      if (
-        requested.provider.connection.status !== "requested" &&
-        requested.provider.connection.status !== "processing"
-      ) {
-        return requested;
-      }
-
-      const revision = requested.provider.connection.revision;
-      const observed = await pollScheduledResult(
-        requested,
-        (observationSignal) =>
-          apiConfig.httpClient.get<StripePaymentProviderConnectResponse>(
-            `/v1/stores/${targetStoreId}/payment-providers/${requested.provider.id}/connection`,
-            scheduledObservationOptions(options, observationSignal),
-          ),
-        (response) =>
-          response.provider.id === requested.provider.id &&
-          response.provider.connection.revision === revision &&
-          (response.provider.connection.status === "requested" ||
-            response.provider.connection.status === "processing"),
-        options?.signal,
-      );
-      if (
-        observed.provider.id !== requested.provider.id ||
-        observed.provider.connection.revision !== revision
-      ) {
-        throw new Error(
-          "Stripe connection changed before its exact result could be observed",
-        );
-      }
-      if (
-        observed.provider.connection.status !== "succeeded" ||
-        params.connected_account_id
-      ) {
-        return observed;
-      }
       return apiConfig.httpClient.post<StripePaymentProviderConnectResponse>(
-        path,
-        mutation.body,
-        mutation.options,
+        `/v1/stores/${targetStoreId}/payment-providers/stripe/connect`,
+        { ...params, store_id: targetStoreId },
+        options,
       );
     },
 
-    async getConnection(
-      params: GetPaymentProviderConnectionParams,
+    async connectMonri(
+      params: ConnectMonriPaymentProviderParams,
       options?: RequestOptions,
-    ): Promise<StripePaymentProviderConnectResponse> {
-      return apiConfig.httpClient.get<StripePaymentProviderConnectResponse>(
-        `/v1/stores/${storeId(params.store_id)}/payment-providers/${params.id}/connection`,
+    ): Promise<MonriPaymentProvider> {
+      const targetStoreId = storeId(params.store_id);
+      return apiConfig.httpClient.post<MonriPaymentProvider>(
+        `/v1/stores/${targetStoreId}/payment-providers/monri/connect`,
+        { ...params, store_id: targetStoreId },
+        options,
+      );
+    },
+
+    async openDashboard(
+      params: OpenStripeDashboardParams,
+      options?: RequestOptions,
+    ): Promise<{ dashboard_url: string }> {
+      return apiConfig.httpClient.post<{ dashboard_url: string }>(
+        `/v1/stores/${storeId(params.store_id)}/payment-providers/stripe/${params.id}/dashboard`,
+        {},
         options,
       );
     },

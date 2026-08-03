@@ -10,15 +10,10 @@ export {
   createFormEntryFromValues,
   initialize,
 } from "./storefrontStore";
-export { createStripeConfirmationTokenController } from "./payments/stripe";
+
+export { followCheckoutAction } from "./checkout";
+export type { MonriFormAction, StripeCheckoutAction } from "./checkout";
 export { getBlockContentValue } from "./utils/blocks";
-export type {
-  StripeConfirmationTokenController,
-  StripeConfirmationTokenControllerConfig,
-  StripeConfirmationTokenOptions,
-  StripeConfirmationTokenResult,
-  StripeNextActionOptions,
-} from "./payments/stripe";
 export type {
   ArkyCartInput,
   ArkyCartSnapshot,
@@ -28,7 +23,6 @@ export type {
   ArkyCmsState,
   ArkyEshopState,
   ArkyLastOrder,
-  ArkyPaymentController,
   ArkyServiceCartItem,
   ArkyServiceFormGroup,
   ArkyServiceFormState,
@@ -39,7 +33,6 @@ export type {
   ArkyStoreConfig,
   ArkySubmitFormByKeyParams,
   ArkyServiceStore,
-  ArkyStripePaymentMountOptions,
 } from "./storefrontStore";
 export type {
   StorefrontAction,

@@ -122,7 +122,6 @@ test("a fresh cart load resolves Store defaults before hydrating persisted produ
       ],
     },
     support: { email: "support@example.test" },
-    payment: null,
     readiness: { market: true, payment: false, commerce: true },
   };
   const product = {

@@ -42,24 +42,22 @@ async function captureFetch(responseBody, request) {
   }
 }
 
-test("subscription checkout sends one caller-owned action identity", async () => {
-  const requested = {
-    id: resourceId,
-    subscription_id: "subscription-contract",
+test("subscription checkout returns its hosted redirect in one POST", async () => {
+  const subscription = {
+    id: "subscription-contract",
     store_id: "store-subscription",
-    type: "select_plan",
-    request: { type: "select_plan", data: { plan_id: "pro" } },
-    status: "processing",
-    error: null,
-    result: null,
-    requested_at: 1,
-    completed_at: null,
-    updated_at: 1,
-  };
-  const completed = {
-    ...requested,
-    status: "succeeded",
-    completed_at: 2,
+    plan_id: "free",
+    payment: { currency: "EUR", market: "ba" },
+    status: "pending",
+    checkout: {
+      plan_id: "pro",
+      status: "ready",
+      checkout_url: "https://checkout.stripe.test/cs_subscription",
+      expires_at: 1_800_000_000,
+    },
+    start_date: 1,
+    end_date: 2,
+    created_at: 1,
     updated_at: 2,
   };
   const calls = [];
@@ -70,17 +68,14 @@ test("subscription checkout sends one caller-owned action identity", async () =>
       method: init.method,
       body: init.body === undefined ? undefined : JSON.parse(init.body),
     });
-    return jsonResponse(calls.length === 1 ? requested : completed);
+    return jsonResponse(subscription);
   };
   let result;
   try {
-    result = await admin().store.subscription.action.create({
+    result = await admin().store.subscription.select({
       store_id: "store-subscription",
-      action_id: resourceId,
       plan_id: "pro",
-      type: "select_plan",
-      success_url: "https://merchant.test/success",
-      cancel_url: "https://merchant.test/cancel",
+      return_url: "https://merchant.test/return",
     });
   } finally {
     globalThis.fetch = originalFetch;
@@ -88,49 +83,15 @@ test("subscription checkout sends one caller-owned action identity", async () =>
 
   assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/stores/store-subscription/subscription/actions`,
+      url: `${baseUrl}/v1/stores/store-subscription/subscription`,
       method: "POST",
       body: {
-        action_id: resourceId,
         plan_id: "pro",
-        type: "select_plan",
-        success_url: "https://merchant.test/success",
-        cancel_url: "https://merchant.test/cancel",
+        return_url: "https://merchant.test/return",
       },
     },
-    {
-      url: `${baseUrl}/v1/stores/store-subscription/subscription/actions/${resourceId}`,
-      method: "GET",
-      body: undefined,
-    },
   ]);
-  assert.deepEqual(result, completed);
-});
-
-test("subscription checkout rejects server evidence for another action", async () => {
-  const arky = admin();
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () =>
-    jsonResponse({
-      id: "018f477d-1cae-7c12-bf12-000000000000",
-      status: "succeeded",
-    });
-
-  try {
-    await assert.rejects(
-      arky.store.subscription.action.create({
-        store_id: "store-subscription",
-        action_id: resourceId,
-        plan_id: "pro",
-        type: "select_plan",
-        success_url: "https://merchant.test/success",
-        cancel_url: "https://merchant.test/cancel",
-      }),
-      /response did not match the requested action_id/,
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  assert.deepEqual(result, subscription);
 });
 
 test("payment-provider deletion uses one request", async () => {
@@ -151,59 +112,54 @@ test("payment-provider deletion uses one request", async () => {
   ]);
 });
 
-test("subscription action effects use their own parent-bound endpoints", async () => {
-  const effect = {
-    id: "effect-contract",
-    action_id: resourceId,
-    subscription_id: "subscription-contract",
-    store_id: "store-subscription",
-    sequence: 1,
-    type: "create_checkout",
-    status: "processing",
-    error: null,
-    requested_at: 1,
-    processing_started_at: 2,
-    completed_at: null,
-    updated_at: 2,
+test("Monri connection sends only the two merchant credentials", async () => {
+  const provider = {
+    id: "monri-provider",
+    store_id: "store-monri",
+    key: "monri",
+    provider: { type: "monri", configured: true },
+    connection: { status: "succeeded" },
   };
-  const page = { items: [effect], cursor: null };
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({ url: String(url), method: init.method });
-    return jsonResponse(calls.length === 1 ? page : effect);
-  };
+  const { calls, result } = await captureFetch(provider, () =>
+    admin().store.paymentProvider.monri.connect({
+      store_id: "store-monri",
+      authenticity_token: "a".repeat(40),
+      merchant_key: "merchant-secret",
+    }),
+  );
 
-  try {
-    const arky = admin();
-    assert.deepEqual(
-      await arky.store.subscription.action.effect.find({
-        store_id: "store-subscription",
-        action_id: resourceId,
-        limit: 25,
-      }),
-      page,
-    );
-    assert.deepEqual(
-      await arky.store.subscription.action.effect.get({
-        store_id: "store-subscription",
-        action_id: resourceId,
-        effect_id: effect.id,
-      }),
-      effect,
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
+  assert.deepEqual(result, provider);
   assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/stores/store-subscription/subscription/actions/${resourceId}/effects?limit=25`,
-      method: "GET",
+      url: `${baseUrl}/v1/stores/store-monri/payment-providers/monri/connect`,
+      method: "POST",
+      body: {
+        store_id: "store-monri",
+        authenticity_token: "a".repeat(40),
+        merchant_key: "merchant-secret",
+      },
     },
+  ]);
+});
+
+test("Stripe Express Dashboard uses one authenticated provider link request", async () => {
+  const { calls, result } = await captureFetch(
+    { dashboard_url: "https://connect.stripe.test/express/link" },
+    () =>
+      admin().store.paymentProvider.stripe.openDashboard({
+        store_id: "store-dashboard",
+        id: "provider-contract",
+      }),
+  );
+
+  assert.deepEqual(result, {
+    dashboard_url: "https://connect.stripe.test/express/link",
+  });
+  assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/stores/store-subscription/subscription/actions/${resourceId}/effects/effect-contract`,
-      method: "GET",
+      url: `${baseUrl}/v1/stores/store-dashboard/payment-providers/stripe/provider-contract/dashboard`,
+      method: "POST",
+      body: {},
     },
   ]);
 });

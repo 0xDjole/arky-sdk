@@ -3,11 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { initialize as initializeFromRoot } from "../dist/index.js";
-import {
-  createStorefront,
-  createStripeConfirmationTokenController,
-  initialize,
-} from "../dist/storefront.js";
+import { createStorefront, initialize } from "../dist/storefront.js";
 
 const apiUrl = "https://api.example.test";
 const publishableKey = `arky_pk_${"c".repeat(43)}`;
@@ -56,11 +52,6 @@ function setup() {
       ],
     },
     support: { email: "support@example.test" },
-    payment: {
-      provider: "stripe",
-      publishable_key: "pk_test_store_owned",
-      connected_account_id: "acct_store_owned",
-    },
     readiness: { market: true, payment: true, commerce: true },
   };
 }
@@ -93,14 +84,53 @@ function cartSnapshot(itemCount = 0) {
   };
 }
 
+function checkoutStore() {
+  const store = initialize(publishableKey, {
+    apiUrl,
+    market: "ita",
+    sessionStorage: sessionStorage(),
+  });
+  const cart = cartSnapshot(1);
+  store.eshop.cart.cart.set(cart);
+  store.eshop.cart.product_items.set([
+    {
+      id: "line-retry",
+      product_id: "product-retry",
+      variant_id: "variant-retry",
+      product_name: "Retry product",
+      product_slug: "retry-product",
+      variant_attributes: {},
+      requires_shipping: false,
+      price: { amount: 1250, currency: "EUR", market: "ita" },
+      quantity: 1,
+      added_at: 1,
+    },
+  ]);
+  return { store, cart };
+}
+
+function completedCheckout() {
+  return {
+    order_id: "order-retry",
+    number: "1005",
+    payment_action: { type: "none" },
+    payment: {
+      status: { status: "captured", at: 2, amount: 1250 },
+      amount: 1250,
+      currency: "EUR",
+      paid: 1250,
+      method_type: "cash",
+    },
+  };
+}
+
 test("initialize is the production root API and exposes the module facade without legacy Store switching", () => {
   const rootStore = initializeFromRoot(publishableKey, { locale: "it" });
   const store = initialize(publishableKey, { locale: "it", market: "ita" });
 
   assert.equal(typeof rootStore.cms.entry.get, "function");
   assert.equal(typeof store.eshop.cart.load, "function");
-  assert.equal(typeof store.eshop.cart.payment.mount, "function");
-  assert.equal("mountStripe" in store.eshop.cart.payment, false);
+  assert.equal("payment" in store.eshop.cart, false);
   assert.equal(typeof store.setContext, "function");
   assert.equal(typeof store.withContext, "function");
   assert.equal("getStoreId" in store, false);
@@ -129,36 +159,6 @@ test("market and locale remain independent and a populated cart fails closed on 
   );
   assert.equal(store.getMarket(), "ita");
   assert.equal(store.eshop.cart.cart.get().id, "cart-contract");
-});
-
-test("Stripe payment mount loads Store setup and never accepts caller-owned Stripe identifiers", async () => {
-  const store = initialize(publishableKey, { apiUrl, market: "ita" });
-  let setupCalls = 0;
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
-    assert.equal(String(url), `${apiUrl}/v1/storefront`);
-    setupCalls += 1;
-    return jsonResponse(setup());
-  };
-
-  try {
-    await assert.rejects(
-      store.eshop.cart.payment.mount("#payment", { amount: 1250 }),
-      /amount and currency must be supplied together/,
-    );
-    await assert.rejects(
-      store.eshop.cart.payment.mount("#payment", { currency: "EUR" }),
-      /amount and currency must be supplied together/,
-    );
-    assert.equal(setupCalls, 1);
-    assert.deepEqual(store.store.setup.get(), setup());
-    assert.equal(
-      store.payment_config.get().provider.publishable_key,
-      "pk_test_store_owned",
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
 });
 
 test("high-level checkout uses keyless routes, visitor authorization, and Store-ID-free bodies", async () => {
@@ -233,7 +233,49 @@ test("high-level checkout uses keyless routes, visitor authorization, and Store-
   }
 });
 
-test("checkout POSTs once and waits on its exact order payment", async () => {
+test("checkout failures do not create client-side recovery state", async () => {
+  const { store, cart } = checkoutStore();
+  const completed = completedCheckout();
+  const checkoutInput = {
+    payment_method_key: "cash",
+    product_items: store.eshop.cart.product_items.get(),
+  };
+  const calls = [];
+  let checkoutCalls = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), method: init.method || "GET" });
+    if (!String(url).endsWith("/checkout")) return jsonResponse(cart);
+    checkoutCalls += 1;
+    if (checkoutCalls === 1) throw new Error("response connection was lost");
+    return jsonResponse(completed);
+  };
+
+  try {
+    await assert.rejects(
+      store.eshop.cart.checkout(checkoutInput),
+    );
+    assert.deepEqual(
+      await store.eshop.cart.checkout(checkoutInput),
+      completed,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.deepEqual(
+    calls.map(({ method, url }) => [method, url]),
+    [
+      ["PUT", `${apiUrl}/v1/storefront/carts/${cart.id}`],
+      ["POST", `${apiUrl}/v1/storefront/carts/${cart.id}/checkout`],
+      ["PUT", `${apiUrl}/v1/storefront/carts/${cart.id}`],
+      ["POST", `${apiUrl}/v1/storefront/carts/${cart.id}/checkout`],
+    ],
+  );
+  assert.equal(store.eshop.cart.last_order.get().order_id, completed.order_id);
+});
+
+test("checkout returns the synchronous POST response without polling", async () => {
   const store = initialize(publishableKey, {
     apiUrl,
     market: "ita",
@@ -294,9 +336,9 @@ test("checkout POSTs once and waits on its exact order payment", async () => {
     const result = await store.eshop.cart.checkout({
       payment_method_key: "cash",
     });
-    assert.equal(result.payment.status.status, "captured");
+    assert.equal(result.payment.status.status, "processing");
     assert.equal(checkoutCalls, 1);
-    assert.equal(paymentObservationCalls, 1);
+    assert.equal(paymentObservationCalls, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -344,7 +386,64 @@ test("storefront order payment lookup is an authenticated exact GET", async () =
   assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
 });
 
-test("high-level checkout authenticates with the exact connected account returned by the payment action", async () => {
+test("paid contact-list subscribe returns the synchronous POST response without polling", async () => {
+  const storefront = createStorefront(publishableKey, {
+    apiUrl,
+    sessionStorage: sessionStorage(),
+  });
+  const response = {
+    payment_action: {
+      type: "stripe_checkout",
+      url: "https://checkout.stripe.test/cs_subscription",
+      expires_at: 1_800_000_000,
+    },
+    payment_attempt: {
+      plan_id: "plan-paid",
+      amount: 900,
+      currency: "EUR",
+      status: "requires_action",
+    },
+    membership: {
+      id: "membership-paid",
+      contact_id: "contact-paid",
+      contact_list_id: "list-paid",
+      status: "pending",
+    },
+  };
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({
+      url: String(url),
+      method: init.method || "GET",
+      body: JSON.parse(String(init.body)),
+    });
+    return jsonResponse(response);
+  };
+
+  try {
+    assert.deepEqual(
+      await storefront.crm.contactList.subscribe({
+        id: "list-paid",
+        contact_id: "contact-paid",
+        price_id: "price-paid",
+      }),
+      response,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.deepEqual(calls, [
+    {
+      url: `${apiUrl}/v1/storefront/contact-lists/list-paid/subscribe`,
+      method: "POST",
+      body: { contact_id: "contact-paid", price_id: "price-paid" },
+    },
+  ]);
+});
+
+test("hosted card checkout redirects without Stripe.js or a payment controller", async () => {
   const store = initialize(publishableKey, {
     apiUrl,
     market: "ita",
@@ -366,11 +465,11 @@ test("high-level checkout authenticates with the exact connected account returne
   store.eshop.cart.cart.set(cart);
   store.eshop.cart.product_items.set([
     {
-      id: "line-action-account",
-      product_id: "product-action-account",
-      variant_id: "variant-action-account",
-      product_name: "Action account product",
-      product_slug: "action-account-product",
+      id: "line-hosted",
+      product_id: "product-hosted",
+      variant_id: "variant-hosted",
+      product_name: "Hosted product",
+      product_slug: "hosted-product",
       variant_attributes: {},
       requires_shipping: false,
       price: { amount: 1250, currency: "EUR", market: "ita" },
@@ -378,60 +477,29 @@ test("high-level checkout authenticates with the exact connected account returne
       added_at: 1,
     },
   ]);
-  const nextActionCalls = [];
+  const redirectUrl = "https://checkout.stripe.test/cs_hosted";
+  let assignedUrl = null;
   let checkoutCalls = 0;
-  let paymentObservationCalls = 0;
-  const paymentController = {
-    mount() {},
-    update() {},
-    async createConfirmationToken() {
-      return { confirmation_token_id: "ct_action_account" };
-    },
-    async handleNextAction(clientSecret, options) {
-      nextActionCalls.push([clientSecret, options]);
-      assert.notEqual(store.eshop.cart.cart.get(), null);
-      assert.equal(
-        store.eshop.cart.last_order.get().payment.status.status,
-        "requires_action",
-      );
-    },
-    destroy() {},
-  };
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    const target = String(url);
-    if (target.endsWith("/orders/order-action-account/payment")) {
-      paymentObservationCalls += 1;
-      assert.equal(init.method, "GET");
-      if (paymentObservationCalls === 1) {
-        assert.notEqual(store.eshop.cart.cart.get(), null);
-        return jsonResponse({
-          status: { status: "processing", at: 2 },
-          payment_action: { type: "none" },
-          amount: 1250,
-          currency: "EUR",
-          paid: 0,
-          method_type: "credit_card",
-        });
-      }
-      return jsonResponse({
-        status: { status: "captured", at: 3, amount: 1250 },
-        payment_action: { type: "none" },
-        amount: 1250,
-        currency: "EUR",
-        paid: 1250,
-        method_type: "credit_card",
-      });
-    }
-    if (!target.endsWith("/checkout")) return jsonResponse(cart);
+  const originalWindow = globalThis.window;
+  globalThis.window = {
+    location: {
+      href: "https://store.test/cart",
+      assign(url) {
+        assignedUrl = url;
+      },
+    },
+  };
+  globalThis.fetch = async (url) => {
+    if (!String(url).endsWith("/checkout")) return jsonResponse(cart);
     checkoutCalls += 1;
     return jsonResponse({
-      order_id: "order-action-account",
-      number: "1003",
+      order_id: "order-hosted",
+      number: "1004",
       payment_action: {
-        type: "handle_next_action",
-        client_secret: "pi_action_account_secret",
-        connected_account_id: "acct_exact_action",
+        type: "stripe_checkout",
+        url: redirectUrl,
+        expires_at: 1_800_000_000,
       },
       payment: {
         status: { status: "requires_action", at: 1 },
@@ -443,78 +511,18 @@ test("high-level checkout authenticates with the exact connected account returne
     });
   };
 
-  let result;
   try {
-    result = await store.eshop.cart.checkout({
+    const result = await store.eshop.cart.checkout({
       payment_method_key: "credit_card",
-      payment: paymentController,
     });
+    assert.equal(result.payment_action.type, "stripe_checkout");
   } finally {
     globalThis.fetch = originalFetch;
+    if (originalWindow === undefined) delete globalThis.window;
+    else globalThis.window = originalWindow;
   }
 
-  assert.deepEqual(nextActionCalls, [
-    ["pi_action_account_secret", { connectedAccountId: "acct_exact_action" }],
-  ]);
   assert.equal(checkoutCalls, 1);
-  assert.equal(paymentObservationCalls, 2);
-  assert.equal(result.payment.status.status, "captured");
-  assert.equal(
-    store.eshop.cart.last_order.get().payment.status.status,
-    "captured",
-  );
+  assert.equal(assignedUrl, redirectUrl);
   assert.equal(store.eshop.cart.cart.get(), null);
-});
-
-test("the standalone Stripe controller still uses only setup-derived provider values from its caller", async () => {
-  const loads = [];
-  const elementsOptions = [];
-  const fakeElements = {
-    create() {
-      return { mount() {}, destroy() {} };
-    },
-    update() {},
-    async submit() {
-      return {};
-    },
-  };
-  const fakeStripe = {
-    elements(options) {
-      elementsOptions.push(options);
-      return fakeElements;
-    },
-    async createConfirmationToken() {
-      return { confirmationToken: { id: "ct_contract" } };
-    },
-    async handleNextAction() {
-      return {};
-    },
-  };
-  const controller = await createStripeConfirmationTokenController(
-    {
-      publishableKey: "pk_test_store_owned",
-      connectedAccountId: "acct_store_owned",
-      amount: 1250,
-      currency: "EUR",
-      setupFutureUsage: "off_session",
-    },
-    async (key, options) => {
-      loads.push([key, options]);
-      return fakeStripe;
-    },
-  );
-  assert.deepEqual(loads, [
-    ["pk_test_store_owned", { stripeAccount: "acct_store_owned" }],
-  ]);
-  controller.mount("#payment");
-  assert.deepEqual(elementsOptions, [
-    {
-      mode: "payment",
-      amount: 1250,
-      currency: "eur",
-      paymentMethodCreation: "manual",
-      setupFutureUsage: "off_session",
-    },
-  ]);
-  controller.destroy();
 });

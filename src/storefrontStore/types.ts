@@ -20,10 +20,6 @@ import type {
   ServiceProvider,
 } from "../types";
 import type { AvailabilityResponse, SlotRange } from "../types/api";
-import type {
-  StripeConfirmationTokenController,
-  StripeConfirmationTokenControllerConfig,
-} from "../payments/stripe";
 
 export type ArkyStoreClient = ReturnType<typeof createStorefront>;
 type StorefrontCart = StorefrontDto<Cart>;
@@ -35,14 +31,6 @@ type StorefrontProduct = StorefrontDto<Product>;
 type StorefrontProvider = StorefrontDto<Provider>;
 type StorefrontService = StorefrontDto<Service>;
 type StorefrontServiceProvider = StorefrontDto<ServiceProvider>;
-export type ArkyPaymentController = StripeConfirmationTokenController;
-export type ArkyStripePaymentMountOptions = Partial<
-  Pick<
-    StripeConfirmationTokenControllerConfig,
-    "amount" | "currency" | "appearance" | "setupFutureUsage"
-  >
->;
-
 export type ArkyStoreConfig = StorefrontOptions;
 
 export interface ArkyStoreContext {
@@ -117,13 +105,7 @@ export interface ArkyCartInput {
   promo_code?: string | null;
   payment_method_key?: string | null;
   shipping_method_id?: string | null;
-  payment?: ArkyPaymentController | null;
   return_url?: string;
-  billing_details?: {
-    name?: string | null;
-    email?: string | null;
-    phone?: string | null;
-  };
   clear_after_checkout?: boolean;
 }
 

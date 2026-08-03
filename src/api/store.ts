@@ -4,14 +4,8 @@ import type {
   UpdateStoreParams,
   GetStoreParams,
   GetStoresParams,
-  GetSubscriptionPlansParams,
   GetStoreSubscriptionParams,
-  CreateStoreSubscriptionActionParams,
-  RetryStoreSubscriptionActionParams,
-  GetStoreSubscriptionActionParams,
-  FindStoreSubscriptionActionsParams,
-  FindStoreSubscriptionActionEffectsParams,
-  GetStoreSubscriptionActionEffectParams,
+  SelectStoreSubscriptionParams,
   CreatePortalSessionParams,
   AddMemberParams,
   RemoveMemberParams,
@@ -33,18 +27,11 @@ import type {
   Webhook,
   PaginatedResponse,
   SubscriptionPlan,
-  PaymentStoreConfig,
   BuildHook,
   StoreSubscription,
-  StoreSubscriptionAction,
-  StoreSubscriptionEffect,
   StoreMember,
   StoreMembership,
 } from "../types";
-import {
-  pollScheduledResult,
-  scheduledObservationOptions,
-} from "../utils/scheduledResult";
 
 export const createStoreApi = (
   apiConfig: ApiConfig,
@@ -102,7 +89,6 @@ export const createStoreApi = (
     },
 
     async getSubscriptionPlans(
-      _params: GetSubscriptionPlansParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<SubscriptionPlan>> {
       return apiConfig.httpClient.get<PaginatedResponse<SubscriptionPlan>>(
@@ -111,35 +97,16 @@ export const createStoreApi = (
       );
     },
 
-    async createSubscriptionAction(
-      params: CreateStoreSubscriptionActionParams,
+    async selectSubscription(
+      params: SelectStoreSubscriptionParams,
       options?: RequestOptions,
-    ): Promise<StoreSubscriptionAction> {
+    ): Promise<StoreSubscription> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      const response = await apiConfig.httpClient.post<StoreSubscriptionAction>(
-        `/v1/stores/${target_store_id}/subscription/actions`,
+      return apiConfig.httpClient.post<StoreSubscription>(
+        `/v1/stores/${target_store_id}/subscription`,
         payload,
         options,
-      );
-      if (response.id !== params.action_id) {
-        throw new Error(
-          "Subscription response did not match the requested action_id",
-        );
-      }
-      if (response.status !== "requested" && response.status !== "processing") {
-        return response;
-      }
-      return pollScheduledResult(
-        response,
-        (observationSignal) =>
-          apiConfig.httpClient.get<StoreSubscriptionAction>(
-            `/v1/stores/${target_store_id}/subscription/actions/${params.action_id}`,
-            scheduledObservationOptions(options, observationSignal),
-          ),
-        (action) =>
-          action.status === "requested" || action.status === "processing",
-        options?.signal,
       );
     },
 
@@ -152,80 +119,6 @@ export const createStoreApi = (
         `/v1/stores/${store_id}/subscription`,
         options,
       );
-    },
-
-    async retrySubscriptionAction(
-      params: RetryStoreSubscriptionActionParams,
-      options?: RequestOptions,
-    ): Promise<StoreSubscriptionAction> {
-      const store_id = params.store_id || apiConfig.storeId;
-      const response = await apiConfig.httpClient.post<StoreSubscriptionAction>(
-        `/v1/stores/${store_id}/subscription/actions/${params.action_id}/retry`,
-        {},
-        options,
-      );
-      if (response.status !== "requested" && response.status !== "processing") {
-        return response;
-      }
-      return pollScheduledResult(
-        response,
-        (observationSignal) =>
-          apiConfig.httpClient.get<StoreSubscriptionAction>(
-            `/v1/stores/${store_id}/subscription/actions/${params.action_id}`,
-            scheduledObservationOptions(options, observationSignal),
-          ),
-        (action) =>
-          action.status === "requested" || action.status === "processing",
-        options?.signal,
-      );
-    },
-
-    async getSubscriptionAction(
-      params: GetStoreSubscriptionActionParams,
-      options?: RequestOptions,
-    ): Promise<StoreSubscriptionAction> {
-      const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<StoreSubscriptionAction>(
-        `/v1/stores/${store_id}/subscription/actions/${params.action_id}`,
-        options,
-      );
-    },
-
-    async findSubscriptionActionEffects(
-      params: FindStoreSubscriptionActionEffectsParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<StoreSubscriptionEffect>> {
-      const { store_id, action_id, ...query } = params;
-      return apiConfig.httpClient.get<
-        PaginatedResponse<StoreSubscriptionEffect>
-      >(
-        `/v1/stores/${store_id || apiConfig.storeId}/subscription/actions/${action_id}/effects`,
-        { ...options, params: query },
-      );
-    },
-
-    async getSubscriptionActionEffect(
-      params: GetStoreSubscriptionActionEffectParams,
-      options?: RequestOptions,
-    ): Promise<StoreSubscriptionEffect> {
-      const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<StoreSubscriptionEffect>(
-        `/v1/stores/${store_id}/subscription/actions/${params.action_id}/effects/${params.effect_id}`,
-        options,
-      );
-    },
-
-    async findSubscriptionActions(
-      params: FindStoreSubscriptionActionsParams = {},
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<StoreSubscriptionAction>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<
-        PaginatedResponse<StoreSubscriptionAction>
-      >(`/v1/stores/${store_id || apiConfig.storeId}/subscription/actions`, {
-        ...options,
-        params: query,
-      });
     },
 
     async createPortalSession(
@@ -348,16 +241,6 @@ export const createStoreApi = (
     ): Promise<{ deleted: boolean }> {
       return apiConfig.httpClient.delete<{ deleted: boolean }>(
         `/v1/stores/${params.store_id}/build-hooks/${params.id}`,
-        options,
-      );
-    },
-
-    async getPaymentConfig(
-      params: { store_id: string },
-      options?: RequestOptions,
-    ): Promise<PaymentStoreConfig | null> {
-      return apiConfig.httpClient.get<PaymentStoreConfig | null>(
-        `/v1/stores/${params.store_id}/config/payment`,
         options,
       );
     },

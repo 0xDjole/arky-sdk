@@ -3,13 +3,11 @@ import type {
   Contact,
   ContactListSubscribeResponse,
   ContactListMembershipPaymentAttemptStatus,
-  ContactListMembershipPaymentAttemptType,
+  ContactListPlanCatalogStatus,
   ContactListPlanPriceInput,
   CreateShipmentParams,
-  FindStoreSubscriptionActionEffectsParams,
   GetCollectionParams,
   GetShippingRatesParams,
-  GetStoreSubscriptionActionEffectParams,
   OrderMoney,
   PaginatedResponse,
   ProductInventoryInput,
@@ -24,8 +22,7 @@ import type {
   SocialPublicationContent,
   SocialPublicationEffectRequest,
   SocialProviderCapability,
-  StoreSubscriptionAction,
-  StoreSubscriptionEffect,
+  StoreSubscription,
   SubscriptionPlanFeatureType,
   TiktokPrivacy,
   StorefrontIdentifyResult,
@@ -47,14 +44,14 @@ import {
   type FormField,
   type FormSchema,
   type FormValues,
-  type ArkyStripePaymentMountOptions,
   type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
 } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.11.4" = SDK_VERSION;
+const sdkVersionLiteral: "0.12.0" = SDK_VERSION;
 const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
 // @ts-expect-error the server's serialized feature key is crm_contacts.
 const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
+const rejectedCatalogStatus: ContactListPlanCatalogStatus = "rejected";
 const contactListPlanPriceInput: ContactListPlanPriceInput = {
   currency: "usd",
   amount: 1200,
@@ -262,13 +259,9 @@ const subscribeResult: ContactListSubscribeResponse = {
     status: "unknown",
   },
 };
-const subscribeAttemptStatus: ContactListMembershipPaymentAttemptStatus | undefined =
+const subscribeAttemptStatus:
+  ContactListMembershipPaymentAttemptStatus | undefined =
   subscribeResult.payment_attempt?.status;
-const paymentAttemptType: ContactListMembershipPaymentAttemptType = "create_payment_intent";
-// @ts-expect-error payment attempt type is one flat discriminator, not a nested type object.
-const nestedPaymentAttemptType: ContactListMembershipPaymentAttemptType = {
-  type: "create_payment_intent",
-};
 
 declare const storefrontIdentify: StorefrontIdentifyResult;
 const storefrontEntryIdentify: StorefrontEntryIdentifyResult =
@@ -280,33 +273,12 @@ storefrontIdentify.token;
 // @ts-expect-error storefront Contact DTOs do not expose tenant routing IDs.
 storefrontIdentify.contact.store_id;
 
-const stripeMountOptions: ArkyStripePaymentMountOptions = {
-  amount: 1200,
-  currency: "EUR",
-  appearance: { theme: "stripe" },
-  setupFutureUsage: "off_session",
-};
-const invalidFutureUsage: ArkyStripePaymentMountOptions = {
-  // @ts-expect-error only Stripe's supported future-usage values are accepted.
-  setupFutureUsage: "always",
-};
-const callerOwnedStripeMountOptions: ArkyStripePaymentMountOptions = {
-  // @ts-expect-error Stripe identifiers are loaded from Store setup.
-  publishableKey: "pk_test_untrusted",
-};
 declare const paymentStorefront: ReturnType<typeof initialize>;
-paymentStorefront.eshop.cart.payment.mount("#payment", stripeMountOptions);
-// @ts-expect-error the prelaunch mountStripe name was removed without an alias.
-paymentStorefront.eshop.cart.payment.mountStripe(
-  "#payment",
-  stripeMountOptions,
-);
-void stripeMountOptions;
-void invalidFutureUsage;
-void callerOwnedStripeMountOptions;
+// @ts-expect-error hosted Checkout removed the browser Stripe controller.
+paymentStorefront.eshop.cart.payment;
 
 const orderMoney: OrderMoney = {
-	currency: "usd",
+  currency: "usd",
   market: "us",
   subtotal: 1250,
   shipping: 0,
@@ -385,25 +357,27 @@ const storefrontSupportRead: StorefrontGetSupportConversationParams = {
   message_limit: 25,
 };
 
-const findSubscriptionEffects: FindStoreSubscriptionActionEffectsParams = {
-  action_id: "action-contract",
-  limit: 25,
-  cursor: null,
+const storeSubscriptionWithoutCheckout: StoreSubscription = {
+  id: "subscription-contract",
+  store_id: "store-contract",
+  plan_id: "free",
+  payment: { currency: "usd", market: "us" },
+  status: "active",
+  checkout: null,
+  start_date: 1,
+  end_date: 2,
+  created_at: 1,
+  updated_at: 1,
 };
-
-const getSubscriptionEffect: GetStoreSubscriptionActionEffectParams = {
-  action_id: "action-contract",
-  effect_id: "effect-contract",
+const storeSubscriptionWithoutCheckoutUrl: StoreSubscription = {
+  ...storeSubscriptionWithoutCheckout,
+  checkout: {
+    plan_id: "business",
+    status: "unknown",
+    checkout_url: null,
+    expires_at: 2,
+  },
 };
-
-declare const subscriptionAction: StoreSubscriptionAction;
-declare const subscriptionEffect: StoreSubscriptionEffect;
-const actionId: string = subscriptionAction.id;
-const effectOwnerIds: [string, string, string] = [
-  subscriptionEffect.store_id,
-  subscriptionEffect.subscription_id,
-  subscriptionEffect.action_id,
-];
 
 // @ts-expect-error storefront support messages require the capability token.
 const supportMessageWithoutCapability: StorefrontSendSupportMessageParams = {
@@ -595,12 +569,8 @@ void [
   supportCapability,
   storefrontSupportMessage,
   storefrontSupportRead,
-  findSubscriptionEffects,
-  getSubscriptionEffect,
-  subscriptionAction,
-  subscriptionEffect,
-  actionId,
-  effectOwnerIds,
+  storeSubscriptionWithoutCheckout,
+  storeSubscriptionWithoutCheckoutUrl,
   supportMessageWithoutCapability,
   account,
   contact,
@@ -620,7 +590,7 @@ void [
   nonWireCrmProfileFeature,
   contactListPlanPriceInput,
   contactListPlanPriceWithProvider,
-  paymentAttemptType,
-  nestedPaymentAttemptType,
+  subscribeAttemptStatus,
+  rejectedCatalogStatus,
 ];
 void sdkVersionLiteral;

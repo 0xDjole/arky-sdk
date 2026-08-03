@@ -189,18 +189,6 @@ export interface GetQuoteParams {
   location?: ZoneLocation;
 }
 
-export interface OrderCheckoutParams {
-  store_id?: string;
-  market?: string;
-  items: OrderCheckoutItemInput[];
-  payment_method_key?: string;
-  shipping_address?: Address;
-  billing_address?: Address;
-  forms?: FormEntry[];
-  promo_code_id?: string;
-  shipping_method_id?: string;
-}
-
 export interface GetCurrentCartParams {
   store_id?: string;
   market?: string;
@@ -276,7 +264,6 @@ export interface CheckoutCartParams {
   id: string;
   store_id?: string;
   payment_method_key?: string;
-  confirmation_token_id?: string;
   return_url?: string;
 }
 
@@ -570,51 +557,14 @@ export interface UpdateStoreParams {
 
 export interface GetStoreParams {}
 
-export type CreateStoreSubscriptionActionParams = {
+export interface SelectStoreSubscriptionParams {
   store_id?: string;
-  action_id: string;
-} & (
-  | {
-      type: "select_plan";
-      plan_id: string;
-      success_url: string;
-      cancel_url: string;
-    }
-  | { type: "cancel_at_period_end" }
-  | { type: "reactivate" }
-);
+  plan_id: string;
+  return_url: string;
+}
 
 export interface GetStoreSubscriptionParams {
   store_id?: string;
-}
-
-export interface RetryStoreSubscriptionActionParams {
-  store_id?: string;
-  action_id: string;
-}
-
-export interface GetStoreSubscriptionActionParams {
-  store_id?: string;
-  action_id: string;
-}
-
-export interface FindStoreSubscriptionActionsParams {
-  store_id?: string;
-  limit?: number;
-  cursor?: string | null;
-}
-
-export interface FindStoreSubscriptionActionEffectsParams {
-  store_id?: string;
-  action_id: string;
-  limit?: number;
-  cursor?: string | null;
-}
-
-export interface GetStoreSubscriptionActionEffectParams {
-  store_id?: string;
-  action_id: string;
-  effect_id: string;
 }
 
 export interface CreatePortalSessionParams {
@@ -1159,8 +1109,6 @@ export interface GetStoresParams {
   sort_direction?: "asc" | "desc";
 }
 
-export interface GetSubscriptionPlansParams {}
-
 export interface SetupAnalyticsParams {
   store_id?: string;
 }
@@ -1401,7 +1349,10 @@ export interface UpdateContactListPlanParams {
   payment_provider_id?: string;
 }
 
-export type ContactListPlanPriceInput = Omit<SubscriptionPrice, "providers">;
+export type ContactListPlanPriceInput = Omit<
+  SubscriptionPrice,
+  "id" | "providers"
+>;
 
 export interface FindContactListPlansParams {
   store_id?: string;
@@ -1674,8 +1625,10 @@ export interface SubscribeContactListParams {
   contact_id: string;
   price_id?: string;
   confirm_url?: string;
-  confirmation_token_id?: string;
   return_url?: string;
+  billing_address?: Address;
+  /** Required for a recurring Monri plan after the customer accepts recurring charges. */
+  recurring_payment_consent?: boolean;
 }
 
 export interface GetStorefrontContactListSubscriptionAttemptParams {
@@ -1693,6 +1646,16 @@ export interface ContactListContentAccessParams {
   store_id?: string;
   target: ContactListContentAccessTarget;
 }
+
+export interface ManageContactListParams {
+  token: string;
+}
+
+export interface CreateContactListPortalParams extends ManageContactListParams {
+  return_url: string;
+}
+
+export interface UnsubscribeContactListParams extends ManageContactListParams {}
 
 export interface CreateMailboxParams {
   store_id?: string;
@@ -2067,7 +2030,7 @@ export interface ListPaymentProvidersParams {
   store_id?: string;
 }
 
-export interface RefreshPaymentProvidersParams {
+export interface RefreshStripePaymentProvidersParams {
   store_id?: string;
 }
 
@@ -2075,9 +2038,16 @@ export interface ConnectStripePaymentProviderParams {
   store_id?: string;
   return_url: string;
   refresh_url: string;
+  authorize_account_debits: boolean;
   email?: string | null;
   country?: string | null;
   connected_account_id?: string | null;
+}
+
+export interface ConnectMonriPaymentProviderParams {
+  store_id?: string;
+  authenticity_token: string;
+  merchant_key: string;
 }
 
 export interface DeletePaymentProviderParams {
@@ -2085,7 +2055,7 @@ export interface DeletePaymentProviderParams {
   id: string;
 }
 
-export interface GetPaymentProviderConnectionParams {
+export interface OpenStripeDashboardParams {
   store_id: string;
   id: string;
 }
@@ -2349,10 +2319,6 @@ export interface GetShippingLabelRefundParams extends GetShipmentParams {
 }
 
 export type RetryShippingLabelRefundParams = GetShippingLabelRefundParams;
-
-export interface FindShippingLabelAdjustmentsParams extends FindShipmentsParams {
-  shipment_id: string;
-}
 
 export interface FindShippingLabelSettlementsParams extends FindShipmentsParams {
   shipment_id: string;

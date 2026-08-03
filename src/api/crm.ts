@@ -74,6 +74,9 @@ import type {
   UpdateSuppressionParams,
   FindSuppressionsParams,
   GetSuppressionParams,
+  ManageContactListParams,
+  CreateContactListPortalParams,
+  UnsubscribeContactListParams,
 } from "../types/api";
 import type {
   Mailbox,
@@ -91,11 +94,9 @@ import type {
   ContactListMember,
   Action,
   Suppression,
+  ContactListManagementResponse,
+  ContactListPortalResponse,
 } from "../types";
-import {
-  pollScheduledResult,
-  scheduledObservationOptions,
-} from "../utils/scheduledResult";
 
 export interface TimelineParams {
   contact_id: string;
@@ -280,6 +281,41 @@ export const createContactApi = (apiConfig: ApiConfig) => {
     },
 
     contactList: {
+      customer: {
+        async manage(
+          params: ManageContactListParams,
+          options?: RequestOptions,
+        ): Promise<ContactListManagementResponse> {
+          return apiConfig.httpClient.post<ContactListManagementResponse>(
+            "/v1/customer/contact-lists/manage",
+            params,
+            options,
+          );
+        },
+
+        async createPortal(
+          params: CreateContactListPortalParams,
+          options?: RequestOptions,
+        ): Promise<ContactListPortalResponse> {
+          return apiConfig.httpClient.post<ContactListPortalResponse>(
+            "/v1/customer/contact-lists/portal",
+            params,
+            options,
+          );
+        },
+
+        async unsubscribe(
+          params: UnsubscribeContactListParams,
+          options?: RequestOptions,
+        ): Promise<{ success: boolean }> {
+          return apiConfig.httpClient.post<{ success: boolean }>(
+            "/v1/customer/contact-lists/unsubscribe",
+            params,
+            options,
+          );
+        },
+      },
+
       async create(
         params: CreateContactListParams,
         options?: RequestOptions,
@@ -387,39 +423,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
           const path =
             `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}` +
             `/plans/${params.plan_id}`;
-          const requested = await apiConfig.httpClient.post<ContactListPlan>(
+          return apiConfig.httpClient.post<ContactListPlan>(
             `${path}/catalog/retry`,
             {},
             options,
-          );
-          if (
-            requested.catalog_status !== "requested" &&
-            requested.catalog_status !== "processing"
-          ) {
-            return requested;
-          }
-          return pollScheduledResult(
-            requested,
-            async (observationSignal) => {
-              const observation =
-                await apiConfig.httpClient.get<ContactListPlan>(
-                  path,
-                  scheduledObservationOptions(options, observationSignal),
-                );
-              if (
-                observation.id !== requested.id ||
-                observation.catalog_revision !== requested.catalog_revision
-              ) {
-                throw new Error(
-                  "Contact-list catalog changed before its exact retry result could be observed",
-                );
-              }
-              return observation;
-            },
-            (plan) =>
-              plan.catalog_status === "requested" ||
-              plan.catalog_status === "processing",
-            options?.signal,
           );
         },
       },
@@ -605,40 +612,11 @@ export const createContactApi = (apiConfig: ApiConfig) => {
             const path =
               `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}` +
               `/memberships/${params.membership_id}/refunds/${params.id}`;
-            const requested =
-              await apiConfig.httpClient.post<ContactListMembershipRefund>(
+            return apiConfig.httpClient.post<ContactListMembershipRefund>(
                 `${path}/retry`,
                 {},
                 options,
               );
-            if (
-              requested.status !== "requested" &&
-              requested.status !== "processing"
-            ) {
-              return requested;
-            }
-            return pollScheduledResult(
-              requested,
-              async (observationSignal) => {
-                const observation =
-                  await apiConfig.httpClient.get<ContactListMembershipRefund>(
-                    path,
-                    scheduledObservationOptions(options, observationSignal),
-                  );
-                if (
-                  observation.id !== requested.id ||
-                  observation.revision !== requested.revision
-                ) {
-                  throw new Error(
-                    "Membership refund changed before its exact retry result could be observed",
-                  );
-                }
-                return observation;
-              },
-              (refund) =>
-                refund.status === "requested" || refund.status === "processing",
-              options?.signal,
-            );
           },
         },
 
@@ -677,41 +655,11 @@ export const createContactApi = (apiConfig: ApiConfig) => {
             const path =
               `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}` +
               `/memberships/${params.membership_id}/cancellations/${params.id}`;
-            const requested =
-              await apiConfig.httpClient.post<ContactListMembershipCancellation>(
+            return apiConfig.httpClient.post<ContactListMembershipCancellation>(
                 `${path}/retry`,
                 {},
                 options,
               );
-            if (
-              requested.status !== "requested" &&
-              requested.status !== "processing"
-            ) {
-              return requested;
-            }
-            return pollScheduledResult(
-              requested,
-              async (observationSignal) => {
-                const observation =
-                  await apiConfig.httpClient.get<ContactListMembershipCancellation>(
-                    path,
-                    scheduledObservationOptions(options, observationSignal),
-                  );
-                if (
-                  observation.id !== requested.id ||
-                  observation.revision !== requested.revision
-                ) {
-                  throw new Error(
-                    "Membership cancellation changed before its exact retry result could be observed",
-                  );
-                }
-                return observation;
-              },
-              (cancellation) =>
-                cancellation.status === "requested" ||
-                cancellation.status === "processing",
-              options?.signal,
-            );
           },
         },
       },

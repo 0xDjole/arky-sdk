@@ -10,11 +10,11 @@ npm install arky-sdk
 
 ## Storefront quick start
 
-The current browser contract is `arky-sdk@0.11.3`. Pin that exact version during the coordinated
+The current browser contract is `arky-sdk@0.12.0`. Pin that exact version during the coordinated
 prelaunch cutover so the Server, App, and storefront route/header contracts move together:
 
 ```bash
-npm install --save-exact arky-sdk@0.11.3
+npm install --save-exact arky-sdk@0.12.0
 ```
 
 Copy the Store publishable key from Developer and initialize one client:
@@ -130,7 +130,7 @@ const page = await italian.cms.entry.get({
 
 Changing the scoped client does not mutate the original client. A market change while the cart contains items throws `CART_MARKET_LOCKED`; the SDK never silently clears or reprices the cart.
 
-## Store setup and Stripe
+## Hosted card checkout
 
 Store setup is fetched lazily and deduplicated:
 
@@ -139,26 +139,21 @@ const setup = await arky.store.load();
 console.log(setup.languages.default, setup.markets.default);
 ```
 
-Payment configuration belongs to Arky. Mounting card payment waits for setup internally and accepts no Stripe publishable key or connected Account ID:
+Payment configuration belongs to Arky. A card checkout returns the provider's hosted action; the
+high-level storefront follows that action automatically. Storefront code receives no Stripe or
+Monri credentials:
 
 ```typescript
-await arky.eshop.cart.payment.mount("#payment", {
-  appearance: { theme: "stripe" },
+const result = await arky.eshop.cart.checkout({
+  payment_method_key: "credit_card",
+  return_url: window.location.href,
 });
+
+console.log(result.order_id, result.payment.status);
 ```
 
-For a paid flow outside the cart, pass only customer-facing amount and currency:
-
-```typescript
-await arky.eshop.cart.payment.mount("#payment", {
-  amount: 2500,
-  currency: "EUR",
-  setupFutureUsage: "off_session",
-});
-```
-
-`setupFutureUsage` is optional. Use `"off_session"` when the paid flow will
-reuse the payment method later, such as a subscription.
+The browser return is navigation only. A signed Stripe webhook or authenticated Monri callback is
+what settles the payment.
 
 ## SSR and static generation
 

@@ -10,10 +10,14 @@ import {
 
 test("observation timeout is typed, fast-testable, and carries the last authoritative result", async () => {
   const pending = {
-    order_id: "order-timeout",
-    payment: {
-      status: { status: "processing", at: 1 },
-    },
+    run_id: "classification-timeout",
+    status: "requested",
+    comments_scanned: 0,
+    comments_classified: 0,
+    comments_skipped: 0,
+    comments: [],
+    skipped_comment_ids: [],
+    errors: [],
   };
   const originalFetch = globalThis.fetch;
   const originalSetTimeout = globalThis.setTimeout;
@@ -44,11 +48,11 @@ test("observation timeout is typed, fast-testable, and carries the last authorit
 
   try {
     await assert.rejects(
-      admin().eshop.cart.checkout(
+      admin().social.publication.classifyComments(
         {
-          id: "cart-timeout",
           store_id: storeId,
-          payment_method_key: "credit_card",
+          run_id: pending.run_id,
+          publication_id: "publication-timeout",
         },
         {
           transformRequest(body) {
@@ -62,7 +66,7 @@ test("observation timeout is typed, fast-testable, and carries the last authorit
       ),
       (error) => {
         assert.ok(error instanceof ScheduledResultTimeoutError);
-        assert.equal(error.lastResult.payment.status.status, "processing");
+        assert.equal(error.lastResult.status, "requested");
         assert.match(error.message, /observation timed out/i);
         assert.doesNotMatch(error.message, /delivery failed/i);
         return true;
@@ -81,10 +85,14 @@ test("observation timeout is typed, fast-testable, and carries the last authorit
 
 test("an observation failure does not replay the caller error callback", async () => {
   const pending = {
-    order_id: "order-observation-error",
-    payment: {
-      status: { status: "processing", at: 1 },
-    },
+    run_id: "classification-observation-error",
+    status: "requested",
+    comments_scanned: 0,
+    comments_classified: 0,
+    comments_skipped: 0,
+    comments: [],
+    skipped_comment_ids: [],
+    errors: [],
   };
   let calls = 0;
   let successes = 0;
@@ -107,11 +115,11 @@ test("an observation failure does not replay the caller error callback", async (
 
   try {
     await assert.rejects(
-      admin().eshop.cart.checkout(
+      admin().social.publication.classifyComments(
         {
-          id: "cart-observation-error",
           store_id: storeId,
-          payment_method_key: "credit_card",
+          run_id: pending.run_id,
+          publication_id: "publication-observation-error",
         },
         {
           onSuccess() {

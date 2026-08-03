@@ -47,14 +47,8 @@ import type {
   QuoteCartParams,
   RemoveCartItemParams,
   RequestOptions,
-  ScheduledMutationOptions,
   UpdateCartParams,
 } from "../types/api";
-import {
-  pollScheduledResult,
-  prepareScheduledMutation,
-  scheduledObservationOptions,
-} from "../utils/scheduledResult";
 import type {
   Order,
   DigitalAccessGrant,
@@ -505,47 +499,13 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
 
     async checkoutCart(
       params: CheckoutCartParams,
-      options?: ScheduledMutationOptions<
-        import("../types").OrderCheckoutResult
-      >,
+      options?: RequestOptions,
     ): Promise<import("../types").OrderCheckoutResult> {
       const { id, store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      const path = `/v1/stores/${target_store_id}/carts/${id}/checkout`;
-      const mutation = prepareScheduledMutation(payload, options);
-      const requested = await apiConfig.httpClient.post<
+      return apiConfig.httpClient.post<
         import("../types").OrderCheckoutResult
-      >(path, mutation.body, mutation.options);
-      await mutation.afterResponse(requested);
-      return pollScheduledResult(
-        requested,
-        async (observationSignal) => {
-          const observation = await apiConfig.httpClient.get<
-            import("../types").OrderPaymentObservation
-          >(
-            `/v1/stores/${target_store_id}/orders/${requested.order_id}/payment`,
-            scheduledObservationOptions(options, observationSignal),
-          );
-          if (
-            observation.order_id !== requested.order_id ||
-            observation.id !== requested.payment.id
-          ) {
-            throw new Error(
-              "Order payment changed before its exact checkout result could be observed",
-            );
-          }
-          const { payment_action, ...payment } = observation;
-          return {
-            ...requested,
-            payment_action,
-            payment,
-          };
-        },
-        (result) =>
-          result.payment.status.status === "pending" ||
-          result.payment.status.status === "processing",
-        options?.signal,
-      );
+      >(`/v1/stores/${target_store_id}/carts/${id}/checkout`, payload, options);
     },
 
     async getQuote(
@@ -636,39 +596,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const path =
         `/v1/stores/${target_store_id}/orders/${params.order_id}` +
         `/payment/transactions/${params.transaction_id}`;
-      const requested = await apiConfig.httpClient.post<PaymentTransaction>(
+      return apiConfig.httpClient.post<PaymentTransaction>(
         `${path}/retry`,
         {},
         options,
-      );
-      if (
-        requested.status !== "requested" &&
-        requested.status !== "processing"
-      ) {
-        return requested;
-      }
-      return pollScheduledResult(
-        requested,
-        async (observationSignal) => {
-          const observation =
-            await apiConfig.httpClient.get<PaymentTransaction>(
-              path,
-              scheduledObservationOptions(options, observationSignal),
-            );
-          if (
-            observation.id !== requested.id ||
-            observation.revision !== requested.revision
-          ) {
-            throw new Error(
-              "Payment transaction changed before its exact retry result could be observed",
-            );
-          }
-          return observation;
-        },
-        (transaction) =>
-          transaction.status === "requested" ||
-          transaction.status === "processing",
-        options?.signal,
       );
     },
 

@@ -66,17 +66,33 @@ export interface OrderPaymentPromoCode {
   value: number;
 }
 
-export type PaymentTransactionProvider = "manual" | "stripe";
+export type PaymentTransactionProvider = "manual" | "stripe" | "monri";
 export type PaymentTransactionType =
-  | "create"
   | "authorize"
   | "capture"
   | "sale"
   | "cancel"
   | "refund"
-  | "mark_paid";
+  | "mark_paid"
+  | "dispute";
+export type StripeDisputeStatus =
+  | "warning_needs_response"
+  | "warning_under_review"
+  | "warning_closed"
+  | "needs_response"
+  | "under_review"
+  | "won"
+  | "lost"
+  | "prevented";
+export interface StripeDispute {
+  id: string;
+  charge_id: string;
+  status: StripeDisputeStatus;
+  reason: string;
+}
 export type PaymentTransactionRequestType =
-  "create_payment" | "confirm_payment" | "cancel_payment";
+  | "create_checkout"
+  | "cancel_stripe_payment";
 export type PaymentTransactionStatus =
   | "requested"
   | "requires_action"
@@ -108,6 +124,7 @@ export interface PaymentTransaction {
   created_at: number;
   updated_at: number;
   safe_error?: string | null;
+  stripe_dispute?: StripeDispute | null;
 }
 
 export interface OrderRefund {
@@ -219,10 +236,11 @@ export interface PriceProvider {
 }
 
 export interface SubscriptionPrice {
+  id: string;
   currency: Currency;
   amount: number;
-  compare_at?: number;
-  interval?: SubscriptionInterval;
+  compare_at?: number | null;
+  interval?: SubscriptionInterval | null;
   providers: PriceProvider[];
 }
 
@@ -716,30 +734,37 @@ export interface PaymentProviderConnection {
   error?: PaymentProviderConnectionError | null;
 }
 
-export interface PaymentProvider {
+interface PaymentProviderBase {
   id: string;
   store_id: string;
   key: string;
-  provider: {
-    type: "stripe";
-    onboarding_status: "pending" | "submitted" | "complete";
-    charges_enabled: boolean;
-    payouts_enabled: boolean;
-    details_submitted: boolean;
-  };
-  connection: PaymentProviderConnection;
   created_at: number;
   updated_at: number;
 }
 
-export interface PaymentStoreConfig {
-  provider: "stripe";
-  publishable_key: string;
-  connected_account_id: string;
+export interface StripePaymentProvider extends PaymentProviderBase {
+  connection: PaymentProviderConnection;
+  provider: {
+    type: "stripe";
+    onboarding_status: "pending" | "submitted" | "complete";
+    account_debits_authorized: boolean;
+    charges_enabled: boolean;
+    payouts_enabled: boolean;
+    details_submitted: boolean;
+  };
 }
 
+export interface MonriPaymentProvider extends PaymentProviderBase {
+  provider: {
+    type: "monri";
+    configured: boolean;
+  };
+}
+
+export type PaymentProvider = StripePaymentProvider | MonriPaymentProvider;
+
 export interface StripePaymentProviderConnectResponse {
-  provider: PaymentProvider;
+  provider: StripePaymentProvider;
   onboarding_url: string | null;
 }
 
@@ -1136,9 +1161,15 @@ export interface Order {
 export type CheckoutPaymentAction =
   | { type: "none" }
   | {
-      type: "handle_next_action";
-      client_secret: string;
-      connected_account_id: string;
+      type: "stripe_checkout";
+      url: string;
+      expires_at: number;
+    }
+  | {
+      type: "monri_form";
+      url: string;
+      fields: Record<string, string>;
+      expires_at: number;
     };
 
 export interface OrderPaymentObservation extends OrderPayment {
@@ -1253,79 +1284,14 @@ export interface Webhook {
 export type StoreSubscriptionStatus =
   "pending" | "active" | "cancellation_scheduled" | "cancelled" | "expired";
 
-export type StoreSubscriptionActionStatus =
-  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
+export type StoreSubscriptionCheckoutStatus =
+  "creating" | "ready" | "unknown";
 
-export type StoreSubscriptionActionRequest =
-  | { type: "select_plan"; data: { plan_id: string } }
-  | { type: "cancel_at_period_end" }
-  | { type: "reactivate" };
-
-export type StoreSubscriptionActionError =
-  | {
-      type: "provider_rejected";
-      data: { effect_id: string; message: string };
-    }
-  | {
-      type: "unknown_outcome";
-      data: { effect_id: string; message: string };
-    }
-  | {
-      type: "provider_call_not_started";
-      data: { effect_id: string; message: string };
-    };
-
-export type StoreSubscriptionActionResult = {
-  type: "checkout";
-  data: {
-    session_id: string;
-    checkout_url: string;
-    expires_at: number;
-  };
-};
-
-export interface StoreSubscriptionAction {
-  id: string;
-  subscription_id: string;
-  store_id: string;
-  request: StoreSubscriptionActionRequest;
-  status: StoreSubscriptionActionStatus;
-  error?: StoreSubscriptionActionError | null;
-  result?: StoreSubscriptionActionResult | null;
-  requested_at: number;
-  completed_at?: number | null;
-  updated_at: number;
-}
-
-export type StoreSubscriptionEffectType =
-  | "create_checkout"
-  | "cancel_at_period_end"
-  | "cancel_immediately"
-  | "reactivate"
-  | "update_plan"
-  | "create_schedule"
-  | "update_schedule";
-
-export type StoreSubscriptionEffectStatus = StoreSubscriptionActionStatus;
-
-export type StoreSubscriptionEffectError =
-  | { type: "provider_rejected"; data: { message: string } }
-  | { type: "unknown_outcome"; data: { message: string } }
-  | { type: "provider_call_not_started"; data: { message: string } };
-
-export interface StoreSubscriptionEffect {
-  id: string;
-  action_id: string;
-  subscription_id: string;
-  store_id: string;
-  sequence: number;
-  type: StoreSubscriptionEffectType;
-  status: StoreSubscriptionEffectStatus;
-  error?: StoreSubscriptionEffectError | null;
-  requested_at: number;
-  processing_started_at?: number | null;
-  completed_at?: number | null;
-  updated_at: number;
+export interface StoreSubscriptionCheckout {
+  plan_id: string;
+  status: StoreSubscriptionCheckoutStatus;
+  checkout_url: string | null;
+  expires_at: number;
 }
 
 export interface StoreSubscriptionPayment {
@@ -1337,9 +1303,9 @@ export interface StoreSubscription {
   id: string;
   store_id: string;
   plan_id: string;
-  pending_plan_id: string | null;
   payment: StoreSubscriptionPayment;
   status: StoreSubscriptionStatus;
+  checkout: StoreSubscriptionCheckout | null;
   start_date: number;
   end_date: number;
   created_at: number;
@@ -1357,12 +1323,6 @@ export type ContactListMembershipPaymentAttemptStatus =
   | "expired"
   | "unknown";
 
-export type ContactListMembershipPaymentAttemptType =
-  | "create_customer"
-  | "create_payment_intent"
-  | "create_subscription"
-  | "confirm_payment_intent";
-
 export type ContactListMembershipPaymentAttemptSafeError =
   "payment_rejected" | "invalid_payment_state" | "unknown_outcome";
 
@@ -1373,8 +1333,6 @@ export interface ContactListMembershipPaymentAttempt {
   membership_id: string;
   contact_id: string;
   generation: number;
-  stage: number;
-  type: ContactListMembershipPaymentAttemptType;
   status: ContactListMembershipPaymentAttemptStatus;
   plan_id: string;
   amount: number;
@@ -1441,7 +1399,6 @@ export interface Store {
   timezone: string;
   languages?: Language[];
   emails?: StoreEmails;
-  payment?: PaymentStoreConfig | null;
 }
 
 export interface EshopStoreState {
@@ -2414,7 +2371,12 @@ export type ContactListType =
   | { type: "paid" };
 
 export type ContactListPlanCatalogStatus =
-  "requested" | "processing" | "succeeded" | "failed" | "unknown";
+  | "requested"
+  | "processing"
+  | "succeeded"
+  | "failed"
+  | "rejected"
+  | "unknown";
 
 export type ContactListPlanCatalogType =
   { type: "create_product" } | { type: "create_price"; price_index: number };
@@ -2562,8 +2524,13 @@ export interface ContactListManagementMembership {
 
 export interface ContactListManagementResponse {
   has_access: boolean;
+  billing_portal_available: boolean;
   contact_list: ContactListManagementContactList;
   membership: ContactListManagementMembership;
+}
+
+export interface ContactListPortalResponse {
+  portal_url: string;
 }
 
 export interface ContactListSubscribeResponse {
@@ -2619,8 +2586,10 @@ export interface StorefrontContactListPlan {
   key: string;
   name: string;
   description?: string | null;
-  prices: SubscriptionPrice[];
+  prices: StorefrontContactListPrice[];
 }
+
+export type StorefrontContactListPrice = Omit<SubscriptionPrice, "providers">;
 
 export interface StorefrontContactListPaymentAttemptSummary {
   plan_id: string;
@@ -3212,7 +3181,6 @@ export interface ShippingLabelRefund {
   currency: Currency;
   status: ShippingLabelRefundStatus;
   revision: number;
-  attempt_count: number;
   provider_refund_id?: string | null;
   provider_status?: string | null;
   credit_settlement_id?: string | null;
@@ -3222,23 +3190,6 @@ export interface ShippingLabelRefund {
   safe_error?: string | null;
   requested_at: number;
   completed_at?: number | null;
-  created_at: number;
-  updated_at: number;
-}
-
-export type ShippingLabelAdjustmentStatus =
-  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
-
-export interface ShippingLabelAdjustment {
-  id: string;
-  shipment_id: string;
-  provider_adjustment_id: string;
-  amount: number;
-  currency: Currency;
-  reason: string;
-  status: ShippingLabelAdjustmentStatus;
-  settlement_id: string;
-  safe_error?: string | null;
   created_at: number;
   updated_at: number;
 }
@@ -3253,9 +3204,7 @@ export type ShipmentAllocationStatus = "reserved" | "fulfilled" | "released";
 export type ShippingLabelSettlementType =
   | { type: "purchase_debit" }
   | { type: "purchase_compensation_credit" }
-  | { type: "refund_credit"; refund_id: string }
-  | { type: "adjustment_debit"; adjustment_id: string }
-  | { type: "adjustment_credit"; adjustment_id: string };
+  | { type: "refund_credit"; refund_id: string };
 
 export interface ShippingLabelSettlement {
   id: string;
@@ -3300,7 +3249,6 @@ export interface Shipment {
   revision: number;
   label_status: ShippingLabelStatus;
   label_revision: number;
-  label_attempt_count: number;
   provider_transaction_id?: string | null;
   provider_status?: string | null;
   safe_label_error?: string | null;

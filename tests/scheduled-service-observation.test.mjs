@@ -288,7 +288,7 @@ test("social classification POSTs once and observes the exact run with GET", asy
   assert.equal(successes, 1);
 });
 
-test("scheduled observations stay scoped to the store captured by their mutation", async () => {
+test("direct provider calls and scheduled observations keep their original store scope", async () => {
   const originalStoreId = "store-original";
   const replacementStoreId = "store-replacement";
   const client = createAdmin({
@@ -329,7 +329,6 @@ test("scheduled observations stay scoped to the store captured by their mutation
     errors: [],
   };
   const calls = [];
-  let connectPosts = 0;
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     const target = String(url);
@@ -337,41 +336,12 @@ test("scheduled observations stay scoped to the store captured by their mutation
     if (init.method === "POST") {
       client.setStoreId(replacementStoreId);
       if (target.endsWith("/payment-providers/stripe/connect")) {
-        connectPosts += 1;
         return jsonResponse({
-          provider:
-            connectPosts === 1
-              ? requestedProvider
-              : {
-                  ...requestedProvider,
-                  connection: {
-                    ...requestedProvider.connection,
-                    status: "succeeded",
-                    attempts: 1,
-                    completed_at: 2,
-                  },
-                },
-          onboarding_url:
-            connectPosts === 1
-              ? null
-              : "https://connect.example.test/onboarding",
+          provider: requestedProvider,
+          onboarding_url: null,
         });
       }
       return jsonResponse(requestedRun);
-    }
-    if (target.endsWith(`/payment-providers/${providerId}/connection`)) {
-      return jsonResponse({
-        provider: {
-          ...requestedProvider,
-          connection: {
-            ...requestedProvider.connection,
-            status: "succeeded",
-            attempts: 1,
-            completed_at: 2,
-          },
-        },
-        onboarding_url: null,
-      });
     }
     return jsonResponse({
       ...requestedRun,
@@ -381,7 +351,7 @@ test("scheduled observations stay scoped to the store captured by their mutation
   };
 
   try {
-    await client.store.paymentProvider.connectStripe({
+    await client.store.paymentProvider.stripe.connect({
       return_url: "https://admin.example.test/return",
       refresh_url: "https://admin.example.test/refresh",
       country: "BA",
@@ -397,14 +367,6 @@ test("scheduled observations stay scoped to the store captured by their mutation
   assert.deepEqual(
     calls.map(({ target, method }) => [target.replace(baseUrl, ""), method]),
     [
-      [
-        `/v1/stores/${originalStoreId}/payment-providers/stripe/connect`,
-        "POST",
-      ],
-      [
-        `/v1/stores/${originalStoreId}/payment-providers/${providerId}/connection`,
-        "GET",
-      ],
       [
         `/v1/stores/${originalStoreId}/payment-providers/stripe/connect`,
         "POST",

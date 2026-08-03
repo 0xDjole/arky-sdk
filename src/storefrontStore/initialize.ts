@@ -9,6 +9,7 @@ import type {
   StorefrontMarket,
   StorefrontSetup,
 } from "../api/storefront";
+import { followCheckoutAction } from "../checkout";
 import type {
   Address,
   Block,
@@ -19,10 +20,8 @@ import type {
   FormEntry,
   FormSubmission,
   OrderCheckoutResult,
-  OrderPaymentObservation,
   OrderQuote,
   PaginatedResponse,
-  PaymentMethod,
   Price,
   Product,
   ProductVariant,
@@ -33,6 +32,7 @@ import type {
 } from "../types";
 import type {
   AvailabilityResponse,
+  CheckoutCartParams,
   OrderCheckoutItemInput,
   FindServiceProvidersParams,
   GetAvailabilityParams,
@@ -73,17 +73,8 @@ import type {
   ArkyServiceState,
   ArkyStoreContext,
   ArkyStoreConfig,
-  ArkyStripePaymentMountOptions,
   ArkySubmitFormByKeyParams,
 } from "./types";
-import {
-  createStripeConfirmationTokenController,
-  type StripeConfirmationTokenController,
-} from "../payments/stripe";
-import {
-  pollScheduledResult,
-  ScheduledResultTimeoutError,
-} from "../utils/scheduledResult";
 import {
   availableStock,
   createFormEntryFromValues,
@@ -110,11 +101,11 @@ type StorefrontParams<T> = T extends unknown
   ? Omit<T, "store_id" | "market">
   : never;
 type StorefrontCart = StorefrontDto<Cart>;
+type StorefrontCheckoutRequest = StorefrontParams<CheckoutCartParams>;
 type StorefrontCollectionEntry = StorefrontDto<CollectionEntry>;
 type StorefrontForm = StorefrontDto<Form>;
 type StorefrontFormSubmission = StorefrontDto<FormSubmission>;
 type StorefrontOrderCheckoutResult = StorefrontDto<OrderCheckoutResult>;
-type StorefrontOrderPaymentObservation = StorefrontDto<OrderPaymentObservation>;
 type StorefrontOrderQuote = StorefrontDto<OrderQuote>;
 type StorefrontProduct = StorefrontDto<Product>;
 type StorefrontProductVariant = StorefrontDto<ProductVariant>;
@@ -123,47 +114,23 @@ type StorefrontService = StorefrontDto<Service>;
 type StorefrontServiceProvider = StorefrontDto<ServiceProvider>;
 type StorefrontPage<T> = StorefrontDto<PaginatedResponse<T>>;
 
+interface CheckoutContext {
+  request: StorefrontCheckoutRequest;
+  product_items: EshopCartItem[];
+  service_items: ArkyServiceCartItem[];
+  shipping_address: Address | null;
+  billing_address: Address | null;
+  payment_method_key: string | null;
+  clear_after_checkout: boolean;
+  created_at: number;
+}
+
 function firstFiniteNumber(
   ...values: Array<number | null | undefined>
 ): number | undefined {
   return values.find(
     (value): value is number =>
       typeof value === "number" && Number.isFinite(value),
-  );
-}
-
-function isUnresolvedPaymentStatus(status: string): boolean {
-  return (
-    status === "pending" ||
-    status === "processing" ||
-    status === "requires_action"
-  );
-}
-
-function checkoutResultFromPayment(
-  checkout: StorefrontOrderCheckoutResult,
-  observation: StorefrontOrderPaymentObservation,
-): StorefrontOrderCheckoutResult {
-  const { payment_action, ...payment } = observation;
-  return {
-    ...checkout,
-    payment_action,
-    payment,
-  };
-}
-
-function isStorefrontOrderCheckoutResult(
-  value: unknown,
-): value is StorefrontOrderCheckoutResult {
-  if (typeof value !== "object" || value === null) return false;
-  const candidate = value as Record<string, unknown>;
-  return (
-    typeof candidate.order_id === "string" &&
-    typeof candidate.number === "string" &&
-    typeof candidate.payment_action === "object" &&
-    candidate.payment_action !== null &&
-    typeof candidate.payment === "object" &&
-    candidate.payment !== null
   );
 }
 
@@ -190,30 +157,12 @@ function initializeStoreCore(
     market,
     (value) => value?.payment_methods || [],
   );
-  const payment_config = computed(
-    [setup, market],
-    (setupValue, marketValue) => {
-      const methods = marketValue?.payment_methods || [];
-      const hasCreditCard = methods.some(
-        (method: PaymentMethod) => method.type === "credit_card",
-      );
-      return {
-        provider: setupValue?.payment || null,
-        enabled: hasCreditCard && Boolean(setupValue?.readiness.payment),
-      };
-    },
-  );
-
   const cart = atom<StorefrontCart | null>(null);
   const product_items = atom<EshopCartItem[]>([]);
   const service_items = atom<ArkyServiceCartItem[]>([]);
   const quote = atom<StorefrontOrderQuote | null>(null);
   const promo_code = atom<string | null>(null);
   const last_order = atom<ArkyLastOrder | null>(null);
-  const payment_controller = atom<StripeConfirmationTokenController | null>(
-    null,
-  );
-  const payment_ready = computed(payment_controller, (value) => value !== null);
   const cart_status = map<ArkyCartStatus>({
     loading: false,
     syncing: false,
@@ -347,50 +296,6 @@ function initializeStoreCore(
     );
   }
 
-  function currentStripePublishableKey(): string | null {
-    const provider = payment_config.get()?.provider;
-    return provider?.publishable_key || null;
-  }
-
-  function currentStripeConnectedAccountId(): string | null {
-    const provider = payment_config.get()?.provider;
-    return provider?.connected_account_id || null;
-  }
-
-  function currentPaymentAmount(): number {
-    return Math.max(
-      0,
-      firstFiniteNumber(
-        quote.get()?.charge_amount,
-        cart.get()?.quote_snapshot?.charge_amount,
-        cart.get()?.quote_snapshot?.total,
-      ) ?? 0,
-    );
-  }
-
-  function currentPaymentCurrency(): string | null {
-    return (
-      quote.get()?.money?.currency?.trim() ||
-      cart.get()?.quote_snapshot?.money?.currency?.trim() ||
-      null
-    );
-  }
-
-  function setPaymentController(
-    controller: StripeConfirmationTokenController | null,
-  ): StripeConfirmationTokenController | null {
-    const current = payment_controller.get();
-    if (current && current !== controller) {
-      current.destroy();
-    }
-    payment_controller.set(controller);
-    return controller;
-  }
-
-  function destroyPaymentController(): void {
-    setPaymentController(null);
-  }
-
   async function loadSetup(): Promise<StorefrontSetup> {
     const current = setup.get();
     if (current) return current;
@@ -403,56 +308,6 @@ function initializeStoreCore(
       locale.set(result.languages.default);
     }
     return result;
-  }
-
-  async function mountPayment(
-    target: string | HTMLElement,
-    options: ArkyStripePaymentMountOptions = {},
-  ): Promise<StripeConfirmationTokenController> {
-    await loadSetup();
-    const publishableKey = currentStripePublishableKey();
-    if (!publishableKey) {
-      throw new Error("Stripe card payment is not configured for this Store");
-    }
-    const hasExplicitAmount = options.amount !== undefined;
-    const hasExplicitCurrency = Boolean(options.currency?.trim());
-    if (hasExplicitAmount !== hasExplicitCurrency) {
-      throw new Error("Stripe amount and currency must be supplied together");
-    }
-    const amount = hasExplicitAmount ? options.amount! : currentPaymentAmount();
-    if (!Number.isSafeInteger(amount) || amount <= 0) {
-      throw new Error(
-        "A positive minor-unit payment amount is required to mount card payment",
-      );
-    }
-    const paymentCurrency = hasExplicitCurrency
-      ? options.currency!.trim()
-      : currentPaymentCurrency();
-    if (!paymentCurrency || !/^[a-z]{3}$/i.test(paymentCurrency)) {
-      throw new Error(
-        "An explicit three-letter payment currency is required to mount card payment",
-      );
-    }
-    const controller = await createStripeConfirmationTokenController({
-      publishableKey,
-      connectedAccountId: currentStripeConnectedAccountId() || undefined,
-      amount,
-      currency: paymentCurrency,
-      ...(options.appearance ? { appearance: options.appearance } : {}),
-      ...(options.setupFutureUsage
-        ? { setupFutureUsage: options.setupFutureUsage }
-        : {}),
-    });
-    controller.mount(target);
-    setPaymentController(controller);
-    return controller;
-  }
-
-  function updatePaymentController(input: {
-    amount?: number;
-    currency?: string;
-  }): void {
-    payment_controller.get()?.update(input);
   }
 
   async function ensureSession(): Promise<ContactSession | null> {
@@ -844,13 +699,60 @@ function initializeStoreCore(
     }
   }
 
+  function finalizeCheckout(
+    context: CheckoutContext,
+    response: StorefrontOrderCheckoutResult,
+  ): StorefrontOrderCheckoutResult {
+    last_order.set({
+      order_id: response.order_id,
+      number: response.number,
+      payment_action: response.payment_action,
+      payment: response.payment,
+      product_items: context.product_items,
+      service_items: context.service_items,
+      shipping_address: context.shipping_address,
+      billing_address: context.billing_address,
+      total: response.payment.amount,
+      currency: response.payment.currency,
+      payment_method_key: context.payment_method_key,
+      created_at: context.created_at,
+    });
+
+    if (response.payment_action.type !== "none") {
+      if (context.clear_after_checkout) clearLocalCart();
+      followCheckoutAction(response.payment_action);
+      return response;
+    }
+
+    if (
+      context.clear_after_checkout &&
+      !["pending", "processing", "requires_action", "unknown"].includes(
+        response.payment.status.status,
+      )
+    ) {
+      clearLocalCart();
+    }
+    return response;
+  }
+
+  async function runCheckout<T>(operation: () => Promise<T>): Promise<T> {
+    cart_status.setKey("processing_checkout", true);
+    cart_status.setKey("error", null);
+    try {
+      return await operation();
+    } catch (error) {
+      cart_status.setKey("error", readErrorMessage(error, "Checkout failed."));
+      throw error;
+    } finally {
+      cart_status.setKey("processing_checkout", false);
+    }
+  }
+
   async function checkout(
     input: ArkyCartInput = {},
   ): Promise<StorefrontOrderCheckoutResult> {
     if (checkoutItems(input).length === 0) throw new Error("Cart is empty");
-    cart_status.setKey("processing_checkout", true);
-    cart_status.setKey("error", null);
-    try {
+    return runCheckout(async () => {
       const current = await syncCart(input);
       const quoteValue = quote.get();
       const paymentMethodKey =
@@ -880,111 +782,38 @@ function initializeStoreCore(
           "Card checkout requires a non-negative integer charge amount in minor units",
         );
       }
-      const needsConfirmationToken =
+      const needsHostedCheckout =
         paymentMethodKey === "credit_card" &&
         typeof chargeAmount === "number" &&
         chargeAmount > 0;
-      let confirmationTokenId: string | undefined;
       let returnUrl = input.return_url;
-      const paymentController = input.payment ?? payment_controller.get();
-      const orderCreatedAt = Date.now();
-      const orderProductItems = input.product_items || product_items.get();
-      const orderServiceItems = input.service_items || service_items.get();
 
-      const rememberOrder = (result: StorefrontOrderCheckoutResult): void => {
-        last_order.set({
-          order_id: result.order_id,
-          number: result.number,
-          payment_action: result.payment_action,
-          payment: result.payment,
-          product_items: orderProductItems,
-          service_items: orderServiceItems,
-          shipping_address: input.shipping_address || null,
-          billing_address: input.billing_address || null,
-          total: result.payment.amount,
-          currency: result.payment.currency,
-          payment_method_key: paymentMethodKey || null,
-          created_at: orderCreatedAt,
-        });
-      };
-
-      if (needsConfirmationToken) {
-        if (!paymentController)
-          throw new Error("Payment controller is required for card checkout");
+      if (needsHostedCheckout) {
         returnUrl =
           returnUrl ||
           (typeof window !== "undefined" ? window.location.href : undefined);
-        const token = await paymentController.createConfirmationToken({
+        if (!returnUrl) {
+          throw new Error("A return URL is required for hosted card checkout");
+        }
+      }
+
+      const context: CheckoutContext = {
+        request: {
+          id: current.id,
+          payment_method_key: paymentMethodKey,
           return_url: returnUrl,
-          billing_details: input.billing_details,
-        });
-        confirmationTokenId = token.confirmation_token_id;
-        returnUrl = token.return_url || returnUrl;
-      }
-
-      let response: StorefrontOrderCheckoutResult;
-      try {
-        response = await client.eshop.cart.checkout(
-          {
-            id: current.id,
-            payment_method_key: paymentMethodKey,
-            confirmation_token_id: confirmationTokenId,
-            return_url: returnUrl,
-          },
-          { onScheduledResponse: rememberOrder },
-        );
-      } catch (error) {
-        if (
-          error instanceof ScheduledResultTimeoutError &&
-          isStorefrontOrderCheckoutResult(error.lastResult)
-        ) {
-          rememberOrder(error.lastResult);
-        }
-        throw error;
-      }
-      rememberOrder(response);
-
-      if (response.payment_action.type === "handle_next_action") {
-        if (!paymentController) {
-          throw new Error(
-            "Payment controller is required for card authentication",
-          );
-        }
-        await paymentController.handleNextAction(
-          response.payment_action.client_secret,
-          {
-            connectedAccountId: response.payment_action.connected_account_id,
-          },
-        );
-        response = await pollScheduledResult(
-          response,
-          async (observationSignal) => {
-            const observation = await client.eshop.order.getPayment(
-              { id: response.order_id },
-              { signal: observationSignal },
-            );
-            const observed = checkoutResultFromPayment(response, observation);
-            rememberOrder(observed);
-            return observed;
-          },
-          (result) => isUnresolvedPaymentStatus(result.payment.status.status),
-        );
-      }
-
-      rememberOrder(response);
-      if (
-        input.clear_after_checkout !== false &&
-        !isUnresolvedPaymentStatus(response.payment.status.status)
-      ) {
-        clearLocalCart();
-      }
-      return response;
-    } catch (error) {
-      cart_status.setKey("error", readErrorMessage(error, "Checkout failed."));
-      throw error;
-    } finally {
-      cart_status.setKey("processing_checkout", false);
-    }
+        },
+        product_items: input.product_items || product_items.get(),
+        service_items: input.service_items || service_items.get(),
+        shipping_address: input.shipping_address || null,
+        billing_address: input.billing_address || null,
+        payment_method_key: paymentMethodKey || null,
+        clear_after_checkout: input.clear_after_checkout !== false,
+        created_at: Date.now(),
+      };
+      const response = await client.eshop.cart.checkout(context.request);
+      return finalizeCheckout(context, response);
+    });
   }
 
   function serviceCalendar(): ArkyCalendarDay[] {
@@ -1982,15 +1811,6 @@ function initializeStoreCore(
     clearLocal: clearLocalCart,
     quote: fetchQuote,
     checkout,
-    payment: {
-      controller: payment_controller,
-      ready: payment_ready,
-      setController: setPaymentController,
-      getController: () => payment_controller.get(),
-      mount: mountPayment,
-      update: updatePaymentController,
-      destroy: destroyPaymentController,
-    },
     applyPromoCode(
       code: string,
       input: Omit<ArkyCartInput, "promo_code"> = {},
@@ -2072,7 +1892,6 @@ function initializeStoreCore(
     locale,
     currency,
     allowed_payment_methods,
-    payment_config,
     identify,
     identifyContactEmailIfMissing,
     verify: client.verify,

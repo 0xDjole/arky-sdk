@@ -178,7 +178,6 @@ test("setup is lazy and deduplicated without creating a visitor", async () => {
     languages: { default: "en", available: ["en", "bs"] },
     markets: { default: "bih", available: [] },
     support: { email: null },
-    payment: null,
     readiness: { market: true, payment: false, commerce: false },
   };
 
