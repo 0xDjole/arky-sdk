@@ -3293,11 +3293,27 @@ export interface CustomsItem {
 }
 
 export interface CustomsDeclaration {
-  contents_type: string;
+  contents_type:
+    | "DOCUMENTS"
+    | "GIFT"
+    | "SAMPLE"
+    | "MERCHANDISE"
+    | "HUMANITARIAN_DONATION"
+    | "RETURN_MERCHANDISE"
+    | "OTHER";
   contents_explanation?: string | null;
-  non_delivery_option: string;
+  non_delivery_option: "ABANDON" | "RETURN";
   certify: boolean;
   certify_signer: string;
+  eel_pfc?:
+    | "NOEEI_30_37_a"
+    | "NOEEI_30_37_h"
+    | "NOEEI_30_37_f"
+    | "NOEEI_30_36"
+    | "AES_ITN"
+    | null;
+  aes_itn?: string | null;
+  incoterm?: "DDP" | "DDU" | "FCA" | "DAP" | "eDAP" | null;
   items: CustomsItem[];
 }
 

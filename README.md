@@ -10,11 +10,11 @@ npm install arky-sdk
 
 ## Storefront quick start
 
-The current browser contract is `arky-sdk@0.12.1`. Pin that exact version during the coordinated
+The current browser contract is `arky-sdk@0.12.2`. Pin that exact version during the coordinated
 prelaunch cutover so the Server, App, and storefront route/header contracts move together:
 
 ```bash
-npm install --save-exact arky-sdk@0.12.1
+npm install --save-exact arky-sdk@0.12.2
 ```
 
 Copy the Store publishable key from Developer and initialize one client:

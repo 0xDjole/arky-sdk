@@ -311,6 +311,8 @@ test("shipping rate lookup sends only persisted context identifiers and package 
       non_delivery_option: "RETURN",
       certify: true,
       certify_signer: "Warehouse Operator",
+      eel_pfc: "NOEEI_30_37_a",
+      incoterm: "DDU",
       items: [
         {
           description: "Printed guide",
