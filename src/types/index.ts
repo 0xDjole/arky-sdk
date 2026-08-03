@@ -716,22 +716,22 @@ export interface SocialConnection {
   updated_at: number;
 }
 
-export type PaymentProviderConnectionStatus =
+export type StripeAccountConnectionStatus =
   "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
 
-export type PaymentProviderConnectionError =
+export type StripeAccountConnectionError =
   | { type: "provider_rejected"; message: string; at: number }
   | { type: "provider_call_not_started"; message: string; at: number }
   | { type: "unknown_outcome"; message: string; at: number };
 
-export interface PaymentProviderConnection {
-  status: PaymentProviderConnectionStatus;
+export interface StripeAccountConnection {
+  status: StripeAccountConnectionStatus;
   revision: number;
   attempts: number;
   requested_at: number;
   processing_started_at?: number | null;
   completed_at?: number | null;
-  error?: PaymentProviderConnectionError | null;
+  error?: StripeAccountConnectionError | null;
 }
 
 interface PaymentProviderBase {
@@ -743,7 +743,7 @@ interface PaymentProviderBase {
 }
 
 export interface StripePaymentProvider extends PaymentProviderBase {
-  connection: PaymentProviderConnection;
+  connection: StripeAccountConnection;
   provider: {
     type: "stripe";
     onboarding_status: "pending" | "submitted" | "complete";
@@ -757,7 +757,6 @@ export interface StripePaymentProvider extends PaymentProviderBase {
 export interface MonriPaymentProvider extends PaymentProviderBase {
   provider: {
     type: "monri";
-    configured: boolean;
   };
 }
 

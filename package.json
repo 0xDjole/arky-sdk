@@ -1,6 +1,6 @@
 {
   "name": "arky-sdk",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "description": "Official TypeScript SDK for Arky - website backend for custom frontends",
   "type": "module",
   "main": "./dist/index.cjs",

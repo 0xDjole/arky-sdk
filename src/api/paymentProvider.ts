@@ -5,7 +5,7 @@ import type {
   DeletePaymentProviderParams,
   OpenStripeDashboardParams,
   ListPaymentProvidersParams,
-  RefreshStripePaymentProvidersParams,
+  RefreshStripePaymentProviderParams,
   RequestOptions,
 } from "../types/api";
 import type {
@@ -30,11 +30,11 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
     },
 
     async refreshStripe(
-      params?: RefreshStripePaymentProvidersParams,
+      params?: RefreshStripePaymentProviderParams,
       options?: RequestOptions,
-    ): Promise<StripePaymentProvider[]> {
+    ): Promise<StripePaymentProvider> {
       const targetStoreId = storeId(params?.store_id);
-      return apiConfig.httpClient.post<StripePaymentProvider[]>(
+      return apiConfig.httpClient.post<StripePaymentProvider>(
         `/v1/stores/${targetStoreId}/payment-providers/stripe/refresh`,
         { store_id: targetStoreId },
         options,

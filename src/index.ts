@@ -64,9 +64,9 @@ export type {
   PaymentProvider,
   MonriPaymentProvider,
   StripePaymentProvider,
-  PaymentProviderConnection,
-  PaymentProviderConnectionError,
-  PaymentProviderConnectionStatus,
+  StripeAccountConnection,
+  StripeAccountConnectionError,
+  StripeAccountConnectionStatus,
   StripePaymentProviderConnectResponse,
   OrderPaymentTax,
   OrderPaymentTaxLine,
@@ -556,7 +556,7 @@ export type {
   ListSocialCommentRepliesParams,
   ListSocialConnectionsParams,
   ListSocialPublicationEffectsParams,
-  RefreshStripePaymentProvidersParams,
+  RefreshStripePaymentProviderParams,
   RetrySocialCommentReplyParams,
   ScheduleSocialPublicationParams,
   SyncSocialEngagementParams,
@@ -706,7 +706,7 @@ export type {
   EventScopeField,
 } from "./api/platform";
 
-export const SDK_VERSION = "0.12.0";
+export const SDK_VERSION = "0.12.1";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",

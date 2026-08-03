@@ -117,8 +117,7 @@ test("Monri connection sends only the two merchant credentials", async () => {
     id: "monri-provider",
     store_id: "store-monri",
     key: "monri",
-    provider: { type: "monri", configured: true },
-    connection: { status: "succeeded" },
+    provider: { type: "monri" },
   };
   const { calls, result } = await captureFetch(provider, () =>
     admin().store.paymentProvider.monri.connect({

@@ -2030,7 +2030,7 @@ export interface ListPaymentProvidersParams {
   store_id?: string;
 }
 
-export interface RefreshStripePaymentProvidersParams {
+export interface RefreshStripePaymentProviderParams {
   store_id?: string;
 }
 
