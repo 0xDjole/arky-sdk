@@ -47,7 +47,7 @@ import {
   type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
 } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.12.3" = SDK_VERSION;
+const sdkVersionLiteral: "0.13.0" = SDK_VERSION;
 const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
 // @ts-expect-error the server's serialized feature key is crm_contacts.
 const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
@@ -362,10 +362,10 @@ const storeSubscriptionWithoutCheckout: StoreSubscription = {
   store_id: "store-contract",
   plan_id: "free",
   payment: { currency: "usd", market: "us" },
-  status: "active",
+  billing_status: "active",
   checkout: null,
-  start_date: 1,
-  end_date: 2,
+  access_started_at: 1,
+  access_until: 2,
   created_at: 1,
   updated_at: 1,
 };

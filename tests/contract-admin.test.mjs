@@ -233,15 +233,15 @@ const selectedSubscription = {
   store_id: "contract-store",
   plan_id: "free",
   payment: { currency: "EUR", market: "ba" },
-  status: "pending",
+  billing_status: "pending",
   checkout: {
     plan_id: "basic",
     status: "ready",
     checkout_url: "https://checkout.test/session",
     expires_at: 10,
   },
-  start_date: 1,
-  end_date: 2,
+  access_started_at: 1,
+  access_until: 2,
   created_at: 1,
   updated_at: 2,
 };

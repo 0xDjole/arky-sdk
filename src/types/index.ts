@@ -1280,7 +1280,7 @@ export interface Webhook {
   updated_at: number;
 }
 
-export type StoreSubscriptionStatus =
+export type StoreSubscriptionBillingStatus =
   | "pending"
   | "active"
   | "past_due"
@@ -1308,10 +1308,10 @@ export interface StoreSubscription {
   store_id: string;
   plan_id: string;
   payment: StoreSubscriptionPayment;
-  status: StoreSubscriptionStatus;
+  billing_status: StoreSubscriptionBillingStatus;
   checkout: StoreSubscriptionCheckout | null;
-  start_date: number;
-  end_date: number;
+  access_started_at: number;
+  access_until: number;
   created_at: number;
   updated_at: number;
 }

@@ -48,15 +48,15 @@ test("subscription checkout returns its hosted redirect in one POST", async () =
     store_id: "store-subscription",
     plan_id: "free",
     payment: { currency: "EUR", market: "ba" },
-    status: "pending",
+    billing_status: "pending",
     checkout: {
       plan_id: "pro",
       status: "ready",
       checkout_url: "https://checkout.stripe.test/cs_subscription",
       expires_at: 1_800_000_000,
     },
-    start_date: 1,
-    end_date: 2,
+    access_started_at: 1,
+    access_until: 2,
     created_at: 1,
     updated_at: 2,
   };

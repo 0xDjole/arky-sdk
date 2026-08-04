@@ -86,7 +86,7 @@ export type {
   StoreSubscriptionCheckout,
   StoreSubscriptionCheckoutStatus,
   StoreSubscriptionPayment,
-  StoreSubscriptionStatus,
+  StoreSubscriptionBillingStatus,
   SubscriptionPlan,
   SubscriptionPlanFeature,
   SubscriptionPlanFeatureType,
@@ -706,7 +706,7 @@ export type {
   EventScopeField,
 } from "./api/platform";
 
-export const SDK_VERSION = "0.12.3";
+export const SDK_VERSION = "0.13.0";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
