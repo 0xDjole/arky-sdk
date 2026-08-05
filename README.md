@@ -130,7 +130,7 @@ const page = await italian.cms.entry.get({
 
 Changing the scoped client does not mutate the original client. A market change while the cart contains items throws `CART_MARKET_LOCKED`; the SDK never silently clears or reprices the cart.
 
-## Hosted card checkout
+## Embedded card checkout
 
 Store setup is fetched lazily and deduplicated:
 
@@ -139,21 +139,29 @@ const setup = await arky.store.load();
 console.log(setup.languages.default, setup.markets.default);
 ```
 
-Payment configuration belongs to Arky. A card checkout returns the provider's hosted action; the
-high-level storefront follows that action automatically. Storefront code receives no Stripe or
-Monri credentials:
+Payment configuration belongs to Arky. A card checkout returns a short-lived embedded Stripe
+action. The SDK mounts that exact Checkout Session inside the merchant page; it never redirects the
+ordinary purchase to a Stripe-hosted Checkout page and it never exposes secret credentials:
 
 ```typescript
+import { mountCheckoutAction } from "arky-sdk";
+
 const result = await arky.eshop.cart.checkout({
   payment_method_key: "credit_card",
   return_url: window.location.href,
 });
 
-console.log(result.order_id, result.payment.status);
+const mounted = await mountCheckoutAction(
+  result.payment_action,
+  "#payment",
+  { onComplete: () => arky.eshop.order.get({ id: result.order_id }) },
+);
+
+// Call mounted?.destroy() when the checkout view is disposed.
 ```
 
-The browser return is navigation only. A signed Stripe webhook or authenticated Monri callback is
-what settles the payment.
+Embedded Checkout completion and a browser return are navigation signals only. Authoritative Arky
+state, advanced by a signed Stripe event or an exact provider read, settles the payment.
 
 ## SSR and static generation
 

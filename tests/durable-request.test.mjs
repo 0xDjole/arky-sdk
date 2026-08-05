@@ -308,7 +308,7 @@ test("the exact saved shipping request survives a changed signed rate and can be
     fulfillment_order_id: "fulfillment-1",
     lines: [
       {
-        order_item_id: "item-1",
+        order_product_id: "product-1",
         fulfillment_order_line_id: "line-1",
         quantity: 2,
       },

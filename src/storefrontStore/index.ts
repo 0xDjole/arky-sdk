@@ -9,7 +9,7 @@ export type {
   ArkyCmsState,
   ArkyEshopState,
   ArkyLastOrder,
-  ArkyServiceCartItem,
+  ArkyBookingCartItem,
   ArkyServiceFormGroup,
   ArkyServiceFormState,
   ArkyServiceSlot,

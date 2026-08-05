@@ -92,15 +92,15 @@ test("a fresh cart load resolves Store defaults before hydrating persisted produ
     status: "active",
     origin: "storefront",
     market: "ita",
-    items: [
+    product_items: [
       {
-        type: "product",
         id: "line-hydration-contract",
         product_id: "product-hydration-contract",
         variant_id: "variant-hydration-contract",
         quantity: 1,
       },
     ],
+    booking_items: [],
     forms: [],
     item_count: 1,
     created_at: 1,

@@ -5,7 +5,7 @@ import type {
   ContactListMembershipPaymentAttemptStatus,
   ContactListPlanCatalogStatus,
   ContactListPlanPriceInput,
-  CreateShipmentParams,
+  CreateOrderShipmentParams,
   GetCollectionParams,
   GetShippingRatesParams,
   OrderMoney,
@@ -13,8 +13,8 @@ import type {
   ProductInventoryInput,
   ProductVariant,
   ServiceProvider,
-  Shipment,
-  ShippingStatus,
+  OrderShipment,
+  OrderShipmentStatus,
   SocialConnectionCredential,
   SocialConnectionData,
   SocialConnectionType,
@@ -37,7 +37,7 @@ import type {
   WorkflowTriggerNode,
 } from "../../dist/index.js";
 import type { FindActionsParams, RequestOptions } from "../../dist/types.js";
-import { PaymentMethodType, SDK_VERSION } from "../../dist/index.js";
+import { SDK_VERSION } from "../../dist/index.js";
 import {
   createStorefront,
   initialize,
@@ -47,7 +47,7 @@ import {
   type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
 } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.13.0" = SDK_VERSION;
+const sdkVersionLiteral: "0.14.0" = SDK_VERSION;
 const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
 // @ts-expect-error the server's serialized feature key is crm_contacts.
 const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
@@ -287,9 +287,7 @@ const orderMoney: OrderMoney = {
   tax: null,
   promo_code: null,
   zone_id: null,
-  payment_method_key: "cash",
   shipping_method_id: null,
-  method_type: PaymentMethodType.Cash,
 };
 // @ts-expect-error capture_method is transaction/provider state, not order money.
 orderMoney.capture_method;
@@ -364,17 +362,24 @@ const storeSubscriptionWithoutCheckout: StoreSubscription = {
   payment: { currency: "usd", market: "us" },
   billing_status: "active",
   checkout: null,
+  payment_action: { type: "none" },
   access_started_at: 1,
   access_until: 2,
   created_at: 1,
   updated_at: 1,
 };
-const storeSubscriptionWithoutCheckoutUrl: StoreSubscription = {
+const storeSubscriptionWithEmbeddedCheckout: StoreSubscription = {
   ...storeSubscriptionWithoutCheckout,
   checkout: {
     plan_id: "business",
-    status: "creating",
-    checkout_url: null,
+    status: "requires_action",
+    expires_at: 2,
+  },
+  payment_action: {
+    type: "stripe_embedded_checkout",
+    publishable_key: "pk_test_contract",
+    client_secret: "cs_contract_secret_exact",
+    stripe_account_id: null,
     expires_at: 2,
   },
 };
@@ -389,17 +394,14 @@ const supportMessageWithoutCapability: StorefrontSendSupportMessageParams = {
 declare const account: Account;
 declare const contact: Contact;
 declare const productVariant: ProductVariant;
-declare const shipment: Shipment;
-const shippingProvider: "shippo" = shipment.provider;
-const shipmentAllocation: "reserved" | "fulfilled" | "released" =
-  shipment.allocation_status;
-const shipmentTrackingStatusAtMs: number | null =
-  shipment.tracking_status_at_ms;
-const cancelledShippingStatus: ShippingStatus = "cancelled";
+declare const shipment: OrderShipment;
+const shipmentStatus: OrderShipmentStatus = shipment.status;
+const shipmentTrackingStatusAt: number | null | undefined = shipment.tracking_status_at;
+const cancelledShippingStatus: OrderShipmentStatus = "cancelled";
 const shippingRateRequest: GetShippingRatesParams = {
   order_id: "order-contract",
   location_id: "location-contract",
-  lines: [{ order_item_id: "item-contract", quantity: 1 }],
+  lines: [{ order_product_id: "product-contract", quantity: 1 }],
   parcel: {
     length: 100,
     width: 75,
@@ -409,7 +411,7 @@ const shippingRateRequest: GetShippingRatesParams = {
     mass_unit: "g",
   },
 };
-const createShipmentRequest: CreateShipmentParams = {
+const createShipmentRequest: CreateOrderShipmentParams = {
   order_id: "order-contract",
   shipment_id: "018f477d-1cae-7c12-bf12-123456789abc",
   rate_id: "signed-rate-contract",
@@ -417,7 +419,7 @@ const createShipmentRequest: CreateShipmentParams = {
   fulfillment_order_id: "fulfillment-contract",
   lines: [
     {
-      order_item_id: "item-contract",
+      order_product_id: "product-contract",
       fulfillment_order_line_id: "fulfillment-line-contract",
       quantity: 1,
     },
@@ -565,12 +567,13 @@ void [
   tiktokInitializeEffect,
   tiktokUploadEffect,
   clearCartAddresses,
-  shipmentTrackingStatusAtMs,
+  shipmentStatus,
+  shipmentTrackingStatusAt,
   supportCapability,
   storefrontSupportMessage,
   storefrontSupportRead,
   storeSubscriptionWithoutCheckout,
-  storeSubscriptionWithoutCheckoutUrl,
+  storeSubscriptionWithEmbeddedCheckout,
   supportMessageWithoutCapability,
   account,
   contact,

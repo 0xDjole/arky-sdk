@@ -45,7 +45,7 @@ export type AnalyticsReportKey =
   | "taxonomies_by_status"
   | "carts_by_status"
   | "orders_by_status"
-  | "order_items_by_status"
+  | "order_products_by_status"
   | "recent_action";
 
 export type ActionFeedCategory =
@@ -285,7 +285,7 @@ export type AnalyticsBreakdownReportKey =
   | "taxonomies_by_status"
   | "carts_by_status"
   | "orders_by_status"
-  | "order_items_by_status";
+  | "order_products_by_status";
 
 export type AnalyticsActionReportKey = "recent_action";
 

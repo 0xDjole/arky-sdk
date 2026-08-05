@@ -42,7 +42,7 @@ async function captureFetch(responseBody, request) {
   }
 }
 
-test("subscription checkout returns its hosted redirect in one POST", async () => {
+test("subscription checkout returns its embedded Stripe action in one POST", async () => {
   const subscription = {
     id: "subscription-contract",
     store_id: "store-subscription",
@@ -51,8 +51,14 @@ test("subscription checkout returns its hosted redirect in one POST", async () =
     billing_status: "pending",
     checkout: {
       plan_id: "pro",
-      status: "ready",
-      checkout_url: "https://checkout.stripe.test/cs_subscription",
+      status: "requires_action",
+      expires_at: 1_800_000_000,
+    },
+    payment_action: {
+      type: "stripe_embedded_checkout",
+      publishable_key: "pk_test_subscription",
+      client_secret: "cs_subscription_secret_exact",
+      stripe_account_id: null,
       expires_at: 1_800_000_000,
     },
     access_started_at: 1,
@@ -108,35 +114,6 @@ test("payment-provider deletion uses one request", async () => {
       url: `${baseUrl}/v1/stores/store-deletion/payment-providers/provider-contract`,
       method: "DELETE",
       body: undefined,
-    },
-  ]);
-});
-
-test("Monri connection sends only the two merchant credentials", async () => {
-  const provider = {
-    id: "monri-provider",
-    store_id: "store-monri",
-    key: "monri",
-    provider: { type: "monri" },
-  };
-  const { calls, result } = await captureFetch(provider, () =>
-    admin().store.paymentProvider.monri.connect({
-      store_id: "store-monri",
-      authenticity_token: "a".repeat(40),
-      merchant_key: "merchant-secret",
-    }),
-  );
-
-  assert.deepEqual(result, provider);
-  assert.deepEqual(calls, [
-    {
-      url: `${baseUrl}/v1/stores/store-monri/payment-providers/monri/connect`,
-      method: "POST",
-      body: {
-        store_id: "store-monri",
-        authenticity_token: "a".repeat(40),
-        merchant_key: "merchant-secret",
-      },
     },
   ]);
 });
@@ -296,7 +273,7 @@ test("shipping rate lookup sends only persisted context identifiers and package 
   const request = {
     order_id: "order-shipping-contract",
     location_id: "location-contract",
-    lines: [{ order_item_id: "item-contract", quantity: 2 }],
+    lines: [{ order_product_id: "product-contract", quantity: 2 }],
     parcel: {
       length: 150,
       width: 100,
@@ -437,7 +414,7 @@ test("provider-effect APIs send one resource identity and return direct server e
           fulfillment_order_id: null,
           lines: [
             {
-              order_item_id: "item-contract",
+              order_product_id: "product-contract",
               fulfillment_order_line_id: null,
               quantity: 2,
             },
@@ -453,7 +430,7 @@ test("provider-effect APIs send one resource identity and return direct server e
           fulfillment_order_id: null,
           lines: [
             {
-              order_item_id: "item-contract",
+              order_product_id: "product-contract",
               fulfillment_order_line_id: null,
               quantity: 2,
             },
@@ -524,7 +501,7 @@ test("money and shipping clients reject evidence for any other resource ID", asy
           fulfillment_order_id: null,
           lines: [
             {
-              order_item_id: "item-contract",
+              order_product_id: "product-contract",
               fulfillment_order_line_id: null,
               quantity: 1,
             },

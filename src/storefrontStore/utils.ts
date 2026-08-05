@@ -18,11 +18,11 @@ import type {
 } from "../types";
 import type {
   AvailabilityResponse,
-  ProductCheckoutItemInput,
-  ServiceCheckoutItemInput,
+  CartProductInput,
+  CartBookingInput,
 } from "../types/api";
 import type { StorefrontDto } from "../api/storefront";
-import type { ArkyServiceCartItem, ArkyServiceState, ArkyStoreClient } from "./types";
+import type { ArkyBookingCartItem, ArkyServiceState, ArkyStoreClient } from "./types";
 
 type StorefrontProduct = StorefrontDto<Product>;
 type StorefrontProductVariant = StorefrontDto<ProductVariant>;
@@ -148,9 +148,8 @@ export function createFormEntry(formId: string, fields: FormField[]): FormEntry 
   return { form_id: formId, fields };
 }
 
-export function toProductCheckoutItems(items: EshopCartItem[]): ProductCheckoutItemInput[] {
+export function toCartProducts(items: EshopCartItem[]): CartProductInput[] {
   return items.map((item) => ({
-    type: "product",
     id: item.id,
     product_id: item.product_id,
     variant_id: item.variant_id,
@@ -158,9 +157,8 @@ export function toProductCheckoutItems(items: EshopCartItem[]): ProductCheckoutI
   }));
 }
 
-export function toServiceCheckoutItems(items: ArkyServiceCartItem[]): ServiceCheckoutItemInput[] {
+export function toCartBookings(items: ArkyBookingCartItem[]): CartBookingInput[] {
   return items.map((item) => ({
-    type: "service",
     id: item.id,
     service_id: item.service_id,
     provider_id: item.provider_id,

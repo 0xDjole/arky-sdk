@@ -49,7 +49,7 @@ export interface ArkySubmitFormByKeyParams {
   values: FormValues;
 }
 
-export interface ArkyServiceCartItem {
+export interface ArkyBookingCartItem {
   id: string;
   service_id: string;
   provider_id: string;
@@ -66,7 +66,7 @@ export interface ArkyServiceCartItem {
 export interface ArkyCartSnapshot {
   cart: StorefrontCart | null;
   product_items: EshopCartItem[];
-  service_items: ArkyServiceCartItem[];
+  booking_items: ArkyBookingCartItem[];
   item_count: number;
 }
 
@@ -87,7 +87,7 @@ export interface ArkyLastOrder {
   payment_action: StorefrontOrderCheckoutResult["payment_action"];
   payment: StorefrontOrderCheckoutResult["payment"];
   product_items?: EshopCartItem[];
-  service_items?: ArkyServiceCartItem[];
+  booking_items?: ArkyBookingCartItem[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   total?: number;
@@ -98,7 +98,7 @@ export interface ArkyLastOrder {
 
 export interface ArkyCartInput {
   product_items?: EshopCartItem[];
-  service_items?: ArkyServiceCartItem[];
+  booking_items?: ArkyBookingCartItem[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   forms?: FormEntry[];

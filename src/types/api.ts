@@ -11,7 +11,7 @@ import type {
   Parcel,
   CustomsDeclaration,
   ShippingRateLine,
-  ShipmentLine,
+  OrderShipmentLine,
   TaxonomyEntry,
   TaxonomyQuery,
   PaymentMethod,
@@ -45,8 +45,6 @@ import type {
   ContactListType,
   ContactListSource,
   ContactListPlanStatus,
-  ContactListContentAccess,
-  ContactListContentAccessTarget,
   ContactListMembershipStatus,
   MailboxStatus,
   SmtpImapMailboxProviderInput,
@@ -120,16 +118,14 @@ export interface DeleteMarketParams {
   replacement_default_market_id?: string;
 }
 
-export interface ProductCheckoutItemInput {
-  type: "product";
+export interface CartProductInput {
   id?: string;
   product_id: string;
   variant_id: string;
   quantity: number;
 }
 
-export interface ProductQuoteItemInput {
-  type: "product";
+export interface ProductQuoteInput {
   product_id: string;
   variant_id: string;
   quantity: number;
@@ -141,8 +137,7 @@ export interface SlotRange {
   to: number;
 }
 
-export interface ServiceQuoteItemInput {
-  type: "service";
+export interface BookingQuoteInput {
   service_id: string;
   provider_id: string;
   slots: SlotRange[];
@@ -150,8 +145,7 @@ export interface ServiceQuoteItemInput {
   price?: Price;
 }
 
-export interface ServiceCheckoutItemInput {
-  type: "service";
+export interface CartBookingInput {
   id?: string;
   service_id: string;
   provider_id: string;
@@ -159,26 +153,19 @@ export interface ServiceCheckoutItemInput {
   forms?: FormEntry[];
 }
 
-export type OrderQuoteItemInput = ProductQuoteItemInput | ServiceQuoteItemInput;
-
-export type OrderCheckoutItemInput =
-  ProductCheckoutItemInput | ServiceCheckoutItemInput;
-
-export interface TrustedProductCheckoutItemInput extends ProductCheckoutItemInput {
+export interface TrustedCartProductInput extends CartProductInput {
   price?: Price;
 }
 
-export interface TrustedServiceCheckoutItemInput extends ServiceCheckoutItemInput {
+export interface TrustedCartBookingInput extends CartBookingInput {
   price?: Price;
 }
-
-export type TrustedOrderCheckoutItemInput =
-  TrustedProductCheckoutItemInput | TrustedServiceCheckoutItemInput;
 
 export interface GetQuoteParams {
   store_id?: string;
   market?: string;
-  items: OrderQuoteItemInput[];
+  products: ProductQuoteInput[];
+  bookings: BookingQuoteInput[];
   shipping_address?: Address;
   billing_address?: Address;
   forms?: FormEntry[];
@@ -214,7 +201,8 @@ export interface CreateCartParams {
   store_id?: string;
   contact_id: string;
   market: string;
-  items?: TrustedOrderCheckoutItemInput[];
+  product_items?: TrustedCartProductInput[];
+  booking_items?: TrustedCartBookingInput[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   forms?: FormEntry[];
@@ -227,7 +215,8 @@ export interface UpdateCartParams {
   id: string;
   store_id?: string;
   market?: string;
-  items?: OrderCheckoutItemInput[];
+  product_items?: CartProductInput[];
+  booking_items?: CartBookingInput[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   forms?: FormEntry[];
@@ -236,10 +225,16 @@ export interface UpdateCartParams {
   shipping_method_id?: string;
 }
 
-export interface AddCartItemParams {
+export interface AddCartProductParams {
   id: string;
   store_id?: string;
-  item: OrderCheckoutItemInput;
+  product: CartProductInput;
+}
+
+export interface AddCartBookingParams {
+  id: string;
+  store_id?: string;
+  booking: CartBookingInput;
 }
 
 export type RemoveCartItemParams = {
@@ -439,26 +434,6 @@ export interface GetServicesParams {
   to?: number;
 }
 
-export interface TimelinePoint {
-  timestamp: number;
-  booked: number;
-}
-
-export interface ProviderWithTimeline {
-  id: string;
-  key: string;
-  store_id: string;
-  slug: Record<string, string>;
-  status: ProviderStatus;
-  blocks: Block[];
-  taxonomies: TaxonomyEntry[];
-  created_at: number;
-  updated_at: number;
-  working_days?: WorkingDay[];
-  specific_dates?: SpecificDate[];
-  timeline: TimelinePoint[];
-}
-
 export interface GetAnalyticsParams {
   metrics?: string[];
   period?: string;
@@ -620,10 +595,6 @@ export interface CreateProductVariantInput {
   inventory: ProductInventoryInput[];
   attributes: Block[];
   requires_shipping?: boolean;
-  digital_delivery_policy?: import("./index").DigitalDeliveryPolicy;
-  digital_assets?: import("./index").DigitalAsset[];
-  download_limit?: number | null;
-  access_expires_after_days?: number | null;
   tax_category_id?: string | null;
   weight?: number;
 }
@@ -635,10 +606,6 @@ export interface UpdateProductVariantInput {
   inventory?: ProductInventoryInput[];
   attributes?: Block[];
   requires_shipping?: boolean;
-  digital_delivery_policy?: import("./index").DigitalDeliveryPolicy;
-  digital_assets?: import("./index").DigitalAsset[];
-  download_limit?: number | null;
-  access_expires_after_days?: number | null;
   tax_category_id?: string | null;
   weight?: number | null;
 }
@@ -681,7 +648,8 @@ export interface GetOrdersParams {
   store_id?: string;
   contact_id?: string;
   statuses?: string[];
-  item_statuses?: string[];
+  product_statuses?: string[];
+  booking_statuses?: string[];
   product_ids?: string[];
   service_ids?: string[];
   provider_ids?: string[];
@@ -699,7 +667,7 @@ export interface GetOrdersParams {
 
 export interface UpdateOrderParams {
   id: string;
-  revision: number;
+  version: number;
   store_id?: string;
   confirm?: boolean;
   cancel?: boolean;
@@ -708,7 +676,8 @@ export interface UpdateOrderParams {
 
   billing_address?: Address | null;
   forms?: FormEntry[];
-  items?: TrustedOrderCheckoutItemInput[];
+  product_items?: TrustedCartProductInput[];
+  booking_items?: TrustedCartBookingInput[];
 }
 
 export interface CreateProviderParams {
@@ -837,43 +806,6 @@ export interface GetProvidersParams {
 export type GetProviderParams = {
   store_id?: string;
 } & ({ id: string; slug?: never } | { id?: never; slug: string });
-
-export interface SearchOrderServiceItemsParams {
-  store_id?: string;
-  contact_id?: string;
-  service_ids?: string[];
-  provider_ids?: string[];
-  from?: number;
-  to?: number;
-  item_statuses?: string[];
-  sort_field?: string;
-  sort_order?: string;
-  limit?: number;
-  cursor?: string;
-  verified?: boolean;
-
-  query?: string | number;
-  contact_list_id?: string;
-}
-
-export interface FindDigitalAccessGrantsParams {
-  order_id: string;
-  store_id?: string;
-  limit?: number;
-  cursor?: string;
-}
-
-export interface GetDigitalAccessGrantParams {
-  order_id: string;
-  grant_id: string;
-  store_id?: string;
-}
-
-export type DownloadDigitalAccessParams = GetDigitalAccessGrantParams;
-
-export interface ActivateDigitalAccessGrantParams extends GetDigitalAccessGrantParams {}
-
-export interface RevokeDigitalAccessGrantParams extends GetDigitalAccessGrantParams {}
 
 export interface UpdateAccountContactParams {}
 
@@ -1125,22 +1057,29 @@ export interface GetOrderPaymentParams {
   store_id?: string;
 }
 
-export interface RetryPaymentTransactionParams {
-  order_id: string;
-  transaction_id: string;
-  store_id?: string;
-}
-
-export interface FindPaymentTransactionsParams {
+export interface FindOrderPaymentAttemptsParams {
   order_id: string;
   store_id?: string;
   limit?: number;
   cursor?: string | null;
 }
 
-export interface GetPaymentTransactionParams {
+export interface GetOrderPaymentAttemptParams {
   order_id: string;
-  transaction_id: string;
+  attempt_id: string;
+  store_id?: string;
+}
+
+export interface FindOrderDisputesParams {
+  order_id: string;
+  store_id?: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface GetOrderDisputeParams {
+  order_id: string;
+  dispute_id: string;
   store_id?: string;
 }
 
@@ -1311,7 +1250,6 @@ export interface CreateContactListParams {
   name?: string;
   description?: string | null;
   type?: ContactListType;
-  content_access?: ContactListContentAccess[];
   source?: ContactListSource;
 }
 
@@ -1323,7 +1261,6 @@ export interface UpdateContactListParams {
   description?: string | null;
   status?: ContactListStatus;
   type?: ContactListType;
-  content_access?: ContactListContentAccess[];
 }
 
 export interface CreateContactListPlanParams {
@@ -1626,9 +1563,6 @@ export interface SubscribeContactListParams {
   price_id?: string;
   confirm_url?: string;
   return_url?: string;
-  billing_address?: Address;
-  /** Required for a recurring Monri plan after the customer accepts recurring charges. */
-  recurring_payment_consent?: boolean;
 }
 
 export interface GetStorefrontContactListSubscriptionAttemptParams {
@@ -1640,11 +1574,6 @@ export interface GetStorefrontContactListSubscriptionAttemptParams {
 export interface ContactListAccessParams {
   store_id?: string;
   id: string;
-}
-
-export interface ContactListContentAccessParams {
-  store_id?: string;
-  target: ContactListContentAccessTarget;
 }
 
 export interface ManageContactListParams {
@@ -2044,12 +1973,6 @@ export interface ConnectStripePaymentProviderParams {
   connected_account_id?: string | null;
 }
 
-export interface ConnectMonriPaymentProviderParams {
-  store_id?: string;
-  authenticity_token: string;
-  merchant_key: string;
-}
-
 export interface DeletePaymentProviderParams {
   store_id: string;
   id: string;
@@ -2275,14 +2198,14 @@ export interface GetShippingRatesParams {
   customs_declaration?: CustomsDeclaration;
 }
 
-export interface FindShipmentsParams {
+export interface FindOrderShipmentsParams {
   store_id?: string;
   order_id: string;
   limit?: number;
   cursor?: string;
 }
 
-export type FindFulfillmentOrdersParams = FindShipmentsParams;
+export type FindFulfillmentOrdersParams = FindOrderShipmentsParams;
 
 export interface GetFulfillmentOrderParams {
   store_id?: string;
@@ -2290,46 +2213,38 @@ export interface GetFulfillmentOrderParams {
   fulfillment_order_id: string;
 }
 
-export interface GetShipmentParams {
+export interface GetOrderShipmentParams {
   store_id?: string;
   order_id: string;
   shipment_id: string;
 }
 
-export interface CreateShipmentParams {
+export interface CreateOrderShipmentParams {
   store_id?: string;
   order_id: string;
   shipment_id: string;
   rate_id: string;
   location_id: string;
-  fulfillment_order_id?: string | null;
-  lines: ShipmentLine[];
+  fulfillment_order_id: string;
+  lines: OrderShipmentLine[];
 }
 
-export type RetryShipmentParams = GetShipmentParams;
+export type RetryOrderShipmentParams = GetOrderShipmentParams;
 
-export type RequestShippingLabelRefundParams = GetShipmentParams;
+export type RequestShippoLabelRefundParams = GetOrderShipmentParams;
 
-export interface FindShippingLabelRefundsParams extends FindShipmentsParams {
+export type RetryShippoLabelRefundParams = GetOrderShipmentParams;
+
+export interface FindOrderShipmentSettlementsParams extends FindOrderShipmentsParams {
   shipment_id: string;
 }
 
-export interface GetShippingLabelRefundParams extends GetShipmentParams {
-  refund_id: string;
-}
-
-export type RetryShippingLabelRefundParams = GetShippingLabelRefundParams;
-
-export interface FindShippingLabelSettlementsParams extends FindShipmentsParams {
-  shipment_id: string;
-}
-
-export interface GetShippingLabelSettlementParams extends GetShipmentParams {
+export interface GetOrderShipmentSettlementParams extends GetOrderShipmentParams {
   settlement_id: string;
 }
 
-export type RetryShippingLabelSettlementParams =
-  GetShippingLabelSettlementParams;
+export type RetryOrderShipmentSettlementParams =
+  GetOrderShipmentSettlementParams;
 
 export interface AuthToken {
   id: string;

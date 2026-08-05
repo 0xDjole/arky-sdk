@@ -120,7 +120,6 @@ assert.equal(
   "function",
 );
 assert.equal(typeof arky.store.paymentProvider.delete, "function");
-assert.equal(typeof arky.store.paymentProvider.monri.connect, "function");
 assert.equal(typeof arky.media.replaceMediaContent, "function");
 
 const customerContactListCalls = [];
@@ -236,8 +235,14 @@ const selectedSubscription = {
   billing_status: "pending",
   checkout: {
     plan_id: "basic",
-    status: "ready",
-    checkout_url: "https://checkout.test/session",
+    status: "requires_action",
+    expires_at: 10,
+  },
+  payment_action: {
+    type: "stripe_embedded_checkout",
+    publishable_key: "pk_test_subscription",
+    client_secret: "cs_subscription_secret_contract",
+    stripe_account_id: null,
     expires_at: 10,
   },
   access_started_at: 1,
@@ -289,10 +294,11 @@ try {
     plan_id: "basic",
     return_url: "https://admin.test/return",
   });
-  assert.equal(subscription.checkout.status, "ready");
+  assert.equal(subscription.checkout.status, "requires_action");
+  assert.equal(subscription.payment_action.type, "stripe_embedded_checkout");
   assert.equal(
-    subscription.checkout.checkout_url,
-    "https://checkout.test/session",
+    subscription.payment_action.client_secret,
+    "cs_subscription_secret_contract",
   );
 
   assert.deepEqual(
@@ -470,14 +476,10 @@ assert.equal(typeof arky.crm.contactList.findMembers, "function");
 assert.equal(typeof arky.eshop.order.createRefund, "function");
 assert.equal(typeof arky.eshop.order.getRefunds, "function");
 assert.equal(typeof arky.eshop.order.getPayment, "function");
-assert.equal(typeof arky.eshop.order.getPaymentTransactions, "function");
-assert.equal(typeof arky.eshop.order.getPaymentTransaction, "function");
-assert.equal(typeof arky.eshop.order.retryPaymentTransaction, "function");
-assert.equal(typeof arky.eshop.order.findDigitalAccess, "function");
-assert.equal(typeof arky.eshop.order.getDigitalAccess, "function");
-assert.equal(typeof arky.eshop.order.downloadDigitalAccess, "function");
-assert.equal(typeof arky.eshop.order.activateDigitalAccess, "function");
-assert.equal(typeof arky.eshop.order.revokeDigitalAccess, "function");
+assert.equal(typeof arky.eshop.order.getPaymentAttempts, "function");
+assert.equal(typeof arky.eshop.order.getPaymentAttempt, "function");
+assert.equal(typeof arky.eshop.order.getDisputes, "function");
+assert.equal(typeof arky.eshop.order.getDispute, "function");
 assert.equal(typeof arky.eshop.shipment.getRates, "function");
 assert.equal(typeof arky.eshop.shipment.create, "function");
 assert.equal(typeof arky.eshop.shipment.fulfillment.find, "function");
@@ -486,39 +488,18 @@ assert.equal(typeof arky.eshop.shipment.refund.retry, "function");
 assert.equal(typeof arky.eshop.shipment.settlement.get, "function");
 assert.equal(typeof arky.eshop.shipment.settlement.retry, "function");
 
-const digitalAccessCalls = [];
+const fulfillmentCalls = [];
 globalThis.fetch = async (url, init = {}) => {
-  digitalAccessCalls.push({ url: String(url), method: init.method });
-  const body =
-    String(url).endsWith("/digital-access") ||
-    String(url).endsWith("/fulfillment-orders")
-      ? { items: [], cursor: null }
-      : String(url).endsWith("/download")
-        ? { url: "https://download.test", grant: {} }
-        : {};
+  fulfillmentCalls.push({ url: String(url), method: init.method });
+  const body = String(url).includes("/fulfillment-orders?")
+    ? { items: [], cursor: null }
+    : {};
   return new Response(JSON.stringify(body), {
     status: 200,
     headers: { "content-type": "application/json" },
   });
 };
 try {
-  await arky.eshop.order.findDigitalAccess({ order_id: "order-1", limit: 20 });
-  await arky.eshop.order.getDigitalAccess({
-    order_id: "order-1",
-    grant_id: "grant-1",
-  });
-  await arky.eshop.order.downloadDigitalAccess({
-    order_id: "order-1",
-    grant_id: "grant-1",
-  });
-  await arky.eshop.order.activateDigitalAccess({
-    order_id: "order-1",
-    grant_id: "grant-1",
-  });
-  await arky.eshop.order.revokeDigitalAccess({
-    order_id: "order-1",
-    grant_id: "grant-1",
-  });
   await arky.eshop.shipment.fulfillment.find({
     order_id: "order-1",
     limit: 20,
@@ -531,28 +512,8 @@ try {
   globalThis.fetch = originalFetch;
 }
 assert.deepEqual(
-  digitalAccessCalls.map(({ url, method }) => [url, method]),
+  fulfillmentCalls.map(({ url, method }) => [url, method]),
   [
-    [
-      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access?limit=20",
-      "GET",
-    ],
-    [
-      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1",
-      "GET",
-    ],
-    [
-      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1/download",
-      "POST",
-    ],
-    [
-      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1/activate",
-      "POST",
-    ],
-    [
-      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/digital-access/grant-1/revoke",
-      "POST",
-    ],
     [
       "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/fulfillment-orders?limit=20",
       "GET",
@@ -567,7 +528,7 @@ assert.deepEqual(
 const paymentCalls = [];
 globalThis.fetch = async (url, init = {}) => {
   paymentCalls.push({ url: String(url), method: init.method });
-  const body = String(url).endsWith("/transactions")
+  const body = String(url).includes("/attempts?")
     ? { items: [], cursor: null }
     : {};
   return new Response(JSON.stringify(body), {
@@ -577,17 +538,13 @@ globalThis.fetch = async (url, init = {}) => {
 };
 try {
   await arky.eshop.order.getPayment({ order_id: "order-1" });
-  await arky.eshop.order.getPaymentTransactions({
+  await arky.eshop.order.getPaymentAttempts({
     order_id: "order-1",
     limit: 20,
   });
-  await arky.eshop.order.getPaymentTransaction({
+  await arky.eshop.order.getPaymentAttempt({
     order_id: "order-1",
-    transaction_id: "transaction-1",
-  });
-  await arky.eshop.order.retryPaymentTransaction({
-    order_id: "order-1",
-    transaction_id: "transaction-1",
+    attempt_id: "attempt-1",
   });
 } finally {
   globalThis.fetch = originalFetch;
@@ -600,16 +557,12 @@ assert.deepEqual(
       "GET",
     ],
     [
-      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/transactions?limit=20",
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/attempts?limit=20",
       "GET",
     ],
     [
-      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/transactions/transaction-1",
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/attempts/attempt-1",
       "GET",
-    ],
-    [
-      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/transactions/transaction-1/retry",
-      "POST",
     ],
   ],
 );

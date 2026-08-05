@@ -11,8 +11,12 @@ export {
   initialize,
 } from "./storefrontStore";
 
-export { followCheckoutAction } from "./checkout";
-export type { MonriFormAction, StripeCheckoutAction } from "./checkout";
+export { createStripeEmbeddedCheckout, mountCheckoutAction } from "./checkout";
+export type {
+  EmbeddedCheckoutCallbacks,
+  EmbeddedCheckoutMount,
+  StripeEmbeddedCheckoutAction,
+} from "./checkout";
 export { getBlockContentValue } from "./utils/blocks";
 export type {
   ArkyCartInput,
@@ -23,7 +27,7 @@ export type {
   ArkyCmsState,
   ArkyEshopState,
   ArkyLastOrder,
-  ArkyServiceCartItem,
+  ArkyBookingCartItem,
   ArkyServiceFormGroup,
   ArkyServiceFormState,
   ArkyServiceSlot,
@@ -39,7 +43,8 @@ export type {
   CommonActionKey,
   CartApi,
   CartController,
-  CartControllerAddItemParams,
+  CartControllerAddProductParams,
+  CartControllerAddBookingParams,
   CartControllerCheckoutParams,
   CartControllerClearParams,
   CartControllerInitParams,

@@ -17,7 +17,8 @@ import type {
   GetQuoteParams,
   GetAvailabilityParams,
   AvailabilityResponse,
-  AddCartItemParams,
+  AddCartBookingParams,
+  AddCartProductParams,
   CheckoutCartParams,
   ClearCartParams,
   CreateCartParams,
@@ -31,19 +32,15 @@ import type {
   UpdateServiceProviderParams,
   GetOrderParams,
   GetOrdersParams,
-  FindDigitalAccessGrantsParams,
-  GetDigitalAccessGrantParams,
-  DownloadDigitalAccessParams,
-  ActivateDigitalAccessGrantParams,
-  RevokeDigitalAccessGrantParams,
   CreateOrderRefundParams,
   CreateOrderRefundResponse,
   FindOrderRefundsParams,
   GetOrderRefundParams,
   GetOrderPaymentParams,
-  RetryPaymentTransactionParams,
-  FindPaymentTransactionsParams,
-  GetPaymentTransactionParams,
+  FindOrderPaymentAttemptsParams,
+  GetOrderPaymentAttemptParams,
+  FindOrderDisputesParams,
+  GetOrderDisputeParams,
   QuoteCartParams,
   RemoveCartItemParams,
   RequestOptions,
@@ -51,16 +48,15 @@ import type {
 } from "../types/api";
 import type {
   Order,
-  DigitalAccessGrant,
-  DigitalAccessDownloadResponse,
   Product,
   Provider,
   Service,
   ServiceProvider,
   OrderQuote,
   OrderRefund,
-  OrderPaymentObservation,
-  PaymentTransaction,
+  OrderPayment,
+  OrderPaymentAttempt,
+  OrderDispute,
   Cart,
   PaginatedResponse,
 } from "../types";
@@ -348,11 +344,12 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: UpdateOrderParams,
       options?: RequestOptions,
     ): Promise<Order> {
-      const { store_id, items, ...rest } = params;
+      const { store_id, product_items, booking_items, ...rest } = params;
       const target_store_id = store_id || apiConfig.storeId;
       const payload = {
         ...rest,
-        ...(items ? { items } : {}),
+        ...(product_items ? { product_items } : {}),
+        ...(booking_items ? { booking_items } : {}),
       };
 
       return apiConfig.httpClient.put<Order>(
@@ -425,7 +422,8 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         `/v1/stores/${target_store_id}/carts`,
         {
           ...payload,
-          items: payload.items || [],
+          product_items: payload.product_items || [],
+          booking_items: payload.booking_items || [],
         },
         options,
       );
@@ -435,27 +433,41 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: UpdateCartParams,
       options?: RequestOptions,
     ): Promise<Cart> {
-      const { id, store_id, items, ...payload } = params;
+      const { id, store_id, product_items, booking_items, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.put<Cart>(
         `/v1/stores/${target_store_id}/carts/${id}`,
         {
           ...payload,
-          ...(items ? { items } : {}),
+          ...(product_items ? { product_items } : {}),
+          ...(booking_items ? { booking_items } : {}),
         },
         options,
       );
     },
 
-    async addCartItem(
-      params: AddCartItemParams,
+    async addCartProduct(
+      params: AddCartProductParams,
       options?: RequestOptions,
     ): Promise<Cart> {
-      const { id, store_id, item } = params;
+      const { id, store_id, product } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<Cart>(
-        `/v1/stores/${target_store_id}/carts/${id}/items`,
-        { item },
+        `/v1/stores/${target_store_id}/carts/${id}/product-items`,
+        { product },
+        options,
+      );
+    },
+
+    async addCartBooking(
+      params: AddCartBookingParams,
+      options?: RequestOptions,
+    ): Promise<Cart> {
+      const { id, store_id, booking } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<Cart>(
+        `/v1/stores/${target_store_id}/carts/${id}/booking-items`,
+        { booking },
         options,
       );
     },
@@ -512,7 +524,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: GetQuoteParams,
       options?: RequestOptions,
     ): Promise<OrderQuote> {
-      const { location, store_id, items, ...rest } = params;
+      const { location, store_id, products, bookings, ...rest } = params;
       const target_store_id = store_id || apiConfig.storeId;
       const shipping_address = location
         ? {
@@ -529,7 +541,8 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         `/v1/stores/${target_store_id}/orders/quote`,
         {
           ...rest,
-          items,
+          products,
+          bookings,
           shipping_address,
           market: rest.market || apiConfig.market,
         },
@@ -580,48 +593,56 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     async getPayment(
       params: GetOrderPaymentParams,
       options?: RequestOptions,
-    ): Promise<OrderPaymentObservation> {
+    ): Promise<OrderPayment> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<OrderPaymentObservation>(
+      return apiConfig.httpClient.get<OrderPayment>(
         `/v1/stores/${target_store_id}/orders/${params.order_id}/payment`,
         options,
       );
     },
 
-    async retryPaymentTransaction(
-      params: RetryPaymentTransactionParams,
+    async getPaymentAttempts(
+      params: FindOrderPaymentAttemptsParams,
       options?: RequestOptions,
-    ): Promise<PaymentTransaction> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      const path =
-        `/v1/stores/${target_store_id}/orders/${params.order_id}` +
-        `/payment/transactions/${params.transaction_id}`;
-      return apiConfig.httpClient.post<PaymentTransaction>(
-        `${path}/retry`,
-        {},
-        options,
-      );
-    },
-
-    async getPaymentTransactions(
-      params: FindPaymentTransactionsParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<PaymentTransaction>> {
+    ): Promise<PaginatedResponse<OrderPaymentAttempt>> {
       const { order_id, store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<PaymentTransaction>>(
-        `/v1/stores/${target_store_id}/orders/${order_id}/payment/transactions`,
+      return apiConfig.httpClient.get<PaginatedResponse<OrderPaymentAttempt>>(
+        `/v1/stores/${target_store_id}/orders/${order_id}/payment/attempts`,
         { ...options, params: queryParams },
       );
     },
 
-    async getPaymentTransaction(
-      params: GetPaymentTransactionParams,
+    async getPaymentAttempt(
+      params: GetOrderPaymentAttemptParams,
       options?: RequestOptions,
-    ): Promise<PaymentTransaction> {
+    ): Promise<OrderPaymentAttempt> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaymentTransaction>(
-        `/v1/stores/${target_store_id}/orders/${params.order_id}/payment/transactions/${params.transaction_id}`,
+      return apiConfig.httpClient.get<OrderPaymentAttempt>(
+        `/v1/stores/${target_store_id}/orders/${params.order_id}/payment/attempts/${params.attempt_id}`,
+        options,
+      );
+    },
+
+    async getDisputes(
+      params: FindOrderDisputesParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<OrderDispute>> {
+      const { order_id, store_id, ...queryParams } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<PaginatedResponse<OrderDispute>>(
+        `/v1/stores/${target_store_id}/orders/${order_id}/disputes`,
+        { ...options, params: queryParams },
+      );
+    },
+
+    async getDispute(
+      params: GetOrderDisputeParams,
+      options?: RequestOptions,
+    ): Promise<OrderDispute> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<OrderDispute>(
+        `/v1/stores/${target_store_id}/orders/${params.order_id}/disputes/${params.dispute_id}`,
         options,
       );
     },
@@ -649,63 +670,5 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async downloadDigitalAccess(
-      params: DownloadDigitalAccessParams,
-      options?: RequestOptions,
-    ): Promise<DigitalAccessDownloadResponse> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<DigitalAccessDownloadResponse>(
-        `/v1/stores/${target_store_id}/orders/${params.order_id}/digital-access/${params.grant_id}/download`,
-        {},
-        options,
-      );
-    },
-
-    async activateDigitalAccess(
-      params: ActivateDigitalAccessGrantParams,
-      options?: RequestOptions,
-    ): Promise<DigitalAccessGrant> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<DigitalAccessGrant>(
-        `/v1/stores/${target_store_id}/orders/${params.order_id}/digital-access/${params.grant_id}/activate`,
-        {},
-        options,
-      );
-    },
-
-    async revokeDigitalAccess(
-      params: RevokeDigitalAccessGrantParams,
-      options?: RequestOptions,
-    ): Promise<DigitalAccessGrant> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<DigitalAccessGrant>(
-        `/v1/stores/${target_store_id}/orders/${params.order_id}/digital-access/${params.grant_id}/revoke`,
-        {},
-        options,
-      );
-    },
-
-    async findDigitalAccess(
-      params: FindDigitalAccessGrantsParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<DigitalAccessGrant>> {
-      const { order_id, store_id, ...queryParams } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<DigitalAccessGrant>>(
-        `/v1/stores/${target_store_id}/orders/${order_id}/digital-access`,
-        { ...options, params: queryParams },
-      );
-    },
-
-    async getDigitalAccess(
-      params: GetDigitalAccessGrantParams,
-      options?: RequestOptions,
-    ): Promise<DigitalAccessGrant> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<DigitalAccessGrant>(
-        `/v1/stores/${target_store_id}/orders/${params.order_id}/digital-access/${params.grant_id}`,
-        options,
-      );
-    },
   };
 };

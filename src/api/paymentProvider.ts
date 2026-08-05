@@ -1,7 +1,6 @@
 import type { ApiConfig } from "../index";
 import type {
   ConnectStripePaymentProviderParams,
-  ConnectMonriPaymentProviderParams,
   DeletePaymentProviderParams,
   OpenStripeDashboardParams,
   ListPaymentProvidersParams,
@@ -9,7 +8,6 @@ import type {
   RequestOptions,
 } from "../types/api";
 import type {
-  MonriPaymentProvider,
   PaymentProvider,
   StripePaymentProvider,
   StripePaymentProviderConnectResponse,
@@ -48,18 +46,6 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
       const targetStoreId = storeId(params.store_id);
       return apiConfig.httpClient.post<StripePaymentProviderConnectResponse>(
         `/v1/stores/${targetStoreId}/payment-providers/stripe/connect`,
-        { ...params, store_id: targetStoreId },
-        options,
-      );
-    },
-
-    async connectMonri(
-      params: ConnectMonriPaymentProviderParams,
-      options?: RequestOptions,
-    ): Promise<MonriPaymentProvider> {
-      const targetStoreId = storeId(params.store_id);
-      return apiConfig.httpClient.post<MonriPaymentProvider>(
-        `/v1/stores/${targetStoreId}/payment-providers/monri/connect`,
         { ...params, store_id: targetStoreId },
         options,
       );

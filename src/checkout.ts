@@ -1,50 +1,55 @@
+import {
+  loadStripe,
+  type StripeEmbeddedCheckout,
+  type StripeEmbeddedCheckoutOptions,
+} from "@stripe/stripe-js";
 import type { CheckoutPaymentAction } from "./types";
 
-export type StripeCheckoutAction = Extract<
+export type StripeEmbeddedCheckoutAction = Extract<
   CheckoutPaymentAction,
-  { type: "stripe_checkout" }
+  { type: "stripe_embedded_checkout" }
 >;
 
-export type MonriFormAction = Extract<
-  CheckoutPaymentAction,
-  { type: "monri_form" }
->;
-
-function hasBrowser(): boolean {
-  return typeof window !== "undefined";
+export interface EmbeddedCheckoutMount {
+  checkout: StripeEmbeddedCheckout;
+  unmount(): void;
+  destroy(): void;
 }
 
-function openStripeCheckout(action: StripeCheckoutAction): boolean {
-  if (!hasBrowser()) return false;
-  window.location.assign(action.url);
-  return true;
+export interface EmbeddedCheckoutCallbacks {
+  onComplete?: StripeEmbeddedCheckoutOptions["onComplete"];
 }
 
-function submitMonriForm(action: MonriFormAction): boolean {
-  if (!hasBrowser()) return false;
-  const form = window.document.createElement("form");
-  form.method = "post";
-  form.action = action.url;
-  for (const [name, value] of Object.entries(action.fields)) {
-    const input = window.document.createElement("input");
-    input.type = "hidden";
-    input.name = name;
-    input.value = value;
-    form.append(input);
+export async function createStripeEmbeddedCheckout(
+  action: StripeEmbeddedCheckoutAction,
+  callbacks: EmbeddedCheckoutCallbacks = {},
+): Promise<StripeEmbeddedCheckout> {
+  const stripe = await loadStripe(
+    action.publishable_key,
+    action.stripe_account_id
+      ? { stripeAccount: action.stripe_account_id }
+      : undefined,
+  );
+  if (!stripe) {
+    throw new Error("Stripe.js could not be loaded");
   }
-  window.document.body.append(form);
-  form.submit();
-  form.remove();
-  return true;
+  return stripe.createEmbeddedCheckoutPage({
+    clientSecret: action.client_secret,
+    onComplete: callbacks.onComplete,
+  });
 }
 
-export function followCheckoutAction(action: CheckoutPaymentAction): boolean {
-  switch (action.type) {
-    case "stripe_checkout":
-      return openStripeCheckout(action);
-    case "monri_form":
-      return submitMonriForm(action);
-    case "none":
-      return false;
-  }
+export async function mountCheckoutAction(
+  action: CheckoutPaymentAction,
+  location: string | HTMLElement,
+  callbacks: EmbeddedCheckoutCallbacks = {},
+): Promise<EmbeddedCheckoutMount | null> {
+  if (action.type === "none") return null;
+  const checkout = await createStripeEmbeddedCheckout(action, callbacks);
+  checkout.mount(location);
+  return {
+    checkout,
+    unmount: () => checkout.unmount(),
+    destroy: () => checkout.destroy(),
+  };
 }

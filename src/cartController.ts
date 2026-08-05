@@ -1,5 +1,6 @@
 import type {
-  AddCartItemParams,
+  AddCartBookingParams,
+  AddCartProductParams,
   CheckoutCartParams,
   ClearCartParams,
   GetCartParams,
@@ -15,7 +16,8 @@ export interface CartApi {
   current(params?: GetCurrentCartParams, options?: RequestOptions): Promise<Cart>;
   get(params: GetCartParams, options?: RequestOptions): Promise<Cart>;
   update(params: UpdateCartParams, options?: RequestOptions): Promise<Cart>;
-  addItem(params: AddCartItemParams, options?: RequestOptions): Promise<Cart>;
+  addProduct(params: AddCartProductParams, options?: RequestOptions): Promise<Cart>;
+  addBooking(params: AddCartBookingParams, options?: RequestOptions): Promise<Cart>;
   removeItem(params: RemoveCartItemParams, options?: RequestOptions): Promise<Cart>;
   clear(params: ClearCartParams, options?: RequestOptions): Promise<Cart>;
   quote(params: QuoteCartParams, options?: RequestOptions): Promise<OrderQuote>;
@@ -36,7 +38,12 @@ export type CartControllerListener = (state: CartControllerState) => void;
 export type CartControllerInitParams = GetCurrentCartParams | GetCartParams;
 export type CartControllerRefreshParams = GetCurrentCartParams | GetCartParams;
 export type CartControllerUpdateParams = Omit<UpdateCartParams, "id"> & { id?: string };
-export type CartControllerAddItemParams = Omit<AddCartItemParams, "id"> & { id?: string };
+export type CartControllerAddProductParams = Omit<AddCartProductParams, "id"> & {
+  id?: string;
+};
+export type CartControllerAddBookingParams = Omit<AddCartBookingParams, "id"> & {
+  id?: string;
+};
 export type CartControllerRemoveItemParams = RemoveCartItemParams extends infer Params
   ? Params extends { id: string }
     ? Omit<Params, "id"> & { id?: string }
@@ -51,7 +58,8 @@ export interface CartController {
   getState(): CartControllerState;
   init(params?: CartControllerInitParams, options?: RequestOptions): Promise<Cart>;
   refresh(params?: CartControllerRefreshParams, options?: RequestOptions): Promise<Cart>;
-  addItem(params: CartControllerAddItemParams, options?: RequestOptions): Promise<Cart>;
+  addProduct(params: CartControllerAddProductParams, options?: RequestOptions): Promise<Cart>;
+  addBooking(params: CartControllerAddBookingParams, options?: RequestOptions): Promise<Cart>;
   update(params: CartControllerUpdateParams, options?: RequestOptions): Promise<Cart>;
   removeItem(params: CartControllerRemoveItemParams, options?: RequestOptions): Promise<Cart>;
   clear(params?: CartControllerClearParams, options?: RequestOptions): Promise<Cart>;
@@ -145,9 +153,15 @@ export function createCartController(cartApi: CartApi): CartController {
       );
     },
 
-    addItem(params, options) {
+    addProduct(params, options) {
       return runCartMutation(() =>
-        cartApi.addItem({ ...params, id: currentCartId(params.id) }, options),
+        cartApi.addProduct({ ...params, id: currentCartId(params.id) }, options),
+      );
+    },
+
+    addBooking(params, options) {
+      return runCartMutation(() =>
+        cartApi.addBooking({ ...params, id: currentCartId(params.id) }, options),
       );
     },
 

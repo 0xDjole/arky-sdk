@@ -9,7 +9,6 @@ import type {
   StorefrontMarket,
   StorefrontSetup,
 } from "../api/storefront";
-import { followCheckoutAction } from "../checkout";
 import type {
   Address,
   Block,
@@ -33,7 +32,6 @@ import type {
 import type {
   AvailabilityResponse,
   CheckoutCartParams,
-  OrderCheckoutItemInput,
   FindServiceProvidersParams,
   GetAvailabilityParams,
   GetCollectionParams,
@@ -46,9 +44,9 @@ import type {
   GetProvidersParams,
   GetServiceParams,
   GetServicesParams,
-  ProductCheckoutItemInput,
+  CartProductInput,
   RequestOptions,
-  ServiceCheckoutItemInput,
+  CartBookingInput,
   SlotRange,
   SubmitFormParams,
 } from "../types/api";
@@ -66,7 +64,7 @@ import type {
   ArkyCmsState,
   ArkyEshopState,
   ArkyLastOrder,
-  ArkyServiceCartItem,
+  ArkyBookingCartItem,
   ArkyServiceFormGroup,
   ArkyServiceFormState,
   ArkyServiceSlot,
@@ -93,8 +91,8 @@ import {
   providerName,
   readErrorMessage,
   serviceName,
-  toProductCheckoutItems,
-  toServiceCheckoutItems,
+  toCartProducts,
+  toCartBookings,
 } from "./utils";
 
 type StorefrontParams<T> = T extends unknown
@@ -117,7 +115,7 @@ type StorefrontPage<T> = StorefrontDto<PaginatedResponse<T>>;
 interface CheckoutContext {
   request: StorefrontCheckoutRequest;
   product_items: EshopCartItem[];
-  service_items: ArkyServiceCartItem[];
+  booking_items: ArkyBookingCartItem[];
   shipping_address: Address | null;
   billing_address: Address | null;
   payment_method_key: string | null;
@@ -159,7 +157,7 @@ function initializeStoreCore(
   );
   const cart = atom<StorefrontCart | null>(null);
   const product_items = atom<EshopCartItem[]>([]);
-  const service_items = atom<ArkyServiceCartItem[]>([]);
+  const booking_items = atom<ArkyBookingCartItem[]>([]);
   const quote = atom<StorefrontOrderQuote | null>(null);
   const promo_code = atom<string | null>(null);
   const last_order = atom<ArkyLastOrder | null>(null);
@@ -175,17 +173,17 @@ function initializeStoreCore(
   });
 
   function rawProductItemCount(value: StorefrontCart | null): number {
-    return (value?.items || []).reduce((total, item) => {
-      if (item.type !== "product") return total;
-      return total + (item.quantity || 0);
-    }, 0);
+    return (value?.product_items || []).reduce(
+      (total, item) => total + (item.quantity || 0),
+      0,
+    );
   }
 
-  function rawServiceItemCount(value: StorefrontCart | null): number {
-    return (value?.items || []).reduce((total, item) => {
-      if (item.type !== "service") return total;
-      return total + Math.max(1, item.slots?.length || 0);
-    }, 0);
+  function rawBookingItemCount(value: StorefrontCart | null): number {
+    return (value?.booking_items || []).reduce(
+      (total, item) => total + Math.max(1, item.slots?.length || 0),
+      0,
+    );
   }
 
   const product_item_count = computed(
@@ -196,11 +194,11 @@ function initializeStoreCore(
         items.reduce((total, item) => total + (item.quantity || 0), 0),
       ),
   );
-  const service_item_count = computed(
-    [cart, service_items],
+  const booking_item_count = computed(
+    [cart, booking_items],
     (cartValue, items) =>
       Math.max(
-        rawServiceItemCount(cartValue),
+        rawBookingItemCount(cartValue),
         items.reduce(
           (total, item) => total + Math.max(1, item.slots.length),
           0,
@@ -208,16 +206,16 @@ function initializeStoreCore(
       ),
   );
   const item_count = computed(
-    [cart, product_item_count, service_item_count],
+    [cart, product_item_count, booking_item_count],
     (cartValue, products, services) =>
       Math.max(cartValue?.item_count || 0, products + services),
   );
   const snapshot = computed(
-    [cart, product_items, service_items, item_count],
+    [cart, product_items, booking_items, item_count],
     (cartValue, products, services, count) => ({
       cart: cartValue,
       product_items: products,
-      service_items: services,
+      booking_items: services,
       item_count: count,
     }),
   );
@@ -402,7 +400,7 @@ function initializeStoreCore(
   }
 
   async function buildProductCartItem(
-    item: ProductCheckoutItemInput,
+    item: CartProductInput,
     source: StorefrontCart,
     productHint?: StorefrontProduct,
   ): Promise<EshopCartItem | null> {
@@ -451,10 +449,10 @@ function initializeStoreCore(
     }
   }
 
-  async function buildServiceCartItems(
-    items: ServiceCheckoutItemInput[],
-  ): Promise<ArkyServiceCartItem[]> {
-    const rows: ArkyServiceCartItem[] = [];
+  async function buildBookingCartItems(
+    items: CartBookingInput[],
+  ): Promise<ArkyBookingCartItem[]> {
+    const rows: ArkyBookingCartItem[] = [];
     for (const item of items) {
       let service: StorefrontService | null = null;
       let provider: StorefrontProvider | null = null;
@@ -500,34 +498,28 @@ function initializeStoreCore(
     promo_code.set(response.promo_code || null);
     quote.set(response.quote_snapshot || null);
 
-    const items = response.items || [];
-    if (items.length > 0) await loadSetup();
+    const cartProducts = response.product_items || [];
+    const cartBookings = response.booking_items || [];
+    if (cartProducts.length > 0 || cartBookings.length > 0) await loadSetup();
     const products = await Promise.all(
-      items
-        .filter(
-          (item): item is ProductCheckoutItemInput => item.type === "product",
-        )
-        .map((item) =>
-          buildProductCartItem(item, response, options.productHint),
-        ),
-    );
-    const services = await buildServiceCartItems(
-      items.filter(
-        (item): item is ServiceCheckoutItemInput => item.type === "service",
+      cartProducts.map((item) =>
+        buildProductCartItem(item, response, options.productHint),
       ),
     );
+    const services = await buildBookingCartItems(cartBookings);
     product_items.set(
       products.filter((item): item is EshopCartItem => item !== null),
     );
-    service_items.set(services);
+    booking_items.set(services);
     return response;
   }
 
-  function checkoutItems(input: ArkyCartInput = {}): OrderCheckoutItemInput[] {
-    return [
-      ...toProductCheckoutItems(input.product_items || product_items.get()),
-      ...toServiceCheckoutItems(input.service_items || service_items.get()),
-    ];
+  function checkoutProducts(input: ArkyCartInput = {}): CartProductInput[] {
+    return toCartProducts(input.product_items || product_items.get());
+  }
+
+  function checkoutBookings(input: ArkyCartInput = {}): CartBookingInput[] {
+    return toCartBookings(input.booking_items || booking_items.get());
   }
 
   async function syncCart(
@@ -540,7 +532,8 @@ function initializeStoreCore(
       const current = cart.get() || (await ensureCart());
       const response = await client.eshop.cart.update({
         id: current.id,
-        items: checkoutItems(input),
+        product_items: checkoutProducts(input),
+        booking_items: checkoutBookings(input),
         shipping_address: input.shipping_address,
         billing_address: input.billing_address,
         forms: input.forms,
@@ -581,10 +574,9 @@ function initializeStoreCore(
     const writeRevision = nextCartWriteRevision();
     try {
       const current = cart.get() || (await ensureCart());
-      const response = await client.eshop.cart.addItem({
+      const response = await client.eshop.cart.addProduct({
         id: current.id,
-        item: {
-          type: "product",
+        product: {
           product_id: product.id,
           variant_id: variant.id,
           quantity,
@@ -638,20 +630,20 @@ function initializeStoreCore(
     return response;
   }
 
-  async function addServiceItem(
-    item: ArkyServiceCartItem,
+  async function addBooking(
+    item: ArkyBookingCartItem,
   ): Promise<StorefrontCart> {
     const writeRevision = nextCartWriteRevision();
-    const next = [...service_items.get(), item];
-    service_items.set(next);
-    return syncCart({ service_items: next }, writeRevision);
+    const next = [...booking_items.get(), item];
+    booking_items.set(next);
+    return syncCart({ booking_items: next }, writeRevision);
   }
 
-  async function removeServiceItem(itemId: string): Promise<StorefrontCart> {
+  async function removeBooking(itemId: string): Promise<StorefrontCart> {
     const writeRevision = nextCartWriteRevision();
-    const next = service_items.get().filter((item) => item.id !== itemId);
-    service_items.set(next);
-    return syncCart({ service_items: next }, writeRevision);
+    const next = booking_items.get().filter((item) => item.id !== itemId);
+    booking_items.set(next);
+    return syncCart({ booking_items: next }, writeRevision);
   }
 
   async function clearCart(): Promise<StorefrontCart | null> {
@@ -666,7 +658,7 @@ function initializeStoreCore(
 
   function clearLocalCart(): void {
     product_items.set([]);
-    service_items.set([]);
+    booking_items.set([]);
     cart.set(null);
     quote.set(null);
     promo_code.set(null);
@@ -676,7 +668,10 @@ function initializeStoreCore(
   async function fetchQuote(
     input: ArkyCartInput = {},
   ): Promise<StorefrontOrderQuote | null> {
-    if (checkoutItems(input).length === 0) {
+    if (
+      checkoutProducts(input).length === 0 &&
+      checkoutBookings(input).length === 0
+    ) {
       quote.set(null);
       return null;
     }
@@ -709,7 +704,7 @@ function initializeStoreCore(
       payment_action: response.payment_action,
       payment: response.payment,
       product_items: context.product_items,
-      service_items: context.service_items,
+      booking_items: context.booking_items,
       shipping_address: context.shipping_address,
       billing_address: context.billing_address,
       total: response.payment.amount,
@@ -718,16 +713,12 @@ function initializeStoreCore(
       created_at: context.created_at,
     });
 
-    if (response.payment_action.type !== "none") {
-      if (context.clear_after_checkout) clearLocalCart();
-      followCheckoutAction(response.payment_action);
-      return response;
-    }
+    if (response.payment_action.type !== "none") return response;
 
     if (
       context.clear_after_checkout &&
       !["pending", "processing", "requires_action", "unknown"].includes(
-        response.payment.status.status,
+        response.payment.status,
       )
     ) {
       clearLocalCart();
@@ -751,14 +742,19 @@ function initializeStoreCore(
   async function checkout(
     input: ArkyCartInput = {},
   ): Promise<StorefrontOrderCheckoutResult> {
-    if (checkoutItems(input).length === 0) throw new Error("Cart is empty");
+    if (
+      checkoutProducts(input).length === 0 &&
+      checkoutBookings(input).length === 0
+    ) {
+      throw new Error("Cart is empty");
+    }
     return runCheckout(async () => {
       const current = await syncCart(input);
       const quoteValue = quote.get();
       const paymentMethodKey =
         input.payment_method_key ||
         current.payment_method_key ||
-        quoteValue?.money?.payment_method_key ||
+        quoteValue?.payment_method?.key ||
         undefined;
       let chargeAmount = firstFiniteNumber(
         quoteValue?.charge_amount,
@@ -782,18 +778,18 @@ function initializeStoreCore(
           "Card checkout requires a non-negative integer charge amount in minor units",
         );
       }
-      const needsHostedCheckout =
+      const needsCardCheckout =
         paymentMethodKey === "credit_card" &&
         typeof chargeAmount === "number" &&
         chargeAmount > 0;
       let returnUrl = input.return_url;
 
-      if (needsHostedCheckout) {
+      if (needsCardCheckout) {
         returnUrl =
           returnUrl ||
           (typeof window !== "undefined" ? window.location.href : undefined);
         if (!returnUrl) {
-          throw new Error("A return URL is required for hosted card checkout");
+          throw new Error("A return URL is required for embedded card checkout");
         }
       }
 
@@ -804,7 +800,7 @@ function initializeStoreCore(
           return_url: returnUrl,
         },
         product_items: input.product_items || product_items.get(),
-        service_items: input.service_items || service_items.get(),
+        booking_items: input.booking_items || booking_items.get(),
         shipping_address: input.shipping_address || null,
         billing_address: input.billing_address || null,
         payment_method_key: paymentMethodKey || null,
@@ -896,10 +892,10 @@ function initializeStoreCore(
     );
   }
 
-  function toServiceCartItem(
+  function toBookingCartItem(
     slots: ArkyServiceSlot[],
     forms: FormEntry[] = [],
-  ): ArkyServiceCartItem {
+  ): ArkyBookingCartItem {
     const orderedSlots = [...slots].sort(
       (left, right) => left.from - right.from || left.to - right.to,
     );
@@ -944,18 +940,18 @@ function initializeStoreCore(
     };
   }
 
-  async function syncServiceCart(
-    items: ArkyServiceCartItem[],
+  async function syncBookingCart(
+    items: ArkyBookingCartItem[],
   ): Promise<StorefrontCart> {
     try {
       return await syncCart({
         product_items: product_items.get(),
-        service_items: items,
+        booking_items: items,
       });
     } catch (error) {
       service_state.setKey(
         "quoteError",
-        readErrorMessage(error, "Failed to sync service cart."),
+        readErrorMessage(error, "Failed to sync booking cart."),
       );
       throw error;
     }
@@ -986,7 +982,7 @@ function initializeStoreCore(
       year: "numeric",
     }),
   );
-  const service_chain_start = computed(service_items, (items) => {
+  const booking_chain_start = computed(booking_items, (items) => {
     const slots = items.flatMap((item) => item.slots);
     if (!slots.length) return null;
     return Math.max(...slots.map((slot) => slot.to));
@@ -1264,7 +1260,7 @@ function initializeStoreCore(
       if (!state.service) return;
       service_state.setKey("loading", true);
       try {
-        const chainedStart = service_chain_start.get();
+        const chainedStart = booking_chain_start.get();
         let from: number;
         let to: number;
         if (chainedStart) {
@@ -1438,10 +1434,10 @@ function initializeStoreCore(
         date: slot.dateText,
       }));
       const nextItems = [
-        ...service_items.get(),
-        toServiceCartItem(enriched, forms),
+        ...booking_items.get(),
+        toBookingCartItem(enriched, forms),
       ];
-      await syncServiceCart(nextItems);
+      await syncBookingCart(nextItems);
       service_state.set({
         ...service_state.get(),
         selectedDate: null,
@@ -1459,13 +1455,13 @@ function initializeStoreCore(
     },
 
     async removeFromCart(bookingId: string): Promise<void> {
-      await syncServiceCart(
-        service_items.get().filter((item) => item.id !== bookingId),
+      await syncBookingCart(
+        booking_items.get().filter((item) => item.id !== bookingId),
       );
     },
 
     async clearCart(): Promise<void> {
-      await syncServiceCart([]);
+      await syncBookingCart([]);
     },
 
     async checkout(
@@ -1473,12 +1469,12 @@ function initializeStoreCore(
       forms: FormEntry[] = [],
     ): Promise<StorefrontOrderCheckoutResult> {
       const state = service_state.get();
-      const items = service_items.get();
+      const items = booking_items.get();
       if (!items.length) throw new Error("Cart is empty");
       service_state.setKey("loading", true);
       try {
         const result = await checkout({
-          service_items: items,
+          booking_items: items,
           payment_method_key: paymentMethodId,
           promo_code: state.promoCode || undefined,
           forms,
@@ -1495,14 +1491,14 @@ function initializeStoreCore(
       promoCode?: string | null,
     ): Promise<StorefrontOrderQuote | null> {
       const state = service_state.get();
-      const items = service_items.get();
+      const items = booking_items.get();
       if (!items.length) return null;
       service_state.setKey("fetchingQuote", true);
       service_state.setKey("quoteError", null);
       try {
         service_state.setKey("promoCode", promoCode || null);
         const response = await fetchQuote({
-          service_items: items,
+          booking_items: items,
           payment_method_key: paymentMethodId,
           promo_code: promoCode || undefined,
         });
@@ -1572,8 +1568,8 @@ function initializeStoreCore(
     serviceItemsFromSlots(
       slots: ArkyServiceSlot[],
       forms: FormEntry[] = [],
-    ): ArkyServiceCartItem[] {
-      return slots.length ? [toServiceCartItem(slots, forms)] : [];
+    ): ArkyBookingCartItem[] {
+      return slots.length ? [toBookingCartItem(slots, forms)] : [];
     },
   };
 
@@ -1791,13 +1787,13 @@ function initializeStoreCore(
   const cart_store = {
     cart,
     product_items,
-    service_items,
+    booking_items,
     quote_result: quote,
     promo_code,
     last_order,
     status: cart_status,
     product_item_count,
-    service_item_count,
+    booking_item_count,
     item_count,
     snapshot,
     load: ensureCart,
@@ -1805,8 +1801,8 @@ function initializeStoreCore(
     addProduct,
     setProductQuantity,
     removeProduct,
-    addServiceItem,
-    removeServiceItem,
+    addBooking,
+    removeBooking,
     clear: clearCart,
     clearLocal: clearLocalCart,
     quote: fetchQuote,
@@ -1825,9 +1821,14 @@ function initializeStoreCore(
     },
     locationToAddress,
     createFormEntry,
-    buildItems: checkoutItems,
-    buildProductItems: toProductCheckoutItems,
-    buildServiceItems: toServiceCheckoutItems,
+    buildItems(input: ArkyCartInput = {}) {
+      return {
+        product_items: checkoutProducts(input),
+        booking_items: checkoutBookings(input),
+      };
+    },
+    buildProductItems: toCartProducts,
+    buildBookingItems: toCartBookings,
   };
 
   const product_store = {
@@ -1856,7 +1857,7 @@ function initializeStoreCore(
     current_step_name: service_current_step_name,
     can_proceed: service_can_proceed,
     month_year: service_month_year,
-    chain_start: service_chain_start,
+    chain_start: booking_chain_start,
     total_steps: service_total_steps,
     steps: service_steps,
     current_step: service_current_step,
