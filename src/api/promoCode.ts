@@ -5,6 +5,7 @@ import type {
 	DeletePromoCodeParams,
 	GetPromoCodeParams,
 	GetPromoCodesParams,
+	RetryAudiencePromotionProviderParams,
 	RequestOptions
 } from '../types/api';
 import type { PaginatedResponse, PromoCode } from '../types';
@@ -22,18 +23,18 @@ export const createPromoCodeApi = (apiConfig: ApiConfig) => {
 		},
 
 		async updatePromoCode(params: UpdatePromoCodeParams, options?: RequestOptions): Promise<PromoCode> {
-			const { store_id, ...payload } = params;
+			const { id, store_id, ...payload } = params;
 			const target_store_id = store_id || apiConfig.storeId;
 			return apiConfig.httpClient.put<PromoCode>(
-				`/v1/stores/${target_store_id}/promo-codes/${params.id}`,
+				`/v1/stores/${target_store_id}/promo-codes/${id}`,
 				payload,
 				options
 			);
 		},
 
-		async deletePromoCode(params: DeletePromoCodeParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
+		async deletePromoCode(params: DeletePromoCodeParams, options?: RequestOptions): Promise<{ success: boolean }> {
 			const target_store_id = params.store_id || apiConfig.storeId;
-			return apiConfig.httpClient.delete<{ deleted: boolean }>(
+			return apiConfig.httpClient.delete<{ success: boolean }>(
 				`/v1/stores/${target_store_id}/promo-codes/${params.id}`,
 				options
 			);
@@ -54,6 +55,18 @@ export const createPromoCodeApi = (apiConfig: ApiConfig) => {
 				...options,
 				params: queryParams
 			});
+		},
+
+		async retryAudienceProvider(
+			params: RetryAudiencePromotionProviderParams,
+			options?: RequestOptions
+		): Promise<PromoCode> {
+			const target_store_id = params.store_id || apiConfig.storeId;
+			return apiConfig.httpClient.post<PromoCode>(
+				`/v1/stores/${target_store_id}/promo-codes/${params.id}/audience-provider/retry`,
+				{},
+				options
+			);
 		}
 	};
 };

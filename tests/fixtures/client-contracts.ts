@@ -1,10 +1,10 @@
 import type {
   Account,
+  AudienceCatalogMutationStatus,
+  AudiencePaymentStatus,
+  AudienceSubscribeResponse,
+  AudienceTierPriceInput,
   Contact,
-  ContactListSubscribeResponse,
-  ContactListMembershipPaymentAttemptStatus,
-  ContactListPlanCatalogStatus,
-  ContactListPlanPriceInput,
   CreateOrderShipmentParams,
   GetCollectionParams,
   GetShippingRatesParams,
@@ -47,21 +47,23 @@ import {
   type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
 } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.14.0" = SDK_VERSION;
+const sdkVersionLiteral: "0.15.0" = SDK_VERSION;
 const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
 // @ts-expect-error the server's serialized feature key is crm_contacts.
 const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
-const rejectedCatalogStatus: ContactListPlanCatalogStatus = "rejected";
-const contactListPlanPriceInput: ContactListPlanPriceInput = {
+const rejectedCatalogStatus: AudienceCatalogMutationStatus = "rejected";
+const audienceTierPriceInput: AudienceTierPriceInput = {
   currency: "usd",
   amount: 1200,
   interval: { period: "month", count: 1 },
+  status: "active",
 };
-const contactListPlanPriceWithProvider: ContactListPlanPriceInput = {
+const audienceTierPriceWithProvider: AudienceTierPriceInput = {
   currency: "usd",
   amount: 1200,
+  status: "active",
   // @ts-expect-error payment-provider bindings are server-owned output fields.
-  providers: [{ type: "stripe", id: "price_untrusted" }],
+  provider: { type: "stripe", price_id: "price_untrusted" },
 };
 
 const clearCartAddresses: UpdateCartParams = {
@@ -249,19 +251,26 @@ void textFormSchema;
 void textFormField;
 void invalidTextFormField;
 
-const subscribeResult: ContactListSubscribeResponse = {
+const subscribeResult: AudienceSubscribeResponse = {
   payment_action: { type: "none" },
-  payment_attempt: {
-    plan_id: "plan-contract",
+  payment: {
+    id: "payment-contract",
+    tier_id: "tier-contract",
     amount: 1200,
     currency: "usd",
     interval: { period: "month", count: 1 },
     status: "unknown",
   },
+  member: {
+    id: "member-contract",
+    enrollment_status: "pending",
+    delivery_status: "subscribed",
+    created_at: 1,
+    updated_at: 1,
+  },
 };
-const subscribeAttemptStatus:
-  ContactListMembershipPaymentAttemptStatus | undefined =
-  subscribeResult.payment_attempt?.status;
+const subscribePaymentStatus: AudiencePaymentStatus | undefined =
+  subscribeResult.payment?.status;
 
 declare const storefrontIdentify: StorefrontIdentifyResult;
 const storefrontEntryIdentify: StorefrontEntryIdentifyResult =
@@ -293,8 +302,7 @@ const orderMoney: OrderMoney = {
 orderMoney.capture_method;
 
 // @ts-expect-error refunds have their own lifecycle resource.
-const embeddedRefundAttemptStatus: ContactListMembershipPaymentAttemptStatus =
-  "refunded";
+const embeddedRefundPaymentStatus: AudiencePaymentStatus = "refunded";
 // @ts-expect-error the server never emits this callback status.
 const codeReceivedCallback: SocialOAuthCallbackStatus = "code_received";
 
@@ -557,7 +565,7 @@ void [
   storefrontEntryIdentify,
   verificationChallengeId,
   orderMoney,
-  embeddedRefundAttemptStatus,
+  embeddedRefundPaymentStatus,
   codeReceivedCallback,
   safeSocialCredential,
   unsafeSocialCredential,
@@ -591,9 +599,9 @@ void [
   camelCaseWorkflowTool,
   crmContactFeature,
   nonWireCrmProfileFeature,
-  contactListPlanPriceInput,
-  contactListPlanPriceWithProvider,
-  subscribeAttemptStatus,
+  audienceTierPriceInput,
+  audienceTierPriceWithProvider,
+  subscribePaymentStatus,
   rejectedCatalogStatus,
 ];
 void sdkVersionLiteral;

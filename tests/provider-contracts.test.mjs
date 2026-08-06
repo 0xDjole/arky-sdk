@@ -383,18 +383,19 @@ test("provider-effect APIs send one resource identity and return direct server e
       },
     },
     {
-      name: "contact-list membership refund",
+      name: "Audience payment refund",
       response: { refund_id: resourceId, amount: 500, status: "requested" },
       request: (arky) =>
-        arky.crm.contactList.memberships.refund({
+        arky.crm.audience.members.refund({
           store_id: defaultStoreId,
-          contact_list_id: "list-refund-contract",
-          membership_id: "membership-refund-contract",
+          audience_id: "audience-refund-contract",
+          member_id: "member-refund-contract",
+          payment_id: "payment-refund-contract",
           amount: 500,
           refund_id: resourceId,
         }),
       expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/contact-lists/list-refund-contract/memberships/membership-refund-contract/refund`,
+        url: `${baseUrl}/v1/stores/${defaultStoreId}/audiences/audience-refund-contract/members/member-refund-contract/payments/payment-refund-contract/refunds`,
         method: "POST",
         body: { amount: 500, refund_id: resourceId },
       },
@@ -470,21 +471,22 @@ test("money and shipping clients reject evidence for any other resource ID", asy
       error: /Refund response did not match the requested refund_id/,
     },
     {
-      name: "contact-list membership refund",
+      name: "Audience payment refund",
       response: {
         refund_id: otherResourceId,
         amount: 500,
         status: "succeeded",
       },
       request: (arky) =>
-        arky.crm.contactList.memberships.refund({
+        arky.crm.audience.members.refund({
           store_id: defaultStoreId,
-          contact_list_id: "list-refund-contract",
-          membership_id: "membership-refund-contract",
+          audience_id: "audience-refund-contract",
+          member_id: "member-refund-contract",
+          payment_id: "payment-refund-contract",
           amount: 500,
           refund_id: resourceId,
         }),
-      error: /Membership refund response did not match the requested refund_id/,
+      error: /Audience refund response did not match the requested refund_id/,
     },
     {
       name: "shipping-label purchase",

@@ -20,6 +20,7 @@ import type {
   MutableWorkflowStatus,
   WorkflowStatus,
   PromoCodeStatus,
+  AudienceDiscountDuration,
   ProductStatus,
   CollectionStatus,
   EntryStatus,
@@ -41,11 +42,11 @@ import type {
   Language,
   StoreEmails,
   ContactStatus,
-  ContactListStatus,
-  ContactListType,
-  ContactListSource,
-  ContactListPlanStatus,
-  ContactListMembershipStatus,
+  AudienceStatus,
+  AudienceType,
+  AudienceTierStatus,
+  AudiencePriceStatus,
+  AudienceMemberStatus,
   MailboxStatus,
   SmtpImapMailboxProviderInput,
   CampaignStatus,
@@ -66,7 +67,7 @@ import type {
   SocialPublicationCommentStatus,
   SocialPublicationContent,
   SocialPublicationStatus,
-  SubscriptionPrice,
+  SubscriptionInterval,
   ProductInventory,
 } from "./index";
 
@@ -451,7 +452,15 @@ export type StoreRole = "admin" | "owner" | "super";
 export type Discount =
   | { type: "items_percentage"; market_id: string; bps: number }
   | { type: "items_fixed"; market_id: string; amount: number }
-  | { type: "shipping_percentage"; market_id: string; bps: number };
+  | { type: "shipping_percentage"; market_id: string; bps: number }
+  | {
+      type: "audience_percentage";
+      audience_id: string;
+      tier_ids: string[];
+      price_ids: string[];
+      bps: number;
+      duration: AudienceDiscountDuration;
+    };
 
 export type ConditionValue =
   | { type: "ids"; value: string[] }
@@ -492,6 +501,11 @@ export interface DeletePromoCodeParams {
 }
 
 export interface GetPromoCodeParams {
+  id: string;
+  store_id?: string;
+}
+
+export interface RetryAudiencePromotionProviderParams {
   id: string;
   store_id?: string;
 }
@@ -662,7 +676,7 @@ export interface GetOrdersParams {
   sort_direction?: "asc" | "desc" | null;
   created_at_from?: number | null;
   created_at_to?: number | null;
-  contact_list_id?: string;
+  audience_id?: string;
 }
 
 export interface UpdateOrderParams {
@@ -1244,94 +1258,95 @@ export interface DeleteWorkflowConnectionParams {
   store_id?: string;
 }
 
-export interface CreateContactListParams {
+export interface CreateAudienceParams {
   store_id?: string;
   key: string;
   name?: string;
   description?: string | null;
-  type?: ContactListType;
-  source?: ContactListSource;
+  type: AudienceType;
 }
 
-export interface UpdateContactListParams {
+export interface UpdateAudienceParams {
   id: string;
   store_id?: string;
   key?: string;
   name?: string;
   description?: string | null;
-  status?: ContactListStatus;
-  type?: ContactListType;
+  status?: AudienceStatus;
+  type?: AudienceType;
 }
 
-export interface CreateContactListPlanParams {
+export interface CreateAudienceTierParams {
   store_id?: string;
-  contact_list_id: string;
+  audience_id: string;
   key: string;
-  name?: string;
+  name: string;
   description?: string | null;
-  status?: ContactListPlanStatus;
-  prices: ContactListPlanPriceInput[];
-  payment_provider_id?: string;
+  benefits: string[];
+  status: AudienceTierStatus;
+  prices: AudienceTierPriceInput[];
+  provider?: AudienceTierProviderInput | null;
 }
 
-export interface UpdateContactListPlanParams {
+export interface UpdateAudienceTierParams {
   id: string;
   store_id?: string;
-  contact_list_id: string;
+  audience_id: string;
   key?: string;
   name?: string;
   description?: string | null;
-  status?: ContactListPlanStatus;
-  prices?: ContactListPlanPriceInput[];
-  payment_provider_id?: string;
+  benefits?: string[];
+  status?: AudienceTierStatus;
+  prices?: AudienceTierPriceInput[];
+  provider?: AudienceTierProviderInput;
 }
 
-export type ContactListPlanPriceInput = Omit<
-  SubscriptionPrice,
-  "id" | "providers"
->;
+export type AudienceTierProviderInput = {
+  type: "stripe";
+  payment_provider_id: string;
+};
 
-export interface FindContactListPlansParams {
+export interface AudienceTierPriceInput {
+  id?: string;
+  currency: Currency;
+  amount: number;
+  compare_at?: number | null;
+  interval?: SubscriptionInterval | null;
+  status: AudiencePriceStatus;
+}
+
+export interface FindAudienceTiersParams {
   store_id?: string;
-  contact_list_id: string;
-  status?: ContactListPlanStatus;
+  audience_id: string;
+  status?: AudienceTierStatus;
   limit?: number;
   cursor?: string;
 }
 
-export interface FindStorefrontContactListPlansParams {
+export interface FindStorefrontAudienceTiersParams {
   store_id?: string;
-  contact_list_id: string;
+  audience_id: string;
   limit?: number;
   cursor?: string;
 }
 
-export interface GetContactListPlanParams {
+export interface GetAudienceTierParams {
   id: string;
   store_id?: string;
-  contact_list_id: string;
+  audience_id: string;
 }
 
-export interface RetryContactListPlanCatalogParams {
+export interface RetryAudienceTierCatalogParams {
   store_id?: string;
-  contact_list_id: string;
-  plan_id: string;
+  audience_id: string;
+  tier_id: string;
+  price_id?: string;
 }
 
-export interface FindContactListsParams {
-  store_id?: string;
-  ids?: string[];
-  status?: ContactListStatus;
-  query?: string | number;
-  limit?: number;
-  cursor?: string;
-  sort_field?: string;
-  sort_direction?: "asc" | "desc";
-}
-
-export interface FindStorefrontContactListsParams {
+export interface FindAudiencesParams {
   store_id?: string;
   ids?: string[];
+  status?: AudienceStatus;
   query?: string;
   limit?: number;
   cursor?: string;
@@ -1339,115 +1354,104 @@ export interface FindStorefrontContactListsParams {
   sort_direction?: "asc" | "desc";
 }
 
-export interface GetContactListParams {
+export interface GetAudienceParams {
   id: string;
   store_id?: string;
 }
 
-export interface AddContactListContactParams {
+export interface AddAudienceMemberParams {
   store_id?: string;
-  contact_list_id: string;
+  audience_id: string;
   contact_id: string;
   fields?: Record<string, unknown>;
   lead_description?: string | null;
 }
 
-export interface UpdateContactListContactParams {
+export interface UpdateAudienceMemberParams {
   store_id?: string;
-  contact_list_id: string;
-  contact_id: string;
-  status?: ContactListMembershipStatus;
+  audience_id: string;
+  member_id: string;
+  enrollment_status?: AudienceMemberStatus;
   fields?: Record<string, unknown>;
   lead_description?: string | null;
 }
 
-export interface RemoveContactListContactParams {
+export interface RemoveAudienceMemberParams {
   store_id?: string;
-  contact_list_id: string;
-  contact_id: string;
+  audience_id: string;
+  member_id: string;
 }
 
-export interface FindContactListContactsParams {
+export interface FindAudienceMembersParams {
   store_id?: string;
-  contact_list_id?: string;
+  audience_id?: string;
   contact_id?: string;
-  status?: ContactListMembershipStatus;
+  enrollment_status?: AudienceMemberStatus;
   limit?: number;
   cursor?: string;
 }
 
-export interface RefundContactListMembershipParams {
+export interface RefundAudienceMemberParams {
   store_id?: string;
-  contact_list_id: string;
-  membership_id: string;
+  audience_id: string;
+  member_id: string;
+  payment_id: string;
   refund_id: string;
   amount?: number | null;
 }
 
-export interface RefundContactListMembershipResult {
+export interface RefundAudienceMemberResult {
   refund_id: string;
   amount: number;
-  status: import("./index").ContactListMembershipRefundStatus;
-  membership: import("./index").ContactListMembership;
+  status: import("./index").AudienceRefundStatus;
+  member: import("./index").AudienceMember;
 }
 
-export interface FindContactListMembershipPaymentAttemptsParams {
+export interface FindAudiencePaymentsParams {
   store_id?: string;
-  contact_list_id: string;
-  membership_id: string;
+  audience_id: string;
+  member_id: string;
   limit?: number;
   cursor?: string;
 }
 
-export interface FindStorefrontContactListMembershipsParams {
+export interface FindStorefrontAudienceMembersParams {
   store_id?: string;
   limit?: number;
   cursor?: string;
 }
 
-export interface GetContactListMembershipPaymentAttemptParams {
+export interface GetAudiencePaymentParams {
   store_id?: string;
-  contact_list_id: string;
-  membership_id: string;
+  audience_id: string;
+  member_id: string;
   id: string;
 }
 
-export interface FindContactListMembershipRefundsParams {
+export interface FindAudienceRefundsParams {
   store_id?: string;
-  contact_list_id: string;
-  membership_id: string;
-  payment_attempt_id?: string;
+  audience_id: string;
+  member_id: string;
+  payment_id?: string;
   limit?: number;
   cursor?: string;
 }
 
-export interface GetContactListMembershipRefundParams {
+export interface GetAudienceRefundParams {
   store_id?: string;
-  contact_list_id: string;
-  membership_id: string;
+  audience_id: string;
+  member_id: string;
   id: string;
 }
 
-export interface RetryContactListMembershipRefundParams extends GetContactListMembershipRefundParams {}
+export interface RetryAudienceRefundParams extends GetAudienceRefundParams {}
 
-export interface FindContactListMembershipCancellationsParams {
+export interface RetryAudienceSubscriptionCancellationParams {
   store_id?: string;
-  contact_list_id: string;
-  membership_id: string;
-  payment_attempt_id?: string;
-  refund_id?: string;
-  limit?: number;
-  cursor?: string;
-}
-
-export interface GetContactListMembershipCancellationParams {
-  store_id?: string;
-  contact_list_id: string;
-  membership_id: string;
+  audience_id: string;
+  member_id: string;
   id: string;
 }
-
-export interface RetryContactListMembershipCancellationParams extends GetContactListMembershipCancellationParams {}
 
 export interface ImportContactRowInput {
   email: string;
@@ -1466,9 +1470,9 @@ export interface ImportContactsParams {
   rows?: ImportContactRowInput[];
 }
 
-export interface ImportContactsIntoContactListParams {
+export interface ImportAudienceMembersParams {
   store_id?: string;
-  contact_list_id: string;
+  audience_id: string;
   csv?: string;
   spreadsheet_base64?: string;
   sheet_name?: string | null;
@@ -1484,8 +1488,8 @@ export interface ImportContactsPreviewParams {
   sheet_name?: string | null;
 }
 
-export interface ImportContactListPreviewParams extends ImportContactsPreviewParams {
-  contact_list_id: string;
+export interface PreviewAudienceMemberImportParams extends ImportContactsPreviewParams {
+  audience_id: string;
 }
 
 export interface ImportFieldMapping {
@@ -1533,58 +1537,65 @@ export interface ImportContactsResult {
   rows: ImportContactRowResult[];
 }
 
-export interface ImportContactListRowResult {
+export interface ImportAudienceMemberRowResult {
   row: number;
   email: string;
   contact_id?: string | null;
   contact_created: boolean;
   contact_updated: boolean;
-  added_to_list: boolean;
-  updated_in_list: boolean;
+  member_added: boolean;
+  member_updated: boolean;
   error?: string | null;
 }
 
-export interface ImportContactsIntoContactListResult {
+export interface ImportAudienceMembersResult {
   rows_total: number;
   contacts_created: number;
   contacts_updated: number;
-  contacts_added: number;
-  contacts_updated_in_list: number;
-  contacts_failed_to_add: number;
+  members_added: number;
+  members_updated: number;
+  members_failed: number;
   rows_failed: number;
   errors: ImportContactRowError[];
-  rows: ImportContactListRowResult[];
+  rows: ImportAudienceMemberRowResult[];
 }
 
-export interface SubscribeContactListParams {
+export interface SubscribeAudienceParams {
   store_id?: string;
-  id: string;
-  contact_id: string;
+  audience_id: string;
   price_id?: string;
-  confirm_url?: string;
+  promo_code?: string;
   return_url?: string;
 }
 
-export interface GetStorefrontContactListSubscriptionAttemptParams {
+export interface GetStorefrontAudiencePaymentParams {
   store_id?: string;
-  id: string;
-  payment_attempt_id: string;
+  audience_id: string;
+  payment_id: string;
 }
 
-export interface ContactListAccessParams {
+export interface AudienceAccessParams {
   store_id?: string;
-  id: string;
+  audience_id: string;
 }
 
-export interface ManageContactListParams {
+export interface GetStorefrontAudienceParams {
+  store_id?: string;
+  key: string;
+}
+
+export interface ManageAudienceParams {
   token: string;
 }
 
-export interface CreateContactListPortalParams extends ManageContactListParams {
+export interface CreateAudiencePaymentMethodSessionParams
+  extends ManageAudienceParams {
   return_url: string;
 }
 
-export interface UnsubscribeContactListParams extends ManageContactListParams {}
+export interface UnsubscribeAudienceParams extends ManageAudienceParams {}
+
+export interface ConfirmAudienceParams extends ManageAudienceParams {}
 
 export interface CreateMailboxParams {
   store_id?: string;
@@ -1728,8 +1739,8 @@ export interface GetCampaignLaunchReadinessParams {
 export interface ImportCampaignEnrollmentsParams {
   id: string;
   store_id?: string;
-  contact_list_id?: string;
-  contact_list_ids?: string[];
+  audience_ids?: string[];
+  audience_tier_ids?: string[];
   contact_ids?: string[];
   emails?: string[];
 }
@@ -1868,14 +1879,14 @@ export interface GetSuppressionParams {
 
 export interface CreateLeadResearchRunParams {
   store_id?: string;
-  contact_list_id?: string;
+  audience_id?: string;
   title?: string;
 }
 
 export interface FindLeadResearchRunsParams {
   store_id?: string;
   status?: LeadResearchRunStatus;
-  contact_list_id?: string;
+  audience_id?: string;
   limit?: number;
   cursor?: string;
 }
