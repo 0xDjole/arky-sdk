@@ -106,14 +106,14 @@ export function priceForMarket(
     throw new Error(`Product has an invalid price for market ${marketKey}`);
   }
 
-  const authorizedPrices = marketPrices.filter((candidate) => candidate.contact_list_id);
+  const authorizedPrices = marketPrices.filter((candidate) => candidate.audience_id);
   if (authorizedPrices.length > 0) {
     return authorizedPrices.reduce((lowest, candidate) =>
       candidate.amount < lowest.amount ? candidate : lowest,
     );
   }
 
-  const basePrices = marketPrices.filter((candidate) => !candidate.contact_list_id);
+  const basePrices = marketPrices.filter((candidate) => !candidate.audience_id);
   if (basePrices.length !== 1) {
     throw new Error(`Product does not have one base price for market ${marketKey}`);
   }

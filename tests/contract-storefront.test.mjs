@@ -148,7 +148,7 @@ test("initialize is the production root API and exposes the module facade withou
   assert.equal("getStoreId" in store, false);
   assert.equal("forStore" in store, false);
   assert.equal("marketForLocale" in store, false);
-  assert.equal("checkContentAccess" in store.crm.contactList, false);
+  assert.equal("checkContentAccess" in store.crm.audience, false);
   assert.equal(store.session.get(), null);
   assert.equal(store.isAuthenticated, false);
 
@@ -368,7 +368,7 @@ test("storefront order payment lookup is an authenticated exact GET", async () =
   assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
 });
 
-test("paid contact-list subscribe returns the synchronous POST response without polling", async () => {
+test("paid Audience subscribe returns the exact embedded Checkout response without polling", async () => {
   const storefront = createStorefront(publishableKey, {
     apiUrl,
     sessionStorage: sessionStorage(),
@@ -376,22 +376,24 @@ test("paid contact-list subscribe returns the synchronous POST response without 
   const response = {
     payment_action: {
       type: "stripe_embedded_checkout",
-      publishable_key: "pk_test_contact_list",
+      publishable_key: "pk_test_audience",
       client_secret: "cs_subscription_secret_exact",
-      stripe_account_id: "acct_contact_list",
+      stripe_account_id: "acct_audience",
       expires_at: 1_800_000_000,
     },
-    payment_attempt: {
-      plan_id: "plan-paid",
+    payment: {
+      id: "payment-paid",
+      tier_id: "tier-paid",
       amount: 900,
       currency: "EUR",
       status: "requires_action",
     },
-    membership: {
-      id: "membership-paid",
-      contact_id: "contact-paid",
-      contact_list_id: "list-paid",
-      status: "pending",
+    member: {
+      id: "member-paid",
+      enrollment_status: "pending",
+      delivery_status: "subscribed",
+      created_at: 1,
+      updated_at: 1,
     },
   };
   const calls = [];
@@ -407,9 +409,8 @@ test("paid contact-list subscribe returns the synchronous POST response without 
 
   try {
     assert.deepEqual(
-      await storefront.crm.contactList.subscribe({
-        id: "list-paid",
-        contact_id: "contact-paid",
+      await storefront.crm.audience.subscribe({
+        audience_id: "audience-paid",
         price_id: "price-paid",
       }),
       response,
@@ -420,9 +421,9 @@ test("paid contact-list subscribe returns the synchronous POST response without 
 
   assert.deepEqual(calls, [
     {
-      url: `${apiUrl}/v1/storefront/contact-lists/list-paid/subscribe`,
+      url: `${apiUrl}/v1/storefront/audiences/audience-paid/subscribe`,
       method: "POST",
-      body: { contact_id: "contact-paid", price_id: "price-paid" },
+      body: { price_id: "price-paid" },
     },
   ]);
 });

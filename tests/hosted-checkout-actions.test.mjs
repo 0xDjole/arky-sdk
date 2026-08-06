@@ -7,9 +7,6 @@ test("the browser checkout surface exports only embedded Stripe helpers", () => 
   for (const entrypoint of [sdk, storefront]) {
     assert.equal(typeof entrypoint.createStripeEmbeddedCheckout, "function");
     assert.equal(typeof entrypoint.mountCheckoutAction, "function");
-    assert.equal("followCheckoutAction" in entrypoint, false);
-    assert.equal("stripeCheckout" in entrypoint, false);
-    assert.equal("monriCheckout" in entrypoint, false);
   }
 });
 

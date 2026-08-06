@@ -16,32 +16,30 @@ import type {
   FindContactSessionsParams,
   RevokeContactSessionParams,
   RevokeAllContactSessionsParams,
-  CreateContactListParams,
-  UpdateContactListParams,
-  FindContactListsParams,
-  GetContactListParams,
-  CreateContactListPlanParams,
-  UpdateContactListPlanParams,
-  FindContactListPlansParams,
-  GetContactListPlanParams,
-  RetryContactListPlanCatalogParams,
-  AddContactListContactParams,
-  UpdateContactListContactParams,
-  RemoveContactListContactParams,
-  FindContactListContactsParams,
-  RefundContactListMembershipParams,
-  RefundContactListMembershipResult,
-  FindContactListMembershipPaymentAttemptsParams,
-  GetContactListMembershipPaymentAttemptParams,
-  FindContactListMembershipRefundsParams,
-  GetContactListMembershipRefundParams,
-  RetryContactListMembershipRefundParams,
-  FindContactListMembershipCancellationsParams,
-  GetContactListMembershipCancellationParams,
-  RetryContactListMembershipCancellationParams,
-  ImportContactListPreviewParams,
-  ImportContactsIntoContactListParams,
-  ImportContactsIntoContactListResult,
+  CreateAudienceParams,
+  UpdateAudienceParams,
+  FindAudiencesParams,
+  GetAudienceParams,
+  CreateAudienceTierParams,
+  UpdateAudienceTierParams,
+  FindAudienceTiersParams,
+  GetAudienceTierParams,
+  RetryAudienceTierCatalogParams,
+  AddAudienceMemberParams,
+  UpdateAudienceMemberParams,
+  RemoveAudienceMemberParams,
+  FindAudienceMembersParams,
+  RefundAudienceMemberParams,
+  RefundAudienceMemberResult,
+  FindAudiencePaymentsParams,
+  GetAudiencePaymentParams,
+  FindAudienceRefundsParams,
+  GetAudienceRefundParams,
+  RetryAudienceRefundParams,
+  RetryAudienceSubscriptionCancellationParams,
+  PreviewAudienceMemberImportParams,
+  ImportAudienceMembersParams,
+  ImportAudienceMembersResult,
   CreateMailboxParams,
   ConnectGoogleMailboxParams,
   GoogleMailboxConnectUrl,
@@ -74,9 +72,10 @@ import type {
   UpdateSuppressionParams,
   FindSuppressionsParams,
   GetSuppressionParams,
-  ManageContactListParams,
-  CreateContactListPortalParams,
-  UnsubscribeContactListParams,
+  ManageAudienceParams,
+  CreateAudiencePaymentMethodSessionParams,
+  UnsubscribeAudienceParams,
+  ConfirmAudienceParams,
 } from "../types/api";
 import type {
   Mailbox,
@@ -86,16 +85,17 @@ import type {
   CampaignMessage,
   CampaignEnrollmentConversationResponse,
   PaginatedResponse,
-  ContactList,
-  ContactListPlan,
-  ContactListMembershipPaymentAttempt,
-  ContactListMembershipRefund,
-  ContactListMembershipCancellation,
-  ContactListMember,
+  Audience,
+  AudienceTier,
+  AudiencePayment,
+  AudienceRefund,
+  AudienceSubscriptionCancellation,
+  AudienceMemberDetail,
+  RemoveAudienceMemberResult,
   Action,
   Suppression,
-  ContactListManagementResponse,
-  ContactListPortalResponse,
+  AudienceManagementResponse,
+  AudiencePaymentMethodSessionResponse,
 } from "../types";
 
 export interface TimelineParams {
@@ -280,36 +280,58 @@ export const createContactApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    contactList: {
+    audience: {
       customer: {
         async manage(
-          params: ManageContactListParams,
+          params: ManageAudienceParams,
           options?: RequestOptions,
-        ): Promise<ContactListManagementResponse> {
-          return apiConfig.httpClient.post<ContactListManagementResponse>(
-            "/v1/customer/contact-lists/manage",
+        ): Promise<AudienceManagementResponse> {
+          return apiConfig.httpClient.post<AudienceManagementResponse>(
+            "/v1/customer/audiences/manage",
             params,
             options,
           );
         },
 
-        async createPortal(
-          params: CreateContactListPortalParams,
+        async createPaymentMethodSession(
+          params: CreateAudiencePaymentMethodSessionParams,
           options?: RequestOptions,
-        ): Promise<ContactListPortalResponse> {
-          return apiConfig.httpClient.post<ContactListPortalResponse>(
-            "/v1/customer/contact-lists/portal",
+        ): Promise<AudiencePaymentMethodSessionResponse> {
+          return apiConfig.httpClient.post<AudiencePaymentMethodSessionResponse>(
+            "/v1/customer/audiences/payment-method",
+            params,
+            options,
+          );
+        },
+
+        async cancelSubscription(
+          params: ManageAudienceParams,
+          options?: RequestOptions,
+        ): Promise<{ success: boolean }> {
+          return apiConfig.httpClient.post<{ success: boolean }>(
+            "/v1/customer/audiences/subscription/cancel",
             params,
             options,
           );
         },
 
         async unsubscribe(
-          params: UnsubscribeContactListParams,
+          params: UnsubscribeAudienceParams,
           options?: RequestOptions,
         ): Promise<{ success: boolean }> {
           return apiConfig.httpClient.post<{ success: boolean }>(
-            "/v1/customer/contact-lists/unsubscribe",
+            "/v1/customer/audiences/unsubscribe",
+            params,
+            options,
+          );
+        },
+
+        async confirm(
+          params: ConfirmAudienceParams,
+          options?: RequestOptions,
+        ): Promise<{ success: boolean }> {
+          return apiConfig.httpClient.post<{ success: boolean }>(
+            "/v1/customer/audiences/confirm",
             params,
             options,
           );
@@ -317,141 +339,141 @@ export const createContactApi = (apiConfig: ApiConfig) => {
       },
 
       async create(
-        params: CreateContactListParams,
+        params: CreateAudienceParams,
         options?: RequestOptions,
-      ): Promise<ContactList> {
+      ): Promise<Audience> {
         const { store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<ContactList>(
-          `/v1/stores/${target_store_id}/contact-lists`,
+        return apiConfig.httpClient.post<Audience>(
+          `/v1/stores/${target_store_id}/audiences`,
           payload,
           options,
         );
       },
 
       async update(
-        params: UpdateContactListParams,
+        params: UpdateAudienceParams,
         options?: RequestOptions,
-      ): Promise<ContactList> {
+      ): Promise<Audience> {
         const { id, store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.put<ContactList>(
-          `/v1/stores/${target_store_id}/contact-lists/${id}`,
+        return apiConfig.httpClient.put<Audience>(
+          `/v1/stores/${target_store_id}/audiences/${id}`,
           payload,
           options,
         );
       },
 
       async get(
-        params: GetContactListParams,
+        params: GetAudienceParams,
         options?: RequestOptions,
-      ): Promise<ContactList> {
+      ): Promise<Audience> {
         const target_store_id = params.store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<ContactList>(
-          `/v1/stores/${target_store_id}/contact-lists/${params.id}`,
+        return apiConfig.httpClient.get<Audience>(
+          `/v1/stores/${target_store_id}/audiences/${params.id}`,
           options,
         );
       },
 
       async find(
-        params?: FindContactListsParams,
+        params?: FindAudiencesParams,
         options?: RequestOptions,
-      ): Promise<PaginatedResponse<ContactList>> {
+      ): Promise<PaginatedResponse<Audience>> {
         const { store_id, ...queryParams } = params || {};
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.get<PaginatedResponse<ContactList>>(
-          `/v1/stores/${target_store_id}/contact-lists`,
+        return apiConfig.httpClient.get<PaginatedResponse<Audience>>(
+          `/v1/stores/${target_store_id}/audiences`,
           { ...options, params: queryParams },
         );
       },
 
-      plans: {
+      tiers: {
         async create(
-          params: CreateContactListPlanParams,
+          params: CreateAudienceTierParams,
           options?: RequestOptions,
-        ): Promise<ContactListPlan> {
-          const { store_id, contact_list_id, ...payload } = params;
+        ): Promise<AudienceTier> {
+          const { store_id, audience_id, ...payload } = params;
           const target_store_id = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.post<ContactListPlan>(
-            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/plans`,
+          return apiConfig.httpClient.post<AudienceTier>(
+            `/v1/stores/${target_store_id}/audiences/${audience_id}/tiers`,
             payload,
             options,
           );
         },
 
         async update(
-          params: UpdateContactListPlanParams,
+          params: UpdateAudienceTierParams,
           options?: RequestOptions,
-        ): Promise<ContactListPlan> {
-          const { id, store_id, contact_list_id, ...payload } = params;
+        ): Promise<AudienceTier> {
+          const { id, store_id, audience_id, ...payload } = params;
           const target_store_id = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.put<ContactListPlan>(
-            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/plans/${id}`,
+          return apiConfig.httpClient.put<AudienceTier>(
+            `/v1/stores/${target_store_id}/audiences/${audience_id}/tiers/${id}`,
             payload,
             options,
           );
         },
 
         async get(
-          params: GetContactListPlanParams,
+          params: GetAudienceTierParams,
           options?: RequestOptions,
-        ): Promise<ContactListPlan> {
+        ): Promise<AudienceTier> {
           const target_store_id = params.store_id || apiConfig.storeId;
-          return apiConfig.httpClient.get<ContactListPlan>(
-            `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/plans/${params.id}`,
+          return apiConfig.httpClient.get<AudienceTier>(
+            `/v1/stores/${target_store_id}/audiences/${params.audience_id}/tiers/${params.id}`,
             options,
           );
         },
 
         async find(
-          params: FindContactListPlansParams,
+          params: FindAudienceTiersParams,
           options?: RequestOptions,
-        ): Promise<PaginatedResponse<ContactListPlan>> {
-          const { store_id, contact_list_id, ...queryParams } = params;
+        ): Promise<PaginatedResponse<AudienceTier>> {
+          const { store_id, audience_id, ...queryParams } = params;
           const target_store_id = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.get<PaginatedResponse<ContactListPlan>>(
-            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/plans`,
+          return apiConfig.httpClient.get<PaginatedResponse<AudienceTier>>(
+            `/v1/stores/${target_store_id}/audiences/${audience_id}/tiers`,
             { ...options, params: queryParams },
           );
         },
 
         async retryCatalog(
-          params: RetryContactListPlanCatalogParams,
+          params: RetryAudienceTierCatalogParams,
           options?: RequestOptions,
-        ): Promise<ContactListPlan> {
+        ): Promise<AudienceTier> {
           const target_store_id = params.store_id || apiConfig.storeId;
           const path =
-            `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}` +
-            `/plans/${params.plan_id}`;
-          return apiConfig.httpClient.post<ContactListPlan>(
+            `/v1/stores/${target_store_id}/audiences/${params.audience_id}` +
+            `/tiers/${params.tier_id}`;
+          return apiConfig.httpClient.post<AudienceTier>(
             `${path}/catalog/retry`,
-            {},
+            { price_id: params.price_id },
             options,
           );
         },
       },
 
-      async importContacts(
-        params: ImportContactsIntoContactListParams,
+      async importMembers(
+        params: ImportAudienceMembersParams,
         options?: RequestOptions,
-      ): Promise<ImportContactsIntoContactListResult> {
-        const { store_id, contact_list_id, ...payload } = params;
+      ): Promise<ImportAudienceMembersResult> {
+        const { store_id, audience_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<ImportContactsIntoContactListResult>(
-          `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/contacts/import`,
+        return apiConfig.httpClient.post<ImportAudienceMembersResult>(
+          `/v1/stores/${target_store_id}/audiences/${audience_id}/members/import`,
           payload,
           options,
         );
       },
 
-      async previewImportContacts(
-        params: ImportContactListPreviewParams,
+      async previewMemberImport(
+        params: PreviewAudienceMemberImportParams,
         options?: RequestOptions,
       ): Promise<ImportContactsPreviewResult> {
-        const { store_id, contact_list_id, ...payload } = params;
+        const { store_id, audience_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
         return apiConfig.httpClient.post<ImportContactsPreviewResult>(
-          `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/contacts/import/preview`,
+          `/v1/stores/${target_store_id}/audiences/${audience_id}/members/import/preview`,
           payload,
           options,
         );
@@ -459,119 +481,113 @@ export const createContactApi = (apiConfig: ApiConfig) => {
 
       members: {
         async add(
-          params: AddContactListContactParams,
+          params: AddAudienceMemberParams,
           options?: RequestOptions,
-        ): Promise<ContactListMember> {
+        ): Promise<AudienceMemberDetail> {
           const {
             store_id,
-            contact_list_id,
+            audience_id,
             contact_id,
             fields,
             lead_description,
           } = params;
           const target_store_id = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.post<ContactListMember>(
-            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/contacts/${contact_id}`,
-            { fields, lead_description },
+          return apiConfig.httpClient.post<AudienceMemberDetail>(
+            `/v1/stores/${target_store_id}/audiences/${audience_id}/members`,
+            { contact_id, fields, lead_description },
             options,
           );
         },
 
         async update(
-          params: UpdateContactListContactParams,
+          params: UpdateAudienceMemberParams,
           options?: RequestOptions,
-        ): Promise<ContactListMember> {
+        ): Promise<AudienceMemberDetail> {
           const {
             store_id,
-            contact_list_id,
-            contact_id,
-            status,
+            audience_id,
+            member_id,
+            enrollment_status,
             fields,
             lead_description,
           } = params;
           const target_store_id = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.patch<ContactListMember>(
-            `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/contacts/${contact_id}`,
-            { status, fields, lead_description },
+          return apiConfig.httpClient.patch<AudienceMemberDetail>(
+            `/v1/stores/${target_store_id}/audiences/${audience_id}/members/${member_id}`,
+            { enrollment_status, fields, lead_description },
             options,
           );
         },
 
         async remove(
-          params: RemoveContactListContactParams,
+          params: RemoveAudienceMemberParams,
           options?: RequestOptions,
-        ): Promise<{ deleted: boolean }> {
+        ): Promise<RemoveAudienceMemberResult> {
           const target_store_id = params.store_id || apiConfig.storeId;
-          return apiConfig.httpClient.delete<{ deleted: boolean }>(
-            `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/contacts/${params.contact_id}`,
+          return apiConfig.httpClient.delete<RemoveAudienceMemberResult>(
+            `/v1/stores/${target_store_id}/audiences/${params.audience_id}/members/${params.member_id}`,
             options,
           );
         },
 
         async find(
-          params: FindContactListContactsParams,
+          params: FindAudienceMembersParams = {},
           options?: RequestOptions,
-        ): Promise<PaginatedResponse<ContactListMember>> {
-          const { store_id, contact_list_id, ...queryParams } = params;
-          if (!contact_list_id && !queryParams.contact_id) {
-            throw new Error("contact_list_id or contact_id is required");
-          }
+        ): Promise<PaginatedResponse<AudienceMemberDetail>> {
+          const { store_id, audience_id, ...queryParams } = params;
           const target_store_id = store_id || apiConfig.storeId;
-          const path = contact_list_id
-            ? `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/contacts`
-            : `/v1/stores/${target_store_id}/contact-lists/contacts`;
-          return apiConfig.httpClient.get<PaginatedResponse<ContactListMember>>(
+          const path = audience_id
+            ? `/v1/stores/${target_store_id}/audiences/${audience_id}/members`
+            : `/v1/stores/${target_store_id}/audiences/members`;
+          return apiConfig.httpClient.get<PaginatedResponse<AudienceMemberDetail>>(
             path,
             { ...options, params: queryParams },
           );
         },
-      },
-
-      memberships: {
         async refund(
-          params: RefundContactListMembershipParams,
+          params: RefundAudienceMemberParams,
           options?: RequestOptions,
-        ): Promise<RefundContactListMembershipResult> {
-          const { store_id, contact_list_id, membership_id, ...payload } =
+        ): Promise<RefundAudienceMemberResult> {
+          const { store_id, audience_id, member_id, payment_id, ...payload } =
             params;
           const target_store_id = store_id || apiConfig.storeId;
           const response =
-            await apiConfig.httpClient.post<RefundContactListMembershipResult>(
-              `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/memberships/${membership_id}/refund`,
+            await apiConfig.httpClient.post<RefundAudienceMemberResult>(
+              `/v1/stores/${target_store_id}/audiences/${audience_id}/members/${member_id}/payments/${payment_id}/refunds`,
               payload,
               options,
             );
           if (response.refund_id !== params.refund_id) {
             throw new Error(
-              "Membership refund response did not match the requested refund_id",
+              "Audience refund response did not match the requested refund_id",
             );
           }
           return response;
         },
 
-        paymentAttempts: {
+        payments: {
           async find(
-            params: FindContactListMembershipPaymentAttemptsParams,
+            params: FindAudiencePaymentsParams,
             options?: RequestOptions,
-          ): Promise<PaginatedResponse<ContactListMembershipPaymentAttempt>> {
-            const { store_id, contact_list_id, membership_id, ...queryParams } =
+          ): Promise<PaginatedResponse<AudiencePayment>> {
+            const { store_id, audience_id, member_id, ...queryParams } =
               params;
             const target_store_id = store_id || apiConfig.storeId;
             return apiConfig.httpClient.get<
-              PaginatedResponse<ContactListMembershipPaymentAttempt>
+              PaginatedResponse<AudiencePayment>
             >(
-              `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/memberships/${membership_id}/payment-attempts`,
+              `/v1/stores/${target_store_id}/audiences/${audience_id}/members/${member_id}/payments`,
               { ...options, params: queryParams },
             );
           },
 
           async get(
-            params: GetContactListMembershipPaymentAttemptParams,
+            params: GetAudiencePaymentParams,
             options?: RequestOptions,
-          ): Promise<ContactListMembershipPaymentAttempt> {
+          ): Promise<AudiencePayment> {
             const target_store_id = params.store_id || apiConfig.storeId;
-            return apiConfig.httpClient.get<ContactListMembershipPaymentAttempt>(
-              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/memberships/${params.membership_id}/payment-attempts/${params.id}`,
+            return apiConfig.httpClient.get<AudiencePayment>(
+              `/v1/stores/${target_store_id}/audiences/${params.audience_id}/members/${params.member_id}/payments/${params.id}`,
               options,
             );
           },
@@ -579,87 +595,63 @@ export const createContactApi = (apiConfig: ApiConfig) => {
 
         refunds: {
           async find(
-            params: FindContactListMembershipRefundsParams,
+            params: FindAudienceRefundsParams,
             options?: RequestOptions,
-          ): Promise<PaginatedResponse<ContactListMembershipRefund>> {
-            const { store_id, contact_list_id, membership_id, ...queryParams } =
+          ): Promise<PaginatedResponse<AudienceRefund>> {
+            const { store_id, audience_id, member_id, ...queryParams } =
               params;
             const target_store_id = store_id || apiConfig.storeId;
             return apiConfig.httpClient.get<
-              PaginatedResponse<ContactListMembershipRefund>
+              PaginatedResponse<AudienceRefund>
             >(
-              `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/memberships/${membership_id}/refunds`,
+              `/v1/stores/${target_store_id}/audiences/${audience_id}/members/${member_id}/refunds`,
               { ...options, params: queryParams },
             );
           },
 
           async get(
-            params: GetContactListMembershipRefundParams,
+            params: GetAudienceRefundParams,
             options?: RequestOptions,
-          ): Promise<ContactListMembershipRefund> {
+          ): Promise<AudienceRefund> {
             const target_store_id = params.store_id || apiConfig.storeId;
-            return apiConfig.httpClient.get<ContactListMembershipRefund>(
-              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/memberships/${params.membership_id}/refunds/${params.id}`,
+            return apiConfig.httpClient.get<AudienceRefund>(
+              `/v1/stores/${target_store_id}/audiences/${params.audience_id}/members/${params.member_id}/refunds/${params.id}`,
               options,
             );
           },
 
           async retry(
-            params: RetryContactListMembershipRefundParams,
+            params: RetryAudienceRefundParams,
             options?: RequestOptions,
-          ): Promise<ContactListMembershipRefund> {
+          ): Promise<AudienceRefund> {
             const target_store_id = params.store_id || apiConfig.storeId;
             const path =
-              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}` +
-              `/memberships/${params.membership_id}/refunds/${params.id}`;
-            return apiConfig.httpClient.post<ContactListMembershipRefund>(
-                `${path}/retry`,
-                {},
-                options,
-              );
+              `/v1/stores/${target_store_id}/audiences/${params.audience_id}` +
+              `/members/${params.member_id}/refunds/${params.id}`;
+            return apiConfig.httpClient.post<AudienceRefund>(
+              `${path}/retry`,
+              {},
+              options,
+            );
           },
         },
 
-        cancellations: {
-          async find(
-            params: FindContactListMembershipCancellationsParams,
-            options?: RequestOptions,
-          ): Promise<PaginatedResponse<ContactListMembershipCancellation>> {
-            const { store_id, contact_list_id, membership_id, ...queryParams } =
-              params;
-            const target_store_id = store_id || apiConfig.storeId;
-            return apiConfig.httpClient.get<
-              PaginatedResponse<ContactListMembershipCancellation>
-            >(
-              `/v1/stores/${target_store_id}/contact-lists/${contact_list_id}/memberships/${membership_id}/cancellations`,
-              { ...options, params: queryParams },
-            );
-          },
-
-          async get(
-            params: GetContactListMembershipCancellationParams,
-            options?: RequestOptions,
-          ): Promise<ContactListMembershipCancellation> {
-            const target_store_id = params.store_id || apiConfig.storeId;
-            return apiConfig.httpClient.get<ContactListMembershipCancellation>(
-              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}/memberships/${params.membership_id}/cancellations/${params.id}`,
-              options,
-            );
-          },
-
-          async retry(
-            params: RetryContactListMembershipCancellationParams,
-            options?: RequestOptions,
-          ): Promise<ContactListMembershipCancellation> {
-            const target_store_id = params.store_id || apiConfig.storeId;
-            const path =
-              `/v1/stores/${target_store_id}/contact-lists/${params.contact_list_id}` +
-              `/memberships/${params.membership_id}/cancellations/${params.id}`;
-            return apiConfig.httpClient.post<ContactListMembershipCancellation>(
-                `${path}/retry`,
-                {},
+        subscription: {
+          cancellation: {
+            async retry(
+              params: RetryAudienceSubscriptionCancellationParams,
+              options?: RequestOptions,
+            ): Promise<AudienceSubscriptionCancellation> {
+              const target_store_id = params.store_id || apiConfig.storeId;
+              const path =
+                `/v1/stores/${target_store_id}/audiences/${params.audience_id}` +
+                `/members/${params.member_id}/subscription/cancellation/retry`;
+              return apiConfig.httpClient.post<AudienceSubscriptionCancellation>(
+                path,
+                { id: params.id },
                 options,
               );
+            },
           },
         },
       },

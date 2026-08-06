@@ -29,7 +29,7 @@ export type AnalyticsReportKey =
   | "collections_by_status"
   | "entries_by_status"
   | "contacts_by_status"
-  | "contact_lists_by_status"
+  | "audiences_by_status"
   | "mailboxes_by_status"
   | "campaigns_by_status"
   | "campaign_enrollments_by_status"
@@ -54,7 +54,7 @@ export type ActionFeedCategory =
   | "promo_codes"
   | "submissions"
   | "contacts"
-  | "contact_lists"
+  | "audiences"
   | "products"
   | "services"
   | "providers"
@@ -144,8 +144,8 @@ export interface ContactFunnelData {
 }
 
 export interface OutreachOverviewData {
-  contact_lists: number;
-  active_contact_lists: number;
+  audiences: number;
+  active_audiences: number;
   mailboxes: number;
   active_mailboxes: number;
   campaigns: number;
@@ -170,7 +170,7 @@ export interface OutreachOverviewData {
 
 export interface OutreachFunnelStage {
   key:
-    | "contact_lists"
+    | "audiences"
     | "campaigns"
     | "campaign_enrollments"
     | "campaign_messages_sent"
@@ -222,7 +222,7 @@ export interface ActionFeedSummary {
   orders: number;
   submissions: number;
   contacts: number;
-  contact_lists: number;
+  audiences: number;
   abandoned_carts: number;
   carts: number;
   promo_codes: number;
@@ -269,7 +269,7 @@ export type AnalyticsBreakdownReportKey =
   | "collections_by_status"
   | "entries_by_status"
   | "contacts_by_status"
-  | "contact_lists_by_status"
+  | "audiences_by_status"
   | "mailboxes_by_status"
   | "campaigns_by_status"
   | "campaign_enrollments_by_status"

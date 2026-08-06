@@ -5,15 +5,14 @@ import type {
   AvailabilityResponse,
   CheckoutCartParams,
   ClearCartParams,
-  ContactListAccessParams,
+  ConfirmAudienceParams,
+  AudienceAccessParams,
   FindServiceProvidersParams,
-  FindStorefrontContactListMembershipsParams,
-  FindStorefrontContactListPlansParams,
-  FindStorefrontContactListsParams,
+  FindStorefrontAudienceMembersParams,
+  FindStorefrontAudienceTiersParams,
   GetAvailabilityParams,
   GetCartParams,
   GetCollectionParams,
-  GetContactListParams,
   GetEntriesParams,
   GetEntryParams,
   GetFormParams,
@@ -25,14 +24,15 @@ import type {
   GetProvidersParams,
   GetServiceParams,
   GetServicesParams,
-  GetStorefrontContactListSubscriptionAttemptParams,
+  GetStorefrontAudienceParams,
+  GetStorefrontAudiencePaymentParams,
   GetTaxonomyChildrenParams,
   GetTaxonomyParams,
   QuoteCartParams,
   RemoveCartItemParams,
   RequestOptions,
   SubmitFormParams,
-  SubscribeContactListParams,
+  SubscribeAudienceParams,
   UpdateCartParams,
   VerificationChallengeResponse,
 } from "../types/api";
@@ -41,8 +41,8 @@ import type {
   Collection,
   CollectionEntry,
   Contact,
-  ContactListAccessResponse,
-  ContactListSubscribeResponse,
+  AudienceAccessResponse,
+  AudienceSubscribeResponse,
   ContactSessionIssued,
   Form,
   FormSubmission,
@@ -56,9 +56,9 @@ import type {
   Provider,
   Service,
   ServiceProvider,
-  StorefrontContactList,
-  StorefrontContactListMembership,
-  StorefrontContactListPlan,
+  StorefrontAudience,
+  StorefrontAudienceMember,
+  StorefrontAudienceTier,
   Taxonomy,
   Zone,
 } from "../types";
@@ -672,86 +672,88 @@ export const createStorefrontApi = (
           );
         },
       },
-      contactList: {
+      audience: {
         get(
-          params: StorefrontParams<GetContactListParams>,
+          params: StorefrontParams<GetStorefrontAudienceParams>,
           options?: RequestOptions,
-        ): Promise<StorefrontContactList> {
-          return apiConfig.httpClient.get<StorefrontContactList>(
-            `${base}/contact-lists/${params.id}`,
+        ): Promise<StorefrontAudience> {
+          return apiConfig.httpClient.get<StorefrontAudience>(
+            `${base}/audiences/${params.key}`,
             options,
           );
         },
-        find(
-          params: StorefrontParams<FindStorefrontContactListsParams> = {},
-          options?: RequestOptions,
-        ): Promise<PaginatedResponse<StorefrontContactList>> {
-          return apiConfig.httpClient.get<
-            PaginatedResponse<StorefrontContactList>
-          >(`${base}/contact-lists`, { ...options, params });
-        },
-        plans: {
+        tiers: {
           find(
-            params: StorefrontParams<FindStorefrontContactListPlansParams>,
+            params: StorefrontParams<FindStorefrontAudienceTiersParams>,
             options?: RequestOptions,
-          ): Promise<PaginatedResponse<StorefrontContactListPlan>> {
-            const { contact_list_id, ...queryParams } = params;
+          ): Promise<PaginatedResponse<StorefrontAudienceTier>> {
+            const { audience_id, ...queryParams } = params;
             return apiConfig.httpClient.get<
-              PaginatedResponse<StorefrontContactListPlan>
-            >(`${base}/contact-lists/${contact_list_id}/plans`, {
+              PaginatedResponse<StorefrontAudienceTier>
+            >(`${base}/audiences/${audience_id}/tiers`, {
               ...options,
               params: queryParams,
             });
           },
         },
-        memberships: {
+        members: {
           async find(
-            params: StorefrontParams<FindStorefrontContactListMembershipsParams> = {},
+            params: StorefrontParams<FindStorefrontAudienceMembersParams> = {},
             options?: RequestOptions,
           ): Promise<
-            StorefrontDto<PaginatedResponse<StorefrontContactListMembership>>
+            StorefrontDto<PaginatedResponse<StorefrontAudienceMember>>
           > {
             await lifecycle.ensureVisitorSession();
             return apiConfig.httpClient.get<
-              StorefrontDto<PaginatedResponse<StorefrontContactListMembership>>
-            >(`${base}/contact-lists/memberships`, {
+              StorefrontDto<PaginatedResponse<StorefrontAudienceMember>>
+            >(`${base}/audiences/members`, {
               ...options,
               params,
             });
           },
         },
         async subscribe(
-          params: StorefrontParams<SubscribeContactListParams>,
+          params: StorefrontParams<SubscribeAudienceParams>,
           options?: RequestOptions,
-        ): Promise<StorefrontDto<ContactListSubscribeResponse>> {
+        ): Promise<StorefrontDto<AudienceSubscribeResponse>> {
           await lifecycle.ensureVisitorSession();
-          const { id, ...payload } = params;
+          const { audience_id, ...payload } = params;
           return apiConfig.httpClient.post<
-            StorefrontDto<ContactListSubscribeResponse>
-          >(`${base}/contact-lists/${id}/subscribe`, payload, options);
+            StorefrontDto<AudienceSubscribeResponse>
+          >(`${base}/audiences/${audience_id}/subscribe`, payload, options);
         },
-        subscriptionAttempts: {
+        async confirm(
+          params: ConfirmAudienceParams,
+          options?: RequestOptions,
+        ): Promise<{ success: boolean }> {
+          return apiConfig.httpClient.post<{ success: boolean }>(
+            "/v1/customer/audiences/confirm",
+            params,
+            options,
+          );
+        },
+        payments: {
           async get(
-            params: StorefrontParams<GetStorefrontContactListSubscriptionAttemptParams>,
+            params: StorefrontParams<GetStorefrontAudiencePaymentParams>,
             options?: RequestOptions,
-          ): Promise<StorefrontDto<ContactListSubscribeResponse>> {
+          ): Promise<StorefrontDto<AudienceSubscribeResponse>> {
             await lifecycle.ensureVisitorSession();
             return apiConfig.httpClient.get<
-              StorefrontDto<ContactListSubscribeResponse>
+              StorefrontDto<AudienceSubscribeResponse>
             >(
-              `${base}/contact-lists/${params.id}/subscription-attempts/${params.payment_attempt_id}`,
+              `${base}/audiences/${params.audience_id}/payments/${params.payment_id}`,
               options,
             );
           },
         },
         async checkAccess(
-          params: StorefrontParams<ContactListAccessParams>,
+          params: StorefrontParams<AudienceAccessParams>,
           options?: RequestOptions,
-        ): Promise<StorefrontDto<ContactListAccessResponse>> {
+        ): Promise<StorefrontDto<AudienceAccessResponse>> {
           await lifecycle.ensureVisitorSession();
           return apiConfig.httpClient.get<
-            StorefrontDto<ContactListAccessResponse>
-          >(`${base}/contact-lists/${params.id}/access`, options);
+            StorefrontDto<AudienceAccessResponse>
+          >(`${base}/audiences/${params.audience_id}/access`, options);
         },
       },
     },

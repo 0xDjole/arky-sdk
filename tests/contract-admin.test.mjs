@@ -104,9 +104,13 @@ assert.equal(typeof arky.store.find, "function");
 assert.equal(typeof arky.store.subscription.getPlans, "function");
 assert.equal(typeof arky.store.subscription.select, "function");
 assert.equal(typeof arky.store.subscription.createPortalSession, "function");
-assert.equal(typeof arky.customer.contactList.manage, "function");
-assert.equal(typeof arky.customer.contactList.createPortal, "function");
-assert.equal(typeof arky.customer.contactList.unsubscribe, "function");
+assert.equal(typeof arky.customer.audience.manage, "function");
+assert.equal(
+  typeof arky.customer.audience.createPaymentMethodSession,
+  "function",
+);
+assert.equal(typeof arky.customer.audience.cancelSubscription, "function");
+assert.equal(typeof arky.customer.audience.unsubscribe, "function");
 assert.equal(typeof arky.store.member.add, "function");
 assert.equal(typeof arky.store.member.invite, "function");
 assert.equal(typeof arky.store.member.remove, "function");
@@ -122,20 +126,20 @@ assert.equal(
 assert.equal(typeof arky.store.paymentProvider.delete, "function");
 assert.equal(typeof arky.media.replaceMediaContent, "function");
 
-const customerContactListCalls = [];
-const customerContactListOriginalFetch = globalThis.fetch;
+const customerAudienceCalls = [];
+const customerAudienceOriginalFetch = globalThis.fetch;
 globalThis.fetch = async (url, init = {}) => {
   const call = {
     url: String(url),
     method: init.method || "GET",
     body: init.body ? JSON.parse(String(init.body)) : null,
   };
-  customerContactListCalls.push(call);
+  customerAudienceCalls.push(call);
   const body = call.url.endsWith("/stores/plans")
     ? { items: [], cursor: null }
     : call.url.endsWith("/manage")
       ? { has_access: true }
-      : call.url.endsWith("/portal")
+    : call.url.endsWith("/payment-method")
         ? { portal_url: "https://billing.test/session" }
         : { success: true };
   return new Response(JSON.stringify(body), {
@@ -149,39 +153,45 @@ try {
     cursor: null,
   });
   assert.deepEqual(
-    await arky.customer.contactList.manage({ token: "manage-token" }),
+    await arky.customer.audience.manage({ token: "manage-token" }),
     { has_access: true },
   );
   assert.deepEqual(
-    await arky.customer.contactList.createPortal({
+    await arky.customer.audience.createPaymentMethodSession({
       token: "portal-token",
       return_url: "https://customer.test/account",
     }),
     { portal_url: "https://billing.test/session" },
   );
   assert.deepEqual(
-    await arky.customer.contactList.unsubscribe({
+    await arky.customer.audience.cancelSubscription({
+      token: "cancel-token",
+    }),
+    { success: true },
+  );
+  assert.deepEqual(
+    await arky.customer.audience.unsubscribe({
       token: "unsubscribe-token",
     }),
     { success: true },
   );
 } finally {
-  globalThis.fetch = customerContactListOriginalFetch;
+  globalThis.fetch = customerAudienceOriginalFetch;
 }
 assert.deepEqual(
-  customerContactListCalls.map(({ url, ...call }) => ({
+  customerAudienceCalls.map(({ url, ...call }) => ({
     ...call,
     url: url.replace("http://127.0.0.1:1", ""),
   })),
   [
     { url: "/v1/stores/plans", method: "GET", body: null },
     {
-      url: "/v1/customer/contact-lists/manage",
+      url: "/v1/customer/audiences/manage",
       method: "POST",
       body: { token: "manage-token" },
     },
     {
-      url: "/v1/customer/contact-lists/portal",
+      url: "/v1/customer/audiences/payment-method",
       method: "POST",
       body: {
         token: "portal-token",
@@ -189,7 +199,12 @@ assert.deepEqual(
       },
     },
     {
-      url: "/v1/customer/contact-lists/unsubscribe",
+      url: "/v1/customer/audiences/subscription/cancel",
+      method: "POST",
+      body: { token: "cancel-token" },
+    },
+    {
+      url: "/v1/customer/audiences/unsubscribe",
       method: "POST",
       body: { token: "unsubscribe-token" },
     },
@@ -470,8 +485,8 @@ assert.equal(typeof arky.outreach.campaignMessage.find, "function");
 assert.equal(typeof arky.outreach.suppression.find, "function");
 assert.equal(typeof arky.outreach.leadResearch.createRun, "function");
 
-assert.equal(typeof arky.crm.contactList.addMember, "function");
-assert.equal(typeof arky.crm.contactList.findMembers, "function");
+assert.equal(typeof arky.crm.audience.members.add, "function");
+assert.equal(typeof arky.crm.audience.members.find, "function");
 
 assert.equal(typeof arky.eshop.order.createRefund, "function");
 assert.equal(typeof arky.eshop.order.getRefunds, "function");

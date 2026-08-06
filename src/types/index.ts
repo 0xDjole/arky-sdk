@@ -88,18 +88,23 @@ export type StripeDisputeStatus =
   | "won"
   | "lost"
   | "prevented";
+export type OrderDisputeType = "stripe";
+export interface StripeOrderDispute {
+  dispute_id: string;
+  charge_id: string;
+}
 export interface OrderDispute {
   id: string;
   version: number;
   store_id: string;
   order_id: string;
   payment_id: string;
+  type: OrderDisputeType;
   amount: number;
   currency: Currency;
-  charge_id: string;
   status?: StripeDisputeStatus | null;
   reason: string;
-  stripe_dispute_id: string;
+  stripe: StripeOrderDispute;
   created_at: number;
   updated_at: number;
 }
@@ -119,6 +124,7 @@ export interface OrderPaymentAttemptCancellation {
   id: string;
   version: number;
   status: OrderPaymentAttemptCancellationStatus;
+  reason: OrderCancellationReason;
   requested_at: number;
   processing_deadline_at?: number | null;
   completed_at?: number | null;
@@ -238,7 +244,7 @@ export interface Price {
   market: string;
   amount: number;
   compare_at?: number;
-  contact_list_id?: string;
+  audience_id?: string;
 }
 
 export type IntervalPeriod = "month" | "year";
@@ -1107,7 +1113,7 @@ export interface Order {
   billing_address?: Address;
   forms: FormEntry[];
   history: HistoryEntry[];
-  contact_list_id?: string;
+  audience_ids: string[];
   created_at: number;
   updated_at: number;
 }
@@ -1211,12 +1217,15 @@ export type WebhookEventSubscription =
   | { event: "media.deleted" }
   | { event: "store.created" }
   | { event: "store.updated" }
-  | { event: "contact_list.created" }
-  | { event: "contact_list.updated" }
-  | { event: "contact_list.contact_added" }
-  | { event: "contact_list.contact_pending" }
-  | { event: "contact_list.contact_confirmed" }
-  | { event: "contact_list.contact_cancelled" }
+  | { event: "audience.created" }
+  | { event: "audience.updated" }
+  | { event: "audience.member_added" }
+  | { event: "audience.member_removed" }
+  | { event: "audience.member_pending" }
+  | { event: "audience.member_confirmed" }
+  | { event: "audience.member_access_cancelled" }
+  | { event: "audience.member_email_unsubscribed" }
+  | { event: "audience.member_email_resubscribed" }
   | { event: "contact.created" }
   | { event: "contact.updated" }
   | { event: "form_submission.created"; form_id?: string }
@@ -1279,7 +1288,7 @@ export interface StoreSubscription {
   updated_at: number;
 }
 
-export type ContactListMembershipPaymentAttemptStatus =
+export type AudiencePaymentStatus =
   | "pending"
   | "requires_action"
   | "processing"
@@ -1290,70 +1299,95 @@ export type ContactListMembershipPaymentAttemptStatus =
   | "expired"
   | "unknown";
 
-export type ContactListMembershipPaymentAttemptSafeError =
+export type AudiencePaymentSafeError =
   "payment_rejected" | "invalid_payment_state" | "unknown_outcome";
 
-export interface ContactListMembershipPaymentAttempt {
+export type AudiencePaymentType = "initial" | "renewal" | "one_time";
+
+export interface AudiencePromotionSnapshot {
+  promo_code_id: string;
+  code: string;
+  discount: number;
+}
+
+export interface AudiencePayment {
   id: string;
   store_id: string;
-  contact_list_id: string;
-  membership_id: string;
-  contact_id: string;
+  audience_id: string;
+  member_id: string;
+  /** Immutable Contact snapshot that initiated this provider payment. */
+  payer_contact_id: string;
   generation: number;
-  status: ContactListMembershipPaymentAttemptStatus;
-  plan_id: string;
+  type: AudiencePaymentType;
+  status: AudiencePaymentStatus;
+  tier_id: string;
+  tier_name: string;
+  price_id: string;
+  subtotal: number;
+  discount: number;
   amount: number;
   currency: Currency;
   interval?: SubscriptionInterval | null;
-  safe_error?: ContactListMembershipPaymentAttemptSafeError | null;
-  started_at: number;
+  promotion?: AudiencePromotionSnapshot | null;
+  safe_error?: AudiencePaymentSafeError | null;
+  requested_at: number;
   updated_at: number;
 }
 
-export type ContactListMembershipRefundStatus =
+export type AudienceRefundStatus =
   "requested" | "processing" | "succeeded" | "failed" | "rejected" | "unknown";
 
-export type ContactListMembershipRefundType = "partial" | "full";
+export type AudienceRefundType = "partial" | "full";
 
-export type ContactListMembershipRefundSafeError =
+export type AudienceRefundSafeError =
   "provider_rejected" | "invalid_refund_state" | "unknown_outcome";
 
-export interface ContactListMembershipRefund {
+export interface AudienceRefund {
   id: string;
   store_id: string;
-  contact_list_id: string;
-  membership_id: string;
-  payment_attempt_id: string;
+  audience_id: string;
+  member_id: string;
+  payment_id: string;
   revision: number;
-  type: ContactListMembershipRefundType;
+  type: AudienceRefundType;
   amount: number;
   currency: Currency;
-  status: ContactListMembershipRefundStatus;
-  safe_error?: ContactListMembershipRefundSafeError | null;
+  status: AudienceRefundStatus;
+  safe_error?: AudienceRefundSafeError | null;
   created_at: number;
   updated_at: number;
 }
 
-export type ContactListMembershipCancellationStatus =
+export type AudienceSubscriptionCancellationStatus =
   "requested" | "processing" | "succeeded" | "failed" | "rejected" | "unknown";
 
-export type ContactListMembershipCancellationType =
+export type AudienceSubscriptionCancellationType =
   "at_period_end" | "immediate";
 
-export type ContactListMembershipCancellationSafeError =
-  "provider_rejected" | "invalid_cancellation_state" | "unknown_outcome";
-
-export interface ContactListMembershipCancellation {
+export interface AudienceSubscriptionCancellation {
   id: string;
-  store_id: string;
-  contact_list_id: string;
-  membership_id: string;
-  payment_attempt_id: string;
+  payment_id: string;
   refund_id?: string | null;
   revision: number;
-  type: ContactListMembershipCancellationType;
-  status: ContactListMembershipCancellationStatus;
-  safe_error?: ContactListMembershipCancellationSafeError | null;
+  type: AudienceSubscriptionCancellationType;
+  requested_at: number;
+  processing_started_at?: number | null;
+  processing_deadline_at?: number | null;
+  completed_at?: number | null;
+  provider_status?: string | null;
+  provider_error_code?: string | null;
+  provider_http_status?: number | null;
+  status: AudienceSubscriptionCancellationStatus;
+  error?:
+    | {
+        type: "provider_rejected";
+        message: string;
+        provider_code?: string | null;
+        provider_status?: number | null;
+        at: number;
+      }
+    | { type: "provider_call_not_started" | "unknown_outcome"; message: string; at: number }
+    | null;
   created_at: number;
   updated_at: number;
 }
@@ -1518,7 +1552,7 @@ export type SubscriptionPlanFeatureType =
   | "products"
   | "providers"
   | "workflows"
-  | "contact_lists"
+  | "audiences"
   | "crm_contacts"
   | "media"
   | "members"
@@ -1619,17 +1653,21 @@ export type ProviderStatus = "active" | "draft" | "archived";
 
 export type ProductStatus = "active" | "draft" | "archived";
 export type ContactStatus = "active" | "archived";
-export type ContactListStatus = "active" | "draft" | "archived";
-export type ContactListSource =
-  "manual" | "import" | "signup" | "admin" | "system" | "lead_research";
-export type ContactListMembershipStatus =
+export type AudienceStatus = "active" | "draft" | "archived";
+export type AudienceSource = "manual" | "system" | "lead_research";
+export type AudienceMemberSource =
+  | "admin"
+  | "import"
+  | "signup"
+  | "system"
+  | "lead_research";
+export type AudienceMemberStatus =
   | "pending"
   | "active"
-  | "cancellation_scheduled"
-  | "cancelled"
-  | "expired"
   | "archived";
-export type ContactListPlanStatus = "active" | "archived";
+export type AudienceDeliveryStatus = "subscribed" | "unsubscribed";
+export type AudienceTierStatus = "draft" | "active" | "archived";
+export type AudiencePriceStatus = "draft" | "active" | "archived";
 export type MailboxStatus = "active" | "draft" | "archived";
 export type MailboxPreset = "gmail" | "zoho" | "microsoft" | "custom";
 export type MailboxConnectionSecurity = "tls" | "start_tls";
@@ -1691,7 +1729,7 @@ export type CampaignEnrollmentStatus =
   | "failed"
   | "stopped";
 export type CampaignEnrollmentImportSource =
-  "contact_list" | "contact" | "manual";
+  "audience" | "contact" | "manual";
 export type CampaignMessageStatus =
   | "draft"
   | "scheduled"
@@ -2303,34 +2341,82 @@ export interface WorkflowEffect {
   updated_at: number;
 }
 
-export type ContactListType =
-  | { type: "standard" }
-  | { type: "confirmation"; confirm_template_id?: string | null }
+export type AudienceType =
+  | { type: "private" }
+  | { type: "open" }
+  | { type: "confirmation"; template_id: string; confirmation_url: string }
   | { type: "paid" };
 
-export type ContactListPlanCatalogStatus =
-  "requested" | "processing" | "succeeded" | "failed" | "rejected" | "unknown";
+export type AudienceCatalogMutationStatus =
+  | "pending"
+  | "requested"
+  | "processing"
+  | "succeeded"
+  | "failed"
+  | "rejected"
+  | "unknown"
+  | "archived";
 
-export type ContactListPlanCatalogType =
-  { type: "create_product" } | { type: "create_price"; price_index: number };
+export type AudienceCatalogOperation = "create" | "update" | "archive";
 
-export type ContactListPlanCatalogSafeError =
-  "provider_rejected" | "invalid_catalog_state" | "unknown_outcome";
+export type AudienceCatalogMutationError =
+  | {
+      type: "provider_rejected";
+      message: string;
+      provider_code?: string | null;
+      provider_status?: number | null;
+      at: number;
+    }
+  | { type: "provider_call_not_started" | "unknown_outcome"; message: string; at: number };
 
-export interface ContactListPlan {
+export interface AudienceCatalogMutation {
+  revision: number;
+  attempt_count: number;
+  operation: AudienceCatalogOperation;
+  status: AudienceCatalogMutationStatus;
+  requested_at: number;
+  processing_started_at?: number | null;
+  processing_deadline_at?: number | null;
+  completed_at?: number | null;
+  provider_status?: string | null;
+  provider_error_code?: string | null;
+  provider_http_status?: number | null;
+  error?: AudienceCatalogMutationError | null;
+}
+
+export type AudienceTierProvider = {
+  type: "stripe";
+  payment_provider_id: string;
+  connected_account_id: string;
+  product_id?: string | null;
+  mutation: AudienceCatalogMutation;
+};
+
+export type AudiencePriceProvider = {
+  type: "stripe";
+  price_id?: string | null;
+  mutation: AudienceCatalogMutation;
+};
+
+export interface AudiencePrice {
   id: string;
-  store_id: string;
-  contact_list_id: string;
+  currency: Currency;
+  amount: number;
+  compare_at?: number | null;
+  interval?: SubscriptionInterval | null;
+  status: AudiencePriceStatus;
+  provider?: AudiencePriceProvider | null;
+}
+
+export interface AudienceTier {
+  id: string;
   key: string;
   name: string;
   description?: string | null;
-  status: ContactListPlanStatus;
-  prices: SubscriptionPrice[];
-  payment_provider_id?: string | null;
-  catalog_revision: number;
-  catalog_type: ContactListPlanCatalogType;
-  catalog_status: ContactListPlanCatalogStatus;
-  catalog_safe_error?: ContactListPlanCatalogSafeError | null;
+  benefits: string[];
+  status: AudienceTierStatus;
+  prices: AudiencePrice[];
+  provider?: AudienceTierProvider | null;
   created_at: number;
   updated_at: number;
 }
@@ -2412,120 +2498,222 @@ export interface Contact {
   updated_at: number;
 }
 
-export interface ContactListAccessResponse {
+export interface AudienceAccessResponse {
   has_access: boolean;
-  membership?: ContactListMembership | null;
+  member?: StorefrontAudienceMemberState | null;
 }
 
-export interface ContactListManagementContactList {
+export interface AudienceManagementAudience {
   id: string;
   key: string;
   name: string;
   description?: string | null;
-  type: ContactListType;
+  type: AudienceManagementType;
 }
 
-export interface ContactListManagementMembership {
+export type AudienceManagementType =
+  | { type: "private" }
+  | { type: "open" }
+  | { type: "confirmation" }
+  | { type: "paid" };
+
+export interface AudienceManagementMember {
   id: string;
-  status: ContactListMembershipStatus;
-  current_payment_attempt_id?: string | null;
-  source: ContactListSource;
-  start_date: number;
-  end_date: number;
+  enrollment_status: AudienceMemberStatus;
+  delivery_status: AudienceDeliveryStatus;
+  one_time_access?: StorefrontAudienceOneTimeAccess | null;
+  subscription?: StorefrontAudienceSubscription | null;
+  source: AudienceMemberSource;
   created_at: number;
   updated_at: number;
 }
 
-export interface ContactListManagementResponse {
+export interface AudienceManagementResponse {
   has_access: boolean;
-  billing_portal_available: boolean;
-  contact_list: ContactListManagementContactList;
-  membership: ContactListManagementMembership;
+  payment_method_update_available: boolean;
+  subscription_cancellation_available: boolean;
+  audience: AudienceManagementAudience;
+  member: AudienceManagementMember;
 }
 
-export interface ContactListPortalResponse {
+export interface AudiencePaymentMethodSessionResponse {
   portal_url: string;
 }
 
-export interface ContactListSubscribeResponse {
+export interface AudienceSubscribeResponse {
   payment_action: CheckoutPaymentAction;
-  payment_attempt?: StorefrontContactListPaymentAttemptSummary | null;
-  membership?: ContactListMembership | null;
+  payment?: StorefrontAudiencePaymentSummary | null;
+  member: StorefrontAudienceMemberState;
 }
 
-export interface ContactList {
+export type AudienceSubscriptionStatus =
+  | "pending"
+  | "active"
+  | "past_due"
+  | "cancellation_scheduled"
+  | "unpaid"
+  | "cancelled"
+  | "expired";
+
+export type AudienceSubscriptionProvider = {
+  type: "stripe";
+  payment_provider_id: string;
+  connected_account_id: string;
+  customer_id: string;
+  subscription_id: string;
+  price_id: string;
+};
+
+export interface AudienceSubscription {
   id: string;
+  tier_id: string;
+  price_id: string;
+  current_payment_id: string;
+  status: AudienceSubscriptionStatus;
+  current_period_start?: number | null;
+  current_period_end?: number | null;
+  cancel_at_period_end: boolean;
+  cancellation?: AudienceSubscriptionCancellation | null;
+  provider?: AudienceSubscriptionProvider | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface Audience {
+  id: string;
+  version: number;
   store_id: string;
   key: string;
   name: string;
   description?: string | null;
-  status: ContactListStatus;
-  type: ContactListType;
-  source: ContactListSource;
+  status: AudienceStatus;
+  type: AudienceType;
+  source: AudienceSource;
+  tiers: AudienceTier[];
   member_count: number;
   created_at: number;
   updated_at: number;
 }
 
-export interface ContactListMembership {
+export interface AudienceMember {
   id: string;
   store_id: string;
   contact_id: string;
-  contact_list_id: string;
-  source: ContactListSource;
+  audience_id: string;
+  source: AudienceMemberSource;
   fields: Record<string, unknown>;
   lead_description?: string | null;
   lead?: LeadInsight | null;
-  status: ContactListMembershipStatus;
-  current_payment_attempt_id?: string | null;
-  start_date: number;
-  end_date: number;
+  enrollment_status: AudienceMemberStatus;
+  delivery_status: AudienceDeliveryStatus;
+  one_time_access?: AudienceOneTimeAccess | null;
+  subscription?: AudienceSubscription | null;
   created_at: number;
   updated_at: number;
 }
 
-export type StorefrontContactListType = "standard" | "confirmation" | "paid";
+export type RemoveAudienceMemberResult =
+  | { type: "removed"; member_id: string }
+  | { type: "subscription_cancellation_requested"; member_id: string }
+  | { type: "already_removed"; member_id: string };
 
-export interface StorefrontContactList {
+export interface AudienceOneTimeAccess {
+  tier_id: string;
+  price_id: string;
+  current_payment_id: string;
+  access_started_at?: number | null;
+  access_ends_at?: number | null;
+}
+
+export type StorefrontAudienceType = "open" | "confirmation" | "paid";
+
+export interface StorefrontAudience {
   id: string;
   key: string;
   name: string;
   description?: string | null;
-  type: StorefrontContactListType;
+  type: StorefrontAudienceType;
 }
 
-export interface StorefrontContactListPlan {
+export interface StorefrontAudienceTier {
   id: string;
   key: string;
   name: string;
   description?: string | null;
-  prices: StorefrontContactListPrice[];
+  benefits: string[];
+  prices: StorefrontAudiencePrice[];
 }
 
-export type StorefrontContactListPrice = Omit<SubscriptionPrice, "providers">;
+export interface StorefrontAudiencePrice {
+  id: string;
+  currency: Currency;
+  amount: number;
+  compare_at?: number | null;
+  interval?: SubscriptionInterval | null;
+}
 
-export interface StorefrontContactListPaymentAttemptSummary {
-  plan_id: string;
+export interface StorefrontAudiencePaymentSummary {
+  id: string;
+  tier_id: string;
   amount: number;
   currency: Currency;
   interval?: SubscriptionInterval | null;
-  status: ContactListMembershipPaymentAttemptStatus;
+  status: AudiencePaymentStatus;
 }
 
-export interface StorefrontContactListMembership {
+export interface StorefrontAudienceSubscriptionCancellation {
   id: string;
-  status: ContactListMembershipStatus;
-  contact_list: StorefrontContactList;
-  payment_attempt?: StorefrontContactListPaymentAttemptSummary | null;
-  start_date: number;
-  end_date: number;
+  type: AudienceSubscriptionCancellationType;
+  status: AudienceSubscriptionCancellationStatus;
+  requested_at: number;
+  completed_at?: number | null;
+}
+
+export interface StorefrontAudienceOneTimeAccess {
+  tier_id: string;
+  price_id: string;
+  access_started_at?: number | null;
+  access_ends_at?: number | null;
+}
+
+export interface StorefrontAudienceSubscription {
+  id: string;
+  tier_id: string;
+  price_id: string;
+  status: AudienceSubscriptionStatus;
+  current_period_start?: number | null;
+  current_period_end?: number | null;
+  cancel_at_period_end: boolean;
+  cancellation?: StorefrontAudienceSubscriptionCancellation | null;
   created_at: number;
   updated_at: number;
 }
 
-export interface ContactListMember {
+export interface StorefrontAudienceMemberState {
+  id: string;
+  enrollment_status: AudienceMemberStatus;
+  delivery_status: AudienceDeliveryStatus;
+  one_time_access?: StorefrontAudienceOneTimeAccess | null;
+  subscription?: StorefrontAudienceSubscription | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface StorefrontAudienceMember {
+  id: string;
+  enrollment_status: AudienceMemberStatus;
+  delivery_status: AudienceDeliveryStatus;
+  one_time_access?: StorefrontAudienceOneTimeAccess | null;
+  subscription?: StorefrontAudienceSubscription | null;
+  audience: StorefrontAudience;
+  payment?: StorefrontAudiencePaymentSummary | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface AudienceMemberDetail {
   contact: Contact;
-  membership: ContactListMembership;
+  member: AudienceMember;
 }
 
 export interface ActionLocation {
@@ -2795,7 +2983,8 @@ export interface CampaignEnrollment {
   store_id: string;
   campaign_id: string;
   contact_id: string;
-  contact_list_membership_id?: string | null;
+  audience_member_id?: string | null;
+  audience_tier_id?: string | null;
   import_source: CampaignEnrollmentImportSource;
   import_source_id?: string | null;
   imported_at?: number | null;
@@ -2937,11 +3126,10 @@ export interface LeadInsight {
 export interface LeadResearchRun {
   id: string;
   store_id: string;
-  contact_list_id: string;
+  audience_id: string;
   title?: string | null;
   status: LeadResearchRunStatus;
   error?: string | null;
-  request_message_id?: string | null;
   started_at?: number | null;
   processing_deadline_at?: number | null;
   completed_at?: number | null;
@@ -2979,15 +3167,15 @@ export interface LeadResearchMessage {
   created_at: number;
 }
 
-export interface ResearchContactListMember {
+export interface ResearchAudienceMember {
   contact: Contact;
-  membership: ContactListMembership;
+  member: AudienceMember;
 }
 
 export interface SendLeadResearchMessageResult {
   response: string;
   run: LeadResearchRun;
-  contact_list_members: ResearchContactListMember[];
+  audience_members: ResearchAudienceMember[];
 }
 
 export type EventAction =
@@ -3050,13 +3238,15 @@ export type EventAction =
   | { action: "media_deleted" }
   | { action: "store_created" }
   | { action: "store_updated" }
-  | { action: "contact_list_created" }
-  | { action: "contact_list_updated" }
-  | { action: "contact_list_contact_added" }
-  | { action: "contact_list_contact_removed" }
-  | { action: "contact_list_contact_pending" }
-  | { action: "contact_list_contact_confirmed" }
-  | { action: "contact_list_contact_cancelled" };
+  | { action: "audience_created" }
+  | { action: "audience_updated" }
+  | { action: "audience_member_added" }
+  | { action: "audience_member_removed" }
+  | { action: "audience_member_pending" }
+  | { action: "audience_member_confirmed" }
+  | { action: "audience_member_access_cancelled" }
+  | { action: "audience_member_email_unsubscribed" }
+  | { action: "audience_member_email_resubscribed" };
 
 export interface Event {
   id: string;
@@ -3129,6 +3319,11 @@ export type OrderShipmentSettlementType =
   | { type: "purchase_compensation_credit" }
   | { type: "refund_credit"; refund_id: string };
 
+export interface StripeOrderShipmentSettlement {
+  object_id?: string | null;
+  status?: string | null;
+}
+
 export interface OrderShipmentSettlement {
   id: string;
   order_shipment_id: string;
@@ -3139,8 +3334,7 @@ export interface OrderShipmentSettlement {
   status: OrderShipmentSettlementStatus;
   version: number;
   attempt_count: number;
-  stripe_object_id?: string | null;
-  stripe_status?: string | null;
+  stripe: StripeOrderShipmentSettlement;
   safe_error?: string | null;
   requested_at: number;
   completed_at?: number | null;
@@ -3233,8 +3427,62 @@ export interface PromoCode {
   code: string;
   discounts: import("./api").Discount[];
   conditions: import("./api").Condition[];
+  audience_provider?: AudiencePromotionProvider | null;
   status: PromoCodeStatus;
   uses: number;
   created_at: number;
   updated_at: number;
 }
+
+export type AudienceDiscountDuration =
+  | { type: "once" }
+  | { type: "repeating"; months: number }
+  | { type: "forever" };
+
+export type AudiencePromotionOperation =
+  | "create_coupon"
+  | "create_promotion_code"
+  | "archive_promotion_code"
+  | "delete_coupon";
+
+export type AudiencePromotionStatus =
+  | "requested"
+  | "processing"
+  | "succeeded"
+  | "failed"
+  | "rejected"
+  | "unknown"
+  | "archived";
+
+export type AudiencePromotionError =
+  | {
+      type: "provider_rejected";
+      message: string;
+      provider_code?: string | null;
+      provider_status?: number | null;
+      at: number;
+    }
+  | {
+      type: "provider_call_not_started" | "unknown_outcome";
+      message: string;
+      at: number;
+    };
+
+export type AudiencePromotionProvider = {
+  type: "stripe";
+  payment_provider_id: string;
+  connected_account_id: string;
+  revision: number;
+  attempt_count: number;
+  operation: AudiencePromotionOperation;
+  status: AudiencePromotionStatus;
+  coupon_id?: string | null;
+  promotion_code_id?: string | null;
+  requested_at: number;
+  processing_started_at?: number | null;
+  processing_deadline_at?: number | null;
+  completed_at?: number | null;
+  provider_error_code?: string | null;
+  provider_http_status?: number | null;
+  error?: AudiencePromotionError | null;
+};
