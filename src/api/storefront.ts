@@ -1,6 +1,7 @@
 import type { ContactSessionUpdater, StorefrontApiConfig } from "../index";
 import type {
   AddCartBookingParams,
+  AddCartDigitalProductParams,
   AddCartProductParams,
   AvailabilityResponse,
   CheckoutCartParams,
@@ -29,6 +30,9 @@ import type {
   GetTaxonomyChildrenParams,
   GetTaxonomyParams,
   QuoteCartParams,
+  DownloadDigitalAssetParams,
+  FindStorefrontDigitalProductsParams,
+  GetStorefrontDigitalProductParams,
   RemoveCartItemParams,
   RequestOptions,
   SubmitFormParams,
@@ -38,6 +42,9 @@ import type {
 } from "../types/api";
 import type {
   Cart,
+  DigitalDownload,
+  DigitalLibraryItem,
+  StorefrontDigitalProduct,
   Collection,
   CollectionEntry,
   Contact,
@@ -64,6 +71,7 @@ import type {
 } from "../types";
 import {
   sanitizePublicCartBookings,
+  sanitizePublicCartDigitalProducts,
   sanitizePublicCartProducts,
 } from "../utils/cartInputs";
 
@@ -375,6 +383,41 @@ export const createStorefrontApi = (
       },
     },
     eshop: {
+      digital: {
+        async find(
+          params: FindStorefrontDigitalProductsParams = {},
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<PaginatedResponse<StorefrontDigitalProduct>>> {
+          return apiConfig.httpClient.get<
+            StorefrontDto<PaginatedResponse<StorefrontDigitalProduct>>
+          >(`${base}/digital-products`, { ...options, params });
+        },
+        async get(
+          params: GetStorefrontDigitalProductParams,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<StorefrontDigitalProduct>> {
+          return apiConfig.httpClient.get<
+            StorefrontDto<StorefrontDigitalProduct>
+          >(`${base}/digital-products/${params.id}`, options);
+        },
+        async library(options?: RequestOptions): Promise<DigitalLibraryItem[]> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<DigitalLibraryItem[]>(
+            `${base}/digital-products/library`,
+            options,
+          );
+        },
+        async download(
+          params: DownloadDigitalAssetParams,
+          options?: RequestOptions,
+        ): Promise<DigitalDownload> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<DigitalDownload>(
+            `${base}/digital-products/${params.digital_product_id}/assets/${params.asset_id}/download`,
+            options,
+          );
+        },
+      },
       product: {
         get(
           params: StorefrontParams<GetProductParams>,
@@ -441,7 +484,7 @@ export const createStorefrontApi = (
           options?: RequestOptions,
         ): Promise<StorefrontDto<Cart>> {
           await lifecycle.ensureVisitorSession();
-          const { product_items, booking_items, ...payload } = params;
+          const { product_items, booking_items, digital_items, ...payload } = params;
           return apiConfig.httpClient.put<StorefrontDto<Cart>>(
             `${base}/carts/${params.id}`,
             {
@@ -451,6 +494,12 @@ export const createStorefrontApi = (
                 : {}),
               ...(booking_items
                 ? { booking_items: sanitizePublicCartBookings(booking_items) }
+                : {}),
+              ...(digital_items
+                ? {
+                    digital_items:
+                      sanitizePublicCartDigitalProducts(digital_items),
+                  }
                 : {}),
             },
             options,
@@ -477,6 +526,21 @@ export const createStorefrontApi = (
           return apiConfig.httpClient.post<StorefrontDto<Cart>>(
             `${base}/carts/${params.id}/booking-items`,
             { ...payload, booking: sanitizePublicCartBookings([booking])[0] },
+            options,
+          );
+        },
+        async addDigital(
+          params: StorefrontParams<AddCartDigitalProductParams>,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<Cart>> {
+          await lifecycle.ensureVisitorSession();
+          const { digital, ...payload } = params;
+          return apiConfig.httpClient.post<StorefrontDto<Cart>>(
+            `${base}/carts/${params.id}/digital-items`,
+            {
+              ...payload,
+              digital: sanitizePublicCartDigitalProducts([digital])[0],
+            },
             options,
           );
         },

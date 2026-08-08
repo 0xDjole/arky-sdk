@@ -1,5 +1,6 @@
 import type {
   AddCartBookingParams,
+  AddCartDigitalProductParams,
   AddCartProductParams,
   CheckoutCartParams,
   ClearCartParams,
@@ -13,15 +14,34 @@ import type {
 import type { Cart, OrderCheckoutResult, OrderQuote } from "./types";
 
 export interface CartApi {
-  current(params?: GetCurrentCartParams, options?: RequestOptions): Promise<Cart>;
+  current(
+    params?: GetCurrentCartParams,
+    options?: RequestOptions,
+  ): Promise<Cart>;
   get(params: GetCartParams, options?: RequestOptions): Promise<Cart>;
   update(params: UpdateCartParams, options?: RequestOptions): Promise<Cart>;
-  addProduct(params: AddCartProductParams, options?: RequestOptions): Promise<Cart>;
-  addBooking(params: AddCartBookingParams, options?: RequestOptions): Promise<Cart>;
-  removeItem(params: RemoveCartItemParams, options?: RequestOptions): Promise<Cart>;
+  addProduct(
+    params: AddCartProductParams,
+    options?: RequestOptions,
+  ): Promise<Cart>;
+  addBooking(
+    params: AddCartBookingParams,
+    options?: RequestOptions,
+  ): Promise<Cart>;
+  addDigital(
+    params: AddCartDigitalProductParams,
+    options?: RequestOptions,
+  ): Promise<Cart>;
+  removeItem(
+    params: RemoveCartItemParams,
+    options?: RequestOptions,
+  ): Promise<Cart>;
   clear(params: ClearCartParams, options?: RequestOptions): Promise<Cart>;
   quote(params: QuoteCartParams, options?: RequestOptions): Promise<OrderQuote>;
-  checkout(params: CheckoutCartParams, options?: RequestOptions): Promise<OrderCheckoutResult>;
+  checkout(
+    params: CheckoutCartParams,
+    options?: RequestOptions,
+  ): Promise<OrderCheckoutResult>;
 }
 
 export interface CartControllerState {
@@ -37,38 +57,92 @@ export type CartControllerListener = (state: CartControllerState) => void;
 
 export type CartControllerInitParams = GetCurrentCartParams | GetCartParams;
 export type CartControllerRefreshParams = GetCurrentCartParams | GetCartParams;
-export type CartControllerUpdateParams = Omit<UpdateCartParams, "id"> & { id?: string };
-export type CartControllerAddProductParams = Omit<AddCartProductParams, "id"> & {
+export type CartControllerUpdateParams = Omit<UpdateCartParams, "id"> & {
   id?: string;
 };
-export type CartControllerAddBookingParams = Omit<AddCartBookingParams, "id"> & {
+export type CartControllerAddProductParams = Omit<
+  AddCartProductParams,
+  "id"
+> & {
   id?: string;
 };
-export type CartControllerRemoveItemParams = RemoveCartItemParams extends infer Params
-  ? Params extends { id: string }
-    ? Omit<Params, "id"> & { id?: string }
-    : never
-  : never;
-export type CartControllerClearParams = Omit<ClearCartParams, "id"> & { id?: string };
-export type CartControllerQuoteParams = Omit<QuoteCartParams, "id"> & { id?: string };
-export type CartControllerCheckoutParams = Omit<CheckoutCartParams, "id"> & { id?: string };
+export type CartControllerAddBookingParams = Omit<
+  AddCartBookingParams,
+  "id"
+> & {
+  id?: string;
+};
+export type CartControllerAddDigitalParams = Omit<
+  AddCartDigitalProductParams,
+  "id"
+> & {
+  id?: string;
+};
+export type CartControllerRemoveItemParams =
+  RemoveCartItemParams extends infer Params
+    ? Params extends { id: string }
+      ? Omit<Params, "id"> & { id?: string }
+      : never
+    : never;
+export type CartControllerClearParams = Omit<ClearCartParams, "id"> & {
+  id?: string;
+};
+export type CartControllerQuoteParams = Omit<QuoteCartParams, "id"> & {
+  id?: string;
+};
+export type CartControllerCheckoutParams = Omit<CheckoutCartParams, "id"> & {
+  id?: string;
+};
 
 export interface CartController {
   subscribe(listener: CartControllerListener): () => void;
   getState(): CartControllerState;
-  init(params?: CartControllerInitParams, options?: RequestOptions): Promise<Cart>;
-  refresh(params?: CartControllerRefreshParams, options?: RequestOptions): Promise<Cart>;
-  addProduct(params: CartControllerAddProductParams, options?: RequestOptions): Promise<Cart>;
-  addBooking(params: CartControllerAddBookingParams, options?: RequestOptions): Promise<Cart>;
-  update(params: CartControllerUpdateParams, options?: RequestOptions): Promise<Cart>;
-  removeItem(params: CartControllerRemoveItemParams, options?: RequestOptions): Promise<Cart>;
-  clear(params?: CartControllerClearParams, options?: RequestOptions): Promise<Cart>;
-  quote(params?: CartControllerQuoteParams, options?: RequestOptions): Promise<OrderQuote>;
-  checkout(params?: CartControllerCheckoutParams, options?: RequestOptions): Promise<OrderCheckoutResult>;
+  init(
+    params?: CartControllerInitParams,
+    options?: RequestOptions,
+  ): Promise<Cart>;
+  refresh(
+    params?: CartControllerRefreshParams,
+    options?: RequestOptions,
+  ): Promise<Cart>;
+  addProduct(
+    params: CartControllerAddProductParams,
+    options?: RequestOptions,
+  ): Promise<Cart>;
+  addBooking(
+    params: CartControllerAddBookingParams,
+    options?: RequestOptions,
+  ): Promise<Cart>;
+  addDigital(
+    params: CartControllerAddDigitalParams,
+    options?: RequestOptions,
+  ): Promise<Cart>;
+  update(
+    params: CartControllerUpdateParams,
+    options?: RequestOptions,
+  ): Promise<Cart>;
+  removeItem(
+    params: CartControllerRemoveItemParams,
+    options?: RequestOptions,
+  ): Promise<Cart>;
+  clear(
+    params?: CartControllerClearParams,
+    options?: RequestOptions,
+  ): Promise<Cart>;
+  quote(
+    params?: CartControllerQuoteParams,
+    options?: RequestOptions,
+  ): Promise<OrderQuote>;
+  checkout(
+    params?: CartControllerCheckoutParams,
+    options?: RequestOptions,
+  ): Promise<OrderCheckoutResult>;
 }
 
 function hasCartId(params: CartControllerInitParams): params is GetCartParams {
-  return "id" in params && typeof params.id === "string" && params.id.length > 0;
+  return (
+    "id" in params && typeof params.id === "string" && params.id.length > 0
+  );
 }
 
 export function createCartController(cartApi: CartApi): CartController {
@@ -99,12 +173,16 @@ export function createCartController(cartApi: CartApi): CartController {
   function currentCartId(id?: string): string {
     const cartId = id || state.cart?.id;
     if (!cartId) {
-      throw new Error("Cart has not been initialized and no cart id was provided");
+      throw new Error(
+        "Cart has not been initialized and no cart id was provided",
+      );
     }
     return cartId;
   }
 
-  async function runCartMutation(operation: () => Promise<Cart>): Promise<Cart> {
+  async function runCartMutation(
+    operation: () => Promise<Cart>,
+  ): Promise<Cart> {
     setState({ loading: true, error: null });
     try {
       const cart = await operation();
@@ -155,13 +233,28 @@ export function createCartController(cartApi: CartApi): CartController {
 
     addProduct(params, options) {
       return runCartMutation(() =>
-        cartApi.addProduct({ ...params, id: currentCartId(params.id) }, options),
+        cartApi.addProduct(
+          { ...params, id: currentCartId(params.id) },
+          options,
+        ),
       );
     },
 
     addBooking(params, options) {
       return runCartMutation(() =>
-        cartApi.addBooking({ ...params, id: currentCartId(params.id) }, options),
+        cartApi.addBooking(
+          { ...params, id: currentCartId(params.id) },
+          options,
+        ),
+      );
+    },
+
+    addDigital(params, options) {
+      return runCartMutation(() =>
+        cartApi.addDigital(
+          { ...params, id: currentCartId(params.id) },
+          options,
+        ),
       );
     },
 
@@ -173,7 +266,10 @@ export function createCartController(cartApi: CartApi): CartController {
 
     removeItem(params, options) {
       return runCartMutation(() =>
-        cartApi.removeItem({ ...params, id: currentCartId(params.id) }, options),
+        cartApi.removeItem(
+          { ...params, id: currentCartId(params.id) },
+          options,
+        ),
       );
     },
 

@@ -4,6 +4,7 @@ import type {
   Address,
   Block,
   Cart,
+  CartDigitalProduct,
   EshopCartItem,
   CollectionEntry,
   Currency,
@@ -67,6 +68,7 @@ export interface ArkyCartSnapshot {
   cart: StorefrontCart | null;
   product_items: EshopCartItem[];
   booking_items: ArkyBookingCartItem[];
+  digital_items: CartDigitalProduct[];
   item_count: number;
 }
 
@@ -88,6 +90,7 @@ export interface ArkyLastOrder {
   payment: StorefrontOrderCheckoutResult["payment"];
   product_items?: EshopCartItem[];
   booking_items?: ArkyBookingCartItem[];
+  digital_items?: CartDigitalProduct[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   total?: number;
@@ -99,6 +102,7 @@ export interface ArkyLastOrder {
 export interface ArkyCartInput {
   product_items?: EshopCartItem[];
   booking_items?: ArkyBookingCartItem[];
+  digital_items?: CartDigitalProduct[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   forms?: FormEntry[];

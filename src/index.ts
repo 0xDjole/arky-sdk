@@ -63,6 +63,7 @@ export type {
   Block,
   Currency,
   Price,
+  DigitalPrice,
   OrderPayment,
   OrderPaymentType,
   OrderMoney,
@@ -77,6 +78,17 @@ export type {
   OrderPaymentPromoCode,
   OrderRefund,
   OrderRefundType,
+  OrderRefundAllocation,
+  OrderDigitalProduct,
+  OrderDigitalProductSnapshot,
+  DigitalProductQuoteLine,
+  DigitalProduct,
+  StorefrontDigitalProduct,
+  DigitalAsset,
+  DigitalCatalogStatus,
+  DigitalDownload,
+  DigitalLibraryAsset,
+  DigitalLibraryItem,
   OrderPaymentAttemptType,
   OrderPaymentAttemptStatus,
   OrderPaymentAttemptCancellationStatus,
@@ -180,6 +192,7 @@ export type {
   NodeResult,
   AudienceType,
   Audience,
+  AudienceDigitalProduct,
   AudienceMember,
   AudienceMemberDetail,
   AudienceMemberStatus,
@@ -411,8 +424,11 @@ export type {
   BookingQuoteInput,
   CartProductInput,
   CartBookingInput,
+  CartDigitalProductInput,
+  DigitalProductQuoteInput,
   TrustedCartProductInput,
   TrustedCartBookingInput,
+  TrustedCartDigitalProductInput,
   CreateOrderRefundParams,
   CreateOrderRefundResponse,
   FindOrderRefundsParams,
@@ -427,6 +443,17 @@ export type {
   UpdateCartParams,
   AddCartProductParams,
   AddCartBookingParams,
+  AddCartDigitalProductParams,
+  CreateDigitalProductParams,
+  UpdateDigitalProductParams,
+  GetDigitalProductParams,
+  FindDigitalProductsParams,
+  UploadDigitalAssetParams,
+  FindDigitalAssetsParams,
+  ArchiveDigitalAssetParams,
+  DownloadDigitalAssetParams,
+  FindStorefrontDigitalProductsParams,
+  GetStorefrontDigitalProductParams,
   RemoveCartItemParams,
   ClearCartParams,
   QuoteCartParams,
@@ -659,6 +686,7 @@ export {
   type CartController,
   type CartControllerAddProductParams,
   type CartControllerAddBookingParams,
+  type CartControllerAddDigitalParams,
   type CartControllerCheckoutParams,
   type CartControllerClearParams,
   type CartControllerInitParams,
@@ -715,7 +743,7 @@ export type {
   EventScopeField,
 } from "./api/platform";
 
-export const SDK_VERSION = "0.15.0";
+export const SDK_VERSION = "0.16.0";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -800,6 +828,7 @@ import { createNotificationApi } from "./api/notification";
 import { createPromoCodeApi } from "./api/promoCode";
 import { createCmsApi } from "./api/cms";
 import { createEshopApi } from "./api/eshop";
+import { createDigitalApi } from "./api/digital";
 import { createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
 import { createContactApi } from "./api/crm";
@@ -1026,6 +1055,7 @@ export function createAdmin(config: CreateAdminConfig) {
 
   const cmsApi = createCmsApi(apiConfig);
   const eshopApi = createEshopApi(apiConfig);
+  const digitalApi = createDigitalApi(apiConfig);
   const promoCodeApi = createPromoCodeApi(apiConfig);
   const crmApi = createContactApi(apiConfig);
   const supportApi = createAdminSupportApi(apiConfig);
@@ -1214,6 +1244,20 @@ export function createAdmin(config: CreateAdminConfig) {
       },
     },
     eshop: {
+      digital: {
+        product: {
+          create: digitalApi.createProduct,
+          update: digitalApi.updateProduct,
+          delete: digitalApi.deleteProduct,
+          get: digitalApi.getProduct,
+          find: digitalApi.findProducts,
+        },
+        asset: {
+          upload: digitalApi.uploadAsset,
+          find: digitalApi.findAssets,
+          archive: digitalApi.archiveAsset,
+        },
+      },
       product: {
         create: eshopApi.createProduct,
         update: eshopApi.updateProduct,
@@ -1262,6 +1306,7 @@ export function createAdmin(config: CreateAdminConfig) {
         find: eshopApi.getCarts,
         addProduct: eshopApi.addCartProduct,
         addBooking: eshopApi.addCartBooking,
+        addDigital: eshopApi.addCartDigitalProduct,
         removeItem: eshopApi.removeCartItem,
         clear: eshopApi.clearCart,
         quote: eshopApi.quoteCart,

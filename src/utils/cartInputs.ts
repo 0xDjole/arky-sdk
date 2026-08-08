@@ -1,4 +1,8 @@
-import type { CartBookingInput, CartProductInput } from "../types/api";
+import type {
+  CartBookingInput,
+  CartDigitalProductInput,
+  CartProductInput,
+} from "../types/api";
 
 export function sanitizePublicCartProducts(
   items: CartProductInput[],
@@ -23,4 +27,13 @@ export function sanitizePublicCartBookings(
       ...(item.forms ? { forms: item.forms } : {}),
     };
   });
+}
+
+export function sanitizePublicCartDigitalProducts(
+  items: CartDigitalProductInput[],
+): CartDigitalProductInput[] {
+  return items.map((item) => ({
+    ...(item.id ? { id: item.id } : {}),
+    digital_product_id: item.digital_product_id,
+  }));
 }

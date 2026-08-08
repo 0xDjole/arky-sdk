@@ -146,12 +146,22 @@ export interface BookingQuoteInput {
   price?: Price;
 }
 
+export interface DigitalProductQuoteInput {
+  digital_product_id: string;
+  price?: import("./index").DigitalPrice;
+}
+
 export interface CartBookingInput {
   id?: string;
   service_id: string;
   provider_id: string;
   slots: SlotRange[];
   forms?: FormEntry[];
+}
+
+export interface CartDigitalProductInput {
+  id?: string;
+  digital_product_id: string;
 }
 
 export interface TrustedCartProductInput extends CartProductInput {
@@ -162,11 +172,16 @@ export interface TrustedCartBookingInput extends CartBookingInput {
   price?: Price;
 }
 
+export interface TrustedCartDigitalProductInput extends CartDigitalProductInput {
+  price?: import("./index").DigitalPrice;
+}
+
 export interface GetQuoteParams {
   store_id?: string;
   market?: string;
-  products: ProductQuoteInput[];
-  bookings: BookingQuoteInput[];
+  products?: ProductQuoteInput[];
+  bookings?: BookingQuoteInput[];
+  digital?: DigitalProductQuoteInput[];
   shipping_address?: Address;
   billing_address?: Address;
   forms?: FormEntry[];
@@ -204,6 +219,7 @@ export interface CreateCartParams {
   market: string;
   product_items?: TrustedCartProductInput[];
   booking_items?: TrustedCartBookingInput[];
+  digital_items?: TrustedCartDigitalProductInput[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   forms?: FormEntry[];
@@ -218,6 +234,7 @@ export interface UpdateCartParams {
   market?: string;
   product_items?: CartProductInput[];
   booking_items?: CartBookingInput[];
+  digital_items?: CartDigitalProductInput[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   forms?: FormEntry[];
@@ -236,6 +253,12 @@ export interface AddCartBookingParams {
   id: string;
   store_id?: string;
   booking: CartBookingInput;
+}
+
+export interface AddCartDigitalProductParams {
+  id: string;
+  store_id?: string;
+  digital: CartDigitalProductInput;
 }
 
 export type RemoveCartItemParams = {
@@ -1063,6 +1086,7 @@ export interface CreateOrderRefundParams {
   order_id: string;
   refund_id: string;
   amount: number;
+  allocations: import("./index").OrderRefundAllocation[];
   store_id?: string;
 }
 
@@ -1117,6 +1141,73 @@ export interface CreateOrderRefundResponse {
   refund_id: string;
   amount: number;
   status: RefundStatus;
+}
+
+export interface CreateDigitalProductParams {
+  store_id?: string;
+  key: string;
+  slug?: Record<string, string>;
+  blocks?: import("./index").Block[];
+  taxonomies?: import("./index").TaxonomyEntry[];
+  prices?: import("./index").DigitalPrice[];
+  asset_ids?: string[];
+  tax_category_id?: string | null;
+  status?: import("./index").DigitalCatalogStatus;
+}
+
+export interface UpdateDigitalProductParams {
+  store_id?: string;
+  digital_product_id: string;
+  key?: string;
+  slug?: Record<string, string>;
+  blocks?: import("./index").Block[];
+  taxonomies?: import("./index").TaxonomyEntry[];
+  prices?: import("./index").DigitalPrice[];
+  asset_ids?: string[];
+  tax_category_id?: string | null;
+  status?: import("./index").DigitalCatalogStatus;
+}
+
+export interface GetDigitalProductParams {
+  store_id?: string;
+  digital_product_id: string;
+}
+
+export interface FindDigitalProductsParams {
+  store_id?: string;
+  status?: import("./index").DigitalCatalogStatus;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface UploadDigitalAssetParams {
+  store_id?: string;
+  file: File;
+}
+
+export interface FindDigitalAssetsParams {
+  store_id?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface ArchiveDigitalAssetParams {
+  store_id?: string;
+  asset_id: string;
+}
+
+export interface DownloadDigitalAssetParams {
+  digital_product_id: string;
+  asset_id: string;
+}
+
+export interface FindStorefrontDigitalProductsParams {
+  limit?: number;
+  cursor?: string;
+}
+
+export interface GetStorefrontDigitalProductParams {
+  id: string;
 }
 
 export type SystemTemplateKey =
@@ -1274,6 +1365,7 @@ export interface UpdateAudienceParams {
   description?: string | null;
   status?: AudienceStatus;
   type?: AudienceType;
+  digital_products?: import("./index").AudienceDigitalProduct[];
 }
 
 export interface CreateAudienceTierParams {
@@ -1588,8 +1680,7 @@ export interface ManageAudienceParams {
   token: string;
 }
 
-export interface CreateAudiencePaymentMethodSessionParams
-  extends ManageAudienceParams {
+export interface CreateAudiencePaymentMethodSessionParams extends ManageAudienceParams {
   return_url: string;
 }
 
