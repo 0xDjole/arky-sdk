@@ -45,6 +45,7 @@ export type {
   CartController,
   CartControllerAddProductParams,
   CartControllerAddBookingParams,
+  CartControllerAddDigitalParams,
   CartControllerCheckoutParams,
   CartControllerClearParams,
   CartControllerInitParams,

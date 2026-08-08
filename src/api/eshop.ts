@@ -18,6 +18,7 @@ import type {
   GetAvailabilityParams,
   AvailabilityResponse,
   AddCartBookingParams,
+  AddCartDigitalProductParams,
   AddCartProductParams,
   CheckoutCartParams,
   ClearCartParams,
@@ -424,6 +425,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
           ...payload,
           product_items: payload.product_items || [],
           booking_items: payload.booking_items || [],
+          digital_items: payload.digital_items || [],
         },
         options,
       );
@@ -433,7 +435,14 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: UpdateCartParams,
       options?: RequestOptions,
     ): Promise<Cart> {
-      const { id, store_id, product_items, booking_items, ...payload } = params;
+      const {
+        id,
+        store_id,
+        product_items,
+        booking_items,
+        digital_items,
+        ...payload
+      } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.put<Cart>(
         `/v1/stores/${target_store_id}/carts/${id}`,
@@ -441,6 +450,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
           ...payload,
           ...(product_items ? { product_items } : {}),
           ...(booking_items ? { booking_items } : {}),
+          ...(digital_items ? { digital_items } : {}),
         },
         options,
       );
@@ -468,6 +478,19 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<Cart>(
         `/v1/stores/${target_store_id}/carts/${id}/booking-items`,
         { booking },
+        options,
+      );
+    },
+
+    async addCartDigitalProduct(
+      params: AddCartDigitalProductParams,
+      options?: RequestOptions,
+    ): Promise<Cart> {
+      const { id, store_id, digital } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<Cart>(
+        `/v1/stores/${target_store_id}/carts/${id}/digital-items`,
+        { digital },
         options,
       );
     },
@@ -515,16 +538,18 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     ): Promise<import("../types").OrderCheckoutResult> {
       const { id, store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<
-        import("../types").OrderCheckoutResult
-      >(`/v1/stores/${target_store_id}/carts/${id}/checkout`, payload, options);
+      return apiConfig.httpClient.post<import("../types").OrderCheckoutResult>(
+        `/v1/stores/${target_store_id}/carts/${id}/checkout`,
+        payload,
+        options,
+      );
     },
 
     async getQuote(
       params: GetQuoteParams,
       options?: RequestOptions,
     ): Promise<OrderQuote> {
-      const { location, store_id, products, bookings, ...rest } = params;
+      const { location, store_id, products, bookings, digital, ...rest } = params;
       const target_store_id = store_id || apiConfig.storeId;
       const shipping_address = location
         ? {
@@ -541,8 +566,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         `/v1/stores/${target_store_id}/orders/quote`,
         {
           ...rest,
-          products,
-          bookings,
+          products: products || [],
+          bookings: bookings || [],
+          digital: digital || [],
           shipping_address,
           market: rest.market || apiConfig.market,
         },
@@ -561,6 +587,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
           {
             amount: params.amount,
             refund_id: params.refund_id,
+            allocations: params.allocations,
           },
           options,
         );
@@ -669,6 +696,5 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         { ...options, params: queryParams },
       );
     },
-
   };
 };

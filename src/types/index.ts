@@ -173,6 +173,7 @@ export interface OrderRefund {
   type: OrderRefundType;
   amount: number;
   currency: Currency;
+  allocations: OrderRefundAllocation[];
   status: import("./api").RefundStatus;
   safe_error?: string | null;
   requested_at: number;
@@ -225,6 +226,7 @@ export interface OrderQuote {
   zone: Zone | null;
   product_lines: ProductQuoteLine[];
   booking_lines: BookingQuoteLine[];
+  digital_lines: DigitalProductQuoteLine[];
   shipping_lines: ShippingLine[];
   subtotal: number;
   shipping: number;
@@ -245,6 +247,13 @@ export interface Price {
   amount: number;
   compare_at?: number;
   audience_id?: string;
+}
+
+export interface DigitalPrice {
+  currency: Currency;
+  market: string;
+  amount: number;
+  compare_at?: number;
 }
 
 export type IntervalPeriod = "month" | "year";
@@ -326,6 +335,7 @@ export interface Cart {
   market: string;
   product_items: CartProduct[];
   booking_items: CartBooking[];
+  digital_items: CartDigitalProduct[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   forms: FormEntry[];
@@ -357,6 +367,12 @@ export interface CartBooking {
   slots: import("./api").SlotRange[];
   forms: FormEntry[];
   price?: Price | null;
+}
+
+export interface CartDigitalProduct {
+  id: string;
+  digital_product_id: string;
+  price?: DigitalPrice | null;
 }
 
 export interface SocialConnectionCredential {
@@ -907,6 +923,12 @@ export interface OrderBookingSnapshot {
   price: Price;
 }
 
+export interface OrderDigitalProductSnapshot {
+  product_key: string;
+  tax_category_id?: string | null;
+  price: DigitalPrice;
+}
+
 export interface DiscountAllocation {
   discount_application_id?: string | null;
   amount: number;
@@ -994,6 +1016,20 @@ export interface BookingQuoteLine {
   availability: BookingQuoteLineAvailability;
 }
 
+export interface DigitalProductQuoteLine {
+  line_id: string;
+  digital_product_id: string;
+  quantity: 1;
+  unit_price: number;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  money: LineMoneySnapshot;
+  snapshot: OrderDigitalProductSnapshot;
+  availability: ProductQuoteLineAvailability;
+}
+
 export interface OrderProduct {
   id: string;
   version: number;
@@ -1021,6 +1057,20 @@ export interface OrderBooking {
   snapshot: OrderBookingSnapshot;
   status: OrderBookingStatus;
   money: LineMoneySnapshot;
+}
+
+export interface OrderDigitalProduct {
+  id: string;
+  version: number;
+  store_id: string;
+  order_id: string;
+  contact_id: string;
+  digital_product_id: string;
+  snapshot: OrderDigitalProductSnapshot;
+  status: OrderProductStatus;
+  money: LineMoneySnapshot;
+  created_at: number;
+  updated_at: number;
 }
 
 export type OrderFulfillmentStatus =
@@ -1105,6 +1155,7 @@ export interface Order {
   verified: boolean;
   products: OrderProduct[];
   bookings: OrderBooking[];
+  digital_products: OrderDigitalProduct[];
   payment: OrderPayment;
   money: OrderMoney;
   fulfillment_summary: OrderFulfillmentSummary;
@@ -1117,6 +1168,78 @@ export interface Order {
   created_at: number;
   updated_at: number;
 }
+
+export type DigitalCatalogStatus = "draft" | "active" | "archived";
+export type DigitalAssetStatus = "active" | "archived";
+
+export interface DigitalProduct {
+  id: string;
+  store_id: string;
+  key: string;
+  slug: Record<string, string>;
+  blocks: Block[];
+  taxonomies: TaxonomyEntry[];
+  prices: DigitalPrice[];
+  asset_ids: string[];
+  tax_category_id?: string | null;
+  status: DigitalCatalogStatus;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface StorefrontDigitalProduct {
+  id: string;
+  key: string;
+  slug: Record<string, string>;
+  blocks: Block[];
+  taxonomies: TaxonomyEntry[];
+  prices: DigitalPrice[];
+  tax_category_id?: string | null;
+}
+
+export interface DigitalAsset {
+  id: string;
+  store_id: string;
+  object_key: string;
+  file_name: string;
+  mime_type: string;
+  status: DigitalAssetStatus;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface DigitalLibraryAsset {
+  id: string;
+  file_name: string;
+  mime_type: string;
+}
+
+export interface DigitalLibraryItem {
+  digital_product_id: string;
+  product_key: string;
+  slug: Record<string, string>;
+  blocks: Block[];
+  taxonomies: TaxonomyEntry[];
+  assets: DigitalLibraryAsset[];
+}
+
+export interface DigitalDownload {
+  url: string;
+  expires_at: number;
+  file_name: string;
+  mime_type: string;
+}
+
+export type OrderRefundAllocation =
+  | { type: "product"; order_product_id: string; amount: number }
+  | { type: "booking"; order_booking_id: string; amount: number }
+  | {
+      type: "digital";
+      order_digital_product_id: string;
+      amount: number;
+    }
+  | { type: "shipping"; shipping_line_id: string; amount: number }
+  | { type: "adjustment"; amount: number; reason: string };
 
 export type CheckoutPaymentAction =
   | { type: "none" }
@@ -1386,7 +1509,11 @@ export interface AudienceSubscriptionCancellation {
         provider_status?: number | null;
         at: number;
       }
-    | { type: "provider_call_not_started" | "unknown_outcome"; message: string; at: number }
+    | {
+        type: "provider_call_not_started" | "unknown_outcome";
+        message: string;
+        at: number;
+      }
     | null;
   created_at: number;
   updated_at: number;
@@ -1656,15 +1783,8 @@ export type ContactStatus = "active" | "archived";
 export type AudienceStatus = "active" | "draft" | "archived";
 export type AudienceSource = "manual" | "system" | "lead_research";
 export type AudienceMemberSource =
-  | "admin"
-  | "import"
-  | "signup"
-  | "system"
-  | "lead_research";
-export type AudienceMemberStatus =
-  | "pending"
-  | "active"
-  | "archived";
+  "admin" | "import" | "signup" | "system" | "lead_research";
+export type AudienceMemberStatus = "pending" | "active" | "archived";
 export type AudienceDeliveryStatus = "subscribed" | "unsubscribed";
 export type AudienceTierStatus = "draft" | "active" | "archived";
 export type AudiencePriceStatus = "draft" | "active" | "archived";
@@ -1728,8 +1848,7 @@ export type CampaignEnrollmentStatus =
   | "suppressed"
   | "failed"
   | "stopped";
-export type CampaignEnrollmentImportSource =
-  "audience" | "contact" | "manual";
+export type CampaignEnrollmentImportSource = "audience" | "contact" | "manual";
 export type CampaignMessageStatus =
   | "draft"
   | "scheduled"
@@ -1808,6 +1927,7 @@ export type OrderCancellationReason =
   | "contact_cancelled"
   | "payment_failed"
   | "expired"
+  | "refunded"
   | "other";
 
 export type OrderStatus =
@@ -2367,7 +2487,11 @@ export type AudienceCatalogMutationError =
       provider_status?: number | null;
       at: number;
     }
-  | { type: "provider_call_not_started" | "unknown_outcome"; message: string; at: number };
+  | {
+      type: "provider_call_not_started" | "unknown_outcome";
+      message: string;
+      at: number;
+    };
 
 export interface AudienceCatalogMutation {
   revision: number;
@@ -2589,10 +2713,17 @@ export interface Audience {
   status: AudienceStatus;
   type: AudienceType;
   source: AudienceSource;
+  digital_products: AudienceDigitalProduct[];
   tiers: AudienceTier[];
   member_count: number;
   created_at: number;
   updated_at: number;
+}
+
+export interface AudienceDigitalProduct {
+  digital_product_id: string;
+  /** Empty means every current member; otherwise current Tier must match. */
+  tier_ids: string[];
 }
 
 export interface AudienceMember {
