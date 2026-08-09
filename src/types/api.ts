@@ -2358,6 +2358,14 @@ export interface AuthToken {
   is_verified: boolean;
 }
 
+export interface GoogleAuthStartResponse {
+  authorization_url: string;
+}
+
+export interface GoogleAuthCompleteParams {
+  ticket: string;
+}
+
 export interface ContactInfo {
   id: string;
   verified: boolean;
