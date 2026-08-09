@@ -1505,8 +1505,6 @@ export interface AudienceSubscriptionCancellation {
     | {
         type: "provider_rejected";
         message: string;
-        provider_code?: string | null;
-        provider_status?: number | null;
         at: number;
       }
     | {
@@ -2483,8 +2481,6 @@ export type AudienceCatalogMutationError =
   | {
       type: "provider_rejected";
       message: string;
-      provider_code?: string | null;
-      provider_status?: number | null;
       at: number;
     }
   | {
