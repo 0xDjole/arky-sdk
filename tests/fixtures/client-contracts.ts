@@ -47,7 +47,7 @@ import {
   type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
 } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.16.1" = SDK_VERSION;
+const sdkVersionLiteral: "0.16.2" = SDK_VERSION;
 const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
 // @ts-expect-error the server's serialized feature key is crm_contacts.
 const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
@@ -366,13 +366,12 @@ const storefrontSupportRead: StorefrontGetSupportConversationParams = {
 const storeSubscriptionWithoutCheckout: StoreSubscription = {
   id: "subscription-contract",
   store_id: "store-contract",
-  plan_id: "free",
+  plan_access: null,
   payment: { currency: "usd", market: "us" },
-  billing_status: "active",
+  billing_status: "pending",
   checkout: null,
   payment_action: { type: "none" },
-  access_started_at: 1,
-  access_until: 2,
+  trial_started_at: null,
   created_at: 1,
   updated_at: 1,
 };
@@ -380,6 +379,7 @@ const storeSubscriptionWithEmbeddedCheckout: StoreSubscription = {
   ...storeSubscriptionWithoutCheckout,
   checkout: {
     plan_id: "business",
+    trial_days: 14,
     status: "requires_action",
     expires_at: 2,
   },

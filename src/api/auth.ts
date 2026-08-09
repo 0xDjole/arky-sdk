@@ -2,6 +2,8 @@ import type { ApiConfig, AdminSessionInternal, AdminSessionUpdater } from '../in
 import type {
     AuthCodeVerifyParams,
     AuthToken,
+    GoogleAuthCompleteParams,
+    GoogleAuthStartResponse,
     RequestOptions,
     VerificationChallengeResponse,
 } from '../types/api';
@@ -42,6 +44,26 @@ export const createAuthApi = (apiConfig: ApiConfig, updateSession: AdminSessionU
 
         async refresh(params: { refresh_token: string }, options?: RequestOptions): Promise<AuthToken> {
             return apiConfig.httpClient.post<AuthToken>('/v1/auth/refresh', params, options);
+        },
+
+        async googleStart(options?: RequestOptions): Promise<GoogleAuthStartResponse> {
+            return apiConfig.httpClient.post<GoogleAuthStartResponse>(
+                '/v1/auth/google/start',
+                {},
+                options,
+            );
+        },
+
+        async googleComplete(params: GoogleAuthCompleteParams, options?: RequestOptions): Promise<AuthToken> {
+            const result = await apiConfig.httpClient.post<AuthToken>(
+                '/v1/auth/google/complete',
+                params,
+                options,
+            );
+            if (result?.access_token) {
+                applyAuthToken(result);
+            }
+            return result;
         },
 
         async storeCode(storeId: string, params: { email: string }, options?: RequestOptions): Promise<VerificationChallengeResponse> {

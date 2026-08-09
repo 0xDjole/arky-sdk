@@ -1369,6 +1369,7 @@ export interface Webhook {
 
 export type StoreSubscriptionBillingStatus =
   | "pending"
+  | "trialing"
   | "active"
   | "past_due"
   | "cancellation_scheduled"
@@ -1388,8 +1389,16 @@ export type StoreSubscriptionCheckoutStatus =
 
 export interface StoreSubscriptionCheckout {
   plan_id: string;
+  trial_days: number | null;
   status: StoreSubscriptionCheckoutStatus;
   expires_at: number;
+}
+
+export interface StorePlanAccess {
+  plan_id: string;
+  started_at: number;
+  /** Null means intentionally lifetime access. */
+  access_until: number | null;
 }
 
 export interface StoreSubscriptionPayment {
@@ -1400,13 +1409,12 @@ export interface StoreSubscriptionPayment {
 export interface StoreSubscription {
   id: string;
   store_id: string;
-  plan_id: string;
+  plan_access: StorePlanAccess | null;
   payment: StoreSubscriptionPayment;
   billing_status: StoreSubscriptionBillingStatus;
   checkout: StoreSubscriptionCheckout | null;
   payment_action: CheckoutPaymentAction;
-  access_started_at: number;
-  access_until: number;
+  trial_started_at: number | null;
   created_at: number;
   updated_at: number;
 }
@@ -1705,6 +1713,7 @@ export interface SubscriptionPlan {
   currency: Currency;
   interval: "lifetime" | "month" | "year";
   interval_count: number;
+  trial_days: number | null;
   features: Record<SubscriptionPlanFeatureType, SubscriptionPlanFeature>;
 }
 

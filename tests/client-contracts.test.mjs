@@ -58,6 +58,52 @@ test("admin verification sends only the challenge identifier and code", async ()
   ]);
 });
 
+test("Google login starts and completes through backend-owned OAuth endpoints", async () => {
+  const admin = createAdmin({ baseUrl, storeId, market: "us" });
+  const calls = [];
+  const responses = [
+    { authorization_url: "https://accounts.google.test/oauth" },
+    {
+      id: "session-google",
+      access_token: "access-google",
+      refresh_token: "refresh-google",
+      access_expires_at: 2_000,
+      refresh_expires_at: 3_000,
+      created_at: 1_000,
+      is_verified: true,
+    },
+  ];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({
+      url: String(url),
+      method: init.method,
+      body: JSON.parse(String(init.body)),
+    });
+    return jsonResponse(responses.shift());
+  };
+
+  try {
+    await admin.account.auth.googleStart();
+    await admin.account.auth.googleComplete({ ticket: "attempt.secret" });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.deepEqual(calls, [
+    {
+      url: `${baseUrl}/v1/auth/google/start`,
+      method: "POST",
+      body: {},
+    },
+    {
+      url: `${baseUrl}/v1/auth/google/complete`,
+      method: "POST",
+      body: { ticket: "attempt.secret" },
+    },
+  ]);
+});
+
 test("request errors preserve the server response while normalizing validation details", async () => {
   const admin = createAdmin({ baseUrl, storeId, market: "us" });
   const response = {

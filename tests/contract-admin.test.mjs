@@ -92,6 +92,8 @@ const arky = createAdmin({
 assert.equal(typeof arky.account.auth.code, "function");
 assert.equal(typeof arky.account.auth.verify, "function");
 assert.equal(typeof arky.account.auth.refresh, "function");
+assert.equal(typeof arky.account.auth.googleStart, "function");
+assert.equal(typeof arky.account.auth.googleComplete, "function");
 assert.equal(typeof arky.account.update, "function");
 assert.equal(typeof arky.account.delete, "function");
 assert.equal(typeof arky.account.getMe, "function");
