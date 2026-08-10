@@ -1737,6 +1737,7 @@ export interface StoreMembership {
   status: "invited" | "active";
   invited_by_account_id?: string | null;
   invited_at?: number | null;
+  invitation_delivery_status?: EmailDeliveryStatus | null;
   joined_at?: number | null;
   created_at: number;
   updated_at: number;

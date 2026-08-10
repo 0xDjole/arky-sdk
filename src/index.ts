@@ -737,9 +737,6 @@ export type {
   ReceiveSupportChannelMessageParams,
 } from "./api/support";
 export type {
-  WorkflowToolOperation,
-  WorkflowToolResource,
-  WorkflowTool,
   EventMetadata,
   EventScopeField,
 } from "./api/platform";

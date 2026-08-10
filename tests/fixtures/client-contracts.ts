@@ -33,7 +33,6 @@ import type {
   UpdateCartParams,
   MarketZoneInput,
   WorkflowHttpNode,
-  WorkflowTool,
   WorkflowTriggerNode,
 } from "../../dist/index.js";
 import type { FindActionsParams, RequestOptions } from "../../dist/types.js";
@@ -533,32 +532,6 @@ const missingPublishingCapability: SocialProviderCapability = {
   },
 };
 
-const workflowToolWireDto: WorkflowTool = {
-  id: "arky",
-  name: "Arky",
-  description: "Arky workflow operations",
-  icon: "arky",
-  color: "#000000",
-  category: "core",
-  configuration_required: false,
-  url_patterns: ["^https://api\\.arky\\.io/"],
-  resources: [],
-  triggers: [
-    {
-      name: "Order created",
-      value: "order.created",
-      description: "An order was created",
-      webhook_type: "incoming",
-    },
-  ],
-};
-
-const camelCaseWorkflowTool: WorkflowTool = {
-  ...workflowToolWireDto,
-  // @ts-expect-error the wire DTO is snake_case.
-  configurationRequired: false,
-};
-
 void [
   supportStart,
   storefrontIdentify,
@@ -595,8 +568,6 @@ void [
   canonicalPage,
   actionPageParams,
   missingPublishingCapability,
-  workflowToolWireDto,
-  camelCaseWorkflowTool,
   crmContactFeature,
   nonWireCrmProfileFeature,
   audienceTierPriceInput,
