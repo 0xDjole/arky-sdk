@@ -1529,7 +1529,7 @@ export interface Store {
   id: string;
   key: string;
   publishable_key: string;
-  lifecycle: "active" | "closing";
+  lifecycle: "active" | "deleting";
   default_market_id: string | null;
   timezone: string;
   languages?: Language[];

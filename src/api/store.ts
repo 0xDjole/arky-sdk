@@ -3,6 +3,7 @@ import type {
   CreateStoreParams,
   UpdateStoreParams,
   GetStoreParams,
+  RequestStoreDeletionParams,
   GetStoresParams,
   GetStoreSubscriptionParams,
   SelectStoreSubscriptionParams,
@@ -57,11 +58,24 @@ export const createStoreApi = (
     },
 
     async getStore(
-      _params: GetStoreParams,
+      params: GetStoreParams = {},
       options?: RequestOptions,
     ): Promise<Store> {
+      const store_id = params.id || apiConfig.storeId;
       return apiConfig.httpClient.get<Store>(
-        `/v1/stores/${apiConfig.storeId}`,
+        `/v1/stores/${store_id}`,
+        options,
+      );
+    },
+
+    async requestDeletion(
+      params: RequestStoreDeletionParams,
+      options?: RequestOptions,
+    ): Promise<Store> {
+      const store_id = params.id || apiConfig.storeId;
+      return apiConfig.httpClient.post<Store>(
+        `/v1/stores/${store_id}/deletion`,
+        { confirmation: params.confirmation },
         options,
       );
     },
