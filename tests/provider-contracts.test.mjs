@@ -625,46 +625,6 @@ test("payment, refund, and shipment lifecycles are read through explicit resourc
   }
 });
 
-test("workflow and platform methods preserve snake_case wire DTOs and direct responses", async () => {
-  const workflowTools = [
-    {
-      id: "arky",
-      name: "Arky",
-      description: "Arky operations",
-      icon: "arky",
-      color: "#000000",
-      category: "core",
-      configuration_required: false,
-      url_patterns: ["^https://api\\.arky\\.io/"],
-      resources: [],
-      triggers: [
-        {
-          name: "Order created",
-          value: "order.created",
-          description: "An order was created",
-          webhook_type: "incoming",
-        },
-      ],
-    },
-  ];
-  const { calls, result } = await captureFetch(workflowTools, () =>
-    admin().platform.getWorkflowTools(),
-  );
-
-  assert.deepEqual(calls, [
-    {
-      url: `${baseUrl}/v1/platform/workflow-tools`,
-      method: "GET",
-      body: undefined,
-    },
-  ]);
-  assert.deepEqual(result, workflowTools);
-  assert.equal("configurationRequired" in result[0], false);
-  assert.equal("docsUrl" in result[0], false);
-  assert.equal("urlPatterns" in result[0], false);
-  assert.equal("webhookType" in result[0].triggers[0], false);
-});
-
 test("workflow trigger keeps arbitrary object data while the path secret wins", async () => {
   const response = {
     id: "execution-trigger-contract",

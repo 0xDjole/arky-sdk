@@ -567,7 +567,14 @@ export interface UpdateStoreParams {
   emails?: StoreEmails;
 }
 
-export interface GetStoreParams {}
+export interface GetStoreParams {
+  id?: string;
+}
+
+export interface RequestStoreDeletionParams {
+  id?: string;
+  confirmation: string;
+}
 
 export interface SelectStoreSubscriptionParams {
   store_id?: string;
