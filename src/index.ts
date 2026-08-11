@@ -737,14 +737,11 @@ export type {
   ReceiveSupportChannelMessageParams,
 } from "./api/support";
 export type {
-  WorkflowToolOperation,
-  WorkflowToolResource,
-  WorkflowTool,
   EventMetadata,
   EventScopeField,
 } from "./api/platform";
 
-export const SDK_VERSION = "0.16.2";
+export const SDK_VERSION = "0.16.3";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -1121,6 +1118,7 @@ export function createAdmin(config: CreateAdminConfig) {
       update: storeApi.updateStore,
       get: storeApi.getStore,
       find: storeApi.getStores,
+      requestDeletion: storeApi.requestDeletion,
       regeneratePublishableKey: storeApi.regeneratePublishableKey,
       subscription: {
         get: storeApi.getSubscription,

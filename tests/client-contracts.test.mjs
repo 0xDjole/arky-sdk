@@ -193,6 +193,49 @@ test("admin Store methods expose publishable-key regeneration and default-market
   ]);
 });
 
+test("admin Store deletion requests the lifecycle transition with exact confirmation", async () => {
+  const admin = createAdmin({
+    baseUrl,
+    storeId,
+    market: "us",
+  });
+  const deletingStore = {
+    id: storeId,
+    key: "client-contract",
+    publishable_key: publishableKey,
+    lifecycle: "deleting",
+    default_market_id: null,
+    timezone: "Europe/Sarajevo",
+    languages: [{ id: "en" }],
+    emails: { billing: "billing@example.test", support: "support@example.test" },
+  };
+  let call;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    call = {
+      url: String(url),
+      method: init.method,
+      body: JSON.parse(String(init.body)),
+    };
+    return jsonResponse(deletingStore);
+  };
+
+  try {
+    assert.deepEqual(
+      await admin.store.requestDeletion({ confirmation: "client-contract" }),
+      deletingStore,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.deepEqual(call, {
+    url: `${baseUrl}/v1/stores/${storeId}/deletion`,
+    method: "POST",
+    body: { confirmation: "client-contract" },
+  });
+});
+
 test("admin market deletion sends an explicit replacement default as query context", async () => {
   const admin = createAdmin({
     baseUrl,
