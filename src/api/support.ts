@@ -316,12 +316,14 @@ export function createStorefrontSupportApi(
           mutation.options,
         );
       await mutation.afterResponse(requested);
-      const requestedMessage = requested.messages.find(
-        (message) => message.id === request.message_id,
-      );
-      if (!requestedMessage) {
-        throw new Error("Support response omitted the requested message");
-      }
+      const requestedMessage =
+        requested.messages.find(
+          (message) => message.id === request.message_id,
+        ) ??
+        (await httpClient.get<StorefrontDto<SupportMessage>>(
+          `${path}/messages/${request.message_id}`,
+          scheduledObservationOptions(mutation.options, opts?.signal),
+        ));
       if (!supportAiResponsePending(requestedMessage)) return requested;
       await pollScheduledResult(
         requestedMessage,
@@ -605,12 +607,14 @@ export function createAdminSupportApi(config: ApiConfig) {
           mutation.options,
         );
         await mutation.afterResponse(requested);
-        const requestedMessage = requested.messages.find(
-          (message) => message.id === params.message_id,
-        );
-        if (!requestedMessage) {
-          throw new Error("Support response omitted the requested message");
-        }
+        const requestedMessage =
+          requested.messages.find(
+            (message) => message.id === params.message_id,
+          ) ??
+          (await httpClient.get<SupportMessage>(
+            `${path}/messages/${params.message_id}`,
+            scheduledObservationOptions(mutation.options, opts?.signal),
+          ));
         if (!supportAiResponsePending(requestedMessage)) return requested;
         await pollScheduledResult(
           requestedMessage,
