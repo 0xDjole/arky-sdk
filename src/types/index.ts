@@ -2573,11 +2573,6 @@ export interface ContactSessionIssued {
   expires_at: number;
 }
 
-export interface PromoUsage {
-  promo_code_id: string;
-  uses: number;
-}
-
 export type ChannelType =
   | "email"
   | "phone"
@@ -2623,7 +2618,6 @@ export interface Contact {
   verified: boolean;
   status: ContactStatus;
   channels: ContactChannel[];
-  promo_usage: PromoUsage[];
   taxonomies: TaxonomyEntry[];
   created_at: number;
   updated_at: number;
