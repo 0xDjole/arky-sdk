@@ -2417,11 +2417,6 @@ export interface RevokeAllContactSessionsParams {
   store_id?: string;
 }
 
-export interface PromoUsage {
-  promo_code_id: string;
-  uses: number;
-}
-
 export interface Contact {
   id: string;
   store_id: string;
@@ -2429,7 +2424,6 @@ export interface Contact {
   verified: boolean;
   status: ContactStatus;
   channels: import("./index").ContactChannel[];
-  promo_usage: PromoUsage[];
   taxonomies: TaxonomyEntry[];
   created_at: number;
   updated_at: number;

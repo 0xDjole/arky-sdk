@@ -45,7 +45,6 @@ function identifyResponse(token = visitorTokenA, id = "contact-a") {
       verified: false,
       status: "active",
       channels: [],
-      promo_usage: [],
       taxonomies: [],
       created_at: 1,
       updated_at: 1,
