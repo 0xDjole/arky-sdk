@@ -1276,12 +1276,21 @@ export interface CreateWorkflowParams {
 export interface UpdateWorkflowParams {
   id: string;
   store_id?: string;
-  key: string;
+  key?: string;
   status?: MutableWorkflowStatus;
+  schedule?: string;
+}
+
+export interface GetWorkflowDefinitionParams {
+  workflow_id: string;
+  store_id?: string;
+}
+
+export interface ReplaceWorkflowDefinitionParams {
+  workflow_id: string;
+  store_id?: string;
   nodes: Record<string, WorkflowNode>;
   edges: WorkflowEdge[];
-
-  schedule?: string;
 }
 
 export interface DeleteWorkflowParams {

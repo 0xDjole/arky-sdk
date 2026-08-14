@@ -80,6 +80,7 @@ import type {
 import type {
   Mailbox,
   Campaign,
+  CampaignPersonalization,
   CampaignLaunchReadiness,
   CampaignEnrollment,
   CampaignMessage,
@@ -783,6 +784,17 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
+      async getPersonalization(
+        params: GetCampaignParams,
+        options?: RequestOptions,
+      ): Promise<CampaignPersonalization> {
+        const target_store_id = params.store_id || apiConfig.storeId;
+        return apiConfig.httpClient.get<CampaignPersonalization>(
+          `/v1/stores/${target_store_id}/campaigns/${params.id}/personalization`,
+          options,
+        );
+      },
+
       async find(
         params?: FindCampaignsParams,
         options?: RequestOptions,
@@ -847,10 +859,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
       async generatePersonalizedDrafts(
         params: GenerateOutreachPersonalizedDraftsParams,
         options?: RequestOptions,
-      ): Promise<Campaign> {
+      ): Promise<CampaignPersonalization> {
         const { id, store_id, ...payload } = params;
         const target_store_id = store_id || apiConfig.storeId;
-        return apiConfig.httpClient.post<Campaign>(
+        return apiConfig.httpClient.post<CampaignPersonalization>(
           `/v1/stores/${target_store_id}/campaigns/${id}/personalized-drafts`,
           payload,
           options,

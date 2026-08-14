@@ -165,6 +165,7 @@ export type {
   MediaRef,
   FieldOperation,
   Workflow,
+  WorkflowDefinition,
   WorkflowNode,
   WorkflowEdge,
   WorkflowTriggerNode,
@@ -272,7 +273,6 @@ export type {
   OrderFulfillmentStatus,
   OrderPaymentStatus,
   OrderCancellationReason,
-  HistoryEntry,
   Product,
   ProductVariant,
   ProductInventory,
@@ -334,7 +334,7 @@ export type {
   ManualTaskContinueBehavior,
   CampaignManualTaskOutcome,
   OutreachPersonalizationCounters,
-  OutreachPersonalizationState,
+  CampaignPersonalization,
   CampaignLaunchState,
   Campaign,
   CampaignLaunchReadiness,
@@ -741,7 +741,7 @@ export type {
   EventScopeField,
 } from "./api/platform";
 
-export const SDK_VERSION = "0.16.5";
+export const SDK_VERSION = "0.17.0";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -1079,6 +1079,8 @@ export function createAdmin(config: CreateAdminConfig) {
     update: workflowApi.updateWorkflow,
     delete: workflowApi.deleteWorkflow,
     get: workflowApi.getWorkflow,
+    getDefinition: workflowApi.getWorkflowDefinition,
+    replaceDefinition: workflowApi.replaceWorkflowDefinition,
     find: workflowApi.getWorkflows,
     trigger: workflowApi.triggerWorkflow,
     getExecutions: workflowApi.getWorkflowExecutions,
@@ -1262,6 +1264,7 @@ export function createAdmin(config: CreateAdminConfig) {
         update: eshopApi.updateProduct,
         delete: eshopApi.deleteProduct,
         get: eshopApi.getProduct,
+        getInventory: eshopApi.getProductInventory,
         find: eshopApi.getProducts,
       },
       order: {
@@ -1386,8 +1389,10 @@ export function createAdmin(config: CreateAdminConfig) {
         receiveChannelMessage: supportApi.channel.receiveMessage,
         createAgent: supportApi.agent.create,
         getAgent: supportApi.agent.get,
+        getAgentDefinition: supportApi.agent.getDefinition,
         findAgents: supportApi.agent.find,
         updateAgent: supportApi.agent.update,
+        replaceAgentDefinition: supportApi.agent.replaceDefinition,
         deleteAgent: supportApi.agent.delete,
         findConversations: supportApi.conversation.find,
         getConversation: supportApi.conversation.get,
