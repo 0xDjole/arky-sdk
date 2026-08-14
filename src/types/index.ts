@@ -1092,12 +1092,6 @@ export interface OrderFulfillmentSummary {
   updated_at: number;
 }
 
-export interface HistoryEntry {
-  action: string;
-  reason?: string;
-  timestamp: number;
-}
-
 export interface ShippingLine {
   id: string;
   shipping_method_id?: string | null;
@@ -1163,7 +1157,6 @@ export interface Order {
   shipping_address?: Address;
   billing_address?: Address;
   forms: FormEntry[];
-  history: HistoryEntry[];
   audience_ids: string[];
   created_at: number;
   updated_at: number;
@@ -2161,10 +2154,17 @@ export interface Workflow {
   secret: string;
   trigger_url: string;
   status: WorkflowStatus;
+  schedule?: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface WorkflowDefinition {
+  id: string;
+  store_id: string;
+  workflow_id: string;
   nodes: Record<string, WorkflowNode>;
   edges: WorkflowEdge[];
-
-  schedule?: string;
   created_at: number;
   updated_at: number;
 }
@@ -2715,7 +2715,6 @@ export interface Audience {
   type: AudienceType;
   source: AudienceSource;
   digital_products: AudienceDigitalProduct[];
-  tiers: AudienceTier[];
   member_count: number;
   created_at: number;
   updated_at: number;
@@ -3046,10 +3045,12 @@ export interface OutreachPersonalizationCounters {
   failed_messages: number;
 }
 
-export interface OutreachPersonalizationState {
+export interface CampaignPersonalization {
+  id: string;
+  store_id: string;
+  campaign_id: string;
   run_id: string;
   status: OutreachPersonalizationStatus;
-  processing_deadline_at?: number | null;
   step_position?: number | null;
   contact_ids: string[];
   overwrite: boolean;
@@ -3058,6 +3059,8 @@ export interface OutreachPersonalizationState {
   counters: OutreachPersonalizationCounters;
   started_at?: number | null;
   completed_at?: number | null;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface CampaignLaunchState {
@@ -3078,7 +3081,6 @@ export interface Campaign {
   status: CampaignStatus;
   launch: CampaignLaunchState;
   steps: OutreachStep[];
-  personalization: OutreachPersonalizationState;
   launched_at?: number | null;
   created_at: number;
   updated_at: number;
