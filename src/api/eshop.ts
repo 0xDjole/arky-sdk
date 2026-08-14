@@ -50,6 +50,7 @@ import type {
 import type {
   Order,
   Product,
+  ProductInventory,
   Provider,
   Service,
   ServiceProvider,
@@ -117,6 +118,23 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
 
       return apiConfig.httpClient.get<Product>(
         `/v1/stores/${target_store_id}/products/${identifier}`,
+        options,
+      );
+    },
+
+    async getProductInventory(
+      params: GetProductParams,
+      options?: RequestOptions,
+    ): Promise<ProductInventory[]> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      const identifier = params.id
+        ? params.id
+        : params.slug
+          ? `${target_store_id}:${apiConfig.locale}:${params.slug}`
+          : null;
+      if (!identifier) throw new Error("GetProductParams requires id or slug");
+      return apiConfig.httpClient.get<ProductInventory[]>(
+        `/v1/stores/${target_store_id}/products/${identifier}/inventory`,
         options,
       );
     },

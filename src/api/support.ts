@@ -52,12 +52,20 @@ export interface SupportAgent {
   store_id: string;
   name: string;
   status: SupportAgentStatus;
+  channel_ids: string[];
+  notes?: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface SupportAgentDefinition {
+  id: string;
+  store_id: string;
+  support_agent_id: string;
   entry_node_id: string;
   nodes: Record<string, SupportAgentNode>;
   edges: SupportAgentEdge[];
   ai_config?: SupportAgentAiConfig;
-  channel_ids: string[];
-  notes?: string | null;
   created_at: number;
   updated_at: number;
 }
@@ -393,12 +401,17 @@ export interface UpdateSupportAgentParams {
   id: string;
   name?: string;
   status?: SupportAgentStatus;
-  entry_node_id?: string;
-  nodes?: Record<string, SupportAgentNode>;
-  edges?: SupportAgentEdge[];
-  ai_config?: SupportAgentAiConfig;
   channel_ids?: string[];
   notes?: string | null;
+}
+
+export interface ReplaceSupportAgentDefinitionParams {
+  store_id: string;
+  support_agent_id: string;
+  entry_node_id: string;
+  nodes: Record<string, SupportAgentNode>;
+  edges: SupportAgentEdge[];
+  ai_config?: SupportAgentAiConfig;
 }
 
 export interface CreateSupportChannelParams {
@@ -520,6 +533,28 @@ export function createAdminSupportApi(config: ApiConfig) {
       ): Promise<SupportAgent> {
         return httpClient.get<SupportAgent>(
           `/v1/stores/${params.store_id}/support/agents/${params.id}?store_id=${params.store_id}`,
+          opts,
+        );
+      },
+
+      async getDefinition(
+        params: { store_id: string; support_agent_id: string },
+        opts?: RequestOptions,
+      ): Promise<SupportAgentDefinition> {
+        return httpClient.get<SupportAgentDefinition>(
+          `/v1/stores/${params.store_id}/support/agents/${params.support_agent_id}/definition`,
+          opts,
+        );
+      },
+
+      async replaceDefinition(
+        params: ReplaceSupportAgentDefinitionParams,
+        opts?: RequestOptions,
+      ): Promise<SupportAgentDefinition> {
+        const { store_id, support_agent_id, ...definition } = params;
+        return httpClient.put<SupportAgentDefinition>(
+          `/v1/stores/${store_id}/support/agents/${support_agent_id}/definition`,
+          definition,
           opts,
         );
       },

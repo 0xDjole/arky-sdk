@@ -4,6 +4,7 @@ import type {
   UpdateWorkflowParams,
   DeleteWorkflowParams,
   GetWorkflowParams,
+  GetWorkflowDefinitionParams,
   GetWorkflowsParams,
   TriggerWorkflowParams,
   GetWorkflowExecutionsParams,
@@ -14,9 +15,11 @@ import type {
   GetWorkflowConnectionsParams,
   DeleteWorkflowConnectionParams,
   RequestOptions,
+  ReplaceWorkflowDefinitionParams,
 } from "../types/api";
 import type {
   Workflow,
+  WorkflowDefinition,
   WorkflowConnection,
   WorkflowConnectionConnectUrl,
   WorkflowExecution,
@@ -70,6 +73,30 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<Workflow>(
         `/v1/stores/${store_id}/workflows/${params.id}`,
+        options,
+      );
+    },
+
+    async getWorkflowDefinition(
+      params: GetWorkflowDefinitionParams,
+      options?: RequestOptions,
+    ): Promise<WorkflowDefinition> {
+      const store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<WorkflowDefinition>(
+        `/v1/stores/${store_id}/workflows/${params.workflow_id}/definition`,
+        options,
+      );
+    },
+
+    async replaceWorkflowDefinition(
+      params: ReplaceWorkflowDefinitionParams,
+      options?: RequestOptions,
+    ): Promise<WorkflowDefinition> {
+      const { store_id, workflow_id, ...definition } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.put<WorkflowDefinition>(
+        `/v1/stores/${target_store_id}/workflows/${workflow_id}/definition`,
+        definition,
         options,
       );
     },
