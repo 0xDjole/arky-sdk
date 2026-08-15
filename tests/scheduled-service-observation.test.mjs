@@ -436,22 +436,23 @@ test("direct provider calls and scheduled observations keep their original store
   const requestedProvider = {
     id: providerId,
     store_id: originalStoreId,
-    key: "stripe",
-    provider: {
-      type: "stripe",
-      onboarding_status: "pending",
-      charges_enabled: false,
-      payouts_enabled: false,
-      details_submitted: false,
-    },
-    connection: {
-      status: "requested",
-      revision: 1,
-      attempts: 0,
-      requested_at: 1,
-    },
+    type: "stripe",
+    setup_status: "pending",
+    payments_enabled: false,
+    payouts_enabled: false,
+    platform_debits_authorized: false,
+    state_observed_at: 1,
+    disabled_at: null,
     created_at: 1,
     updated_at: 1,
+  };
+  const requestedConnection = {
+    id: "connection-store-scope",
+    store_id: originalStoreId,
+    payment_provider_id: providerId,
+    type: "stripe",
+    status: "requested",
+    requested_at: 1,
   };
   const requestedRun = {
     run_id: runId,
@@ -473,6 +474,7 @@ test("direct provider calls and scheduled observations keep their original store
       if (target.endsWith("/payment-providers/stripe/connect")) {
         return jsonResponse({
           provider: requestedProvider,
+          connection: requestedConnection,
           onboarding_url: null,
         });
       }

@@ -923,7 +923,7 @@ export interface PreviewEmailTemplateParams {
 }
 
 export interface PreviewEmailTemplateWarning {
-  kind: string;
+  type: string;
   variable: string;
   message: string;
 }
@@ -2075,6 +2075,15 @@ export interface DeleteSocialConnectionParams {
 
 export interface ListPaymentProvidersParams {
   store_id?: string;
+}
+
+export interface ListPaymentProviderConnectionsParams {
+  store_id?: string;
+}
+
+export interface GetPaymentProviderConnectionParams {
+  store_id: string;
+  id: string;
 }
 
 export interface RefreshStripePaymentProviderParams {

@@ -774,48 +774,45 @@ export interface SocialConnection {
   updated_at: number;
 }
 
-export type StripeAccountConnectionStatus =
+export type PaymentProviderType = "stripe";
+
+export type PaymentProviderConnectionStatus =
   "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
 
-export type StripeAccountConnectionError =
+export type PaymentProviderConnectionFailure =
   | { type: "provider_rejected"; message: string; at: number }
   | { type: "provider_call_not_started"; message: string; at: number }
   | { type: "unknown_outcome"; message: string; at: number };
 
-export interface StripeAccountConnection {
-  status: StripeAccountConnectionStatus;
-  revision: number;
-  attempts: number;
+export interface PaymentProviderConnection {
+  id: string;
+  store_id: string;
+  payment_provider_id: string;
+  type: PaymentProviderType;
+  status: PaymentProviderConnectionStatus;
   requested_at: number;
   processing_started_at?: number | null;
   completed_at?: number | null;
-  error?: StripeAccountConnectionError | null;
+  failure?: PaymentProviderConnectionFailure | null;
 }
 
-interface PaymentProviderBase {
+export interface PaymentProvider {
   id: string;
   store_id: string;
-  key: string;
+  type: PaymentProviderType;
+  setup_status: "pending" | "submitted" | "complete";
+  payments_enabled: boolean;
+  payouts_enabled: boolean;
+  platform_debits_authorized: boolean;
+  state_observed_at: number;
+  disabled_at?: number | null;
   created_at: number;
   updated_at: number;
 }
 
-export interface StripePaymentProvider extends PaymentProviderBase {
-  connection: StripeAccountConnection;
-  provider: {
-    type: "stripe";
-    onboarding_status: "pending" | "submitted" | "complete";
-    account_debits_authorized: boolean;
-    charges_enabled: boolean;
-    payouts_enabled: boolean;
-    details_submitted: boolean;
-  };
-}
-
-export type PaymentProvider = StripePaymentProvider;
-
-export interface StripePaymentProviderConnectResponse {
-  provider: StripePaymentProvider;
+export interface PaymentProviderConnectResponse {
+  provider: PaymentProvider | null;
+  connection: PaymentProviderConnection;
   onboarding_url: string | null;
 }
 
