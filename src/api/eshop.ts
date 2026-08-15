@@ -59,6 +59,9 @@ import type {
   OrderPayment,
   OrderPaymentAttempt,
   OrderDispute,
+  OrderProduct,
+  OrderBooking,
+  OrderDigitalProduct,
   Cart,
   PaginatedResponse,
 } from "../types";
@@ -390,6 +393,39 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    async getOrderProducts(
+      params: GetOrderParams,
+      options?: RequestOptions,
+    ): Promise<OrderProduct[]> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<OrderProduct[]>(
+        `/v1/stores/${target_store_id}/orders/${params.id}/products`,
+        options,
+      );
+    },
+
+    async getOrderBookings(
+      params: GetOrderParams,
+      options?: RequestOptions,
+    ): Promise<OrderBooking[]> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<OrderBooking[]>(
+        `/v1/stores/${target_store_id}/orders/${params.id}/bookings`,
+        options,
+      );
+    },
+
+    async getOrderDigitalProducts(
+      params: GetOrderParams,
+      options?: RequestOptions,
+    ): Promise<OrderDigitalProduct[]> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<OrderDigitalProduct[]>(
+        `/v1/stores/${target_store_id}/orders/${params.id}/digital-products`,
+        options,
+      );
+    },
+
     async getOrders(
       params: GetOrdersParams,
       options?: RequestOptions,
@@ -567,7 +603,8 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: GetQuoteParams,
       options?: RequestOptions,
     ): Promise<OrderQuote> {
-      const { location, store_id, products, bookings, digital, ...rest } = params;
+      const { location, store_id, products, bookings, digital, ...rest } =
+        params;
       const target_store_id = store_id || apiConfig.storeId;
       const shipping_address = location
         ? {

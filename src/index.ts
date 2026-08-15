@@ -89,6 +89,7 @@ export type {
   DigitalDownload,
   DigitalLibraryAsset,
   DigitalLibraryItem,
+  DigitalLibraryProduct,
   OrderPaymentAttemptType,
   OrderPaymentAttemptStatus,
   OrderPaymentAttemptCancellationStatus,
@@ -165,6 +166,7 @@ export type {
   MediaRef,
   FieldOperation,
   Workflow,
+  WorkflowTrigger,
   WorkflowDefinition,
   WorkflowNode,
   WorkflowEdge,
@@ -184,6 +186,9 @@ export type {
   WorkflowLoopNode,
   WorkflowHttpMethod,
   WorkflowExecution,
+  WorkflowExecutionDefinition,
+  WorkflowExecutionInputCapture,
+  WorkflowExecutionResults,
   WorkflowEffect,
   WorkflowEffectEvidence,
   WorkflowEffectError,
@@ -625,6 +630,7 @@ export type {
   AnalyticsBlockRequest,
   AnalyticsRequest,
   AnalyticsMetricData,
+  AnalyticsRateData,
   AnalyticsBreakdownItem,
   AnalyticsBreakdownData,
   BusinessOverviewData,
@@ -637,6 +643,7 @@ export type {
   EntityStatusOverviewData,
   DataHealthData,
   AnalyticsReport,
+  AnalyticsReportScope,
   AnalyticsBlockResponse,
   AnalyticsResponse,
   ActionFeedCategory,
@@ -656,6 +663,11 @@ export type {
   CreateProductVariantInput,
   UpdateProductVariantInput,
   ProductInventoryInput,
+} from "./types/api";
+
+export type {
+  GetWorkflowTriggerParams,
+  InvokeWorkflowTriggerParams,
 } from "./types/api";
 
 export type {
@@ -738,12 +750,9 @@ export type {
   FindSupportConversationsParams,
   ReceiveSupportChannelMessageParams,
 } from "./api/support";
-export type {
-  EventMetadata,
-  EventScopeField,
-} from "./api/platform";
+export type { EventMetadata, EventScopeField } from "./api/platform";
 
-export const SDK_VERSION = "0.18.0";
+export const SDK_VERSION = "0.19.0";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -1084,11 +1093,17 @@ export function createAdmin(config: CreateAdminConfig) {
     delete: workflowApi.deleteWorkflow,
     get: workflowApi.getWorkflow,
     getDefinition: workflowApi.getWorkflowDefinition,
+    getTrigger: workflowApi.getWorkflowTrigger,
+    rotateTrigger: workflowApi.rotateWorkflowTrigger,
     replaceDefinition: workflowApi.replaceWorkflowDefinition,
     find: workflowApi.getWorkflows,
     trigger: workflowApi.triggerWorkflow,
+    invokeTrigger: workflowApi.invokeWorkflowTrigger,
     getExecutions: workflowApi.getWorkflowExecutions,
     getExecution: workflowApi.getWorkflowExecution,
+    getExecutionDefinition: workflowApi.getWorkflowExecutionDefinition,
+    getExecutionInput: workflowApi.getWorkflowExecutionInput,
+    getExecutionResults: workflowApi.getWorkflowExecutionResults,
     listEffects: workflowApi.getWorkflowEffects,
     getEffect: workflowApi.getWorkflowEffect,
     listConnections: workflowApi.getWorkflowConnections,
@@ -1274,6 +1289,9 @@ export function createAdmin(config: CreateAdminConfig) {
       order: {
         update: eshopApi.updateOrder,
         get: eshopApi.getOrder,
+        getProducts: eshopApi.getOrderProducts,
+        getBookings: eshopApi.getOrderBookings,
+        getDigitalProducts: eshopApi.getOrderDigitalProducts,
         find: eshopApi.getOrders,
         getQuote: eshopApi.getQuote,
         createRefund: eshopApi.createRefund,

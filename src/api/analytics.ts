@@ -37,7 +37,6 @@ export type AnalyticsReportKey =
   | "support_conversations_by_status"
   | "lead_research_runs_by_status"
   | "suppressions_by_status"
-
   | "workflows_by_status"
   | "promo_codes_by_status"
   | "email_templates_by_status"
@@ -102,35 +101,36 @@ export interface AnalyticsBreakdownData {
 export interface BusinessOverviewData {
   visitors: number;
   new_visitors: number;
-  known_contacts: number;
-  new_known_contacts: number;
-  email_known_contacts: number;
-  verified_contacts: number;
+  new_email_known_contacts: number;
   new_verified_contacts: number;
   buyers: number;
   orders: number;
-  revenue: number;
   revenue_by_currency: RevenueByCurrencyData[];
-  average_order_value: number;
   carts: number;
   abandoned_carts: number;
-  visitor_to_known_rate: number;
-  visitor_to_buyer_rate: number;
-  cart_abandonment_rate: number;
+  visitor_to_known_rate: AnalyticsRateData;
+  visitor_to_buyer_rate: AnalyticsRateData;
+  cart_abandonment_rate: AnalyticsRateData;
+}
+
+export interface AnalyticsRateData {
+  numerator: number;
+  denominator: number;
+  value: number | null;
 }
 
 export interface RevenueByCurrencyData {
   currency: string;
   orders: number;
   revenue: number;
-  average_order_value: number;
+  average_order_value: number | null;
 }
 
 export interface ContactFunnelStage {
   key:
     | "visitors"
-    | "email_known_contacts"
-    | "verified_contacts"
+    | "new_email_known_contacts"
+    | "new_verified_contacts"
     | "buyers"
     | string;
   label: string;
@@ -139,8 +139,8 @@ export interface ContactFunnelStage {
 
 export interface ContactFunnelData {
   stages: ContactFunnelStage[];
-  visitor_to_known_rate?: number;
-  visitor_to_buyer_rate?: number;
+  visitor_to_known_rate?: AnalyticsRateData;
+  visitor_to_buyer_rate?: AnalyticsRateData;
 }
 
 export interface OutreachOverviewData {
@@ -163,9 +163,9 @@ export interface OutreachOverviewData {
   suppressions: number;
   active_suppressions: number;
   new_suppressions: number;
-  reply_rate: number;
-  bounce_rate: number;
-  suppression_rate: number;
+  reply_rate: AnalyticsRateData;
+  bounce_rate: AnalyticsRateData;
+  suppression_rate: AnalyticsRateData;
 }
 
 export interface OutreachFunnelStage {
@@ -183,9 +183,9 @@ export interface OutreachFunnelStage {
 
 export interface OutreachFunnelData {
   stages: OutreachFunnelStage[];
-  reply_rate?: number;
-  bounce_rate?: number;
-  suppression_rate?: number;
+  reply_rate?: AnalyticsRateData;
+  bounce_rate?: AnalyticsRateData;
+  suppression_rate?: AnalyticsRateData;
 }
 
 export interface EntityStatusOverviewData {
@@ -277,7 +277,6 @@ export type AnalyticsBreakdownReportKey =
   | "support_conversations_by_status"
   | "lead_research_runs_by_status"
   | "suppressions_by_status"
-
   | "workflows_by_status"
   | "promo_codes_by_status"
   | "email_templates_by_status"
@@ -297,7 +296,9 @@ export type AnalyticsCompositeReportKey =
   | "entity_status_overview"
   | "data_health";
 
-export type AnalyticsReport =
+export type AnalyticsReportScope = "period" | "current_snapshot" | "mixed";
+
+type AnalyticsReportData =
   | { key: AnalyticsMetricReportKey; data: AnalyticsMetricData }
   | { key: AnalyticsBreakdownReportKey; data: AnalyticsBreakdownData }
   | { key: "business_overview"; data: BusinessOverviewData }
@@ -307,6 +308,10 @@ export type AnalyticsReport =
   | { key: "entity_status_overview"; data: EntityStatusOverviewData }
   | { key: "data_health"; data: DataHealthData }
   | { key: AnalyticsActionReportKey; data: ActionFeedData };
+
+export type AnalyticsReport = AnalyticsReportData & {
+  scope: AnalyticsReportScope;
+};
 
 export interface AnalyticsBlockResponse {
   id: string;

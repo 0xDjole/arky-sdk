@@ -16,6 +16,7 @@ export interface Experiment {
   status: ExperimentStatus;
   version: number;
   goal_action_key: string;
+  attribution_window_days: number;
   variants: ExperimentVariant[];
   created_at: number;
   updated_at: number;
@@ -25,6 +26,7 @@ export interface CreateExperimentParams {
   store_id?: string;
   key: string;
   goal_action_key: string;
+  attribution_window_days?: number;
   variants: ExperimentVariant[];
   status?: ExperimentStatus;
 }
@@ -33,6 +35,7 @@ export interface UpdateExperimentParams {
   store_id?: string;
   key: string;
   goal_action_key?: string;
+  attribution_window_days?: number;
   variants?: ExperimentVariant[];
   status?: ExperimentStatus;
 }
@@ -53,42 +56,72 @@ export interface ExperimentVariantResult {
   weight: number;
   shown: number;
   wins: number;
-  conversion_rate: number;
+  conversion_rate: number | null;
 }
 
 export interface ExperimentResults {
   experiment: Experiment;
   variants: ExperimentVariantResult[];
-  winning_variant_key?: string | null;
+  leading_variant_key?: string | null;
 }
 
 export const createExperimentsApi = (apiConfig: ApiConfig) => {
-  const base = (storeId = apiConfig.storeId) => `/v1/stores/${storeId}/experiments`;
+  const base = (storeId = apiConfig.storeId) =>
+    `/v1/stores/${storeId}/experiments`;
 
   return {
-    create(params: CreateExperimentParams, options?: RequestOptions): Promise<Experiment> {
+    create(
+      params: CreateExperimentParams,
+      options?: RequestOptions,
+    ): Promise<Experiment> {
       const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<Experiment>(base(store_id), payload, options);
+      return apiConfig.httpClient.post<Experiment>(
+        base(store_id),
+        payload,
+        options,
+      );
     },
 
-    update(params: UpdateExperimentParams, options?: RequestOptions): Promise<Experiment> {
+    update(
+      params: UpdateExperimentParams,
+      options?: RequestOptions,
+    ): Promise<Experiment> {
       const { store_id, key, ...payload } = params;
-      return apiConfig.httpClient.put<Experiment>(`${base(store_id)}/${key}`, payload, options);
+      return apiConfig.httpClient.put<Experiment>(
+        `${base(store_id)}/${key}`,
+        payload,
+        options,
+      );
     },
 
-    get(params: GetExperimentParams, options?: RequestOptions): Promise<Experiment> {
-      return apiConfig.httpClient.get<Experiment>(`${base(params.store_id)}/${params.key}`, options);
+    get(
+      params: GetExperimentParams,
+      options?: RequestOptions,
+    ): Promise<Experiment> {
+      return apiConfig.httpClient.get<Experiment>(
+        `${base(params.store_id)}/${params.key}`,
+        options,
+      );
     },
 
-    find(params: FindExperimentsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Experiment>> {
+    find(
+      params: FindExperimentsParams = {},
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<Experiment>> {
       const { store_id, ...queryParams } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<Experiment>>(base(store_id), {
-        ...options,
-        params: queryParams,
-      });
+      return apiConfig.httpClient.get<PaginatedResponse<Experiment>>(
+        base(store_id),
+        {
+          ...options,
+          params: queryParams,
+        },
+      );
     },
 
-    results(params: GetExperimentParams, options?: RequestOptions): Promise<ExperimentResults> {
+    results(
+      params: GetExperimentParams,
+      options?: RequestOptions,
+    ): Promise<ExperimentResults> {
       return apiConfig.httpClient.get<ExperimentResults>(
         `${base(params.store_id)}/${params.key}/results`,
         options,

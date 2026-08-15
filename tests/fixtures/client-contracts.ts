@@ -46,7 +46,7 @@ import {
   type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
 } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.18.0" = SDK_VERSION;
+const sdkVersionLiteral: "0.19.0" = SDK_VERSION;
 const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
 // @ts-expect-error the server's serialized feature key is crm_contacts.
 const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
