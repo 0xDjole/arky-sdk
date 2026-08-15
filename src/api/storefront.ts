@@ -1,4 +1,4 @@
-import type { ContactSessionUpdater, StorefrontApiConfig } from "../index";
+import type { StorefrontApiConfig } from "../services/clientTypes";
 import type {
   AddCartBookingParams,
   AddCartDigitalProductParams,
@@ -72,56 +72,38 @@ import type {
   StorefrontAudienceMember,
   StorefrontAudienceTier,
   Taxonomy,
-  Zone,
 } from "../types";
+import type {
+  StorefrontContact,
+  StorefrontDto,
+  StorefrontLocation,
+  StorefrontMarket,
+  StorefrontParams,
+  StorefrontZone,
+} from "../types/storefront";
+export type {
+  StorefrontContact,
+  StorefrontDto,
+  StorefrontLocation,
+  StorefrontMarket,
+  StorefrontZone,
+} from "../types/storefront";
 import {
   sanitizePublicCartBookings,
   sanitizePublicCartDigitalProducts,
   sanitizePublicCartProducts,
 } from "../utils/cartInputs";
 
-type StorefrontParams<T> = T extends unknown
-  ? Omit<T, "store_id" | "market">
-  : never;
+export interface ContactSessionInternal {
+  sessionToken: string;
+  contact: StorefrontContact;
+}
 
-type StorefrontOpaqueKey =
-  | "attributes"
-  | "blocks"
-  | "context"
-  | "data"
-  | "fields"
-  | "metadata"
-  | "payload"
-  | "properties"
-  | "schema"
-  | "value";
-
-/**
- * The public Storefront wire shape of an Admin/domain DTO.
- *
- * Store ownership is resolved from the publishable key and is intentionally
- * absent from Storefront responses. User-authored JSON containers stay opaque
- * so a legitimate content key named `store_id` is not erased from its type.
- */
-export type StorefrontDto<T> = T extends readonly (infer Item)[]
-  ? StorefrontDto<Item>[]
-  : T extends object
-    ? {
-        [
-          Key in keyof T as Key extends "store_id" ? never : Key
-        ]: Key extends StorefrontOpaqueKey ? T[Key] : StorefrontDto<T[Key]>;
-      }
-    : T;
-
-export type StorefrontContact = StorefrontDto<Contact>;
-export type StorefrontLocation = StorefrontDto<Location>;
-export type StorefrontZone = Omit<Zone, "store_id" | "market_id">;
-export type StorefrontMarket = Omit<
-  Market,
-  "store_id" | "created_at" | "updated_at" | "zones"
-> & {
-  zones: StorefrontZone[];
-};
+export type ContactSessionUpdater = (
+  updater: (
+    previous: ContactSessionInternal | null,
+  ) => ContactSessionInternal | null,
+) => void;
 
 export interface StorefrontSetup {
   timezone: string;
@@ -216,12 +198,10 @@ export const createActionApi = (
   COMMON_ACTION_KEYS,
   async track(params: TrackActionParams): Promise<void> {
     await lifecycle.ensureVisitorSession();
-    try {
-      await apiConfig.httpClient.post<void>("/v1/storefront/actions/track", {
-        key: params.key,
-        payload: params.payload,
-      });
-    } catch {}
+    await apiConfig.httpClient.post<void>("/v1/storefront/actions/track", {
+      key: params.key,
+      payload: params.payload,
+    });
   },
 });
 

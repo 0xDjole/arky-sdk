@@ -5,10 +5,24 @@ import {
   type StorefrontIdentifyResult,
 } from "../index";
 import type {
-  StorefrontDto,
   StorefrontMarket,
   StorefrontSetup,
 } from "../api/storefront";
+import type {
+  StorefrontCart,
+  StorefrontCollectionEntry,
+  StorefrontForm,
+  StorefrontFormSubmission,
+  StorefrontOrderCheckoutResult,
+  StorefrontOrderQuote,
+  StorefrontPage,
+  StorefrontParams,
+  StorefrontProduct,
+  StorefrontProductVariant,
+  StorefrontProvider,
+  StorefrontService,
+  StorefrontServiceProvider,
+} from "../types/storefront";
 import type {
   Address,
   Block,
@@ -97,22 +111,7 @@ import {
   toCartBookings,
 } from "./utils";
 
-type StorefrontParams<T> = T extends unknown
-  ? Omit<T, "store_id" | "market">
-  : never;
-type StorefrontCart = StorefrontDto<Cart>;
 type StorefrontCheckoutRequest = StorefrontParams<CheckoutCartParams>;
-type StorefrontCollectionEntry = StorefrontDto<CollectionEntry>;
-type StorefrontForm = StorefrontDto<Form>;
-type StorefrontFormSubmission = StorefrontDto<FormSubmission>;
-type StorefrontOrderCheckoutResult = StorefrontDto<OrderCheckoutResult>;
-type StorefrontOrderQuote = StorefrontDto<OrderQuote>;
-type StorefrontProduct = StorefrontDto<Product>;
-type StorefrontProductVariant = StorefrontDto<ProductVariant>;
-type StorefrontProvider = StorefrontDto<Provider>;
-type StorefrontService = StorefrontDto<Service>;
-type StorefrontServiceProvider = StorefrontDto<ServiceProvider>;
-type StorefrontPage<T> = StorefrontDto<PaginatedResponse<T>>;
 
 interface CheckoutContext {
   request: StorefrontCheckoutRequest;

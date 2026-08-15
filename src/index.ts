@@ -101,7 +101,6 @@ export type {
   OrderDispute,
   StripeDisputeStatus,
   OrderQuote,
-  RefundStatus,
   CheckoutPaymentAction,
   StoreSubscription,
   StorePlanAccess,
@@ -369,8 +368,6 @@ export type {
   AccountUpdateResponse,
   StoreMembership,
   StoreMember,
-  Discount,
-  Condition,
   ServiceStatus,
   ProviderStatus,
   ProductStatus,
@@ -611,6 +608,9 @@ export type {
   CreateAudiencePaymentMethodSessionParams,
   UnsubscribeAudienceParams,
   ConfirmAudienceParams,
+  Condition,
+  Discount,
+  RefundStatus,
 } from "./types/api";
 
 export type {
@@ -752,7 +752,7 @@ export type {
 } from "./api/support";
 export type { EventMetadata, EventScopeField } from "./api/platform";
 
-export const SDK_VERSION = "0.19.0";
+export const SDK_VERSION = "0.19.1";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -762,36 +762,6 @@ export const SUPPORTED_FRAMEWORKS = [
 ] as const;
 
 import type { Price } from "./types";
-
-export interface ApiConfig {
-  httpClient: HttpClient;
-  storeId: string;
-  baseUrl: string;
-  market: string;
-  locale: string;
-  authStorage: AuthStorage;
-}
-
-export interface StorefrontApiConfig {
-  httpClient: HttpClient;
-  apiUrl: string;
-  publishableKey: string;
-  market: string;
-  locale: string;
-  authStorage: AuthStorage;
-}
-
-export interface AdminSessionInternal {
-  access_token: string;
-  refresh_token: string;
-  access_expires_at?: number;
-  email?: string;
-}
-
-export interface ContactSessionInternal {
-  sessionToken: string;
-  contact: import("./api/storefront").StorefrontContact;
-}
 
 export interface AdminSession {
   email?: string;
@@ -811,16 +781,6 @@ export interface StorefrontVerifyResult {
   contact: import("./api/storefront").StorefrontContact;
 }
 
-export type AdminSessionUpdater = (
-  updater: (prev: AdminSessionInternal | null) => AdminSessionInternal | null,
-) => void;
-
-export type ContactSessionUpdater = (
-  updater: (
-    prev: ContactSessionInternal | null,
-  ) => ContactSessionInternal | null,
-) => void;
-
 export type AuthStateListener<T> = (session: T | null) => void;
 
 import {
@@ -829,6 +789,18 @@ import {
   type HttpClient,
   type AuthStorage,
 } from "./services/createHttpClient";
+import type {
+  AdminSessionInternal,
+  AdminSessionUpdater,
+  ApiConfig,
+  StorefrontApiConfig,
+} from "./services/clientTypes";
+export type {
+  AdminSessionInternal,
+  AdminSessionUpdater,
+  ApiConfig,
+  StorefrontApiConfig,
+} from "./services/clientTypes";
 import { createAccountApi } from "./api/account";
 import { createAuthApi } from "./api/auth";
 import { createStoreApi } from "./api/store";
@@ -856,7 +828,15 @@ import { createFormApi } from "./api/form";
 import { createTaxonomyApi } from "./api/taxonomy";
 import { createAnalyticsApi } from "./api/analytics";
 import { createExperimentsApi } from "./api/experiments";
-import { createStorefrontApi } from "./api/storefront";
+import {
+  createStorefrontApi,
+  type ContactSessionInternal,
+  type ContactSessionUpdater,
+} from "./api/storefront";
+export type {
+  ContactSessionInternal,
+  ContactSessionUpdater,
+} from "./api/storefront";
 import {
   getImageUrl,
   getBlockValue,

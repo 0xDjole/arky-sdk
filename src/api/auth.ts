@@ -1,4 +1,4 @@
-import type { ApiConfig, AdminSessionInternal, AdminSessionUpdater } from '../index';
+import type { ApiConfig, AdminSessionInternal, AdminSessionUpdater } from "../services/clientTypes";
 import type {
     AuthCodeVerifyParams,
     AuthToken,

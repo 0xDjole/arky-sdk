@@ -21,13 +21,13 @@ import type {
   CartProductInput,
   CartBookingInput,
 } from "../types/api";
-import type { StorefrontDto } from "../api/storefront";
+import type {
+  StorefrontProduct,
+  StorefrontProductVariant,
+  StorefrontProvider,
+  StorefrontService,
+} from "../types/storefront";
 import type { ArkyBookingCartItem, ArkyServiceState, ArkyStoreClient } from "./types";
-
-type StorefrontProduct = StorefrontDto<Product>;
-type StorefrontProductVariant = StorefrontDto<ProductVariant>;
-type StorefrontProvider = StorefrontDto<Provider>;
-type StorefrontService = StorefrontDto<Service>;
 
 export function readErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message) return error.message;

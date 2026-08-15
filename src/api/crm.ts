@@ -1,4 +1,4 @@
-import type { ApiConfig } from "../index";
+import type { ApiConfig } from "../services/clientTypes";
 import type {
   RequestOptions,
   CreateContactParams,
@@ -11,8 +11,6 @@ import type {
   ImportContactsPreviewParams,
   ImportContactsPreviewResult,
   ImportContactsResult,
-  Contact,
-  ContactSessionRecord,
   FindContactSessionsParams,
   RevokeContactSessionParams,
   RevokeAllContactSessionsParams,
@@ -57,7 +55,6 @@ import type {
   DuplicateCampaignParams,
   GetCampaignLaunchReadinessParams,
   ImportCampaignEnrollmentsParams,
-  CampaignEnrollmentImportResult,
   GenerateOutreachPersonalizedDraftsParams,
   FindCampaignEnrollmentsParams,
   UpdateCampaignEnrollmentParams,
@@ -97,6 +94,9 @@ import type {
   Suppression,
   AudienceManagementResponse,
   AudiencePaymentMethodSessionResponse,
+  CampaignEnrollmentImportResult,
+  Contact,
+  ContactSessionRecord,
 } from "../types";
 
 export interface TimelineParams {

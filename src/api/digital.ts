@@ -1,4 +1,4 @@
-import type { ApiConfig } from "../index";
+import type { ApiConfig } from "../services/clientTypes";
 import type {
   ArchiveDigitalAssetParams,
   CreateDigitalProductParams,
@@ -22,7 +22,7 @@ export const createDigitalApi = (apiConfig: ApiConfig) => ({
   ): Promise<DigitalProduct> {
     const { store_id, ...payload } = params;
     const storeId = store_id || apiConfig.storeId;
-    return apiConfig.httpClient.post(
+    return apiConfig.httpClient.post<DigitalProduct>(
       `/v1/stores/${storeId}/digital-products`,
       payload,
       options,
@@ -35,7 +35,7 @@ export const createDigitalApi = (apiConfig: ApiConfig) => ({
   ): Promise<DigitalProduct> {
     const { store_id, digital_product_id, ...payload } = params;
     const storeId = store_id || apiConfig.storeId;
-    return apiConfig.httpClient.put(
+    return apiConfig.httpClient.put<DigitalProduct>(
       `/v1/stores/${storeId}/digital-products/${digital_product_id}`,
       payload,
       options,
@@ -47,7 +47,7 @@ export const createDigitalApi = (apiConfig: ApiConfig) => ({
     options?: RequestOptions,
   ): Promise<DigitalProduct> {
     const storeId = params.store_id || apiConfig.storeId;
-    return apiConfig.httpClient.get(
+    return apiConfig.httpClient.get<DigitalProduct>(
       `/v1/stores/${storeId}/digital-products/${params.digital_product_id}`,
       options,
     );
@@ -59,7 +59,7 @@ export const createDigitalApi = (apiConfig: ApiConfig) => ({
   ): Promise<PaginatedResponse<DigitalProduct>> {
     const { store_id, ...query } = params;
     const storeId = store_id || apiConfig.storeId;
-    return apiConfig.httpClient.get(`/v1/stores/${storeId}/digital-products`, {
+    return apiConfig.httpClient.get<PaginatedResponse<DigitalProduct>>(`/v1/stores/${storeId}/digital-products`, {
       ...options,
       params: query,
     });
@@ -70,7 +70,7 @@ export const createDigitalApi = (apiConfig: ApiConfig) => ({
     options?: RequestOptions,
   ): Promise<boolean> {
     const storeId = params.store_id || apiConfig.storeId;
-    return apiConfig.httpClient.delete(
+    return apiConfig.httpClient.delete<boolean>(
       `/v1/stores/${storeId}/digital-products/${params.digital_product_id}`,
       options,
     );
@@ -103,7 +103,7 @@ export const createDigitalApi = (apiConfig: ApiConfig) => ({
   ): Promise<PaginatedResponse<DigitalAsset>> {
     const { store_id, ...query } = params;
     const storeId = store_id || apiConfig.storeId;
-    return apiConfig.httpClient.get(
+    return apiConfig.httpClient.get<PaginatedResponse<DigitalAsset>>(
       `/v1/stores/${storeId}/digital-products/assets`,
       { ...options, params: query },
     );
@@ -114,7 +114,7 @@ export const createDigitalApi = (apiConfig: ApiConfig) => ({
     options?: RequestOptions,
   ): Promise<DigitalAsset> {
     const storeId = params.store_id || apiConfig.storeId;
-    return apiConfig.httpClient.delete(
+    return apiConfig.httpClient.delete<DigitalAsset>(
       `/v1/stores/${storeId}/digital-products/assets/${params.asset_id}`,
       options,
     );

@@ -1,4 +1,4 @@
-import type { ApiConfig, AdminSessionUpdater } from "../index";
+import type { ApiConfig, AdminSessionUpdater } from "../services/clientTypes";
 import type {
   CreateStoreParams,
   UpdateStoreParams,

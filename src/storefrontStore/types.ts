@@ -1,5 +1,15 @@
 import type { createStorefront, StorefrontOptions } from "../index";
-import type { StorefrontDto } from "../api/storefront";
+import type {
+  StorefrontCart,
+  StorefrontCollectionEntry,
+  StorefrontForm,
+  StorefrontOrderCheckoutResult,
+  StorefrontOrderQuote,
+  StorefrontProduct,
+  StorefrontProvider,
+  StorefrontService,
+  StorefrontServiceProvider,
+} from "../types/storefront";
 import type {
   Address,
   Block,
@@ -23,15 +33,6 @@ import type {
 import type { AvailabilityResponse, SlotRange } from "../types/api";
 
 export type ArkyStoreClient = ReturnType<typeof createStorefront>;
-type StorefrontCart = StorefrontDto<Cart>;
-type StorefrontCollectionEntry = StorefrontDto<CollectionEntry>;
-type StorefrontForm = StorefrontDto<Form>;
-type StorefrontOrderCheckoutResult = StorefrontDto<OrderCheckoutResult>;
-type StorefrontOrderQuote = StorefrontDto<OrderQuote>;
-type StorefrontProduct = StorefrontDto<Product>;
-type StorefrontProvider = StorefrontDto<Provider>;
-type StorefrontService = StorefrontDto<Service>;
-type StorefrontServiceProvider = StorefrontDto<ServiceProvider>;
 export type ArkyStoreConfig = StorefrontOptions;
 
 export interface ArkyStoreContext {
