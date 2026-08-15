@@ -1,4 +1,5 @@
 export { initialize } from "./initialize";
+export type { ArkyCartStore, ArkyServiceStore, ArkyStore } from "./initialize";
 export { buildFormFields, createFormEntry, createFormEntryFromValues } from "./utils";
 export type {
   ArkyCalendarDay,
@@ -18,6 +19,3 @@ export type {
   ArkyStoreConfig,
   ArkySubmitFormByKeyParams,
 } from "./types";
-export type ArkyStore = ReturnType<typeof import("./initialize").initialize>;
-export type ArkyCartStore = ArkyStore["eshop"]["cart"];
-export type ArkyServiceStore = ArkyStore["eshop"]["service"];

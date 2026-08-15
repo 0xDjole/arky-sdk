@@ -1,4 +1,4 @@
-import type { ApiConfig } from "../index";
+import type { ApiConfig } from "../services/clientTypes";
 import type {
   CreateCollectionParams,
   UpdateCollectionParams,

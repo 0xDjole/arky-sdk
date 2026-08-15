@@ -14,7 +14,7 @@ The current browser contract is `arky-sdk@0.19.0`. Pin that exact version during
 prelaunch cutover so the Server, App, and storefront route/header contracts move together:
 
 ```bash
-npm install --save-exact arky-sdk@0.19.0
+npm install --save-exact arky-sdk@0.19.1
 ```
 
 Copy the Store publishable key from Developer and initialize one client:
