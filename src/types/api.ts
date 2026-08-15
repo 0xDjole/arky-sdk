@@ -42,6 +42,10 @@ import type {
   Language,
   StoreEmails,
   ContactStatus,
+  Contact,
+  ContactSessionIssued,
+  ContactSessionRecord,
+  CampaignEnrollmentImportResult,
   AudienceStatus,
   AudienceType,
   AudienceTierStatus,
@@ -1862,13 +1866,6 @@ export interface ImportCampaignEnrollmentsParams {
   emails?: string[];
 }
 
-export interface CampaignEnrollmentImportResult {
-  imported_count: number;
-  existing_count: number;
-  skipped_count: number;
-  draft_count: number;
-}
-
 export interface GenerateOutreachPersonalizedDraftsParams {
   id: string;
   store_id?: string;
@@ -2406,27 +2403,6 @@ export interface ContactInfo {
   verified: boolean;
 }
 
-export type ContactSessionStatus = "active" | "revoked" | "expired";
-
-export interface ContactSessionRecord {
-  id: string;
-  store_id: string;
-  contact_id: string;
-  status: ContactSessionStatus;
-  created_at: number;
-  expires_at: number;
-  revoked_at: number | null;
-  last_seen_at: number | null;
-}
-
-export interface ContactSessionIssued {
-  id: string;
-  token: string;
-  status: ContactSessionStatus;
-  created_at: number;
-  expires_at: number;
-}
-
 export interface FindContactSessionsParams {
   contact_id: string;
   store_id?: string;
@@ -2443,18 +2419,6 @@ export interface RevokeContactSessionParams {
 export interface RevokeAllContactSessionsParams {
   contact_id: string;
   store_id?: string;
-}
-
-export interface Contact {
-  id: string;
-  store_id: string;
-  email: string | null;
-  verified: boolean;
-  status: ContactStatus;
-  channels: import("./index").ContactChannel[];
-  taxonomies: TaxonomyEntry[];
-  created_at: number;
-  updated_at: number;
 }
 
 export interface SetContactEmailParams {

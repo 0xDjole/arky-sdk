@@ -1,4 +1,4 @@
-import type { ApiConfig, StorefrontApiConfig } from "../index";
+import type { ApiConfig, StorefrontApiConfig } from "../services/clientTypes";
 import type { StorefrontDto } from "./storefront";
 import type { RequestOptions, ScheduledMutationOptions } from "../types/api";
 import {
