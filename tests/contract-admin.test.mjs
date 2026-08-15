@@ -119,6 +119,8 @@ assert.equal(typeof arky.store.member.remove, "function");
 assert.equal(typeof arky.store.buildHook.list, "function");
 assert.equal(typeof arky.store.webhook.list, "function");
 assert.equal(typeof arky.store.paymentProvider.list, "function");
+assert.equal(typeof arky.store.paymentProvider.listConnections, "function");
+assert.equal(typeof arky.store.paymentProvider.getConnection, "function");
 assert.equal(typeof arky.store.paymentProvider.stripe.connect, "function");
 assert.equal(typeof arky.store.paymentProvider.stripe.refresh, "function");
 assert.equal(
@@ -219,32 +221,33 @@ const scheduledAdminCalls = [];
 const requestedProvider = {
   id: "provider-scheduled",
   store_id: "contract-store",
-  key: "stripe",
-  provider: {
-    type: "stripe",
-    onboarding_status: "pending",
-    charges_enabled: false,
-    payouts_enabled: false,
-    details_submitted: false,
-  },
-  connection: {
-    status: "requested",
-    revision: 1,
-    attempts: 0,
-    requested_at: 1,
-  },
+  type: "stripe",
+  setup_status: "pending",
+  payments_enabled: false,
+  payouts_enabled: false,
+  platform_debits_authorized: false,
+  state_observed_at: 1,
+  disabled_at: null,
   created_at: 1,
   updated_at: 1,
 };
 const succeededProvider = {
   ...requestedProvider,
-  connection: {
-    ...requestedProvider.connection,
-    status: "succeeded",
-    attempts: 1,
-    completed_at: 2,
-  },
+  setup_status: "complete",
+  payments_enabled: true,
+  payouts_enabled: true,
   updated_at: 2,
+};
+const succeededProviderConnection = {
+  id: "connection-scheduled",
+  store_id: "contract-store",
+  payment_provider_id: "provider-scheduled",
+  type: "stripe",
+  status: "succeeded",
+  requested_at: 1,
+  processing_started_at: 1,
+  completed_at: 2,
+  failure: null,
 };
 const selectedSubscription = {
   id: "subscription-contract",
@@ -278,6 +281,7 @@ globalThis.fetch = async (url, init = {}) => {
   if (target.endsWith("/payment-providers/stripe/connect")) {
     body = {
       provider: succeededProvider,
+      connection: succeededProviderConnection,
       onboarding_url: "https://connect.test/onboarding",
     };
   } else if (
@@ -285,12 +289,13 @@ globalThis.fetch = async (url, init = {}) => {
   ) {
     body = {
       provider: succeededProvider,
+      connection: succeededProviderConnection,
       onboarding_url: "https://connect.test/onboarding",
     };
   } else if (target.endsWith("/subscription") && method === "POST") {
     body = selectedSubscription;
   } else if (target.endsWith("/payment-providers/provider-scheduled")) {
-    body = { deleted: true };
+    body = { disabled: true };
   } else {
     throw new Error(`Unexpected scheduled admin request: ${method} ${target}`);
   }
@@ -325,7 +330,7 @@ try {
       store_id: "contract-store",
       id: "provider-scheduled",
     }),
-    { deleted: true },
+    { disabled: true },
   );
 } finally {
   globalThis.fetch = scheduledOriginalFetch;

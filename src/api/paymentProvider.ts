@@ -2,15 +2,17 @@ import type { ApiConfig } from "../index";
 import type {
   ConnectStripePaymentProviderParams,
   DeletePaymentProviderParams,
+  GetPaymentProviderConnectionParams,
   OpenStripeDashboardParams,
+  ListPaymentProviderConnectionsParams,
   ListPaymentProvidersParams,
   RefreshStripePaymentProviderParams,
   RequestOptions,
 } from "../types/api";
 import type {
   PaymentProvider,
-  StripePaymentProvider,
-  StripePaymentProviderConnectResponse,
+  PaymentProviderConnection,
+  PaymentProviderConnectResponse,
 } from "../types";
 
 export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
@@ -30,9 +32,9 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
     async refreshStripe(
       params?: RefreshStripePaymentProviderParams,
       options?: RequestOptions,
-    ): Promise<StripePaymentProvider> {
+    ): Promise<PaymentProvider> {
       const targetStoreId = storeId(params?.store_id);
-      return apiConfig.httpClient.post<StripePaymentProvider>(
+      return apiConfig.httpClient.post<PaymentProvider>(
         `/v1/stores/${targetStoreId}/payment-providers/stripe/refresh`,
         { store_id: targetStoreId },
         options,
@@ -42,11 +44,31 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
     async connectStripe(
       params: ConnectStripePaymentProviderParams,
       options?: RequestOptions,
-    ): Promise<StripePaymentProviderConnectResponse> {
+    ): Promise<PaymentProviderConnectResponse> {
       const targetStoreId = storeId(params.store_id);
-      return apiConfig.httpClient.post<StripePaymentProviderConnectResponse>(
+      return apiConfig.httpClient.post<PaymentProviderConnectResponse>(
         `/v1/stores/${targetStoreId}/payment-providers/stripe/connect`,
         { ...params, store_id: targetStoreId },
+        options,
+      );
+    },
+
+    async listConnections(
+      params?: ListPaymentProviderConnectionsParams,
+      options?: RequestOptions,
+    ): Promise<PaymentProviderConnection[]> {
+      return apiConfig.httpClient.get<PaymentProviderConnection[]>(
+        `/v1/stores/${storeId(params?.store_id)}/payment-providers/connections`,
+        options,
+      );
+    },
+
+    async getConnection(
+      params: GetPaymentProviderConnectionParams,
+      options?: RequestOptions,
+    ): Promise<PaymentProviderConnection> {
+      return apiConfig.httpClient.get<PaymentProviderConnection>(
+        `/v1/stores/${storeId(params.store_id)}/payment-providers/connections/${params.id}`,
         options,
       );
     },
@@ -65,8 +87,8 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
     async delete(
       params: DeletePaymentProviderParams,
       options?: RequestOptions,
-    ): Promise<{ deleted: boolean }> {
-      return apiConfig.httpClient.delete<{ deleted: boolean }>(
+    ): Promise<{ disabled: boolean }> {
+      return apiConfig.httpClient.delete<{ disabled: boolean }>(
         `/v1/stores/${storeId(params.store_id)}/payment-providers/${params.id}`,
         options,
       );

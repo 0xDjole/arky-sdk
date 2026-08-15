@@ -68,11 +68,11 @@ export type {
   OrderPaymentType,
   OrderMoney,
   PaymentProvider,
-  StripePaymentProvider,
-  StripeAccountConnection,
-  StripeAccountConnectionError,
-  StripeAccountConnectionStatus,
-  StripePaymentProviderConnectResponse,
+  PaymentProviderType,
+  PaymentProviderConnection,
+  PaymentProviderConnectionFailure,
+  PaymentProviderConnectionStatus,
+  PaymentProviderConnectResponse,
   OrderPaymentTax,
   OrderPaymentTaxLine,
   OrderPaymentPromoCode,
@@ -579,6 +579,7 @@ export type {
   FindSocialPublicationsParams,
   GetSocialCommentClassificationRunParams,
   GetSocialCapabilitiesParams,
+  GetPaymentProviderConnectionParams,
   OpenStripeDashboardParams,
   GetSocialOAuthAttemptParams,
   GetSocialCommentReplyParams,
@@ -588,6 +589,7 @@ export type {
   GetSocialPublicationMetricsParams,
   GetSocialPublicationParams,
   ListPaymentProvidersParams,
+  ListPaymentProviderConnectionsParams,
   ListSocialCommentRepliesParams,
   ListSocialConnectionsParams,
   ListSocialPublicationEffectsParams,
@@ -741,7 +743,7 @@ export type {
   EventScopeField,
 } from "./api/platform";
 
-export const SDK_VERSION = "0.17.0";
+export const SDK_VERSION = "0.18.0";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -1067,6 +1069,8 @@ export function createAdmin(config: CreateAdminConfig) {
   const workflowApi = createWorkflowApi(apiConfig);
   const storePaymentProviderApi = {
     list: paymentProviderApi.list,
+    listConnections: paymentProviderApi.listConnections,
+    getConnection: paymentProviderApi.getConnection,
     delete: paymentProviderApi.delete,
     stripe: {
       connect: paymentProviderApi.connectStripe,
