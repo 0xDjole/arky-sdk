@@ -5,8 +5,10 @@ import type {
   DeleteWorkflowParams,
   GetWorkflowParams,
   GetWorkflowDefinitionParams,
+  GetWorkflowTriggerParams,
   GetWorkflowsParams,
   TriggerWorkflowParams,
+  InvokeWorkflowTriggerParams,
   GetWorkflowExecutionsParams,
   GetWorkflowExecutionParams,
   GetWorkflowEffectsParams,
@@ -20,9 +22,13 @@ import type {
 import type {
   Workflow,
   WorkflowDefinition,
+  WorkflowTrigger,
   WorkflowConnection,
   WorkflowConnectionConnectUrl,
   WorkflowExecution,
+  WorkflowExecutionDefinition,
+  WorkflowExecutionInputCapture,
+  WorkflowExecutionResults,
   WorkflowEffect,
   PaginatedResponse,
 } from "../types";
@@ -88,6 +94,29 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    async getWorkflowTrigger(
+      params: GetWorkflowTriggerParams,
+      options?: RequestOptions,
+    ): Promise<WorkflowTrigger> {
+      const store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<WorkflowTrigger>(
+        `/v1/stores/${store_id}/workflows/${params.workflow_id}/trigger`,
+        options,
+      );
+    },
+
+    async rotateWorkflowTrigger(
+      params: GetWorkflowTriggerParams,
+      options?: RequestOptions,
+    ): Promise<WorkflowTrigger> {
+      const store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<WorkflowTrigger>(
+        `/v1/stores/${store_id}/workflows/${params.workflow_id}/trigger`,
+        {},
+        options,
+      );
+    },
+
     async replaceWorkflowDefinition(
       params: ReplaceWorkflowDefinitionParams,
       options?: RequestOptions,
@@ -129,6 +158,17 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    async invokeWorkflowTrigger(
+      params: InvokeWorkflowTriggerParams,
+      options?: RequestOptions,
+    ): Promise<WorkflowExecution> {
+      return apiConfig.httpClient.post<WorkflowExecution>(
+        params.trigger_url,
+        params.payload,
+        options,
+      );
+    },
+
     async getWorkflowExecutions(
       params: GetWorkflowExecutionsParams,
       options?: RequestOptions,
@@ -151,6 +191,39 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<WorkflowExecution>(
         `/v1/stores/${store_id}/workflows/${params.workflow_id}/executions/${params.execution_id}`,
+        options,
+      );
+    },
+
+    async getWorkflowExecutionDefinition(
+      params: GetWorkflowExecutionParams,
+      options?: RequestOptions,
+    ): Promise<WorkflowExecutionDefinition> {
+      const store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<WorkflowExecutionDefinition>(
+        `/v1/stores/${store_id}/workflows/${params.workflow_id}/executions/${params.execution_id}/definition`,
+        options,
+      );
+    },
+
+    async getWorkflowExecutionInput(
+      params: GetWorkflowExecutionParams,
+      options?: RequestOptions,
+    ): Promise<WorkflowExecutionInputCapture> {
+      const store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<WorkflowExecutionInputCapture>(
+        `/v1/stores/${store_id}/workflows/${params.workflow_id}/executions/${params.execution_id}/input`,
+        options,
+      );
+    },
+
+    async getWorkflowExecutionResults(
+      params: GetWorkflowExecutionParams,
+      options?: RequestOptions,
+    ): Promise<WorkflowExecutionResults> {
+      const store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<WorkflowExecutionResults>(
+        `/v1/stores/${store_id}/workflows/${params.workflow_id}/executions/${params.execution_id}/results`,
         options,
       );
     },

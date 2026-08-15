@@ -44,6 +44,8 @@ import type {
   Cart,
   DigitalDownload,
   DigitalLibraryItem,
+  DigitalLibraryProduct,
+  DigitalLibraryAsset,
   StorefrontDigitalProduct,
   Collection,
   CollectionEntry,
@@ -58,6 +60,9 @@ import type {
   Order,
   OrderCheckoutResult,
   OrderQuote,
+  OrderProduct,
+  OrderBooking,
+  OrderDigitalProduct,
   PaginatedResponse,
   Product,
   Provider,
@@ -400,10 +405,32 @@ export const createStorefrontApi = (
             StorefrontDto<StorefrontDigitalProduct>
           >(`${base}/digital-products/${params.id}`, options);
         },
-        async library(options?: RequestOptions): Promise<DigitalLibraryItem[]> {
+        async library(
+          params: FindStorefrontDigitalProductsParams = {},
+          options?: RequestOptions,
+        ): Promise<PaginatedResponse<DigitalLibraryItem>> {
           await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.get<DigitalLibraryItem[]>(
-            `${base}/digital-products/library`,
+          return apiConfig.httpClient.get<
+            PaginatedResponse<DigitalLibraryItem>
+          >(`${base}/digital-products/library`, { ...options, params });
+        },
+        async getLibraryProduct(
+          params: StorefrontParams<GetStorefrontDigitalProductParams>,
+          options?: RequestOptions,
+        ): Promise<DigitalLibraryProduct> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<DigitalLibraryProduct>(
+            `${base}/digital-products/library/${params.id}`,
+            options,
+          );
+        },
+        async getLibraryAssets(
+          params: StorefrontParams<GetStorefrontDigitalProductParams>,
+          options?: RequestOptions,
+        ): Promise<DigitalLibraryAsset[]> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<DigitalLibraryAsset[]>(
+            `${base}/digital-products/library/${params.id}/assets`,
             options,
           );
         },
@@ -484,7 +511,8 @@ export const createStorefrontApi = (
           options?: RequestOptions,
         ): Promise<StorefrontDto<Cart>> {
           await lifecycle.ensureVisitorSession();
-          const { product_items, booking_items, digital_items, ...payload } = params;
+          const { product_items, booking_items, digital_items, ...payload } =
+            params;
           return apiConfig.httpClient.put<StorefrontDto<Cart>>(
             `${base}/carts/${params.id}`,
             {
@@ -601,6 +629,36 @@ export const createStorefrontApi = (
           await lifecycle.ensureVisitorSession();
           return apiConfig.httpClient.get<StorefrontDto<Order>>(
             `${base}/orders/${params.id}`,
+            options,
+          );
+        },
+        async getProducts(
+          params: StorefrontParams<GetOrderParams>,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<OrderProduct[]>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<StorefrontDto<OrderProduct[]>>(
+            `${base}/orders/${params.id}/products`,
+            options,
+          );
+        },
+        async getBookings(
+          params: StorefrontParams<GetOrderParams>,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<OrderBooking[]>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<StorefrontDto<OrderBooking[]>>(
+            `${base}/orders/${params.id}/bookings`,
+            options,
+          );
+        },
+        async getDigitalProducts(
+          params: StorefrontParams<GetOrderParams>,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<OrderDigitalProduct[]>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<StorefrontDto<OrderDigitalProduct[]>>(
+            `${base}/orders/${params.id}/digital-products`,
             options,
           );
         },

@@ -1144,9 +1144,6 @@ export interface Order {
   status: OrderStatus;
   fulfillment_status: OrderFulfillmentStatus;
   verified: boolean;
-  products: OrderProduct[];
-  bookings: OrderBooking[];
-  digital_products: OrderDigitalProduct[];
   payment: OrderPayment;
   money: OrderMoney;
   fulfillment_summary: OrderFulfillmentSummary;
@@ -1154,7 +1151,6 @@ export interface Order {
   shipping_address?: Address;
   billing_address?: Address;
   forms: FormEntry[];
-  audience_ids: string[];
   created_at: number;
   updated_at: number;
 }
@@ -1208,9 +1204,15 @@ export interface DigitalLibraryItem {
   digital_product_id: string;
   product_key: string;
   slug: Record<string, string>;
+}
+
+export interface DigitalLibraryProduct {
+  digital_product_id: string;
+  product_key: string;
+  slug: Record<string, string>;
   blocks: Block[];
   taxonomies: TaxonomyEntry[];
-  assets: DigitalLibraryAsset[];
+  asset_ids: string[];
 }
 
 export interface DigitalDownload {
@@ -2148,12 +2150,15 @@ export interface Workflow {
   id: string;
   key: string;
   store_id: string;
-  secret: string;
-  trigger_url: string;
   status: WorkflowStatus;
   schedule?: string;
   created_at: number;
   updated_at: number;
+}
+
+export interface WorkflowTrigger {
+  workflow_id: string;
+  trigger_url: string;
 }
 
 export interface WorkflowDefinition {
@@ -2425,12 +2430,40 @@ export interface WorkflowExecution {
   workflow_id: string;
   store_id: string;
   status: ExecutionStatus;
-  input: WorkflowExecutionInput;
-  results: Record<string, NodeResult>;
+  result_count: number;
   error?: string;
   scheduled_at: number;
   started_at: number;
   completed_at?: number;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface WorkflowExecutionDefinition {
+  id: string;
+  workflow_id: string;
+  workflow_execution_id: string;
+  store_id: string;
+  nodes: Record<string, WorkflowNode>;
+  edges: WorkflowEdge[];
+  created_at: number;
+}
+
+export interface WorkflowExecutionInputCapture {
+  id: string;
+  workflow_id: string;
+  workflow_execution_id: string;
+  store_id: string;
+  input: WorkflowExecutionInput;
+  created_at: number;
+}
+
+export interface WorkflowExecutionResults {
+  id: string;
+  workflow_id: string;
+  workflow_execution_id: string;
+  store_id: string;
+  results: Record<string, NodeResult>;
   created_at: number;
   updated_at: number;
 }

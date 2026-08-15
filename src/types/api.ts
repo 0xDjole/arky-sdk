@@ -1286,6 +1286,11 @@ export interface GetWorkflowDefinitionParams {
   store_id?: string;
 }
 
+export interface GetWorkflowTriggerParams {
+  workflow_id: string;
+  store_id?: string;
+}
+
 export interface ReplaceWorkflowDefinitionParams {
   workflow_id: string;
   store_id?: string;
@@ -1320,6 +1325,11 @@ export interface GetWorkflowsParams {
 export interface TriggerWorkflowParams {
   secret: string;
   [key: string]: unknown;
+}
+
+export interface InvokeWorkflowTriggerParams {
+  trigger_url: string;
+  payload: Record<string, unknown>;
 }
 
 export interface GetWorkflowExecutionsParams {
