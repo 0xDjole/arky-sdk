@@ -198,7 +198,7 @@ initialize(`arky_pk_${"a".repeat(42)}A`, {
   locale: "it",
   market: "ita",
 });
-// @ts-expect-error storefront initialization accepts a publishable key, not legacy connection fields.
+// @ts-expect-error storefront initialization accepts a publishable key, not connection fields.
 initialize({ baseUrl: "http://localhost:8000", storeId: "store-contract" });
 
 declare const initializedStorefront: ReturnType<typeof initialize>;
@@ -403,7 +403,8 @@ declare const contact: Contact;
 declare const productVariant: ProductVariant;
 declare const shipment: OrderShipment;
 const shipmentStatus: OrderShipmentStatus = shipment.status;
-const shipmentTrackingStatusAt: number | null | undefined = shipment.tracking_status_at;
+const shipmentTrackingStatusAt: number | null | undefined =
+  shipment.tracking_status_at;
 const cancelledShippingStatus: OrderShipmentStatus = "cancelled";
 const shippingRateRequest: GetShippingRatesParams = {
   order_id: "order-contract",

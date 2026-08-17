@@ -27,7 +27,7 @@ const removedIdentifierPattern = new RegExp(
   `\\b(?:${removedIdentifiers.join("|")})\\b`,
   "g",
 );
-const legacyProviderOperationPattern = /provider(?:_|-)?operations?/gi;
+const forbiddenProviderOperationPattern = /provider(?:_|-)?operations?/gi;
 const exportedDeclarationPattern =
   /\bexport\s+(?:declare\s+)?(?:type|interface|class|enum|function|const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\b/g;
 
@@ -65,12 +65,12 @@ for (const file of listTypeScriptFiles(sourceDir)) {
     failures++;
   }
 
-  for (const match of source.matchAll(legacyProviderOperationPattern)) {
+  for (const match of source.matchAll(forbiddenProviderOperationPattern)) {
     report(
       file,
       source,
       match.index,
-      `legacy provider-operation name ${match[0]}`,
+      `removed provider-operation name ${match[0]}`,
     );
     failures++;
   }

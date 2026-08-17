@@ -151,11 +151,9 @@ const result = await arky.eshop.cart.checkout({
   return_url: window.location.href,
 });
 
-const mounted = await mountCheckoutAction(
-  result.payment_action,
-  "#payment",
-  { onComplete: () => arky.eshop.order.get({ id: result.order_id }) },
-);
+const mounted = await mountCheckoutAction(result.payment_action, "#payment", {
+  onComplete: () => arky.eshop.order.get({ id: result.order_id }),
+});
 
 // Call mounted?.destroy() when the checkout view is disposed.
 ```
@@ -283,8 +281,8 @@ Run the complete SDK package contract with one command:
 npm test
 ```
 
-It builds the distributable package and runs every SDK contract case. App alone owns cross-repository
-Server compatibility against the exact immutable test Server image digest. Each storefront owns a
+It builds the distributable package and runs every SDK contract case. App alone verifies the SDK
+against the exact immutable test Server image digest. Each storefront owns a
 hermetic repo-local build/preview Playwright smoke through its own `npm test`; storefronts never pull
 or run the shared test Server image.
 
