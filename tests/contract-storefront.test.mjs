@@ -136,7 +136,7 @@ function completedCheckout() {
   };
 }
 
-test("initialize is the production root API and exposes the module facade without legacy Store switching", () => {
+test("initialize is the production root API and exposes the module facade without Store switching", () => {
   const rootStore = initializeFromRoot(publishableKey, { locale: "it" });
   const store = initialize(publishableKey, { locale: "it", market: "ita" });
 

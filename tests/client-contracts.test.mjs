@@ -207,7 +207,10 @@ test("admin Store deletion requests the lifecycle transition with exact confirma
     default_market_id: null,
     timezone: "Europe/Sarajevo",
     languages: [{ id: "en" }],
-    emails: { billing: "billing@example.test", support: "support@example.test" },
+    emails: {
+      billing: "billing@example.test",
+      support: "support@example.test",
+    },
   };
   let call;
   const originalFetch = globalThis.fetch;
@@ -282,10 +285,7 @@ test("storefront collection lookup uses a keyless route and publishable-key head
     globalThis.fetch = originalFetch;
   }
 
-  assert.equal(
-    call.url,
-    `${baseUrl}/v1/storefront/collections/articles`,
-  );
+  assert.equal(call.url, `${baseUrl}/v1/storefront/collections/articles`);
   assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
   assert.equal(call.headers.get("x-arky-locale"), "en");
   assert.equal(call.headers.get("authorization"), null);
@@ -319,8 +319,8 @@ test("storefront cart recovery sends its credential only in the cart-token heade
       {
         headers: { "x-arky-cart-token": "caller-cannot-override" },
         params: {
-          token: "legacy-query-token",
-          cart_token: "legacy-query-cart-token",
+          token: "unexpected-query-token",
+          cart_token: "unexpected-query-cart-token",
           include: "summary",
         },
       },
