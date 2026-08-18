@@ -38,8 +38,6 @@ import type {
   FindOrderRefundsParams,
   GetOrderRefundParams,
   GetOrderPaymentParams,
-  FindOrderPaymentAttemptsParams,
-  GetOrderPaymentAttemptParams,
   FindOrderDisputesParams,
   GetOrderDisputeParams,
   QuoteCartParams,
@@ -57,7 +55,6 @@ import type {
   OrderQuote,
   OrderRefund,
   OrderPayment,
-  OrderPaymentAttempt,
   OrderDispute,
   OrderProduct,
   OrderBooking,
@@ -679,29 +676,6 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const target_store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<OrderPayment>(
         `/v1/stores/${target_store_id}/orders/${params.order_id}/payment`,
-        options,
-      );
-    },
-
-    async getPaymentAttempts(
-      params: FindOrderPaymentAttemptsParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<OrderPaymentAttempt>> {
-      const { order_id, store_id, ...queryParams } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<OrderPaymentAttempt>>(
-        `/v1/stores/${target_store_id}/orders/${order_id}/payment/attempts`,
-        { ...options, params: queryParams },
-      );
-    },
-
-    async getPaymentAttempt(
-      params: GetOrderPaymentAttemptParams,
-      options?: RequestOptions,
-    ): Promise<OrderPaymentAttempt> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<OrderPaymentAttempt>(
-        `/v1/stores/${target_store_id}/orders/${params.order_id}/payment/attempts/${params.attempt_id}`,
         options,
       );
     },

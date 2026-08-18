@@ -3,16 +3,16 @@ import type {
   CreateOrderShipmentParams,
   FindFulfillmentOrdersParams,
   FindOrderShipmentsParams,
-  FindOrderShipmentSettlementsParams,
+  FindOrderShipmentChargesParams,
   GetOrderShipmentParams,
   GetFulfillmentOrderParams,
-  GetOrderShipmentSettlementParams,
+  GetOrderShipmentChargeParams,
   GetShippingRatesParams,
   RequestOptions,
   RequestShippoLabelRefundParams,
   RetryOrderShipmentParams,
   RetryShippoLabelRefundParams,
-  RetryOrderShipmentSettlementParams,
+  RetryOrderShipmentChargeParams,
 } from "../types/api";
 import type {
   CreateOrderShipmentResponse,
@@ -20,7 +20,7 @@ import type {
   PaginatedResponse,
   OrderShipment,
   ShippoLabelRefund,
-  OrderShipmentSettlement,
+  OrderShipmentCharge,
   ShippingRate,
 } from "../types";
 
@@ -142,37 +142,37 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async findOrderShipmentSettlements(
-      params: FindOrderShipmentSettlementsParams,
+    async findOrderShipmentCharges(
+      params: FindOrderShipmentChargesParams,
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<OrderShipmentSettlement>> {
+    ): Promise<PaginatedResponse<OrderShipmentCharge>> {
       const { store_id, order_id, shipment_id, ...queryParams } = params;
       return apiConfig.httpClient.get<
-        PaginatedResponse<OrderShipmentSettlement>
+        PaginatedResponse<OrderShipmentCharge>
       >(
-        `/v1/stores/${storeId(store_id)}/orders/${order_id}/shipments/${shipment_id}/settlements`,
+        `/v1/stores/${storeId(store_id)}/orders/${order_id}/shipments/${shipment_id}/charges`,
         { ...options, params: queryParams },
       );
     },
 
-    async getOrderShipmentSettlement(
-      params: GetOrderShipmentSettlementParams,
+    async getOrderShipmentCharge(
+      params: GetOrderShipmentChargeParams,
       options?: RequestOptions,
-    ): Promise<OrderShipmentSettlement> {
-      return apiConfig.httpClient.get<OrderShipmentSettlement>(
-        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/settlements/${params.settlement_id}`,
+    ): Promise<OrderShipmentCharge> {
+      return apiConfig.httpClient.get<OrderShipmentCharge>(
+        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/charges/${params.charge_id}`,
         options,
       );
     },
 
-    async retryOrderShipmentSettlement(
-      params: RetryOrderShipmentSettlementParams,
+    async retryOrderShipmentCharge(
+      params: RetryOrderShipmentChargeParams,
       options?: RequestOptions,
-    ): Promise<OrderShipmentSettlement> {
+    ): Promise<OrderShipmentCharge> {
       const path =
         `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}` +
-        `/shipments/${params.shipment_id}/settlements/${params.settlement_id}`;
-      return apiConfig.httpClient.post<OrderShipmentSettlement>(
+        `/shipments/${params.shipment_id}/charges/${params.charge_id}`;
+      return apiConfig.httpClient.post<OrderShipmentCharge>(
           `${path}/retry`,
           {},
           options,

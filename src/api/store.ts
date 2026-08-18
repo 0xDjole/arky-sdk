@@ -6,6 +6,9 @@ import type {
   RequestStoreDeletionParams,
   GetStoresParams,
   GetStoreSubscriptionParams,
+  GetStoreSubscriptionCheckoutParams,
+  CancelStoreSubscriptionParams,
+  ReactivateStoreSubscriptionParams,
   SelectStoreSubscriptionParams,
   CreatePortalSessionParams,
   AddMemberParams,
@@ -30,6 +33,7 @@ import type {
   SubscriptionPlan,
   BuildHook,
   StoreSubscription,
+  StoreSubscriptionCheckout,
   StoreMember,
   StoreMembership,
 } from "../types";
@@ -131,6 +135,41 @@ export const createStoreApi = (
       const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<StoreSubscription>(
         `/v1/stores/${store_id}/subscription`,
+        options,
+      );
+    },
+
+    async getSubscriptionCheckout(
+      params: GetStoreSubscriptionCheckoutParams,
+      options?: RequestOptions,
+    ): Promise<StoreSubscriptionCheckout> {
+      const store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<StoreSubscriptionCheckout>(
+        `/v1/stores/${store_id}/subscription/checkouts/${params.id}`,
+        options,
+      );
+    },
+
+    async cancelSubscription(
+      params: CancelStoreSubscriptionParams,
+      options?: RequestOptions,
+    ): Promise<StoreSubscription> {
+      const store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<StoreSubscription>(
+        `/v1/stores/${store_id}/subscription/cancel`,
+        { mode: params.mode },
+        options,
+      );
+    },
+
+    async reactivateSubscription(
+      params: ReactivateStoreSubscriptionParams = {},
+      options?: RequestOptions,
+    ): Promise<StoreSubscription> {
+      const store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<StoreSubscription>(
+        `/v1/stores/${store_id}/subscription/reactivate`,
+        {},
         options,
       );
     },

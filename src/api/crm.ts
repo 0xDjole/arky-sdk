@@ -22,7 +22,6 @@ import type {
   UpdateAudienceTierParams,
   FindAudienceTiersParams,
   GetAudienceTierParams,
-  RetryAudienceTierCatalogParams,
   AddAudienceMemberParams,
   UpdateAudienceMemberParams,
   RemoveAudienceMemberParams,
@@ -34,7 +33,7 @@ import type {
   FindAudienceRefundsParams,
   GetAudienceRefundParams,
   RetryAudienceRefundParams,
-  RetryAudienceSubscriptionCancellationParams,
+  GetAudienceSubscriptionParams,
   PreviewAudienceMemberImportParams,
   ImportAudienceMembersParams,
   ImportAudienceMembersResult,
@@ -87,7 +86,7 @@ import type {
   AudienceTier,
   AudiencePayment,
   AudienceRefund,
-  AudienceSubscriptionCancellation,
+  AudienceSubscription,
   AudienceMemberDetail,
   RemoveAudienceMemberResult,
   Action,
@@ -294,6 +293,17 @@ export const createContactApi = (apiConfig: ApiConfig) => {
           );
         },
 
+        async getSubscription(
+          params: ManageAudienceParams,
+          options?: RequestOptions,
+        ): Promise<AudienceSubscription> {
+          return apiConfig.httpClient.post<AudienceSubscription>(
+            "/v1/customer/audiences/subscription",
+            params,
+            options,
+          );
+        },
+
         async createPaymentMethodSession(
           params: CreateAudiencePaymentMethodSessionParams,
           options?: RequestOptions,
@@ -438,20 +448,6 @@ export const createContactApi = (apiConfig: ApiConfig) => {
           );
         },
 
-        async retryCatalog(
-          params: RetryAudienceTierCatalogParams,
-          options?: RequestOptions,
-        ): Promise<AudienceTier> {
-          const target_store_id = params.store_id || apiConfig.storeId;
-          const path =
-            `/v1/stores/${target_store_id}/audiences/${params.audience_id}` +
-            `/tiers/${params.tier_id}`;
-          return apiConfig.httpClient.post<AudienceTier>(
-            `${path}/catalog/retry`,
-            { price_id: params.price_id },
-            options,
-          );
-        },
       },
 
       async importMembers(
@@ -638,21 +634,15 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         },
 
         subscription: {
-          cancellation: {
-            async retry(
-              params: RetryAudienceSubscriptionCancellationParams,
-              options?: RequestOptions,
-            ): Promise<AudienceSubscriptionCancellation> {
-              const target_store_id = params.store_id || apiConfig.storeId;
-              const path =
-                `/v1/stores/${target_store_id}/audiences/${params.audience_id}` +
-                `/members/${params.member_id}/subscription/cancellation/retry`;
-              return apiConfig.httpClient.post<AudienceSubscriptionCancellation>(
-                path,
-                { id: params.id },
-                options,
-              );
-            },
+          async get(
+            params: GetAudienceSubscriptionParams,
+            options?: RequestOptions,
+          ): Promise<AudienceSubscription> {
+            const target_store_id = params.store_id || apiConfig.storeId;
+            return apiConfig.httpClient.get<AudienceSubscription>(
+              `/v1/stores/${target_store_id}/audiences/${params.audience_id}/members/${params.member_id}/subscription`,
+              options,
+            );
           },
         },
       },

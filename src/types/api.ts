@@ -590,6 +590,20 @@ export interface GetStoreSubscriptionParams {
   store_id?: string;
 }
 
+export interface GetStoreSubscriptionCheckoutParams {
+  store_id?: string;
+  id: string;
+}
+
+export interface CancelStoreSubscriptionParams {
+  store_id?: string;
+  mode: "at_period_end" | "immediate";
+}
+
+export interface ReactivateStoreSubscriptionParams {
+  store_id?: string;
+}
+
 export interface CreatePortalSessionParams {
   store_id?: string;
   return_url: string;
@@ -628,7 +642,7 @@ export type WebhookDeliveryStatus =
 export interface TestWebhookResponse {
   delivery_id: string;
   status: WebhookDeliveryStatus;
-  provider_status_code?: number | null;
+  response_status?: number | null;
   error?: string | null;
 }
 
@@ -1106,19 +1120,6 @@ export interface GetOrderPaymentParams {
   store_id?: string;
 }
 
-export interface FindOrderPaymentAttemptsParams {
-  order_id: string;
-  store_id?: string;
-  limit?: number;
-  cursor?: string | null;
-}
-
-export interface GetOrderPaymentAttemptParams {
-  order_id: string;
-  attempt_id: string;
-  store_id?: string;
-}
-
 export interface FindOrderDisputesParams {
   order_id: string;
   store_id?: string;
@@ -1407,7 +1408,7 @@ export interface CreateAudienceTierParams {
   benefits: string[];
   status: AudienceTierStatus;
   prices: AudienceTierPriceInput[];
-  provider?: AudienceTierProviderInput | null;
+  payment_provider_id: string;
 }
 
 export interface UpdateAudienceTierParams {
@@ -1420,13 +1421,8 @@ export interface UpdateAudienceTierParams {
   benefits?: string[];
   status?: AudienceTierStatus;
   prices?: AudienceTierPriceInput[];
-  provider?: AudienceTierProviderInput;
+  payment_provider_id?: string;
 }
-
-export type AudienceTierProviderInput = {
-  type: "stripe";
-  payment_provider_id: string;
-};
 
 export interface AudienceTierPriceInput {
   id?: string;
@@ -1456,13 +1452,6 @@ export interface GetAudienceTierParams {
   id: string;
   store_id?: string;
   audience_id: string;
-}
-
-export interface RetryAudienceTierCatalogParams {
-  store_id?: string;
-  audience_id: string;
-  tier_id: string;
-  price_id?: string;
 }
 
 export interface FindAudiencesParams {
@@ -1568,11 +1557,10 @@ export interface GetAudienceRefundParams {
 
 export interface RetryAudienceRefundParams extends GetAudienceRefundParams {}
 
-export interface RetryAudienceSubscriptionCancellationParams {
+export interface GetAudienceSubscriptionParams {
   store_id?: string;
   audience_id: string;
   member_id: string;
-  id: string;
 }
 
 export interface ImportContactRowInput {
@@ -2084,15 +2072,6 @@ export interface ListPaymentProvidersParams {
   store_id?: string;
 }
 
-export interface ListPaymentProviderConnectionsParams {
-  store_id?: string;
-}
-
-export interface GetPaymentProviderConnectionParams {
-  store_id: string;
-  id: string;
-}
-
 export interface RefreshStripePaymentProviderParams {
   store_id?: string;
 }
@@ -2369,16 +2348,15 @@ export type RequestShippoLabelRefundParams = GetOrderShipmentParams;
 
 export type RetryShippoLabelRefundParams = GetOrderShipmentParams;
 
-export interface FindOrderShipmentSettlementsParams extends FindOrderShipmentsParams {
+export interface FindOrderShipmentChargesParams extends FindOrderShipmentsParams {
   shipment_id: string;
 }
 
-export interface GetOrderShipmentSettlementParams extends GetOrderShipmentParams {
-  settlement_id: string;
+export interface GetOrderShipmentChargeParams extends GetOrderShipmentParams {
+  charge_id: string;
 }
 
-export type RetryOrderShipmentSettlementParams =
-  GetOrderShipmentSettlementParams;
+export type RetryOrderShipmentChargeParams = GetOrderShipmentChargeParams;
 
 export interface AuthToken {
   id: string;

@@ -118,51 +118,6 @@ test("payment-provider disable uses one request", async () => {
   ]);
 });
 
-test("payment-provider connection observations use explicit read resources", async () => {
-  const connection = {
-    id: "connection-contract",
-    store_id: "store-connection",
-    payment_provider_id: "provider-contract",
-    type: "stripe",
-    status: "rejected",
-    requested_at: 1,
-    completed_at: 2,
-    failure: {
-      type: "provider_rejected",
-      message: "The payment provider rejected the account connection request",
-      at: 2,
-    },
-  };
-  const listed = await captureFetch([connection], () =>
-    admin().store.paymentProvider.listConnections({
-      store_id: "store-connection",
-    }),
-  );
-  const loaded = await captureFetch(connection, () =>
-    admin().store.paymentProvider.getConnection({
-      store_id: "store-connection",
-      id: "connection-contract",
-    }),
-  );
-
-  assert.deepEqual(listed.result, [connection]);
-  assert.deepEqual(listed.calls, [
-    {
-      url: `${baseUrl}/v1/stores/store-connection/payment-providers/connections`,
-      method: "GET",
-      body: undefined,
-    },
-  ]);
-  assert.deepEqual(loaded.result, connection);
-  assert.deepEqual(loaded.calls, [
-    {
-      url: `${baseUrl}/v1/stores/store-connection/payment-providers/connections/connection-contract`,
-      method: "GET",
-      body: undefined,
-    },
-  ]);
-});
-
 test("Stripe Express Dashboard uses one authenticated provider link request", async () => {
   const { calls, result } = await captureFetch(
     { dashboard_url: "https://connect.stripe.test/express/link" },
@@ -384,7 +339,7 @@ test("provider-effect APIs send one resource identity and return direct server e
       response: {
         delivery_id: resourceId,
         status: "unknown",
-        provider_status_code: null,
+        response_status: null,
         error: "Provider outcome is unknown",
       },
       request: (arky) =>

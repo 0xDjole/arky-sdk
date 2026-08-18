@@ -105,8 +105,12 @@ assert.equal(typeof arky.store.get, "function");
 assert.equal(typeof arky.store.find, "function");
 assert.equal(typeof arky.store.subscription.getPlans, "function");
 assert.equal(typeof arky.store.subscription.select, "function");
+assert.equal(typeof arky.store.subscription.getCheckout, "function");
+assert.equal(typeof arky.store.subscription.cancel, "function");
+assert.equal(typeof arky.store.subscription.reactivate, "function");
 assert.equal(typeof arky.store.subscription.createPortalSession, "function");
 assert.equal(typeof arky.customer.audience.manage, "function");
+assert.equal(typeof arky.customer.audience.getSubscription, "function");
 assert.equal(
   typeof arky.customer.audience.createPaymentMethodSession,
   "function",
@@ -119,8 +123,6 @@ assert.equal(typeof arky.store.member.remove, "function");
 assert.equal(typeof arky.store.buildHook.list, "function");
 assert.equal(typeof arky.store.webhook.list, "function");
 assert.equal(typeof arky.store.paymentProvider.list, "function");
-assert.equal(typeof arky.store.paymentProvider.listConnections, "function");
-assert.equal(typeof arky.store.paymentProvider.getConnection, "function");
 assert.equal(typeof arky.store.paymentProvider.stripe.connect, "function");
 assert.equal(typeof arky.store.paymentProvider.stripe.refresh, "function");
 assert.equal(
@@ -556,8 +558,6 @@ assert.deepEqual(separateResourceCalls, [
 assert.equal(typeof arky.eshop.order.createRefund, "function");
 assert.equal(typeof arky.eshop.order.getRefunds, "function");
 assert.equal(typeof arky.eshop.order.getPayment, "function");
-assert.equal(typeof arky.eshop.order.getPaymentAttempts, "function");
-assert.equal(typeof arky.eshop.order.getPaymentAttempt, "function");
 assert.equal(typeof arky.eshop.order.getDisputes, "function");
 assert.equal(typeof arky.eshop.order.getDispute, "function");
 assert.equal(typeof arky.eshop.shipment.getRates, "function");
@@ -565,8 +565,8 @@ assert.equal(typeof arky.eshop.shipment.create, "function");
 assert.equal(typeof arky.eshop.shipment.fulfillment.find, "function");
 assert.equal(typeof arky.eshop.shipment.fulfillment.get, "function");
 assert.equal(typeof arky.eshop.shipment.refund.retry, "function");
-assert.equal(typeof arky.eshop.shipment.settlement.get, "function");
-assert.equal(typeof arky.eshop.shipment.settlement.retry, "function");
+assert.equal(typeof arky.eshop.shipment.charge.get, "function");
+assert.equal(typeof arky.eshop.shipment.charge.retry, "function");
 
 const fulfillmentCalls = [];
 globalThis.fetch = async (url, init = {}) => {
@@ -608,24 +608,13 @@ assert.deepEqual(
 const paymentCalls = [];
 globalThis.fetch = async (url, init = {}) => {
   paymentCalls.push({ url: String(url), method: init.method });
-  const body = String(url).includes("/attempts?")
-    ? { items: [], cursor: null }
-    : {};
-  return new Response(JSON.stringify(body), {
+  return new Response(JSON.stringify({}), {
     status: 200,
     headers: { "content-type": "application/json" },
   });
 };
 try {
   await arky.eshop.order.getPayment({ order_id: "order-1" });
-  await arky.eshop.order.getPaymentAttempts({
-    order_id: "order-1",
-    limit: 20,
-  });
-  await arky.eshop.order.getPaymentAttempt({
-    order_id: "order-1",
-    attempt_id: "attempt-1",
-  });
 } finally {
   globalThis.fetch = originalFetch;
 }
@@ -634,14 +623,6 @@ assert.deepEqual(
   [
     [
       "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment",
-      "GET",
-    ],
-    [
-      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/attempts?limit=20",
-      "GET",
-    ],
-    [
-      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/attempts/attempt-1",
       "GET",
     ],
   ],

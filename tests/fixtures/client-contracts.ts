@@ -1,6 +1,5 @@
 import type {
   Account,
-  AudienceCatalogMutationStatus,
   AudiencePaymentStatus,
   AudienceSubscribeResponse,
   AudienceTierPriceInput,
@@ -54,11 +53,10 @@ import {
   type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
 } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.20.0" = SDK_VERSION;
+const sdkVersionLiteral: "0.21.0" = SDK_VERSION;
 const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
 // @ts-expect-error the server's serialized feature key is crm_contacts.
 const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
-const rejectedCatalogStatus: AudienceCatalogMutationStatus = "rejected";
 const audienceTierPriceInput: AudienceTierPriceInput = {
   currency: "usd",
   amount: 1200,
@@ -432,20 +430,15 @@ const storeSubscriptionWithoutCheckout: StoreSubscription = {
   plan_access: null,
   payment: { currency: "usd", market: "us" },
   billing_status: "pending",
-  checkout: null,
+  checkout_id: null,
   payment_action: { type: "none" },
   trial_started_at: null,
   created_at: 1,
   updated_at: 1,
 };
-const storeSubscriptionWithEmbeddedCheckout: StoreSubscription = {
+const storeSubscriptionWithCheckoutReference: StoreSubscription = {
   ...storeSubscriptionWithoutCheckout,
-  checkout: {
-    plan_id: "business",
-    trial_days: 14,
-    status: "requires_action",
-    expires_at: 2,
-  },
+  checkout_id: "checkout-contract",
   payment_action: {
     type: "stripe_embedded_checkout",
     publishable_key: "pk_test_contract",
@@ -625,7 +618,7 @@ void [
   storefrontSupportMessage,
   storefrontSupportRead,
   storeSubscriptionWithoutCheckout,
-  storeSubscriptionWithEmbeddedCheckout,
+  storeSubscriptionWithCheckoutReference,
   supportMessageWithoutCapability,
   account,
   contact,
@@ -645,6 +638,5 @@ void [
   audienceTierPriceInput,
   audienceTierPriceWithProvider,
   subscribePaymentStatus,
-  rejectedCatalogStatus,
 ];
 void sdkVersionLiteral;

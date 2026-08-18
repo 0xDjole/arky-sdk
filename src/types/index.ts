@@ -66,7 +66,7 @@ export interface OrderPromoCodeSnapshot {
   code: string;
 }
 
-export type OrderPaymentType = "cash" | "stripe";
+export type OrderPaymentType = "cash" | "card";
 export type OrderPaymentStatus =
   | "pending"
   | "requires_action"
@@ -78,7 +78,6 @@ export type OrderPaymentStatus =
   | "expired"
   | "failed"
   | "unknown";
-export type OrderPaymentAttemptType = "stripe";
 export type StripeDisputeStatus =
   | "warning_needs_response"
   | "warning_under_review"
@@ -88,8 +87,8 @@ export type StripeDisputeStatus =
   | "won"
   | "lost"
   | "prevented";
-export type OrderDisputeType = "stripe";
-export interface StripeOrderDispute {
+export type OrderDisputeType = "provider";
+export interface ProviderOrderDispute {
   dispute_id: string;
   charge_id: string;
 }
@@ -104,66 +103,11 @@ export interface OrderDispute {
   currency: Currency;
   status?: StripeDisputeStatus | null;
   reason: string;
-  stripe: StripeOrderDispute;
+  provider: ProviderOrderDispute;
   created_at: number;
   updated_at: number;
 }
-export type OrderPaymentAttemptStatus =
-  | "requested"
-  | "requires_action"
-  | "processing"
-  | "succeeded"
-  | "rejected"
-  | "failed"
-  | "unknown"
-  | "expired";
-export type OrderPaymentAttemptCancellationStatus =
-  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
-
-export interface OrderPaymentAttemptCancellation {
-  id: string;
-  version: number;
-  status: OrderPaymentAttemptCancellationStatus;
-  reason: OrderCancellationReason;
-  requested_at: number;
-  processing_deadline_at?: number | null;
-  completed_at?: number | null;
-  stripe_status?: string | null;
-  safe_error?: string | null;
-}
-
-export interface StripeOrderPaymentAttempt {
-  checkout_session_id?: string | null;
-  payment_intent_id?: string | null;
-  status?: string | null;
-}
-
-export interface OrderPaymentAttempt {
-  id: string;
-  version: number;
-  store_id: string;
-  order_id: string;
-  payment_id: string;
-  type: OrderPaymentAttemptType;
-  status: OrderPaymentAttemptStatus;
-  amount: number;
-  currency: Currency;
-  customer_email: string;
-  return_url: string;
-  redirect_on_completion: "if_required";
-  checkout_expires_at: number;
-  stripe: StripeOrderPaymentAttempt;
-  requested_at: number;
-  processing_started_at?: number | null;
-  processing_deadline_at?: number | null;
-  completed_at?: number | null;
-  cancellation?: OrderPaymentAttemptCancellation | null;
-  created_at: number;
-  updated_at: number;
-  safe_error?: string | null;
-}
-
-export type OrderRefundType = "manual" | "stripe";
+export type OrderRefundType = "manual" | "provider";
 export interface OrderRefund {
   id: string;
   version: number;
@@ -186,6 +130,9 @@ export interface OrderRefund {
 
 export interface OrderPayment {
   id: string;
+  version: number;
+  store_id: string;
+  order_id: string;
   type: OrderPaymentType;
   payment_method_key?: string | null;
   status: OrderPaymentStatus;
@@ -194,9 +141,19 @@ export interface OrderPayment {
   paid_amount: number;
   refund_pending_amount: number;
   refunded_amount: number;
-  current_attempt_id?: string | null;
+  checkout_expires_at: number;
+  provider?: ProviderOrderPayment | null;
+  requested_at: number;
+  completed_at?: number | null;
   created_at: number;
   updated_at: number;
+  safe_error?: string | null;
+}
+
+export interface ProviderOrderPayment {
+  checkout_id?: string | null;
+  payment_id?: string | null;
+  status?: string | null;
 }
 
 export interface OrderMoney {
@@ -774,26 +731,6 @@ export interface SocialConnection {
 
 export type PaymentProviderType = "stripe";
 
-export type PaymentProviderConnectionStatus =
-  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
-
-export type PaymentProviderConnectionFailure =
-  | { type: "provider_rejected"; message: string; at: number }
-  | { type: "provider_call_not_started"; message: string; at: number }
-  | { type: "unknown_outcome"; message: string; at: number };
-
-export interface PaymentProviderConnection {
-  id: string;
-  store_id: string;
-  payment_provider_id: string;
-  type: PaymentProviderType;
-  status: PaymentProviderConnectionStatus;
-  requested_at: number;
-  processing_started_at?: number | null;
-  completed_at?: number | null;
-  failure?: PaymentProviderConnectionFailure | null;
-}
-
 export interface PaymentProvider {
   id: string;
   store_id: string;
@@ -809,8 +746,7 @@ export interface PaymentProvider {
 }
 
 export interface PaymentProviderConnectResponse {
-  provider: PaymentProvider | null;
-  connection: PaymentProviderConnection;
+  provider: PaymentProvider;
   onboarding_url: string | null;
 }
 
@@ -1123,7 +1059,7 @@ export interface Order {
   status: OrderStatus;
   fulfillment_status: OrderFulfillmentStatus;
   verified: boolean;
-  payment: OrderPayment;
+  payment_id: string;
   money: OrderMoney;
   fulfillment_summary: OrderFulfillmentSummary;
   shipping_lines: ShippingLine[];
@@ -1359,6 +1295,9 @@ export type StoreSubscriptionCheckoutStatus =
   | "expired";
 
 export interface StoreSubscriptionCheckout {
+  id: string;
+  store_id: string;
+  store_subscription_id: string;
   plan_id: string;
   trial_days: number | null;
   status: StoreSubscriptionCheckoutStatus;
@@ -1383,7 +1322,7 @@ export interface StoreSubscription {
   plan_access: StorePlanAccess | null;
   payment: StoreSubscriptionPayment;
   billing_status: StoreSubscriptionBillingStatus;
-  checkout: StoreSubscriptionCheckout | null;
+  checkout_id: string | null;
   payment_action: CheckoutPaymentAction;
   trial_started_at: number | null;
   created_at: number;
@@ -1456,42 +1395,6 @@ export interface AudienceRefund {
   currency: Currency;
   status: AudienceRefundStatus;
   safe_error?: AudienceRefundSafeError | null;
-  created_at: number;
-  updated_at: number;
-}
-
-export type AudienceSubscriptionCancellationStatus =
-  "requested" | "processing" | "succeeded" | "failed" | "rejected" | "unknown";
-
-export type AudienceSubscriptionCancellationType =
-  "at_period_end" | "immediate";
-
-export interface AudienceSubscriptionCancellation {
-  id: string;
-  payment_id: string;
-  refund_id?: string | null;
-  revision: number;
-  type: AudienceSubscriptionCancellationType;
-  requested_at: number;
-  processing_started_at?: number | null;
-  processing_deadline_at?: number | null;
-  completed_at?: number | null;
-  provider_status?: string | null;
-  provider_error_code?: string | null;
-  provider_http_status?: number | null;
-  status: AudienceSubscriptionCancellationStatus;
-  error?:
-    | {
-        type: "provider_rejected";
-        message: string;
-        at: number;
-      }
-    | {
-        type: "provider_call_not_started" | "unknown_outcome";
-        message: string;
-        at: number;
-      }
-    | null;
   created_at: number;
   updated_at: number;
 }
@@ -2485,59 +2388,6 @@ export type AudienceType =
   | { type: "confirmation"; template_id: string; confirmation_url: string }
   | { type: "paid" };
 
-export type AudienceCatalogMutationStatus =
-  | "pending"
-  | "requested"
-  | "processing"
-  | "succeeded"
-  | "failed"
-  | "rejected"
-  | "unknown"
-  | "archived";
-
-export type AudienceCatalogOperation = "create" | "update" | "archive";
-
-export type AudienceCatalogMutationError =
-  | {
-      type: "provider_rejected";
-      message: string;
-      at: number;
-    }
-  | {
-      type: "provider_call_not_started" | "unknown_outcome";
-      message: string;
-      at: number;
-    };
-
-export interface AudienceCatalogMutation {
-  revision: number;
-  attempt_count: number;
-  operation: AudienceCatalogOperation;
-  status: AudienceCatalogMutationStatus;
-  requested_at: number;
-  processing_started_at?: number | null;
-  processing_deadline_at?: number | null;
-  completed_at?: number | null;
-  provider_status?: string | null;
-  provider_error_code?: string | null;
-  provider_http_status?: number | null;
-  error?: AudienceCatalogMutationError | null;
-}
-
-export type AudienceTierProvider = {
-  type: "stripe";
-  payment_provider_id: string;
-  connected_account_id: string;
-  product_id?: string | null;
-  mutation: AudienceCatalogMutation;
-};
-
-export type AudiencePriceProvider = {
-  type: "stripe";
-  price_id?: string | null;
-  mutation: AudienceCatalogMutation;
-};
-
 export interface AudiencePrice {
   id: string;
   currency: Currency;
@@ -2545,7 +2395,6 @@ export interface AudiencePrice {
   compare_at?: number | null;
   interval?: SubscriptionInterval | null;
   status: AudiencePriceStatus;
-  provider?: AudiencePriceProvider | null;
 }
 
 export interface AudienceTier {
@@ -2556,7 +2405,7 @@ export interface AudienceTier {
   benefits: string[];
   status: AudienceTierStatus;
   prices: AudiencePrice[];
-  provider?: AudienceTierProvider | null;
+  payment_provider_id: string;
   created_at: number;
   updated_at: number;
 }
@@ -2655,8 +2504,7 @@ export interface AudienceManagementMember {
   id: string;
   enrollment_status: AudienceMemberStatus;
   delivery_status: AudienceDeliveryStatus;
-  one_time_access?: StorefrontAudienceOneTimeAccess | null;
-  subscription?: StorefrontAudienceSubscription | null;
+  paid_access?: StorefrontAudiencePaidAccess | null;
   source: AudienceMemberSource;
   created_at: number;
   updated_at: number;
@@ -2689,26 +2537,15 @@ export type AudienceSubscriptionStatus =
   | "cancelled"
   | "expired";
 
-export type AudienceSubscriptionProvider = {
-  type: "stripe";
-  payment_provider_id: string;
-  connected_account_id: string;
-  customer_id: string;
-  subscription_id: string;
-  price_id: string;
-};
-
 export interface AudienceSubscription {
   id: string;
   tier_id: string;
   price_id: string;
-  current_payment_id: string;
   status: AudienceSubscriptionStatus;
   current_period_start?: number | null;
   current_period_end?: number | null;
-  cancel_at_period_end: boolean;
-  cancellation?: AudienceSubscriptionCancellation | null;
-  provider?: AudienceSubscriptionProvider | null;
+  cancel_at?: number | null;
+  ended_at?: number | null;
   created_at: number;
   updated_at: number;
 }
@@ -2746,8 +2583,7 @@ export interface AudienceMember {
   lead?: LeadInsight | null;
   enrollment_status: AudienceMemberStatus;
   delivery_status: AudienceDeliveryStatus;
-  one_time_access?: AudienceOneTimeAccess | null;
-  subscription?: AudienceSubscription | null;
+  paid_access?: AudiencePaidAccess | null;
   created_at: number;
   updated_at: number;
 }
@@ -2757,7 +2593,12 @@ export type RemoveAudienceMemberResult =
   | { type: "subscription_cancellation_requested"; member_id: string }
   | { type: "already_removed"; member_id: string };
 
-export interface AudienceOneTimeAccess {
+export type AudiencePaidAccessType =
+  | { type: "one_time" }
+  | { type: "subscription"; subscription_id: string };
+
+export interface AudiencePaidAccess {
+  type: AudiencePaidAccessType;
   tier_id: string;
   price_id: string;
   current_payment_id: string;
@@ -2801,15 +2642,8 @@ export interface StorefrontAudiencePaymentSummary {
   status: AudiencePaymentStatus;
 }
 
-export interface StorefrontAudienceSubscriptionCancellation {
-  id: string;
-  type: AudienceSubscriptionCancellationType;
-  status: AudienceSubscriptionCancellationStatus;
-  requested_at: number;
-  completed_at?: number | null;
-}
-
-export interface StorefrontAudienceOneTimeAccess {
+export interface StorefrontAudiencePaidAccess {
+  type: AudiencePaidAccessType;
   tier_id: string;
   price_id: string;
   access_started_at?: number | null;
@@ -2823,8 +2657,8 @@ export interface StorefrontAudienceSubscription {
   status: AudienceSubscriptionStatus;
   current_period_start?: number | null;
   current_period_end?: number | null;
-  cancel_at_period_end: boolean;
-  cancellation?: StorefrontAudienceSubscriptionCancellation | null;
+  cancel_at?: number | null;
+  ended_at?: number | null;
   created_at: number;
   updated_at: number;
 }
@@ -2833,8 +2667,7 @@ export interface StorefrontAudienceMemberState {
   id: string;
   enrollment_status: AudienceMemberStatus;
   delivery_status: AudienceDeliveryStatus;
-  one_time_access?: StorefrontAudienceOneTimeAccess | null;
-  subscription?: StorefrontAudienceSubscription | null;
+  paid_access?: StorefrontAudiencePaidAccess | null;
   created_at: number;
   updated_at: number;
 }
@@ -2843,8 +2676,7 @@ export interface StorefrontAudienceMember {
   id: string;
   enrollment_status: AudienceMemberStatus;
   delivery_status: AudienceDeliveryStatus;
-  one_time_access?: StorefrontAudienceOneTimeAccess | null;
-  subscription?: StorefrontAudienceSubscription | null;
+  paid_access?: StorefrontAudiencePaidAccess | null;
   audience: StorefrontAudience;
   payment?: StorefrontAudiencePaymentSummary | null;
   created_at: number;
@@ -3452,32 +3284,32 @@ export interface ShippoLabel {
   safe_error?: string | null;
 }
 
-export type OrderShipmentSettlementDirection = "debit" | "credit";
+export type OrderShipmentChargeDirection = "debit" | "credit";
 
-export type OrderShipmentSettlementStatus =
+export type OrderShipmentChargeStatus =
   "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
 
-export type OrderShipmentSettlementType =
-  | { type: "purchase_debit" }
-  | { type: "purchase_compensation_credit" }
-  | { type: "refund_credit"; refund_id: string };
+export type OrderShipmentChargeType =
+  | { type: "label_purchase" }
+  | { type: "label_purchase_reversal" }
+  | { type: "label_refund"; refund_id: string };
 
-export interface StripeOrderShipmentSettlement {
-  object_id?: string | null;
+export interface ProviderOrderShipmentCharge {
+  transaction_id?: string | null;
   status?: string | null;
 }
 
-export interface OrderShipmentSettlement {
+export interface OrderShipmentCharge {
   id: string;
   order_shipment_id: string;
-  type: OrderShipmentSettlementType;
-  direction: OrderShipmentSettlementDirection;
+  type: OrderShipmentChargeType;
+  direction: OrderShipmentChargeDirection;
   amount: number;
   currency: Currency;
-  status: OrderShipmentSettlementStatus;
+  status: OrderShipmentChargeStatus;
   version: number;
   attempt_count: number;
-  stripe: StripeOrderShipmentSettlement;
+  provider: ProviderOrderShipmentCharge;
   safe_error?: string | null;
   requested_at: number;
   completed_at?: number | null;
