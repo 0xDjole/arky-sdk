@@ -43,25 +43,27 @@ export enum PaymentMethodType {
   CreditCard = "credit_card",
 }
 
-export interface OrderPaymentTax {
+export type TaxMode = "exclusive" | "inclusive";
+
+export interface OrderTaxSnapshot {
   amount: number;
-  mode_snapshot?: string;
+  mode: TaxMode;
   rate_bps: number;
-  lines: OrderPaymentTaxLine[];
+  lines: OrderTaxLine[];
 }
 
-export interface OrderPaymentTaxLine {
+export interface OrderTaxLine {
   rate_bps: number;
   amount: number;
-  label?: string;
-  scope?: string;
+  label: string;
+  scope: OrderTaxScope;
 }
 
-export interface OrderPaymentPromoCode {
+export type OrderTaxScope = "items" | "shipping";
+
+export interface OrderPromoCodeSnapshot {
   id: string;
   code: string;
-  type: string;
-  value: number;
 }
 
 export type OrderPaymentType = "cash" | "stripe";
@@ -204,8 +206,8 @@ export interface OrderMoney {
   shipping: number;
   discount: number;
   total: number;
-  tax?: OrderPaymentTax | null;
-  promo_code?: OrderPaymentPromoCode | null;
+  tax?: OrderTaxSnapshot | null;
+  promo_code?: OrderPromoCodeSnapshot | null;
   zone_id?: string | null;
   shipping_method_id?: string | null;
 }
@@ -345,7 +347,6 @@ export interface Cart {
   item_count: number;
   last_action_at: number;
   abandoned_at?: number | null;
-  recovery_sent_at?: number | null;
   created_at: number;
   updated_at: number;
 }
@@ -718,7 +719,6 @@ export interface SocialAnalyticsCapabilities {
 export interface SocialProviderCapability {
   type: SocialConnectionType;
   display_name: string;
-  icon_key: string;
   publishing_supported: boolean;
   required_scopes: string[];
   media_requirements: string[];
@@ -930,7 +930,6 @@ export interface DiscountAllocation {
 }
 
 export interface TaxLine {
-  id: string;
   title: string;
   rate_bps: number;
   amount: number;
@@ -938,13 +937,8 @@ export interface TaxLine {
   included_in_price: boolean;
   jurisdiction_country?: string | null;
   jurisdiction_region?: string | null;
-  jurisdiction_city?: string | null;
   jurisdiction_postal_code?: string | null;
   tax_category_id?: string | null;
-  tax_rate_id?: string | null;
-  source: string;
-  provider_tax_id?: string | null;
-  provider_tax_line_id?: string | null;
 }
 
 export interface LineMoneySnapshot {
@@ -1070,12 +1064,9 @@ export interface OrderDigitalProduct {
 
 export type OrderFulfillmentStatus =
   | "unfulfilled"
-  | "scheduled"
-  | "on_hold"
   | "in_progress"
   | "partially_fulfilled"
   | "fulfilled"
-  | "incomplete"
   | "not_required";
 
 export interface OrderFulfillmentSummary {
@@ -1091,21 +1082,13 @@ export interface ShippingLine {
   id: string;
   shipping_method_id?: string | null;
   title: string;
-  code?: string | null;
-  source: string;
-  carrier_identifier?: string | null;
   money: LineMoneySnapshot;
-  created_at: number;
-  updated_at: number;
 }
 
 export type FulfillmentOrderStatus =
   | "open"
   | "in_progress"
   | "completed"
-  | "incomplete"
-  | "on_hold"
-  | "scheduled"
   | "cancelled";
 
 export interface FulfillmentOrderLine {
@@ -1124,8 +1107,6 @@ export interface FulfillmentOrder {
   order_id: string;
   location_id: string;
   status: FulfillmentOrderStatus;
-  fulfill_at?: number | null;
-  fulfill_by?: number | null;
   destination?: Address | null;
   lines: FulfillmentOrderLine[];
   created_at: number;
@@ -1264,7 +1245,7 @@ export interface Market {
   store_id: string;
   key: string;
   currency: Currency;
-  tax_mode: "exclusive" | "inclusive";
+  tax_mode: TaxMode;
   payment_methods: PaymentMethod[];
   zones: Zone[];
   created_at: number;
@@ -1305,7 +1286,7 @@ export type WebhookEventSubscription =
   | { event: "order_booking.completed" }
   | { event: "order_booking.no_show" }
   | { event: "order_booking.cancelled" }
-  | { event: "order.reminder" }
+  | { event: "order_booking.reminder" }
   | { event: "order.shipment_created" }
   | { event: "order.shipment_in_transit" }
   | { event: "order.shipment_out_for_delivery" }
@@ -1912,7 +1893,7 @@ export type EmailTemplateStatus = "active" | "draft" | "archived";
 export type EmailTemplateType =
   | "order_store_notification"
   | "order_contact_notification"
-  | "order_reminder_contact"
+  | "order_booking_reminder_contact"
   | "contact_store_notification"
   | "subscription_confirmation"
   | "campaign_email"
@@ -2221,7 +2202,7 @@ export interface EmailSendTemplateData {
 export type EmailSend =
   | { type: "order_store_notification"; data: EmailSendTemplateData }
   | { type: "order_contact_notification"; data: EmailSendTemplateData }
-  | { type: "order_reminder_contact"; data: EmailSendTemplateData }
+  | { type: "order_booking_reminder_contact"; data: EmailSendTemplateData }
   | { type: "contact_store_notification"; data: EmailSendTemplateData }
   | { type: "subscription_confirmation"; data: EmailSendTemplateData };
 

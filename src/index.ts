@@ -73,9 +73,11 @@ export type {
   PaymentProviderConnectionFailure,
   PaymentProviderConnectionStatus,
   PaymentProviderConnectResponse,
-  OrderPaymentTax,
-  OrderPaymentTaxLine,
-  OrderPaymentPromoCode,
+  OrderTaxSnapshot,
+  OrderTaxLine,
+  OrderTaxScope,
+  TaxMode,
+  OrderPromoCodeSnapshot,
   OrderRefund,
   OrderRefundType,
   OrderRefundAllocation,
@@ -752,7 +754,7 @@ export type {
 } from "./api/support";
 export type { EventMetadata, EventScopeField } from "./api/platform";
 
-export const SDK_VERSION = "0.19.1";
+export const SDK_VERSION = "0.20.0";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",

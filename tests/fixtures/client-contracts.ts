@@ -5,10 +5,18 @@ import type {
   AudienceSubscribeResponse,
   AudienceTierPriceInput,
   Contact,
+  Cart,
   CreateOrderShipmentParams,
   GetCollectionParams,
   GetShippingRatesParams,
   OrderMoney,
+  OrderPromoCodeSnapshot,
+  OrderTaxLine,
+  OrderTaxScope,
+  TaxLine,
+  ShippingLine,
+  FulfillmentOrderStatus,
+  OrderFulfillmentStatus,
   PaginatedResponse,
   ProductInventoryInput,
   ProductVariant,
@@ -46,7 +54,7 @@ import {
   type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
 } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.19.1" = SDK_VERSION;
+const sdkVersionLiteral: "0.20.0" = SDK_VERSION;
 const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
 // @ts-expect-error the server's serialized feature key is crm_contacts.
 const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
@@ -285,6 +293,34 @@ declare const paymentStorefront: ReturnType<typeof initialize>;
 // @ts-expect-error hosted Checkout removed the browser Stripe controller.
 paymentStorefront.eshop.cart.payment;
 
+const orderTaxScope: OrderTaxScope = "shipping";
+// @ts-expect-error tax scope is a closed accounting enum.
+const invalidOrderTaxScope: OrderTaxScope = "provider";
+const orderTaxLine: OrderTaxLine = {
+  rate_bps: 2_000,
+  amount: 250,
+  label: "Shipping Tax",
+  scope: orderTaxScope,
+};
+const accountingTaxLine: TaxLine = {
+  title: "Tax",
+  rate_bps: 2_000,
+  amount: 250,
+  taxable_base: 1_250,
+  included_in_price: false,
+  jurisdiction_country: "US",
+  jurisdiction_region: null,
+  jurisdiction_postal_code: null,
+  tax_category_id: null,
+};
+// @ts-expect-error no provider tax identity is fabricated by Arky.
+accountingTaxLine.tax_rate_id;
+// @ts-expect-error tax provenance is already expressed by typed line context.
+accountingTaxLine.source;
+const promoSnapshot: OrderPromoCodeSnapshot = {
+  id: "promo-contract",
+  code: "SAVE10",
+};
 const orderMoney: OrderMoney = {
   currency: "usd",
   market: "us",
@@ -292,13 +328,41 @@ const orderMoney: OrderMoney = {
   shipping: 0,
   discount: 0,
   total: 1250,
-  tax: null,
-  promo_code: null,
+  tax: {
+    amount: 250,
+    mode: "exclusive",
+    rate_bps: 2_000,
+    lines: [orderTaxLine],
+  },
+  promo_code: promoSnapshot,
   zone_id: null,
   shipping_method_id: null,
 };
 // @ts-expect-error capture_method is transaction/provider state, not order money.
 orderMoney.capture_method;
+
+const shippingLine: ShippingLine = {
+  id: "shipping-line-contract",
+  shipping_method_id: "shipping-method-contract",
+  title: "Standard",
+  money: {
+    unit_price: 500,
+    subtotal: 500,
+    discount_allocations: [],
+    discount_total: 0,
+    taxable_base: 500,
+    tax_lines: [],
+    tax_total: 0,
+    total: 500,
+  },
+};
+// @ts-expect-error shipping method identity has one canonical field.
+shippingLine.code;
+const fulfillmentOrderStatus: FulfillmentOrderStatus = "open";
+const orderFulfillmentStatus: OrderFulfillmentStatus = "partially_fulfilled";
+declare const cart: Cart;
+// @ts-expect-error cart recovery is not a product lifecycle in the current model.
+cart.recovery_sent_at;
 
 // @ts-expect-error refunds have their own lifecycle resource.
 const embeddedRefundPaymentStatus: AudiencePaymentStatus = "refunded";
@@ -521,7 +585,6 @@ type UnsupportedActionFilterKeys = AssertNever<
 const missingPublishingCapability: SocialProviderCapability = {
   type: "x_account",
   display_name: "X Account",
-  icon_key: "x_account",
   required_scopes: [],
   media_requirements: [],
   engagement: {
@@ -539,6 +602,13 @@ void [
   storefrontEntryIdentify,
   verificationChallengeId,
   orderMoney,
+  orderTaxLine,
+  accountingTaxLine,
+  promoSnapshot,
+  shippingLine,
+  fulfillmentOrderStatus,
+  orderFulfillmentStatus,
+  cart,
   embeddedRefundPaymentStatus,
   codeReceivedCallback,
   safeSocialCredential,
@@ -571,6 +641,7 @@ void [
   missingPublishingCapability,
   crmContactFeature,
   nonWireCrmProfileFeature,
+  invalidOrderTaxScope,
   audienceTierPriceInput,
   audienceTierPriceWithProvider,
   subscribePaymentStatus,
