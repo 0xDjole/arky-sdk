@@ -1424,31 +1424,11 @@ export interface BlockBase {
   key: string;
 }
 
-export interface TextBlockProperties {
-  pattern?: string | null;
-  min_length?: number | null;
-  max_length?: number | null;
-  min?: number | null;
-}
+export type TextBlockProperties = Record<string, never>;
 
-export type NumberBlockOperation =
-  | "plus"
-  | "minus"
-  | "less_than_or_equal"
-  | "greater_than_or_equal"
-  | "equals"
-  | "greater_than"
-  | "less_than"
-  | "contains";
+export type NumberBlockProperties = Record<string, never>;
 
-export interface NumberBlockProperties {
-  operation?: NumberBlockOperation | null;
-}
-
-export interface ContainerBlockProperties {
-  min_values?: number | null;
-  max_values?: number | null;
-}
+export type ContainerBlockProperties = Record<string, never>;
 
 export type ReferenceDeletePolicy = "restrict" | "set_null";
 
