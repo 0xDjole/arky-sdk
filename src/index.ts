@@ -752,7 +752,7 @@ export type {
 } from "./api/support";
 export type { EventMetadata, EventScopeField } from "./api/platform";
 
-export const SDK_VERSION = "0.23.1";
+export const SDK_VERSION = "0.23.2";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",

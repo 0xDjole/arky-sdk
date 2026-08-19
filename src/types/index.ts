@@ -3102,9 +3102,6 @@ export interface CampaignMessage {
   body_html?: string | null;
   template_id?: string | null;
   template_vars: Record<string, unknown>;
-  rendered_subject?: string | null;
-  rendered_html?: string | null;
-  rendered_text?: string | null;
   attachments: string[];
   target_channel_type?: ChannelType | null;
   resolved_channel?: ContactChannel | null;
