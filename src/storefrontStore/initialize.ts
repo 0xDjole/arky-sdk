@@ -50,6 +50,7 @@ import type {
   FindServiceProvidersParams,
   GetAvailabilityParams,
   GetCollectionParams,
+  GetEntriesByIdsParams,
   GetEntriesParams,
   GetEntryParams,
   GetFormParams,
@@ -1970,6 +1971,7 @@ function initializeStoreCore(
     getLocale: currentLocale,
     cms: {
       state: cms_state,
+      media: client.cms.media,
       collection: {
         get: (
           params: StorefrontParams<GetCollectionParams>,
@@ -1982,6 +1984,10 @@ function initializeStoreCore(
           params: StorefrontParams<GetEntriesParams>,
           options?: RequestOptions,
         ) => client.cms.entry.find(params, options),
+        findByIds: (
+          params: StorefrontParams<GetEntriesByIdsParams>,
+          options?: RequestOptions,
+        ) => client.cms.entry.findByIds(params, options),
       },
       form: {
         get: loadForm,

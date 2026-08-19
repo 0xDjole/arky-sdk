@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { getBlockContentValue } from '../dist/storefront.js';
+import { collectBlockReferences, getBlockContentValue } from '../dist/storefront.js';
 
 test('block content decodes localized nested objects and repeated values', () => {
 	const entry = {
@@ -65,4 +65,49 @@ test('block content decodes repeated structured array items', () => {
 	assert.deepEqual(getBlockContentValue(entry, 'faq'), [
 		{ question: 'Why?', answer: 'Because.' },
 	]);
+});
+
+test('block references are collected recursively by resource type without hydration', () => {
+	const blocks = [
+		{ id: 'hero', key: 'hero', type: 'media', properties: {}, value: 'media-1' },
+		{
+			id: 'related',
+			key: 'related',
+			type: 'array',
+			properties: {},
+			value: [
+				{ id: 'article', key: 'article', type: 'entry', properties: {}, value: 'entry-1' },
+				{ id: 'product', key: 'product', type: 'product', properties: {}, value: 'product-1' },
+				{
+					id: 'nested',
+					key: 'nested',
+					type: 'object',
+					properties: {},
+					value: {
+						download: {
+							id: 'download',
+							key: 'download',
+							type: 'digital_product',
+							properties: {},
+							value: 'digital-1',
+						},
+						duplicateHero: {
+							id: 'duplicate-hero',
+							key: 'duplicate_hero',
+							type: 'media',
+							properties: {},
+							value: 'media-1',
+						},
+					},
+				},
+			],
+		},
+	];
+
+	assert.deepEqual(collectBlockReferences(blocks), {
+		mediaIds: ['media-1'],
+		entryIds: ['entry-1'],
+		productIds: ['product-1'],
+		digitalProductIds: ['digital-1'],
+	});
 });

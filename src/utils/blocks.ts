@@ -33,21 +33,9 @@ function unwrapBlock(value: unknown, locale: string): unknown {
     return localizedValue(value.value, locale);
   }
   if (value.type === "array") {
-    if (!Array.isArray(value.value)) return [];
-    return value.value.map((item) => {
-      if (isBlock(item)) return unwrapBlock(item, locale);
-      if (isRecord(item) && Array.isArray(item.value)) {
-        return recordFromBlocks(item.value, locale);
-      }
-      if (!isRecord(item)) return item;
-      return Object.fromEntries(
-        Object.entries(item).map(([key, nested]) => [key, unwrapBlock(nested, locale)]),
-      );
-    });
+    return value.value.map((item) => unwrapBlock(item, locale));
   }
   if (value.type === "object") {
-    if (Array.isArray(value.value)) return recordFromBlocks(value.value, locale);
-    if (!isRecord(value.value)) return {};
     return Object.fromEntries(
       Object.entries(value.value).map(([key, nested]) => [key, unwrapBlock(nested, locale)]),
     );
@@ -101,11 +89,40 @@ export function formatBlockValue(block: Block | null | undefined): string {
   if (block.type === "date") {
     return new Date(Number(block.value) * 1000).toLocaleDateString();
   }
-  if (block.type === "media" && isRecord(block.value)) {
-    const label = block.value.name ?? block.value.title ?? block.value.id;
-    return typeof label === "string" ? label : "";
-  }
   return String(block.value);
+}
+
+export interface BlockReferences {
+  mediaIds: string[];
+  entryIds: string[];
+  productIds: string[];
+  digitalProductIds: string[];
+}
+
+export function collectBlockReferences(blocks: readonly Block[]): BlockReferences {
+  const mediaIds = new Set<string>();
+  const entryIds = new Set<string>();
+  const productIds = new Set<string>();
+  const digitalProductIds = new Set<string>();
+
+  function visit(block: Block): void {
+    if (block.type === "media" && block.value) mediaIds.add(block.value);
+    if (block.type === "entry" && block.value) entryIds.add(block.value);
+    if (block.type === "product" && block.value) productIds.add(block.value);
+    if (block.type === "digital_product" && block.value) {
+      digitalProductIds.add(block.value);
+    }
+    if (block.type === "array") block.value.forEach(visit);
+    if (block.type === "object") Object.values(block.value).forEach(visit);
+  }
+
+  blocks.forEach(visit);
+  return {
+    mediaIds: [...mediaIds],
+    entryIds: [...entryIds],
+    productIds: [...productIds],
+    digitalProductIds: [...digitalProductIds],
+  };
 }
 
 export function prepareBlocksForSubmission(
@@ -194,9 +211,11 @@ function nestedUrl(value: UnknownRecord): string | null {
 }
 
 export function getImageUrl(value: unknown, isBlock = true): string | null {
-  if (typeof value === "string") return value;
+  if (typeof value === "string") {
+    return /^(https?:\/\/|data:|\/)/.test(value) ? value : null;
+  }
   if (!isRecord(value)) return null;
-  if (value.type === "media" && isRecord(value.value)) return nestedUrl(value.value);
+  if (value.type === "media") return null;
   if (isBlock && typeof value.url === "string") return value.url;
   return nestedUrl(value);
 }

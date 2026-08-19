@@ -12,6 +12,7 @@ export type {
   ArkyLastOrder,
   ArkyBookingCartItem,
   ArkyServiceFormGroup,
+  FormInputBlock,
   ArkyServiceFormState,
   ArkyServiceSlot,
   ArkyServiceState,

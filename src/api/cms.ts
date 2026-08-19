@@ -10,6 +10,7 @@ import type {
   DeleteEntryParams,
   GetEntryParams,
   GetEntriesParams,
+  GetEntriesByIdsParams,
   RequestOptions,
 } from "../types/api";
 import type { Collection, CollectionEntry, PaginatedResponse } from "../types";
@@ -116,6 +117,15 @@ export const createCmsApi = (apiConfig: ApiConfig) => {
           ...options,
           params: queryParams,
         }
+      );
+    },
+
+    async getEntriesByIds(params: GetEntriesByIdsParams, options?: RequestOptions): Promise<PaginatedResponse<CollectionEntry>> {
+      const { store_id, ...queryParams } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<PaginatedResponse<CollectionEntry>>(
+        `/v1/stores/${target_store_id}/entries`,
+        { ...options, params: queryParams },
       );
     },
   };

@@ -15,6 +15,8 @@ import type {
   GetCartParams,
   GetCollectionParams,
   GetEntriesParams,
+  GetEntriesByIdsParams,
+  GetMediaByIdsParams,
   GetEntryParams,
   GetFormParams,
   GetOrderParams,
@@ -57,6 +59,7 @@ import type {
   FormSubmission,
   Location,
   Market,
+  Media,
   Order,
   OrderCheckoutResult,
   OrderQuote,
@@ -287,6 +290,17 @@ export const createStorefrontApi = (
       },
     },
     cms: {
+      media: {
+        findByIds(
+          params: StorefrontParams<GetMediaByIdsParams>,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<Media[]>> {
+          return apiConfig.httpClient.get<StorefrontDto<Media[]>>(
+            `${base}/media`,
+            { ...options, params },
+          );
+        },
+      },
       collection: {
         get(
           params: StorefrontParams<GetCollectionParams>,
@@ -300,6 +314,14 @@ export const createStorefrontApi = (
         },
       },
       entry: {
+        findByIds(
+          params: StorefrontParams<GetEntriesByIdsParams>,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<PaginatedResponse<CollectionEntry>>> {
+          return apiConfig.httpClient.get<
+            StorefrontDto<PaginatedResponse<CollectionEntry>>
+          >(`${base}/entries`, { ...options, params });
+        },
         get(
           params: StorefrontParams<GetEntryParams>,
           options?: RequestOptions,

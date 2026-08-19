@@ -1419,12 +1419,116 @@ export interface EshopStoreState {
   error: string | null;
 }
 
-export interface Block {
+export interface BlockBase {
   id: string;
   key: string;
-  type: string;
-  properties?: any;
-  value?: any;
+}
+
+export interface TextBlockProperties {
+  pattern?: string | null;
+  min_length?: number | null;
+  max_length?: number | null;
+  min?: number | null;
+}
+
+export type NumberBlockOperation =
+  | "plus"
+  | "minus"
+  | "less_than_or_equal"
+  | "greater_than_or_equal"
+  | "equals"
+  | "greater_than"
+  | "less_than"
+  | "contains";
+
+export interface NumberBlockProperties {
+  operation?: NumberBlockOperation | null;
+}
+
+export interface ContainerBlockProperties {
+  min_values?: number | null;
+  max_values?: number | null;
+}
+
+export type ReferenceDeletePolicy = "restrict" | "set_null";
+
+export interface MediaBlockProperties {
+  on_delete?: ReferenceDeletePolicy;
+}
+
+export interface EntryBlockProperties {
+  on_delete?: ReferenceDeletePolicy;
+  collection_id?: string | null;
+}
+
+export interface ResourceBlockProperties {
+  on_delete?: ReferenceDeletePolicy;
+}
+
+export interface TextBlock extends BlockBase {
+  type: "text";
+  properties: TextBlockProperties;
+  value: string | null;
+}
+
+export interface LocalizedTextBlock extends BlockBase {
+  type: "localized_text" | "markdown";
+  properties: TextBlockProperties | Record<string, never>;
+  value: Record<string, string> | null;
+}
+
+export interface NumberBlock extends BlockBase {
+  type: "number";
+  properties: NumberBlockProperties;
+  value: number | null;
+}
+
+export interface BooleanBlock extends BlockBase {
+  type: "boolean";
+  properties: Record<string, never>;
+  value: boolean | null;
+}
+
+export interface DateBlock extends BlockBase {
+  type: "date";
+  properties: Record<string, never>;
+  value: number | null;
+}
+
+export interface MediaBlock extends BlockBase {
+  type: "media";
+  properties: MediaBlockProperties;
+  value: string | null;
+}
+
+export interface EntryBlock extends BlockBase {
+  type: "entry";
+  properties: EntryBlockProperties;
+  value: string | null;
+}
+
+export interface ProductBlock extends BlockBase {
+  type: "product";
+  properties: ResourceBlockProperties;
+  value: string | null;
+}
+
+export interface DigitalProductBlock extends BlockBase {
+  type: "digital_product";
+  properties: ResourceBlockProperties;
+  value: string | null;
+}
+
+export interface ArrayBlock extends BlockBase {
+  type: "array";
+  properties: ContainerBlockProperties;
+  value: Block[];
+}
+
+export interface ObjectBlock extends BlockBase {
+  type: "object";
+  properties: ContainerBlockProperties;
+  value: Record<string, Block>;
 }
 
 export type TaxonomySchemaType = "text" | "number" | "boolean" | "geo_location";
@@ -1519,16 +1623,32 @@ export type BlockType =
   | "object"
   | "media"
   | "entry"
+  | "product"
+  | "digital_product"
   | "markdown"
   | "geo_location";
 
 export interface GeoLocationBlockProperties {}
 
-export interface GeoLocationBlock extends Block {
+export interface GeoLocationBlock extends BlockBase {
   type: "geo_location";
   properties: GeoLocationBlockProperties;
   value: GeoLocation | null;
 }
+
+export type Block =
+  | TextBlock
+  | LocalizedTextBlock
+  | NumberBlock
+  | BooleanBlock
+  | DateBlock
+  | MediaBlock
+  | EntryBlock
+  | ProductBlock
+  | DigitalProductBlock
+  | ArrayBlock
+  | ObjectBlock
+  | GeoLocationBlock;
 
 export type Access = "public" | "private";
 
@@ -1836,6 +1956,8 @@ export type BlockSchemaType =
   | "markdown"
   | "media"
   | "entry"
+  | "product"
+  | "digital_product"
   | "array"
   | "object";
 

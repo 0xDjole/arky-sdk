@@ -27,7 +27,12 @@ import type {
   StorefrontProvider,
   StorefrontService,
 } from "../types/storefront";
-import type { ArkyBookingCartItem, ArkyServiceState, ArkyStoreClient } from "./types";
+import type {
+  ArkyBookingCartItem,
+  ArkyServiceState,
+  ArkyStoreClient,
+  FormInputBlock,
+} from "./types";
 
 export function readErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message) return error.message;
@@ -274,7 +279,7 @@ export function getFormBlockType(field: FormSchema): string {
   return field.type;
 }
 
-export function getFormBlockValue(field: FormSchema): unknown {
+export function getFormBlockValue(field: FormSchema): FormValue | undefined {
   if (field.type === "boolean") return false;
   if (field.type === "select") return [];
   if (field.type === "geo_location") return {};
@@ -282,7 +287,7 @@ export function getFormBlockValue(field: FormSchema): unknown {
   return "";
 }
 
-export function formSchemaToBlock(field: FormSchema): Block {
+export function formSchemaToBlock(field: FormSchema): FormInputBlock {
   const min = field.type === "number" ? field.min : undefined;
   const max = field.type === "number" ? field.max : undefined;
   const options = field.type === "select" ? field.options : undefined;

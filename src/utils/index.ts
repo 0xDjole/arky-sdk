@@ -29,6 +29,23 @@ export {
 export type { DurableRequest } from "./durableRequest";
 
 export {
+  collectBlockReferences,
+  extractBlockValues,
+  findBlock,
+  formatBlockValue,
+  getBlockContentValue,
+  getBlockFromArray,
+  getBlockLabel,
+  getBlockObjectValues,
+  getBlockTextValue,
+  getBlockValue,
+  getBlockValues,
+  getImageUrl,
+  prepareBlocksForSubmission,
+} from "./blocks";
+export type { BlockReferences } from "./blocks";
+
+export {
   ScheduledResultTimeoutError,
   pollScheduledResult,
 } from "./scheduledResult";

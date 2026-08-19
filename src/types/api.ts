@@ -361,6 +361,16 @@ export interface GetEntriesParams {
   created_at_to?: number;
 }
 
+export interface GetEntriesByIdsParams {
+  store_id?: string;
+  ids: string[];
+}
+
+export interface GetMediaByIdsParams {
+  store_id?: string;
+  ids: string[];
+}
+
 export interface CreateEntryParams {
   store_id?: string;
   collection_id: string;
@@ -1187,6 +1197,7 @@ export interface GetDigitalProductParams {
 
 export interface FindDigitalProductsParams {
   store_id?: string;
+  ids?: string[];
   status?: import("./index").DigitalCatalogStatus;
   limit?: number;
   cursor?: string;
@@ -1214,6 +1225,7 @@ export interface DownloadDigitalAssetParams {
 }
 
 export interface FindStorefrontDigitalProductsParams {
+  ids?: string[];
   limit?: number;
   cursor?: string;
 }

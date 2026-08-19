@@ -17,7 +17,8 @@ export type {
   EmbeddedCheckoutMount,
   StripeEmbeddedCheckoutAction,
 } from "./checkout";
-export { getBlockContentValue } from "./utils/blocks";
+export { collectBlockReferences, getBlockContentValue } from "./utils/blocks";
+export type { BlockReferences } from "./utils/blocks";
 export type {
   ArkyCartInput,
   ArkyCartSnapshot,
@@ -29,6 +30,7 @@ export type {
   ArkyLastOrder,
   ArkyBookingCartItem,
   ArkyServiceFormGroup,
+  FormInputBlock,
   ArkyServiceFormState,
   ArkyServiceSlot,
   ArkyServiceState,

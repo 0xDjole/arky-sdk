@@ -61,6 +61,26 @@ export type {
   ValidationError,
   YoutubePrivacy,
   Block,
+  BlockBase,
+  TextBlockProperties,
+  NumberBlockOperation,
+  NumberBlockProperties,
+  ContainerBlockProperties,
+  ReferenceDeletePolicy,
+  MediaBlockProperties,
+  EntryBlockProperties,
+  ResourceBlockProperties,
+  TextBlock,
+  LocalizedTextBlock,
+  NumberBlock,
+  BooleanBlock,
+  DateBlock,
+  MediaBlock,
+  EntryBlock,
+  ProductBlock,
+  DigitalProductBlock,
+  ArrayBlock,
+  ObjectBlock,
   Currency,
   Price,
   DigitalPrice,
@@ -732,7 +752,7 @@ export type {
 } from "./api/support";
 export type { EventMetadata, EventScopeField } from "./api/platform";
 
-export const SDK_VERSION = "0.21.0";
+export const SDK_VERSION = "0.22.0";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -829,6 +849,7 @@ import {
   formatBlockValue,
   prepareBlocksForSubmission,
   extractBlockValues,
+  collectBlockReferences,
 } from "./utils/blocks";
 import {
   formatPrice,
@@ -874,6 +895,7 @@ function createUtilitySurface(apiConfig: Pick<ApiConfig, "market">) {
     formatBlockValue,
     prepareBlocksForSubmission,
     extractBlockValues,
+    collectBlockReferences,
 
     formatPrice: (prices: Price[]) => formatPrice(prices, apiConfig.market),
     getPriceAmount: (prices: Price[]) =>
@@ -1195,6 +1217,7 @@ export function createAdmin(config: CreateAdminConfig) {
         delete: cmsApi.deleteEntry,
         get: cmsApi.getEntry,
         find: cmsApi.getEntries,
+        findByIds: cmsApi.getEntriesByIds,
       },
       form: {
         create: formApi.createForm,

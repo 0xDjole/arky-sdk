@@ -20,6 +20,7 @@ import type {
   Currency,
   Form,
   FormEntry,
+  FormValue,
   FormValues,
   OrderCheckoutResult,
   OrderQuote,
@@ -162,7 +163,15 @@ export interface ArkyServiceSlot {
 
 export interface ArkyServiceFormGroup {
   form: StorefrontForm;
-  blocks: Block[];
+  blocks: FormInputBlock[];
+}
+
+export interface FormInputBlock {
+  id: string;
+  key: string;
+  type: string;
+  properties: Record<string, unknown>;
+  value: FormValue | undefined;
 }
 
 export interface ArkyServiceFormState {

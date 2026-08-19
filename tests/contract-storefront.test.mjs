@@ -141,6 +141,8 @@ test("initialize is the production root API and exposes the module facade withou
   const store = initialize(publishableKey, { locale: "it", market: "ita" });
 
   assert.equal(typeof rootStore.cms.entry.get, "function");
+  assert.equal(typeof rootStore.cms.media.findByIds, "function");
+  assert.equal(typeof rootStore.cms.entry.findByIds, "function");
   assert.equal(typeof store.eshop.cart.load, "function");
   assert.equal("payment" in store.eshop.cart, false);
   assert.equal(typeof store.setContext, "function");
@@ -157,6 +159,41 @@ test("initialize is the production root API and exposes the module facade withou
   assert.equal(store.getMarket(), "ita");
   assert.equal(scoped.getLocale(), "en");
   assert.equal(scoped.getMarket(), "ita");
+});
+
+test("storefront reference batches use explicit typed endpoints", async () => {
+  const storefront = createStorefront(publishableKey, { apiUrl });
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), method: init.method || "GET" });
+    return jsonResponse({ items: [], cursor: null });
+  };
+
+  try {
+    await storefront.cms.media.findByIds({ ids: ["media-1", "media-2"] });
+    await storefront.cms.entry.findByIds({ ids: ["entry-1"] });
+    await storefront.eshop.product.find({ ids: ["product-1"] });
+    await storefront.eshop.digital.find({ ids: ["digital-1"] });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(calls.length, 4);
+  assert.deepEqual(
+    calls.map((call) => new URL(call.url).pathname),
+    [
+      "/v1/storefront/media",
+      "/v1/storefront/entries",
+      "/v1/storefront/products",
+      "/v1/storefront/digital-products",
+    ],
+  );
+  assert.deepEqual(
+    calls.map((call) => JSON.parse(new URL(call.url).searchParams.get("ids"))),
+    [["media-1", "media-2"], ["entry-1"], ["product-1"], ["digital-1"]],
+  );
+  assert.ok(calls.every((call) => call.method === "GET"));
 });
 
 test("market and locale remain independent and a populated cart fails closed on market changes", () => {
