@@ -1,5 +1,6 @@
 export { ScheduledResultTimeoutError } from "./utils/scheduledResult";
 export { createStripeEmbeddedCheckout, mountCheckoutAction } from "./checkout";
+export { selectLocalizedText } from "./utils/blocks";
 export type {
   EmbeddedCheckoutCallbacks,
   EmbeddedCheckoutMount,
@@ -751,7 +752,7 @@ export type {
 } from "./api/support";
 export type { EventMetadata, EventScopeField } from "./api/platform";
 
-export const SDK_VERSION = "0.23.0";
+export const SDK_VERSION = "0.23.1";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -849,6 +850,7 @@ import {
   prepareBlocksForSubmission,
   extractBlockValues,
   collectBlockReferences,
+  selectLocalizedText,
 } from "./utils/blocks";
 import {
   formatPrice,
@@ -895,6 +897,7 @@ function createUtilitySurface(apiConfig: Pick<ApiConfig, "market">) {
     prepareBlocksForSubmission,
     extractBlockValues,
     collectBlockReferences,
+    selectLocalizedText,
 
     formatPrice: (prices: Price[]) => formatPrice(prices, apiConfig.market),
     getPriceAmount: (prices: Price[]) =>

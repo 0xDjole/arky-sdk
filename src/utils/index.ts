@@ -42,6 +42,7 @@ export {
   getBlockValues,
   getImageUrl,
   prepareBlocksForSubmission,
+  selectLocalizedText,
 } from "./blocks";
 export type { BlockReferences } from "./blocks";
 
