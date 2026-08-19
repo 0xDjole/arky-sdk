@@ -1,7 +1,21 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { collectBlockReferences, getBlockContentValue } from '../dist/storefront.js';
+import {
+	collectBlockReferences,
+	getBlockContentValue,
+	selectLocalizedText,
+} from '../dist/storefront.js';
+
+test('localized text follows one explicit fallback order', () => {
+	const value = { bs: 'Bosanski', en: 'English', it: 'Italiano' };
+
+	assert.equal(selectLocalizedText(value, 'it', ['bs', 'en']), 'Italiano');
+	assert.equal(selectLocalizedText(value, 'de', ['bs', 'en']), 'Bosanski');
+	assert.equal(selectLocalizedText({ fr: 'Français' }, 'de', ['en']), 'Français');
+	assert.equal(selectLocalizedText({}, 'de', ['en'], 'Missing'), 'Missing');
+	assert.equal(selectLocalizedText('Already selected', 'de'), 'Already selected');
+});
 
 test('block content decodes localized nested objects and repeated values', () => {
 	const entry = {

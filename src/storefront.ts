@@ -17,7 +17,11 @@ export type {
   EmbeddedCheckoutMount,
   StripeEmbeddedCheckoutAction,
 } from "./checkout";
-export { collectBlockReferences, getBlockContentValue } from "./utils/blocks";
+export {
+  collectBlockReferences,
+  getBlockContentValue,
+  selectLocalizedText,
+} from "./utils/blocks";
 export type { BlockReferences } from "./utils/blocks";
 export type {
   ArkyCartInput,
