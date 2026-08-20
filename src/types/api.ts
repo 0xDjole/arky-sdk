@@ -20,7 +20,6 @@ import type {
   MutableWorkflowStatus,
   WorkflowStatus,
   PromoCodeStatus,
-  AudienceDiscountDuration,
   ProductStatus,
   CollectionStatus,
   EntryStatus,
@@ -39,7 +38,6 @@ import type {
   ServiceDuration,
   WorkingDay,
   SpecificDate,
-  Language,
   StoreEmails,
   ContactStatus,
   Contact,
@@ -496,25 +494,15 @@ export type Discount =
       tier_ids: string[];
       price_ids: string[];
       bps: number;
-      duration: AudienceDiscountDuration;
     };
 
-export type ConditionValue =
-  | { type: "ids"; value: string[] }
-  | { type: "amount"; value: number }
-  | { type: "count"; value: number }
-  | { type: "date_range"; value: { start?: number; end?: number } };
-
-export interface Condition {
-  type:
-    | "products"
-    | "services"
-    | "min_order_amount"
-    | "date_range"
-    | "max_uses"
-    | "max_uses_per_user";
-  value: ConditionValue;
-}
+export type Condition =
+  | { type: "products"; product_ids: string[] }
+  | { type: "services"; service_ids: string[] }
+  | { type: "min_order_amount"; amount: number }
+  | { type: "date_range"; start?: number | null; end?: number | null }
+  | { type: "max_uses"; count: number }
+  | { type: "max_uses_per_user"; count: number };
 
 export interface CreatePromoCodeParams {
   store_id?: string;
@@ -542,11 +530,6 @@ export interface GetPromoCodeParams {
   store_id?: string;
 }
 
-export interface RetryAudiencePromotionProviderParams {
-  id: string;
-  store_id?: string;
-}
-
 export interface GetPromoCodesParams {
   store_id?: string;
   ids?: string[];
@@ -568,7 +551,7 @@ export interface GetPromoCodesParams {
 export interface CreateStoreParams {
   key: string;
   timezone: string;
-  languages?: Language[];
+  languages?: string[];
   emails: StoreEmails;
 }
 
@@ -577,7 +560,7 @@ export interface UpdateStoreParams {
   key?: string;
   default_market_id?: string;
   timezone?: string;
-  languages?: Language[];
+  languages?: string[];
   emails?: StoreEmails;
 }
 
@@ -1363,7 +1346,7 @@ export interface GetWorkflowExecutionParams {
   store_id?: string;
 }
 
-export interface GetWorkflowEffectsParams {
+export interface GetWorkflowExternalOperationsParams {
   workflow_id: string;
   execution_id: string;
   store_id?: string;
@@ -1371,10 +1354,10 @@ export interface GetWorkflowEffectsParams {
   cursor?: string;
 }
 
-export interface GetWorkflowEffectParams {
+export interface GetWorkflowExternalOperationParams {
   workflow_id: string;
   execution_id: string;
-  effect_id: string;
+  operation_id: string;
   store_id?: string;
 }
 
@@ -1512,6 +1495,11 @@ export interface FindAudienceMembersParams {
   enrollment_status?: AudienceMemberStatus;
   limit?: number;
   cursor?: string;
+}
+
+export interface FindAudienceLeadsParams {
+  store_id?: string;
+  member_ids: string[];
 }
 
 export interface RefundAudienceMemberParams {
@@ -2432,6 +2420,11 @@ export interface UpdateContactParams {
 
 export interface GetContactParams {
   id: string;
+  store_id?: string;
+}
+
+export interface FindContactChannelsParams {
+  contact_ids: string[];
   store_id?: string;
 }
 

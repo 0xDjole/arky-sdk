@@ -147,7 +147,7 @@ globalThis.fetch = async (url, init = {}) => {
     ? { items: [], cursor: null }
     : call.url.endsWith("/manage")
       ? { has_access: true }
-    : call.url.endsWith("/payment-method")
+      : call.url.endsWith("/payment-method")
         ? { portal_url: "https://billing.test/session" }
         : { success: true };
   return new Response(JSON.stringify(body), {
@@ -503,8 +503,14 @@ assert.equal(typeof arky.outreach.leadResearch.createRun, "function");
 
 assert.equal(typeof arky.crm.audience.members.add, "function");
 assert.equal(typeof arky.crm.audience.members.find, "function");
+assert.equal(typeof arky.crm.audience.leads.find, "function");
 assert.equal(typeof arky.crm.audience.tiers.get, "function");
 assert.equal(typeof arky.crm.audience.tiers.find, "function");
+assert.equal(
+  typeof arky.automation.workflow.listExternalOperations,
+  "function",
+);
+assert.equal(typeof arky.automation.workflow.getExternalOperation, "function");
 
 assert.equal(typeof arky.eshop.product.getInventory, "function");
 
@@ -520,6 +526,10 @@ try {
   await arky.automation.workflow.getDefinition({
     workflow_id: "workflow-contract",
   });
+  await arky.automation.workflow.listExternalOperations({
+    workflow_id: "workflow-contract",
+    execution_id: "execution-contract",
+  });
   await arky.automation.support.getAgentDefinition({
     store_id: "contract-store",
     support_agent_id: "agent-contract",
@@ -528,6 +538,7 @@ try {
     id: "campaign-contract",
   });
   await arky.crm.audience.tiers.find({ audience_id: "audience-contract" });
+  await arky.crm.audience.leads.find({ member_ids: ["member-contract"] });
   await arky.eshop.product.getInventory({ id: "product-contract" });
 } finally {
   globalThis.fetch = originalFetch;
@@ -536,6 +547,10 @@ assert.deepEqual(separateResourceCalls, [
   {
     method: "GET",
     url: "http://127.0.0.1:1/v1/stores/contract-store/workflows/workflow-contract/definition",
+  },
+  {
+    method: "GET",
+    url: "http://127.0.0.1:1/v1/stores/contract-store/workflows/workflow-contract/executions/execution-contract/external-operations",
   },
   {
     method: "GET",
@@ -548,6 +563,10 @@ assert.deepEqual(separateResourceCalls, [
   {
     method: "GET",
     url: "http://127.0.0.1:1/v1/stores/contract-store/audiences/audience-contract/tiers",
+  },
+  {
+    method: "GET",
+    url: "http://127.0.0.1:1/v1/stores/contract-store/audiences/leads?member_ids=%5B%22member-contract%22%5D",
   },
   {
     method: "GET",

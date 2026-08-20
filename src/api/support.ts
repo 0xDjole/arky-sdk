@@ -87,7 +87,6 @@ export interface SupportChannel {
   key: string;
   name: string;
   status: SupportChannelStatus;
-  channel_type: SupportChannelType;
   config: SupportChannelConfig;
   created_at: number;
   updated_at: number;
@@ -112,14 +111,13 @@ export interface SupportConversation {
   store_id: string;
   agent_id?: string;
   channel_id?: string | null;
-  channel_type: SupportChannelType;
   channel_context: SupportConversationChannelContext;
   current_node_id?: string;
   contact_id?: string;
   assigned_account_id?: string | null;
   status: "active" | "ai_mode" | "escalated" | "resolved";
-  data: Record<string, unknown>;
-  metadata: Record<string, unknown>;
+  variables: Record<string, unknown>;
+  channel_metadata: Record<string, unknown>;
   created_at: number;
   updated_at: number;
 }
@@ -419,7 +417,6 @@ export interface CreateSupportChannelParams {
   key: string;
   name: string;
   status?: SupportChannelStatus;
-  channel_type: SupportChannelType;
   config: SupportChannelConfig;
 }
 
@@ -429,7 +426,6 @@ export interface UpdateSupportChannelParams {
   key?: string;
   name?: string;
   status?: SupportChannelStatus;
-  channel_type?: SupportChannelType;
   config?: SupportChannelConfig;
 }
 

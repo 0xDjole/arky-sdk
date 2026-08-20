@@ -5,7 +5,6 @@ import type {
 	DeletePromoCodeParams,
 	GetPromoCodeParams,
 	GetPromoCodesParams,
-	RetryAudiencePromotionProviderParams,
 	RequestOptions
 } from '../types/api';
 import type { PaginatedResponse, PromoCode } from '../types';
@@ -55,18 +54,6 @@ export const createPromoCodeApi = (apiConfig: ApiConfig) => {
 				...options,
 				params: queryParams
 			});
-		},
-
-		async retryAudienceProvider(
-			params: RetryAudiencePromotionProviderParams,
-			options?: RequestOptions
-		): Promise<PromoCode> {
-			const target_store_id = params.store_id || apiConfig.storeId;
-			return apiConfig.httpClient.post<PromoCode>(
-				`/v1/stores/${target_store_id}/promo-codes/${params.id}/audience-provider/retry`,
-				{},
-				options
-			);
 		}
 	};
 };

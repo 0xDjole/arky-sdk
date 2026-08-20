@@ -29,6 +29,7 @@ import type {
   SocialPublicationContent,
   SocialPublicationEffectRequest,
   SocialProviderCapability,
+  SmtpImapMailboxProviderInput,
   StoreSubscription,
   SubscriptionPlanFeatureType,
   TiktokPrivacy,
@@ -53,7 +54,7 @@ import {
   type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
 } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.23.2" = SDK_VERSION;
+const sdkVersionLiteral: "0.24.0" = SDK_VERSION;
 const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
 // @ts-expect-error the server's serialized feature key is crm_contacts.
 const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
@@ -70,6 +71,34 @@ const audienceTierPriceWithProvider: AudienceTierPriceInput = {
   // @ts-expect-error payment-provider bindings are server-owned output fields.
   provider: { type: "stripe", price_id: "price_untrusted" },
 };
+const smtpImapMailboxProviderInput: SmtpImapMailboxProviderInput = {
+  type: "smtp_imap",
+  preset: "custom",
+  smtp_host: "smtp.example.com",
+  smtp_port: 587,
+  smtp_security: "start_tls",
+  imap_host: "imap.example.com",
+  imap_port: 993,
+  imap_security: "tls",
+  username: "mailbox@example.com",
+  sync_enabled: true,
+  sync_interval_seconds: 300,
+};
+// @ts-expect-error SMTP/IMAP mailbox providers require an explicit discriminator.
+const smtpImapMailboxProviderWithoutType: SmtpImapMailboxProviderInput = {
+  preset: "custom",
+  smtp_host: "smtp.example.com",
+  smtp_port: 587,
+  smtp_security: "start_tls",
+  imap_host: "imap.example.com",
+  imap_port: 993,
+  imap_security: "tls",
+  username: "mailbox@example.com",
+  sync_enabled: true,
+  sync_interval_seconds: 300,
+};
+void smtpImapMailboxProviderInput;
+void smtpImapMailboxProviderWithoutType;
 
 const clearCartAddresses: UpdateCartParams = {
   id: "cart-contract",
@@ -155,7 +184,7 @@ storefrontVerification.token;
 // @ts-expect-error Visitor credentials stay private on the nested CRM facade.
 nestedStorefrontIdentification.token;
 const userAuthoredStoreId: unknown =
-  storefrontSupport.conversation.metadata.store_id;
+  storefrontSupport.conversation.channel_metadata.store_id;
 // @ts-expect-error Market context is sent in X-Arky-Market, not cart bodies.
 storefrontClient.eshop.cart.current({ market: "ita" });
 

@@ -12,6 +12,7 @@ import type {
   ImportContactsPreviewResult,
   ImportContactsResult,
   FindContactSessionsParams,
+  FindContactChannelsParams,
   RevokeContactSessionParams,
   RevokeAllContactSessionsParams,
   CreateAudienceParams,
@@ -26,6 +27,7 @@ import type {
   UpdateAudienceMemberParams,
   RemoveAudienceMemberParams,
   FindAudienceMembersParams,
+  FindAudienceLeadsParams,
   RefundAudienceMemberParams,
   RefundAudienceMemberResult,
   FindAudiencePaymentsParams,
@@ -87,7 +89,8 @@ import type {
   AudiencePayment,
   AudienceRefund,
   AudienceSubscription,
-  AudienceMemberDetail,
+  AudienceMember,
+  AudienceLead,
   RemoveAudienceMemberResult,
   Action,
   Suppression,
@@ -95,6 +98,7 @@ import type {
   AudiencePaymentMethodSessionResponse,
   CampaignEnrollmentImportResult,
   Contact,
+  ContactChannel,
   ContactSessionRecord,
 } from "../types";
 
@@ -159,6 +163,29 @@ export const createContactApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<Contact>(
         `/v1/stores/${params.store_id || apiConfig.storeId}/contacts/${params.id}`,
         options,
+      );
+    },
+
+    async getChannels(
+      params: GetContactParams,
+      options?: RequestOptions,
+    ): Promise<ContactChannel[]> {
+      return apiConfig.httpClient.get<ContactChannel[]>(
+        `/v1/stores/${params.store_id || apiConfig.storeId}/contacts/${params.id}/channels`,
+        options,
+      );
+    },
+
+    async findChannels(
+      params: FindContactChannelsParams,
+      options?: RequestOptions,
+    ): Promise<ContactChannel[]> {
+      return apiConfig.httpClient.get<ContactChannel[]>(
+        `/v1/stores/${params.store_id || apiConfig.storeId}/contacts/channels`,
+        {
+          ...options,
+          params: { contact_ids: JSON.stringify(params.contact_ids) },
+        },
       );
     },
 
@@ -447,7 +474,6 @@ export const createContactApi = (apiConfig: ApiConfig) => {
             { ...options, params: queryParams },
           );
         },
-
       },
 
       async importMembers(
@@ -476,11 +502,27 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         );
       },
 
+      leads: {
+        async find(
+          params: FindAudienceLeadsParams,
+          options?: RequestOptions,
+        ): Promise<AudienceLead[]> {
+          const target_store_id = params.store_id || apiConfig.storeId;
+          return apiConfig.httpClient.get<AudienceLead[]>(
+            `/v1/stores/${target_store_id}/audiences/leads`,
+            {
+              ...options,
+              params: { member_ids: JSON.stringify(params.member_ids) },
+            },
+          );
+        },
+      },
+
       members: {
         async add(
           params: AddAudienceMemberParams,
           options?: RequestOptions,
-        ): Promise<AudienceMemberDetail> {
+        ): Promise<AudienceMember> {
           const {
             store_id,
             audience_id,
@@ -489,7 +531,7 @@ export const createContactApi = (apiConfig: ApiConfig) => {
             lead_description,
           } = params;
           const target_store_id = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.post<AudienceMemberDetail>(
+          return apiConfig.httpClient.post<AudienceMember>(
             `/v1/stores/${target_store_id}/audiences/${audience_id}/members`,
             { contact_id, fields, lead_description },
             options,
@@ -499,7 +541,7 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         async update(
           params: UpdateAudienceMemberParams,
           options?: RequestOptions,
-        ): Promise<AudienceMemberDetail> {
+        ): Promise<AudienceMember> {
           const {
             store_id,
             audience_id,
@@ -509,7 +551,7 @@ export const createContactApi = (apiConfig: ApiConfig) => {
             lead_description,
           } = params;
           const target_store_id = store_id || apiConfig.storeId;
-          return apiConfig.httpClient.patch<AudienceMemberDetail>(
+          return apiConfig.httpClient.patch<AudienceMember>(
             `/v1/stores/${target_store_id}/audiences/${audience_id}/members/${member_id}`,
             { enrollment_status, fields, lead_description },
             options,
@@ -530,16 +572,15 @@ export const createContactApi = (apiConfig: ApiConfig) => {
         async find(
           params: FindAudienceMembersParams = {},
           options?: RequestOptions,
-        ): Promise<PaginatedResponse<AudienceMemberDetail>> {
+        ): Promise<PaginatedResponse<AudienceMember>> {
           const { store_id, audience_id, ...queryParams } = params;
           const target_store_id = store_id || apiConfig.storeId;
           const path = audience_id
             ? `/v1/stores/${target_store_id}/audiences/${audience_id}/members`
             : `/v1/stores/${target_store_id}/audiences/members`;
-          return apiConfig.httpClient.get<PaginatedResponse<AudienceMemberDetail>>(
-            path,
-            { ...options, params: queryParams },
-          );
+          return apiConfig.httpClient.get<
+            PaginatedResponse<AudienceMember>
+          >(path, { ...options, params: queryParams });
         },
         async refund(
           params: RefundAudienceMemberParams,
@@ -567,12 +608,9 @@ export const createContactApi = (apiConfig: ApiConfig) => {
             params: FindAudiencePaymentsParams,
             options?: RequestOptions,
           ): Promise<PaginatedResponse<AudiencePayment>> {
-            const { store_id, audience_id, member_id, ...queryParams } =
-              params;
+            const { store_id, audience_id, member_id, ...queryParams } = params;
             const target_store_id = store_id || apiConfig.storeId;
-            return apiConfig.httpClient.get<
-              PaginatedResponse<AudiencePayment>
-            >(
+            return apiConfig.httpClient.get<PaginatedResponse<AudiencePayment>>(
               `/v1/stores/${target_store_id}/audiences/${audience_id}/members/${member_id}/payments`,
               { ...options, params: queryParams },
             );
@@ -595,12 +633,9 @@ export const createContactApi = (apiConfig: ApiConfig) => {
             params: FindAudienceRefundsParams,
             options?: RequestOptions,
           ): Promise<PaginatedResponse<AudienceRefund>> {
-            const { store_id, audience_id, member_id, ...queryParams } =
-              params;
+            const { store_id, audience_id, member_id, ...queryParams } = params;
             const target_store_id = store_id || apiConfig.storeId;
-            return apiConfig.httpClient.get<
-              PaginatedResponse<AudienceRefund>
-            >(
+            return apiConfig.httpClient.get<PaginatedResponse<AudienceRefund>>(
               `/v1/stores/${target_store_id}/audiences/${audience_id}/members/${member_id}/refunds`,
               { ...options, params: queryParams },
             );

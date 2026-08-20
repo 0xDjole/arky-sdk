@@ -68,6 +68,7 @@ import type {
   OrderDigitalProduct,
   PaginatedResponse,
   Product,
+  ProductInventory,
   Provider,
   Service,
   ServiceProvider,
@@ -457,6 +458,18 @@ export const createStorefrontApi = (
             throw new Error("GetProductParams requires id or slug");
           return apiConfig.httpClient.get<StorefrontDto<Product>>(
             `${base}/products/${identifier}`,
+            options,
+          );
+        },
+        getInventory(
+          params: StorefrontParams<GetProductParams>,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<ProductInventory[]>> {
+          const identifier = params.id ?? params.slug;
+          if (!identifier)
+            throw new Error("GetProductParams requires id or slug");
+          return apiConfig.httpClient.get<StorefrontDto<ProductInventory[]>>(
+            `${base}/products/${identifier}/inventory`,
             options,
           );
         },
