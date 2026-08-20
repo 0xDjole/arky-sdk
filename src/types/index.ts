@@ -87,10 +87,9 @@ export type StripeDisputeStatus =
   | "won"
   | "lost"
   | "prevented";
-export type OrderDisputeType = "provider";
 export interface ProviderOrderDispute {
   dispute_id: string;
-  charge_id: string;
+  transaction_id: string;
 }
 export interface OrderDispute {
   id: string;
@@ -98,7 +97,6 @@ export interface OrderDispute {
   store_id: string;
   order_id: string;
   payment_id: string;
-  type: OrderDisputeType;
   amount: number;
   currency: Currency;
   status?: StripeDisputeStatus | null;
@@ -809,7 +807,6 @@ export interface ProductVariant {
   id: string;
   sku?: string;
   prices: Price[];
-  inventory: ProductInventory[];
   attributes: Block[];
   requires_shipping: boolean;
   tax_category_id?: string | null;
@@ -1022,10 +1019,7 @@ export interface ShippingLine {
 }
 
 export type FulfillmentOrderStatus =
-  | "open"
-  | "in_progress"
-  | "completed"
-  | "cancelled";
+  "open" | "in_progress" | "completed" | "cancelled";
 
 export interface FulfillmentOrderLine {
   id: string;
@@ -1186,10 +1180,6 @@ export interface Market {
   zones: Zone[];
   created_at: number;
   updated_at: number;
-}
-
-export interface Language {
-  id: string;
 }
 
 export interface StoreEmails {
@@ -1406,7 +1396,7 @@ export interface Store {
   lifecycle: "active" | "deleting";
   default_market_id: string | null;
   timezone: string;
-  languages?: Language[];
+  languages?: string[];
   emails?: StoreEmails;
 }
 
@@ -1636,7 +1626,6 @@ export type MediaSize = "original" | "thumbnail" | "small" | "medium" | "large";
 
 export interface MediaResolution {
   id: string;
-  size: MediaSize;
   url: string;
 }
 
@@ -1848,12 +1837,7 @@ export type CampaignMessageStatus =
   | "stopped"
   | "superseded";
 export type CampaignMessageType =
-  | "campaign_step_email"
-  | "manual_task"
-  | "manual_reply"
-  | "inbound_reply"
-  | "delivery_failure"
-  | "action";
+  "campaign_step_email" | "manual_task" | "manual_reply" | "inbound_reply";
 export type CampaignMessageDirection = "outbound" | "inbound" | "action";
 export type CampaignMessageCopySource = "template" | "generated" | "edited";
 export type OutreachThreadMode = "new_thread" | "same_thread";
@@ -2347,7 +2331,6 @@ export type WorkflowConnectionData = GoogleDriveWorkflowConnectionData;
 export interface WorkflowConnection {
   id: string;
   store_id: string;
-  type: WorkflowConnectionType;
   data: WorkflowConnectionData;
   created_at: number;
   updated_at: number;
@@ -2452,35 +2435,35 @@ export interface WorkflowExecutionResults {
   updated_at: number;
 }
 
-export type WorkflowEffectType =
+export type WorkflowExternalOperationType =
   "http_mutation" | "deploy_webhook" | "google_drive_upload";
 
-export type WorkflowEffectStatus =
+export type WorkflowExternalOperationStatus =
   "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
 
-export interface WorkflowEffectError {
+export interface WorkflowExternalOperationError {
   type: "provider_call_not_started" | "provider_rejected" | "unknown_outcome";
   message: string;
   at: number;
 }
 
-export interface WorkflowEffectEvidence {
+export interface WorkflowExternalOperationResult {
   output: unknown;
 }
 
-export interface WorkflowEffect {
+export interface WorkflowExternalOperation {
   id: string;
   store_id: string;
   workflow_id: string;
   execution_id: string;
   node_id: string;
-  type: WorkflowEffectType;
-  status: WorkflowEffectStatus;
+  type: WorkflowExternalOperationType;
+  status: WorkflowExternalOperationStatus;
   requested_at: number;
   processing_started_at?: number | null;
   completed_at?: number | null;
-  evidence?: WorkflowEffectEvidence | null;
-  error?: WorkflowEffectError | null;
+  result?: WorkflowExternalOperationResult | null;
+  error?: WorkflowExternalOperationError | null;
   updated_at: number;
 }
 
@@ -2547,9 +2530,13 @@ export type ChannelType =
   | "telegram"
   | "tiktok"
   | "youtube"
+  | "x"
   | "other";
 
 export interface ContactChannel {
+  id: string;
+  store_id: string;
+  contact_id: string;
   type: ChannelType;
   label?: string | null;
   value: string;
@@ -2557,8 +2544,8 @@ export interface ContactChannel {
   provider?: string | null;
   provider_user_id?: string | null;
   verified_at?: number | null;
-  is_primary?: boolean;
-  consent_status?: ContactChannelConsentStatus;
+  is_primary: boolean;
+  consent_status: ContactChannelConsentStatus;
   subscribed_at?: number | null;
   unsubscribed_at?: number | null;
   source_url?: string | null;
@@ -2574,10 +2561,7 @@ export type ContactChannelConsentStatus =
 export interface Contact {
   id: string;
   store_id: string;
-  email: string | null;
-  verified: boolean;
   status: ContactStatus;
-  channels: ContactChannel[];
   taxonomies: TaxonomyEntry[];
   created_at: number;
   updated_at: number;
@@ -2606,7 +2590,7 @@ export interface AudienceManagementMember {
   id: string;
   enrollment_status: AudienceMemberStatus;
   delivery_status: AudienceDeliveryStatus;
-  paid_access?: StorefrontAudiencePaidAccess | null;
+  access?: AudienceMemberAccess | null;
   source: AudienceMemberSource;
   created_at: number;
   updated_at: number;
@@ -2676,16 +2660,15 @@ export interface AudienceDigitalProduct {
 
 export interface AudienceMember {
   id: string;
+  version: number;
   store_id: string;
   contact_id: string;
   audience_id: string;
   source: AudienceMemberSource;
   fields: Record<string, unknown>;
-  lead_description?: string | null;
-  lead?: LeadInsight | null;
   enrollment_status: AudienceMemberStatus;
   delivery_status: AudienceDeliveryStatus;
-  paid_access?: AudiencePaidAccess | null;
+  access?: AudienceMemberAccess | null;
   created_at: number;
   updated_at: number;
 }
@@ -2695,17 +2678,15 @@ export type RemoveAudienceMemberResult =
   | { type: "subscription_cancellation_requested"; member_id: string }
   | { type: "already_removed"; member_id: string };
 
-export type AudiencePaidAccessType =
-  | { type: "one_time" }
+export type AudienceMemberAccessSource =
+  | { type: "one_time"; payment_id: string }
   | { type: "subscription"; subscription_id: string };
 
-export interface AudiencePaidAccess {
-  type: AudiencePaidAccessType;
+export interface AudienceMemberAccess {
+  source: AudienceMemberAccessSource;
   tier_id: string;
-  price_id: string;
-  current_payment_id: string;
-  access_started_at?: number | null;
-  access_ends_at?: number | null;
+  starts_at?: number | null;
+  ends_at?: number | null;
 }
 
 export type StorefrontAudienceType = "open" | "confirmation" | "paid";
@@ -2744,14 +2725,6 @@ export interface StorefrontAudiencePaymentSummary {
   status: AudiencePaymentStatus;
 }
 
-export interface StorefrontAudiencePaidAccess {
-  type: AudiencePaidAccessType;
-  tier_id: string;
-  price_id: string;
-  access_started_at?: number | null;
-  access_ends_at?: number | null;
-}
-
 export interface StorefrontAudienceSubscription {
   id: string;
   tier_id: string;
@@ -2769,7 +2742,7 @@ export interface StorefrontAudienceMemberState {
   id: string;
   enrollment_status: AudienceMemberStatus;
   delivery_status: AudienceDeliveryStatus;
-  paid_access?: StorefrontAudiencePaidAccess | null;
+  access?: AudienceMemberAccess | null;
   created_at: number;
   updated_at: number;
 }
@@ -2778,16 +2751,11 @@ export interface StorefrontAudienceMember {
   id: string;
   enrollment_status: AudienceMemberStatus;
   delivery_status: AudienceDeliveryStatus;
-  paid_access?: StorefrontAudiencePaidAccess | null;
+  access?: AudienceMemberAccess | null;
   audience: StorefrontAudience;
   payment?: StorefrontAudiencePaymentSummary | null;
   created_at: number;
   updated_at: number;
-}
-
-export interface AudienceMemberDetail {
-  contact: Contact;
-  member: AudienceMember;
 }
 
 export interface ActionLocation {
@@ -3082,8 +3050,7 @@ export interface CampaignMessage {
   campaign_enrollment_id: string;
   contact_id: string;
   mailbox_id: string;
-  direction: CampaignMessageDirection;
-  type: CampaignMessageType;
+  content: CampaignMessageContent;
   step_id?: string | null;
   step_position?: number | null;
   template_copy_hash?: string | null;
@@ -3095,23 +3062,6 @@ export interface CampaignMessage {
   personalization_error?: string | null;
   in_reply_to_message_id?: string | null;
   status: CampaignMessageStatus;
-  to_email: string;
-  from_email: string;
-  subject: string;
-  body: string;
-  body_html?: string | null;
-  template_id?: string | null;
-  template_vars: Record<string, unknown>;
-  attachments: string[];
-  target_channel_type?: ChannelType | null;
-  resolved_channel?: ContactChannel | null;
-  title?: string | null;
-  instructions?: string | null;
-  suggested_message?: string | null;
-  external_url?: string | null;
-  continue_behavior?: ManualTaskContinueBehavior | null;
-  outcome?: CampaignManualTaskOutcome | null;
-  note?: string | null;
   provider_message_id?: string | null;
   provider_thread_id?: string | null;
   error?: string | null;
@@ -3122,6 +3072,42 @@ export interface CampaignMessage {
   created_at: number;
   updated_at: number;
 }
+
+export interface CampaignEmailContent {
+  to_email: string;
+  from_email: string;
+  subject: string;
+  body: string;
+  body_html?: string | null;
+  template_id?: string | null;
+  template_vars: Record<string, unknown>;
+  attachments: string[];
+}
+
+export interface CampaignChannelTarget {
+  channel_id: string;
+  type: ChannelType;
+  label?: string | null;
+  value: string;
+}
+
+export interface CampaignManualTaskContent {
+  target_channel_type?: ChannelType | null;
+  target?: CampaignChannelTarget | null;
+  title: string;
+  instructions: string;
+  suggested_message?: string | null;
+  external_url?: string | null;
+  continue_behavior: ManualTaskContinueBehavior;
+  outcome?: CampaignManualTaskOutcome | null;
+  note?: string | null;
+}
+
+export type CampaignMessageContent =
+  | { type: "campaign_step_email"; data: CampaignEmailContent }
+  | { type: "manual_task"; data: CampaignManualTaskContent }
+  | { type: "manual_reply"; data: CampaignEmailContent }
+  | { type: "inbound_reply"; data: CampaignEmailContent };
 
 export interface CampaignEnrollmentConversationResponse {
   enrollment: CampaignEnrollment;
@@ -3183,7 +3169,7 @@ export interface LeadInsight {
   website?: string | null;
   industry?: string | null;
   location?: string | null;
-  description?: string | null;
+  company_description?: string | null;
   pain_points: string[];
   fit_reason?: string | null;
   scores: LeadScores;
@@ -3194,7 +3180,16 @@ export interface LeadInsight {
   run_id?: string | null;
   source_url?: string | null;
   source_excerpt?: string | null;
-  reasoning_summary?: string | null;
+}
+
+export interface AudienceLead {
+  id: string;
+  store_id: string;
+  audience_id: string;
+  member_id: string;
+  insight: LeadInsight;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface LeadResearchRun {
@@ -3501,62 +3496,8 @@ export interface PromoCode {
   code: string;
   discounts: import("./api").Discount[];
   conditions: import("./api").Condition[];
-  audience_provider?: AudiencePromotionProvider | null;
   status: PromoCodeStatus;
   uses: number;
   created_at: number;
   updated_at: number;
 }
-
-export type AudienceDiscountDuration =
-  | { type: "once" }
-  | { type: "repeating"; months: number }
-  | { type: "forever" };
-
-export type AudiencePromotionOperation =
-  | "create_coupon"
-  | "create_promotion_code"
-  | "archive_promotion_code"
-  | "delete_coupon";
-
-export type AudiencePromotionStatus =
-  | "requested"
-  | "processing"
-  | "succeeded"
-  | "failed"
-  | "rejected"
-  | "unknown"
-  | "archived";
-
-export type AudiencePromotionError =
-  | {
-      type: "provider_rejected";
-      message: string;
-      provider_code?: string | null;
-      provider_status?: number | null;
-      at: number;
-    }
-  | {
-      type: "provider_call_not_started" | "unknown_outcome";
-      message: string;
-      at: number;
-    };
-
-export type AudiencePromotionProvider = {
-  type: "stripe";
-  payment_provider_id: string;
-  connected_account_id: string;
-  revision: number;
-  attempt_count: number;
-  operation: AudiencePromotionOperation;
-  status: AudiencePromotionStatus;
-  coupon_id?: string | null;
-  promotion_code_id?: string | null;
-  requested_at: number;
-  processing_started_at?: number | null;
-  processing_deadline_at?: number | null;
-  completed_at?: number | null;
-  provider_error_code?: string | null;
-  provider_http_status?: number | null;
-  error?: AudiencePromotionError | null;
-};

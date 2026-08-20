@@ -74,7 +74,7 @@ function form() {
   };
 }
 
-test("a fresh cart load resolves Store defaults before hydrating persisted product items", async () => {
+test("a fresh cart load resolves Store defaults before loading persisted product references", async () => {
   const calls = [];
   const store = initialize(publishableKey, {
     apiUrl,
@@ -132,7 +132,6 @@ test("a fresh cart load resolves Store defaults before hydrating persisted produ
       {
         id: "variant-hydration-contract",
         prices: [{ market: "ita", amount: 1250, currency: "EUR" }],
-        inventory: [],
         attributes: [],
         requires_shipping: false,
       },
@@ -154,6 +153,19 @@ test("a fresh cart load resolves Store defaults before hydrating persisted produ
     if (call.url.endsWith("/products/product-hydration-contract")) {
       return jsonResponse(product);
     }
+    if (call.url.endsWith("/products/product-hydration-contract/inventory")) {
+      return jsonResponse([
+        {
+          id: "inventory-hydration-contract",
+          product_id: product.id,
+          variant_id: "variant-hydration-contract",
+          location_id: "location-hydration-contract",
+          available: 4,
+          reserved: 0,
+          updated_at: 1,
+        },
+      ]);
+    }
     throw new Error(
       `Unexpected cart hydration request: ${call.method} ${call.url}`,
     );
@@ -171,6 +183,7 @@ test("a fresh cart load resolves Store defaults before hydrating persisted produ
       `${apiUrl}/v1/storefront/carts/current`,
       `${apiUrl}/v1/storefront`,
       `${apiUrl}/v1/storefront/products/product-hydration-contract`,
+      `${apiUrl}/v1/storefront/products/product-hydration-contract/inventory`,
     ],
   );
   assert.equal(
@@ -189,7 +202,7 @@ test("a fresh cart load resolves Store defaults before hydrating persisted produ
       price: { market: "ita", amount: 1250, currency: "EUR" },
       quantity: 1,
       added_at: 1000,
-      max_stock: 0,
+      max_stock: 4,
     },
   ]);
   assert.equal(store.eshop.cart.status.get().error, null);
@@ -216,7 +229,8 @@ test("submitByKey reads anonymously, identifies lazily, and submits no Store rou
     };
     calls.push(call);
     if (call.url.endsWith("/forms/contact-form")) return jsonResponse(form());
-    if (call.url.endsWith("/account/identify")) return jsonResponse(identifyResponse());
+    if (call.url.endsWith("/account/identify"))
+      return jsonResponse(identifyResponse());
     if (call.url.endsWith("/forms/form-contact/submissions")) {
       return jsonResponse({
         id: "submission-contact",
@@ -317,7 +331,10 @@ test("submitByKey validates the latest schema before identifying or submitting",
   }
 
   assert.equal(calls.length, 3);
-  assert.equal(calls.every((call) => call.method === "GET"), true);
+  assert.equal(
+    calls.every((call) => call.method === "GET"),
+    true,
+  );
   assert.equal(storage.values.size, 0);
 });
 
@@ -336,8 +353,11 @@ test("email identification normalizes the address and reuses the exact identifie
   };
 
   try {
-    const first = await store.identifyContactEmailIfMissing("  Person@Example.COM  ");
-    const second = await store.identifyContactEmailIfMissing("person@example.com");
+    const first = await store.identifyContactEmailIfMissing(
+      "  Person@Example.COM  ",
+    );
+    const second =
+      await store.identifyContactEmailIfMissing("person@example.com");
     assert.equal(first.contact.email, "person@example.com");
     assert.equal(second.contact.email, "person@example.com");
   } finally {
@@ -439,22 +459,30 @@ test("raw form submission remains stateful and keeps only caller form fields", a
     if (String(url).endsWith("/account/identify")) {
       return jsonResponse(identifyResponse());
     }
-    return jsonResponse({ id: "submission-raw", ...JSON.parse(String(init.body)) });
+    return jsonResponse({
+      id: "submission-raw",
+      ...JSON.parse(String(init.body)),
+    });
   };
 
   try {
     await store.cms.form.submit({
       form_id: "form-raw",
-      fields: [{ id: "field-raw", key: "message", type: "text", value: "Hello" }],
+      fields: [
+        { id: "field-raw", key: "message", type: "text", value: "Hello" },
+      ],
     });
   } finally {
     globalThis.fetch = originalFetch;
   }
 
-  assert.deepEqual(calls.map((call) => call.url), [
-    `${apiUrl}/v1/storefront/account/identify`,
-    `${apiUrl}/v1/storefront/forms/form-raw/submissions`,
-  ]);
+  assert.deepEqual(
+    calls.map((call) => call.url),
+    [
+      `${apiUrl}/v1/storefront/account/identify`,
+      `${apiUrl}/v1/storefront/forms/form-raw/submissions`,
+    ],
+  );
   assert.deepEqual(calls[1].body, {
     form_id: "form-raw",
     fields: [{ id: "field-raw", key: "message", type: "text", value: "Hello" }],

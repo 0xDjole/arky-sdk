@@ -4,10 +4,7 @@ import {
   type ContactSession,
   type StorefrontIdentifyResult,
 } from "../index";
-import type {
-  StorefrontMarket,
-  StorefrontSetup,
-} from "../api/storefront";
+import type { StorefrontMarket, StorefrontSetup } from "../api/storefront";
 import type {
   StorefrontCart,
   StorefrontCollectionEntry,
@@ -215,12 +212,16 @@ function initializeStoreCore(
   );
   const digital_item_count = computed(
     [cart, digital_items],
-    (cartValue, items) => Math.max(rawDigitalItemCount(cartValue), items.length),
+    (cartValue, items) =>
+      Math.max(rawDigitalItemCount(cartValue), items.length),
   );
   const item_count = computed(
     [cart, product_item_count, booking_item_count, digital_item_count],
     (cartValue, products, services, digitalProducts) =>
-      Math.max(cartValue?.item_count || 0, products + services + digitalProducts),
+      Math.max(
+        cartValue?.item_count || 0,
+        products + services + digitalProducts,
+      ),
   );
   const snapshot = computed(
     [cart, product_items, booking_items, digital_items, item_count],
@@ -351,9 +352,11 @@ function initializeStoreCore(
   ): Promise<ContactSession> {
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) throw new Error("Contact email is required");
-
     const current = session.get();
-    if (current?.contact.email === normalizedEmail) return current;
+    if (current?.contact.email?.trim().toLowerCase() === normalizedEmail) {
+      return current;
+    }
+
     return identify({ email: normalizedEmail });
   }
 
@@ -418,10 +421,12 @@ function initializeStoreCore(
     productHint?: StorefrontProduct,
   ): Promise<EshopCartItem | null> {
     try {
-      const product =
+      const [product, inventory] = await Promise.all([
         productHint?.id === item.product_id
-          ? productHint
-          : await client.eshop.product.get({ id: item.product_id });
+          ? Promise.resolve(productHint)
+          : client.eshop.product.get({ id: item.product_id }),
+        client.eshop.product.getInventory({ id: item.product_id }),
+      ]);
       const variant = product.variants.find(
         (candidate) => candidate.id === item.variant_id,
       );
@@ -448,7 +453,7 @@ function initializeStoreCore(
         ),
         quantity: item.quantity,
         added_at: source.created_at ? source.created_at * 1000 : Date.now(),
-        max_stock: availableStock(client, variant),
+        max_stock: availableStock(client, inventory, variant.id),
       };
     } catch (error) {
       cart_status.setKey(
@@ -677,7 +682,9 @@ function initializeStoreCore(
     return response;
   }
 
-  async function removeDigitalProduct(itemId: string): Promise<StorefrontCart | null> {
+  async function removeDigitalProduct(
+    itemId: string,
+  ): Promise<StorefrontCart | null> {
     const writeRevision = nextCartWriteRevision();
     const current = cart.get();
     if (!current) return null;
@@ -1898,6 +1905,10 @@ function initializeStoreCore(
       params: StorefrontParams<GetProductParams>,
       options?: RequestOptions,
     ) => client.eshop.product.get(params, options),
+    getInventory: (
+      params: StorefrontParams<GetProductParams>,
+      options?: RequestOptions,
+    ) => client.eshop.product.getInventory(params, options),
     list: loadProducts,
   };
 

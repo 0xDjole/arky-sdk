@@ -11,8 +11,8 @@ import type {
   InvokeWorkflowTriggerParams,
   GetWorkflowExecutionsParams,
   GetWorkflowExecutionParams,
-  GetWorkflowEffectsParams,
-  GetWorkflowEffectParams,
+  GetWorkflowExternalOperationsParams,
+  GetWorkflowExternalOperationParams,
   GetWorkflowConnectionConnectUrlParams,
   GetWorkflowConnectionsParams,
   DeleteWorkflowConnectionParams,
@@ -29,7 +29,7 @@ import type {
   WorkflowExecutionDefinition,
   WorkflowExecutionInputCapture,
   WorkflowExecutionResults,
-  WorkflowEffect,
+  WorkflowExternalOperation,
   PaginatedResponse,
 } from "../types";
 
@@ -228,14 +228,16 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getWorkflowEffects(
-      params: GetWorkflowEffectsParams,
+    async getWorkflowExternalOperations(
+      params: GetWorkflowExternalOperationsParams,
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<WorkflowEffect>> {
+    ): Promise<PaginatedResponse<WorkflowExternalOperation>> {
       const store_id = params.store_id || apiConfig.storeId;
       const { store_id: _, workflow_id, execution_id, ...queryParams } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<WorkflowEffect>>(
-        `/v1/stores/${store_id}/workflows/${workflow_id}/executions/${execution_id}/effects`,
+      return apiConfig.httpClient.get<
+        PaginatedResponse<WorkflowExternalOperation>
+      >(
+        `/v1/stores/${store_id}/workflows/${workflow_id}/executions/${execution_id}/external-operations`,
         {
           ...options,
           params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
@@ -243,13 +245,13 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getWorkflowEffect(
-      params: GetWorkflowEffectParams,
+    async getWorkflowExternalOperation(
+      params: GetWorkflowExternalOperationParams,
       options?: RequestOptions,
-    ): Promise<WorkflowEffect> {
+    ): Promise<WorkflowExternalOperation> {
       const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<WorkflowEffect>(
-        `/v1/stores/${store_id}/workflows/${params.workflow_id}/executions/${params.execution_id}/effects/${params.effect_id}`,
+      return apiConfig.httpClient.get<WorkflowExternalOperation>(
+        `/v1/stores/${store_id}/workflows/${params.workflow_id}/executions/${params.execution_id}/external-operations/${params.operation_id}`,
         options,
       );
     },

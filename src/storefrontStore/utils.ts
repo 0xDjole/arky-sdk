@@ -11,6 +11,7 @@ import type {
   GeoLocation,
   Price,
   Product,
+  ProductInventory,
   ProductVariant,
   Provider,
   Service,
@@ -23,7 +24,6 @@ import type {
 } from "../types/api";
 import type {
   StorefrontProduct,
-  StorefrontProductVariant,
   StorefrontProvider,
   StorefrontService,
 } from "../types/storefront";
@@ -42,7 +42,8 @@ export function readErrorMessage(error: unknown, fallback: string): string {
 
 export function createId(prefix: string): string {
   const cryptoValue = globalThis.crypto;
-  if (cryptoValue && "randomUUID" in cryptoValue) return cryptoValue.randomUUID();
+  if (cryptoValue && "randomUUID" in cryptoValue)
+    return cryptoValue.randomUUID();
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
@@ -60,30 +61,66 @@ export function firstLocalized(value: unknown, locale: string): string {
   return "";
 }
 
-export function findBlock(blocks: Block[] | undefined, keys: string[]): Block | null {
+export function findBlock(
+  blocks: Block[] | undefined,
+  keys: string[],
+): Block | null {
   return (blocks || []).find((block) => keys.includes(block.key)) || null;
 }
 
-export function blockText(blocks: Block[] | undefined, keys: string[], locale: string): string {
+export function blockText(
+  blocks: Block[] | undefined,
+  keys: string[],
+  locale: string,
+): string {
   const block = findBlock(blocks, keys);
   if (!block) return "";
   return firstLocalized(block.value, locale);
 }
 
-export function productName(product: StorefrontProduct, locale: string): string {
-  return blockText(product.blocks, ["name", "title"], locale) || product.key || product.id;
+export function productName(
+  product: StorefrontProduct,
+  locale: string,
+): string {
+  return (
+    blockText(product.blocks, ["name", "title"], locale) ||
+    product.key ||
+    product.id
+  );
 }
 
-export function serviceName(service: StorefrontService, locale: string): string {
-  return blockText(service.blocks, ["name", "title"], locale) || service.key || service.id;
+export function serviceName(
+  service: StorefrontService,
+  locale: string,
+): string {
+  return (
+    blockText(service.blocks, ["name", "title"], locale) ||
+    service.key ||
+    service.id
+  );
 }
 
-export function providerName(provider: StorefrontProvider, locale: string): string {
-  return blockText(provider.blocks, ["name", "title"], locale) || provider.key || provider.id;
+export function providerName(
+  provider: StorefrontProvider,
+  locale: string,
+): string {
+  return (
+    blockText(provider.blocks, ["name", "title"], locale) ||
+    provider.key ||
+    provider.id
+  );
 }
 
-export function entitySlug(entity: { id: string; slug?: Record<string, string> }, locale: string): string {
-  return entity.slug?.[locale] || entity.slug?.en || Object.values(entity.slug || {})[0] || entity.id;
+export function entitySlug(
+  entity: { id: string; slug?: Record<string, string> },
+  locale: string,
+): string {
+  return (
+    entity.slug?.[locale] ||
+    entity.slug?.en ||
+    Object.values(entity.slug || {})[0] ||
+    entity.id
+  );
 }
 
 export function priceForMarket(
@@ -92,11 +129,17 @@ export function priceForMarket(
   marketCurrency: string | null | undefined,
 ): Price {
   const marketKey = market.trim();
-  if (!marketKey) throw new Error("A market is required to select a product price");
+  if (!marketKey)
+    throw new Error("A market is required to select a product price");
   const currency = marketCurrency?.trim().toUpperCase();
-  if (!currency) throw new Error(`Market ${marketKey} does not have an authoritative currency`);
+  if (!currency)
+    throw new Error(
+      `Market ${marketKey} does not have an authoritative currency`,
+    );
 
-  const marketPrices = prices.filter((candidate) => candidate.market === marketKey);
+  const marketPrices = prices.filter(
+    (candidate) => candidate.market === marketKey,
+  );
   if (marketPrices.length === 0) {
     throw new Error(`Product is not priced for market ${marketKey}`);
   }
@@ -111,7 +154,9 @@ export function priceForMarket(
     throw new Error(`Product has an invalid price for market ${marketKey}`);
   }
 
-  const authorizedPrices = marketPrices.filter((candidate) => candidate.audience_id);
+  const authorizedPrices = marketPrices.filter(
+    (candidate) => candidate.audience_id,
+  );
   if (authorizedPrices.length > 0) {
     return authorizedPrices.reduce((lowest, candidate) =>
       candidate.amount < lowest.amount ? candidate : lowest,
@@ -120,7 +165,9 @@ export function priceForMarket(
 
   const basePrices = marketPrices.filter((candidate) => !candidate.audience_id);
   if (basePrices.length !== 1) {
-    throw new Error(`Product does not have one base price for market ${marketKey}`);
+    throw new Error(
+      `Product does not have one base price for market ${marketKey}`,
+    );
   }
   const price = basePrices[0];
   return price;
@@ -128,11 +175,13 @@ export function priceForMarket(
 
 export function availableStock(
   client: ArkyStoreClient,
-  variant: StorefrontProductVariant,
+  inventory: Array<Omit<ProductInventory, "store_id">>,
+  variantId: string,
 ): number | undefined {
-  const fromUtility = client.utils.getAvailableStock(variant);
+  const levels = inventory.filter((level) => level.variant_id === variantId);
+  const fromUtility = client.utils.getAvailableStock({ inventory: levels });
   if (Number.isFinite(fromUtility)) return fromUtility;
-  const stock = (variant.inventory || []).reduce((total, row) => total + (row.available || 0), 0);
+  const stock = levels.reduce((total, row) => total + (row.available || 0), 0);
   return stock > 0 ? stock : undefined;
 }
 
@@ -148,7 +197,10 @@ export function locationToAddress(location: ZoneLocation): Address {
   };
 }
 
-export function createFormEntry(formId: string, fields: FormField[]): FormEntry {
+export function createFormEntry(
+  formId: string,
+  fields: FormField[],
+): FormEntry {
   if (!formId.trim()) throw new Error("formId is required");
   return { form_id: formId, fields };
 }
@@ -162,7 +214,9 @@ export function toCartProducts(items: EshopCartItem[]): CartProductInput[] {
   }));
 }
 
-export function toCartBookings(items: ArkyBookingCartItem[]): CartBookingInput[] {
+export function toCartBookings(
+  items: ArkyBookingCartItem[],
+): CartBookingInput[] {
   return items.map((item) => ({
     id: item.id,
     service_id: item.service_id,
@@ -179,7 +233,11 @@ function formValueError(field: FormSchema, message: string): Error {
 function isValidGeoLocation(value: unknown): value is GeoLocation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const location = value as GeoLocation;
-  if (location.label !== undefined && location.label !== null && typeof location.label !== "string") {
+  if (
+    location.label !== undefined &&
+    location.label !== null &&
+    typeof location.label !== "string"
+  ) {
     return false;
   }
   const coordinates = location.coordinates;
@@ -198,8 +256,10 @@ function buildFormField(field: FormSchema, value: FormValue): FormField {
   const common = { id: field.id, key: field.key };
   switch (field.type) {
     case "text":
-      if (typeof value !== "string") throw formValueError(field, "expected text");
-      if (field.required && value.trim().length === 0) throw formValueError(field, "required text is blank");
+      if (typeof value !== "string")
+        throw formValueError(field, "expected text");
+      if (field.required && value.trim().length === 0)
+        throw formValueError(field, "required text is blank");
       return { ...common, type: "text", value };
     case "number":
       if (typeof value !== "number" || !Number.isFinite(value)) {
@@ -213,7 +273,8 @@ function buildFormField(field: FormSchema, value: FormValue): FormField {
       }
       return { ...common, type: "number", value };
     case "boolean":
-      if (typeof value !== "boolean") throw formValueError(field, "expected a boolean");
+      if (typeof value !== "boolean")
+        throw formValueError(field, "expected a boolean");
       return { ...common, type: "boolean", value };
     case "date":
       if (typeof value !== "number" || !Number.isSafeInteger(value)) {
@@ -221,15 +282,23 @@ function buildFormField(field: FormSchema, value: FormValue): FormField {
       }
       return { ...common, type: "date", value };
     case "geo_location":
-      if (!isValidGeoLocation(value)) throw formValueError(field, "expected valid coordinates");
+      if (!isValidGeoLocation(value))
+        throw formValueError(field, "expected valid coordinates");
       return { ...common, type: "geo_location", value };
     case "select": {
-      if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+      if (
+        !Array.isArray(value) ||
+        value.some((item) => typeof item !== "string")
+      ) {
         throw formValueError(field, "expected a list of options");
       }
       const selected = value as string[];
-      if (field.required && selected.length === 0) throw formValueError(field, "at least one option is required");
-      if (new Set(selected).size !== selected.length || selected.some((item) => !field.options.includes(item))) {
+      if (field.required && selected.length === 0)
+        throw formValueError(field, "at least one option is required");
+      if (
+        new Set(selected).size !== selected.length ||
+        selected.some((item) => !field.options.includes(item))
+      ) {
         throw formValueError(field, "contains an unknown or duplicate option");
       }
       return { ...common, type: "select", value: selected };
@@ -240,23 +309,36 @@ function buildFormField(field: FormSchema, value: FormValue): FormField {
 function isEmptyOptionalValue(field: FormSchema, value: FormValue): boolean {
   if (field.required) return false;
   if (field.type === "text") return value === "";
-  if (field.type === "select") return Array.isArray(value) && value.length === 0;
+  if (field.type === "select")
+    return Array.isArray(value) && value.length === 0;
   if (field.type === "geo_location") {
-    return Boolean(value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0);
+    return Boolean(
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      Object.keys(value).length === 0,
+    );
   }
   return false;
 }
 
-export function buildFormFields(schema: FormSchema[], values: FormValues): FormField[] {
+export function buildFormFields(
+  schema: FormSchema[],
+  values: FormValues,
+): FormField[] {
   const knownKeys = new Set(schema.map((field) => field.key));
   const unknownKey = Object.keys(values).find((key) => !knownKeys.has(key));
-  if (unknownKey) throw new Error(`Form field '${unknownKey}' is not defined by the form schema`);
+  if (unknownKey)
+    throw new Error(
+      `Form field '${unknownKey}' is not defined by the form schema`,
+    );
 
   const fields: FormField[] = [];
   for (const field of schema) {
     const value = values[field.key];
     if (value === undefined) {
-      if (field.required) throw formValueError(field, "required value is missing");
+      if (field.required)
+        throw formValueError(field, "required value is missing");
       continue;
     }
     if (isEmptyOptionalValue(field, value)) continue;
@@ -301,7 +383,12 @@ export function formSchemaToBlock(field: FormSchema): FormInputBlock {
       min,
       max,
       options,
-      pattern: field.key === "email" ? "^.+@.+\\..+$" : field.key === "phone" ? "^.{6,20}$" : undefined,
+      pattern:
+        field.key === "email"
+          ? "^.+@.+\\..+$"
+          : field.key === "phone"
+            ? "^.{6,20}$"
+            : undefined,
     },
     value: getFormBlockValue(field),
   };
@@ -315,7 +402,11 @@ export function formatServiceTime(ts: number, tz: string): string {
   });
 }
 
-export function formatServiceSlotTime(from: number, to: number, tz: string): string {
+export function formatServiceSlotTime(
+  from: number,
+  to: number,
+  tz: string,
+): string {
   return `${formatServiceTime(from, tz)} - ${formatServiceTime(to, tz)}`;
 }
 
@@ -331,7 +422,12 @@ export function getSlotsForDate(
     const day = provider.days.find((candidate) => candidate.date === dateStr);
     if (!day) continue;
     for (const slot of day.slots) {
-      if (slot.spots > 0) slots.push({ from: slot.from, to: slot.to, providerId: provider.provider_id });
+      if (slot.spots > 0)
+        slots.push({
+          from: slot.from,
+          to: slot.to,
+          providerId: provider.provider_id,
+        });
     }
   }
   return slots.sort((a, b) => a.from - b.from);
@@ -350,7 +446,15 @@ export function hasAvailableSlotsForDate(
   });
 }
 
-export const SERVICE_WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+export const SERVICE_WEEKDAYS = [
+  "Mon",
+  "Tue",
+  "Wed",
+  "Thu",
+  "Fri",
+  "Sat",
+  "Sun",
+];
 
 export function createServiceInitialState(): ArkyServiceState {
   return {
@@ -364,7 +468,10 @@ export function createServiceInitialState(): ArkyServiceState {
     selectedDate: null,
     slots: [],
     selectedSlot: null,
-    timezone: typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC",
+    timezone:
+      typeof window !== "undefined"
+        ? Intl.DateTimeFormat().resolvedOptions().timeZone
+        : "UTC",
     tzGroups: {},
     loading: false,
     weekdays: SERVICE_WEEKDAYS,

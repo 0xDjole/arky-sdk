@@ -156,7 +156,7 @@ test("admin Store methods expose publishable-key regeneration and default-market
     publishable_key: publishableKey,
     default_market_id: "market-bih",
     timezone: "Europe/Sarajevo",
-    languages: [{ id: "en" }],
+    languages: ["en"],
   };
   const calls = [];
   const originalFetch = globalThis.fetch;
@@ -206,7 +206,7 @@ test("admin Store deletion requests the lifecycle transition with exact confirma
     lifecycle: "deleting",
     default_market_id: null,
     timezone: "Europe/Sarajevo",
-    languages: [{ id: "en" }],
+    languages: ["en"],
     emails: {
       billing: "billing@example.test",
       support: "support@example.test",
@@ -289,6 +289,31 @@ test("storefront collection lookup uses a keyless route and publishable-key head
   assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
   assert.equal(call.headers.get("x-arky-locale"), "en");
   assert.equal(call.headers.get("authorization"), null);
+});
+
+test("storefront product inventory is an explicit child-resource request", async () => {
+  const storefront = createStorefront(publishableKey, {
+    apiUrl: baseUrl,
+    locale: "en",
+  });
+  let call;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    call = { url: String(url), headers: new Headers(init.headers) };
+    return jsonResponse([]);
+  };
+
+  try {
+    await storefront.eshop.product.getInventory({ slug: "lean-product" });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(
+    call.url,
+    `${baseUrl}/v1/storefront/products/lean-product/inventory`,
+  );
+  assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
 });
 
 test("storefront cart recovery sends its credential only in the cart-token header", async () => {

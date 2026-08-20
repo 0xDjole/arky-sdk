@@ -46,7 +46,10 @@ export type StorefrontDto<T> = T extends readonly (infer Item)[]
 
 export type StorefrontCart = StorefrontDto<Cart>;
 export type StorefrontCollectionEntry = StorefrontDto<CollectionEntry>;
-export type StorefrontContact = StorefrontDto<Contact>;
+export interface StorefrontContact extends StorefrontDto<Contact> {
+  email?: string | null;
+  verified: boolean;
+}
 export type StorefrontForm = StorefrontDto<Form>;
 export type StorefrontFormSubmission = StorefrontDto<FormSubmission>;
 export type StorefrontLocation = StorefrontDto<Location>;
