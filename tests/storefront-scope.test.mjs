@@ -75,7 +75,6 @@ function cart(id = "cart-a") {
     promo_code: null,
     payment_method_key: null,
     shipping_method_id: null,
-    quote_snapshot: null,
     converted_order_id: null,
     item_count: 0,
     last_action_at: 1,

@@ -28,6 +28,7 @@ import type {
   GetServiceParams,
   GetServicesParams,
   UpdateOrderParams,
+  CancelOrderProductParams,
   UpdateProviderParams,
   UpdateServiceParams,
   UpdateServiceProviderParams,
@@ -378,6 +379,19 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    async cancelOrderProduct(
+      params: CancelOrderProductParams,
+      options?: RequestOptions,
+    ): Promise<Order> {
+      const { store_id, ...payload } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<Order>(
+        `/v1/stores/${target_store_id}/orders/${params.order_id}/products/${params.order_product_id}/cancel`,
+        payload,
+        options,
+      );
+    },
+
     async getOrder(
       params: GetOrderParams,
       options?: RequestOptions,
@@ -600,20 +614,8 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: GetQuoteParams,
       options?: RequestOptions,
     ): Promise<OrderQuote> {
-      const { location, store_id, products, bookings, digital, ...rest } =
-        params;
+      const { store_id, products, bookings, digital, ...rest } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      const shipping_address = location
-        ? {
-            country: location.country || "",
-            state: location.state || "",
-            city: location.city || "",
-            postal_code: location.postal_code || "",
-            name: "",
-            street1: "",
-            street2: null,
-          }
-        : rest.shipping_address;
       return apiConfig.httpClient.post<OrderQuote>(
         `/v1/stores/${target_store_id}/orders/quote`,
         {
@@ -621,7 +623,6 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
           products: products || [],
           bookings: bookings || [],
           digital: digital || [],
-          shipping_address,
           market: rest.market || apiConfig.market,
         },
         options,
@@ -640,6 +641,8 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
             amount: params.amount,
             refund_id: params.refund_id,
             allocations: params.allocations,
+            reason: params.reason,
+            private_note: params.private_note,
           },
           options,
         );

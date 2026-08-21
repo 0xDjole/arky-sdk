@@ -106,6 +106,9 @@ export interface OrderDispute {
   updated_at: number;
 }
 export type OrderRefundType = "manual" | "provider";
+export type RefundReason =
+  "customer_request" | "duplicate" | "fraudulent" | "other" | "store_closure";
+export type RefundRequestReason = Exclude<RefundReason, "store_closure">;
 export interface OrderRefund {
   id: string;
   version: number;
@@ -116,6 +119,9 @@ export interface OrderRefund {
   amount: number;
   currency: Currency;
   allocations: OrderRefundAllocation[];
+  requested_by_account_id?: string | null;
+  reason: RefundReason;
+  private_note?: string | null;
   status: import("./api").RefundStatus;
   safe_error?: string | null;
   requested_at: number;
@@ -167,33 +173,15 @@ export interface OrderMoney {
   shipping_method_id?: string | null;
 }
 
-export interface PromoCodeValidation {
-  promo_code_id: string;
-  code: string;
-  discounts: import("./api").Discount[];
-  conditions: import("./api").Condition[];
-}
-
 export interface OrderQuote {
-  id?: string;
-  expires_at?: number;
-  market: string;
-  zone: Zone | null;
   product_lines: ProductQuoteLine[];
   booking_lines: BookingQuoteLine[];
   digital_lines: DigitalProductQuoteLine[];
   shipping_lines: ShippingLine[];
-  subtotal: number;
-  shipping: number;
-  discount: number;
-  tax: number;
-  total: number;
-  shipping_method: ShippingMethod | null;
-  payment_method: PaymentMethod | null;
+  shipping_methods: ShippingMethod[];
+  payment_method_key: string;
   payment_methods: PaymentMethod[];
-  promo_code: PromoCodeValidation | null;
   money: OrderMoney;
-  charge_amount: number;
 }
 
 export interface Price {
@@ -297,7 +285,6 @@ export interface Cart {
   promo_code?: string | null;
   payment_method_key?: string | null;
   shipping_method_id?: string | null;
-  quote_snapshot?: OrderQuote | null;
   converted_order_id?: string | null;
   item_count: number;
   last_action_at: number;
@@ -756,12 +743,10 @@ export interface ShippingWeightTier {
 export type PaymentMethod =
   | {
       type: "cash";
-      id: string;
       key: string;
     }
   | {
       type: "credit_card";
-      id: string;
       key: string;
       payment_provider_id: string;
     };
@@ -809,7 +794,6 @@ export interface ProductVariant {
   prices: Price[];
   attributes: Block[];
   requires_shipping: boolean;
-  tax_category_id?: string | null;
   weight?: number;
 }
 
@@ -839,7 +823,6 @@ export interface OrderProductSnapshot {
   variant_attributes: Block[];
   requires_shipping: boolean;
   weight?: number | null;
-  tax_category_id?: string | null;
   price: Price;
 }
 
@@ -847,13 +830,11 @@ export interface OrderBookingSnapshot {
   service_key: string;
   provider_key: string;
   timezone: string;
-  tax_category_id?: string | null;
   price: Price;
 }
 
 export interface OrderDigitalProductSnapshot {
   product_key: string;
-  tax_category_id?: string | null;
   price: DigitalPrice;
 }
 
@@ -871,7 +852,6 @@ export interface TaxLine {
   jurisdiction_country?: string | null;
   jurisdiction_region?: string | null;
   jurisdiction_postal_code?: string | null;
-  tax_category_id?: string | null;
 }
 
 export interface LineMoneySnapshot {
@@ -900,56 +880,32 @@ export type OrderBookingStatus =
   | { status: "no_show" }
   | { status: "cancelled"; reason: OrderCancellationReason };
 
-export type ProductQuoteLineAvailability =
-  { ok: true; available?: number } | { ok: false; reason: string };
-
 export type BookingQuoteLineAvailability =
-  { ok: true; spots: number } | { ok: false; reason: string };
+  | { status: "available"; spots: number }
+  | { status: "unavailable"; reason: string };
 
 export interface ProductQuoteLine {
-  line_id: string;
   product_id: string;
   variant_id: string;
   quantity: number;
-  unit_price: number;
-  subtotal: number;
-  discount: number;
-  tax: number;
-  total: number;
   money: LineMoneySnapshot;
   snapshot: OrderProductSnapshot;
-  availability: ProductQuoteLineAvailability;
 }
 
 export interface BookingQuoteLine {
-  line_id: string;
   service_id: string;
   provider_id: string;
   from: number;
   to: number;
-  quantity: 1;
-  unit_price: number;
-  subtotal: number;
-  discount: number;
-  tax: number;
-  total: number;
   money: LineMoneySnapshot;
   snapshot: OrderBookingSnapshot;
   availability: BookingQuoteLineAvailability;
 }
 
 export interface DigitalProductQuoteLine {
-  line_id: string;
   digital_product_id: string;
-  quantity: 1;
-  unit_price: number;
-  subtotal: number;
-  discount: number;
-  tax: number;
-  total: number;
   money: LineMoneySnapshot;
   snapshot: OrderDigitalProductSnapshot;
-  availability: ProductQuoteLineAvailability;
 }
 
 export interface OrderProduct {
@@ -1076,7 +1032,6 @@ export interface DigitalProduct {
   taxonomies: TaxonomyEntry[];
   prices: DigitalPrice[];
   asset_ids: string[];
-  tax_category_id?: string | null;
   status: DigitalCatalogStatus;
   created_at: number;
   updated_at: number;
@@ -1089,13 +1044,11 @@ export interface StorefrontDigitalProduct {
   blocks: Block[];
   taxonomies: TaxonomyEntry[];
   prices: DigitalPrice[];
-  tax_category_id?: string | null;
 }
 
 export interface DigitalAsset {
   id: string;
   store_id: string;
-  object_key: string;
   file_name: string;
   mime_type: string;
   status: DigitalAssetStatus;
@@ -1161,8 +1114,6 @@ export interface OrderCheckoutResult {
 
 export interface Zone {
   id: string;
-  store_id: string;
-  market_id: string;
   countries: string[];
   states: string[];
   postal_codes: string[];
@@ -1335,10 +1286,13 @@ export type AudiencePaymentSafeError =
 
 export type AudiencePaymentType = "initial" | "renewal" | "one_time";
 
+export type AudiencePromotionUsageStatus = "reserved" | "redeemed" | "released";
+
 export interface AudiencePromotionSnapshot {
   promo_code_id: string;
   code: string;
   discount: number;
+  usage_status: AudiencePromotionUsageStatus;
 }
 
 export interface AudiencePayment {
@@ -1365,6 +1319,20 @@ export interface AudiencePayment {
   updated_at: number;
 }
 
+export interface AudienceDispute {
+  id: string;
+  store_id: string;
+  audience_id: string;
+  member_id: string;
+  payment_id: string;
+  amount: number;
+  currency: Currency;
+  status: StripeDisputeStatus;
+  reason: string;
+  created_at: number;
+  updated_at: number;
+}
+
 export type AudienceRefundStatus =
   "requested" | "processing" | "succeeded" | "failed" | "rejected" | "unknown";
 
@@ -1383,6 +1351,9 @@ export interface AudienceRefund {
   type: AudienceRefundType;
   amount: number;
   currency: Currency;
+  requested_by_account_id?: string | null;
+  reason: RefundReason;
+  private_note?: string | null;
   status: AudienceRefundStatus;
   safe_error?: AudienceRefundSafeError | null;
   created_at: number;
@@ -1764,6 +1735,12 @@ export type MailboxStatus = "active" | "draft" | "archived";
 export type MailboxPreset = "gmail" | "zoho" | "microsoft" | "custom";
 export type MailboxConnectionSecurity = "tls" | "start_tls";
 export type MailboxSyncStatus = "not_ready" | "ready" | "failed";
+export type MailboxSyncIssueType = "authentication" | "connection" | "recovery";
+export interface MailboxSyncIssue {
+  type: MailboxSyncIssueType;
+  message: string;
+  observed_at: number;
+}
 export type SmtpImapMailboxProviderInput = {
   type: "smtp_imap";
   preset: MailboxPreset;
@@ -1780,7 +1757,7 @@ export type SmtpImapMailboxProviderInput = {
 export type SmtpImapMailboxProvider = SmtpImapMailboxProviderInput & {
   password_configured: boolean;
   sync_status?: MailboxSyncStatus;
-  sync_error?: string | null;
+  sync_issue?: MailboxSyncIssue | null;
   sync_ready_at?: number | null;
   last_synced_at?: number | null;
   last_seen_uid?: number | null;
@@ -1802,7 +1779,7 @@ export type GoogleMailboxProvider = {
   sync_enabled: boolean;
   sync_interval_seconds: number;
   sync_status?: MailboxSyncStatus;
-  sync_error?: string | null;
+  sync_issue?: MailboxSyncIssue | null;
   sync_ready_at?: number | null;
   last_synced_at?: number | null;
   last_history_id?: string | null;
@@ -1866,11 +1843,15 @@ export type CampaignManualTaskOutcome =
 export type OutreachPersonalizationStatus =
   "idle" | "running" | "completed" | "failed" | "unknown";
 export type SuppressionStatus = "active" | "archived";
-export type SuppressionTargetType = "email" | "domain" | "contact" | "phone";
-export type SuppressionScopeType = "store" | "campaign";
+export type SuppressionTarget =
+  | { type: "email"; email: string }
+  | { type: "domain"; domain: string }
+  | { type: "contact"; contact_id: string };
+export type SuppressionScope =
+  { type: "store" } | { type: "campaign"; campaign_id: string };
 export type SuppressionReason =
   "manual" | "unsubscribed" | "bounced" | "complained" | "replied";
-export type SuppressionSource = "admin" | "import" | "reply" | "system";
+export type SuppressionSource = "admin" | "system";
 export type WorkflowStatus = "active" | "draft" | "archived" | "deleting";
 export type MutableWorkflowStatus = Exclude<WorkflowStatus, "deleting">;
 export type PromoCodeStatus = "active" | "draft" | "archived";
@@ -1898,12 +1879,7 @@ export type OrderCancellationReason =
   | "other";
 
 export type OrderStatus =
-  | "pending"
-  | "partially_confirmed"
-  | "confirmed"
-  | "partially_cancelled"
-  | "cancelled"
-  | "completed";
+  "pending" | "confirmed" | "partially_cancelled" | "cancelled";
 
 export interface TimeRange {
   from: number;
@@ -3117,14 +3093,8 @@ export interface CampaignEnrollmentConversationResponse {
 export interface Suppression {
   id: string;
   store_id: string;
-  campaign_id?: string | null;
-  contact_id?: string | null;
-  email?: string | null;
-  domain?: string | null;
-  target_type: SuppressionTargetType;
-  target_key: string;
-  scope_type: SuppressionScopeType;
-  scope_key: string;
+  target: SuppressionTarget;
+  scope: SuppressionScope;
   reason: SuppressionReason;
   status: SuppressionStatus;
   source: SuppressionSource;

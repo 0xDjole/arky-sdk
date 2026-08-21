@@ -98,6 +98,8 @@ export type {
   OrderRefund,
   OrderRefundType,
   OrderRefundAllocation,
+  RefundReason,
+  RefundRequestReason,
   OrderDigitalProduct,
   OrderDigitalProductSnapshot,
   DigitalProductQuoteLine,
@@ -125,6 +127,7 @@ export type {
   SubscriptionPlanFeatureType,
   SubscriptionPrice,
   AudiencePayment,
+  AudienceDispute,
   AudiencePaymentSafeError,
   AudiencePaymentStatus,
   AudiencePaymentType,
@@ -152,7 +155,6 @@ export type {
   GeoLocation,
   ZoneLocation,
   Location,
-  PromoCodeValidation,
   PaginatedResponse,
   Access,
   Media,
@@ -266,7 +268,6 @@ export type {
   OrderBookingStatus,
   ProductQuoteLine,
   BookingQuoteLine,
-  ProductQuoteLineAvailability,
   BookingQuoteLineAvailability,
   OrderStatus,
   OrderFulfillmentStatus,
@@ -325,6 +326,8 @@ export type {
   MailboxConnectionSecurity,
   MailboxPreset,
   MailboxSyncStatus,
+  MailboxSyncIssue,
+  MailboxSyncIssueType,
   GoogleMailboxProvider,
   SmtpImapMailboxProviderInput,
   SmtpImapMailboxProvider,
@@ -386,8 +389,8 @@ export type {
   OutreachPersonalizationStatus,
   OutreachThreadMode,
   SuppressionStatus,
-  SuppressionTargetType,
-  SuppressionScopeType,
+  SuppressionTarget,
+  SuppressionScope,
   SuppressionReason,
   SuppressionSource,
   WorkflowStatus,
@@ -430,6 +433,7 @@ export type {
   TrustedCartBookingInput,
   TrustedCartDigitalProductInput,
   CreateOrderRefundParams,
+  CancelOrderProductParams,
   CreateOrderRefundResponse,
   FindOrderRefundsParams,
   GetOrderRefundParams,
@@ -515,6 +519,8 @@ export type {
   FindAudiencePaymentsParams,
   FindStorefrontAudienceMembersParams,
   GetAudiencePaymentParams,
+  FindAudienceDisputesParams,
+  GetAudienceDisputeParams,
   FindAudienceRefundsParams,
   GetAudienceRefundParams,
   RetryAudienceRefundParams,
@@ -711,6 +717,7 @@ export {
 export type { TimelineParams } from "./api/crm";
 export type {
   SupportAgent,
+  SupportAgentDefinition,
   SupportAgentStatus,
   SupportChannel,
   SupportChannelConfig,
@@ -747,7 +754,7 @@ export type {
 } from "./api/support";
 export type { EventMetadata, EventScopeField } from "./api/platform";
 
-export const SDK_VERSION = "0.24.0";
+export const SDK_VERSION = "0.25.0";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -1269,6 +1276,7 @@ export function createAdmin(config: CreateAdminConfig) {
       },
       order: {
         update: eshopApi.updateOrder,
+        cancelProduct: eshopApi.cancelOrderProduct,
         get: eshopApi.getOrder,
         getProducts: eshopApi.getOrderProducts,
         getBookings: eshopApi.getOrderBookings,
@@ -1369,6 +1377,7 @@ export function createAdmin(config: CreateAdminConfig) {
           find: crmApi.audience.members.find,
           refund: crmApi.audience.members.refund,
           payments: crmApi.audience.members.payments,
+          disputes: crmApi.audience.members.disputes,
           refunds: crmApi.audience.members.refunds,
           subscription: crmApi.audience.members.subscription,
         },

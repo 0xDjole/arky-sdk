@@ -11,23 +11,32 @@ export type SupportAgentStatus = "draft" | "active" | "archived";
 export type SupportChannelStatus = "draft" | "active" | "disabled" | "archived";
 export type SupportChannelType = "web" | "email";
 
-export interface SupportAgentNode {
-  type: "message" | "input" | "ai_handoff" | "action";
-  text?: string;
-  buttons?: string[];
-  prompt?: string;
-  field?: string;
-  input_type?: "text" | "email" | "phone";
-  validation?: string;
-  system_prompt_override?: string;
-  tools?: string[];
-  action?: SupportAction;
-}
+export type SupportAgentNode =
+  | {
+      type: "message";
+      text: string;
+      buttons: string[];
+    }
+  | {
+      type: "input";
+      prompt: string;
+      field: string;
+      input_type: "text" | "email" | "phone";
+      validation: string | null;
+    }
+  | {
+      type: "ai_handoff";
+      system_prompt_override: string | null;
+      tools: string[];
+    }
+  | {
+      type: "action";
+      action: SupportAction;
+    };
 
-export interface SupportAction {
-  type: "end_conversation" | "human_handoff";
-  message?: string;
-}
+export type SupportAction =
+  | { type: "end_conversation"; message: string }
+  | { type: "human_handoff" };
 
 export interface SupportAgentEdge {
   source: string;
@@ -53,7 +62,7 @@ export interface SupportAgent {
   name: string;
   status: SupportAgentStatus;
   channel_ids: string[];
-  notes?: string | null;
+  notes: string | null;
   created_at: number;
   updated_at: number;
 }
@@ -65,7 +74,7 @@ export interface SupportAgentDefinition {
   entry_node_id: string;
   nodes: Record<string, SupportAgentNode>;
   edges: SupportAgentEdge[];
-  ai_config?: SupportAgentAiConfig;
+  ai_config: SupportAgentAiConfig | null;
   created_at: number;
   updated_at: number;
 }
@@ -73,8 +82,6 @@ export interface SupportAgentDefinition {
 export type SupportChannelConfig =
   | {
       type: "web";
-      widget_key: string;
-      allowed_origins?: string[];
     }
   | {
       type: "email";
@@ -95,26 +102,26 @@ export interface SupportChannel {
 export type SupportConversationChannelContext =
   | {
       type: "web";
-      visitor_id?: string | null;
-      session_id?: string | null;
+      visitor_id: string | null;
+      session_id: string | null;
     }
   | {
       type: "email";
       thread_id: string;
       reply_to: string;
-      message_id?: string | null;
+      message_id: string | null;
       references: string[];
     };
 
 export interface SupportConversation {
   id: string;
   store_id: string;
-  agent_id?: string;
-  channel_id?: string | null;
+  agent_id: string | null;
+  channel_id: string | null;
   channel_context: SupportConversationChannelContext;
-  current_node_id?: string;
-  contact_id?: string;
-  assigned_account_id?: string | null;
+  current_node_id: string | null;
+  contact_id: string | null;
+  assigned_account_id: string | null;
   status: "active" | "ai_mode" | "escalated" | "resolved";
   variables: Record<string, unknown>;
   channel_metadata: Record<string, unknown>;
@@ -128,10 +135,11 @@ export interface SupportMessage {
   conversation_id: string;
   role: "system" | "user" | "assistant" | "staff" | "action";
   content: string;
-  buttons?: string[];
+  buttons: string[] | null;
   metadata: Record<string, unknown>;
-  ai_response?: SupportAiResponse | null;
+  ai_response: SupportAiResponse | null;
   created_at: number;
+  updated_at: number;
 }
 
 export type SupportAiResponseStatus =
@@ -139,9 +147,9 @@ export type SupportAiResponseStatus =
 
 export interface SupportAiResponse {
   status: SupportAiResponseStatus;
-  processing_deadline_at?: number | null;
-  completed_at?: number | null;
-  error?: string | null;
+  processing_deadline_at: number | null;
+  completed_at: number | null;
+  error: string | null;
 }
 
 export interface SupportConversationResponse {
@@ -165,7 +173,7 @@ export interface StartSupportConversationParams {
   visitor_id?: string;
   session_id?: string;
   contact_id?: string;
-  metadata?: Record<string, unknown>;
+  channel_metadata?: Record<string, unknown>;
 }
 
 export interface SendSupportMessageParams {
