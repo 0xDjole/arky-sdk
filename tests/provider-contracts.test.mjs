@@ -42,6 +42,55 @@ async function captureFetch(responseBody, request) {
   }
 }
 
+test("digital-product promo conditions keep their tagged wire contract", async () => {
+  const promo = {
+    id: "promo-contract",
+    store_id: defaultStoreId,
+    code: "DIGITAL10",
+    discounts: [],
+    conditions: [
+      {
+        type: "digital_products",
+        digital_product_ids: ["digital-product-contract"],
+      },
+    ],
+    status: "active",
+    uses: 0,
+    created_at: 1,
+    updated_at: 1,
+  };
+  const { calls, result } = await captureFetch(promo, () =>
+    admin().eshop.promoCode.createPromoCode({
+      store_id: defaultStoreId,
+      code: promo.code,
+      discounts: [
+        { type: "items_percentage", market_key: "us", bps: 1_000 },
+      ],
+      conditions: promo.conditions,
+    }),
+  );
+
+  assert.deepEqual(calls, [
+    {
+      url: `${baseUrl}/v1/stores/${defaultStoreId}/promo-codes`,
+      method: "POST",
+      body: {
+        code: "DIGITAL10",
+        discounts: [
+          { type: "items_percentage", market_key: "us", bps: 1_000 },
+        ],
+        conditions: [
+          {
+            type: "digital_products",
+            digital_product_ids: ["digital-product-contract"],
+          },
+        ],
+      },
+    },
+  ]);
+  assert.deepEqual(result, promo);
+});
+
 test("subscription checkout returns its embedded Stripe action in one POST", async () => {
   const subscription = {
     id: "subscription-contract",
@@ -186,6 +235,7 @@ test("storefront support keeps its capability token in one forced header on the 
   try {
     const started = await storefront.support.startConversation({
       agent_key: "default",
+      channel_metadata: { source: "provider-contract" },
     });
     assert.equal(started.support_token, supportToken);
     await storefront.support.sendMessage(
@@ -226,7 +276,10 @@ test("storefront support keeps its capability token in one forced header on the 
     3,
     "invalid support credentials must execute no HTTP request",
   );
-  assert.deepEqual(calls[0].body, { agent_key: "default" });
+  assert.deepEqual(calls[0].body, {
+    agent_key: "default",
+    channel_metadata: { source: "provider-contract" },
+  });
   assert.equal(calls[0].url, `${baseUrl}/v1/storefront/support/conversations`);
   assert.equal(
     Object.keys(calls[0].headers).some(
@@ -372,6 +425,11 @@ test("provider-effect APIs send one resource identity and return direct server e
           order_id: "order-refund-contract",
           refund_id: resourceId,
           amount: 1250,
+          allocations: [
+            { type: "adjustment", amount: 1250, reason: "contract" },
+          ],
+          reason: "duplicate",
+          private_note: "Duplicate checkout",
         }),
       expected: {
         url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-refund-contract/refunds`,
@@ -379,6 +437,11 @@ test("provider-effect APIs send one resource identity and return direct server e
         body: {
           amount: 1250,
           refund_id: resourceId,
+          allocations: [
+            { type: "adjustment", amount: 1250, reason: "contract" },
+          ],
+          reason: "duplicate",
+          private_note: "Duplicate checkout",
         },
       },
     },
@@ -393,11 +456,18 @@ test("provider-effect APIs send one resource identity and return direct server e
           payment_id: "payment-refund-contract",
           amount: 500,
           refund_id: resourceId,
+          reason: "fraudulent",
+          private_note: "Risk review",
         }),
       expected: {
         url: `${baseUrl}/v1/stores/${defaultStoreId}/audiences/audience-refund-contract/members/member-refund-contract/payments/payment-refund-contract/refunds`,
         method: "POST",
-        body: { amount: 500, refund_id: resourceId },
+        body: {
+          amount: 500,
+          refund_id: resourceId,
+          reason: "fraudulent",
+          private_note: "Risk review",
+        },
       },
     },
     {
@@ -467,6 +537,10 @@ test("money and shipping clients reject evidence for any other resource ID", asy
           order_id: "order-refund-contract",
           refund_id: resourceId,
           amount: 1250,
+          allocations: [
+            { type: "adjustment", amount: 1250, reason: "contract" },
+          ],
+          reason: "customer_request",
         }),
       error: /Refund response did not match the requested refund_id/,
     },
@@ -485,6 +559,7 @@ test("money and shipping clients reject evidence for any other resource ID", asy
           payment_id: "payment-refund-contract",
           amount: 500,
           refund_id: resourceId,
+          reason: "customer_request",
         }),
       error: /Audience refund response did not match the requested refund_id/,
     },
@@ -532,6 +607,8 @@ test("order refunds reject mismatched money and statuses outside the closed life
       order_id: "order-refund-contract",
       refund_id: resourceId,
       amount: 1250,
+      allocations: [{ type: "adjustment", amount: 1250, reason: "contract" }],
+      reason: "other",
     });
 
   await t.test("mismatched amount", async () => {

@@ -5,7 +5,10 @@ import type {
   AudienceTierPriceInput,
   Contact,
   Cart,
+  Condition,
+  CreateSuppressionParams,
   CreateOrderShipmentParams,
+  DigitalAsset,
   GetCollectionParams,
   GetShippingRatesParams,
   OrderMoney,
@@ -19,6 +22,7 @@ import type {
   PaginatedResponse,
   ProductInventoryInput,
   ProductVariant,
+  RefundRequestReason,
   ServiceProvider,
   OrderShipment,
   OrderShipmentStatus,
@@ -37,9 +41,15 @@ import type {
   StorefrontDto,
   StorefrontGetSupportConversationParams,
   StorefrontSendSupportMessageParams,
+  SupportAgentDefinition,
+  SupportAgentNode,
+  SupportConversation,
   SupportConversationStartResponse,
+  SupportMessage,
   UpdateCartParams,
   MarketZoneInput,
+  Mailbox,
+  Suppression,
   WorkflowHttpNode,
   WorkflowTriggerNode,
 } from "../../dist/index.js";
@@ -54,7 +64,7 @@ import {
   type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
 } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.24.0" = SDK_VERSION;
+const sdkVersionLiteral: "0.25.0" = SDK_VERSION;
 const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
 // @ts-expect-error the server's serialized feature key is crm_contacts.
 const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
@@ -64,6 +74,13 @@ const audienceTierPriceInput: AudienceTierPriceInput = {
   interval: { period: "month", count: 1 },
   status: "active",
 };
+const merchantRefundReason: RefundRequestReason = "fraudulent";
+const digitalProductCondition: Condition = {
+  type: "digital_products",
+  digital_product_ids: ["digital-product-contract"],
+};
+// @ts-expect-error Store closure is a system-only refund reason.
+const systemRefundReasonFromClient: RefundRequestReason = "store_closure";
 const audienceTierPriceWithProvider: AudienceTierPriceInput = {
   currency: "usd",
   amount: 1200,
@@ -100,6 +117,32 @@ const smtpImapMailboxProviderWithoutType: SmtpImapMailboxProviderInput = {
 void smtpImapMailboxProviderInput;
 void smtpImapMailboxProviderWithoutType;
 
+const suppressionInput: CreateSuppressionParams = {
+  target: { type: "email", email: "person@example.com" },
+  scope: { type: "campaign", campaign_id: "campaign-contract" },
+  reason: "manual",
+};
+declare const suppression: Suppression;
+if (suppression.target.type === "contact") {
+  const suppressionContactId: string = suppression.target.contact_id;
+  void suppressionContactId;
+}
+// @ts-expect-error suppression identity is expressed only by its tagged target.
+suppression.target_key;
+// @ts-expect-error suppression ownership scope is expressed only by its tagged scope.
+suppression.campaign_id;
+declare const digitalAsset: DigitalAsset;
+// @ts-expect-error object storage keys are internal and never exposed by Admin responses.
+digitalAsset.object_key;
+declare const mailbox: Mailbox;
+if (mailbox.provider.type === "smtp_imap") {
+  const hasCredential: boolean = mailbox.provider.password_configured;
+  const safeIssueType: string | undefined = mailbox.provider.sync_issue?.type;
+  void hasCredential;
+  void safeIssueType;
+}
+void suppressionInput;
+
 const clearCartAddresses: UpdateCartParams = {
   id: "cart-contract",
   shipping_address: null,
@@ -109,7 +152,6 @@ const clearCartAddresses: UpdateCartParams = {
 const inventoryInput: ProductInventoryInput = {
   location_id: "location-contract",
   available: 10,
-  reserved: 0,
 };
 const zoneInput: MarketZoneInput = {
   countries: ["US"],
@@ -338,7 +380,6 @@ const accountingTaxLine: TaxLine = {
   jurisdiction_country: "US",
   jurisdiction_region: null,
   jurisdiction_postal_code: null,
-  tax_category_id: null,
 };
 // @ts-expect-error no provider tax identity is fabricated by Arky.
 accountingTaxLine.tax_rate_id;
@@ -439,6 +480,75 @@ safeSocialConnectionData.type;
 
 declare const supportStart: SupportConversationStartResponse;
 const supportCapability: string = supportStart.support_token;
+
+const supportMessageNode: SupportAgentNode = {
+  type: "message",
+  text: "How can we help?",
+  buttons: ["Billing"],
+};
+const supportInputNode: SupportAgentNode = {
+  type: "input",
+  prompt: "What is your email?",
+  field: "email",
+  input_type: "email",
+  validation: null,
+};
+const supportEndNode: SupportAgentNode = {
+  type: "action",
+  action: { type: "end_conversation", message: "Thanks" },
+};
+// @ts-expect-error message nodes require their serialized text.
+const invalidSupportMessageNode: SupportAgentNode = {
+  type: "message",
+  buttons: [],
+};
+const invalidSupportActionNode: SupportAgentNode = {
+  type: "action",
+  // @ts-expect-error end_conversation actions require a message.
+  action: { type: "end_conversation" },
+};
+const supportDefinitionWithNoAi: SupportAgentDefinition = {
+  id: "definition-contract",
+  store_id: "store-contract",
+  support_agent_id: "agent-contract",
+  entry_node_id: "message",
+  nodes: { message: supportMessageNode },
+  edges: [],
+  ai_config: null,
+  created_at: 1,
+  updated_at: 1,
+};
+const supportConversationWithNullReferences: SupportConversation = {
+  id: "conversation-contract",
+  store_id: "store-contract",
+  agent_id: null,
+  channel_id: null,
+  channel_context: {
+    type: "web",
+    visitor_id: null,
+    session_id: null,
+  },
+  current_node_id: null,
+  contact_id: null,
+  assigned_account_id: null,
+  status: "active",
+  variables: {},
+  channel_metadata: {},
+  created_at: 1,
+  updated_at: 1,
+};
+const supportMessageWithNullState: SupportMessage = {
+  id: "message-contract",
+  store_id: "store-contract",
+  conversation_id: "conversation-contract",
+  role: "system",
+  content: "Hello",
+  buttons: null,
+  metadata: {},
+  ai_response: null,
+  created_at: 1,
+  updated_at: 1,
+};
 
 const storefrontSupportMessage: StorefrontSendSupportMessageParams = {
   conversation_id: "conversation-contract",
@@ -644,6 +754,13 @@ void [
   shipmentStatus,
   shipmentTrackingStatusAt,
   supportCapability,
+  supportInputNode,
+  supportEndNode,
+  invalidSupportMessageNode,
+  invalidSupportActionNode,
+  supportDefinitionWithNoAi,
+  supportConversationWithNullReferences,
+  supportMessageWithNullState,
   storefrontSupportMessage,
   storefrontSupportRead,
   storeSubscriptionWithoutCheckout,

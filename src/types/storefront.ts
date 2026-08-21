@@ -61,7 +61,7 @@ export type StorefrontProvider = StorefrontDto<Provider>;
 export type StorefrontService = StorefrontDto<Service>;
 export type StorefrontServiceProvider = StorefrontDto<ServiceProvider>;
 export type StorefrontPage<T> = StorefrontDto<PaginatedResponse<T>>;
-export type StorefrontZone = Omit<Zone, "store_id" | "market_id">;
+export type StorefrontZone = Zone;
 export type StorefrontMarket = Omit<
   Market,
   "store_id" | "created_at" | "updated_at" | "zones"

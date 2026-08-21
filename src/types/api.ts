@@ -61,8 +61,9 @@ import type {
   CampaignManualTaskOutcome,
   LeadResearchRunStatus,
   SuppressionStatus,
+  SuppressionTarget,
+  SuppressionScope,
   SuppressionReason,
-  SuppressionSource,
   SocialConnectionType,
   SocialPublicationCommentIntent,
   SocialPublicationCommentPriority,
@@ -95,7 +96,7 @@ export interface DeleteLocationParams {
   id: string;
 }
 
-export type MarketZoneInput = Omit<Zone, "id" | "store_id" | "market_id"> & {
+export type MarketZoneInput = Omit<Zone, "id"> & {
   id?: string;
 };
 
@@ -109,7 +110,6 @@ export interface CreateMarketParams {
 
 export interface UpdateMarketParams {
   id: string;
-  key?: string;
   currency?: Currency;
   tax_mode?: "inclusive" | "exclusive";
   payment_methods?: PaymentMethod[];
@@ -190,8 +190,6 @@ export interface GetQuoteParams {
   payment_method_key?: string;
   promo_code?: string;
   shipping_method_id?: string;
-
-  location?: ZoneLocation;
 }
 
 export interface GetCurrentCartParams {
@@ -485,9 +483,9 @@ export interface GetDeliveryStatsParams {}
 export type StoreRole = "admin" | "owner" | "super";
 
 export type Discount =
-  | { type: "items_percentage"; market_id: string; bps: number }
-  | { type: "items_fixed"; market_id: string; amount: number }
-  | { type: "shipping_percentage"; market_id: string; bps: number }
+  | { type: "items_percentage"; market_key: string; bps: number }
+  | { type: "items_fixed"; market_key: string; amount: number }
+  | { type: "shipping_percentage"; market_key: string; bps: number }
   | {
       type: "audience_percentage";
       audience_id: string;
@@ -499,6 +497,7 @@ export type Discount =
 export type Condition =
   | { type: "products"; product_ids: string[] }
   | { type: "services"; service_ids: string[] }
+  | { type: "digital_products"; digital_product_ids: string[] }
   | { type: "min_order_amount"; amount: number }
   | { type: "date_range"; start?: number | null; end?: number | null }
   | { type: "max_uses"; count: number }
@@ -641,7 +640,7 @@ export interface TestWebhookResponse {
 
 export type ProductInventoryInput = Pick<
   ProductInventory,
-  "location_id" | "available" | "reserved"
+  "location_id" | "available"
 >;
 
 export interface CreateProductVariantInput {
@@ -650,7 +649,6 @@ export interface CreateProductVariantInput {
   inventory: ProductInventoryInput[];
   attributes: Block[];
   requires_shipping?: boolean;
-  tax_category_id?: string | null;
   weight?: number;
 }
 
@@ -661,7 +659,6 @@ export interface UpdateProductVariantInput {
   inventory?: ProductInventoryInput[];
   attributes?: Block[];
   requires_shipping?: boolean;
-  tax_category_id?: string | null;
   weight?: number | null;
 }
 
@@ -733,6 +730,14 @@ export interface UpdateOrderParams {
   forms?: FormEntry[];
   product_items?: TrustedCartProductInput[];
   booking_items?: TrustedCartBookingInput[];
+}
+
+export interface CancelOrderProductParams {
+  store_id?: string;
+  order_id: string;
+  order_product_id: string;
+  version: number;
+  quantity: number;
 }
 
 export interface CreateProviderParams {
@@ -1092,8 +1097,6 @@ export interface GetStoresParams {
   query?: string | number;
   limit?: number;
   cursor?: string;
-  sort_field?: string;
-  sort_direction?: "asc" | "desc";
 }
 
 export interface SetupAnalyticsParams {
@@ -1105,6 +1108,8 @@ export interface CreateOrderRefundParams {
   refund_id: string;
   amount: number;
   allocations: import("./index").OrderRefundAllocation[];
+  reason: import("./index").RefundRequestReason;
+  private_note?: string | null;
   store_id?: string;
 }
 
@@ -1156,7 +1161,6 @@ export interface CreateDigitalProductParams {
   taxonomies?: import("./index").TaxonomyEntry[];
   prices?: import("./index").DigitalPrice[];
   asset_ids?: string[];
-  tax_category_id?: string | null;
   status?: import("./index").DigitalCatalogStatus;
 }
 
@@ -1169,7 +1173,6 @@ export interface UpdateDigitalProductParams {
   taxonomies?: import("./index").TaxonomyEntry[];
   prices?: import("./index").DigitalPrice[];
   asset_ids?: string[];
-  tax_category_id?: string | null;
   status?: import("./index").DigitalCatalogStatus;
 }
 
@@ -1509,6 +1512,8 @@ export interface RefundAudienceMemberParams {
   payment_id: string;
   refund_id: string;
   amount?: number | null;
+  reason: import("./index").RefundRequestReason;
+  private_note?: string | null;
 }
 
 export interface RefundAudienceMemberResult {
@@ -1533,6 +1538,22 @@ export interface FindStorefrontAudienceMembersParams {
 }
 
 export interface GetAudiencePaymentParams {
+  store_id?: string;
+  audience_id: string;
+  member_id: string;
+  id: string;
+}
+
+export interface FindAudienceDisputesParams {
+  store_id?: string;
+  audience_id: string;
+  member_id: string;
+  payment_id?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface GetAudienceDisputeParams {
   store_id?: string;
   audience_id: string;
   member_id: string;
@@ -1944,12 +1965,9 @@ export interface UpdateCampaignMessageParams {
 
 export interface CreateSuppressionParams {
   store_id?: string;
-  campaign_id?: string;
-  contact_id?: string;
-  email?: string;
-  domain?: string;
+  target: SuppressionTarget;
+  scope: SuppressionScope;
   reason?: SuppressionReason;
-  source?: SuppressionSource;
 }
 
 export interface UpdateSuppressionParams {
@@ -1962,10 +1980,8 @@ export interface UpdateSuppressionParams {
 export interface FindSuppressionsParams {
   store_id?: string;
   status?: SuppressionStatus;
-  contact_id?: string;
-  email?: string;
-  domain?: string;
-  campaign_id?: string;
+  target?: SuppressionTarget;
+  scope?: SuppressionScope;
   reason?: SuppressionReason;
   query?: string | number;
   limit?: number;

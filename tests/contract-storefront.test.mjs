@@ -45,7 +45,11 @@ function setup() {
           currency: "EUR",
           tax_mode: "inclusive",
           payment_methods: [
-            { id: "payment-card", key: "credit_card", type: "credit_card" },
+            {
+              key: "credit_card",
+              type: "credit_card",
+              payment_provider_id: "provider-stripe",
+            },
           ],
           zones: [],
         },
@@ -72,11 +76,6 @@ function cartSnapshot(itemCount = 0) {
     promo_code: null,
     payment_method_key: "cash",
     shipping_method_id: null,
-    quote_snapshot: {
-      charge_amount: 1250,
-      total: 1250,
-      money: { total: 1250, currency: "EUR", payment_method_key: "cash" },
-    },
     converted_order_id: null,
     item_count: itemCount,
     last_action_at: 1,
@@ -474,15 +473,6 @@ test("card checkout returns an embedded Stripe action without navigating", async
   const cart = {
     ...cartSnapshot(1),
     payment_method_key: "credit_card",
-    quote_snapshot: {
-      charge_amount: 1250,
-      total: 1250,
-      money: {
-        total: 1250,
-        currency: "EUR",
-        payment_method_key: "credit_card",
-      },
-    },
   };
   store.eshop.cart.cart.set(cart);
   store.eshop.cart.product_items.set([
@@ -502,6 +492,28 @@ test("card checkout returns an embedded Stripe action without navigating", async
   let checkoutCalls = 0;
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
+    if (String(url).endsWith("/quote")) {
+      return jsonResponse({
+        product_lines: [],
+        booking_lines: [],
+        digital_lines: [],
+        shipping_lines: [],
+        shipping_methods: [],
+        payment_method_key: "credit_card",
+        payment_methods: [
+          {
+            type: "credit_card",
+            key: "credit_card",
+            payment_provider_id: "provider-stripe",
+          },
+        ],
+        money: {
+          total: 1250,
+          currency: "EUR",
+          payment_method_key: "credit_card",
+        },
+      });
+    }
     if (!String(url).endsWith("/checkout")) return jsonResponse(cart);
     checkoutCalls += 1;
     return jsonResponse({

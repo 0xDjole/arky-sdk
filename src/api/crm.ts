@@ -32,6 +32,8 @@ import type {
   RefundAudienceMemberResult,
   FindAudiencePaymentsParams,
   GetAudiencePaymentParams,
+  FindAudienceDisputesParams,
+  GetAudienceDisputeParams,
   FindAudienceRefundsParams,
   GetAudienceRefundParams,
   RetryAudienceRefundParams,
@@ -87,6 +89,7 @@ import type {
   Audience,
   AudienceTier,
   AudiencePayment,
+  AudienceDispute,
   AudienceRefund,
   AudienceSubscription,
   AudienceMember,
@@ -578,9 +581,10 @@ export const createContactApi = (apiConfig: ApiConfig) => {
           const path = audience_id
             ? `/v1/stores/${target_store_id}/audiences/${audience_id}/members`
             : `/v1/stores/${target_store_id}/audiences/members`;
-          return apiConfig.httpClient.get<
-            PaginatedResponse<AudienceMember>
-          >(path, { ...options, params: queryParams });
+          return apiConfig.httpClient.get<PaginatedResponse<AudienceMember>>(
+            path,
+            { ...options, params: queryParams },
+          );
         },
         async refund(
           params: RefundAudienceMemberParams,
@@ -623,6 +627,31 @@ export const createContactApi = (apiConfig: ApiConfig) => {
             const target_store_id = params.store_id || apiConfig.storeId;
             return apiConfig.httpClient.get<AudiencePayment>(
               `/v1/stores/${target_store_id}/audiences/${params.audience_id}/members/${params.member_id}/payments/${params.id}`,
+              options,
+            );
+          },
+        },
+
+        disputes: {
+          async find(
+            params: FindAudienceDisputesParams,
+            options?: RequestOptions,
+          ): Promise<PaginatedResponse<AudienceDispute>> {
+            const { store_id, audience_id, member_id, ...queryParams } = params;
+            const target_store_id = store_id || apiConfig.storeId;
+            return apiConfig.httpClient.get<PaginatedResponse<AudienceDispute>>(
+              `/v1/stores/${target_store_id}/audiences/${audience_id}/members/${member_id}/disputes`,
+              { ...options, params: queryParams },
+            );
+          },
+
+          async get(
+            params: GetAudienceDisputeParams,
+            options?: RequestOptions,
+          ): Promise<AudienceDispute> {
+            const target_store_id = params.store_id || apiConfig.storeId;
+            return apiConfig.httpClient.get<AudienceDispute>(
+              `/v1/stores/${target_store_id}/audiences/${params.audience_id}/members/${params.member_id}/disputes/${params.id}`,
               options,
             );
           },

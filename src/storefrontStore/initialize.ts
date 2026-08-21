@@ -514,7 +514,7 @@ function initializeStoreCore(
       response.shipping_method_id || null,
     );
     promo_code.set(response.promo_code || null);
-    quote.set(response.quote_snapshot || null);
+    quote.set(null);
 
     const cartProducts = response.product_items || [];
     const cartBookings = response.booking_items || [];
@@ -815,19 +815,13 @@ function initializeStoreCore(
       const paymentMethodKey =
         input.payment_method_key ||
         current.payment_method_key ||
-        quoteValue?.payment_method?.key ||
+        quoteValue?.payment_method_key ||
         undefined;
-      let chargeAmount = firstFiniteNumber(
-        quoteValue?.charge_amount,
-        current.quote_snapshot?.charge_amount,
-      );
+      let chargeAmount = firstFiniteNumber(quoteValue?.money?.total);
       if (paymentMethodKey === "credit_card" && chargeAmount === undefined) {
         const latestQuote = await client.eshop.cart.quote({ id: current.id });
         quote.set(latestQuote);
-        chargeAmount = firstFiniteNumber(
-          latestQuote.charge_amount,
-          latestQuote.total,
-        );
+        chargeAmount = firstFiniteNumber(latestQuote.money.total);
       }
       if (
         paymentMethodKey === "credit_card" &&
