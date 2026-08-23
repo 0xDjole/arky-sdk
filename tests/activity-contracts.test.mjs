@@ -19,18 +19,35 @@ function jsonResponse(body) {
 test("Admin exposes CRM Activities and sends only canonical Activity routes and filters", async () => {
   const admin = createAdmin({ baseUrl, storeId, market: "bih" });
   const calls = [];
+  const activity = {
+    id: "activity-contract",
+    store_id: storeId,
+    contact_id: "contact-original",
+    canonical_contact_id: "contact-activity-contract",
+    key: "page.view",
+    type: "tracked",
+    preview_text: "Viewed product",
+    occurred_at: 1,
+    created_at: 1,
+    data: {
+      type: "tracked",
+      value: { key: "page.view", payload: { path: "/products/example" } },
+    },
+  };
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     calls.push({ url: String(url), method: init.method });
-    return jsonResponse({ items: [], cursor: null });
+    return jsonResponse({ items: [activity], cursor: null });
   };
 
+  let timeline;
+  let found;
   try {
-    await admin.crm.activity.timeline({
+    timeline = await admin.crm.activity.timeline({
       contact_id: "contact-activity-contract",
       limit: 10,
     });
-    await admin.crm.activity.find({
+    found = await admin.crm.activity.find({
       contact_id: "contact-activity-contract",
       limit: 20,
     });
@@ -40,6 +57,14 @@ test("Admin exposes CRM Activities and sends only canonical Activity routes and 
   }
 
   assert.equal("action" in admin.crm, false);
+  assert.deepEqual(timeline, { items: [activity], cursor: null });
+  assert.deepEqual(found, { items: [activity], cursor: null });
+  assert.equal(timeline.items[0].contact_id, "contact-original");
+  assert.equal(
+    timeline.items[0].canonical_contact_id,
+    "contact-activity-contract",
+  );
+  assert.equal("updated_at" in timeline.items[0], false);
   assert.deepEqual(calls, [
     {
       url: `${baseUrl}/v1/stores/${storeId}/contacts/contact-activity-contract/activities?contact_id=contact-activity-contract&limit=10`,

@@ -193,6 +193,8 @@ const removedShippingContractPatterns = [
 ];
 const removedCrmActionVocabularyPattern =
   /\b(?:has_action|goal_action_key|action_id|opportunity_action_id|action_by_country|top_action_pages|recent_action)\b|\/actions\b|["']actions["']|\b(?:crmApi|storefrontApi|client)\.action\b/g;
+const removedActivityMutationPattern =
+  /export interface Activity\s*\{[^}]*\bupdated_at\??:/g;
 const exportedDeclarationPattern =
   /\bexport\s+(?:declare\s+)?(?:type|interface|class|enum|function|const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\b/g;
 
@@ -322,12 +324,35 @@ for (const file of listTypeScriptFiles(sourceDir)) {
     failures++;
   }
 
+  for (const match of source.matchAll(removedActivityMutationPattern)) {
+    report(file, source, match.index, "immutable Activity exposes updated_at");
+    failures++;
+  }
+
   for (const match of source.matchAll(exportedDeclarationPattern)) {
     const name = match[1];
     if (!/\d$/.test(name)) continue;
     report(file, source, match.index, `numbered public declaration ${name}`);
     failures++;
   }
+}
+
+const activityTypesFile = resolve(sourceDir, "types/index.ts");
+const activityTypesSource = readFileSync(activityTypesFile, "utf8");
+const activityContract = activityTypesSource.match(
+  /export interface Activity\s*\{([\s\S]*?)\n\}/,
+);
+if (
+  !activityContract ||
+  !/\n\s*canonical_contact_id:\s*string;/.test(activityContract[1])
+) {
+  report(
+    activityTypesFile,
+    activityTypesSource,
+    activityContract?.index ?? 0,
+    "Activity must expose required canonical_contact_id",
+  );
+  failures++;
 }
 
 if (failures > 0) {

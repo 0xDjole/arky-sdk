@@ -3012,12 +3012,12 @@ export interface Activity {
   id: string;
   store_id: string;
   contact_id: string;
+  canonical_contact_id: string;
   key: string;
   type: ActivityData["type"];
   preview_text?: string | null;
   occurred_at: number;
   created_at: number;
-  updated_at: number;
   data: ActivityData;
 }
 

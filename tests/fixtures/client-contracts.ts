@@ -1593,7 +1593,7 @@ const supportMessageWithNullState: SupportMessage = {
 const storefrontSupportMessage: StorefrontSendSupportMessageParams = {
   conversation_id: "conversation-contract",
   support_token: "a".repeat(64),
-  message_id: "018f477d-1cae-7c12-bf12-123456789abc",
+  message_id: "018f477d-1cae-4c12-bf12-123456789abc",
   input: { type: "text", content: "Help" },
 };
 
@@ -1638,7 +1638,7 @@ const invalidStoreSubscriptionStatus: StoreSubscriptionStatus = "requires_action
 // @ts-expect-error storefront support messages require the capability token.
 const supportMessageWithoutCapability: StorefrontSendSupportMessageParams = {
   conversation_id: "conversation-contract",
-  message_id: "018f477d-1cae-7c12-bf12-123456789abc",
+  message_id: "018f477d-1cae-4c12-bf12-123456789abc",
   input: { type: "text", content: "Help" },
 };
 
@@ -2043,14 +2043,16 @@ const activity: Activity = {
   id: "activity-contract",
   store_id: "store-contract",
   contact_id: "contact-contract",
+  canonical_contact_id: "canonical-contact-contract",
   key: "page.view",
   type: "tracked",
   preview_text: "Viewed product",
   occurred_at: 1,
   created_at: 1,
-  updated_at: 1,
   data: activityData,
 };
+// @ts-expect-error immutable Activity facts do not expose update timestamps.
+activity.updated_at;
 const storefrontActivity: StorefrontActivity = {
   contact_id: "contact-contract",
   key: "page.view",
