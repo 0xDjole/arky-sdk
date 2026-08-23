@@ -1049,7 +1049,7 @@ export interface GetFormSubmissionsParams {
   created_at_to?: number;
 }
 
-export interface FindActionsParams {
+export interface FindActivitiesParams {
   store_id?: string;
   contact_id?: string;
   limit?: number;
@@ -2472,7 +2472,7 @@ export interface FindContactsParams {
   query?: string | number;
   classification_query?: ClassificationQuery[];
   status?: ContactStatus;
-  has_action?: boolean;
+  has_activity?: boolean;
   has_cart?: boolean;
   limit?: number;
   cursor?: string;

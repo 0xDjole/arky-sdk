@@ -109,6 +109,27 @@ const removedIdentifiers = [
   "FindOrderShipmentChargesParams",
   "GetOrderShipmentChargeParams",
   "RetryOrderShipmentChargeParams",
+  "Action",
+  "ActionData",
+  "ActionContext",
+  "ActionLocation",
+  "ActionDevice",
+  "ActionSession",
+  "SocialActionAuthor",
+  "FindActionsParams",
+  "TimelineParams",
+  "StorefrontAction",
+  "TrackActionParams",
+  "CommonActionKey",
+  "AnalyticsActionReportKey",
+  "ActionFeedCategory",
+  "ActionFeedItem",
+  "ActionFeedSummary",
+  "ActionFeedCursor",
+  "ActionFeedData",
+  "createActionAdminApi",
+  "createActionApi",
+  "COMMON_ACTION_KEYS",
 ];
 
 const removedIdentifierPattern = new RegExp(
@@ -168,6 +189,8 @@ const removedShippingContractPatterns = [
   /export interface ShippingRate\s*\{[^}]*\b(?:amount|currency)\??:/g,
   /\/shippo-label\b|\/shipments\/[^\s`"']+\/retry\b|\/charges(?:\/|`|"|')/g,
 ];
+const removedCrmActionVocabularyPattern =
+  /\b(?:has_action|goal_action_key|action_id|opportunity_action_id|action_by_country|top_action_pages|recent_action)\b|\/actions\b|["']actions["']|\b(?:crmApi|storefrontApi|client)\.action\b/g;
 const exportedDeclarationPattern =
   /\bexport\s+(?:declare\s+)?(?:type|interface|class|enum|function|const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\b/g;
 
@@ -290,6 +313,11 @@ for (const file of listTypeScriptFiles(sourceDir)) {
       report(file, source, match.index, "removed Shipping contract");
       failures++;
     }
+  }
+
+  for (const match of source.matchAll(removedCrmActionVocabularyPattern)) {
+    report(file, source, match.index, `removed CRM Action vocabulary ${match[0]}`);
+    failures++;
   }
 
   for (const match of source.matchAll(exportedDeclarationPattern)) {

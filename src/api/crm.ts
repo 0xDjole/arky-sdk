@@ -5,7 +5,7 @@ import type {
   UpdateContactParams,
   GetContactParams,
   FindContactsParams,
-  FindActionsParams,
+  FindActivitiesParams,
   MergeContactsParams,
   ImportContactsParams,
   ImportContactsPreviewParams,
@@ -95,7 +95,7 @@ import type {
   AudienceMember,
   AudienceLead,
   RemoveAudienceMemberResult,
-  Action,
+  Activity,
   Suppression,
   AudienceManagementResponse,
   AudiencePaymentMethodSessionResponse,
@@ -105,41 +105,47 @@ import type {
   ContactSessionRecord,
 } from "../types";
 
-export interface TimelineParams {
+export interface ActivityTimelineParams {
   contact_id: string;
   store_id?: string;
   limit?: number;
   cursor?: string;
 }
 
-export const createActionAdminApi = (apiConfig: ApiConfig) => ({
+export const createActivityAdminApi = (apiConfig: ApiConfig) => ({
   async timeline(
-    params: TimelineParams,
+    params: ActivityTimelineParams,
     options?: RequestOptions,
-  ): Promise<{ items: Action[]; cursor: string | null }> {
+  ): Promise<{ items: Activity[]; cursor: string | null }> {
     const store_id = params.store_id || apiConfig.storeId;
     const queryParams: Record<string, unknown> = {
       contact_id: params.contact_id,
     };
     if (params.limit !== undefined) queryParams.limit = params.limit;
     if (params.cursor) queryParams.cursor = params.cursor;
-    return apiConfig.httpClient.get<{ items: Action[]; cursor: string | null }>(
-      `/v1/stores/${store_id}/contacts/${params.contact_id}/actions`,
+    return apiConfig.httpClient.get<{
+      items: Activity[];
+      cursor: string | null;
+    }>(
+      `/v1/stores/${store_id}/contacts/${params.contact_id}/activities`,
       { ...options, params: queryParams },
     );
   },
 
   async find(
-    params: FindActionsParams,
+    params: FindActivitiesParams,
     options?: RequestOptions,
-  ): Promise<{ items: Action[]; cursor: string | null }> {
+  ): Promise<{ items: Activity[]; cursor: string | null }> {
     const store_id = params.store_id || apiConfig.storeId;
     const queryParams: Record<string, unknown> = {};
     if (params.contact_id) queryParams.contact_id = params.contact_id;
     if (params.limit !== undefined) queryParams.limit = params.limit;
     if (params.cursor) queryParams.cursor = params.cursor;
-    return apiConfig.httpClient.get<{ items: Action[]; cursor: string | null }>(
-      `/v1/stores/${store_id}/actions`,
+    return apiConfig.httpClient.get<{
+      items: Activity[];
+      cursor: string | null;
+    }>(
+      `/v1/stores/${store_id}/activities`,
       { ...options, params: queryParams },
     );
   },
@@ -207,8 +213,8 @@ export const createContactApi = (apiConfig: ApiConfig) => {
       if (params?.classification_query)
         queryParams.classification_query = params.classification_query;
       if (params?.status) queryParams.status = params.status;
-      if (params?.has_action !== undefined)
-        queryParams.has_action = params.has_action;
+      if (params?.has_activity !== undefined)
+        queryParams.has_activity = params.has_activity;
       if (params?.has_cart !== undefined)
         queryParams.has_cart = params.has_cart;
       if (params?.sort_field) queryParams.sort_field = params.sort_field;
@@ -1093,6 +1099,6 @@ export const createContactApi = (apiConfig: ApiConfig) => {
       },
     },
 
-    action: createActionAdminApi(apiConfig),
+    activity: createActivityAdminApi(apiConfig),
   };
 };

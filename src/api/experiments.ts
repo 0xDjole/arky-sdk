@@ -15,7 +15,7 @@ export interface Experiment {
   key: string;
   status: ExperimentStatus;
   version: number;
-  goal_action_key: string;
+  goal_activity_key: string;
   attribution_window_days: number;
   variants: ExperimentVariant[];
   created_at: number;
@@ -25,7 +25,7 @@ export interface Experiment {
 export interface CreateExperimentParams {
   store_id?: string;
   key: string;
-  goal_action_key: string;
+  goal_activity_key: string;
   attribution_window_days?: number;
   variants: ExperimentVariant[];
   status?: ExperimentStatus;
@@ -34,7 +34,7 @@ export interface CreateExperimentParams {
 export interface UpdateExperimentParams {
   store_id?: string;
   key: string;
-  goal_action_key?: string;
+  goal_activity_key?: string;
   attribution_window_days?: number;
   variants?: ExperimentVariant[];
   status?: ExperimentStatus;

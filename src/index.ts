@@ -336,9 +336,9 @@ export type {
   OpportunityStage,
   OpportunityType,
   OpportunitySource,
-  Action,
-  ActionData,
-  ActionContext,
+  Activity,
+  ActivityData,
+  ActivityContext,
   Mailbox,
   MailboxConnectionSecurity,
   MailboxPreset,
@@ -674,7 +674,7 @@ export type {
   AnalyticsReportKey,
   AnalyticsMetricReportKey,
   AnalyticsBreakdownReportKey,
-  AnalyticsActionReportKey,
+  AnalyticsActivityReportKey,
   AnalyticsCompositeReportKey,
   AnalyticsReportRequest,
   AnalyticsBlockRequest,
@@ -696,11 +696,11 @@ export type {
   AnalyticsReportScope,
   AnalyticsBlockResponse,
   AnalyticsResponse,
-  ActionFeedCategory,
-  ActionFeedItem,
-  ActionFeedSummary,
-  ActionFeedCursor,
-  ActionFeedData,
+  ActivityFeedCategory,
+  ActivityFeedItem,
+  ActivityFeedSummary,
+  ActivityFeedCursor,
+  ActivityFeedData,
 } from "./api/analytics";
 
 export type {
@@ -721,9 +721,9 @@ export type {
 } from "./types/api";
 
 export type {
-  StorefrontAction,
-  TrackActionParams,
-  CommonActionKey,
+  StorefrontActivity,
+  TrackActivityParams,
+  CommonActivityKey,
   ExperimentUseResponse,
   StorefrontContact,
   StorefrontBookingOffering,
@@ -737,7 +737,7 @@ export type {
   StorefrontZone,
   UseExperimentParams,
 } from "./api/storefront";
-export { COMMON_ACTION_KEYS } from "./api/storefront";
+export { COMMON_ACTIVITY_KEYS } from "./api/storefront";
 export type {
   CreateExperimentParams,
   Experiment,
@@ -767,7 +767,7 @@ export {
   type CartControllerUpdateParams,
 } from "./cartController";
 
-export type { TimelineParams } from "./api/crm";
+export type { ActivityTimelineParams } from "./api/crm";
 export type {
   SupportAgent,
   SupportAgentDefinition,
@@ -1441,7 +1441,7 @@ export function createAdmin(config: CreateAdminConfig) {
           subscription: crmApi.audience.members.subscription,
         },
       },
-      action: crmApi.action,
+      activity: crmApi.activity,
     },
     outreach: {
       campaign: crmApi.campaign,
@@ -1914,7 +1914,7 @@ function createStorefrontClientCore(
         getMe: me,
       },
     },
-    action: storefrontApi.action,
+    activity: storefrontApi.activity,
     experiments: storefrontApi.experiments,
     support: createStorefrontSupportApi(apiConfig, ensureVisitorSession),
     getSetup,

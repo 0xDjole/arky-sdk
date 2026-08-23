@@ -65,8 +65,8 @@ import type {
 } from "../types/api";
 import type {
   ExperimentUseResponse,
-  StorefrontAction,
-  TrackActionParams,
+  StorefrontActivity,
+  TrackActivityParams,
   UseExperimentParams,
 } from "../api/storefront";
 import type {
@@ -1632,9 +1632,9 @@ function initializeStoreCore(
     return client.experiments.use(input);
   }
 
-  async function trackAction(params: TrackActionParams): Promise<void> {
+  async function trackActivity(params: TrackActivityParams): Promise<void> {
     await ensureSession();
-    return client.action.track(params);
+    return client.activity.track(params);
   }
 
   const cart_store = {
@@ -1814,14 +1814,14 @@ function initializeStoreCore(
       cart: cart_store,
     },
     crm: client.crm,
-    action: {
-      track(params: TrackActionParams) {
-        return trackAction(params);
+    activity: {
+      track(params: TrackActivityParams) {
+        return trackActivity(params);
       },
       pageView(payload: Record<string, unknown> = {}) {
-        return trackAction({ key: "page.view", payload });
+        return trackActivity({ key: "page.view", payload });
       },
-      state: atom<StorefrontAction | null>(null),
+      state: atom<StorefrontActivity | null>(null),
     },
     experiments: {
       use: useExperiment,

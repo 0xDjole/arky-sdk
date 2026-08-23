@@ -11,8 +11,8 @@ export type AnalyticsReportKey =
   | "contact_funnel"
   | "outreach_overview"
   | "outreach_funnel"
-  | "action_by_country"
-  | "top_action_pages"
+  | "activity_by_country"
+  | "top_activity_pages"
   | "entity_status_overview"
   | "data_health"
   | "orders_created"
@@ -45,9 +45,9 @@ export type AnalyticsReportKey =
   | "carts_by_status"
   | "orders_by_status"
   | "order_products_by_status"
-  | "recent_action";
+  | "recent_activity";
 
-export type ActionFeedCategory =
+export type ActivityFeedCategory =
   | "orders"
   | "carts"
   | "promo_codes"
@@ -59,12 +59,12 @@ export type ActionFeedCategory =
   | "providers"
   | "cms"
   | "workflows"
-  | "actions";
+  | "activities";
 
 export interface AnalyticsReportRequest {
   key: AnalyticsReportKey;
   limit?: number;
-  category?: ActionFeedCategory;
+  category?: ActivityFeedCategory;
   cursor_created_at?: number;
   cursor_id?: string;
 }
@@ -200,7 +200,7 @@ export interface DataHealthData {
   unknown_device_events: number;
 }
 
-export interface ActionFeedItem {
+export interface ActivityFeedItem {
   id: string;
   entity: string;
   entity_id: string;
@@ -217,7 +217,7 @@ export interface ActionFeedItem {
   created_at: number;
 }
 
-export interface ActionFeedSummary {
+export interface ActivityFeedSummary {
   total: number;
   orders: number;
   submissions: number;
@@ -231,19 +231,19 @@ export interface ActionFeedSummary {
   providers: number;
   cms: number;
   workflows: number;
-  actions: number;
+  activities: number;
   window_start: number;
 }
 
-export interface ActionFeedCursor {
+export interface ActivityFeedCursor {
   created_at: number;
   id: string;
 }
 
-export interface ActionFeedData {
-  items: ActionFeedItem[];
-  summary: ActionFeedSummary;
-  next_cursor?: ActionFeedCursor | null;
+export interface ActivityFeedData {
+  items: ActivityFeedItem[];
+  summary: ActivityFeedSummary;
+  next_cursor?: ActivityFeedCursor | null;
   meta: {
     row_count: number;
     execution_ms: number;
@@ -261,8 +261,8 @@ export type AnalyticsMetricReportKey =
   | "media_count";
 
 export type AnalyticsBreakdownReportKey =
-  | "action_by_country"
-  | "top_action_pages"
+  | "activity_by_country"
+  | "top_activity_pages"
   | "products_by_status"
   | "services_by_status"
   | "providers_by_status"
@@ -286,7 +286,7 @@ export type AnalyticsBreakdownReportKey =
   | "orders_by_status"
   | "order_products_by_status";
 
-export type AnalyticsActionReportKey = "recent_action";
+export type AnalyticsActivityReportKey = "recent_activity";
 
 export type AnalyticsCompositeReportKey =
   | "business_overview"
@@ -307,7 +307,7 @@ type AnalyticsReportData =
   | { key: "outreach_funnel"; data: OutreachFunnelData }
   | { key: "entity_status_overview"; data: EntityStatusOverviewData }
   | { key: "data_health"; data: DataHealthData }
-  | { key: AnalyticsActionReportKey; data: ActionFeedData };
+  | { key: AnalyticsActivityReportKey; data: ActivityFeedData };
 
 export type AnalyticsReport = AnalyticsReportData & {
   scope: AnalyticsReportScope;

@@ -502,8 +502,8 @@ export interface SocialPublicationComment {
   thread_last_synced_at?: number | null;
   author_is_channel: boolean;
   contact_id?: string | null;
-  action_id?: string | null;
-  opportunity_action_id?: string | null;
+  activity_id?: string | null;
+  opportunity_activity_id?: string | null;
   author_name?: string | null;
   author_handle?: string | null;
   author_provider_user_id?: string | null;
@@ -2856,31 +2856,31 @@ export interface StorefrontAudienceMember {
   updated_at: number;
 }
 
-export interface ActionLocation {
+export interface ActivityLocation {
   country_code?: string | null;
   city?: string | null;
   region?: string | null;
   timezone?: string | null;
 }
 
-export interface ActionDevice {
+export interface ActivityDevice {
   device_type?: string | null;
   browser?: string | null;
   os?: string | null;
   language?: string | null;
 }
 
-export interface ActionSession {
+export interface ActivitySession {
   idx?: number | null;
 }
 
-export interface ActionContext {
-  location?: ActionLocation | null;
-  device?: ActionDevice | null;
-  session?: ActionSession | null;
+export interface ActivityContext {
+  location?: ActivityLocation | null;
+  device?: ActivityDevice | null;
+  session?: ActivitySession | null;
 }
 
-export interface SocialActionAuthor {
+export interface SocialActivityAuthor {
   provider_user_id?: string | null;
   name?: string | null;
   handle?: string | null;
@@ -2903,7 +2903,7 @@ export type OpportunitySource =
       type: "social_comment";
       publication_id: string;
       comment_id: string;
-      action_id?: string | null;
+      activity_id?: string | null;
     }
   | {
       type: "form_submission";
@@ -2913,17 +2913,17 @@ export type OpportunitySource =
   | {
       type: "tracked";
       key: string;
-      action_id?: string | null;
+      activity_id?: string | null;
     }
   | { type: "manual" };
 
-export type ActionData =
+export type ActivityData =
   | {
       type: "tracked";
       value: {
         key: string;
         payload: Record<string, unknown>;
-        context?: ActionContext | null;
+        context?: ActivityContext | null;
       };
     }
   | {
@@ -2933,7 +2933,7 @@ export type ActionData =
         form_key: string;
         submission_id: string;
         field_keys: string[];
-        context?: ActionContext | null;
+        context?: ActivityContext | null;
       };
     }
   | {
@@ -2945,7 +2945,7 @@ export type ActionData =
         comment_id: string;
         provider_comment_id: string;
         provider_parent_comment_id?: string | null;
-        author: SocialActionAuthor;
+        author: SocialActivityAuthor;
         text: string;
       };
     }
@@ -3008,17 +3008,17 @@ export type ActionData =
       };
     };
 
-export interface Action {
+export interface Activity {
   id: string;
   store_id: string;
   contact_id: string;
   key: string;
-  type: ActionData["type"];
+  type: ActivityData["type"];
   preview_text?: string | null;
   occurred_at: number;
   created_at: number;
   updated_at: number;
-  data: ActionData;
+  data: ActivityData;
 }
 
 export interface Mailbox {

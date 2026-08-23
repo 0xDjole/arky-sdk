@@ -138,7 +138,26 @@ import type {
   Webhook,
   FindDigitalProductsParams,
   MarkCashOnDeliveryPaidParams,
+  Activity,
+  ActivityContext,
+  ActivityData,
+  ActivityFeedData,
+  AnalyticsActivityReportKey,
+  CommonActivityKey,
+  CampaignMessageDirection,
+  CheckoutPaymentAction,
+  CreateExperimentParams,
+  EventAction,
+  Experiment,
+  ExperimentUseResponse,
+  StorefrontActivity,
+  SupportAction,
+  TrackActivityParams,
 } from "../../dist/index.js";
+// @ts-expect-error CRM customer/business facts use the Activity name exclusively.
+import type { Action, ActionData } from "../../dist/index.js";
+// @ts-expect-error analytics exposes Activity feed and report names exclusively.
+import type { ActionFeedData, AnalyticsActionReportKey } from "../../dist/index.js";
 // @ts-expect-error Promotion command and response types are lifecycle-specific.
 import type { Discount } from "../../dist/index.js";
 // @ts-expect-error Promotion conditions use their full domain name.
@@ -172,11 +191,15 @@ import type {
   CreateStoreLocationParams,
   CreateStoreParams,
   CreateWebhookParams,
-  FindActionsParams,
+  FindActivitiesParams,
+  FindContactsParams,
   RequestOptions,
 } from "../../dist/types.js";
+// @ts-expect-error CRM Activity queries have no Action compatibility alias.
+import type { FindActionsParams } from "../../dist/types.js";
 import { createAdmin, SDK_VERSION } from "../../dist/index.js";
 import {
+  COMMON_ACTIVITY_KEYS,
   createStorefront,
   initialize,
   type FormField,
@@ -184,6 +207,10 @@ import {
   type FormValues,
   type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
 } from "../../dist/storefront.js";
+// @ts-expect-error storefront tracking uses Activity type names exclusively.
+import type { CommonActionKey, StorefrontAction, TrackActionParams } from "../../dist/storefront.js";
+// @ts-expect-error storefront Activity keys have no Action compatibility alias.
+import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
 const sdkVersionLiteral: "0.25.0" = SDK_VERSION;
 const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
@@ -1973,16 +2000,138 @@ const canonicalPage: PaginatedResponse<{ id: string }> = {
   cursor: "cursor-2",
 };
 
-const actionPageParams: FindActionsParams = {
+const activityPageParams: FindActivitiesParams = {
   store_id: "store-contract",
   contact_id: "contact-contract",
   limit: 20,
   cursor: "cursor-contract",
 };
 type AssertNever<T extends never> = T;
-type UnsupportedActionFilterKeys = AssertNever<
-  Extract<keyof FindActionsParams, "query" | "types" | "from" | "to">
+type UnsupportedActivityFilterKeys = AssertNever<
+  Extract<keyof FindActivitiesParams, "query" | "types" | "from" | "to">
 >;
+type RemovedContactActionFilterKey = AssertNever<
+  Extract<keyof FindContactsParams, "has_action">
+>;
+type RemovedExperimentActionGoalKey = AssertNever<
+  Extract<keyof CreateExperimentParams, "goal_action_key">
+>;
+
+const activityContext: ActivityContext = {
+  location: { country_code: "BA", city: "Sarajevo" },
+  device: { device_type: "desktop", browser: "Firefox" },
+  session: { idx: 1 },
+};
+const activityData: ActivityData = {
+  type: "tracked",
+  value: {
+    key: "page.view",
+    payload: { path: "/products/example" },
+    context: activityContext,
+  },
+};
+const opportunityActivityData: ActivityData = {
+  type: "opportunity",
+  value: {
+    type: "lead",
+    stage: "new",
+    suggested_next_action: "Reply to the contact",
+    source: { type: "manual" },
+  },
+};
+const activity: Activity = {
+  id: "activity-contract",
+  store_id: "store-contract",
+  contact_id: "contact-contract",
+  key: "page.view",
+  type: "tracked",
+  preview_text: "Viewed product",
+  occurred_at: 1,
+  created_at: 1,
+  updated_at: 1,
+  data: activityData,
+};
+const storefrontActivity: StorefrontActivity = {
+  contact_id: "contact-contract",
+  key: "page.view",
+  payload: { path: "/products/example" },
+  created_at: 1,
+};
+const trackActivity: TrackActivityParams = {
+  key: "page.view",
+  payload: { path: "/products/example" },
+};
+const commonActivityKey: CommonActivityKey = COMMON_ACTIVITY_KEYS[0];
+const activityContactFilter: FindContactsParams = { has_activity: true };
+const experiment: Experiment = {
+  id: "experiment-contract",
+  store_id: "store-contract",
+  key: "homepage-hero",
+  status: "running",
+  version: 1,
+  goal_activity_key: "checkout.started",
+  attribution_window_days: 7,
+  variants: [{ key: "control", weight: 100 }],
+  created_at: 1,
+  updated_at: 1,
+};
+const createExperiment: CreateExperimentParams = {
+  key: "homepage-hero",
+  goal_activity_key: "checkout.started",
+  variants: [{ key: "control", weight: 100 }],
+};
+const experimentUse: ExperimentUseResponse = {
+  experiment_key: "homepage-hero",
+  experiment_version: 1,
+  variant_key: "control",
+  goal_activity_key: "checkout.started",
+};
+const activityReportKey: AnalyticsActivityReportKey = "recent_activity";
+const activityFeed: ActivityFeedData = {
+  items: [
+    {
+      id: "analytics-fact-contract",
+      entity: "activity",
+      entity_id: activity.id,
+      action: "tracked",
+      event_type: "activity_tracked",
+      status: "",
+      contact_id: activity.contact_id,
+      category: "activities",
+      title: "Page viewed",
+      description: "A contact viewed a product.",
+      data: {},
+      payload: {},
+      created_at: 1,
+    },
+  ],
+  summary: {
+    total: 1,
+    orders: 0,
+    submissions: 0,
+    contacts: 0,
+    audiences: 0,
+    abandoned_carts: 0,
+    carts: 0,
+    promo_codes: 0,
+    products: 0,
+    services: 0,
+    providers: 0,
+    cms: 0,
+    workflows: 0,
+    activities: 1,
+    window_start: 1,
+  },
+  next_cursor: { created_at: 1, id: "analytics-fact-contract" },
+  meta: { row_count: 1, execution_ms: 1 },
+};
+const checkoutAction: CheckoutPaymentAction = { type: "none" };
+const eventAction: EventAction = { action: "product_created" };
+const supportAction: SupportAction = {
+  type: "end_conversation",
+  message: "Thanks",
+};
+const campaignMessageDirection: CampaignMessageDirection = "action";
 
 // @ts-expect-error provider capabilities must state whether publishing is supported.
 const missingPublishingCapability: SocialProviderCapability = {
@@ -2079,7 +2228,22 @@ void [
   retryingMutation,
   delayedMutationRetry,
   canonicalPage,
-  actionPageParams,
+  activityPageParams,
+  activity,
+  opportunityActivityData,
+  storefrontActivity,
+  trackActivity,
+  commonActivityKey,
+  activityContactFilter,
+  experiment,
+  createExperiment,
+  experimentUse,
+  activityReportKey,
+  activityFeed,
+  checkoutAction,
+  eventAction,
+  supportAction,
+  campaignMessageDirection,
   missingPublishingCapability,
   crmContactFeature,
   nonWireCrmProfileFeature,

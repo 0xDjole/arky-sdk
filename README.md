@@ -85,6 +85,29 @@ await arky.cms.form.submitByKey({
 
 The browser persists only the `arky_vst_...` visitor-session token. Storage is isolated by API endpoint and a fingerprint of the publishable key.
 
+## CRM activities and experiments
+
+Customer and business facts use the Activity vocabulary across the SDK. Tracking an Activity
+creates a visitor session when needed:
+
+```typescript
+await arky.activity.track({
+  key: "product.view",
+  payload: { product_id: "product-id" },
+});
+
+await arky.activity.pageView({ path: window.location.pathname });
+```
+
+The low-level storefront equivalent is `arky.client.activity.track(...)`. Admin integrations read
+the same append-only facts through `admin.crm.activity.timeline(...)` or
+`admin.crm.activity.find(...)`; Contact search filters them with `has_activity`.
+
+Experiment definitions and storefront assignments expose `goal_activity_key`. Analytics report
+requests use `activity_by_country`, `top_activity_pages`, and `recent_activity`; the corresponding
+feed category and summary field are `activities`. Event payloads and payment flows still use
+`action` where that word describes a command or verb rather than the CRM Activity domain.
+
 ## Products, booking services, and checkout
 
 ```typescript

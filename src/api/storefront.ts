@@ -159,19 +159,19 @@ type Country = {
 
 type CountriesResponse = { items: Country[]; cursor: string | null };
 
-export interface StorefrontAction {
+export interface StorefrontActivity {
   contact_id: string;
   key: string;
   payload: Record<string, unknown>;
   created_at: number;
 }
 
-export interface TrackActionParams {
+export interface TrackActivityParams {
   key: string;
   payload?: Record<string, unknown>;
 }
 
-export const COMMON_ACTION_KEYS = [
+export const COMMON_ACTIVITY_KEYS = [
   "page.view",
   "product.view",
   "service.view",
@@ -188,7 +188,7 @@ export const COMMON_ACTION_KEYS = [
   "wishlist.added",
 ] as const;
 
-export type CommonActionKey = (typeof COMMON_ACTION_KEYS)[number];
+export type CommonActivityKey = (typeof COMMON_ACTIVITY_KEYS)[number];
 
 export interface UseExperimentParams {
   key: string;
@@ -198,7 +198,7 @@ export interface ExperimentUseResponse {
   experiment_key: string;
   experiment_version: number;
   variant_key: string;
-  goal_action_key: string;
+  goal_activity_key: string;
 }
 
 export interface StorefrontLifecycle {
@@ -206,14 +206,14 @@ export interface StorefrontLifecycle {
   getSetup(options?: RequestOptions): Promise<StorefrontSetup>;
 }
 
-export const createActionApi = (
+export const createActivityApi = (
   apiConfig: StorefrontApiConfig,
   lifecycle: StorefrontLifecycle,
 ) => ({
-  COMMON_ACTION_KEYS,
-  async track(params: TrackActionParams): Promise<void> {
+  COMMON_ACTIVITY_KEYS,
+  async track(params: TrackActivityParams): Promise<void> {
     await lifecycle.ensureVisitorSession();
-    await apiConfig.httpClient.post<void>("/v1/storefront/actions/track", {
+    await apiConfig.httpClient.post<void>("/v1/storefront/activities/track", {
       key: params.key,
       payload: params.payload,
     });
@@ -897,7 +897,7 @@ export const createStorefrontApi = (
         },
       },
     },
-    action: createActionApi(apiConfig, lifecycle),
+    activity: createActivityApi(apiConfig, lifecycle),
     experiments: {
       async use(
         params: UseExperimentParams,
