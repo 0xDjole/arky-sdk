@@ -39,6 +39,7 @@ import type {
   FindOrderRefundsParams,
   GetOrderRefundParams,
   GetOrderPaymentParams,
+  MarkCashOnDeliveryPaidParams,
   FindOrderDisputesParams,
   GetOrderDisputeParams,
   QuoteCartParams,
@@ -658,6 +659,18 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const target_store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<OrderPayment>(
         `/v1/stores/${target_store_id}/orders/${params.order_id}/payment`,
+        options,
+      );
+    },
+
+    async markCashOnDeliveryPaid(
+      params: MarkCashOnDeliveryPaidParams,
+      options?: RequestOptions,
+    ): Promise<OrderPayment> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<OrderPayment>(
+        `/v1/stores/${target_store_id}/orders/${params.order_id}/payment/cash-on-delivery/mark-paid`,
+        {},
         options,
       );
     },

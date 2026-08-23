@@ -715,13 +715,18 @@ function initializeStoreCore(
       digital_items: context.digital_items,
       shipping_address: context.shipping_address,
       billing_address: context.billing_address,
-      total: response.payment.amount,
-      currency: response.payment.currency,
+      total: response.payment?.amounts.total ?? 0,
+      currency: response.payment?.amounts.currency ?? null,
       payment_provider_id: context.payment_provider_id,
       created_at: context.created_at,
     });
 
     if (response.payment_action.type !== "none") return response;
+
+    if (response.payment === null) {
+      if (context.clear_after_checkout) clearLocalCart();
+      return response;
+    }
 
     if (
       context.clear_after_checkout &&

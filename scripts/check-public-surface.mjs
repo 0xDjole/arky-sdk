@@ -84,6 +84,8 @@ const removedIdentifiers = [
   "ArkyServiceSlot",
   "DigitalCatalogStatus",
   "DigitalPrice",
+  "OrderPaymentType",
+  "ProviderOrderPayment",
 ];
 
 const removedIdentifierPattern = new RegExp(
@@ -109,6 +111,11 @@ const removedDigitalContractPatterns = [
   /export interface (?:DigitalProduct|StorefrontDigitalProduct|DigitalLibraryItem|DigitalLibraryProduct)\s*\{[^}]*\bslug\??:/g,
   /export interface (?:Create|Update)DigitalProductParams\s*\{[^}]*\bslug\??:/g,
   /\/digital-products\/assets\b/g,
+];
+const removedOrderPaymentContractPatterns = [
+  /export interface OrderPayment\s*\{[^}]*\b(?:version|type|amount|currency|paid_amount|refund_pending_amount|refunded_amount|marked_paid_by_account_id|checkout_expires_at|processing_started_at|processing_claim_id|processing_deadline_at)\??:/g,
+  /export interface OrderCheckoutResult\s*\{[^}]*\bpayment:\s*OrderPayment\s*;/g,
+  /export interface Order\s*\{[^}]*\bpayment_id:\s*string\s*;/g,
 ];
 const removedBookingVocabularyPattern =
   /\b(?:working_days|specific_dates|min_advance|max_advance|slot_interval|provider_key|booking_provider_id)\b|service-providers|order_booking\./g;
@@ -184,6 +191,13 @@ for (const file of listTypeScriptFiles(sourceDir)) {
   for (const pattern of removedDigitalContractPatterns) {
     for (const match of source.matchAll(pattern)) {
       report(file, source, match.index, "removed Digital Product/Asset contract");
+      failures++;
+    }
+  }
+
+  for (const pattern of removedOrderPaymentContractPatterns) {
+    for (const match of source.matchAll(pattern)) {
+      report(file, source, match.index, "removed Order Payment contract field");
       failures++;
     }
   }

@@ -83,25 +83,36 @@ function cartSnapshot(itemCount = 0) {
   };
 }
 
-function payment(status, type = "cash", amount = 1250) {
+function payment(status, providerType = "cash_on_delivery", total = 1250) {
   const paymentProviderId =
-    type === "card" ? stripeProviderId : cashOnDeliveryProviderId;
+    providerType === "stripe" ? stripeProviderId : cashOnDeliveryProviderId;
   return {
     id: "payment-contract",
-    type,
+    order_id: "order-contract",
+    provider:
+      providerType === "stripe"
+        ? {
+            type: "stripe",
+            payment_provider_id: paymentProviderId,
+            checkout_expires_at: 1_800_000_000,
+            checkout_session_id: "checkout-contract",
+            payment_intent_id: "payment-intent-contract",
+            checkout_session_status: "complete",
+            checkout_payment_status: "paid",
+          }
+        : {
+            type: "cash_on_delivery",
+            payment_provider_id: paymentProviderId,
+            marked_paid_by_account_id:
+              status === "paid" ? "account-operator" : null,
+          },
     status,
-    amount,
-    currency: "eur",
-    paid_amount: status === "paid" ? amount : 0,
-    refund_pending_amount: 0,
-    refunded_amount: 0,
-    marked_paid_by_account_id: null,
-    checkout_expires_at: 0,
-    provider: {
-      payment_provider_id: paymentProviderId,
-      checkout_id: type === "card" ? "checkout-contract" : null,
-      payment_id: type === "card" ? "payment-intent-contract" : null,
-      status: null,
+    amounts: {
+      currency: "eur",
+      total,
+      paid: status === "paid" ? total : 0,
+      refund_pending: 0,
+      refunded: 0,
     },
     requested_at: 1,
     completed_at: status === "paid" ? 2 : null,
@@ -293,6 +304,49 @@ test("high-level checkout uses keyless routes, visitor authorization, and Store-
   assert.equal("payment_method_key" in calls[1].body, false);
 });
 
+test("zero-total checkout accepts a null payment and clears stale cart state", async () => {
+  const { store, cart } = checkoutStore();
+  const selectedItems = store.eshop.cart.product_items.get();
+  const zeroTotalResult = {
+    order_id: "order-zero-total",
+    number: "1000",
+    payment_action: { type: "none" },
+    payment: null,
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) =>
+    String(url).endsWith("/checkout")
+      ? jsonResponse(zeroTotalResult)
+      : jsonResponse(cart);
+
+  try {
+    assert.deepEqual(
+      await store.eshop.cart.checkout({ product_items: selectedItems }),
+      zeroTotalResult,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(store.eshop.cart.cart.get(), null);
+  assert.deepEqual(store.eshop.cart.product_items.get(), []);
+  assert.deepEqual(store.eshop.cart.last_order.get(), {
+    order_id: "order-zero-total",
+    number: "1000",
+    payment_action: { type: "none" },
+    payment: null,
+    product_items: selectedItems,
+    booking_items: [],
+    digital_items: [],
+    shipping_address: null,
+    billing_address: null,
+    total: 0,
+    currency: null,
+    payment_provider_id: cashOnDeliveryProviderId,
+    created_at: store.eshop.cart.last_order.get().created_at,
+  });
+});
+
 test("checkout failures do not create client-side recovery state", async () => {
   const { store, cart } = checkoutStore();
   const completed = completedCheckout();
@@ -359,7 +413,7 @@ test("checkout returns the synchronous POST response without polling", async () 
     const target = String(url);
     if (target.endsWith("/orders/order-scheduled/payment")) {
       paymentObservationCalls += 1;
-      return jsonResponse(payment("paid", "card"));
+      return jsonResponse(payment("paid", "stripe"));
     }
     if (!target.endsWith("/checkout")) {
       return jsonResponse(cart);
@@ -370,7 +424,7 @@ test("checkout returns the synchronous POST response without polling", async () 
       order_id: "order-scheduled",
       number: "1002",
       payment_action: { type: "none" },
-      payment: payment("processing", "card"),
+      payment: payment("processing", "stripe"),
     });
   };
 
@@ -391,7 +445,12 @@ test("storefront order payment lookup is an authenticated exact GET", async () =
     apiUrl,
     sessionStorage: sessionStorage(),
   });
-  const observedPayment = payment("unknown", "card");
+  const observedResult = {
+    order_id: "order-exact",
+    number: "1003",
+    payment_action: { type: "none" },
+    payment: payment("unknown", "stripe"),
+  };
   const calls = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
@@ -400,13 +459,13 @@ test("storefront order payment lookup is an authenticated exact GET", async () =
       method: init.method || "GET",
       headers: new Headers(init.headers),
     });
-    return jsonResponse(observedPayment);
+    return jsonResponse(observedResult);
   };
 
   try {
     assert.deepEqual(
       await storefront.eshop.order.getPayment({ id: "order-exact" }),
-      observedPayment,
+      observedResult,
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -523,7 +582,7 @@ test("card checkout returns an embedded Stripe action without navigating", async
         stripe_account_id: "acct_order",
         expires_at: 1_800_000_000,
       },
-      payment: payment("requires_action", "card"),
+      payment: payment("requires_action", "stripe"),
     });
   };
 

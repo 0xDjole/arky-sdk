@@ -61,7 +61,6 @@ export interface OrderPromoCodeSnapshot {
   code: string;
 }
 
-export type OrderPaymentType = "cash" | "card";
 export type OrderPaymentStatus =
   | "pending"
   | "requires_action"
@@ -129,32 +128,41 @@ export interface OrderRefund {
 
 export interface OrderPayment {
   id: string;
-  version: number;
   store_id: string;
   order_id: string;
-  type: OrderPaymentType;
+  provider: OrderPaymentProvider;
   status: OrderPaymentStatus;
-  amount: number;
-  currency: Currency;
-  paid_amount: number;
-  refund_pending_amount: number;
-  refunded_amount: number;
-  marked_paid_by_account_id: string | null;
-  checkout_expires_at: number;
-  provider?: ProviderOrderPayment | null;
+  amounts: PaymentAmounts;
   requested_at: number;
-  completed_at?: number | null;
+  completed_at: number | null;
   created_at: number;
   updated_at: number;
-  safe_error?: string | null;
+  safe_error: string | null;
 }
 
-export interface ProviderOrderPayment {
-  payment_provider_id: string;
-  checkout_id?: string | null;
-  payment_id?: string | null;
-  status?: string | null;
+export interface PaymentAmounts {
+  currency: Currency;
+  total: number;
+  paid: number;
+  refund_pending: number;
+  refunded: number;
 }
+
+export type OrderPaymentProvider =
+  | {
+      type: "cash_on_delivery";
+      payment_provider_id: string;
+      marked_paid_by_account_id: string | null;
+    }
+  | {
+      type: "stripe";
+      payment_provider_id: string;
+      checkout_expires_at: number;
+      checkout_session_id: string | null;
+      payment_intent_id: string | null;
+      checkout_session_status: string | null;
+      checkout_payment_status: string | null;
+    };
 
 export interface OrderMoney {
   currency: Currency;
@@ -1011,7 +1019,7 @@ export interface Order {
   status: OrderStatus;
   fulfillment_status: OrderFulfillmentStatus;
   verified: boolean;
-  payment_id: string;
+  payment_id: string | null;
   booking_items: OrderBookingItem[];
   money: OrderMoney;
   fulfillment_summary: OrderFulfillmentSummary;
@@ -1104,7 +1112,7 @@ export type CheckoutPaymentAction =
       type: "stripe_embedded_checkout";
       publishable_key: string;
       client_secret: string;
-      stripe_account_id?: string | null;
+      stripe_account_id: string | null;
       expires_at: number;
     };
 
@@ -1112,7 +1120,7 @@ export interface OrderCheckoutResult {
   order_id: string;
   number: string;
   payment_action: CheckoutPaymentAction;
-  payment: OrderPayment;
+  payment: OrderPayment | null;
 }
 
 export interface Zone {

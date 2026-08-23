@@ -35,6 +35,11 @@ import type {
   GetStorefrontDigitalProductParams,
   GetShippingRatesParams,
   OrderMoney,
+  Order,
+  OrderCheckoutResult,
+  OrderPayment,
+  OrderPaymentProvider,
+  PaymentAmounts,
   OrderDigitalProductSnapshot,
   OrderPromoCodeSnapshot,
   OrderTaxLine,
@@ -102,11 +107,16 @@ import type {
   VerifyPendingAccountSessionParams,
   Webhook,
   FindDigitalProductsParams,
+  MarkCashOnDeliveryPaidParams,
 } from "../../dist/index.js";
 // @ts-expect-error Digital Product prices use the shared Price contract.
 import type { DigitalPrice } from "../../dist/index.js";
 // @ts-expect-error Digital Product status has its own canonical name.
 import type { DigitalCatalogStatus } from "../../dist/index.js";
+// @ts-expect-error payment method identity is represented by OrderPaymentProvider.
+import type { OrderPaymentType } from "../../dist/index.js";
+// @ts-expect-error the loose legacy provider record is no longer public.
+import type { ProviderOrderPayment } from "../../dist/index.js";
 import type {
   CreateBuildHookParams,
   CreateStoreLocationParams,
@@ -938,6 +948,72 @@ const orderMoney: OrderMoney = {
 // @ts-expect-error capture_method is transaction/provider state, not order money.
 orderMoney.capture_method;
 
+const paymentAmounts: PaymentAmounts = {
+  currency: "usd",
+  total: 1_250,
+  paid: 0,
+  refund_pending: 0,
+  refunded: 0,
+};
+const stripeOrderPaymentProvider: OrderPaymentProvider = {
+  type: "stripe",
+  payment_provider_id: "payment-provider-contract",
+  checkout_expires_at: 1_800_000_000,
+  checkout_session_id: "checkout-session-contract",
+  payment_intent_id: null,
+  checkout_session_status: "open",
+  checkout_payment_status: "unpaid",
+};
+const cashOrderPaymentProvider: OrderPaymentProvider = {
+  type: "cash_on_delivery",
+  payment_provider_id: "payment-provider-cash-contract",
+  marked_paid_by_account_id: null,
+};
+const orderPayment: OrderPayment = {
+  id: "order-payment-contract",
+  store_id: "store-contract",
+  order_id: "order-contract",
+  provider: stripeOrderPaymentProvider,
+  status: "requires_action",
+  amounts: paymentAmounts,
+  requested_at: 1,
+  completed_at: null,
+  created_at: 1,
+  updated_at: 2,
+  safe_error: null,
+};
+const zeroTotalCheckout: OrderCheckoutResult = {
+  order_id: "order-zero-total-contract",
+  number: "1000",
+  payment_action: { type: "none" },
+  payment: null,
+};
+const markCashOnDeliveryPaid: MarkCashOnDeliveryPaidParams = {
+  order_id: "order-contract",
+};
+declare const orderContract: Order;
+const nullableOrderPaymentId: string | null = orderContract.payment_id;
+// @ts-expect-error payment kind is the provider union tag, not a flat type.
+orderPayment.type;
+// @ts-expect-error amounts are grouped into the canonical amounts object.
+orderPayment.amount;
+// @ts-expect-error payment records do not expose persistence versions.
+orderPayment.version;
+// @ts-expect-error provider checkout identity uses checkout_session_id.
+stripeOrderPaymentProvider.checkout_id;
+const missingStripeAccountCheckout: OrderCheckoutResult = {
+  order_id: "order-stripe-contract",
+  number: "1002",
+  // @ts-expect-error Stripe checkout actions always serialize this nullable key.
+  payment_action: {
+    type: "stripe_embedded_checkout",
+    publishable_key: "pk_test_contract",
+    client_secret: "cs_test_contract",
+    expires_at: 2,
+  },
+  payment: orderPayment,
+};
+
 const shippingLine: ShippingLine = {
   id: "shipping-line-contract",
   shipping_method_id: "shipping-method-contract",
@@ -1395,6 +1471,14 @@ void [
   storefrontEntryIdentify,
   verificationChallengeId,
   orderMoney,
+  paymentAmounts,
+  stripeOrderPaymentProvider,
+  cashOrderPaymentProvider,
+  orderPayment,
+  zeroTotalCheckout,
+  markCashOnDeliveryPaid,
+  nullableOrderPaymentId,
+  missingStripeAccountCheckout,
   orderTaxLine,
   accountingTaxLine,
   promoSnapshot,

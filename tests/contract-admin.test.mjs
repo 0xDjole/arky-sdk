@@ -601,6 +601,7 @@ assert.deepEqual(separateResourceCalls, [
 assert.equal(typeof arky.eshop.order.createRefund, "function");
 assert.equal(typeof arky.eshop.order.getRefunds, "function");
 assert.equal(typeof arky.eshop.order.getPayment, "function");
+assert.equal(typeof arky.eshop.order.markCashOnDeliveryPaid, "function");
 assert.equal(typeof arky.eshop.order.getDisputes, "function");
 assert.equal(typeof arky.eshop.order.getDispute, "function");
 assert.equal(typeof arky.eshop.shipment.getRates, "function");
@@ -650,7 +651,11 @@ assert.deepEqual(
 
 const paymentCalls = [];
 globalThis.fetch = async (url, init = {}) => {
-  paymentCalls.push({ url: String(url), method: init.method });
+  paymentCalls.push({
+    url: String(url),
+    method: init.method,
+    body: init.body ? JSON.parse(String(init.body)) : null,
+  });
   return new Response(JSON.stringify({}), {
     status: 200,
     headers: { "content-type": "application/json" },
@@ -658,15 +663,22 @@ globalThis.fetch = async (url, init = {}) => {
 };
 try {
   await arky.eshop.order.getPayment({ order_id: "order-1" });
+  await arky.eshop.order.markCashOnDeliveryPaid({ order_id: "order-1" });
 } finally {
   globalThis.fetch = originalFetch;
 }
 assert.deepEqual(
-  paymentCalls.map(({ url, method }) => [url, method]),
+  paymentCalls.map(({ url, method, body }) => [url, method, body]),
   [
     [
       "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment",
       "GET",
+      null,
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/cash-on-delivery/mark-paid",
+      "POST",
+      {},
     ],
   ],
 );

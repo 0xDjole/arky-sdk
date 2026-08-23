@@ -1125,6 +1125,11 @@ export interface GetOrderPaymentParams {
   store_id?: string;
 }
 
+export interface MarkCashOnDeliveryPaidParams {
+  order_id: string;
+  store_id?: string;
+}
+
 export interface FindOrderDisputesParams {
   order_id: string;
   store_id?: string;

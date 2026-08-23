@@ -678,8 +678,26 @@ test("payment, refund, and shipment lifecycles are read through explicit resourc
       name: "payment",
       response: {
         id: "payment-contract",
+        store_id: defaultStoreId,
         order_id: "order-contract",
+        provider: {
+          type: "cash_on_delivery",
+          payment_provider_id: "provider-cash-contract",
+          marked_paid_by_account_id: "account-operator-contract",
+        },
         status: "paid",
+        amounts: {
+          currency: "usd",
+          total: 1250,
+          paid: 1250,
+          refund_pending: 0,
+          refunded: 0,
+        },
+        requested_at: 1,
+        completed_at: 2,
+        created_at: 1,
+        updated_at: 2,
+        safe_error: null,
       },
       request: (arky) =>
         arky.eshop.order.getPayment({ order_id: "order-contract" }),
