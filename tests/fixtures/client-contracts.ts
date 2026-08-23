@@ -81,6 +81,7 @@ import type {
   MarketZoneInput,
   Mailbox,
   Market,
+  Media,
   OrderQuote,
   PaymentProvider,
   Suppression,
@@ -111,6 +112,32 @@ const sdkVersionLiteral: "0.25.0" = SDK_VERSION;
 const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
 // @ts-expect-error the server's serialized feature key is crm_contacts.
 const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
+const mediaContract: Media = {
+  id: "media-contract",
+  creation_key: "owned:content-digest",
+  resolutions: {
+    original: { id: "resolution-contract", url: "stores/store-contract/media/file" },
+  },
+  mime_type: "image/png",
+  title: "file.png",
+  description: null,
+  alt: null,
+  store_id: "store-contract",
+  metadata: null,
+  created_at: 1,
+  updated_at: 1,
+  slug: { en: "file" },
+};
+// @ts-expect-error Media always exposes its durable creation key.
+const mediaWithoutCreationKey: Media = {
+  id: "media-contract",
+  resolutions: {},
+  mime_type: "image/png",
+  store_id: "store-contract",
+  created_at: 1,
+  updated_at: 1,
+  slug: {},
+};
 const storeContract: Store = {
   id: "store-contract",
   name: "Contract Store",
@@ -695,6 +722,8 @@ const invalidTextFormField: FormField = {
 void textFormSchema;
 void textFormField;
 void invalidTextFormField;
+void mediaContract;
+void mediaWithoutCreationKey;
 
 const subscribeResult: AudienceSubscribeResponse = {
   payment_action: { type: "none" },

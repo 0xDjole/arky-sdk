@@ -1614,6 +1614,7 @@ export interface MediaResolution {
 
 export interface Media {
   id: string;
+  creation_key: string;
   resolutions: Partial<Record<MediaSize, MediaResolution>>;
   mime_type: string;
   title?: string | null;
@@ -1622,6 +1623,7 @@ export interface Media {
   store_id: string;
   metadata?: string | null;
   created_at: number;
+  updated_at: number;
   slug: Record<string, string>;
 }
 
