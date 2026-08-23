@@ -92,6 +92,8 @@ const removedIdentifiers = [
   "OrderDispute",
   "FindOrderDisputesParams",
   "GetOrderDisputeParams",
+  "Discount",
+  "Condition",
 ];
 
 const removedIdentifierPattern = new RegExp(
@@ -135,6 +137,10 @@ const removedPaymentDisputeContractPatterns = [
 ];
 const removedBookingVocabularyPattern =
   /\b(?:working_days|specific_dates|min_advance|max_advance|slot_interval|provider_key|booking_provider_id)\b|service-providers|order_booking\./g;
+const removedPromotionVocabularyPattern =
+  /\b(?:items_percentage|items_fixed|digital_product_ids|min_order_amount|date_range|max_uses|max_uses_per_user|discount_application_id|starts_at_from|starts_at_to|expires_at_from|expires_at_to)\b|type:\s*["']services["']|\bbps\b/g;
+const removedBookingQuotaFeaturePattern =
+  /export type SubscriptionPlanFeatureType\s*=[^;]*\|\s*["'](?:services|providers)["'][^;]*;/g;
 const exportedDeclarationPattern =
   /\bexport\s+(?:declare\s+)?(?:type|interface|class|enum|function|const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\b/g;
 
@@ -234,6 +240,16 @@ for (const file of listTypeScriptFiles(sourceDir)) {
 
   for (const match of source.matchAll(removedBookingVocabularyPattern)) {
     report(file, source, match.index, `removed booking vocabulary ${match[0]}`);
+    failures++;
+  }
+
+  for (const match of source.matchAll(removedPromotionVocabularyPattern)) {
+    report(file, source, match.index, `removed Promotion vocabulary ${match[0]}`);
+    failures++;
+  }
+
+  for (const match of source.matchAll(removedBookingQuotaFeaturePattern)) {
+    report(file, source, match.index, "removed Booking quota feature key");
     failures++;
   }
 

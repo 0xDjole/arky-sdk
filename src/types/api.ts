@@ -1,6 +1,7 @@
 import type {
   Block,
   Currency,
+  Money,
   Zone,
   ZoneLocation,
   WorkflowNode,
@@ -496,41 +497,68 @@ export interface GetDeliveryStatsParams {}
 
 export type StoreRole = "admin" | "owner" | "super";
 
-export type Discount =
-  | { type: "items_percentage"; market_key: string; bps: number }
-  | { type: "items_fixed"; market_key: string; amount: number }
-  | { type: "shipping_percentage"; market_key: string; bps: number }
+export type CreatePromotionDiscountInput =
+  | { type: "item_percentage"; market: string; basis_points: number }
+  | { type: "item_fixed"; market: string; money: Money }
+  | { type: "shipping_percentage"; market: string; basis_points: number }
   | {
       type: "audience_percentage";
       audience_id: string;
       tier_ids: string[];
       price_ids: string[];
-      bps: number;
+      basis_points: number;
     };
 
-export type Condition =
+export type UpdatePromotionDiscountInput =
+  | {
+      type: "item_percentage";
+      id?: string | null;
+      market: string;
+      basis_points: number;
+    }
+  | { type: "item_fixed"; id?: string | null; market: string; money: Money }
+  | {
+      type: "shipping_percentage";
+      id?: string | null;
+      market: string;
+      basis_points: number;
+    }
+  | {
+      type: "audience_percentage";
+      id?: string | null;
+      audience_id: string;
+      tier_ids: string[];
+      price_ids: string[];
+      basis_points: number;
+    };
+
+export type PromotionConditionInput =
   | { type: "products"; product_ids: string[] }
-  | { type: "services"; service_ids: string[] }
-  | { type: "digital_products"; digital_product_ids: string[] }
-  | { type: "min_order_amount"; amount: number }
-  | { type: "date_range"; start?: number | null; end?: number | null }
-  | { type: "max_uses"; count: number }
-  | { type: "max_uses_per_user"; count: number };
+  | { type: "booking_services"; service_ids: string[] }
+  | { type: "digital_products"; product_ids: string[] }
+  | { type: "minimum_order_amount"; market: string; money: Money }
+  | {
+      type: "redemption_window";
+      starts_at?: number | null;
+      ends_at?: number | null;
+    }
+  | { type: "maximum_uses"; count: number }
+  | { type: "maximum_uses_per_contact"; count: number };
 
 export interface CreatePromoCodeParams {
   store_id?: string;
   code: string;
-  discounts: Discount[];
-  conditions: Condition[];
+  discounts: CreatePromotionDiscountInput[];
+  conditions?: PromotionConditionInput[];
 }
 
 export interface UpdatePromoCodeParams {
   id: string;
   store_id?: string;
-  code?: string;
-  discounts?: Discount[];
-  conditions?: Condition[];
-  status?: PromoCodeStatus;
+  code?: string | null;
+  discounts?: UpdatePromotionDiscountInput[] | null;
+  conditions?: PromotionConditionInput[] | null;
+  status?: PromoCodeStatus | null;
 }
 
 export interface DeletePromoCodeParams {
@@ -555,10 +583,6 @@ export interface GetPromoCodesParams {
   sort_direction?: "asc" | "desc";
   created_at_from?: number;
   created_at_to?: number;
-  starts_at_from?: number;
-  starts_at_to?: number;
-  expires_at_from?: number;
-  expires_at_to?: number;
 }
 
 export interface CreateStoreParams {

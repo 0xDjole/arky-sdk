@@ -882,7 +882,7 @@ export interface OrderDigitalProductSnapshot {
 }
 
 export interface DiscountAllocation {
-  discount_application_id?: string | null;
+  promotion_discount_id: string | null;
   amount: number;
 }
 
@@ -1663,9 +1663,9 @@ export interface Media {
 export type SubscriptionPlanFeatureType =
   | "collections"
   | "entries"
-  | "services"
+  | "booking_services"
   | "products"
-  | "providers"
+  | "booking_resources"
   | "workflows"
   | "audiences"
   | "crm_contacts"
@@ -3586,12 +3586,48 @@ export interface CustomsDeclaration {
   items: CustomsItem[];
 }
 
+export type PromotionDiscount =
+  | {
+      type: "item_percentage";
+      id: string;
+      market: string;
+      basis_points: number;
+    }
+  | { type: "item_fixed"; id: string; market: string; money: Money }
+  | {
+      type: "shipping_percentage";
+      id: string;
+      market: string;
+      basis_points: number;
+    }
+  | {
+      type: "audience_percentage";
+      id: string;
+      audience_id: string;
+      tier_ids: string[];
+      price_ids: string[];
+      basis_points: number;
+    };
+
+export type PromotionCondition =
+  | { type: "products"; product_ids: string[] }
+  | { type: "booking_services"; service_ids: string[] }
+  | { type: "digital_products"; product_ids: string[] }
+  | { type: "minimum_order_amount"; market: string; money: Money }
+  | {
+      type: "redemption_window";
+      starts_at: number | null;
+      ends_at: number | null;
+    }
+  | { type: "maximum_uses"; count: number }
+  | { type: "maximum_uses_per_contact"; count: number };
+
 export interface PromoCode {
   id: string;
   store_id: string;
   code: string;
-  discounts: import("./api").Discount[];
-  conditions: import("./api").Condition[];
+  discounts: PromotionDiscount[];
+  conditions: PromotionCondition[];
   status: PromoCodeStatus;
   uses: number;
   created_at: number;

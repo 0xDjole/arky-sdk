@@ -334,6 +334,7 @@ Admin Store records use `name`, one `email`, typed `status`, and explicit
 values with the shared `PostalAddress` shape. Webhooks and Build Hooks are addressed by UUID and
 use `active`/`disabled` status values. Membership IDs are opaque, Server-generated UUID-v4 values;
 `StoreUsage` represents one feature and either its current total or one UTC calendar month.
+Booking quotas use the canonical `booking_services` and `booking_resources` feature keys.
 
 Store subscription reads expose the current `status` and optional `plan_access`; their
 `payment_action` is `none`. Selecting a paid plan returns any transient payment action directly on
@@ -354,6 +355,43 @@ if (subscription.payment_action.type !== "none") {
   );
 }
 ```
+
+Promotion commands use typed discount and condition variants. A create command omits embedded
+discount IDs; each response returns a stable Server-generated UUID-v4. On update, include an
+existing embedded ID to preserve that discount, and omit the ID for a new discount. Supplying a
+discount array replaces the complete existing array:
+
+```typescript
+const promo = await admin.eshop.promoCode.createPromoCode({
+  code: "WELCOME10",
+  discounts: [
+    { type: "item_percentage", market: "bih", basis_points: 1_000 },
+  ],
+  conditions: [
+    { type: "products", product_ids: ["product-id"] },
+    {
+      type: "minimum_order_amount",
+      market: "bih",
+      money: { amount: 5_000, currency: "bam" },
+    },
+    { type: "maximum_uses_per_contact", count: 1 },
+  ],
+});
+
+const itemDiscount = promo.discounts[0];
+if (itemDiscount?.type === "item_percentage") {
+  await admin.eshop.promoCode.updatePromoCode({
+    id: promo.id,
+    discounts: [
+      { ...itemDiscount, basis_points: 1_500 },
+      { type: "shipping_percentage", market: "bih", basis_points: 1_000 },
+    ],
+  });
+}
+```
+
+`item_fixed` and `minimum_order_amount` carry a shared `Money` value. Redemption windows use
+nullable `starts_at` and `ends_at`; per-customer limits use the Contact vocabulary.
 
 Order refunds use one stable UUID-v4 for the concrete refund. Persist that ID with the immutable
 request before sending or retrying a Stripe refund. After an operator has physically returned a

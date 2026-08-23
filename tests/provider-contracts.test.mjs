@@ -7,6 +7,13 @@ import { createStorefront } from "../dist/storefront.js";
 const baseUrl = "https://api.example.test";
 const defaultStoreId = "store-contract";
 const resourceId = "018f477d-1cae-7c12-bf12-123456789abc";
+const itemPercentageDiscountId = "86b7bf60-67e8-4c92-b14c-e98f4b2f4101";
+const itemFixedDiscountId = "fca5ba8e-86af-4dd8-a1cd-6d19bca62e12";
+const shippingDiscountId = "d8b35cf1-6867-49b0-863d-fdc1a6a6e6dc";
+const audienceDiscountId = "ac4425e9-c3ee-4b85-820c-7c8d9314d034";
+const newShippingDiscountId = "467e9608-2b42-479a-8c5b-d9152fbb7870";
+const uuidV4Pattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 function jsonResponse(body) {
   return new Response(JSON.stringify(body), {
@@ -42,17 +49,53 @@ async function captureFetch(responseBody, request) {
   }
 }
 
-test("digital-product promo conditions keep their tagged wire contract", async () => {
+test("commerce PromoCode create sends every canonical discount and condition wire variant without IDs", async () => {
   const promo = {
-    id: "promo-contract",
+    id: "b7091941-b7f6-4776-8dc9-5167bc28fdc2",
     store_id: defaultStoreId,
-    code: "DIGITAL10",
-    discounts: [],
+    code: "SAVE10",
+    discounts: [
+      {
+        type: "item_percentage",
+        id: itemPercentageDiscountId,
+        market: "us",
+        basis_points: 1_000,
+      },
+      {
+        type: "item_fixed",
+        id: itemFixedDiscountId,
+        market: "eu",
+        money: { amount: 500, currency: "eur" },
+      },
+      {
+        type: "shipping_percentage",
+        id: shippingDiscountId,
+        market: "us",
+        basis_points: 2_000,
+      },
+    ],
     conditions: [
+      { type: "products", product_ids: ["product-contract"] },
+      {
+        type: "booking_services",
+        service_ids: ["booking-service-contract"],
+      },
       {
         type: "digital_products",
-        digital_product_ids: ["digital-product-contract"],
+        product_ids: ["digital-product-contract"],
       },
+      {
+        type: "minimum_order_amount",
+        market: "us",
+        money: { amount: 2_500, currency: "usd" },
+      },
+      {
+        type: "redemption_window",
+        starts_at: null,
+        ends_at: 1_800_000_000,
+      },
+      { type: "maximum_uses", count: 100 },
+      { type: "maximum_uses_per_contact", count: 1 },
     ],
     status: "active",
     uses: 0,
@@ -64,7 +107,17 @@ test("digital-product promo conditions keep their tagged wire contract", async (
       store_id: defaultStoreId,
       code: promo.code,
       discounts: [
-        { type: "items_percentage", market_key: "us", bps: 1_000 },
+        { type: "item_percentage", market: "us", basis_points: 1_000 },
+        {
+          type: "item_fixed",
+          market: "eu",
+          money: { amount: 500, currency: "eur" },
+        },
+        {
+          type: "shipping_percentage",
+          market: "us",
+          basis_points: 2_000,
+        },
       ],
       conditions: promo.conditions,
     }),
@@ -75,20 +128,309 @@ test("digital-product promo conditions keep their tagged wire contract", async (
       url: `${baseUrl}/v1/stores/${defaultStoreId}/promo-codes`,
       method: "POST",
       body: {
-        code: "DIGITAL10",
+        code: "SAVE10",
         discounts: [
-          { type: "items_percentage", market_key: "us", bps: 1_000 },
+          { type: "item_percentage", market: "us", basis_points: 1_000 },
+          {
+            type: "item_fixed",
+            market: "eu",
+            money: { amount: 500, currency: "eur" },
+          },
+          {
+            type: "shipping_percentage",
+            market: "us",
+            basis_points: 2_000,
+          },
         ],
         conditions: [
+          { type: "products", product_ids: ["product-contract"] },
+          {
+            type: "booking_services",
+            service_ids: ["booking-service-contract"],
+          },
           {
             type: "digital_products",
-            digital_product_ids: ["digital-product-contract"],
+            product_ids: ["digital-product-contract"],
+          },
+          {
+            type: "minimum_order_amount",
+            market: "us",
+            money: { amount: 2_500, currency: "usd" },
+          },
+          {
+            type: "redemption_window",
+            starts_at: null,
+            ends_at: 1_800_000_000,
+          },
+          { type: "maximum_uses", count: 100 },
+          { type: "maximum_uses_per_contact", count: 1 },
+        ],
+      },
+    },
+  ]);
+  assert.deepEqual(result, promo);
+  for (const discount of result.discounts) {
+    assert.match(discount.id, uuidV4Pattern);
+  }
+  assert.deepEqual(result.conditions[4], {
+    type: "redemption_window",
+    starts_at: null,
+    ends_at: 1_800_000_000,
+  });
+});
+
+test("audience PromotionDiscount uses its canonical response ID and create can omit conditions", async () => {
+  const promo = {
+    id: "58152d68-559a-42a7-b98b-d173818dc6f1",
+    store_id: defaultStoreId,
+    code: "MEMBER15",
+    discounts: [
+      {
+        type: "audience_percentage",
+        id: audienceDiscountId,
+        audience_id: "audience-contract",
+        tier_ids: ["tier-contract"],
+        price_ids: ["price-contract"],
+        basis_points: 1_500,
+      },
+    ],
+    conditions: [],
+    status: "active",
+    uses: 0,
+    created_at: 1,
+    updated_at: 1,
+  };
+  const { calls, result } = await captureFetch(promo, () =>
+    admin().eshop.promoCode.createPromoCode({
+      code: promo.code,
+      discounts: [
+        {
+          type: "audience_percentage",
+          audience_id: "audience-contract",
+          tier_ids: ["tier-contract"],
+          price_ids: ["price-contract"],
+          basis_points: 1_500,
+        },
+      ],
+    }),
+  );
+
+  assert.deepEqual(calls, [
+    {
+      url: `${baseUrl}/v1/stores/${defaultStoreId}/promo-codes`,
+      method: "POST",
+      body: {
+        code: "MEMBER15",
+        discounts: [
+          {
+            type: "audience_percentage",
+            audience_id: "audience-contract",
+            tier_ids: ["tier-contract"],
+            price_ids: ["price-contract"],
+            basis_points: 1_500,
           },
         ],
       },
     },
   ]);
   assert.deepEqual(result, promo);
+  assert.match(result.discounts[0].id, uuidV4Pattern);
+});
+
+test("PromoCode update preserves owned discount IDs and omits IDs for additions", async () => {
+  const promoId = "b7091941-b7f6-4776-8dc9-5167bc28fdc2";
+  const promo = {
+    id: promoId,
+    store_id: defaultStoreId,
+    code: "SAVE20",
+    discounts: [
+      {
+        type: "item_percentage",
+        id: itemPercentageDiscountId,
+        market: "us",
+        basis_points: 2_000,
+      },
+      {
+        type: "shipping_percentage",
+        id: newShippingDiscountId,
+        market: "us",
+        basis_points: 1_000,
+      },
+    ],
+    conditions: [],
+    status: "draft",
+    uses: 2,
+    created_at: 1,
+    updated_at: 2,
+  };
+  const { calls, result } = await captureFetch(promo, () =>
+    admin().eshop.promoCode.updatePromoCode({
+      id: promoId,
+      store_id: defaultStoreId,
+      code: "SAVE20",
+      discounts: [
+        {
+          type: "item_percentage",
+          id: itemPercentageDiscountId,
+          market: "us",
+          basis_points: 2_000,
+        },
+        {
+          type: "shipping_percentage",
+          market: "us",
+          basis_points: 1_000,
+        },
+      ],
+      conditions: [],
+      status: "draft",
+    }),
+  );
+
+  assert.deepEqual(calls, [
+    {
+      url: `${baseUrl}/v1/stores/${defaultStoreId}/promo-codes/${promoId}`,
+      method: "PUT",
+      body: {
+        code: "SAVE20",
+        discounts: [
+          {
+            type: "item_percentage",
+            id: itemPercentageDiscountId,
+            market: "us",
+            basis_points: 2_000,
+          },
+          {
+            type: "shipping_percentage",
+            market: "us",
+            basis_points: 1_000,
+          },
+        ],
+        conditions: [],
+        status: "draft",
+      },
+    },
+  ]);
+  assert.deepEqual(result, promo);
+  assert.equal(result.discounts[0].id, itemPercentageDiscountId);
+  assert.equal(result.discounts[1].id, newShippingDiscountId);
+});
+
+test("PromoCode list sends only the implemented server query contract", async () => {
+  const response = { items: [], cursor: null };
+  const { calls, result } = await captureFetch(response, () =>
+    admin().eshop.promoCode.getPromoCodes({
+      store_id: defaultStoreId,
+      ids: ["b7091941-b7f6-4776-8dc9-5167bc28fdc2"],
+      query: "SAVE",
+      status: "active",
+      limit: 20,
+      cursor: "20",
+      sort_field: "created_at",
+      sort_direction: "desc",
+      created_at_from: 1,
+      created_at_to: 2,
+    }),
+  );
+
+  assert.deepEqual(calls, [
+    {
+      url: `${baseUrl}/v1/stores/${defaultStoreId}/promo-codes?ids=%5B%22b7091941-b7f6-4776-8dc9-5167bc28fdc2%22%5D&query=SAVE&status=active&limit=20&cursor=20&sort_field=created_at&sort_direction=desc&created_at_from=1&created_at_to=2`,
+      method: "GET",
+      body: undefined,
+    },
+  ]);
+  assert.deepEqual(result, response);
+});
+
+test("Order quote allocations preserve embedded PromotionDiscount provenance and canonical null", async () => {
+  const lineMoney = {
+    unit_price: 2_000,
+    subtotal: 2_000,
+    discount_allocations: [
+      { promotion_discount_id: itemPercentageDiscountId, amount: 200 },
+      { promotion_discount_id: null, amount: 50 },
+    ],
+    discount_total: 250,
+    taxable_base: 1_750,
+    tax_lines: [],
+    tax_total: 0,
+    total: 1_750,
+  };
+  const shippingMoney = {
+    unit_price: 500,
+    subtotal: 500,
+    discount_allocations: [
+      { promotion_discount_id: shippingDiscountId, amount: 100 },
+    ],
+    discount_total: 100,
+    taxable_base: 400,
+    tax_lines: [],
+    tax_total: 0,
+    total: 400,
+  };
+  const quote = {
+    product_lines: [
+      {
+        product_id: "product-contract",
+        variant_id: "variant-contract",
+        quantity: 1,
+        money: lineMoney,
+        snapshot: {
+          product_key: "product-contract",
+          variant_attributes: [],
+          requires_shipping: true,
+          weight: 100,
+          price: { amount: 2_000, currency: "usd", market: "us" },
+        },
+      },
+    ],
+    booking_lines: [],
+    digital_lines: [],
+    shipping_lines: [
+      {
+        id: "shipping-line-contract",
+        shipping_method_id: "shipping-method-contract",
+        title: "Standard",
+        money: shippingMoney,
+      },
+    ],
+    shipping_methods: [],
+    payment_provider_id: "payment-provider-contract",
+    payment_provider_ids: ["payment-provider-contract"],
+    money: {
+      currency: "usd",
+      market: "us",
+      subtotal: 2_000,
+      shipping: 400,
+      discount: 350,
+      total: 2_150,
+      promo_code: { id: "promo-contract", code: "SAVE10" },
+    },
+  };
+  const { result } = await captureFetch(quote, () =>
+    admin().eshop.order.getQuote({}),
+  );
+
+  assert.equal(
+    result.product_lines[0].money.discount_allocations[0]
+      .promotion_discount_id,
+    itemPercentageDiscountId,
+  );
+  assert.equal(
+    result.product_lines[0].money.discount_allocations[1]
+      .promotion_discount_id,
+    null,
+  );
+  assert.equal(
+    result.shipping_lines[0].money.discount_allocations[0]
+      .promotion_discount_id,
+    shippingDiscountId,
+  );
+  assert.equal(
+    "discount_application_id" in
+      result.product_lines[0].money.discount_allocations[0],
+    false,
+  );
 });
 
 test("subscription selection returns its ephemeral Stripe action in one POST", async () => {

@@ -18,7 +18,8 @@ import type {
   Cart,
   CartDigitalProduct,
   CheckoutCartParams,
-  Condition,
+  CreatePromoCodeParams,
+  CreatePromotionDiscountInput,
   CreateMarketParams,
   CreateProductParams,
   CreateDigitalProductParams,
@@ -29,12 +30,14 @@ import type {
   DigitalLibraryProduct,
   DigitalProduct,
   DigitalProductStatus,
+  DiscountAllocation,
   EmailDeliveryType,
   GetCollectionParams,
   GetDigitalLibraryProductParams,
   GetStorefrontDigitalProductParams,
   GetShippingRatesParams,
   GetPaymentDisputeParams,
+  GetPromoCodesParams,
   OrderMoney,
   Order,
   OrderCheckoutResult,
@@ -48,6 +51,10 @@ import type {
   PaymentDispute,
   PaymentDisputeProvider,
   PaymentDisputeStatus,
+  PromoCode,
+  PromotionCondition,
+  PromotionConditionInput,
+  PromotionDiscount,
   OrderDigitalProductSnapshot,
   OrderPromoCodeSnapshot,
   OrderTaxLine,
@@ -107,6 +114,8 @@ import type {
   SupportMessage,
   UpdateCartParams,
   UpdateDigitalProductParams,
+  UpdatePromoCodeParams,
+  UpdatePromotionDiscountInput,
   UpdateProductParams,
   MarketZoneInput,
   Mailbox,
@@ -123,6 +132,10 @@ import type {
   FindDigitalProductsParams,
   MarkCashOnDeliveryPaidParams,
 } from "../../dist/index.js";
+// @ts-expect-error Promotion command and response types are lifecycle-specific.
+import type { Discount } from "../../dist/index.js";
+// @ts-expect-error Promotion conditions use their full domain name.
+import type { Condition } from "../../dist/index.js";
 // @ts-expect-error Digital Product prices use the shared Price contract.
 import type { DigitalPrice } from "../../dist/index.js";
 // @ts-expect-error Digital Product status has its own canonical name.
@@ -163,8 +176,14 @@ import {
 
 const sdkVersionLiteral: "0.25.0" = SDK_VERSION;
 const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
+const bookingServiceFeature: SubscriptionPlanFeatureType = "booking_services";
+const bookingResourceFeature: SubscriptionPlanFeatureType = "booking_resources";
 // @ts-expect-error the server's serialized feature key is crm_contacts.
 const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
+// @ts-expect-error Booking Service quota keys use the full domain name.
+const legacyServiceFeature: SubscriptionPlanFeatureType = "services";
+// @ts-expect-error Booking Resource quota keys use the full domain name.
+const legacyProviderFeature: SubscriptionPlanFeatureType = "providers";
 const mediaContract: Media = {
   id: "media-contract",
   creation_key: "owned:content-digest",
@@ -514,9 +533,256 @@ paymentDispute.currency;
 paymentDispute.version;
 // @ts-expect-error Stripe dispute evidence uses charge_id.
 paymentDisputeProvider.transaction_id;
-const digitalProductCondition: Condition = {
+const itemPercentageDiscountId = "86b7bf60-67e8-4c92-b14c-e98f4b2f4101";
+const itemFixedDiscountId = "fca5ba8e-86af-4dd8-a1cd-6d19bca62e12";
+const shippingDiscountId = "d8b35cf1-6867-49b0-863d-fdc1a6a6e6dc";
+const audienceDiscountId = "ac4425e9-c3ee-4b85-820c-7c8d9314d034";
+
+const promotionDiscounts: PromotionDiscount[] = [
+  {
+    type: "item_percentage",
+    id: itemPercentageDiscountId,
+    market: "us",
+    basis_points: 1_000,
+  },
+  {
+    type: "item_fixed",
+    id: itemFixedDiscountId,
+    market: "eu",
+    money: { amount: 500, currency: "eur" },
+  },
+  {
+    type: "shipping_percentage",
+    id: shippingDiscountId,
+    market: "us",
+    basis_points: 2_000,
+  },
+  {
+    type: "audience_percentage",
+    id: audienceDiscountId,
+    audience_id: "audience-contract",
+    tier_ids: ["tier-contract"],
+    price_ids: ["price-contract"],
+    basis_points: 1_500,
+  },
+];
+
+const promotionConditions: PromotionCondition[] = [
+  { type: "products", product_ids: ["product-contract"] },
+  { type: "booking_services", service_ids: ["booking-service-contract"] },
+  { type: "digital_products", product_ids: ["digital-product-contract"] },
+  {
+    type: "minimum_order_amount",
+    market: "us",
+    money: { amount: 2_500, currency: "usd" },
+  },
+  { type: "redemption_window", starts_at: null, ends_at: 1_800_000_000 },
+  { type: "maximum_uses", count: 100 },
+  { type: "maximum_uses_per_contact", count: 1 },
+];
+
+const promoCodeContract: PromoCode = {
+  id: "b7091941-b7f6-4776-8dc9-5167bc28fdc2",
+  store_id: "store-contract",
+  code: "SAVE10",
+  discounts: promotionDiscounts,
+  conditions: promotionConditions,
+  status: "active",
+  uses: 0,
+  created_at: 1,
+  updated_at: 1,
+};
+
+const createPromotionDiscounts: CreatePromotionDiscountInput[] = [
+  { type: "item_percentage", market: "us", basis_points: 1_000 },
+  {
+    type: "item_fixed",
+    market: "eu",
+    money: { amount: 500, currency: "eur" },
+  },
+  { type: "shipping_percentage", market: "us", basis_points: 2_000 },
+  {
+    type: "audience_percentage",
+    audience_id: "audience-contract",
+    tier_ids: ["tier-contract"],
+    price_ids: ["price-contract"],
+    basis_points: 1_500,
+  },
+];
+
+const promotionConditionInputs: PromotionConditionInput[] = [
+  { type: "products", product_ids: ["product-contract"] },
+  { type: "booking_services", service_ids: ["booking-service-contract"] },
+  { type: "digital_products", product_ids: ["digital-product-contract"] },
+  {
+    type: "minimum_order_amount",
+    market: "us",
+    money: { amount: 2_500, currency: "usd" },
+  },
+  { type: "redemption_window", starts_at: null },
+  { type: "maximum_uses", count: 100 },
+  { type: "maximum_uses_per_contact", count: 1 },
+];
+
+const createPromoCodeContract: CreatePromoCodeParams = {
+  code: "SAVE10",
+  discounts: createPromotionDiscounts,
+  conditions: promotionConditionInputs,
+};
+const createPromoCodeWithoutConditions: CreatePromoCodeParams = {
+  code: "SAVE20",
+  discounts: [
+    { type: "item_percentage", market: "us", basis_points: 2_000 },
+  ],
+};
+
+const updatePromotionDiscounts: UpdatePromotionDiscountInput[] = [
+  {
+    type: "item_percentage",
+    id: itemPercentageDiscountId,
+    market: "us",
+    basis_points: 2_000,
+  },
+  { type: "shipping_percentage", market: "us", basis_points: 1_000 },
+  {
+    type: "item_fixed",
+    id: null,
+    market: "eu",
+    money: { amount: 750, currency: "eur" },
+  },
+];
+const updatePromoCodeContract: UpdatePromoCodeParams = {
+  id: promoCodeContract.id,
+  discounts: updatePromotionDiscounts,
+  status: "draft",
+};
+const nullablePromoCodeUpdate: UpdatePromoCodeParams = {
+  id: promoCodeContract.id,
+  code: null,
+  discounts: null,
+  conditions: null,
+  status: null,
+};
+
+// @ts-expect-error Server responses require one UUID-v4 ID on every discount.
+const promotionDiscountWithoutId: PromotionDiscount = {
+  type: "item_percentage",
+  market: "us",
+  basis_points: 1_000,
+};
+const createPromotionDiscountWithId: CreatePromotionDiscountInput = {
+  type: "item_percentage",
+  market: "us",
+  basis_points: 1_000,
+  // @ts-expect-error Create commands never accept an embedded discount ID.
+  id: itemPercentageDiscountId,
+};
+// @ts-expect-error Response redemption windows always serialize both nullable keys.
+const responseWindowWithoutEnd: PromotionCondition = {
+  type: "redemption_window",
+  starts_at: null,
+};
+
+const legacyDiscountTag: CreatePromotionDiscountInput = {
+  // @ts-expect-error The response and command tag is singular item_percentage.
+  type: "items_percentage",
+  market: "us",
+  basis_points: 1_000,
+};
+const legacyDiscountMarket: CreatePromotionDiscountInput = {
+  type: "item_percentage",
+  // @ts-expect-error Promotion discounts identify the canonical Market key as market.
+  market_key: "us",
+  basis_points: 1_000,
+};
+const legacyDiscountBasisPoints: CreatePromotionDiscountInput = {
+  type: "shipping_percentage",
+  market: "us",
+  // @ts-expect-error Percentage values use basis_points.
+  bps: 1_000,
+};
+const legacyFixedAmount: CreatePromotionDiscountInput = {
+  type: "item_fixed",
+  market: "us",
+  // @ts-expect-error Fixed discounts carry typed Money.
+  amount: 500,
+};
+const legacyBookingCondition: PromotionConditionInput = {
+  // @ts-expect-error Booking targets use the booking_services tag.
+  type: "services",
+  service_ids: ["booking-service-contract"],
+};
+const legacyDigitalCondition: PromotionConditionInput = {
   type: "digital_products",
+  // @ts-expect-error Digital targets share the canonical product_ids field.
   digital_product_ids: ["digital-product-contract"],
+};
+const legacyMinimumCondition: PromotionConditionInput = {
+  // @ts-expect-error Minimum conditions use the full minimum_order_amount tag.
+  type: "min_order_amount",
+  market: "us",
+  money: { amount: 500, currency: "usd" },
+};
+const legacyWindowCondition: PromotionConditionInput = {
+  // @ts-expect-error Redemption windows use the redemption_window tag.
+  type: "date_range",
+  starts_at: 1,
+  ends_at: 2,
+};
+const legacyMaximumUsesCondition: PromotionConditionInput = {
+  // @ts-expect-error Redemption limits use the maximum_uses tag.
+  type: "max_uses",
+  count: 10,
+};
+const legacyContactLimitCondition: PromotionConditionInput = {
+  // @ts-expect-error Per-contact limits use Contact vocabulary.
+  type: "max_uses_per_user",
+  count: 1,
+};
+
+const supportedPromoCodeList: GetPromoCodesParams = {
+  ids: [promoCodeContract.id],
+  query: "SAVE",
+  status: "active",
+  limit: 20,
+  cursor: "20",
+  sort_field: "created_at",
+  sort_direction: "desc",
+  created_at_from: 1,
+  created_at_to: 2,
+};
+const promoCodeListWithStartFrom: GetPromoCodesParams = {
+  // @ts-expect-error Redemption-window bounds are not list endpoint filters.
+  starts_at_from: 1,
+};
+const promoCodeListWithStartTo: GetPromoCodesParams = {
+  // @ts-expect-error Redemption-window bounds are not list endpoint filters.
+  starts_at_to: 1,
+};
+const promoCodeListWithExpiryFrom: GetPromoCodesParams = {
+  // @ts-expect-error Expiry bounds are not list endpoint filters.
+  expires_at_from: 1,
+};
+const promoCodeListWithExpiryTo: GetPromoCodesParams = {
+  // @ts-expect-error Expiry bounds are not list endpoint filters.
+  expires_at_to: 1,
+};
+
+const promotionDiscountAllocation: DiscountAllocation = {
+  promotion_discount_id: itemPercentageDiscountId,
+  amount: 500,
+};
+const automaticDiscountAllocation: DiscountAllocation = {
+  promotion_discount_id: null,
+  amount: 500,
+};
+// @ts-expect-error Allocation provenance is a required nullable wire key.
+const allocationWithoutProvenance: DiscountAllocation = { amount: 500 };
+const allocationWithLegacyProvenance: DiscountAllocation = {
+  promotion_discount_id: null,
+  amount: 500,
+  // @ts-expect-error Allocations point to the embedded PromotionDiscount ID.
+  discount_application_id: itemPercentageDiscountId,
 };
 // @ts-expect-error Store closure is a system-only refund reason.
 const systemRefundReasonFromClient: RefundRequestReason = "store_closure";
