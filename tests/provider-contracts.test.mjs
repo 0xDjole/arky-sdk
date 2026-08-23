@@ -686,15 +686,21 @@ test("shipping rate lookup sends only persisted context identifiers and package 
       carrier: "USPS",
       service: "usps_priority",
       display_name: "USPS Priority",
-      amount: 895,
-      currency: "USD",
+      postage: { amount: 895, currency: "usd" },
+      platform_label_fee: { amount: 10, currency: "usd" },
+      total: { amount: 905, currency: "usd" },
       estimated_days: 3,
     },
   ];
   const request = {
-    order_id: "order-shipping-contract",
-    location_id: "location-contract",
-    lines: [{ order_product_id: "product-contract", quantity: 2 }],
+    order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
+    store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
+    lines: [
+      {
+        order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
+        quantity: 2,
+      },
+    ],
     parcel: {
       length: 150,
       width: 100,
@@ -731,10 +737,10 @@ test("shipping rate lookup sends only persisted context identifiers and package 
 
   assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-shipping-contract/shipping/rates`,
+      url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/${request.order_id}/shipping/rates`,
       method: "POST",
       body: {
-        location_id: request.location_id,
+        store_location_id: request.store_location_id,
         lines: request.lines,
         parcel: request.parcel,
         customs_declaration: request.customs_declaration,
@@ -893,39 +899,59 @@ test("provider-effect APIs send one resource identity and return direct server e
     {
       name: "shipping-label purchase",
       response: {
-        shipment_id: "shipment-contract",
-        shipment: { id: "shipment-contract", label_status: "requested" },
+        shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
+        shipment: {
+          id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
+          status: "pending",
+          label: null,
+        },
       },
       request: (arky) =>
         arky.eshop.shipment.create({
-          order_id: "order-shipping-contract",
-          shipment_id: "shipment-contract",
+          order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
+          shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
           rate_id: "signed-rate-quote",
-          location_id: "location-contract",
-          fulfillment_order_id: null,
+          origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
+          fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
           lines: [
             {
-              order_product_id: "product-contract",
-              fulfillment_order_line_id: null,
+              order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
+              fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
               quantity: 2,
             },
           ],
+          parcel: {
+            length: 150,
+            width: 100,
+            height: 50,
+            weight: 750,
+            distance_unit: "mm",
+            mass_unit: "g",
+          },
         }),
       expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-shipping-contract/shipments`,
+        url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/6ba7b81a-9dad-41d1-80b4-00c04fd430c8/shipments`,
         method: "POST",
         body: {
-          shipment_id: "shipment-contract",
+          shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
           rate_id: "signed-rate-quote",
-          location_id: "location-contract",
-          fulfillment_order_id: null,
+          origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
+          fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
           lines: [
             {
-              order_product_id: "product-contract",
-              fulfillment_order_line_id: null,
+              order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
+              fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
               quantity: 2,
             },
           ],
+          parcel: {
+            length: 150,
+            width: 100,
+            height: 50,
+            weight: 750,
+            distance_unit: "mm",
+            mass_unit: "g",
+          },
         },
       },
     },
@@ -1006,22 +1032,30 @@ test("money and shipping clients reject evidence for any other resource ID", asy
       name: "shipping-label purchase",
       response: {
         shipment_id: otherResourceId,
-        shipment: { id: otherResourceId, label_status: "succeeded" },
+        shipment: { id: otherResourceId, status: "label_created" },
       },
       request: (arky) =>
         arky.eshop.shipment.create({
-          order_id: "order-shipping-contract",
-          shipment_id: "shipment-contract",
+          order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
+          shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
           rate_id: "signed-rate-quote",
-          location_id: "location-contract",
-          fulfillment_order_id: null,
+          origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
+          fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
           lines: [
             {
-              order_product_id: "product-contract",
-              fulfillment_order_line_id: null,
+              order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
+              fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
               quantity: 1,
             },
           ],
+          parcel: {
+            length: 150,
+            width: 100,
+            height: 50,
+            weight: 750,
+            distance_unit: "mm",
+            mass_unit: "g",
+          },
         }),
       error: /Shipping response did not match the requested shipment_id/,
     },

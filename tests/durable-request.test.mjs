@@ -301,18 +301,26 @@ test("the exact saved shipping request survives a changed signed rate and can be
   const operations = await importDurableRequests();
   const storageKey = "arky:shipping-label:store-1:order-1";
   const originalRequest = {
-    order_id: "order-1",
-    shipment_id: "shipment-1",
+    order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
+    shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
     rate_id: "signed-rate-original",
-    location_id: "location-1",
-    fulfillment_order_id: "fulfillment-1",
+    origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
+    fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
     lines: [
       {
-        order_product_id: "product-1",
-        fulfillment_order_line_id: "line-1",
+        order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
+        fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
         quantity: 2,
       },
     ],
+    parcel: {
+      length: 150,
+      width: 100,
+      height: 50,
+      weight: 750,
+      distance_unit: "mm",
+      mass_unit: "g",
+    },
   };
   const saved = operations.getOrCreateDurableRequest(
     storageKey,

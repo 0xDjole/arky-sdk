@@ -61,6 +61,13 @@ import type {
   OrderTaxScope,
   TaxLine,
   ShippingLine,
+  ShippingLabel,
+  ShippingLabelCharge,
+  ShippingLabelChargeRefund,
+  ShippingLabelChargeRefundReason,
+  ShippingLabelRefund,
+  ShippingRate,
+  FulfillmentOrder,
   FulfillmentOrderStatus,
   OrderFulfillmentStatus,
   PaginatedResponse,
@@ -156,6 +163,10 @@ import type { ProviderOrderDispute } from "../../dist/index.js";
 import type { FindOrderDisputesParams } from "../../dist/index.js";
 // @ts-expect-error dispute query inputs use the PaymentDispute name.
 import type { GetOrderDisputeParams } from "../../dist/index.js";
+// @ts-expect-error carrier-label DTOs are provider-neutral.
+import type { ShippoLabel } from "../../dist/index.js";
+// @ts-expect-error merchant label debits use their literal root name.
+import type { OrderShipmentCharge } from "../../dist/index.js";
 import type {
   CreateBuildHookParams,
   CreateStoreLocationParams,
@@ -1717,15 +1728,126 @@ void productWeightGrams;
 void inventoryStoreLocationId;
 void inventoryOnHand;
 void inventoryReserved;
-declare const shipment: OrderShipment;
+const shippingLabelRefund: ShippingLabelRefund = {
+  id: "6ba7b812-9dad-41d1-80b4-00c04fd430c8",
+  status: "succeeded",
+  safe_error: null,
+  requested_at: 2,
+  completed_at: 3,
+};
+const shippingLabel: ShippingLabel = {
+  id: "6ba7b811-9dad-41d1-80b4-00c04fd430c8",
+  status: "succeeded",
+  label_url: "https://labels.example.test/label.pdf",
+  postage: { amount: 895, currency: "usd" },
+  platform_label_fee: { amount: 10, currency: "usd" },
+  total: { amount: 905, currency: "usd" },
+  requested_at: 1,
+  completed_at: 2,
+  refund: shippingLabelRefund,
+  safe_error: null,
+};
+const fulfillmentOrder: FulfillmentOrder = {
+  id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
+  store_id: "6ba7b819-9dad-41d1-80b4-00c04fd430c8",
+  order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
+  store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
+  status: "in_progress",
+  destination: null,
+  lines: [
+    {
+      id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
+      order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
+      quantity: 2,
+      allocated_quantity: 2,
+      fulfilled_quantity: 1,
+    },
+  ],
+  created_at: 1,
+  updated_at: 2,
+};
+const shipment: OrderShipment = {
+  id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
+  store_id: "6ba7b819-9dad-41d1-80b4-00c04fd430c8",
+  order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
+  fulfillment_order_id: fulfillmentOrder.id,
+  origin_store_location_id: fulfillmentOrder.store_location_id,
+  lines: [
+    {
+      order_product_item_id: fulfillmentOrder.lines[0].order_product_item_id,
+      fulfillment_order_line_id: fulfillmentOrder.lines[0].id,
+      quantity: 1,
+    },
+  ],
+  status: "label_created",
+  parcel: {
+    length: 100,
+    width: 75,
+    height: 25,
+    weight: 500,
+    distance_unit: "mm",
+    mass_unit: "g",
+  },
+  customs_declaration: null,
+  carrier: "USPS",
+  service: "priority",
+  tracking_number: "9400000000000000000000",
+  tracking_url: "https://tracking.example.test/9400000000000000000000",
+  tracking_status_at: 2,
+  label: shippingLabel,
+  created_at: 1,
+  updated_at: 2,
+};
+const shippingRate: ShippingRate = {
+  id: "signed-rate-contract",
+  carrier: "USPS",
+  service: "priority",
+  display_name: "USPS Priority",
+  postage: { amount: 895, currency: "usd" },
+  platform_label_fee: { amount: 10, currency: "usd" },
+  total: { amount: 905, currency: "usd" },
+  estimated_days: 3,
+};
+const shippingLabelCharge: ShippingLabelCharge = {
+  id: "6ba7b815-9dad-41d1-80b4-00c04fd430c8",
+  order_shipment_id: shipment.id,
+  amount: shippingRate.total,
+  status: "succeeded",
+  safe_error: null,
+  requested_at: 1,
+  completed_at: 2,
+  created_at: 1,
+  updated_at: 2,
+};
+const chargeRefundReason: ShippingLabelChargeRefundReason = {
+  type: "unused_label_refund",
+  shipping_label_refund_id: shippingLabelRefund.id,
+};
+const shippingLabelChargeRefund: ShippingLabelChargeRefund = {
+  id: "6ba7b816-9dad-41d1-80b4-00c04fd430c8",
+  order_shipment_id: shipment.id,
+  shipping_label_charge_id: shippingLabelCharge.id,
+  reason: chargeRefundReason,
+  amount: shippingLabelCharge.amount,
+  status: "succeeded",
+  safe_error: null,
+  requested_at: 3,
+  completed_at: 4,
+  created_at: 3,
+  updated_at: 4,
+};
 const shipmentStatus: OrderShipmentStatus = shipment.status;
-const shipmentTrackingStatusAt: number | null | undefined =
-  shipment.tracking_status_at;
+const shipmentTrackingStatusAt: number | null = shipment.tracking_status_at;
 const cancelledShippingStatus: OrderShipmentStatus = "cancelled";
 const shippingRateRequest: GetShippingRatesParams = {
-  order_id: "order-contract",
-  location_id: "location-contract",
-  lines: [{ order_product_id: "product-contract", quantity: 1 }],
+  order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
+  store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
+  lines: [
+    {
+      order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
+      quantity: 1,
+    },
+  ],
   parcel: {
     length: 100,
     width: 75,
@@ -1736,19 +1858,34 @@ const shippingRateRequest: GetShippingRatesParams = {
   },
 };
 const createShipmentRequest: CreateOrderShipmentParams = {
-  order_id: "order-contract",
-  shipment_id: "018f477d-1cae-7c12-bf12-123456789abc",
+  order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
+  shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
   rate_id: "signed-rate-contract",
-  location_id: "location-contract",
-  fulfillment_order_id: "fulfillment-contract",
+  origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
+  fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
   lines: [
     {
-      order_product_id: "product-contract",
-      fulfillment_order_line_id: "fulfillment-line-contract",
+      order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
+      fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
       quantity: 1,
     },
   ],
+  parcel: shippingRateRequest.parcel,
 };
+// @ts-expect-error FulfillmentOrder roots do not expose persistence versions.
+fulfillmentOrder.version;
+// @ts-expect-error FulfillmentOrder points to the canonical StoreLocation field.
+fulfillmentOrder.location_id;
+// @ts-expect-error Shipment roots do not expose persistence versions.
+shipment.version;
+// @ts-expect-error Shipment labels are provider-neutral.
+shipment.shippo_label;
+// @ts-expect-error provider rate identity remains inside the server label state.
+shippingLabel.rate_id;
+// @ts-expect-error merchant charge retries are orchestration state, not Domain truth.
+shippingLabelCharge.attempt_count;
+// @ts-expect-error public merchant charge DTOs do not expose provider identifiers.
+shippingLabelCharge.provider;
 // @ts-expect-error verification challenges are never part of the public account contract.
 account.verification_codes;
 // @ts-expect-error verification challenges are never part of the public contact contract.

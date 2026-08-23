@@ -94,6 +94,21 @@ const removedIdentifiers = [
   "GetOrderDisputeParams",
   "Discount",
   "Condition",
+  "ShippoLabelStatus",
+  "ShippoLabel",
+  "ShippoLabelRefundStatus",
+  "ShippoLabelRefund",
+  "ProviderOrderShipmentCharge",
+  "OrderShipmentCharge",
+  "OrderShipmentChargeDirection",
+  "OrderShipmentChargeStatus",
+  "OrderShipmentChargeType",
+  "RetryOrderShipmentParams",
+  "RequestShippoLabelRefundParams",
+  "RetryShippoLabelRefundParams",
+  "FindOrderShipmentChargesParams",
+  "GetOrderShipmentChargeParams",
+  "RetryOrderShipmentChargeParams",
 ];
 
 const removedIdentifierPattern = new RegExp(
@@ -141,6 +156,18 @@ const removedPromotionVocabularyPattern =
   /\b(?:items_percentage|items_fixed|digital_product_ids|min_order_amount|date_range|max_uses|max_uses_per_user|discount_application_id|starts_at_from|starts_at_to|expires_at_from|expires_at_to)\b|type:\s*["']services["']|\bbps\b/g;
 const removedBookingQuotaFeaturePattern =
   /export type SubscriptionPlanFeatureType\s*=[^;]*\|\s*["'](?:services|providers)["'][^;]*;/g;
+const removedShippingProviderVocabularyPattern =
+  /\b(?:Shippo[A-Za-z0-9_]*|managed_account_id|shippo_account_id|shippo_token)\b/g;
+const removedShippingContractPatterns = [
+  /export interface FulfillmentOrderLine\s*\{[^}]*\b(?:order_product_id|remaining_quantity)\??:/g,
+  /export interface FulfillmentOrder\s*\{[^}]*\b(?:version|location_id)\??:/g,
+  /export interface ShippingRateLine\s*\{[^}]*\border_product_id\??:/g,
+  /export interface OrderShipmentLine\s*\{[^}]*\border_product_id\??:/g,
+  /export interface OrderShipment\s*\{[^}]*\b(?:version|location_id|shippo_label|attempt_count|provider)\??:/g,
+  /export interface ShippingLabel(?:Refund|Charge|ChargeRefund)?\s*\{[^}]*\b(?:version|rate_id|transaction_id|refund_id|postage_amount|fee_amount|currency|attempt_count|provider)\??:/g,
+  /export interface ShippingRate\s*\{[^}]*\b(?:amount|currency)\??:/g,
+  /\/shippo-label\b|\/shipments\/[^\s`"']+\/retry\b|\/charges(?:\/|`|"|')/g,
+];
 const exportedDeclarationPattern =
   /\bexport\s+(?:declare\s+)?(?:type|interface|class|enum|function|const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\b/g;
 
@@ -251,6 +278,18 @@ for (const file of listTypeScriptFiles(sourceDir)) {
   for (const match of source.matchAll(removedBookingQuotaFeaturePattern)) {
     report(file, source, match.index, "removed Booking quota feature key");
     failures++;
+  }
+
+  for (const match of source.matchAll(removedShippingProviderVocabularyPattern)) {
+    report(file, source, match.index, `provider-specific Shipping vocabulary ${match[0]}`);
+    failures++;
+  }
+
+  for (const pattern of removedShippingContractPatterns) {
+    for (const match of source.matchAll(pattern)) {
+      report(file, source, match.index, "removed Shipping contract");
+      failures++;
+    }
   }
 
   for (const match of source.matchAll(exportedDeclarationPattern)) {

@@ -2359,7 +2359,7 @@ export interface DeleteWebhookParams {
 export interface GetShippingRatesParams {
   store_id?: string;
   order_id: string;
-  location_id: string;
+  store_location_id: string;
   lines: ShippingRateLine[];
   parcel: Parcel;
   customs_declaration?: CustomsDeclaration;
@@ -2391,26 +2391,27 @@ export interface CreateOrderShipmentParams {
   order_id: string;
   shipment_id: string;
   rate_id: string;
-  location_id: string;
+  origin_store_location_id: string;
   fulfillment_order_id: string;
   lines: OrderShipmentLine[];
+  parcel: Parcel;
+  customs_declaration?: CustomsDeclaration;
 }
 
-export type RetryOrderShipmentParams = GetOrderShipmentParams;
+export type RetryShippingLabelParams = GetOrderShipmentParams;
 
-export type RequestShippoLabelRefundParams = GetOrderShipmentParams;
+export type RequestShippingLabelRefundParams = GetOrderShipmentParams;
 
-export type RetryShippoLabelRefundParams = GetOrderShipmentParams;
+export type RetryShippingLabelRefundParams = GetOrderShipmentParams;
 
-export interface FindOrderShipmentChargesParams extends FindOrderShipmentsParams {
-  shipment_id: string;
-}
+export type GetShippingLabelChargeParams = GetOrderShipmentParams;
 
-export interface GetOrderShipmentChargeParams extends GetOrderShipmentParams {
-  charge_id: string;
-}
+export type RetryShippingLabelChargeParams = GetShippingLabelChargeParams;
 
-export type RetryOrderShipmentChargeParams = GetOrderShipmentChargeParams;
+export type GetShippingLabelChargeRefundParams = GetOrderShipmentParams;
+
+export type RetryShippingLabelChargeRefundParams =
+  GetShippingLabelChargeRefundParams;
 
 export interface ContactInfo {
   id: string;

@@ -612,9 +612,22 @@ assert.equal(typeof arky.eshop.shipment.getRates, "function");
 assert.equal(typeof arky.eshop.shipment.create, "function");
 assert.equal(typeof arky.eshop.shipment.fulfillment.find, "function");
 assert.equal(typeof arky.eshop.shipment.fulfillment.get, "function");
-assert.equal(typeof arky.eshop.shipment.refund.retry, "function");
-assert.equal(typeof arky.eshop.shipment.charge.get, "function");
-assert.equal(typeof arky.eshop.shipment.charge.retry, "function");
+assert.equal(typeof arky.eshop.shipment.label.retry, "function");
+assert.equal(typeof arky.eshop.shipment.label.refund.request, "function");
+assert.equal(typeof arky.eshop.shipment.label.refund.retry, "function");
+assert.equal(typeof arky.eshop.shipment.shippingLabelCharge.get, "function");
+assert.equal(typeof arky.eshop.shipment.shippingLabelCharge.retry, "function");
+assert.equal(
+  typeof arky.eshop.shipment.shippingLabelChargeRefund.get,
+  "function",
+);
+assert.equal(
+  typeof arky.eshop.shipment.shippingLabelChargeRefund.retry,
+  "function",
+);
+assert.equal("retry" in arky.eshop.shipment, false);
+assert.equal("refund" in arky.eshop.shipment, false);
+assert.equal("charge" in arky.eshop.shipment, false);
 
 const fulfillmentCalls = [];
 globalThis.fetch = async (url, init = {}) => {
@@ -629,12 +642,12 @@ globalThis.fetch = async (url, init = {}) => {
 };
 try {
   await arky.eshop.shipment.fulfillment.find({
-    order_id: "order-1",
+    order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
     limit: 20,
   });
   await arky.eshop.shipment.fulfillment.get({
-    order_id: "order-1",
-    fulfillment_order_id: "fulfillment-1",
+    order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
+    fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
   });
 } finally {
   globalThis.fetch = originalFetch;
@@ -643,11 +656,11 @@ assert.deepEqual(
   fulfillmentCalls.map(({ url, method }) => [url, method]),
   [
     [
-      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/fulfillment-orders?limit=20",
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/6ba7b81a-9dad-41d1-80b4-00c04fd430c8/fulfillment-orders?limit=20",
       "GET",
     ],
     [
-      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/fulfillment-orders/fulfillment-1",
+      "http://127.0.0.1:1/v1/stores/contract-store/orders/6ba7b81a-9dad-41d1-80b4-00c04fd430c8/fulfillment-orders/6ba7b813-9dad-41d1-80b4-00c04fd430c8",
       "GET",
     ],
   ],

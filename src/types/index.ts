@@ -1025,21 +1025,19 @@ export type FulfillmentOrderStatus =
 
 export interface FulfillmentOrderLine {
   id: string;
-  order_product_id: string;
+  order_product_item_id: string;
   quantity: number;
   allocated_quantity: number;
   fulfilled_quantity: number;
-  remaining_quantity: number;
 }
 
 export interface FulfillmentOrder {
   id: string;
-  version: number;
   store_id: string;
   order_id: string;
-  location_id: string;
+  store_location_id: string;
   status: FulfillmentOrderStatus;
-  destination?: Address | null;
+  destination: PostalAddress | null;
   lines: FulfillmentOrderLine[];
   created_at: number;
   updated_at: number;
@@ -3432,96 +3430,102 @@ export type OrderShipmentStatus =
   | "cancelled";
 
 export interface ShippingRateLine {
-  order_product_id: string;
+  order_product_item_id: string;
   quantity: number;
 }
 
 export interface OrderShipmentLine {
-  order_product_id: string;
+  order_product_item_id: string;
   fulfillment_order_line_id: string;
   quantity: number;
 }
 
-export type ShippoLabelStatus =
+export type ShippingLabelStatus =
   "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
 
-export type ShippoLabelRefundStatus =
+export type ShippingLabelRefundStatus =
   "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
 
-export interface ShippoLabelRefund {
+/** Provider-neutral carrier-label refund evidence embedded in one Shipment. */
+export interface ShippingLabelRefund {
   id: string;
-  version: number;
-  status: ShippoLabelRefundStatus;
-  refund_id?: string | null;
-  safe_error?: string | null;
+  status: ShippingLabelRefundStatus;
+  safe_error: string | null;
   requested_at: number;
-  completed_at?: number | null;
+  completed_at: number | null;
 }
 
-export interface ShippoLabel {
+/** Provider-neutral carrier label embedded in one Shipment. */
+export interface ShippingLabel {
   id: string;
-  version: number;
-  status: ShippoLabelStatus;
-  rate_id: string;
-  transaction_id?: string | null;
-  label_url?: string | null;
-  postage_amount: number;
-  fee_amount: number;
-  currency: Currency;
+  status: ShippingLabelStatus;
+  label_url: string | null;
+  postage: Money;
+  platform_label_fee: Money;
+  total: Money;
   requested_at: number;
-  completed_at?: number | null;
-  refund?: ShippoLabelRefund | null;
-  safe_error?: string | null;
+  completed_at: number | null;
+  refund: ShippingLabelRefund | null;
+  safe_error: string | null;
 }
 
-export type OrderShipmentChargeDirection = "debit" | "credit";
-
-export type OrderShipmentChargeStatus =
+export type ShippingLabelChargeStatus =
   "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
 
-export type OrderShipmentChargeType =
-  | { type: "label_purchase" }
-  | { type: "label_purchase_reversal" }
-  | { type: "label_refund"; refund_id: string };
-
-export interface ProviderOrderShipmentCharge {
-  transaction_id?: string | null;
-  status?: string | null;
-}
-
-export interface OrderShipmentCharge {
+/** The one merchant debit that funds a Shipment's label purchase. */
+export interface ShippingLabelCharge {
   id: string;
   order_shipment_id: string;
-  type: OrderShipmentChargeType;
-  direction: OrderShipmentChargeDirection;
-  amount: number;
-  currency: Currency;
-  status: OrderShipmentChargeStatus;
-  version: number;
-  attempt_count: number;
-  provider: ProviderOrderShipmentCharge;
-  safe_error?: string | null;
+  amount: Money;
+  status: ShippingLabelChargeStatus;
+  safe_error: string | null;
   requested_at: number;
-  completed_at?: number | null;
+  completed_at: number | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export type ShippingLabelChargeRefundReason =
+  | { type: "label_purchase_failed" }
+  | {
+      type: "unused_label_refund";
+      shipping_label_refund_id: string;
+    };
+
+export type ShippingLabelChargeRefundStatus =
+  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
+
+/** The independently processed full return of one ShippingLabelCharge. */
+export interface ShippingLabelChargeRefund {
+  id: string;
+  order_shipment_id: string;
+  shipping_label_charge_id: string;
+  reason: ShippingLabelChargeRefundReason;
+  amount: Money;
+  status: ShippingLabelChargeRefundStatus;
+  safe_error: string | null;
+  requested_at: number;
+  completed_at: number | null;
   created_at: number;
   updated_at: number;
 }
 
 export interface OrderShipment {
   id: string;
-  version: number;
   store_id: string;
   order_id: string;
   fulfillment_order_id: string;
-  location_id: string;
+  origin_store_location_id: string;
   lines: OrderShipmentLine[];
   status: OrderShipmentStatus;
-  carrier?: string | null;
-  service?: string | null;
-  tracking_number?: string | null;
-  tracking_url?: string | null;
-  tracking_status_at?: number | null;
-  shippo_label?: ShippoLabel | null;
+  parcel: Parcel;
+  customs_declaration: CustomsDeclaration | null;
+  carrier: string | null;
+  service: string | null;
+  tracking_number: string | null;
+  tracking_url: string | null;
+  tracking_status_at: number | null;
+  label: ShippingLabel | null;
   created_at: number;
   updated_at: number;
 }
@@ -3531,9 +3535,10 @@ export interface ShippingRate {
   carrier: string;
   service: string;
   display_name: string;
-  amount: number;
-  currency: Currency;
-  estimated_days?: number | null;
+  postage: Money;
+  platform_label_fee: Money;
+  total: Money;
+  estimated_days: number | null;
 }
 
 export interface Parcel {
@@ -3541,8 +3546,8 @@ export interface Parcel {
   width: number;
   height: number;
   weight: number;
-  distance_unit: "cm" | "in" | "ft" | "mm" | "m" | "yd";
-  mass_unit: "oz" | "lb" | "g" | "kg";
+  distance_unit: string;
+  mass_unit: string;
 }
 
 export interface CreateOrderShipmentResponse {
@@ -3556,33 +3561,20 @@ export interface CustomsItem {
   net_weight: string;
   mass_unit: string;
   value_amount: string;
-  value_currency: Currency;
+  value_currency: string;
   origin_country: string;
   tariff_number?: string | null;
 }
 
 export interface CustomsDeclaration {
-  contents_type:
-    | "DOCUMENTS"
-    | "GIFT"
-    | "SAMPLE"
-    | "MERCHANDISE"
-    | "HUMANITARIAN_DONATION"
-    | "RETURN_MERCHANDISE"
-    | "OTHER";
+  contents_type: string;
   contents_explanation?: string | null;
-  non_delivery_option: "ABANDON" | "RETURN";
+  non_delivery_option: string;
   certify: boolean;
   certify_signer: string;
-  eel_pfc?:
-    | "NOEEI_30_37_a"
-    | "NOEEI_30_37_h"
-    | "NOEEI_30_37_f"
-    | "NOEEI_30_36"
-    | "AES_ITN"
-    | null;
+  eel_pfc?: string | null;
   aes_itn?: string | null;
-  incoterm?: "DDP" | "DDU" | "FCA" | "DAP" | "eDAP" | null;
+  incoterm?: string | null;
   items: CustomsItem[];
 }
 

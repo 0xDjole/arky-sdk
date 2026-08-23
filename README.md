@@ -416,6 +416,86 @@ digital, shipping, or adjustment allocations. Payment disputes are read-only Str
 through `admin.eshop.order.getDisputes` and `admin.eshop.order.getDispute`; their public provider
 evidence contains only `dispute_id` and `charge_id`.
 
+## Fulfillment and shipping labels
+
+Fulfillment work is scoped to a StoreLocation. Rate requests and Shipment lines address stable
+embedded Order product-item IDs, while one Shipment freezes its parcel and optional customs facts:
+
+```typescript
+const [rate] = await admin.eshop.shipment.getRates({
+  order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
+  store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
+  lines: [
+    {
+      order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
+      quantity: 1,
+    },
+  ],
+  parcel: {
+    length: 150,
+    width: 100,
+    height: 50,
+    weight: 750,
+    distance_unit: "mm",
+    mass_unit: "g",
+  },
+});
+
+const result = await admin.eshop.shipment.create({
+  order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
+  shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
+  rate_id: rate.id,
+  origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
+  fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
+  lines: [
+    {
+      order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
+      fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
+      quantity: 1,
+    },
+  ],
+  parcel: {
+    length: 150,
+    width: 100,
+    height: 50,
+    weight: 750,
+    distance_unit: "mm",
+    mass_unit: "g",
+  },
+});
+
+console.log(rate.postage, rate.platform_label_fee, rate.total);
+console.log(result.shipment.label?.total);
+```
+
+`ShippingLabel` and its embedded `ShippingLabelRefund` are carrier-neutral public DTOs. The one
+merchant debit and its independently processed full return are separate singular resources:
+
+```typescript
+await admin.eshop.shipment.label.retry({
+  order_id: result.shipment.order_id,
+  shipment_id: result.shipment.id,
+});
+
+await admin.eshop.shipment.label.refund.request({
+  order_id: result.shipment.order_id,
+  shipment_id: result.shipment.id,
+});
+
+const charge = await admin.eshop.shipment.shippingLabelCharge.get({
+  order_id: result.shipment.order_id,
+  shipment_id: result.shipment.id,
+});
+const chargeRefund =
+  await admin.eshop.shipment.shippingLabelChargeRefund.get({
+    order_id: result.shipment.order_id,
+    shipment_id: result.shipment.id,
+  });
+```
+
+These DTOs expose safe lifecycle state and `Money` snapshots only. Carrier and payment-provider
+object IDs, processing claims, attempt counters, and persistence versions remain Server-internal.
+
 ## TypeScript
 
 ```typescript

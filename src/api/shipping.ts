@@ -3,24 +3,26 @@ import type {
   CreateOrderShipmentParams,
   FindFulfillmentOrdersParams,
   FindOrderShipmentsParams,
-  FindOrderShipmentChargesParams,
   GetOrderShipmentParams,
   GetFulfillmentOrderParams,
-  GetOrderShipmentChargeParams,
+  GetShippingLabelChargeParams,
+  GetShippingLabelChargeRefundParams,
   GetShippingRatesParams,
   RequestOptions,
-  RequestShippoLabelRefundParams,
-  RetryOrderShipmentParams,
-  RetryShippoLabelRefundParams,
-  RetryOrderShipmentChargeParams,
+  RequestShippingLabelRefundParams,
+  RetryShippingLabelParams,
+  RetryShippingLabelRefundParams,
+  RetryShippingLabelChargeParams,
+  RetryShippingLabelChargeRefundParams,
 } from "../types/api";
 import type {
   CreateOrderShipmentResponse,
   FulfillmentOrder,
   PaginatedResponse,
   OrderShipment,
-  ShippoLabelRefund,
-  OrderShipmentCharge,
+  ShippingLabelRefund,
+  ShippingLabelCharge,
+  ShippingLabelChargeRefund,
   ShippingRate,
 } from "../types";
 
@@ -103,80 +105,91 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       return response;
     },
 
-    async retryOrderShipment(
-      params: RetryOrderShipmentParams,
+    async retryShippingLabel(
+      params: RetryShippingLabelParams,
       options?: RequestOptions,
     ): Promise<OrderShipment> {
       const path =
         `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}` +
         `/shipments/${params.shipment_id}`;
       return apiConfig.httpClient.post<OrderShipment>(
+        `${path}/label/retry`,
+        {},
+        options,
+      );
+    },
+
+    async requestShippingLabelRefund(
+      params: RequestShippingLabelRefundParams,
+      options?: RequestOptions,
+    ): Promise<ShippingLabelRefund> {
+      return apiConfig.httpClient.post<ShippingLabelRefund>(
+        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/label/refund`,
+        {},
+        options,
+      );
+    },
+
+    async retryShippingLabelRefund(
+      params: RetryShippingLabelRefundParams,
+      options?: RequestOptions,
+    ): Promise<ShippingLabelRefund> {
+      const path =
+        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}` +
+        `/shipments/${params.shipment_id}/label/refund`;
+      return apiConfig.httpClient.post<ShippingLabelRefund>(
         `${path}/retry`,
         {},
         options,
       );
     },
 
-    async requestShippoLabelRefund(
-      params: RequestShippoLabelRefundParams,
+    async getShippingLabelCharge(
+      params: GetShippingLabelChargeParams,
       options?: RequestOptions,
-    ): Promise<ShippoLabelRefund> {
-      return apiConfig.httpClient.post<ShippoLabelRefund>(
-        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/shippo-label/refund`,
-        {},
+    ): Promise<ShippingLabelCharge> {
+      return apiConfig.httpClient.get<ShippingLabelCharge>(
+        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/shipping-label-charge`,
         options,
       );
     },
 
-    async retryShippoLabelRefund(
-      params: RetryShippoLabelRefundParams,
+    async retryShippingLabelCharge(
+      params: RetryShippingLabelChargeParams,
       options?: RequestOptions,
-    ): Promise<ShippoLabelRefund> {
+    ): Promise<ShippingLabelCharge> {
       const path =
         `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}` +
-        `/shipments/${params.shipment_id}/shippo-label/refund`;
-      return apiConfig.httpClient.post<ShippoLabelRefund>(
+        `/shipments/${params.shipment_id}/shipping-label-charge`;
+      return apiConfig.httpClient.post<ShippingLabelCharge>(
         `${path}/retry`,
         {},
         options,
       );
     },
 
-    async findOrderShipmentCharges(
-      params: FindOrderShipmentChargesParams,
+    async getShippingLabelChargeRefund(
+      params: GetShippingLabelChargeRefundParams,
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<OrderShipmentCharge>> {
-      const { store_id, order_id, shipment_id, ...queryParams } = params;
-      return apiConfig.httpClient.get<
-        PaginatedResponse<OrderShipmentCharge>
-      >(
-        `/v1/stores/${storeId(store_id)}/orders/${order_id}/shipments/${shipment_id}/charges`,
-        { ...options, params: queryParams },
-      );
-    },
-
-    async getOrderShipmentCharge(
-      params: GetOrderShipmentChargeParams,
-      options?: RequestOptions,
-    ): Promise<OrderShipmentCharge> {
-      return apiConfig.httpClient.get<OrderShipmentCharge>(
-        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/charges/${params.charge_id}`,
+    ): Promise<ShippingLabelChargeRefund> {
+      return apiConfig.httpClient.get<ShippingLabelChargeRefund>(
+        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/shipping-label-charge-refund`,
         options,
       );
     },
 
-    async retryOrderShipmentCharge(
-      params: RetryOrderShipmentChargeParams,
+    async retryShippingLabelChargeRefund(
+      params: RetryShippingLabelChargeRefundParams,
       options?: RequestOptions,
-    ): Promise<OrderShipmentCharge> {
+    ): Promise<ShippingLabelChargeRefund> {
       const path =
         `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}` +
-        `/shipments/${params.shipment_id}/charges/${params.charge_id}`;
-      return apiConfig.httpClient.post<OrderShipmentCharge>(
-          `${path}/retry`,
-          {},
-          options,
-        );
+        `/shipments/${params.shipment_id}/shipping-label-charge-refund`;
+      return apiConfig.httpClient.post<ShippingLabelChargeRefund>(
+        `${path}/retry`,
+        {},
+        options,
+      );
     },
   };
 };
