@@ -38,11 +38,6 @@ export type Currency =
   | "mkd"
   | "all";
 
-export enum PaymentMethodType {
-  Cash = "cash",
-  CreditCard = "credit_card",
-}
-
 export type TaxMode = "exclusive" | "inclusive";
 
 export interface OrderTaxSnapshot {
@@ -138,13 +133,13 @@ export interface OrderPayment {
   store_id: string;
   order_id: string;
   type: OrderPaymentType;
-  payment_method_key?: string | null;
   status: OrderPaymentStatus;
   amount: number;
   currency: Currency;
   paid_amount: number;
   refund_pending_amount: number;
   refunded_amount: number;
+  marked_paid_by_account_id: string | null;
   checkout_expires_at: number;
   provider?: ProviderOrderPayment | null;
   requested_at: number;
@@ -155,6 +150,7 @@ export interface OrderPayment {
 }
 
 export interface ProviderOrderPayment {
+  payment_provider_id: string;
   checkout_id?: string | null;
   payment_id?: string | null;
   status?: string | null;
@@ -179,8 +175,8 @@ export interface OrderQuote {
   digital_lines: DigitalProductQuoteLine[];
   shipping_lines: ShippingLine[];
   shipping_methods: ShippingMethod[];
-  payment_method_key: string;
-  payment_methods: PaymentMethod[];
+  payment_provider_id: string;
+  payment_provider_ids: string[];
   money: OrderMoney;
 }
 
@@ -287,7 +283,7 @@ export interface Cart {
   billing_address?: Address | null;
   forms: FormEntry[];
   promo_code?: string | null;
-  payment_method_key?: string | null;
+  payment_provider_id?: string | null;
   shipping_method_id?: string | null;
   converted_order_id?: string | null;
   item_count: number;
@@ -716,18 +712,33 @@ export interface SocialConnection {
   updated_at: number;
 }
 
-export type PaymentProviderType = "stripe";
+export interface StripePlatformDebitConsent {
+  connected_account_id: string;
+  accepted_by_account_id: string;
+  accepted_at: number;
+  terms_version: number;
+}
+
+export type PaymentProviderConfiguration =
+  | { type: "cash_on_delivery" }
+  | {
+      type: "stripe";
+      connected_account_id: string;
+      account_setup_submitted: boolean;
+      payments_enabled: boolean;
+      payouts_enabled: boolean;
+      state_observed_at: number;
+      platform_debit_consent: StripePlatformDebitConsent | null;
+    };
+
+export type PaymentProviderConfigurationType =
+  PaymentProviderConfiguration["type"];
 
 export interface PaymentProvider {
   id: string;
   store_id: string;
-  type: PaymentProviderType;
-  setup_status: "pending" | "submitted" | "complete";
-  payments_enabled: boolean;
-  payouts_enabled: boolean;
-  platform_debits_authorized: boolean;
-  state_observed_at: number;
-  disabled_at?: number | null;
+  configuration: PaymentProviderConfiguration;
+  disabled_at: number | null;
   created_at: number;
   updated_at: number;
 }
@@ -741,17 +752,6 @@ export interface ShippingWeightTier {
   up_to_grams: number;
   amount: number;
 }
-
-export type PaymentMethod =
-  | {
-      type: "cash";
-      key: string;
-    }
-  | {
-      type: "credit_card";
-      key: string;
-      payment_provider_id: string;
-    };
 
 export interface ShippingMethod {
   id: string;
@@ -1129,7 +1129,7 @@ export interface Market {
   key: string;
   currency: Currency;
   tax_mode: TaxMode;
-  payment_methods: PaymentMethod[];
+  payment_provider_ids: string[];
   zones: Zone[];
   created_at: number;
   updated_at: number;

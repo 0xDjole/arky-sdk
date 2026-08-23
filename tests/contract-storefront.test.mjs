@@ -8,6 +8,8 @@ import { createStorefront, initialize } from "../dist/storefront.js";
 const apiUrl = "https://api.example.test";
 const publishableKey = `arky_pk_${"c".repeat(43)}`;
 const visitorToken = `arky_vst_${"c".repeat(64)}`;
+const cashOnDeliveryProviderId = "provider-cash-on-delivery";
+const stripeProviderId = "provider-stripe";
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -44,12 +46,9 @@ function setup() {
           key: "ita",
           currency: "EUR",
           tax_mode: "inclusive",
-          payment_methods: [
-            {
-              key: "credit_card",
-              type: "credit_card",
-              payment_provider_id: "provider-stripe",
-            },
+          payment_provider_ids: [
+            cashOnDeliveryProviderId,
+            stripeProviderId,
           ],
           zones: [],
         },
@@ -74,7 +73,7 @@ function cartSnapshot(itemCount = 0) {
     billing_address: null,
     forms: [],
     promo_code: null,
-    payment_method_key: "cash",
+    payment_provider_id: cashOnDeliveryProviderId,
     shipping_method_id: null,
     converted_order_id: null,
     item_count: itemCount,
@@ -85,19 +84,30 @@ function cartSnapshot(itemCount = 0) {
 }
 
 function payment(status, type = "cash", amount = 1250) {
+  const paymentProviderId =
+    type === "card" ? stripeProviderId : cashOnDeliveryProviderId;
   return {
     id: "payment-contract",
     type,
-    payment_method_key: type === "stripe" ? "credit_card" : "cash",
     status,
     amount,
     currency: "eur",
     paid_amount: status === "paid" ? amount : 0,
     refund_pending_amount: 0,
     refunded_amount: 0,
-    current_attempt_id: type === "stripe" ? "attempt-contract" : null,
+    marked_paid_by_account_id: null,
+    checkout_expires_at: 0,
+    provider: {
+      payment_provider_id: paymentProviderId,
+      checkout_id: type === "card" ? "checkout-contract" : null,
+      payment_id: type === "card" ? "payment-intent-contract" : null,
+      status: null,
+    },
+    requested_at: 1,
+    completed_at: status === "paid" ? 2 : null,
     created_at: 1,
     updated_at: 2,
+    safe_error: null,
   };
 }
 
@@ -256,7 +266,9 @@ test("high-level checkout uses keyless routes, visitor authorization, and Store-
 
   try {
     assert.deepEqual(
-      await store.eshop.cart.checkout({ payment_method_key: "cash" }),
+      await store.eshop.cart.checkout({
+        payment_provider_id: cashOnDeliveryProviderId,
+      }),
       order,
     );
   } finally {
@@ -276,13 +288,16 @@ test("high-level checkout uses keyless routes, visitor authorization, and Store-
     assert.equal(JSON.stringify(call.body).includes("store_id"), false);
     assert.equal("market" in call.body, false);
   }
+  assert.equal(calls[0].body.payment_provider_id, cashOnDeliveryProviderId);
+  assert.equal(calls[1].body.payment_provider_id, cashOnDeliveryProviderId);
+  assert.equal("payment_method_key" in calls[1].body, false);
 });
 
 test("checkout failures do not create client-side recovery state", async () => {
   const { store, cart } = checkoutStore();
   const completed = completedCheckout();
   const checkoutInput = {
-    payment_method_key: "cash",
+    payment_provider_id: cashOnDeliveryProviderId,
     product_items: store.eshop.cart.product_items.get(),
   };
   const calls = [];
@@ -344,7 +359,7 @@ test("checkout returns the synchronous POST response without polling", async () 
     const target = String(url);
     if (target.endsWith("/orders/order-scheduled/payment")) {
       paymentObservationCalls += 1;
-      return jsonResponse(payment("paid", "stripe"));
+      return jsonResponse(payment("paid", "card"));
     }
     if (!target.endsWith("/checkout")) {
       return jsonResponse(cart);
@@ -355,13 +370,13 @@ test("checkout returns the synchronous POST response without polling", async () 
       order_id: "order-scheduled",
       number: "1002",
       payment_action: { type: "none" },
-      payment: payment("processing", "stripe"),
+      payment: payment("processing", "card"),
     });
   };
 
   try {
     const result = await store.eshop.cart.checkout({
-      payment_method_key: "cash",
+      payment_provider_id: cashOnDeliveryProviderId,
     });
     assert.equal(result.payment.status, "processing");
     assert.equal(checkoutCalls, 1);
@@ -376,7 +391,7 @@ test("storefront order payment lookup is an authenticated exact GET", async () =
     apiUrl,
     sessionStorage: sessionStorage(),
   });
-  const observedPayment = payment("unknown", "stripe");
+  const observedPayment = payment("unknown", "card");
   const calls = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
@@ -474,7 +489,7 @@ test("card checkout returns an embedded Stripe action without navigating", async
   });
   const cart = {
     ...cartSnapshot(1),
-    payment_method_key: "credit_card",
+    payment_provider_id: stripeProviderId,
   };
   store.eshop.cart.cart.set(cart);
   store.eshop.cart.product_items.set([
@@ -492,32 +507,12 @@ test("card checkout returns an embedded Stripe action without navigating", async
     },
   ]);
   let checkoutCalls = 0;
+  let checkoutBody;
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
-    if (String(url).endsWith("/quote")) {
-      return jsonResponse({
-        product_lines: [],
-        booking_lines: [],
-        digital_lines: [],
-        shipping_lines: [],
-        shipping_methods: [],
-        payment_method_key: "credit_card",
-        payment_methods: [
-          {
-            type: "credit_card",
-            key: "credit_card",
-            payment_provider_id: "provider-stripe",
-          },
-        ],
-        money: {
-          total: 1250,
-          currency: "EUR",
-          payment_method_key: "credit_card",
-        },
-      });
-    }
+  globalThis.fetch = async (url, init = {}) => {
     if (!String(url).endsWith("/checkout")) return jsonResponse(cart);
     checkoutCalls += 1;
+    checkoutBody = JSON.parse(String(init.body));
     return jsonResponse({
       order_id: "order-hosted",
       number: "1004",
@@ -528,13 +523,13 @@ test("card checkout returns an embedded Stripe action without navigating", async
         stripe_account_id: "acct_order",
         expires_at: 1_800_000_000,
       },
-      payment: payment("requires_action", "stripe"),
+      payment: payment("requires_action", "card"),
     });
   };
 
   try {
     const result = await store.eshop.cart.checkout({
-      payment_method_key: "credit_card",
+      payment_provider_id: stripeProviderId,
       return_url: "https://shop.example.test/checkout/complete",
     });
     assert.equal(result.payment_action.type, "stripe_embedded_checkout");
@@ -544,5 +539,10 @@ test("card checkout returns an embedded Stripe action without navigating", async
   }
 
   assert.equal(checkoutCalls, 1);
+  assert.deepEqual(checkoutBody, {
+    id: cart.id,
+    payment_provider_id: stripeProviderId,
+    return_url: "https://shop.example.test/checkout/complete",
+  });
   assert.equal(store.eshop.cart.cart.get().id, cart.id);
 });

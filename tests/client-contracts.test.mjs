@@ -451,6 +451,277 @@ test("Store endpoint configurations and physical locations use their cleaned con
   );
 });
 
+test("admin Market and Payment Provider APIs use provider roots and UUID allowlists", async () => {
+  const admin = createAdmin({
+    baseUrl,
+    storeId,
+    apiToken: "arky_api_admin_contract",
+  });
+  const cashProvider = {
+    id: "provider-cash-on-delivery",
+    store_id: storeId,
+    configuration: { type: "cash_on_delivery" },
+    disabled_at: null,
+    created_at: 1,
+    updated_at: 1,
+  };
+  const stripeProvider = {
+    id: "provider-stripe",
+    store_id: storeId,
+    configuration: {
+      type: "stripe",
+      connected_account_id: "acct_contract",
+      account_setup_submitted: true,
+      payments_enabled: true,
+      payouts_enabled: true,
+      state_observed_at: 2,
+      platform_debit_consent: {
+        connected_account_id: "acct_contract",
+        accepted_by_account_id: "account-contract",
+        accepted_at: 2,
+        terms_version: 1,
+      },
+    },
+    disabled_at: null,
+    created_at: 1,
+    updated_at: 2,
+  };
+  const market = {
+    id: "market-contract",
+    store_id: storeId,
+    key: "bih",
+    currency: "bam",
+    tax_mode: "inclusive",
+    payment_provider_ids: [cashProvider.id, stripeProvider.id],
+    zones: [],
+    created_at: 1,
+    updated_at: 1,
+  };
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({
+      url: String(url),
+      method: init.method || "GET",
+      body: init.body ? JSON.parse(String(init.body)) : null,
+    });
+    return String(url).endsWith("/payment-providers")
+      ? jsonResponse([cashProvider, stripeProvider])
+      : jsonResponse(market);
+  };
+
+  try {
+    const providers = await admin.store.paymentProvider.list();
+    assert.equal(providers[0].configuration.type, "cash_on_delivery");
+    assert.equal(
+      providers[1].configuration.platform_debit_consent.terms_version,
+      1,
+    );
+    assert.deepEqual(
+      await admin.store.market.create({
+        key: "bih",
+        currency: "bam",
+        tax_mode: "inclusive",
+        payment_provider_ids: [cashProvider.id, stripeProvider.id],
+        zones: [],
+      }),
+      market,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.deepEqual(calls, [
+    {
+      url: `${baseUrl}/v1/stores/${storeId}/payment-providers`,
+      method: "GET",
+      body: null,
+    },
+    {
+      url: `${baseUrl}/v1/stores/${storeId}/markets`,
+      method: "POST",
+      body: {
+        key: "bih",
+        currency: "bam",
+        tax_mode: "inclusive",
+        payment_provider_ids: [cashProvider.id, stripeProvider.id],
+        zones: [],
+        store_id: storeId,
+      },
+    },
+  ]);
+});
+
+test("admin cart update, quote, and checkout preserve one Payment Provider UUID", async () => {
+  const admin = createAdmin({
+    baseUrl,
+    storeId,
+    market: "bih",
+    apiToken: "arky_api_admin_contract",
+  });
+  const paymentProviderId = "provider-stripe";
+  const cart = {
+    id: "cart-provider-contract",
+    store_id: storeId,
+    contact_id: "contact-contract",
+    token: "cart-token-contract",
+    status: "active",
+    origin: "admin",
+    created_by_account_id: "account-contract",
+    market: "bih",
+    product_items: [],
+    booking_items: [],
+    digital_items: [],
+    shipping_address: null,
+    billing_address: null,
+    forms: [],
+    promo_code: null,
+    payment_provider_id: paymentProviderId,
+    shipping_method_id: null,
+    converted_order_id: null,
+    item_count: 0,
+    last_action_at: 1,
+    abandoned_at: null,
+    created_at: 1,
+    updated_at: 2,
+  };
+  const quote = {
+    product_lines: [],
+    booking_lines: [],
+    digital_lines: [],
+    shipping_lines: [],
+    shipping_methods: [],
+    payment_provider_id: paymentProviderId,
+    payment_provider_ids: [paymentProviderId],
+    money: {
+      currency: "bam",
+      market: "bih",
+      subtotal: 0,
+      shipping: 0,
+      discount: 0,
+      total: 0,
+    },
+  };
+  const checkout = {
+    order_id: "order-provider-contract",
+    number: "1001",
+    payment_action: { type: "none" },
+    payment: {
+      id: "payment-provider-contract",
+      version: 1,
+      store_id: storeId,
+      order_id: "order-provider-contract",
+      type: "card",
+      status: "requires_action",
+      amount: 100,
+      currency: "bam",
+      paid_amount: 0,
+      refund_pending_amount: 0,
+      refunded_amount: 0,
+      marked_paid_by_account_id: null,
+      checkout_expires_at: 10,
+      provider: {
+        payment_provider_id: paymentProviderId,
+        checkout_id: "checkout-provider-contract",
+        payment_id: null,
+        status: null,
+      },
+      requested_at: 1,
+      completed_at: null,
+      created_at: 1,
+      updated_at: 1,
+      safe_error: null,
+    },
+  };
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    const call = {
+      url: String(url),
+      method: init.method || "GET",
+      body: init.body ? JSON.parse(String(init.body)) : null,
+    };
+    calls.push(call);
+    if (call.url.endsWith("/checkout")) return jsonResponse(checkout);
+    if (call.url.endsWith("/quote")) return jsonResponse(quote);
+    return jsonResponse(cart);
+  };
+
+  try {
+    assert.equal(
+      (
+        await admin.eshop.cart.update({
+          id: cart.id,
+          payment_provider_id: paymentProviderId,
+        })
+      ).payment_provider_id,
+      paymentProviderId,
+    );
+    assert.equal(
+      (await admin.eshop.cart.quote({ id: cart.id })).payment_provider_id,
+      paymentProviderId,
+    );
+    assert.equal(
+      (
+        await admin.eshop.order.getQuote({
+          payment_provider_id: paymentProviderId,
+        })
+      ).payment_provider_ids[0],
+      paymentProviderId,
+    );
+    assert.equal(
+      (
+        await admin.eshop.cart.checkout({
+          id: cart.id,
+          payment_provider_id: paymentProviderId,
+          return_url: "https://admin.example.test/checkout/return",
+        })
+      ).payment.provider.payment_provider_id,
+      paymentProviderId,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.deepEqual(
+    calls.map((call) => ({
+      ...call,
+      url: call.url.replace(baseUrl, ""),
+    })),
+    [
+      {
+        url: `/v1/stores/${storeId}/carts/${cart.id}`,
+        method: "PUT",
+        body: { payment_provider_id: paymentProviderId },
+      },
+      {
+        url: `/v1/stores/${storeId}/carts/${cart.id}/quote`,
+        method: "POST",
+        body: {},
+      },
+      {
+        url: `/v1/stores/${storeId}/orders/quote`,
+        method: "POST",
+        body: {
+          payment_provider_id: paymentProviderId,
+          products: [],
+          bookings: [],
+          digital: [],
+          market: "bih",
+        },
+      },
+      {
+        url: `/v1/stores/${storeId}/carts/${cart.id}/checkout`,
+        method: "POST",
+        body: {
+          payment_provider_id: paymentProviderId,
+          return_url: "https://admin.example.test/checkout/return",
+        },
+      },
+    ],
+  );
+});
+
 test("admin market deletion sends an explicit replacement default as query context", async () => {
   const admin = createAdmin({
     baseUrl,

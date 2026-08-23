@@ -16,7 +16,9 @@ import type {
   ClassificationSchema,
   Contact,
   Cart,
+  CheckoutCartParams,
   Condition,
+  CreateMarketParams,
   CreateSuppressionParams,
   CreateOrderShipmentParams,
   DigitalAsset,
@@ -68,6 +70,9 @@ import type {
   UpdateCartParams,
   MarketZoneInput,
   Mailbox,
+  Market,
+  OrderQuote,
+  PaymentProvider,
   Suppression,
   WorkflowHttpNode,
   WorkflowTriggerNode,
@@ -224,6 +229,73 @@ const invalidMonthlyStoreUsage: StoreUsage = {
   period: { type: "monthly" },
 };
 
+const cashOnDeliveryProvider: PaymentProvider = {
+  id: "provider-cash-on-delivery",
+  store_id: "store-contract",
+  configuration: { type: "cash_on_delivery" },
+  disabled_at: null,
+  created_at: 1,
+  updated_at: 1,
+};
+const stripeProvider: PaymentProvider = {
+  id: "provider-stripe",
+  store_id: "store-contract",
+  configuration: {
+    type: "stripe",
+    connected_account_id: "acct_contract",
+    account_setup_submitted: true,
+    payments_enabled: true,
+    payouts_enabled: true,
+    state_observed_at: 2,
+    platform_debit_consent: {
+      connected_account_id: "acct_contract",
+      accepted_by_account_id: "account-contract",
+      accepted_at: 2,
+      terms_version: 1,
+    },
+  },
+  disabled_at: null,
+  created_at: 1,
+  updated_at: 2,
+};
+const marketContract: Market = {
+  id: "market-contract",
+  store_id: "store-contract",
+  key: "bih",
+  currency: "bam",
+  tax_mode: "inclusive",
+  payment_provider_ids: [cashOnDeliveryProvider.id, stripeProvider.id],
+  zones: [],
+  created_at: 1,
+  updated_at: 2,
+};
+const createMarketContract: CreateMarketParams = {
+  key: "bih",
+  currency: "bam",
+  tax_mode: "inclusive",
+  payment_provider_ids: [cashOnDeliveryProvider.id, stripeProvider.id],
+};
+const checkoutContract: CheckoutCartParams = {
+  id: "cart-contract",
+  payment_provider_id: stripeProvider.id,
+  return_url: "https://storefront.example.test/checkout/return",
+};
+declare const quoteContract: OrderQuote;
+const quotedProviderId: string = quoteContract.payment_provider_id;
+const quotedProviderIds: string[] = quoteContract.payment_provider_ids;
+// @ts-expect-error Market no longer embeds Payment Methods.
+marketContract.payment_methods;
+// @ts-expect-error Market creation accepts provider UUIDs, not Payment Methods.
+createMarketContract.payment_methods;
+// @ts-expect-error Cart checkout selects a Payment Provider UUID.
+checkoutContract.payment_method_key;
+// @ts-expect-error Provider configuration is a tagged value, not a flat provider type.
+stripeProvider.type;
+// @ts-expect-error Provider setup observations live inside the Stripe configuration.
+stripeProvider.payments_enabled;
+// @ts-expect-error Quote returns provider UUID selection and allowlist fields.
+quoteContract.payment_methods;
+
 declare const membershipContract: StoreMembership;
 const serverGeneratedMembershipUuid: string = membershipContract.id;
 declare const subscriptionCheckoutContract: StoreSubscriptionCheckout;
@@ -234,6 +306,13 @@ void createBuildHookContract;
 void createWebhookContract;
 void monthlyStoreUsage;
 void invalidMonthlyStoreUsage;
+void cashOnDeliveryProvider;
+void stripeProvider;
+void marketContract;
+void createMarketContract;
+void checkoutContract;
+void quotedProviderId;
+void quotedProviderIds;
 void serverGeneratedMembershipUuid;
 void persistedCheckoutId;
 const audienceTierPriceInput: AudienceTierPriceInput = {

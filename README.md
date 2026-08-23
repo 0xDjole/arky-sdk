@@ -95,7 +95,7 @@ await arky.eshop.cart.addProduct(product, product.variants[0], 2);
 await arky.eshop.cart.quote();
 
 const order = await arky.eshop.cart.checkout({
-  payment_method_key: "cash",
+  payment_provider_id: "payment-provider-id",
 });
 ```
 
@@ -165,7 +165,7 @@ ordinary purchase to a Stripe-hosted Checkout page and it never exposes secret c
 import { mountCheckoutAction } from "arky-sdk";
 
 const result = await arky.eshop.cart.checkout({
-  payment_method_key: "credit_card",
+  payment_provider_id: "stripe-payment-provider-id",
   return_url: window.location.href,
 });
 

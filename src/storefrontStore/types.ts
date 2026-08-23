@@ -24,7 +24,6 @@ import type {
   FormValues,
   OrderCheckoutResult,
   OrderQuote,
-  PaymentMethod,
   Price,
   Product,
   Provider,
@@ -97,7 +96,7 @@ export interface ArkyLastOrder {
   billing_address?: Address | null;
   total?: number;
   currency?: string | null;
-  payment_method_key?: string | null;
+  payment_provider_id?: string | null;
   created_at: number;
 }
 
@@ -109,7 +108,7 @@ export interface ArkyCartInput {
   billing_address?: Address | null;
   forms?: FormEntry[];
   promo_code?: string | null;
-  payment_method_key?: string | null;
+  payment_provider_id?: string | null;
   shipping_method_id?: string | null;
   return_url?: string;
   clear_after_checkout?: boolean;
@@ -201,7 +200,7 @@ export interface ArkyServiceState {
   quoteError: string | null;
   currency: Currency | null;
   dateTimeConfirmed: boolean;
-  availablePaymentMethods: PaymentMethod[];
+  availablePaymentProviderIds: string[];
   cartId: string | null;
   promoCode: string | null;
 }

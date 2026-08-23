@@ -16,7 +16,6 @@ import type {
   OrderShipmentLine,
   ClassificationEntry,
   ClassificationQuery,
-  PaymentMethod,
   ServiceStatus,
   ProviderStatus,
   MutableWorkflowStatus,
@@ -105,7 +104,7 @@ export interface CreateMarketParams {
   key: string;
   currency: Currency;
   tax_mode: "inclusive" | "exclusive";
-  payment_methods?: PaymentMethod[];
+  payment_provider_ids?: string[];
   zones?: MarketZoneInput[];
 }
 
@@ -113,7 +112,7 @@ export interface UpdateMarketParams {
   id: string;
   currency?: Currency;
   tax_mode?: "inclusive" | "exclusive";
-  payment_methods?: PaymentMethod[];
+  payment_provider_ids?: string[];
   zones?: MarketZoneInput[];
 }
 
@@ -188,7 +187,7 @@ export interface GetQuoteParams {
   shipping_address?: Address;
   billing_address?: Address;
   forms?: FormEntry[];
-  payment_method_key?: string;
+  payment_provider_id?: string;
   promo_code?: string;
   shipping_method_id?: string;
 }
@@ -225,7 +224,7 @@ export interface CreateCartParams {
   billing_address?: Address | null;
   forms?: FormEntry[];
   promo_code?: string | null;
-  payment_method_key?: string | null;
+  payment_provider_id?: string | null;
   shipping_method_id?: string | null;
 }
 
@@ -240,7 +239,7 @@ export interface UpdateCartParams {
   billing_address?: Address | null;
   forms?: FormEntry[];
   promo_code?: string;
-  payment_method_key?: string;
+  payment_provider_id?: string;
   shipping_method_id?: string;
 }
 
@@ -283,7 +282,7 @@ export interface QuoteCartParams {
 export interface CheckoutCartParams {
   id: string;
   store_id?: string;
-  payment_method_key?: string;
+  payment_provider_id?: string;
   return_url?: string;
 }
 

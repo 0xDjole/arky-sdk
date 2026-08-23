@@ -118,18 +118,9 @@ interface CheckoutContext {
   digital_items: CartDigitalProduct[];
   shipping_address: Address | null;
   billing_address: Address | null;
-  payment_method_key: string | null;
+  payment_provider_id: string | null;
   clear_after_checkout: boolean;
   created_at: number;
-}
-
-function firstFiniteNumber(
-  ...values: Array<number | null | undefined>
-): number | undefined {
-  return values.find(
-    (value): value is number =>
-      typeof value === "number" && Number.isFinite(value),
-  );
 }
 
 function initializeStoreCore(
@@ -151,9 +142,9 @@ function initializeStoreCore(
     );
   });
   const currency = computed(market, (value) => value?.currency || null);
-  const allowed_payment_methods = computed(
+  const allowed_payment_provider_ids = computed(
     market,
-    (value) => value?.payment_methods || [],
+    (value) => value?.payment_provider_ids || [],
   );
   const cart = atom<StorefrontCart | null>(null);
   const product_items = atom<EshopCartItem[]>([]);
@@ -281,12 +272,12 @@ function initializeStoreCore(
   client.onAuthStateChanged((value) => session.set(value));
   currency.subscribe((value) => service_state.setKey("currency", value));
   market.subscribe((value) => {
-    const methods = value?.payment_methods || [];
+    const providerIds = value?.payment_provider_ids || [];
     if (
-      methods.length &&
-      service_state.get().availablePaymentMethods.length === 0
+      providerIds.length &&
+      service_state.get().availablePaymentProviderIds.length === 0
     ) {
-      service_state.setKey("availablePaymentMethods", methods);
+      service_state.setKey("availablePaymentProviderIds", providerIds);
     }
   });
 
@@ -573,8 +564,8 @@ function initializeStoreCore(
             : input.promo_code === undefined
               ? promo_code.get() || undefined
               : input.promo_code,
-        payment_method_key:
-          input.payment_method_key === null ? "" : input.payment_method_key,
+        payment_provider_id:
+          input.payment_provider_id === null ? "" : input.payment_provider_id,
         shipping_method_id:
           input.shipping_method_id === null
             ? ""
@@ -769,7 +760,7 @@ function initializeStoreCore(
       billing_address: context.billing_address,
       total: response.payment.amount,
       currency: response.payment.currency,
-      payment_method_key: context.payment_method_key,
+      payment_provider_id: context.payment_provider_id,
       created_at: context.created_at,
     });
 
@@ -812,48 +803,19 @@ function initializeStoreCore(
     return runCheckout(async () => {
       const current = await syncCart(input);
       const quoteValue = quote.get();
-      const paymentMethodKey =
-        input.payment_method_key ||
-        current.payment_method_key ||
-        quoteValue?.payment_method_key ||
+      const paymentProviderId =
+        input.payment_provider_id ||
+        current.payment_provider_id ||
+        quoteValue?.payment_provider_id ||
         undefined;
-      let chargeAmount = firstFiniteNumber(quoteValue?.money?.total);
-      if (paymentMethodKey === "credit_card" && chargeAmount === undefined) {
-        const latestQuote = await client.eshop.cart.quote({ id: current.id });
-        quote.set(latestQuote);
-        chargeAmount = firstFiniteNumber(latestQuote.money.total);
-      }
-      if (
-        paymentMethodKey === "credit_card" &&
-        (typeof chargeAmount !== "number" ||
-          !Number.isSafeInteger(chargeAmount) ||
-          chargeAmount < 0)
-      ) {
-        throw new Error(
-          "Card checkout requires a non-negative integer charge amount in minor units",
-        );
-      }
-      const needsCardCheckout =
-        paymentMethodKey === "credit_card" &&
-        typeof chargeAmount === "number" &&
-        chargeAmount > 0;
-      let returnUrl = input.return_url;
-
-      if (needsCardCheckout) {
-        returnUrl =
-          returnUrl ||
-          (typeof window !== "undefined" ? window.location.href : undefined);
-        if (!returnUrl) {
-          throw new Error(
-            "A return URL is required for embedded card checkout",
-          );
-        }
-      }
+      const returnUrl =
+        input.return_url ||
+        (typeof window !== "undefined" ? window.location.href : undefined);
 
       const context: CheckoutContext = {
         request: {
           id: current.id,
-          payment_method_key: paymentMethodKey,
+          payment_provider_id: paymentProviderId,
           return_url: returnUrl,
         },
         product_items: input.product_items || product_items.get(),
@@ -861,7 +823,7 @@ function initializeStoreCore(
         digital_items: input.digital_items || digital_items.get(),
         shipping_address: input.shipping_address || null,
         billing_address: input.billing_address || null,
-        payment_method_key: paymentMethodKey || null,
+        payment_provider_id: paymentProviderId || null,
         clear_after_checkout: input.clear_after_checkout !== false,
         created_at: Date.now(),
       };
@@ -1222,9 +1184,9 @@ function initializeStoreCore(
         normalizeTimezoneGroups(client.utils.tzGroups),
       );
       await ensureCart();
-      const methods = market.get()?.payment_methods || [];
-      if (methods.length)
-        service_state.setKey("availablePaymentMethods", methods);
+      const providerIds = market.get()?.payment_provider_ids || [];
+      if (providerIds.length)
+        service_state.setKey("availablePaymentProviderIds", providerIds);
     },
 
     setTimezone(tz: string): void {
@@ -1523,7 +1485,7 @@ function initializeStoreCore(
     },
 
     async checkout(
-      paymentMethodId?: string,
+      paymentProviderId?: string,
       forms: FormEntry[] = [],
     ): Promise<StorefrontOrderCheckoutResult> {
       const state = service_state.get();
@@ -1533,7 +1495,7 @@ function initializeStoreCore(
       try {
         const result = await checkout({
           booking_items: items,
-          payment_method_key: paymentMethodId,
+          payment_provider_id: paymentProviderId,
           promo_code: state.promoCode || undefined,
           forms,
         });
@@ -1545,7 +1507,7 @@ function initializeStoreCore(
     },
 
     async fetchQuote(
-      paymentMethodId?: string,
+      paymentProviderId?: string,
       promoCode?: string | null,
     ): Promise<StorefrontOrderQuote | null> {
       const state = service_state.get();
@@ -1557,15 +1519,17 @@ function initializeStoreCore(
         service_state.setKey("promoCode", promoCode || null);
         const response = await fetchQuote({
           booking_items: items,
-          payment_method_key: paymentMethodId,
+          payment_provider_id: paymentProviderId,
           promo_code: promoCode || undefined,
         });
         service_state.setKey("cartId", cart.get()?.id || null);
         service_state.setKey("quote", response);
-        const methods =
-          response?.payment_methods || market.get()?.payment_methods || [];
-        if (methods.length)
-          service_state.setKey("availablePaymentMethods", methods);
+        const providerIds =
+          response?.payment_provider_ids ||
+          market.get()?.payment_provider_ids ||
+          [];
+        if (providerIds.length)
+          service_state.setKey("availablePaymentProviderIds", providerIds);
         return response;
       } catch (error) {
         service_state.setKey(
@@ -1959,7 +1923,7 @@ function initializeStoreCore(
     market_key,
     locale,
     currency,
-    allowed_payment_methods,
+    allowed_payment_provider_ids,
     identify,
     identifyContactEmailIfMissing,
     verify: client.verify,

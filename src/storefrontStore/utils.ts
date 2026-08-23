@@ -480,7 +480,7 @@ export function createServiceInitialState(): ArkyServiceState {
     quoteError: null,
     currency: null,
     dateTimeConfirmed: false,
-    availablePaymentMethods: [],
+    availablePaymentProviderIds: [],
     cartId: null,
     promoCode: null,
   };

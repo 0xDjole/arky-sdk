@@ -631,7 +631,7 @@ export const createStorefrontApi = (
             `${base}/carts/${params.id}/checkout`,
             {
               id: params.id,
-              payment_method_key: params.payment_method_key,
+              payment_provider_id: params.payment_provider_id,
               return_url: params.return_url,
             },
             options,

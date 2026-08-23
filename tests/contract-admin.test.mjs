@@ -234,21 +234,33 @@ const scheduledAdminCalls = [];
 const requestedProvider = {
   id: "provider-scheduled",
   store_id: "contract-store",
-  type: "stripe",
-  setup_status: "pending",
-  payments_enabled: false,
-  payouts_enabled: false,
-  platform_debits_authorized: false,
-  state_observed_at: 1,
+  configuration: {
+    type: "stripe",
+    connected_account_id: "acct_contract",
+    account_setup_submitted: false,
+    payments_enabled: false,
+    payouts_enabled: false,
+    state_observed_at: 1,
+    platform_debit_consent: null,
+  },
   disabled_at: null,
   created_at: 1,
   updated_at: 1,
 };
 const succeededProvider = {
   ...requestedProvider,
-  setup_status: "complete",
-  payments_enabled: true,
-  payouts_enabled: true,
+  configuration: {
+    ...requestedProvider.configuration,
+    account_setup_submitted: true,
+    payments_enabled: true,
+    payouts_enabled: true,
+    platform_debit_consent: {
+      connected_account_id: "acct_contract",
+      accepted_by_account_id: "account-contract",
+      accepted_at: 2,
+      terms_version: 1,
+    },
+  },
   updated_at: 2,
 };
 const succeededProviderConnection = {
@@ -325,6 +337,11 @@ try {
     country: "BA",
   });
   assert.equal(connected.onboarding_url, "https://connect.test/onboarding");
+  assert.equal(connected.provider.configuration.type, "stripe");
+  assert.equal(
+    connected.provider.configuration.platform_debit_consent.terms_version,
+    1,
+  );
 
   const subscription = await arky.store.subscription.select({
     store_id: "contract-store",

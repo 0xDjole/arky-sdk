@@ -115,7 +115,7 @@ test("a fresh cart load resolves Store defaults before loading persisted product
           id: "market-ita",
           key: "ita",
           currency: "EUR",
-          payment_methods: [],
+          payment_provider_ids: [],
           zones: [],
         },
       ],

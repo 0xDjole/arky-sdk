@@ -39,6 +39,9 @@ const removedIdentifiers = [
   "googleComplete",
   "googleStart",
   "updateAccount",
+  "PaymentMethod",
+  "PaymentMethodType",
+  "PaymentProviderType",
 ];
 
 const removedIdentifierPattern = new RegExp(
@@ -48,6 +51,10 @@ const removedIdentifierPattern = new RegExp(
 const forbiddenProviderOperationPattern = /provider(?:_|-)?operations?/gi;
 const removedClassificationVocabularyPattern =
   /Taxonom|taxonom|LocalizedText|localized_text/g;
+const removedCommercePaymentVocabularyPattern = new RegExp(
+  "\\b(?:payment_method_key|payment_methods|setup_status|platform_debits_authorized)\\b",
+  "g",
+);
 const exportedDeclarationPattern =
   /\bexport\s+(?:declare\s+)?(?:type|interface|class|enum|function|const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\b/g;
 
@@ -102,6 +109,11 @@ for (const file of listTypeScriptFiles(sourceDir)) {
       match.index,
       `removed Classification/Block vocabulary ${match[0]}`,
     );
+    failures++;
+  }
+
+  for (const match of source.matchAll(removedCommercePaymentVocabularyPattern)) {
+    report(file, source, match.index, `removed Commerce payment field ${match[0]}`);
     failures++;
   }
 

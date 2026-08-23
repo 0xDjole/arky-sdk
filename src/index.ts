@@ -93,8 +93,10 @@ export type {
   OrderPaymentType,
   OrderMoney,
   PaymentProvider,
-  PaymentProviderType,
+  PaymentProviderConfiguration,
+  PaymentProviderConfigurationType,
   PaymentProviderConnectResponse,
+  StripePlatformDebitConsent,
   OrderTaxSnapshot,
   OrderTaxLine,
   OrderTaxScope,
@@ -151,7 +153,6 @@ export type {
   AudienceMemberAccessSource,
   StorefrontAudienceMemberState,
   StorefrontAudienceSubscription,
-  PaymentMethod,
   ShippingMethod,
   ShippingWeightTier,
   Zone,
@@ -412,8 +413,6 @@ export type {
   FormStatus,
   ClassificationStatus,
 } from "./types";
-export { PaymentMethodType } from "./types";
-
 export type {
   FindContactSessionsParams,
   RevokeAllContactSessionsParams,

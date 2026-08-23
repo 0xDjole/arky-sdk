@@ -73,7 +73,7 @@ function cart(id = "cart-a") {
     billing_address: null,
     forms: [],
     promo_code: null,
-    payment_method_key: null,
+    payment_provider_id: null,
     shipping_method_id: null,
     converted_order_id: null,
     item_count: 0,
