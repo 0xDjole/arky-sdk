@@ -599,6 +599,10 @@ assert.deepEqual(separateResourceCalls, [
 ]);
 
 assert.equal(typeof arky.eshop.order.createRefund, "function");
+assert.equal(
+  typeof arky.eshop.order.recordCashOnDeliveryRefund,
+  "function",
+);
 assert.equal(typeof arky.eshop.order.getRefunds, "function");
 assert.equal(typeof arky.eshop.order.getPayment, "function");
 assert.equal(typeof arky.eshop.order.markCashOnDeliveryPaid, "function");

@@ -351,6 +351,29 @@ if (subscription.payment_action.type !== "none") {
 }
 ```
 
+Order refunds use one stable UUID-v4 for the concrete refund. Persist that ID with the immutable
+request before sending or retrying a Stripe refund. After an operator has physically returned a
+cash-on-delivery payment, record the completed return through the dedicated command:
+
+```typescript
+const result = await admin.eshop.order.recordCashOnDeliveryRefund({
+  order_id: "order-id",
+  refund_id: "persisted-refund-uuid-v4",
+  amount: 2500,
+  allocations: [
+    { type: "product", item_id: "order-product-item-id", amount: 2500 },
+  ],
+  reason: "customer_request",
+});
+
+console.log(result.money.amount, result.money.currency, result.status);
+```
+
+Refund reads expose typed provider evidence, one `money` value, and canonical product, booking,
+digital, shipping, or adjustment allocations. Payment disputes are read-only Stripe facts available
+through `admin.eshop.order.getDisputes` and `admin.eshop.order.getDispute`; their public provider
+evidence contains only `dispute_id` and `charge_id`.
+
 ## TypeScript
 
 ```typescript

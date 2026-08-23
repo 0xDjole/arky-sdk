@@ -38,6 +38,11 @@ export type Currency =
   | "mkd"
   | "all";
 
+export interface Money {
+  amount: number;
+  currency: Currency;
+}
+
 export type TaxMode = "exclusive" | "inclusive";
 
 export interface OrderTaxSnapshot {
@@ -72,6 +77,16 @@ export type OrderPaymentStatus =
   | "expired"
   | "failed"
   | "unknown";
+export type PaymentDisputeStatus =
+  | "warning_needs_response"
+  | "warning_under_review"
+  | "warning_closed"
+  | "needs_response"
+  | "under_review"
+  | "won"
+  | "lost"
+  | "prevented";
+
 export type StripeDisputeStatus =
   | "warning_needs_response"
   | "warning_under_review"
@@ -81,47 +96,68 @@ export type StripeDisputeStatus =
   | "won"
   | "lost"
   | "prevented";
-export interface ProviderOrderDispute {
+
+export type PaymentDisputeProvider = {
+  type: "stripe";
   dispute_id: string;
-  transaction_id: string;
-}
-export interface OrderDispute {
+  charge_id: string;
+};
+
+export interface PaymentDispute {
   id: string;
-  version: number;
   store_id: string;
   order_id: string;
   payment_id: string;
-  amount: number;
-  currency: Currency;
-  status?: StripeDisputeStatus | null;
+  money: Money;
+  status: PaymentDisputeStatus;
   reason: string;
-  provider: ProviderOrderDispute;
+  provider: PaymentDisputeProvider;
   created_at: number;
   updated_at: number;
 }
-export type OrderRefundType = "manual" | "provider";
+
+export type RefundStatus =
+  | "requested"
+  | "processing"
+  | "succeeded"
+  | "rejected"
+  | "failed"
+  | "unknown";
+
 export type RefundReason =
   "customer_request" | "duplicate" | "fraudulent" | "other" | "store_closure";
 export type RefundRequestReason = Exclude<RefundReason, "store_closure">;
+
+export type OrderRefundProvider =
+  | {
+      type: "cash_on_delivery";
+      payment_provider_id: string;
+    }
+  | {
+      type: "stripe";
+      payment_provider_id: string;
+      refund_id: string | null;
+      refund_status: string | null;
+      failure_reason: string | null;
+    };
+
 export interface OrderRefund {
   id: string;
-  version: number;
   store_id: string;
   order_id: string;
   payment_id: string;
-  type: OrderRefundType;
-  amount: number;
-  currency: Currency;
-  allocations: OrderRefundAllocation[];
-  requested_by_account_id?: string | null;
+  provider: OrderRefundProvider;
+  money: Money;
+  allocations: RefundAllocation[];
+  requested_by_account_id: string | null;
   reason: RefundReason;
-  private_note?: string | null;
-  status: import("./api").RefundStatus;
-  safe_error?: string | null;
+  private_note: string | null;
+  status: RefundStatus;
+  safe_error: string | null;
   requested_at: number;
-  processing_started_at?: number | null;
-  processing_deadline_at?: number | null;
-  completed_at?: number | null;
+  processing_started_at: number | null;
+  processing_deadline_at: number | null;
+  completed_at: number | null;
   created_at: number;
   updated_at: number;
 }
@@ -1095,15 +1131,11 @@ export interface DigitalDownload {
   mime_type: string;
 }
 
-export type OrderRefundAllocation =
-  | { type: "product"; order_product_id: string; amount: number }
-  | { type: "booking"; order_booking_id: string; amount: number }
-  | {
-      type: "digital";
-      order_digital_product_id: string;
-      amount: number;
-    }
-  | { type: "shipping"; shipping_line_id: string; amount: number }
+export type RefundAllocation =
+  | { type: "product"; item_id: string; amount: number }
+  | { type: "booking"; item_id: string; amount: number }
+  | { type: "digital"; item_id: string; amount: number }
+  | { type: "shipping"; line_id: string; amount: number }
   | { type: "adjustment"; amount: number; reason: string };
 
 export type CheckoutPaymentAction =

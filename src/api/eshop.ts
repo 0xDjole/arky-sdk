@@ -36,12 +36,13 @@ import type {
   GetOrdersParams,
   CreateOrderRefundParams,
   CreateOrderRefundResponse,
+  RecordCashOnDeliveryRefundParams,
   FindOrderRefundsParams,
   GetOrderRefundParams,
   GetOrderPaymentParams,
   MarkCashOnDeliveryPaidParams,
-  FindOrderDisputesParams,
-  GetOrderDisputeParams,
+  FindPaymentDisputesParams,
+  GetPaymentDisputeParams,
   QuoteCartParams,
   RemoveCartItemParams,
   RequestOptions,
@@ -57,12 +58,43 @@ import type {
   OrderQuote,
   OrderRefund,
   OrderPayment,
-  OrderDispute,
+  PaymentDispute,
+  RefundStatus,
   OrderProduct,
   OrderDigitalProduct,
   Cart,
   PaginatedResponse,
 } from "../types";
+
+const refundStatuses: RefundStatus[] = [
+  "requested",
+  "processing",
+  "succeeded",
+  "rejected",
+  "failed",
+  "unknown",
+];
+
+const validateRefundResponse = (
+  response: CreateOrderRefundResponse,
+  refundId: string,
+  amount: number,
+): CreateOrderRefundResponse => {
+  if (response.refund_id !== refundId) {
+    throw new Error("Refund response did not match the requested refund_id");
+  }
+  if (
+    !response.money ||
+    !Number.isSafeInteger(response.money.amount) ||
+    response.money.amount !== amount
+  ) {
+    throw new Error("Refund response did not match the requested amount");
+  }
+  if (!refundStatuses.includes(response.status)) {
+    throw new Error("Refund response contained an invalid status");
+  }
+  return response;
+};
 
 export const createEshopApi = (apiConfig: ApiConfig) => {
   return {
@@ -626,30 +658,27 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
           },
           options,
         );
-      if (response.refund_id !== params.refund_id) {
-        throw new Error(
-          "Refund response did not match the requested refund_id",
+      return validateRefundResponse(response, params.refund_id, params.amount);
+    },
+
+    async recordCashOnDeliveryRefund(
+      params: RecordCashOnDeliveryRefundParams,
+      options?: RequestOptions,
+    ): Promise<CreateOrderRefundResponse> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      const response =
+        await apiConfig.httpClient.post<CreateOrderRefundResponse>(
+          `/v1/stores/${target_store_id}/orders/${params.order_id}/refunds/cash-on-delivery`,
+          {
+            amount: params.amount,
+            refund_id: params.refund_id,
+            allocations: params.allocations,
+            reason: params.reason,
+            private_note: params.private_note,
+          },
+          options,
         );
-      }
-      if (
-        !Number.isSafeInteger(response.amount) ||
-        response.amount !== params.amount
-      ) {
-        throw new Error("Refund response did not match the requested amount");
-      }
-      if (
-        ![
-          "requested",
-          "processing",
-          "succeeded",
-          "rejected",
-          "failed",
-          "unknown",
-        ].includes(response.status)
-      ) {
-        throw new Error("Refund response contained an invalid status");
-      }
-      return response;
+      return validateRefundResponse(response, params.refund_id, params.amount);
     },
 
     async getPayment(
@@ -676,23 +705,23 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     },
 
     async getDisputes(
-      params: FindOrderDisputesParams,
+      params: FindPaymentDisputesParams,
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<OrderDispute>> {
+    ): Promise<PaginatedResponse<PaymentDispute>> {
       const { order_id, store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<OrderDispute>>(
+      return apiConfig.httpClient.get<PaginatedResponse<PaymentDispute>>(
         `/v1/stores/${target_store_id}/orders/${order_id}/disputes`,
         { ...options, params: queryParams },
       );
     },
 
     async getDispute(
-      params: GetOrderDisputeParams,
+      params: GetPaymentDisputeParams,
       options?: RequestOptions,
-    ): Promise<OrderDispute> {
+    ): Promise<PaymentDispute> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<OrderDispute>(
+      return apiConfig.httpClient.get<PaymentDispute>(
         `/v1/stores/${target_store_id}/orders/${params.order_id}/disputes/${params.dispute_id}`,
         options,
       );

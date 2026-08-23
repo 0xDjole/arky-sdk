@@ -34,12 +34,20 @@ import type {
   GetDigitalLibraryProductParams,
   GetStorefrontDigitalProductParams,
   GetShippingRatesParams,
+  GetPaymentDisputeParams,
   OrderMoney,
   Order,
   OrderCheckoutResult,
+  OrderRefund,
+  OrderRefundProvider,
+  RefundAllocation,
+  RefundStatus,
   OrderPayment,
   OrderPaymentProvider,
   PaymentAmounts,
+  PaymentDispute,
+  PaymentDisputeProvider,
+  PaymentDisputeStatus,
   OrderDigitalProductSnapshot,
   OrderPromoCodeSnapshot,
   OrderTaxLine,
@@ -57,6 +65,9 @@ import type {
   ProductVariant,
   Price,
   RefundRequestReason,
+  CreateOrderRefundParams,
+  RecordCashOnDeliveryRefundParams,
+  FindPaymentDisputesParams,
   BookingOffering,
   BookingResource,
   BookingService,
@@ -99,6 +110,7 @@ import type {
   Mailbox,
   Market,
   Media,
+  Money,
   OrderQuote,
   PaymentProvider,
   Suppression,
@@ -117,6 +129,18 @@ import type { DigitalCatalogStatus } from "../../dist/index.js";
 import type { OrderPaymentType } from "../../dist/index.js";
 // @ts-expect-error the loose legacy provider record is no longer public.
 import type { ProviderOrderPayment } from "../../dist/index.js";
+// @ts-expect-error the canonical refund allocation type has no Order prefix.
+import type { OrderRefundAllocation } from "../../dist/index.js";
+// @ts-expect-error refund provider kind is a tagged provider value, not a flat root type.
+import type { OrderRefundType } from "../../dist/index.js";
+// @ts-expect-error Commerce disputes use the PaymentDispute name.
+import type { OrderDispute } from "../../dist/index.js";
+// @ts-expect-error Payment dispute provider evidence has its canonical tagged name.
+import type { ProviderOrderDispute } from "../../dist/index.js";
+// @ts-expect-error dispute query inputs use the PaymentDispute name.
+import type { FindOrderDisputesParams } from "../../dist/index.js";
+// @ts-expect-error dispute query inputs use the PaymentDispute name.
+import type { GetOrderDisputeParams } from "../../dist/index.js";
 import type {
   CreateBuildHookParams,
   CreateStoreLocationParams,
@@ -383,6 +407,94 @@ const audienceTierPriceInput: AudienceTierPriceInput = {
   status: "active",
 };
 const merchantRefundReason: RefundRequestReason = "fraudulent";
+const refundMoney: Money = { amount: 1_250, currency: "usd" };
+const refundAllocation: RefundAllocation = {
+  type: "product",
+  item_id: "order-product-contract",
+  amount: 1_250,
+};
+const stripeRefundProvider: OrderRefundProvider = {
+  type: "stripe",
+  payment_provider_id: "payment-provider-contract",
+  refund_id: "stripe-refund-contract",
+  refund_status: "succeeded",
+  failure_reason: null,
+};
+const orderRefundStatus: RefundStatus = "succeeded";
+const orderRefund: OrderRefund = {
+  id: "order-refund-contract",
+  store_id: "store-contract",
+  order_id: "order-contract",
+  payment_id: "order-payment-contract",
+  provider: stripeRefundProvider,
+  money: refundMoney,
+  allocations: [refundAllocation],
+  requested_by_account_id: "account-contract",
+  reason: "customer_request",
+  private_note: null,
+  status: orderRefundStatus,
+  safe_error: null,
+  requested_at: 1,
+  processing_started_at: 2,
+  processing_deadline_at: 3,
+  completed_at: 4,
+  created_at: 1,
+  updated_at: 4,
+};
+const createOrderRefund: CreateOrderRefundParams = {
+  order_id: "order-contract",
+  refund_id: "order-refund-contract",
+  amount: 1_250,
+  allocations: [refundAllocation],
+  reason: "customer_request",
+};
+const recordCashOnDeliveryRefund: RecordCashOnDeliveryRefundParams = {
+  order_id: "order-contract",
+  refund_id: "cash-refund-contract",
+  amount: 1_250,
+  allocations: [{ type: "adjustment", amount: 1_250, reason: "cash return" }],
+  reason: "other",
+};
+const paymentDisputeStatus: PaymentDisputeStatus = "needs_response";
+const paymentDisputeProvider: PaymentDisputeProvider = {
+  type: "stripe",
+  dispute_id: "stripe-dispute-contract",
+  charge_id: "stripe-charge-contract",
+};
+const paymentDispute: PaymentDispute = {
+  id: "payment-dispute-contract",
+  store_id: "store-contract",
+  order_id: "order-contract",
+  payment_id: "order-payment-contract",
+  money: { amount: 1_250, currency: "usd" },
+  status: paymentDisputeStatus,
+  reason: "fraudulent",
+  provider: paymentDisputeProvider,
+  created_at: 1,
+  updated_at: 2,
+};
+const findPaymentDisputes: FindPaymentDisputesParams = {
+  order_id: "order-contract",
+  limit: 20,
+};
+const getPaymentDispute: GetPaymentDisputeParams = {
+  order_id: "order-contract",
+  dispute_id: paymentDispute.id,
+};
+// @ts-expect-error refunds expose Money instead of flat amount fields.
+orderRefund.amount;
+// @ts-expect-error refunds do not expose persistence versions.
+orderRefund.version;
+// @ts-expect-error refund provider kind is carried by provider.type.
+orderRefund.type;
+// @ts-expect-error product allocations use the canonical item_id.
+refundAllocation.order_product_id;
+// @ts-expect-error disputes expose Money instead of flat currency fields.
+paymentDispute.currency;
+// @ts-expect-error disputes do not expose persistence versions.
+paymentDispute.version;
+// @ts-expect-error Stripe dispute evidence uses charge_id.
+paymentDisputeProvider.transaction_id;
 const digitalProductCondition: Condition = {
   type: "digital_products",
   digital_product_ids: ["digital-product-contract"],
@@ -1475,6 +1587,18 @@ void [
   stripeOrderPaymentProvider,
   cashOrderPaymentProvider,
   orderPayment,
+  refundMoney,
+  refundAllocation,
+  stripeRefundProvider,
+  orderRefundStatus,
+  orderRefund,
+  createOrderRefund,
+  recordCashOnDeliveryRefund,
+  paymentDisputeStatus,
+  paymentDisputeProvider,
+  paymentDispute,
+  findPaymentDisputes,
+  getPaymentDispute,
   zeroTotalCheckout,
   markCashOnDeliveryPaid,
   nullableOrderPaymentId,

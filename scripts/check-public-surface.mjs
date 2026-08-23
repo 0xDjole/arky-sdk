@@ -86,6 +86,12 @@ const removedIdentifiers = [
   "DigitalPrice",
   "OrderPaymentType",
   "ProviderOrderPayment",
+  "OrderRefundType",
+  "OrderRefundAllocation",
+  "ProviderOrderDispute",
+  "OrderDispute",
+  "FindOrderDisputesParams",
+  "GetOrderDisputeParams",
 ];
 
 const removedIdentifierPattern = new RegExp(
@@ -116,6 +122,16 @@ const removedOrderPaymentContractPatterns = [
   /export interface OrderPayment\s*\{[^}]*\b(?:version|type|amount|currency|paid_amount|refund_pending_amount|refunded_amount|marked_paid_by_account_id|checkout_expires_at|processing_started_at|processing_claim_id|processing_deadline_at)\??:/g,
   /export interface OrderCheckoutResult\s*\{[^}]*\bpayment:\s*OrderPayment\s*;/g,
   /export interface Order\s*\{[^}]*\bpayment_id:\s*string\s*;/g,
+];
+const removedOrderRefundContractPatterns = [
+  /export interface OrderRefund\s*\{[^}]*\b(?:version|type|amount|currency)\??:/g,
+  /export type RefundAllocation\s*=[^;]*\b(?:order_product_id|order_booking_id|order_digital_product_id|shipping_line_id)\b/g,
+  /export interface CreateOrderRefundResponse\s*\{[^}]*\bamount\??:/g,
+];
+const removedPaymentDisputeContractPatterns = [
+  /export interface PaymentDispute\s*\{[^}]*\b(?:version|amount|currency)\??:/g,
+  /export interface PaymentDispute\s*\{[^}]*\bstatus\?:/g,
+  /export type PaymentDisputeProvider\s*=[^;]*\btransaction_id\b/g,
 ];
 const removedBookingVocabularyPattern =
   /\b(?:working_days|specific_dates|min_advance|max_advance|slot_interval|provider_key|booking_provider_id)\b|service-providers|order_booking\./g;
@@ -198,6 +214,20 @@ for (const file of listTypeScriptFiles(sourceDir)) {
   for (const pattern of removedOrderPaymentContractPatterns) {
     for (const match of source.matchAll(pattern)) {
       report(file, source, match.index, "removed Order Payment contract field");
+      failures++;
+    }
+  }
+
+  for (const pattern of removedOrderRefundContractPatterns) {
+    for (const match of source.matchAll(pattern)) {
+      report(file, source, match.index, "removed Order Refund contract field");
+      failures++;
+    }
+  }
+
+  for (const pattern of removedPaymentDisputeContractPatterns) {
+    for (const match of source.matchAll(pattern)) {
+      report(file, source, match.index, "removed Payment Dispute contract field");
       failures++;
     }
   }

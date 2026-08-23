@@ -1114,8 +1114,18 @@ export interface CreateOrderRefundParams {
   order_id: string;
   refund_id: string;
   amount: number;
-  allocations: import("./index").OrderRefundAllocation[];
-  reason: import("./index").RefundRequestReason;
+  allocations: import("./index").RefundAllocation[];
+  reason: import("./index").RefundReason;
+  private_note?: string | null;
+  store_id?: string;
+}
+
+export interface RecordCashOnDeliveryRefundParams {
+  order_id: string;
+  refund_id: string;
+  amount: number;
+  allocations: import("./index").RefundAllocation[];
+  reason: import("./index").RefundReason;
   private_note?: string | null;
   store_id?: string;
 }
@@ -1130,14 +1140,14 @@ export interface MarkCashOnDeliveryPaidParams {
   store_id?: string;
 }
 
-export interface FindOrderDisputesParams {
+export interface FindPaymentDisputesParams {
   order_id: string;
   store_id?: string;
   limit?: number;
   cursor?: string | null;
 }
 
-export interface GetOrderDisputeParams {
+export interface GetPaymentDisputeParams {
   order_id: string;
   dispute_id: string;
   store_id?: string;
@@ -1156,13 +1166,10 @@ export interface GetOrderRefundParams {
   store_id?: string;
 }
 
-export type RefundStatus =
-  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
-
 export interface CreateOrderRefundResponse {
   refund_id: string;
-  amount: number;
-  status: RefundStatus;
+  money: import("./index").Money;
+  status: import("./index").RefundStatus;
 }
 
 export interface CreateDigitalProductParams {
