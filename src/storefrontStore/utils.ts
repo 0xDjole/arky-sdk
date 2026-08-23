@@ -13,8 +13,8 @@ import type {
   Product,
   ProductInventory,
   ProductVariant,
-  Provider,
-  Service,
+  BookingResource,
+  BookingService,
   ZoneLocation,
 } from "../types";
 import type {
@@ -24,12 +24,12 @@ import type {
 } from "../types/api";
 import type {
   StorefrontProduct,
-  StorefrontProvider,
-  StorefrontService,
+  StorefrontBookingResource,
+  StorefrontBookingService,
 } from "../types/storefront";
 import type {
   ArkyBookingCartItem,
-  ArkyServiceState,
+  ArkyBookingServiceState,
   ArkyStoreClient,
   FormInputBlock,
 } from "./types";
@@ -89,8 +89,8 @@ export function productName(
   );
 }
 
-export function serviceName(
-  service: StorefrontService,
+export function bookingServiceName(
+  service: StorefrontBookingService,
   locale: string,
 ): string {
   return (
@@ -100,8 +100,8 @@ export function serviceName(
   );
 }
 
-export function providerName(
-  provider: StorefrontProvider,
+export function bookingResourceName(
+  provider: StorefrontBookingResource,
   locale: string,
 ): string {
   return (
@@ -217,10 +217,11 @@ export function toCartBookings(
 ): CartBookingInput[] {
   return items.map((item) => ({
     id: item.id,
-    service_id: item.service_id,
-    provider_id: item.provider_id,
-    slots: [...item.slots].sort((a, b) => a.from - b.from),
-    forms: item.forms,
+    booking_offering_id: item.booking_offering_id,
+    requested_interval: item.requested_interval,
+    ...(item.form_submission_id
+      ? { form_submission_id: item.form_submission_id }
+      : {}),
   }));
 }
 
@@ -411,20 +412,25 @@ export function formatServiceSlotTime(
 export function getSlotsForDate(
   availability: AvailabilityResponse | null,
   dateStr: string,
-  providerId?: string | null,
-): { from: number; to: number; providerId: string }[] {
+  bookingResourceId?: string | null,
+): { from: number; to: number; bookingResourceId: string }[] {
   if (!availability) return [];
-  const slots: { from: number; to: number; providerId: string }[] = [];
-  for (const provider of availability.providers) {
-    if (providerId && provider.provider_id !== providerId) continue;
-    const day = provider.days.find((candidate) => candidate.date === dateStr);
+  const slots: { from: number; to: number; bookingResourceId: string }[] = [];
+  for (const resource of availability.booking_resources) {
+    if (
+      bookingResourceId &&
+      resource.booking_resource_id !== bookingResourceId
+    ) {
+      continue;
+    }
+    const day = resource.days.find((candidate) => candidate.date === dateStr);
     if (!day) continue;
     for (const slot of day.slots) {
       if (slot.spots > 0)
         slots.push({
           from: slot.from,
           to: slot.to,
-          providerId: provider.provider_id,
+          bookingResourceId: resource.booking_resource_id,
         });
     }
   }
@@ -434,12 +440,17 @@ export function getSlotsForDate(
 export function hasAvailableSlotsForDate(
   availability: AvailabilityResponse | null,
   dateStr: string,
-  providerId?: string | null,
+  bookingResourceId?: string | null,
 ): boolean {
   if (!availability) return false;
-  return availability.providers.some((provider) => {
-    if (providerId && provider.provider_id !== providerId) return false;
-    const day = provider.days.find((candidate) => candidate.date === dateStr);
+  return availability.booking_resources.some((resource) => {
+    if (
+      bookingResourceId &&
+      resource.booking_resource_id !== bookingResourceId
+    ) {
+      return false;
+    }
+    const day = resource.days.find((candidate) => candidate.date === dateStr);
     return !!day?.slots.some((slot) => slot.spots > 0);
   });
 }
@@ -454,13 +465,13 @@ export const SERVICE_WEEKDAYS = [
   "Sun",
 ];
 
-export function createServiceInitialState(): ArkyServiceState {
+export function createBookingServiceInitialState(): ArkyBookingServiceState {
   return {
-    service: null,
+    bookingService: null,
     availability: null,
-    providers: [],
-    serviceProviders: [],
-    selectedProviderId: null,
+    bookingResources: [],
+    bookingOfferings: [],
+    selectedBookingResourceId: null,
     currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
     calendar: [],
     selectedDate: null,

@@ -51,6 +51,37 @@ const removedIdentifiers = [
   "InventoryLevel",
   "getAvailableStock",
   "getFirstAvailableFCId",
+  "BookingProvider",
+  "ProviderSchedule",
+  "ServiceProvider",
+  "ServiceStatus",
+  "ProviderStatus",
+  "WorkingHour",
+  "WorkingDay",
+  "SpecificDate",
+  "OrderBooking",
+  "SlotRange",
+  "ProviderAvailability",
+  "CreateServiceParams",
+  "UpdateServiceParams",
+  "DeleteServiceParams",
+  "GetServiceParams",
+  "GetServicesParams",
+  "CreateProviderParams",
+  "UpdateProviderParams",
+  "DeleteProviderParams",
+  "GetProviderParams",
+  "GetProvidersParams",
+  "CreateServiceProviderParams",
+  "UpdateServiceProviderParams",
+  "DeleteServiceProviderParams",
+  "FindServiceProvidersParams",
+  "getOrderBookings",
+  "findProviders",
+  "selectProvider",
+  "ArkyServiceStore",
+  "ArkyServiceState",
+  "ArkyServiceSlot",
 ];
 
 const removedIdentifierPattern = new RegExp(
@@ -72,6 +103,8 @@ const removedProductContractPatterns = [
   /export interface (?:Create|Update)ProductVariantInput\s*\{[^}]*\bweight\??:/g,
   /export interface (?:Create|Update)ProductParams\s*\{[^}]*\bslug\??:/g,
 ];
+const removedBookingVocabularyPattern =
+  /\b(?:working_days|specific_dates|min_advance|max_advance|slot_interval|provider_key|booking_provider_id)\b|service-providers|order_booking\./g;
 const exportedDeclarationPattern =
   /\bexport\s+(?:declare\s+)?(?:type|interface|class|enum|function|const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\b/g;
 
@@ -139,6 +172,11 @@ for (const file of listTypeScriptFiles(sourceDir)) {
       report(file, source, match.index, "removed Product/Inventory contract field");
       failures++;
     }
+  }
+
+  for (const match of source.matchAll(removedBookingVocabularyPattern)) {
+    report(file, source, match.index, `removed booking vocabulary ${match[0]}`);
+    failures++;
   }
 
   for (const match of source.matchAll(exportedDeclarationPattern)) {

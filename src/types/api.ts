@@ -16,8 +16,9 @@ import type {
   OrderShipmentLine,
   ClassificationEntry,
   ClassificationQuery,
-  ServiceStatus,
-  ProviderStatus,
+  BookingServiceStatus,
+  BookingResourceStatus,
+  BookingOfferingStatus,
   MutableWorkflowStatus,
   WorkflowStatus,
   PromoCodeStatus,
@@ -37,8 +38,10 @@ import type {
   ClassificationSchema,
   Price,
   ServiceDuration,
-  WorkingDay,
-  SpecificDate,
+  WeeklyAvailability,
+  DateOverride,
+  BookingWindow,
+  TimeRange,
   ContactStatus,
   Contact,
   ContactSessionIssued,
@@ -135,17 +138,11 @@ export interface ProductQuoteInput {
   price?: Price;
 }
 
-export interface SlotRange {
-  from: number;
-  to: number;
-}
-
 export interface BookingQuoteInput {
-  service_id: string;
-  provider_id: string;
-  slots: SlotRange[];
-  forms?: FormEntry[];
-  price?: Price;
+  booking_offering_id: string;
+  requested_interval: TimeRange;
+  form_submission_id?: string | null;
+  price_override?: Price;
 }
 
 export interface DigitalProductQuoteInput {
@@ -155,10 +152,9 @@ export interface DigitalProductQuoteInput {
 
 export interface CartBookingInput {
   id?: string;
-  service_id: string;
-  provider_id: string;
-  slots: SlotRange[];
-  forms?: FormEntry[];
+  booking_offering_id: string;
+  requested_interval: TimeRange;
+  form_submission_id?: string | null;
 }
 
 export interface CartDigitalProductInput {
@@ -171,7 +167,7 @@ export interface TrustedCartProductInput extends CartProductInput {
 }
 
 export interface TrustedCartBookingInput extends CartBookingInput {
-  price?: Price;
+  price_override?: Price;
 }
 
 export interface TrustedCartDigitalProductInput extends CartDigitalProductInput {
@@ -467,15 +463,15 @@ export interface VerificationChallengeResponse {
   expires_at: number;
 }
 
-export interface GetServicesParams {
+export interface FindBookingServicesParams {
   store_id?: string;
   ids?: string[];
-  provider_id?: string;
+  booking_resource_id?: string;
   limit?: number;
   cursor?: string;
 
   query?: string | number;
-  status?: ServiceStatus;
+  status?: BookingServiceStatus;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
   created_at_from?: number;
@@ -719,8 +715,10 @@ export interface GetOrdersParams {
   product_statuses?: string[];
   booking_statuses?: string[];
   product_ids?: string[];
-  service_ids?: string[];
-  provider_ids?: string[];
+  booking_service_ids?: string[];
+  booking_resource_ids?: string[];
+  from?: number;
+  to?: number;
   verified?: boolean;
 
   query?: string | number | null;
@@ -756,119 +754,110 @@ export interface CancelOrderProductParams {
   quantity: number;
 }
 
-export interface CreateProviderParams {
+export interface CreateBookingResourceParams {
   store_id?: string;
   key: string;
   slug?: Record<string, string>;
-  status?: ProviderStatus;
+  status?: BookingResourceStatus;
   blocks?: Block[];
   classifications?: ClassificationEntry[];
+  timezone: string;
+  capacity: number;
 }
 
-export interface UpdateProviderParams {
+export interface UpdateBookingResourceParams {
   id: string;
   store_id?: string;
   key?: string;
   slug?: Record<string, string>;
-  status?: ProviderStatus;
+  status?: BookingResourceStatus;
   blocks?: Block[];
   classifications?: ClassificationEntry[];
+  timezone?: string;
+  capacity?: number;
 }
 
-export interface DeleteProviderParams {
+export interface DeleteBookingResourceParams {
   id: string;
   store_id?: string;
 }
 
-export interface ServiceProviderInput {
-  provider_id: string;
-  store_id?: string;
-  prices?: Price[];
-  durations?: ServiceDuration[];
-  working_days: WorkingDay[];
-  specific_dates: SpecificDate[];
-}
-
-export interface CreateServiceParams {
+export interface CreateBookingServiceParams {
   store_id?: string;
   key: string;
   slug?: Record<string, string>;
   blocks?: Block[];
   classifications?: ClassificationEntry[];
-  location?: ZoneLocation;
-  status?: ServiceStatus;
+  status?: BookingServiceStatus;
 }
 
-export interface UpdateServiceParams {
+export interface UpdateBookingServiceParams {
   id: string;
   store_id?: string;
   key?: string;
   slug?: Record<string, string>;
   blocks?: Block[];
   classifications?: ClassificationEntry[];
-  location?: ZoneLocation | null;
-  status?: ServiceStatus;
+  status?: BookingServiceStatus;
 }
 
-export interface CreateServiceProviderParams {
+export interface CreateBookingOfferingParams {
   store_id?: string;
-  service_id: string;
-  provider_id: string;
-  working_days: WorkingDay[];
-  specific_dates: SpecificDate[];
-  prices?: Price[];
-  durations?: ServiceDuration[];
-  slot_interval: number;
-  forms?: FormEntry[];
-  reminders?: number[];
-  min_advance?: number;
-  max_advance?: number;
+  booking_service_id: string;
+  booking_resource_id: string;
+  weekly_availability: WeeklyAvailability[];
+  date_overrides: DateOverride[];
+  prices: Price[];
+  durations: ServiceDuration[];
+  slot_interval_minutes: number;
+  booking_window: BookingWindow;
+  reminder_offsets_minutes: number[];
+  status?: BookingOfferingStatus;
 }
 
-export interface UpdateServiceProviderParams {
+export interface UpdateBookingOfferingParams {
   store_id?: string;
   id: string;
-  working_days?: WorkingDay[];
-  specific_dates?: SpecificDate[];
+  weekly_availability?: WeeklyAvailability[];
+  date_overrides?: DateOverride[];
   prices?: Price[];
   durations?: ServiceDuration[];
-  slot_interval?: number;
-  forms?: FormEntry[];
-  reminders?: number[];
-  min_advance?: number;
-  max_advance?: number;
+  slot_interval_minutes?: number;
+  booking_window?: BookingWindow;
+  reminder_offsets_minutes?: number[];
+  status?: BookingOfferingStatus;
 }
 
-export interface DeleteServiceProviderParams {
+export interface DeleteBookingOfferingParams {
   store_id?: string;
   id: string;
 }
 
-export type FindServiceProvidersParams = {
+export type FindBookingOfferingsParams = {
   store_id?: string;
 } & (
-  | { service_id: string; provider_id?: string }
-  | { service_id?: string; provider_id: string }
+  | { booking_service_id: string; booking_resource_id?: string }
+  | { booking_service_id?: string; booking_resource_id: string }
 );
 
-export interface DeleteServiceParams {
+export interface DeleteBookingServiceParams {
   id: string;
   store_id?: string;
 }
 
-export type GetServiceParams = {
+export type GetBookingServiceParams = {
   store_id?: string;
 } & ({ id: string; slug?: never } | { id?: never; slug: string });
 
-export interface GetProvidersParams {
+export interface FindBookingResourcesParams {
   store_id?: string;
-  service_id?: string;
+  booking_service_id?: string;
   ids?: string[];
   classification_query?: ClassificationQuery[];
   match_all?: boolean;
 
   query?: string | number | null;
-  status?: ProviderStatus;
+  status?: BookingResourceStatus;
   limit?: number;
   cursor?: string;
   sort_field?: string | null;
@@ -879,9 +868,10 @@ export interface GetProvidersParams {
   to?: number;
 }
 
-export type GetProviderParams = {
+export interface GetBookingResourceParams {
+  id: string;
   store_id?: string;
-} & ({ id: string; slug?: never } | { id?: never; slug: string });
+}
 
 export interface CreateAccountApiTokenParams {
   name: string;
@@ -1244,10 +1234,10 @@ export type SystemTemplateKey =
 
 export interface GetAvailabilityParams {
   store_id?: string;
-  service_id: string;
+  booking_service_id: string;
   from: number;
   to: number;
-  provider_id?: string;
+  booking_resource_id?: string;
 }
 
 export interface AvailabilitySlot {
@@ -1261,26 +1251,16 @@ export interface DaySlots {
   slots: AvailabilitySlot[];
 }
 
-export interface ProviderAvailability {
-  provider_id: string;
-  provider_key: string;
+export interface BookingResourceAvailability {
+  booking_resource_id: string;
+  resource_key: string;
   days: DaySlots[];
 }
 
 export interface AvailabilityResponse {
   from: number;
   to: number;
-  providers: ProviderAvailability[];
-}
-
-export interface Slot {
-  id: string;
-  service_id: string;
-  provider_id: string;
-  from: number;
-  to: number;
-  time_text: string;
-  date_text: string;
+  booking_resources: BookingResourceAvailability[];
 }
 
 export interface CreateWorkflowParams {

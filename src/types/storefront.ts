@@ -11,9 +11,9 @@ import type {
   PaginatedResponse,
   Product,
   ProductVariant,
-  Provider,
-  Service,
-  ServiceProvider,
+  BookingResource,
+  BookingService,
+  BookingOffering,
   Zone,
 } from "./index";
 
@@ -60,9 +60,9 @@ export type StorefrontOrderCheckoutResult = StorefrontDto<OrderCheckoutResult>;
 export type StorefrontOrderQuote = StorefrontDto<OrderQuote>;
 export type StorefrontProduct = StorefrontDto<Product>;
 export type StorefrontProductVariant = StorefrontDto<ProductVariant>;
-export type StorefrontProvider = StorefrontDto<Provider>;
-export type StorefrontService = StorefrontDto<Service>;
-export type StorefrontServiceProvider = StorefrontDto<ServiceProvider>;
+export type StorefrontBookingResource = StorefrontDto<BookingResource>;
+export type StorefrontBookingService = StorefrontDto<BookingService>;
+export type StorefrontBookingOffering = StorefrontDto<BookingOffering>;
 export type StorefrontPage<T> = StorefrontDto<PaginatedResponse<T>>;
 export type StorefrontZone = Zone;
 export type StorefrontMarket = Omit<

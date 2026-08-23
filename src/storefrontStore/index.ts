@@ -1,5 +1,9 @@
 export { initialize } from "./initialize";
-export type { ArkyCartStore, ArkyServiceStore, ArkyStore } from "./initialize";
+export type {
+  ArkyBookingServiceStore,
+  ArkyCartStore,
+  ArkyStore,
+} from "./initialize";
 export { buildFormFields, createFormEntry, createFormEntryFromValues } from "./utils";
 export type {
   ArkyCalendarDay,
@@ -11,11 +15,9 @@ export type {
   ArkyEshopState,
   ArkyLastOrder,
   ArkyBookingCartItem,
-  ArkyServiceFormGroup,
   FormInputBlock,
-  ArkyServiceFormState,
-  ArkyServiceSlot,
-  ArkyServiceState,
+  ArkyBookingSlot,
+  ArkyBookingServiceState,
   ArkyStoreContext,
   ArkyStoreConfig,
   ArkySubmitFormByKeyParams,

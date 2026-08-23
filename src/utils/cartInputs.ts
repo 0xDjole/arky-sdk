@@ -18,15 +18,14 @@ export function sanitizePublicCartProducts(
 export function sanitizePublicCartBookings(
   items: CartBookingInput[],
 ): CartBookingInput[] {
-  return items.map((item) => {
-    return {
-      ...(item.id ? { id: item.id } : {}),
-      service_id: item.service_id,
-      provider_id: item.provider_id,
-      slots: item.slots,
-      ...(item.forms ? { forms: item.forms } : {}),
-    };
-  });
+  return items.map((item) => ({
+    ...(item.id ? { id: item.id } : {}),
+    booking_offering_id: item.booking_offering_id,
+    requested_interval: item.requested_interval,
+    ...(item.form_submission_id
+      ? { form_submission_id: item.form_submission_id }
+      : {}),
+  }));
 }
 
 export function sanitizePublicCartDigitalProducts(

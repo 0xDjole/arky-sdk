@@ -1,19 +1,19 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type {
-  CreateProviderParams,
+  CreateBookingResourceParams,
   CreateProductParams,
-  CreateServiceParams,
-  CreateServiceProviderParams,
-  DeleteProviderParams,
+  CreateBookingServiceParams,
+  CreateBookingOfferingParams,
+  DeleteBookingResourceParams,
   UpdateProductParams,
   DeleteProductParams,
-  DeleteServiceParams,
-  DeleteServiceProviderParams,
-  FindServiceProvidersParams,
-  GetProviderParams,
+  DeleteBookingServiceParams,
+  DeleteBookingOfferingParams,
+  FindBookingOfferingsParams,
+  GetBookingResourceParams,
   GetProductParams,
   GetProductsParams,
-  GetProvidersParams,
+  FindBookingResourcesParams,
   GetQuoteParams,
   GetAvailabilityParams,
   AvailabilityResponse,
@@ -25,13 +25,13 @@ import type {
   CreateCartParams,
   FindCartsParams,
   GetCartParams,
-  GetServiceParams,
-  GetServicesParams,
+  GetBookingServiceParams,
+  FindBookingServicesParams,
   UpdateOrderParams,
   CancelOrderProductParams,
-  UpdateProviderParams,
-  UpdateServiceParams,
-  UpdateServiceProviderParams,
+  UpdateBookingResourceParams,
+  UpdateBookingServiceParams,
+  UpdateBookingOfferingParams,
   GetOrderParams,
   GetOrdersParams,
   CreateOrderRefundParams,
@@ -50,15 +50,14 @@ import type {
   Order,
   Product,
   ProductInventory,
-  Provider,
-  Service,
-  ServiceProvider,
+  BookingResource,
+  BookingService,
+  BookingOffering,
   OrderQuote,
   OrderRefund,
   OrderPayment,
   OrderDispute,
   OrderProduct,
-  OrderBooking,
   OrderDigitalProduct,
   Cart,
   PaginatedResponse,
@@ -155,47 +154,47 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async createService(
-      params: CreateServiceParams,
+    async createBookingService(
+      params: CreateBookingServiceParams,
       options?: RequestOptions,
-    ): Promise<Service> {
+    ): Promise<BookingService> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<Service>(
-        `/v1/stores/${target_store_id}/services`,
+      return apiConfig.httpClient.post<BookingService>(
+        `/v1/stores/${target_store_id}/booking-services`,
         payload,
         options,
       );
     },
 
-    async updateService(
-      params: UpdateServiceParams,
+    async updateBookingService(
+      params: UpdateBookingServiceParams,
       options?: RequestOptions,
-    ): Promise<Service> {
+    ): Promise<BookingService> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.put<Service>(
-        `/v1/stores/${target_store_id}/services/${params.id}`,
+      return apiConfig.httpClient.put<BookingService>(
+        `/v1/stores/${target_store_id}/booking-services/${params.id}`,
         payload,
         options,
       );
     },
 
-    async deleteService(
-      params: DeleteServiceParams,
+    async deleteBookingService(
+      params: DeleteBookingServiceParams,
       options?: RequestOptions,
-    ): Promise<void> {
+    ): Promise<boolean> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.delete<void>(
-        `/v1/stores/${target_store_id}/services/${params.id}`,
+      return apiConfig.httpClient.delete<boolean>(
+        `/v1/stores/${target_store_id}/booking-services/${params.id}`,
         options,
       );
     },
 
-    async getService(
-      params: GetServiceParams,
+    async getBookingService(
+      params: GetBookingServiceParams,
       options?: RequestOptions,
-    ): Promise<Service> {
+    ): Promise<BookingService> {
       const store_id = params.store_id || apiConfig.storeId;
       let identifier: string;
       if (params.id) {
@@ -203,23 +202,23 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       } else if (params.slug) {
         identifier = `${store_id}:${apiConfig.locale}:${params.slug}`;
       } else {
-        throw new Error("GetServiceParams requires id or slug");
+        throw new Error("GetBookingServiceParams requires id or slug");
       }
 
-      return apiConfig.httpClient.get<Service>(
-        `/v1/stores/${store_id}/services/${identifier}`,
+      return apiConfig.httpClient.get<BookingService>(
+        `/v1/stores/${store_id}/booking-services/${identifier}`,
         options,
       );
     },
 
-    async getServices(
-      params: GetServicesParams,
+    async findBookingServices(
+      params: FindBookingServicesParams,
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<Service>> {
+    ): Promise<PaginatedResponse<BookingService>> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<Service>>(
-        `/v1/stores/${target_store_id}/services`,
+      return apiConfig.httpClient.get<PaginatedResponse<BookingService>>(
+        `/v1/stores/${target_store_id}/booking-services`,
         {
           ...options,
           params: queryParams,
@@ -227,83 +226,74 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getServiceAvailability(
+    async getBookingServiceAvailability(
       params: GetAvailabilityParams,
       options?: RequestOptions,
     ): Promise<AvailabilityResponse> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<AvailabilityResponse>(
-        `/v1/stores/${target_store_id}/services/availability`,
+        `/v1/stores/${target_store_id}/booking-services/availability`,
         { ...options, params: queryParams },
       );
     },
 
-    async createProvider(
-      params: CreateProviderParams,
+    async createBookingResource(
+      params: CreateBookingResourceParams,
       options?: RequestOptions,
-    ): Promise<Provider> {
+    ): Promise<BookingResource> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<Provider>(
-        `/v1/stores/${target_store_id}/providers`,
+      return apiConfig.httpClient.post<BookingResource>(
+        `/v1/stores/${target_store_id}/booking-resources`,
         payload,
         options,
       );
     },
 
-    async updateProvider(
-      params: UpdateProviderParams,
+    async updateBookingResource(
+      params: UpdateBookingResourceParams,
       options?: RequestOptions,
-    ): Promise<Provider> {
+    ): Promise<BookingResource> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.put<Provider>(
-        `/v1/stores/${target_store_id}/providers/${params.id}`,
+      return apiConfig.httpClient.put<BookingResource>(
+        `/v1/stores/${target_store_id}/booking-resources/${params.id}`,
         payload,
         options,
       );
     },
 
-    async deleteProvider(
-      params: DeleteProviderParams,
+    async deleteBookingResource(
+      params: DeleteBookingResourceParams,
       options?: RequestOptions,
-    ): Promise<void> {
+    ): Promise<boolean> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.delete<void>(
-        `/v1/stores/${target_store_id}/providers/${params.id}`,
+      return apiConfig.httpClient.delete<boolean>(
+        `/v1/stores/${target_store_id}/booking-resources/${params.id}`,
         options,
       );
     },
 
-    async getProvider(
-      params: GetProviderParams,
+    async getBookingResource(
+      params: GetBookingResourceParams,
       options?: RequestOptions,
-    ): Promise<Provider> {
+    ): Promise<BookingResource> {
       const store_id = params.store_id || apiConfig.storeId;
-      let identifier: string;
-      if (params.id) {
-        identifier = params.id;
-      } else if (params.slug) {
-        identifier = `${store_id}:${apiConfig.locale}:${params.slug}`;
-      } else {
-        throw new Error("GetProviderParams requires id or slug");
-      }
-
-      return apiConfig.httpClient.get<Provider>(
-        `/v1/stores/${store_id}/providers/${identifier}`,
+      return apiConfig.httpClient.get<BookingResource>(
+        `/v1/stores/${store_id}/booking-resources/${params.id}`,
         options,
       );
     },
 
-    async getProviders(
-      params: GetProvidersParams,
+    async findBookingResources(
+      params: FindBookingResourcesParams,
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<Provider>> {
+    ): Promise<PaginatedResponse<BookingResource>> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<Provider>>(
-        `/v1/stores/${target_store_id}/providers`,
+      return apiConfig.httpClient.get<PaginatedResponse<BookingResource>>(
+        `/v1/stores/${target_store_id}/booking-resources`,
         {
           ...options,
           params: queryParams,
@@ -311,51 +301,51 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async findServiceProviders(
-      params: FindServiceProvidersParams,
+    async findBookingOfferings(
+      params: FindBookingOfferingsParams,
       options?: RequestOptions,
-    ): Promise<ServiceProvider[]> {
+    ): Promise<BookingOffering[]> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<ServiceProvider[]>(
-        `/v1/stores/${target_store_id}/service-providers`,
+      return apiConfig.httpClient.get<BookingOffering[]>(
+        `/v1/stores/${target_store_id}/booking-offerings`,
         { ...options, params: queryParams },
       );
     },
 
-    async createServiceProvider(
-      params: CreateServiceProviderParams,
+    async createBookingOffering(
+      params: CreateBookingOfferingParams,
       options?: RequestOptions,
-    ): Promise<ServiceProvider> {
+    ): Promise<BookingOffering> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<ServiceProvider>(
-        `/v1/stores/${target_store_id}/service-providers`,
+      return apiConfig.httpClient.post<BookingOffering>(
+        `/v1/stores/${target_store_id}/booking-offerings`,
         payload,
         options,
       );
     },
 
-    async updateServiceProvider(
-      params: UpdateServiceProviderParams,
+    async updateBookingOffering(
+      params: UpdateBookingOfferingParams,
       options?: RequestOptions,
-    ): Promise<ServiceProvider> {
+    ): Promise<BookingOffering> {
       const { store_id, id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.put<ServiceProvider>(
-        `/v1/stores/${target_store_id}/service-providers/${id}`,
+      return apiConfig.httpClient.put<BookingOffering>(
+        `/v1/stores/${target_store_id}/booking-offerings/${id}`,
         payload,
         options,
       );
     },
 
-    async deleteServiceProvider(
-      params: DeleteServiceProviderParams,
+    async deleteBookingOffering(
+      params: DeleteBookingOfferingParams,
       options?: RequestOptions,
-    ): Promise<void> {
+    ): Promise<boolean> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.delete<void>(
-        `/v1/stores/${target_store_id}/service-providers/${params.id}`,
+      return apiConfig.httpClient.delete<boolean>(
+        `/v1/stores/${target_store_id}/booking-offerings/${params.id}`,
         options,
       );
     },
@@ -411,17 +401,6 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const target_store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<OrderProduct[]>(
         `/v1/stores/${target_store_id}/orders/${params.id}/products`,
-        options,
-      );
-    },
-
-    async getOrderBookings(
-      params: GetOrderParams,
-      options?: RequestOptions,
-    ): Promise<OrderBooking[]> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<OrderBooking[]>(
-        `/v1/stores/${target_store_id}/orders/${params.id}/bookings`,
         options,
       );
     },

@@ -42,7 +42,12 @@ import type {
   ProductStatus,
   ProductVariant,
   RefundRequestReason,
-  ServiceProvider,
+  BookingOffering,
+  BookingResource,
+  BookingService,
+  CartBookingInput,
+  OrderBookingItem,
+  TimeRange,
   OrderShipment,
   OrderShipmentStatus,
   SocialConnectionCredential,
@@ -534,10 +539,31 @@ adminClient.classification.get({ key: "topics" });
 // @ts-expect-error Classification is a top-level module, not a CMS child.
 adminClient.cms.classification;
 void classificationChildren;
-const storefrontServiceProviders: Promise<StorefrontDto<ServiceProvider>[]> =
-  storefrontClient.eshop.service.findProviders({
-    service_id: "service-contract",
+const storefrontBookingOfferings: Promise<StorefrontDto<BookingOffering>[]> =
+  storefrontClient.eshop.bookingOffering.find({
+    booking_service_id: "booking-service-contract",
   });
+const bookingResources: Promise<StorefrontDto<PaginatedResponse<BookingResource>>> =
+  storefrontClient.eshop.bookingResource.find({
+    booking_service_id: "booking-service-contract",
+  });
+const bookingServices: Promise<StorefrontDto<PaginatedResponse<BookingService>>> =
+  storefrontClient.eshop.bookingService.find({ status: "active" });
+const requestedInterval: TimeRange = { from: 1_800_000_000, to: 1_800_003_600 };
+const bookingCartInput: CartBookingInput = {
+  booking_offering_id: "booking-offering-contract",
+  requested_interval: requestedInterval,
+  form_submission_id: "form-submission-contract",
+};
+declare const embeddedBookingItem: OrderBookingItem;
+const embeddedOfferingId: string = embeddedBookingItem.booking_offering_id;
+// @ts-expect-error The legacy booking Service Provider facade was removed.
+storefrontClient.eshop.service;
+void storefrontBookingOfferings;
+void bookingResources;
+void bookingServices;
+void bookingCartInput;
+void embeddedOfferingId;
 declare const storefrontProduct: Awaited<
   ReturnType<typeof storefrontClient.eshop.product.get>
 >;

@@ -8,7 +8,7 @@ import type {
   ClearCartParams,
   ConfirmAudienceParams,
   AudienceAccessParams,
-  FindServiceProvidersParams,
+  FindBookingOfferingsParams,
   FindStorefrontAudienceMembersParams,
   FindStorefrontAudienceTiersParams,
   GetAvailabilityParams,
@@ -23,10 +23,10 @@ import type {
   GetOrdersParams,
   GetProductParams,
   GetProductsParams,
-  GetProviderParams,
-  GetProvidersParams,
-  GetServiceParams,
-  GetServicesParams,
+  GetBookingResourceParams,
+  FindBookingResourcesParams,
+  GetBookingServiceParams,
+  FindBookingServicesParams,
   GetStorefrontAudienceParams,
   GetStorefrontAudiencePaymentParams,
   GetClassificationChildrenParams,
@@ -63,14 +63,13 @@ import type {
   OrderCheckoutResult,
   OrderQuote,
   OrderProduct,
-  OrderBooking,
   OrderDigitalProduct,
   PaginatedResponse,
   Product,
   ProductInventory,
-  Provider,
-  Service,
-  ServiceProvider,
+  BookingResource,
+  BookingService,
+  BookingOffering,
   StorefrontAudience,
   StorefrontAudienceMember,
   StorefrontAudienceTier,
@@ -78,6 +77,9 @@ import type {
 } from "../types";
 import type {
   StorefrontContact,
+  StorefrontBookingOffering,
+  StorefrontBookingResource,
+  StorefrontBookingService,
   StorefrontDto,
   StorefrontLocation,
   StorefrontMarket,
@@ -86,6 +88,9 @@ import type {
 } from "../types/storefront";
 export type {
   StorefrontContact,
+  StorefrontBookingOffering,
+  StorefrontBookingResource,
+  StorefrontBookingService,
   StorefrontDto,
   StorefrontLocation,
   StorefrontMarket,
@@ -659,16 +664,6 @@ export const createStorefrontApi = (
             options,
           );
         },
-        async getBookings(
-          params: StorefrontParams<GetOrderParams>,
-          options?: RequestOptions,
-        ): Promise<StorefrontDto<OrderBooking[]>> {
-          await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.get<StorefrontDto<OrderBooking[]>>(
-            `${base}/orders/${params.id}/bookings`,
-            options,
-          );
-        },
         async getDigitalProducts(
           params: StorefrontParams<GetOrderParams>,
           options?: RequestOptions,
@@ -699,66 +694,65 @@ export const createStorefrontApi = (
           >(`${base}/orders`, { ...options, params });
         },
       },
-      service: {
+      bookingService: {
         get(
-          params: StorefrontParams<GetServiceParams>,
+          params: StorefrontParams<GetBookingServiceParams>,
           options?: RequestOptions,
-        ): Promise<StorefrontDto<Service>> {
+        ): Promise<StorefrontDto<BookingService>> {
           const identifier = params.id ?? params.slug;
           if (!identifier)
-            throw new Error("GetServiceParams requires id or slug");
-          return apiConfig.httpClient.get<StorefrontDto<Service>>(
-            `${base}/services/${identifier}`,
+            throw new Error("GetBookingServiceParams requires id or slug");
+          return apiConfig.httpClient.get<StorefrontDto<BookingService>>(
+            `${base}/booking-services/${identifier}`,
             options,
           );
         },
         find(
-          params: StorefrontParams<GetServicesParams>,
+          params: StorefrontParams<FindBookingServicesParams>,
           options?: RequestOptions,
-        ): Promise<StorefrontDto<PaginatedResponse<Service>>> {
+        ): Promise<StorefrontDto<PaginatedResponse<BookingService>>> {
           return apiConfig.httpClient.get<
-            StorefrontDto<PaginatedResponse<Service>>
-          >(`${base}/services`, { ...options, params });
-        },
-        findProviders(
-          params: StorefrontParams<FindServiceProvidersParams>,
-          options?: RequestOptions,
-        ): Promise<StorefrontDto<ServiceProvider[]>> {
-          return apiConfig.httpClient.get<StorefrontDto<ServiceProvider[]>>(
-            `${base}/service-providers`,
-            { ...options, params },
-          );
+            StorefrontDto<PaginatedResponse<BookingService>>
+          >(`${base}/booking-services`, { ...options, params });
         },
         getAvailability(
           params: StorefrontParams<GetAvailabilityParams>,
           options?: RequestOptions,
         ): Promise<AvailabilityResponse> {
           return apiConfig.httpClient.get<AvailabilityResponse>(
-            `${base}/services/availability`,
+            `${base}/booking-services/availability`,
             { ...options, params },
           );
         },
       },
-      provider: {
-        get(
-          params: StorefrontParams<GetProviderParams>,
+      bookingOffering: {
+        find(
+          params: StorefrontParams<FindBookingOfferingsParams>,
           options?: RequestOptions,
-        ): Promise<StorefrontDto<Provider>> {
-          const identifier = params.id ?? params.slug;
-          if (!identifier)
-            throw new Error("GetProviderParams requires id or slug");
-          return apiConfig.httpClient.get<StorefrontDto<Provider>>(
-            `${base}/providers/${identifier}`,
+        ): Promise<StorefrontDto<BookingOffering[]>> {
+          return apiConfig.httpClient.get<StorefrontDto<BookingOffering[]>>(
+            `${base}/booking-offerings`,
+            { ...options, params },
+          );
+        },
+      },
+      bookingResource: {
+        get(
+          params: StorefrontParams<GetBookingResourceParams>,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<BookingResource>> {
+          return apiConfig.httpClient.get<StorefrontDto<BookingResource>>(
+            `${base}/booking-resources/${params.id}`,
             options,
           );
         },
         find(
-          params: StorefrontParams<GetProvidersParams>,
+          params: StorefrontParams<FindBookingResourcesParams>,
           options?: RequestOptions,
-        ): Promise<StorefrontDto<PaginatedResponse<Provider>>> {
+        ): Promise<StorefrontDto<PaginatedResponse<BookingResource>>> {
           return apiConfig.httpClient.get<
-            StorefrontDto<PaginatedResponse<Provider>>
-          >(`${base}/providers`, { ...options, params });
+            StorefrontDto<PaginatedResponse<BookingResource>>
+          >(`${base}/booking-resources`, { ...options, params });
         },
       },
     },

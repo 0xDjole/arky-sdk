@@ -233,6 +233,11 @@ export interface PostalAddress {
 /** Commerce compatibility name for the shared postal-address value. */
 export type Address = PostalAddress;
 
+export interface TimeRange {
+  from: number;
+  to: number;
+}
+
 export interface Coordinates {
   lat: number;
   lon: number;
@@ -303,11 +308,10 @@ export interface CartProduct {
 
 export interface CartBooking {
   id: string;
-  service_id: string;
-  provider_id: string;
-  slots: import("./api").SlotRange[];
-  forms: FormEntry[];
-  price?: Price | null;
+  booking_offering_id: string;
+  requested_interval: TimeRange;
+  form_submission_id?: string | null;
+  price_override?: Price | null;
 }
 
 export interface CartDigitalProduct {
@@ -824,9 +828,15 @@ export interface OrderProductSnapshot {
 
 export interface OrderBookingSnapshot {
   service_key: string;
-  provider_key: string;
+  resource_key: string;
   timezone: string;
   price: Price;
+}
+
+export interface BookingReminderScheduleItem {
+  offset_minutes: number;
+  due_at: number;
+  emitted_at?: number | null;
 }
 
 export interface OrderDigitalProductSnapshot {
@@ -889,10 +899,10 @@ export interface ProductQuoteLine {
 }
 
 export interface BookingQuoteLine {
-  service_id: string;
-  provider_id: string;
-  from: number;
-  to: number;
+  booking_offering_id: string;
+  booking_service_id: string;
+  booking_resource_id: string;
+  interval: TimeRange;
   money: LineMoneySnapshot;
   snapshot: OrderBookingSnapshot;
   availability: BookingQuoteLineAvailability;
@@ -920,17 +930,20 @@ export interface OrderProduct {
   money: LineMoneySnapshot;
 }
 
-export interface OrderBooking {
+export interface OrderBookingItem {
   id: string;
-  version: number;
-  service_id: string;
-  booking_provider_id: string;
-  from: number;
-  to: number;
-  forms: FormEntry[];
+  booking_offering_id: string;
+  booking_service_id: string;
+  booking_resource_id: string;
+  interval: TimeRange;
+  capacity_intervals: TimeRange[];
+  form_submission_id?: string | null;
+  reminders: BookingReminderScheduleItem[];
   snapshot: OrderBookingSnapshot;
   status: OrderBookingStatus;
   money: LineMoneySnapshot;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface OrderDigitalProduct {
@@ -1006,6 +1019,7 @@ export interface Order {
   fulfillment_status: OrderFulfillmentStatus;
   verified: boolean;
   payment_id: string;
+  booking_items: OrderBookingItem[];
   money: OrderMoney;
   fulfillment_summary: OrderFulfillmentSummary;
   shipping_lines: ShippingLine[];
@@ -1148,13 +1162,13 @@ export type WebhookEventSubscription =
   | { event: "order_product.confirmed" }
   | { event: "order_product.cancelled" }
   | { event: "order_product.fulfilled" }
-  | { event: "order_booking.created" }
-  | { event: "order_booking.updated" }
-  | { event: "order_booking.confirmed" }
-  | { event: "order_booking.completed" }
-  | { event: "order_booking.no_show" }
-  | { event: "order_booking.cancelled" }
-  | { event: "order_booking.reminder" }
+  | { event: "order_booking_item.created" }
+  | { event: "order_booking_item.updated" }
+  | { event: "order_booking_item.confirmed" }
+  | { event: "order_booking_item.completed" }
+  | { event: "order_booking_item.no_show" }
+  | { event: "order_booking_item.cancelled" }
+  | { event: "order_booking_item.reminder" }
   | { event: "order.shipment_created" }
   | { event: "order.shipment_in_transit" }
   | { event: "order.shipment_out_for_delivery" }
@@ -1169,12 +1183,12 @@ export type WebhookEventSubscription =
   | { event: "product.created" }
   | { event: "product.updated" }
   | { event: "product.deleted" }
-  | { event: "provider.created" }
-  | { event: "provider.updated" }
-  | { event: "provider.deleted" }
-  | { event: "service.created" }
-  | { event: "service.updated" }
-  | { event: "service.deleted" }
+  | { event: "booking_resource.created" }
+  | { event: "booking_resource.updated" }
+  | { event: "booking_resource.deleted" }
+  | { event: "booking_service.created" }
+  | { event: "booking_service.updated" }
+  | { event: "booking_service.deleted" }
   | { event: "media.created" }
   | { event: "media.deleted" }
   | { event: "store.created" }
@@ -1760,8 +1774,9 @@ export interface PaginatedResponse<T> {
   cursor: string | null;
 }
 
-export type ServiceStatus = "active" | "draft" | "archived";
-export type ProviderStatus = "active" | "draft" | "archived";
+export type BookingServiceStatus = "active" | "draft" | "archived";
+export type BookingResourceStatus = "active" | "draft" | "archived";
+export type BookingOfferingStatus = "active" | "draft" | "archived";
 
 export type ProductStatus = "active" | "draft" | "archived";
 export type ContactStatus = "active" | "archived";
@@ -2063,63 +2078,96 @@ export interface Classification {
 }
 
 export interface ServiceDuration {
-  duration: number;
+  minutes: number;
   is_pause: boolean;
 }
 
-export interface WorkingHour {
+export type Weekday =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday";
+
+export interface WorkingWindow {
+  from_minute: number;
+  to_minute: number;
+}
+
+export interface WeeklyAvailability {
+  weekday: Weekday;
+  windows: WorkingWindow[];
+}
+
+export interface DateOverride {
+  local_date: string;
+  windows: WorkingWindow[];
+}
+
+export interface BookingWindow {
+  opens_before_start_minutes?: number | null;
+  closes_before_start_minutes: number;
+}
+
+export interface BookingOffering {
+  id: string;
+  store_id: string;
+  booking_service_id: string;
+  booking_resource_id: string;
+  weekly_availability: WeeklyAvailability[];
+  date_overrides: DateOverride[];
+  prices: Price[];
+  durations: ServiceDuration[];
+  slot_interval_minutes: number;
+  booking_window: BookingWindow;
+  reminder_offsets_minutes: number[];
+  status: BookingOfferingStatus;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface BookingService {
+  id: string;
+  key: string;
+  slug: Record<string, string>;
+  store_id: string;
+  blocks: Block[];
+  classifications: ClassificationEntry[];
+  created_at: number;
+  updated_at: number;
+  status: BookingServiceStatus;
+}
+
+export interface BookingResource {
+  id: string;
+  key: string;
+  slug: Record<string, string>;
+  store_id: string;
+  status: BookingResourceStatus;
+  blocks: Block[];
+  classifications: ClassificationEntry[];
+  timezone: string;
+  capacity: number;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface BookingCapacityClaim {
+  order_id: string;
+  order_booking_item_id: string;
   from: number;
   to: number;
 }
 
-export interface WorkingDay {
-  day: string;
-  working_hours: WorkingHour[];
-}
-
-export interface SpecificDate {
-  date: number;
-  working_hours: WorkingHour[];
-}
-
-export interface ServiceProvider {
+export interface BookingResourceCapacityDay {
   id: string;
-  service_id: string;
-  provider_id: string;
   store_id: string;
-  working_days: WorkingDay[];
-  specific_dates: SpecificDate[];
-  prices: Price[];
-  durations: ServiceDuration[];
-  slot_interval: number;
-  forms: FormEntry[];
-  reminders: number[];
-  min_advance: number;
-  max_advance: number;
-  created_at: number;
-  updated_at: number;
-}
-
-export interface Service {
-  id: string;
-  key: string;
-  slug: Record<string, string>;
-  store_id: string;
-  blocks: Block[];
-  classifications: ClassificationEntry[];
-  created_at: number;
-  updated_at: number;
-  status: ServiceStatus;
-}
-
-export interface Provider {
-  id: string;
-  key: string;
-  slug: Record<string, string>;
-  store_id: string;
-  status: ProviderStatus;
-  blocks: Block[];
-  classifications: ClassificationEntry[];
+  booking_resource_id: string;
+  local_date: string;
+  timezone: string;
+  claims: BookingCapacityClaim[];
   created_at: number;
   updated_at: number;
 }
@@ -3277,12 +3325,14 @@ export type EventAction =
   | { action: "order_product_confirmed" }
   | { action: "order_product_cancelled" }
   | { action: "order_product_fulfilled" }
-  | { action: "order_booking_created" }
-  | { action: "order_booking_updated" }
-  | { action: "order_booking_confirmed" }
-  | { action: "order_booking_completed" }
-  | { action: "order_booking_no_show" }
-  | { action: "order_booking_cancelled" }
+  | { action: "order_booking_item_created" }
+  | { action: "order_booking_item_updated" }
+  | { action: "order_booking_item_confirmed" }
+  | { action: "order_booking_item_completed" }
+  | { action: "order_booking_item_no_show" }
+  | { action: "order_booking_item_cancelled" }
+  | { action: "order_booking_item_reminder_due" }
+  | { action: "order_booking_item_reminder" }
   | { action: "order_shipment_created"; data: { shipment_id: string } }
   | { action: "order_shipment_in_transit"; data: { shipment_id: string } }
   | { action: "order_shipment_out_for_delivery"; data: { shipment_id: string } }
@@ -3305,12 +3355,12 @@ export type EventAction =
   | { action: "entry_created" }
   | { action: "entry_updated" }
   | { action: "entry_deleted" }
-  | { action: "provider_created" }
-  | { action: "provider_updated" }
-  | { action: "provider_deleted" }
-  | { action: "service_created" }
-  | { action: "service_updated" }
-  | { action: "service_deleted" }
+  | { action: "booking_resource_created" }
+  | { action: "booking_resource_updated" }
+  | { action: "booking_resource_deleted" }
+  | { action: "booking_service_created" }
+  | { action: "booking_service_updated" }
+  | { action: "booking_service_deleted" }
   | { action: "account_created" }
   | { action: "account_updated" }
   | { action: "account_deleted" }

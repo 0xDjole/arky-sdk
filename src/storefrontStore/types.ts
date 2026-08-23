@@ -6,9 +6,9 @@ import type {
   StorefrontOrderCheckoutResult,
   StorefrontOrderQuote,
   StorefrontProduct,
-  StorefrontProvider,
-  StorefrontService,
-  StorefrontServiceProvider,
+  StorefrontBookingResource,
+  StorefrontBookingService,
+  StorefrontBookingOffering,
 } from "../types/storefront";
 import type {
   Address,
@@ -26,11 +26,12 @@ import type {
   OrderQuote,
   Price,
   Product,
-  Provider,
-  Service,
-  ServiceProvider,
+  BookingResource,
+  BookingService,
+  BookingOffering,
+  TimeRange,
 } from "../types";
-import type { AvailabilityResponse, SlotRange } from "../types/api";
+import type { AvailabilityResponse } from "../types/api";
 
 export type ArkyStoreClient = ReturnType<typeof createStorefront>;
 export type ArkyStoreConfig = StorefrontOptions;
@@ -53,16 +54,15 @@ export interface ArkySubmitFormByKeyParams {
 
 export interface ArkyBookingCartItem {
   id: string;
-  service_id: string;
-  provider_id: string;
-  slots: SlotRange[];
-  forms: FormEntry[];
-  price?: Price;
-  service_name?: string;
-  provider_name?: string;
+  booking_offering_id: string;
+  requested_interval: TimeRange;
+  form_submission_id?: string | null;
+  booking_service_id?: string;
+  booking_resource_id?: string;
+  booking_service_name?: string;
+  booking_resource_name?: string;
   date_text?: string;
   time_text?: string;
-  is_multi_day?: boolean;
 }
 
 export interface ArkyCartSnapshot {
@@ -123,15 +123,15 @@ export interface ArkyCmsState {
 
 export interface ArkyEshopState {
   products: StorefrontProduct[];
-  services: StorefrontService[];
-  providers: StorefrontProvider[];
+  bookingServices: StorefrontBookingService[];
+  bookingResources: StorefrontBookingResource[];
   product_cursor: string | null;
-  service_cursor: string | null;
-  provider_cursor: string | null;
+  booking_service_cursor: string | null;
+  booking_resource_cursor: string | null;
   availability: unknown | null;
   loading_products: boolean;
-  loading_services: boolean;
-  loading_providers: boolean;
+  loading_booking_services: boolean;
+  loading_booking_resources: boolean;
   loading_availability: boolean;
   error: string | null;
 }
@@ -146,23 +146,19 @@ export interface ArkyCalendarDay {
   blank: boolean;
 }
 
-export interface ArkyServiceSlot {
+export interface ArkyBookingSlot {
   id: string;
-  serviceId: string;
-  providerId: string;
+  bookingServiceId: string;
+  bookingResourceId: string;
+  bookingOfferingId: string;
   from: number;
   to: number;
   timeText: string;
   dateText: string;
   isMultiDay?: boolean;
-  serviceName?: string;
+  bookingServiceName?: string;
   date?: string;
-  serviceBlocks?: Block[];
-}
-
-export interface ArkyServiceFormGroup {
-  form: StorefrontForm;
-  blocks: FormInputBlock[];
+  bookingServiceBlocks?: Block[];
 }
 
 export interface FormInputBlock {
@@ -173,24 +169,17 @@ export interface FormInputBlock {
   value: FormValue | undefined;
 }
 
-export interface ArkyServiceFormState {
-  provider_id: string | null;
-  groups: ArkyServiceFormGroup[];
-  loading: boolean;
-  error: string | null;
-}
-
-export interface ArkyServiceState {
-  service: StorefrontService | null;
+export interface ArkyBookingServiceState {
+  bookingService: StorefrontBookingService | null;
   availability: AvailabilityResponse | null;
-  providers: StorefrontProvider[];
-  serviceProviders: StorefrontServiceProvider[];
-  selectedProviderId: string | null;
+  bookingResources: StorefrontBookingResource[];
+  bookingOfferings: StorefrontBookingOffering[];
+  selectedBookingResourceId: string | null;
   currentMonth: Date;
   calendar: ArkyCalendarDay[];
   selectedDate: string | null;
-  slots: ArkyServiceSlot[];
-  selectedSlot: ArkyServiceSlot | null;
+  slots: ArkyBookingSlot[];
+  selectedSlot: ArkyBookingSlot | null;
   timezone: string;
   tzGroups: Record<string, { zone: string; name: string }[]>;
   loading: boolean;

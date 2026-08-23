@@ -85,7 +85,7 @@ await arky.cms.form.submitByKey({
 
 The browser persists only the `arky_vst_...` visitor-session token. Storage is isolated by API endpoint and a fingerprint of the publishable key.
 
-## Products, services, and checkout
+## Products, booking services, and checkout
 
 ```typescript
 const { items: products } = await arky.eshop.product.list({ limit: 20 });
@@ -107,22 +107,40 @@ Product variants expose optional `weight_grams`. Inventory is a separate resourc
 `product_id`, `variant_id`, and `store_location_id`; it persists `on_hand` and `reserved`, while
 free-to-sell stock is always derived as `on_hand - reserved`.
 
-Scheduled services use the same cart:
+Booking services use the same Cart. A BookingResource is the person, place, or equipment that
+performs the service; a BookingOffering connects one service to one resource and owns its price,
+availability, booking window, and reminders:
 
 ```typescript
-const { items: services } = await arky.eshop.service.list({ limit: 20 });
+const { items: services } = await arky.eshop.bookingService.list({ limit: 20 });
 
-await arky.eshop.service.initialize();
-await arky.eshop.service.select(services[0]);
-arky.eshop.service.findFirstAvailable();
+await arky.eshop.bookingService.initialize();
+await arky.eshop.bookingService.select(services[0]);
+arky.eshop.bookingService.findFirstAvailable();
 
-const state = arky.eshop.service.state.get();
+const state = arky.eshop.bookingService.state.get();
 if (state.slots[0]) {
-  arky.eshop.service.selectTimeSlot(state.slots[0]);
-  arky.eshop.service.nextStep();
-  await arky.eshop.service.addToCart();
+  arky.eshop.bookingService.selectTimeSlot(state.slots[0]);
+  arky.eshop.bookingService.nextStep();
+  await arky.eshop.bookingService.addToCart();
 }
 ```
+
+One Cart booking item is one appointment and contains one `booking_offering_id` plus one
+`requested_interval`. BookingOffering does not configure Forms. If application code submits a
+standalone Form first, pass only its resulting submission ID with the appointment:
+
+```typescript
+const submission = await arky.cms.form.submitByKey({
+  key: "booking-details",
+  values: { note: "Window seat, please" },
+});
+
+await arky.eshop.bookingService.addToCart(undefined, submission.id);
+```
+
+Completed Orders expose bookings directly as `order.booking_items`. There is no standalone Booking
+or OrderBooking SDK resource.
 
 Nano Stores expose reactive module state:
 
