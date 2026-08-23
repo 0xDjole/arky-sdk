@@ -142,6 +142,8 @@ test("initialize is the production root API and exposes the module facade withou
   assert.equal(typeof rootStore.cms.entry.get, "function");
   assert.equal(typeof rootStore.cms.media.findByIds, "function");
   assert.equal(typeof rootStore.cms.entry.findByIds, "function");
+  assert.equal(typeof rootStore.classification.get, "function");
+  assert.equal("classification" in rootStore.cms, false);
   assert.equal(typeof store.eshop.cart.load, "function");
   assert.equal("payment" in store.eshop.cart, false);
   assert.equal(typeof store.setContext, "function");

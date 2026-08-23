@@ -803,7 +803,7 @@ export interface Product {
   key: string;
   slug: Record<string, string>;
   blocks: Block[];
-  taxonomies: TaxonomyEntry[];
+  classifications: ClassificationEntry[];
   variants: ProductVariant[];
   status: ProductStatus;
   created_at: number;
@@ -1029,7 +1029,7 @@ export interface DigitalProduct {
   key: string;
   slug: Record<string, string>;
   blocks: Block[];
-  taxonomies: TaxonomyEntry[];
+  classifications: ClassificationEntry[];
   prices: DigitalPrice[];
   asset_ids: string[];
   status: DigitalCatalogStatus;
@@ -1042,7 +1042,7 @@ export interface StorefrontDigitalProduct {
   key: string;
   slug: Record<string, string>;
   blocks: Block[];
-  taxonomies: TaxonomyEntry[];
+  classifications: ClassificationEntry[];
   prices: DigitalPrice[];
 }
 
@@ -1073,7 +1073,7 @@ export interface DigitalLibraryProduct {
   product_key: string;
   slug: Record<string, string>;
   blocks: Block[];
-  taxonomies: TaxonomyEntry[];
+  classifications: ClassificationEntry[];
   asset_ids: string[];
 }
 
@@ -1412,9 +1412,11 @@ export interface TextBlock extends BlockBase {
   value: string | null;
 }
 
-export interface LocalizedTextBlock extends BlockBase {
-  type: "localized_text" | "markdown";
-  properties: TextBlockProperties | Record<string, never>;
+export type MarkdownBlockProperties = Record<string, never>;
+
+export interface MarkdownBlock extends BlockBase {
+  type: "markdown";
+  properties: MarkdownBlockProperties;
   value: Record<string, string> | null;
 }
 
@@ -1472,41 +1474,70 @@ export interface ObjectBlock extends BlockBase {
   value: Record<string, Block>;
 }
 
-export type TaxonomySchemaType = "text" | "number" | "boolean" | "geo_location";
-
-export interface TaxonomySchema {
+interface ClassificationSchemaBase {
   id: string;
   key: string;
-  type: TaxonomySchemaType;
-  value?: string[];
-  min?: number | null;
-  max?: number | null;
 }
 
-export interface TaxonomyField {
+export type ClassificationSchema =
+  | (ClassificationSchemaBase & {
+      type: "text";
+      value: string[];
+      min: number | null;
+    })
+  | (ClassificationSchemaBase & {
+      type: "number";
+      min: number | null;
+      max: number | null;
+    })
+  | (ClassificationSchemaBase & { type: "boolean" })
+  | (ClassificationSchemaBase & { type: "geo_location" });
+
+export type ClassificationSchemaType = ClassificationSchema["type"];
+
+interface ClassificationFieldBase {
   id: string;
   key: string;
-  type: TaxonomySchemaType;
-  value: any;
 }
 
-export interface TaxonomyFieldQuery {
-  key: string;
-  type: TaxonomySchemaType;
-  operation?: string;
-  value: any;
-  center?: { lat: number; lon: number };
-  radius?: number;
+export type ClassificationField =
+  | (ClassificationFieldBase & { type: "text"; value: string[] })
+  | (ClassificationFieldBase & { type: "number"; value: number })
+  | (ClassificationFieldBase & { type: "boolean"; value: boolean })
+  | (ClassificationFieldBase & { type: "geo_location"; value: GeoLocation });
+
+export type ClassificationFieldQuery =
+  | { type: "text"; key: string; value: string[] }
+  | {
+      type: "number";
+      key: string;
+      operation:
+        | "plus"
+        | "minus"
+        | "less_than_or_equal"
+        | "greater_than_or_equal"
+        | "equals"
+        | "greater_than"
+        | "less_than"
+        | "contains";
+      value: number;
+    }
+  | { type: "boolean"; key: string; value: boolean }
+  | {
+      type: "geo_location";
+      key: string;
+      center: Coordinates;
+      radius: number;
+    };
+
+export interface ClassificationEntry {
+  classification_id: string;
+  fields: ClassificationField[];
 }
 
-export interface TaxonomyEntry {
-  taxonomy_id: string;
-  fields: TaxonomyField[];
-}
-
-export interface TaxonomyQuery {
-  taxonomy_id: string;
-  query: TaxonomyFieldQuery[];
+export interface ClassificationQuery {
+  classification_id: string;
+  query: ClassificationFieldQuery[];
 }
 
 export type FormSchemaType =
@@ -1556,7 +1587,6 @@ export interface FormEntry {
 
 export type BlockType =
   | "text"
-  | "localized_text"
   | "number"
   | "boolean"
   | "date"
@@ -1579,7 +1609,7 @@ export interface GeoLocationBlock extends BlockBase {
 
 export type Block =
   | TextBlock
-  | LocalizedTextBlock
+  | MarkdownBlock
   | NumberBlock
   | BooleanBlock
   | DateBlock
@@ -1624,7 +1654,7 @@ export type SubscriptionPlanFeatureType =
   | "crm_contacts"
   | "media"
   | "members"
-  | "taxonomies"
+  | "classifications"
   | "email_templates"
   | "forms"
   | "mailboxes"
@@ -1868,7 +1898,7 @@ export type EmailTemplateType =
   | "newsletter_email";
 
 export type FormStatus = "active" | "draft" | "archived";
-export type TaxonomyStatus = "active" | "draft" | "archived";
+export type ClassificationStatus = "active" | "draft" | "archived";
 
 export type OrderCancellationReason =
   | "admin_rejected"
@@ -1888,7 +1918,6 @@ export interface TimeRange {
 
 export type BlockSchemaType =
   | "text"
-  | "localized_text"
   | "number"
   | "boolean"
   | "date"
@@ -2010,13 +2039,13 @@ export interface FormSubmission {
   created_at: number;
 }
 
-export interface Taxonomy {
+export interface Classification {
   id: string;
   key: string;
   store_id: string;
-  parent_id?: string | null;
-  schema?: TaxonomySchema[];
-  status: TaxonomyStatus;
+  parent_id: string | null;
+  schema: ClassificationSchema[];
+  status: ClassificationStatus;
   created_at: number;
   updated_at: number;
 }
@@ -2065,7 +2094,7 @@ export interface Service {
   slug: Record<string, string>;
   store_id: string;
   blocks: Block[];
-  taxonomies: TaxonomyEntry[];
+  classifications: ClassificationEntry[];
   created_at: number;
   updated_at: number;
   status: ServiceStatus;
@@ -2078,7 +2107,7 @@ export interface Provider {
   store_id: string;
   status: ProviderStatus;
   blocks: Block[];
-  taxonomies: TaxonomyEntry[];
+  classifications: ClassificationEntry[];
   created_at: number;
   updated_at: number;
 }
@@ -2538,7 +2567,7 @@ export interface Contact {
   id: string;
   store_id: string;
   status: ContactStatus;
-  taxonomies: TaxonomyEntry[];
+  classifications: ClassificationEntry[];
   created_at: number;
   updated_at: number;
 }

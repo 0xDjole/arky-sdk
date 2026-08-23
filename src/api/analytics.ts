@@ -41,7 +41,7 @@ export type AnalyticsReportKey =
   | "promo_codes_by_status"
   | "email_templates_by_status"
   | "forms_by_status"
-  | "taxonomies_by_status"
+  | "classifications_by_status"
   | "carts_by_status"
   | "orders_by_status"
   | "order_products_by_status"
@@ -281,7 +281,7 @@ export type AnalyticsBreakdownReportKey =
   | "promo_codes_by_status"
   | "email_templates_by_status"
   | "forms_by_status"
-  | "taxonomies_by_status"
+  | "classifications_by_status"
   | "carts_by_status"
   | "orders_by_status"
   | "order_products_by_status";

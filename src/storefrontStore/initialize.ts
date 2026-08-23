@@ -1999,8 +1999,8 @@ function initializeStoreCore(
         submit: submitForm,
         submitByKey: submitFormByKey,
       },
-      taxonomy: client.cms.taxonomy,
     },
+    classification: client.classification,
     eshop: {
       state: eshop_state,
       digital: client.eshop.digital,

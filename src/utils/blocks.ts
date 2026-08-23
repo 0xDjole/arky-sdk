@@ -1,4 +1,4 @@
-import type { Block } from "../types";
+import type { Block, ObjectBlock } from "../types";
 
 type BlockContainer = { blocks?: readonly Block[] | null };
 type UnknownRecord = Record<string, unknown>;
@@ -20,7 +20,7 @@ function recordFromBlocks(values: readonly unknown[], locale: string): UnknownRe
   return result;
 }
 
-export function selectLocalizedText(
+function selectLocalizedMap(
   value: unknown,
   locale: string | null | undefined,
   fallbackLocales: readonly string[] = ["en"],
@@ -43,15 +43,65 @@ export function selectLocalizedText(
   return first ?? fallback;
 }
 
+function localizedBlockEntries(
+  value: ObjectBlock | Readonly<Record<string, Block>> | null | undefined,
+): Readonly<Record<string, Block>> | null {
+  if (!value) return null;
+  if (isBlock(value)) return value.type === "object" ? value.value : null;
+  return value;
+}
+
+function textBlockValue(value: unknown): string | undefined {
+  if (!isBlock(value) || value.type !== "text") return undefined;
+  return typeof value.value === "string" && value.value.length > 0
+    ? value.value
+    : undefined;
+}
+
+function localizedBlockText(
+  value: ObjectBlock | Readonly<Record<string, Block>> | null | undefined,
+  locale: string | null | undefined,
+  fallbackLocales: readonly string[],
+  useFirst: boolean,
+): string | undefined {
+  const entries = localizedBlockEntries(value);
+  if (!entries) return undefined;
+
+  const locales = [locale, ...fallbackLocales].filter(
+    (candidate): candidate is string =>
+      typeof candidate === "string" && candidate.length > 0,
+  );
+  for (const candidate of new Set(locales)) {
+    const selected = textBlockValue(entries[candidate]);
+    if (selected !== undefined) return selected;
+  }
+
+  if (!useFirst) return undefined;
+  return Object.values(entries)
+    .map(textBlockValue)
+    .find((entry) => entry !== undefined);
+}
+
+export function selectLocalizedObjectText(
+  value: ObjectBlock | Readonly<Record<string, Block>> | null | undefined,
+  locale: string | null | undefined,
+  fallbackLocales: readonly string[] = ["en"],
+  fallback = "",
+): string {
+  return localizedBlockText(value, locale, fallbackLocales, true) ?? fallback;
+}
+
 function unwrapBlock(value: unknown, locale: string): unknown {
   if (!isBlock(value)) return value;
-  if (value.type === "localized_text" || value.type === "markdown") {
-    return selectLocalizedText(value.value, locale);
+  if (value.type === "markdown") {
+    return selectLocalizedMap(value.value, locale);
   }
   if (value.type === "array") {
     return value.value.map((item) => unwrapBlock(item, locale));
   }
   if (value.type === "object") {
+    const localized = localizedBlockText(value, locale, ["en"], false);
+    if (localized !== undefined) return localized;
     return Object.fromEntries(
       Object.entries(value.value).map(([key, nested]) => [key, unwrapBlock(nested, locale)]),
     );
@@ -71,14 +121,16 @@ function blockContentArray(values: readonly unknown[], locale: string): unknown 
 }
 
 function blockContentValue(block: Block, locale: string): unknown {
-  if (block.type === "localized_text" || block.type === "markdown") {
-    return selectLocalizedText(block.value, locale);
+  if (block.type === "markdown") {
+    return selectLocalizedMap(block.value, locale);
   }
   if (block.type === "media") return block.value ?? null;
   if (block.type === "array") {
     return Array.isArray(block.value) ? blockContentArray(block.value, locale) : [];
   }
   if (block.type === "object") {
+    const localized = localizedBlockText(block, locale, ["en"], false);
+    if (localized !== undefined) return localized;
     if (Array.isArray(block.value)) return blockContentArray(block.value, locale);
     if (!isRecord(block.value)) return {};
     return Object.fromEntries(
@@ -166,8 +218,11 @@ export function getBlockValue<T = unknown>(
 
 export function getBlockTextValue(block: Block | null | undefined, locale = "en"): string {
   if (!block || block.value === null || block.value === undefined) return "";
-  if (block.type === "localized_text" || block.type === "markdown") {
-    return selectLocalizedText(block.value, locale);
+  if (block.type === "markdown") {
+    return selectLocalizedMap(block.value, locale);
+  }
+  if (block.type === "object") {
+    return selectLocalizedObjectText(block, locale);
   }
   return typeof block.value === "string" ? block.value : String(block.value);
 }

@@ -53,6 +53,24 @@ const titleBlock = page.blocks.find((block) => block.key === "title");
 const title = arky.utils.getBlockTextValue(titleBlock, arky.getLocale());
 ```
 
+Localized text uses the shared Block vocabulary: the field is an `object`, each locale is a key,
+and each locale value is a `text` Block. There is no separate localized-text Block or schema type:
+
+```typescript
+import type { Block } from "arky-sdk";
+
+const title = {
+  id: "title",
+  key: "title",
+  type: "object",
+  properties: {},
+  value: {
+    en: { id: "title-en", key: "en", type: "text", properties: {}, value: "Welcome" },
+    it: { id: "title-it", key: "it", type: "text", properties: {}, value: "Benvenuto" },
+  },
+} satisfies Block;
+```
+
 Stateful operations identify the visitor lazily. Concurrent first operations share one identify request:
 
 ```typescript
@@ -192,6 +210,7 @@ await arky.client.cms.entry.find({
   key: "homepage",
   limit: 1,
 });
+await arky.client.classification.get({ key: "topics" });
 ```
 
 Low-level requests use Store-ID-free `/v1/storefront` routes and send connection context as headers:
@@ -254,6 +273,8 @@ await admin.store.update({
   id: store.id,
   default_market_id: "market-id",
 });
+
+const classifications = await admin.classification.find({ limit: 20 });
 ```
 
 ## TypeScript

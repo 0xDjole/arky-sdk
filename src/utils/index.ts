@@ -42,7 +42,7 @@ export {
   getBlockValues,
   getImageUrl,
   prepareBlocksForSubmission,
-  selectLocalizedText,
+  selectLocalizedObjectText,
 } from "./blocks";
 export type { BlockReferences } from "./blocks";
 

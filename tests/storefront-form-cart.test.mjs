@@ -33,7 +33,7 @@ function contact(email = null) {
     verified: Boolean(email),
     status: "active",
     channels: [],
-    taxonomies: [],
+    classifications: [],
     created_at: 1,
     updated_at: 1,
   };

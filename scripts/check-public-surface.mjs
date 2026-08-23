@@ -28,6 +28,8 @@ const removedIdentifierPattern = new RegExp(
   "g",
 );
 const forbiddenProviderOperationPattern = /provider(?:_|-)?operations?/gi;
+const removedClassificationVocabularyPattern =
+  /Taxonom|taxonom|LocalizedText|localized_text/g;
 const exportedDeclarationPattern =
   /\bexport\s+(?:declare\s+)?(?:type|interface|class|enum|function|const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\b/g;
 
@@ -71,6 +73,16 @@ for (const file of listTypeScriptFiles(sourceDir)) {
       source,
       match.index,
       `removed provider-operation name ${match[0]}`,
+    );
+    failures++;
+  }
+
+  for (const match of source.matchAll(removedClassificationVocabularyPattern)) {
+    report(
+      file,
+      source,
+      match.index,
+      `removed Classification/Block vocabulary ${match[0]}`,
     );
     failures++;
   }

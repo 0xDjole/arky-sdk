@@ -12,8 +12,8 @@ import type {
   CustomsDeclaration,
   ShippingRateLine,
   OrderShipmentLine,
-  TaxonomyEntry,
-  TaxonomyQuery,
+  ClassificationEntry,
+  ClassificationQuery,
   PaymentMethod,
   ServiceStatus,
   ProviderStatus,
@@ -29,11 +29,11 @@ import type {
   EmailTemplateType,
   EmailTemplateVariable,
   FormStatus,
-  TaxonomyStatus,
+  ClassificationStatus,
   FormSchema,
   FormField,
   FormEntry,
-  TaxonomySchema,
+  ClassificationSchema,
   Price,
   ServiceDuration,
   WorkingDay,
@@ -289,7 +289,7 @@ export interface CheckoutCartParams {
 export interface GetProductsParams {
   store_id?: string;
   ids?: string[];
-  taxonomy_query?: TaxonomyQuery[];
+  classification_query?: ClassificationQuery[];
   match_all?: boolean;
   status?: ProductStatus;
 
@@ -462,7 +462,7 @@ export interface GetServicesParams {
   sort_direction?: "asc" | "desc";
   created_at_from?: number;
   created_at_to?: number;
-  taxonomy_query?: TaxonomyQuery[];
+  classification_query?: ClassificationQuery[];
   match_all?: boolean;
   from?: number;
   to?: number;
@@ -667,7 +667,7 @@ export interface CreateProductParams {
   key: string;
   slug?: Record<string, string>;
   blocks?: Block[];
-  taxonomies?: TaxonomyEntry[];
+  classifications?: ClassificationEntry[];
   variants?: CreateProductVariantInput[];
 }
 
@@ -677,7 +677,7 @@ export interface UpdateProductParams {
   key?: string;
   slug?: Record<string, string>;
   blocks?: Block[];
-  taxonomies?: TaxonomyEntry[];
+  classifications?: ClassificationEntry[];
   variants?: UpdateProductVariantInput[];
   status?: ProductStatus;
 }
@@ -746,7 +746,7 @@ export interface CreateProviderParams {
   slug?: Record<string, string>;
   status?: ProviderStatus;
   blocks?: Block[];
-  taxonomies?: TaxonomyEntry[];
+  classifications?: ClassificationEntry[];
 }
 
 export interface UpdateProviderParams {
@@ -756,7 +756,7 @@ export interface UpdateProviderParams {
   slug?: Record<string, string>;
   status?: ProviderStatus;
   blocks?: Block[];
-  taxonomies?: TaxonomyEntry[];
+  classifications?: ClassificationEntry[];
 }
 
 export interface DeleteProviderParams {
@@ -778,7 +778,7 @@ export interface CreateServiceParams {
   key: string;
   slug?: Record<string, string>;
   blocks?: Block[];
-  taxonomies?: TaxonomyEntry[];
+  classifications?: ClassificationEntry[];
   location?: ZoneLocation;
   status?: ServiceStatus;
 }
@@ -789,7 +789,7 @@ export interface UpdateServiceParams {
   key?: string;
   slug?: Record<string, string>;
   blocks?: Block[];
-  taxonomies?: TaxonomyEntry[];
+  classifications?: ClassificationEntry[];
   location?: ZoneLocation | null;
   status?: ServiceStatus;
 }
@@ -848,7 +848,7 @@ export interface GetProvidersParams {
   store_id?: string;
   service_id?: string;
   ids?: string[];
-  taxonomy_query?: TaxonomyQuery[];
+  classification_query?: ClassificationQuery[];
   match_all?: boolean;
 
   query?: string | number | null;
@@ -1041,7 +1041,7 @@ export interface UpdateFormSubmissionParams {
   fields: FormField[];
 }
 
-export interface GetTaxonomiesParams {
+export interface GetClassificationsParams {
   store_id?: string;
   parent_id?: string;
   ids?: string[];
@@ -1050,41 +1050,44 @@ export interface GetTaxonomiesParams {
   cursor?: string;
 
   query?: string | number;
-  status?: TaxonomyStatus;
+  status?: ClassificationStatus;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
   created_at_from?: number;
   created_at_to?: number;
 }
 
-export interface CreateTaxonomyParams {
+export interface CreateClassificationParams {
   store_id?: string;
   key: string;
   parent_id?: string | null;
-  schema?: TaxonomySchema[];
+  schema?: ClassificationSchema[];
 }
 
-export interface UpdateTaxonomyParams {
+export interface UpdateClassificationParams {
   id: string;
   store_id?: string;
   key?: string;
   parent_id?: string | null;
-  schema?: TaxonomySchema[];
-  status?: TaxonomyStatus;
+  schema?: ClassificationSchema[];
+  status?: ClassificationStatus;
 }
 
-export interface GetTaxonomyParams {
-  id?: string;
-  key?: string;
-  store_id?: string;
-}
-
-export interface DeleteTaxonomyParams {
+export interface GetClassificationParams {
   id: string;
   store_id?: string;
 }
 
-export interface GetTaxonomyChildrenParams {
+export type GetStorefrontClassificationParams = {
+  store_id?: string;
+} & ({ id: string; key?: never } | { id?: never; key: string });
+
+export interface DeleteClassificationParams {
+  id: string;
+  store_id?: string;
+}
+
+export interface GetClassificationChildrenParams {
   id: string;
   store_id?: string;
 }
@@ -1158,7 +1161,7 @@ export interface CreateDigitalProductParams {
   key: string;
   slug?: Record<string, string>;
   blocks?: import("./index").Block[];
-  taxonomies?: import("./index").TaxonomyEntry[];
+  classifications?: import("./index").ClassificationEntry[];
   prices?: import("./index").DigitalPrice[];
   asset_ids?: string[];
   status?: import("./index").DigitalCatalogStatus;
@@ -1170,7 +1173,7 @@ export interface UpdateDigitalProductParams {
   key?: string;
   slug?: Record<string, string>;
   blocks?: import("./index").Block[];
-  taxonomies?: import("./index").TaxonomyEntry[];
+  classifications?: import("./index").ClassificationEntry[];
   prices?: import("./index").DigitalPrice[];
   asset_ids?: string[];
   status?: import("./index").DigitalCatalogStatus;
@@ -2423,14 +2426,14 @@ export interface SetContactEmailParams {
 export interface CreateContactParams {
   store_id?: string;
   email: string;
-  taxonomies?: TaxonomyEntry[];
+  classifications?: ClassificationEntry[];
 }
 
 export interface UpdateContactParams {
   id: string;
   store_id?: string;
   email?: string;
-  taxonomies?: TaxonomyEntry[];
+  classifications?: ClassificationEntry[];
   status?: ContactStatus;
 }
 
@@ -2449,7 +2452,7 @@ export interface FindContactsParams {
   ids?: string[];
 
   query?: string | number;
-  taxonomy_query?: TaxonomyQuery[];
+  classification_query?: ClassificationQuery[];
   status?: ContactStatus;
   has_action?: boolean;
   has_cart?: boolean;

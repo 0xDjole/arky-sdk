@@ -4,17 +4,33 @@ import test from 'node:test';
 import {
 	collectBlockReferences,
 	getBlockContentValue,
-	selectLocalizedText,
+	getBlockTextValue,
+	selectLocalizedObjectText,
 } from '../dist/storefront.js';
 
-test('localized text follows one explicit fallback order', () => {
-	const value = { bs: 'Bosanski', en: 'English', it: 'Italiano' };
+function localizedObject(values) {
+	return {
+		id: 'localized',
+		key: 'title',
+		type: 'object',
+		properties: {},
+		value: Object.fromEntries(
+			Object.entries(values).map(([locale, value]) => [
+				locale,
+				{ id: locale, key: locale, type: 'text', properties: {}, value },
+			]),
+		),
+	};
+}
 
-	assert.equal(selectLocalizedText(value, 'it', ['bs', 'en']), 'Italiano');
-	assert.equal(selectLocalizedText(value, 'de', ['bs', 'en']), 'Bosanski');
-	assert.equal(selectLocalizedText({ fr: 'Français' }, 'de', ['en']), 'Français');
-	assert.equal(selectLocalizedText({}, 'de', ['en'], 'Missing'), 'Missing');
-	assert.equal(selectLocalizedText('Already selected', 'de'), 'Already selected');
+test('localized Object/Text blocks follow one explicit fallback order', () => {
+	const value = localizedObject({ bs: 'Bosanski', en: 'English', it: 'Italiano' });
+
+	assert.equal(selectLocalizedObjectText(value, 'it', ['bs', 'en']), 'Italiano');
+	assert.equal(selectLocalizedObjectText(value, 'de', ['bs', 'en']), 'Bosanski');
+	assert.equal(selectLocalizedObjectText(localizedObject({ fr: 'Français' }), 'de', ['en']), 'Français');
+	assert.equal(selectLocalizedObjectText(localizedObject({}), 'de', ['en'], 'Missing'), 'Missing');
+	assert.equal(getBlockTextValue(value, 'bs'), 'Bosanski');
 });
 
 test('block content decodes localized nested objects and repeated values', () => {
@@ -23,28 +39,41 @@ test('block content decodes localized nested objects and repeated values', () =>
 			id: 'info',
 			key: 'info',
 			type: 'array',
+			properties: {},
 			value: [
 				{
 					id: 'title',
 					key: 'title',
-					type: 'localized_text',
-					value: { en: 'English', 'sr-latn': 'Srpski' },
+					type: 'object',
+					properties: {},
+					value: {
+						en: { id: 'en', key: 'en', type: 'text', properties: {}, value: 'English' },
+						'sr-latn': {
+							id: 'sr-latn',
+							key: 'sr-latn',
+							type: 'text',
+							properties: {},
+							value: 'Srpski',
+						},
+					},
 				},
 				{
 					id: 'author',
 					key: 'author',
 					type: 'object',
+					properties: {},
 					value: {
-						role: { id: 'role', key: 'role', type: 'text', value: 'Developer' },
+						role: { id: 'role', key: 'role', type: 'text', properties: {}, value: 'Developer' },
 					},
 				},
 				{
 					id: 'features',
 					key: 'features',
 					type: 'array',
+					properties: {},
 					value: [
-						{ id: 'one', key: 'feature', type: 'text', value: 'CMS' },
-						{ id: 'two', key: 'feature', type: 'text', value: 'Commerce' },
+						{ id: 'one', key: 'feature', type: 'text', properties: {}, value: 'CMS' },
+						{ id: 'two', key: 'feature', type: 'text', properties: {}, value: 'Commerce' },
 					],
 				},
 			],

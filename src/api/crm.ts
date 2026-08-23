@@ -204,8 +204,8 @@ export const createContactApi = (apiConfig: ApiConfig) => {
       if (params?.limit !== undefined) queryParams.limit = params.limit;
       if (params?.cursor) queryParams.cursor = params.cursor;
       if (params?.query) queryParams.query = params.query;
-      if (params?.taxonomy_query)
-        queryParams.taxonomy_query = params.taxonomy_query;
+      if (params?.classification_query)
+        queryParams.classification_query = params.classification_query;
       if (params?.status) queryParams.status = params.status;
       if (params?.has_action !== undefined)
         queryParams.has_action = params.has_action;

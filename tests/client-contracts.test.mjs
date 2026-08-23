@@ -267,6 +267,83 @@ test("admin market deletion sends an explicit replacement default as query conte
   });
 });
 
+test("Classification is top-level and uses the renamed Admin and storefront routes", async () => {
+  const admin = createAdmin({ baseUrl, storeId, market: "us" });
+  const storefront = createStorefront(publishableKey, { apiUrl: baseUrl });
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    const target = String(url);
+    calls.push({
+      url: target,
+      method: init.method || "GET",
+      body: init.body ? JSON.parse(String(init.body)) : null,
+    });
+    if (target.endsWith("/children")) return jsonResponse([]);
+    if (target.includes("?status=active")) {
+      return jsonResponse({ items: [], cursor: null });
+    }
+    return jsonResponse({
+      id: "classification-contract",
+      store_id: storeId,
+      key: "topics",
+      parent_id: null,
+      schema: [],
+      status: "active",
+      created_at: 1,
+      updated_at: 1,
+    });
+  };
+
+  try {
+    assert.equal("classification" in admin.cms, false);
+    assert.equal("classification" in storefront.cms, false);
+    await admin.classification.create({ key: "topics", schema: [] });
+    await admin.classification.get({ id: "classification-contract" });
+    await admin.classification.find({ status: "active" });
+    await storefront.classification.get({ key: "topics" });
+    await storefront.classification.getChildren({
+      id: "classification-contract",
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.deepEqual(
+    calls.map((call) => ({
+      ...call,
+      url: call.url.replace(baseUrl, ""),
+    })),
+    [
+      {
+        url: `/v1/stores/${storeId}/classifications`,
+        method: "POST",
+        body: { key: "topics", schema: [] },
+      },
+      {
+        url: `/v1/stores/${storeId}/classifications/classification-contract`,
+        method: "GET",
+        body: null,
+      },
+      {
+        url: `/v1/stores/${storeId}/classifications?status=active`,
+        method: "GET",
+        body: null,
+      },
+      {
+        url: "/v1/storefront/classifications/topics",
+        method: "GET",
+        body: null,
+      },
+      {
+        url: "/v1/storefront/classifications/classification-contract/children",
+        method: "GET",
+        body: null,
+      },
+    ],
+  );
+});
+
 test("storefront collection lookup uses a keyless route and publishable-key header", async () => {
   const storefront = createStorefront(publishableKey, {
     apiUrl: baseUrl,

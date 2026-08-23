@@ -1,6 +1,6 @@
 export { ScheduledResultTimeoutError } from "./utils/scheduledResult";
 export { createStripeEmbeddedCheckout, mountCheckoutAction } from "./checkout";
-export { selectLocalizedText } from "./utils/blocks";
+export { selectLocalizedObjectText } from "./utils/blocks";
 export type {
   EmbeddedCheckoutCallbacks,
   EmbeddedCheckoutMount,
@@ -64,6 +64,7 @@ export type {
   Block,
   BlockBase,
   TextBlockProperties,
+  MarkdownBlockProperties,
   NumberBlockProperties,
   ContainerBlockProperties,
   ReferenceDeletePolicy,
@@ -71,7 +72,7 @@ export type {
   EntryBlockProperties,
   ResourceBlockProperties,
   TextBlock,
-  LocalizedTextBlock,
+  MarkdownBlock,
   NumberBlock,
   BooleanBlock,
   DateBlock,
@@ -302,13 +303,13 @@ export type {
   FormValue,
   FormValues,
   FormEntry,
-  Taxonomy,
-  TaxonomyEntry,
-  TaxonomyQuery,
-  TaxonomySchema,
-  TaxonomySchemaType,
-  TaxonomyField,
-  TaxonomyFieldQuery,
+  Classification,
+  ClassificationEntry,
+  ClassificationQuery,
+  ClassificationSchema,
+  ClassificationSchemaType,
+  ClassificationField,
+  ClassificationFieldQuery,
   PromoCode,
   Contact,
   ContactSessionRecord,
@@ -403,7 +404,7 @@ export type {
   EmailTemplateVariable,
   EmailTemplateVariableSource,
   FormStatus,
-  TaxonomyStatus,
+  ClassificationStatus,
 } from "./types";
 export { PaymentMethodType } from "./types";
 
@@ -472,6 +473,13 @@ export type {
   UpdateCollectionParams,
   GetCollectionParams,
   DeleteCollectionParams,
+  GetClassificationsParams,
+  CreateClassificationParams,
+  UpdateClassificationParams,
+  GetClassificationParams,
+  GetStorefrontClassificationParams,
+  DeleteClassificationParams,
+  GetClassificationChildrenParams,
   GetEntriesParams,
   CreateEntryParams,
   UpdateEntryParams,
@@ -827,7 +835,7 @@ import { createShippingApi } from "./api/shipping";
 import { createPaymentProviderApi } from "./api/paymentProvider";
 import { createEmailTemplateApi } from "./api/emailTemplate";
 import { createFormApi } from "./api/form";
-import { createTaxonomyApi } from "./api/taxonomy";
+import { createClassificationApi } from "./api/classification";
 import { createAnalyticsApi } from "./api/analytics";
 import { createExperimentsApi } from "./api/experiments";
 import {
@@ -852,7 +860,7 @@ import {
   prepareBlocksForSubmission,
   extractBlockValues,
   collectBlockReferences,
-  selectLocalizedText,
+  selectLocalizedObjectText,
 } from "./utils/blocks";
 import {
   formatPrice,
@@ -899,7 +907,7 @@ function createUtilitySurface(apiConfig: Pick<ApiConfig, "market">) {
     prepareBlocksForSubmission,
     extractBlockValues,
     collectBlockReferences,
-    selectLocalizedText,
+    selectLocalizedObjectText,
 
     formatPrice: (prices: Price[]) => formatPrice(prices, apiConfig.market),
     getPriceAmount: (prices: Price[]) =>
@@ -1095,7 +1103,7 @@ export function createAdmin(config: CreateAdminConfig) {
     deleteConnection: workflowApi.deleteWorkflowConnection,
   };
   const formApi = createFormApi(apiConfig);
-  const taxonomyApi = createTaxonomyApi(apiConfig);
+  const classificationApi = createClassificationApi(apiConfig);
   const emailTemplateApi = createEmailTemplateApi(apiConfig);
   const analyticsApi = createAnalyticsApi(apiConfig);
   const experimentsApi = createExperimentsApi(apiConfig);
@@ -1207,6 +1215,14 @@ export function createAdmin(config: CreateAdminConfig) {
         syncEngagement: socialApi.syncEngagement,
       },
     },
+    classification: {
+      create: classificationApi.createClassification,
+      update: classificationApi.updateClassification,
+      delete: classificationApi.deleteClassification,
+      get: classificationApi.getClassification,
+      find: classificationApi.getClassifications,
+      getChildren: classificationApi.getClassificationChildren,
+    },
     cms: {
       collection: {
         create: cmsApi.createCollection,
@@ -1233,14 +1249,6 @@ export function createAdmin(config: CreateAdminConfig) {
         getSubmissions: formApi.getSubmissions,
         getSubmission: formApi.getSubmission,
         updateSubmission: formApi.updateSubmission,
-      },
-      taxonomy: {
-        create: taxonomyApi.createTaxonomy,
-        update: taxonomyApi.updateTaxonomy,
-        delete: taxonomyApi.deleteTaxonomy,
-        get: taxonomyApi.getTaxonomy,
-        find: taxonomyApi.getTaxonomies,
-        getChildren: taxonomyApi.getTaxonomyChildren,
       },
       emailTemplate: {
         create: emailTemplateApi.createEmailTemplate,
@@ -1841,6 +1849,7 @@ function createStorefrontClientCore(
     },
 
     store: storefrontApi.store,
+    classification: storefrontApi.classification,
     cms: storefrontApi.cms,
     eshop: storefrontApi.eshop,
     crm: {

@@ -3,6 +3,11 @@ import type {
   AudiencePaymentStatus,
   AudienceSubscribeResponse,
   AudienceTierPriceInput,
+  Block,
+  Classification,
+  ClassificationEntry,
+  ClassificationFieldQuery,
+  ClassificationSchema,
   Contact,
   Cart,
   Condition,
@@ -54,7 +59,7 @@ import type {
   WorkflowTriggerNode,
 } from "../../dist/index.js";
 import type { FindActionsParams, RequestOptions } from "../../dist/types.js";
-import { SDK_VERSION } from "../../dist/index.js";
+import { createAdmin, SDK_VERSION } from "../../dist/index.js";
 import {
   createStorefront,
   initialize,
@@ -173,6 +178,58 @@ const ambiguousCollection: GetCollectionParams = {
   key: "articles",
 };
 
+const localizedTitleBlock: Block = {
+  id: "title",
+  key: "title",
+  type: "object",
+  properties: {},
+  value: {
+    en: {
+      id: "title-en",
+      key: "en",
+      type: "text",
+      properties: {},
+      value: "Welcome",
+    },
+  },
+};
+const markdownBlock: Block = {
+  id: "body",
+  key: "body",
+  type: "markdown",
+  properties: {},
+  value: { en: "# Welcome" },
+};
+const classificationSchema: ClassificationSchema = {
+  id: "classification-schema-industry",
+  key: "industry",
+  type: "text",
+  value: ["software", "services"],
+  min: null,
+};
+const classificationFieldQuery: ClassificationFieldQuery = {
+  type: "number",
+  key: "team_size",
+  operation: "greater_than_or_equal",
+  value: 10,
+};
+const classificationEntry: ClassificationEntry = {
+  classification_id: "classification-contract",
+  fields: [
+    {
+      id: "classification-field-industry",
+      key: "industry",
+      type: "text",
+      value: ["software"],
+    },
+  ],
+};
+void localizedTitleBlock;
+void markdownBlock;
+void classificationSchema;
+void classificationFieldQuery;
+void classificationEntry;
+
 const typedRequestOptions: RequestOptions<{ ok: true }> = {
   params: { filters: [{ type: "text", key: "title", values: ["Arky"] }] },
   transformRequest: (data: unknown) => data,
@@ -194,6 +251,18 @@ inventoryInput.product_id = "product-contract";
 zoneInput.market_id = "market-contract";
 
 declare const storefrontClient: ReturnType<typeof createStorefront>;
+storefrontClient.classification.get({ key: "topics" });
+// @ts-expect-error Classification is a top-level module, not a CMS child.
+storefrontClient.cms.classification;
+declare const adminClient: ReturnType<typeof createAdmin>;
+const classificationChildren: Promise<Classification[]> =
+  adminClient.classification.getChildren({ id: "classification-contract" });
+adminClient.classification.get({ id: "classification-contract" });
+// @ts-expect-error Admin Classification lookup uses its UUID, not a derived key.
+adminClient.classification.get({ key: "topics" });
+// @ts-expect-error Classification is a top-level module, not a CMS child.
+adminClient.cms.classification;
+void classificationChildren;
 const storefrontServiceProviders: Promise<StorefrontDto<ServiceProvider>[]> =
   storefrontClient.eshop.service.findProviders({
     service_id: "service-contract",
@@ -279,6 +348,9 @@ initialize(`arky_pk_${"a".repeat(42)}A`, {
 initialize({ baseUrl: "http://localhost:8000", storeId: "store-contract" });
 
 declare const initializedStorefront: ReturnType<typeof initialize>;
+initializedStorefront.classification.get({ key: "topics" });
+// @ts-expect-error Classification is a top-level module, not a CMS child.
+initializedStorefront.cms.classification;
 const typedFormValues: FormValues = {
   name: "Jane",
   guests: 2,

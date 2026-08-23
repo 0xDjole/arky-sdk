@@ -29,8 +29,8 @@ import type {
   GetServicesParams,
   GetStorefrontAudienceParams,
   GetStorefrontAudiencePaymentParams,
-  GetTaxonomyChildrenParams,
-  GetTaxonomyParams,
+  GetClassificationChildrenParams,
+  GetStorefrontClassificationParams,
   QuoteCartParams,
   DownloadDigitalAssetParams,
   FindStorefrontDigitalProductsParams,
@@ -75,7 +75,7 @@ import type {
   StorefrontAudience,
   StorefrontAudienceMember,
   StorefrontAudienceTier,
-  Taxonomy,
+  Classification,
 } from "../types";
 import type {
   StorefrontContact,
@@ -367,27 +367,30 @@ export const createStorefrontApi = (
           );
         },
       },
-      taxonomy: {
-        get(
-          params: StorefrontParams<GetTaxonomyParams>,
-          options?: RequestOptions,
-        ): Promise<StorefrontDto<Taxonomy>> {
-          const identifier = params.id ?? params.key;
-          if (!identifier)
-            throw new Error("GetTaxonomyParams requires id or key");
-          return apiConfig.httpClient.get<StorefrontDto<Taxonomy>>(
-            `${base}/taxonomies/${identifier}`,
-            options,
+    },
+    classification: {
+      get(
+        params: StorefrontParams<GetStorefrontClassificationParams>,
+        options?: RequestOptions,
+      ): Promise<StorefrontDto<Classification>> {
+        const identifier = params.id ?? params.key;
+        if (!identifier)
+          throw new Error(
+            "GetStorefrontClassificationParams requires id or key",
           );
-        },
-        getChildren(
-          params: StorefrontParams<GetTaxonomyChildrenParams>,
-          options?: RequestOptions,
-        ): Promise<StorefrontDto<PaginatedResponse<Taxonomy>>> {
-          return apiConfig.httpClient.get<
-            StorefrontDto<PaginatedResponse<Taxonomy>>
-          >(`${base}/taxonomies/${params.id}/children`, options);
-        },
+        return apiConfig.httpClient.get<StorefrontDto<Classification>>(
+          `${base}/classifications/${identifier}`,
+          options,
+        );
+      },
+      getChildren(
+        params: StorefrontParams<GetClassificationChildrenParams>,
+        options?: RequestOptions,
+      ): Promise<StorefrontDto<Classification[]>> {
+        return apiConfig.httpClient.get<StorefrontDto<Classification[]>>(
+          `${base}/classifications/${params.id}/children`,
+          options,
+        );
       },
     },
     eshop: {

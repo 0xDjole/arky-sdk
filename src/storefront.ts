@@ -20,7 +20,8 @@ export type {
 export {
   collectBlockReferences,
   getBlockContentValue,
-  selectLocalizedText,
+  getBlockTextValue,
+  selectLocalizedObjectText,
 } from "./utils/blocks";
 export type { BlockReferences } from "./utils/blocks";
 export type {
