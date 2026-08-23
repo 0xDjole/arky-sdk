@@ -362,9 +362,10 @@ export type {
   SendLeadResearchMessageResult,
   Account,
   AccountApiToken,
+  AccountApiTokenStatus,
   AccountApiTokenCreated,
   AccountSession,
-  AccountUpdateResponse,
+  AccountSessionStatus,
   StoreMembership,
   StoreMember,
   ServiceStatus,
@@ -620,6 +621,11 @@ export type {
   Condition,
   Discount,
   RefundStatus,
+  AuthToken,
+  PendingAccountSession,
+  RefreshAccountSessionParams,
+  RequestPendingAccountSessionParams,
+  VerifyPendingAccountSessionParams,
 } from "./types/api";
 
 export type {
@@ -1110,7 +1116,6 @@ export function createAdmin(config: CreateAdminConfig) {
 
   const sdk = {
     account: {
-      update: accountApi.updateAccount,
       delete: accountApi.deleteAccount,
       getMe: accountApi.getMe,
       search: accountApi.searchAccounts,

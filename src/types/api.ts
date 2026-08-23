@@ -433,15 +433,33 @@ export interface GetStoreMediaParams {
   sort_direction?: "asc" | "desc";
 }
 
-export interface LoginAccountParams {
-  email?: string;
-  provider: string;
-  token?: string;
+export interface RequestPendingAccountSessionParams {
+  email: string;
 }
 
-export interface AuthCodeVerifyParams {
-  challenge_id: string;
+export interface VerifyPendingAccountSessionParams {
+  session_id: string;
   code: string;
+}
+
+export interface RefreshAccountSessionParams {
+  refresh_token: string;
+}
+
+export interface PendingAccountSession {
+  session_id: string;
+  verification_expires_at: number;
+}
+
+export interface AuthToken {
+  id: string;
+  access_token: string;
+  refresh_token: string;
+  access_expires_at: number;
+  refresh_expires_at: number;
+  authenticated_at: number;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface VerificationChallengeResponse {
@@ -866,8 +884,6 @@ export interface GetProvidersParams {
 export type GetProviderParams = {
   store_id?: string;
 } & ({ id: string; slug?: never } | { id?: never; slug: string });
-
-export interface UpdateAccountContactParams {}
 
 export interface CreateAccountApiTokenParams {
   name: string;
@@ -2376,24 +2392,6 @@ export interface GetOrderShipmentChargeParams extends GetOrderShipmentParams {
 }
 
 export type RetryOrderShipmentChargeParams = GetOrderShipmentChargeParams;
-
-export interface AuthToken {
-  id: string;
-  access_token: string;
-  refresh_token: string;
-  access_expires_at: number;
-  refresh_expires_at: number;
-  created_at: number;
-  is_verified: boolean;
-}
-
-export interface GoogleAuthStartResponse {
-  authorization_url: string;
-}
-
-export interface GoogleAuthCompleteParams {
-  ticket: string;
-}
 
 export interface ContactInfo {
   id: string;

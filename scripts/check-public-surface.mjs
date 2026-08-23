@@ -21,6 +21,16 @@ const removedIdentifiers = [
   "ShippingAddress",
   "oldKey",
   "mountStripe",
+  "AccountLifecycle",
+  "AccountUpdateResponse",
+  "AuthCodeVerifyParams",
+  "GoogleAuthCompleteParams",
+  "GoogleAuthStartResponse",
+  "LoginAccountParams",
+  "UpdateAccountContactParams",
+  "googleComplete",
+  "googleStart",
+  "updateAccount",
 ];
 
 const removedIdentifierPattern = new RegExp(

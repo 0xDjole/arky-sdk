@@ -1,5 +1,10 @@
 import type {
   Account,
+  AccountApiToken,
+  AccountApiTokenStatus,
+  AccountSession,
+  AccountSessionStatus,
+  AuthToken,
   AudiencePaymentStatus,
   AudienceSubscribeResponse,
   AudienceTierPriceInput,
@@ -14,6 +19,7 @@ import type {
   CreateSuppressionParams,
   CreateOrderShipmentParams,
   DigitalAsset,
+  EmailDeliveryType,
   GetCollectionParams,
   GetShippingRatesParams,
   OrderMoney,
@@ -25,6 +31,7 @@ import type {
   FulfillmentOrderStatus,
   OrderFulfillmentStatus,
   PaginatedResponse,
+  PendingAccountSession,
   ProductInventoryInput,
   ProductVariant,
   RefundRequestReason,
@@ -57,6 +64,7 @@ import type {
   Suppression,
   WorkflowHttpNode,
   WorkflowTriggerNode,
+  VerifyPendingAccountSessionParams,
 } from "../../dist/index.js";
 import type { FindActionsParams, RequestOptions } from "../../dist/types.js";
 import { createAdmin, SDK_VERSION } from "../../dist/index.js";
@@ -666,7 +674,101 @@ const supportMessageWithoutCapability: StorefrontSendSupportMessageParams = {
   input: { type: "text", content: "Help" },
 };
 
-declare const account: Account;
+const account: Account = {
+  id: "account-contract",
+  email: "operator@example.test",
+  last_login_at: null,
+  created_at: 1,
+  updated_at: 1,
+};
+// @ts-expect-error Account lifecycle/onboarding was removed.
+account.lifecycle;
+
+const pendingAccountSessionResponse: PendingAccountSession = {
+  session_id: "session-contract",
+  verification_expires_at: 600,
+};
+const verifyPendingAccountSession: VerifyPendingAccountSessionParams = {
+  session_id: pendingAccountSessionResponse.session_id,
+  code: "123456",
+};
+const authToken: AuthToken = {
+  id: pendingAccountSessionResponse.session_id,
+  access_token: "account_access_contract",
+  refresh_token: "account_refresh_contract",
+  access_expires_at: 3_600,
+  refresh_expires_at: 604_800,
+  authenticated_at: 10,
+  created_at: 1,
+  updated_at: 10,
+};
+// @ts-expect-error an Active Account Session is proof of verification.
+authToken.is_verified;
+
+const accountAuthDelivery: EmailDeliveryType = {
+  type: "platform_auth_code",
+  data: {
+    account_id: "account-contract",
+    session_id: pendingAccountSessionResponse.session_id,
+  },
+};
+const staleAccountAuthDelivery: EmailDeliveryType = {
+  type: "platform_auth_code",
+  // @ts-expect-error Account auth deliveries now reference the pending Session.
+  data: {
+    account_id: "account-contract",
+    challenge_id: "challenge-contract",
+  },
+};
+
+const pendingAccountSession: AccountSession = {
+  id: "pending-session-contract",
+  status: "pending_verification",
+  verification_expires_at: 600,
+  access_expires_at: null,
+  refresh_expires_at: null,
+  authenticated_at: null,
+  revoked_at: null,
+  created_at: 1,
+  updated_at: 1,
+};
+const activeAccountSession: AccountSession = {
+  id: "active-session-contract",
+  status: "active",
+  verification_expires_at: null,
+  access_expires_at: 3_600,
+  refresh_expires_at: 604_800,
+  authenticated_at: 10,
+  revoked_at: null,
+  created_at: 1,
+  updated_at: 10,
+};
+const revokedAccountSession: AccountSession = {
+  id: "revoked-session-contract",
+  status: "revoked",
+  verification_expires_at: null,
+  access_expires_at: null,
+  refresh_expires_at: null,
+  authenticated_at: null,
+  revoked_at: 20,
+  created_at: 1,
+  updated_at: 20,
+};
+const terminalSessionStatus: AccountSessionStatus = "superseded";
+
+const personalApiToken: AccountApiToken = {
+  id: "api-token-contract",
+  token_hint: "ract",
+  name: "Local automation",
+  status: "active",
+  expires_at: 100,
+  created_at: 1,
+  updated_at: 1,
+  revoked_at: null,
+};
+// Expiry is derived from expires_at; it is not a persisted status.
+// @ts-expect-error Account API Token status is only active or revoked.
+const expiredApiTokenStatus: AccountApiTokenStatus = "expired";
 declare const contact: Contact;
 declare const productVariant: ProductVariant;
 declare const shipment: OrderShipment;
@@ -839,6 +941,17 @@ void [
   storeSubscriptionWithCheckoutReference,
   supportMessageWithoutCapability,
   account,
+  pendingAccountSessionResponse,
+  verifyPendingAccountSession,
+  authToken,
+  accountAuthDelivery,
+  staleAccountAuthDelivery,
+  pendingAccountSession,
+  activeAccountSession,
+  revokedAccountSession,
+  terminalSessionStatus,
+  personalApiToken,
+  expiredApiTokenStatus,
   contact,
   productVariant,
   trigger,

@@ -262,6 +262,24 @@ const admin = createAdmin({
 });
 ```
 
+Interactive operator login starts a pending Account Session. Verification activates that same
+Session ID; token refresh returns a new Session while preserving `authenticated_at`:
+
+```typescript
+const pending = await admin.account.auth.code({ email: "operator@example.com" });
+const session = await admin.account.auth.verify({
+  session_id: pending.session_id,
+  code: "123456",
+});
+```
+
+Session listings are discriminated by `pending_verification`, `active`, `locked`, `superseded`,
+or `revoked`. Expiry is derived from the deadline fields and is not a stored Session status.
+
+The SDK keeps the wire/domain name `AccountApiToken`, while documentation and product copy call
+these credentials Personal API Tokens. Expiry is determined from `expires_at`; token status is
+only `active` or `revoked`.
+
 Store connection management is available through the Admin surface:
 
 ```typescript

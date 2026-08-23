@@ -1682,16 +1682,17 @@ export interface SubscriptionPlan {
   features: Record<SubscriptionPlanFeatureType, SubscriptionPlanFeature>;
 }
 
-export type AccountApiTokenStatus = "active" | "revoked" | "expired";
+export type AccountApiTokenStatus = "active" | "revoked";
 
 export interface AccountApiToken {
   id: string;
   token_hint: string;
   name: string;
   status: AccountApiTokenStatus;
+  expires_at: number | null;
   created_at: number;
-  expires_at?: number | null;
-  revoked_at?: number | null;
+  updated_at: number;
+  revoked_at: number | null;
 }
 
 export interface StoreMembership {
@@ -1713,19 +1714,12 @@ export interface StoreMember {
   membership: StoreMembership;
 }
 
-export interface AccountLifecycle {
-  last_login_at?: number | null;
-  onboarding_completed: boolean;
-}
-
 export interface Account {
   id: string;
   email: string;
-  lifecycle: AccountLifecycle;
-}
-
-export interface AccountUpdateResponse {
-  success: boolean;
+  last_login_at: number | null;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface AccountApiTokenCreated {
@@ -1733,15 +1727,49 @@ export interface AccountApiTokenCreated {
   value: string;
 }
 
-export interface AccountSession {
+interface AccountSessionBase {
   id: string;
-  status: "active" | "revoked" | "expired";
-  access_expires_at: number;
-  refresh_expires_at: number;
-  is_verified: boolean;
   created_at: number;
-  revoked_at?: number | null;
+  updated_at: number;
 }
+
+export type AccountSession = AccountSessionBase &
+  (
+    | {
+        status: "pending_verification";
+        verification_expires_at: number;
+        access_expires_at: null;
+        refresh_expires_at: null;
+        authenticated_at: null;
+        revoked_at: null;
+      }
+    | {
+        status: "active";
+        verification_expires_at: null;
+        access_expires_at: number;
+        refresh_expires_at: number;
+        authenticated_at: number;
+        revoked_at: null;
+      }
+    | {
+        status: "locked" | "superseded";
+        verification_expires_at: null;
+        access_expires_at: null;
+        refresh_expires_at: null;
+        authenticated_at: null;
+        revoked_at: null;
+      }
+    | {
+        status: "revoked";
+        verification_expires_at: null;
+        access_expires_at: null;
+        refresh_expires_at: null;
+        authenticated_at: null;
+        revoked_at: number;
+      }
+  );
+
+export type AccountSessionStatus = AccountSession["status"];
 
 export interface PaginatedResponse<T> {
   items: T[];
@@ -2220,11 +2248,11 @@ export type EmailDeliveryStatus =
 export type EmailDeliveryType =
   | {
       type: "platform_auth_code";
-      data: { account_id: string; challenge_id: string };
+      data: { account_id: string; session_id: string };
     }
   | {
       type: "store_auth_code";
-      data: { store_id: string; account_id: string; challenge_id: string };
+      data: { store_id: string; account_id: string; session_id: string };
     }
   | {
       type: "contact_verification";

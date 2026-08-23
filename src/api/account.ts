@@ -6,29 +6,16 @@ import type {
   RequestOptions,
   SearchAccountsParams,
   UpdateAccountApiTokenParams,
-  UpdateAccountContactParams,
 } from "../types/api";
 import type {
   Account,
   AccountApiToken,
   AccountApiTokenCreated,
   AccountSession,
-  AccountUpdateResponse,
   PaginatedResponse,
 } from "../types";
 
 export const createAccountApi = (apiConfig: ApiConfig) => ({
-  async updateAccount(
-    _params: UpdateAccountContactParams,
-    options?: RequestOptions,
-  ): Promise<AccountUpdateResponse> {
-    return apiConfig.httpClient.put<AccountUpdateResponse>(
-      "/v1/accounts",
-      {},
-      options,
-    );
-  },
-
   async deleteAccount(
     _params: DeleteAccountParams,
     options?: RequestOptions,

@@ -92,12 +92,20 @@ const arky = createAdmin({
 assert.equal(typeof arky.account.auth.code, "function");
 assert.equal(typeof arky.account.auth.verify, "function");
 assert.equal(typeof arky.account.auth.refresh, "function");
-assert.equal(typeof arky.account.auth.googleStart, "function");
-assert.equal(typeof arky.account.auth.googleComplete, "function");
-assert.equal(typeof arky.account.update, "function");
+assert.equal(typeof arky.account.auth.storeCode, "function");
+assert.equal(typeof arky.account.auth.storeVerify, "function");
+assert.equal("googleStart" in arky.account.auth, false);
+assert.equal("googleComplete" in arky.account.auth, false);
+assert.equal("update" in arky.account, false);
 assert.equal(typeof arky.account.delete, "function");
 assert.equal(typeof arky.account.getMe, "function");
 assert.equal(typeof arky.account.search, "function");
+assert.equal(typeof arky.account.apiToken.list, "function");
+assert.equal(typeof arky.account.apiToken.create, "function");
+assert.equal(typeof arky.account.apiToken.update, "function");
+assert.equal(typeof arky.account.apiToken.revoke, "function");
+assert.equal(typeof arky.account.session.list, "function");
+assert.equal(typeof arky.account.session.revoke, "function");
 
 assert.equal(typeof arky.store.create, "function");
 assert.equal(typeof arky.store.update, "function");

@@ -16,61 +16,23 @@ function jsonResponse(body, status = 200) {
   });
 }
 
-test("admin verification sends only the challenge identifier and code", async () => {
+test("admin code login activates the same pending Account Session", async () => {
   const admin = createAdmin({ baseUrl, storeId, market: "us" });
   const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({
-      url: String(url),
-      method: init.method,
-      body: JSON.parse(String(init.body)),
-    });
-    return jsonResponse({
+  const responses = [
+    {
+      session_id: "session-client-contract",
+      verification_expires_at: 900,
+    },
+    {
       id: "session-client-contract",
       access_token: "access-client-contract",
       refresh_token: "refresh-client-contract",
       access_expires_at: 1000,
       refresh_expires_at: 2000,
-      created_at: 1,
-      is_verified: true,
-    });
-  };
-
-  try {
-    await admin.account.auth.verify({
-      challenge_id: "challenge-client-contract",
-      code: "123456",
-    });
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.deepEqual(calls, [
-    {
-      url: `${baseUrl}/v1/auth/verify`,
-      method: "POST",
-      body: {
-        challenge_id: "challenge-client-contract",
-        code: "123456",
-      },
-    },
-  ]);
-});
-
-test("Google login starts and completes through backend-owned OAuth endpoints", async () => {
-  const admin = createAdmin({ baseUrl, storeId, market: "us" });
-  const calls = [];
-  const responses = [
-    { authorization_url: "https://accounts.google.test/oauth" },
-    {
-      id: "session-google",
-      access_token: "access-google",
-      refresh_token: "refresh-google",
-      access_expires_at: 2_000,
-      refresh_expires_at: 3_000,
-      created_at: 1_000,
-      is_verified: true,
+      authenticated_at: 20,
+      created_at: 10,
+      updated_at: 20,
     },
   ];
   const originalFetch = globalThis.fetch;
@@ -84,22 +46,133 @@ test("Google login starts and completes through backend-owned OAuth endpoints", 
   };
 
   try {
-    await admin.account.auth.googleStart();
-    await admin.account.auth.googleComplete({ ticket: "attempt.secret" });
+    const pending = await admin.account.auth.code({
+      email: "operator@example.test",
+    });
+    await admin.account.auth.verify({
+      session_id: pending.session_id,
+      code: "123456",
+    });
   } finally {
     globalThis.fetch = originalFetch;
   }
 
   assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/auth/google/start`,
+      url: `${baseUrl}/v1/auth/code`,
       method: "POST",
-      body: {},
+      body: { email: "operator@example.test" },
     },
     {
-      url: `${baseUrl}/v1/auth/google/complete`,
+      url: `${baseUrl}/v1/auth/verify`,
       method: "POST",
-      body: { ticket: "attempt.secret" },
+      body: {
+        session_id: "session-client-contract",
+        code: "123456",
+      },
+    },
+  ]);
+});
+
+test("Store invitation login wraps the platform-global pending Account Session", async () => {
+  const admin = createAdmin({ baseUrl, storeId, market: "us" });
+  const invitationStoreId = "store-invitation-contract";
+  const calls = [];
+  const responses = [
+    {
+      session_id: "session-invitation-contract",
+      verification_expires_at: 900,
+    },
+    {
+      id: "session-invitation-contract",
+      access_token: "access-invitation-contract",
+      refresh_token: "refresh-invitation-contract",
+      access_expires_at: 1000,
+      refresh_expires_at: 2000,
+      authenticated_at: 20,
+      created_at: 10,
+      updated_at: 20,
+    },
+  ];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({
+      url: String(url),
+      method: init.method,
+      body: JSON.parse(String(init.body)),
+    });
+    return jsonResponse(responses.shift());
+  };
+
+  try {
+    const pending = await admin.account.auth.storeCode(
+      invitationStoreId,
+      { email: "invitee@example.test" },
+    );
+    await admin.account.auth.storeVerify(invitationStoreId, {
+      session_id: pending.session_id,
+      code: "123456",
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.deepEqual(calls, [
+    {
+      url: `${baseUrl}/v1/stores/${invitationStoreId}/auth/code`,
+      method: "POST",
+      body: { email: "invitee@example.test" },
+    },
+    {
+      url: `${baseUrl}/v1/stores/${invitationStoreId}/auth/verify`,
+      method: "POST",
+      body: {
+        session_id: "session-invitation-contract",
+        code: "123456",
+      },
+    },
+  ]);
+});
+
+test("admin refresh returns the rotated Account Session contract", async () => {
+  const admin = createAdmin({ baseUrl, storeId, market: "us" });
+  const calls = [];
+  const response = {
+    id: "session-rotated",
+    access_token: "access-rotated",
+    refresh_token: "refresh-rotated",
+    access_expires_at: 2_000,
+    refresh_expires_at: 3_000,
+    authenticated_at: 500,
+    created_at: 1_000,
+    updated_at: 1_000,
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({
+      url: String(url),
+      method: init.method,
+      body: JSON.parse(String(init.body)),
+    });
+    return jsonResponse(response);
+  };
+
+  let result;
+  try {
+    result = await admin.account.auth.refresh({
+      refresh_token: "refresh-previous",
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.deepEqual(result, response);
+  assert.equal(result.authenticated_at, 500);
+  assert.deepEqual(calls, [
+    {
+      url: `${baseUrl}/v1/auth/refresh`,
+      method: "POST",
+      body: { refresh_token: "refresh-previous" },
     },
   ]);
 });
