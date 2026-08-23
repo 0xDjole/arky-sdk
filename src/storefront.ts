@@ -72,6 +72,7 @@ export type {
   StorefrontBookingResource,
   StorefrontBookingService,
   StorefrontMarket,
+  StorefrontPaymentProvider,
   StorefrontZone,
   StorefrontContact,
   StorefrontDto,

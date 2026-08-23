@@ -114,6 +114,11 @@ export type ContactSessionUpdater = (
   ) => ContactSessionInternal | null,
 ) => void;
 
+export interface StorefrontPaymentProvider {
+  id: string;
+  type: "cash_on_delivery" | "stripe";
+}
+
 export interface StorefrontSetup {
   timezone: string;
   languages: {
@@ -124,6 +129,7 @@ export interface StorefrontSetup {
     default: string | null;
     available: StorefrontMarket[];
   };
+  payment_providers: StorefrontPaymentProvider[];
   support: {
     email: string | null;
   };

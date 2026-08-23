@@ -728,6 +728,7 @@ export type {
   StorefrontDto,
   StorefrontLocation,
   StorefrontMarket,
+  StorefrontPaymentProvider,
   StorefrontSetup,
   StorefrontZone,
   UseExperimentParams,

@@ -96,6 +96,8 @@ import type {
   StorefrontDigitalProduct,
   StorefrontDto,
   StorefrontLocation,
+  StorefrontPaymentProvider,
+  StorefrontSetup,
   StorefrontGetSupportConversationParams,
   StorefrontSendSupportMessageParams,
   SupportAgentDefinition,
@@ -357,6 +359,23 @@ const marketContract: Market = {
   created_at: 1,
   updated_at: 2,
 };
+const storefrontPaymentProviders: StorefrontPaymentProvider[] = [
+  { id: cashOnDeliveryProvider.id, type: "cash_on_delivery" },
+  { id: stripeProvider.id, type: "stripe" },
+];
+const storefrontSetupContract: StorefrontSetup = {
+  timezone: "Europe/Sarajevo",
+  languages: { default: "en", available: ["en"] },
+  markets: {
+    default: marketContract.key,
+    available: [marketContract],
+  },
+  payment_providers: storefrontPaymentProviders,
+  support: { email: "store@example.test" },
+  readiness: { market: true, payment: true, commerce: true },
+};
+const storefrontProviderType: "cash_on_delivery" | "stripe" =
+  storefrontSetupContract.payment_providers[1].type;
 const createMarketContract: CreateMarketParams = {
   key: "bih",
   currency: "bam",

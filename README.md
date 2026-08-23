@@ -181,7 +181,11 @@ Store setup is fetched lazily and deduplicated:
 ```typescript
 const setup = await arky.store.load();
 console.log(setup.languages.default, setup.markets.default);
+console.log(setup.payment_providers); // [{ id, type: "cash_on_delivery" | "stripe" }]
 ```
+
+The Storefront setup exposes only each provider UUID and safe provider type. Stripe account,
+capability, consent, and disablement evidence remain private Admin data.
 
 Payment configuration belongs to Arky. A card checkout returns a short-lived embedded Stripe
 action. The SDK mounts that exact Checkout Session inside the merchant page; it never redirects the
