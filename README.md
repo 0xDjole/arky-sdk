@@ -305,6 +305,26 @@ values with the shared `PostalAddress` shape. Webhooks and Build Hooks are addre
 use `active`/`disabled` status values. Membership IDs are opaque, Server-generated UUID-v4 values;
 `StoreUsage` represents one feature and either its current total or one UTC calendar month.
 
+Store subscription reads expose the current `status` and optional `plan_access`; their
+`payment_action` is `none`. Selecting a paid plan returns any transient payment action directly on
+the subscription response, so callers complete that action without storing or retrieving a
+separate checkout resource:
+
+```typescript
+const subscription = await admin.store.subscription.select({
+  store_id: store.id,
+  plan_id: "pro",
+  return_url: "https://admin.example.com/billing/return",
+});
+
+if (subscription.payment_action.type !== "none") {
+  await mountCheckoutAction(
+    subscription.payment_action,
+    "#subscription-checkout",
+  );
+}
+```
+
 ## TypeScript
 
 ```typescript

@@ -113,7 +113,7 @@ assert.equal(typeof arky.store.get, "function");
 assert.equal(typeof arky.store.find, "function");
 assert.equal(typeof arky.store.subscription.getPlans, "function");
 assert.equal(typeof arky.store.subscription.select, "function");
-assert.equal(typeof arky.store.subscription.getCheckout, "function");
+assert.equal("getCheckout" in arky.store.subscription, false);
 assert.equal(typeof arky.store.subscription.cancel, "function");
 assert.equal(typeof arky.store.subscription.reactivate, "function");
 assert.equal(typeof arky.store.subscription.createPortalSession, "function");
@@ -275,16 +275,10 @@ const succeededProviderConnection = {
   failure: null,
 };
 const selectedSubscription = {
-  id: "subscription-contract",
+  id: "d397ff50-690b-4da7-9fb9-17740e535d69",
   store_id: "contract-store",
-  plan_id: "free",
-  payment: { currency: "EUR", market: "ba" },
-  billing_status: "pending",
-  checkout: {
-    plan_id: "basic",
-    status: "requires_action",
-    expires_at: 10,
-  },
+  plan_access: null,
+  status: "pending",
   payment_action: {
     type: "stripe_embedded_checkout",
     publishable_key: "pk_test_subscription",
@@ -292,8 +286,7 @@ const selectedSubscription = {
     stripe_account_id: null,
     expires_at: 10,
   },
-  access_started_at: 1,
-  access_until: 2,
+  trial_started_at: null,
   created_at: 1,
   updated_at: 2,
 };
@@ -348,7 +341,10 @@ try {
     plan_id: "basic",
     return_url: "https://admin.test/return",
   });
-  assert.equal(subscription.checkout.status, "requires_action");
+  assert.equal(subscription.status, "pending");
+  assert.equal(subscription.plan_access, null);
+  assert.equal("provider" in subscription, false);
+  assert.equal("checkout_id" in subscription, false);
   assert.equal(subscription.payment_action.type, "stripe_embedded_checkout");
   assert.equal(
     subscription.payment_action.client_secret,

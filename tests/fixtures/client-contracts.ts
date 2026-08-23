@@ -53,7 +53,7 @@ import type {
   Store,
   StoreLocation,
   StoreMembership,
-  StoreSubscriptionCheckout,
+  StoreSubscriptionStatus,
   StoreUsage,
   SubscriptionPlanFeatureType,
   TiktokPrivacy,
@@ -298,8 +298,6 @@ quoteContract.payment_methods;
 
 declare const membershipContract: StoreMembership;
 const serverGeneratedMembershipUuid: string = membershipContract.id;
-declare const subscriptionCheckoutContract: StoreSubscriptionCheckout;
-const persistedCheckoutId: string = subscriptionCheckoutContract.id;
 void createStoreContract;
 void createStoreLocationContract;
 void createBuildHookContract;
@@ -314,7 +312,6 @@ void checkoutContract;
 void quotedProviderId;
 void quotedProviderIds;
 void serverGeneratedMembershipUuid;
-void persistedCheckoutId;
 const audienceTierPriceInput: AudienceTierPriceInput = {
   currency: "usd",
   amount: 1200,
@@ -877,21 +874,19 @@ const storefrontSupportRead: StorefrontGetSupportConversationParams = {
   message_limit: 25,
 };
 
-const storeSubscriptionWithoutCheckout: StoreSubscription = {
-  id: "subscription-contract",
+const subscriptionStatus: StoreSubscriptionStatus = "pending";
+const storeSubscriptionRead: StoreSubscription = {
+  id: "d397ff50-690b-4da7-9fb9-17740e535d69",
   store_id: "store-contract",
   plan_access: null,
-  payment: { currency: "usd", market: "us" },
-  billing_status: "pending",
-  checkout_id: null,
+  status: subscriptionStatus,
   payment_action: { type: "none" },
   trial_started_at: null,
   created_at: 1,
   updated_at: 1,
 };
-const storeSubscriptionWithCheckoutReference: StoreSubscription = {
-  ...storeSubscriptionWithoutCheckout,
-  checkout_id: "checkout-contract",
+const selectedStoreSubscription: StoreSubscription = {
+  ...storeSubscriptionRead,
   payment_action: {
     type: "stripe_embedded_checkout",
     publishable_key: "pk_test_contract",
@@ -900,6 +895,16 @@ const storeSubscriptionWithCheckoutReference: StoreSubscription = {
     expires_at: 2,
   },
 };
+// @ts-expect-error durable provider identity is not part of the public wire DTO.
+storeSubscriptionRead.provider;
+// @ts-expect-error subscription payment context is no longer stored on this DTO.
+storeSubscriptionRead.payment;
+// @ts-expect-error subscription state uses the shared status field name.
+storeSubscriptionRead.billing_status;
+// @ts-expect-error selection does not persist a checkout reference.
+storeSubscriptionRead.checkout_id;
+// @ts-expect-error checkout state is not a subscription status.
+const invalidStoreSubscriptionStatus: StoreSubscriptionStatus = "requires_action";
 
 // @ts-expect-error storefront support messages require the capability token.
 const supportMessageWithoutCapability: StorefrontSendSupportMessageParams = {
@@ -1171,8 +1176,9 @@ void [
   supportMessageWithNullState,
   storefrontSupportMessage,
   storefrontSupportRead,
-  storeSubscriptionWithoutCheckout,
-  storeSubscriptionWithCheckoutReference,
+  storeSubscriptionRead,
+  selectedStoreSubscription,
+  invalidStoreSubscriptionStatus,
   supportMessageWithoutCapability,
   account,
   pendingAccountSessionResponse,

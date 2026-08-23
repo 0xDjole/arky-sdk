@@ -603,11 +603,6 @@ export interface GetStoreSubscriptionParams {
   store_id?: string;
 }
 
-export interface GetStoreSubscriptionCheckoutParams {
-  store_id?: string;
-  id: string;
-}
-
 export interface CancelStoreSubscriptionParams {
   store_id?: string;
   mode: "at_period_end" | "immediate";

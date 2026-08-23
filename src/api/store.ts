@@ -6,7 +6,6 @@ import type {
   RequestStoreDeletionParams,
   GetStoresParams,
   GetStoreSubscriptionParams,
-  GetStoreSubscriptionCheckoutParams,
   CancelStoreSubscriptionParams,
   ReactivateStoreSubscriptionParams,
   SelectStoreSubscriptionParams,
@@ -33,7 +32,6 @@ import type {
   SubscriptionPlan,
   BuildHook,
   StoreSubscription,
-  StoreSubscriptionCheckout,
   StoreMember,
   StoreMembership,
 } from "../types";
@@ -135,17 +133,6 @@ export const createStoreApi = (
       const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<StoreSubscription>(
         `/v1/stores/${store_id}/subscription`,
-        options,
-      );
-    },
-
-    async getSubscriptionCheckout(
-      params: GetStoreSubscriptionCheckoutParams,
-      options?: RequestOptions,
-    ): Promise<StoreSubscriptionCheckout> {
-      const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<StoreSubscriptionCheckout>(
-        `/v1/stores/${store_id}/subscription/checkouts/${params.id}`,
         options,
       );
     },

@@ -91,18 +91,12 @@ test("digital-product promo conditions keep their tagged wire contract", async (
   assert.deepEqual(result, promo);
 });
 
-test("subscription checkout returns its embedded Stripe action in one POST", async () => {
+test("subscription selection returns its ephemeral Stripe action in one POST", async () => {
   const subscription = {
-    id: "subscription-contract",
+    id: "d397ff50-690b-4da7-9fb9-17740e535d69",
     store_id: "store-subscription",
-    plan_id: "free",
-    payment: { currency: "EUR", market: "ba" },
-    billing_status: "pending",
-    checkout: {
-      plan_id: "pro",
-      status: "requires_action",
-      expires_at: 1_800_000_000,
-    },
+    plan_access: null,
+    status: "pending",
     payment_action: {
       type: "stripe_embedded_checkout",
       publishable_key: "pk_test_subscription",
@@ -110,8 +104,7 @@ test("subscription checkout returns its embedded Stripe action in one POST", asy
       stripe_account_id: null,
       expires_at: 1_800_000_000,
     },
-    access_started_at: 1,
-    access_until: 2,
+    trial_started_at: null,
     created_at: 1,
     updated_at: 2,
   };
@@ -144,6 +137,39 @@ test("subscription checkout returns its embedded Stripe action in one POST", asy
         plan_id: "pro",
         return_url: "https://merchant.test/return",
       },
+    },
+  ]);
+  assert.deepEqual(result, subscription);
+  assert.equal(result.status, "pending");
+  assert.equal("provider" in result, false);
+  assert.equal("checkout_id" in result, false);
+  assert.equal("payment" in result, false);
+});
+
+test("subscription reads return no payment action", async () => {
+  const subscription = {
+    id: "d397ff50-690b-4da7-9fb9-17740e535d69",
+    store_id: "store-subscription",
+    plan_access: {
+      plan_id: "pro",
+      started_at: 1,
+      access_until: null,
+    },
+    status: "active",
+    payment_action: { type: "none" },
+    trial_started_at: null,
+    created_at: 1,
+    updated_at: 2,
+  };
+  const { calls, result } = await captureFetch(subscription, () =>
+    admin().store.subscription.get({ store_id: "store-subscription" }),
+  );
+
+  assert.deepEqual(calls, [
+    {
+      url: `${baseUrl}/v1/stores/store-subscription/subscription`,
+      method: "GET",
+      body: undefined,
     },
   ]);
   assert.deepEqual(result, subscription);

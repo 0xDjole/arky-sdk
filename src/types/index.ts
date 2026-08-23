@@ -1213,7 +1213,7 @@ export interface Webhook {
   updated_at: number;
 }
 
-export type StoreSubscriptionBillingStatus =
+export type StoreSubscriptionStatus =
   | "pending"
   | "trialing"
   | "active"
@@ -1223,26 +1223,6 @@ export type StoreSubscriptionBillingStatus =
   | "cancelled"
   | "expired";
 
-export type StoreSubscriptionCheckoutStatus =
-  | "requested"
-  | "processing"
-  | "requires_action"
-  | "succeeded"
-  | "rejected"
-  | "failed"
-  | "unknown"
-  | "expired";
-
-export interface StoreSubscriptionCheckout {
-  id: string;
-  store_id: string;
-  store_subscription_id: string;
-  plan_id: string;
-  trial_days: number | null;
-  status: StoreSubscriptionCheckoutStatus;
-  expires_at: number;
-}
-
 export interface StorePlanAccess {
   plan_id: string;
   started_at: number;
@@ -1250,18 +1230,11 @@ export interface StorePlanAccess {
   access_until: number | null;
 }
 
-export interface StoreSubscriptionPayment {
-  currency: Currency;
-  market: string;
-}
-
 export interface StoreSubscription {
   id: string;
   store_id: string;
   plan_access: StorePlanAccess | null;
-  payment: StoreSubscriptionPayment;
-  billing_status: StoreSubscriptionBillingStatus;
-  checkout_id: string | null;
+  status: StoreSubscriptionStatus;
   payment_action: CheckoutPaymentAction;
   trial_started_at: number | null;
   created_at: number;

@@ -42,6 +42,12 @@ const removedIdentifiers = [
   "PaymentMethod",
   "PaymentMethodType",
   "PaymentProviderType",
+  "StoreSubscriptionCheckout",
+  "StoreSubscriptionCheckoutStatus",
+  "StoreSubscriptionPayment",
+  "StoreSubscriptionBillingStatus",
+  "GetStoreSubscriptionCheckoutParams",
+  "getSubscriptionCheckout",
 ];
 
 const removedIdentifierPattern = new RegExp(
