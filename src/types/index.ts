@@ -773,37 +773,31 @@ export interface StoreLocation {
   updated_at: number;
 }
 
-export interface InventoryLevel {
-  location_id: string;
-  available: number;
-  reserved: number;
-}
-
 export interface ProductInventory {
   id: string;
   store_id: string;
   product_id: string;
   variant_id: string;
-  location_id: string;
-  available: number;
+  store_location_id: string;
+  on_hand: number;
   reserved: number;
   updated_at: number;
 }
 
 export interface ProductVariant {
   id: string;
-  sku?: string;
+  sku: string | null;
   prices: Price[];
   attributes: Block[];
   requires_shipping: boolean;
-  weight?: number;
+  weight_grams: number | null;
 }
 
 export interface Product {
   id: string;
   store_id: string;
   key: string;
-  slug: Record<string, string>;
+  slugs: Record<string, string>;
   blocks: Block[];
   classifications: ClassificationEntry[];
   variants: ProductVariant[];

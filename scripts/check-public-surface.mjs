@@ -48,6 +48,9 @@ const removedIdentifiers = [
   "StoreSubscriptionBillingStatus",
   "GetStoreSubscriptionCheckoutParams",
   "getSubscriptionCheckout",
+  "InventoryLevel",
+  "getAvailableStock",
+  "getFirstAvailableFCId",
 ];
 
 const removedIdentifierPattern = new RegExp(
@@ -61,6 +64,14 @@ const removedCommercePaymentVocabularyPattern = new RegExp(
   "\\b(?:payment_method_key|payment_methods|setup_status|platform_debits_authorized)\\b",
   "g",
 );
+const removedProductContractPatterns = [
+  /export interface ProductInventory\s*\{[^}]*\b(?:location_id|available)\??:/g,
+  /export interface ProductVariant\s*\{[^}]*\bweight\??:/g,
+  /export interface Product\s*\{[^}]*\bslug\??:/g,
+  /export type ProductInventoryInput\s*=\s*Pick<[^;]*"(?:location_id|available)"/g,
+  /export interface (?:Create|Update)ProductVariantInput\s*\{[^}]*\bweight\??:/g,
+  /export interface (?:Create|Update)ProductParams\s*\{[^}]*\bslug\??:/g,
+];
 const exportedDeclarationPattern =
   /\bexport\s+(?:declare\s+)?(?:type|interface|class|enum|function|const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\b/g;
 
@@ -121,6 +132,13 @@ for (const file of listTypeScriptFiles(sourceDir)) {
   for (const match of source.matchAll(removedCommercePaymentVocabularyPattern)) {
     report(file, source, match.index, `removed Commerce payment field ${match[0]}`);
     failures++;
+  }
+
+  for (const pattern of removedProductContractPatterns) {
+    for (const match of source.matchAll(pattern)) {
+      report(file, source, match.index, "removed Product/Inventory contract field");
+      failures++;
+    }
   }
 
   for (const match of source.matchAll(exportedDeclarationPattern)) {

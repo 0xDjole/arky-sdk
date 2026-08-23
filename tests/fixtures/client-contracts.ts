@@ -19,6 +19,7 @@ import type {
   CheckoutCartParams,
   Condition,
   CreateMarketParams,
+  CreateProductParams,
   CreateSuppressionParams,
   CreateOrderShipmentParams,
   DigitalAsset,
@@ -35,7 +36,10 @@ import type {
   OrderFulfillmentStatus,
   PaginatedResponse,
   PendingAccountSession,
+  Product,
+  ProductInventory,
   ProductInventoryInput,
+  ProductStatus,
   ProductVariant,
   RefundRequestReason,
   ServiceProvider,
@@ -68,6 +72,7 @@ import type {
   SupportConversationStartResponse,
   SupportMessage,
   UpdateCartParams,
+  UpdateProductParams,
   MarketZoneInput,
   Mailbox,
   Market,
@@ -394,9 +399,36 @@ const clearCartAddresses: UpdateCartParams = {
 };
 
 const inventoryInput: ProductInventoryInput = {
-  location_id: "location-contract",
-  available: 10,
+  store_location_id: "location-contract",
+  on_hand: 10,
 };
+const createProductInput: CreateProductParams = {
+  key: "canonical-product",
+  slugs: { en: "canonical-product" },
+  variants: [
+    {
+      prices: [],
+      inventory: [inventoryInput],
+      attributes: [],
+      requires_shipping: true,
+      weight_grams: 500,
+    },
+  ],
+};
+const updateProductInput: UpdateProductParams = {
+  id: "product-contract",
+  slugs: { en: "updated-product" },
+  variants: [
+    {
+      id: "variant-contract",
+      inventory: [inventoryInput],
+      weight_grams: null,
+    },
+  ],
+  status: "archived",
+};
+void createProductInput;
+void updateProductInput;
 const zoneInput: MarketZoneInput = {
   countries: ["US"],
   states: [],
@@ -1009,7 +1041,23 @@ const personalApiToken: AccountApiToken = {
 // @ts-expect-error Account API Token status is only active or revoked.
 const expiredApiTokenStatus: AccountApiTokenStatus = "expired";
 declare const contact: Contact;
+declare const product: Product;
+declare const productInventory: ProductInventory;
 declare const productVariant: ProductVariant;
+const productStatus: ProductStatus = product.status;
+// @ts-expect-error Product status is the canonical draft/active/archived union.
+const invalidProductStatus: ProductStatus = "enabled";
+const productSlugs: Record<string, string> = product.slugs;
+const productWeightGrams: number | null = productVariant.weight_grams;
+const inventoryStoreLocationId: string = productInventory.store_location_id;
+const inventoryOnHand: number = productInventory.on_hand;
+const inventoryReserved: number = productInventory.reserved;
+void productStatus;
+void productSlugs;
+void productWeightGrams;
+void inventoryStoreLocationId;
+void inventoryOnHand;
+void inventoryReserved;
 declare const shipment: OrderShipment;
 const shipmentStatus: OrderShipmentStatus = shipment.status;
 const shipmentTrackingStatusAt: number | null | undefined =
@@ -1048,6 +1096,20 @@ account.verification_codes;
 contact.verification_codes;
 // @ts-expect-error variant order, not an is_default field, defines the configured default.
 productVariant.is_default;
+// @ts-expect-error Product localized routes use the canonical slugs map.
+product.slug;
+// @ts-expect-error ProductVariant weight is expressed in unsigned grams.
+productVariant.weight;
+// @ts-expect-error ProductInventory has one on_hand stock truth.
+productInventory.available;
+// @ts-expect-error ProductInventory references its StoreLocation explicitly.
+productInventory.location_id;
+// @ts-expect-error Product create inputs use slugs, never the removed singular map field.
+type LegacyProductSlugInput = CreateProductParams["slug"];
+// @ts-expect-error Inventory inputs set on_hand, never a mutable available field.
+type LegacyInventoryAvailableInput = ProductInventoryInput["available"];
+// @ts-expect-error Inventory inputs name the StoreLocation relationship explicitly.
+type LegacyInventoryLocationInput = ProductInventoryInput["location_id"];
 
 const trigger: WorkflowTriggerNode = {
   type: "trigger",

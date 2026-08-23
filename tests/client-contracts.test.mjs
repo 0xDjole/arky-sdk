@@ -851,6 +851,130 @@ test("storefront collection lookup uses a keyless route and publishable-key head
   assert.equal(call.headers.get("authorization"), null);
 });
 
+test("admin Product writes and ProductInventory reads use the canonical wire fields", async () => {
+  const admin = createAdmin({ baseUrl, storeId, market: "us" });
+  const create = {
+    key: "canonical-product",
+    slugs: { en: "canonical-product" },
+    blocks: [],
+    classifications: [],
+    variants: [
+      {
+        prices: [],
+        inventory: [
+          {
+            store_location_id: "location-contract",
+            on_hand: 10,
+          },
+        ],
+        attributes: [],
+        requires_shipping: true,
+        weight_grams: 500,
+      },
+    ],
+  };
+  const product = {
+    id: "product-contract",
+    store_id: storeId,
+    key: create.key,
+    slugs: create.slugs,
+    blocks: [],
+    classifications: [],
+    variants: [
+      {
+        id: "variant-contract",
+        sku: null,
+        prices: [],
+        attributes: [],
+        requires_shipping: true,
+        weight_grams: 500,
+      },
+    ],
+    status: "active",
+    created_at: 1,
+    updated_at: 1,
+  };
+  const update = {
+    id: product.id,
+    slugs: { en: "canonical-product-updated" },
+    variants: [
+      {
+        id: "variant-contract",
+        inventory: [
+          {
+            store_location_id: "location-contract",
+            on_hand: 12,
+          },
+        ],
+        weight_grams: null,
+      },
+    ],
+    status: "draft",
+  };
+  const inventory = [
+    {
+      id: "inventory-contract",
+      store_id: storeId,
+      product_id: product.id,
+      variant_id: "variant-contract",
+      store_location_id: "location-contract",
+      on_hand: 12,
+      reserved: 3,
+      updated_at: 2,
+    },
+  ];
+  const updatedProduct = {
+    ...product,
+    slugs: update.slugs,
+    variants: [{ ...product.variants[0], weight_grams: null }],
+    status: "draft",
+    updated_at: 2,
+  };
+  const calls = [];
+  const responses = [product, updatedProduct, inventory];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({
+      url: String(url),
+      method: init.method,
+      body: init.body ? JSON.parse(String(init.body)) : null,
+    });
+    return jsonResponse(responses.shift());
+  };
+
+  let created;
+  let updated;
+  let loadedInventory;
+  try {
+    created = await admin.eshop.product.create(create);
+    updated = await admin.eshop.product.update(update);
+    loadedInventory = await admin.eshop.product.getInventory({ id: product.id });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.deepEqual(created, product);
+  assert.deepEqual(updated, updatedProduct);
+  assert.deepEqual(loadedInventory, inventory);
+  assert.deepEqual(calls, [
+    {
+      url: `${baseUrl}/v1/stores/${storeId}/products`,
+      method: "POST",
+      body: create,
+    },
+    {
+      url: `${baseUrl}/v1/stores/${storeId}/products/${product.id}`,
+      method: "PUT",
+      body: update,
+    },
+    {
+      url: `${baseUrl}/v1/stores/${storeId}/products/${product.id}/inventory`,
+      method: "GET",
+      body: null,
+    },
+  ]);
+});
+
 test("storefront product inventory is an explicit child-resource request", async () => {
   const storefront = createStorefront(publishableKey, {
     apiUrl: baseUrl,

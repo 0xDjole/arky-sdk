@@ -90,6 +90,10 @@ The browser persists only the `arky_vst_...` visitor-session token. Storage is i
 ```typescript
 const { items: products } = await arky.eshop.product.list({ limit: 20 });
 const product = await arky.eshop.product.get({ id: products[0].id });
+const inventory = await arky.eshop.product.getInventory({ id: product.id });
+
+console.log(product.slugs.en, product.status);
+console.log(arky.utils.getFreeToSellStock({ inventory }));
 
 await arky.eshop.cart.addProduct(product, product.variants[0], 2);
 await arky.eshop.cart.quote();
@@ -98,6 +102,10 @@ const order = await arky.eshop.cart.checkout({
   payment_provider_id: "payment-provider-id",
 });
 ```
+
+Product variants expose optional `weight_grams`. Inventory is a separate resource keyed by
+`product_id`, `variant_id`, and `store_location_id`; it persists `on_hand` and `reserved`, while
+free-to-sell stock is always derived as `on_hand - reserved`.
 
 Scheduled services use the same cart:
 

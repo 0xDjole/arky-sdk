@@ -11,11 +11,11 @@ export {
 } from "./price";
 
 export {
-  getAvailableStock,
+  getFreeToSellStock,
   getReservedStock,
   hasStock,
   getInventoryAt,
-  getFirstAvailableFCId,
+  getFirstAvailableStoreLocationId,
 } from "./inventory";
 
 export {

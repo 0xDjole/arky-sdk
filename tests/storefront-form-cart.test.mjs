@@ -126,14 +126,17 @@ test("a fresh cart load resolves Store defaults before loading persisted product
   const product = {
     id: "product-hydration-contract",
     key: "hydrated-product",
-    slug: { it: "prodotto-idratato" },
+    slugs: { it: "prodotto-idratato" },
     blocks: [{ key: "name", value: { it: "Prodotto idratato" } }],
+    classifications: [],
     variants: [
       {
         id: "variant-hydration-contract",
+        sku: null,
         prices: [{ market: "ita", amount: 1250, currency: "EUR" }],
         attributes: [],
         requires_shipping: false,
+        weight_grams: null,
       },
     ],
     status: "active",
@@ -159,9 +162,9 @@ test("a fresh cart load resolves Store defaults before loading persisted product
           id: "inventory-hydration-contract",
           product_id: product.id,
           variant_id: "variant-hydration-contract",
-          location_id: "location-hydration-contract",
-          available: 4,
-          reserved: 0,
+          store_location_id: "location-hydration-contract",
+          on_hand: 5,
+          reserved: 1,
           updated_at: 1,
         },
       ]);

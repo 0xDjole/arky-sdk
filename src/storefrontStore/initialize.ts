@@ -88,12 +88,12 @@ import type {
   ArkySubmitFormByKeyParams,
 } from "./types";
 import {
-  availableStock,
+  freeToSellStock,
   createFormEntryFromValues,
   createFormEntry,
   createId,
   createServiceInitialState,
-  entitySlug,
+  productSlug,
   formSchemaToBlock,
   formatServiceSlotTime,
   getSlotsForDate,
@@ -433,7 +433,7 @@ function initializeStoreCore(
         product_id: product.id,
         variant_id: variant.id,
         product_name: productName(product, currentLocale()),
-        product_slug: entitySlug(product, currentLocale()),
+        product_slug: productSlug(product, currentLocale()),
         variant_attributes:
           variant.attributes as EshopCartItem["variant_attributes"],
         requires_shipping: variant.requires_shipping !== false,
@@ -444,7 +444,7 @@ function initializeStoreCore(
         ),
         quantity: item.quantity,
         added_at: source.created_at ? source.created_at * 1000 : Date.now(),
-        max_stock: availableStock(client, inventory, variant.id),
+        max_stock: freeToSellStock(client, inventory, variant.id),
       };
     } catch (error) {
       cart_status.setKey(

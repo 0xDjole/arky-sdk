@@ -656,16 +656,16 @@ export interface TestWebhookResponse {
 
 export type ProductInventoryInput = Pick<
   ProductInventory,
-  "location_id" | "available"
+  "store_location_id" | "on_hand"
 >;
 
 export interface CreateProductVariantInput {
-  sku?: string;
+  sku?: string | null;
   prices: Price[];
   inventory: ProductInventoryInput[];
   attributes: Block[];
   requires_shipping?: boolean;
-  weight?: number;
+  weight_grams?: number | null;
 }
 
 export interface UpdateProductVariantInput {
@@ -675,13 +675,13 @@ export interface UpdateProductVariantInput {
   inventory?: ProductInventoryInput[];
   attributes?: Block[];
   requires_shipping?: boolean;
-  weight?: number | null;
+  weight_grams?: number | null;
 }
 
 export interface CreateProductParams {
   store_id?: string;
   key: string;
-  slug?: Record<string, string>;
+  slugs?: Record<string, string>;
   blocks?: Block[];
   classifications?: ClassificationEntry[];
   variants?: CreateProductVariantInput[];
@@ -691,7 +691,7 @@ export interface UpdateProductParams {
   id: string;
   store_id?: string;
   key?: string;
-  slug?: Record<string, string>;
+  slugs?: Record<string, string>;
   blocks?: Block[];
   classifications?: ClassificationEntry[];
   variants?: UpdateProductVariantInput[];

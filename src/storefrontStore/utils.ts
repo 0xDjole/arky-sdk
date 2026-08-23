@@ -111,15 +111,15 @@ export function providerName(
   );
 }
 
-export function entitySlug(
-  entity: { id: string; slug?: Record<string, string> },
+export function productSlug(
+  product: Pick<StorefrontProduct, "id" | "slugs">,
   locale: string,
 ): string {
   return (
-    entity.slug?.[locale] ||
-    entity.slug?.en ||
-    Object.values(entity.slug || {})[0] ||
-    entity.id
+    product.slugs[locale] ||
+    product.slugs.en ||
+    Object.values(product.slugs)[0] ||
+    product.id
   );
 }
 
@@ -173,15 +173,13 @@ export function priceForMarket(
   return price;
 }
 
-export function availableStock(
+export function freeToSellStock(
   client: ArkyStoreClient,
   inventory: Array<Omit<ProductInventory, "store_id">>,
   variantId: string,
 ): number | undefined {
   const levels = inventory.filter((level) => level.variant_id === variantId);
-  const fromUtility = client.utils.getAvailableStock({ inventory: levels });
-  if (Number.isFinite(fromUtility)) return fromUtility;
-  const stock = levels.reduce((total, row) => total + (row.available || 0), 0);
+  const stock = client.utils.getFreeToSellStock({ inventory: levels });
   return stock > 0 ? stock : undefined;
 }
 

@@ -280,7 +280,6 @@ export type {
   Product,
   ProductVariant,
   ProductInventory,
-  InventoryLevel,
   GalleryItem,
   EmailTemplate,
   EmailTemplateType,
@@ -426,6 +425,11 @@ export type {
   DeletePromoCodeParams,
   GetPromoCodeParams,
   GetPromoCodesParams,
+  CreateProductParams,
+  UpdateProductParams,
+  DeleteProductParams,
+  GetProductParams,
+  GetProductsParams,
   ProductQuoteInput,
   BookingQuoteInput,
   CartProductInput,
@@ -891,11 +895,11 @@ import {
   nameToKey,
 } from "./utils/keyValidation";
 import {
-  getAvailableStock,
+  getFreeToSellStock,
   getReservedStock,
   hasStock,
   getInventoryAt,
-  getFirstAvailableFCId,
+  getFirstAvailableStoreLocationId,
 } from "./utils/inventory";
 
 function createUtilitySurface(apiConfig: Pick<ApiConfig, "market">) {
@@ -941,11 +945,11 @@ function createUtilitySurface(apiConfig: Pick<ApiConfig, "market">) {
     toKey,
     nameToKey,
 
-    getAvailableStock,
+    getFreeToSellStock,
     getReservedStock,
     hasStock,
     getInventoryAt,
-    getFirstAvailableFCId,
+    getFirstAvailableStoreLocationId,
   };
 }
 
