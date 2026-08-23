@@ -4,7 +4,7 @@ import type {
   Contact,
   Form,
   FormSubmission,
-  Location,
+  StoreLocation,
   Market,
   OrderCheckoutResult,
   OrderQuote,
@@ -52,7 +52,10 @@ export interface StorefrontContact extends StorefrontDto<Contact> {
 }
 export type StorefrontForm = StorefrontDto<Form>;
 export type StorefrontFormSubmission = StorefrontDto<FormSubmission>;
-export type StorefrontLocation = StorefrontDto<Location>;
+export type StorefrontLocation = Omit<
+  StorefrontDto<StoreLocation>,
+  "created_at" | "updated_at"
+>;
 export type StorefrontOrderCheckoutResult = StorefrontDto<OrderCheckoutResult>;
 export type StorefrontOrderQuote = StorefrontDto<OrderQuote>;
 export type StorefrontProduct = StorefrontDto<Product>;

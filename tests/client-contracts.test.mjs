@@ -217,7 +217,7 @@ test("request errors preserve the server response while normalizing validation d
   assert.deepEqual(errorContext.response, response);
 });
 
-test("admin Store methods expose publishable-key regeneration and default-market changes", async () => {
+test("admin Store methods use the explicit name, email, and language contract", async () => {
   const admin = createAdmin({
     baseUrl,
     storeId,
@@ -225,11 +225,14 @@ test("admin Store methods expose publishable-key regeneration and default-market
   });
   const store = {
     id: storeId,
-    key: "client-contract",
+    name: "Client Contract",
+    email: "owner@example.test",
     publishable_key: publishableKey,
+    status: "active",
     default_market_id: "market-bih",
     timezone: "Europe/Sarajevo",
-    languages: ["en"],
+    default_language: "en",
+    supported_languages: ["en", "bs"],
   };
   const calls = [];
   const originalFetch = globalThis.fetch;
@@ -244,15 +247,41 @@ test("admin Store methods expose publishable-key regeneration and default-market
 
   try {
     assert.deepEqual(
+      await admin.store.create({
+        name: "Client Contract",
+        timezone: "Europe/Sarajevo",
+        default_language: "en",
+        supported_languages: ["en", "bs"],
+      }),
+      store,
+    );
+    assert.deepEqual(
       await admin.store.regeneratePublishableKey({ store_id: storeId }),
       store,
     );
-    await admin.store.update({ id: storeId, default_market_id: "market-bih" });
+    await admin.store.update({
+      id: storeId,
+      name: "Client Contract",
+      email: "owner@example.test",
+      default_market_id: "market-bih",
+      default_language: "en",
+      supported_languages: ["en", "bs"],
+    });
   } finally {
     globalThis.fetch = originalFetch;
   }
 
   assert.deepEqual(calls, [
+    {
+      url: `${baseUrl}/v1/stores`,
+      method: "POST",
+      body: {
+        name: "Client Contract",
+        timezone: "Europe/Sarajevo",
+        default_language: "en",
+        supported_languages: ["en", "bs"],
+      },
+    },
     {
       url: `${baseUrl}/v1/stores/${storeId}/publishable-key/regenerate`,
       method: "POST",
@@ -261,12 +290,19 @@ test("admin Store methods expose publishable-key regeneration and default-market
     {
       url: `${baseUrl}/v1/stores/${storeId}`,
       method: "PUT",
-      body: { id: storeId, default_market_id: "market-bih" },
+      body: {
+        id: storeId,
+        name: "Client Contract",
+        email: "owner@example.test",
+        default_market_id: "market-bih",
+        default_language: "en",
+        supported_languages: ["en", "bs"],
+      },
     },
   ]);
 });
 
-test("admin Store deletion requests the lifecycle transition with exact confirmation", async () => {
+test("admin Store deletion requests the deleting status with exact name confirmation", async () => {
   const admin = createAdmin({
     baseUrl,
     storeId,
@@ -274,16 +310,14 @@ test("admin Store deletion requests the lifecycle transition with exact confirma
   });
   const deletingStore = {
     id: storeId,
-    key: "client-contract",
+    name: "Client Contract",
+    email: "owner@example.test",
     publishable_key: publishableKey,
-    lifecycle: "deleting",
+    status: "deleting",
     default_market_id: null,
     timezone: "Europe/Sarajevo",
-    languages: ["en"],
-    emails: {
-      billing: "billing@example.test",
-      support: "support@example.test",
-    },
+    default_language: "en",
+    supported_languages: ["en"],
   };
   let call;
   const originalFetch = globalThis.fetch;
@@ -298,7 +332,7 @@ test("admin Store deletion requests the lifecycle transition with exact confirma
 
   try {
     assert.deepEqual(
-      await admin.store.requestDeletion({ confirmation: "client-contract" }),
+      await admin.store.requestDeletion({ confirmation: "Client Contract" }),
       deletingStore,
     );
   } finally {
@@ -308,8 +342,113 @@ test("admin Store deletion requests the lifecycle transition with exact confirma
   assert.deepEqual(call, {
     url: `${baseUrl}/v1/stores/${storeId}/deletion`,
     method: "POST",
-    body: { confirmation: "client-contract" },
+    body: { confirmation: "Client Contract" },
   });
+});
+
+test("Store endpoint configurations and physical locations use their cleaned contracts", async () => {
+  const admin = createAdmin({ baseUrl, storeId, market: "bih" });
+  const address = {
+    street1: "1 Contract Way",
+    city: "Sarajevo",
+    postal_code: "71000",
+    country: "BA",
+  };
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({
+      url: String(url),
+      method: init.method || "GET",
+      body: init.body ? JSON.parse(String(init.body)) : null,
+    });
+    return jsonResponse({});
+  };
+
+  try {
+    await admin.store.location.create({ key: "main", address });
+    await admin.store.location.update({
+      id: "location-contract",
+      is_pickup_location: true,
+    });
+    await admin.store.buildHook.create({
+      store_id: storeId,
+      url: "https://deploy.example.test/hook",
+      status: "disabled",
+    });
+    await admin.store.buildHook.update({
+      store_id: storeId,
+      id: "build-hook-contract",
+      status: "active",
+    });
+    await admin.store.webhook.create({
+      store_id: storeId,
+      url: "https://events.example.test/hook",
+      events: [{ event: "store.updated" }],
+      headers: {},
+      secret: "s".repeat(32),
+      status: "disabled",
+    });
+    await admin.store.webhook.update({
+      store_id: storeId,
+      id: "webhook-contract",
+      status: "active",
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.deepEqual(
+    calls.map(({ url, ...call }) => ({
+      ...call,
+      url: url.replace(baseUrl, ""),
+    })),
+    [
+      {
+        url: `/v1/stores/${storeId}/locations`,
+        method: "POST",
+        body: { key: "main", address, store_id: storeId },
+      },
+      {
+        url: `/v1/stores/${storeId}/locations/location-contract`,
+        method: "PUT",
+        body: {
+          id: "location-contract",
+          is_pickup_location: true,
+          store_id: storeId,
+        },
+      },
+      {
+        url: `/v1/stores/${storeId}/build-hooks`,
+        method: "POST",
+        body: {
+          url: "https://deploy.example.test/hook",
+          status: "disabled",
+        },
+      },
+      {
+        url: `/v1/stores/${storeId}/build-hooks/build-hook-contract`,
+        method: "PUT",
+        body: { status: "active" },
+      },
+      {
+        url: `/v1/stores/${storeId}/webhooks`,
+        method: "POST",
+        body: {
+          url: "https://events.example.test/hook",
+          events: [{ event: "store.updated" }],
+          headers: {},
+          secret: "s".repeat(32),
+          status: "disabled",
+        },
+      },
+      {
+        url: `/v1/stores/${storeId}/webhooks/webhook-contract`,
+        method: "PUT",
+        body: { status: "active" },
+      },
+    ],
+  );
 });
 
 test("admin market deletion sends an explicit replacement default as query context", async () => {

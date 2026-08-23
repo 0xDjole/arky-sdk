@@ -289,11 +289,21 @@ const store = await admin.store.regeneratePublishableKey({
 
 await admin.store.update({
   id: store.id,
+  name: "Arky Sarajevo",
+  email: "team@example.com",
   default_market_id: "market-id",
+  default_language: "en",
+  supported_languages: ["en", "bs"],
 });
 
 const classifications = await admin.classification.find({ limit: 20 });
 ```
+
+Admin Store records use `name`, one `email`, typed `status`, and explicit
+`default_language`/`supported_languages` fields. Physical places are exposed as `StoreLocation`
+values with the shared `PostalAddress` shape. Webhooks and Build Hooks are addressed by UUID and
+use `active`/`disabled` status values. Membership IDs are opaque, Server-generated UUID-v4 values;
+`StoreUsage` represents one feature and either its current total or one UTC calendar month.
 
 ## TypeScript
 

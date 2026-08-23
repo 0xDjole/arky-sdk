@@ -6,8 +6,10 @@ import type {
   WorkflowNode,
   WorkflowEdge,
   Address,
-  BuildHookType,
+  PostalAddress,
+  BuildHookStatus,
   WebhookEventSubscription,
+  WebhookStatus,
   Parcel,
   CustomsDeclaration,
   ShippingRateLine,
@@ -38,7 +40,6 @@ import type {
   ServiceDuration,
   WorkingDay,
   SpecificDate,
-  StoreEmails,
   ContactStatus,
   Contact,
   ContactSessionIssued,
@@ -79,20 +80,20 @@ export type {
   ScheduledMutationOptions,
 } from "../services/createHttpClient";
 
-export interface CreateLocationParams {
+export interface CreateStoreLocationParams {
   key: string;
-  address: Address;
+  address: PostalAddress;
   is_pickup_location?: boolean;
 }
 
-export interface UpdateLocationParams {
+export interface UpdateStoreLocationParams {
   id: string;
-  key: string;
-  address: Address;
+  key?: string;
+  address?: PostalAddress;
   is_pickup_location?: boolean;
 }
 
-export interface DeleteLocationParams {
+export interface DeleteStoreLocationParams {
   id: string;
 }
 
@@ -566,19 +567,22 @@ export interface GetPromoCodesParams {
 }
 
 export interface CreateStoreParams {
-  key: string;
+  name: string;
   timezone: string;
-  languages?: string[];
-  emails: StoreEmails;
+  default_language: string;
+  supported_languages: string[];
+  /** Defaults to the creating Account's email when omitted. */
+  email?: string;
 }
 
 export interface UpdateStoreParams {
   id: string;
-  key?: string;
+  name?: string;
   default_market_id?: string;
   timezone?: string;
-  languages?: string[];
-  emails?: StoreEmails;
+  default_language?: string;
+  supported_languages?: string[];
+  email?: string;
 }
 
 export interface GetStoreParams {
@@ -2072,21 +2076,17 @@ export interface ListBuildHooksParams {
 
 export interface CreateBuildHookParams {
   store_id: string;
-  key: string;
-  type: BuildHookType;
   url: string;
   headers?: Record<string, string>;
-  active?: boolean;
+  status?: BuildHookStatus;
 }
 
 export interface UpdateBuildHookParams {
   store_id: string;
   id: string;
-  key?: string;
-  type?: BuildHookType;
   url?: string;
   headers?: Record<string, string>;
-  active?: boolean;
+  status?: BuildHookStatus;
 }
 
 export interface DeleteBuildHookParams {
@@ -2313,23 +2313,21 @@ export interface ListWebhooksParams {
 
 export interface CreateWebhookParams {
   store_id: string;
-  key: string;
   url: string;
   events: WebhookEventSubscription[];
   headers: Record<string, string>;
   secret: string;
-  enabled: boolean;
+  status?: WebhookStatus;
 }
 
 export interface UpdateWebhookParams {
   store_id: string;
   id: string;
-  key?: string;
   url?: string;
   events?: WebhookEventSubscription[];
   headers?: Record<string, string>;
   secret?: string;
-  enabled?: boolean;
+  status?: WebhookStatus;
 }
 
 export interface DeleteWebhookParams {

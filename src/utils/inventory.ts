@@ -1,4 +1,4 @@
-import type { InventoryLevel, Location } from '../types';
+import type { InventoryLevel } from '../types';
 
 export interface VariantWithInventory {
   inventory: InventoryLevel[];

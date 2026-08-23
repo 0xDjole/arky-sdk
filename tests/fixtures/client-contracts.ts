@@ -9,6 +9,7 @@ import type {
   AudienceSubscribeResponse,
   AudienceTierPriceInput,
   Block,
+  BuildHook,
   Classification,
   ClassificationEntry,
   ClassificationFieldQuery,
@@ -47,10 +48,16 @@ import type {
   SocialProviderCapability,
   SmtpImapMailboxProviderInput,
   StoreSubscription,
+  Store,
+  StoreLocation,
+  StoreMembership,
+  StoreSubscriptionCheckout,
+  StoreUsage,
   SubscriptionPlanFeatureType,
   TiktokPrivacy,
   StorefrontIdentifyResult,
   StorefrontDto,
+  StorefrontLocation,
   StorefrontGetSupportConversationParams,
   StorefrontSendSupportMessageParams,
   SupportAgentDefinition,
@@ -65,8 +72,16 @@ import type {
   WorkflowHttpNode,
   WorkflowTriggerNode,
   VerifyPendingAccountSessionParams,
+  Webhook,
 } from "../../dist/index.js";
-import type { FindActionsParams, RequestOptions } from "../../dist/types.js";
+import type {
+  CreateBuildHookParams,
+  CreateStoreLocationParams,
+  CreateStoreParams,
+  CreateWebhookParams,
+  FindActionsParams,
+  RequestOptions,
+} from "../../dist/types.js";
 import { createAdmin, SDK_VERSION } from "../../dist/index.js";
 import {
   createStorefront,
@@ -81,6 +96,146 @@ const sdkVersionLiteral: "0.25.0" = SDK_VERSION;
 const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
 // @ts-expect-error the server's serialized feature key is crm_contacts.
 const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
+const storeContract: Store = {
+  id: "store-contract",
+  name: "Contract Store",
+  email: "owner@example.com",
+  publishable_key: `arky_pk_${"a".repeat(43)}`,
+  status: "active",
+  default_market_id: null,
+  timezone: "Europe/Sarajevo",
+  default_language: "en",
+  supported_languages: ["en", "bs"],
+};
+const createStoreContract: CreateStoreParams = {
+  name: "Contract Store",
+  timezone: "Europe/Sarajevo",
+  default_language: "en",
+  supported_languages: ["en", "bs"],
+};
+// @ts-expect-error Store routing identity is no longer a mutable key.
+storeContract.key;
+// @ts-expect-error Store lifecycle is represented by the typed status field.
+storeContract.lifecycle;
+// @ts-expect-error Store language defaults are explicit rather than positional.
+storeContract.languages;
+// @ts-expect-error Store email is one root field, not a billing/support object.
+storeContract.emails;
+// @ts-expect-error Store creation accepts a name, not the removed mutable key.
+createStoreContract.key;
+// @ts-expect-error Store creation requires explicit language ownership fields.
+createStoreContract.languages;
+// @ts-expect-error Store creation accepts one optional email field.
+createStoreContract.emails;
+
+const storeLocationContract: StoreLocation = {
+  id: "location-contract",
+  store_id: "store-contract",
+  key: "main",
+  address: { city: "Sarajevo", country: "BA" },
+  is_pickup_location: true,
+  created_at: 1,
+  updated_at: 1,
+};
+const createStoreLocationContract: CreateStoreLocationParams = {
+  key: "main",
+  address: storeLocationContract.address,
+};
+declare const storefrontLocationContract: StorefrontLocation;
+const storefrontCountry: string | null | undefined =
+  storefrontLocationContract.address.country;
+// @ts-expect-error Storefront locations omit Admin persistence timestamps.
+storefrontLocationContract.created_at;
+void storefrontCountry;
+
+const buildHookContract: BuildHook = {
+  id: "build-hook-contract",
+  store_id: "store-contract",
+  url: "••••••••",
+  headers: { authorization: "••••••••" },
+  status: "disabled",
+  created_at: 1,
+  updated_at: 1,
+};
+const createBuildHookContract: CreateBuildHookParams = {
+  store_id: "store-contract",
+  url: "https://deploy.example.com/hook",
+  status: "active",
+};
+// @ts-expect-error Build Hooks are addressed by UUID, not a mutable key.
+buildHookContract.key;
+// @ts-expect-error Build Hooks no longer store a provider classification.
+buildHookContract.type;
+// @ts-expect-error Build Hook state is represented by status.
+buildHookContract.active;
+// @ts-expect-error Build Hook creation has no mutable key.
+createBuildHookContract.key;
+// @ts-expect-error Build Hook creation has no provider classification.
+createBuildHookContract.type;
+// @ts-expect-error Build Hook creation uses typed status.
+createBuildHookContract.active;
+
+const webhookContract: Webhook = {
+  id: "webhook-contract",
+  store_id: "store-contract",
+  url: "••••••••",
+  events: [{ event: "store.updated" }],
+  headers: {},
+  secret: "••••••••",
+  status: "active",
+  created_at: 1,
+  updated_at: 1,
+};
+const createWebhookContract: CreateWebhookParams = {
+  store_id: "store-contract",
+  url: "https://events.example.com/hook",
+  events: [{ event: "store.updated" }],
+  headers: {},
+  secret: "s".repeat(32),
+  status: "disabled",
+};
+// @ts-expect-error Webhooks are addressed by UUID, not a mutable key.
+webhookContract.key;
+// @ts-expect-error Webhook state is represented by status.
+webhookContract.enabled;
+// @ts-expect-error Webhook creation has no mutable key.
+createWebhookContract.key;
+// @ts-expect-error Webhook creation uses typed status.
+createWebhookContract.enabled;
+
+const totalStoreUsage: StoreUsage = {
+  id: "usage-total-contract",
+  store_id: "store-contract",
+  feature: "products",
+  period: { type: "total" },
+  count: 4,
+  created_at: 1,
+  updated_at: 1,
+};
+const monthlyStoreUsage: StoreUsage = {
+  ...totalStoreUsage,
+  id: "usage-month-contract",
+  feature: "lead_research_runs",
+  period: { type: "monthly", year: 2026, month: 8 },
+};
+const invalidMonthlyStoreUsage: StoreUsage = {
+  ...totalStoreUsage,
+  // @ts-expect-error Monthly usage always identifies its UTC calendar month.
+  period: { type: "monthly" },
+};
+
+declare const membershipContract: StoreMembership;
+const serverGeneratedMembershipUuid: string = membershipContract.id;
+declare const subscriptionCheckoutContract: StoreSubscriptionCheckout;
+const persistedCheckoutId: string = subscriptionCheckoutContract.id;
+void createStoreContract;
+void createStoreLocationContract;
+void createBuildHookContract;
+void createWebhookContract;
+void monthlyStoreUsage;
+void invalidMonthlyStoreUsage;
+void serverGeneratedMembershipUuid;
+void persistedCheckoutId;
 const audienceTierPriceInput: AudienceTierPriceInput = {
   currency: "usd",
   amount: 1200,

@@ -1,11 +1,11 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type {
-  CreateLocationParams,
-  DeleteLocationParams,
+  CreateStoreLocationParams,
+  DeleteStoreLocationParams,
   RequestOptions,
-  UpdateLocationParams,
+  UpdateStoreLocationParams,
 } from "../types/api";
-import type { Location } from "../types";
+import type { StoreLocation } from "../types";
 
 export interface LocationState {
   code: string;
@@ -40,25 +40,25 @@ export const createLocationApi = (apiConfig: ApiConfig) => {
     },
 
 
-    async list(options?: RequestOptions): Promise<Location[]> {
-      return apiConfig.httpClient.get<Location[]>(
+    async list(options?: RequestOptions): Promise<StoreLocation[]> {
+      return apiConfig.httpClient.get<StoreLocation[]>(
         `/v1/stores/${apiConfig.storeId}/locations`,
         options,
       );
     },
 
-    async get(id: string, options?: RequestOptions): Promise<Location> {
-      return apiConfig.httpClient.get<Location>(
+    async get(id: string, options?: RequestOptions): Promise<StoreLocation> {
+      return apiConfig.httpClient.get<StoreLocation>(
         `/v1/stores/${apiConfig.storeId}/locations/${id}`,
         options,
       );
     },
 
     async create(
-      params: CreateLocationParams,
+      params: CreateStoreLocationParams,
       options?: RequestOptions,
-    ): Promise<Location> {
-      return apiConfig.httpClient.post<Location>(
+    ): Promise<StoreLocation> {
+      return apiConfig.httpClient.post<StoreLocation>(
         `/v1/stores/${apiConfig.storeId}/locations`,
         { ...params, store_id: apiConfig.storeId },
         options,
@@ -66,10 +66,10 @@ export const createLocationApi = (apiConfig: ApiConfig) => {
     },
 
     async update(
-      params: UpdateLocationParams,
+      params: UpdateStoreLocationParams,
       options?: RequestOptions,
-    ): Promise<Location> {
-      return apiConfig.httpClient.put<Location>(
+    ): Promise<StoreLocation> {
+      return apiConfig.httpClient.put<StoreLocation>(
         `/v1/stores/${apiConfig.storeId}/locations/${params.id}`,
         { ...params, store_id: apiConfig.storeId },
         options,
@@ -77,7 +77,7 @@ export const createLocationApi = (apiConfig: ApiConfig) => {
     },
 
     async delete(
-      params: DeleteLocationParams,
+      params: DeleteStoreLocationParams,
       options?: RequestOptions,
     ): Promise<{ deleted: boolean }> {
       return apiConfig.httpClient.delete<{ deleted: boolean }>(
