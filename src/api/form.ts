@@ -3,12 +3,13 @@ import type {
   CreateFormParams,
   UpdateFormParams,
   DeleteFormParams,
+  PermanentlyDeleteFormParams,
   GetFormParams,
   GetFormsParams,
   SubmitFormParams,
   GetFormSubmissionsParams,
   GetFormSubmissionParams,
-  UpdateFormSubmissionParams,
+  DeleteFormSubmissionParams,
   RequestOptions,
 } from "../types/api";
 import type { Form, FormSubmission, PaginatedResponse } from "../types";
@@ -39,6 +40,17 @@ export const createFormApi = (apiConfig: ApiConfig) => {
       const target_store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.delete<{ deleted: boolean }>(
         `/v1/stores/${target_store_id}/forms/${params.id}`,
+        options
+      );
+    },
+
+    async permanentlyDeleteForm(
+      params: PermanentlyDeleteFormParams,
+      options?: RequestOptions
+    ): Promise<boolean> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.delete<boolean>(
+        `/v1/stores/${target_store_id}/forms/${params.id}/permanent`,
         options
       );
     },
@@ -99,12 +111,13 @@ export const createFormApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async updateSubmission(params: UpdateFormSubmissionParams, options?: RequestOptions): Promise<FormSubmission> {
-      const { store_id, form_id, id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.put<FormSubmission>(
-        `/v1/stores/${target_store_id}/forms/${form_id}/submissions/${id}`,
-        { ...payload, form_id, store_id: target_store_id, id },
+    async deleteSubmission(
+      params: DeleteFormSubmissionParams,
+      options?: RequestOptions
+    ): Promise<boolean> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.delete<boolean>(
+        `/v1/stores/${target_store_id}/forms/${params.form_id}/submissions/${params.id}`,
         options
       );
     },

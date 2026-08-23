@@ -130,6 +130,8 @@ const removedIdentifiers = [
   "createActionAdminApi",
   "createActionApi",
   "COMMON_ACTION_KEYS",
+  "UpdateFormSubmissionParams",
+  "updateSubmission",
 ];
 
 const removedIdentifierPattern = new RegExp(

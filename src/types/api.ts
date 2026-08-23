@@ -1029,6 +1029,11 @@ export interface DeleteFormParams {
   store_id?: string;
 }
 
+export interface PermanentlyDeleteFormParams {
+  id: string;
+  store_id?: string;
+}
+
 export interface SubmitFormParams {
   form_id: string;
   store_id?: string;
@@ -1062,11 +1067,10 @@ export interface GetFormSubmissionParams {
   store_id?: string;
 }
 
-export interface UpdateFormSubmissionParams {
+export interface DeleteFormSubmissionParams {
   id: string;
   form_id: string;
   store_id?: string;
-  fields: FormField[];
 }
 
 export interface GetClassificationsParams {
