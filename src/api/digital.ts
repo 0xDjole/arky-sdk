@@ -59,10 +59,13 @@ export const createDigitalApi = (apiConfig: ApiConfig) => ({
   ): Promise<PaginatedResponse<DigitalProduct>> {
     const { store_id, ...query } = params;
     const storeId = store_id || apiConfig.storeId;
-    return apiConfig.httpClient.get<PaginatedResponse<DigitalProduct>>(`/v1/stores/${storeId}/digital-products`, {
-      ...options,
-      params: query,
-    });
+    return apiConfig.httpClient.get<PaginatedResponse<DigitalProduct>>(
+      `/v1/stores/${storeId}/digital-products`,
+      {
+        ...options,
+        params: query,
+      },
+    );
   },
 
   deleteProduct(
@@ -85,7 +88,7 @@ export const createDigitalApi = (apiConfig: ApiConfig) => ({
     body.append("file", params.file);
     const tokens = apiConfig.authStorage.getTokens();
     const response = await fetch(
-      `${apiConfig.baseUrl}/v1/stores/${storeId}/digital-products/assets`,
+      `${apiConfig.baseUrl}/v1/stores/${storeId}/digital-assets`,
       {
         method: "POST",
         body,
@@ -104,7 +107,7 @@ export const createDigitalApi = (apiConfig: ApiConfig) => ({
     const { store_id, ...query } = params;
     const storeId = store_id || apiConfig.storeId;
     return apiConfig.httpClient.get<PaginatedResponse<DigitalAsset>>(
-      `/v1/stores/${storeId}/digital-products/assets`,
+      `/v1/stores/${storeId}/digital-assets`,
       { ...options, params: query },
     );
   },
@@ -115,7 +118,7 @@ export const createDigitalApi = (apiConfig: ApiConfig) => ({
   ): Promise<DigitalAsset> {
     const storeId = params.store_id || apiConfig.storeId;
     return apiConfig.httpClient.delete<DigitalAsset>(
-      `/v1/stores/${storeId}/digital-products/assets/${params.asset_id}`,
+      `/v1/stores/${storeId}/digital-assets/${params.asset_id}`,
       options,
     );
   },

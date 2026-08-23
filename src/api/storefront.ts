@@ -33,6 +33,7 @@ import type {
   GetStorefrontClassificationParams,
   QuoteCartParams,
   DownloadDigitalAssetParams,
+  GetDigitalLibraryProductParams,
   FindStorefrontDigitalProductsParams,
   GetStorefrontDigitalProductParams,
   RemoveCartItemParams,
@@ -413,7 +414,7 @@ export const createStorefrontApi = (
         ): Promise<StorefrontDto<StorefrontDigitalProduct>> {
           return apiConfig.httpClient.get<
             StorefrontDto<StorefrontDigitalProduct>
-          >(`${base}/digital-products/${params.id}`, options);
+          >(`${base}/digital-products/${params.identifier}`, options);
         },
         async library(
           params: FindStorefrontDigitalProductsParams = {},
@@ -425,22 +426,22 @@ export const createStorefrontApi = (
           >(`${base}/digital-products/library`, { ...options, params });
         },
         async getLibraryProduct(
-          params: StorefrontParams<GetStorefrontDigitalProductParams>,
+          params: StorefrontParams<GetDigitalLibraryProductParams>,
           options?: RequestOptions,
         ): Promise<DigitalLibraryProduct> {
           await lifecycle.ensureVisitorSession();
           return apiConfig.httpClient.get<DigitalLibraryProduct>(
-            `${base}/digital-products/library/${params.id}`,
+            `${base}/digital-products/library/${params.digital_product_id}`,
             options,
           );
         },
         async getLibraryAssets(
-          params: StorefrontParams<GetStorefrontDigitalProductParams>,
+          params: StorefrontParams<GetDigitalLibraryProductParams>,
           options?: RequestOptions,
         ): Promise<DigitalLibraryAsset[]> {
           await lifecycle.ensureVisitorSession();
           return apiConfig.httpClient.get<DigitalLibraryAsset[]>(
-            `${base}/digital-products/library/${params.id}/assets`,
+            `${base}/digital-products/library/${params.digital_product_id}/assets`,
             options,
           );
         },

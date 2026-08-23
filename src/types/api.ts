@@ -147,7 +147,7 @@ export interface BookingQuoteInput {
 
 export interface DigitalProductQuoteInput {
   digital_product_id: string;
-  price?: import("./index").DigitalPrice;
+  price?: import("./index").Price;
 }
 
 export interface CartBookingInput {
@@ -171,7 +171,7 @@ export interface TrustedCartBookingInput extends CartBookingInput {
 }
 
 export interface TrustedCartDigitalProductInput extends CartDigitalProductInput {
-  price?: import("./index").DigitalPrice;
+  price?: import("./index").Price;
 }
 
 export interface GetQuoteParams {
@@ -1163,24 +1163,24 @@ export interface CreateOrderRefundResponse {
 export interface CreateDigitalProductParams {
   store_id?: string;
   key: string;
-  slug?: Record<string, string>;
+  slugs?: Record<string, string>;
   blocks?: import("./index").Block[];
   classifications?: import("./index").ClassificationEntry[];
-  prices?: import("./index").DigitalPrice[];
+  prices?: import("./index").Price[];
   asset_ids?: string[];
-  status?: import("./index").DigitalCatalogStatus;
+  status?: import("./index").DigitalProductStatus;
 }
 
 export interface UpdateDigitalProductParams {
   store_id?: string;
   digital_product_id: string;
   key?: string;
-  slug?: Record<string, string>;
+  slugs?: Record<string, string>;
   blocks?: import("./index").Block[];
   classifications?: import("./index").ClassificationEntry[];
-  prices?: import("./index").DigitalPrice[];
+  prices?: import("./index").Price[];
   asset_ids?: string[];
-  status?: import("./index").DigitalCatalogStatus;
+  status?: import("./index").DigitalProductStatus;
 }
 
 export interface GetDigitalProductParams {
@@ -1191,9 +1191,16 @@ export interface GetDigitalProductParams {
 export interface FindDigitalProductsParams {
   store_id?: string;
   ids?: string[];
-  status?: import("./index").DigitalCatalogStatus;
+  classification_query?: ClassificationQuery[];
+  match_all?: boolean;
+  status?: import("./index").DigitalProductStatus;
+  query?: string | number;
   limit?: number;
   cursor?: string;
+  sort_field?: string;
+  sort_direction?: "asc" | "desc";
+  created_at_from?: number;
+  created_at_to?: number;
 }
 
 export interface UploadDigitalAssetParams {
@@ -1224,7 +1231,11 @@ export interface FindStorefrontDigitalProductsParams {
 }
 
 export interface GetStorefrontDigitalProductParams {
-  id: string;
+  identifier: string;
+}
+
+export interface GetDigitalLibraryProductParams {
+  digital_product_id: string;
 }
 
 export type SystemTemplateKey =

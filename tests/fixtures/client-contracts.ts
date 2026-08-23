@@ -16,17 +16,26 @@ import type {
   ClassificationSchema,
   Contact,
   Cart,
+  CartDigitalProduct,
   CheckoutCartParams,
   Condition,
   CreateMarketParams,
   CreateProductParams,
+  CreateDigitalProductParams,
   CreateSuppressionParams,
   CreateOrderShipmentParams,
   DigitalAsset,
+  DigitalLibraryItem,
+  DigitalLibraryProduct,
+  DigitalProduct,
+  DigitalProductStatus,
   EmailDeliveryType,
   GetCollectionParams,
+  GetDigitalLibraryProductParams,
+  GetStorefrontDigitalProductParams,
   GetShippingRatesParams,
   OrderMoney,
+  OrderDigitalProductSnapshot,
   OrderPromoCodeSnapshot,
   OrderTaxLine,
   OrderTaxScope,
@@ -41,6 +50,7 @@ import type {
   ProductInventoryInput,
   ProductStatus,
   ProductVariant,
+  Price,
   RefundRequestReason,
   BookingOffering,
   BookingResource,
@@ -67,6 +77,7 @@ import type {
   SubscriptionPlanFeatureType,
   TiktokPrivacy,
   StorefrontIdentifyResult,
+  StorefrontDigitalProduct,
   StorefrontDto,
   StorefrontLocation,
   StorefrontGetSupportConversationParams,
@@ -77,6 +88,7 @@ import type {
   SupportConversationStartResponse,
   SupportMessage,
   UpdateCartParams,
+  UpdateDigitalProductParams,
   UpdateProductParams,
   MarketZoneInput,
   Mailbox,
@@ -89,7 +101,12 @@ import type {
   WorkflowTriggerNode,
   VerifyPendingAccountSessionParams,
   Webhook,
+  FindDigitalProductsParams,
 } from "../../dist/index.js";
+// @ts-expect-error Digital Product prices use the shared Price contract.
+import type { DigitalPrice } from "../../dist/index.js";
+// @ts-expect-error Digital Product status has its own canonical name.
+import type { DigitalCatalogStatus } from "../../dist/index.js";
 import type {
   CreateBuildHookParams,
   CreateStoreLocationParams,
@@ -415,6 +432,120 @@ suppression.campaign_id;
 declare const digitalAsset: DigitalAsset;
 // @ts-expect-error object storage keys are internal and never exposed by Admin responses.
 digitalAsset.object_key;
+const digitalPrice: Price = {
+  currency: "usd",
+  market: "us",
+  amount: 2500,
+  compare_at: null,
+  audience_id: null,
+};
+const digitalProductContract: DigitalProduct = {
+  id: "digital-product-contract",
+  store_id: "store-contract",
+  key: "digital-product-key",
+  slugs: { en: "digital-product" },
+  blocks: [],
+  classifications: [],
+  prices: [digitalPrice],
+  asset_ids: ["0198f8f7-2f25-4a14-86bb-64efc56e1a11"],
+  status: "active",
+  created_at: 1,
+  updated_at: 2,
+};
+const storefrontDigitalProductContract: StorefrontDigitalProduct = {
+  id: digitalProductContract.id,
+  key: digitalProductContract.key,
+  slugs: digitalProductContract.slugs,
+  blocks: [],
+  classifications: [],
+  prices: [digitalPrice],
+};
+const digitalLibraryItemContract: DigitalLibraryItem = {
+  digital_product_id: digitalProductContract.id,
+  product_key: digitalProductContract.key,
+  slugs: digitalProductContract.slugs,
+};
+const digitalLibraryProductContract: DigitalLibraryProduct = {
+  ...digitalLibraryItemContract,
+  blocks: [],
+  classifications: [],
+  asset_ids: digitalProductContract.asset_ids,
+};
+const createDigitalProductContract: CreateDigitalProductParams = {
+  key: digitalProductContract.key,
+  slugs: digitalProductContract.slugs,
+  blocks: [],
+  classifications: [],
+  prices: [digitalPrice],
+  asset_ids: digitalProductContract.asset_ids,
+  status: "draft",
+};
+const updateDigitalProductContract: UpdateDigitalProductParams = {
+  digital_product_id: digitalProductContract.id,
+  slugs: { en: "digital-product-updated" },
+  prices: [digitalPrice],
+  status: "archived",
+};
+const findDigitalProductsContract: FindDigitalProductsParams = {
+  ids: [digitalProductContract.id],
+  classification_query: [
+    {
+      classification_id: "classification-contract",
+      query: [{ type: "boolean", key: "featured", value: true }],
+    },
+  ],
+  match_all: true,
+  status: "active",
+  query: 25,
+  limit: 20,
+  cursor: "cursor-contract",
+  sort_field: "price",
+  sort_direction: "asc",
+  created_at_from: 1,
+  created_at_to: 2,
+};
+const digitalProductLookupContract: GetStorefrontDigitalProductParams = {
+  identifier: digitalProductContract.key,
+};
+const digitalLibraryLookupContract: GetDigitalLibraryProductParams = {
+  digital_product_id: digitalProductContract.id,
+};
+const cartDigitalProductContract: CartDigitalProduct = {
+  id: "cart-digital-contract",
+  digital_product_id: digitalProductContract.id,
+  price: digitalPrice,
+};
+const orderDigitalProductSnapshotContract: OrderDigitalProductSnapshot = {
+  product_key: digitalProductContract.key,
+  price: digitalPrice,
+};
+const digitalProductStatusContract: DigitalProductStatus =
+  digitalProductContract.status;
+// @ts-expect-error Digital Product localized records use slugs.
+digitalProductContract.slug;
+// @ts-expect-error Digital Product create input has no singular localized map.
+type LegacyDigitalProductCreateSlug = CreateDigitalProductParams["slug"];
+// @ts-expect-error Digital Product update input has no singular localized map.
+type LegacyDigitalProductUpdateSlug = UpdateDigitalProductParams["slug"];
+// @ts-expect-error Storefront Digital Product lookup uses the server route identifier.
+const legacyDigitalProductLookup: GetStorefrontDigitalProductParams = { id: digitalProductContract.id };
+// @ts-expect-error Library routes require a Digital Product ID.
+const invalidDigitalLibraryLookup: GetDigitalLibraryProductParams = { identifier: digitalProductContract.key };
+// @ts-expect-error Digital Product status is draft, active, or archived.
+const invalidDigitalProductStatus: DigitalProductStatus = "enabled";
+void storefrontDigitalProductContract;
+void digitalLibraryProductContract;
+void createDigitalProductContract;
+void updateDigitalProductContract;
+void findDigitalProductsContract;
+void digitalProductLookupContract;
+void digitalLibraryLookupContract;
+void cartDigitalProductContract;
+void orderDigitalProductSnapshotContract;
+void digitalProductStatusContract;
+void legacyDigitalProductLookup;
+void invalidDigitalLibraryLookup;
+void invalidDigitalProductStatus;
 declare const mailbox: Mailbox;
 if (mailbox.provider.type === "smtp_imap") {
   const hasCredential: boolean = mailbox.provider.password_configured;

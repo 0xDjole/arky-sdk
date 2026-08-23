@@ -184,15 +184,8 @@ export interface Price {
   currency: Currency;
   market: string;
   amount: number;
-  compare_at?: number;
-  audience_id?: string;
-}
-
-export interface DigitalPrice {
-  currency: Currency;
-  market: string;
-  amount: number;
-  compare_at?: number;
+  compare_at?: number | null;
+  audience_id?: string | null;
 }
 
 export type IntervalPeriod = "month" | "year";
@@ -317,7 +310,7 @@ export interface CartBooking {
 export interface CartDigitalProduct {
   id: string;
   digital_product_id: string;
-  price?: DigitalPrice | null;
+  price?: Price | null;
 }
 
 export interface SocialConnectionCredential {
@@ -841,7 +834,7 @@ export interface BookingReminderScheduleItem {
 
 export interface OrderDigitalProductSnapshot {
   product_key: string;
-  price: DigitalPrice;
+  price: Price;
 }
 
 export interface DiscountAllocation {
@@ -1030,19 +1023,19 @@ export interface Order {
   updated_at: number;
 }
 
-export type DigitalCatalogStatus = "draft" | "active" | "archived";
+export type DigitalProductStatus = "draft" | "active" | "archived";
 export type DigitalAssetStatus = "active" | "archived";
 
 export interface DigitalProduct {
   id: string;
   store_id: string;
   key: string;
-  slug: Record<string, string>;
+  slugs: Record<string, string>;
   blocks: Block[];
   classifications: ClassificationEntry[];
-  prices: DigitalPrice[];
+  prices: Price[];
   asset_ids: string[];
-  status: DigitalCatalogStatus;
+  status: DigitalProductStatus;
   created_at: number;
   updated_at: number;
 }
@@ -1050,10 +1043,10 @@ export interface DigitalProduct {
 export interface StorefrontDigitalProduct {
   id: string;
   key: string;
-  slug: Record<string, string>;
+  slugs: Record<string, string>;
   blocks: Block[];
   classifications: ClassificationEntry[];
-  prices: DigitalPrice[];
+  prices: Price[];
 }
 
 export interface DigitalAsset {
@@ -1075,13 +1068,13 @@ export interface DigitalLibraryAsset {
 export interface DigitalLibraryItem {
   digital_product_id: string;
   product_key: string;
-  slug: Record<string, string>;
+  slugs: Record<string, string>;
 }
 
 export interface DigitalLibraryProduct {
   digital_product_id: string;
   product_key: string;
-  slug: Record<string, string>;
+  slugs: Record<string, string>;
   blocks: Block[];
   classifications: ClassificationEntry[];
   asset_ids: string[];
