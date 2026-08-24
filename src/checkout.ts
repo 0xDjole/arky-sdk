@@ -3,12 +3,23 @@ import {
   type StripeEmbeddedCheckout,
   type StripeEmbeddedCheckoutOptions,
 } from "@stripe/stripe-js";
-import type { CheckoutPaymentAction } from "./types";
+import type {
+  CheckoutPaymentAction,
+  StoreSubscriptionCheckoutAction,
+} from "./types";
 
 export type StripeEmbeddedCheckoutAction = Extract<
   CheckoutPaymentAction,
   { type: "stripe_embedded_checkout" }
->;
+> |
+  Extract<
+    StoreSubscriptionCheckoutAction,
+    { type: "stripe_embedded_checkout" }
+  >;
+
+export type EmbeddedCheckoutAction =
+  | CheckoutPaymentAction
+  | StoreSubscriptionCheckoutAction;
 
 export interface EmbeddedCheckoutMount {
   checkout: StripeEmbeddedCheckout;
@@ -24,11 +35,13 @@ export async function createStripeEmbeddedCheckout(
   action: StripeEmbeddedCheckoutAction,
   callbacks: EmbeddedCheckoutCallbacks = {},
 ): Promise<StripeEmbeddedCheckout> {
+  const stripeAccount =
+    "connected_account_id" in action
+      ? action.connected_account_id
+      : action.stripe_account_id;
   const stripe = await loadStripe(
     action.publishable_key,
-    action.stripe_account_id
-      ? { stripeAccount: action.stripe_account_id }
-      : undefined,
+    stripeAccount ? { stripeAccount } : undefined,
   );
   if (!stripe) {
     throw new Error("Stripe.js could not be loaded");
@@ -40,7 +53,7 @@ export async function createStripeEmbeddedCheckout(
 }
 
 export async function mountCheckoutAction(
-  action: CheckoutPaymentAction,
+  action: EmbeddedCheckoutAction,
   location: string | HTMLElement,
   callbacks: EmbeddedCheckoutCallbacks = {},
 ): Promise<EmbeddedCheckoutMount | null> {

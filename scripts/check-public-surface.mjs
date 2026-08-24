@@ -132,6 +132,27 @@ const removedIdentifiers = [
   "COMMON_ACTION_KEYS",
   "UpdateFormSubmissionParams",
   "updateSubmission",
+  "CartProduct",
+  "CartBooking",
+  "CartDigitalProduct",
+  "CartDigitalProductInput",
+  "TrustedCartDigitalProductInput",
+  "OrderProduct",
+  "OrderDigitalProduct",
+  "OrderDigitalProductSnapshot",
+  "OrderProductStatus",
+  "OrderProductFulfillmentStatus",
+  "OrderFulfillmentStatus",
+  "OrderFulfillmentSummary",
+  "ShippingLine",
+  "OrderTaxSnapshot",
+  "OrderTaxLine",
+  "OrderTaxScope",
+  "CancelOrderProductParams",
+  "AudiencePromotionUsageStatus",
+  "getOrderProducts",
+  "getOrderDigitalProducts",
+  "cancelOrderProduct",
 ];
 
 const removedIdentifierPattern = new RegExp(
@@ -195,6 +216,16 @@ const removedCrmActionVocabularyPattern =
   /\b(?:has_action|goal_action_key|action_id|opportunity_action_id|action_by_country|top_action_pages|recent_action)\b|\/actions\b|["']actions["']|\b(?:crmApi|storefrontApi|client)\.action\b/g;
 const removedActivityMutationPattern =
   /export interface Activity\s*\{[^}]*\bupdated_at\??:/g;
+const removedCartOrderContractPatterns = [
+  /export interface Cart\s*\{[^}]*\bforms\??:/g,
+  /export interface Order\s*\{[^}]*\b(?:version|verified|forms|fulfillment_status|fulfillment_summary)\??:/g,
+  /export interface AudiencePromotionSnapshot\s*\{[^}]*\busage_status\??:/g,
+  /export type CheckoutPaymentAction\s*=[\s\S]*?\bstripe_account_id\??:[\s\S]*?(?=\nexport\s)/g,
+  /["']order_product\./g,
+  /["']order_digital_product\./g,
+  /\/orders\/\$\{params\.order_id\}\/products(?:\/|`)/g,
+  /\/orders\/\$\{params\.order_id\}\/digital-products(?:\/|`)/g,
+];
 const exportedDeclarationPattern =
   /\bexport\s+(?:declare\s+)?(?:type|interface|class|enum|function|const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\b/g;
 
@@ -329,6 +360,13 @@ for (const file of listTypeScriptFiles(sourceDir)) {
     failures++;
   }
 
+  for (const pattern of removedCartOrderContractPatterns) {
+    for (const match of source.matchAll(pattern)) {
+      report(file, source, match.index, "removed Cart/Order checkout contract");
+      failures++;
+    }
+  }
+
   for (const match of source.matchAll(exportedDeclarationPattern)) {
     const name = match[1];
     if (!/\d$/.test(name)) continue;
@@ -351,6 +389,60 @@ if (
     activityTypesSource,
     activityContract?.index ?? 0,
     "Activity must expose required canonical_contact_id",
+  );
+  failures++;
+}
+
+const checkoutPaymentActionContract = activityTypesSource.match(
+  /export type CheckoutPaymentAction\s*=([\s\S]*?)(?=\nexport\s)/,
+);
+if (
+  !checkoutPaymentActionContract ||
+  !/\n\s*connected_account_id:\s*string;/.test(
+    checkoutPaymentActionContract[1],
+  )
+) {
+  report(
+    activityTypesFile,
+    activityTypesSource,
+    checkoutPaymentActionContract?.index ?? 0,
+    "Stripe CheckoutPaymentAction must require connected_account_id",
+  );
+  failures++;
+}
+
+const storeSubscriptionCheckoutActionContract = activityTypesSource.match(
+  /export type StoreSubscriptionCheckoutAction\s*=([\s\S]*?)(?=\nexport\s)/,
+);
+if (
+  !storeSubscriptionCheckoutActionContract ||
+  !/\n\s*stripe_account_id:\s*string\s*\|\s*null;/.test(
+    storeSubscriptionCheckoutActionContract[1],
+  )
+) {
+  report(
+    activityTypesFile,
+    activityTypesSource,
+    storeSubscriptionCheckoutActionContract?.index ?? 0,
+    "Store subscription Checkout action must retain nullable stripe_account_id",
+  );
+  failures++;
+}
+
+const storeSubscriptionContract = activityTypesSource.match(
+  /export interface StoreSubscription\s*\{([\s\S]*?)\n\}/,
+);
+if (
+  !storeSubscriptionContract ||
+  !/\n\s*payment_action:\s*StoreSubscriptionCheckoutAction;/.test(
+    storeSubscriptionContract[1],
+  )
+) {
+  report(
+    activityTypesFile,
+    activityTypesSource,
+    storeSubscriptionContract?.index ?? 0,
+    "StoreSubscription must use its distinct Checkout action",
   );
   failures++;
 }

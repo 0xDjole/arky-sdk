@@ -24,11 +24,10 @@ import type {
   Address,
   Block,
   Cart,
-  CartDigitalProduct,
+  CartDigitalItem,
   EshopCartItem,
   CollectionEntry,
   Form,
-  FormEntry,
   FormSubmission,
   OrderCheckoutResult,
   OrderQuote,
@@ -58,7 +57,7 @@ import type {
   GetBookingServiceParams,
   FindBookingServicesParams,
   CartProductInput,
-  CartDigitalProductInput,
+  CartDigitalItemInput,
   RequestOptions,
   CartBookingInput,
   SubmitFormParams,
@@ -112,7 +111,7 @@ interface CheckoutContext {
   request: StorefrontCheckoutRequest;
   product_items: EshopCartItem[];
   booking_items: ArkyBookingCartItem[];
-  digital_items: CartDigitalProduct[];
+  digital_items: CartDigitalItem[];
   shipping_address: Address | null;
   billing_address: Address | null;
   payment_provider_id: string | null;
@@ -146,7 +145,7 @@ function initializeStoreCore(
   const cart = atom<StorefrontCart | null>(null);
   const product_items = atom<EshopCartItem[]>([]);
   const booking_items = atom<ArkyBookingCartItem[]>([]);
-  const digital_items = atom<CartDigitalProduct[]>([]);
+  const digital_items = atom<CartDigitalItem[]>([]);
   const quote = atom<StorefrontOrderQuote | null>(null);
   const promo_code = atom<string | null>(null);
   const last_order = atom<ArkyLastOrder | null>(null);
@@ -419,6 +418,7 @@ function initializeStoreCore(
           market.get()?.currency,
         ),
         quantity: item.quantity,
+        form_submission_id: item.form_submission_id ?? null,
         added_at: source.created_at ? source.created_at * 1000 : Date.now(),
         max_stock: freeToSellStock(client, inventory, variant.id),
       };
@@ -492,10 +492,13 @@ function initializeStoreCore(
 
   function checkoutDigitalProducts(
     input: ArkyCartInput = {},
-  ): CartDigitalProductInput[] {
+  ): CartDigitalItemInput[] {
     return (input.digital_items || digital_items.get()).map((item) => ({
       ...(item.id ? { id: item.id } : {}),
       digital_product_id: item.digital_product_id,
+      ...(item.form_submission_id
+        ? { form_submission_id: item.form_submission_id }
+        : {}),
     }));
   }
 
@@ -514,7 +517,6 @@ function initializeStoreCore(
         digital_items: checkoutDigitalProducts(input),
         shipping_address: input.shipping_address,
         billing_address: input.billing_address,
-        forms: input.forms,
         promo_code:
           input.promo_code === null
             ? ""
@@ -1316,7 +1318,6 @@ function initializeStoreCore(
 
     async checkout(
       paymentProviderId?: string,
-      forms: FormEntry[] = [],
     ): Promise<StorefrontOrderCheckoutResult> {
       const state = booking_service_state.get();
       const items = booking_items.get();
@@ -1327,7 +1328,6 @@ function initializeStoreCore(
           booking_items: items,
           payment_provider_id: paymentProviderId,
           promo_code: state.promoCode || undefined,
-          forms,
         });
         booking_service_state.setKey("cartId", cart.get()?.id || null);
         return result;

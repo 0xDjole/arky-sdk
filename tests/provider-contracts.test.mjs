@@ -377,10 +377,11 @@ test("Order quote allocations preserve embedded PromotionDiscount provenance and
         money: lineMoney,
         snapshot: {
           product_key: "product-contract",
+          variant_sku: null,
           variant_attributes: [],
-          requires_shipping: true,
-          weight: 100,
           price: { amount: 2_000, currency: "usd", market: "us" },
+          requires_shipping: true,
+          weight_grams: 100,
         },
       },
     ],
@@ -403,12 +404,15 @@ test("Order quote allocations preserve embedded PromotionDiscount provenance and
       subtotal: 2_000,
       shipping: 400,
       discount: 350,
+      tax_total: 0,
       total: 2_150,
       promo_code: { id: "promo-contract", code: "SAVE10" },
+      zone_id: null,
+      shipping_method_id: "shipping-method-contract",
     },
   };
   const { result } = await captureFetch(quote, () =>
-    admin().eshop.order.getQuote({}),
+    admin().eshop.order.getQuote({ market: "us" }),
   );
 
   assert.equal(

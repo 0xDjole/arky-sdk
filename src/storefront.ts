@@ -14,6 +14,7 @@ export {
 export { createStripeEmbeddedCheckout, mountCheckoutAction } from "./checkout";
 export type {
   EmbeddedCheckoutCallbacks,
+  EmbeddedCheckoutAction,
   EmbeddedCheckoutMount,
   StripeEmbeddedCheckoutAction,
 } from "./checkout";

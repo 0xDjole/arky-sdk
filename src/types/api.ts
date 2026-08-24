@@ -35,7 +35,6 @@ import type {
   ClassificationStatus,
   FormSchema,
   FormField,
-  FormEntry,
   ClassificationSchema,
   Price,
   ServiceDuration,
@@ -130,25 +129,28 @@ export interface CartProductInput {
   product_id: string;
   variant_id: string;
   quantity: number;
+  form_submission_id?: string | null;
 }
 
 export interface ProductQuoteInput {
   product_id: string;
   variant_id: string;
   quantity: number;
-  price?: Price;
+  form_submission_id?: string | null;
+  price?: Price | null;
 }
 
 export interface BookingQuoteInput {
   booking_offering_id: string;
   requested_interval: TimeRange;
   form_submission_id?: string | null;
-  price_override?: Price;
+  price_override?: Price | null;
 }
 
 export interface DigitalProductQuoteInput {
   digital_product_id: string;
-  price?: import("./index").Price;
+  form_submission_id?: string | null;
+  price_override?: Price | null;
 }
 
 export interface CartBookingInput {
@@ -158,35 +160,36 @@ export interface CartBookingInput {
   form_submission_id?: string | null;
 }
 
-export interface CartDigitalProductInput {
+export interface CartDigitalItemInput {
   id?: string;
   digital_product_id: string;
+  form_submission_id?: string | null;
 }
 
 export interface TrustedCartProductInput extends CartProductInput {
-  price?: Price;
+  price_override?: Price | null;
 }
 
 export interface TrustedCartBookingInput extends CartBookingInput {
-  price_override?: Price;
+  price_override?: Price | null;
 }
 
-export interface TrustedCartDigitalProductInput extends CartDigitalProductInput {
-  price?: import("./index").Price;
+export interface TrustedCartDigitalItemInput extends CartDigitalItemInput {
+  price_override?: Price | null;
 }
 
 export interface GetQuoteParams {
   store_id?: string;
-  market?: string;
+  market: string;
   products?: ProductQuoteInput[];
   bookings?: BookingQuoteInput[];
   digital?: DigitalProductQuoteInput[];
-  shipping_address?: Address;
-  billing_address?: Address;
-  forms?: FormEntry[];
+  shipping_address?: Address | null;
+  billing_address?: Address | null;
   payment_provider_id?: string;
   promo_code?: string;
   shipping_method_id?: string;
+  contact_id?: string;
 }
 
 export interface GetCurrentCartParams {
@@ -216,10 +219,9 @@ export interface CreateCartParams {
   market: string;
   product_items?: TrustedCartProductInput[];
   booking_items?: TrustedCartBookingInput[];
-  digital_items?: TrustedCartDigitalProductInput[];
+  digital_items?: TrustedCartDigitalItemInput[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
-  forms?: FormEntry[];
   promo_code?: string | null;
   payment_provider_id?: string | null;
   shipping_method_id?: string | null;
@@ -229,12 +231,11 @@ export interface UpdateCartParams {
   id: string;
   store_id?: string;
   market?: string;
-  product_items?: CartProductInput[];
-  booking_items?: CartBookingInput[];
-  digital_items?: CartDigitalProductInput[];
+  product_items?: TrustedCartProductInput[];
+  booking_items?: TrustedCartBookingInput[];
+  digital_items?: TrustedCartDigitalItemInput[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
-  forms?: FormEntry[];
   promo_code?: string;
   payment_provider_id?: string;
   shipping_method_id?: string;
@@ -243,19 +244,19 @@ export interface UpdateCartParams {
 export interface AddCartProductParams {
   id: string;
   store_id?: string;
-  product: CartProductInput;
+  product: TrustedCartProductInput;
 }
 
 export interface AddCartBookingParams {
   id: string;
   store_id?: string;
-  booking: CartBookingInput;
+  booking: TrustedCartBookingInput;
 }
 
 export interface AddCartDigitalProductParams {
   id: string;
   store_id?: string;
-  digital: CartDigitalProductInput;
+  digital: TrustedCartDigitalItemInput;
 }
 
 export type RemoveCartItemParams = {
@@ -743,7 +744,7 @@ export interface GetOrdersParams {
   booking_resource_ids?: string[];
   from?: number;
   to?: number;
-  verified?: boolean;
+  contact_verified_at_checkout?: boolean;
 
   query?: string | number | null;
   limit?: number | null;
@@ -757,24 +758,19 @@ export interface GetOrdersParams {
 
 export interface UpdateOrderParams {
   id: string;
-  version: number;
   store_id?: string;
   confirm?: boolean;
   cancel?: boolean;
-
   shipping_address?: Address | null;
-
   billing_address?: Address | null;
-  forms?: FormEntry[];
   product_items?: TrustedCartProductInput[];
   booking_items?: TrustedCartBookingInput[];
 }
 
-export interface CancelOrderProductParams {
+export interface CancelOrderProductItemParams {
   store_id?: string;
   order_id: string;
-  order_product_id: string;
-  version: number;
+  order_product_item_id: string;
   quantity: number;
 }
 

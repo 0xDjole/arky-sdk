@@ -10,11 +10,11 @@ npm install arky-sdk
 
 ## Storefront quick start
 
-The current browser contract is `arky-sdk@0.25.0`. Pin that exact version during the coordinated
+The current browser contract is `arky-sdk@0.26.0`. Pin that exact version during the coordinated
 prelaunch cutover so the Server, App, and storefront route/header contracts move together:
 
 ```bash
-npm install --save-exact arky-sdk@0.25.0
+npm install --save-exact arky-sdk@0.26.0
 ```
 
 Copy the Store publishable key from Developer and initialize one client:
@@ -126,6 +126,14 @@ const order = await arky.eshop.cart.checkout({
 });
 ```
 
+Cart responses expose the three canonical embedded collections: `product_items`,
+`booking_items`, and `digital_items`. A Form submission belongs to the individual item through
+`form_submission_id`; Cart requests and responses no longer carry one cart-wide `forms` array.
+Low-level quote calls use `ProductQuoteInput`, `BookingQuoteInput`, and
+`DigitalProductQuoteInput`, while Cart mutations use `CartProductInput`, `CartBookingInput`, and
+`CartDigitalItemInput`. Trusted Admin mutations accept the corresponding `TrustedCart*` inputs
+with `price_override`.
+
 Product variants expose optional `weight_grams`. Inventory is a separate resource keyed by
 `product_id`, `variant_id`, and `store_location_id`; it persists `on_hand` and `reserved`, while
 free-to-sell stock is always derived as `on_hand - reserved`.
@@ -162,8 +170,10 @@ const submission = await arky.cms.form.submitByKey({
 await arky.eshop.bookingService.addToCart(undefined, submission.id);
 ```
 
-Completed Orders expose bookings directly as `order.booking_items`. There is no standalone Booking
-or OrderBooking SDK resource.
+Completed Orders embed `product_items`, `booking_items`, and `digital_items`; the child item
+snapshots, money, status, Form submission ID, and timestamps arrive with the Order. Product items
+also expose their inventory allocations. There are no separate Order product, digital, Booking, or
+OrderBooking read resources.
 
 Nano Stores expose reactive module state:
 
@@ -228,6 +238,10 @@ const mounted = await mountCheckoutAction(result.payment_action, "#payment", {
 
 // Call mounted?.destroy() when the checkout view is disposed.
 ```
+
+Purchase and paid Audience actions include a required `connected_account_id`. Store subscription
+selection uses its separate checkout-action contract with nullable `stripe_account_id`;
+`mountCheckoutAction` accepts either action without changing either wire shape.
 
 Embedded Checkout completion and a browser return are navigation signals only. Authoritative Arky
 state, advanced by a signed Stripe event or an exact provider read, settles the payment.
@@ -438,6 +452,16 @@ Refund reads expose typed provider evidence, one `money` value, and canonical pr
 digital, shipping, or adjustment allocations. Payment disputes are read-only Stripe facts available
 through `admin.eshop.order.getDisputes` and `admin.eshop.order.getDispute`; their public provider
 evidence contains only `dispute_id` and `charge_id`.
+
+To cancel part of an embedded product item, address its canonical item ID directly:
+
+```typescript
+await admin.eshop.order.cancelProductItem({
+  order_id: "order-id",
+  order_product_item_id: "order-product-item-id",
+  quantity: 1,
+});
+```
 
 ## Fulfillment and shipping labels
 

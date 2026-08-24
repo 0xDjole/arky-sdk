@@ -45,22 +45,6 @@ export interface Money {
 
 export type TaxMode = "exclusive" | "inclusive";
 
-export interface OrderTaxSnapshot {
-  amount: number;
-  mode: TaxMode;
-  rate_bps: number;
-  lines: OrderTaxLine[];
-}
-
-export interface OrderTaxLine {
-  rate_bps: number;
-  amount: number;
-  label: string;
-  scope: OrderTaxScope;
-}
-
-export type OrderTaxScope = "items" | "shipping";
-
 export interface OrderPromoCodeSnapshot {
   id: string;
   code: string;
@@ -206,18 +190,18 @@ export interface OrderMoney {
   subtotal: number;
   shipping: number;
   discount: number;
+  tax_total: number;
   total: number;
-  tax?: OrderTaxSnapshot | null;
-  promo_code?: OrderPromoCodeSnapshot | null;
-  zone_id?: string | null;
-  shipping_method_id?: string | null;
+  promo_code: OrderPromoCodeSnapshot | null;
+  zone_id: string | null;
+  shipping_method_id: string | null;
 }
 
 export interface OrderQuote {
   product_lines: ProductQuoteLine[];
   booking_lines: BookingQuoteLine[];
   digital_lines: DigitalProductQuoteLine[];
-  shipping_lines: ShippingLine[];
+  shipping_lines: OrderShippingLine[];
   shipping_methods: ShippingMethod[];
   payment_provider_id: string;
   payment_provider_ids: string[];
@@ -302,6 +286,7 @@ export interface EshopCartItem {
   requires_shipping: boolean;
   price: Price;
   quantity: number;
+  form_submission_id?: string | null;
   added_at: number;
   max_stock?: number;
 }
@@ -316,45 +301,46 @@ export interface Cart {
   token: string;
   status: CartStatus;
   origin: CartOrigin;
-  created_by_account_id?: string | null;
+  created_by_account_id: string | null;
   market: string;
-  product_items: CartProduct[];
-  booking_items: CartBooking[];
-  digital_items: CartDigitalProduct[];
-  shipping_address?: Address | null;
-  billing_address?: Address | null;
-  forms: FormEntry[];
-  promo_code?: string | null;
-  payment_provider_id?: string | null;
-  shipping_method_id?: string | null;
-  converted_order_id?: string | null;
+  product_items: CartProductItem[];
+  booking_items: CartBookingItem[];
+  digital_items: CartDigitalItem[];
+  shipping_address: Address | null;
+  billing_address: Address | null;
+  promo_code: string | null;
+  payment_provider_id: string | null;
+  shipping_method_id: string | null;
+  converted_order_id: string | null;
   item_count: number;
   last_action_at: number;
-  abandoned_at?: number | null;
+  abandoned_at: number | null;
   created_at: number;
   updated_at: number;
 }
 
-export interface CartProduct {
+export interface CartProductItem {
   id: string;
   product_id: string;
   variant_id: string;
   quantity: number;
-  price?: Price | null;
+  form_submission_id: string | null;
+  price_override: Price | null;
 }
 
-export interface CartBooking {
+export interface CartBookingItem {
   id: string;
   booking_offering_id: string;
   requested_interval: TimeRange;
-  form_submission_id?: string | null;
-  price_override?: Price | null;
+  form_submission_id: string | null;
+  price_override: Price | null;
 }
 
-export interface CartDigitalProduct {
+export interface CartDigitalItem {
   id: string;
   digital_product_id: string;
-  price?: Price | null;
+  form_submission_id: string | null;
+  price_override: Price | null;
 }
 
 export interface SocialConnectionCredential {
@@ -856,11 +842,11 @@ export interface GalleryItem {
 
 export interface OrderProductSnapshot {
   product_key: string;
-  variant_sku?: string;
+  variant_sku: string | null;
   variant_attributes: Block[];
-  requires_shipping: boolean;
-  weight?: number | null;
   price: Price;
+  requires_shipping: boolean;
+  weight_grams: number | null;
 }
 
 export interface OrderBookingSnapshot {
@@ -873,10 +859,10 @@ export interface OrderBookingSnapshot {
 export interface BookingReminderScheduleItem {
   offset_minutes: number;
   due_at: number;
-  emitted_at?: number | null;
+  emitted_at: number | null;
 }
 
-export interface OrderDigitalProductSnapshot {
+export interface OrderDigitalSnapshot {
   product_key: string;
   price: Price;
 }
@@ -908,10 +894,7 @@ export interface LineMoneySnapshot {
   total: number;
 }
 
-export type OrderProductFulfillmentStatus =
-  "unfulfilled" | "partially_fulfilled" | "fulfilled" | "not_required";
-
-export type OrderProductStatus =
+export type OrderItemStatus =
   | { status: "pending"; expires_at: number }
   | { status: "confirmed" }
   | { status: "cancelled"; reason: OrderCancellationReason };
@@ -948,23 +931,27 @@ export interface BookingQuoteLine {
 export interface DigitalProductQuoteLine {
   digital_product_id: string;
   money: LineMoneySnapshot;
-  snapshot: OrderDigitalProductSnapshot;
+  snapshot: OrderDigitalSnapshot;
 }
 
-export interface OrderProduct {
+export interface OrderProductInventoryAllocation {
+  store_location_id: string;
+  quantity: number;
+  cancelled_quantity: number;
+}
+
+export interface OrderProductItem {
   id: string;
-  version: number;
   product_id: string;
   variant_id: string;
   quantity: number;
-  cancelled_quantity: number;
-  allocated_quantity: number;
-  fulfilled_quantity: number;
-  location_id?: string;
+  inventory_allocations: OrderProductInventoryAllocation[];
+  form_submission_id: string | null;
   snapshot: OrderProductSnapshot;
-  status: OrderProductStatus;
-  fulfillment_status: OrderProductFulfillmentStatus;
+  status: OrderItemStatus;
   money: LineMoneySnapshot;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface OrderBookingItem {
@@ -974,7 +961,7 @@ export interface OrderBookingItem {
   booking_resource_id: string;
   interval: TimeRange;
   capacity_intervals: TimeRange[];
-  form_submission_id?: string | null;
+  form_submission_id: string | null;
   reminders: BookingReminderScheduleItem[];
   snapshot: OrderBookingSnapshot;
   status: OrderBookingStatus;
@@ -983,39 +970,20 @@ export interface OrderBookingItem {
   updated_at: number;
 }
 
-export interface OrderDigitalProduct {
+export interface OrderDigitalItem {
   id: string;
-  version: number;
-  store_id: string;
-  order_id: string;
-  contact_id: string;
   digital_product_id: string;
-  snapshot: OrderDigitalProductSnapshot;
-  status: OrderProductStatus;
+  form_submission_id: string | null;
+  snapshot: OrderDigitalSnapshot;
+  status: OrderItemStatus;
   money: LineMoneySnapshot;
   created_at: number;
   updated_at: number;
 }
 
-export type OrderFulfillmentStatus =
-  | "unfulfilled"
-  | "in_progress"
-  | "partially_fulfilled"
-  | "fulfilled"
-  | "not_required";
-
-export interface OrderFulfillmentSummary {
-  status: OrderFulfillmentStatus;
-  required_quantity: number;
-  allocated_quantity: number;
-  fulfilled_quantity: number;
-  open_order_count: number;
-  updated_at: number;
-}
-
-export interface ShippingLine {
+export interface OrderShippingLine {
   id: string;
-  shipping_method_id?: string | null;
+  shipping_method_id: string;
   title: string;
   money: LineMoneySnapshot;
 }
@@ -1045,22 +1013,20 @@ export interface FulfillmentOrder {
 
 export interface Order {
   id: string;
-  version: number;
   number: string;
   store_id: string;
   source_cart_id: string;
   contact_id: string;
   status: OrderStatus;
-  fulfillment_status: OrderFulfillmentStatus;
-  verified: boolean;
+  contact_verified_at_checkout: boolean;
   payment_id: string | null;
+  product_items: OrderProductItem[];
   booking_items: OrderBookingItem[];
+  digital_items: OrderDigitalItem[];
   money: OrderMoney;
-  fulfillment_summary: OrderFulfillmentSummary;
-  shipping_lines: ShippingLine[];
-  shipping_address?: Address;
-  billing_address?: Address;
-  forms: FormEntry[];
+  shipping_lines: OrderShippingLine[];
+  shipping_address: Address | null;
+  billing_address: Address | null;
   created_at: number;
   updated_at: number;
 }
@@ -1142,6 +1108,16 @@ export type CheckoutPaymentAction =
       type: "stripe_embedded_checkout";
       publishable_key: string;
       client_secret: string;
+      connected_account_id: string;
+      expires_at: number;
+    };
+
+export type StoreSubscriptionCheckoutAction =
+  | { type: "none" }
+  | {
+      type: "stripe_embedded_checkout";
+      publishable_key: string;
+      client_secret: string;
       stripe_account_id: string | null;
       expires_at: number;
     };
@@ -1188,11 +1164,10 @@ export type WebhookEventSubscription =
   | { event: "order.payment_failed" }
   | { event: "order.refunded" }
   | { event: "order.cancelled" }
-  | { event: "order_product.created" }
-  | { event: "order_product.updated" }
-  | { event: "order_product.confirmed" }
-  | { event: "order_product.cancelled" }
-  | { event: "order_product.fulfilled" }
+  | { event: "order_product_item.created" }
+  | { event: "order_product_item.updated" }
+  | { event: "order_product_item.confirmed" }
+  | { event: "order_product_item.cancelled" }
   | { event: "order_booking_item.created" }
   | { event: "order_booking_item.updated" }
   | { event: "order_booking_item.confirmed" }
@@ -1200,6 +1175,10 @@ export type WebhookEventSubscription =
   | { event: "order_booking_item.no_show" }
   | { event: "order_booking_item.cancelled" }
   | { event: "order_booking_item.reminder" }
+  | { event: "order_digital_item.created" }
+  | { event: "order_digital_item.updated" }
+  | { event: "order_digital_item.confirmed" }
+  | { event: "order_digital_item.cancelled" }
   | { event: "order.shipment_created" }
   | { event: "order.shipment_in_transit" }
   | { event: "order.shipment_out_for_delivery" }
@@ -1221,6 +1200,7 @@ export type WebhookEventSubscription =
   | { event: "booking_service.updated" }
   | { event: "booking_service.deleted" }
   | { event: "media.created" }
+  | { event: "media.updated" }
   | { event: "media.deleted" }
   | { event: "store.created" }
   | { event: "store.updated" }
@@ -1274,7 +1254,7 @@ export interface StoreSubscription {
   store_id: string;
   plan_access: StorePlanAccess | null;
   status: StoreSubscriptionStatus;
-  payment_action: CheckoutPaymentAction;
+  payment_action: StoreSubscriptionCheckoutAction;
   trial_started_at: number | null;
   created_at: number;
   updated_at: number;
@@ -1296,13 +1276,10 @@ export type AudiencePaymentSafeError =
 
 export type AudiencePaymentType = "initial" | "renewal" | "one_time";
 
-export type AudiencePromotionUsageStatus = "reserved" | "redeemed" | "released";
-
 export interface AudiencePromotionSnapshot {
   promo_code_id: string;
   code: string;
   discount: number;
-  usage_status: AudiencePromotionUsageStatus;
 }
 
 export interface AudiencePayment {

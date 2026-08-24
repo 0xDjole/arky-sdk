@@ -28,7 +28,7 @@ import type {
   GetBookingServiceParams,
   FindBookingServicesParams,
   UpdateOrderParams,
-  CancelOrderProductParams,
+  CancelOrderProductItemParams,
   UpdateBookingResourceParams,
   UpdateBookingServiceParams,
   UpdateBookingOfferingParams,
@@ -60,8 +60,6 @@ import type {
   OrderPayment,
   PaymentDispute,
   RefundStatus,
-  OrderProduct,
-  OrderDigitalProduct,
   Cart,
   PaginatedResponse,
 } from "../types";
@@ -387,7 +385,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: UpdateOrderParams,
       options?: RequestOptions,
     ): Promise<Order> {
-      const { store_id, product_items, booking_items, ...rest } = params;
+      const { id, store_id, product_items, booking_items, ...rest } = params;
       const target_store_id = store_id || apiConfig.storeId;
       const payload = {
         ...rest,
@@ -396,21 +394,21 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       };
 
       return apiConfig.httpClient.put<Order>(
-        `/v1/stores/${target_store_id}/orders/${params.id}`,
+        `/v1/stores/${target_store_id}/orders/${id}`,
         payload,
         options,
       );
     },
 
-    async cancelOrderProduct(
-      params: CancelOrderProductParams,
+    async cancelOrderProductItem(
+      params: CancelOrderProductItemParams,
       options?: RequestOptions,
     ): Promise<Order> {
-      const { store_id, ...payload } = params;
+      const { store_id, order_id, order_product_item_id, quantity } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<Order>(
-        `/v1/stores/${target_store_id}/orders/${params.order_id}/products/${params.order_product_id}/cancel`,
-        payload,
+        `/v1/stores/${target_store_id}/orders/${order_id}/product-items/${order_product_item_id}/cancel`,
+        { quantity },
         options,
       );
     },
@@ -423,28 +421,6 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
 
       return apiConfig.httpClient.get<Order>(
         `/v1/stores/${target_store_id}/orders/${params.id}`,
-        options,
-      );
-    },
-
-    async getOrderProducts(
-      params: GetOrderParams,
-      options?: RequestOptions,
-    ): Promise<OrderProduct[]> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<OrderProduct[]>(
-        `/v1/stores/${target_store_id}/orders/${params.id}/products`,
-        options,
-      );
-    },
-
-    async getOrderDigitalProducts(
-      params: GetOrderParams,
-      options?: RequestOptions,
-    ): Promise<OrderDigitalProduct[]> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<OrderDigitalProduct[]>(
-        `/v1/stores/${target_store_id}/orders/${params.id}/digital-products`,
         options,
       );
     },
@@ -635,7 +611,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
           products: products || [],
           bookings: bookings || [],
           digital: digital || [],
-          market: rest.market || apiConfig.market,
+          market: rest.market,
         },
         options,
       );

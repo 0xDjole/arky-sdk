@@ -63,8 +63,6 @@ import type {
   Order,
   OrderCheckoutResult,
   OrderQuote,
-  OrderProduct,
-  OrderDigitalProduct,
   PaginatedResponse,
   Product,
   ProductInventory,
@@ -658,26 +656,6 @@ export const createStorefrontApi = (
           await lifecycle.ensureVisitorSession();
           return apiConfig.httpClient.get<StorefrontDto<Order>>(
             `${base}/orders/${params.id}`,
-            options,
-          );
-        },
-        async getProducts(
-          params: StorefrontParams<GetOrderParams>,
-          options?: RequestOptions,
-        ): Promise<StorefrontDto<OrderProduct[]>> {
-          await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.get<StorefrontDto<OrderProduct[]>>(
-            `${base}/orders/${params.id}/products`,
-            options,
-          );
-        },
-        async getDigitalProducts(
-          params: StorefrontParams<GetOrderParams>,
-          options?: RequestOptions,
-        ): Promise<StorefrontDto<OrderDigitalProduct[]>> {
-          await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.get<StorefrontDto<OrderDigitalProduct[]>>(
-            `${base}/orders/${params.id}/digital-products`,
             options,
           );
         },

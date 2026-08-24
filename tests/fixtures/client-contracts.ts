@@ -6,6 +6,7 @@ import type {
   AccountSessionStatus,
   AuthToken,
   AudiencePaymentStatus,
+  AudiencePromotionSnapshot,
   AudienceSubscribeResponse,
   AudienceTierPriceInput,
   Block,
@@ -16,7 +17,11 @@ import type {
   ClassificationSchema,
   Contact,
   Cart,
-  CartDigitalProduct,
+  CartBookingItem,
+  CartDigitalItem,
+  CartProductItem,
+  CartDigitalItemInput,
+  CartProductInput,
   CheckoutCartParams,
   CreatePromoCodeParams,
   CreatePromotionDiscountInput,
@@ -55,12 +60,12 @@ import type {
   PromotionCondition,
   PromotionConditionInput,
   PromotionDiscount,
-  OrderDigitalProductSnapshot,
+  OrderDigitalSnapshot,
+  OrderDigitalItem,
+  OrderProductItem,
   OrderPromoCodeSnapshot,
-  OrderTaxLine,
-  OrderTaxScope,
   TaxLine,
-  ShippingLine,
+  OrderShippingLine,
   ShippingLabel,
   ShippingLabelCharge,
   ShippingLabelChargeRefund,
@@ -69,7 +74,6 @@ import type {
   ShippingRate,
   FulfillmentOrder,
   FulfillmentOrderStatus,
-  OrderFulfillmentStatus,
   PaginatedResponse,
   PendingAccountSession,
   Product,
@@ -86,6 +90,9 @@ import type {
   BookingResource,
   BookingService,
   CartBookingInput,
+  TrustedCartBookingInput,
+  TrustedCartDigitalItemInput,
+  TrustedCartProductInput,
   OrderBookingItem,
   TimeRange,
   OrderShipment,
@@ -146,6 +153,11 @@ import type {
   CommonActivityKey,
   CampaignMessageDirection,
   CheckoutPaymentAction,
+  CancelOrderProductItemParams,
+  DigitalProductQuoteInput,
+  GetQuoteParams,
+  ProductQuoteInput,
+  BookingQuoteInput,
   CreateExperimentParams,
   EventAction,
   Experiment,
@@ -153,6 +165,7 @@ import type {
   StorefrontActivity,
   SupportAction,
   TrackActivityParams,
+  WebhookEventSubscription,
 } from "../../dist/index.js";
 // @ts-expect-error CRM customer/business facts use the Activity name exclusively.
 import type { Action, ActionData } from "../../dist/index.js";
@@ -197,6 +210,12 @@ import type {
 } from "../../dist/types.js";
 // @ts-expect-error CRM Activity queries have no Action compatibility alias.
 import type { FindActionsParams } from "../../dist/types.js";
+// @ts-expect-error embedded Cart/Order items use their canonical Item names only.
+import type { CartDigitalProduct, OrderDigitalProduct, OrderProduct } from "../../dist/index.js";
+// @ts-expect-error Order product cancellation addresses an embedded product item.
+import type { CancelOrderProductParams } from "../../dist/index.js";
+// @ts-expect-error Audience promotion snapshots no longer expose mutable usage state.
+import type { AudiencePromotionUsageStatus } from "../../dist/index.js";
 import { createAdmin, SDK_VERSION } from "../../dist/index.js";
 import {
   COMMON_ACTIVITY_KEYS,
@@ -205,6 +224,7 @@ import {
   type FormField,
   type FormSchema,
   type FormValues,
+  type EmbeddedCheckoutAction as StorefrontEmbeddedCheckoutAction,
   type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
 } from "../../dist/storefront.js";
 // @ts-expect-error storefront tracking uses Activity type names exclusively.
@@ -212,7 +232,7 @@ import type { CommonActionKey, StorefrontAction, TrackActionParams } from "../..
 // @ts-expect-error storefront Activity keys have no Action compatibility alias.
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.25.0" = SDK_VERSION;
+const sdkVersionLiteral: "0.26.0" = SDK_VERSION;
 const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
 const bookingServiceFeature: SubscriptionPlanFeatureType = "booking_services";
 const bookingResourceFeature: SubscriptionPlanFeatureType = "booking_resources";
@@ -955,14 +975,61 @@ const digitalProductLookupContract: GetStorefrontDigitalProductParams = {
 const digitalLibraryLookupContract: GetDigitalLibraryProductParams = {
   digital_product_id: digitalProductContract.id,
 };
-const cartDigitalProductContract: CartDigitalProduct = {
+const cartDigitalItemContract: CartDigitalItem = {
   id: "cart-digital-contract",
   digital_product_id: digitalProductContract.id,
-  price: digitalPrice,
+  form_submission_id: null,
+  price_override: digitalPrice,
 };
-const orderDigitalProductSnapshotContract: OrderDigitalProductSnapshot = {
+const orderDigitalSnapshotContract: OrderDigitalSnapshot = {
   product_key: digitalProductContract.key,
   price: digitalPrice,
+};
+const productQuoteInputContract: ProductQuoteInput = {
+  product_id: "product-contract",
+  variant_id: "variant-contract",
+  quantity: 1,
+  form_submission_id: "form-submission-product-contract",
+  price: digitalPrice,
+};
+const bookingQuoteInputContract: BookingQuoteInput = {
+  booking_offering_id: "booking-offering-contract",
+  requested_interval: { from: 1_800_000_000, to: 1_800_003_600 },
+  form_submission_id: "form-submission-booking-contract",
+  price_override: digitalPrice,
+};
+const digitalQuoteInputContract: DigitalProductQuoteInput = {
+  digital_product_id: digitalProductContract.id,
+  form_submission_id: "form-submission-digital-contract",
+  price_override: digitalPrice,
+};
+const quoteInputContract: GetQuoteParams = {
+  market: "us",
+  contact_id: "contact-contract",
+  products: [productQuoteInputContract],
+  bookings: [bookingQuoteInputContract],
+  digital: [digitalQuoteInputContract],
+};
+const cartProductInputContract: CartProductInput = {
+  product_id: "product-contract",
+  variant_id: "variant-contract",
+  quantity: 1,
+  form_submission_id: "form-submission-product-contract",
+};
+const cartDigitalInputContract: CartDigitalItemInput = {
+  digital_product_id: digitalProductContract.id,
+  form_submission_id: "form-submission-digital-contract",
+};
+const trustedCartProductInputContract: TrustedCartProductInput = {
+  ...cartProductInputContract,
+  price_override: digitalPrice,
+};
+const trustedCartBookingInputContract: TrustedCartBookingInput = {
+  ...bookingQuoteInputContract,
+};
+const trustedCartDigitalInputContract: TrustedCartDigitalItemInput = {
+  ...cartDigitalInputContract,
+  price_override: digitalPrice,
 };
 const digitalProductStatusContract: DigitalProductStatus =
   digitalProductContract.status;
@@ -985,8 +1052,12 @@ void updateDigitalProductContract;
 void findDigitalProductsContract;
 void digitalProductLookupContract;
 void digitalLibraryLookupContract;
-void cartDigitalProductContract;
-void orderDigitalProductSnapshotContract;
+void cartDigitalItemContract;
+void orderDigitalSnapshotContract;
+void quoteInputContract;
+void trustedCartProductInputContract;
+void trustedCartBookingInputContract;
+void trustedCartDigitalInputContract;
 void digitalProductStatusContract;
 void legacyDigitalProductLookup;
 void invalidDigitalLibraryLookup;
@@ -1158,6 +1229,47 @@ const bookingCartInput: CartBookingInput = {
   requested_interval: requestedInterval,
   form_submission_id: "form-submission-contract",
 };
+const cartProductItemContract: CartProductItem = {
+  id: "cart-product-item-contract",
+  product_id: "product-contract",
+  variant_id: "variant-contract",
+  quantity: 1,
+  form_submission_id: "form-submission-product-contract",
+  price_override: digitalPrice,
+};
+const cartBookingItemContract: CartBookingItem = {
+  id: "cart-booking-item-contract",
+  booking_offering_id: bookingCartInput.booking_offering_id,
+  requested_interval: requestedInterval,
+  form_submission_id: bookingCartInput.form_submission_id ?? null,
+  price_override: null,
+};
+const canonicalCartContract: Cart = {
+  id: "cart-contract",
+  store_id: "store-contract",
+  contact_id: "contact-contract",
+  token: "cart-token-contract",
+  status: "active",
+  origin: "storefront",
+  created_by_account_id: null,
+  market: "us",
+  product_items: [cartProductItemContract],
+  booking_items: [cartBookingItemContract],
+  digital_items: [cartDigitalItemContract],
+  shipping_address: null,
+  billing_address: null,
+  promo_code: null,
+  payment_provider_id: null,
+  shipping_method_id: null,
+  converted_order_id: null,
+  item_count: 3,
+  last_action_at: 1,
+  abandoned_at: null,
+  created_at: 1,
+  updated_at: 1,
+};
+// @ts-expect-error Form submissions belong to individual Cart items.
+canonicalCartContract.forms;
 declare const embeddedBookingItem: OrderBookingItem;
 const embeddedOfferingId: string = embeddedBookingItem.booking_offering_id;
 // @ts-expect-error The legacy booking Service Provider facade was removed.
@@ -1166,6 +1278,7 @@ void storefrontBookingOfferings;
 void bookingResources;
 void bookingServices;
 void bookingCartInput;
+void canonicalCartContract;
 void embeddedOfferingId;
 declare const storefrontProduct: Awaited<
   ReturnType<typeof storefrontClient.eshop.product.get>
@@ -1321,6 +1434,13 @@ const subscribeResult: AudienceSubscribeResponse = {
 };
 const subscribePaymentStatus: AudiencePaymentStatus | undefined =
   subscribeResult.payment?.status;
+const audiencePromotionSnapshot: AudiencePromotionSnapshot = {
+  promo_code_id: "promo-contract",
+  code: "WELCOME10",
+  discount: 250,
+};
+// @ts-expect-error promotion usage is internal checkout state, not public payment history.
+audiencePromotionSnapshot.usage_status;
 
 declare const storefrontIdentify: StorefrontIdentifyResult;
 const storefrontEntryIdentify: StorefrontEntryIdentifyResult =
@@ -1336,15 +1456,6 @@ declare const paymentStorefront: ReturnType<typeof initialize>;
 // @ts-expect-error hosted Checkout removed the browser Stripe controller.
 paymentStorefront.eshop.cart.payment;
 
-const orderTaxScope: OrderTaxScope = "shipping";
-// @ts-expect-error tax scope is a closed accounting enum.
-const invalidOrderTaxScope: OrderTaxScope = "provider";
-const orderTaxLine: OrderTaxLine = {
-  rate_bps: 2_000,
-  amount: 250,
-  label: "Shipping Tax",
-  scope: orderTaxScope,
-};
 const accountingTaxLine: TaxLine = {
   title: "Tax",
   rate_bps: 2_000,
@@ -1369,13 +1480,8 @@ const orderMoney: OrderMoney = {
   subtotal: 1250,
   shipping: 0,
   discount: 0,
+  tax_total: 250,
   total: 1250,
-  tax: {
-    amount: 250,
-    mode: "exclusive",
-    rate_bps: 2_000,
-    lines: [orderTaxLine],
-  },
   promo_code: promoSnapshot,
   zone_id: null,
   shipping_method_id: null,
@@ -1426,8 +1532,6 @@ const zeroTotalCheckout: OrderCheckoutResult = {
 const markCashOnDeliveryPaid: MarkCashOnDeliveryPaidParams = {
   order_id: "order-contract",
 };
-declare const orderContract: Order;
-const nullableOrderPaymentId: string | null = orderContract.payment_id;
 // @ts-expect-error payment kind is the provider union tag, not a flat type.
 orderPayment.type;
 // @ts-expect-error amounts are grouped into the canonical amounts object.
@@ -1436,10 +1540,10 @@ orderPayment.amount;
 orderPayment.version;
 // @ts-expect-error provider checkout identity uses checkout_session_id.
 stripeOrderPaymentProvider.checkout_id;
-const missingStripeAccountCheckout: OrderCheckoutResult = {
+const missingConnectedAccountCheckout: OrderCheckoutResult = {
   order_id: "order-stripe-contract",
   number: "1002",
-  // @ts-expect-error Stripe checkout actions always serialize this nullable key.
+  // @ts-expect-error Commerce checkout actions require a connected account.
   payment_action: {
     type: "stripe_embedded_checkout",
     publishable_key: "pk_test_contract",
@@ -1449,7 +1553,7 @@ const missingStripeAccountCheckout: OrderCheckoutResult = {
   payment: orderPayment,
 };
 
-const shippingLine: ShippingLine = {
+const shippingLine: OrderShippingLine = {
   id: "shipping-line-contract",
   shipping_method_id: "shipping-method-contract",
   title: "Standard",
@@ -1466,8 +1570,96 @@ const shippingLine: ShippingLine = {
 };
 // @ts-expect-error shipping method identity has one canonical field.
 shippingLine.code;
+const embeddedOrderProductItem: OrderProductItem = {
+  id: "order-product-item-contract",
+  product_id: "product-contract",
+  variant_id: "variant-contract",
+  quantity: 1,
+  inventory_allocations: [
+    {
+      store_location_id: "store-location-contract",
+      quantity: 1,
+      cancelled_quantity: 0,
+    },
+  ],
+  form_submission_id: "form-submission-product-contract",
+  snapshot: {
+    product_key: "product-contract",
+    variant_sku: null,
+    variant_attributes: [],
+    price: digitalPrice,
+    requires_shipping: true,
+    weight_grams: 750,
+  },
+  status: { status: "confirmed" },
+  money: shippingLine.money,
+  created_at: 1,
+  updated_at: 1,
+};
+const embeddedOrderBookingItem: OrderBookingItem = {
+  id: "order-booking-item-contract",
+  booking_offering_id: "booking-offering-contract",
+  booking_service_id: "booking-service-contract",
+  booking_resource_id: "booking-resource-contract",
+  interval: requestedInterval,
+  capacity_intervals: [requestedInterval],
+  form_submission_id: "form-submission-booking-contract",
+  reminders: [],
+  snapshot: {
+    service_key: "service-contract",
+    resource_key: "resource-contract",
+    timezone: "Europe/Sarajevo",
+    price: digitalPrice,
+  },
+  status: { status: "confirmed" },
+  money: shippingLine.money,
+  created_at: 1,
+  updated_at: 1,
+};
+const embeddedOrderDigitalItem: OrderDigitalItem = {
+  id: "order-digital-item-contract",
+  digital_product_id: digitalProductContract.id,
+  form_submission_id: "form-submission-digital-contract",
+  snapshot: orderDigitalSnapshotContract,
+  status: { status: "confirmed" },
+  money: shippingLine.money,
+  created_at: 1,
+  updated_at: 1,
+};
+const orderContract: Order = {
+  id: "order-contract",
+  number: "1002",
+  store_id: "store-contract",
+  source_cart_id: canonicalCartContract.id,
+  contact_id: "contact-contract",
+  status: "confirmed",
+  contact_verified_at_checkout: true,
+  payment_id: orderPayment.id,
+  product_items: [embeddedOrderProductItem],
+  booking_items: [embeddedOrderBookingItem],
+  digital_items: [embeddedOrderDigitalItem],
+  money: orderMoney,
+  shipping_lines: [shippingLine],
+  shipping_address: null,
+  billing_address: null,
+  created_at: 1,
+  updated_at: 2,
+};
+const nullableOrderPaymentId: string | null = orderContract.payment_id;
+const cancelEmbeddedProductItem: CancelOrderProductItemParams = {
+  order_id: orderContract.id,
+  order_product_item_id: embeddedOrderProductItem.id,
+  quantity: 1,
+};
+// @ts-expect-error Order children are embedded and no longer use persistence versions.
+orderContract.version;
+// @ts-expect-error checkout verification has its canonical immutable field name.
+orderContract.verified;
+// @ts-expect-error Form submissions belong to embedded Order items.
+orderContract.forms;
+// @ts-expect-error fulfillment is represented by dedicated FulfillmentOrder resources.
+orderContract.fulfillment_status;
 const fulfillmentOrderStatus: FulfillmentOrderStatus = "open";
-const orderFulfillmentStatus: OrderFulfillmentStatus = "partially_fulfilled";
 declare const cart: Cart;
 // @ts-expect-error cart recovery is not a product lifecycle in the current model.
 cart.recovery_sent_at;
@@ -1624,6 +1816,8 @@ const selectedStoreSubscription: StoreSubscription = {
     expires_at: 2,
   },
 };
+const storefrontSubscriptionCheckoutAction: StorefrontEmbeddedCheckoutAction =
+  selectedStoreSubscription.payment_action;
 // @ts-expect-error durable provider identity is not part of the public wire DTO.
 storeSubscriptionRead.provider;
 // @ts-expect-error subscription payment context is no longer stored on this DTO.
@@ -2127,7 +2321,22 @@ const activityFeed: ActivityFeedData = {
   next_cursor: { created_at: 1, id: "analytics-fact-contract" },
   meta: { row_count: 1, execution_ms: 1 },
 };
-const checkoutAction: CheckoutPaymentAction = { type: "none" };
+const checkoutAction: CheckoutPaymentAction = {
+  type: "stripe_embedded_checkout",
+  publishable_key: "pk_test_contract",
+  client_secret: "cs_contract_secret_exact",
+  connected_account_id: "acct_contract",
+  expires_at: 2,
+};
+const mediaUpdatedWebhook: WebhookEventSubscription = {
+  event: "media.updated",
+};
+const productItemUpdatedWebhook: WebhookEventSubscription = {
+  event: "order_product_item.updated",
+};
+const digitalItemConfirmedWebhook: WebhookEventSubscription = {
+  event: "order_digital_item.confirmed",
+};
 const eventAction: EventAction = { action: "product_created" };
 const supportAction: SupportAction = {
   type: "end_conversation",
@@ -2155,6 +2364,7 @@ void [
   storefrontIdentify,
   storefrontEntryIdentify,
   verificationChallengeId,
+  audiencePromotionSnapshot,
   orderMoney,
   paymentAmounts,
   stripeOrderPaymentProvider,
@@ -2175,19 +2385,25 @@ void [
   zeroTotalCheckout,
   markCashOnDeliveryPaid,
   nullableOrderPaymentId,
-  missingStripeAccountCheckout,
-  orderTaxLine,
+  missingConnectedAccountCheckout,
   accountingTaxLine,
   promoSnapshot,
   shippingLine,
+  embeddedOrderProductItem,
+  embeddedOrderBookingItem,
+  embeddedOrderDigitalItem,
+  orderContract,
+  cancelEmbeddedProductItem,
   fulfillmentOrderStatus,
-  orderFulfillmentStatus,
   cart,
   embeddedRefundPaymentStatus,
   codeReceivedCallback,
   safeSocialCredential,
   unsafeSocialCredential,
   safeSocialConnectionData,
+  mediaUpdatedWebhook,
+  productItemUpdatedWebhook,
+  digitalItemConfirmedWebhook,
   tiktokConnectionType,
   tiktokContent,
   tiktokInitializeEffect,
@@ -2207,6 +2423,7 @@ void [
   storefrontSupportRead,
   storeSubscriptionRead,
   selectedStoreSubscription,
+  storefrontSubscriptionCheckoutAction,
   invalidStoreSubscriptionStatus,
   supportMessageWithoutCapability,
   account,
@@ -2249,7 +2466,6 @@ void [
   missingPublishingCapability,
   crmContactFeature,
   nonWireCrmProfileFeature,
-  invalidOrderTaxScope,
   audienceTierPriceInput,
   audienceTierPriceWithProvider,
   subscribePaymentStatus,

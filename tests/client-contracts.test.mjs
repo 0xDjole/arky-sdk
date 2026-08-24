@@ -574,7 +574,6 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
     digital_items: [],
     shipping_address: null,
     billing_address: null,
-    forms: [],
     promo_code: null,
     payment_provider_id: paymentProviderId,
     shipping_method_id: null,
@@ -599,7 +598,11 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
       subtotal: 0,
       shipping: 0,
       discount: 0,
+      tax_total: 0,
       total: 0,
+      promo_code: null,
+      zone_id: null,
+      shipping_method_id: null,
     },
   };
   const checkout = {
@@ -665,6 +668,7 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
     assert.equal(
       (
         await admin.eshop.order.getQuote({
+          market: "bih",
           payment_provider_id: paymentProviderId,
         })
       ).payment_provider_ids[0],
@@ -721,6 +725,52 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
       },
     ],
   );
+});
+
+test("admin Order uses the embedded product-item route and canonical verification filter", async () => {
+  const admin = createAdmin({
+    baseUrl,
+    storeId,
+    apiToken: "arky_api_admin_contract",
+  });
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    const call = {
+      url: String(url),
+      method: init.method || "GET",
+      body: init.body ? JSON.parse(String(init.body)) : null,
+    };
+    calls.push(call);
+    return jsonResponse(call.method === "GET" ? { items: [], cursor: null } : {});
+  };
+
+  try {
+    await admin.eshop.order.find({ contact_verified_at_checkout: true });
+    await admin.eshop.order.cancelProductItem({
+      order_id: "order-contract",
+      order_product_item_id: "order-product-item-contract",
+      quantity: 1,
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal("getProducts" in admin.eshop.order, false);
+  assert.equal("getDigitalProducts" in admin.eshop.order, false);
+  assert.equal("cancelProduct" in admin.eshop.order, false);
+  assert.deepEqual(calls, [
+    {
+      url: `${baseUrl}/v1/stores/${storeId}/orders?contact_verified_at_checkout=true`,
+      method: "GET",
+      body: null,
+    },
+    {
+      url: `${baseUrl}/v1/stores/${storeId}/orders/order-contract/product-items/order-product-item-contract/cancel`,
+      method: "POST",
+      body: { quantity: 1 },
+    },
+  ]);
 });
 
 test("admin market deletion sends an explicit replacement default as query context", async () => {
