@@ -30,7 +30,7 @@ function bookingService() {
   return {
     id: "booking-service",
     key: "consultation",
-    slug: { en: "consultation" },
+    slugs: { en: "consultation" },
     store_id: storeId,
     blocks: [],
     classifications: [],
@@ -44,7 +44,7 @@ function bookingResource() {
   return {
     id: "booking-resource",
     key: "room-one",
-    slug: { en: "room-one" },
+    slugs: { en: "room-one" },
     store_id: storeId,
     blocks: [],
     classifications: [],
@@ -198,6 +198,7 @@ test("Admin booking runtime uses booking service, resource, and offering roots",
       return jsonResponse(bookingResource());
     if (pathname.endsWith("/booking-offerings"))
       return jsonResponse(bookingOffering());
+    if (pathname.includes("/booking-items/")) return jsonResponse(order());
     if (pathname.endsWith("/orders/order-booking"))
       return jsonResponse(order());
     throw new Error(`Unexpected request ${call.method} ${call.url}`);
@@ -206,10 +207,12 @@ test("Admin booking runtime uses booking service, resource, and offering roots",
   try {
     await admin.eshop.bookingService.create({
       key: "consultation",
+      slugs: { en: "consultation" },
       status: "active",
     });
     await admin.eshop.bookingResource.create({
       key: "room-one",
+      slugs: { en: "room-one" },
       timezone: "Europe/Sarajevo",
       capacity: 3,
       status: "active",
@@ -228,6 +231,22 @@ test("Admin booking runtime uses booking service, resource, and offering roots",
     });
     const loadedOrder = await admin.eshop.order.get({ id: "order-booking" });
     assert.equal(loadedOrder.booking_items[0].id, "order-booking-item");
+    await admin.eshop.order.update({
+      id: loadedOrder.id,
+      booking_items: [{ id: "legacy-booking-rewrite" }],
+    });
+    await admin.eshop.order.cancelBookingItem({
+      order_id: loadedOrder.id,
+      order_booking_item_id: loadedOrder.booking_items[0].id,
+    });
+    await admin.eshop.order.completeBookingItem({
+      order_id: loadedOrder.id,
+      order_booking_item_id: loadedOrder.booking_items[0].id,
+    });
+    await admin.eshop.order.markBookingItemNoShow({
+      order_id: loadedOrder.id,
+      order_booking_item_id: loadedOrder.booking_items[0].id,
+    });
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -242,10 +261,29 @@ test("Admin booking runtime uses booking service, resource, and offering roots",
       [`/v1/stores/${storeId}/booking-resources`, "POST"],
       [`/v1/stores/${storeId}/booking-offerings`, "POST"],
       [`/v1/stores/${storeId}/orders/order-booking`, "GET"],
+      [`/v1/stores/${storeId}/orders/order-booking`, "PUT"],
+      [
+        `/v1/stores/${storeId}/orders/order-booking/booking-items/order-booking-item/cancel`,
+        "POST",
+      ],
+      [
+        `/v1/stores/${storeId}/orders/order-booking/booking-items/order-booking-item/complete`,
+        "POST",
+      ],
+      [
+        `/v1/stores/${storeId}/orders/order-booking/booking-items/order-booking-item/no-show`,
+        "POST",
+      ],
     ],
   );
+  assert.deepEqual(calls[0].body, {
+    key: "consultation",
+    slugs: { en: "consultation" },
+    status: "active",
+  });
   assert.deepEqual(calls[1].body, {
     key: "room-one",
+    slugs: { en: "room-one" },
     timezone: "Europe/Sarajevo",
     capacity: 3,
     status: "active",
@@ -253,6 +291,10 @@ test("Admin booking runtime uses booking service, resource, and offering roots",
   assert.equal("forms" in calls[2].body, false);
   assert.equal(calls[2].body.slot_interval_minutes, 30);
   assert.deepEqual(calls[2].body.reminder_offsets_minutes, [1440, 60]);
+  assert.deepEqual(calls[4].body, {});
+  assert.deepEqual(calls[5].body, {});
+  assert.deepEqual(calls[6].body, {});
+  assert.deepEqual(calls[7].body, {});
 });
 
 test("storefront booking runtime sends one offering interval and reads embedded Order items", async () => {
@@ -291,6 +333,8 @@ test("storefront booking runtime sends one offering interval and reads embedded 
       });
     if (pathname.endsWith("/carts/cart-booking/booking-items"))
       return jsonResponse(cart([call.body.booking]));
+    if (pathname.endsWith("/orders/order-booking/booking-items/order-booking-item/cancel"))
+      return jsonResponse(order());
     if (pathname.endsWith("/orders/order-booking"))
       return jsonResponse(order());
     throw new Error(`Unexpected request ${call.method} ${call.url}`);
@@ -326,6 +370,10 @@ test("storefront booking runtime sends one offering interval and reads embedded 
       loadedOrder.booking_items[0].booking_resource_id,
       "booking-resource",
     );
+    await storefront.eshop.order.cancelBookingItem({
+      order_id: loadedOrder.id,
+      order_booking_item_id: loadedOrder.booking_items[0].id,
+    });
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -342,6 +390,41 @@ test("storefront booking runtime sends one offering interval and reads embedded 
     },
   });
   assert.equal("price_override" in calls[4].body.booking, false);
+  assert.deepEqual(calls[6].body, {});
+  assert.equal(
+    new URL(calls[6].url).pathname,
+    "/v1/storefront/orders/order-booking/booking-items/order-booking-item/cancel",
+  );
+});
+
+test("Booking Service slug lookup stays singular while records expose slugs", async () => {
+  const storefront = createStorefront(publishableKey, {
+    apiUrl,
+    market: "bih",
+    sessionStorage: sessionStorage(),
+  });
+  const originalFetch = globalThis.fetch;
+  let call;
+  globalThis.fetch = async (url, init = {}) => {
+    call = { url: String(url), method: init.method || "GET" };
+    return jsonResponse(bookingService());
+  };
+
+  try {
+    const service = await storefront.eshop.bookingService.get({
+      slug: "consultation",
+    });
+    assert.equal(service.slugs.en, "consultation");
+    assert.equal("slug" in service, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(
+    new URL(call.url).pathname,
+    "/v1/storefront/booking-services/consultation",
+  );
+  assert.equal(call.method, "GET");
 });
 
 test("high-level booking flow creates one Cart item per appointment", async () => {

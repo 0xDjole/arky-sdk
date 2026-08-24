@@ -764,7 +764,6 @@ export interface UpdateOrderParams {
   shipping_address?: Address | null;
   billing_address?: Address | null;
   product_items?: TrustedCartProductInput[];
-  booking_items?: TrustedCartBookingInput[];
 }
 
 export interface CancelOrderProductItemParams {
@@ -774,10 +773,16 @@ export interface CancelOrderProductItemParams {
   quantity: number;
 }
 
+export interface BookingItemLifecycleParams {
+  store_id?: string;
+  order_id: string;
+  order_booking_item_id: string;
+}
+
 export interface CreateBookingResourceParams {
   store_id?: string;
   key: string;
-  slug?: Record<string, string>;
+  slugs?: Record<string, string>;
   status?: BookingResourceStatus;
   blocks?: Block[];
   classifications?: ClassificationEntry[];
@@ -789,7 +794,7 @@ export interface UpdateBookingResourceParams {
   id: string;
   store_id?: string;
   key?: string;
-  slug?: Record<string, string>;
+  slugs?: Record<string, string>;
   status?: BookingResourceStatus;
   blocks?: Block[];
   classifications?: ClassificationEntry[];
@@ -805,7 +810,7 @@ export interface DeleteBookingResourceParams {
 export interface CreateBookingServiceParams {
   store_id?: string;
   key: string;
-  slug?: Record<string, string>;
+  slugs?: Record<string, string>;
   blocks?: Block[];
   classifications?: ClassificationEntry[];
   status?: BookingServiceStatus;
@@ -815,7 +820,7 @@ export interface UpdateBookingServiceParams {
   id: string;
   store_id?: string;
   key?: string;
-  slug?: Record<string, string>;
+  slugs?: Record<string, string>;
   blocks?: Block[];
   classifications?: ClassificationEntry[];
   status?: BookingServiceStatus;

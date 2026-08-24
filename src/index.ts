@@ -424,6 +424,7 @@ export type {
   DaySlots,
   BookingResourceAvailability,
   AvailabilityResponse,
+  BookingItemLifecycleParams,
   CreateBookingServiceParams,
   UpdateBookingServiceParams,
   DeleteBookingServiceParams,
@@ -1324,6 +1325,9 @@ export function createAdmin(config: CreateAdminConfig) {
       order: {
         update: eshopApi.updateOrder,
         cancelProductItem: eshopApi.cancelOrderProductItem,
+        cancelBookingItem: eshopApi.cancelBookingItem,
+        completeBookingItem: eshopApi.completeBookingItem,
+        markBookingItemNoShow: eshopApi.markBookingItemNoShow,
         get: eshopApi.getOrder,
         find: eshopApi.getOrders,
         getQuote: eshopApi.getQuote,

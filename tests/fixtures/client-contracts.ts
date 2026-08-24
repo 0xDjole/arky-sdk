@@ -133,6 +133,7 @@ import type {
   UpdatePromoCodeParams,
   UpdatePromotionDiscountInput,
   UpdateProductParams,
+  UpdateOrderParams,
   MarketZoneInput,
   Mailbox,
   Market,
@@ -156,6 +157,7 @@ import type {
   CampaignMessageDirection,
   CheckoutPaymentAction,
   CancelOrderProductItemParams,
+  BookingItemLifecycleParams,
   DigitalProductQuoteInput,
   GetQuoteParams,
   ProductQuoteInput,
@@ -1237,6 +1239,22 @@ storefrontClient.classification.get({ key: "topics" });
 // @ts-expect-error Classification is a top-level module, not a CMS child.
 storefrontClient.cms.classification;
 declare const adminClient: ReturnType<typeof createAdmin>;
+const bookingItemLifecycleParams: BookingItemLifecycleParams = {
+  order_id: "order-contract",
+  order_booking_item_id: "order-booking-item-contract",
+};
+const adminBookingCancellation: Promise<Order> =
+  adminClient.eshop.order.cancelBookingItem(bookingItemLifecycleParams);
+const adminBookingCompletion: Promise<Order> =
+  adminClient.eshop.order.completeBookingItem(bookingItemLifecycleParams);
+const adminBookingNoShow: Promise<Order> =
+  adminClient.eshop.order.markBookingItemNoShow(bookingItemLifecycleParams);
+const storefrontBookingCancellation: Promise<StorefrontDto<Order>> =
+  storefrontClient.eshop.order.cancelBookingItem(bookingItemLifecycleParams);
+// @ts-expect-error A verified owning Contact cannot complete a booking item.
+storefrontClient.eshop.order.completeBookingItem(bookingItemLifecycleParams);
+// @ts-expect-error A verified owning Contact cannot mark a booking item as a no-show.
+storefrontClient.eshop.order.markBookingItemNoShow(bookingItemLifecycleParams);
 const classificationChildren: Promise<Classification[]> =
   adminClient.classification.getChildren({ id: "classification-contract" });
 adminClient.classification.get({ id: "classification-contract" });
@@ -1255,6 +1273,14 @@ const bookingResources: Promise<StorefrontDto<PaginatedResponse<BookingResource>
   });
 const bookingServices: Promise<StorefrontDto<PaginatedResponse<BookingService>>> =
   storefrontClient.eshop.bookingService.find({ status: "active" });
+declare const bookingServiceContract: BookingService;
+declare const bookingResourceContract: BookingResource;
+const bookingServiceEnglishSlug: string = bookingServiceContract.slugs.en;
+const bookingResourceEnglishSlug: string = bookingResourceContract.slugs.en;
+// @ts-expect-error Booking Service records no longer expose the singular persisted field.
+bookingServiceContract.slug;
+// @ts-expect-error Booking Resource records no longer expose the singular persisted field.
+bookingResourceContract.slug;
 const requestedInterval: TimeRange = { from: 1_800_000_000, to: 1_800_003_600 };
 const bookingCartInput: CartBookingInput = {
   booking_offering_id: "booking-offering-contract",
@@ -1312,6 +1338,13 @@ void bookingServices;
 void bookingCartInput;
 void canonicalCartContract;
 void embeddedOfferingId;
+void bookingItemLifecycleParams;
+void adminBookingCancellation;
+void adminBookingCompletion;
+void adminBookingNoShow;
+void storefrontBookingCancellation;
+void bookingServiceEnglishSlug;
+void bookingResourceEnglishSlug;
 declare const storefrontProduct: Awaited<
   ReturnType<typeof storefrontClient.eshop.product.get>
 >;
@@ -1682,6 +1715,11 @@ const cancelEmbeddedProductItem: CancelOrderProductItemParams = {
   order_id: orderContract.id,
   order_product_item_id: embeddedOrderProductItem.id,
   quantity: 1,
+};
+const forbiddenBookingRewrite: UpdateOrderParams = {
+  id: orderContract.id,
+  // @ts-expect-error persisted booking items change only through dedicated lifecycle commands.
+  booking_items: [embeddedOrderBookingItem],
 };
 // @ts-expect-error Order children are embedded and no longer use persistence versions.
 orderContract.version;
@@ -2426,6 +2464,7 @@ void [
   embeddedOrderDigitalItem,
   orderContract,
   cancelEmbeddedProductItem,
+  forbiddenBookingRewrite,
   fulfillmentOrderStatus,
   cart,
   embeddedRefundPaymentStatus,

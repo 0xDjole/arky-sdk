@@ -29,6 +29,7 @@ import type {
   FindBookingServicesParams,
   UpdateOrderParams,
   CancelOrderProductItemParams,
+  BookingItemLifecycleParams,
   UpdateBookingResourceParams,
   UpdateBookingServiceParams,
   UpdateBookingOfferingParams,
@@ -385,13 +386,13 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: UpdateOrderParams,
       options?: RequestOptions,
     ): Promise<Order> {
-      const { id, store_id, product_items, booking_items, ...rest } = params;
+      const { id, store_id, product_items, ...rest } = params;
       const target_store_id = store_id || apiConfig.storeId;
       const payload = {
         ...rest,
         ...(product_items ? { product_items } : {}),
-        ...(booking_items ? { booking_items } : {}),
       };
+      delete (payload as { booking_items?: unknown }).booking_items;
 
       return apiConfig.httpClient.put<Order>(
         `/v1/stores/${target_store_id}/orders/${id}`,
@@ -409,6 +410,45 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<Order>(
         `/v1/stores/${target_store_id}/orders/${order_id}/product-items/${order_product_item_id}/cancel`,
         { quantity },
+        options,
+      );
+    },
+
+    async cancelBookingItem(
+      params: BookingItemLifecycleParams,
+      options?: RequestOptions,
+    ): Promise<Order> {
+      const { store_id, order_id, order_booking_item_id } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<Order>(
+        `/v1/stores/${target_store_id}/orders/${order_id}/booking-items/${order_booking_item_id}/cancel`,
+        {},
+        options,
+      );
+    },
+
+    async completeBookingItem(
+      params: BookingItemLifecycleParams,
+      options?: RequestOptions,
+    ): Promise<Order> {
+      const { store_id, order_id, order_booking_item_id } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<Order>(
+        `/v1/stores/${target_store_id}/orders/${order_id}/booking-items/${order_booking_item_id}/complete`,
+        {},
+        options,
+      );
+    },
+
+    async markBookingItemNoShow(
+      params: BookingItemLifecycleParams,
+      options?: RequestOptions,
+    ): Promise<Order> {
+      const { store_id, order_id, order_booking_item_id } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<Order>(
+        `/v1/stores/${target_store_id}/orders/${order_id}/booking-items/${order_booking_item_id}/no-show`,
+        {},
         options,
       );
     },

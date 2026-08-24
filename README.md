@@ -126,7 +126,7 @@ console.log(arky.utils.getFreeToSellStock({ inventory }));
 await arky.eshop.cart.addProduct(product, product.variants[0], 2);
 await arky.eshop.cart.quote();
 
-const order = await arky.eshop.cart.checkout({
+const checkout = await arky.eshop.cart.checkout({
   payment_provider_id: "payment-provider-id",
 });
 ```
@@ -148,6 +148,16 @@ performs the service; a BookingOffering connects one service to one resource and
 availability, booking window, and reminders:
 
 ```typescript
+const identity = await arky.identify({
+  email: "customer@example.com",
+  verify: true,
+});
+if (!identity.verification_challenge) throw new Error("Verification required");
+await arky.verify({
+  challenge_id: identity.verification_challenge.challenge_id,
+  code: "code-from-email",
+});
+
 const { items: services } = await arky.eshop.bookingService.list({ limit: 20 });
 
 await arky.eshop.bookingService.initialize();
@@ -160,6 +170,14 @@ if (state.slots[0]) {
   arky.eshop.bookingService.nextStep();
   await arky.eshop.bookingService.addToCart();
 }
+```
+
+Booking Service and Booking Resource records persist localized `slugs`. The singular lookup
+selector remains `slug`:
+
+```typescript
+const service = await arky.eshop.bookingService.get({ slug: "consultation" });
+console.log(service.slugs.en);
 ```
 
 One Cart booking item is one appointment and contains one `booking_offering_id` plus one
@@ -179,6 +197,41 @@ Completed Orders embed `product_items`, `booking_items`, and `digital_items`; th
 snapshots, money, status, Form submission ID, and timestamps arrive with the Order. Product items
 also expose their inventory allocations. There are no separate Order product, digital, Booking, or
 OrderBooking read resources.
+
+Confirmed booking items have dedicated lifecycle commands. Admin clients can cancel, complete, or
+mark an item as a no-show; a verified owning Contact can only cancel through the Storefront client.
+Each command returns the refreshed Order, and cancellation never implies a payment refund:
+
+```typescript
+import { createAdmin } from "arky-sdk/admin";
+
+const bookingCheckout = await arky.eshop.cart.checkout({
+  payment_provider_id: "payment-provider-id",
+});
+const customerOrder = await arky.eshop.order.get({ id: bookingCheckout.order_id });
+const admin = createAdmin({
+  baseUrl: "https://api.arky.io",
+  storeId: "store-id",
+  market: "eu",
+  apiToken: process.env.ARKY_PERSONAL_API_TOKEN,
+});
+const adminOrder = await admin.eshop.order.get({
+  id: "another-confirmed-booking-order-id",
+});
+
+await admin.eshop.order.completeBookingItem({
+  order_id: adminOrder.id,
+  order_booking_item_id: adminOrder.booking_items[0].id,
+});
+
+await arky.eshop.order.cancelBookingItem({
+  order_id: customerOrder.id,
+  order_booking_item_id: customerOrder.booking_items[0].id,
+});
+```
+
+Those are separate terminal alternatives on different confirmed items. One item cannot be
+completed and then cancelled (or moved to any other terminal state).
 
 Nano Stores expose reactive module state:
 

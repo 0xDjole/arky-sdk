@@ -21,6 +21,7 @@ import type {
   GetFormParams,
   GetOrderParams,
   GetOrdersParams,
+  BookingItemLifecycleParams,
   GetProductParams,
   GetProductsParams,
   GetBookingResourceParams,
@@ -677,6 +678,17 @@ export const createStorefrontApi = (
           return apiConfig.httpClient.get<
             StorefrontDto<PaginatedResponse<Order>>
           >(`${base}/orders`, { ...options, params });
+        },
+        async cancelBookingItem(
+          params: StorefrontParams<BookingItemLifecycleParams>,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<Order>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.post<StorefrontDto<Order>>(
+            `${base}/orders/${params.order_id}/booking-items/${params.order_booking_item_id}/cancel`,
+            {},
+            options,
+          );
         },
       },
       bookingService: {

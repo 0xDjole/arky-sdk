@@ -2114,7 +2114,7 @@ export interface BookingOffering {
 export interface BookingService {
   id: string;
   key: string;
-  slug: Record<string, string>;
+  slugs: Record<string, string>;
   store_id: string;
   blocks: Block[];
   classifications: ClassificationEntry[];
@@ -2126,7 +2126,7 @@ export interface BookingService {
 export interface BookingResource {
   id: string;
   key: string;
-  slug: Record<string, string>;
+  slugs: Record<string, string>;
   store_id: string;
   status: BookingResourceStatus;
   blocks: Block[];
