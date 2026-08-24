@@ -150,6 +150,14 @@ const removedIdentifiers = [
   "OrderTaxScope",
   "CancelOrderProductParams",
   "AudiencePromotionUsageStatus",
+  "TextBlockProperties",
+  "MarkdownBlockProperties",
+  "NumberBlockProperties",
+  "ContainerBlockProperties",
+  "MediaBlockProperties",
+  "EntryBlockProperties",
+  "ResourceBlockProperties",
+  "GeoLocationBlockProperties",
   "getOrderProducts",
   "getOrderDigitalProducts",
   "cancelOrderProduct",
@@ -377,6 +385,68 @@ for (const file of listTypeScriptFiles(sourceDir)) {
 
 const activityTypesFile = resolve(sourceDir, "types/index.ts");
 const activityTypesSource = readFileSync(activityTypesFile, "utf8");
+
+const propertylessBlockNames = [
+  "TextBlock",
+  "MarkdownBlock",
+  "NumberBlock",
+  "BooleanBlock",
+  "DateBlock",
+  "GeoLocationBlock",
+  "MediaBlock",
+  "EntryBlock",
+  "FormBlock",
+  "ProductBlock",
+  "DigitalProductBlock",
+  "ArrayBlock",
+  "ObjectBlock",
+];
+for (const name of propertylessBlockNames) {
+  const contract = activityTypesSource.match(
+    new RegExp(`export interface ${name}\\s+extends BlockBase\\s*\\{([\\s\\S]*?)\\n\\}`),
+  );
+  if (!contract || /\n\s*properties\??:/.test(contract[1])) {
+    report(
+      activityTypesFile,
+      activityTypesSource,
+      contract?.index ?? 0,
+      `${name} must exist without value-side properties`,
+    );
+    failures++;
+  }
+}
+
+const markdownBlockContract = activityTypesSource.match(
+  /export interface MarkdownBlock\s+extends BlockBase\s*\{([\s\S]*?)\n\}/,
+);
+if (
+  !markdownBlockContract ||
+  !/\n\s*value:\s*string\s*\|\s*null;/.test(markdownBlockContract[1])
+) {
+  report(
+    activityTypesFile,
+    activityTypesSource,
+    markdownBlockContract?.index ?? 0,
+    "MarkdownBlock must expose one nullable scalar string",
+  );
+  failures++;
+}
+
+for (const typeName of ["BlockType", "BlockSchemaType"]) {
+  const contract = activityTypesSource.match(
+    new RegExp(`export type ${typeName}\\s*=([\\s\\S]*?);`),
+  );
+  if (!contract || !/\|\s*["']form["']/.test(contract[1])) {
+    report(
+      activityTypesFile,
+      activityTypesSource,
+      contract?.index ?? 0,
+      `${typeName} must include form`,
+    );
+    failures++;
+  }
+}
+
 const activityContract = activityTypesSource.match(
   /export interface Activity\s*\{([\s\S]*?)\n\}/,
 );

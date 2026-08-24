@@ -1375,92 +1375,65 @@ export interface BlockBase {
   key: string;
 }
 
-export type TextBlockProperties = Record<string, never>;
-
-export type NumberBlockProperties = Record<string, never>;
-
-export type ContainerBlockProperties = Record<string, never>;
-
 export type ReferenceDeletePolicy = "restrict" | "set_null";
-
-export interface MediaBlockProperties {
-  on_delete?: ReferenceDeletePolicy;
-}
-
-export interface EntryBlockProperties {
-  on_delete?: ReferenceDeletePolicy;
-  collection_id?: string | null;
-}
-
-export interface ResourceBlockProperties {
-  on_delete?: ReferenceDeletePolicy;
-}
 
 export interface TextBlock extends BlockBase {
   type: "text";
-  properties: TextBlockProperties;
   value: string | null;
 }
 
-export type MarkdownBlockProperties = Record<string, never>;
-
 export interface MarkdownBlock extends BlockBase {
   type: "markdown";
-  properties: MarkdownBlockProperties;
-  value: Record<string, string> | null;
+  value: string | null;
 }
 
 export interface NumberBlock extends BlockBase {
   type: "number";
-  properties: NumberBlockProperties;
   value: number | null;
 }
 
 export interface BooleanBlock extends BlockBase {
   type: "boolean";
-  properties: Record<string, never>;
   value: boolean | null;
 }
 
 export interface DateBlock extends BlockBase {
   type: "date";
-  properties: Record<string, never>;
   value: number | null;
 }
 
 export interface MediaBlock extends BlockBase {
   type: "media";
-  properties: MediaBlockProperties;
   value: string | null;
 }
 
 export interface EntryBlock extends BlockBase {
   type: "entry";
-  properties: EntryBlockProperties;
+  value: string | null;
+}
+
+export interface FormBlock extends BlockBase {
+  type: "form";
   value: string | null;
 }
 
 export interface ProductBlock extends BlockBase {
   type: "product";
-  properties: ResourceBlockProperties;
   value: string | null;
 }
 
 export interface DigitalProductBlock extends BlockBase {
   type: "digital_product";
-  properties: ResourceBlockProperties;
   value: string | null;
 }
 
 export interface ArrayBlock extends BlockBase {
   type: "array";
-  properties: ContainerBlockProperties;
   value: Block[];
 }
 
 export interface ObjectBlock extends BlockBase {
   type: "object";
-  properties: ContainerBlockProperties;
   value: Record<string, Block>;
 }
 
@@ -1584,16 +1557,14 @@ export type BlockType =
   | "object"
   | "media"
   | "entry"
+  | "form"
   | "product"
   | "digital_product"
   | "markdown"
   | "geo_location";
 
-export interface GeoLocationBlockProperties {}
-
 export interface GeoLocationBlock extends BlockBase {
   type: "geo_location";
-  properties: GeoLocationBlockProperties;
   value: GeoLocation | null;
 }
 
@@ -1605,6 +1576,7 @@ export type Block =
   | DateBlock
   | MediaBlock
   | EntryBlock
+  | FormBlock
   | ProductBlock
   | DigitalProductBlock
   | ArrayBlock
@@ -1962,6 +1934,7 @@ export type BlockSchemaType =
   | "markdown"
   | "media"
   | "entry"
+  | "form"
   | "product"
   | "digital_product"
   | "array"
@@ -1976,7 +1949,7 @@ export interface BlockSchemaProperties {
   min?: number | null;
   max?: number | null;
   collection_id?: string | null;
-  on_delete?: "restrict" | "set_null" | null;
+  on_delete?: ReferenceDeletePolicy | null;
 }
 
 export interface BlockSchema {

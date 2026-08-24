@@ -10,6 +10,7 @@ import type {
   AudienceSubscribeResponse,
   AudienceTierPriceInput,
   Block,
+  BlockSchema,
   BuildHook,
   Classification,
   ClassificationEntry,
@@ -74,6 +75,7 @@ import type {
   ShippingRate,
   FulfillmentOrder,
   FulfillmentOrderStatus,
+  FormBlock,
   PaginatedResponse,
   PendingAccountSession,
   Product,
@@ -1132,13 +1134,11 @@ const localizedTitleBlock: Block = {
   id: "title",
   key: "title",
   type: "object",
-  properties: {},
   value: {
     en: {
       id: "title-en",
       key: "en",
       type: "text",
-      properties: {},
       value: "Welcome",
     },
   },
@@ -1147,8 +1147,36 @@ const markdownBlock: Block = {
   id: "body",
   key: "body",
   type: "markdown",
+  value: "# Welcome",
+};
+const formBlock: FormBlock = {
+  id: "contact-form",
+  key: "contact_form",
+  type: "form",
+  value: "form-contract",
+};
+const formBlockSchema: BlockSchema = {
+  id: "contact-form-schema",
+  key: "contact_form",
+  type: "form",
+  required: false,
+  properties: { on_delete: "set_null" },
+  children: [],
+};
+const legacyMarkdownMap: Block = {
+  id: "legacy-body",
+  key: "legacy_body",
+  type: "markdown",
+  // @ts-expect-error Markdown Blocks have one scalar string value.
+  value: { en: "# Legacy" },
+};
+const blockWithValueProperties: Block = {
+  id: "legacy-title",
+  key: "legacy_title",
+  type: "text",
+  // @ts-expect-error Block values never carry schema properties.
   properties: {},
-  value: { en: "# Welcome" },
+  value: "Legacy",
 };
 const classificationSchema: ClassificationSchema = {
   id: "classification-schema-industry",
@@ -1176,6 +1204,10 @@ const classificationEntry: ClassificationEntry = {
 };
 void localizedTitleBlock;
 void markdownBlock;
+void formBlock;
+void formBlockSchema;
+void legacyMarkdownMap;
+void blockWithValueProperties;
 void classificationSchema;
 void classificationFieldQuery;
 void classificationEntry;

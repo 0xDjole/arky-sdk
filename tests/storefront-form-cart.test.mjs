@@ -138,7 +138,21 @@ test("a fresh cart load resolves Store defaults before loading persisted product
     id: "product-hydration-contract",
     key: "hydrated-product",
     slugs: { it: "prodotto-idratato" },
-    blocks: [{ key: "name", value: { it: "Prodotto idratato" } }],
+    blocks: [
+      {
+        id: "product-name",
+        key: "name",
+        type: "object",
+        value: {
+          it: {
+            id: "product-name-it",
+            key: "it",
+            type: "text",
+            value: "Prodotto idratato",
+          },
+        },
+      },
+    ],
     classifications: [],
     variants: [
       {

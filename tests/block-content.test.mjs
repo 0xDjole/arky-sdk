@@ -13,11 +13,10 @@ function localizedObject(values) {
 		id: 'localized',
 		key: 'title',
 		type: 'object',
-		properties: {},
 		value: Object.fromEntries(
 			Object.entries(values).map(([locale, value]) => [
 				locale,
-				{ id: locale, key: locale, type: 'text', properties: {}, value },
+				{ id: locale, key: locale, type: 'text', value },
 			]),
 		),
 	};
@@ -33,26 +32,44 @@ test('localized Object/Text blocks follow one explicit fallback order', () => {
 	assert.equal(getBlockTextValue(value, 'bs'), 'Bosanski');
 });
 
+test('localized Object/Markdown blocks and scalar Markdown use the shared decoder', () => {
+	const value = {
+		id: 'localized-markdown',
+		key: 'body',
+		type: 'object',
+		value: {
+			en: { id: 'body-en', key: 'en', type: 'markdown', value: '# Welcome' },
+			it: { id: 'body-it', key: 'it', type: 'markdown', value: '# Benvenuto' },
+		},
+	};
+
+	assert.equal(selectLocalizedObjectText(value, 'it'), '# Benvenuto');
+	assert.equal(getBlockTextValue(value, 'en'), '# Welcome');
+	assert.equal(
+		getBlockContentValue({
+			blocks: [{ id: 'body', key: 'body', type: 'markdown', value: '# Scalar' }],
+		}, 'body', 'it'),
+		'# Scalar',
+	);
+});
+
 test('block content decodes localized nested objects and repeated values', () => {
 	const entry = {
 		blocks: [{
 			id: 'info',
 			key: 'info',
 			type: 'array',
-			properties: {},
 			value: [
 				{
 					id: 'title',
 					key: 'title',
 					type: 'object',
-					properties: {},
 					value: {
-						en: { id: 'en', key: 'en', type: 'text', properties: {}, value: 'English' },
+						en: { id: 'en', key: 'en', type: 'text', value: 'English' },
 						'sr-latn': {
 							id: 'sr-latn',
 							key: 'sr-latn',
 							type: 'text',
-							properties: {},
 							value: 'Srpski',
 						},
 					},
@@ -61,19 +78,17 @@ test('block content decodes localized nested objects and repeated values', () =>
 					id: 'author',
 					key: 'author',
 					type: 'object',
-					properties: {},
 					value: {
-						role: { id: 'role', key: 'role', type: 'text', properties: {}, value: 'Developer' },
+						role: { id: 'role', key: 'role', type: 'text', value: 'Developer' },
 					},
 				},
 				{
 					id: 'features',
 					key: 'features',
 					type: 'array',
-					properties: {},
 					value: [
-						{ id: 'one', key: 'feature', type: 'text', properties: {}, value: 'CMS' },
-						{ id: 'two', key: 'feature', type: 'text', properties: {}, value: 'Commerce' },
+						{ id: 'one', key: 'feature', type: 'text', value: 'CMS' },
+						{ id: 'two', key: 'feature', type: 'text', value: 'Commerce' },
 					],
 				},
 			],
@@ -112,33 +127,30 @@ test('block content decodes repeated structured array items', () => {
 
 test('block references are collected recursively by resource type without hydration', () => {
 	const blocks = [
-		{ id: 'hero', key: 'hero', type: 'media', properties: {}, value: 'media-1' },
+		{ id: 'hero', key: 'hero', type: 'media', value: 'media-1' },
 		{
 			id: 'related',
 			key: 'related',
 			type: 'array',
-			properties: {},
 			value: [
-				{ id: 'article', key: 'article', type: 'entry', properties: {}, value: 'entry-1' },
-				{ id: 'product', key: 'product', type: 'product', properties: {}, value: 'product-1' },
+				{ id: 'article', key: 'article', type: 'entry', value: 'entry-1' },
+				{ id: 'contact', key: 'contact', type: 'form', value: 'form-1' },
+				{ id: 'product', key: 'product', type: 'product', value: 'product-1' },
 				{
 					id: 'nested',
 					key: 'nested',
 					type: 'object',
-					properties: {},
 					value: {
 						download: {
 							id: 'download',
 							key: 'download',
 							type: 'digital_product',
-							properties: {},
 							value: 'digital-1',
 						},
 						duplicateHero: {
 							id: 'duplicate-hero',
 							key: 'duplicate_hero',
 							type: 'media',
-							properties: {},
 							value: 'media-1',
 						},
 					},
@@ -150,6 +162,7 @@ test('block references are collected recursively by resource type without hydrat
 	assert.deepEqual(collectBlockReferences(blocks), {
 		mediaIds: ['media-1'],
 		entryIds: ['entry-1'],
+		formIds: ['form-1'],
 		productIds: ['product-1'],
 		digitalProductIds: ['digital-1'],
 	});

@@ -15,20 +15,18 @@ test('formats the current date block type as a localized date', () => {
 		id: 'date',
 		key: 'published_at',
 		type: 'date',
-		properties: {},
 		value: timestamp,
 	};
 
 	assert.equal(arky.utils.formatBlockValue(block), new Date(timestamp * 1000).toLocaleDateString());
 });
 
-test('number block properties do not change numeric formatting', () => {
+test('formats a propertyless number block as its numeric value', () => {
 	const timestamp = Date.UTC(2024, 0, 2);
 	const block = {
 		id: 'number',
 		key: 'quantity',
 		type: 'number',
-		properties: { variant: 'DATE' },
 		value: timestamp,
 	};
 

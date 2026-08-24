@@ -53,8 +53,10 @@ const titleBlock = page.blocks.find((block) => block.key === "title");
 const title = arky.utils.getBlockTextValue(titleBlock, arky.getLocale());
 ```
 
-Localized text uses the shared Block vocabulary: the field is an `object`, each locale is a key,
-and each locale value is a `text` Block. There is no separate localized-text Block or schema type:
+Localized content uses the shared Block vocabulary: the field is an `object`, each locale is a key,
+and each locale value is a propertyless `text` or `markdown` Block. There is no separate
+localized-text Block or schema type, and a standalone `markdown` Block always has one scalar string
+value:
 
 ```typescript
 import type { Block } from "arky-sdk";
@@ -63,13 +65,16 @@ const title = {
   id: "title",
   key: "title",
   type: "object",
-  properties: {},
   value: {
-    en: { id: "title-en", key: "en", type: "text", properties: {}, value: "Welcome" },
-    it: { id: "title-it", key: "it", type: "text", properties: {}, value: "Benvenuto" },
+    en: { id: "title-en", key: "en", type: "text", value: "Welcome" },
+    it: { id: "title-it", key: "it", type: "text", value: "Benvenuto" },
   },
 } satisfies Block;
 ```
+
+Relationship constraints such as `collection_id` and `on_delete` live only on `BlockSchema`.
+A `form` Block contains a Form ID; submitting that Form still produces a separate immutable
+FormSubmission.
 
 Stateful operations identify the visitor lazily. Concurrent first operations share one identify request:
 

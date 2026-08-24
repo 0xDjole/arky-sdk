@@ -27,6 +27,7 @@ import type {
   StorefrontBookingResource,
   StorefrontBookingService,
 } from "../types/storefront";
+import { getBlockTextValue } from "../utils/blocks";
 import type {
   ArkyBookingCartItem,
   ArkyBookingServiceState,
@@ -75,7 +76,7 @@ export function blockText(
 ): string {
   const block = findBlock(blocks, keys);
   if (!block) return "";
-  return firstLocalized(block.value, locale);
+  return getBlockTextValue(block, locale);
 }
 
 export function productName(

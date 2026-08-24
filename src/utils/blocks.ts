@@ -20,29 +20,6 @@ function recordFromBlocks(values: readonly unknown[], locale: string): UnknownRe
   return result;
 }
 
-function selectLocalizedMap(
-  value: unknown,
-  locale: string | null | undefined,
-  fallbackLocales: readonly string[] = ["en"],
-  fallback = "",
-): string {
-  if (typeof value === "string") return value;
-  if (!isRecord(value)) return fallback;
-
-  const locales = [locale, ...fallbackLocales].filter(
-    (candidate): candidate is string => typeof candidate === "string" && candidate.length > 0,
-  );
-  for (const candidate of new Set(locales)) {
-    const selected = value[candidate];
-    if (typeof selected === "string" && selected.length > 0) return selected;
-  }
-
-  const first = Object.values(value).find(
-    (candidate): candidate is string => typeof candidate === "string" && candidate.length > 0,
-  );
-  return first ?? fallback;
-}
-
 function localizedBlockEntries(
   value: ObjectBlock | Readonly<Record<string, Block>> | null | undefined,
 ): Readonly<Record<string, Block>> | null {
@@ -52,7 +29,12 @@ function localizedBlockEntries(
 }
 
 function textBlockValue(value: unknown): string | undefined {
-  if (!isBlock(value) || value.type !== "text") return undefined;
+  if (
+    !isBlock(value) ||
+    (value.type !== "text" && value.type !== "markdown")
+  ) {
+    return undefined;
+  }
   return typeof value.value === "string" && value.value.length > 0
     ? value.value
     : undefined;
@@ -93,9 +75,6 @@ export function selectLocalizedObjectText(
 
 function unwrapBlock(value: unknown, locale: string): unknown {
   if (!isBlock(value)) return value;
-  if (value.type === "markdown") {
-    return selectLocalizedMap(value.value, locale);
-  }
   if (value.type === "array") {
     return value.value.map((item) => unwrapBlock(item, locale));
   }
@@ -121,9 +100,6 @@ function blockContentArray(values: readonly unknown[], locale: string): unknown 
 }
 
 function blockContentValue(block: Block, locale: string): unknown {
-  if (block.type === "markdown") {
-    return selectLocalizedMap(block.value, locale);
-  }
   if (block.type === "media") return block.value ?? null;
   if (block.type === "array") {
     return Array.isArray(block.value) ? blockContentArray(block.value, locale) : [];
@@ -163,6 +139,7 @@ export function formatBlockValue(block: Block | null | undefined): string {
 export interface BlockReferences {
   mediaIds: string[];
   entryIds: string[];
+  formIds: string[];
   productIds: string[];
   digitalProductIds: string[];
 }
@@ -170,12 +147,14 @@ export interface BlockReferences {
 export function collectBlockReferences(blocks: readonly Block[]): BlockReferences {
   const mediaIds = new Set<string>();
   const entryIds = new Set<string>();
+  const formIds = new Set<string>();
   const productIds = new Set<string>();
   const digitalProductIds = new Set<string>();
 
   function visit(block: Block): void {
     if (block.type === "media" && block.value) mediaIds.add(block.value);
     if (block.type === "entry" && block.value) entryIds.add(block.value);
+    if (block.type === "form" && block.value) formIds.add(block.value);
     if (block.type === "product" && block.value) productIds.add(block.value);
     if (block.type === "digital_product" && block.value) {
       digitalProductIds.add(block.value);
@@ -188,6 +167,7 @@ export function collectBlockReferences(blocks: readonly Block[]): BlockReference
   return {
     mediaIds: [...mediaIds],
     entryIds: [...entryIds],
+    formIds: [...formIds],
     productIds: [...productIds],
     digitalProductIds: [...digitalProductIds],
   };
@@ -218,9 +198,6 @@ export function getBlockValue<T = unknown>(
 
 export function getBlockTextValue(block: Block | null | undefined, locale = "en"): string {
   if (!block || block.value === null || block.value === undefined) return "";
-  if (block.type === "markdown") {
-    return selectLocalizedMap(block.value, locale);
-  }
   if (block.type === "object") {
     return selectLocalizedObjectText(block, locale);
   }
