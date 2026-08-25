@@ -1,7 +1,7 @@
 import type {
   Cart,
   CollectionEntry,
-  Contact,
+  Customer,
   Form,
   FormSubmission,
   StoreLocation,
@@ -18,7 +18,7 @@ import type {
 } from "./index";
 
 export type StorefrontParams<T> = T extends unknown
-  ? Omit<T, "store_id" | "market">
+  ? Omit<T, "store_id" | "market" | "customer_id" | "customer_session_id">
   : never;
 
 type StorefrontOpaqueKey =
@@ -46,10 +46,7 @@ export type StorefrontDto<T> = T extends readonly (infer Item)[]
 
 export type StorefrontCart = StorefrontDto<Cart>;
 export type StorefrontCollectionEntry = StorefrontDto<CollectionEntry>;
-export interface StorefrontContact extends StorefrontDto<Contact> {
-  email?: string | null;
-  verified: boolean;
-}
+export type StorefrontCustomer = StorefrontDto<Customer>;
 export type StorefrontForm = StorefrontDto<Form>;
 export type StorefrontFormSubmission = StorefrontDto<FormSubmission>;
 export type StorefrontLocation = Omit<

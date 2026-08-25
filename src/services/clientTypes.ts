@@ -11,6 +11,7 @@ export interface ApiConfig {
 
 export interface StorefrontApiConfig {
   httpClient: HttpClient;
+  publishableKeyHttpClient: HttpClient;
   apiUrl: string;
   publishableKey: string;
   market: string;

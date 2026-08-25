@@ -10,6 +10,28 @@ import {
   storeId,
 } from "./helpers/scheduled-observation-fixtures.mjs";
 
+function storedVisitorSession(token, customerId = "customer-scheduled-contract") {
+  return JSON.stringify({
+    version: 1,
+    customer: {
+      id: customerId,
+      status: "active",
+      identities: [],
+      classifications: [],
+      created_at: 1,
+      updated_at: 1,
+    },
+    session: {
+      id: `session-${customerId}`,
+      customer_id: customerId,
+      status: "active",
+      type: "visitor",
+      token,
+      expires_at: 10_000,
+    },
+  });
+}
+
 test("aggregate email sends once and observes only its exact delivery resources", async () => {
   const request = {
     send_id: "send-scheduled",
@@ -127,7 +149,7 @@ test("aggregate email sends once and observes only its exact delivery resources"
 
 test("support AI POSTs once, polls the exact message, then loads the conversation once", async () => {
   const publishableKey = `arky_pk_${"s".repeat(43)}`;
-  const visitorToken = `arky_vst_${"a".repeat(64)}`;
+  const visitorToken = `customer_visitor_${"a".repeat(64)}`;
   const supportToken = "b".repeat(64);
   const messageId = "support-message-scheduled";
   const pending = {
@@ -175,7 +197,7 @@ test("support AI POSTs once, polls the exact message, then loads the conversatio
     const storefront = createStorefront(publishableKey, {
       apiUrl: baseUrl,
       sessionStorage: {
-        getItem: () => visitorToken,
+        getItem: () => storedVisitorSession(visitorToken),
         setItem() {},
         removeItem() {},
       },
@@ -216,7 +238,7 @@ test("support AI POSTs once, polls the exact message, then loads the conversatio
 
 test("storefront support exact-reads a requested message omitted from the write response", async () => {
   const publishableKey = `arky_pk_${"s".repeat(43)}`;
-  const visitorToken = `arky_vst_${"a".repeat(64)}`;
+  const visitorToken = `customer_visitor_${"a".repeat(64)}`;
   const supportToken = "c".repeat(64);
   const messageId = "support-message-exact-observation";
   const response = {
@@ -258,7 +280,7 @@ test("storefront support exact-reads a requested message omitted from the write 
     const storefront = createStorefront(publishableKey, {
       apiUrl: baseUrl,
       sessionStorage: {
-        getItem: () => visitorToken,
+        getItem: () => storedVisitorSession(visitorToken),
         setItem() {},
         removeItem() {},
       },

@@ -8,7 +8,7 @@ export interface AnalyticsTimeRange {
 
 export type AnalyticsReportKey =
   | "business_overview"
-  | "contact_funnel"
+  | "customer_funnel"
   | "outreach_overview"
   | "outreach_funnel"
   | "activity_by_country"
@@ -16,7 +16,7 @@ export type AnalyticsReportKey =
   | "entity_status_overview"
   | "data_health"
   | "orders_created"
-  | "contacts_created"
+  | "customers_created"
   | "form_submissions_created"
   | "carts_abandoned"
   | "campaign_messages_sent"
@@ -28,7 +28,7 @@ export type AnalyticsReportKey =
   | "providers_by_status"
   | "collections_by_status"
   | "entries_by_status"
-  | "contacts_by_status"
+  | "customers_by_status"
   | "audiences_by_status"
   | "mailboxes_by_status"
   | "campaigns_by_status"
@@ -52,7 +52,7 @@ export type ActivityFeedCategory =
   | "carts"
   | "promo_codes"
   | "submissions"
-  | "contacts"
+  | "customers"
   | "audiences"
   | "products"
   | "services"
@@ -90,7 +90,7 @@ export interface AnalyticsBreakdownItem {
   key: string;
   label: string;
   value: number;
-  unique_contacts?: number;
+  unique_customers?: number;
   unique_visitors?: number;
 }
 
@@ -101,8 +101,8 @@ export interface AnalyticsBreakdownData {
 export interface BusinessOverviewData {
   visitors: number;
   new_visitors: number;
-  new_email_known_contacts: number;
-  new_verified_contacts: number;
+  new_email_known_customers: number;
+  new_verified_customers: number;
   buyers: number;
   orders: number;
   revenue_by_currency: RevenueByCurrencyData[];
@@ -126,19 +126,19 @@ export interface RevenueByCurrencyData {
   average_order_value: number | null;
 }
 
-export interface ContactFunnelStage {
+export interface CustomerFunnelStage {
   key:
     | "visitors"
-    | "new_email_known_contacts"
-    | "new_verified_contacts"
+    | "new_email_known_customers"
+    | "new_verified_customers"
     | "buyers"
     | string;
   label: string;
   value: number;
 }
 
-export interface ContactFunnelData {
-  stages: ContactFunnelStage[];
+export interface CustomerFunnelData {
+  stages: CustomerFunnelStage[];
   visitor_to_known_rate?: AnalyticsRateData;
   visitor_to_buyer_rate?: AnalyticsRateData;
 }
@@ -193,8 +193,8 @@ export interface EntityStatusOverviewData {
 }
 
 export interface DataHealthData {
-  anonymous_contacts: number;
-  known_contacts: number;
+  anonymous_customers: number;
+  known_customers: number;
   duplicate_emails: number;
   unknown_country_events: number;
   unknown_device_events: number;
@@ -207,7 +207,7 @@ export interface ActivityFeedItem {
   action: string;
   event_type: string;
   status: string;
-  contact_id: string;
+  customer_id: string;
   category: string;
   title: string;
   description: string;
@@ -221,7 +221,7 @@ export interface ActivityFeedSummary {
   total: number;
   orders: number;
   submissions: number;
-  contacts: number;
+  customers: number;
   audiences: number;
   abandoned_carts: number;
   carts: number;
@@ -252,7 +252,7 @@ export interface ActivityFeedData {
 
 export type AnalyticsMetricReportKey =
   | "orders_created"
-  | "contacts_created"
+  | "customers_created"
   | "form_submissions_created"
   | "carts_abandoned"
   | "campaign_messages_sent"
@@ -268,7 +268,7 @@ export type AnalyticsBreakdownReportKey =
   | "providers_by_status"
   | "collections_by_status"
   | "entries_by_status"
-  | "contacts_by_status"
+  | "customers_by_status"
   | "audiences_by_status"
   | "mailboxes_by_status"
   | "campaigns_by_status"
@@ -290,7 +290,7 @@ export type AnalyticsActivityReportKey = "recent_activity";
 
 export type AnalyticsCompositeReportKey =
   | "business_overview"
-  | "contact_funnel"
+  | "customer_funnel"
   | "outreach_overview"
   | "outreach_funnel"
   | "entity_status_overview"
@@ -302,7 +302,7 @@ type AnalyticsReportData =
   | { key: AnalyticsMetricReportKey; data: AnalyticsMetricData }
   | { key: AnalyticsBreakdownReportKey; data: AnalyticsBreakdownData }
   | { key: "business_overview"; data: BusinessOverviewData }
-  | { key: "contact_funnel"; data: ContactFunnelData }
+  | { key: "customer_funnel"; data: CustomerFunnelData }
   | { key: "outreach_overview"; data: OutreachOverviewData }
   | { key: "outreach_funnel"; data: OutreachFunnelData }
   | { key: "entity_status_overview"; data: EntityStatusOverviewData }

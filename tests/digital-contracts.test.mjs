@@ -8,7 +8,29 @@ import { createStorefront } from "../dist/storefront.js";
 const baseUrl = "https://api.example.test";
 const storeId = "store-digital-contract";
 const publishableKey = `arky_pk_${"d".repeat(42)}A`;
-const visitorToken = `arky_vst_${"d".repeat(64)}`;
+const visitorToken = `customer_visitor_${"d".repeat(64)}`;
+
+function storedVisitorSession(token, customerId = "customer-digital-contract") {
+  return JSON.stringify({
+    version: 1,
+    customer: {
+      id: customerId,
+      status: "active",
+      identities: [],
+      classifications: [],
+      created_at: 1,
+      updated_at: 1,
+    },
+    session: {
+      id: `session-${customerId}`,
+      customer_id: customerId,
+      status: "active",
+      type: "visitor",
+      token,
+      expires_at: 10_000,
+    },
+  });
+}
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -19,7 +41,7 @@ function jsonResponse(body, status = 200) {
 
 function visitorStorage() {
   return {
-    getItem: () => visitorToken,
+    getItem: () => storedVisitorSession(visitorToken),
     setItem() {},
     removeItem() {},
   };

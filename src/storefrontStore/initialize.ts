@@ -1,7 +1,7 @@
 import { atom, computed, map } from "nanostores";
 import {
   createStorefront,
-  type ContactSession,
+  type StorefrontCustomerSession,
   type StorefrontIdentifyResult,
 } from "../index";
 import type { StorefrontMarket, StorefrontSetup } from "../api/storefront";
@@ -125,7 +125,7 @@ function initializeStoreCore(
   scopedClient?: ReturnType<typeof createStorefront>,
 ) {
   const client = scopedClient || createStorefront(publishableKey, config);
-  const session = atom<ContactSession | null>(client.session);
+  const session = atom<StorefrontCustomerSession | null>(client.session);
   const setup = atom<StorefrontSetup | null>(null);
   const locale = atom(config.locale || client.getLocale());
   const market_key = atom(config.market || client.getMarket());
@@ -212,7 +212,7 @@ function initializeStoreCore(
     }),
   );
   let cartWriteRevision = 0;
-  let sessionRequest: Promise<ContactSession | null> | null = null;
+  let sessionRequest: Promise<StorefrontCustomerSession | null> | null = null;
   let cartRequest: Promise<StorefrontCart> | null = null;
 
   function nextCartWriteRevision(): number {
@@ -288,42 +288,28 @@ function initializeStoreCore(
     return result;
   }
 
-  async function ensureSession(): Promise<ContactSession | null> {
+  async function ensureSession(): Promise<StorefrontCustomerSession | null> {
     const current = session.get();
-    if (client.isAuthenticated) return current;
+    if (client.hasSession) return current;
     if (!sessionRequest) {
-      sessionRequest = identify().finally(() => {
-        sessionRequest = null;
-      });
+      sessionRequest = identify()
+        .then(() => client.session)
+        .finally(() => {
+          sessionRequest = null;
+        });
     }
     return sessionRequest;
   }
 
   async function identify(
-    params: { email?: string; verify?: boolean; market?: string } = {},
+    params: { email?: string; market?: string } = {},
   ): Promise<StorefrontIdentifyResult> {
     if (params.market) setMarket(params.market);
-    const result = await client.identify({
+    const result = await client.customer.identify({
       ...params,
       market: params.market || currentMarketKey(),
     });
-    session.set({
-      contact: result.contact,
-    });
     return result;
-  }
-
-  async function identifyContactEmailIfMissing(
-    email: string,
-  ): Promise<ContactSession> {
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail) throw new Error("Contact email is required");
-    const current = session.get();
-    if (current?.contact.email?.trim().toLowerCase() === normalizedEmail) {
-      return current;
-    }
-
-    return identify({ email: normalizedEmail });
   }
 
   function setMarket(key: string): void {
@@ -1756,12 +1742,18 @@ function initializeStoreCore(
     locale,
     currency,
     allowed_payment_provider_ids,
-    identify,
-    identifyContactEmailIfMissing,
-    verify: client.verify,
-    me: client.me,
-    logout: client.logout,
+    customer: {
+      identify,
+      requestCode: client.customer.requestCode,
+      verify: client.customer.verify,
+      refresh: client.customer.refresh,
+      logout: client.customer.logout,
+      getMe: client.customer.getMe,
+    },
     onAuthStateChanged: client.onAuthStateChanged,
+    get hasSession() {
+      return client.hasSession;
+    },
     get isAuthenticated() {
       return client.isAuthenticated;
     },

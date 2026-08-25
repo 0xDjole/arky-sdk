@@ -120,7 +120,8 @@ export interface SupportConversation {
   channel_id: string | null;
   channel_context: SupportConversationChannelContext;
   current_node_id: string | null;
-  contact_id: string | null;
+  customer_id: string;
+  customer_session_id: string | null;
   assigned_account_id: string | null;
   status: "active" | "ai_mode" | "escalated" | "resolved";
   variables: Record<string, unknown>;
@@ -170,9 +171,6 @@ export interface StartSupportConversationParams {
   store_id: string;
   agent_key?: string;
   channel_id?: string;
-  visitor_id?: string;
-  session_id?: string;
-  contact_id?: string;
   channel_metadata?: Record<string, unknown>;
 }
 
@@ -186,6 +184,7 @@ export interface SendSupportMessageParams {
 export interface ReceiveSupportChannelMessageParams {
   store_id: string;
   channel_id: string;
+  customer_id: string;
   channel_context: SupportConversationChannelContext;
   external_message_id?: string;
   content: string;

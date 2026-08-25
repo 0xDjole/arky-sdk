@@ -318,12 +318,13 @@ export type {
   PromotionDiscount,
   PromotionCondition,
   PromoCode,
-  Contact,
-  ContactSessionRecord,
-  ContactSessionIssued,
-  ContactSessionStatus,
-  ContactChannel,
-  ChannelType,
+  Customer,
+  CustomerIdentity,
+  CustomerEmailVerification,
+  CustomerSessionRecord,
+  CustomerSessionIssued,
+  CustomerSessionStatus,
+  AudienceOutreachChannel,
   OpportunityStage,
   OpportunityType,
   OpportunitySource,
@@ -379,7 +380,7 @@ export type {
   BookingResourceStatus,
   BookingOfferingStatus,
   ProductStatus,
-  ContactStatus,
+  CustomerStatus,
   AudienceStatus,
   AudienceSource,
   AudienceMemberSource,
@@ -416,9 +417,14 @@ export type {
   ClassificationStatus,
 } from "./types";
 export type {
-  FindContactSessionsParams,
-  RevokeAllContactSessionsParams,
-  RevokeContactSessionParams,
+  CreateCustomerParams,
+  UpdateCustomerParams,
+  GetCustomerParams,
+  ArchiveCustomerParams,
+  FindCustomersParams,
+  FindCustomerSessionsParams,
+  RevokeAllCustomerSessionsParams,
+  RevokeCustomerSessionParams,
   GetAvailabilityParams,
   AvailabilitySlot,
   DaySlots,
@@ -499,10 +505,14 @@ export type {
   SystemTemplateKey,
   ImportFieldMapping,
   ImportPreviewRow,
-  ImportContactsParams,
-  ImportContactsPreviewParams,
-  ImportContactsPreviewResult,
-  ImportContactsResult,
+  ImportCustomersParams,
+  ImportCustomersPreviewParams,
+  ImportCustomersPreviewResult,
+  ImportCustomersResult,
+  ImportCustomerRowInput,
+  ImportCustomerFieldError,
+  ImportCustomerPreviewRow,
+  ImportCustomerRowResult,
   GetCollectionsParams,
   CreateCollectionParams,
   UpdateCollectionParams,
@@ -568,10 +578,10 @@ export type {
   GetAudienceRefundParams,
   RetryAudienceRefundParams,
   GetAudienceSubscriptionParams,
-  ImportContactRowInput,
-  ImportContactRowError,
-  ImportContactRowResult,
+  ImportAudienceMemberRowInput,
+  ImportAudienceMemberRowError,
   ImportAudienceMemberRowResult,
+  ImportAudienceMembersPreviewResult,
   PreviewAudienceMemberImportParams,
   ImportAudienceMembersParams,
   ImportAudienceMembersResult,
@@ -681,8 +691,8 @@ export type {
   AnalyticsBreakdownData,
   BusinessOverviewData,
   RevenueByCurrencyData,
-  ContactFunnelStage,
-  ContactFunnelData,
+  CustomerFunnelStage,
+  CustomerFunnelData,
   OutreachOverviewData,
   OutreachFunnelStage,
   OutreachFunnelData,
@@ -721,7 +731,7 @@ export type {
   TrackActivityParams,
   CommonActivityKey,
   ExperimentUseResponse,
-  StorefrontContact,
+  StorefrontCustomer,
   StorefrontBookingOffering,
   StorefrontBookingResource,
   StorefrontBookingService,
@@ -730,6 +740,7 @@ export type {
   StorefrontMarket,
   StorefrontPaymentProvider,
   StorefrontSetup,
+  StorefrontVisitorSessionRecord,
   StorefrontZone,
   UseExperimentParams,
 } from "./api/storefront";
@@ -763,7 +774,7 @@ export {
   type CartControllerUpdateParams,
 } from "./cartController";
 
-export type { ActivityTimelineParams } from "./api/crm";
+export type { ActivityTimelineParams } from "./api/activity";
 export type {
   SupportAgent,
   SupportAgentDefinition,
@@ -818,19 +829,20 @@ export interface AdminSession {
   email?: string;
 }
 
-export interface ContactSession {
-  contact: import("./api/storefront").StorefrontContact;
+export interface StorefrontCustomerSession {
+  customer: import("./api/storefront").StorefrontCustomer;
+  id: string;
+  type: import("./types").CustomerSessionIssued["type"];
+  status: import("./types").CustomerSessionStatus;
 }
 
-export interface StorefrontIdentifyResult {
-  contact: import("./api/storefront").StorefrontContact;
-  verification_challenge:
-    import("./types/api").VerificationChallengeResponse | null;
-}
-
-export interface StorefrontVerifyResult {
-  contact: import("./api/storefront").StorefrontContact;
-}
+export type StorefrontIdentifyResult =
+  import("./api/storefront").IdentifyResponse;
+export type StorefrontRequestCodeResult =
+  import("./api/storefront").RequestCodeResponse;
+export type StorefrontVerifyResult = import("./api/storefront").VerifyResponse;
+export type StorefrontRefreshResult =
+  import("./api/storefront").RefreshResponse;
 
 export type AuthStateListener<T> = (session: T | null) => void;
 
@@ -863,7 +875,11 @@ import { createEshopApi } from "./api/eshop";
 import { createDigitalApi } from "./api/digital";
 import { createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
-import { createContactApi } from "./api/crm";
+import { createCustomersApi } from "./api/customers";
+import { createAudienceApi } from "./api/crm";
+import { createActivityAdminApi } from "./api/activity";
+import { createMailboxApi } from "./api/mailbox";
+import { createOutreachApi } from "./api/outreach";
 import {
   createAdminSupportApi,
   createStorefrontSupportApi,
@@ -881,12 +897,12 @@ import { createAnalyticsApi } from "./api/analytics";
 import { createExperimentsApi } from "./api/experiments";
 import {
   createStorefrontApi,
-  type ContactSessionInternal,
-  type ContactSessionUpdater,
+  type CustomerSessionInternal,
+  type CustomerSessionUpdater,
 } from "./api/storefront";
 export type {
-  ContactSessionInternal,
-  ContactSessionUpdater,
+  CustomerSessionInternal,
+  CustomerSessionUpdater,
 } from "./api/storefront";
 import {
   getImageUrl,
@@ -1101,7 +1117,11 @@ export function createAdmin(config: CreateAdminConfig) {
   const eshopApi = createEshopApi(apiConfig);
   const digitalApi = createDigitalApi(apiConfig);
   const promoCodeApi = createPromoCodeApi(apiConfig);
-  const crmApi = createContactApi(apiConfig);
+  const customersApi = createCustomersApi(apiConfig);
+  const audienceApi = createAudienceApi(apiConfig);
+  const activityApi = createActivityAdminApi(apiConfig);
+  const mailboxApi = createMailboxApi(apiConfig);
+  const outreachApi = createOutreachApi(apiConfig);
   const supportApi = createAdminSupportApi(apiConfig);
   const leadResearchApi = createLeadResearchApi(apiConfig);
   const socialApi = createSocialApi(apiConfig);
@@ -1212,7 +1232,7 @@ export function createAdmin(config: CreateAdminConfig) {
         getDelivery: notificationApi.getEmailDelivery,
         retryDelivery: notificationApi.retryEmailDelivery,
       },
-      mailbox: crmApi.mailbox,
+      mailbox: mailboxApi,
     },
     platform: platformApi,
     social: {
@@ -1402,50 +1422,49 @@ export function createAdmin(config: CreateAdminConfig) {
       promoCode: promoCodeApi,
     },
     customer: {
-      audience: crmApi.audience.customer,
+      audience: audienceApi.customer,
+    },
+    customers: {
+      create: customersApi.create,
+      get: customersApi.get,
+      find: customersApi.find,
+      update: customersApi.update,
+      archive: customersApi.archive,
+      import: customersApi.import,
+      previewImport: customersApi.previewImport,
+      findSessions: customersApi.findSessions,
+      revokeSession: customersApi.revokeSession,
+      revokeAllSessions: customersApi.revokeAllSessions,
     },
     crm: {
-      contact: {
-        create: crmApi.create,
-        get: crmApi.get,
-        getChannels: crmApi.getChannels,
-        findChannels: crmApi.findChannels,
-        find: crmApi.find,
-        update: crmApi.update,
-        merge: crmApi.merge,
-        import: crmApi.import,
-        findSessions: crmApi.findSessions,
-        revokeSession: crmApi.revokeSession,
-        revokeAllSessions: crmApi.revokeAllSessions,
-      },
       audience: {
-        create: crmApi.audience.create,
-        update: crmApi.audience.update,
-        get: crmApi.audience.get,
-        find: crmApi.audience.find,
-        importMembers: crmApi.audience.importMembers,
-        previewMemberImport: crmApi.audience.previewMemberImport,
-        tiers: crmApi.audience.tiers,
-        leads: crmApi.audience.leads,
+        create: audienceApi.create,
+        update: audienceApi.update,
+        get: audienceApi.get,
+        find: audienceApi.find,
+        importMembers: audienceApi.importMembers,
+        previewMemberImport: audienceApi.previewMemberImport,
+        tiers: audienceApi.tiers,
+        leads: audienceApi.leads,
         members: {
-          add: crmApi.audience.members.add,
-          update: crmApi.audience.members.update,
-          remove: crmApi.audience.members.remove,
-          find: crmApi.audience.members.find,
-          refund: crmApi.audience.members.refund,
-          payments: crmApi.audience.members.payments,
-          disputes: crmApi.audience.members.disputes,
-          refunds: crmApi.audience.members.refunds,
-          subscription: crmApi.audience.members.subscription,
+          add: audienceApi.members.add,
+          update: audienceApi.members.update,
+          remove: audienceApi.members.remove,
+          find: audienceApi.members.find,
+          refund: audienceApi.members.refund,
+          payments: audienceApi.members.payments,
+          disputes: audienceApi.members.disputes,
+          refunds: audienceApi.members.refunds,
+          subscription: audienceApi.members.subscription,
         },
       },
-      activity: crmApi.activity,
+      activity: activityApi,
     },
     outreach: {
-      campaign: crmApi.campaign,
-      campaignEnrollment: crmApi.campaignEnrollment,
-      campaignMessage: crmApi.campaignMessage,
-      suppression: crmApi.suppression,
+      campaign: outreachApi.campaign,
+      campaignEnrollment: outreachApi.campaignEnrollment,
+      campaignMessage: outreachApi.campaignMessage,
+      suppression: outreachApi.suppression,
       leadResearch: leadResearchApi,
     },
     automation: {
@@ -1601,11 +1620,79 @@ function storefrontSessionStorageKey(
   apiUrl: string,
   publishableKey: string,
 ): string {
+  return `arky_customer_session:v1:${encodeURIComponent(apiUrl.toLowerCase())}:${publishableKeyFingerprint(publishableKey)}`;
+}
+
+function legacyStorefrontSessionStorageKey(
+  apiUrl: string,
+  publishableKey: string,
+): string {
   return `arky_visitor_session:${encodeURIComponent(apiUrl.toLowerCase())}:${publishableKeyFingerprint(publishableKey)}`;
 }
 
-function isVisitorSessionToken(value: string | null): value is string {
-  return Boolean(value && /^arky_vst_[0-9a-f]{64}$/.test(value));
+interface StoredCustomerSessionV1 {
+  version: 1;
+  customer: import("./api/storefront").StorefrontCustomer;
+  session: import("./types").CustomerSessionIssued;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isIssuedCustomerSession(
+  value: unknown,
+): value is import("./types").CustomerSessionIssued {
+  if (!isRecord(value)) return false;
+  if (
+    typeof value.id !== "string" ||
+    typeof value.customer_id !== "string" ||
+    value.status !== "active"
+  ) {
+    return false;
+  }
+  if (value.type === "visitor") {
+    return (
+      typeof value.token === "string" &&
+      value.token.startsWith("customer_visitor_") &&
+      typeof value.expires_at === "number"
+    );
+  }
+  return (
+    value.type === "email_authenticated" &&
+    typeof value.identity_id === "string" &&
+    typeof value.access_token === "string" &&
+    value.access_token.startsWith("customer_access_") &&
+    typeof value.refresh_token === "string" &&
+    value.refresh_token.startsWith("customer_refresh_") &&
+    typeof value.access_expires_at === "number" &&
+    typeof value.refresh_expires_at === "number" &&
+    typeof value.authenticated_at === "number"
+  );
+}
+
+function parseStoredCustomerSession(
+  value: string | null,
+): CustomerSessionInternal | null {
+  if (!value) return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (
+      !isRecord(parsed) ||
+      parsed.version !== 1 ||
+      !isRecord(parsed.customer) ||
+      !isIssuedCustomerSession(parsed.session)
+    ) {
+      return null;
+    }
+    return {
+      customer:
+        parsed.customer as unknown as import("./api/storefront").StorefrontCustomer,
+      session: parsed.session,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function createStorefrontClientCore(
@@ -1617,7 +1704,7 @@ function createStorefrontClientCore(
   const apiUrl = normalizeStorefrontApiUrl(options.apiUrl);
   let locale = options.locale?.trim() || "";
   let market = options.market?.trim() || "";
-  const listeners = new Set<AuthStateListener<ContactSession>>();
+  const listeners = new Set<AuthStateListener<StorefrontCustomerSession>>();
   let identifyPromise: Promise<StorefrontIdentifyResult> | null = null;
   let identityTail: Promise<void> = Promise.resolve();
   let setupPromise: Promise<import("./api/storefront").StorefrontSetup> | null =
@@ -1629,37 +1716,64 @@ function createStorefrontClientCore(
     : explicitSessionStorage || defaultStorefrontSessionStorage();
   const canCreateVisitorSession =
     typeof window !== "undefined" || Boolean(explicitSessionStorage);
+  const storageSuffix = isolatedSession
+    ? `:scope:${++storefrontScopeSequence}`
+    : "";
   const storageKey = `${storefrontSessionStorageKey(apiUrl, publishableKey)}${
-    isolatedSession ? `:scope:${++storefrontScopeSequence}` : ""
+    storageSuffix
   }`;
-  let memorySession: ContactSessionInternal | null = null;
-  let memorySessionToken: string | null = null;
+  const legacyStorageKey = `${legacyStorefrontSessionStorageKey(
+    apiUrl,
+    publishableKey,
+  )}${storageSuffix}`;
+  let memorySession: CustomerSessionInternal | null = null;
 
-  function readSessionToken(): string | null {
-    if (!sessionStorage) return memorySessionToken;
+  if (sessionStorage) {
     try {
+      sessionStorage.removeItem(legacyStorageKey);
       const stored = sessionStorage.getItem(storageKey);
-      return isVisitorSessionToken(stored) ? stored : memorySessionToken;
-    } catch {
-      return memorySessionToken;
-    }
+      memorySession = parseStoredCustomerSession(stored);
+      if (stored && !memorySession) sessionStorage.removeItem(storageKey);
+    } catch {}
   }
 
-  function writeContactSession(session: ContactSessionInternal | null): void {
+  function authorizationToken(
+    session: CustomerSessionInternal | null = memorySession,
+  ): string | null {
+    if (!session || session.session.status !== "active") return null;
+    return session.session.type === "visitor"
+      ? session.session.token
+      : session.session.access_token;
+  }
+
+  function writeCustomerSession(session: CustomerSessionInternal | null): void {
     memorySession = session;
-    memorySessionToken = session?.sessionToken || null;
     if (!sessionStorage) return;
     try {
       if (session) {
-        sessionStorage.setItem(storageKey, session.sessionToken);
+        const stored: StoredCustomerSessionV1 = {
+          version: 1,
+          customer: session.customer,
+          session: session.session,
+        };
+        sessionStorage.setItem(storageKey, JSON.stringify(stored));
       } else {
         sessionStorage.removeItem(storageKey);
       }
     } catch {}
   }
 
-  function toPublic(s: ContactSessionInternal | null): ContactSession | null {
-    return s ? { contact: s.contact } : null;
+  function toPublic(
+    value: CustomerSessionInternal | null,
+  ): StorefrontCustomerSession | null {
+    return value
+      ? {
+          customer: value.customer,
+          id: value.session.id,
+          type: value.session.type,
+          status: value.session.status,
+        }
+      : null;
   }
 
   function emit(): void {
@@ -1671,16 +1785,22 @@ function createStorefrontClientCore(
     }
   }
 
-  const updateSession: ContactSessionUpdater = (updater) => {
+  const updateSession: CustomerSessionUpdater = (updater) => {
     const next = updater(memorySession);
-    writeContactSession(next);
+    writeCustomerSession(next);
     emit();
   };
 
   const authStorage: AuthStorage = {
     getTokens() {
-      const sessionToken = readSessionToken();
-      return sessionToken ? { access_token: sessionToken } : null;
+      if (!memorySession || memorySession.session.status !== "active") return null;
+      const issued = memorySession.session;
+      return issued.type === "visitor"
+        ? { access_token: issued.token }
+        : {
+            access_token: issued.access_token,
+            refresh_token: issued.refresh_token,
+          };
     },
     onTokensRefreshed() {},
     onForcedLogout() {
@@ -1695,21 +1815,34 @@ function createStorefrontClientCore(
   ) => Promise<boolean> = async () => false;
   let visitorRecoveryPromise: Promise<void> | null = null;
 
+  const storefrontHeaders = () => ({
+    "X-Arky-Publishable-Key": publishableKey,
+    ...(locale ? { "X-Arky-Locale": locale } : {}),
+    ...(market ? { "X-Arky-Market": market } : {}),
+  });
   const httpClient = createHttpClient({
     baseUrl: apiUrl,
     authStorage,
     storefrontMode: true,
-    forcedHeaders: () => ({
-      "X-Arky-Publishable-Key": publishableKey,
-      ...(locale ? { "X-Arky-Locale": locale } : {}),
-      ...(market ? { "X-Arky-Market": market } : {}),
-    }),
+    forcedHeaders: storefrontHeaders,
     onUnauthorized: ({ authorizationToken, path }) =>
       recoverUnauthorized(authorizationToken, path),
+  });
+  const publishableKeyHttpClient = createHttpClient({
+    baseUrl: apiUrl,
+    authStorage: {
+      getTokens: () => null,
+      onTokensRefreshed: () => {},
+      onForcedLogout: () => {},
+    },
+    storefrontMode: true,
+    forcedHeaders: storefrontHeaders,
+    onUnauthorized: () => false,
   });
 
   const apiConfig: StorefrontApiConfig = {
     httpClient,
+    publishableKeyHttpClient,
     apiUrl,
     publishableKey,
     market,
@@ -1746,7 +1879,7 @@ function createStorefrontClientCore(
   }
 
   async function ensureVisitorSession(): Promise<void> {
-    if (readSessionToken()) return;
+    if (authorizationToken()) return;
     requireVisitorSessionCapability();
     await identify();
   }
@@ -1755,27 +1888,20 @@ function createStorefrontClientCore(
     ensureVisitorSession,
     getSetup,
   });
-  const contactApi = storefrontApi.crm.contact;
+  const customerApi = storefrontApi.customer;
 
   function identify(params?: {
     email?: string;
-    verify?: boolean;
     market?: string;
   }): Promise<StorefrontIdentifyResult> {
     requireVisitorSessionCapability();
     if (params?.market !== undefined) setMarket(params.market);
 
-    const isBareCall = !params?.email && !params?.verify;
+    const isBareCall = !params?.email;
     if (isBareCall && identifyPromise) return identifyPromise;
 
     const run = async (): Promise<StorefrontIdentifyResult> => {
-      const result = await (params?.verify
-        ? contactApi.requestCode({ email: params.email })
-        : contactApi.identify({ email: params?.email }));
-      return {
-        contact: result.contact,
-        verification_challenge: result.verification_challenge,
-      };
+      return customerApi.identify({ email: params?.email });
     };
 
     const promise = identityTail.then(run);
@@ -1799,29 +1925,50 @@ function createStorefrontClientCore(
     return promise;
   }
 
-  async function verify(params: {
-    challenge_id: string;
-    code: string;
-  }): Promise<StorefrontVerifyResult> {
+  async function requestCode(params: {
+    email: string;
+    market?: string;
+  }): Promise<StorefrontRequestCodeResult> {
     requireVisitorSessionCapability();
-    const result = await contactApi.verify(params);
+    if (params.market !== undefined) setMarket(params.market);
+    await ensureVisitorSession();
+    const result = await customerApi.requestCode({ email: params.email });
     identifyPromise = null;
-    return { contact: result.contact };
+    return result;
   }
 
-  async function me(): Promise<import("./api/storefront").StorefrontContact> {
+  async function verify(params: { code: string }): Promise<StorefrontVerifyResult> {
+    requireVisitorSessionCapability();
     await ensureVisitorSession();
-    return contactApi.getMe();
+    const result = await customerApi.verify({ code: params.code });
+    identifyPromise = null;
+    return result;
+  }
+
+  async function refresh(): Promise<StorefrontRefreshResult> {
+    requireVisitorSessionCapability();
+    const result = await customerApi.refresh();
+    identifyPromise = null;
+    return result;
+  }
+
+  async function me(): Promise<import("./api/storefront").CustomerMeResponse> {
+    await ensureVisitorSession();
+    const result = await customerApi.getMe();
+    updateSession((previous) =>
+      previous ? { ...previous, customer: result.customer } : previous,
+    );
+    return result;
   }
 
   async function logout(): Promise<void> {
     identifyPromise = null;
-    if (!readSessionToken()) {
+    if (!authorizationToken()) {
       updateSession(() => null);
       return;
     }
     try {
-      await contactApi.logout();
+      await customerApi.logout();
     } catch {
       updateSession(() => null);
     }
@@ -1844,19 +1991,32 @@ function createStorefrontClientCore(
   }
 
   recoverUnauthorized = async (
-    authorizationToken: string | null,
+    failedAuthorizationToken: string | null,
     path: string,
   ) => {
-    if (!authorizationToken) return false;
-    const currentToken = readSessionToken();
-    if (currentToken !== authorizationToken) {
+    if (!failedAuthorizationToken) return false;
+    const currentToken = authorizationToken();
+    if (currentToken !== failedAuthorizationToken) {
       if (currentToken) return true;
       if (!visitorRecoveryPromise) return false;
       await visitorRecoveryPromise;
-      return Boolean(readSessionToken());
+      return Boolean(authorizationToken());
+    }
+    if (/\/customer\/refresh$/.test(path)) {
+      updateSession(() => null);
+      return false;
+    }
+    if (memorySession?.session.type === "email_authenticated") {
+      try {
+        await refresh();
+        return true;
+      } catch {
+        updateSession(() => null);
+        return false;
+      }
     }
     updateSession(() => null);
-    if (/\/account\/(identify|code)$/.test(path)) return true;
+    if (/\/customer\/identify$/.test(path)) return true;
     const recovery = ensureVisitorSession();
     const trackedRecovery = recovery.finally(() => {
       if (visitorRecoveryPromise === trackedRecovery) {
@@ -1869,21 +2029,23 @@ function createStorefrontClientCore(
   };
 
   return {
-    identify,
-    verify,
-    logout,
-    me,
-
-    get session(): ContactSession | null {
+    get session(): StorefrontCustomerSession | null {
       return toPublic(memorySession);
     },
 
+    get hasSession(): boolean {
+      return Boolean(authorizationToken());
+    },
+
     get isAuthenticated(): boolean {
-      return Boolean(readSessionToken());
+      return (
+        memorySession?.session.status === "active" &&
+        memorySession.session.type === "email_authenticated"
+      );
     },
 
     onAuthStateChanged(
-      listener: AuthStateListener<ContactSession>,
+      listener: AuthStateListener<StorefrontCustomerSession>,
     ): () => void {
       listeners.add(listener);
       const current = toPublic(memorySession);
@@ -1901,17 +2063,15 @@ function createStorefrontClientCore(
     classification: storefrontApi.classification,
     cms: storefrontApi.cms,
     eshop: storefrontApi.eshop,
-    crm: {
-      ...storefrontApi.crm,
-      contact: {
-        identify: (params?: { email?: string }) => identify(params),
-        requestCode: (params?: { email?: string }) =>
-          identify({ ...params, verify: true }),
-        verify,
-        logout,
-        getMe: me,
-      },
+    customer: {
+      identify,
+      requestCode,
+      verify,
+      refresh,
+      logout,
+      getMe: me,
     },
+    crm: storefrontApi.crm,
     activity: storefrontApi.activity,
     experiments: storefrontApi.experiments,
     support: createStorefrontSupportApi(apiConfig, ensureVisitorSession),

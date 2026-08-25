@@ -227,13 +227,25 @@ const removedShippingContractPatterns = [
 ];
 const removedCrmActionVocabularyPattern =
   /\b(?:has_action|goal_action_key|action_id|opportunity_action_id|action_by_country|top_action_pages|recent_action)\b|\/actions\b|["']actions["']|\b(?:crmApi|storefrontApi|client)\.action\b/g;
+const removedCustomerVocabularyPatterns = [
+  /\b(?:Contact|ContactChannel|ContactSession|StorefrontContact)\b/g,
+  /\bcontact_id\b|\/contacts\b|\.crm\.contact\b/g,
+  /\/v1\/storefront\/(?:account|crm\/contact)\b/g,
+  /\/v1\/storefront\/customer\/code\b/g,
+  /\b(?:challenge_id|verification_challenge|crm_contacts)\b/g,
+  /\b(?:identifyEmailIfMissing|identifyContactEmailIfMissing|identifyCustomerEmailIfMissing)\b/g,
+  /\bcontact_funnel\b|\bcontacts_by_status\b/g,
+  /["']contact(?:\.created|\.updated)?["']|\bmaximum_uses_per_contact\b/g,
+  /\barky_vst_/g,
+];
 const removedActivityMutationPattern =
   /export interface Activity\s*\{[^}]*\bupdated_at\??:/g;
 const removedCartOrderContractPatterns = [
   /export interface Cart\s*\{[^}]*\bforms\??:/g,
   /export interface Order\s*\{[^}]*\b(?:version|verified|forms|fulfillment_status|fulfillment_summary)\??:/g,
+  /\bcustomer_verified_at_checkout\b/g,
   /export interface AudiencePromotionSnapshot\s*\{[^}]*\busage_status\??:/g,
-  /export type CheckoutPaymentAction\s*=[\s\S]*?\bstripe_account_id\??:[\s\S]*?(?=\nexport\s)/g,
+  /export type CheckoutPaymentAction\s*=(?:(?!\nexport\s)[\s\S])*?\bstripe_account_id\??:(?:(?!\nexport\s)[\s\S])*/g,
   /["']order_product\./g,
   /["']order_digital_product\./g,
   /\/orders\/\$\{params\.order_id\}\/products(?:\/|`)/g,
@@ -375,6 +387,13 @@ for (const file of listTypeScriptFiles(sourceDir)) {
     failures++;
   }
 
+  for (const pattern of removedCustomerVocabularyPatterns) {
+    for (const match of source.matchAll(pattern)) {
+      report(file, source, match.index, `removed Customer vocabulary ${match[0]}`);
+      failures++;
+    }
+  }
+
   for (const match of source.matchAll(removedActivityMutationPattern)) {
     report(file, source, match.index, "immutable Activity exposes updated_at");
     failures++;
@@ -397,6 +416,18 @@ for (const file of listTypeScriptFiles(sourceDir)) {
 
 const activityTypesFile = resolve(sourceDir, "types/index.ts");
 const activityTypesSource = readFileSync(activityTypesFile, "utf8");
+const apiTypesFile = resolve(sourceDir, "types/api.ts");
+const apiTypesSource = readFileSync(apiTypesFile, "utf8");
+const supportTypesFile = resolve(sourceDir, "api/support.ts");
+const supportTypesSource = readFileSync(supportTypesFile, "utf8");
+const storefrontApiFile = resolve(sourceDir, "api/storefront.ts");
+const storefrontApiSource = readFileSync(storefrontApiFile, "utf8");
+const customersApiFile = resolve(sourceDir, "api/customers.ts");
+const customersApiSource = readFileSync(customersApiFile, "utf8");
+const crmApiFile = resolve(sourceDir, "api/crm.ts");
+const crmApiSource = readFileSync(crmApiFile, "utf8");
+const indexFile = resolve(sourceDir, "index.ts");
+const indexSource = readFileSync(indexFile, "utf8");
 
 const propertylessBlockNames = [
   "TextBlock",
@@ -464,13 +495,238 @@ const activityContract = activityTypesSource.match(
 );
 if (
   !activityContract ||
-  !/\n\s*canonical_contact_id:\s*string;/.test(activityContract[1])
+  !/\n\s*customer_id:\s*string;/.test(activityContract[1]) ||
+  !/\n\s*customer_session_id:\s*string\s*\|\s*null;/.test(
+    activityContract[1],
+  ) ||
+  /\n\s*canonical_customer_id:/.test(activityContract[1])
 ) {
   report(
     activityTypesFile,
     activityTypesSource,
     activityContract?.index ?? 0,
-    "Activity must expose required canonical_contact_id",
+    "Activity must expose Customer and immutable CustomerSession provenance without a canonical alias",
+  );
+  failures++;
+}
+
+for (const typeName of ["Cart", "Order", "OrderBookingItem", "FormSubmission"]) {
+  const contract = activityTypesSource.match(
+    new RegExp(`export interface ${typeName}\\s*\\{([\\s\\S]*?)\\n\\}`),
+  );
+  if (
+    !contract ||
+    !/\n\s*customer_session_id:\s*string\s*\|\s*null;/.test(contract[1])
+  ) {
+    report(
+      activityTypesFile,
+      activityTypesSource,
+      contract?.index ?? 0,
+      `${typeName} must expose nullable immutable CustomerSession provenance`,
+    );
+    failures++;
+  }
+}
+
+const socialCommentContract = activityTypesSource.match(
+  /export interface SocialPublicationComment\s*\{([\s\S]*?)\n\}/,
+);
+if (
+  !socialCommentContract ||
+  !/\n\s*customer_session_id\?:\s*string\s*\|\s*null;/.test(
+    socialCommentContract[1],
+  )
+) {
+  report(
+    activityTypesFile,
+    activityTypesSource,
+    socialCommentContract?.index ?? 0,
+    "SocialPublicationComment must preserve optional CustomerSession provenance",
+  );
+  failures++;
+}
+
+const supportConversationContract = supportTypesSource.match(
+  /export interface SupportConversation\s*\{([\s\S]*?)\n\}/,
+);
+if (
+  !supportConversationContract ||
+  !/\n\s*customer_id:\s*string;/.test(supportConversationContract[1]) ||
+  !/\n\s*customer_session_id:\s*string\s*\|\s*null;/.test(
+    supportConversationContract[1],
+  )
+) {
+  report(
+    supportTypesFile,
+    supportTypesSource,
+    supportConversationContract?.index ?? 0,
+    "SupportConversation must expose required Customer and nullable immutable CustomerSession provenance",
+  );
+  failures++;
+}
+
+const receiveSupportMessageContract = supportTypesSource.match(
+  /export interface ReceiveSupportChannelMessageParams\s*\{([\s\S]*?)\n\}/,
+);
+if (
+  !receiveSupportMessageContract ||
+  !/\n\s*customer_id:\s*string;/.test(receiveSupportMessageContract[1])
+) {
+  report(
+    supportTypesFile,
+    supportTypesSource,
+    receiveSupportMessageContract?.index ?? 0,
+    "trusted inbound Support messages must require Customer provenance",
+  );
+  failures++;
+}
+
+if (!/\|\s*\{\s*event:\s*["']customer\.archived["']\s*\}/.test(activityTypesSource)) {
+  report(
+    activityTypesFile,
+    activityTypesSource,
+    0,
+    "WebhookEventSubscription must include customer.archived",
+  );
+  failures++;
+}
+
+if (
+  !/export const createCustomersApi\b/.test(customersApiSource) ||
+  !/\/customers\b/.test(customersApiSource) ||
+  /\bAudience\w*\b|\/audiences\b/.test(customersApiSource)
+) {
+  report(
+    customersApiFile,
+    customersApiSource,
+    0,
+    "api/customers.ts must exclusively own Admin Customer CRUD, import, and Sessions",
+  );
+  failures++;
+}
+
+if (
+  !/export const createAudienceApi\b/.test(crmApiSource) ||
+  /\b(?:CreateCustomer|UpdateCustomer|FindCustomers|ImportCustomers|CustomerSession)\w*\b|\/customers\b/.test(
+    crmApiSource,
+  )
+) {
+  report(
+    crmApiFile,
+    crmApiSource,
+    0,
+    "api/crm.ts must own Audience only, never the top-level Customer API",
+  );
+  failures++;
+}
+
+if (
+  /\bcrmApi\b|createCustomerApi/.test(indexSource) ||
+  !/createCustomersApi\s*\}\s*from\s*["']\.\/api\/customers["']/.test(
+    indexSource,
+  ) ||
+  !/createAudienceApi\s*\}\s*from\s*["']\.\/api\/crm["']/.test(indexSource)
+) {
+  report(
+    indexFile,
+    indexSource,
+    0,
+    "index wiring must use distinct Customers and Audience APIs without a CRM bundle",
+  );
+  failures++;
+}
+
+if (
+  !/apiConfig\.publishableKeyHttpClient\.post<RefreshResponse>\(/.test(
+    storefrontApiSource,
+  )
+) {
+  report(
+    storefrontApiFile,
+    storefrontApiSource,
+    0,
+    "Customer refresh must use the publishable-key-only HTTP client",
+  );
+  failures++;
+}
+
+for (const typeName of ["ImportCustomersParams", "ImportCustomersPreviewParams"]) {
+  const contract = apiTypesSource.match(
+    new RegExp(`export interface ${typeName}\\s*\\{([\\s\\S]*?)\\n\\}`),
+  );
+  if (
+    !contract ||
+    !/\n\s*rows:\s*ImportCustomerRowInput\[\];/.test(contract[1]) ||
+    /\b(?:csv|spreadsheet_base64|sheet_name|email_column|field_mappings)\b/.test(
+      contract[1],
+    )
+  ) {
+    report(
+      apiTypesFile,
+      apiTypesSource,
+      contract?.index ?? 0,
+      `${typeName} must use the row-only Customer import contract`,
+    );
+    failures++;
+  }
+}
+
+const importCustomerRowContract = apiTypesSource.match(
+  /export interface ImportCustomerRowInput\s*\{([\s\S]*?)\n\}/,
+);
+if (
+  !importCustomerRowContract ||
+  !/\n\s*classifications:\s*ClassificationEntry\[\];/.test(
+    importCustomerRowContract[1],
+  ) ||
+  /\b(?:fields|lead_description)\b/.test(importCustomerRowContract[1])
+) {
+  report(
+    apiTypesFile,
+    apiTypesSource,
+    importCustomerRowContract?.index ?? 0,
+    "ImportCustomerRowInput must contain Customer-owned classifications only",
+  );
+  failures++;
+}
+
+const storefrontVisitorSessionContract = storefrontApiSource.match(
+  /export type StorefrontVisitorSessionRecord\s*=\s*\{([\s\S]*?)\n\};/,
+);
+if (
+  !storefrontVisitorSessionContract ||
+  !/\n\s*type:\s*["']visitor["'];/.test(storefrontVisitorSessionContract[1]) ||
+  !/\n\s*email_verification:\s*CustomerEmailVerification;/.test(
+    storefrontVisitorSessionContract[1],
+  ) ||
+  /\b(?:token|access_token|refresh_token)\b/.test(
+    storefrontVisitorSessionContract[1],
+  )
+) {
+  report(
+    storefrontApiFile,
+    storefrontApiSource,
+    storefrontVisitorSessionContract?.index ?? 0,
+    "request-code must return a safe discriminated Visitor session without credentials",
+  );
+  failures++;
+}
+
+const requestCodeResponseContract = storefrontApiSource.match(
+  /export type RequestCodeResponse\s*=\s*\{([\s\S]*?)\n\};/,
+);
+if (
+  !requestCodeResponseContract ||
+  !/\n\s*session:\s*StorefrontVisitorSessionRecord;/.test(
+    requestCodeResponseContract[1],
+  ) ||
+  !/\n\s*email_verification:\s*\{/.test(requestCodeResponseContract[1])
+) {
+  report(
+    storefrontApiFile,
+    storefrontApiSource,
+    requestCodeResponseContract?.index ?? 0,
+    "RequestCodeResponse must expose the safe Visitor session and email_verification",
   );
   failures++;
 }

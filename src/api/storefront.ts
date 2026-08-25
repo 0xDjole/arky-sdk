@@ -42,7 +42,6 @@ import type {
   SubmitFormParams,
   SubscribeAudienceParams,
   UpdateCartParams,
-  VerificationChallengeResponse,
 } from "../types/api";
 import type {
   Cart,
@@ -53,10 +52,11 @@ import type {
   StorefrontDigitalProduct,
   Collection,
   CollectionEntry,
-  Contact,
   AudienceAccessResponse,
   AudienceSubscribeResponse,
-  ContactSessionIssued,
+  CustomerSessionIssued,
+  CustomerEmailVerification,
+  CustomerSessionRecord,
   Form,
   FormSubmission,
   Market,
@@ -76,7 +76,7 @@ import type {
   Classification,
 } from "../types";
 import type {
-  StorefrontContact,
+  StorefrontCustomer,
   StorefrontBookingOffering,
   StorefrontBookingResource,
   StorefrontBookingService,
@@ -87,7 +87,7 @@ import type {
   StorefrontZone,
 } from "../types/storefront";
 export type {
-  StorefrontContact,
+  StorefrontCustomer,
   StorefrontBookingOffering,
   StorefrontBookingResource,
   StorefrontBookingService,
@@ -102,15 +102,15 @@ import {
   sanitizePublicCartProducts,
 } from "../utils/cartInputs";
 
-export interface ContactSessionInternal {
-  sessionToken: string;
-  contact: StorefrontContact;
+export interface CustomerSessionInternal {
+  customer: StorefrontCustomer;
+  session: CustomerSessionIssued;
 }
 
-export type ContactSessionUpdater = (
+export type CustomerSessionUpdater = (
   updater: (
-    previous: ContactSessionInternal | null,
-  ) => ContactSessionInternal | null,
+    previous: CustomerSessionInternal | null,
+  ) => CustomerSessionInternal | null,
 ) => void;
 
 export interface StorefrontPaymentProvider {
@@ -140,14 +140,39 @@ export interface StorefrontSetup {
 }
 
 export type IdentifyResponse = {
-  contact: StorefrontContact;
-  token: ContactSessionIssued | null;
-  verification_challenge: VerificationChallengeResponse | null;
+  customer: StorefrontCustomer;
+  session: CustomerSessionIssued;
 };
 
-export type VerifyResponse = {
-  contact: StorefrontContact;
-  token: ContactSessionIssued;
+export type StorefrontVisitorSessionRecord = {
+  id: string;
+  customer_id: string;
+  type: "visitor";
+  status: "active";
+  superseded_at: null;
+  revoked_at: null;
+  expires_at: number;
+  email_verification: CustomerEmailVerification;
+  last_seen_at: number | null;
+  created_at: number;
+  updated_at: number;
+};
+
+export type RequestCodeResponse = {
+  customer: StorefrontCustomer;
+  session: StorefrontVisitorSessionRecord;
+  email_verification: {
+    sent_at: number;
+    expires_at: number;
+  };
+};
+
+export type VerifyResponse = IdentifyResponse;
+export type RefreshResponse = IdentifyResponse;
+
+export type CustomerMeResponse = {
+  customer: StorefrontCustomer;
+  session: StorefrontDto<CustomerSessionRecord>;
 };
 
 type Country = {
@@ -159,7 +184,8 @@ type Country = {
 type CountriesResponse = { items: Country[]; cursor: string | null };
 
 export interface StorefrontActivity {
-  contact_id: string;
+  customer_id: string;
+  customer_session_id: string;
   key: string;
   payload: Record<string, unknown>;
   created_at: number;
@@ -221,39 +247,105 @@ export const createActivityApi = (
 
 export const createStorefrontApi = (
   apiConfig: StorefrontApiConfig,
-  updateContactSession: ContactSessionUpdater,
+  updateCustomerSession: CustomerSessionUpdater,
   lifecycle: StorefrontLifecycle,
 ) => {
   const base = "/v1/storefront";
 
-  function persistIdentification(result: IdentifyResponse): IdentifyResponse {
-    const sessionToken =
-      result.token?.token ?? apiConfig.authStorage.getTokens()?.access_token;
-    if (sessionToken) {
-      updateContactSession(() => ({
-        sessionToken,
-        contact: result.contact,
-      }));
-    } else {
-      updateContactSession(() => null);
-    }
+  function persistIssuedSession<T extends IdentifyResponse>(result: T): T {
+    updateCustomerSession(() => ({
+      customer: result.customer,
+      session: result.session,
+    }));
     return result;
   }
 
   async function submitIdentification(
-    path: "identify" | "code",
+    path: "identify",
     params?: { email?: string },
     options?: RequestOptions,
   ): Promise<IdentifyResponse> {
     const result = await apiConfig.httpClient.post<IdentifyResponse>(
-      `${base}/account/${path}`,
+      `${base}/customer/${path}`,
       { email: params?.email },
       options,
     );
-    return persistIdentification(result);
+    return persistIssuedSession(result);
   }
 
   return {
+    customer: {
+      identify(
+        params?: { email?: string },
+        options?: RequestOptions,
+      ): Promise<IdentifyResponse> {
+        return submitIdentification("identify", params, options);
+      },
+      async requestCode(
+        params: { email: string },
+        options?: RequestOptions,
+      ): Promise<RequestCodeResponse> {
+        const result = await apiConfig.httpClient.post<RequestCodeResponse>(
+          `${base}/customer/request-code`,
+          { email: params.email },
+          options,
+        );
+        updateCustomerSession((previous) => {
+          if (
+            !previous ||
+            previous.session.type !== "visitor" ||
+            previous.session.id !== result.session.id ||
+            previous.session.customer_id !== result.session.customer_id
+          ) {
+            throw new Error(
+              "Customer request-code response does not match the active Visitor session",
+            );
+          }
+          return { ...previous, customer: result.customer };
+        });
+        return result;
+      },
+      async verify(
+        params: { code: string },
+        options?: RequestOptions,
+      ): Promise<VerifyResponse> {
+        const result = await apiConfig.httpClient.post<VerifyResponse>(
+          `${base}/customer/verify`,
+          { code: params.code },
+          options,
+        );
+        return persistIssuedSession(result);
+      },
+      async refresh(options?: RequestOptions): Promise<RefreshResponse> {
+        const refresh_token = apiConfig.authStorage.getTokens()?.refresh_token;
+        if (!refresh_token) {
+          throw new Error("An email-authenticated Customer session is required");
+        }
+        const result = await apiConfig.publishableKeyHttpClient.post<RefreshResponse>(
+          `${base}/customer/refresh`,
+          { refresh_token },
+          options,
+        );
+        return persistIssuedSession(result);
+      },
+      async logout(options?: RequestOptions): Promise<void> {
+        try {
+          await apiConfig.httpClient.post<void>(
+            `${base}/customer/logout`,
+            {},
+            options,
+          );
+        } finally {
+          updateCustomerSession(() => null);
+        }
+      },
+      getMe(options?: RequestOptions): Promise<CustomerMeResponse> {
+        return apiConfig.httpClient.get<CustomerMeResponse>(
+          `${base}/customer/me`,
+          options,
+        );
+      },
+    },
     store: {
       getSetup: lifecycle.getSetup,
       location: {
@@ -754,54 +846,6 @@ export const createStorefrontApi = (
       },
     },
     crm: {
-      contact: {
-        identify(
-          params?: { email?: string },
-          options?: RequestOptions,
-        ): Promise<IdentifyResponse> {
-          return submitIdentification("identify", params, options);
-        },
-        requestCode(
-          params?: { email?: string },
-          options?: RequestOptions,
-        ): Promise<IdentifyResponse> {
-          return submitIdentification("code", params, options);
-        },
-        async verify(
-          params: { challenge_id: string; code: string },
-          options?: RequestOptions,
-        ): Promise<VerifyResponse> {
-          const result = await apiConfig.httpClient.post<VerifyResponse>(
-            `${base}/account/verify`,
-            params,
-            options,
-          );
-          if (result.token?.token) {
-            updateContactSession(() => ({
-              sessionToken: result.token.token,
-              contact: result.contact,
-            }));
-          }
-          return result;
-        },
-        async logout(options?: RequestOptions): Promise<void> {
-          try {
-            await apiConfig.httpClient.post<void>(
-              `${base}/account/logout`,
-              {},
-              options,
-            );
-          } finally {
-            updateContactSession(() => null);
-          }
-        },
-        getMe(options?: RequestOptions): Promise<StorefrontContact> {
-          return apiConfig.httpClient.get<StorefrontContact>(
-            `${base}/account/me`,
-            options,
-          );
-        },
-      },
       audience: {
         get(
           params: StorefrontParams<GetStorefrontAudienceParams>,

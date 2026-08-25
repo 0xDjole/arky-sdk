@@ -42,10 +42,7 @@ import type {
   DateOverride,
   BookingWindow,
   TimeRange,
-  ContactStatus,
-  Contact,
-  ContactSessionIssued,
-  ContactSessionRecord,
+  CustomerStatus,
   CampaignEnrollmentImportResult,
   AudienceStatus,
   AudienceType,
@@ -189,7 +186,7 @@ export interface GetQuoteParams {
   payment_provider_id?: string;
   promo_code?: string;
   shipping_method_id?: string;
-  contact_id?: string;
+  customer_id?: string;
 }
 
 export interface GetCurrentCartParams {
@@ -205,7 +202,7 @@ export interface GetCartParams {
 
 export interface FindCartsParams {
   store_id?: string;
-  contact_id?: string;
+  customer_id?: string;
   statuses?: import("./index").CartStatus[];
   origins?: import("./index").CartOrigin[];
   has_items?: boolean;
@@ -215,7 +212,7 @@ export interface FindCartsParams {
 
 export interface CreateCartParams {
   store_id?: string;
-  contact_id: string;
+  customer_id: string;
   market: string;
   product_items?: TrustedCartProductInput[];
   booking_items?: TrustedCartBookingInput[];
@@ -460,11 +457,6 @@ export interface AuthToken {
   updated_at: number;
 }
 
-export interface VerificationChallengeResponse {
-  challenge_id: string;
-  expires_at: number;
-}
-
 export interface FindBookingServicesParams {
   store_id?: string;
   ids?: string[];
@@ -544,7 +536,7 @@ export type PromotionConditionInput =
       ends_at?: number | null;
     }
   | { type: "maximum_uses"; count: number }
-  | { type: "maximum_uses_per_contact"; count: number };
+  | { type: "maximum_uses_per_customer"; count: number };
 
 export interface CreatePromoCodeParams {
   store_id?: string;
@@ -735,7 +727,7 @@ export interface GetOrderParams {
 
 export interface GetOrdersParams {
   store_id?: string;
-  contact_id?: string;
+  customer_id?: string;
   statuses?: string[];
   product_statuses?: string[];
   booking_statuses?: string[];
@@ -744,7 +736,6 @@ export interface GetOrdersParams {
   booking_resource_ids?: string[];
   from?: number;
   to?: number;
-  contact_verified_at_checkout?: boolean;
 
   query?: string | number | null;
   limit?: number | null;
@@ -1044,7 +1035,7 @@ export interface SubmitFormParams {
 export interface GetFormSubmissionsParams {
   form_ids?: string[];
   store_id?: string;
-  contact_id?: string;
+  customer_id?: string;
 
   query?: string | number;
   limit?: number;
@@ -1057,7 +1048,7 @@ export interface GetFormSubmissionsParams {
 
 export interface FindActivitiesParams {
   store_id?: string;
-  contact_id?: string;
+  customer_id?: string;
   limit?: number;
   cursor?: string;
 }
@@ -1520,7 +1511,7 @@ export interface GetAudienceParams {
 export interface AddAudienceMemberParams {
   store_id?: string;
   audience_id: string;
-  contact_id: string;
+  customer_id: string;
   fields?: Record<string, unknown>;
   lead_description?: string | null;
 }
@@ -1543,7 +1534,7 @@ export interface RemoveAudienceMemberParams {
 export interface FindAudienceMembersParams {
   store_id?: string;
   audience_id?: string;
-  contact_id?: string;
+  customer_id?: string;
   enrollment_status?: AudienceMemberStatus;
   limit?: number;
   cursor?: string;
@@ -1633,21 +1624,22 @@ export interface GetAudienceSubscriptionParams {
   member_id: string;
 }
 
-export interface ImportContactRowInput {
+export interface ImportCustomerRowInput {
   email: string;
-  contact_id?: string;
+  customer_id?: string;
+  classifications: ClassificationEntry[];
+}
+
+export interface ImportAudienceMemberRowInput {
+  email: string;
+  customer_id?: string;
   fields?: Record<string, unknown>;
   lead_description?: string;
 }
 
-export interface ImportContactsParams {
+export interface ImportCustomersParams {
   store_id?: string;
-  csv?: string;
-  spreadsheet_base64?: string;
-  sheet_name?: string | null;
-  email_column?: string | null;
-  field_mappings?: ImportFieldMapping[];
-  rows?: ImportContactRowInput[];
+  rows: ImportCustomerRowInput[];
 }
 
 export interface ImportAudienceMembersParams {
@@ -1658,18 +1650,20 @@ export interface ImportAudienceMembersParams {
   sheet_name?: string | null;
   email_column?: string | null;
   field_mappings?: ImportFieldMapping[];
-  rows?: ImportContactRowInput[];
+  rows?: ImportAudienceMemberRowInput[];
 }
 
-export interface ImportContactsPreviewParams {
+export interface ImportCustomersPreviewParams {
   store_id?: string;
+  rows: ImportCustomerRowInput[];
+}
+
+export interface PreviewAudienceMemberImportParams {
+  store_id?: string;
+  audience_id: string;
   csv?: string;
   spreadsheet_base64?: string;
   sheet_name?: string | null;
-}
-
-export interface PreviewAudienceMemberImportParams extends ImportContactsPreviewParams {
-  audience_id: string;
 }
 
 export interface ImportFieldMapping {
@@ -1682,7 +1676,7 @@ export interface ImportPreviewRow {
   values: Record<string, unknown>;
 }
 
-export interface ImportContactsPreviewResult {
+export interface ImportAudienceMembersPreviewResult {
   sheets: string[];
   selected_sheet?: string | null;
   header_row: number;
@@ -1693,36 +1687,55 @@ export interface ImportContactsPreviewResult {
   suggested_field_mappings: ImportFieldMapping[];
 }
 
-export interface ImportContactRowError {
-  row: number;
+export interface ImportCustomerFieldError {
   field: string;
   message: string;
 }
 
-export interface ImportContactRowResult {
+export interface ImportCustomerPreviewRow {
   row: number;
   email: string;
-  contact_id?: string | null;
+  customer_id?: string | null;
+  valid: boolean;
+  errors: ImportCustomerFieldError[];
+}
+
+export interface ImportCustomersPreviewResult {
+  rows_total: number;
+  rows_valid: number;
+  rows_invalid: number;
+  rows: ImportCustomerPreviewRow[];
+}
+
+export interface ImportCustomerRowResult {
+  row: number;
+  email: string;
+  customer_id?: string | null;
   created: boolean;
   updated: boolean;
   error?: string | null;
 }
 
-export interface ImportContactsResult {
+export interface ImportCustomersResult {
   rows_total: number;
-  contacts_created: number;
-  contacts_updated: number;
+  customers_created: number;
+  customers_updated: number;
   rows_failed: number;
-  errors: ImportContactRowError[];
-  rows: ImportContactRowResult[];
+  rows: ImportCustomerRowResult[];
+}
+
+export interface ImportAudienceMemberRowError {
+  row: number;
+  field: string;
+  message: string;
 }
 
 export interface ImportAudienceMemberRowResult {
   row: number;
   email: string;
-  contact_id?: string | null;
-  contact_created: boolean;
-  contact_updated: boolean;
+  customer_id?: string | null;
+  customer_created: boolean;
+  customer_updated: boolean;
   member_added: boolean;
   member_updated: boolean;
   error?: string | null;
@@ -1730,13 +1743,13 @@ export interface ImportAudienceMemberRowResult {
 
 export interface ImportAudienceMembersResult {
   rows_total: number;
-  contacts_created: number;
-  contacts_updated: number;
+  customers_created: number;
+  customers_updated: number;
   members_added: number;
   members_updated: number;
   members_failed: number;
   rows_failed: number;
-  errors: ImportContactRowError[];
+  errors: ImportAudienceMemberRowError[];
   rows: ImportAudienceMemberRowResult[];
 }
 
@@ -1920,7 +1933,7 @@ export interface ImportCampaignEnrollmentsParams {
   store_id?: string;
   audience_ids?: string[];
   audience_tier_ids?: string[];
-  contact_ids?: string[];
+  customer_ids?: string[];
   emails?: string[];
 }
 
@@ -1928,7 +1941,7 @@ export interface GenerateOutreachPersonalizedDraftsParams {
   id: string;
   store_id?: string;
   step_position?: number;
-  contact_ids?: string[];
+  customer_ids?: string[];
   overwrite?: boolean;
   instructions?: string;
 }
@@ -1936,7 +1949,7 @@ export interface GenerateOutreachPersonalizedDraftsParams {
 export interface FindCampaignEnrollmentsParams {
   store_id?: string;
   campaign_id?: string;
-  contact_id?: string;
+  customer_id?: string;
   mailbox_id?: string;
   status?: CampaignEnrollmentStatus;
   limit?: number;
@@ -1972,7 +1985,7 @@ export interface FindCampaignMessagesParams {
   store_id?: string;
   campaign_id?: string;
   campaign_enrollment_id?: string;
-  contact_id?: string;
+  customer_id?: string;
   mailbox_id?: string;
   direction?: CampaignMessageDirection;
   type?: CampaignMessageType;
@@ -2418,75 +2431,56 @@ export type GetShippingLabelChargeRefundParams = GetOrderShipmentParams;
 export type RetryShippingLabelChargeRefundParams =
   GetShippingLabelChargeRefundParams;
 
-export interface ContactInfo {
-  id: string;
-  verified: boolean;
-}
-
-export interface FindContactSessionsParams {
-  contact_id: string;
+export interface FindCustomerSessionsParams {
+  customer_id: string;
   store_id?: string;
   limit?: number;
   cursor?: string;
 }
 
-export interface RevokeContactSessionParams {
-  contact_id: string;
+export interface RevokeCustomerSessionParams {
+  customer_id: string;
   session_id: string;
   store_id?: string;
 }
 
-export interface RevokeAllContactSessionsParams {
-  contact_id: string;
+export interface RevokeAllCustomerSessionsParams {
+  customer_id: string;
   store_id?: string;
 }
 
-export interface SetContactEmailParams {
-  email: string;
+export interface CreateCustomerParams {
   store_id?: string;
-}
-
-export interface CreateContactParams {
-  store_id?: string;
-  email: string;
+  email?: string;
   classifications?: ClassificationEntry[];
 }
 
-export interface UpdateContactParams {
+export interface UpdateCustomerParams {
   id: string;
   store_id?: string;
   email?: string;
   classifications?: ClassificationEntry[];
-  status?: ContactStatus;
 }
 
-export interface GetContactParams {
+export interface GetCustomerParams {
   id: string;
   store_id?: string;
 }
 
-export interface FindContactChannelsParams {
-  contact_ids: string[];
-  store_id?: string;
-}
+export type ArchiveCustomerParams = GetCustomerParams;
 
-export interface FindContactsParams {
+export interface FindCustomersParams {
   store_id?: string;
   ids?: string[];
 
   query?: string | number;
   classification_query?: ClassificationQuery[];
-  status?: ContactStatus;
+  status?: CustomerStatus;
+  has_verified_email?: boolean;
   has_activity?: boolean;
   has_cart?: boolean;
   limit?: number;
   cursor?: string;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
-}
-
-export interface MergeContactsParams {
-  target_id: string;
-  source_id: string;
-  store_id?: string;
 }

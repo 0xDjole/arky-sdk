@@ -15,6 +15,28 @@ const newShippingDiscountId = "467e9608-2b42-479a-8c5b-d9152fbb7870";
 const uuidV4Pattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
+function storedVisitorSession(token, customerId = "customer-provider-contract") {
+  return JSON.stringify({
+    version: 1,
+    customer: {
+      id: customerId,
+      status: "active",
+      identities: [],
+      classifications: [],
+      created_at: 1,
+      updated_at: 1,
+    },
+    session: {
+      id: `session-${customerId}`,
+      customer_id: customerId,
+      status: "active",
+      type: "visitor",
+      token,
+      expires_at: 10_000,
+    },
+  });
+}
+
 function jsonResponse(body) {
   return new Response(JSON.stringify(body), {
     status: 200,
@@ -95,7 +117,7 @@ test("commerce PromoCode create sends every canonical discount and condition wir
         ends_at: 1_800_000_000,
       },
       { type: "maximum_uses", count: 100 },
-      { type: "maximum_uses_per_contact", count: 1 },
+      { type: "maximum_uses_per_customer", count: 1 },
     ],
     status: "active",
     uses: 0,
@@ -163,7 +185,7 @@ test("commerce PromoCode create sends every canonical discount and condition wir
             ends_at: 1_800_000_000,
           },
           { type: "maximum_uses", count: 100 },
-          { type: "maximum_uses_per_contact", count: 1 },
+          { type: "maximum_uses_per_customer", count: 1 },
         ],
       },
     },
@@ -564,11 +586,13 @@ test("Stripe Express Dashboard uses one authenticated provider link request", as
 test("storefront support keeps its capability token in one forced header on the connected Store", async () => {
   const supportToken = "a".repeat(64);
   const publishableKey = `arky_pk_${"s".repeat(43)}`;
-  const visitorToken = `arky_vst_${"a".repeat(64)}`;
+  const visitorToken = `customer_visitor_${"a".repeat(64)}`;
+  const customerId = "customer-provider-contract";
+  const customerSessionId = `session-${customerId}`;
   const storefront = createStorefront(publishableKey, {
     apiUrl: baseUrl,
     sessionStorage: {
-      getItem: () => visitorToken,
+      getItem: () => storedVisitorSession(visitorToken),
       setItem() {},
       removeItem() {},
     },
@@ -584,13 +608,23 @@ test("storefront support keeps its capability token in one forced header on the 
     });
     if (calls.length === 1) {
       return jsonResponse({
-        conversation: { id: "conversation-contract", status: "active" },
+        conversation: {
+          id: "conversation-contract",
+          customer_id: customerId,
+          customer_session_id: customerSessionId,
+          status: "active",
+        },
         messages: [],
         support_token: supportToken,
       });
     }
     return jsonResponse({
-      conversation: { id: "conversation-contract", status: "active" },
+      conversation: {
+        id: "conversation-contract",
+        customer_id: customerId,
+        customer_session_id: customerSessionId,
+        status: "active",
+      },
       messages: [
         {
           id: resourceId,
@@ -610,6 +644,8 @@ test("storefront support keeps its capability token in one forced header on the 
       channel_metadata: { source: "provider-contract" },
     });
     assert.equal(started.support_token, supportToken);
+    assert.equal(started.conversation.customer_id, customerId);
+    assert.equal(started.conversation.customer_session_id, customerSessionId);
     await storefront.support.sendMessage(
       {
         conversation_id: "conversation-contract",

@@ -9,6 +9,28 @@ const baseUrl = "https://api.example.test";
 const storeId = "store-client-contract";
 const publishableKey = `arky_pk_${"k".repeat(43)}`;
 
+function storedVisitorSession(token, customerId = "customer-client-contract") {
+  return JSON.stringify({
+    version: 1,
+    customer: {
+      id: customerId,
+      status: "active",
+      identities: [],
+      classifications: [],
+      created_at: 1,
+      updated_at: 1,
+    },
+    session: {
+      id: `session-${customerId}`,
+      customer_id: customerId,
+      status: "active",
+      type: "visitor",
+      token,
+      expires_at: 10_000,
+    },
+  });
+}
+
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -384,7 +406,7 @@ test("Store endpoint configurations and physical locations use their cleaned con
     await admin.store.webhook.create({
       store_id: storeId,
       url: "https://events.example.test/hook",
-      events: [{ event: "store.updated" }],
+      events: [{ event: "customer.archived" }],
       headers: {},
       secret: "s".repeat(32),
       status: "disabled",
@@ -436,7 +458,7 @@ test("Store endpoint configurations and physical locations use their cleaned con
         method: "POST",
         body: {
           url: "https://events.example.test/hook",
-          events: [{ event: "store.updated" }],
+          events: [{ event: "customer.archived" }],
           headers: {},
           secret: "s".repeat(32),
           status: "disabled",
@@ -563,7 +585,8 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
   const cart = {
     id: "cart-provider-contract",
     store_id: storeId,
-    contact_id: "contact-contract",
+    customer_id: "customer-contract",
+    customer_session_id: null,
     token: "cart-token-contract",
     status: "active",
     origin: "admin",
@@ -727,7 +750,7 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
   );
 });
 
-test("admin Order uses the embedded product-item route and canonical verification filter", async () => {
+test("admin Order uses the embedded product-item route and canonical Customer filter", async () => {
   const admin = createAdmin({
     baseUrl,
     storeId,
@@ -746,7 +769,7 @@ test("admin Order uses the embedded product-item route and canonical verificatio
   };
 
   try {
-    await admin.eshop.order.find({ contact_verified_at_checkout: true });
+    await admin.eshop.order.find({ customer_id: "customer-contract" });
     await admin.eshop.order.cancelProductItem({
       order_id: "order-contract",
       order_product_item_id: "order-product-item-contract",
@@ -761,7 +784,7 @@ test("admin Order uses the embedded product-item route and canonical verificatio
   assert.equal("cancelProduct" in admin.eshop.order, false);
   assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/stores/${storeId}/orders?contact_verified_at_checkout=true`,
+      url: `${baseUrl}/v1/stores/${storeId}/orders?customer_id=customer-contract`,
       method: "GET",
       body: null,
     },
@@ -1052,12 +1075,12 @@ test("storefront product inventory is an explicit child-resource request", async
 });
 
 test("storefront cart recovery sends its credential only in the cart-token header", async () => {
-  const visitorToken = `arky_vst_${"c".repeat(64)}`;
+  const visitorToken = `customer_visitor_${"c".repeat(64)}`;
   const recoveryToken = "cart-recovery-contract-token";
   const storefront = createStorefront(publishableKey, {
     apiUrl: baseUrl,
     sessionStorage: {
-      getItem: () => visitorToken,
+      getItem: () => storedVisitorSession(visitorToken),
       setItem() {},
       removeItem() {},
     },

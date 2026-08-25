@@ -16,7 +16,7 @@ import type {
   ClassificationEntry,
   ClassificationFieldQuery,
   ClassificationSchema,
-  Contact,
+  Customer,
   Cart,
   CartBookingItem,
   CartDigitalItem,
@@ -123,6 +123,7 @@ import type {
   StorefrontSetup,
   StorefrontGetSupportConversationParams,
   StorefrontSendSupportMessageParams,
+  ReceiveSupportChannelMessageParams,
   SupportAgentDefinition,
   SupportAgentNode,
   SupportConversation,
@@ -209,7 +210,7 @@ import type {
   CreateStoreParams,
   CreateWebhookParams,
   FindActivitiesParams,
-  FindContactsParams,
+  FindCustomersParams,
   RequestOptions,
 } from "../../dist/types.js";
 // @ts-expect-error CRM Activity queries have no Action compatibility alias.
@@ -237,10 +238,11 @@ import type { CommonActionKey, StorefrontAction, TrackActionParams } from "../..
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
 const sdkVersionLiteral: "0.26.0" = SDK_VERSION;
-const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
+// @ts-expect-error mandatory Visitor Customer bootstrap is unmetered.
+const legacyCrmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
 const bookingServiceFeature: SubscriptionPlanFeatureType = "booking_services";
 const bookingResourceFeature: SubscriptionPlanFeatureType = "booking_resources";
-// @ts-expect-error the server's serialized feature key is crm_contacts.
+// @ts-expect-error Customer bootstrap has no replacement quota feature key.
 const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
 // @ts-expect-error Booking Service quota keys use the full domain name.
 const legacyServiceFeature: SubscriptionPlanFeatureType = "services";
@@ -640,7 +642,7 @@ const promotionConditions: PromotionCondition[] = [
   },
   { type: "redemption_window", starts_at: null, ends_at: 1_800_000_000 },
   { type: "maximum_uses", count: 100 },
-  { type: "maximum_uses_per_contact", count: 1 },
+  { type: "maximum_uses_per_customer", count: 1 },
 ];
 
 const promoCodeContract: PromoCode = {
@@ -683,7 +685,7 @@ const promotionConditionInputs: PromotionConditionInput[] = [
   },
   { type: "redemption_window", starts_at: null },
   { type: "maximum_uses", count: 100 },
-  { type: "maximum_uses_per_contact", count: 1 },
+  { type: "maximum_uses_per_customer", count: 1 },
 ];
 
 const createPromoCodeContract: CreatePromoCodeParams = {
@@ -796,8 +798,8 @@ const legacyMaximumUsesCondition: PromotionConditionInput = {
   type: "max_uses",
   count: 10,
 };
-const legacyContactLimitCondition: PromotionConditionInput = {
-  // @ts-expect-error Per-contact limits use Contact vocabulary.
+const legacyCustomerLimitCondition: PromotionConditionInput = {
+  // @ts-expect-error Per-Customer limits use the canonical tag.
   type: "max_uses_per_user",
   count: 1,
 };
@@ -890,9 +892,9 @@ const suppressionInput: CreateSuppressionParams = {
   reason: "manual",
 };
 declare const suppression: Suppression;
-if (suppression.target.type === "contact") {
-  const suppressionContactId: string = suppression.target.contact_id;
-  void suppressionContactId;
+if (suppression.target.type === "customer") {
+  const suppressionCustomerId: string = suppression.target.customer_id;
+  void suppressionCustomerId;
 }
 // @ts-expect-error suppression identity is expressed only by its tagged target.
 suppression.target_key;
@@ -1009,7 +1011,7 @@ const digitalQuoteInputContract: DigitalProductQuoteInput = {
 };
 const quoteInputContract: GetQuoteParams = {
   market: "us",
-  contact_id: "contact-contract",
+  customer_id: "customer-contract",
   products: [productQuoteInputContract],
   bookings: [bookingQuoteInputContract],
   digital: [digitalQuoteInputContract],
@@ -1251,9 +1253,9 @@ const adminBookingNoShow: Promise<Order> =
   adminClient.eshop.order.markBookingItemNoShow(bookingItemLifecycleParams);
 const storefrontBookingCancellation: Promise<StorefrontDto<Order>> =
   storefrontClient.eshop.order.cancelBookingItem(bookingItemLifecycleParams);
-// @ts-expect-error A verified owning Contact cannot complete a booking item.
+// @ts-expect-error A verified owning Customer cannot complete a booking item.
 storefrontClient.eshop.order.completeBookingItem(bookingItemLifecycleParams);
-// @ts-expect-error A verified owning Contact cannot mark a booking item as a no-show.
+// @ts-expect-error A verified owning Customer cannot mark a booking item as a no-show.
 storefrontClient.eshop.order.markBookingItemNoShow(bookingItemLifecycleParams);
 const classificationChildren: Promise<Classification[]> =
   adminClient.classification.getChildren({ id: "classification-contract" });
@@ -1305,7 +1307,8 @@ const cartBookingItemContract: CartBookingItem = {
 const canonicalCartContract: Cart = {
   id: "cart-contract",
   store_id: "store-contract",
-  contact_id: "contact-contract",
+  customer_id: "customer-contract",
+  customer_session_id: "customer-session-contract",
   token: "cart-token-contract",
   status: "active",
   origin: "storefront",
@@ -1355,10 +1358,10 @@ declare const storefrontSupport: Awaited<
   ReturnType<typeof storefrontClient.support.startConversation>
 >;
 declare const storefrontVerification: Awaited<
-  ReturnType<typeof storefrontClient.verify>
+  ReturnType<typeof storefrontClient.customer.verify>
 >;
 declare const nestedStorefrontIdentification: Awaited<
-  ReturnType<typeof storefrontClient.crm.contact.identify>
+  ReturnType<typeof storefrontClient.customer.identify>
 >;
 // @ts-expect-error Store ownership is not exposed by public catalog DTOs.
 storefrontProduct.store_id;
@@ -1368,9 +1371,9 @@ storefrontProduct.variants[0].inventory[0].store_id;
 storefrontCart.store_id;
 // @ts-expect-error Store ownership is not exposed by public support DTOs.
 storefrontSupport.conversation.store_id;
-// @ts-expect-error Visitor credentials stay private after verification.
+// @ts-expect-error issued credentials are nested under the immutable Session variant.
 storefrontVerification.token;
-// @ts-expect-error Visitor credentials stay private on the nested CRM facade.
+// @ts-expect-error issued credentials are nested under the immutable Session variant.
 nestedStorefrontIdentification.token;
 const userAuthoredStoreId: unknown =
   storefrontSupport.conversation.channel_metadata.store_id;
@@ -1510,12 +1513,16 @@ audiencePromotionSnapshot.usage_status;
 declare const storefrontIdentify: StorefrontIdentifyResult;
 const storefrontEntryIdentify: StorefrontEntryIdentifyResult =
   storefrontIdentify;
-const verificationChallengeId: string | undefined =
-  storefrontIdentify.verification_challenge?.challenge_id;
-// @ts-expect-error session tokens stay private to the storefront client.
+// @ts-expect-error challenge identifiers were removed; verification is code-only.
+storefrontIdentify.challenge_id;
+// @ts-expect-error issued credentials are nested under the Session variant.
 storefrontIdentify.token;
-// @ts-expect-error storefront Contact DTOs do not expose tenant routing IDs.
-storefrontIdentify.contact.store_id;
+// @ts-expect-error storefront Customer DTOs do not expose tenant routing IDs.
+storefrontIdentify.customer.store_id;
+if (storefrontIdentify.session.type === "visitor") {
+  const issuedVisitorToken: string = storefrontIdentify.session.token;
+  void issuedVisitorToken;
+}
 
 declare const paymentStorefront: ReturnType<typeof initialize>;
 // @ts-expect-error hosted Checkout removed the browser Stripe controller.
@@ -1663,6 +1670,7 @@ const embeddedOrderProductItem: OrderProductItem = {
 };
 const embeddedOrderBookingItem: OrderBookingItem = {
   id: "order-booking-item-contract",
+  customer_session_id: null,
   booking_offering_id: "booking-offering-contract",
   booking_service_id: "booking-service-contract",
   booking_resource_id: "booking-resource-contract",
@@ -1696,9 +1704,9 @@ const orderContract: Order = {
   number: "1002",
   store_id: "store-contract",
   source_cart_id: canonicalCartContract.id,
-  contact_id: "contact-contract",
+  customer_id: "customer-contract",
+  customer_session_id: "customer-session-contract",
   status: "confirmed",
-  contact_verified_at_checkout: true,
   payment_id: orderPayment.id,
   product_items: [embeddedOrderProductItem],
   booking_items: [embeddedOrderBookingItem],
@@ -1723,7 +1731,7 @@ const forbiddenBookingRewrite: UpdateOrderParams = {
 };
 // @ts-expect-error Order children are embedded and no longer use persistence versions.
 orderContract.version;
-// @ts-expect-error checkout verification has its canonical immutable field name.
+// @ts-expect-error Order facts never duplicate Customer verification state.
 orderContract.verified;
 // @ts-expect-error Form submissions belong to embedded Order items.
 orderContract.forms;
@@ -1820,7 +1828,7 @@ const supportDefinitionWithNoAi: SupportAgentDefinition = {
   created_at: 1,
   updated_at: 1,
 };
-const supportConversationWithNullReferences: SupportConversation = {
+const supportConversationWithNullableSession: SupportConversation = {
   id: "conversation-contract",
   store_id: "store-contract",
   agent_id: null,
@@ -1831,7 +1839,8 @@ const supportConversationWithNullReferences: SupportConversation = {
     session_id: null,
   },
   current_node_id: null,
-  contact_id: null,
+  customer_id: "customer-contract",
+  customer_session_id: null,
   assigned_account_id: null,
   status: "active",
   variables: {},
@@ -1839,6 +1848,28 @@ const supportConversationWithNullReferences: SupportConversation = {
   created_at: 1,
   updated_at: 1,
 };
+const inboundSupportMessage: ReceiveSupportChannelMessageParams = {
+  store_id: "store-contract",
+  channel_id: "channel-contract",
+  customer_id: "customer-contract",
+  channel_context: {
+    type: "email",
+    from: "person@example.com",
+    to: "support@example.com",
+    subject: "Help",
+    reply_to: "person@example.com",
+    message_id: null,
+    references: [],
+  },
+  content: "Help",
+};
+const storefrontSupportStart: NonNullable<
+  Parameters<typeof storefrontClient.support.startConversation>[0]
+> = { agent_key: "default" };
+// @ts-expect-error storefront support provenance is derived from Customer auth.
+storefrontSupportStart.customer_id;
+// @ts-expect-error storefront support provenance is derived from Customer auth.
+storefrontSupportStart.customer_session_id;
 const supportMessageWithNullState: SupportMessage = {
   id: "message-contract",
   store_id: "store-contract",
@@ -2001,7 +2032,7 @@ const personalApiToken: AccountApiToken = {
 // Expiry is derived from expires_at; it is not a persisted status.
 // @ts-expect-error Account API Token status is only active or revoked.
 const expiredApiTokenStatus: AccountApiTokenStatus = "expired";
-declare const contact: Contact;
+declare const customer: Customer;
 declare const product: Product;
 declare const productInventory: ProductInventory;
 declare const productVariant: ProductVariant;
@@ -2179,8 +2210,8 @@ shippingLabelCharge.attempt_count;
 shippingLabelCharge.provider;
 // @ts-expect-error verification challenges are never part of the public account contract.
 account.verification_codes;
-// @ts-expect-error verification challenges are never part of the public contact contract.
-contact.verification_codes;
+// @ts-expect-error verification challenges are never part of the public Customer contract.
+customer.verification_codes;
 // @ts-expect-error variant order, not an is_default field, defines the configured default.
 productVariant.is_default;
 // @ts-expect-error Product localized routes use the canonical slugs map.
@@ -2266,7 +2297,7 @@ const canonicalPage: PaginatedResponse<{ id: string }> = {
 
 const activityPageParams: FindActivitiesParams = {
   store_id: "store-contract",
-  contact_id: "contact-contract",
+  customer_id: "customer-contract",
   limit: 20,
   cursor: "cursor-contract",
 };
@@ -2275,7 +2306,7 @@ type UnsupportedActivityFilterKeys = AssertNever<
   Extract<keyof FindActivitiesParams, "query" | "types" | "from" | "to">
 >;
 type RemovedContactActionFilterKey = AssertNever<
-  Extract<keyof FindContactsParams, "has_action">
+  Extract<keyof FindCustomersParams, "has_action">
 >;
 type RemovedExperimentActionGoalKey = AssertNever<
   Extract<keyof CreateExperimentParams, "goal_action_key">
@@ -2306,8 +2337,8 @@ const opportunityActivityData: ActivityData = {
 const activity: Activity = {
   id: "activity-contract",
   store_id: "store-contract",
-  contact_id: "contact-contract",
-  canonical_contact_id: "canonical-contact-contract",
+  customer_id: "customer-contract",
+  customer_session_id: "customer-session-contract",
   key: "page.view",
   type: "tracked",
   preview_text: "Viewed product",
@@ -2318,7 +2349,8 @@ const activity: Activity = {
 // @ts-expect-error immutable Activity facts do not expose update timestamps.
 activity.updated_at;
 const storefrontActivity: StorefrontActivity = {
-  contact_id: "contact-contract",
+  customer_id: "customer-contract",
+  customer_session_id: "customer-session-contract",
   key: "page.view",
   payload: { path: "/products/example" },
   created_at: 1,
@@ -2328,7 +2360,7 @@ const trackActivity: TrackActivityParams = {
   payload: { path: "/products/example" },
 };
 const commonActivityKey: CommonActivityKey = COMMON_ACTIVITY_KEYS[0];
-const activityContactFilter: FindContactsParams = { has_activity: true };
+const activityContactFilter: FindCustomersParams = { has_activity: true };
 const experiment: Experiment = {
   id: "experiment-contract",
   store_id: "store-contract",
@@ -2362,7 +2394,7 @@ const activityFeed: ActivityFeedData = {
       action: "tracked",
       event_type: "activity_tracked",
       status: "",
-      contact_id: activity.contact_id,
+      customer_id: activity.customer_id,
       category: "activities",
       title: "Page viewed",
       description: "A contact viewed a product.",
@@ -2406,6 +2438,9 @@ const productItemUpdatedWebhook: WebhookEventSubscription = {
 };
 const digitalItemConfirmedWebhook: WebhookEventSubscription = {
   event: "order_digital_item.confirmed",
+};
+const customerArchivedWebhook: WebhookEventSubscription = {
+  event: "customer.archived",
 };
 const eventAction: EventAction = { action: "product_created" };
 const supportAction: SupportAction = {
@@ -2475,6 +2510,7 @@ void [
   mediaUpdatedWebhook,
   productItemUpdatedWebhook,
   digitalItemConfirmedWebhook,
+  customerArchivedWebhook,
   tiktokConnectionType,
   tiktokContent,
   tiktokInitializeEffect,
@@ -2488,7 +2524,9 @@ void [
   invalidSupportMessageNode,
   invalidSupportActionNode,
   supportDefinitionWithNoAi,
-  supportConversationWithNullReferences,
+  supportConversationWithNullableSession,
+  inboundSupportMessage,
+  storefrontSupportStart,
   supportMessageWithNullState,
   storefrontSupportMessage,
   storefrontSupportRead,
@@ -2509,7 +2547,7 @@ void [
   terminalSessionStatus,
   personalApiToken,
   expiredApiTokenStatus,
-  contact,
+  customer,
   productVariant,
   trigger,
   getNode,
@@ -2535,7 +2573,7 @@ void [
   supportAction,
   campaignMessageDirection,
   missingPublishingCapability,
-  crmContactFeature,
+  legacyCrmContactFeature,
   nonWireCrmProfileFeature,
   audienceTierPriceInput,
   audienceTierPriceWithProvider,

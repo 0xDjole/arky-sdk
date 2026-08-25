@@ -7,7 +7,7 @@ import { initialize } from "../dist/storefront.js";
 const baseUrl = "https://api.example.test";
 const storeId = "store-activity-contract";
 const publishableKey = `arky_pk_${"k".repeat(43)}`;
-const visitorToken = `arky_vst_${"a".repeat(64)}`;
+const visitorToken = `customer_visitor_${"a".repeat(64)}`;
 
 function jsonResponse(body) {
   return new Response(JSON.stringify(body), {
@@ -22,8 +22,8 @@ test("Admin exposes CRM Activities and sends only canonical Activity routes and 
   const activity = {
     id: "activity-contract",
     store_id: storeId,
-    contact_id: "contact-original",
-    canonical_contact_id: "contact-activity-contract",
+    customer_id: "customer-activity-contract",
+    customer_session_id: "session-original",
     key: "page.view",
     type: "tracked",
     preview_text: "Viewed product",
@@ -44,14 +44,14 @@ test("Admin exposes CRM Activities and sends only canonical Activity routes and 
   let found;
   try {
     timeline = await admin.crm.activity.timeline({
-      contact_id: "contact-activity-contract",
+      customer_id: "customer-activity-contract",
       limit: 10,
     });
     found = await admin.crm.activity.find({
-      contact_id: "contact-activity-contract",
+      customer_id: "customer-activity-contract",
       limit: 20,
     });
-    await admin.crm.contact.find({ has_activity: true });
+    await admin.customers.find({ has_activity: true });
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -59,23 +59,20 @@ test("Admin exposes CRM Activities and sends only canonical Activity routes and 
   assert.equal("action" in admin.crm, false);
   assert.deepEqual(timeline, { items: [activity], cursor: null });
   assert.deepEqual(found, { items: [activity], cursor: null });
-  assert.equal(timeline.items[0].contact_id, "contact-original");
-  assert.equal(
-    timeline.items[0].canonical_contact_id,
-    "contact-activity-contract",
-  );
+  assert.equal(timeline.items[0].customer_id, "customer-activity-contract");
+  assert.equal(timeline.items[0].customer_session_id, "session-original");
   assert.equal("updated_at" in timeline.items[0], false);
   assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/stores/${storeId}/contacts/contact-activity-contract/activities?contact_id=contact-activity-contract&limit=10`,
+      url: `${baseUrl}/v1/stores/${storeId}/customers/customer-activity-contract/activities?customer_id=customer-activity-contract&limit=10`,
       method: "GET",
     },
     {
-      url: `${baseUrl}/v1/stores/${storeId}/activities?contact_id=contact-activity-contract&limit=20`,
+      url: `${baseUrl}/v1/stores/${storeId}/activities?customer_id=customer-activity-contract&limit=20`,
       method: "GET",
     },
     {
-      url: `${baseUrl}/v1/stores/${storeId}/contacts?has_activity=true`,
+      url: `${baseUrl}/v1/stores/${storeId}/customers?has_activity=true`,
       method: "GET",
     },
   ]);
@@ -85,7 +82,25 @@ test("initialized storefront tracks Activities without retaining an Action alias
   const calls = [];
   const sessionStorage = {
     getItem() {
-      return visitorToken;
+      return JSON.stringify({
+        version: 1,
+        customer: {
+          id: "customer-activity-contract",
+          status: "active",
+          identities: [],
+          classifications: [],
+          created_at: 1,
+          updated_at: 1,
+        },
+        session: {
+          id: "session-activity-contract",
+          customer_id: "customer-activity-contract",
+          status: "active",
+          type: "visitor",
+          token: visitorToken,
+          expires_at: 10_000,
+        },
+      });
     },
     setItem() {},
     removeItem() {},

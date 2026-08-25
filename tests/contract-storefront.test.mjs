@@ -7,7 +7,7 @@ import { createStorefront, initialize } from "../dist/storefront.js";
 
 const apiUrl = "https://api.example.test";
 const publishableKey = `arky_pk_${"c".repeat(43)}`;
-const visitorToken = `arky_vst_${"c".repeat(64)}`;
+const visitorToken = `customer_visitor_${"c".repeat(64)}`;
 const cashOnDeliveryProviderId = "provider-cash-on-delivery";
 const stripeProviderId = "provider-stripe";
 
@@ -62,7 +62,8 @@ function setup() {
 function cartSnapshot(itemCount = 0) {
   return {
     id: "cart-contract",
-    contact_id: "contact-contract",
+    customer_id: "customer-contract",
+    customer_session_id: "customer-session-contract",
     token: "cart-token",
     status: "active",
     origin: "storefront",

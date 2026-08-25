@@ -5,7 +5,7 @@ import { initialize } from "../dist/storefront.js";
 
 const apiUrl = "https://api.example.test";
 const publishableKey = `arky_pk_${"f".repeat(42)}A`;
-const visitorToken = `arky_vst_${"f".repeat(64)}`;
+const visitorToken = `customer_visitor_${"f".repeat(64)}`;
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -26,13 +26,21 @@ function memoryStorage() {
   };
 }
 
-function contact(email = null) {
+function customer(email = null) {
   return {
-    id: "contact-form-contract",
-    email,
-    verified: Boolean(email),
+    id: "customer-form-contract",
     status: "active",
-    channels: [],
+    identities: email
+      ? [
+          {
+            id: "identity-form-contract",
+            type: "email",
+            email,
+            verified_at: null,
+            created_at: 1,
+          },
+        ]
+      : [],
     classifications: [],
     created_at: 1,
     updated_at: 1,
@@ -41,16 +49,21 @@ function contact(email = null) {
 
 function identifyResponse(email = null) {
   return {
-    contact: contact(email),
-    token: {
+    customer: customer(email),
+    session: {
       id: "visitor-session-form-contract",
+      customer_id: "customer-form-contract",
+      type: "visitor",
       token: visitorToken,
       status: "active",
-      created_at: 1,
       expires_at: 10_000,
     },
-    verification_challenge: null,
   };
+}
+
+function storedVisitorSession() {
+  const { customer: customerRecord, session } = identifyResponse();
+  return JSON.stringify({ version: 1, customer: customerRecord, session });
 }
 
 function form() {
@@ -79,14 +92,15 @@ test("a fresh cart load resolves Store defaults before loading persisted product
   const store = initialize(publishableKey, {
     apiUrl,
     sessionStorage: {
-      getItem: () => visitorToken,
+      getItem: () => storedVisitorSession(),
       setItem() {},
       removeItem() {},
     },
   });
   const cart = {
     id: "cart-hydration-contract",
-    contact_id: "contact-form-contract",
+    customer_id: "customer-form-contract",
+    customer_session_id: "visitor-session-form-contract",
     token: "cart-recovery-contract",
     status: "active",
     origin: "storefront",
@@ -258,7 +272,7 @@ test("submitByKey reads anonymously, identifies lazily, and submits no Store rou
     };
     calls.push(call);
     if (call.url.endsWith("/forms/contact-form")) return jsonResponse(form());
-    if (call.url.endsWith("/account/identify"))
+    if (call.url.endsWith("/customer/identify"))
       return jsonResponse(identifyResponse());
     if (call.url.endsWith("/forms/form-contact/submissions")) {
       return jsonResponse({
@@ -292,7 +306,7 @@ test("submitByKey reads anonymously, identifies lazily, and submits no Store rou
     calls.map(({ method, url }) => [method, url]),
     [
       ["GET", `${apiUrl}/v1/storefront/forms/contact-form`],
-      ["POST", `${apiUrl}/v1/storefront/account/identify`],
+      ["POST", `${apiUrl}/v1/storefront/customer/identify`],
       ["POST", `${apiUrl}/v1/storefront/forms/form-contact/submissions`],
     ],
   );
@@ -367,7 +381,7 @@ test("submitByKey validates the latest schema before identifying or submitting",
   assert.equal(storage.values.size, 0);
 });
 
-test("email identification normalizes the address and reuses the exact identified visitor", async () => {
+test("email identity attachment remains an explicit first-visit identify operation", async () => {
   const storage = memoryStorage();
   const store = initialize(publishableKey, {
     apiUrl,
@@ -382,23 +396,21 @@ test("email identification normalizes the address and reuses the exact identifie
   };
 
   try {
-    const first = await store.identifyContactEmailIfMissing(
-      "  Person@Example.COM  ",
-    );
-    const second =
-      await store.identifyContactEmailIfMissing("person@example.com");
-    assert.equal(first.contact.email, "person@example.com");
-    assert.equal(second.contact.email, "person@example.com");
+    assert.equal("identifyEmailIfMissing" in store.customer, false);
+    const result = await store.customer.identify({
+      email: "person@example.com",
+    });
+    assert.equal(result.customer.identities[0].email, "person@example.com");
   } finally {
     globalThis.fetch = originalFetch;
   }
 
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].body, { email: "person@example.com" });
-  assert.equal(calls[0].url, `${apiUrl}/v1/storefront/account/identify`);
+  assert.equal(calls[0].url, `${apiUrl}/v1/storefront/customer/identify`);
 });
 
-test("email identification after a page reload preserves the stored visitor session", async () => {
+test("a page reload reuses the stored Visitor without identifying again", async () => {
   const storage = memoryStorage();
   const calls = [];
   const originalFetch = globalThis.fetch;
@@ -409,19 +421,14 @@ test("email identification after a page reload preserves the stored visitor sess
       body: init.body ? JSON.parse(String(init.body)) : null,
     };
     calls.push(request);
-    if (request.url.endsWith("/account/identify") && !request.authorization) {
+    if (request.url.endsWith("/customer/identify") && !request.authorization) {
       return jsonResponse(identifyResponse());
-    }
-    if (request.url.endsWith("/account/identify")) {
-      return jsonResponse({
-        ...identifyResponse("person@example.com"),
-        token: null,
-      });
     }
     if (request.url.endsWith("/carts/current")) {
       return jsonResponse({
         id: "cart-reload-contract",
-        contact_id: "contact-form-contract",
+        customer_id: "customer-form-contract",
+        customer_session_id: "visitor-session-form-contract",
         token: "cart-recovery-contract",
         status: "active",
         origin: "storefront",
@@ -459,7 +466,6 @@ test("email identification after a page reload preserves the stored visitor sess
       market: "ita",
       sessionStorage: storage.adapter,
     });
-    await reloadedPage.identifyContactEmailIfMissing("person@example.com");
     await reloadedPage.eshop.cart.load();
   } finally {
     globalThis.fetch = originalFetch;
@@ -472,17 +478,14 @@ test("email identification after a page reload preserves the stored visitor sess
       body,
     ]),
     [
-      ["/v1/storefront/account/identify", null, {}],
+      ["/v1/storefront/customer/identify", null, {}],
       ["/v1/storefront/carts/current", `Bearer ${visitorToken}`, {}],
-      [
-        "/v1/storefront/account/identify",
-        `Bearer ${visitorToken}`,
-        { email: "person@example.com" },
-      ],
       ["/v1/storefront/carts/current", `Bearer ${visitorToken}`, {}],
     ],
   );
-  assert.deepEqual([...storage.values.values()], [visitorToken]);
+  const stored = JSON.parse([...storage.values.values()][0]);
+  assert.equal(stored.version, 1);
+  assert.equal(stored.session.token, visitorToken);
 });
 
 test("raw form submission remains stateful and keeps only caller form fields", async () => {
@@ -495,7 +498,7 @@ test("raw form submission remains stateful and keeps only caller form fields", a
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     calls.push({ url: String(url), body: JSON.parse(String(init.body)) });
-    if (String(url).endsWith("/account/identify")) {
+    if (String(url).endsWith("/customer/identify")) {
       return jsonResponse(identifyResponse());
     }
     return jsonResponse({
@@ -518,7 +521,7 @@ test("raw form submission remains stateful and keeps only caller form fields", a
   assert.deepEqual(
     calls.map((call) => call.url),
     [
-      `${apiUrl}/v1/storefront/account/identify`,
+      `${apiUrl}/v1/storefront/customer/identify`,
       `${apiUrl}/v1/storefront/forms/form-raw/submissions`,
     ],
   );

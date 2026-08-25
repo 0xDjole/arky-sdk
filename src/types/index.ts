@@ -297,7 +297,8 @@ export type CartOrigin = "storefront" | "admin";
 export interface Cart {
   id: string;
   store_id: string;
-  contact_id: string;
+  customer_id: string;
+  customer_session_id: string | null;
   token: string;
   status: CartStatus;
   origin: CartOrigin;
@@ -487,7 +488,8 @@ export interface SocialPublicationComment {
   has_more_replies: boolean;
   thread_last_synced_at?: number | null;
   author_is_channel: boolean;
-  contact_id?: string | null;
+  customer_id?: string | null;
+  customer_session_id?: string | null;
   activity_id?: string | null;
   opportunity_activity_id?: string | null;
   author_name?: string | null;
@@ -956,6 +958,7 @@ export interface OrderProductItem {
 
 export interface OrderBookingItem {
   id: string;
+  customer_session_id: string | null;
   booking_offering_id: string;
   booking_service_id: string;
   booking_resource_id: string;
@@ -1016,9 +1019,9 @@ export interface Order {
   number: string;
   store_id: string;
   source_cart_id: string;
-  contact_id: string;
+  customer_id: string;
+  customer_session_id: string | null;
   status: OrderStatus;
-  contact_verified_at_checkout: boolean;
   payment_id: string | null;
   product_items: OrderProductItem[];
   booking_items: OrderBookingItem[];
@@ -1213,8 +1216,9 @@ export type WebhookEventSubscription =
   | { event: "audience.member_access_cancelled" }
   | { event: "audience.member_email_unsubscribed" }
   | { event: "audience.member_email_resubscribed" }
-  | { event: "contact.created" }
-  | { event: "contact.updated" }
+  | { event: "customer.created" }
+  | { event: "customer.updated" }
+  | { event: "customer.archived" }
   | { event: "form_submission.created"; form_id?: string }
   | { event: "account.updated" };
 
@@ -1287,8 +1291,8 @@ export interface AudiencePayment {
   store_id: string;
   audience_id: string;
   member_id: string;
-  /** Immutable Contact snapshot that initiated this provider payment. */
-  payer_contact_id: string;
+  /** Immutable Customer snapshot that initiated this provider payment. */
+  payer_customer_id: string;
   generation: number;
   type: AudiencePaymentType;
   status: AudiencePaymentStatus;
@@ -1615,7 +1619,6 @@ export type SubscriptionPlanFeatureType =
   | "booking_resources"
   | "workflows"
   | "audiences"
-  | "crm_contacts"
   | "media"
   | "members"
   | "classifications"
@@ -1761,7 +1764,24 @@ export type BookingResourceStatus = "active" | "draft" | "archived";
 export type BookingOfferingStatus = "active" | "draft" | "archived";
 
 export type ProductStatus = "active" | "draft" | "archived";
-export type ContactStatus = "active" | "archived";
+export type CustomerStatus = "active" | "archived";
+
+export type AudienceOutreachChannel =
+  | "email"
+  | "phone"
+  | "whatsapp"
+  | "instagram"
+  | "facebook"
+  | "messenger"
+  | "linkedin_company"
+  | "linkedin_person"
+  | "contact_form"
+  | "booking_link"
+  | "telegram"
+  | "tiktok"
+  | "youtube"
+  | "x"
+  | "other";
 export type AudienceStatus = "active" | "draft" | "archived";
 export type AudienceSource = "manual" | "system" | "lead_research";
 export type AudienceMemberSource =
@@ -1836,7 +1856,7 @@ export type CampaignEnrollmentStatus =
   | "suppressed"
   | "failed"
   | "stopped";
-export type CampaignEnrollmentImportSource = "audience" | "contact" | "manual";
+export type CampaignEnrollmentImportSource = "audience" | "customer" | "manual";
 export type CampaignMessageStatus =
   | "draft"
   | "scheduled"
@@ -1870,7 +1890,7 @@ export type OutreachStepType =
     }
   | {
       type: "manual_task";
-      target_channel_type?: ChannelType | null;
+      target_channel_type?: AudienceOutreachChannel | null;
       title: string;
       instructions: string;
       suggested_message?: string | null;
@@ -1885,7 +1905,7 @@ export type SuppressionStatus = "active" | "archived";
 export type SuppressionTarget =
   | { type: "email"; email: string }
   | { type: "domain"; domain: string }
-  | { type: "contact"; contact_id: string };
+  | { type: "customer"; customer_id: string };
 export type SuppressionScope =
   { type: "store" } | { type: "campaign"; campaign_id: string };
 export type SuppressionReason =
@@ -2044,7 +2064,8 @@ export interface FormSubmission {
   id: string;
   form_id: string;
   store_id: string;
-  contact_id: string;
+  customer_id: string;
+  customer_session_id: string | null;
   fields: FormField[];
   created_at: number;
 }
@@ -2270,8 +2291,13 @@ export type EmailDeliveryType =
       data: { store_id: string; account_id: string; session_id: string };
     }
   | {
-      type: "contact_verification";
-      data: { store_id: string; contact_id: string; challenge_id: string };
+      type: "customer_email_verification";
+      data: {
+        store_id: string;
+        customer_id: string;
+        customer_session_id: string;
+        identity_id: string;
+      };
     }
   | {
       type: "tenant_mailbox";
@@ -2543,73 +2569,86 @@ export interface AudienceTier {
   updated_at: number;
 }
 
-export type ContactSessionStatus = "active" | "revoked" | "expired";
+export type CustomerSessionStatus = "active" | "superseded" | "revoked";
 
-export interface ContactSessionRecord {
+export interface CustomerEmailVerification {
+  identity_id: string;
+  failed_attempts: number;
+  sent_at: number;
+  expires_at: number;
+}
+
+interface CustomerSessionRecordBase {
   id: string;
   store_id: string;
-  contact_id: string;
-  status: ContactSessionStatus;
-  created_at: number;
-  expires_at: number;
-  revoked_at: number | null;
+  customer_id: string;
   last_seen_at: number | null;
-}
-
-export interface ContactSessionIssued {
-  id: string;
-  token: string;
-  status: ContactSessionStatus;
-  created_at: number;
-  expires_at: number;
-}
-
-export type ChannelType =
-  | "email"
-  | "phone"
-  | "whatsapp"
-  | "instagram"
-  | "facebook"
-  | "messenger"
-  | "linkedin_company"
-  | "linkedin_person"
-  | "contact_form"
-  | "booking_link"
-  | "telegram"
-  | "tiktok"
-  | "youtube"
-  | "x"
-  | "other";
-
-export interface ContactChannel {
-  id: string;
-  store_id: string;
-  contact_id: string;
-  type: ChannelType;
-  label?: string | null;
-  value: string;
-  normalized_value?: string | null;
-  provider?: string | null;
-  provider_user_id?: string | null;
-  verified_at?: number | null;
-  is_primary: boolean;
-  consent_status: ContactChannelConsentStatus;
-  subscribed_at?: number | null;
-  unsubscribed_at?: number | null;
-  source_url?: string | null;
-  confidence?: number | null;
-  notes?: string | null;
   created_at: number;
   updated_at: number;
 }
 
-export type ContactChannelConsentStatus =
-  "unknown" | "subscribed" | "unsubscribed" | "bounced" | "blocked";
+type CustomerSessionLifecycle =
+  | { status: "active"; superseded_at: null; revoked_at: null }
+  | { status: "superseded"; superseded_at: number; revoked_at: null }
+  | {
+      status: "revoked";
+      superseded_at: number | null;
+      revoked_at: number;
+    };
 
-export interface Contact {
+type CustomerSessionSafeType =
+  | {
+      type: "visitor";
+      expires_at: number;
+      email_verification: CustomerEmailVerification | null;
+    }
+  | {
+      type: "email_authenticated";
+      identity_id: string;
+      access_expires_at: number;
+      refresh_expires_at: number;
+      authenticated_at: number;
+    };
+
+export type CustomerSessionRecord = CustomerSessionRecordBase &
+  CustomerSessionLifecycle &
+  CustomerSessionSafeType;
+
+export type CustomerSessionIssued =
+  | {
+      id: string;
+      customer_id: string;
+      status: "active";
+      type: "visitor";
+      token: string;
+      expires_at: number;
+    }
+  | {
+      id: string;
+      customer_id: string;
+      status: "active";
+      type: "email_authenticated";
+      identity_id: string;
+      access_token: string;
+      refresh_token: string;
+      access_expires_at: number;
+      refresh_expires_at: number;
+      authenticated_at: number;
+    };
+
+export interface CustomerIdentity {
+  id: string;
+  type: "email";
+  email: string;
+  verified_at: number | null;
+  created_at: number;
+}
+
+export interface Customer {
   id: string;
   store_id: string;
-  status: ContactStatus;
+  status: CustomerStatus;
+  identities: CustomerIdentity[];
   classifications: ClassificationEntry[];
   created_at: number;
   updated_at: number;
@@ -2710,7 +2749,7 @@ export interface AudienceMember {
   id: string;
   version: number;
   store_id: string;
-  contact_id: string;
+  customer_id: string;
   audience_id: string;
   source: AudienceMemberSource;
   fields: Record<string, unknown>;
@@ -2961,8 +3000,8 @@ export type ActivityData =
 export interface Activity {
   id: string;
   store_id: string;
-  contact_id: string;
-  canonical_contact_id: string;
+  customer_id: string;
+  customer_session_id: string | null;
   key: string;
   type: ActivityData["type"];
   preview_text?: string | null;
@@ -3011,7 +3050,7 @@ export interface CampaignPersonalization {
   run_id: string;
   status: OutreachPersonalizationStatus;
   step_position?: number | null;
-  contact_ids: string[];
+  customer_ids: string[];
   overwrite: boolean;
   instructions?: string | null;
   error?: string | null;
@@ -3049,7 +3088,7 @@ export interface CampaignLaunchReadiness {
   ready: boolean;
   blockers: string[];
   warnings: string[];
-  contact_count: number;
+  customer_count: number;
   sender_count: number;
   step_count: number;
   daily_capacity: number;
@@ -3075,7 +3114,7 @@ export interface CampaignEnrollment {
   id: string;
   store_id: string;
   campaign_id: string;
-  contact_id: string;
+  customer_id: string;
   audience_member_id?: string | null;
   audience_tier_id?: string | null;
   import_source: CampaignEnrollmentImportSource;
@@ -3096,7 +3135,7 @@ export interface CampaignMessage {
   store_id: string;
   campaign_id: string;
   campaign_enrollment_id: string;
-  contact_id: string;
+  customer_id: string;
   mailbox_id: string;
   content: CampaignMessageContent;
   step_id?: string | null;
@@ -3134,13 +3173,13 @@ export interface CampaignEmailContent {
 
 export interface CampaignChannelTarget {
   channel_id: string;
-  type: ChannelType;
+  type: AudienceOutreachChannel;
   label?: string | null;
   value: string;
 }
 
 export interface CampaignManualTaskContent {
-  target_channel_type?: ChannelType | null;
+  target_channel_type?: AudienceOutreachChannel | null;
   target?: CampaignChannelTarget | null;
   title: string;
   instructions: string;
@@ -3200,7 +3239,7 @@ export interface LeadScores {
 }
 
 export interface ChannelMessage {
-  type: ChannelType;
+  type: AudienceOutreachChannel;
   subject?: string | null;
   body: string;
 }
@@ -3215,8 +3254,8 @@ export interface LeadInsight {
   pain_points: string[];
   fit_reason?: string | null;
   scores: LeadScores;
-  best_channel?: ChannelType | null;
-  backup_channel?: ChannelType | null;
+  best_channel?: AudienceOutreachChannel | null;
+  backup_channel?: AudienceOutreachChannel | null;
   route: CampaignRoute;
   first_messages: ChannelMessage[];
   run_id?: string | null;
@@ -3279,7 +3318,7 @@ export interface LeadResearchMessage {
 }
 
 export interface ResearchAudienceMember {
-  contact: Contact;
+  customer: Customer;
   member: AudienceMember;
 }
 
@@ -3562,7 +3601,7 @@ export type PromotionCondition =
       ends_at: number | null;
     }
   | { type: "maximum_uses"; count: number }
-  | { type: "maximum_uses_per_contact"; count: number };
+  | { type: "maximum_uses_per_customer"; count: number };
 
 export interface PromoCode {
   id: string;

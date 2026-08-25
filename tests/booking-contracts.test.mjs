@@ -8,7 +8,7 @@ import { createStorefront, initialize } from "../dist/storefront.js";
 const apiUrl = "https://api.booking-contract.test";
 const storeId = "store-booking-contract";
 const publishableKey = `arky_pk_${"b".repeat(42)}A`;
-const visitorToken = `arky_vst_${"b".repeat(64)}`;
+const visitorToken = `customer_visitor_${"b".repeat(64)}`;
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -86,6 +86,7 @@ function bookingOffering() {
 function embeddedBookingItem() {
   return {
     id: "order-booking-item",
+    customer_session_id: null,
     booking_offering_id: "booking-offering",
     booking_service_id: "booking-service",
     booking_resource_id: "booking-resource",
@@ -123,9 +124,9 @@ function order() {
     number: "1001",
     store_id: storeId,
     source_cart_id: "cart-booking",
-    contact_id: "contact-booking",
+    customer_id: "customer-booking",
+    customer_session_id: "customer-session-booking",
     status: "confirmed",
-    contact_verified_at_checkout: true,
     payment_id: "payment-booking",
     product_items: [],
     booking_items: [embeddedBookingItem()],
@@ -153,7 +154,8 @@ function order() {
 function cart(bookingItems = []) {
   return {
     id: "cart-booking",
-    contact_id: "contact-booking",
+    customer_id: "customer-booking",
+    customer_session_id: "customer-session-booking",
     token: "cart-token",
     status: "active",
     origin: "storefront",

@@ -37,7 +37,7 @@ export const arky = initialize("arky_pk_...", {
 });
 ```
 
-The SDK accepts only an `arky_pk_...` publishable key. A personal `arky_api_...` token or an `arky_vst_...` visitor session is rejected at initialization. Publishable keys identify a Store; they grant no Admin access and are safe to include in browser code.
+The SDK accepts only an `arky_pk_...` publishable key. A personal `arky_api_...` token or a Customer-session credential is rejected at initialization. Publishable keys identify a Store; they grant no Admin access and are safe to include in browser code.
 
 ## Read content and submit forms
 
@@ -88,7 +88,14 @@ await arky.cms.form.submitByKey({
 });
 ```
 
-The browser persists only the `arky_vst_...` visitor-session token. Storage is isolated by API endpoint and a fingerprint of the publishable key.
+The browser persists one versioned, discriminated Customer-session record. A Visitor record contains
+its short-lived token; an email-authenticated record contains the current access and refresh
+credentials. Requesting a code returns only a safe Visitor view and retains the existing token in
+that record. Verification and refresh replace the full record atomically; refresh sends only the
+body credential with the Store's publishable key and never sends an access-token Authorization
+header. Initialization removes the retired Visitor-only storage entry. Customer credentials use the `customer_visitor_`,
+`customer_access_`, and `customer_refresh_` prefixes; `arky_vst_` is rejected. Storage is isolated by
+API endpoint and a fingerprint of the publishable key.
 
 ## CRM activities and experiments
 
@@ -106,7 +113,7 @@ await arky.activity.pageView({ path: window.location.pathname });
 
 The low-level storefront equivalent is `arky.client.activity.track(...)`. Admin integrations read
 the same append-only facts through `admin.crm.activity.timeline(...)` or
-`admin.crm.activity.find(...)`; Contact search filters them with `has_activity`.
+`admin.crm.activity.find(...)`; Customer search filters them with `has_activity`.
 
 Experiment definitions and storefront assignments expose `goal_activity_key`. Analytics report
 requests use `activity_by_country`, `top_activity_pages`, and `recent_activity`; the corresponding
@@ -148,15 +155,8 @@ performs the service; a BookingOffering connects one service to one resource and
 availability, booking window, and reminders:
 
 ```typescript
-const identity = await arky.identify({
-  email: "customer@example.com",
-  verify: true,
-});
-if (!identity.verification_challenge) throw new Error("Verification required");
-await arky.verify({
-  challenge_id: identity.verification_challenge.challenge_id,
-  code: "code-from-email",
-});
+await arky.customer.requestCode({ email: "customer@example.com" });
+await arky.customer.verify({ code: "code-from-email" });
 
 const { items: services } = await arky.eshop.bookingService.list({ limit: 20 });
 
@@ -199,7 +199,8 @@ also expose their inventory allocations. There are no separate Order product, di
 OrderBooking read resources.
 
 Confirmed booking items have dedicated lifecycle commands. Admin clients can cancel, complete, or
-mark an item as a no-show; a verified owning Contact can only cancel through the Storefront client.
+mark an item as a no-show; only the owning EmailAuthenticated CustomerSession can cancel through the
+Storefront client.
 Each command returns the refreshed Order, and cancellation never implies a payment refund:
 
 ```typescript
@@ -320,7 +321,7 @@ const arky = initialize(process.env.ARKY_PUBLISHABLE_KEY!, {
 });
 ```
 
-Create one client per request. `withContext` also creates an isolated visitor session; when used during SSR it reuses the request-local adapter under a separate scoped storage key. The SDK does not ship framework-specific cookie adapters.
+Create one client per request. `withContext` also creates an isolated Customer session; when used during SSR it reuses the request-local adapter under a separate scoped storage key. The SDK does not ship framework-specific cookie adapters.
 
 ## Low-level storefront client
 
@@ -344,7 +345,7 @@ Low-level requests use Store-ID-free `/v1/storefront` routes and send connection
 X-Arky-Publishable-Key: arky_pk_...
 X-Arky-Locale: it
 X-Arky-Market: ita
-Authorization: Bearer arky_vst_...
+Authorization: Bearer <visitor-token-or-access-token>
 ```
 
 For cart recovery, `cart.get({ id, token })` sends the recovery credential as
@@ -469,7 +470,7 @@ const promo = await admin.eshop.promoCode.createPromoCode({
       market: "bih",
       money: { amount: 5_000, currency: "bam" },
     },
-    { type: "maximum_uses_per_contact", count: 1 },
+    { type: "maximum_uses_per_customer", count: 1 },
   ],
 });
 
@@ -486,7 +487,7 @@ if (itemDiscount?.type === "item_percentage") {
 ```
 
 `item_fixed` and `minimum_order_amount` carry a shared `Money` value. Redemption windows use
-nullable `starts_at` and `ends_at`; per-customer limits use the Contact vocabulary.
+nullable `starts_at` and `ends_at`; per-customer limits use the Customer vocabulary.
 
 Order refunds use one stable UUID-v4 for the concrete refund. Persist that ID with the immutable
 request before sending or retrying a Stripe refund. After an operator has physically returned a
