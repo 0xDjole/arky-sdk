@@ -16,7 +16,7 @@ function jsonResponse(body) {
   });
 }
 
-test("Admin exposes CRM Activities and sends only canonical Activity routes and filters", async () => {
+test("Admin exposes Actions and sends only canonical Activity routes and filters", async () => {
   const admin = createAdmin({ baseUrl, storeId, market: "bih" });
   const calls = [];
   const activity = {
@@ -43,11 +43,11 @@ test("Admin exposes CRM Activities and sends only canonical Activity routes and 
   let timeline;
   let found;
   try {
-    timeline = await admin.crm.activity.timeline({
+    timeline = await admin.actions.timeline({
       customer_id: "customer-activity-contract",
       limit: 10,
     });
-    found = await admin.crm.activity.find({
+    found = await admin.actions.find({
       customer_id: "customer-activity-contract",
       limit: 20,
     });
@@ -56,7 +56,7 @@ test("Admin exposes CRM Activities and sends only canonical Activity routes and 
     globalThis.fetch = originalFetch;
   }
 
-  assert.equal("action" in admin.crm, false);
+  assert.equal("crm" in admin, false);
   assert.deepEqual(timeline, { items: [activity], cursor: null });
   assert.deepEqual(found, { items: [activity], cursor: null });
   assert.equal(timeline.items[0].customer_id, "customer-activity-contract");
@@ -120,7 +120,7 @@ test("initialized storefront tracks Activities without retaining an Action alias
   };
 
   try {
-    await storefront.activity.pageView({ path: "/products/example" });
+    await storefront.actions.pageView({ path: "/products/example" });
   } finally {
     globalThis.fetch = originalFetch;
   }

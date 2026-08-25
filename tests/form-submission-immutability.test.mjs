@@ -10,10 +10,10 @@ test("FormSubmission is read-only and exposes only explicit deletion", async () 
     storeId: "store-contract",
     apiToken: "token-contract",
   });
-  assert.equal("updateSubmission" in arky.cms.form, false);
-  assert.equal(typeof arky.cms.form.getSubmission, "function");
-  assert.equal(typeof arky.cms.form.deleteSubmission, "function");
-  assert.equal(typeof arky.cms.form.permanentlyDelete, "function");
+  assert.equal("updateSubmission" in arky.forms, false);
+  assert.equal(typeof arky.forms.getSubmission, "function");
+  assert.equal(typeof arky.forms.deleteSubmission, "function");
+  assert.equal(typeof arky.forms.permanentlyDelete, "function");
 
   const calls = [];
   const originalFetch = globalThis.fetch;
@@ -30,14 +30,14 @@ test("FormSubmission is read-only and exposes only explicit deletion", async () 
   };
   try {
     assert.equal(
-      await arky.cms.form.deleteSubmission({
+      await arky.forms.deleteSubmission({
         id: "submission-contract",
         form_id: "form-contract",
       }),
       true,
     );
     assert.equal(
-      await arky.cms.form.permanentlyDelete({ id: "form-contract" }),
+      await arky.forms.permanentlyDelete({ id: "form-contract" }),
       true,
     );
   } finally {

@@ -163,11 +163,16 @@ test("initialize is the production root API and exposes the module facade withou
   const rootStore = initializeFromRoot(publishableKey, { locale: "it" });
   const store = initialize(publishableKey, { locale: "it", market: "ita" });
 
-  assert.equal(typeof rootStore.cms.entry.get, "function");
-  assert.equal(typeof rootStore.cms.media.findByIds, "function");
-  assert.equal(typeof rootStore.cms.entry.findByIds, "function");
+  assert.equal(typeof rootStore.content.entry.get, "function");
+  assert.equal(typeof rootStore.media.findByIds, "function");
+  assert.equal(typeof rootStore.content.entry.findByIds, "function");
+  assert.equal(typeof rootStore.forms.get, "function");
+  assert.equal(typeof rootStore.forms.submitByKey, "function");
+  assert.equal(typeof rootStore.actions.track, "function");
   assert.equal(typeof rootStore.classification.get, "function");
-  assert.equal("classification" in rootStore.cms, false);
+  assert.equal("classification" in rootStore.content, false);
+  assert.equal("cms" in rootStore, false);
+  assert.equal("crm" in rootStore, false);
   assert.equal(typeof store.eshop.cart.load, "function");
   assert.equal("payment" in store.eshop.cart, false);
   assert.equal(typeof store.setContext, "function");
@@ -175,7 +180,7 @@ test("initialize is the production root API and exposes the module facade withou
   assert.equal("getStoreId" in store, false);
   assert.equal("forStore" in store, false);
   assert.equal("marketForLocale" in store, false);
-  assert.equal("checkContentAccess" in store.crm.audience, false);
+  assert.equal("checkContentAccess" in store.audiences, false);
   assert.equal(store.session.get(), null);
   assert.equal(store.isAuthenticated, false);
 
@@ -196,8 +201,8 @@ test("storefront reference batches use explicit typed endpoints", async () => {
   };
 
   try {
-    await storefront.cms.media.findByIds({ ids: ["media-1", "media-2"] });
-    await storefront.cms.entry.findByIds({ ids: ["entry-1"] });
+    await storefront.media.findByIds({ ids: ["media-1", "media-2"] });
+    await storefront.content.entry.findByIds({ ids: ["entry-1"] });
     await storefront.eshop.product.find({ ids: ["product-1"] });
     await storefront.eshop.digital.find({ ids: ["digital-1"] });
   } finally {
@@ -524,7 +529,7 @@ test("paid Audience subscribe returns the exact embedded Checkout response witho
 
   try {
     assert.deepEqual(
-      await storefront.crm.audience.subscribe({
+      await storefront.audiences.subscribe({
         audience_id: "audience-paid",
         price_id: "price-paid",
       }),

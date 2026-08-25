@@ -9,6 +9,13 @@ const root = resolve(__dirname, "..");
 const sourceDir = resolve(root, "src");
 
 const removedIdentifiers = [
+  "createCmsApi",
+  "createFormApi",
+  "createActivityAdminApi",
+  "createAudienceApi",
+  "ActivityTimelineParams",
+  "ArkyCmsEntryParams",
+  "ArkyCmsState",
   "QuoteItemInput",
   "CheckoutItemInput",
   "InviteUserParams",
@@ -424,8 +431,8 @@ const storefrontApiFile = resolve(sourceDir, "api/storefront.ts");
 const storefrontApiSource = readFileSync(storefrontApiFile, "utf8");
 const customersApiFile = resolve(sourceDir, "api/customers.ts");
 const customersApiSource = readFileSync(customersApiFile, "utf8");
-const crmApiFile = resolve(sourceDir, "api/crm.ts");
-const crmApiSource = readFileSync(crmApiFile, "utf8");
+const audiencesApiFile = resolve(sourceDir, "api/audiences.ts");
+const audiencesApiSource = readFileSync(audiencesApiFile, "utf8");
 const indexFile = resolve(sourceDir, "index.ts");
 const indexSource = readFileSync(indexFile, "utf8");
 
@@ -606,32 +613,37 @@ if (
 }
 
 if (
-  !/export const createAudienceApi\b/.test(crmApiSource) ||
+  !/export const createAudiencesApi\b/.test(audiencesApiSource) ||
   /\b(?:CreateCustomer|UpdateCustomer|FindCustomers|ImportCustomers|CustomerSession)\w*\b|\/customers\b/.test(
-    crmApiSource,
+    audiencesApiSource,
   )
 ) {
   report(
-    crmApiFile,
-    crmApiSource,
+    audiencesApiFile,
+    audiencesApiSource,
     0,
-    "api/crm.ts must own Audience only, never the top-level Customer API",
+    "api/audiences.ts must own Audience only, never Customer identity",
   );
   failures++;
 }
 
 if (
-  /\bcrmApi\b|createCustomerApi/.test(indexSource) ||
+  /\bcrmApi\b|createCustomerApi|\bcms\s*:|\bcrm\s*:|\bautomation\s*:/.test(indexSource) ||
   !/createCustomersApi\s*\}\s*from\s*["']\.\/api\/customers["']/.test(
     indexSource,
   ) ||
-  !/createAudienceApi\s*\}\s*from\s*["']\.\/api\/crm["']/.test(indexSource)
+  !/createAudiencesApi\s*\}\s*from\s*["']\.\/api\/audiences["']/.test(indexSource) ||
+  !/\bcontent\s*:\s*\{/.test(indexSource) ||
+  !/\bforms\s*:\s*\{/.test(indexSource) ||
+  !/\bactions\s*:/.test(indexSource) ||
+  !/\bworkflow\s*:/.test(indexSource) ||
+  !/\bsupport\s*:/.test(indexSource)
 ) {
   report(
     indexFile,
     indexSource,
     0,
-    "index wiring must use distinct Customers and Audience APIs without a CRM bundle",
+    "index wiring must expose direct owner APIs without CMS, CRM, or Automation bundles",
   );
   failures++;
 }

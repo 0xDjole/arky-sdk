@@ -141,7 +141,14 @@ assert.equal(typeof arky.store.paymentProvider.delete, "function");
 assert.equal(typeof arky.media.replaceMediaContent, "function");
 assert.equal(typeof arky.classification.create, "function");
 assert.equal(typeof arky.classification.find, "function");
-assert.equal("classification" in arky.cms, false);
+assert.equal("classification" in arky.content, false);
+assert.equal(typeof arky.content.collection.find, "function");
+assert.equal(typeof arky.content.entry.find, "function");
+assert.equal(typeof arky.forms.find, "function");
+assert.equal(typeof arky.notification.template.find, "function");
+assert.equal(typeof arky.actions.find, "function");
+assert.equal("cms" in arky, false);
+assert.equal("crm" in arky, false);
 assert.equal(typeof arky.eshop.digital.product.create, "function");
 assert.equal(typeof arky.eshop.digital.asset.upload, "function");
 
@@ -421,14 +428,14 @@ assert.equal(
 assert.equal(typeof arky.social.publication.getMetrics, "function");
 assert.equal(typeof arky.social.publication.syncMetrics, "function");
 
-assert.equal(typeof arky.automation.workflow.listConnections, "function");
-assert.equal(typeof arky.automation.workflow.getDefinition, "function");
-assert.equal(typeof arky.automation.workflow.replaceDefinition, "function");
+assert.equal(typeof arky.workflow.listConnections, "function");
+assert.equal(typeof arky.workflow.getDefinition, "function");
+assert.equal(typeof arky.workflow.replaceDefinition, "function");
 assert.equal(
-  typeof arky.automation.workflow.getConnectionConnectUrl,
+  typeof arky.workflow.getConnectionConnectUrl,
   "function",
 );
-assert.equal(typeof arky.automation.workflow.deleteConnection, "function");
+assert.equal(typeof arky.workflow.deleteConnection, "function");
 
 const workflowFetchCalls = [];
 const originalFetch = globalThis.fetch;
@@ -449,7 +456,7 @@ globalThis.fetch = async (url, init = {}) => {
 };
 
 try {
-  await arky.automation.workflow.getConnectionConnectUrl({
+  await arky.workflow.getConnectionConnectUrl({
     type: "google_drive",
   });
 } finally {
@@ -467,12 +474,13 @@ assert.deepEqual(JSON.parse(workflowFetchCalls[0].body), {
 });
 assert.equal(workflowFetchCalls.length, 1);
 
-assert.equal(typeof arky.automation.support.createAgent, "function");
-assert.equal(typeof arky.automation.support.getAgentDefinition, "function");
-assert.equal(typeof arky.automation.support.replaceAgentDefinition, "function");
-assert.equal(typeof arky.automation.support.findAgents, "function");
-assert.equal(typeof arky.automation.support.findConversations, "function");
-assert.equal(typeof arky.automation.support.replyToConversation, "function");
+assert.equal(typeof arky.support.createAgent, "function");
+assert.equal(typeof arky.support.getAgentDefinition, "function");
+assert.equal(typeof arky.support.replaceAgentDefinition, "function");
+assert.equal(typeof arky.support.findAgents, "function");
+assert.equal(typeof arky.support.findConversations, "function");
+assert.equal(typeof arky.support.replyToConversation, "function");
+assert.equal("automation" in arky, false);
 
 assert.equal(typeof arky.notification.mailbox.find, "function");
 assert.equal(typeof arky.notification.mailbox.connectGoogle, "function");
@@ -525,16 +533,16 @@ assert.equal(typeof arky.outreach.campaignMessage.find, "function");
 assert.equal(typeof arky.outreach.suppression.find, "function");
 assert.equal(typeof arky.outreach.leadResearch.createRun, "function");
 
-assert.equal(typeof arky.crm.audience.members.add, "function");
-assert.equal(typeof arky.crm.audience.members.find, "function");
-assert.equal(typeof arky.crm.audience.leads.find, "function");
-assert.equal(typeof arky.crm.audience.tiers.get, "function");
-assert.equal(typeof arky.crm.audience.tiers.find, "function");
+assert.equal(typeof arky.audiences.members.add, "function");
+assert.equal(typeof arky.audiences.members.find, "function");
+assert.equal(typeof arky.audiences.leads.find, "function");
+assert.equal(typeof arky.audiences.tiers.get, "function");
+assert.equal(typeof arky.audiences.tiers.find, "function");
 assert.equal(
-  typeof arky.automation.workflow.listExternalOperations,
+  typeof arky.workflow.listExternalOperations,
   "function",
 );
-assert.equal(typeof arky.automation.workflow.getExternalOperation, "function");
+assert.equal(typeof arky.workflow.getExternalOperation, "function");
 
 assert.equal(typeof arky.eshop.product.getInventory, "function");
 
@@ -547,22 +555,22 @@ globalThis.fetch = async (url, init = {}) => {
   });
 };
 try {
-  await arky.automation.workflow.getDefinition({
+  await arky.workflow.getDefinition({
     workflow_id: "workflow-contract",
   });
-  await arky.automation.workflow.listExternalOperations({
+  await arky.workflow.listExternalOperations({
     workflow_id: "workflow-contract",
     execution_id: "execution-contract",
   });
-  await arky.automation.support.getAgentDefinition({
+  await arky.support.getAgentDefinition({
     store_id: "contract-store",
     support_agent_id: "agent-contract",
   });
   await arky.outreach.campaign.getPersonalization({
     id: "campaign-contract",
   });
-  await arky.crm.audience.tiers.find({ audience_id: "audience-contract" });
-  await arky.crm.audience.leads.find({ member_ids: ["member-contract"] });
+  await arky.audiences.tiers.find({ audience_id: "audience-contract" });
+  await arky.audiences.leads.find({ member_ids: ["member-contract"] });
   await arky.eshop.product.getInventory({ id: "product-contract" });
 } finally {
   globalThis.fetch = originalFetch;

@@ -440,7 +440,7 @@ test("SSR permits anonymous reads but requires request-local storage for statefu
 
   try {
     const serverClient = createStorefront(publishableKeyA, { apiUrl });
-    await serverClient.cms.entry.find({ collection_id: "pages" });
+    await serverClient.content.entry.find({ collection_id: "pages" });
     await assert.rejects(
       serverClient.eshop.cart.current(),
       /request-local sessionStorage adapter/,

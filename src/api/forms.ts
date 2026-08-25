@@ -14,7 +14,7 @@ import type {
 } from "../types/api";
 import type { Form, FormSubmission, PaginatedResponse } from "../types";
 
-export const createFormApi = (apiConfig: ApiConfig) => {
+export const createFormsApi = (apiConfig: ApiConfig) => {
   return {
     async createForm(params: CreateFormParams, options?: RequestOptions): Promise<Form> {
       const { store_id, ...payload } = params;

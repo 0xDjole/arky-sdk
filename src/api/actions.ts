@@ -2,16 +2,16 @@ import type { ApiConfig } from "../services/clientTypes";
 import type { FindActivitiesParams, RequestOptions } from "../types/api";
 import type { Activity } from "../types";
 
-export interface ActivityTimelineParams {
+export interface CustomerActionTimelineParams {
   customer_id: string;
   store_id?: string;
   limit?: number;
   cursor?: string;
 }
 
-export const createActivityAdminApi = (apiConfig: ApiConfig) => ({
+export const createActionsApi = (apiConfig: ApiConfig) => ({
   async timeline(
-    params: ActivityTimelineParams,
+    params: CustomerActionTimelineParams,
     options?: RequestOptions,
   ): Promise<{ items: Activity[]; cursor: string | null }> {
     const store_id = params.store_id || apiConfig.storeId;

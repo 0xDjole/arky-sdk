@@ -172,7 +172,7 @@ import type {
   TrackActivityParams,
   WebhookEventSubscription,
 } from "../../dist/index.js";
-// @ts-expect-error CRM customer/business facts use the Activity name exclusively.
+// @ts-expect-error the Actions surface does not expose a generic Action compatibility alias.
 import type { Action, ActionData } from "../../dist/index.js";
 // @ts-expect-error analytics exposes Activity feed and report names exclusively.
 import type { ActionFeedData, AnalyticsActionReportKey } from "../../dist/index.js";
@@ -213,7 +213,7 @@ import type {
   FindCustomersParams,
   RequestOptions,
 } from "../../dist/types.js";
-// @ts-expect-error CRM Activity queries have no Action compatibility alias.
+// @ts-expect-error Actions queries have no generic Action compatibility alias.
 import type { FindActionsParams } from "../../dist/types.js";
 // @ts-expect-error embedded Cart/Order items use their canonical Item names only.
 import type { CartDigitalProduct, OrderDigitalProduct, OrderProduct } from "../../dist/index.js";
@@ -1238,8 +1238,8 @@ zoneInput.market_id = "market-contract";
 
 declare const storefrontClient: ReturnType<typeof createStorefront>;
 storefrontClient.classification.get({ key: "topics" });
-// @ts-expect-error Classification is a top-level module, not a CMS child.
-storefrontClient.cms.classification;
+// @ts-expect-error Classification is a top-level module, not a Content child.
+storefrontClient.content.classification;
 declare const adminClient: ReturnType<typeof createAdmin>;
 const bookingItemLifecycleParams: BookingItemLifecycleParams = {
   order_id: "order-contract",
@@ -1262,8 +1262,8 @@ const classificationChildren: Promise<Classification[]> =
 adminClient.classification.get({ id: "classification-contract" });
 // @ts-expect-error Admin Classification lookup uses its UUID, not a derived key.
 adminClient.classification.get({ key: "topics" });
-// @ts-expect-error Classification is a top-level module, not a CMS child.
-adminClient.cms.classification;
+// @ts-expect-error Classification is a top-level module, not a Content child.
+adminClient.content.classification;
 void classificationChildren;
 const storefrontBookingOfferings: Promise<StorefrontDto<BookingOffering>[]> =
   storefrontClient.eshop.bookingOffering.find({
@@ -1430,8 +1430,8 @@ initialize({ baseUrl: "http://localhost:8000", storeId: "store-contract" });
 
 declare const initializedStorefront: ReturnType<typeof initialize>;
 initializedStorefront.classification.get({ key: "topics" });
-// @ts-expect-error Classification is a top-level module, not a CMS child.
-initializedStorefront.cms.classification;
+// @ts-expect-error Classification is a top-level module, not a Content child.
+initializedStorefront.content.classification;
 const typedFormValues: FormValues = {
   name: "Jane",
   guests: 2,
@@ -1440,17 +1440,17 @@ const typedFormValues: FormValues = {
   location: { coordinates: { lat: 43.8563, lon: 18.4131 } },
   channels: ["email"],
 };
-initializedStorefront.cms.form.submitByKey({
+initializedStorefront.forms.submitByKey({
   key: "contact-form",
   values: typedFormValues,
 });
-initializedStorefront.cms.form.submitByKey({
+initializedStorefront.forms.submitByKey({
   key: "contact-form",
   // @ts-expect-error Store IDs are not part of storefront request inputs.
   store_id: "store-contract",
   values: typedFormValues,
 });
-initializedStorefront.cms.form.submitByKey({
+initializedStorefront.forms.submitByKey({
   key: "contact-form",
   values: {
     // @ts-expect-error form values cannot contain arbitrary objects.

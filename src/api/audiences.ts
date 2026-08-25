@@ -48,7 +48,7 @@ import type {
   AudiencePaymentMethodSessionResponse,
 } from "../types";
 
-export const createAudienceApi = (apiConfig: ApiConfig) => ({
+export const createAudiencesApi = (apiConfig: ApiConfig) => ({
   customer: {
     async manage(
       params: ManageAudienceParams,

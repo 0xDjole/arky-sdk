@@ -231,7 +231,7 @@ export interface StorefrontLifecycle {
   getSetup(options?: RequestOptions): Promise<StorefrontSetup>;
 }
 
-export const createActivityApi = (
+export const createActionsStorefrontApi = (
   apiConfig: StorefrontApiConfig,
   lifecycle: StorefrontLifecycle,
 ) => ({
@@ -392,18 +392,18 @@ export const createStorefrontApi = (
         },
       },
     },
-    cms: {
-      media: {
-        findByIds(
-          params: StorefrontParams<GetMediaByIdsParams>,
-          options?: RequestOptions,
-        ): Promise<StorefrontDto<Media[]>> {
-          return apiConfig.httpClient.get<StorefrontDto<Media[]>>(
-            `${base}/media`,
-            { ...options, params },
-          );
-        },
+    media: {
+      findByIds(
+        params: StorefrontParams<GetMediaByIdsParams>,
+        options?: RequestOptions,
+      ): Promise<StorefrontDto<Media[]>> {
+        return apiConfig.httpClient.get<StorefrontDto<Media[]>>(
+          `${base}/media`,
+          { ...options, params },
+        );
       },
+    },
+    content: {
       collection: {
         get(
           params: StorefrontParams<GetCollectionParams>,
@@ -443,31 +443,31 @@ export const createStorefrontApi = (
           >(`${base}/entries`, { ...options, params });
         },
       },
-      form: {
-        get(
-          params: StorefrontParams<GetFormParams>,
-          options?: RequestOptions,
-        ): Promise<StorefrontDto<Form>> {
-          const identifier = params.id ?? params.key;
-          if (!identifier) throw new Error("GetFormParams requires id or key");
-          return apiConfig.httpClient.get<StorefrontDto<Form>>(
-            `${base}/forms/${identifier}`,
-            options,
-          );
-        },
-        async submit(
-          params: StorefrontParams<SubmitFormParams>,
-          options?: RequestOptions,
-        ): Promise<StorefrontDto<FormSubmission>> {
-          await lifecycle.ensureVisitorSession();
-          const { form_id, ...payload } = params;
-          if (!form_id) throw new Error("SubmitFormParams requires form_id");
-          return apiConfig.httpClient.post<StorefrontDto<FormSubmission>>(
-            `${base}/forms/${form_id}/submissions`,
-            { ...payload, form_id },
-            options,
-          );
-        },
+    },
+    forms: {
+      get(
+        params: StorefrontParams<GetFormParams>,
+        options?: RequestOptions,
+      ): Promise<StorefrontDto<Form>> {
+        const identifier = params.id ?? params.key;
+        if (!identifier) throw new Error("GetFormParams requires id or key");
+        return apiConfig.httpClient.get<StorefrontDto<Form>>(
+          `${base}/forms/${identifier}`,
+          options,
+        );
+      },
+      async submit(
+        params: StorefrontParams<SubmitFormParams>,
+        options?: RequestOptions,
+      ): Promise<StorefrontDto<FormSubmission>> {
+        await lifecycle.ensureVisitorSession();
+        const { form_id, ...payload } = params;
+        if (!form_id) throw new Error("SubmitFormParams requires form_id");
+        return apiConfig.httpClient.post<StorefrontDto<FormSubmission>>(
+          `${base}/forms/${form_id}/submissions`,
+          { ...payload, form_id },
+          options,
+        );
       },
     },
     classification: {
@@ -845,8 +845,7 @@ export const createStorefrontApi = (
         },
       },
     },
-    crm: {
-      audience: {
+    audiences: {
         get(
           params: StorefrontParams<GetStorefrontAudienceParams>,
           options?: RequestOptions,
@@ -929,9 +928,8 @@ export const createStorefrontApi = (
             StorefrontDto<AudienceAccessResponse>
           >(`${base}/audiences/${params.audience_id}/access`, options);
         },
-      },
     },
-    activity: createActivityApi(apiConfig, lifecycle),
+    actions: createActionsStorefrontApi(apiConfig, lifecycle),
     experiments: {
       async use(
         params: UseExperimentParams,

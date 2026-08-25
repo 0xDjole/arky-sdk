@@ -915,7 +915,7 @@ test("provider-effect APIs send one resource identity and return direct server e
       name: "Audience payment refund",
       response: { refund_id: resourceId, amount: 500, status: "requested" },
       request: (arky) =>
-        arky.crm.audience.members.refund({
+        arky.audiences.members.refund({
           store_id: defaultStoreId,
           audience_id: "audience-refund-contract",
           member_id: "member-refund-contract",
@@ -1057,7 +1057,7 @@ test("money and shipping clients reject evidence for any other resource ID", asy
         status: "succeeded",
       },
       request: (arky) =>
-        arky.crm.audience.members.refund({
+        arky.audiences.members.refund({
           store_id: defaultStoreId,
           audience_id: "audience-refund-contract",
           member_id: "member-refund-contract",
@@ -1341,7 +1341,7 @@ test("workflow trigger keeps arbitrary object data while the path secret wins", 
     },
   };
   const { calls, result } = await captureFetch(response, () =>
-    admin().automation.workflow.trigger({
+    admin().workflow.trigger({
       secret: "path-secret-contract",
       order: { id: "order-contract" },
       tags: ["one", "two"],

@@ -15,7 +15,7 @@ import type {
 } from "../types/api";
 import type { Collection, CollectionEntry, PaginatedResponse } from "../types";
 
-export const createCmsApi = (apiConfig: ApiConfig) => {
+export const createContentApi = (apiConfig: ApiConfig) => {
   return {
     async createCollection(params: CreateCollectionParams, options?: RequestOptions): Promise<Collection> {
       const { store_id, ...payload } = params;

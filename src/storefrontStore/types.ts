@@ -40,7 +40,7 @@ export interface ArkyStoreContext {
   market?: string;
 }
 
-export type ArkyCmsEntryParams = ArkyStoreContext & {
+export type ArkyContentEntryParams = ArkyStoreContext & {
   id?: string;
   collection_id?: string;
   key?: string;
@@ -112,8 +112,13 @@ export interface ArkyCartInput {
   clear_after_checkout?: boolean;
 }
 
-export interface ArkyCmsState {
+export interface ArkyContentState {
   entries: Record<string, StorefrontCollectionEntry>;
+  loading: boolean;
+  error: string | null;
+}
+
+export interface ArkyFormsState {
   forms: Record<string, StorefrontForm>;
   loading: boolean;
   error: string | null;

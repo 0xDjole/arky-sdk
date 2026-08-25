@@ -774,7 +774,7 @@ export {
   type CartControllerUpdateParams,
 } from "./cartController";
 
-export type { ActivityTimelineParams } from "./api/activity";
+export type { CustomerActionTimelineParams } from "./api/actions";
 export type {
   SupportAgent,
   SupportAgentDefinition,
@@ -870,14 +870,14 @@ import { createStoreApi } from "./api/store";
 import { createMediaApi } from "./api/media";
 import { createNotificationApi } from "./api/notification";
 import { createPromoCodeApi } from "./api/promoCode";
-import { createCmsApi } from "./api/cms";
+import { createContentApi } from "./api/content";
 import { createEshopApi } from "./api/eshop";
 import { createDigitalApi } from "./api/digital";
 import { createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
 import { createCustomersApi } from "./api/customers";
-import { createAudienceApi } from "./api/crm";
-import { createActivityAdminApi } from "./api/activity";
+import { createAudiencesApi } from "./api/audiences";
+import { createActionsApi } from "./api/actions";
 import { createMailboxApi } from "./api/mailbox";
 import { createOutreachApi } from "./api/outreach";
 import {
@@ -891,7 +891,7 @@ import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
 import { createPaymentProviderApi } from "./api/paymentProvider";
 import { createEmailTemplateApi } from "./api/emailTemplate";
-import { createFormApi } from "./api/form";
+import { createFormsApi } from "./api/forms";
 import { createClassificationApi } from "./api/classification";
 import { createAnalyticsApi } from "./api/analytics";
 import { createExperimentsApi } from "./api/experiments";
@@ -1113,13 +1113,13 @@ export function createAdmin(config: CreateAdminConfig) {
   const storeApi = createStoreApi(apiConfig, updateSession);
   const platformApi = createPlatformApi(apiConfig);
 
-  const cmsApi = createCmsApi(apiConfig);
+  const contentApi = createContentApi(apiConfig);
   const eshopApi = createEshopApi(apiConfig);
   const digitalApi = createDigitalApi(apiConfig);
   const promoCodeApi = createPromoCodeApi(apiConfig);
   const customersApi = createCustomersApi(apiConfig);
-  const audienceApi = createAudienceApi(apiConfig);
-  const activityApi = createActivityAdminApi(apiConfig);
+  const audienceApi = createAudiencesApi(apiConfig);
+  const actionsApi = createActionsApi(apiConfig);
   const mailboxApi = createMailboxApi(apiConfig);
   const outreachApi = createOutreachApi(apiConfig);
   const supportApi = createAdminSupportApi(apiConfig);
@@ -1163,7 +1163,7 @@ export function createAdmin(config: CreateAdminConfig) {
     getConnectionConnectUrl: workflowApi.getWorkflowConnectionConnectUrl,
     deleteConnection: workflowApi.deleteWorkflowConnection,
   };
-  const formApi = createFormApi(apiConfig);
+  const formsApi = createFormsApi(apiConfig);
   const classificationApi = createClassificationApi(apiConfig);
   const emailTemplateApi = createEmailTemplateApi(apiConfig);
   const analyticsApi = createAnalyticsApi(apiConfig);
@@ -1227,6 +1227,14 @@ export function createAdmin(config: CreateAdminConfig) {
     },
     media: createMediaApi(apiConfig),
     notification: {
+      template: {
+        create: emailTemplateApi.createEmailTemplate,
+        update: emailTemplateApi.updateEmailTemplate,
+        delete: emailTemplateApi.deleteEmailTemplate,
+        get: emailTemplateApi.getEmailTemplate,
+        find: emailTemplateApi.getEmailTemplates,
+        preview: emailTemplateApi.previewEmailTemplate,
+      },
       email: {
         send: notificationApi.sendEmail,
         getDelivery: notificationApi.getEmailDelivery,
@@ -1282,42 +1290,34 @@ export function createAdmin(config: CreateAdminConfig) {
       find: classificationApi.getClassifications,
       getChildren: classificationApi.getClassificationChildren,
     },
-    cms: {
+    content: {
       collection: {
-        create: cmsApi.createCollection,
-        update: cmsApi.updateCollection,
-        delete: cmsApi.deleteCollection,
-        get: cmsApi.getCollection,
-        find: cmsApi.getCollections,
+        create: contentApi.createCollection,
+        update: contentApi.updateCollection,
+        delete: contentApi.deleteCollection,
+        get: contentApi.getCollection,
+        find: contentApi.getCollections,
       },
       entry: {
-        create: cmsApi.createEntry,
-        update: cmsApi.updateEntry,
-        delete: cmsApi.deleteEntry,
-        get: cmsApi.getEntry,
-        find: cmsApi.getEntries,
-        findByIds: cmsApi.getEntriesByIds,
+        create: contentApi.createEntry,
+        update: contentApi.updateEntry,
+        delete: contentApi.deleteEntry,
+        get: contentApi.getEntry,
+        find: contentApi.getEntries,
+        findByIds: contentApi.getEntriesByIds,
       },
-      form: {
-        create: formApi.createForm,
-        update: formApi.updateForm,
-        delete: formApi.deleteForm,
-        permanentlyDelete: formApi.permanentlyDeleteForm,
-        get: formApi.getForm,
-        find: formApi.getForms,
-        submit: formApi.submit,
-        getSubmissions: formApi.getSubmissions,
-        getSubmission: formApi.getSubmission,
-        deleteSubmission: formApi.deleteSubmission,
-      },
-      emailTemplate: {
-        create: emailTemplateApi.createEmailTemplate,
-        update: emailTemplateApi.updateEmailTemplate,
-        delete: emailTemplateApi.deleteEmailTemplate,
-        get: emailTemplateApi.getEmailTemplate,
-        find: emailTemplateApi.getEmailTemplates,
-        preview: emailTemplateApi.previewEmailTemplate,
-      },
+    },
+    forms: {
+      create: formsApi.createForm,
+      update: formsApi.updateForm,
+      delete: formsApi.deleteForm,
+      permanentlyDelete: formsApi.permanentlyDeleteForm,
+      get: formsApi.getForm,
+      find: formsApi.getForms,
+      submit: formsApi.submit,
+      getSubmissions: formsApi.getSubmissions,
+      getSubmission: formsApi.getSubmission,
+      deleteSubmission: formsApi.deleteSubmission,
     },
     eshop: {
       digital: {
@@ -1436,30 +1436,28 @@ export function createAdmin(config: CreateAdminConfig) {
       revokeSession: customersApi.revokeSession,
       revokeAllSessions: customersApi.revokeAllSessions,
     },
-    crm: {
-      audience: {
-        create: audienceApi.create,
-        update: audienceApi.update,
-        get: audienceApi.get,
-        find: audienceApi.find,
-        importMembers: audienceApi.importMembers,
-        previewMemberImport: audienceApi.previewMemberImport,
-        tiers: audienceApi.tiers,
-        leads: audienceApi.leads,
-        members: {
-          add: audienceApi.members.add,
-          update: audienceApi.members.update,
-          remove: audienceApi.members.remove,
-          find: audienceApi.members.find,
-          refund: audienceApi.members.refund,
-          payments: audienceApi.members.payments,
-          disputes: audienceApi.members.disputes,
-          refunds: audienceApi.members.refunds,
-          subscription: audienceApi.members.subscription,
-        },
+    audiences: {
+      create: audienceApi.create,
+      update: audienceApi.update,
+      get: audienceApi.get,
+      find: audienceApi.find,
+      importMembers: audienceApi.importMembers,
+      previewMemberImport: audienceApi.previewMemberImport,
+      tiers: audienceApi.tiers,
+      leads: audienceApi.leads,
+      members: {
+        add: audienceApi.members.add,
+        update: audienceApi.members.update,
+        remove: audienceApi.members.remove,
+        find: audienceApi.members.find,
+        refund: audienceApi.members.refund,
+        payments: audienceApi.members.payments,
+        disputes: audienceApi.members.disputes,
+        refunds: audienceApi.members.refunds,
+        subscription: audienceApi.members.subscription,
       },
-      activity: activityApi,
     },
+    actions: actionsApi,
     outreach: {
       campaign: outreachApi.campaign,
       campaignEnrollment: outreachApi.campaignEnrollment,
@@ -1467,30 +1465,28 @@ export function createAdmin(config: CreateAdminConfig) {
       suppression: outreachApi.suppression,
       leadResearch: leadResearchApi,
     },
-    automation: {
-      workflow: workflowPublicApi,
-      support: {
-        createChannel: supportApi.channel.create,
-        getChannel: supportApi.channel.get,
-        findChannels: supportApi.channel.find,
-        updateChannel: supportApi.channel.update,
-        deleteChannel: supportApi.channel.delete,
-        receiveChannelMessage: supportApi.channel.receiveMessage,
-        createAgent: supportApi.agent.create,
-        getAgent: supportApi.agent.get,
-        getAgentDefinition: supportApi.agent.getDefinition,
-        findAgents: supportApi.agent.find,
-        updateAgent: supportApi.agent.update,
-        replaceAgentDefinition: supportApi.agent.replaceDefinition,
-        deleteAgent: supportApi.agent.delete,
-        findConversations: supportApi.conversation.find,
-        getConversation: supportApi.conversation.get,
-        getConversationMessage: supportApi.conversation.getMessage,
-        sendConversationMessage: supportApi.conversation.sendMessage,
-        replyToConversation: supportApi.conversation.reply,
-        resolveConversation: supportApi.conversation.resolve,
-        assignConversation: supportApi.conversation.assign,
-      },
+    workflow: workflowPublicApi,
+    support: {
+      createChannel: supportApi.channel.create,
+      getChannel: supportApi.channel.get,
+      findChannels: supportApi.channel.find,
+      updateChannel: supportApi.channel.update,
+      deleteChannel: supportApi.channel.delete,
+      receiveChannelMessage: supportApi.channel.receiveMessage,
+      createAgent: supportApi.agent.create,
+      getAgent: supportApi.agent.get,
+      getAgentDefinition: supportApi.agent.getDefinition,
+      findAgents: supportApi.agent.find,
+      updateAgent: supportApi.agent.update,
+      replaceAgentDefinition: supportApi.agent.replaceDefinition,
+      deleteAgent: supportApi.agent.delete,
+      findConversations: supportApi.conversation.find,
+      getConversation: supportApi.conversation.get,
+      getConversationMessage: supportApi.conversation.getMessage,
+      sendConversationMessage: supportApi.conversation.sendMessage,
+      replyToConversation: supportApi.conversation.reply,
+      resolveConversation: supportApi.conversation.resolve,
+      assignConversation: supportApi.conversation.assign,
     },
 
     analytics: analyticsApi,
@@ -2061,7 +2057,9 @@ function createStorefrontClientCore(
 
     store: storefrontApi.store,
     classification: storefrontApi.classification,
-    cms: storefrontApi.cms,
+    media: storefrontApi.media,
+    content: storefrontApi.content,
+    forms: storefrontApi.forms,
     eshop: storefrontApi.eshop,
     customer: {
       identify,
@@ -2071,8 +2069,8 @@ function createStorefrontClientCore(
       logout,
       getMe: me,
     },
-    crm: storefrontApi.crm,
-    activity: storefrontApi.activity,
+    audiences: storefrontApi.audiences,
+    actions: storefrontApi.actions,
     experiments: storefrontApi.experiments,
     support: createStorefrontSupportApi(apiConfig, ensureVisitorSession),
     getSetup,

@@ -152,7 +152,7 @@ test("Admin Customer namespace uses only canonical routes and flattened identiti
     globalThis.fetch = originalFetch;
   }
 
-  assert.equal("contact" in admin.crm, false);
+  assert.equal("crm" in admin, false);
   assert.equal("merge" in admin.customers, false);
   assert.equal("findChannels" in admin.customers, false);
   assert.deepEqual(

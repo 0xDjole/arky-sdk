@@ -285,7 +285,7 @@ test("submitByKey reads anonymously, identifies lazily, and submits no Store rou
   };
 
   try {
-    const result = await store.cms.form.submitByKey({
+    const result = await store.forms.submitByKey({
       key: "contact-form",
       values: {
         name: "Jane",
@@ -352,18 +352,18 @@ test("submitByKey validates the latest schema before identifying or submitting",
 
   try {
     await assert.rejects(
-      store.cms.form.submitByKey({
+      store.forms.submitByKey({
         key: "contact-form",
         values: { name: "Jane", unknown: "no" },
       }),
       /not defined by the form schema/,
     );
     await assert.rejects(
-      store.cms.form.submitByKey({ key: "contact-form", values: {} }),
+      store.forms.submitByKey({ key: "contact-form", values: {} }),
       /required value is missing/,
     );
     await assert.rejects(
-      store.cms.form.submitByKey({
+      store.forms.submitByKey({
         key: "contact-form",
         values: { name: 42 },
       }),
@@ -508,7 +508,7 @@ test("raw form submission remains stateful and keeps only caller form fields", a
   };
 
   try {
-    await store.cms.form.submit({
+    await store.forms.submit({
       form_id: "form-raw",
       fields: [
         { id: "field-raw", key: "message", type: "text", value: "Hello" },

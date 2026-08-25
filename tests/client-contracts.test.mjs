@@ -853,8 +853,8 @@ test("Classification is top-level and uses the renamed Admin and storefront rout
   };
 
   try {
-    assert.equal("classification" in admin.cms, false);
-    assert.equal("classification" in storefront.cms, false);
+    assert.equal("classification" in admin.content, false);
+    assert.equal("classification" in storefront.content, false);
     await admin.classification.create({ key: "topics", schema: [] });
     await admin.classification.get({ id: "classification-contract" });
     await admin.classification.find({ status: "active" });
@@ -914,7 +914,7 @@ test("storefront collection lookup uses a keyless route and publishable-key head
   };
 
   try {
-    await storefront.cms.collection.get({ key: "articles" });
+    await storefront.content.collection.get({ key: "articles" });
   } finally {
     globalThis.fetch = originalFetch;
   }

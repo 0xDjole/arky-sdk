@@ -70,10 +70,11 @@ import type {
 } from "../api/storefront";
 import type {
   ArkyCalendarDay,
-  ArkyCmsEntryParams,
+  ArkyContentEntryParams,
   ArkyCartInput,
   ArkyCartStatus,
-  ArkyCmsState,
+  ArkyContentState,
+  ArkyFormsState,
   ArkyEshopState,
   ArkyLastOrder,
   ArkyBookingCartItem,
@@ -220,8 +221,12 @@ function initializeStoreCore(
     return cartWriteRevision;
   }
 
-  const cms_state = map<ArkyCmsState>({
+  const content_state = map<ArkyContentState>({
     entries: {},
+    loading: false,
+    error: null,
+  });
+  const forms_state = map<ArkyFormsState>({
     forms: {},
     loading: false,
     error: null,
@@ -1413,23 +1418,23 @@ function initializeStoreCore(
   };
 
   async function loadEntry(
-    params: ArkyCmsEntryParams,
+    params: ArkyContentEntryParams,
     options?: RequestOptions,
   ): Promise<StorefrontCollectionEntry> {
-    cms_state.setKey("loading", true);
-    cms_state.setKey("error", null);
+    content_state.setKey("loading", true);
+    content_state.setKey("error", null);
     try {
       const { locale: nextLocale, market: nextMarket, ...entryParams } = params;
       setContext({ locale: nextLocale, market: nextMarket });
 
       if (entryParams.id) {
-        const entry = await client.cms.entry.get(
+        const entry = await client.content.entry.get(
           entryParams as GetEntryParams,
           options,
         );
         const cacheKey = entryParams.key || entryParams.id || entry.id;
-        cms_state.setKey("entries", {
-          ...cms_state.get().entries,
+        content_state.setKey("entries", {
+          ...content_state.get().entries,
           [cacheKey]: entry,
         });
         return entry;
@@ -1437,11 +1442,11 @@ function initializeStoreCore(
 
       if (!entryParams.collection_id || !entryParams.key) {
         throw new Error(
-          "ArkyCmsEntryParams requires id, or collection_id and key",
+          "ArkyContentEntryParams requires id, or collection_id and key",
         );
       }
 
-      const result = await client.cms.entry.find(
+      const result = await client.content.entry.find(
         {
           ...entryParams,
           collection_id: entryParams.collection_id,
@@ -1452,21 +1457,21 @@ function initializeStoreCore(
       );
       const entry = result.items?.[0];
       if (!entry) {
-        throw new Error("CMS entry not found");
+        throw new Error("Content entry not found");
       }
-      cms_state.setKey("entries", {
-        ...cms_state.get().entries,
+      content_state.setKey("entries", {
+        ...content_state.get().entries,
         [entryParams.key]: entry,
       });
       return entry;
     } catch (error) {
-      cms_state.setKey(
+      content_state.setKey(
         "error",
-        readErrorMessage(error, "Failed to load CMS entry."),
+        readErrorMessage(error, "Failed to load Content entry."),
       );
       throw error;
     } finally {
-      cms_state.setKey("loading", false);
+      content_state.setKey("loading", false);
     }
   }
 
@@ -1483,23 +1488,23 @@ function initializeStoreCore(
     params: StorefrontParams<GetFormParams>,
     options?: RequestOptions,
   ): Promise<StorefrontForm> {
-    cms_state.setKey("loading", true);
-    cms_state.setKey("error", null);
+    forms_state.setKey("loading", true);
+    forms_state.setKey("error", null);
     try {
-      const form = await client.cms.form.get(params, options);
-      const forms = { ...cms_state.get().forms };
+      const form = await client.forms.get(params, options);
+      const forms = { ...forms_state.get().forms };
       forms[formCacheKey({ id: form.id })] = form;
       forms[formCacheKey({ key: form.key })] = form;
-      cms_state.setKey("forms", forms);
+      forms_state.setKey("forms", forms);
       return form;
     } catch (error) {
-      cms_state.setKey(
+      forms_state.setKey(
         "error",
-        readErrorMessage(error, "Failed to load CMS form."),
+        readErrorMessage(error, "Failed to load Form."),
       );
       throw error;
     } finally {
-      cms_state.setKey("loading", false);
+      forms_state.setKey("loading", false);
     }
   }
 
@@ -1508,7 +1513,7 @@ function initializeStoreCore(
     options?: RequestOptions,
   ): Promise<StorefrontFormSubmission> {
     await ensureSession();
-    return client.cms.form.submit(params, options);
+    return client.forms.submit(params, options);
   }
 
   async function submitFormByKey(
@@ -1620,7 +1625,7 @@ function initializeStoreCore(
 
   async function trackActivity(params: TrackActivityParams): Promise<void> {
     await ensureSession();
-    return client.activity.track(params);
+    return client.actions.track(params);
   }
 
   const cart_store = {
@@ -1762,31 +1767,32 @@ function initializeStoreCore(
     setContext,
     getMarket: currentMarketKey,
     getLocale: currentLocale,
-    cms: {
-      state: cms_state,
-      media: client.cms.media,
+    media: client.media,
+    content: {
+      state: content_state,
       collection: {
         get: (
           params: StorefrontParams<GetCollectionParams>,
           options?: RequestOptions,
-        ) => client.cms.collection.get(params, options),
+        ) => client.content.collection.get(params, options),
       },
       entry: {
         get: loadEntry,
         find: (
           params: StorefrontParams<GetEntriesParams>,
           options?: RequestOptions,
-        ) => client.cms.entry.find(params, options),
+        ) => client.content.entry.find(params, options),
         findByIds: (
           params: StorefrontParams<GetEntriesByIdsParams>,
           options?: RequestOptions,
-        ) => client.cms.entry.findByIds(params, options),
+        ) => client.content.entry.findByIds(params, options),
       },
-      form: {
-        get: loadForm,
-        submit: submitForm,
-        submitByKey: submitFormByKey,
-      },
+    },
+    forms: {
+      state: forms_state,
+      get: loadForm,
+      submit: submitForm,
+      submitByKey: submitFormByKey,
     },
     classification: client.classification,
     eshop: {
@@ -1805,8 +1811,8 @@ function initializeStoreCore(
       order: client.eshop.order,
       cart: cart_store,
     },
-    crm: client.crm,
-    activity: {
+    audiences: client.audiences,
+    actions: {
       track(params: TrackActivityParams) {
         return trackActivity(params);
       },

@@ -344,7 +344,7 @@ test("admin support exact-reads a requested message omitted from the write respo
 
   let result;
   try {
-    result = await admin().automation.support.sendConversationMessage({
+    result = await admin().support.sendConversationMessage({
       store_id: storeId,
       conversation_id: "conversation-staff",
       message_id: messageId,

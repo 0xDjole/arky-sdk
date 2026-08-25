@@ -41,10 +41,10 @@ The SDK accepts only an `arky_pk_...` publishable key. A personal `arky_api_...`
 
 ## Read content and submit forms
 
-Anonymous CMS and catalog reads do not create a visitor:
+Anonymous Content and catalog reads do not create a visitor:
 
 ```typescript
-const page = await arky.cms.entry.get({
+const page = await arky.content.entry.get({
   collection_id: "pages",
   key: "homepage",
 });
@@ -79,7 +79,7 @@ FormSubmission.
 Stateful operations identify the visitor lazily. Concurrent first operations share one identify request:
 
 ```typescript
-await arky.cms.form.submitByKey({
+await arky.forms.submitByKey({
   key: "contact",
   values: {
     email: "visitor@example.com",
@@ -97,28 +97,28 @@ header. Initialization removes the retired Visitor-only storage entry. Customer 
 `customer_access_`, and `customer_refresh_` prefixes; `arky_vst_` is rejected. Storage is isolated by
 API endpoint and a fingerprint of the publishable key.
 
-## CRM activities and experiments
+## Actions and experiments
 
-Customer and business facts use the Activity vocabulary across the SDK. Tracking an Activity
+Customer and business facts use the Actions surface across the SDK. Tracking an action
 creates a visitor session when needed:
 
 ```typescript
-await arky.activity.track({
+await arky.actions.track({
   key: "product.view",
   payload: { product_id: "product-id" },
 });
 
-await arky.activity.pageView({ path: window.location.pathname });
+await arky.actions.pageView({ path: window.location.pathname });
 ```
 
-The low-level storefront equivalent is `arky.client.activity.track(...)`. Admin integrations read
-the same append-only facts through `admin.crm.activity.timeline(...)` or
-`admin.crm.activity.find(...)`; Customer search filters them with `has_activity`.
+The low-level storefront equivalent is `arky.client.actions.track(...)`. Admin integrations read
+the same append-only facts through `admin.actions.timeline(...)` or
+`admin.actions.find(...)`; Customer search filters them with `has_activity`.
 
 Experiment definitions and storefront assignments expose `goal_activity_key`. Analytics report
 requests use `activity_by_country`, `top_activity_pages`, and `recent_activity`; the corresponding
 feed category and summary field are `activities`. Event payloads and payment flows still use
-`action` where that word describes a command or verb rather than the CRM Activity domain.
+`action` where that word describes a command or verb rather than the Actions domain.
 
 ## Products, booking services, and checkout
 
@@ -185,7 +185,7 @@ One Cart booking item is one appointment and contains one `booking_offering_id` 
 standalone Form first, pass only its resulting submission ID with the appointment:
 
 ```typescript
-const submission = await arky.cms.form.submitByKey({
+const submission = await arky.forms.submitByKey({
   key: "booking-details",
   values: { note: "Window seat, please" },
 });
@@ -258,7 +258,7 @@ Use an isolated scoped client for SSR, static generation, or parallel contexts:
 
 ```typescript
 const italian = arky.withContext({ locale: "it", market: "ita" });
-const page = await italian.cms.entry.get({
+const page = await italian.content.entry.get({
   collection_id: "pages",
   key: "homepage",
 });
@@ -331,7 +331,7 @@ The module facade exposes its low-level client as `arky.client`:
 await arky.client.eshop.product.find({ limit: 20 });
 const cart = await arky.client.eshop.cart.current();
 await arky.client.eshop.cart.get({ id: cart.id, token: cart.token });
-await arky.client.cms.entry.find({
+await arky.client.content.entry.find({
   collection_id: "pages",
   key: "homepage",
   limit: 1,
