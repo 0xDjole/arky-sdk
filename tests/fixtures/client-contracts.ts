@@ -13,8 +13,11 @@ import type {
   BlockSchema,
   BuildHook,
   Classification,
+  ClassificationCoordinates,
   ClassificationEntry,
   ClassificationFieldQuery,
+  ClassificationGeoLocation,
+  ClassificationNumberOperation,
   ClassificationSchema,
   Customer,
   Cart,
@@ -1186,9 +1189,18 @@ const classificationSchema: ClassificationSchema = {
   id: "classification-schema-industry",
   key: "industry",
   type: "text",
-  value: ["software", "services"],
+  options: ["software", "services"],
   min: null,
 };
+const classificationCoordinates: ClassificationCoordinates = {
+  lat: 43.8563,
+  lon: 18.4131,
+};
+const classificationGeoLocation: ClassificationGeoLocation = {
+  coordinates: classificationCoordinates,
+};
+const classificationNumberOperation: ClassificationNumberOperation =
+  "greater_than_or_equal";
 const classificationFieldQuery: ClassificationFieldQuery = {
   type: "number",
   key: "team_size",
@@ -1213,8 +1225,28 @@ void formBlockSchema;
 void legacyMarkdownMap;
 void blockWithValueProperties;
 void classificationSchema;
+void classificationCoordinates;
+void classificationGeoLocation;
+void classificationNumberOperation;
 void classificationFieldQuery;
 void classificationEntry;
+
+const legacyClassificationOperation: ClassificationFieldQuery = {
+  type: "number",
+  key: "team_size",
+  // @ts-expect-error Classification exposes only the five sealed comparison operations.
+  operation: "contains",
+  value: 10,
+};
+const legacyClassificationRadius: ClassificationFieldQuery = {
+  type: "geo_location",
+  key: "office",
+  center: classificationCoordinates,
+  // @ts-expect-error Classification geo queries use radius_meters, never radius.
+  radius: 1_000,
+};
+void legacyClassificationOperation;
+void legacyClassificationRadius;
 
 const typedRequestOptions: RequestOptions<{ ok: true }> = {
   params: { filters: [{ type: "text", key: "title", values: ["Arky"] }] },

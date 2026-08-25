@@ -1449,7 +1449,7 @@ interface ClassificationSchemaBase {
 export type ClassificationSchema =
   | (ClassificationSchemaBase & {
       type: "text";
-      value: string[];
+      options: string[];
       min: number | null;
     })
   | (ClassificationSchemaBase & {
@@ -1462,6 +1462,22 @@ export type ClassificationSchema =
 
 export type ClassificationSchemaType = ClassificationSchema["type"];
 
+export interface ClassificationCoordinates {
+  lat: number;
+  lon: number;
+}
+
+export interface ClassificationGeoLocation {
+  coordinates: ClassificationCoordinates;
+}
+
+export type ClassificationNumberOperation =
+  | "less_than"
+  | "less_than_or_equal"
+  | "equals"
+  | "greater_than_or_equal"
+  | "greater_than";
+
 interface ClassificationFieldBase {
   id: string;
   key: string;
@@ -1471,30 +1487,25 @@ export type ClassificationField =
   | (ClassificationFieldBase & { type: "text"; value: string[] })
   | (ClassificationFieldBase & { type: "number"; value: number })
   | (ClassificationFieldBase & { type: "boolean"; value: boolean })
-  | (ClassificationFieldBase & { type: "geo_location"; value: GeoLocation });
+  | (ClassificationFieldBase & {
+      type: "geo_location";
+      value: ClassificationGeoLocation;
+    });
 
 export type ClassificationFieldQuery =
   | { type: "text"; key: string; value: string[] }
   | {
       type: "number";
       key: string;
-      operation:
-        | "plus"
-        | "minus"
-        | "less_than_or_equal"
-        | "greater_than_or_equal"
-        | "equals"
-        | "greater_than"
-        | "less_than"
-        | "contains";
+      operation: ClassificationNumberOperation;
       value: number;
     }
   | { type: "boolean"; key: string; value: boolean }
   | {
       type: "geo_location";
       key: string;
-      center: Coordinates;
-      radius: number;
+      center: ClassificationCoordinates;
+      radius_meters: number;
     };
 
 export interface ClassificationEntry {

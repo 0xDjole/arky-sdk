@@ -1085,7 +1085,7 @@ export interface CreateClassificationParams {
   store_id?: string;
   key: string;
   parent_id?: string | null;
-  schema?: ClassificationSchema[];
+  schema: ClassificationSchema[];
 }
 
 export interface UpdateClassificationParams {

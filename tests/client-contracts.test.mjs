@@ -837,6 +837,7 @@ test("Classification is top-level and uses the renamed Admin and storefront rout
       body: init.body ? JSON.parse(String(init.body)) : null,
     });
     if (target.endsWith("/children")) return jsonResponse([]);
+    if ((init.method || "GET") === "DELETE") return jsonResponse(true);
     if (target.includes("?status=active")) {
       return jsonResponse({ items: [], cursor: null });
     }
@@ -856,12 +857,20 @@ test("Classification is top-level and uses the renamed Admin and storefront rout
     assert.equal("classification" in admin.content, false);
     assert.equal("classification" in storefront.content, false);
     await admin.classification.create({ key: "topics", schema: [] });
+    await admin.classification.update({
+      id: "classification-contract",
+      key: "subjects",
+    });
     await admin.classification.get({ id: "classification-contract" });
     await admin.classification.find({ status: "active" });
     await storefront.classification.get({ key: "topics" });
     await storefront.classification.getChildren({
       id: "classification-contract",
     });
+    assert.equal(
+      await admin.classification.delete({ id: "classification-contract" }),
+      true,
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -876,6 +885,11 @@ test("Classification is top-level and uses the renamed Admin and storefront rout
         url: `/v1/stores/${storeId}/classifications`,
         method: "POST",
         body: { key: "topics", schema: [] },
+      },
+      {
+        url: `/v1/stores/${storeId}/classifications/classification-contract`,
+        method: "PUT",
+        body: { key: "subjects" },
       },
       {
         url: `/v1/stores/${storeId}/classifications/classification-contract`,
@@ -895,6 +909,11 @@ test("Classification is top-level and uses the renamed Admin and storefront rout
       {
         url: "/v1/storefront/classifications/classification-contract/children",
         method: "GET",
+        body: null,
+      },
+      {
+        url: `/v1/stores/${storeId}/classifications/classification-contract`,
+        method: "DELETE",
         body: null,
       },
     ],

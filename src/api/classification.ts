@@ -29,10 +29,10 @@ export const createClassificationApi = (apiConfig: ApiConfig) => {
       params: UpdateClassificationParams,
       options?: RequestOptions,
     ): Promise<Classification> {
-      const { store_id, ...payload } = params;
+      const { store_id, id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.put<Classification>(
-        `/v1/stores/${target_store_id}/classifications/${params.id}`,
+        `/v1/stores/${target_store_id}/classifications/${id}`,
         payload,
         options,
       );
@@ -41,9 +41,9 @@ export const createClassificationApi = (apiConfig: ApiConfig) => {
     async deleteClassification(
       params: DeleteClassificationParams,
       options?: RequestOptions,
-    ): Promise<{ deleted: boolean }> {
+    ): Promise<boolean> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.delete<{ deleted: boolean }>(
+      return apiConfig.httpClient.delete<boolean>(
         `/v1/stores/${target_store_id}/classifications/${params.id}`,
         options,
       );
