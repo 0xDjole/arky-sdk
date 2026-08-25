@@ -233,7 +233,7 @@ const removedShippingContractPatterns = [
   /\/shippo-label\b|\/shipments\/[^\s`"']+\/retry\b|\/charges(?:\/|`|"|')/g,
 ];
 const removedCrmActionVocabularyPattern =
-  /\b(?:has_action|goal_action_key|action_id|opportunity_action_id|action_by_country|top_action_pages|recent_action)\b|\/actions\b|["']actions["']|\b(?:crmApi|storefrontApi|client)\.action\b/g;
+  /\b(?:has_action|goal_action_key|action_id|opportunity_action_id|action_by_country|top_action_pages|recent_action)\b|\b(?:crmApi|storefrontApi|client)\.action\b/g;
 const removedCustomerVocabularyPatterns = [
   /\b(?:Contact|ContactChannel|ContactSession|StorefrontContact)\b/g,
   /\bcontact_id\b|\/contacts\b|\.crm\.contact\b/g,
