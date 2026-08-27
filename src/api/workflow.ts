@@ -4,11 +4,9 @@ import type {
   UpdateWorkflowParams,
   DeleteWorkflowParams,
   GetWorkflowParams,
-  GetWorkflowDefinitionParams,
-  GetWorkflowTriggerParams,
   GetWorkflowsParams,
-  TriggerWorkflowParams,
-  InvokeWorkflowTriggerParams,
+  RegenerateWorkflowWebhookUrlParams,
+  InvokeWorkflowWebhookParams,
   GetWorkflowExecutionsParams,
   GetWorkflowExecutionParams,
   GetWorkflowExternalOperationsParams,
@@ -17,19 +15,17 @@ import type {
   GetWorkflowConnectionsParams,
   DeleteWorkflowConnectionParams,
   RequestOptions,
-  ReplaceWorkflowDefinitionParams,
 } from "../types/api";
 import type {
   Workflow,
-  WorkflowDefinition,
-  WorkflowTrigger,
+  WorkflowListItem,
   WorkflowConnection,
   WorkflowConnectionConnectUrl,
   WorkflowExecution,
-  WorkflowExecutionDefinition,
-  WorkflowExecutionInputCapture,
-  WorkflowExecutionResults,
+  WorkflowExecutionListItem,
+  WorkflowExecutionStarted,
   WorkflowExternalOperation,
+  WorkflowWebhookUrl,
   PaginatedResponse,
 } from "../types";
 
@@ -83,49 +79,14 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getWorkflowDefinition(
-      params: GetWorkflowDefinitionParams,
+    async regenerateWorkflowWebhookUrl(
+      params: RegenerateWorkflowWebhookUrlParams,
       options?: RequestOptions,
-    ): Promise<WorkflowDefinition> {
+    ): Promise<WorkflowWebhookUrl> {
       const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<WorkflowDefinition>(
-        `/v1/stores/${store_id}/workflows/${params.workflow_id}/definition`,
-        options,
-      );
-    },
-
-    async getWorkflowTrigger(
-      params: GetWorkflowTriggerParams,
-      options?: RequestOptions,
-    ): Promise<WorkflowTrigger> {
-      const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<WorkflowTrigger>(
-        `/v1/stores/${store_id}/workflows/${params.workflow_id}/trigger`,
-        options,
-      );
-    },
-
-    async rotateWorkflowTrigger(
-      params: GetWorkflowTriggerParams,
-      options?: RequestOptions,
-    ): Promise<WorkflowTrigger> {
-      const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<WorkflowTrigger>(
-        `/v1/stores/${store_id}/workflows/${params.workflow_id}/trigger`,
+      return apiConfig.httpClient.post<WorkflowWebhookUrl>(
+        `/v1/stores/${store_id}/workflows/${params.workflow_id}/regenerate-webhook-url`,
         {},
-        options,
-      );
-    },
-
-    async replaceWorkflowDefinition(
-      params: ReplaceWorkflowDefinitionParams,
-      options?: RequestOptions,
-    ): Promise<WorkflowDefinition> {
-      const { store_id, workflow_id, ...definition } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.put<WorkflowDefinition>(
-        `/v1/stores/${target_store_id}/workflows/${workflow_id}/definition`,
-        definition,
         options,
       );
     },
@@ -133,11 +94,11 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
     async getWorkflows(
       params?: GetWorkflowsParams,
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<Workflow>> {
+    ): Promise<PaginatedResponse<WorkflowListItem>> {
       const store_id = params?.store_id || apiConfig.storeId;
 
       const { store_id: _, ...queryParams } = params || {};
-      return apiConfig.httpClient.get<PaginatedResponse<Workflow>>(
+      return apiConfig.httpClient.get<PaginatedResponse<WorkflowListItem>>(
         `/v1/stores/${store_id}/workflows`,
         {
           ...options,
@@ -146,24 +107,12 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async triggerWorkflow(
-      params: TriggerWorkflowParams,
+    async invokeWorkflowWebhook(
+      params: InvokeWorkflowWebhookParams,
       options?: RequestOptions,
-    ): Promise<WorkflowExecution> {
-      const { secret, ...payload } = params;
-      return apiConfig.httpClient.post<WorkflowExecution>(
-        `/v1/workflows/trigger/${secret}`,
-        payload,
-        options,
-      );
-    },
-
-    async invokeWorkflowTrigger(
-      params: InvokeWorkflowTriggerParams,
-      options?: RequestOptions,
-    ): Promise<WorkflowExecution> {
-      return apiConfig.httpClient.post<WorkflowExecution>(
-        params.trigger_url,
+    ): Promise<WorkflowExecutionStarted> {
+      return apiConfig.httpClient.post<WorkflowExecutionStarted>(
+        params.webhook_url,
         params.payload,
         options,
       );
@@ -172,10 +121,12 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
     async getWorkflowExecutions(
       params: GetWorkflowExecutionsParams,
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<WorkflowExecution>> {
+    ): Promise<PaginatedResponse<WorkflowExecutionListItem>> {
       const store_id = params.store_id || apiConfig.storeId;
       const { store_id: _, workflow_id, ...queryParams } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<WorkflowExecution>>(
+      return apiConfig.httpClient.get<
+        PaginatedResponse<WorkflowExecutionListItem>
+      >(
         `/v1/stores/${store_id}/workflows/${workflow_id}/executions`,
         {
           ...options,
@@ -191,39 +142,6 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       const store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<WorkflowExecution>(
         `/v1/stores/${store_id}/workflows/${params.workflow_id}/executions/${params.execution_id}`,
-        options,
-      );
-    },
-
-    async getWorkflowExecutionDefinition(
-      params: GetWorkflowExecutionParams,
-      options?: RequestOptions,
-    ): Promise<WorkflowExecutionDefinition> {
-      const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<WorkflowExecutionDefinition>(
-        `/v1/stores/${store_id}/workflows/${params.workflow_id}/executions/${params.execution_id}/definition`,
-        options,
-      );
-    },
-
-    async getWorkflowExecutionInput(
-      params: GetWorkflowExecutionParams,
-      options?: RequestOptions,
-    ): Promise<WorkflowExecutionInputCapture> {
-      const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<WorkflowExecutionInputCapture>(
-        `/v1/stores/${store_id}/workflows/${params.workflow_id}/executions/${params.execution_id}/input`,
-        options,
-      );
-    },
-
-    async getWorkflowExecutionResults(
-      params: GetWorkflowExecutionParams,
-      options?: RequestOptions,
-    ): Promise<WorkflowExecutionResults> {
-      const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<WorkflowExecutionResults>(
-        `/v1/stores/${store_id}/workflows/${params.workflow_id}/executions/${params.execution_id}/results`,
         options,
       );
     },

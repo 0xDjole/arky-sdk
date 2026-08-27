@@ -714,7 +714,6 @@ test("code-only verification and refresh atomically rotate the discriminated Cus
   assert.equal(storedBeforeLogout.session.id, rotated.id);
   assert.equal(storedBeforeLogout.session.access_token, "customer_access_2");
   assert.equal(storedBeforeLogout.session.refresh_token, "customer_refresh_2");
-  assert.equal("challenge_id" in storedBeforeLogout, false);
   assert.equal(storage.values.size, 0);
 });
 
@@ -799,36 +798,12 @@ test("refresh 401 keeps the previous authenticated Session and never retries wit
   assert.equal(storedRecord, initialRecord);
 });
 
-test("initialization clears the retired Visitor-only storage key", () => {
+test("initialization rejects a versioned record containing an invalid Visitor credential", () => {
   const removed = [];
-  const storage = {
-    getItem() {
-      return null;
-    },
-    setItem() {},
-    removeItem(key) {
-      removed.push(key);
-    },
-  };
-
-  const client = createStorefront(publishableKeyA, {
-    apiUrl,
-    sessionStorage: storage,
-  });
-
-  assert.equal(client.session, null);
-  assert.equal(
-    removed.some((key) => key.startsWith("arky_visitor_session:")),
-    true,
-  );
-});
-
-test("initialization rejects a versioned record containing a retired Visitor credential", () => {
-  const removed = [];
-  const legacy = storedVisitorSession(`arky_vst_${"z".repeat(64)}`);
+  const invalid = storedVisitorSession("invalid-visitor-token");
   const storage = {
     getItem(key) {
-      return key.startsWith("arky_customer_session:v1:") ? legacy : null;
+      return key.startsWith("arky_customer_session:v1:") ? invalid : null;
     },
     setItem() {},
     removeItem(key) {

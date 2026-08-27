@@ -59,8 +59,6 @@ export const createNotificationApi = (apiConfig: ApiConfig) => {
             return {
               ...delivery,
               status: observation.status,
-              provider_message_id: observation.provider_message_id,
-              provider_thread_id: observation.provider_thread_id,
               ...(observation.error === undefined
                 ? {}
                 : { error: observation.error }),

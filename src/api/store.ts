@@ -25,6 +25,7 @@ import type {
   DeleteWebhookParams,
   RequestOptions,
 } from "../types/api";
+import type { StoreDeletionResult } from "../types";
 import type {
   Store,
   Webhook,
@@ -73,9 +74,9 @@ export const createStoreApi = (
     async requestDeletion(
       params: RequestStoreDeletionParams,
       options?: RequestOptions,
-    ): Promise<Store> {
+    ): Promise<StoreDeletionResult> {
       const store_id = params.id || apiConfig.storeId;
-      return apiConfig.httpClient.post<Store>(
+      return apiConfig.httpClient.post<StoreDeletionResult>(
         `/v1/stores/${store_id}/deletion`,
         { confirmation: params.confirmation },
         options,

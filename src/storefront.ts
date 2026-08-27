@@ -1,5 +1,5 @@
 export {
-  COMMON_ACTIVITY_KEYS,
+  COMMON_CUSTOMER_ACTION_KEYS,
   ScheduledResultTimeoutError,
   createStorefront,
 } from "./index";
@@ -46,8 +46,7 @@ export type {
   ArkyBookingServiceStore,
 } from "./storefrontStore";
 export type {
-  StorefrontActivity,
-  CommonActivityKey,
+  CommonCustomerActionKey,
   CartApi,
   CartController,
   CartControllerAddProductParams,
@@ -85,7 +84,7 @@ export type {
   StorefrontSupportConversationResponse,
   StorefrontSupportConversationStartResponse,
   AuthStateListener,
-  TrackActivityParams,
+  TrackCustomerActionParams,
   ExperimentUseResponse,
   UseExperimentParams,
   FormValue,

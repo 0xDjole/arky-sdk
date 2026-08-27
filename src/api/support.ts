@@ -1,6 +1,7 @@
 import type { ApiConfig, StorefrontApiConfig } from "../services/clientTypes";
 import type { StorefrontDto } from "./storefront";
 import type { RequestOptions, ScheduledMutationOptions } from "../types/api";
+import type { EmailAttachmentReference } from "../types";
 import {
   pollScheduledResult,
   prepareScheduledMutation,
@@ -137,6 +138,7 @@ export interface SupportMessage {
   role: "system" | "user" | "assistant" | "staff" | "action";
   content: string;
   buttons: string[] | null;
+  attachments: EmailAttachmentReference[];
   metadata: Record<string, unknown>;
   ai_response: SupportAiResponse | null;
   created_at: number;

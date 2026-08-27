@@ -38,6 +38,67 @@ function jsonResponse(body, status = 200) {
   });
 }
 
+test("workflow external-operation audit routes preserve execution scope", async () => {
+  const admin = createAdmin({
+    baseUrl,
+    storeId,
+    apiToken: "arky_api_workflow_operation_contract",
+  });
+  const operation = {
+    id: "operation-contract",
+    store_id: storeId,
+    workflow_id: "workflow-contract",
+    execution_id: "execution-contract",
+    node_id: "http_1",
+    iteration_key: "root",
+    type: "http_mutation",
+    status: "succeeded",
+    requested_at: 1,
+    processing_started_at: 2,
+    completed_at: 3,
+    result: { output: { provider_request_id: "request-contract" } },
+    error: null,
+    updated_at: 3,
+  };
+  const calls = [];
+  const responses = [{ items: [operation], cursor: null }, operation];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), method: init.method });
+    return jsonResponse(responses.shift());
+  };
+
+  try {
+    const page = await admin.workflow.listExternalOperations({
+      workflow_id: operation.workflow_id,
+      execution_id: operation.execution_id,
+      limit: 25,
+    });
+    assert.deepEqual(page.items, [operation]);
+    assert.deepEqual(
+      await admin.workflow.getExternalOperation({
+        workflow_id: operation.workflow_id,
+        execution_id: operation.execution_id,
+        operation_id: operation.id,
+      }),
+      operation,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.deepEqual(calls, [
+    {
+      url: `${baseUrl}/v1/stores/${storeId}/workflows/${operation.workflow_id}/executions/${operation.execution_id}/external-operations?limit=25`,
+      method: "GET",
+    },
+    {
+      url: `${baseUrl}/v1/stores/${storeId}/workflows/${operation.workflow_id}/executions/${operation.execution_id}/external-operations/${operation.id}`,
+      method: "GET",
+    },
+  ]);
+});
+
 test("admin code login activates the same pending Account Session", async () => {
   const admin = createAdmin({ baseUrl, storeId, market: "us" });
   const calls = [];

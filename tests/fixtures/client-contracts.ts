@@ -5,10 +5,7 @@ import type {
   AccountSession,
   AccountSessionStatus,
   AuthToken,
-  AudiencePaymentStatus,
-  AudiencePromotionSnapshot,
-  AudienceSubscribeResponse,
-  AudienceTierPriceInput,
+  AudienceJoinResult,
   Block,
   BlockSchema,
   BuildHook,
@@ -102,13 +99,10 @@ import type {
   TimeRange,
   OrderShipment,
   OrderShipmentStatus,
-  SocialConnectionCredential,
-  SocialConnectionData,
+  SocialCredential,
+  SocialConnection,
   SocialConnectionType,
-  SocialOAuthCallbackStatus,
-  SocialPublicationContent,
-  SocialPublicationEffectRequest,
-  SocialProviderCapability,
+  SocialPostContent,
   SmtpImapMailboxProviderInput,
   StoreSubscription,
   Store,
@@ -147,18 +141,17 @@ import type {
   PaymentProvider,
   Suppression,
   WorkflowHttpNode,
-  WorkflowTriggerNode,
+  WorkflowExternalOperation,
   VerifyPendingAccountSessionParams,
   Webhook,
   FindDigitalProductsParams,
   MarkCashOnDeliveryPaidParams,
-  Activity,
-  ActivityContext,
-  ActivityData,
-  ActivityFeedData,
-  AnalyticsActivityReportKey,
-  CommonActivityKey,
-  CampaignMessageDirection,
+  CustomerAction,
+  CustomerActionContext,
+  CustomerActionType,
+  CustomerActionFeedData,
+  AnalyticsCustomerActionReportKey,
+  CommonCustomerActionKey,
   CheckoutPaymentAction,
   CancelOrderProductItemParams,
   BookingItemLifecycleParams,
@@ -170,14 +163,13 @@ import type {
   EventAction,
   Experiment,
   ExperimentUseResponse,
-  StorefrontActivity,
   SupportAction,
-  TrackActivityParams,
+  TrackCustomerActionParams,
   WebhookEventSubscription,
 } from "../../dist/index.js";
 // @ts-expect-error the Actions surface does not expose a generic Action compatibility alias.
 import type { Action, ActionData } from "../../dist/index.js";
-// @ts-expect-error analytics exposes Activity feed and report names exclusively.
+// @ts-expect-error analytics exposes CustomerAction feed and report names exclusively.
 import type { ActionFeedData, AnalyticsActionReportKey } from "../../dist/index.js";
 // @ts-expect-error Promotion command and response types are lifecycle-specific.
 import type { Discount } from "../../dist/index.js";
@@ -212,7 +204,7 @@ import type {
   CreateStoreLocationParams,
   CreateStoreParams,
   CreateWebhookParams,
-  FindActivitiesParams,
+  FindCustomerActionsParams,
   FindCustomersParams,
   RequestOptions,
 } from "../../dist/types.js";
@@ -226,7 +218,7 @@ import type { CancelOrderProductParams } from "../../dist/index.js";
 import type { AudiencePromotionUsageStatus } from "../../dist/index.js";
 import { createAdmin, SDK_VERSION } from "../../dist/index.js";
 import {
-  COMMON_ACTIVITY_KEYS,
+  COMMON_CUSTOMER_ACTION_KEYS,
   createStorefront,
   initialize,
   type FormField,
@@ -235,47 +227,53 @@ import {
   type EmbeddedCheckoutAction as StorefrontEmbeddedCheckoutAction,
   type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
 } from "../../dist/storefront.js";
-// @ts-expect-error storefront tracking uses Activity type names exclusively.
+// @ts-expect-error storefront tracking uses CustomerAction type names exclusively.
 import type { CommonActionKey, StorefrontAction, TrackActionParams } from "../../dist/storefront.js";
-// @ts-expect-error storefront Activity keys have no Action compatibility alias.
+// @ts-expect-error storefront CustomerAction keys have no Action compatibility alias.
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
 const sdkVersionLiteral: "0.26.0" = SDK_VERSION;
-// @ts-expect-error mandatory Visitor Customer bootstrap is unmetered.
-const legacyCrmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
+const workflowExternalOperationContract: WorkflowExternalOperation = {
+  id: "operation-contract",
+  store_id: "store-contract",
+  workflow_id: "workflow-contract",
+  execution_id: "execution-contract",
+  node_id: "http_1",
+  iteration_key: "root",
+  type: "http_mutation",
+  status: "succeeded",
+  requested_at: 1,
+  processing_started_at: 2,
+  completed_at: 3,
+  result: { output: { provider_request_id: "request-contract" } },
+  error: null,
+  updated_at: 3,
+};
+void workflowExternalOperationContract;
 const bookingServiceFeature: SubscriptionPlanFeatureType = "booking_services";
 const bookingResourceFeature: SubscriptionPlanFeatureType = "booking_resources";
-// @ts-expect-error Customer bootstrap has no replacement quota feature key.
-const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
-// @ts-expect-error Booking Service quota keys use the full domain name.
-const legacyServiceFeature: SubscriptionPlanFeatureType = "services";
-// @ts-expect-error Booking Resource quota keys use the full domain name.
-const legacyProviderFeature: SubscriptionPlanFeatureType = "providers";
 const mediaContract: Media = {
   id: "media-contract",
-  creation_key: "owned:content-digest",
-  resolutions: {
-    original: { id: "resolution-contract", url: "stores/store-contract/media/file" },
+  store_id: "store-contract",
+  original: {
+    url: "https://media.example.test/file.png",
+    file_name: "file.png",
+    mime_type: "image/png",
+    size_bytes: 100,
+    width_px: 100,
+    height_px: 100,
   },
-  mime_type: "image/png",
-  title: "file.png",
-  description: null,
-  alt: null,
-  store_id: "store-contract",
-  metadata: null,
+  renditions: [],
   created_at: 1,
   updated_at: 1,
-  slug: { en: "file" },
 };
-// @ts-expect-error Media always exposes its durable creation key.
-const mediaWithoutCreationKey: Media = {
+// @ts-expect-error Media always exposes its owned Original file.
+const mediaWithoutOriginal: Media = {
   id: "media-contract",
-  resolutions: {},
-  mime_type: "image/png",
   store_id: "store-contract",
+  renditions: [],
   created_at: 1,
   updated_at: 1,
-  slug: {},
 };
 const storeContract: Store = {
   id: "store-contract",
@@ -409,7 +407,6 @@ const cashOnDeliveryProvider: PaymentProvider = {
   id: "provider-cash-on-delivery",
   store_id: "store-contract",
   configuration: { type: "cash_on_delivery" },
-  disabled_at: null,
   created_at: 1,
   updated_at: 1,
 };
@@ -430,7 +427,6 @@ const stripeProvider: PaymentProvider = {
       terms_version: 1,
     },
   },
-  disabled_at: null,
   created_at: 1,
   updated_at: 2,
 };
@@ -505,12 +501,6 @@ void checkoutContract;
 void quotedProviderId;
 void quotedProviderIds;
 void serverGeneratedMembershipUuid;
-const audienceTierPriceInput: AudienceTierPriceInput = {
-  currency: "usd",
-  amount: 1200,
-  interval: { period: "month", count: 1 },
-  status: "active",
-};
 const merchantRefundReason: RefundRequestReason = "fraudulent";
 const refundMoney: Money = { amount: 1_250, currency: "usd" };
 const refundAllocation: RefundAllocation = {
@@ -624,14 +614,6 @@ const promotionDiscounts: PromotionDiscount[] = [
     market: "us",
     basis_points: 2_000,
   },
-  {
-    type: "audience_percentage",
-    id: audienceDiscountId,
-    audience_id: "audience-contract",
-    tier_ids: ["tier-contract"],
-    price_ids: ["price-contract"],
-    basis_points: 1_500,
-  },
 ];
 
 const promotionConditions: PromotionCondition[] = [
@@ -668,13 +650,6 @@ const createPromotionDiscounts: CreatePromotionDiscountInput[] = [
     money: { amount: 500, currency: "eur" },
   },
   { type: "shipping_percentage", market: "us", basis_points: 2_000 },
-  {
-    type: "audience_percentage",
-    audience_id: "audience-contract",
-    tier_ids: ["tier-contract"],
-    price_ids: ["price-contract"],
-    basis_points: 1_500,
-  },
 ];
 
 const promotionConditionInputs: PromotionConditionInput[] = [
@@ -853,13 +828,6 @@ const allocationWithLegacyProvenance: DiscountAllocation = {
 };
 // @ts-expect-error Store closure is a system-only refund reason.
 const systemRefundReasonFromClient: RefundRequestReason = "store_closure";
-const audienceTierPriceWithProvider: AudienceTierPriceInput = {
-  currency: "usd",
-  amount: 1200,
-  status: "active",
-  // @ts-expect-error payment-provider bindings are server-owned output fields.
-  provider: { type: "stripe", price_id: "price_untrusted" },
-};
 const smtpImapMailboxProviderInput: SmtpImapMailboxProviderInput = {
   type: "smtp_imap",
   preset: "custom",
@@ -1365,8 +1333,6 @@ const canonicalCartContract: Cart = {
 canonicalCartContract.forms;
 declare const embeddedBookingItem: OrderBookingItem;
 const embeddedOfferingId: string = embeddedBookingItem.booking_offering_id;
-// @ts-expect-error The legacy booking Service Provider facade was removed.
-storefrontClient.eshop.service;
 void storefrontBookingOfferings;
 void bookingResources;
 void bookingServices;
@@ -1512,44 +1478,16 @@ void textFormSchema;
 void textFormField;
 void invalidTextFormField;
 void mediaContract;
-void mediaWithoutCreationKey;
+void mediaWithoutOriginal;
 
-const subscribeResult: AudienceSubscribeResponse = {
-  payment_action: { type: "none" },
-  payment: {
-    id: "payment-contract",
-    tier_id: "tier-contract",
-    amount: 1200,
-    currency: "usd",
-    interval: { period: "month", count: 1 },
-    status: "unknown",
-  },
-  member: {
-    id: "member-contract",
-    enrollment_status: "pending",
-    delivery_status: "subscribed",
-    created_at: 1,
-    updated_at: 1,
-  },
-};
-const subscribePaymentStatus: AudiencePaymentStatus | undefined =
-  subscribeResult.payment?.status;
-const audiencePromotionSnapshot: AudiencePromotionSnapshot = {
-  promo_code_id: "promo-contract",
-  code: "WELCOME10",
-  discount: 250,
-};
-// @ts-expect-error promotion usage is internal checkout state, not public payment history.
-audiencePromotionSnapshot.usage_status;
+const audienceJoinResult: AudienceJoinResult = { type: "accepted" };
 
 declare const storefrontIdentify: StorefrontIdentifyResult;
 const storefrontEntryIdentify: StorefrontEntryIdentifyResult =
   storefrontIdentify;
-// @ts-expect-error challenge identifiers were removed; verification is code-only.
-storefrontIdentify.challenge_id;
 // @ts-expect-error issued credentials are nested under the Session variant.
 storefrontIdentify.token;
-// @ts-expect-error storefront Customer DTOs do not expose tenant routing IDs.
+// @ts-expect-error storefront DTOs strip routing ownership fields such as store_id.
 storefrontIdentify.customer.store_id;
 if (storefrontIdentify.session.type === "visitor") {
   const issuedVisitorToken: string = storefrontIdentify.session.token;
@@ -1774,51 +1712,29 @@ declare const cart: Cart;
 // @ts-expect-error cart recovery is not a product lifecycle in the current model.
 cart.recovery_sent_at;
 
-// @ts-expect-error refunds have their own lifecycle resource.
-const embeddedRefundPaymentStatus: AudiencePaymentStatus = "refunded";
-// @ts-expect-error the server never emits this callback status.
-const codeReceivedCallback: SocialOAuthCallbackStatus = "code_received";
-
-const safeSocialCredential: SocialConnectionCredential = {
+const safeSocialCredential: SocialCredential = {
   expires_at: null,
   scopes: ["posts.write"],
+  has_refresh_token: true,
 };
-const unsafeSocialCredential: SocialConnectionCredential = {
+const unsafeSocialCredential: SocialCredential = {
   expires_at: null,
   scopes: [],
+  has_refresh_token: false,
   // @ts-expect-error public social connection DTOs never contain provider secrets.
   access_token: "provider-secret",
 };
-const safeSocialConnectionData: SocialConnectionData = {
-  credential: safeSocialCredential,
-  destination: {
-    external_account_id: "social-account",
-    external_account_name: "Arky",
-    handle: null,
-    avatar_url: null,
-  },
-};
+declare const socialConnection: SocialConnection;
+// @ts-expect-error connection credentials are embedded and never publicly exposed.
+socialConnection.credential;
 const tiktokConnectionType: SocialConnectionType = "tiktok_account";
 const tiktokPrivacy: TiktokPrivacy = "private";
-const tiktokContent: SocialPublicationContent = {
+const tiktokContent: SocialPostContent = {
   type: "tiktok_account",
   caption: "Launch",
   video_media_id: "media-contract",
   privacy: tiktokPrivacy,
 };
-const tiktokInitializeEffect: SocialPublicationEffectRequest = {
-  type: "tiktok_initialize_upload",
-  media_id: "media-contract",
-};
-const tiktokUploadEffect: SocialPublicationEffectRequest = {
-  type: "tiktok_upload",
-  media_id: "media-contract",
-  publish_id: "publish-contract",
-  total_bytes: 1024,
-  has_upload_session: true,
-};
-// @ts-expect-error the provider discriminator belongs to SocialConnection.type, not data.
-safeSocialConnectionData.type;
 
 declare const supportStart: SupportConversationStartResponse;
 const supportCapability: string = supportStart.support_token;
@@ -1886,9 +1802,7 @@ const inboundSupportMessage: ReceiveSupportChannelMessageParams = {
   customer_id: "customer-contract",
   channel_context: {
     type: "email",
-    from: "person@example.com",
-    to: "support@example.com",
-    subject: "Help",
+    thread_id: "thread-contract",
     reply_to: "person@example.com",
     message_id: null,
     references: [],
@@ -1909,6 +1823,7 @@ const supportMessageWithNullState: SupportMessage = {
   role: "system",
   content: "Hello",
   buttons: null,
+  attachments: [],
   metadata: {},
   ai_response: null,
   created_at: 1,
@@ -1972,6 +1887,7 @@ const supportMessageWithoutCapability: StorefrontSendSupportMessageParams = {
 const account: Account = {
   id: "account-contract",
   email: "operator@example.test",
+  platform_role: "standard",
   last_login_at: null,
   created_at: 1,
   updated_at: 1,
@@ -2007,15 +1923,6 @@ const accountAuthDelivery: EmailDeliveryType = {
     session_id: pendingAccountSessionResponse.session_id,
   },
 };
-const staleAccountAuthDelivery: EmailDeliveryType = {
-  type: "platform_auth_code",
-  // @ts-expect-error Account auth deliveries now reference the pending Session.
-  data: {
-    account_id: "account-contract",
-    challenge_id: "challenge-contract",
-  },
-};
-
 const pendingAccountSession: AccountSession = {
   id: "pending-session-contract",
   status: "pending_verification",
@@ -2261,11 +2168,6 @@ type LegacyInventoryAvailableInput = ProductInventoryInput["available"];
 // @ts-expect-error Inventory inputs name the StoreLocation relationship explicitly.
 type LegacyInventoryLocationInput = ProductInventoryInput["location_id"];
 
-const trigger: WorkflowTriggerNode = {
-  type: "trigger",
-  delay_ms: 0,
-};
-
 const getNode: WorkflowHttpNode = {
   type: "http",
   method: "get",
@@ -2327,109 +2229,90 @@ const canonicalPage: PaginatedResponse<{ id: string }> = {
   cursor: "cursor-2",
 };
 
-const activityPageParams: FindActivitiesParams = {
+const customerActionPageParams: FindCustomerActionsParams = {
   store_id: "store-contract",
   customer_id: "customer-contract",
   limit: 20,
   cursor: "cursor-contract",
 };
 type AssertNever<T extends never> = T;
-type UnsupportedActivityFilterKeys = AssertNever<
-  Extract<keyof FindActivitiesParams, "query" | "types" | "from" | "to">
+type UnsupportedCustomerActionFilterKeys = AssertNever<
+  Extract<keyof FindCustomerActionsParams, "query" | "types" | "from" | "to">
 >;
-type RemovedContactActionFilterKey = AssertNever<
-  Extract<keyof FindCustomersParams, "has_action">
->;
-type RemovedExperimentActionGoalKey = AssertNever<
-  Extract<keyof CreateExperimentParams, "goal_action_key">
->;
-
-const activityContext: ActivityContext = {
+const customerActionContext: CustomerActionContext = {
   location: { country_code: "BA", city: "Sarajevo" },
   device: { device_type: "desktop", browser: "Firefox" },
   session: { idx: 1 },
 };
-const activityData: ActivityData = {
-  type: "tracked",
+const customerActionType: CustomerActionType = {
+  type: "custom",
   value: {
     key: "page.view",
-    payload: { path: "/products/example" },
-    context: activityContext,
+    data: { path: "/products/example", context: customerActionContext },
   },
 };
-const opportunityActivityData: ActivityData = {
-  type: "opportunity",
-  value: {
-    type: "lead",
-    stage: "new",
-    suggested_next_action: "Reply to the contact",
-    source: { type: "manual" },
-  },
-};
-const activity: Activity = {
-  id: "activity-contract",
+const customerAction: CustomerAction = {
+  id: "customer-action-contract",
   store_id: "store-contract",
   customer_id: "customer-contract",
-  customer_session_id: "customer-session-contract",
-  key: "page.view",
-  type: "tracked",
-  preview_text: "Viewed product",
+  origin: {
+    type: "customer_session",
+    customer_session_id: "customer-session-contract",
+  },
+  type: customerActionType,
   occurred_at: 1,
-  created_at: 1,
-  data: activityData,
 };
-// @ts-expect-error immutable Activity facts do not expose update timestamps.
-activity.updated_at;
-const storefrontActivity: StorefrontActivity = {
-  customer_id: "customer-contract",
-  customer_session_id: "customer-session-contract",
+// @ts-expect-error immutable CustomerAction facts do not expose update timestamps.
+customerAction.updated_at;
+const trackCustomerAction: TrackCustomerActionParams = {
   key: "page.view",
-  payload: { path: "/products/example" },
-  created_at: 1,
+  data: { path: "/products/example" },
 };
-const trackActivity: TrackActivityParams = {
-  key: "page.view",
-  payload: { path: "/products/example" },
-};
-const commonActivityKey: CommonActivityKey = COMMON_ACTIVITY_KEYS[0];
-const activityContactFilter: FindCustomersParams = { has_activity: true };
+const commonCustomerActionKey: CommonCustomerActionKey = COMMON_CUSTOMER_ACTION_KEYS[0];
+const customerActionFilter: FindCustomersParams = { has_customer_action: true };
 const experiment: Experiment = {
   id: "experiment-contract",
   store_id: "store-contract",
   key: "homepage-hero",
-  status: "running",
-  version: 1,
-  goal_activity_key: "checkout.started",
+  status: { type: "running", started_at: 1 },
+  goal_action_key: "checkout.started",
   attribution_window_days: 7,
-  variants: [{ key: "control", weight: 100 }],
+  variants: [
+    { key: "control", allocation_bps: 5_000 },
+    { key: "guided", allocation_bps: 5_000 },
+  ],
   created_at: 1,
   updated_at: 1,
 };
 const createExperiment: CreateExperimentParams = {
   key: "homepage-hero",
-  goal_activity_key: "checkout.started",
-  variants: [{ key: "control", weight: 100 }],
+  goal_action_key: "checkout.started",
+  attribution_window_days: 7,
+  variants: [
+    { key: "control", allocation_bps: 5_000 },
+    { key: "guided", allocation_bps: 5_000 },
+  ],
 };
 const experimentUse: ExperimentUseResponse = {
+  type: "assigned",
+  experiment_id: "experiment-contract",
   experiment_key: "homepage-hero",
-  experiment_version: 1,
   variant_key: "control",
-  goal_activity_key: "checkout.started",
 };
-const activityReportKey: AnalyticsActivityReportKey = "recent_activity";
-const activityFeed: ActivityFeedData = {
+const customerActionReportKey: AnalyticsCustomerActionReportKey = "recent_customer_action";
+const customerActionFeed: CustomerActionFeedData = {
   items: [
     {
       id: "analytics-fact-contract",
-      entity: "activity",
-      entity_id: activity.id,
+      entity: "customer_action",
+      entity_id: customerAction.id,
       action: "tracked",
-      event_type: "activity_tracked",
+      event_type: "page.view",
       status: "",
-      customer_id: activity.customer_id,
-      category: "activities",
+      customer_id: customerAction.customer_id,
+      category: "customer_actions",
       title: "Page viewed",
-      description: "A contact viewed a product.",
+      description: "A customer viewed a product.",
       data: {},
       payload: {},
       created_at: 1,
@@ -2439,7 +2322,7 @@ const activityFeed: ActivityFeedData = {
     total: 1,
     orders: 0,
     submissions: 0,
-    contacts: 0,
+    customers: 0,
     audiences: 0,
     abandoned_carts: 0,
     carts: 0,
@@ -2447,9 +2330,9 @@ const activityFeed: ActivityFeedData = {
     products: 0,
     services: 0,
     providers: 0,
-    cms: 0,
+    content: 0,
     workflows: 0,
-    activities: 1,
+    customer_actions: 1,
     window_start: 1,
   },
   next_cursor: { created_at: 1, id: "analytics-fact-contract" },
@@ -2479,29 +2362,12 @@ const supportAction: SupportAction = {
   type: "end_conversation",
   message: "Thanks",
 };
-const campaignMessageDirection: CampaignMessageDirection = "action";
-
-// @ts-expect-error provider capabilities must state whether publishing is supported.
-const missingPublishingCapability: SocialProviderCapability = {
-  type: "x_account",
-  display_name: "X Account",
-  required_scopes: [],
-  media_requirements: [],
-  engagement: {
-    read_comments: true,
-    reply_to_comments: true,
-  },
-  analytics: {
-    read_post_metrics: true,
-  },
-};
 
 void [
   supportStart,
   storefrontIdentify,
   storefrontEntryIdentify,
-  verificationChallengeId,
-  audiencePromotionSnapshot,
+  audienceJoinResult,
   orderMoney,
   paymentAmounts,
   stripeOrderPaymentProvider,
@@ -2534,19 +2400,14 @@ void [
   forbiddenBookingRewrite,
   fulfillmentOrderStatus,
   cart,
-  embeddedRefundPaymentStatus,
-  codeReceivedCallback,
   safeSocialCredential,
   unsafeSocialCredential,
-  safeSocialConnectionData,
   mediaUpdatedWebhook,
   productItemUpdatedWebhook,
   digitalItemConfirmedWebhook,
   customerArchivedWebhook,
   tiktokConnectionType,
   tiktokContent,
-  tiktokInitializeEffect,
-  tiktokUploadEffect,
   clearCartAddresses,
   shipmentStatus,
   shipmentTrackingStatusAt,
@@ -2572,7 +2433,6 @@ void [
   verifyPendingAccountSession,
   authToken,
   accountAuthDelivery,
-  staleAccountAuthDelivery,
   pendingAccountSession,
   activeAccountSession,
   revokedAccountSession,
@@ -2581,34 +2441,24 @@ void [
   expiredApiTokenStatus,
   customer,
   productVariant,
-  trigger,
   getNode,
   mutationNode,
   missingHttpFields,
   retryingMutation,
   delayedMutationRetry,
   canonicalPage,
-  activityPageParams,
-  activity,
-  opportunityActivityData,
-  storefrontActivity,
-  trackActivity,
-  commonActivityKey,
-  activityContactFilter,
+  customerActionPageParams,
+  customerAction,
+  trackCustomerAction,
+  commonCustomerActionKey,
+  customerActionFilter,
   experiment,
   createExperiment,
   experimentUse,
-  activityReportKey,
-  activityFeed,
+  customerActionReportKey,
+  customerActionFeed,
   checkoutAction,
   eventAction,
   supportAction,
-  campaignMessageDirection,
-  missingPublishingCapability,
-  legacyCrmContactFeature,
-  nonWireCrmProfileFeature,
-  audienceTierPriceInput,
-  audienceTierPriceWithProvider,
-  subscribePaymentStatus,
 ];
 void sdkVersionLiteral;

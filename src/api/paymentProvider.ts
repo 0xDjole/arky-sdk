@@ -1,7 +1,6 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type {
   ConnectStripePaymentProviderParams,
-  DeletePaymentProviderParams,
   OpenStripeDashboardParams,
   ListPaymentProvidersParams,
   RefreshStripePaymentProviderParams,
@@ -61,14 +60,5 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async delete(
-      params: DeletePaymentProviderParams,
-      options?: RequestOptions,
-    ): Promise<{ disabled: boolean }> {
-      return apiConfig.httpClient.delete<{ disabled: boolean }>(
-        `/v1/stores/${storeId(params.store_id)}/payment-providers/${params.id}`,
-        options,
-      );
-    },
   };
 };

@@ -64,8 +64,7 @@ import type {
 } from "../types/api";
 import type {
   ExperimentUseResponse,
-  StorefrontActivity,
-  TrackActivityParams,
+  TrackCustomerActionParams,
   UseExperimentParams,
 } from "../api/storefront";
 import type {
@@ -1623,7 +1622,7 @@ function initializeStoreCore(
     return client.experiments.use(input);
   }
 
-  async function trackActivity(params: TrackActivityParams): Promise<void> {
+  async function trackCustomerAction(params: TrackCustomerActionParams): Promise<void> {
     await ensureSession();
     return client.actions.track(params);
   }
@@ -1813,13 +1812,12 @@ function initializeStoreCore(
     },
     audiences: client.audiences,
     actions: {
-      track(params: TrackActivityParams) {
-        return trackActivity(params);
+      track(params: TrackCustomerActionParams) {
+        return trackCustomerAction(params);
       },
-      pageView(payload: Record<string, unknown> = {}) {
-        return trackActivity({ key: "page.view", payload });
+      pageView(data: Record<string, unknown> = {}) {
+        return trackCustomerAction({ key: "page.view", data });
       },
-      state: atom<StorefrontActivity | null>(null),
     },
     experiments: {
       use: useExperiment,

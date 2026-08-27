@@ -105,20 +105,21 @@ creates a visitor session when needed:
 ```typescript
 await arky.actions.track({
   key: "product.view",
-  payload: { product_id: "product-id" },
+  data: { product_id: "product-id" },
 });
 
 await arky.actions.pageView({ path: window.location.pathname });
 ```
 
 The low-level storefront equivalent is `arky.client.actions.track(...)`. Admin integrations read
-the same append-only facts through `admin.actions.timeline(...)` or
-`admin.actions.find(...)`; Customer search filters them with `has_activity`.
+the same append-only facts through `admin.actions.find(...)`; Customer search filters them with
+`has_customer_action`.
 
-Experiment definitions and storefront assignments expose `goal_activity_key`. Analytics report
-requests use `activity_by_country`, `top_activity_pages`, and `recent_activity`; the corresponding
-feed category and summary field are `activities`. Event payloads and payment flows still use
-`action` where that word describes a command or verb rather than the Actions domain.
+Experiment definitions expose `goal_action_key`, while storefront assignment responses expose no
+goal data. Analytics report requests use `customer_action_by_country`,
+`top_customer_action_pages`, and `recent_customer_action`; the corresponding feed category and
+summary field are `customer_actions`. Event payloads and payment flows still use `action` where
+that word describes a command or verb rather than the Actions domain.
 
 ## Products, booking services, and checkout
 

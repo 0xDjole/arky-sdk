@@ -7,10 +7,11 @@ import type {
   CheckoutCartParams,
   ClearCartParams,
   ConfirmAudienceParams,
-  AudienceAccessParams,
+  CreateAudienceBillingPortalSessionParams,
+  CustomerAudienceMembershipReferenceParams,
+  FindCustomerAudienceMembershipsParams,
   FindBookingOfferingsParams,
-  FindStorefrontAudienceMembersParams,
-  FindStorefrontAudienceTiersParams,
+  FindStorefrontAudiencesParams,
   GetAvailabilityParams,
   GetCartParams,
   GetCollectionParams,
@@ -29,7 +30,6 @@ import type {
   GetBookingServiceParams,
   FindBookingServicesParams,
   GetStorefrontAudienceParams,
-  GetStorefrontAudiencePaymentParams,
   GetClassificationChildrenParams,
   GetStorefrontClassificationParams,
   QuoteCartParams,
@@ -39,8 +39,10 @@ import type {
   GetStorefrontDigitalProductParams,
   RemoveCartItemParams,
   RequestOptions,
+  JoinAudienceParams,
+  StartAudienceCheckoutParams,
   SubmitFormParams,
-  SubscribeAudienceParams,
+  UnsubscribeAudienceParams,
   UpdateCartParams,
 } from "../types/api";
 import type {
@@ -52,8 +54,9 @@ import type {
   StorefrontDigitalProduct,
   Collection,
   CollectionEntry,
-  AudienceAccessResponse,
-  AudienceSubscribeResponse,
+  AudienceBillingPortalSession,
+  AudienceJoinResult,
+  CustomerAudienceMembership,
   CustomerSessionIssued,
   CustomerEmailVerification,
   CustomerSessionRecord,
@@ -70,9 +73,8 @@ import type {
   BookingResource,
   BookingService,
   BookingOffering,
+  StartAudienceCheckoutResult,
   StorefrontAudience,
-  StorefrontAudienceMember,
-  StorefrontAudienceTier,
   Classification,
 } from "../types";
 import type {
@@ -183,20 +185,12 @@ type Country = {
 
 type CountriesResponse = { items: Country[]; cursor: string | null };
 
-export interface StorefrontActivity {
-  customer_id: string;
-  customer_session_id: string;
+export interface TrackCustomerActionParams {
   key: string;
-  payload: Record<string, unknown>;
-  created_at: number;
+  data?: Record<string, unknown>;
 }
 
-export interface TrackActivityParams {
-  key: string;
-  payload?: Record<string, unknown>;
-}
-
-export const COMMON_ACTIVITY_KEYS = [
+export const COMMON_CUSTOMER_ACTION_KEYS = [
   "page.view",
   "product.view",
   "service.view",
@@ -213,18 +207,20 @@ export const COMMON_ACTIVITY_KEYS = [
   "wishlist.added",
 ] as const;
 
-export type CommonActivityKey = (typeof COMMON_ACTIVITY_KEYS)[number];
+export type CommonCustomerActionKey = (typeof COMMON_CUSTOMER_ACTION_KEYS)[number];
 
 export interface UseExperimentParams {
   key: string;
 }
 
-export interface ExperimentUseResponse {
-  experiment_key: string;
-  experiment_version: number;
-  variant_key: string;
-  goal_activity_key: string;
-}
+export type ExperimentUseResponse =
+  | {
+      type: "assigned";
+      experiment_id: string;
+      experiment_key: string;
+      variant_key: string;
+    }
+  | { type: "inactive" };
 
 export interface StorefrontLifecycle {
   ensureVisitorSession(): Promise<void>;
@@ -235,12 +231,12 @@ export const createActionsStorefrontApi = (
   apiConfig: StorefrontApiConfig,
   lifecycle: StorefrontLifecycle,
 ) => ({
-  COMMON_ACTIVITY_KEYS,
-  async track(params: TrackActivityParams): Promise<void> {
+  COMMON_CUSTOMER_ACTION_KEYS,
+  async track(params: TrackCustomerActionParams): Promise<void> {
     await lifecycle.ensureVisitorSession();
-    await apiConfig.httpClient.post<void>("/v1/storefront/activities/track", {
+    await apiConfig.httpClient.post<void>("/v1/storefront/actions/track", {
       key: params.key,
-      payload: params.payload,
+      data: params.data,
     });
   },
 });
@@ -846,88 +842,152 @@ export const createStorefrontApi = (
       },
     },
     audiences: {
-        get(
-          params: StorefrontParams<GetStorefrontAudienceParams>,
+      find(
+        params: FindStorefrontAudiencesParams = {},
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<StorefrontAudience>> {
+        return apiConfig.httpClient.get<
+          PaginatedResponse<StorefrontAudience>
+        >(`${base}/audiences`, { ...options, params });
+      },
+      get(
+        params: GetStorefrontAudienceParams,
+        options?: RequestOptions,
+      ): Promise<StorefrontAudience> {
+        return apiConfig.httpClient.get<StorefrontAudience>(
+          `${base}/audiences/${params.key}`,
+          options,
+        );
+      },
+      async join(
+        params: StorefrontParams<JoinAudienceParams>,
+        options?: RequestOptions,
+      ): Promise<AudienceJoinResult> {
+        await lifecycle.ensureVisitorSession();
+        const { audience_id, ...payload } = params;
+        return apiConfig.httpClient.post<AudienceJoinResult>(
+          `${base}/audiences/${audience_id}/join`,
+          payload,
+          options,
+        );
+      },
+      async checkout(
+        params: StorefrontParams<StartAudienceCheckoutParams>,
+        options?: RequestOptions,
+      ): Promise<StartAudienceCheckoutResult> {
+        await lifecycle.ensureVisitorSession();
+        const { audience_id, ...payload } = params;
+        return apiConfig.httpClient.post<StartAudienceCheckoutResult>(
+          `${base}/audiences/${audience_id}/checkout`,
+          payload,
+          options,
+        );
+      },
+      customer: {
+        async find(
+          params: FindCustomerAudienceMembershipsParams = {},
           options?: RequestOptions,
-        ): Promise<StorefrontAudience> {
-          return apiConfig.httpClient.get<StorefrontAudience>(
-            `${base}/audiences/${params.key}`,
+        ): Promise<PaginatedResponse<CustomerAudienceMembership>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<
+            PaginatedResponse<CustomerAudienceMembership>
+          >("/v1/customer/audience-memberships", { ...options, params });
+        },
+
+        async get(
+          params: CustomerAudienceMembershipReferenceParams,
+          options?: RequestOptions,
+        ): Promise<CustomerAudienceMembership> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<CustomerAudienceMembership>(
+            `/v1/customer/audience-memberships/${params.membership_id}`,
             options,
           );
         },
-        tiers: {
-          find(
-            params: StorefrontParams<FindStorefrontAudienceTiersParams>,
-            options?: RequestOptions,
-          ): Promise<PaginatedResponse<StorefrontAudienceTier>> {
-            const { audience_id, ...queryParams } = params;
-            return apiConfig.httpClient.get<
-              PaginatedResponse<StorefrontAudienceTier>
-            >(`${base}/audiences/${audience_id}/tiers`, {
-              ...options,
-              params: queryParams,
-            });
-          },
-        },
-        members: {
-          async find(
-            params: StorefrontParams<FindStorefrontAudienceMembersParams> = {},
-            options?: RequestOptions,
-          ): Promise<
-            StorefrontDto<PaginatedResponse<StorefrontAudienceMember>>
-          > {
-            await lifecycle.ensureVisitorSession();
-            return apiConfig.httpClient.get<
-              StorefrontDto<PaginatedResponse<StorefrontAudienceMember>>
-            >(`${base}/audiences/members`, {
-              ...options,
-              params,
-            });
-          },
-        },
-        async subscribe(
-          params: StorefrontParams<SubscribeAudienceParams>,
+
+        async resendConfirmation(
+          params: CustomerAudienceMembershipReferenceParams,
           options?: RequestOptions,
-        ): Promise<StorefrontDto<AudienceSubscribeResponse>> {
+        ): Promise<CustomerAudienceMembership> {
           await lifecycle.ensureVisitorSession();
-          const { audience_id, ...payload } = params;
-          return apiConfig.httpClient.post<
-            StorefrontDto<AudienceSubscribeResponse>
-          >(`${base}/audiences/${audience_id}/subscribe`, payload, options);
+          return apiConfig.httpClient.post<CustomerAudienceMembership>(
+            `/v1/customer/audience-memberships/${params.membership_id}/confirmation/resend`,
+            {},
+            options,
+          );
         },
+
+        async resubscribe(
+          params: CustomerAudienceMembershipReferenceParams,
+          options?: RequestOptions,
+        ): Promise<CustomerAudienceMembership> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.post<CustomerAudienceMembership>(
+            `/v1/customer/audience-memberships/${params.membership_id}/resubscribe`,
+            {},
+            options,
+          );
+        },
+
+        async leave(
+          params: CustomerAudienceMembershipReferenceParams,
+          options?: RequestOptions,
+        ): Promise<CustomerAudienceMembership> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.post<CustomerAudienceMembership>(
+            `/v1/customer/audience-memberships/${params.membership_id}/leave`,
+            {},
+            options,
+          );
+        },
+
+        async cancelRenewal(
+          params: CustomerAudienceMembershipReferenceParams,
+          options?: RequestOptions,
+        ): Promise<CustomerAudienceMembership> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.post<CustomerAudienceMembership>(
+            `/v1/customer/audience-memberships/${params.membership_id}/renewal/cancel`,
+            {},
+            options,
+          );
+        },
+
+        async createBillingPortal(
+          params: CreateAudienceBillingPortalSessionParams,
+          options?: RequestOptions,
+        ): Promise<AudienceBillingPortalSession> {
+          await lifecycle.ensureVisitorSession();
+          const { membership_id, ...payload } = params;
+          return apiConfig.httpClient.post<AudienceBillingPortalSession>(
+            `/v1/customer/audience-memberships/${membership_id}/billing-portal`,
+            payload,
+            options,
+          );
+        },
+
         async confirm(
           params: ConfirmAudienceParams,
           options?: RequestOptions,
-        ): Promise<{ success: boolean }> {
-          return apiConfig.httpClient.post<{ success: boolean }>(
-            "/v1/customer/audiences/confirm",
+        ): Promise<CustomerAudienceMembership> {
+          return apiConfig.httpClient.post<CustomerAudienceMembership>(
+            "/v1/customer/audience-memberships/confirm",
             params,
             options,
           );
         },
-        payments: {
-          async get(
-            params: StorefrontParams<GetStorefrontAudiencePaymentParams>,
-            options?: RequestOptions,
-          ): Promise<StorefrontDto<AudienceSubscribeResponse>> {
-            await lifecycle.ensureVisitorSession();
-            return apiConfig.httpClient.get<
-              StorefrontDto<AudienceSubscribeResponse>
-            >(
-              `${base}/audiences/${params.audience_id}/payments/${params.payment_id}`,
-              options,
-            );
-          },
-        },
-        async checkAccess(
-          params: StorefrontParams<AudienceAccessParams>,
+
+        async unsubscribe(
+          params: UnsubscribeAudienceParams,
           options?: RequestOptions,
-        ): Promise<StorefrontDto<AudienceAccessResponse>> {
-          await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.get<
-            StorefrontDto<AudienceAccessResponse>
-          >(`${base}/audiences/${params.audience_id}/access`, options);
+        ): Promise<boolean> {
+          return apiConfig.httpClient.post<boolean>(
+            "/v1/customer/audience-memberships/unsubscribe",
+            params,
+            options,
+          );
         },
+      },
     },
     actions: createActionsStorefrontApi(apiConfig, lifecycle),
     experiments: {
@@ -937,8 +997,8 @@ export const createStorefrontApi = (
       ): Promise<ExperimentUseResponse> {
         await lifecycle.ensureVisitorSession();
         return apiConfig.httpClient.post<ExperimentUseResponse>(
-          `${base}/experiments/use`,
-          { key: params.key },
+          `${base}/experiments/${encodeURIComponent(params.key)}/use`,
+          undefined,
           options,
         );
       },

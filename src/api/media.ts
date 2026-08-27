@@ -1,126 +1,110 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type {
-    UploadStoreMediaParams,
-    DeleteStoreMediaParams,
-    GetStoreMediaParams,
-    GetMediaParams,
-    UpdateMediaParams,
-    ReplaceMediaContentParams,
-    RequestOptions
-} from '../types/api';
-import type { Media, PaginatedResponse } from '../types';
+  CreateMediaParams,
+  DeleteMediaParams,
+  FindMediaParams,
+  GetMediaParams,
+  ReplaceMediaContentParams,
+  RequestOptions,
+} from "../types/api";
+import type { Media, PaginatedResponse } from "../types";
 
-export const createMediaApi = (apiConfig: ApiConfig) => {
-    return {
-        async getMedia(params: GetMediaParams, options?: RequestOptions): Promise<Media> {
-            const target_store_id = params.store_id || apiConfig.storeId;
-            return apiConfig.httpClient.get<Media>(
-                `/v1/stores/${target_store_id}/media/${params.media_id}`,
-                options
-            );
-        },
+function storeId(apiConfig: ApiConfig, explicit?: string): string | undefined {
+  return explicit || apiConfig.storeId;
+}
 
-        async uploadStoreMedia(params: UploadStoreMediaParams, options?: RequestOptions): Promise<Media[]> {
-            const { store_id, files = [], urls = [] } = params;
-            const target_store_id = store_id || apiConfig.storeId;
-            const url = `${apiConfig.baseUrl}/v1/stores/${target_store_id}/media`;
+function mediaPath(
+  apiConfig: ApiConfig,
+  explicitStoreId?: string,
+  mediaId?: string,
+): string {
+  const base = `/v1/stores/${storeId(apiConfig, explicitStoreId)}/media`;
+  return mediaId ? `${base}/${mediaId}` : base;
+}
 
-            const formData = new FormData();
-            files.forEach((file) => formData.append('files', file));
-            urls.forEach((url) => formData.append('urls', url));
+async function mediaMultipartRequest(
+  apiConfig: ApiConfig,
+  path: string,
+  formData: FormData,
+  options?: RequestOptions,
+): Promise<Media> {
+  const tokens = apiConfig.authStorage.getTokens();
+  const response = await fetch(`${apiConfig.baseUrl}${path}`, {
+    method: "PUT",
+    body: formData,
+    headers: tokens?.access_token
+      ? { Authorization: `Bearer ${tokens.access_token}` }
+      : undefined,
+    signal: options?.signal,
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message || `Media request failed (${response.status})`);
+  }
+  return response.json() as Promise<Media>;
+}
 
-            const tokens = apiConfig.authStorage.getTokens();
-            const response = await fetch(url, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    Authorization: `Bearer ${tokens?.access_token || ''}`
-                },
-                signal: options?.signal
-            });
+export const createMediaApi = (apiConfig: ApiConfig) => ({
+  async create(
+    params: CreateMediaParams,
+    options?: RequestOptions,
+  ): Promise<Media> {
+    const formData = new FormData();
+    if (params.file) {
+      formData.append("file", params.file);
+    } else {
+      formData.append("source_url", params.source_url);
+    }
+    return mediaMultipartRequest(
+      apiConfig,
+      mediaPath(apiConfig, params.store_id, params.media_id),
+      formData,
+      options,
+    );
+  },
 
-            if (!response.ok) {
-                throw new Error('Upload failed, server said no');
-            }
+  async find(
+    params: FindMediaParams = {},
+    options?: RequestOptions,
+  ): Promise<PaginatedResponse<Media>> {
+    const { store_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<Media>>(
+      mediaPath(apiConfig, store_id),
+      { ...options, params: query },
+    );
+  },
 
-            return await response.json();
-        },
+  async get(
+    params: GetMediaParams,
+    options?: RequestOptions,
+  ): Promise<Media> {
+    return apiConfig.httpClient.get<Media>(
+      mediaPath(apiConfig, params.store_id, params.media_id),
+      options,
+    );
+  },
 
-        async deleteStoreMedia(params: DeleteStoreMediaParams, options?: RequestOptions): Promise<boolean> {
-            const { store_id, media_id } = params;
-            const target_store_id = store_id || apiConfig.storeId;
+  async replaceContent(
+    params: ReplaceMediaContentParams,
+    options?: RequestOptions,
+  ): Promise<Media> {
+    const formData = new FormData();
+    formData.append("file", params.file);
+    return mediaMultipartRequest(
+      apiConfig,
+      `${mediaPath(apiConfig, params.store_id, params.media_id)}/content`,
+      formData,
+      options,
+    );
+  },
 
-            return apiConfig.httpClient.delete<boolean>(
-                `/v1/stores/${target_store_id}/media/${media_id}`,
-                options
-            );
-        },
-
-        async getStoreMedia(params: GetStoreMediaParams, options?: RequestOptions): Promise<PaginatedResponse<Media>> {
-            const { store_id, cursor, limit, ids, query, mime_type, sort_field, sort_direction } = params;
-            const target_store_id = store_id || apiConfig.storeId;
-            const url = `${apiConfig.baseUrl}/v1/stores/${target_store_id}/media`;
-
-            const queryParams: Record<string, string> = { limit: String(limit) };
-            if (cursor) queryParams.cursor = cursor;
-            if (ids && ids.length > 0) queryParams.ids = JSON.stringify(ids);
-            if (query) queryParams.query = query;
-            if (mime_type) queryParams.mime_type = mime_type;
-            if (sort_field) queryParams.sort_field = sort_field;
-            if (sort_direction) queryParams.sort_direction = sort_direction;
-
-            const queryString = new URLSearchParams(queryParams).toString();
-
-            const tokens = apiConfig.authStorage.getTokens();
-            const response = await fetch(`${url}?${queryString}`, {
-                headers: {
-                    Authorization: `Bearer ${tokens?.access_token || ''}`
-                },
-                signal: options?.signal
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => null);
-                throw new Error(errorData?.message || 'Failed to fetch media');
-            }
-
-            return await response.json();
-        },
-
-        async updateMedia(params: UpdateMediaParams, options?: RequestOptions): Promise<Media> {
-            const { media_id, store_id, ...payload } = params;
-            const target_store_id = store_id || apiConfig.storeId;
-
-            return apiConfig.httpClient.put<Media>(
-                `/v1/stores/${target_store_id}/media/${media_id}`,
-                payload,
-                options
-            );
-        },
-
-        async replaceMediaContent(params: ReplaceMediaContentParams, options?: RequestOptions): Promise<Media> {
-            const { media_id, store_id, file } = params;
-            const target_store_id = store_id || apiConfig.storeId;
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const tokens = apiConfig.authStorage.getTokens();
-            const response = await fetch(
-                `${apiConfig.baseUrl}/v1/stores/${target_store_id}/media/${media_id}/content`,
-                {
-                    method: 'PUT',
-                    body: formData,
-                    headers: {
-                        Authorization: `Bearer ${tokens?.access_token || ''}`
-                    },
-                    signal: options?.signal
-                }
-            );
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => null);
-                throw new Error(errorData?.message || 'Media replacement failed');
-            }
-            return await response.json();
-        }
-    };
-};
+  async delete(
+    params: DeleteMediaParams,
+    options?: RequestOptions,
+  ): Promise<boolean> {
+    return apiConfig.httpClient.delete<boolean>(
+      mediaPath(apiConfig, params.store_id, params.media_id),
+      options,
+    );
+  },
+});

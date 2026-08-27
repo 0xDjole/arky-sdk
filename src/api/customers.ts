@@ -60,8 +60,8 @@ export const createCustomersApi = (apiConfig: ApiConfig) => ({
     if (params?.status) queryParams.status = params.status;
     if (params?.has_verified_email !== undefined)
       queryParams.has_verified_email = params.has_verified_email;
-    if (params?.has_activity !== undefined)
-      queryParams.has_activity = params.has_activity;
+    if (params?.has_customer_action !== undefined)
+      queryParams.has_customer_action = params.has_customer_action;
     if (params?.has_cart !== undefined)
       queryParams.has_cart = params.has_cart;
     if (params?.sort_field) queryParams.sort_field = params.sort_field;

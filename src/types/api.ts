@@ -4,8 +4,6 @@ import type {
   Money,
   Zone,
   ZoneLocation,
-  WorkflowNode,
-  WorkflowEdge,
   Address,
   PostalAddress,
   BuildHookStatus,
@@ -43,33 +41,23 @@ import type {
   BookingWindow,
   TimeRange,
   CustomerStatus,
-  CampaignEnrollmentImportResult,
   AudienceStatus,
   AudienceType,
-  AudienceTierStatus,
-  AudiencePriceStatus,
-  AudienceMemberStatus,
+  AudienceBillingCadence,
+  AudienceRefundReason,
   MailboxStatus,
   SmtpImapMailboxProviderInput,
-  CampaignStatus,
-  CampaignEnrollmentStatus,
-  CampaignMessageDirection,
-  CampaignMessageType,
-  CampaignMessageStatus,
-  CampaignMessageCopySource,
-  OutreachStep,
-  CampaignManualTaskOutcome,
-  LeadResearchRunStatus,
+  CampaignStatusFilter,
+  CampaignEnrollmentStatusFilter,
+  CampaignEmailContent,
+  CampaignStep,
   SuppressionStatus,
   SuppressionTarget,
   SuppressionScope,
   SuppressionReason,
   SocialConnectionType,
-  SocialPublicationCommentIntent,
-  SocialPublicationCommentPriority,
-  SocialPublicationCommentStatus,
-  SocialPublicationContent,
-  SocialPublicationStatus,
+  SocialMessageSync,
+  SocialPostContent,
   SubscriptionInterval,
   ProductInventory,
 } from "./index";
@@ -288,7 +276,7 @@ export interface GetProductsParams {
   match_all?: boolean;
   status?: ProductStatus;
 
-  query?: string | number;
+  query?: string;
   limit?: number;
   cursor?: string;
   sort_field?: string;
@@ -303,7 +291,7 @@ export interface GetCollectionsParams {
   key?: string;
   limit?: number;
   cursor?: string;
-  query?: string | number;
+  query?: string;
   status?: CollectionStatus;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
@@ -389,13 +377,21 @@ export interface DeleteEntryParams {
   store_id?: string;
 }
 
-export interface UploadStoreMediaParams {
-  store_id?: string;
-  files?: File[];
-  urls?: string[];
-}
+export type CreateMediaParams =
+  | {
+      store_id?: string;
+      media_id: string;
+      file: File;
+      source_url?: never;
+    }
+  | {
+      store_id?: string;
+      media_id: string;
+      source_url: string;
+      file?: never;
+    };
 
-export interface DeleteStoreMediaParams {
+export interface DeleteMediaParams {
   store_id?: string;
   media_id: string;
 }
@@ -405,22 +401,16 @@ export interface GetMediaParams {
   store_id?: string;
 }
 
-export interface UpdateMediaParams {
-  media_id: string;
-  store_id?: string;
-  slug?: Record<string, string>;
-}
-
 export interface ReplaceMediaContentParams {
   media_id: string;
   store_id?: string;
   file: File;
 }
 
-export interface GetStoreMediaParams {
+export interface FindMediaParams {
   store_id?: string;
   cursor?: string | null;
-  limit: number;
+  limit?: number;
   ids?: string[];
   query?: string;
   mime_type?: string;
@@ -488,19 +478,18 @@ export interface GetAnalyticsHealthParams {}
 
 export interface GetDeliveryStatsParams {}
 
-export type StoreRole = "admin" | "owner" | "super";
+export type StoreRole = "admin" | "owner";
+export type PlatformRole = "standard" | "administrator";
+
+export interface UpdatePlatformRoleParams {
+  account_id: string;
+  platform_role: PlatformRole;
+}
 
 export type CreatePromotionDiscountInput =
   | { type: "item_percentage"; market: string; basis_points: number }
   | { type: "item_fixed"; market: string; money: Money }
-  | { type: "shipping_percentage"; market: string; basis_points: number }
-  | {
-      type: "audience_percentage";
-      audience_id: string;
-      tier_ids: string[];
-      price_ids: string[];
-      basis_points: number;
-    };
+  | { type: "shipping_percentage"; market: string; basis_points: number };
 
 export type UpdatePromotionDiscountInput =
   | {
@@ -514,14 +503,6 @@ export type UpdatePromotionDiscountInput =
       type: "shipping_percentage";
       id?: string | null;
       market: string;
-      basis_points: number;
-    }
-  | {
-      type: "audience_percentage";
-      id?: string | null;
-      audience_id: string;
-      tier_ids: string[];
-      price_ids: string[];
       basis_points: number;
     };
 
@@ -1046,7 +1027,7 @@ export interface GetFormSubmissionsParams {
   created_at_to?: number;
 }
 
-export interface FindActivitiesParams {
+export interface FindCustomerActionsParams {
   store_id?: string;
   customer_id?: string;
   limit?: number;
@@ -1073,7 +1054,7 @@ export interface GetClassificationsParams {
   limit?: number;
   cursor?: string;
 
-  query?: string | number;
+  query?: string;
   status?: ClassificationStatus;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
@@ -1310,10 +1291,8 @@ export interface CreateWorkflowParams {
   store_id?: string;
   key: string;
   status?: MutableWorkflowStatus;
-  nodes: Record<string, WorkflowNode>;
-  edges: WorkflowEdge[];
-
-  schedule?: string;
+  schedule?: string | null;
+  graph: import("./index").WorkflowGraph;
 }
 
 export interface UpdateWorkflowParams {
@@ -1321,24 +1300,8 @@ export interface UpdateWorkflowParams {
   store_id?: string;
   key?: string;
   status?: MutableWorkflowStatus;
-  schedule?: string;
-}
-
-export interface GetWorkflowDefinitionParams {
-  workflow_id: string;
-  store_id?: string;
-}
-
-export interface GetWorkflowTriggerParams {
-  workflow_id: string;
-  store_id?: string;
-}
-
-export interface ReplaceWorkflowDefinitionParams {
-  workflow_id: string;
-  store_id?: string;
-  nodes: Record<string, WorkflowNode>;
-  edges: WorkflowEdge[];
+  schedule?: string | null;
+  graph: import("./index").WorkflowGraph;
 }
 
 export interface DeleteWorkflowParams {
@@ -1365,20 +1328,20 @@ export interface GetWorkflowsParams {
   created_at_to?: number;
 }
 
-export interface TriggerWorkflowParams {
-  secret: string;
-  [key: string]: unknown;
+export interface RegenerateWorkflowWebhookUrlParams {
+  workflow_id: string;
+  store_id?: string;
 }
 
-export interface InvokeWorkflowTriggerParams {
-  trigger_url: string;
+export interface InvokeWorkflowWebhookParams {
+  webhook_url: string;
   payload: Record<string, unknown>;
 }
 
 export interface GetWorkflowExecutionsParams {
   workflow_id: string;
   store_id?: string;
-  status?: import("./index").ExecutionStatus;
+  status?: import("./index").WorkflowExecutionStatus;
   limit?: number;
   cursor?: string;
 }
@@ -1421,73 +1384,40 @@ export interface DeleteWorkflowConnectionParams {
 export interface CreateAudienceParams {
   store_id?: string;
   key: string;
-  name?: string;
-  description?: string | null;
+  name: string;
   type: AudienceType;
 }
 
-export interface UpdateAudienceParams {
-  id: string;
-  store_id?: string;
-  key?: string;
-  name?: string;
-  description?: string | null;
-  status?: AudienceStatus;
-  type?: AudienceType;
-  digital_products?: import("./index").AudienceDigitalProduct[];
-}
+export type PatchAudienceParams =
+  | {
+      store_id?: string;
+      audience_id: string;
+      type: "update_draft_key";
+      data: { key: string };
+    }
+  | {
+      store_id?: string;
+      audience_id: string;
+      type: "update_name";
+      data: { name: string };
+    }
+  | {
+      store_id?: string;
+      audience_id: string;
+      type: "replace_draft_paid_charge";
+      data: {
+        currency: Currency;
+        charge: import("./index").AudiencePaidCharge;
+      };
+    }
+  | {
+      store_id?: string;
+      audience_id: string;
+      type: "replace_paid_amount";
+      data: { cadence: AudienceBillingCadence; amount: number };
+    };
 
-export interface CreateAudienceTierParams {
-  store_id?: string;
-  audience_id: string;
-  key: string;
-  name: string;
-  description?: string | null;
-  benefits: string[];
-  status: AudienceTierStatus;
-  prices: AudienceTierPriceInput[];
-  payment_provider_id: string;
-}
-
-export interface UpdateAudienceTierParams {
-  id: string;
-  store_id?: string;
-  audience_id: string;
-  key?: string;
-  name?: string;
-  description?: string | null;
-  benefits?: string[];
-  status?: AudienceTierStatus;
-  prices?: AudienceTierPriceInput[];
-  payment_provider_id?: string;
-}
-
-export interface AudienceTierPriceInput {
-  id?: string;
-  currency: Currency;
-  amount: number;
-  compare_at?: number | null;
-  interval?: SubscriptionInterval | null;
-  status: AudiencePriceStatus;
-}
-
-export interface FindAudienceTiersParams {
-  store_id?: string;
-  audience_id: string;
-  status?: AudienceTierStatus;
-  limit?: number;
-  cursor?: string;
-}
-
-export interface FindStorefrontAudienceTiersParams {
-  store_id?: string;
-  audience_id: string;
-  limit?: number;
-  cursor?: string;
-}
-
-export interface GetAudienceTierParams {
-  id: string;
+export interface AudienceReferenceParams {
   store_id?: string;
   audience_id: string;
 }
@@ -1504,124 +1434,132 @@ export interface FindAudiencesParams {
 }
 
 export interface GetAudienceParams {
-  id: string;
-  store_id?: string;
-}
-
-export interface AddAudienceMemberParams {
   store_id?: string;
   audience_id: string;
-  customer_id: string;
-  fields?: Record<string, unknown>;
-  lead_description?: string | null;
 }
 
-export interface UpdateAudienceMemberParams {
-  store_id?: string;
-  audience_id: string;
-  member_id: string;
-  enrollment_status?: AudienceMemberStatus;
-  fields?: Record<string, unknown>;
-  lead_description?: string | null;
-}
-
-export interface RemoveAudienceMemberParams {
-  store_id?: string;
-  audience_id: string;
-  member_id: string;
-}
-
-export interface FindAudienceMembersParams {
-  store_id?: string;
-  audience_id?: string;
+export interface FindAudienceMembershipsParams extends AudienceReferenceParams {
   customer_id?: string;
-  enrollment_status?: AudienceMemberStatus;
+  status?: "pending" | "subscribed" | "unsubscribed";
   limit?: number;
   cursor?: string;
 }
 
-export interface FindAudienceLeadsParams {
-  store_id?: string;
-  member_ids: string[];
+export interface GetAudienceMembershipParams extends AudienceReferenceParams {
+  membership_id: string;
 }
 
-export interface RefundAudienceMemberParams {
-  store_id?: string;
-  audience_id: string;
-  member_id: string;
-  payment_id: string;
-  refund_id: string;
-  amount?: number | null;
-  reason: import("./index").RefundRequestReason;
+export interface EnrollAudienceMembershipParams extends AudienceReferenceParams {
+  email: string;
+  insight?: Record<string, unknown> | null;
+}
+
+export interface AudienceMembershipImportRow {
+  email: string;
+  insight?: Record<string, unknown> | null;
+}
+
+export interface PreviewAudienceMembershipImportParams
+  extends AudienceReferenceParams {
+  rows: AudienceMembershipImportRow[];
+}
+
+export interface ImportAudienceMembershipsParams
+  extends AudienceReferenceParams {
+  rows: AudienceMembershipImportRow[];
+}
+
+export interface ReplaceAudienceMembershipInsightParams
+  extends GetAudienceMembershipParams {
+  insight: Record<string, unknown>;
+}
+
+export interface FindAudienceRefundsParams
+  extends GetAudienceMembershipParams {
+  limit?: number;
+  cursor?: string;
+}
+
+export type AudienceRefundChargeSelector =
+  | {
+      type: "stripe_charge";
+      payment_provider_id: string;
+      stripe_charge_id: string;
+    }
+  | {
+      type: "stripe_invoice";
+      payment_provider_id: string;
+      stripe_invoice_id: string;
+    };
+
+export interface RequestAudienceRefundParams
+  extends GetAudienceMembershipParams {
+  id: string;
+  charge: AudienceRefundChargeSelector;
+  amount: Money;
+  reason: AudienceRefundReason;
   private_note?: string | null;
 }
 
-export interface RefundAudienceMemberResult {
+export interface GetAudienceRefundParams extends GetAudienceMembershipParams {
   refund_id: string;
-  amount: number;
-  status: import("./index").AudienceRefundStatus;
-  member: import("./index").AudienceMember;
 }
 
-export interface FindAudiencePaymentsParams {
-  store_id?: string;
-  audience_id: string;
-  member_id: string;
+export interface FindAudienceDisputesParams
+  extends GetAudienceMembershipParams {
   limit?: number;
   cursor?: string;
 }
 
-export interface FindStorefrontAudienceMembersParams {
-  store_id?: string;
+export interface GetAudienceDisputeParams
+  extends GetAudienceMembershipParams {
+  dispute_id: string;
+}
+
+export interface FindStorefrontAudiencesParams {
   limit?: number;
   cursor?: string;
 }
 
-export interface GetAudiencePaymentParams {
-  store_id?: string;
-  audience_id: string;
-  member_id: string;
-  id: string;
+export interface GetStorefrontAudienceParams {
+  key: string;
 }
 
-export interface FindAudienceDisputesParams {
+export interface JoinAudienceParams {
   store_id?: string;
   audience_id: string;
-  member_id: string;
-  payment_id?: string;
+  email: string;
+}
+
+export interface StartAudienceCheckoutParams {
+  store_id?: string;
+  audience_id: string;
+  request_id: string;
+  email: string;
+  cadence: AudienceBillingCadence;
+  return_url: string;
+}
+
+export interface FindCustomerAudienceMembershipsParams {
   limit?: number;
   cursor?: string;
 }
 
-export interface GetAudienceDisputeParams {
-  store_id?: string;
-  audience_id: string;
-  member_id: string;
-  id: string;
+export interface CustomerAudienceMembershipReferenceParams {
+  membership_id: string;
 }
 
-export interface FindAudienceRefundsParams {
-  store_id?: string;
-  audience_id: string;
-  member_id: string;
-  payment_id?: string;
-  limit?: number;
-  cursor?: string;
+export interface CreateAudienceBillingPortalSessionParams
+  extends CustomerAudienceMembershipReferenceParams {
+  return_url: string;
 }
 
-export interface GetAudienceRefundParams {
-  store_id?: string;
-  audience_id: string;
-  member_id: string;
-  id: string;
+export interface ConfirmAudienceParams {
+  token: string;
 }
 
-export interface RetryAudienceRefundParams extends GetAudienceRefundParams {}
-
-export interface GetAudienceSubscriptionParams {
-  store_id?: string;
-  audience_id: string;
-  member_id: string;
+export interface UnsubscribeAudienceParams {
+  token: string;
 }
 
 export interface ImportCustomerRowInput {
@@ -1630,61 +1568,14 @@ export interface ImportCustomerRowInput {
   classifications: ClassificationEntry[];
 }
 
-export interface ImportAudienceMemberRowInput {
-  email: string;
-  customer_id?: string;
-  fields?: Record<string, unknown>;
-  lead_description?: string;
-}
-
 export interface ImportCustomersParams {
   store_id?: string;
   rows: ImportCustomerRowInput[];
 }
 
-export interface ImportAudienceMembersParams {
-  store_id?: string;
-  audience_id: string;
-  csv?: string;
-  spreadsheet_base64?: string;
-  sheet_name?: string | null;
-  email_column?: string | null;
-  field_mappings?: ImportFieldMapping[];
-  rows?: ImportAudienceMemberRowInput[];
-}
-
 export interface ImportCustomersPreviewParams {
   store_id?: string;
   rows: ImportCustomerRowInput[];
-}
-
-export interface PreviewAudienceMemberImportParams {
-  store_id?: string;
-  audience_id: string;
-  csv?: string;
-  spreadsheet_base64?: string;
-  sheet_name?: string | null;
-}
-
-export interface ImportFieldMapping {
-  source: string;
-  field: string;
-}
-
-export interface ImportPreviewRow {
-  row: number;
-  values: Record<string, unknown>;
-}
-
-export interface ImportAudienceMembersPreviewResult {
-  sheets: string[];
-  selected_sheet?: string | null;
-  header_row: number;
-  headers: string[];
-  detected_email_column?: string | null;
-  rows_total: number;
-  sample_rows: ImportPreviewRow[];
-  suggested_field_mappings: ImportFieldMapping[];
 }
 
 export interface ImportCustomerFieldError {
@@ -1723,71 +1614,6 @@ export interface ImportCustomersResult {
   rows_failed: number;
   rows: ImportCustomerRowResult[];
 }
-
-export interface ImportAudienceMemberRowError {
-  row: number;
-  field: string;
-  message: string;
-}
-
-export interface ImportAudienceMemberRowResult {
-  row: number;
-  email: string;
-  customer_id?: string | null;
-  customer_created: boolean;
-  customer_updated: boolean;
-  member_added: boolean;
-  member_updated: boolean;
-  error?: string | null;
-}
-
-export interface ImportAudienceMembersResult {
-  rows_total: number;
-  customers_created: number;
-  customers_updated: number;
-  members_added: number;
-  members_updated: number;
-  members_failed: number;
-  rows_failed: number;
-  errors: ImportAudienceMemberRowError[];
-  rows: ImportAudienceMemberRowResult[];
-}
-
-export interface SubscribeAudienceParams {
-  store_id?: string;
-  audience_id: string;
-  price_id?: string;
-  promo_code?: string;
-  return_url?: string;
-}
-
-export interface GetStorefrontAudiencePaymentParams {
-  store_id?: string;
-  audience_id: string;
-  payment_id: string;
-}
-
-export interface AudienceAccessParams {
-  store_id?: string;
-  audience_id: string;
-}
-
-export interface GetStorefrontAudienceParams {
-  store_id?: string;
-  key: string;
-}
-
-export interface ManageAudienceParams {
-  token: string;
-}
-
-export interface CreateAudiencePaymentMethodSessionParams extends ManageAudienceParams {
-  return_url: string;
-}
-
-export interface UnsubscribeAudienceParams extends ManageAudienceParams {}
-
-export interface ConfirmAudienceParams extends ManageAudienceParams {}
 
 export interface CreateMailboxParams {
   store_id?: string;
@@ -1876,33 +1702,26 @@ export type TestMailboxResult =
     };
 
 export interface CreateCampaignParams {
-  store_id?: string;
-  key: string;
-  name?: string;
-  mailbox_ids: string[];
-  steps: OutreachStep[];
-}
-
-export interface UpdateCampaignParams {
   id: string;
   store_id?: string;
-  key?: string;
-  name?: string;
-  mailbox_ids?: string[];
-  status?: CampaignStatus;
-  steps?: OutreachStep[];
+  name: string;
+  mailbox_ids: string[];
+  steps: CampaignStep[];
+}
+
+export interface ReplaceDraftCampaignParams {
+  id: string;
+  store_id?: string;
+  name: string;
+  mailbox_ids: string[];
+  steps: CampaignStep[];
 }
 
 export interface FindCampaignsParams {
   store_id?: string;
-  ids?: string[];
-  status?: CampaignStatus;
-  mailbox_id?: string;
-  query?: string | number;
+  status?: CampaignStatusFilter;
   limit?: number;
   cursor?: string;
-  sort_field?: string;
-  sort_direction?: "asc" | "desc";
 }
 
 export interface GetCampaignParams {
@@ -1910,119 +1729,58 @@ export interface GetCampaignParams {
   store_id?: string;
 }
 
-export interface LaunchCampaignParams {
-  id: string;
+export interface EnrollCampaignParams {
   store_id?: string;
-}
-
-export interface DuplicateCampaignParams {
-  id: string;
-  store_id?: string;
-  key?: string;
-  name?: string;
-  copy_enrollments?: boolean;
-}
-
-export interface GetCampaignLaunchReadinessParams {
-  id: string;
-  store_id?: string;
-}
-
-export interface ImportCampaignEnrollmentsParams {
-  id: string;
-  store_id?: string;
-  audience_ids?: string[];
-  audience_tier_ids?: string[];
-  customer_ids?: string[];
-  emails?: string[];
-}
-
-export interface GenerateOutreachPersonalizedDraftsParams {
-  id: string;
-  store_id?: string;
-  step_position?: number;
-  customer_ids?: string[];
-  overwrite?: boolean;
-  instructions?: string;
+  campaign_id: string;
+  customer_ids: string[];
+  audience_membership_ids: string[];
 }
 
 export interface FindCampaignEnrollmentsParams {
   store_id?: string;
-  campaign_id?: string;
+  campaign_id: string;
   customer_id?: string;
-  mailbox_id?: string;
-  status?: CampaignEnrollmentStatus;
+  status?: CampaignEnrollmentStatusFilter;
   limit?: number;
   cursor?: string;
 }
 
-export interface UpdateCampaignEnrollmentParams {
+export interface RemovePendingCampaignEnrollmentParams {
   store_id?: string;
+  campaign_id: string;
   id: string;
-  mailbox_id?: string | null;
-  lead_description?: string | null;
-  fields?: Record<string, unknown>;
-}
-
-export interface UpdateCampaignEnrollmentDraftParams {
-  store_id?: string;
-  id: string;
-  draft_id: string;
-  template_vars?: Record<string, unknown>;
-  body?: string;
-  suggested_message?: string;
-}
-
-export interface UpdateCampaignEnrollmentStepExecutionParams {
-  store_id?: string;
-  id: string;
-  execution_id: string;
-  outcome: CampaignManualTaskOutcome;
-  note?: string;
-}
-
-export interface FindCampaignMessagesParams {
-  store_id?: string;
-  campaign_id?: string;
-  campaign_enrollment_id?: string;
-  customer_id?: string;
-  mailbox_id?: string;
-  direction?: CampaignMessageDirection;
-  type?: CampaignMessageType;
-  status?: CampaignMessageStatus;
-  copy_source?: CampaignMessageCopySource;
-  step_position?: number;
-  query?: string;
-  limit?: number;
-  cursor?: string;
 }
 
 export interface GetCampaignEnrollmentConversationParams {
   store_id?: string;
+  campaign_id: string;
   id: string;
-  message_limit?: number;
-  after_created_at?: number;
-  after_id?: string;
+  limit?: number;
+  cursor?: string;
 }
 
 export interface ReplyCampaignEnrollmentParams {
   message_id: string;
   store_id?: string;
+  campaign_id: string;
   id: string;
-  subject?: string | null;
-  body: string;
-  attachments?: string[];
+  parent_message_id: string;
+  content: CampaignEmailContent;
+  media_ids: string[];
 }
 
 export interface StopCampaignEnrollmentParams {
   store_id?: string;
+  campaign_id: string;
   id: string;
 }
 
-export interface UpdateCampaignMessageParams {
+export interface ReplaceCampaignMessageDraftParams {
   id: string;
   store_id?: string;
-  template_vars?: Record<string, unknown>;
+  campaign_id: string;
+  campaign_enrollment_id: string;
+  content: CampaignEmailContent;
 }
 
 export interface CreateSuppressionParams {
@@ -2057,56 +1815,51 @@ export interface GetSuppressionParams {
   store_id?: string;
 }
 
-export interface CreateLeadResearchRunParams {
-  store_id?: string;
+export interface CreateLeadResearchParams {
+  id: string;
   audience_id?: string;
-  title?: string;
+  account_message_id: string;
+  content: string;
+  store_id?: string;
 }
 
-export interface FindLeadResearchRunsParams {
-  store_id?: string;
-  status?: LeadResearchRunStatus;
+export interface FindLeadResearchesParams {
   audience_id?: string;
   limit?: number;
   cursor?: string;
-}
-
-export interface GetLeadResearchRunParams {
-  id: string;
   store_id?: string;
 }
 
-export interface UpdateLeadResearchRunParams {
-  id: string;
-  store_id?: string;
-  title?: string;
-}
-
-export interface CancelLeadResearchRunParams {
-  id: string;
+export interface GetLeadResearchParams {
+  lead_research_id: string;
   store_id?: string;
 }
 
 export interface SendLeadResearchMessageParams {
-  message_id: string;
-  run_id: string;
+  lead_research_id: string;
+  account_message_id: string;
+  content: string;
   store_id?: string;
-  message: string;
 }
 
 export interface FindLeadResearchMessagesParams {
-  run_id: string;
-  store_id?: string;
+  lead_research_id: string;
   limit?: number;
-  after_created_at?: number;
-  after_id?: string;
+  cursor?: string;
+  store_id?: string;
 }
 
-export interface ValidateLeadEmailParams {
+export interface RetryLeadResearchMessageParams {
+  lead_research_id: string;
+  account_message_id: string;
+  assistant_message_id: string;
   store_id?: string;
-  email: string;
-  website_url?: string;
-  email_source_url?: string;
+}
+
+export interface CancelLeadResearchMessageParams {
+  lead_research_id: string;
+  assistant_message_id: string;
+  store_id?: string;
 }
 
 export interface ListBuildHooksParams {
@@ -2133,13 +1886,13 @@ export interface DeleteBuildHookParams {
   id: string;
 }
 
-export interface ListSocialConnectionsParams {
+export interface FindSocialConnectionsParams {
   store_id?: string;
 }
 
-export interface DeleteSocialConnectionParams {
-  store_id: string;
-  id: string;
+export interface DisconnectSocialConnectionParams {
+  connection_id: string;
+  store_id?: string;
 }
 
 export interface ListPaymentProvidersParams {
@@ -2160,173 +1913,9 @@ export interface ConnectStripePaymentProviderParams {
   connected_account_id?: string | null;
 }
 
-export interface DeletePaymentProviderParams {
-  store_id: string;
-  id: string;
-}
-
 export interface OpenStripeDashboardParams {
   store_id: string;
   id: string;
-}
-
-export interface FindSocialPublicationsParams {
-  store_id?: string;
-  status?: SocialPublicationStatus;
-  query?: string;
-  limit?: number;
-  cursor?: string;
-}
-
-export interface GetSocialPublicationParams {
-  store_id?: string;
-  id: string;
-}
-
-export interface ValidateSocialPublicationParams {
-  store_id?: string;
-  social_connection_id: string;
-  scheduled_at?: number | null;
-  content: SocialPublicationContent;
-}
-
-export interface CreateSocialPublicationParams {
-  store_id?: string;
-  social_connection_id: string;
-  key?: string | null;
-  scheduled_at?: number | null;
-  content: SocialPublicationContent;
-}
-
-export interface UpdateSocialPublicationParams {
-  store_id?: string;
-  id: string;
-  social_connection_id?: string | null;
-  key?: string | null;
-  scheduled_at?: number | null;
-  content?: SocialPublicationContent | null;
-}
-
-export interface ScheduleSocialPublicationParams {
-  store_id?: string;
-  id: string;
-  scheduled_at: number;
-}
-
-export interface CancelSocialPublicationParams {
-  store_id?: string;
-  id: string;
-}
-
-export interface GetSocialPublicationCommentsParams {
-  store_id?: string;
-  publication_id: string;
-  limit?: number;
-  cursor?: string | null;
-}
-
-export type SyncSocialPublicationCommentsParams =
-  GetSocialPublicationCommentsParams;
-
-export interface GetSocialPublicationCommentThreadParams {
-  store_id?: string;
-  publication_id: string;
-  comment_id: string;
-  limit?: number;
-  cursor?: string | null;
-}
-
-export type SyncSocialPublicationCommentThreadParams =
-  GetSocialPublicationCommentThreadParams;
-
-export interface FindSocialPublicationCommentsParams {
-  store_id?: string;
-  publication_id?: string;
-  social_connection_id?: string;
-  type?: SocialConnectionType;
-  status?: SocialPublicationCommentStatus;
-  intent?: SocialPublicationCommentIntent;
-  priority?: SocialPublicationCommentPriority;
-  include_replies?: boolean;
-  limit?: number;
-  cursor?: string | null;
-}
-
-export interface ClassifySocialPublicationCommentsParams {
-  store_id?: string;
-  run_id: string;
-  publication_id?: string;
-  social_connection_id?: string;
-  type?: SocialConnectionType;
-  status?: SocialPublicationCommentStatus;
-  intent?: SocialPublicationCommentIntent;
-  priority?: SocialPublicationCommentPriority;
-  limit?: number;
-  force?: boolean;
-}
-
-export interface GetSocialCommentClassificationRunParams {
-  store_id?: string;
-  run_id: string;
-}
-
-export interface CreateSocialCommentReplyParams {
-  store_id?: string;
-  publication_id: string;
-  comment_id: string;
-  reply_id: string;
-  text: string;
-}
-
-export interface ListSocialCommentRepliesParams {
-  store_id?: string;
-  publication_id: string;
-  comment_id: string;
-  limit: number;
-  cursor?: string | null;
-}
-
-export interface GetSocialCommentReplyParams {
-  store_id?: string;
-  publication_id: string;
-  comment_id: string;
-  reply_id: string;
-}
-
-export type RetrySocialCommentReplyParams = GetSocialCommentReplyParams;
-
-export interface ListSocialPublicationEffectsParams {
-  store_id?: string;
-  publication_id: string;
-  limit: number;
-  cursor?: string | null;
-}
-
-export interface GetSocialPublicationEffectParams {
-  store_id?: string;
-  publication_id: string;
-  effect_id: string;
-}
-
-export interface GetSocialPublicationMetricsParams {
-  store_id?: string;
-  publication_id: string;
-}
-
-export type SyncSocialPublicationMetricsParams =
-  GetSocialPublicationMetricsParams;
-
-export interface SyncSocialEngagementParams {
-  store_id?: string;
-  publication_ids?: string[];
-  max_publications?: number;
-  max_comment_pages_per_publication?: number;
-  max_comments_per_publication?: number;
-  sync_metrics?: boolean;
-}
-
-export interface GetSocialCapabilitiesParams {
-  store_id?: string;
 }
 
 export interface ConnectSocialConnectionParams {
@@ -2334,16 +1923,47 @@ export interface ConnectSocialConnectionParams {
   type: SocialConnectionType;
 }
 
-export interface SelectSocialDestinationParams {
+export interface FindSocialPostsParams {
+  social_connection_id?: string;
+  limit?: number;
+  cursor?: string;
   store_id?: string;
-  type: SocialConnectionType;
-  attempt_id: string;
-  candidate_id: string;
 }
 
-export interface GetSocialOAuthAttemptParams {
+export interface CreateSocialPostParams {
+  social_connection_id: string;
+  content: SocialPostContent;
+  publish_at: number;
   store_id?: string;
-  attempt_id: string;
+}
+
+export interface GetSocialPostParams {
+  post_id: string;
+  store_id?: string;
+}
+
+export type CancelSocialPostParams = GetSocialPostParams;
+
+export interface FindSocialMessagesParams {
+  post_id: string;
+  parent_message_id?: string;
+  limit?: number;
+  cursor?: string;
+  store_id?: string;
+}
+
+export interface CreateSocialMessageParams {
+  post_id: string;
+  id: string;
+  parent_message_id: string;
+  text: string;
+  store_id?: string;
+}
+
+export interface SyncSocialMessagesParams {
+  post_id: string;
+  sync: SocialMessageSync;
+  store_id?: string;
 }
 
 export interface ListWebhooksParams {
@@ -2477,7 +2097,7 @@ export interface FindCustomersParams {
   classification_query?: ClassificationQuery[];
   status?: CustomerStatus;
   has_verified_email?: boolean;
-  has_activity?: boolean;
+  has_customer_action?: boolean;
   has_cart?: boolean;
   limit?: number;
   cursor?: string;

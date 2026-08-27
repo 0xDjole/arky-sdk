@@ -233,7 +233,7 @@ const removedShippingContractPatterns = [
   /\/shippo-label\b|\/shipments\/[^\s`"']+\/retry\b|\/charges(?:\/|`|"|')/g,
 ];
 const removedCrmActionVocabularyPattern =
-  /\b(?:has_action|goal_action_key|action_id|opportunity_action_id|action_by_country|top_action_pages|recent_action)\b|\b(?:crmApi|storefrontApi|client)\.action\b/g;
+  /\b(?:has_action|action_id|opportunity_action_id|action_by_country|top_action_pages|recent_action)\b|\b(?:crmApi|storefrontApi|client)\.action\b/g;
 const removedCustomerVocabularyPatterns = [
   /\b(?:Contact|ContactChannel|ContactSession|StorefrontContact)\b/g,
   /\bcontact_id\b|\/contacts\b|\.crm\.contact\b/g,
@@ -257,6 +257,12 @@ const removedCartOrderContractPatterns = [
   /["']order_digital_product\./g,
   /\/orders\/\$\{params\.order_id\}\/products(?:\/|`)/g,
   /\/orders\/\$\{params\.order_id\}\/digital-products(?:\/|`)/g,
+];
+const removedSocialContractPatterns = [
+  /\bSocialPublication(?:Comment|Effect|Metric)?\b/g,
+  /\bSocialCommentReply\b/g,
+  /\bSocialOAuthAttempt\b/g,
+  /\/publications(?:\/|`|"|')/g,
 ];
 const exportedDeclarationPattern =
   /\bexport\s+(?:declare\s+)?(?:type|interface|class|enum|function|const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\b/g;
@@ -413,6 +419,13 @@ for (const file of listTypeScriptFiles(sourceDir)) {
     }
   }
 
+  for (const pattern of removedSocialContractPatterns) {
+    for (const match of source.matchAll(pattern)) {
+      report(file, source, match.index, `removed Social contract ${match[0]}`);
+      failures++;
+    }
+  }
+
   for (const match of source.matchAll(exportedDeclarationPattern)) {
     const name = match[1];
     if (!/\d$/.test(name)) continue;
@@ -497,22 +510,24 @@ for (const typeName of ["BlockType", "BlockSchemaType"]) {
   }
 }
 
-const activityContract = activityTypesSource.match(
-  /export interface Activity\s*\{([\s\S]*?)\n\}/,
+const customerActionContract = activityTypesSource.match(
+  /export interface CustomerAction\s*\{([\s\S]*?)\n\}/,
 );
 if (
-  !activityContract ||
-  !/\n\s*customer_id:\s*string;/.test(activityContract[1]) ||
-  !/\n\s*customer_session_id:\s*string\s*\|\s*null;/.test(
-    activityContract[1],
-  ) ||
-  /\n\s*canonical_customer_id:/.test(activityContract[1])
+  !customerActionContract ||
+  !/\n\s*customer_id:\s*string;/.test(customerActionContract[1]) ||
+  !/\n\s*origin:\s*CustomerActionOrigin;/.test(customerActionContract[1]) ||
+  !/\n\s*type:\s*CustomerActionType;/.test(customerActionContract[1]) ||
+  !/\n\s*occurred_at:\s*number;/.test(customerActionContract[1]) ||
+  /\n\s*(?:payload|description|canonical_customer_id|customer_session_id):/.test(
+    customerActionContract[1],
+  )
 ) {
   report(
     activityTypesFile,
     activityTypesSource,
-    activityContract?.index ?? 0,
-    "Activity must expose Customer and immutable CustomerSession provenance without a canonical alias",
+    customerActionContract?.index ?? 0,
+    "CustomerAction must expose Customer, origin, type, and occurred_at without payload, description, a canonical alias, or a top-level Session",
   );
   failures++;
 }
@@ -535,20 +550,19 @@ for (const typeName of ["Cart", "Order", "OrderBookingItem", "FormSubmission"]) 
   }
 }
 
-const socialCommentContract = activityTypesSource.match(
-  /export interface SocialPublicationComment\s*\{([\s\S]*?)\n\}/,
+const socialMessageContract = activityTypesSource.match(
+  /export interface SocialMessage\s*\{([\s\S]*?)\n\}/,
 );
 if (
-  !socialCommentContract ||
-  !/\n\s*customer_session_id\?:\s*string\s*\|\s*null;/.test(
-    socialCommentContract[1],
-  )
+  !socialMessageContract ||
+  !/\n\s*type:\s*SocialMessageType;/.test(socialMessageContract[1]) ||
+  !/\n\s*root_message_id:\s*string;/.test(socialMessageContract[1])
 ) {
   report(
     activityTypesFile,
     activityTypesSource,
-    socialCommentContract?.index ?? 0,
-    "SocialPublicationComment must preserve optional CustomerSession provenance",
+    socialMessageContract?.index ?? 0,
+    "SocialMessage must expose its type and exact root Message",
   );
   failures++;
 }

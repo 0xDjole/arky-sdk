@@ -11,8 +11,8 @@ export type AnalyticsReportKey =
   | "customer_funnel"
   | "outreach_overview"
   | "outreach_funnel"
-  | "activity_by_country"
-  | "top_activity_pages"
+  | "customer_action_by_country"
+  | "top_customer_action_pages"
   | "entity_status_overview"
   | "data_health"
   | "orders_created"
@@ -35,7 +35,6 @@ export type AnalyticsReportKey =
   | "campaign_enrollments_by_status"
   | "campaign_messages_by_status"
   | "support_conversations_by_status"
-  | "lead_research_runs_by_status"
   | "suppressions_by_status"
   | "workflows_by_status"
   | "promo_codes_by_status"
@@ -45,9 +44,9 @@ export type AnalyticsReportKey =
   | "carts_by_status"
   | "orders_by_status"
   | "order_products_by_status"
-  | "recent_activity";
+  | "recent_customer_action";
 
-export type ActivityFeedCategory =
+export type CustomerActionFeedCategory =
   | "orders"
   | "carts"
   | "promo_codes"
@@ -57,29 +56,59 @@ export type ActivityFeedCategory =
   | "products"
   | "services"
   | "providers"
-  | "cms"
+  | "content"
   | "workflows"
-  | "activities";
+  | "customer_actions";
 
-export interface AnalyticsReportRequest {
-  key: AnalyticsReportKey;
-  limit?: number;
-  category?: ActivityFeedCategory;
-  cursor_created_at?: number;
-  cursor_id?: string;
-}
+type AnalyticsReportWithoutOptions = Exclude<
+  AnalyticsReportKey,
+  | "customer_action_by_country"
+  | "top_customer_action_pages"
+  | "recent_customer_action"
+>;
 
-export interface AnalyticsRequest {
-  time?: AnalyticsTimeRange;
-  reports?: AnalyticsReportRequest[];
-  blocks?: AnalyticsBlockRequest[];
-}
+type AnalyticsFeedCursor =
+  | { cursor_created_at?: never; cursor_id?: never }
+  | { cursor_created_at: number; cursor_id: string };
+
+export type AnalyticsReportRequest =
+  | {
+      key: AnalyticsReportWithoutOptions;
+      limit?: never;
+      category?: never;
+      cursor_created_at?: never;
+      cursor_id?: never;
+    }
+  | {
+      key: "customer_action_by_country" | "top_customer_action_pages";
+      limit?: number;
+      category?: never;
+      cursor_created_at?: never;
+      cursor_id?: never;
+    }
+  | ({
+      key: "recent_customer_action";
+      limit?: number;
+      category?: CustomerActionFeedCategory;
+    } & AnalyticsFeedCursor);
 
 export interface AnalyticsBlockRequest {
   id: string;
   time: AnalyticsTimeRange;
   reports: AnalyticsReportRequest[];
 }
+
+export type AnalyticsRequest =
+  | {
+      time: AnalyticsTimeRange;
+      reports: AnalyticsReportRequest[];
+      blocks?: never;
+    }
+  | {
+      blocks: AnalyticsBlockRequest[];
+      time?: never;
+      reports?: never;
+    };
 
 export interface AnalyticsMetricData {
   value: number;
@@ -200,7 +229,7 @@ export interface DataHealthData {
   unknown_device_events: number;
 }
 
-export interface ActivityFeedItem {
+export interface CustomerActionFeedItem {
   id: string;
   entity: string;
   entity_id: string;
@@ -208,7 +237,7 @@ export interface ActivityFeedItem {
   event_type: string;
   status: string;
   customer_id: string;
-  category: string;
+  category: CustomerActionFeedCategory;
   title: string;
   description: string;
   href?: string | null;
@@ -217,7 +246,7 @@ export interface ActivityFeedItem {
   created_at: number;
 }
 
-export interface ActivityFeedSummary {
+export interface CustomerActionFeedSummary {
   total: number;
   orders: number;
   submissions: number;
@@ -229,21 +258,21 @@ export interface ActivityFeedSummary {
   products: number;
   services: number;
   providers: number;
-  cms: number;
+  content: number;
   workflows: number;
-  activities: number;
+  customer_actions: number;
   window_start: number;
 }
 
-export interface ActivityFeedCursor {
+export interface CustomerActionFeedCursor {
   created_at: number;
   id: string;
 }
 
-export interface ActivityFeedData {
-  items: ActivityFeedItem[];
-  summary: ActivityFeedSummary;
-  next_cursor?: ActivityFeedCursor | null;
+export interface CustomerActionFeedData {
+  items: CustomerActionFeedItem[];
+  summary: CustomerActionFeedSummary;
+  next_cursor?: CustomerActionFeedCursor | null;
   meta: {
     row_count: number;
     execution_ms: number;
@@ -261,8 +290,8 @@ export type AnalyticsMetricReportKey =
   | "media_count";
 
 export type AnalyticsBreakdownReportKey =
-  | "activity_by_country"
-  | "top_activity_pages"
+  | "customer_action_by_country"
+  | "top_customer_action_pages"
   | "products_by_status"
   | "services_by_status"
   | "providers_by_status"
@@ -275,7 +304,6 @@ export type AnalyticsBreakdownReportKey =
   | "campaign_enrollments_by_status"
   | "campaign_messages_by_status"
   | "support_conversations_by_status"
-  | "lead_research_runs_by_status"
   | "suppressions_by_status"
   | "workflows_by_status"
   | "promo_codes_by_status"
@@ -286,7 +314,7 @@ export type AnalyticsBreakdownReportKey =
   | "orders_by_status"
   | "order_products_by_status";
 
-export type AnalyticsActivityReportKey = "recent_activity";
+export type AnalyticsCustomerActionReportKey = "recent_customer_action";
 
 export type AnalyticsCompositeReportKey =
   | "business_overview"
@@ -307,7 +335,10 @@ type AnalyticsReportData =
   | { key: "outreach_funnel"; data: OutreachFunnelData }
   | { key: "entity_status_overview"; data: EntityStatusOverviewData }
   | { key: "data_health"; data: DataHealthData }
-  | { key: AnalyticsActivityReportKey; data: ActivityFeedData };
+  | {
+      key: AnalyticsCustomerActionReportKey;
+      data: CustomerActionFeedData;
+    };
 
 export type AnalyticsReport = AnalyticsReportData & {
   scope: AnalyticsReportScope;
@@ -319,11 +350,17 @@ export interface AnalyticsBlockResponse {
   reports: AnalyticsReport[];
 }
 
-export interface AnalyticsResponse {
-  time?: AnalyticsTimeRange;
-  reports?: AnalyticsReport[];
-  blocks?: AnalyticsBlockResponse[];
-}
+export type AnalyticsResponse =
+  | {
+      time: AnalyticsTimeRange;
+      reports: AnalyticsReport[];
+      blocks?: never;
+    }
+  | {
+      blocks: AnalyticsBlockResponse[];
+      time?: never;
+      reports?: never;
+    };
 
 export const createAnalyticsApi = (apiConfig: ApiConfig) => {
   return {

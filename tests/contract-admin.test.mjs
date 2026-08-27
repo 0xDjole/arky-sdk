@@ -429,8 +429,6 @@ assert.equal(typeof arky.social.publication.getMetrics, "function");
 assert.equal(typeof arky.social.publication.syncMetrics, "function");
 
 assert.equal(typeof arky.workflow.listConnections, "function");
-assert.equal(typeof arky.workflow.getDefinition, "function");
-assert.equal(typeof arky.workflow.replaceDefinition, "function");
 assert.equal(
   typeof arky.workflow.getConnectionConnectUrl,
   "function",
@@ -538,12 +536,6 @@ assert.equal(typeof arky.audiences.members.find, "function");
 assert.equal(typeof arky.audiences.leads.find, "function");
 assert.equal(typeof arky.audiences.tiers.get, "function");
 assert.equal(typeof arky.audiences.tiers.find, "function");
-assert.equal(
-  typeof arky.workflow.listExternalOperations,
-  "function",
-);
-assert.equal(typeof arky.workflow.getExternalOperation, "function");
-
 assert.equal(typeof arky.eshop.product.getInventory, "function");
 
 const separateResourceCalls = [];
@@ -555,13 +547,6 @@ globalThis.fetch = async (url, init = {}) => {
   });
 };
 try {
-  await arky.workflow.getDefinition({
-    workflow_id: "workflow-contract",
-  });
-  await arky.workflow.listExternalOperations({
-    workflow_id: "workflow-contract",
-    execution_id: "execution-contract",
-  });
   await arky.support.getAgentDefinition({
     store_id: "contract-store",
     support_agent_id: "agent-contract",
@@ -576,14 +561,6 @@ try {
   globalThis.fetch = originalFetch;
 }
 assert.deepEqual(separateResourceCalls, [
-  {
-    method: "GET",
-    url: "http://127.0.0.1:1/v1/stores/contract-store/workflows/workflow-contract/definition",
-  },
-  {
-    method: "GET",
-    url: "http://127.0.0.1:1/v1/stores/contract-store/workflows/workflow-contract/executions/execution-contract/external-operations",
-  },
   {
     method: "GET",
     url: "http://127.0.0.1:1/v1/stores/contract-store/support/agents/agent-contract/definition",

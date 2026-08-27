@@ -252,8 +252,7 @@ export function getBlockFromArray(
 }
 
 function nestedUrl(value: UnknownRecord): string | null {
-  const resolutions = isRecord(value.resolutions) ? value.resolutions : null;
-  const original = resolutions && isRecord(resolutions.original) ? resolutions.original : null;
+  const original = isRecord(value.original) ? value.original : null;
   if (typeof original?.url === "string") return original.url;
   return typeof value.url === "string" ? value.url : null;
 }

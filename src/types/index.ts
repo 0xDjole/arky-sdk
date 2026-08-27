@@ -344,18 +344,6 @@ export interface CartDigitalItem {
   price_override: Price | null;
 }
 
-export interface SocialConnectionCredential {
-  expires_at: number | null;
-  scopes: string[];
-}
-
-export interface SocialDestinationMetadata {
-  external_account_id: string;
-  external_account_name: string;
-  handle: string | null;
-  avatar_url: string | null;
-}
-
 export type SocialConnectionType =
   | "facebook_page"
   | "instagram_business"
@@ -363,21 +351,53 @@ export type SocialConnectionType =
   | "tiktok_account"
   | "x_account";
 
-export interface SocialConnectionProviderData {
-  credential: SocialConnectionCredential;
-  destination: SocialDestinationMetadata;
+export interface SocialDestination {
+  provider_id: string;
+  name: string;
+  handle?: string | null;
+  avatar_url?: string | null;
 }
 
-export type SocialConnectionData = SocialConnectionProviderData;
+export type SocialCredentialRefreshStatus =
+  | { type: "requested"; requested_at: number }
+  | { type: "processing"; started_at: number; deadline_at: number }
+  | { type: "succeeded"; completed_at: number }
+  | { type: "rejected"; error: string; rejected_at: number }
+  | { type: "failed"; error: string; failed_at: number }
+  | { type: "unknown"; error: string; detected_at: number };
 
-export type SocialPublicationStatus =
-  | "draft"
-  | "scheduled"
-  | "publishing"
-  | "published"
-  | "failed"
-  | "unknown"
-  | "cancelled";
+export interface SocialCredentialRefresh {
+  credential_generation: number;
+  status: SocialCredentialRefreshStatus;
+}
+
+export interface SocialCredential {
+  expires_at?: number | null;
+  scopes: string[];
+  has_refresh_token: boolean;
+}
+
+export type SocialConnectionStatus =
+  | {
+      type: "connected";
+      credential: SocialCredential;
+      refresh: SocialCredentialRefresh;
+    }
+  | { type: "disconnected"; disconnected_at: number };
+
+export interface SocialConnection {
+  id: string;
+  store_id: string;
+  type: SocialConnectionType;
+  destination: SocialDestination;
+  status: SocialConnectionStatus;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface SocialConnectResult {
+  authorization_url: string;
+}
 
 export type YoutubePrivacy = "public" | "unlisted" | "private";
 export type TiktokPrivacy = "public" | "friends" | "private";
@@ -419,7 +439,7 @@ export interface XAccountContent {
   media_ids: string[];
 }
 
-export type SocialPublicationContent =
+export type SocialPostContent =
   | FacebookPageContent
   | InstagramBusinessContent
   | YoutubeChannelContent
@@ -431,155 +451,20 @@ export interface ValidationError {
   error: string;
 }
 
-export interface SocialPublicationValidation {
-  valid: boolean;
-  errors: ValidationError[];
-  warnings: ValidationError[];
-}
+export type SocialPublishOperationType =
+  | "x_upload_media"
+  | "x_publish_post"
+  | "facebook_create_unpublished_photo"
+  | "facebook_publish_post"
+  | "instagram_create_media_container"
+  | "instagram_create_carousel_container"
+  | "instagram_publish_container"
+  | "youtube_initialize_upload"
+  | "youtube_upload"
+  | "tiktok_initialize_upload"
+  | "tiktok_upload";
 
-export interface SocialPublication {
-  id: string;
-  store_id: string;
-  social_connection_id: string;
-  key: string;
-  status: SocialPublicationStatus;
-  content: SocialPublicationContent;
-  scheduled_at: number;
-  published_at?: number | null;
-  provider_post_id?: string | null;
-  provider_post_url?: string | null;
-  error_code?: string | null;
-  error_message?: string | null;
-  attempt_count: number;
-  last_attempt_at?: number | null;
-  created_at: number;
-  updated_at: number;
-}
-
-export interface SocialPublicationMutationResponse {
-  publication: SocialPublication;
-  validation: SocialPublicationValidation;
-  publish_requested: boolean;
-}
-
-export type SocialPublicationCommentStatus =
-  "open" | "replied" | "hidden" | "deleted";
-
-export type SocialPublicationCommentIntent =
-  "lead" | "support" | "complaint" | "question" | "praise" | "spam" | "general";
-
-export type SocialPublicationCommentPriority =
-  "urgent" | "high" | "normal" | "low";
-
-export interface SocialPublicationComment {
-  id: string;
-  store_id: string;
-  publication_id: string;
-  social_connection_id: string;
-  type: SocialConnectionType;
-  provider_post_id?: string | null;
-  provider_comment_id: string;
-  provider_parent_comment_id?: string | null;
-  parent_comment_id?: string | null;
-  root_comment_id?: string | null;
-  depth: number;
-  provider_reply_count?: number | null;
-  synced_reply_count: number;
-  has_more_replies: boolean;
-  thread_last_synced_at?: number | null;
-  author_is_channel: boolean;
-  customer_id?: string | null;
-  customer_session_id?: string | null;
-  activity_id?: string | null;
-  opportunity_activity_id?: string | null;
-  author_name?: string | null;
-  author_handle?: string | null;
-  author_provider_user_id?: string | null;
-  text: string;
-  status: SocialPublicationCommentStatus;
-  provider_created_at?: number | null;
-  last_synced_at: number;
-  replied_at?: number | null;
-  classification_intent?: SocialPublicationCommentIntent | null;
-  classification_priority?: SocialPublicationCommentPriority | null;
-  classification_confidence?: number | null;
-  classification_summary?: string | null;
-  classification_reason?: string | null;
-  suggested_reply?: string | null;
-  classified_at?: number | null;
-  classification_model?: string | null;
-  created_at: number;
-  updated_at: number;
-}
-
-export interface SocialPublicationMetricSnapshot {
-  id: string;
-  store_id: string;
-  publication_id: string;
-  social_connection_id: string;
-  type: SocialConnectionType;
-  provider_post_id?: string | null;
-  metrics: Record<string, number>;
-  collected_at: number;
-  created_at: number;
-  updated_at: number;
-}
-
-export type SocialCommentReplyStatus =
-  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
-
-export type SocialCommentReplyError =
-  | { type: "provider_call_not_started"; message: string; at: number }
-  | {
-      type: "provider_rejected";
-      message: string;
-      provider_code?: string | null;
-      provider_status?: number | null;
-      at: number;
-    }
-  | { type: "unknown_outcome"; message: string; at: number };
-
-export interface SocialCommentReplyEvidence {
-  provider_comment_id: string;
-  provider_comment_url?: string | null;
-}
-
-export interface SocialCommentReply {
-  id: string;
-  store_id: string;
-  publication_id: string;
-  comment_id: string;
-  social_connection_id: string;
-  text: string;
-  status: SocialCommentReplyStatus;
-  requested_at: number;
-  processing_started_at?: number | null;
-  processing_deadline_at?: number | null;
-  completed_at?: number | null;
-  evidence?: SocialCommentReplyEvidence | null;
-  error?: SocialCommentReplyError | null;
-}
-
-export interface SocialPublicationCommentReplyResponse {
-  comment: SocialPublicationComment;
-  reply: SocialCommentReply;
-}
-
-export type SocialPublicationEffectStatus =
-  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
-
-export type SocialPublicationEffectError =
-  | { type: "provider_call_not_started"; message: string; at: number }
-  | {
-      type: "provider_rejected";
-      message: string;
-      provider_code?: string | null;
-      provider_status?: number | null;
-      at: number;
-    }
-  | { type: "unknown_outcome"; message: string; at: number };
-
-export type SocialPublicationEffectRequest =
+export type SocialPublishRequest =
   | {
       type: "x_upload_media";
       media_id: string;
@@ -627,98 +512,111 @@ export type SocialPublicationEffectRequest =
       has_upload_session: boolean;
     };
 
-export interface SocialPublicationEffectEvidence {
-  provider_object_id?: string | null;
-  provider_object_url?: string | null;
-  has_upload_session: boolean;
-  upload_total_bytes?: number | null;
+export type SocialPublishEvidence =
+  | { type: "x_media_uploaded"; provider_media_id: string }
+  | { type: "x_post_published"; provider_post_id: string; provider_post_url?: string | null }
+  | { type: "facebook_photo_created"; provider_photo_id: string }
+  | { type: "facebook_post_published"; provider_post_id: string; provider_post_url?: string | null }
+  | { type: "instagram_media_container_created"; container_id: string }
+  | { type: "instagram_carousel_container_created"; container_id: string }
+  | { type: "instagram_container_published"; provider_post_id: string; provider_post_url?: string | null }
+  | { type: "youtube_upload_initialized"; has_upload_session: boolean; total_bytes: number }
+  | { type: "youtube_video_uploaded"; provider_post_id: string; provider_post_url?: string | null }
+  | { type: "tiktok_upload_initialized"; publish_id: string; has_upload_session: boolean; total_bytes: number }
+  | { type: "tiktok_video_uploaded"; provider_post_id: string; provider_post_url?: string | null };
+
+export type SocialPublishOperationStatus =
+  | { type: "requested"; requested_at: number }
+  | { type: "processing"; started_at: number; deadline_at: number }
+  | { type: "succeeded"; evidence: SocialPublishEvidence; completed_at: number }
+  | { type: "failed"; error: string; failed_at: number }
+  | { type: "rejected"; error: string; rejected_at: number }
+  | { type: "unknown"; error: string; detected_at: number };
+
+export interface SocialPublishOperation {
+  id: string;
+  type: SocialPublishOperationType;
+  request: SocialPublishRequest;
+  status: SocialPublishOperationStatus;
 }
 
-export interface SocialPublicationEffect {
+export interface SocialPublishProgress {
+  completed: SocialPublishOperation[];
+  current: SocialPublishOperation;
+}
+
+export type SocialPostStatus =
+  | { type: "scheduled"; progress: SocialPublishProgress }
+  | { type: "publishing"; progress: SocialPublishProgress }
+  | { type: "published"; progress: SocialPublishProgress; provider_post_id: string; provider_post_url?: string | null; published_at: number }
+  | { type: "failed"; progress: SocialPublishProgress; error: string; failed_at: number }
+  | { type: "rejected"; progress: SocialPublishProgress; error: string; rejected_at: number }
+  | { type: "unknown"; progress: SocialPublishProgress; error: string; detected_at: number }
+  | { type: "cancelled"; progress: SocialPublishProgress; cancelled_at: number };
+
+export interface SocialPost {
   id: string;
   store_id: string;
-  publication_id: string;
   social_connection_id: string;
-  publication_revision: number;
-  sequence: number;
-  request: SocialPublicationEffectRequest;
-  status: SocialPublicationEffectStatus;
-  requested_at: number;
-  processing_started_at?: number | null;
-  processing_deadline_at?: number | null;
-  completed_at?: number | null;
-  evidence?: SocialPublicationEffectEvidence | null;
-  error?: SocialPublicationEffectError | null;
+  content: SocialPostContent;
+  publish_at: number;
+  status: SocialPostStatus;
+  created_at: number;
+  updated_at: number;
 }
 
-export interface SocialPublicationEngagementSyncResult {
-  publications_scanned: number;
-  comment_pages_scanned: number;
-  comments_synced: number;
-  metrics_synced: number;
-  comments: SocialPublicationComment[];
-  metrics: SocialPublicationMetricSnapshot[];
-  skipped_publication_ids: string[];
-  errors: string[];
-}
+export type SocialIncomingCommentRelation =
+  | { type: "root" }
+  | { type: "reply"; parent_message_id: string };
 
-export interface SocialPublicationCommentClassificationResult {
-  run_id: string;
-  status: SocialCommentClassificationRunStatus;
-  comments_scanned: number;
-  comments_classified: number;
-  comments_skipped: number;
-  comments: SocialPublicationComment[];
-  skipped_comment_ids: string[];
-  errors: string[];
-  processing_deadline_at?: number | null;
-  completed_at?: number | null;
-}
+export type SocialCommentAuthor =
+  | { type: "identified"; provider_author_id: string; name?: string | null; handle?: string | null; avatar_url?: string | null }
+  | { type: "named"; name: string; handle?: string | null; avatar_url?: string | null }
+  | { type: "handled"; handle: string; avatar_url?: string | null }
+  | { type: "unavailable" };
 
-export type SocialCommentClassificationRunStatus =
-  "requested" | "processing" | "succeeded" | "failed" | "unknown";
+export type SocialOutgoingCommentStatus =
+  | { type: "queued"; requested_at: number }
+  | { type: "sending"; started_at: number; deadline_at: number }
+  | { type: "sent"; provider_comment_id: string; sent_at: number }
+  | { type: "failed"; error: string; failed_at: number }
+  | { type: "rejected"; error: string; rejected_at: number }
+  | { type: "unknown"; error: string; detected_at: number };
 
-export interface SocialEngagementCapabilities {
-  read_comments: boolean;
-  reply_to_comments: boolean;
-}
+export type SocialCommentDirection =
+  | { type: "incoming"; relation: SocialIncomingCommentRelation; provider_comment_id: string; author: SocialCommentAuthor; provider_created_at: number; observed_at: number }
+  | { type: "outgoing_reply"; parent_message_id: string; account_session_id: string; status: SocialOutgoingCommentStatus };
 
-export interface SocialAnalyticsCapabilities {
-  read_post_metrics: boolean;
-}
+export type SocialMessageType = {
+  type: "comment";
+  post_id: string;
+  text: string;
+  direction: SocialCommentDirection;
+};
 
-export interface SocialProviderCapability {
-  type: SocialConnectionType;
-  display_name: string;
-  publishing_supported: boolean;
-  required_scopes: string[];
-  media_requirements: string[];
-  engagement: SocialEngagementCapabilities;
-  analytics: SocialAnalyticsCapabilities;
-}
-
-export interface SocialConnectResponse {
-  authorization_url: string;
-  state: string;
-}
-
-export type SocialOAuthCallbackStatus = "connected" | "selection_required";
-
-export interface SocialOAuthDestinationOption extends SocialDestinationMetadata {
-  candidate_id: string;
-}
-
-export interface SocialOAuthCallbackResponse {
-  status: SocialOAuthCallbackStatus;
+export interface SocialMessage {
+  id: string;
   store_id: string;
-  type: SocialConnectionType;
-  account_id: string;
-  attempt_id?: string | null;
-  social_connection_id?: string | null;
-  destination?: SocialDestinationMetadata | null;
-  options: SocialOAuthDestinationOption[];
-  message: string;
+  type: SocialMessageType;
+  root_message_id: string;
+  depth: number;
+  reply_count: number;
+  replied: boolean;
+  created_at: number;
+  updated_at: number;
 }
+
+export type SocialMessageSyncType =
+  | { type: "top_level"; cursor?: string | null; limit: number }
+  | { type: "thread"; parent_message_id: string; cursor?: string | null; limit: number };
+
+export interface SocialMessageSync {
+  type: SocialMessageSyncType;
+}
+
+export type SocialMessageSyncResult =
+  | { type: "applied"; inserted: number; reconciled: number; next_cursor?: string | null }
+  | { type: "deferred"; retry_after_at: number };
 
 export type BuildHookStatus = "active" | "disabled";
 
@@ -728,15 +626,6 @@ export interface BuildHook {
   url: string;
   headers: Record<string, string>;
   status: BuildHookStatus;
-  created_at: number;
-  updated_at: number;
-}
-
-export interface SocialConnection {
-  id: string;
-  store_id: string;
-  type: SocialConnectionType;
-  data: SocialConnectionData;
   created_at: number;
   updated_at: number;
 }
@@ -767,7 +656,6 @@ export interface PaymentProvider {
   id: string;
   store_id: string;
   configuration: PaymentProviderConfiguration;
-  disabled_at: number | null;
   created_at: number;
   updated_at: number;
 }
@@ -1264,94 +1152,12 @@ export interface StoreSubscription {
   updated_at: number;
 }
 
-export type AudiencePaymentStatus =
-  | "pending"
-  | "requires_action"
-  | "processing"
-  | "declined"
-  | "failed"
-  | "rejected"
-  | "succeeded"
-  | "expired"
-  | "unknown";
+export type StoreStatus = "active";
 
-export type AudiencePaymentSafeError =
-  "payment_rejected" | "invalid_payment_state" | "unknown_outcome";
-
-export type AudiencePaymentType = "initial" | "renewal" | "one_time";
-
-export interface AudiencePromotionSnapshot {
-  promo_code_id: string;
-  code: string;
-  discount: number;
-}
-
-export interface AudiencePayment {
-  id: string;
+export interface StoreDeletionResult {
+  success: true;
   store_id: string;
-  audience_id: string;
-  member_id: string;
-  /** Immutable Customer snapshot that initiated this provider payment. */
-  payer_customer_id: string;
-  generation: number;
-  type: AudiencePaymentType;
-  status: AudiencePaymentStatus;
-  tier_id: string;
-  tier_name: string;
-  price_id: string;
-  subtotal: number;
-  discount: number;
-  amount: number;
-  currency: Currency;
-  interval?: SubscriptionInterval | null;
-  promotion?: AudiencePromotionSnapshot | null;
-  safe_error?: AudiencePaymentSafeError | null;
-  requested_at: number;
-  updated_at: number;
 }
-
-export interface AudienceDispute {
-  id: string;
-  store_id: string;
-  audience_id: string;
-  member_id: string;
-  payment_id: string;
-  amount: number;
-  currency: Currency;
-  status: StripeDisputeStatus;
-  reason: string;
-  created_at: number;
-  updated_at: number;
-}
-
-export type AudienceRefundStatus =
-  "requested" | "processing" | "succeeded" | "failed" | "rejected" | "unknown";
-
-export type AudienceRefundType = "partial" | "full";
-
-export type AudienceRefundSafeError =
-  "provider_rejected" | "invalid_refund_state" | "unknown_outcome";
-
-export interface AudienceRefund {
-  id: string;
-  store_id: string;
-  audience_id: string;
-  member_id: string;
-  payment_id: string;
-  revision: number;
-  type: AudienceRefundType;
-  amount: number;
-  currency: Currency;
-  requested_by_account_id?: string | null;
-  reason: RefundReason;
-  private_note?: string | null;
-  status: AudienceRefundStatus;
-  safe_error?: AudienceRefundSafeError | null;
-  created_at: number;
-  updated_at: number;
-}
-
-export type StoreStatus = "active" | "deleting";
 
 export interface Store {
   id: string;
@@ -1600,26 +1406,29 @@ export type Block =
 
 export type Access = "public" | "private";
 
-export type MediaSize = "original" | "thumbnail" | "small" | "medium" | "large";
+export type MediaRenditionType = "thumbnail" | "small" | "medium" | "large";
 
-export interface MediaResolution {
-  id: string;
+export interface MediaFile {
   url: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  width_px: number | null;
+  height_px: number | null;
+}
+
+export interface MediaRendition {
+  type: MediaRenditionType;
+  file: MediaFile;
 }
 
 export interface Media {
   id: string;
-  creation_key: string;
-  resolutions: Partial<Record<MediaSize, MediaResolution>>;
-  mime_type: string;
-  title?: string | null;
-  description?: string | null;
-  alt?: string | null;
   store_id: string;
-  metadata?: string | null;
+  original: MediaFile;
+  renditions: MediaRendition[];
   created_at: number;
   updated_at: number;
-  slug: Record<string, string>;
 }
 
 export type SubscriptionPlanFeatureType =
@@ -1640,7 +1449,7 @@ export type SubscriptionPlanFeatureType =
   | "webhooks"
   | "support_agents"
   | "lead_research_runs"
-  | "outreach_campaigns";
+  | "campaigns";
 
 /** A Store's current total or one UTC calendar month's consumption. */
 export type UsagePeriod =
@@ -1711,6 +1520,7 @@ export interface StoreMember {
 export interface Account {
   id: string;
   email: string;
+  platform_role: import("./api").PlatformRole;
   last_login_at: number | null;
   created_at: number;
   updated_at: number;
@@ -1793,14 +1603,7 @@ export type AudienceOutreachChannel =
   | "youtube"
   | "x"
   | "other";
-export type AudienceStatus = "active" | "draft" | "archived";
-export type AudienceSource = "manual" | "system" | "lead_research";
-export type AudienceMemberSource =
-  "admin" | "import" | "signup" | "system" | "lead_research";
-export type AudienceMemberStatus = "pending" | "active" | "archived";
-export type AudienceDeliveryStatus = "subscribed" | "unsubscribed";
-export type AudienceTierStatus = "draft" | "active" | "archived";
-export type AudiencePriceStatus = "draft" | "active" | "archived";
+export type AudienceStatus = "draft" | "active" | "closed" | "archived";
 export type MailboxStatus = "active" | "draft" | "archived";
 export type MailboxPreset = "gmail" | "zoho" | "microsoft" | "custom";
 export type MailboxConnectionSecurity = "tls" | "start_tls";
@@ -1854,64 +1657,50 @@ export type GoogleMailboxProvider = {
   last_synced_at?: number | null;
   last_history_id?: string | null;
 };
+export type CampaignThreadMode = "new_thread" | "reply_to_previous";
 export type CampaignStatus =
-  "draft" | "active" | "paused" | "completed" | "archived";
-export type CampaignLaunchStatus =
-  "idle" | "requested" | "processing" | "succeeded" | "failed";
+  | { status: "draft" }
+  | { status: "active"; launched_at: number }
+  | { status: "paused"; launched_at: number; paused_at: number }
+  | { status: "completed"; launched_at: number; completed_at: number };
+export type CampaignStatusFilter = CampaignStatus["status"];
+export type CampaignEnrollmentStopReason =
+  | { reason: "operator" }
+  | { reason: "delivery"; message_id: string }
+  | { reason: "outbound_unavailable" };
 export type CampaignEnrollmentStatus =
-  | "pending"
-  | "active"
-  | "action_required"
-  | "replied"
-  | "completed"
-  | "suppressed"
-  | "failed"
-  | "stopped";
-export type CampaignEnrollmentImportSource = "audience" | "customer" | "manual";
-export type CampaignMessageStatus =
-  | "draft"
-  | "scheduled"
-  | "pending"
-  | "sending"
-  | "sent"
-  | "received"
-  | "action_required"
-  | "completed"
-  | "bounced"
-  | "failed"
-  | "unknown"
-  | "skipped"
-  | "stopped"
-  | "superseded";
-export type CampaignMessageType =
-  "campaign_step_email" | "manual_task" | "manual_reply" | "inbound_reply";
-export type CampaignMessageDirection = "outbound" | "inbound" | "action";
-export type CampaignMessageCopySource = "template" | "generated" | "edited";
-export type OutreachThreadMode = "new_thread" | "same_thread";
-export type ManualTaskContinueBehavior =
-  "continue_after_delay" | "wait_until_completed";
-export type OutreachStepType =
+  | { status: "pending"; next_step_index: number }
+  | { status: "active"; next_step_index: number; next_step_at: number }
+  | { status: "replied"; message_id: string; replied_at: number }
+  | { status: "completed"; completed_at: number }
   | {
-      type: "email";
-      template_id: string;
-      template_vars?: Record<string, unknown>;
-      body?: string | null;
-      thread_mode?: OutreachThreadMode;
-      attachments?: string[];
+      status: "stopped";
+      reason: CampaignEnrollmentStopReason;
+      stopped_at: number;
+    };
+export type CampaignEnrollmentStatusFilter = CampaignEnrollmentStatus["status"];
+export type CampaignOutgoingOrigin =
+  | {
+      origin: "campaign_step";
+      campaign_step_id: string;
+      edited_by_account_session_id?: string | null;
+    }
+  | { origin: "account_session"; account_session_id: string };
+export type CampaignMessageType =
+  | {
+      type: "outgoing";
+      origin: CampaignOutgoingOrigin;
+      media_ids: string[];
     }
   | {
-      type: "manual_task";
-      target_channel_type?: AudienceOutreachChannel | null;
-      title: string;
-      instructions: string;
-      suggested_message?: string | null;
-      external_url?: string | null;
-      continue_behavior: ManualTaskContinueBehavior;
+      type: "incoming";
+      mailbox_id: string;
+      provider_message_id: string;
+      provider_thread_id?: string | null;
+      provider_references: string[];
+      email_attachment_ids: string[];
+      received_at: number;
     };
-export type CampaignManualTaskOutcome =
-  "done" | "skipped" | "got_reply" | "do_not_contact";
-export type OutreachPersonalizationStatus =
-  "idle" | "running" | "completed" | "failed" | "unknown";
 export type SuppressionStatus = "active" | "archived";
 export type SuppressionTarget =
   | { type: "email"; email: string }
@@ -1922,8 +1711,8 @@ export type SuppressionScope =
 export type SuppressionReason =
   "manual" | "unsubscribed" | "bounced" | "complained" | "replied";
 export type SuppressionSource = "admin" | "system";
-export type WorkflowStatus = "active" | "draft" | "archived" | "deleting";
-export type MutableWorkflowStatus = Exclude<WorkflowStatus, "deleting">;
+export type WorkflowStatus = "active" | "draft";
+export type MutableWorkflowStatus = WorkflowStatus;
 export type PromoCodeStatus = "active" | "draft" | "archived";
 export type CollectionStatus = "active" | "draft" | "archived";
 export type EntryStatus = "active" | "draft" | "archived";
@@ -2199,28 +1988,34 @@ export interface Workflow {
   key: string;
   store_id: string;
   status: WorkflowStatus;
-  schedule?: string;
+  schedule?: string | null;
+  webhook_url: string;
+  graph: WorkflowGraph;
   created_at: number;
   updated_at: number;
 }
 
-export interface WorkflowTrigger {
-  workflow_id: string;
-  trigger_url: string;
+export interface WorkflowListItem {
+  id: string;
+  key: string;
+  store_id: string;
+  status: WorkflowStatus;
+  schedule?: string | null;
+  created_at: number;
+  updated_at: number;
 }
 
-export interface WorkflowDefinition {
-  id: string;
-  store_id: string;
+export interface WorkflowWebhookUrl {
   workflow_id: string;
+  webhook_url: string;
+}
+
+export interface WorkflowGraph {
   nodes: Record<string, WorkflowNode>;
   edges: WorkflowEdge[];
-  created_at: number;
-  updated_at: number;
 }
 
 export type WorkflowNode =
-  | WorkflowTriggerNode
   | WorkflowHttpNode
   | WorkflowSendEmailNode
   | WorkflowDeployWebhookNode
@@ -2228,12 +2023,6 @@ export type WorkflowNode =
   | WorkflowSwitchNode
   | WorkflowTransformNode
   | WorkflowLoopNode;
-
-export interface WorkflowTriggerNode {
-  type: "trigger";
-  delay_ms?: number;
-  schema?: Block[];
-}
 
 interface WorkflowHttpNodeBase {
   type: "http";
@@ -2292,6 +2081,14 @@ export type EmailDeliveryStatus =
   | "unknown"
   | "skipped";
 
+export interface EmailAttachmentReference {
+  filename: string;
+  mime_type: string;
+  blob_key: string;
+  content_sha256: string;
+  size_bytes: number;
+}
+
 export type EmailDeliveryType =
   | {
       type: "platform_auth_code";
@@ -2308,6 +2105,17 @@ export type EmailDeliveryType =
         customer_id: string;
         customer_session_id: string;
         identity_id: string;
+      };
+    }
+  | {
+      type: "audience_confirmation";
+      data: {
+        store_id: string;
+        audience_id: string;
+        membership_id: string;
+        customer_id: string;
+        email_identity_id: string;
+        workflow_execution_id: string;
       };
     }
   | {
@@ -2348,8 +2156,6 @@ export interface EmailDelivery {
   type: EmailDeliveryType;
   status: EmailDeliveryStatus;
   error?: EmailDeliveryError | null;
-  provider_message_id?: string | null;
-  provider_thread_id?: string | null;
   requested_at: number;
   processing_started_at?: number | null;
   completed_at?: number | null;
@@ -2461,7 +2267,7 @@ export interface WorkflowLoopNode {
 
 export type WorkflowHttpMethod = "get" | "post" | "put" | "patch" | "delete";
 
-export type ExecutionStatus =
+export type WorkflowExecutionStatus =
   "pending" | "running" | "completed" | "failed" | "cancelled";
 
 export interface NodeResult {
@@ -2475,65 +2281,65 @@ export interface NodeResult {
 
 export type WorkflowExecutionInput =
   | { type: "webhook"; payload: unknown }
-  | { type: "schedule"; schedule: string };
+  | { type: "schedule" };
 
 export interface WorkflowExecution {
   id: string;
   workflow_id: string;
   store_id: string;
-  status: ExecutionStatus;
-  result_count: number;
-  error?: string;
-  scheduled_at: number;
-  started_at: number;
-  completed_at?: number;
-  created_at: number;
-  updated_at: number;
-}
-
-export interface WorkflowExecutionDefinition {
-  id: string;
-  workflow_id: string;
-  workflow_execution_id: string;
-  store_id: string;
-  nodes: Record<string, WorkflowNode>;
-  edges: WorkflowEdge[];
-  created_at: number;
-}
-
-export interface WorkflowExecutionInputCapture {
-  id: string;
-  workflow_id: string;
-  workflow_execution_id: string;
-  store_id: string;
+  graph: WorkflowGraph;
   input: WorkflowExecutionInput;
-  created_at: number;
-}
-
-export interface WorkflowExecutionResults {
-  id: string;
-  workflow_id: string;
-  workflow_execution_id: string;
-  store_id: string;
   results: Record<string, NodeResult>;
+  status: WorkflowExecutionStatus;
+  error?: string | null;
+  scheduled_at: number;
+  started_at?: number | null;
+  completed_at?: number | null;
   created_at: number;
   updated_at: number;
+}
+
+export interface WorkflowExecutionListItem {
+  id: string;
+  workflow_id: string;
+  status: WorkflowExecutionStatus;
+  error?: string | null;
+  scheduled_at: number;
+  started_at?: number | null;
+  completed_at?: number | null;
+}
+
+export interface WorkflowExecutionStarted {
+  id: string;
+  status: WorkflowExecutionStatus;
 }
 
 export type WorkflowExternalOperationType =
-  "http_mutation" | "deploy_webhook" | "google_drive_upload";
+  | "http_mutation"
+  | "deploy_webhook"
+  | "google_drive_upload";
 
 export type WorkflowExternalOperationStatus =
-  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
+  | "requested"
+  | "processing"
+  | "succeeded"
+  | "rejected"
+  | "failed"
+  | "unknown";
 
-export interface WorkflowExternalOperationError {
-  type: "provider_call_not_started" | "provider_rejected" | "unknown_outcome";
-  message: string;
-  at: number;
-}
+export type WorkflowExternalOperationErrorType =
+  | "provider_call_not_started"
+  | "provider_rejected"
+  | "unknown_outcome";
 
 export interface WorkflowExternalOperationResult {
   output: unknown;
+}
+
+export interface WorkflowExternalOperationError {
+  type: WorkflowExternalOperationErrorType;
+  message: string;
+  at: number;
 }
 
 export interface WorkflowExternalOperation {
@@ -2542,6 +2348,7 @@ export interface WorkflowExternalOperation {
   workflow_id: string;
   execution_id: string;
   node_id: string;
+  iteration_key: string;
   type: WorkflowExternalOperationType;
   status: WorkflowExternalOperationStatus;
   requested_at: number;
@@ -2552,33 +2359,26 @@ export interface WorkflowExternalOperation {
   updated_at: number;
 }
 
+export type AudiencePaidCharge =
+  | { type: "one_time"; amount: number }
+  | { type: "monthly"; amount: number }
+  | { type: "yearly"; amount: number }
+  | {
+      type: "monthly_or_yearly";
+      monthly_amount: number;
+      yearly_amount: number;
+    };
+
 export type AudienceType =
   | { type: "private" }
   | { type: "open" }
-  | { type: "confirmation"; template_id: string; confirmation_url: string }
-  | { type: "paid" };
+  | { type: "confirmation" }
+  | { type: "paid"; currency: Currency; charge: AudiencePaidCharge };
 
-export interface AudiencePrice {
-  id: string;
-  currency: Currency;
-  amount: number;
-  compare_at?: number | null;
-  interval?: SubscriptionInterval | null;
-  status: AudiencePriceStatus;
-}
-
-export interface AudienceTier {
-  id: string;
-  key: string;
-  name: string;
-  description?: string | null;
-  benefits: string[];
-  status: AudienceTierStatus;
-  prices: AudiencePrice[];
-  payment_provider_id: string;
-  created_at: number;
-  updated_at: number;
-}
+export type StorefrontAudienceType = Exclude<
+  AudienceType,
+  { type: "private" }
+>;
 
 export type CustomerSessionStatus = "active" | "superseded" | "revoked";
 
@@ -2665,308 +2465,335 @@ export interface Customer {
   updated_at: number;
 }
 
-export interface AudienceAccessResponse {
-  has_access: boolean;
-  member?: StorefrontAudienceMemberState | null;
-}
-
-export interface AudienceManagementAudience {
-  id: string;
-  key: string;
-  name: string;
-  description?: string | null;
-  type: AudienceManagementType;
-}
-
-export type AudienceManagementType =
-  | { type: "private" }
-  | { type: "open" }
-  | { type: "confirmation" }
-  | { type: "paid" };
-
-export interface AudienceManagementMember {
-  id: string;
-  enrollment_status: AudienceMemberStatus;
-  delivery_status: AudienceDeliveryStatus;
-  access?: AudienceMemberAccess | null;
-  source: AudienceMemberSource;
-  created_at: number;
-  updated_at: number;
-}
-
-export interface AudienceManagementResponse {
-  has_access: boolean;
-  payment_method_update_available: boolean;
-  subscription_cancellation_available: boolean;
-  audience: AudienceManagementAudience;
-  member: AudienceManagementMember;
-}
-
-export interface AudiencePaymentMethodSessionResponse {
-  portal_url: string;
-}
-
-export interface AudienceSubscribeResponse {
-  payment_action: CheckoutPaymentAction;
-  payment?: StorefrontAudiencePaymentSummary | null;
-  member: StorefrontAudienceMemberState;
-}
-
-export type AudienceSubscriptionStatus =
-  | "pending"
-  | "active"
-  | "past_due"
-  | "cancellation_scheduled"
-  | "unpaid"
-  | "cancelled"
-  | "expired";
-
-export interface AudienceSubscription {
-  id: string;
-  tier_id: string;
-  price_id: string;
-  status: AudienceSubscriptionStatus;
-  current_period_start?: number | null;
-  current_period_end?: number | null;
-  cancel_at?: number | null;
-  ended_at?: number | null;
-  created_at: number;
-  updated_at: number;
-}
-
 export interface Audience {
   id: string;
-  version: number;
-  store_id: string;
   key: string;
   name: string;
-  description?: string | null;
   status: AudienceStatus;
   type: AudienceType;
-  source: AudienceSource;
-  digital_products: AudienceDigitalProduct[];
-  member_count: number;
   created_at: number;
   updated_at: number;
 }
-
-export interface AudienceDigitalProduct {
-  digital_product_id: string;
-  /** Empty means every current member; otherwise current Tier must match. */
-  tier_ids: string[];
-}
-
-export interface AudienceMember {
-  id: string;
-  version: number;
-  store_id: string;
-  customer_id: string;
-  audience_id: string;
-  source: AudienceMemberSource;
-  fields: Record<string, unknown>;
-  enrollment_status: AudienceMemberStatus;
-  delivery_status: AudienceDeliveryStatus;
-  access?: AudienceMemberAccess | null;
-  created_at: number;
-  updated_at: number;
-}
-
-export type RemoveAudienceMemberResult =
-  | { type: "removed"; member_id: string }
-  | { type: "subscription_cancellation_requested"; member_id: string }
-  | { type: "already_removed"; member_id: string };
-
-export type AudienceMemberAccessSource =
-  | { type: "one_time"; payment_id: string }
-  | { type: "subscription"; subscription_id: string };
-
-export interface AudienceMemberAccess {
-  source: AudienceMemberAccessSource;
-  tier_id: string;
-  starts_at?: number | null;
-  ends_at?: number | null;
-}
-
-export type StorefrontAudienceType = "open" | "confirmation" | "paid";
 
 export interface StorefrontAudience {
   id: string;
   key: string;
   name: string;
-  description?: string | null;
   type: StorefrontAudienceType;
 }
 
-export interface StorefrontAudienceTier {
-  id: string;
-  key: string;
-  name: string;
-  description?: string | null;
-  benefits: string[];
-  prices: StorefrontAudiencePrice[];
+export type AudienceMembershipStatus =
+  | { type: "pending" }
+  | { type: "subscribed"; subscribed_at: number }
+  | {
+      type: "unsubscribed";
+      unsubscribed_at: number;
+      reason: AudienceUnsubscribeReason;
+    };
+
+export type AudienceCheckoutState =
+  | { type: "starting" }
+  | { type: "awaiting_customer"; checkout_id: string; expires_at: number }
+  | { type: "awaiting_settlement"; checkout_id: string }
+  | { type: "failed"; checkout_id: string }
+  | { type: "expired"; checkout_id: string };
+
+export interface AudienceBillingTerms {
+  money: Money;
+  cadence: AudienceBillingCadence;
 }
 
-export interface StorefrontAudiencePrice {
-  id: string;
-  currency: Currency;
-  amount: number;
-  compare_at?: number | null;
-  interval?: SubscriptionInterval | null;
-}
+export type AudienceOneTimeState =
+  | { type: "current" }
+  | { type: "fully_refunded"; refunded_at: number }
+  | { type: "revoked"; revoked_at: number };
 
-export interface StorefrontAudiencePaymentSummary {
-  id: string;
-  tier_id: string;
-  amount: number;
-  currency: Currency;
-  interval?: SubscriptionInterval | null;
-  status: AudiencePaymentStatus;
-}
+export type AudienceSubscriptionState =
+  | { type: "awaiting_first_payment" }
+  | { type: "active"; paid_through: number }
+  | { type: "past_due"; paid_through: number }
+  | { type: "unpaid"; since: number }
+  | { type: "cancelled"; ended_at: number };
 
-export interface StorefrontAudienceSubscription {
+export type AudienceCancellation =
+  | { type: "period_end_pending" }
+  | { type: "period_end_scheduled"; cancel_at: number }
+  | { type: "immediate_pending" }
+  | { type: "failed" };
+
+export type AudienceMembershipType =
+  | { type: "free" }
+  | { type: "confirmation_pending"; expires_at: number }
+  | {
+      type: "paid_checkout";
+      terms: AudienceBillingTerms;
+      state: AudienceCheckoutState;
+    }
+  | {
+      type: "one_time";
+      terms: AudienceBillingTerms;
+      state: AudienceOneTimeState;
+    }
+  | {
+      type: "subscription";
+      terms: AudienceBillingTerms;
+      state: AudienceSubscriptionState;
+      cancellation: AudienceCancellation | null;
+    };
+
+export interface AudienceMembership {
   id: string;
-  tier_id: string;
-  price_id: string;
-  status: AudienceSubscriptionStatus;
-  current_period_start?: number | null;
-  current_period_end?: number | null;
-  cancel_at?: number | null;
-  ended_at?: number | null;
+  customer_id: string;
+  email_identity_id: string;
+  status: AudienceMembershipStatus;
+  type: AudienceMembershipType;
+  insight: Record<string, unknown>;
   created_at: number;
   updated_at: number;
 }
 
-export interface StorefrontAudienceMemberState {
+export interface CustomerAudienceMembership {
   id: string;
-  enrollment_status: AudienceMemberStatus;
-  delivery_status: AudienceDeliveryStatus;
-  access?: AudienceMemberAccess | null;
+  audience_id: string;
+  status: AudienceMembershipStatus;
+  type: AudienceMembershipType;
   created_at: number;
   updated_at: number;
 }
 
-export interface StorefrontAudienceMember {
+export type AudienceJoinResult =
+  | { type: "accepted" }
+  | { type: "membership"; membership: CustomerAudienceMembership };
+
+export interface StartAudienceCheckoutResult {
+  checkout_id: string;
+  publishable_key: string;
+  client_secret: string;
+  connected_account_id: string;
+  expires_at: number;
+}
+
+export interface AudienceBillingPortalSession {
+  portal_url: string;
+}
+
+export interface AudienceMembershipBilling {
+  rows: AudienceMembershipBillingRow[];
+  stripe_dashboard_url: string | null;
+}
+
+export interface AudienceMembershipBillingRow {
+  selector: string;
+  money: Money;
+  refunded: Money;
+  remaining: Money;
+  paid_at: number;
+  period: AudienceBillingTimeRange | null;
+  receipt_url: string | null;
+  invoice_url: string | null;
+}
+
+export interface AudienceBillingTimeRange {
+  from: number;
+  to: number;
+}
+
+export type AudienceRefundStatus =
+  | "requested"
+  | "processing"
+  | "pending"
+  | "succeeded"
+  | "failed"
+  | "unknown";
+
+export type AudienceRefundReason =
+  | "customer_request"
+  | "duplicate"
+  | "fraudulent"
+  | "other";
+
+export type AudienceSystemRefundReason = "store_closure" | "late_charge";
+
+export type AudienceRefundRequester =
+  | {
+      type: "account";
+      account_id: string;
+      reason: AudienceRefundReason;
+      private_note: string | null;
+    }
+  | { type: "system"; reason: AudienceSystemRefundReason }
+  | { type: "stripe" };
+
+export interface AudienceRefund {
   id: string;
-  enrollment_status: AudienceMemberStatus;
-  delivery_status: AudienceDeliveryStatus;
-  access?: AudienceMemberAccess | null;
-  audience: StorefrontAudience;
-  payment?: StorefrontAudiencePaymentSummary | null;
+  audience_id: string;
+  membership_id: string;
+  payer_customer_id: string;
+  charge: Money;
+  amount: Money;
+  requester: AudienceRefundRequester;
+  status: AudienceRefundStatus;
   created_at: number;
   updated_at: number;
 }
 
-export interface ActivityLocation {
+export type AudienceDisputeResponse =
+  | { type: "due_at"; due_at: number }
+  | { type: "response_not_allowed" };
+
+export type AudienceDisputeStatus =
+  | {
+      type: "warning_needs_response";
+      response: AudienceDisputeResponse;
+    }
+  | { type: "warning_under_review" }
+  | { type: "warning_closed" }
+  | { type: "needs_response"; response: AudienceDisputeResponse }
+  | { type: "under_review" }
+  | { type: "won" }
+  | { type: "lost" }
+  | { type: "prevented" };
+
+export interface AudienceDispute {
+  id: string;
+  audience_id: string;
+  membership_id: string;
+  payer_customer_id: string;
+  charge: Money;
+  disputed: Money;
+  reason: string;
+  status: AudienceDisputeStatus;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface CustomerActionLocation {
   country_code?: string | null;
   city?: string | null;
   region?: string | null;
   timezone?: string | null;
 }
 
-export interface ActivityDevice {
+export interface CustomerActionDevice {
   device_type?: string | null;
   browser?: string | null;
   os?: string | null;
   language?: string | null;
 }
 
-export interface ActivitySession {
+export interface CustomerActionSession {
   idx?: number | null;
 }
 
-export interface ActivityContext {
-  location?: ActivityLocation | null;
-  device?: ActivityDevice | null;
-  session?: ActivitySession | null;
+export interface CustomerActionContext {
+  location?: CustomerActionLocation | null;
+  device?: CustomerActionDevice | null;
+  session?: CustomerActionSession | null;
 }
 
-export interface SocialActivityAuthor {
-  provider_user_id?: string | null;
-  name?: string | null;
-  handle?: string | null;
+export type CustomerActionOrigin =
+  | { type: "customer_session"; customer_session_id: string }
+  | { type: "account_session"; account_session_id: string }
+  | { type: "import"; account_session_id: string }
+  | { type: "workflow"; workflow_execution_id: string }
+  | { type: "lead_research"; assistant_message_id: string }
+  | { type: "confirmation_capability"; membership_id: string }
+  | { type: "unsubscribe_capability"; membership_id: string }
+  | {
+      type: "stripe";
+      payment_provider_id: string;
+      observation: CustomerActionProviderObservation;
+    }
+  | { type: "system" };
+
+export type CustomerActionProviderObservation =
+  | {
+      type: "stripe_event";
+      event_id: string;
+      event_created_at: number;
+    }
+  | {
+      type: "exact_read";
+      observed_at: number;
+      provider_updated_at?: number | null;
+    };
+
+export type AudienceMembershipJoinSource =
+  | "private_admin"
+  | "import"
+  | "workflow"
+  | "lead_research"
+  | "open"
+  | "confirmation"
+  | "paid";
+
+export type AudienceBillingCadence = "one_time" | "monthly" | "yearly";
+
+export type AudienceUnsubscribeReason =
+  | "customer_email_opt_out"
+  | "customer_left"
+  | "admin_ended"
+  | "billing_ended"
+  | "fully_refunded"
+  | "store_closure";
+
+export type AudienceCancellationTiming = "period_end" | "immediate";
+
+export interface AudienceActionTimeRange {
+  from: number;
+  to: number;
 }
 
-export type OpportunityType =
-  | "lead"
-  | "support"
-  | "complaint"
-  | "question"
-  | "upsell"
-  | "partnership"
-  | "engagement";
+export type AudienceRefundActionStatus =
+  | "requested"
+  | "processing"
+  | "pending"
+  | "succeeded"
+  | "failed"
+  | "unknown";
 
-export type OpportunityStage =
-  "new" | "reviewing" | "contacted" | "won" | "lost" | "dismissed";
+export type AudienceDisputeActionStatus =
+  | "needs_response"
+  | "under_review"
+  | "won"
+  | "lost"
+  | "closed";
 
-export type OpportunitySource =
+export type CustomerActionType =
   | {
-      type: "social_comment";
-      publication_id: string;
-      comment_id: string;
-      activity_id?: string | null;
-    }
-  | {
-      type: "form_submission";
-      form_id: string;
-      submission_id: string;
-    }
-  | {
-      type: "tracked";
-      key: string;
-      activity_id?: string | null;
-    }
-  | { type: "manual" };
-
-export type ActivityData =
-  | {
-      type: "tracked";
+      type: "custom";
       value: {
         key: string;
-        payload: Record<string, unknown>;
-        context?: ActivityContext | null;
+        data: Record<string, unknown>;
       };
     }
   | {
       type: "form_submission";
       value: {
         form_id: string;
-        form_key: string;
         submission_id: string;
-        field_keys: string[];
-        context?: ActivityContext | null;
       };
     }
   | {
       type: "social_comment";
       value: {
         social_connection_id: string;
-        type: SocialConnectionType;
-        publication_id: string;
+        post_id: string;
         comment_id: string;
-        provider_comment_id: string;
-        provider_parent_comment_id?: string | null;
-        author: SocialActivityAuthor;
-        text: string;
       };
     }
   | {
       type: "social_reply";
       value: {
         social_connection_id: string;
-        type: SocialConnectionType;
-        publication_id: string;
+        post_id: string;
         comment_id: string;
-        provider_comment_id?: string | null;
-        provider_comment_url?: string | null;
-        text: string;
       };
     }
   | {
       type: "order";
       value: {
         order_id: string;
-        status: string;
-        total?: number | null;
       };
     }
   | {
@@ -2975,50 +2802,136 @@ export type ActivityData =
         campaign_id: string;
         enrollment_id: string;
         message_id: string;
-        text: string;
       };
     }
   | {
-      type: "direct_message";
+      type: "audience_membership_joined";
       value: {
-        social_connection_id: string;
-        type: SocialConnectionType;
-        thread_id: string;
-        message_id: string;
-        text: string;
+        audience_id: string;
+        membership_id: string;
+        source: AudienceMembershipJoinSource;
       };
     }
   | {
-      type: "manual";
+      type: "audience_confirmation_requested" | "audience_confirmation_completed";
+      value: { audience_id: string; membership_id: string };
+    }
+  | {
+      type: "audience_membership_unsubscribed";
       value: {
-        text: string;
-        account_id?: string | null;
+        audience_id: string;
+        membership_id: string;
+        reason: AudienceUnsubscribeReason;
       };
     }
   | {
-      type: "opportunity";
+      type:
+        | "audience_membership_resubscribed"
+        | "audience_membership_left"
+        | "audience_membership_insight_replaced"
+        | "audience_checkout_failed"
+        | "audience_renewal_failed";
+      value: { audience_id: string; membership_id: string };
+    }
+  | {
+      type: "audience_checkout_started";
       value: {
-        type: OpportunityType;
-        stage: OpportunityStage;
-        score?: number | null;
-        reason?: string | null;
-        suggested_next_action?: string | null;
-        source: OpportunitySource;
-        lead?: LeadInsight | null;
+        audience_id: string;
+        membership_id: string;
+        checkout_id: string;
+        money: Money;
+        cadence: AudienceBillingCadence;
+      };
+    }
+  | {
+      type: "audience_membership_paid";
+      value: {
+        audience_id: string;
+        membership_id: string;
+        money: Money;
+        cadence: AudienceBillingCadence;
+      };
+    }
+  | {
+      type: "audience_membership_renewed";
+      value: {
+        audience_id: string;
+        membership_id: string;
+        money: Money;
+        period: AudienceActionTimeRange;
+      };
+    }
+  | {
+      type: "audience_cancellation_requested";
+      value: {
+        audience_id: string;
+        membership_id: string;
+        cancellation_id: string;
+        timing: AudienceCancellationTiming;
+      };
+    }
+  | {
+      type: "audience_cancellation_scheduled";
+      value: {
+        audience_id: string;
+        membership_id: string;
+        cancellation_id: string;
+        cancel_at: number;
+      };
+    }
+  | {
+      type: "audience_cancellation_completed";
+      value: {
+        audience_id: string;
+        membership_id: string;
+        cancellation_id: string;
+        ended_at: number;
+      };
+    }
+  | {
+      type: "audience_refund_requested";
+      value: {
+        audience_id: string;
+        membership_id: string;
+        refund_id: string;
+        amount: Money;
+      };
+    }
+  | {
+      type: "audience_refund_changed";
+      value: {
+        audience_id: string;
+        membership_id: string;
+        refund_id: string;
+        status: AudienceRefundActionStatus;
+      };
+    }
+  | {
+      type: "audience_dispute_observed";
+      value: {
+        audience_id: string;
+        membership_id: string;
+        dispute_id: string;
+        disputed: Money;
+      };
+    }
+  | {
+      type: "audience_dispute_changed";
+      value: {
+        audience_id: string;
+        membership_id: string;
+        dispute_id: string;
+        status: AudienceDisputeActionStatus;
       };
     };
 
-export interface Activity {
+export interface CustomerAction {
   id: string;
   store_id: string;
   customer_id: string;
-  customer_session_id: string | null;
-  key: string;
-  type: ActivityData["type"];
-  preview_text?: string | null;
+  origin: CustomerActionOrigin;
+  type: CustomerActionType;
   occurred_at: number;
-  created_at: number;
-  data: ActivityData;
 }
 
 export interface Mailbox {
@@ -3039,86 +2952,25 @@ export interface Mailbox {
   updated_at: number;
 }
 
-export interface OutreachStep {
-  id?: string;
-  position?: number;
-  delay_seconds?: number;
-  type?: OutreachStepType;
-}
-
-export interface OutreachPersonalizationCounters {
-  total_profiles: number;
-  draft_messages: number;
-  generated_messages: number;
-  template_messages: number;
-  failed_messages: number;
-}
-
-export interface CampaignPersonalization {
+export interface CampaignStep {
   id: string;
-  store_id: string;
-  campaign_id: string;
-  run_id: string;
-  status: OutreachPersonalizationStatus;
-  step_position?: number | null;
-  customer_ids: string[];
-  overwrite: boolean;
-  instructions?: string | null;
-  error?: string | null;
-  counters: OutreachPersonalizationCounters;
-  started_at?: number | null;
-  completed_at?: number | null;
-  created_at: number;
-  updated_at: number;
-}
-
-export interface CampaignLaunchState {
-  revision: number;
-  status: CampaignLaunchStatus;
-  requested_at: number | null;
-  processing_started_at: number | null;
-  completed_at: number | null;
-  error: string | null;
+  delay_seconds: number;
+  subject: string;
+  body_text: string;
+  body_html?: string | null;
+  media_ids: string[];
+  thread_mode: CampaignThreadMode;
 }
 
 export interface Campaign {
   id: string;
   store_id: string;
-  key: string;
   name: string;
   mailbox_ids: string[];
   status: CampaignStatus;
-  launch: CampaignLaunchState;
-  steps: OutreachStep[];
-  launched_at?: number | null;
+  steps: CampaignStep[];
   created_at: number;
   updated_at: number;
-}
-
-export interface CampaignLaunchReadiness {
-  ready: boolean;
-  blockers: string[];
-  warnings: string[];
-  customer_count: number;
-  sender_count: number;
-  step_count: number;
-  daily_capacity: number;
-  expected_drafts: number;
-  draft_count: number;
-  pending_drafts: number;
-  generated_drafts: number;
-  template_drafts: number;
-  edited_drafts: number;
-  personalization_errors: number;
-  stale_drafts: number;
-  suppression_count: number;
-}
-
-export interface CampaignEnrollmentImportResult {
-  imported_count: number;
-  existing_count: number;
-  skipped_count: number;
-  draft_count: number;
 }
 
 export interface CampaignEnrollment {
@@ -3126,19 +2978,19 @@ export interface CampaignEnrollment {
   store_id: string;
   campaign_id: string;
   customer_id: string;
-  audience_member_id?: string | null;
-  audience_tier_id?: string | null;
-  import_source: CampaignEnrollmentImportSource;
-  import_source_id?: string | null;
-  imported_at?: number | null;
-  mailbox_id?: string | null;
-  lead_description?: string | null;
-  fields: Record<string, unknown>;
+  customer_identity_id: string;
+  audience_membership_id?: string | null;
+  mailbox_id: string;
   status: CampaignEnrollmentStatus;
-  current_step_position: number;
-  next_action_at?: number | null;
   created_at: number;
   updated_at: number;
+}
+
+export interface EnrollCampaignResult {
+  created_count: number;
+  existing_count: number;
+  rejected_count: number;
+  created_enrollment_ids: string[];
 }
 
 export interface CampaignMessage {
@@ -3146,27 +2998,10 @@ export interface CampaignMessage {
   store_id: string;
   campaign_id: string;
   campaign_enrollment_id: string;
-  customer_id: string;
-  mailbox_id: string;
-  content: CampaignMessageContent;
-  step_id?: string | null;
-  step_position?: number | null;
-  template_copy_hash?: string | null;
-  copy_source: CampaignMessageCopySource;
-  personalization_run_id?: string | null;
-  personalization_processing_deadline_at?: number | null;
-  personalized_at?: number | null;
-  edited_at?: number | null;
-  personalization_error?: string | null;
-  in_reply_to_message_id?: string | null;
-  status: CampaignMessageStatus;
-  provider_message_id?: string | null;
-  provider_thread_id?: string | null;
-  error?: string | null;
-  due_at?: number | null;
-  completed_at?: number | null;
-  sent_at?: number | null;
-  received_at?: number | null;
+  position: number;
+  parent_message_id?: string | null;
+  type: CampaignMessageType;
+  content: CampaignEmailContent;
   created_at: number;
   updated_at: number;
 }
@@ -3175,41 +3010,18 @@ export interface CampaignEmailContent {
   to_email: string;
   from_email: string;
   subject: string;
-  body: string;
+  body_text: string;
   body_html?: string | null;
-  template_id?: string | null;
-  template_vars: Record<string, unknown>;
-  attachments: string[];
 }
 
-export interface CampaignChannelTarget {
-  channel_id: string;
-  type: AudienceOutreachChannel;
-  label?: string | null;
-  value: string;
+export interface CampaignConversationMessage {
+  message: CampaignMessage;
+  delivery?: EmailDelivery | null;
 }
-
-export interface CampaignManualTaskContent {
-  target_channel_type?: AudienceOutreachChannel | null;
-  target?: CampaignChannelTarget | null;
-  title: string;
-  instructions: string;
-  suggested_message?: string | null;
-  external_url?: string | null;
-  continue_behavior: ManualTaskContinueBehavior;
-  outcome?: CampaignManualTaskOutcome | null;
-  note?: string | null;
-}
-
-export type CampaignMessageContent =
-  | { type: "campaign_step_email"; data: CampaignEmailContent }
-  | { type: "manual_task"; data: CampaignManualTaskContent }
-  | { type: "manual_reply"; data: CampaignEmailContent }
-  | { type: "inbound_reply"; data: CampaignEmailContent };
 
 export interface CampaignEnrollmentConversationResponse {
   enrollment: CampaignEnrollment;
-  messages: CampaignMessage[];
+  messages: PaginatedResponse<CampaignConversationMessage>;
 }
 
 export interface Suppression {
@@ -3224,119 +3036,64 @@ export interface Suppression {
   updated_at: number;
 }
 
-export type LeadResearchRunStatus =
-  "draft" | "running" | "completed" | "failed" | "unknown" | "cancelled";
-
-export type LeadEmailClassification =
-  | "official_domain"
-  | "role_official"
-  | "personal_official"
-  | "free_mail"
-  | "unusable"
-  | "unknown";
-
-export type LeadValidationCheckStatus =
-  "passed" | "warning" | "failed" | "unknown";
-
-export type CampaignRoute =
-  "email_only" | "email_manual_followup" | "manual_only" | "needs_review";
-
-export interface LeadScores {
-  fit: number;
-  problem: number;
-  channel: number;
-  intent: number;
-  data_quality: number;
-}
-
-export interface ChannelMessage {
-  type: AudienceOutreachChannel;
-  subject?: string | null;
-  body: string;
-}
-
-export interface LeadInsight {
-  company?: string | null;
-  contact_name?: string | null;
-  website?: string | null;
-  industry?: string | null;
-  location?: string | null;
-  company_description?: string | null;
-  pain_points: string[];
-  fit_reason?: string | null;
-  scores: LeadScores;
-  best_channel?: AudienceOutreachChannel | null;
-  backup_channel?: AudienceOutreachChannel | null;
-  route: CampaignRoute;
-  first_messages: ChannelMessage[];
-  run_id?: string | null;
-  source_url?: string | null;
-  source_excerpt?: string | null;
-}
-
-export interface AudienceLead {
+export interface LeadResearch {
   id: string;
   store_id: string;
   audience_id: string;
-  member_id: string;
-  insight: LeadInsight;
+  title: string;
   created_at: number;
-  updated_at: number;
 }
 
-export interface LeadResearchRun {
-  id: string;
-  store_id: string;
-  audience_id: string;
-  title?: string | null;
-  status: LeadResearchRunStatus;
-  error?: string | null;
-  started_at?: number | null;
-  processing_deadline_at?: number | null;
-  completed_at?: number | null;
-  created_at: number;
-  updated_at: number;
-}
+export type LeadResearchAssistantFailureReason =
+  | "pre_call"
+  | "provider_rejected";
 
-export interface LeadValidationCheck {
-  key: string;
-  status: LeadValidationCheckStatus;
-  message: string;
-}
+export type LeadResearchAssistantMessageStatus =
+  | { status: "requested" }
+  | { status: "processing"; deadline_at: number }
+  | { status: "completed"; content: string; completed_at: number }
+  | {
+      status: "failed";
+      reason: LeadResearchAssistantFailureReason;
+      error: string;
+      failed_at: number;
+    }
+  | { status: "unknown"; error: string; detected_at: number }
+  | {
+      status: "cancelled";
+      cancelled_by_account_session_id: string;
+      cancelled_at: number;
+    };
 
-export interface LeadEmailValidationResult {
-  email: string;
-  normalized_email?: string | null;
-  domain?: string | null;
-  classification: LeadEmailClassification;
-  confidence: number;
-  importable: boolean;
-  hard_blockers: string[];
-  checks: LeadValidationCheck[];
-}
-
-export type LeadResearchMessageRole =
-  "system" | "user" | "assistant" | "action";
+export type LeadResearchMessageType =
+  | {
+      type: "account";
+      account_session_id: string;
+      content: string;
+    }
+  | {
+      type: "assistant";
+      responds_to_message_id: string;
+      requested_by_account_session_id: string;
+      status: LeadResearchAssistantMessageStatus;
+    };
 
 export interface LeadResearchMessage {
   id: string;
   store_id: string;
-  run_id: string;
-  role: LeadResearchMessageRole;
-  content: string;
-  metadata?: Record<string, unknown> | null;
+  lead_research_id: string;
+  position: number;
+  type: LeadResearchMessageType;
   created_at: number;
 }
 
-export interface ResearchAudienceMember {
-  customer: Customer;
-  member: AudienceMember;
+export interface LeadResearchMessagePair {
+  account_message: LeadResearchMessage;
+  assistant_message: LeadResearchMessage;
 }
 
-export interface SendLeadResearchMessageResult {
-  response: string;
-  run: LeadResearchRun;
-  audience_members: ResearchAudienceMember[];
+export interface LeadResearchCreated extends LeadResearchMessagePair {
+  lead_research: LeadResearch;
 }
 
 export type EventAction =
@@ -3590,14 +3347,6 @@ export type PromotionDiscount =
       type: "shipping_percentage";
       id: string;
       market: string;
-      basis_points: number;
-    }
-  | {
-      type: "audience_percentage";
-      id: string;
-      audience_id: string;
-      tier_ids: string[];
-      price_ids: string[];
       basis_points: number;
     };
 

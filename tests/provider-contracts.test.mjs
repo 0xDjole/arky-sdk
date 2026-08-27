@@ -1332,29 +1332,27 @@ test("payment dispute history uses the canonical order-scoped read", async () =>
   assert.deepEqual(result, response);
 });
 
-test("workflow trigger keeps arbitrary object data while the path secret wins", async () => {
+test("workflow webhook keeps arbitrary object payload data", async () => {
   const response = {
     id: "execution-trigger-contract",
-    input: {
-      type: "webhook",
-      payload: { order: { id: "order-contract" }, tags: ["one", "two"] },
-    },
+    status: "pending",
   };
   const { calls, result } = await captureFetch(response, () =>
-    admin().workflow.trigger({
-      secret: "path-secret-contract",
-      order: { id: "order-contract" },
-      tags: ["one", "two"],
+    admin().workflow.invokeWebhook({
+      webhook_url: `${baseUrl}/v1/workflows/webhooks/path-secret-contract`,
+      payload: {
+        order: { id: "order-contract" },
+        tags: ["one", "two"],
+      },
     }),
   );
 
   assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/workflows/trigger/path-secret-contract`,
+      url: `${baseUrl}/v1/workflows/webhooks/path-secret-contract`,
       method: "POST",
       body: { order: { id: "order-contract" }, tags: ["one", "two"] },
     },
   ]);
   assert.deepEqual(result, response);
-  assert.equal("secret" in calls[0].body, false);
 });

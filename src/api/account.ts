@@ -5,6 +5,7 @@ import type {
   GetMeParams,
   RequestOptions,
   SearchAccountsParams,
+  UpdatePlatformRoleParams,
   UpdateAccountApiTokenParams,
 } from "../types/api";
 import type {
@@ -40,6 +41,17 @@ export const createAccountApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.get<PaginatedResponse<Account>>(
       "/v1/accounts/search",
       { ...options, params },
+    );
+  },
+
+  async updatePlatformRole(
+    params: UpdatePlatformRoleParams,
+    options?: RequestOptions,
+  ): Promise<Account> {
+    return apiConfig.httpClient.patch<Account>(
+      "/v1/accounts/platform-role",
+      params,
+      options,
     );
   },
 
