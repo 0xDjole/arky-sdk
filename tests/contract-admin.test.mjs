@@ -89,6 +89,8 @@ const arky = createAdmin({
   apiToken: "contract-token",
 });
 
+assert.equal("suppression" in arky, false);
+
 assert.equal(typeof arky.account.auth.code, "function");
 assert.equal(typeof arky.account.auth.verify, "function");
 assert.equal(typeof arky.account.auth.refresh, "function");
@@ -378,6 +380,125 @@ assert.equal(typeof arky.social.posts.messages.create, "function");
 assert.equal(typeof arky.social.posts.messages.sync, "function");
 assert.equal("publication" in arky.social, false);
 
+const socialFetchCalls = [];
+const socialOriginalFetch = globalThis.fetch;
+globalThis.fetch = async (url, init = {}) => {
+  socialFetchCalls.push({
+    url: String(url),
+    method: init.method,
+    body: init.body,
+  });
+  return new Response(JSON.stringify({}), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+};
+try {
+  await arky.social.connections.find();
+  await arky.social.connections.connect({ type: "facebook_page" });
+  await arky.social.connections.disconnect({ connection_id: "connection-1" });
+  await arky.social.posts.find({
+    social_connection_id: "connection-1",
+    limit: 25,
+    cursor: "post-cursor",
+  });
+  await arky.social.posts.create({
+    social_connection_id: "connection-1",
+    content: {
+      type: "facebook_page",
+      text: "Exact Social post",
+      media_ids: [],
+      link_url: null,
+    },
+    publish_at: 123,
+  });
+  await arky.social.posts.get({ post_id: "post-1" });
+  await arky.social.posts.cancel({ post_id: "post-1" });
+  await arky.social.posts.messages.find({
+    post_id: "post-1",
+    parent_message_id: "parent-1",
+    limit: 20,
+    cursor: "message-cursor",
+  });
+  await arky.social.posts.messages.create({
+    post_id: "post-1",
+    id: "message-1",
+    parent_message_id: "parent-1",
+    text: "Exact Social reply",
+  });
+  await arky.social.posts.messages.sync({
+    post_id: "post-1",
+    sync: {
+      type: {
+        type: "top_level",
+        cursor: null,
+        limit: 20,
+      },
+    },
+  });
+} finally {
+  globalThis.fetch = socialOriginalFetch;
+}
+
+assert.deepEqual(
+  socialFetchCalls.map(({ method, url }) => [method, new URL(url).pathname]),
+  [
+    ["GET", "/v1/stores/contract-store/social/connections"],
+    ["POST", "/v1/stores/contract-store/social/connections/connect"],
+    [
+      "POST",
+      "/v1/stores/contract-store/social/connections/connection-1/disconnect",
+    ],
+    ["GET", "/v1/stores/contract-store/social/posts"],
+    ["POST", "/v1/stores/contract-store/social/posts"],
+    ["GET", "/v1/stores/contract-store/social/posts/post-1"],
+    ["POST", "/v1/stores/contract-store/social/posts/post-1/cancel"],
+    ["GET", "/v1/stores/contract-store/social/posts/post-1/messages"],
+    ["POST", "/v1/stores/contract-store/social/posts/post-1/messages"],
+    [
+      "POST",
+      "/v1/stores/contract-store/social/posts/post-1/messages/sync",
+    ],
+  ],
+);
+assert.deepEqual(JSON.parse(socialFetchCalls[1].body), {
+  type: "facebook_page",
+});
+assert.deepEqual(JSON.parse(socialFetchCalls[2].body), {});
+const socialPostsQuery = new URL(socialFetchCalls[3].url).searchParams;
+assert.equal(socialPostsQuery.get("social_connection_id"), "connection-1");
+assert.equal(socialPostsQuery.get("limit"), "25");
+assert.equal(socialPostsQuery.get("cursor"), "post-cursor");
+assert.deepEqual(JSON.parse(socialFetchCalls[4].body), {
+  social_connection_id: "connection-1",
+  content: {
+    type: "facebook_page",
+    text: "Exact Social post",
+    media_ids: [],
+    link_url: null,
+  },
+  publish_at: 123,
+});
+assert.deepEqual(JSON.parse(socialFetchCalls[6].body), {});
+const socialMessagesQuery = new URL(socialFetchCalls[7].url).searchParams;
+assert.equal(socialMessagesQuery.get("parent_message_id"), "parent-1");
+assert.equal(socialMessagesQuery.get("limit"), "20");
+assert.equal(socialMessagesQuery.get("cursor"), "message-cursor");
+assert.deepEqual(JSON.parse(socialFetchCalls[8].body), {
+  id: "message-1",
+  parent_message_id: "parent-1",
+  text: "Exact Social reply",
+});
+assert.deepEqual(JSON.parse(socialFetchCalls[9].body), {
+  sync: {
+    type: {
+      type: "top_level",
+      cursor: null,
+      limit: 20,
+    },
+  },
+});
+
 assert.equal(typeof arky.workflow.listConnections, "function");
 assert.equal(
   typeof arky.workflow.getConnectionConnectUrl,
@@ -620,5 +741,353 @@ assert.deepEqual(
     ],
   ],
 );
+
+assert.equal(typeof arky.analytics.get, "function");
+const analyticsCalls = [];
+globalThis.fetch = async (url, init = {}) => {
+  analyticsCalls.push({
+    url: String(url),
+    method: init.method,
+    body: init.body ? JSON.parse(String(init.body)) : null,
+  });
+  return new Response(JSON.stringify({ time: { from: 0, to: 1 }, reports: [] }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+};
+try {
+  await arky.analytics.get(
+    {
+      time: { from: 86_400_000, to: 172_800_000 },
+      reports: [
+        {
+          key: "recent_customer_action",
+          limit: 100,
+          category: "customer_actions",
+          cursor_created_at: 86_400_000,
+          cursor_id: "fact next",
+        },
+      ],
+    },
+    { store_id: "override-store" },
+  );
+} finally {
+  globalThis.fetch = originalFetch;
+}
+assert.deepEqual(analyticsCalls, [
+  {
+    url: "http://127.0.0.1:1/v1/stores/override-store/analytics",
+    method: "POST",
+    body: {
+      time: { from: 86_400_000, to: 172_800_000 },
+      reports: [
+        {
+          key: "recent_customer_action",
+          limit: 100,
+          category: "customer_actions",
+          cursor_created_at: 86_400_000,
+          cursor_id: "fact next",
+        },
+      ],
+    },
+  },
+]);
+
+for (const method of ["getCurrencies", "getWebhookEvents"]) {
+  assert.equal(typeof arky.platform[method], "function");
+}
+const platformCalls = [];
+globalThis.fetch = async (url, init = {}) => {
+  platformCalls.push({ url: String(url), method: init.method, body: init.body ?? null });
+  return new Response(JSON.stringify([]), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+};
+try {
+  await arky.platform.getCurrencies();
+  await arky.platform.getWebhookEvents();
+} finally {
+  globalThis.fetch = originalFetch;
+}
+assert.deepEqual(platformCalls, [
+  {
+    url: "http://127.0.0.1:1/v1/platform/currencies",
+    method: "GET",
+    body: null,
+  },
+  {
+    url: "http://127.0.0.1:1/v1/platform/events",
+    method: "GET",
+    body: null,
+  },
+]);
+
+for (const method of [
+  "create",
+  "update",
+  "delete",
+  "get",
+  "regenerateWebhookUrl",
+  "find",
+  "invokeWebhook",
+  "getExecutions",
+  "getExecution",
+]) {
+  assert.equal(
+    typeof arky.workflow[method],
+    "function",
+    `Admin Workflow must expose ${method}`,
+  );
+}
+for (const obsolete of [
+  "getDefinition",
+  "replaceDefinition",
+  "getTrigger",
+  "rotateTrigger",
+  "getExecutionDefinition",
+  "getExecutionInput",
+  "getExecutionResults",
+]) {
+  assert.equal(obsolete in arky.workflow, false);
+}
+
+const workflowCoreCalls = [];
+globalThis.fetch = async (url, init = {}) => {
+  workflowCoreCalls.push({
+    url: String(url),
+    method: init.method,
+    body: init.body ? JSON.parse(String(init.body)) : null,
+  });
+  if (init.method === "DELETE") {
+    return new Response(null, { status: 204 });
+  }
+  const body = String(url).includes("?")
+    ? { items: [], cursor: null }
+    : {};
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+};
+try {
+  const graph = {
+    nodes: {
+      start: { type: "transform", code: "input", delay_ms: null },
+    },
+    edges: [],
+  };
+  await arky.workflow.create({
+    key: "customer_welcome",
+    status: "active",
+    schedule: null,
+    graph,
+  });
+  await arky.workflow.update({
+    store_id: "override-store",
+    id: "workflow-contract",
+    key: "customer_welcome_v2",
+    status: "draft",
+    schedule: null,
+    graph,
+  });
+  await arky.workflow.delete({ id: "workflow-contract" });
+  await arky.workflow.get({ id: "workflow-contract" });
+  await arky.workflow.regenerateWebhookUrl({
+    workflow_id: "workflow-contract",
+  });
+  await arky.workflow.find({
+    status: "active",
+    limit: 20,
+    cursor: "next page",
+  });
+  await arky.workflow.getExecutions({
+    workflow_id: "workflow-contract",
+    status: "running",
+    limit: 10,
+    cursor: "execution page",
+  });
+  await arky.workflow.getExecution({
+    workflow_id: "workflow-contract",
+    execution_id: "execution-contract",
+  });
+} finally {
+  globalThis.fetch = originalFetch;
+}
+assert.deepEqual(workflowCoreCalls, [
+  {
+    url: "http://127.0.0.1:1/v1/stores/contract-store/workflows",
+    method: "POST",
+    body: {
+      key: "customer_welcome",
+      status: "active",
+      schedule: null,
+      graph: {
+        nodes: {
+          start: { type: "transform", code: "input", delay_ms: null },
+        },
+        edges: [],
+      },
+      store_id: "contract-store",
+    },
+  },
+  {
+    url: "http://127.0.0.1:1/v1/stores/override-store/workflows/workflow-contract",
+    method: "PUT",
+    body: {
+      key: "customer_welcome_v2",
+      status: "draft",
+      schedule: null,
+      graph: {
+        nodes: {
+          start: { type: "transform", code: "input", delay_ms: null },
+        },
+        edges: [],
+      },
+    },
+  },
+  {
+    url: "http://127.0.0.1:1/v1/stores/contract-store/workflows/workflow-contract",
+    method: "DELETE",
+    body: null,
+  },
+  {
+    url: "http://127.0.0.1:1/v1/stores/contract-store/workflows/workflow-contract",
+    method: "GET",
+    body: null,
+  },
+  {
+    url: "http://127.0.0.1:1/v1/stores/contract-store/workflows/workflow-contract/regenerate-webhook-url",
+    method: "POST",
+    body: {},
+  },
+  {
+    url: "http://127.0.0.1:1/v1/stores/contract-store/workflows?status=active&limit=20&cursor=next%20page",
+    method: "GET",
+    body: null,
+  },
+  {
+    url: "http://127.0.0.1:1/v1/stores/contract-store/workflows/workflow-contract/executions?status=running&limit=10&cursor=execution%20page",
+    method: "GET",
+    body: null,
+  },
+  {
+    url: "http://127.0.0.1:1/v1/stores/contract-store/workflows/workflow-contract/executions/execution-contract",
+    method: "GET",
+    body: null,
+  },
+]);
+
+for (const method of [
+  "create",
+  "replaceDraft",
+  "deleteDraft",
+  "start",
+  "pause",
+  "resume",
+  "complete",
+  "get",
+  "find",
+  "results",
+]) {
+  assert.equal(
+    typeof arky.experiments[method],
+    "function",
+    `Admin Experiments must expose ${method}`,
+  );
+}
+
+const experimentCalls = [];
+globalThis.fetch = async (url, init = {}) => {
+  experimentCalls.push({
+    url: String(url),
+    method: init.method,
+    body: init.body ? JSON.parse(String(init.body)) : null,
+  });
+  if (init.method === "DELETE") {
+    return new Response(null, { status: 204 });
+  }
+  const body = String(url).includes("?status=")
+    ? { items: [], cursor: null }
+    : {};
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+};
+try {
+  const definition = {
+    key: "homepage_hero",
+    goal_action_key: "lead_submitted",
+    attribution_window_days: 30,
+    variants: [
+      { key: "control", allocation_bps: 5000 },
+      { key: "guided", allocation_bps: 5000 },
+    ],
+  };
+  await arky.experiments.create(definition);
+  await arky.experiments.replaceDraft({
+    store_id: "override-store",
+    experiment_id: "experiment-contract",
+    ...definition,
+    key: "homepage_hero_v2",
+  });
+  for (const method of ["deleteDraft", "start", "pause", "resume", "complete", "get", "results"]) {
+    await arky.experiments[method]({ experiment_id: "experiment-contract" });
+  }
+  await arky.experiments.find({
+    status: "running",
+    limit: 25,
+    cursor: "next page",
+  });
+} finally {
+  globalThis.fetch = originalFetch;
+}
+assert.deepEqual(experimentCalls, [
+  {
+    url: "http://127.0.0.1:1/v1/stores/contract-store/experiments",
+    method: "POST",
+    body: {
+      key: "homepage_hero",
+      goal_action_key: "lead_submitted",
+      attribution_window_days: 30,
+      variants: [
+        { key: "control", allocation_bps: 5000 },
+        { key: "guided", allocation_bps: 5000 },
+      ],
+    },
+  },
+  {
+    url: "http://127.0.0.1:1/v1/stores/override-store/experiments/experiment-contract",
+    method: "PUT",
+    body: {
+      key: "homepage_hero_v2",
+      goal_action_key: "lead_submitted",
+      attribution_window_days: 30,
+      variants: [
+        { key: "control", allocation_bps: 5000 },
+        { key: "guided", allocation_bps: 5000 },
+      ],
+    },
+  },
+  ...[
+    ["DELETE", ""],
+    ["POST", "/start"],
+    ["POST", "/pause"],
+    ["POST", "/resume"],
+    ["POST", "/complete"],
+    ["GET", ""],
+    ["GET", "/results"],
+  ].map(([method, suffix]) => ({
+    url: `http://127.0.0.1:1/v1/stores/contract-store/experiments/experiment-contract${suffix}`,
+    method,
+    body: null,
+  })),
+  {
+    url: "http://127.0.0.1:1/v1/stores/contract-store/experiments?status=running&limit=25&cursor=next%20page",
+    method: "GET",
+    body: null,
+  },
+]);
 
 console.log("Admin SDK contract test passed.");
