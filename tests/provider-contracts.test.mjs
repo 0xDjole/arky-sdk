@@ -15,7 +15,10 @@ const newShippingDiscountId = "467e9608-2b42-479a-8c5b-d9152fbb7870";
 const uuidV4Pattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-function storedVisitorSession(token, customerId = "customer-provider-contract") {
+function storedVisitorSession(
+  token,
+  customerId = "customer-provider-contract",
+) {
   return JSON.stringify({
     version: 1,
     customer: {
@@ -438,13 +441,11 @@ test("Order quote allocations preserve embedded PromotionDiscount provenance and
   );
 
   assert.equal(
-    result.product_lines[0].money.discount_allocations[0]
-      .promotion_discount_id,
+    result.product_lines[0].money.discount_allocations[0].promotion_discount_id,
     itemPercentageDiscountId,
   );
   assert.equal(
-    result.product_lines[0].money.discount_allocations[1]
-      .promotion_discount_id,
+    result.product_lines[0].money.discount_allocations[1].promotion_discount_id,
     null,
   );
   assert.equal(
@@ -497,16 +498,15 @@ test("subscription selection returns its ephemeral Stripe action in one POST", a
     globalThis.fetch = originalFetch;
   }
 
-  assert.deepEqual(calls, [
-    {
-      url: `${baseUrl}/v1/stores/store-subscription/subscription`,
-      method: "POST",
-      body: {
-        plan_id: "pro",
-        return_url: "https://merchant.test/return",
-      },
-    },
-  ]);
+  assert.equal(calls.length, 1);
+  assert.equal(
+    calls[0].url,
+    `${baseUrl}/v1/stores/store-subscription/subscription`,
+  );
+  assert.equal(calls[0].method, "POST");
+  assert.match(calls[0].body.checkout_id, uuidV4Pattern);
+  assert.equal(calls[0].body.plan_id, "pro");
+  assert.equal(calls[0].body.return_url, "https://merchant.test/return");
   assert.deepEqual(result, subscription);
   assert.equal(result.status, "pending");
   assert.equal("provider" in result, false);
@@ -524,6 +524,7 @@ test("subscription reads return no payment action", async () => {
       access_until: null,
     },
     status: "active",
+    checkout: null,
     payment_action: { type: "none" },
     trial_started_at: null,
     created_at: 1,
@@ -543,22 +544,8 @@ test("subscription reads return no payment action", async () => {
   assert.deepEqual(result, subscription);
 });
 
-test("payment-provider disable uses one request", async () => {
-  const { calls, result } = await captureFetch({ disabled: true }, () =>
-    admin().store.paymentProvider.delete({
-      store_id: "store-deletion",
-      id: "provider-contract",
-    }),
-  );
-
-  assert.deepEqual(result, { disabled: true });
-  assert.deepEqual(calls, [
-    {
-      url: `${baseUrl}/v1/stores/store-deletion/payment-providers/provider-contract`,
-      method: "DELETE",
-      body: undefined,
-    },
-  ]);
+test("the permanent payment-provider binding has no delete operation", () => {
+  assert.equal("delete" in admin().store.paymentProvider, false);
 });
 
 test("Stripe Express Dashboard uses one authenticated provider link request", async () => {
@@ -913,24 +900,37 @@ test("provider-effect APIs send one resource identity and return direct server e
     },
     {
       name: "Audience payment refund",
-      response: { refund_id: resourceId, amount: 500, status: "requested" },
+      response: {
+        id: resourceId,
+        amount: { amount: 500, currency: "usd" },
+        status: "requested",
+      },
       request: (arky) =>
-        arky.audiences.members.refund({
+        arky.audiences.memberships.refunds.request({
           store_id: defaultStoreId,
           audience_id: "audience-refund-contract",
-          member_id: "member-refund-contract",
-          payment_id: "payment-refund-contract",
-          amount: 500,
-          refund_id: resourceId,
+          membership_id: "member-refund-contract",
+          id: resourceId,
+          charge: {
+            type: "stripe_charge",
+            payment_provider_id: "payment-provider-refund-contract",
+            stripe_charge_id: "charge-refund-contract",
+          },
+          amount: { amount: 500, currency: "usd" },
           reason: "fraudulent",
           private_note: "Risk review",
         }),
       expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/audiences/audience-refund-contract/members/member-refund-contract/payments/payment-refund-contract/refunds`,
+        url: `${baseUrl}/v1/stores/${defaultStoreId}/audiences/audience-refund-contract/memberships/member-refund-contract/refunds`,
         method: "POST",
         body: {
-          amount: 500,
-          refund_id: resourceId,
+          id: resourceId,
+          charge: {
+            type: "stripe_charge",
+            payment_provider_id: "payment-provider-refund-contract",
+            stripe_charge_id: "charge-refund-contract",
+          },
+          amount: { amount: 500, currency: "usd" },
           reason: "fraudulent",
           private_note: "Risk review",
         },
@@ -943,7 +943,18 @@ test("provider-effect APIs send one resource identity and return direct server e
         shipment: {
           id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
           status: "pending",
-          label: null,
+          label: {
+            id: "6ba7b811-9dad-41d1-80b4-00c04fd430c8",
+            status: "requested",
+            label_url: null,
+            postage: { amount: 895, currency: "usd" },
+            platform_label_fee: { amount: 10, currency: "usd" },
+            total: { amount: 905, currency: "usd" },
+            requested_at: 1,
+            completed_at: null,
+            refund: null,
+            safe_error: null,
+          },
         },
       },
       request: (arky) =>
@@ -1052,21 +1063,25 @@ test("money and shipping clients reject evidence for any other resource ID", asy
     {
       name: "Audience payment refund",
       response: {
-        refund_id: otherResourceId,
-        amount: 500,
+        id: otherResourceId,
+        amount: { amount: 500, currency: "usd" },
         status: "succeeded",
       },
       request: (arky) =>
-        arky.audiences.members.refund({
+        arky.audiences.memberships.refunds.request({
           store_id: defaultStoreId,
           audience_id: "audience-refund-contract",
-          member_id: "member-refund-contract",
-          payment_id: "payment-refund-contract",
-          amount: 500,
-          refund_id: resourceId,
+          membership_id: "member-refund-contract",
+          id: resourceId,
+          charge: {
+            type: "stripe_charge",
+            payment_provider_id: "payment-provider-refund-contract",
+            stripe_charge_id: "charge-refund-contract",
+          },
+          amount: { amount: 500, currency: "usd" },
           reason: "customer_request",
         }),
-      error: /Audience refund response did not match the requested refund_id/,
+      error: /Audience refund response did not match the requested refund ID/,
     },
     {
       name: "shipping-label purchase",
@@ -1223,7 +1238,8 @@ test("payment, refund, dispute, and shipment lifecycles are read through explici
         reason: "customer_request",
         private_note: null,
         status: "unknown",
-        safe_error: "The refund outcome is unknown; contact support before retrying",
+        safe_error:
+          "The refund outcome is unknown; contact support before retrying",
         requested_at: 1,
         processing_started_at: 2,
         processing_deadline_at: 3,

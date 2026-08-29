@@ -119,7 +119,7 @@ test("initialized storefront tracks Customer Actions", async () => {
       method: "POST",
       body: {
         key: "page.view",
-        payload: { path: "/products/example" },
+        data: { path: "/products/example" },
       },
     },
   ]);

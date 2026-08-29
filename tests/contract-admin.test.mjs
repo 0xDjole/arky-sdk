@@ -117,14 +117,14 @@ assert.equal("getCheckout" in arky.store.subscription, false);
 assert.equal(typeof arky.store.subscription.cancel, "function");
 assert.equal(typeof arky.store.subscription.reactivate, "function");
 assert.equal(typeof arky.store.subscription.createPortalSession, "function");
-assert.equal(typeof arky.customer.audience.manage, "function");
-assert.equal(typeof arky.customer.audience.getSubscription, "function");
+assert.equal(typeof arky.customer.audienceMemberships.find, "function");
+assert.equal(typeof arky.customer.audienceMemberships.get, "function");
 assert.equal(
-  typeof arky.customer.audience.createPaymentMethodSession,
+  typeof arky.customer.audienceMemberships.createBillingPortal,
   "function",
 );
-assert.equal(typeof arky.customer.audience.cancelSubscription, "function");
-assert.equal(typeof arky.customer.audience.unsubscribe, "function");
+assert.equal(typeof arky.customer.audienceMemberships.cancelRenewal, "function");
+assert.equal(typeof arky.customer.audienceMemberships.unsubscribe, "function");
 assert.equal(typeof arky.store.member.add, "function");
 assert.equal(typeof arky.store.member.invite, "function");
 assert.equal(typeof arky.store.member.remove, "function");
@@ -137,8 +137,8 @@ assert.equal(
   typeof arky.store.paymentProvider.stripe.openDashboard,
   "function",
 );
-assert.equal(typeof arky.store.paymentProvider.delete, "function");
-assert.equal(typeof arky.media.replaceMediaContent, "function");
+assert.equal("delete" in arky.store.paymentProvider, false);
+assert.equal(typeof arky.media.replaceContent, "function");
 assert.equal(typeof arky.classification.create, "function");
 assert.equal(typeof arky.classification.find, "function");
 assert.equal("classification" in arky.content, false);
@@ -161,13 +161,7 @@ globalThis.fetch = async (url, init = {}) => {
     body: init.body ? JSON.parse(String(init.body)) : null,
   };
   customerAudienceCalls.push(call);
-  const body = call.url.endsWith("/stores/plans")
-    ? { items: [], cursor: null }
-    : call.url.endsWith("/manage")
-      ? { has_access: true }
-      : call.url.endsWith("/payment-method")
-        ? { portal_url: "https://billing.test/session" }
-        : { success: true };
+  const body = { items: [], cursor: null };
   return new Response(JSON.stringify(body), {
     status: 200,
     headers: { "content-type": "application/json" },
@@ -178,29 +172,6 @@ try {
     items: [],
     cursor: null,
   });
-  assert.deepEqual(
-    await arky.customer.audience.manage({ token: "manage-token" }),
-    { has_access: true },
-  );
-  assert.deepEqual(
-    await arky.customer.audience.createPaymentMethodSession({
-      token: "portal-token",
-      return_url: "https://customer.test/account",
-    }),
-    { portal_url: "https://billing.test/session" },
-  );
-  assert.deepEqual(
-    await arky.customer.audience.cancelSubscription({
-      token: "cancel-token",
-    }),
-    { success: true },
-  );
-  assert.deepEqual(
-    await arky.customer.audience.unsubscribe({
-      token: "unsubscribe-token",
-    }),
-    { success: true },
-  );
 } finally {
   globalThis.fetch = customerAudienceOriginalFetch;
 }
@@ -211,29 +182,6 @@ assert.deepEqual(
   })),
   [
     { url: "/v1/stores/plans", method: "GET", body: null },
-    {
-      url: "/v1/customer/audiences/manage",
-      method: "POST",
-      body: { token: "manage-token" },
-    },
-    {
-      url: "/v1/customer/audiences/payment-method",
-      method: "POST",
-      body: {
-        token: "portal-token",
-        return_url: "https://customer.test/account",
-      },
-    },
-    {
-      url: "/v1/customer/audiences/subscription/cancel",
-      method: "POST",
-      body: { token: "cancel-token" },
-    },
-    {
-      url: "/v1/customer/audiences/unsubscribe",
-      method: "POST",
-      body: { token: "unsubscribe-token" },
-    },
   ],
 );
 
@@ -286,6 +234,22 @@ const selectedSubscription = {
   store_id: "contract-store",
   plan_access: null,
   status: "pending",
+  checkout: {
+    id: "018f477d-1cae-4c12-bf12-123456789abc",
+    plan_id: "basic",
+    stripe_price_id: "price-basic",
+    stripe_customer_id: null,
+    billing_email: "owner@example.test",
+    return_url: "https://admin.test/return",
+    trial_end: null,
+    expires_at: 10,
+    status: {
+      type: "open",
+      stripe_checkout_session_id: "cs_subscription_contract",
+    },
+    requested_at: 1,
+    updated_at: 2,
+  },
   payment_action: {
     type: "stripe_embedded_checkout",
     publishable_key: "pk_test_subscription",
@@ -319,8 +283,6 @@ globalThis.fetch = async (url, init = {}) => {
     };
   } else if (target.endsWith("/subscription") && method === "POST") {
     body = selectedSubscription;
-  } else if (target.endsWith("/payment-providers/provider-scheduled")) {
-    body = { disabled: true };
   } else {
     throw new Error(`Unexpected scheduled admin request: ${method} ${target}`);
   }
@@ -332,6 +294,7 @@ globalThis.fetch = async (url, init = {}) => {
 try {
   const connected = await arky.store.paymentProvider.stripe.connect({
     store_id: "contract-store",
+    attempt_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     return_url: "https://admin.test/return",
     refresh_url: "https://admin.test/refresh",
     country: "BA",
@@ -345,25 +308,21 @@ try {
 
   const subscription = await arky.store.subscription.select({
     store_id: "contract-store",
+    checkout_id: "018f477d-1cae-4c12-bf12-123456789abc",
     plan_id: "basic",
     return_url: "https://admin.test/return",
   });
   assert.equal(subscription.status, "pending");
   assert.equal(subscription.plan_access, null);
   assert.equal("provider" in subscription, false);
-  assert.equal("checkout_id" in subscription, false);
+  assert.equal(
+    subscription.checkout.id,
+    "018f477d-1cae-4c12-bf12-123456789abc",
+  );
   assert.equal(subscription.payment_action.type, "stripe_embedded_checkout");
   assert.equal(
     subscription.payment_action.client_secret,
     "cs_subscription_secret_contract",
-  );
-
-  assert.deepEqual(
-    await arky.store.paymentProvider.delete({
-      store_id: "contract-store",
-      id: "provider-scheduled",
-    }),
-    { disabled: true },
   );
 } finally {
   globalThis.fetch = scheduledOriginalFetch;
@@ -376,10 +335,6 @@ assert.deepEqual(
   [
     ["/v1/stores/contract-store/payment-providers/stripe/connect", "POST"],
     ["/v1/stores/contract-store/subscription", "POST"],
-    [
-      "/v1/stores/contract-store/payment-providers/provider-scheduled",
-      "DELETE",
-    ],
   ],
 );
 
@@ -393,7 +348,7 @@ globalThis.fetch = async (url, init = {}) => {
   });
 };
 try {
-  const replacement = await arky.media.replaceMediaContent({
+  const replacement = await arky.media.replaceContent({
     media_id: "media-contract",
     file: new Blob(["replacement"], { type: "text/plain" }),
   });
@@ -411,22 +366,17 @@ assert.equal(
   "replacement",
 );
 
-assert.equal(typeof arky.social.connection.list, "function");
-assert.equal(typeof arky.social.connection.connect, "function");
-assert.equal(typeof arky.social.connection.getOAuthAttempt, "function");
-assert.equal(typeof arky.social.connection.selectDestination, "function");
-assert.equal(typeof arky.social.connection.delete, "function");
-assert.equal(typeof arky.social.publication.getComments, "function");
-assert.equal(typeof arky.social.publication.syncComments, "function");
-assert.equal(typeof arky.social.publication.getCommentThread, "function");
-assert.equal(typeof arky.social.publication.syncCommentThread, "function");
-assert.equal(typeof arky.social.publication.classifyComments, "function");
-assert.equal(
-  typeof arky.social.publication.getCommentClassificationRun,
-  "function",
-);
-assert.equal(typeof arky.social.publication.getMetrics, "function");
-assert.equal(typeof arky.social.publication.syncMetrics, "function");
+assert.equal(typeof arky.social.connections.find, "function");
+assert.equal(typeof arky.social.connections.connect, "function");
+assert.equal(typeof arky.social.connections.disconnect, "function");
+assert.equal(typeof arky.social.posts.find, "function");
+assert.equal(typeof arky.social.posts.create, "function");
+assert.equal(typeof arky.social.posts.get, "function");
+assert.equal(typeof arky.social.posts.cancel, "function");
+assert.equal(typeof arky.social.posts.messages.find, "function");
+assert.equal(typeof arky.social.posts.messages.create, "function");
+assert.equal(typeof arky.social.posts.messages.sync, "function");
+assert.equal("publication" in arky.social, false);
 
 assert.equal(typeof arky.workflow.listConnections, "function");
 assert.equal(
@@ -524,18 +474,17 @@ assert.deepEqual(JSON.parse(mailboxFetchCalls[0].body), {
   sync_enabled: true,
   sync_interval_seconds: 300,
 });
-assert.equal(typeof arky.outreach.campaign.find, "function");
-assert.equal(typeof arky.outreach.campaign.getPersonalization, "function");
-assert.equal(typeof arky.outreach.campaignEnrollment.find, "function");
-assert.equal(typeof arky.outreach.campaignMessage.find, "function");
+assert.equal(typeof arky.campaign.find, "function");
+assert.equal(typeof arky.campaign.findEnrollments, "function");
+assert.equal(typeof arky.campaignEnrollment.getConversation, "function");
+assert.equal(typeof arky.campaignMessage.replaceDraft, "function");
 assert.equal(typeof arky.outreach.suppression.find, "function");
-assert.equal(typeof arky.outreach.leadResearch.createRun, "function");
+assert.equal(typeof arky.leadResearch.create, "function");
 
-assert.equal(typeof arky.audiences.members.add, "function");
-assert.equal(typeof arky.audiences.members.find, "function");
-assert.equal(typeof arky.audiences.leads.find, "function");
-assert.equal(typeof arky.audiences.tiers.get, "function");
-assert.equal(typeof arky.audiences.tiers.find, "function");
+assert.equal(typeof arky.audiences.memberships.enroll, "function");
+assert.equal(typeof arky.audiences.memberships.find, "function");
+assert.equal(typeof arky.audiences.memberships.refunds.find, "function");
+assert.equal(typeof arky.audiences.memberships.disputes.find, "function");
 assert.equal(typeof arky.eshop.product.getInventory, "function");
 
 const separateResourceCalls = [];
@@ -551,11 +500,7 @@ try {
     store_id: "contract-store",
     support_agent_id: "agent-contract",
   });
-  await arky.outreach.campaign.getPersonalization({
-    id: "campaign-contract",
-  });
-  await arky.audiences.tiers.find({ audience_id: "audience-contract" });
-  await arky.audiences.leads.find({ member_ids: ["member-contract"] });
+  await arky.audiences.memberships.find({ audience_id: "audience-contract" });
   await arky.eshop.product.getInventory({ id: "product-contract" });
 } finally {
   globalThis.fetch = originalFetch;
@@ -567,15 +512,7 @@ assert.deepEqual(separateResourceCalls, [
   },
   {
     method: "GET",
-    url: "http://127.0.0.1:1/v1/stores/contract-store/campaigns/campaign-contract/personalization",
-  },
-  {
-    method: "GET",
-    url: "http://127.0.0.1:1/v1/stores/contract-store/audiences/audience-contract/tiers",
-  },
-  {
-    method: "GET",
-    url: "http://127.0.0.1:1/v1/stores/contract-store/audiences/leads?member_ids=%5B%22member-contract%22%5D",
+    url: "http://127.0.0.1:1/v1/stores/contract-store/audiences/audience-contract/memberships",
   },
   {
     method: "GET",

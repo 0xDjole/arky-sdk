@@ -18,7 +18,30 @@ function jsonResponse(body, status = 200) {
 }
 
 function sessionStorage() {
-  const values = new Map([["seed", visitorToken]]);
+  const values = new Map([
+    [
+      "seed",
+      JSON.stringify({
+        version: 1,
+        customer: {
+          id: "customer-booking-contract",
+          status: "active",
+          identities: [],
+          classifications: [],
+          created_at: 1,
+          updated_at: 1,
+        },
+        session: {
+          id: "visitor-session-booking-contract",
+          customer_id: "customer-booking-contract",
+          type: "visitor",
+          token: visitorToken,
+          status: "active",
+          expires_at: 10_000,
+        },
+      }),
+    ],
+  ]);
   return {
     getItem: () => values.get("seed") ?? null,
     setItem: (_key, value) => values.set("seed", value),

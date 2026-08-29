@@ -260,7 +260,7 @@ export const createAudiencesApi = (apiConfig: ApiConfig) => ({
         options?: RequestOptions,
       ): Promise<AudienceRefund> {
         const { store_id, audience_id, membership_id, ...payload } = params;
-        return apiConfig.httpClient.post<AudienceRefund>(
+        const refund = await apiConfig.httpClient.post<AudienceRefund>(
           `${membershipPath(
             apiConfig,
             { store_id, audience_id },
@@ -269,6 +269,10 @@ export const createAudiencesApi = (apiConfig: ApiConfig) => ({
           payload,
           options,
         );
+        if (refund.id !== params.id) {
+          throw new Error("Audience refund response did not match the requested refund ID");
+        }
+        return refund;
       },
 
       async get(

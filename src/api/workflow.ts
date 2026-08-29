@@ -111,8 +111,17 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       params: InvokeWorkflowWebhookParams,
       options?: RequestOptions,
     ): Promise<WorkflowExecutionStarted> {
+      let webhookPath = params.webhook_url;
+      if (/^https?:\/\//i.test(webhookPath)) {
+        const target = new URL(webhookPath);
+        const api = new URL(apiConfig.baseUrl);
+        if (target.origin !== api.origin) {
+          throw new Error("Workflow webhook URL must use the configured API origin");
+        }
+        webhookPath = `${target.pathname}${target.search}`;
+      }
       return apiConfig.httpClient.post<WorkflowExecutionStarted>(
-        params.webhook_url,
+        webhookPath,
         params.payload,
         options,
       );

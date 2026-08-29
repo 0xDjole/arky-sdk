@@ -26,6 +26,14 @@ import type {
   RequestOptions,
 } from "../types/api";
 import type { StoreDeletionResult } from "../types";
+import {
+  DurableRequestStorageError,
+  clearDurableRequest,
+  durableRequestPayload,
+  getOrCreateDurableRequest,
+  readDurableRequest,
+  withDurableRequestLock,
+} from "../utils/durableRequest";
 import type {
   Store,
   Webhook,
@@ -36,6 +44,91 @@ import type {
   StoreMember,
   StoreMembership,
 } from "../types";
+
+type StoreSubscriptionCheckoutRequest = {
+  checkout_id: string;
+  plan_id: string;
+  return_url: string;
+};
+
+const storeSubscriptionCheckoutLabel = "Store subscription Checkout";
+const canonicalUuidV4 =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+function browserHasDurableStorage(): boolean {
+  return typeof globalThis.window !== "undefined";
+}
+
+function responseStatusCode(value: unknown): number | null {
+  if (typeof value !== "object" || value === null || !("statusCode" in value)) {
+    return null;
+  }
+  return typeof value.statusCode === "number" ? value.statusCode : null;
+}
+
+function newStoreSubscriptionCheckoutId(): string {
+  const id = globalThis.crypto?.randomUUID?.();
+  if (!id || !canonicalUuidV4.test(id)) {
+    throw new DurableRequestStorageError(
+      `Cannot safely start ${storeSubscriptionCheckoutLabel} because UUID-v4 generation is unavailable`,
+    );
+  }
+  return id;
+}
+
+function storeSubscriptionCheckoutRequest(
+  params: SelectStoreSubscriptionParams,
+  retainedCheckoutId?: string,
+): StoreSubscriptionCheckoutRequest {
+  const checkout_id =
+    params.checkout_id ||
+    retainedCheckoutId ||
+    newStoreSubscriptionCheckoutId();
+  if (!canonicalUuidV4.test(checkout_id)) {
+    throw new DurableRequestStorageError(
+      `Cannot safely start ${storeSubscriptionCheckoutLabel} because checkout_id is not a canonical UUID-v4`,
+    );
+  }
+  return {
+    checkout_id,
+    plan_id: params.plan_id,
+    return_url: params.return_url,
+  };
+}
+
+function persistedStoreSubscriptionCheckoutRequest(
+  value: unknown,
+): StoreSubscriptionCheckoutRequest {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Object.keys(value).sort().join(",") !== "checkout_id,plan_id,return_url" ||
+    typeof (value as Record<string, unknown>).checkout_id !== "string" ||
+    !canonicalUuidV4.test((value as Record<string, string>).checkout_id) ||
+    typeof (value as Record<string, unknown>).plan_id !== "string" ||
+    !(value as Record<string, string>).plan_id ||
+    typeof (value as Record<string, unknown>).return_url !== "string" ||
+    !(value as Record<string, string>).return_url
+  ) {
+    throw new DurableRequestStorageError(
+      `Cannot safely start ${storeSubscriptionCheckoutLabel} because its durable request payload is invalid`,
+    );
+  }
+  return value as StoreSubscriptionCheckoutRequest;
+}
+
+function storeSubscriptionCheckoutIsTerminal(
+  subscription: StoreSubscription,
+  checkoutId: string,
+): boolean {
+  if (!subscription.checkout) return true;
+  return (
+    subscription.checkout.id === checkoutId &&
+    ["completed", "expired", "failed"].includes(
+      subscription.checkout.status.type,
+    )
+  );
+}
 
 export const createStoreApi = (
   apiConfig: ApiConfig,
@@ -65,10 +158,7 @@ export const createStoreApi = (
       options?: RequestOptions,
     ): Promise<Store> {
       const store_id = params.id || apiConfig.storeId;
-      return apiConfig.httpClient.get<Store>(
-        `/v1/stores/${store_id}`,
-        options,
-      );
+      return apiConfig.httpClient.get<Store>(`/v1/stores/${store_id}`, options);
     },
 
     async requestDeletion(
@@ -118,12 +208,95 @@ export const createStoreApi = (
       params: SelectStoreSubscriptionParams,
       options?: RequestOptions,
     ): Promise<StoreSubscription> {
-      const { store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<StoreSubscription>(
-        `/v1/stores/${target_store_id}/subscription`,
-        payload,
-        options,
+      const target_store_id = params.store_id || apiConfig.storeId;
+      const endpoint = `/v1/stores/${target_store_id}/subscription`;
+      const post = (payload: StoreSubscriptionCheckoutRequest) =>
+        apiConfig.httpClient.post<StoreSubscription>(
+          endpoint,
+          payload,
+          options,
+        );
+
+      if (!browserHasDurableStorage()) {
+        return post(storeSubscriptionCheckoutRequest(params));
+      }
+
+      const storageKey = `arky:store-subscription-checkout:${target_store_id}`;
+      return withDurableRequestLock(
+        storageKey,
+        storeSubscriptionCheckoutLabel,
+        async () => {
+          const retained = readDurableRequest(
+            storageKey,
+            storeSubscriptionCheckoutLabel,
+          );
+          const retainedPayload = retained
+            ? persistedStoreSubscriptionCheckoutRequest(
+                durableRequestPayload(retained),
+              )
+            : undefined;
+          let payload = storeSubscriptionCheckoutRequest(
+            params,
+            retainedPayload?.checkout_id,
+          );
+
+          if (retained && retained.requestJson !== JSON.stringify(payload)) {
+            const current = await apiConfig.httpClient.get<StoreSubscription>(
+              endpoint,
+              options,
+            );
+            if (
+              !storeSubscriptionCheckoutIsTerminal(
+                current,
+                retainedPayload!.checkout_id,
+              )
+            ) {
+              getOrCreateDurableRequest(
+                storageKey,
+                payload,
+                storeSubscriptionCheckoutLabel,
+              );
+            }
+            clearDurableRequest(retained, storeSubscriptionCheckoutLabel);
+            payload = storeSubscriptionCheckoutRequest(params);
+          }
+
+          const durable = getOrCreateDurableRequest(
+            storageKey,
+            payload,
+            storeSubscriptionCheckoutLabel,
+          );
+          const exactPayload = persistedStoreSubscriptionCheckoutRequest(
+            durableRequestPayload(durable),
+          );
+          let subscription: StoreSubscription;
+          try {
+            subscription = await post(exactPayload);
+          } catch (error) {
+            if (responseStatusCode(error) === 400) {
+              clearDurableRequest(durable, storeSubscriptionCheckoutLabel);
+            }
+            throw error;
+          }
+          if (
+            subscription.checkout &&
+            subscription.checkout.id !== exactPayload.checkout_id
+          ) {
+            throw new DurableRequestStorageError(
+              `Cannot safely continue ${storeSubscriptionCheckoutLabel} because Server returned a different Checkout`,
+            );
+          }
+          if (
+            !subscription.checkout &&
+            subscription.plan_access?.plan_id !== exactPayload.plan_id
+          ) {
+            throw new DurableRequestStorageError(
+              `Cannot safely continue ${storeSubscriptionCheckoutLabel} because Server returned neither its Checkout nor the requested plan access`,
+            );
+          }
+          clearDurableRequest(durable, storeSubscriptionCheckoutLabel);
+          return subscription;
+        },
       );
     },
 

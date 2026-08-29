@@ -147,7 +147,6 @@ import type {
   FindDigitalProductsParams,
   MarkCashOnDeliveryPaidParams,
   CustomerAction,
-  CustomerActionContext,
   CustomerActionType,
   CustomerActionFeedData,
   AnalyticsCustomerActionReportKey,
@@ -169,8 +168,12 @@ import type {
 } from "../../dist/index.js";
 // @ts-expect-error the Actions surface does not expose a generic Action compatibility alias.
 import type { Action, ActionData } from "../../dist/index.js";
-// @ts-expect-error analytics exposes CustomerAction feed and report names exclusively.
-import type { ActionFeedData, AnalyticsActionReportKey } from "../../dist/index.js";
+import type {
+  // @ts-expect-error analytics exposes CustomerAction feed names exclusively.
+  ActionFeedData,
+  // @ts-expect-error analytics exposes CustomerAction report names exclusively.
+  AnalyticsActionReportKey,
+} from "../../dist/index.js";
 // @ts-expect-error Promotion command and response types are lifecycle-specific.
 import type { Discount } from "../../dist/index.js";
 // @ts-expect-error Promotion conditions use their full domain name.
@@ -210,8 +213,14 @@ import type {
 } from "../../dist/types.js";
 // @ts-expect-error Actions queries have no generic Action compatibility alias.
 import type { FindActionsParams } from "../../dist/types.js";
-// @ts-expect-error embedded Cart/Order items use their canonical Item names only.
-import type { CartDigitalProduct, OrderDigitalProduct, OrderProduct } from "../../dist/index.js";
+import type {
+  // @ts-expect-error embedded Cart items use their canonical Item names only.
+  CartDigitalProduct,
+  // @ts-expect-error embedded Order items use their canonical Item names only.
+  OrderDigitalProduct,
+  // @ts-expect-error embedded Order items use their canonical Item names only.
+  OrderProduct,
+} from "../../dist/index.js";
 // @ts-expect-error Order product cancellation addresses an embedded product item.
 import type { CancelOrderProductParams } from "../../dist/index.js";
 // @ts-expect-error Audience promotion snapshots no longer expose mutable usage state.
@@ -227,12 +236,18 @@ import {
   type EmbeddedCheckoutAction as StorefrontEmbeddedCheckoutAction,
   type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
 } from "../../dist/storefront.js";
-// @ts-expect-error storefront tracking uses CustomerAction type names exclusively.
-import type { CommonActionKey, StorefrontAction, TrackActionParams } from "../../dist/storefront.js";
+import type {
+  // @ts-expect-error storefront tracking uses CustomerAction key names exclusively.
+  CommonActionKey,
+  // @ts-expect-error storefront tracking uses CustomerAction names exclusively.
+  StorefrontAction,
+  // @ts-expect-error storefront tracking uses CustomerAction parameter names exclusively.
+  TrackActionParams,
+} from "../../dist/storefront.js";
 // @ts-expect-error storefront CustomerAction keys have no Action compatibility alias.
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.26.0" = SDK_VERSION;
+const sdkVersionLiteral: "0.26.2" = SDK_VERSION;
 const workflowExternalOperationContract: WorkflowExternalOperation = {
   id: "operation-contract",
   store_id: "store-contract",
@@ -673,9 +688,7 @@ const createPromoCodeContract: CreatePromoCodeParams = {
 };
 const createPromoCodeWithoutConditions: CreatePromoCodeParams = {
   code: "SAVE20",
-  discounts: [
-    { type: "item_percentage", market: "us", basis_points: 2_000 },
-  ],
+  discounts: [{ type: "item_percentage", market: "us", basis_points: 2_000 }],
 };
 
 const updatePromotionDiscounts: UpdatePromotionDiscountInput[] = [
@@ -1016,10 +1029,14 @@ digitalProductContract.slug;
 type LegacyDigitalProductCreateSlug = CreateDigitalProductParams["slug"];
 // @ts-expect-error Digital Product update input has no singular localized map.
 type LegacyDigitalProductUpdateSlug = UpdateDigitalProductParams["slug"];
-// @ts-expect-error Storefront Digital Product lookup uses the server route identifier.
-const legacyDigitalProductLookup: GetStorefrontDigitalProductParams = { id: digitalProductContract.id };
-// @ts-expect-error Library routes require a Digital Product ID.
-const invalidDigitalLibraryLookup: GetDigitalLibraryProductParams = { identifier: digitalProductContract.key };
+const legacyDigitalProductLookup: GetStorefrontDigitalProductParams = {
+  // @ts-expect-error Storefront Digital Product lookup uses the server route identifier.
+  id: digitalProductContract.id,
+};
+const invalidDigitalLibraryLookup: GetDigitalLibraryProductParams = {
+  // @ts-expect-error Library routes require a Digital Product ID.
+  identifier: digitalProductContract.key,
+};
 // @ts-expect-error Digital Product status is draft, active, or archived.
 const invalidDigitalProductStatus: DigitalProductStatus = "enabled";
 void storefrontDigitalProductContract;
@@ -1269,12 +1286,14 @@ const storefrontBookingOfferings: Promise<StorefrontDto<BookingOffering>[]> =
   storefrontClient.eshop.bookingOffering.find({
     booking_service_id: "booking-service-contract",
   });
-const bookingResources: Promise<StorefrontDto<PaginatedResponse<BookingResource>>> =
-  storefrontClient.eshop.bookingResource.find({
-    booking_service_id: "booking-service-contract",
-  });
-const bookingServices: Promise<StorefrontDto<PaginatedResponse<BookingService>>> =
-  storefrontClient.eshop.bookingService.find({ status: "active" });
+const bookingResources: Promise<
+  StorefrontDto<PaginatedResponse<BookingResource>>
+> = storefrontClient.eshop.bookingResource.find({
+  booking_service_id: "booking-service-contract",
+});
+const bookingServices: Promise<
+  StorefrontDto<PaginatedResponse<BookingService>>
+> = storefrontClient.eshop.bookingService.find({ status: "active" });
 declare const bookingServiceContract: BookingService;
 declare const bookingResourceContract: BookingResource;
 const bookingServiceEnglishSlug: string = bookingServiceContract.slugs.en;
@@ -1849,6 +1868,7 @@ const storeSubscriptionRead: StoreSubscription = {
   store_id: "store-contract",
   plan_access: null,
   status: subscriptionStatus,
+  checkout: null,
   payment_action: { type: "none" },
   trial_started_at: null,
   created_at: 1,
@@ -1875,7 +1895,8 @@ storeSubscriptionRead.billing_status;
 // @ts-expect-error selection does not persist a checkout reference.
 storeSubscriptionRead.checkout_id;
 // @ts-expect-error checkout state is not a subscription status.
-const invalidStoreSubscriptionStatus: StoreSubscriptionStatus = "requires_action";
+const invalidStoreSubscriptionStatus: StoreSubscriptionStatus =
+  "requires_action";
 
 // @ts-expect-error storefront support messages require the capability token.
 const supportMessageWithoutCapability: StorefrontSendSupportMessageParams = {
@@ -2059,6 +2080,12 @@ const shipment: OrderShipment = {
   created_at: 1,
   updated_at: 2,
 };
+const shipmentWithoutLabel: OrderShipment = {
+  ...shipment,
+  // @ts-expect-error every Shipment begins with its durable requested label effect.
+  label: null,
+};
+void shipmentWithoutLabel;
 const shippingRate: ShippingRate = {
   id: "signed-rate-contract",
   carrier: "USPS",
@@ -2239,16 +2266,11 @@ type AssertNever<T extends never> = T;
 type UnsupportedCustomerActionFilterKeys = AssertNever<
   Extract<keyof FindCustomerActionsParams, "query" | "types" | "from" | "to">
 >;
-const customerActionContext: CustomerActionContext = {
-  location: { country_code: "BA", city: "Sarajevo" },
-  device: { device_type: "desktop", browser: "Firefox" },
-  session: { idx: 1 },
-};
 const customerActionType: CustomerActionType = {
   type: "custom",
   value: {
     key: "page.view",
-    data: { path: "/products/example", context: customerActionContext },
+    data: { path: "/products/example", context: { meaning: "caller-owned" } },
   },
 };
 const customerAction: CustomerAction = {
@@ -2268,7 +2290,8 @@ const trackCustomerAction: TrackCustomerActionParams = {
   key: "page.view",
   data: { path: "/products/example" },
 };
-const commonCustomerActionKey: CommonCustomerActionKey = COMMON_CUSTOMER_ACTION_KEYS[0];
+const commonCustomerActionKey: CommonCustomerActionKey =
+  COMMON_CUSTOMER_ACTION_KEYS[0];
 const customerActionFilter: FindCustomersParams = { has_customer_action: true };
 const experiment: Experiment = {
   id: "experiment-contract",
@@ -2299,7 +2322,8 @@ const experimentUse: ExperimentUseResponse = {
   experiment_key: "homepage-hero",
   variant_key: "control",
 };
-const customerActionReportKey: AnalyticsCustomerActionReportKey = "recent_customer_action";
+const customerActionReportKey: AnalyticsCustomerActionReportKey =
+  "recent_customer_action";
 const customerActionFeed: CustomerActionFeedData = {
   items: [
     {

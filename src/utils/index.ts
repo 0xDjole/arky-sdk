@@ -28,6 +28,8 @@ export {
 } from "./durableRequest";
 export type { DurableRequest } from "./durableRequest";
 
+export { readPendingMediaCreate } from "./durableMediaCreate";
+
 export {
   collectBlockReferences,
   extractBlockValues,

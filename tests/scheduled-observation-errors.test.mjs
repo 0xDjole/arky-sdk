@@ -8,17 +8,37 @@ import {
   storeId,
 } from "./helpers/scheduled-observation-fixtures.mjs";
 
-test("observation timeout is typed, fast-testable, and carries the last authoritative result", async () => {
-  const pending = {
-    run_id: "classification-timeout",
-    status: "requested",
-    comments_scanned: 0,
-    comments_classified: 0,
-    comments_skipped: 0,
-    comments: [],
-    skipped_comment_ids: [],
-    errors: [],
+const request = {
+  send_id: "send-observation-error",
+  send: {
+    type: "subscription_confirmation",
+    data: {
+      store_id: storeId,
+      mailbox_id: "mailbox-observation-error",
+      template_id: "template-observation-error",
+      recipients: ["recipient@example.test"],
+    },
+  },
+};
+
+function pendingEmailResult() {
+  return {
+    sent: 0,
+    deliveries: [
+      {
+        delivery_id: "delivery-observation-error",
+        revision: 1,
+        recipient: "recipient@example.test",
+        mailbox_id: "mailbox-observation-error",
+        template_id: "template-observation-error",
+        status: "pending",
+      },
+    ],
   };
+}
+
+test("observation timeout is typed and carries the last authoritative Email result", async () => {
+  const pending = pendingEmailResult();
   const originalFetch = globalThis.fetch;
   const originalSetTimeout = globalThis.setTimeout;
   let triggerDeadline;
@@ -48,27 +68,19 @@ test("observation timeout is typed, fast-testable, and carries the last authorit
 
   try {
     await assert.rejects(
-      admin().social.publication.classifyComments(
-        {
-          store_id: storeId,
-          run_id: pending.run_id,
-          publication_id: "publication-timeout",
+      admin().notification.email.send(request, {
+        transformRequest(body) {
+          transforms += 1;
+          return body;
         },
-        {
-          transformRequest(body) {
-            transforms += 1;
-            return body;
-          },
-          onSuccess() {
-            successes += 1;
-          },
+        onSuccess() {
+          successes += 1;
         },
-      ),
+      }),
       (error) => {
         assert.ok(error instanceof ScheduledResultTimeoutError);
-        assert.equal(error.lastResult.status, "requested");
+        assert.deepEqual(error.lastResult, pending);
         assert.match(error.message, /observation timed out/i);
-        assert.doesNotMatch(error.message, /delivery failed/i);
         return true;
       },
     );
@@ -83,17 +95,8 @@ test("observation timeout is typed, fast-testable, and carries the last authorit
   assert.equal(successes, 1);
 });
 
-test("an observation failure does not replay the caller error callback", async () => {
-  const pending = {
-    run_id: "classification-observation-error",
-    status: "requested",
-    comments_scanned: 0,
-    comments_classified: 0,
-    comments_skipped: 0,
-    comments: [],
-    skipped_comment_ids: [],
-    errors: [],
-  };
+test("an Email observation failure does not replay the mutation error callback", async () => {
+  const pending = pendingEmailResult();
   let calls = 0;
   let successes = 0;
   let errors = 0;
@@ -115,21 +118,14 @@ test("an observation failure does not replay the caller error callback", async (
 
   try {
     await assert.rejects(
-      admin().social.publication.classifyComments(
-        {
-          store_id: storeId,
-          run_id: pending.run_id,
-          publication_id: "publication-observation-error",
+      admin().notification.email.send(request, {
+        onSuccess() {
+          successes += 1;
         },
-        {
-          onSuccess() {
-            successes += 1;
-          },
-          onError() {
-            errors += 1;
-          },
+        onError() {
+          errors += 1;
         },
-      ),
+      }),
       /observation unavailable/,
     );
   } finally {

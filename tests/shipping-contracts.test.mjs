@@ -56,7 +56,18 @@ test("shipping label and merchant-money effects use provider-neutral singular ro
     tracking_number: null,
     tracking_url: null,
     tracking_status_at: null,
-    label: null,
+    label: {
+      id: "6ba7b811-9dad-41d1-80b4-00c04fd430c8",
+      status: "requested",
+      label_url: null,
+      postage: { amount: 895, currency: "usd" },
+      platform_label_fee: { amount: 10, currency: "usd" },
+      total: { amount: 905, currency: "usd" },
+      requested_at: 1,
+      completed_at: null,
+      refund: null,
+      safe_error: null,
+    },
     created_at: 1,
     updated_at: 1,
   };
@@ -94,16 +105,22 @@ test("shipping label and merchant-money effects use provider-neutral singular ro
     created_at: 3,
     updated_at: 3,
   };
-  const shipmentPath =
-    `${baseUrl}/v1/stores/${storeId}/orders/${orderId}/shipments/${shipmentId}`;
+  const shipmentPath = `${baseUrl}/v1/stores/${storeId}/orders/${orderId}/shipments/${shipmentId}`;
 
   const cases = [
     {
       name: "retry label",
       response: shipment,
       request: (arky) =>
-        arky.eshop.shipment.label.retry({ order_id: orderId, shipment_id: shipmentId }),
-      expected: { url: `${shipmentPath}/label/retry`, method: "POST", body: {} },
+        arky.eshop.shipment.label.retry({
+          order_id: orderId,
+          shipment_id: shipmentId,
+        }),
+      expected: {
+        url: `${shipmentPath}/label/retry`,
+        method: "POST",
+        body: {},
+      },
     },
     {
       name: "request carrier-label refund",
@@ -113,7 +130,11 @@ test("shipping label and merchant-money effects use provider-neutral singular ro
           order_id: orderId,
           shipment_id: shipmentId,
         }),
-      expected: { url: `${shipmentPath}/label/refund`, method: "POST", body: {} },
+      expected: {
+        url: `${shipmentPath}/label/refund`,
+        method: "POST",
+        body: {},
+      },
     },
     {
       name: "retry carrier-label refund",
@@ -189,7 +210,10 @@ test("shipping label and merchant-money effects use provider-neutral singular ro
 
   for (const contract of cases) {
     await t.test(contract.name, async () => {
-      const { calls, result } = await capture(contract.response, contract.request);
+      const { calls, result } = await capture(
+        contract.response,
+        contract.request,
+      );
       assert.deepEqual(calls, [contract.expected]);
       assert.deepEqual(result, contract.response);
     });
@@ -201,4 +225,3 @@ test("shipping label and merchant-money effects use provider-neutral singular ro
   assert.equal("version" in shipment, false);
   assert.equal("shippo_label" in shipment, false);
 });
-

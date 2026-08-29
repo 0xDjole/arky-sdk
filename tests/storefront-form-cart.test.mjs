@@ -333,7 +333,7 @@ test("submitByKey reads anonymously, identifies lazily, and submits no Store rou
     ],
   });
   assert.equal(JSON.stringify(calls).includes("store_id"), false);
-  assert.deepEqual([...storage.values.values()], [visitorToken]);
+  assert.deepEqual([...storage.values.values()], [storedVisitorSession()]);
 });
 
 test("submitByKey validates the latest schema before identifying or submitting", async () => {

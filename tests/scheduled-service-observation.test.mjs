@@ -66,7 +66,7 @@ test("aggregate email sends once and observes only its exact delivery resources"
       },
     ],
   };
-  const sent = {
+  const providerSent = {
     sent: 2,
     deliveries: pending.deliveries.map((delivery, index) => ({
       ...delivery,
@@ -88,7 +88,7 @@ test("aggregate email sends once and observes only its exact delivery resources"
       body: init.body ? JSON.parse(String(init.body)) : undefined,
     });
     if (init.method === "POST") return jsonResponse(pending);
-    const delivery = sent.deliveries.find((candidate) =>
+    const delivery = providerSent.deliveries.find((candidate) =>
       String(url).endsWith(candidate.delivery_id),
     );
     if (!delivery) throw new Error(`Unexpected email observation: ${url}`);
@@ -117,12 +117,7 @@ test("aggregate email sends once and observes only its exact delivery resources"
       },
     });
 
-    assert.deepEqual(result, sent);
-    assert.equal(
-      result.deliveries[0].provider_message_id,
-      "provider-message-1",
-    );
-    assert.equal(result.deliveries[1].provider_thread_id, "provider-thread-2");
+    assert.deepEqual(result, providerSent);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -371,81 +366,7 @@ test("admin support exact-reads a requested message omitted from the write respo
   assert.equal(calls[0].body.message_id, messageId);
 });
 
-test("social classification POSTs once and observes the exact run with GET", async () => {
-  const runId = "classification-run-scheduled";
-  const pending = {
-    run_id: runId,
-    status: "requested",
-    comments_scanned: 2,
-    comments_classified: 0,
-    comments_skipped: 0,
-    comments: [],
-    skipped_comment_ids: [],
-    errors: [],
-  };
-  const succeeded = {
-    ...pending,
-    status: "succeeded",
-    comments_classified: 2,
-    completed_at: 20,
-    comments: [
-      { id: "comment-one", classification_intent: "lead" },
-      { id: "comment-two", classification_intent: "support" },
-    ],
-  };
-  const calls = [];
-  let transforms = 0;
-  let successes = 0;
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({
-      url: String(url),
-      method: init.method,
-      body: init.body ? JSON.parse(String(init.body)) : undefined,
-    });
-    return jsonResponse(calls.length === 1 ? pending : succeeded);
-  };
-
-  try {
-    const result = await admin().social.publication.classifyComments(
-      {
-        store_id: storeId,
-        run_id: runId,
-        publication_id: "publication-scheduled",
-        force: true,
-      },
-      {
-        transformRequest(body) {
-          transforms += 1;
-          return { ...body, transformed_once: true };
-        },
-        onSuccess() {
-          successes += 1;
-        },
-      },
-    );
-    assert.deepEqual(result, succeeded);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.equal(calls.length, 2);
-  assert.equal(calls[0].method, "POST");
-  assert.equal(calls[1].method, "GET");
-  assert.equal(
-    calls[0].url,
-    `${baseUrl}/v1/stores/${storeId}/social-publications/comments/classify`,
-  );
-  assert.equal(
-    calls[1].url,
-    `${baseUrl}/v1/stores/${storeId}/social-publications/comments/classifications/${runId}`,
-  );
-  assert.equal(calls[0].body.transformed_once, true);
-  assert.equal(transforms, 1);
-  assert.equal(successes, 1);
-});
-
-test("direct provider calls and scheduled observations keep their original store scope", async () => {
+test("direct provider calls keep their original store scope", async () => {
   const originalStoreId = "store-original";
   const replacementStoreId = "store-replacement";
   const client = createAdmin({
@@ -454,7 +375,6 @@ test("direct provider calls and scheduled observations keep their original store
     apiToken: "scheduled-contract-token",
   });
   const providerId = "provider-store-scope";
-  const runId = "classification-store-scope";
   const requestedProvider = {
     id: providerId,
     store_id: originalStoreId,
@@ -476,16 +396,6 @@ test("direct provider calls and scheduled observations keep their original store
     status: "requested",
     requested_at: 1,
   };
-  const requestedRun = {
-    run_id: runId,
-    status: "requested",
-    comments_scanned: 0,
-    comments_classified: 0,
-    comments_skipped: 0,
-    comments: [],
-    skipped_comment_ids: [],
-    errors: [],
-  };
   const calls = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
@@ -493,31 +403,21 @@ test("direct provider calls and scheduled observations keep their original store
     calls.push({ target, method: init.method || "GET" });
     if (init.method === "POST") {
       client.setStoreId(replacementStoreId);
-      if (target.endsWith("/payment-providers/stripe/connect")) {
-        return jsonResponse({
-          provider: requestedProvider,
-          connection: requestedConnection,
-          onboarding_url: null,
-        });
-      }
-      return jsonResponse(requestedRun);
+      return jsonResponse({
+        provider: requestedProvider,
+        connection: requestedConnection,
+        onboarding_url: null,
+      });
     }
-    return jsonResponse({
-      ...requestedRun,
-      status: "succeeded",
-      completed_at: 2,
-    });
+    throw new Error(`Unexpected provider observation: ${target}`);
   };
 
   try {
     await client.store.paymentProvider.stripe.connect({
+      attempt_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
       return_url: "https://admin.example.test/return",
       refresh_url: "https://admin.example.test/refresh",
       country: "BA",
-    });
-    client.setStoreId(originalStoreId);
-    await client.social.publication.classifyComments({
-      run_id: requestedRun.run_id,
     });
   } finally {
     globalThis.fetch = originalFetch;
@@ -529,14 +429,6 @@ test("direct provider calls and scheduled observations keep their original store
       [
         `/v1/stores/${originalStoreId}/payment-providers/stripe/connect`,
         "POST",
-      ],
-      [
-        `/v1/stores/${originalStoreId}/social-publications/comments/classify`,
-        "POST",
-      ],
-      [
-        `/v1/stores/${originalStoreId}/social-publications/comments/classifications/${runId}`,
-        "GET",
       ],
     ],
   );

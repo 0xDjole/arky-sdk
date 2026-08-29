@@ -114,8 +114,12 @@ export type {
   StoreSubscriptionCheckoutAction,
   OrderCheckoutResult,
   StoreSubscription,
+  StoreSubscriptionCheckout,
+  StoreSubscriptionCheckoutStatus,
   StorePlanAccess,
   StoreSubscriptionStatus,
+  ProviderOperationClaim,
+  ProviderEffectError,
   SubscriptionPlan,
   SubscriptionPlanFeature,
   SubscriptionPlanFeatureType,
@@ -312,10 +316,6 @@ export type {
   CustomerAction,
   CustomerActionType,
   CustomerActionOrigin,
-  CustomerActionContext,
-  CustomerActionLocation,
-  CustomerActionDevice,
-  CustomerActionSession,
   CustomerActionProviderObservation,
   AudienceMembershipJoinSource,
   AudienceBillingCadence,
@@ -753,7 +753,7 @@ export type {
 } from "./api/support";
 export type { EventMetadata, EventScopeField } from "./api/platform";
 
-export const SDK_VERSION = "0.26.1";
+export const SDK_VERSION = "0.26.2";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -1663,7 +1663,8 @@ function createStorefrontClientCore(
 
   const authStorage: AuthStorage = {
     getTokens() {
-      if (!memorySession || memorySession.session.status !== "active") return null;
+      if (!memorySession || memorySession.session.status !== "active")
+        return null;
       const issued = memorySession.session;
       return issued.type === "visitor"
         ? { access_token: issued.token }
@@ -1807,7 +1808,9 @@ function createStorefrontClientCore(
     return result;
   }
 
-  async function verify(params: { code: string }): Promise<StorefrontVerifyResult> {
+  async function verify(params: {
+    code: string;
+  }): Promise<StorefrontVerifyResult> {
     requireVisitorSessionCapability();
     await ensureVisitorSession();
     const result = await customerApi.verify({ code: params.code });

@@ -40,7 +40,12 @@ test("Admin Customer namespace uses only canonical routes and flattened identiti
     const parsedUrl = new URL(String(url));
     const path = parsedUrl.pathname;
     const body = init.body ? JSON.parse(String(init.body)) : null;
-    calls.push({ path, search: parsedUrl.search, method: init.method || "GET", body });
+    calls.push({
+      path,
+      search: parsedUrl.search,
+      method: init.method || "GET",
+      body,
+    });
     if (path.endsWith("/sessions")) {
       return jsonResponse({
         items: [
@@ -127,10 +132,10 @@ test("Admin Customer namespace uses only canonical routes and flattened identiti
     await admin.customers.find({ status: "active", has_verified_email: true });
     await admin.customers.get({ id: customerId });
     await admin.customers.update({ id: customerId, email: "new@example.com" });
+    await admin.customers.update({ id: customerId, status: "archived" });
+    await admin.customers.update({ id: customerId, status: "active" });
     await admin.customers.archive({ id: customerId });
-    const importRows = [
-      { email: "person@example.com", classifications: [] },
-    ];
+    const importRows = [{ email: "person@example.com", classifications: [] }];
     await admin.customers.previewImport({ rows: importRows });
     await admin.customers.import({ rows: importRows });
     const sessions = await admin.customers.findSessions({
@@ -162,11 +167,16 @@ test("Admin Customer namespace uses only canonical routes and flattened identiti
       ["GET", `/v1/stores/${storeId}/customers`],
       ["GET", `/v1/stores/${storeId}/customers/${customerId}`],
       ["PATCH", `/v1/stores/${storeId}/customers/${customerId}`],
+      ["PATCH", `/v1/stores/${storeId}/customers/${customerId}`],
+      ["PATCH", `/v1/stores/${storeId}/customers/${customerId}`],
       ["POST", `/v1/stores/${storeId}/customers/${customerId}/archive`],
       ["POST", `/v1/stores/${storeId}/customers/import/preview`],
       ["POST", `/v1/stores/${storeId}/customers/import`],
       ["GET", `/v1/stores/${storeId}/customers/${customerId}/sessions`],
-      ["POST", `/v1/stores/${storeId}/customers/${customerId}/sessions/session-visitor/revoke`],
+      [
+        "POST",
+        `/v1/stores/${storeId}/customers/${customerId}/sessions/session-visitor/revoke`,
+      ],
       ["POST", `/v1/stores/${storeId}/customers/${customerId}/sessions/revoke`],
     ],
   );
@@ -174,9 +184,21 @@ test("Admin Customer namespace uses only canonical routes and flattened identiti
     calls.find(({ path }) => path.endsWith("/import/preview"))?.body,
     { rows: [{ email: "person@example.com", classifications: [] }] },
   );
+  assert.deepEqual(calls.find(({ path }) => path.endsWith("/import"))?.body, {
+    rows: [{ email: "person@example.com", classifications: [] }],
+  });
   assert.deepEqual(
-    calls.find(({ path }) => path.endsWith("/import"))?.body,
-    { rows: [{ email: "person@example.com", classifications: [] }] },
+    calls
+      .filter(
+        ({ method, path }) =>
+          method === "PATCH" && path.endsWith(`/customers/${customerId}`),
+      )
+      .map(({ body }) => body),
+    [
+      { email: "new@example.com" },
+      { status: "archived" },
+      { status: "active" },
+    ],
   );
   assert.equal(
     calls.find(

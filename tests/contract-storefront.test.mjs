@@ -20,7 +20,25 @@ function jsonResponse(body, status = 200) {
 
 function sessionStorage(token = visitorToken) {
   const values = new Map();
-  let initial = token;
+  let initial = JSON.stringify({
+    version: 1,
+    customer: {
+      id: "customer-contract",
+      status: "active",
+      identities: [],
+      classifications: [],
+      created_at: 1,
+      updated_at: 1,
+    },
+    session: {
+      id: "visitor-session-contract",
+      customer_id: "customer-contract",
+      type: "visitor",
+      token,
+      status: "active",
+      expires_at: 10_000,
+    },
+  });
   return {
     getItem: (key) => values.get(key) ?? initial,
     setItem(key, value) {
@@ -488,33 +506,17 @@ test("storefront order payment lookup is an authenticated exact GET", async () =
   assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
 });
 
-test("paid Audience subscribe returns the exact embedded Checkout response without polling", async () => {
+test("paid Audience checkout returns the exact embedded Checkout response without polling", async () => {
   const storefront = createStorefront(publishableKey, {
     apiUrl,
     sessionStorage: sessionStorage(),
   });
   const response = {
-    payment_action: {
-      type: "stripe_embedded_checkout",
-      publishable_key: "pk_test_audience",
-      client_secret: "cs_subscription_secret_exact",
-      connected_account_id: "acct_audience",
-      expires_at: 1_800_000_000,
-    },
-    payment: {
-      id: "payment-paid",
-      tier_id: "tier-paid",
-      amount: 900,
-      currency: "EUR",
-      status: "requires_action",
-    },
-    member: {
-      id: "member-paid",
-      enrollment_status: "pending",
-      delivery_status: "subscribed",
-      created_at: 1,
-      updated_at: 1,
-    },
+    checkout_id: "79a8b7f8-9927-4575-8849-917203778a71",
+    publishable_key: "pk_test_audience",
+    client_secret: "cs_subscription_secret_exact",
+    connected_account_id: "acct_audience",
+    expires_at: 1_800_000_000,
   };
   const calls = [];
   const originalFetch = globalThis.fetch;
@@ -529,9 +531,11 @@ test("paid Audience subscribe returns the exact embedded Checkout response witho
 
   try {
     assert.deepEqual(
-      await storefront.audiences.subscribe({
+      await storefront.audiences.checkout({
         audience_id: "audience-paid",
-        price_id: "price-paid",
+        email: "member@example.test",
+        cadence: "monthly",
+        return_url: "https://storefront.example.test/audience-return",
       }),
       response,
     );
@@ -539,13 +543,25 @@ test("paid Audience subscribe returns the exact embedded Checkout response witho
     globalThis.fetch = originalFetch;
   }
 
-  assert.deepEqual(calls, [
+  assert.equal(calls.length, 1);
+  assert.equal(
+    calls[0].url,
+    `${apiUrl}/v1/storefront/audiences/audience-paid/checkout`,
+  );
+  assert.equal(calls[0].method, "POST");
+  assert.match(
+    calls[0].body.request_id,
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+  );
+  assert.deepEqual(
+    { ...calls[0].body, request_id: "<sdk-owned>" },
     {
-      url: `${apiUrl}/v1/storefront/audiences/audience-paid/subscribe`,
-      method: "POST",
-      body: { price_id: "price-paid" },
+      request_id: "<sdk-owned>",
+      email: "member@example.test",
+      cadence: "monthly",
+      return_url: "https://storefront.example.test/audience-return",
     },
-  ]);
+  );
 });
 
 test("card checkout returns an embedded Stripe action without navigating", async () => {

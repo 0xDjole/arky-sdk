@@ -385,22 +385,15 @@ test("admin Store methods use the explicit name, email, and language contract", 
   ]);
 });
 
-test("admin Store deletion requests the deleting status with exact name confirmation", async () => {
+test("admin Store deletion returns the exact physical-deletion result", async () => {
   const admin = createAdmin({
     baseUrl,
     storeId,
     market: "us",
   });
-  const deletingStore = {
-    id: storeId,
-    name: "Client Contract",
-    email: "owner@example.test",
-    publishable_key: publishableKey,
-    status: "deleting",
-    default_market_id: null,
-    timezone: "Europe/Sarajevo",
-    default_language: "en",
-    supported_languages: ["en"],
+  const deletionResult = {
+    success: true,
+    store_id: storeId,
   };
   let call;
   const originalFetch = globalThis.fetch;
@@ -410,13 +403,13 @@ test("admin Store deletion requests the deleting status with exact name confirma
       method: init.method,
       body: JSON.parse(String(init.body)),
     };
-    return jsonResponse(deletingStore);
+    return jsonResponse(deletionResult);
   };
 
   try {
     assert.deepEqual(
       await admin.store.requestDeletion({ confirmation: "Client Contract" }),
-      deletingStore,
+      deletionResult,
     );
   } finally {
     globalThis.fetch = originalFetch;

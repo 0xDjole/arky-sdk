@@ -10,11 +10,12 @@ npm install arky-sdk
 
 ## Storefront quick start
 
-The current browser contract is `arky-sdk@0.26.0`. Pin that exact version during the coordinated
-prelaunch cutover so the Server, App, and storefront route/header contracts move together:
+The next coordinated browser contract on `develop` is `arky-sdk@0.26.2`. After that exact version
+is released from protected `master`, pin it so the Server, App, and storefront route/header
+contracts move together:
 
 ```bash
-npm install --save-exact arky-sdk@0.26.0
+npm install --save-exact arky-sdk@0.26.2
 ```
 
 Copy the Store publishable key from Developer and initialize one client:
@@ -210,7 +211,9 @@ import { createAdmin } from "arky-sdk/admin";
 const bookingCheckout = await arky.eshop.cart.checkout({
   payment_provider_id: "payment-provider-id",
 });
-const customerOrder = await arky.eshop.order.get({ id: bookingCheckout.order_id });
+const customerOrder = await arky.eshop.order.get({
+  id: bookingCheckout.order_id,
+});
 const admin = createAdmin({
   baseUrl: "https://api.arky.io",
   storeId: "store-id",
@@ -393,7 +396,9 @@ Interactive operator login starts a pending Account Session. Verification activa
 Session ID; token refresh returns a new Session while preserving `authenticated_at`:
 
 ```typescript
-const pending = await admin.account.auth.code({ email: "operator@example.com" });
+const pending = await admin.account.auth.code({
+  email: "operator@example.com",
+});
 const session = await admin.account.auth.verify({
   session_id: pending.session_id,
   code: "123456",
@@ -461,9 +466,7 @@ discount array replaces the complete existing array:
 ```typescript
 const promo = await admin.eshop.promoCode.createPromoCode({
   code: "WELCOME10",
-  discounts: [
-    { type: "item_percentage", market: "bih", basis_points: 1_000 },
-  ],
+  discounts: [{ type: "item_percentage", market: "bih", basis_points: 1_000 }],
   conditions: [
     { type: "products", product_ids: ["product-id"] },
     {
@@ -572,10 +575,12 @@ const result = await admin.eshop.shipment.create({
 });
 
 console.log(rate.postage, rate.platform_label_fee, rate.total);
-console.log(result.shipment.label?.total);
+console.log(result.shipment.label.total);
 ```
 
-`ShippingLabel` and its embedded `ShippingLabelRefund` are carrier-neutral public DTOs. The one
+Every created Shipment owns its durable `ShippingLabel` from the initial `requested` state;
+label-less Shipment responses are invalid. `ShippingLabel` and its optional embedded
+`ShippingLabelRefund` are carrier-neutral public DTOs. The one
 merchant debit and its independently processed full return are separate singular resources:
 
 ```typescript
@@ -593,11 +598,10 @@ const charge = await admin.eshop.shipment.shippingLabelCharge.get({
   order_id: result.shipment.order_id,
   shipment_id: result.shipment.id,
 });
-const chargeRefund =
-  await admin.eshop.shipment.shippingLabelChargeRefund.get({
-    order_id: result.shipment.order_id,
-    shipment_id: result.shipment.id,
-  });
+const chargeRefund = await admin.eshop.shipment.shippingLabelChargeRefund.get({
+  order_id: result.shipment.order_id,
+  shipment_id: result.shipment.id,
+});
 ```
 
 These DTOs expose safe lifecycle state and `Money` snapshots only. Carrier and payment-provider

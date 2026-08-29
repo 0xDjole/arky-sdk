@@ -49,8 +49,6 @@ const removedIdentifiers = [
   "PaymentMethod",
   "PaymentMethodType",
   "PaymentProviderType",
-  "StoreSubscriptionCheckout",
-  "StoreSubscriptionCheckoutStatus",
   "StoreSubscriptionPayment",
   "StoreSubscriptionBillingStatus",
   "GetStoreSubscriptionCheckoutParams",
@@ -63,9 +61,6 @@ const removedIdentifiers = [
   "ServiceProvider",
   "ServiceStatus",
   "ProviderStatus",
-  "WorkingHour",
-  "WorkingDay",
-  "SpecificDate",
   "OrderBooking",
   "SlotRange",
   "ProviderAvailability",
@@ -174,7 +169,7 @@ const removedIdentifierPattern = new RegExp(
   `\\b(?:${removedIdentifiers.join("|")})\\b`,
   "g",
 );
-const forbiddenProviderOperationPattern = /provider(?:_|-)?operations?/gi;
+const forbiddenProviderOperationPattern = /\bprovider(?:_|-)?operations?\b/gi;
 const removedClassificationVocabularyPattern =
   /Taxonom|taxonom|LocalizedText|localized_text/g;
 const removedCommercePaymentVocabularyPattern = new RegExp(
@@ -798,6 +793,9 @@ const storeSubscriptionContract = activityTypesSource.match(
 );
 if (
   !storeSubscriptionContract ||
+  !/\n\s*checkout:\s*StoreSubscriptionCheckout\s*\|\s*null;/.test(
+    storeSubscriptionContract[1],
+  ) ||
   !/\n\s*payment_action:\s*StoreSubscriptionCheckoutAction;/.test(
     storeSubscriptionContract[1],
   )
@@ -806,7 +804,7 @@ if (
     activityTypesFile,
     activityTypesSource,
     storeSubscriptionContract?.index ?? 0,
-    "StoreSubscription must use its distinct Checkout action",
+    "StoreSubscription must expose its embedded Checkout and distinct Checkout action",
   );
   failures++;
 }

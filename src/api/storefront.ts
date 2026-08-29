@@ -103,6 +103,121 @@ import {
   sanitizePublicCartDigitalProducts,
   sanitizePublicCartProducts,
 } from "../utils/cartInputs";
+import {
+  DurableRequestStorageError,
+  clearDurableRequest,
+  durableRequestPayload,
+  getOrCreateDurableRequest,
+  readDurableRequest,
+  withDurableRequestLock,
+} from "../utils/durableRequest";
+
+const audienceCheckoutLabel = "Audience Checkout";
+const canonicalUuidV4 =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+interface DurableAudienceCheckoutRequest {
+  audience_id: string;
+  request_id: string;
+  email: string;
+  cadence: "one_time" | "monthly" | "yearly";
+  return_url: string;
+}
+
+function browserHasDurableStorage(): boolean {
+  return typeof globalThis.window !== "undefined";
+}
+
+function responseStatusCode(value: unknown): number | null {
+  if (typeof value !== "object" || value === null || !("statusCode" in value)) {
+    return null;
+  }
+  return typeof value.statusCode === "number" ? value.statusCode : null;
+}
+
+function newAudienceCheckoutRequestId(): string {
+  const id = globalThis.crypto?.randomUUID?.();
+  if (!id || !canonicalUuidV4.test(id)) {
+    throw new DurableRequestStorageError(
+      `Cannot safely start ${audienceCheckoutLabel} because UUID-v4 generation is unavailable`,
+    );
+  }
+  return id;
+}
+
+function audienceCheckoutStorageKey(
+  apiConfig: StorefrontApiConfig,
+  audienceId: string,
+): string {
+  return `arky:audience-checkout:v1:${encodeURIComponent(apiConfig.apiUrl.toLowerCase())}:${encodeURIComponent(apiConfig.publishableKey)}:${encodeURIComponent(audienceId)}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function persistedAudienceCheckoutRequest(
+  value: unknown,
+): DurableAudienceCheckoutRequest {
+  if (!isRecord(value)) {
+    throw new DurableRequestStorageError(
+      `Cannot safely continue ${audienceCheckoutLabel} because its durable payload is invalid`,
+    );
+  }
+  const keys = Object.keys(value);
+  const expectedKeys = [
+    "audience_id",
+    "request_id",
+    "email",
+    "cadence",
+    "return_url",
+  ];
+  if (
+    keys.length !== expectedKeys.length ||
+    expectedKeys.some((key) => !keys.includes(key)) ||
+    typeof value.audience_id !== "string" ||
+    typeof value.request_id !== "string" ||
+    !canonicalUuidV4.test(value.request_id) ||
+    typeof value.email !== "string" ||
+    (value.cadence !== "one_time" &&
+      value.cadence !== "monthly" &&
+      value.cadence !== "yearly") ||
+    typeof value.return_url !== "string"
+  ) {
+    throw new DurableRequestStorageError(
+      `Cannot safely continue ${audienceCheckoutLabel} because its durable payload is invalid`,
+    );
+  }
+  return value as unknown as DurableAudienceCheckoutRequest;
+}
+
+function audienceCheckoutInputMatches(
+  request: DurableAudienceCheckoutRequest,
+  params: StorefrontParams<StartAudienceCheckoutParams>,
+): boolean {
+  return (
+    request.audience_id === params.audience_id &&
+    request.email === params.email &&
+    request.cadence === params.cadence &&
+    request.return_url === params.return_url
+  );
+}
+
+function matchingAudienceCheckoutResult(
+  value: StartAudienceCheckoutResult,
+): boolean {
+  return (
+    canonicalUuidV4.test(value.checkout_id) &&
+    typeof value.publishable_key === "string" &&
+    value.publishable_key.length > 0 &&
+    typeof value.client_secret === "string" &&
+    value.client_secret.length > 0 &&
+    typeof value.connected_account_id === "string" &&
+    value.connected_account_id.length > 0 &&
+    Number.isSafeInteger(value.expires_at) &&
+    value.expires_at > 0
+  );
+}
 
 export interface CustomerSessionInternal {
   customer: StorefrontCustomer;
@@ -876,11 +991,68 @@ export const createStorefrontApi = (
         options?: RequestOptions,
       ): Promise<StartAudienceCheckoutResult> {
         await lifecycle.ensureVisitorSession();
-        const { audience_id, ...payload } = params;
-        return apiConfig.httpClient.post<StartAudienceCheckoutResult>(
-          `${base}/audiences/${audience_id}/checkout`,
-          payload,
-          options,
+        const post = (request: DurableAudienceCheckoutRequest) => {
+          const { audience_id, ...payload } = request;
+          return apiConfig.httpClient.post<StartAudienceCheckoutResult>(
+            `${base}/audiences/${audience_id}/checkout`,
+            payload,
+            options,
+          );
+        };
+        const freshRequest = (): DurableAudienceCheckoutRequest => ({
+          audience_id: params.audience_id,
+          request_id: newAudienceCheckoutRequestId(),
+          email: params.email,
+          cadence: params.cadence,
+          return_url: params.return_url,
+        });
+
+        if (!browserHasDurableStorage()) {
+          return post(freshRequest());
+        }
+
+        const storageKey = audienceCheckoutStorageKey(
+          apiConfig,
+          params.audience_id,
+        );
+        return withDurableRequestLock(
+          storageKey,
+          audienceCheckoutLabel,
+          async () => {
+            const retained = readDurableRequest(storageKey, audienceCheckoutLabel);
+            const payload = retained
+              ? persistedAudienceCheckoutRequest(durableRequestPayload(retained))
+              : freshRequest();
+            if (!audienceCheckoutInputMatches(payload, params)) {
+              throw new DurableRequestStorageError(
+                `Cannot safely continue ${audienceCheckoutLabel} because its unresolved request has different immutable input`,
+              );
+            }
+            const durable = getOrCreateDurableRequest(
+              storageKey,
+              payload,
+              audienceCheckoutLabel,
+            );
+            const exactPayload = persistedAudienceCheckoutRequest(
+              durableRequestPayload(durable),
+            );
+            let result: StartAudienceCheckoutResult;
+            try {
+              result = await post(exactPayload);
+            } catch (error) {
+              if (responseStatusCode(error) === 400) {
+                clearDurableRequest(durable, audienceCheckoutLabel);
+              }
+              throw error;
+            }
+            if (!matchingAudienceCheckoutResult(result)) {
+              throw new DurableRequestStorageError(
+                `Cannot safely continue ${audienceCheckoutLabel} because Server returned invalid Checkout evidence`,
+              );
+            }
+            clearDurableRequest(durable, audienceCheckoutLabel);
+            return result;
+          },
         );
       },
       customer: {

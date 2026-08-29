@@ -62,6 +62,8 @@ export const createNotificationApi = (apiConfig: ApiConfig) => {
               ...(observation.error === undefined
                 ? {}
                 : { error: observation.error }),
+              provider_message_id: observation.provider_message_id ?? null,
+              provider_thread_id: observation.provider_thread_id ?? null,
             };
           });
           return {

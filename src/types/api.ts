@@ -589,6 +589,7 @@ export interface RequestStoreDeletionParams {
 
 export interface SelectStoreSubscriptionParams {
   store_id?: string;
+  checkout_id?: string;
   plan_id: string;
   return_url: string;
 }
@@ -1459,23 +1460,19 @@ export interface AudienceMembershipImportRow {
   insight?: Record<string, unknown> | null;
 }
 
-export interface PreviewAudienceMembershipImportParams
-  extends AudienceReferenceParams {
+export interface PreviewAudienceMembershipImportParams extends AudienceReferenceParams {
   rows: AudienceMembershipImportRow[];
 }
 
-export interface ImportAudienceMembershipsParams
-  extends AudienceReferenceParams {
+export interface ImportAudienceMembershipsParams extends AudienceReferenceParams {
   rows: AudienceMembershipImportRow[];
 }
 
-export interface ReplaceAudienceMembershipInsightParams
-  extends GetAudienceMembershipParams {
+export interface ReplaceAudienceMembershipInsightParams extends GetAudienceMembershipParams {
   insight: Record<string, unknown>;
 }
 
-export interface FindAudienceRefundsParams
-  extends GetAudienceMembershipParams {
+export interface FindAudienceRefundsParams extends GetAudienceMembershipParams {
   limit?: number;
   cursor?: string;
 }
@@ -1492,8 +1489,7 @@ export type AudienceRefundChargeSelector =
       stripe_invoice_id: string;
     };
 
-export interface RequestAudienceRefundParams
-  extends GetAudienceMembershipParams {
+export interface RequestAudienceRefundParams extends GetAudienceMembershipParams {
   id: string;
   charge: AudienceRefundChargeSelector;
   amount: Money;
@@ -1505,14 +1501,12 @@ export interface GetAudienceRefundParams extends GetAudienceMembershipParams {
   refund_id: string;
 }
 
-export interface FindAudienceDisputesParams
-  extends GetAudienceMembershipParams {
+export interface FindAudienceDisputesParams extends GetAudienceMembershipParams {
   limit?: number;
   cursor?: string;
 }
 
-export interface GetAudienceDisputeParams
-  extends GetAudienceMembershipParams {
+export interface GetAudienceDisputeParams extends GetAudienceMembershipParams {
   dispute_id: string;
 }
 
@@ -1534,7 +1528,6 @@ export interface JoinAudienceParams {
 export interface StartAudienceCheckoutParams {
   store_id?: string;
   audience_id: string;
-  request_id: string;
   email: string;
   cadence: AudienceBillingCadence;
   return_url: string;
@@ -1549,8 +1542,7 @@ export interface CustomerAudienceMembershipReferenceParams {
   membership_id: string;
 }
 
-export interface CreateAudienceBillingPortalSessionParams
-  extends CustomerAudienceMembershipReferenceParams {
+export interface CreateAudienceBillingPortalSessionParams extends CustomerAudienceMembershipReferenceParams {
   return_url: string;
 }
 
@@ -1905,6 +1897,7 @@ export interface RefreshStripePaymentProviderParams {
 
 export interface ConnectStripePaymentProviderParams {
   store_id?: string;
+  attempt_id: string;
   return_url: string;
   refresh_url: string;
   authorize_account_debits: boolean;
@@ -2080,6 +2073,7 @@ export interface UpdateCustomerParams {
   store_id?: string;
   email?: string;
   classifications?: ClassificationEntry[];
+  status?: CustomerStatus;
 }
 
 export interface GetCustomerParams {
