@@ -51,10 +51,6 @@ import type {
   CampaignEnrollmentStatusFilter,
   CampaignEmailContent,
   CampaignStep,
-  SuppressionStatus,
-  SuppressionTarget,
-  SuppressionScope,
-  SuppressionReason,
   SocialConnectionType,
   SocialMessageSync,
   SocialPostContent,
@@ -1773,38 +1769,6 @@ export interface ReplaceCampaignMessageDraftParams {
   campaign_id: string;
   campaign_enrollment_id: string;
   content: CampaignEmailContent;
-}
-
-export interface CreateSuppressionParams {
-  store_id?: string;
-  target: SuppressionTarget;
-  scope: SuppressionScope;
-  reason?: SuppressionReason;
-}
-
-export interface UpdateSuppressionParams {
-  id: string;
-  store_id?: string;
-  status?: SuppressionStatus;
-  reason?: SuppressionReason;
-}
-
-export interface FindSuppressionsParams {
-  store_id?: string;
-  status?: SuppressionStatus;
-  target?: SuppressionTarget;
-  scope?: SuppressionScope;
-  reason?: SuppressionReason;
-  query?: string | number;
-  limit?: number;
-  cursor?: string;
-  sort_field?: string;
-  sort_direction?: "asc" | "desc";
-}
-
-export interface GetSuppressionParams {
-  id: string;
-  store_id?: string;
 }
 
 export interface CreateLeadResearchParams {

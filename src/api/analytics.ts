@@ -21,7 +21,6 @@ export type AnalyticsReportKey =
   | "carts_abandoned"
   | "campaign_messages_sent"
   | "campaign_messages_received"
-  | "suppressions_created"
   | "media_count"
   | "products_by_status"
   | "services_by_status"
@@ -35,7 +34,6 @@ export type AnalyticsReportKey =
   | "campaign_enrollments_by_status"
   | "campaign_messages_by_status"
   | "support_conversations_by_status"
-  | "suppressions_by_status"
   | "workflows_by_status"
   | "promo_codes_by_status"
   | "email_templates_by_status"
@@ -184,17 +182,11 @@ export interface OutreachOverviewData {
   active_campaign_enrollments: number;
   completed_campaign_enrollments: number;
   replied_campaign_enrollments: number;
-  suppressed_campaign_enrollments: number;
-  failed_campaign_enrollments: number;
   campaign_messages_sent: number;
   outreach_bounces: number;
   campaign_messages_received: number;
-  suppressions: number;
-  active_suppressions: number;
-  new_suppressions: number;
   reply_rate: AnalyticsRateData;
   bounce_rate: AnalyticsRateData;
-  suppression_rate: AnalyticsRateData;
 }
 
 export interface OutreachFunnelStage {
@@ -214,7 +206,6 @@ export interface OutreachFunnelData {
   stages: OutreachFunnelStage[];
   reply_rate?: AnalyticsRateData;
   bounce_rate?: AnalyticsRateData;
-  suppression_rate?: AnalyticsRateData;
 }
 
 export interface EntityStatusOverviewData {
@@ -286,7 +277,6 @@ export type AnalyticsMetricReportKey =
   | "carts_abandoned"
   | "campaign_messages_sent"
   | "campaign_messages_received"
-  | "suppressions_created"
   | "media_count";
 
 export type AnalyticsBreakdownReportKey =
@@ -304,7 +294,6 @@ export type AnalyticsBreakdownReportKey =
   | "campaign_enrollments_by_status"
   | "campaign_messages_by_status"
   | "support_conversations_by_status"
-  | "suppressions_by_status"
   | "workflows_by_status"
   | "promo_codes_by_status"
   | "email_templates_by_status"

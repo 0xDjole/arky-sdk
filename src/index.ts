@@ -340,7 +340,6 @@ export type {
   CampaignEnrollmentConversationResponse,
   EnrollCampaignResult,
   CampaignMessage,
-  Suppression,
   LeadResearch,
   LeadResearchCreated,
   LeadResearchMessage,
@@ -371,11 +370,6 @@ export type {
   CampaignOutgoingOrigin,
   CampaignMessageType,
   CampaignEmailContent,
-  SuppressionStatus,
-  SuppressionTarget,
-  SuppressionScope,
-  SuppressionReason,
-  SuppressionSource,
   WorkflowStatus,
   MutableWorkflowStatus,
   WorkflowSendEmailNode,
@@ -572,10 +566,6 @@ export type {
   ReplyCampaignEnrollmentParams,
   StopCampaignEnrollmentParams,
   ReplaceCampaignMessageDraftParams,
-  CreateSuppressionParams,
-  UpdateSuppressionParams,
-  FindSuppressionsParams,
-  GetSuppressionParams,
   CreateLeadResearchParams,
   FindLeadResearchesParams,
   GetLeadResearchParams,
@@ -819,7 +809,6 @@ import { createAudiencesApi } from "./api/audiences";
 import { createActionsApi } from "./api/actions";
 import { createMailboxApi } from "./api/mailbox";
 import { createCampaignApi } from "./api/campaign";
-import { createOutreachApi } from "./api/outreach";
 import {
   createAdminSupportApi,
   createStorefrontSupportApi,
@@ -1062,7 +1051,6 @@ export function createAdmin(config: CreateAdminConfig) {
   const actionsApi = createActionsApi(apiConfig);
   const mailboxApi = createMailboxApi(apiConfig);
   const campaignApi = createCampaignApi(apiConfig);
-  const outreachApi = createOutreachApi(apiConfig);
   const supportApi = createAdminSupportApi(apiConfig);
   const leadResearchApi = createLeadResearchApi(apiConfig);
   const socialApi = createSocialApi(apiConfig);
@@ -1347,9 +1335,6 @@ export function createAdmin(config: CreateAdminConfig) {
     campaign: campaignApi.campaign,
     campaignEnrollment: campaignApi.campaignEnrollment,
     campaignMessage: campaignApi.campaignMessage,
-    outreach: {
-      suppression: outreachApi.suppression,
-    },
     leadResearch: leadResearchApi,
     workflow: workflowPublicApi,
     support: {

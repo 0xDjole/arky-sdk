@@ -478,7 +478,6 @@ assert.equal(typeof arky.campaign.find, "function");
 assert.equal(typeof arky.campaign.findEnrollments, "function");
 assert.equal(typeof arky.campaignEnrollment.getConversation, "function");
 assert.equal(typeof arky.campaignMessage.replaceDraft, "function");
-assert.equal(typeof arky.outreach.suppression.find, "function");
 assert.equal(typeof arky.leadResearch.create, "function");
 
 assert.equal(typeof arky.audiences.memberships.enroll, "function");

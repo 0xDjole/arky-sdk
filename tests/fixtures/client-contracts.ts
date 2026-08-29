@@ -29,7 +29,6 @@ import type {
   CreateMarketParams,
   CreateProductParams,
   CreateDigitalProductParams,
-  CreateSuppressionParams,
   CreateOrderShipmentParams,
   DigitalAsset,
   DigitalLibraryItem,
@@ -139,7 +138,6 @@ import type {
   Money,
   OrderQuote,
   PaymentProvider,
-  Suppression,
   WorkflowHttpNode,
   WorkflowExternalOperation,
   VerifyPendingAccountSessionParams,
@@ -870,20 +868,6 @@ const smtpImapMailboxProviderWithoutType: SmtpImapMailboxProviderInput = {
 void smtpImapMailboxProviderInput;
 void smtpImapMailboxProviderWithoutType;
 
-const suppressionInput: CreateSuppressionParams = {
-  target: { type: "email", email: "person@example.com" },
-  scope: { type: "campaign", campaign_id: "campaign-contract" },
-  reason: "manual",
-};
-declare const suppression: Suppression;
-if (suppression.target.type === "customer") {
-  const suppressionCustomerId: string = suppression.target.customer_id;
-  void suppressionCustomerId;
-}
-// @ts-expect-error suppression identity is expressed only by its tagged target.
-suppression.target_key;
-// @ts-expect-error suppression ownership scope is expressed only by its tagged scope.
-suppression.campaign_id;
 declare const digitalAsset: DigitalAsset;
 // @ts-expect-error object storage keys are internal and never exposed by Admin responses.
 digitalAsset.object_key;
@@ -1063,7 +1047,6 @@ if (mailbox.provider.type === "smtp_imap") {
   void hasCredential;
   void safeIssueType;
 }
-void suppressionInput;
 
 const clearCartAddresses: UpdateCartParams = {
   id: "cart-contract",

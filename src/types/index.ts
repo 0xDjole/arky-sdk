@@ -1864,16 +1864,6 @@ export type CampaignMessageType =
       email_attachment_ids: string[];
       received_at: number;
     };
-export type SuppressionStatus = "active" | "archived";
-export type SuppressionTarget =
-  | { type: "email"; email: string }
-  | { type: "domain"; domain: string }
-  | { type: "customer"; customer_id: string };
-export type SuppressionScope =
-  { type: "store" } | { type: "campaign"; campaign_id: string };
-export type SuppressionReason =
-  "manual" | "unsubscribed" | "bounced" | "complained" | "replied";
-export type SuppressionSource = "admin" | "system";
 export type WorkflowStatus = "active" | "draft";
 export type MutableWorkflowStatus = WorkflowStatus;
 export type PromoCodeStatus = "active" | "draft" | "archived";
@@ -3133,18 +3123,6 @@ export interface CampaignConversationMessage {
 export interface CampaignEnrollmentConversationResponse {
   enrollment: CampaignEnrollment;
   messages: PaginatedResponse<CampaignConversationMessage>;
-}
-
-export interface Suppression {
-  id: string;
-  store_id: string;
-  target: SuppressionTarget;
-  scope: SuppressionScope;
-  reason: SuppressionReason;
-  status: SuppressionStatus;
-  source: SuppressionSource;
-  created_at: number;
-  updated_at: number;
 }
 
 export interface LeadResearch {
