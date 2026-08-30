@@ -60,7 +60,6 @@ export type {
   YoutubePrivacy,
   Block,
   BlockBase,
-  ReferenceDeletePolicy,
   TextBlock,
   MarkdownBlock,
   NumberBlock,

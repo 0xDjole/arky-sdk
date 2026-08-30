@@ -1135,7 +1135,18 @@ const formBlockSchema: BlockSchema = {
   key: "contact_form",
   type: "form",
   required: false,
-  properties: { on_delete: "set_null" },
+  properties: {},
+  children: [],
+};
+const legacyReferenceDeletePolicySchema: BlockSchema = {
+  id: "legacy-contact-form-schema",
+  key: "legacy_contact_form",
+  type: "form",
+  required: false,
+  properties: {
+    // @ts-expect-error Reference deletion is always restricted and is not configurable.
+    on_delete: "set_null",
+  },
   children: [],
 };
 const legacyMarkdownMap: Block = {
@@ -1190,6 +1201,7 @@ void localizedTitleBlock;
 void markdownBlock;
 void formBlock;
 void formBlockSchema;
+void legacyReferenceDeletePolicySchema;
 void legacyMarkdownMap;
 void blockWithValueProperties;
 void classificationSchema;

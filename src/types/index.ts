@@ -1344,8 +1344,6 @@ export interface BlockBase {
   key: string;
 }
 
-export type ReferenceDeletePolicy = "restrict" | "set_null";
-
 export interface TextBlock extends BlockBase {
   type: "text";
   value: string | null;
@@ -1922,7 +1920,6 @@ export interface BlockSchemaProperties {
   min?: number | null;
   max?: number | null;
   collection_id?: string | null;
-  on_delete?: ReferenceDeletePolicy | null;
 }
 
 export interface BlockSchema {
