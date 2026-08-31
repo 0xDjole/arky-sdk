@@ -2333,7 +2333,6 @@ const customerActionFeed: CustomerActionFeedData = {
       title: "Page viewed",
       description: "A customer viewed a product.",
       data: {},
-      payload: {},
       created_at: 1,
     },
   ],

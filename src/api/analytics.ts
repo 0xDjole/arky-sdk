@@ -233,7 +233,6 @@ export interface CustomerActionFeedItem {
   description: string;
   href?: string | null;
   data: unknown;
-  payload: unknown;
   created_at: number;
 }
 
