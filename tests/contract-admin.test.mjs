@@ -553,9 +553,7 @@ assert.equal("automation" in arky, false);
 
 assert.equal(typeof arky.notification.mailbox.find, "function");
 assert.equal(typeof arky.notification.mailbox.connectGoogle, "function");
-assert.equal(typeof arky.notification.email.send, "function");
-assert.equal(typeof arky.notification.email.getDelivery, "function");
-assert.equal(typeof arky.notification.email.retryDelivery, "function");
+assert.equal("email" in arky.notification, false);
 
 const mailboxFetchCalls = [];
 globalThis.fetch = async (url, init = {}) => {

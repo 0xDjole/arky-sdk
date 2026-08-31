@@ -778,15 +778,6 @@ test("shipping rate lookup sends only persisted context identifiers and package 
 });
 
 test("provider-effect APIs send one resource identity and return direct server evidence", async (t) => {
-  const send = {
-    type: "contact_store_notification",
-    data: {
-      store_id: defaultStoreId,
-      mailbox_id: "mailbox-contract",
-      template_id: "template-contract",
-      recipients: ["owner@example.test"],
-    },
-  };
   const cases = [
     {
       name: "webhook delivery",
@@ -805,17 +796,6 @@ test("provider-effect APIs send one resource identity and return direct server e
         url: `${baseUrl}/v1/stores/${defaultStoreId}/webhooks/test`,
         method: "POST",
         body: { delivery_id: resourceId, webhook_id: "webhook-contract" },
-      },
-    },
-    {
-      name: "email delivery",
-      response: { sent: 1, deliveries: [] },
-      request: (arky) =>
-        arky.notification.email.send({ send_id: resourceId, send }),
-      expected: {
-        url: `${baseUrl}/v1/notifications/email`,
-        method: "POST",
-        body: { send_id: resourceId, send },
       },
     },
     {

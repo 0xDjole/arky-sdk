@@ -2,6 +2,7 @@ import type {
   Account,
   AccountApiToken,
   AccountApiTokenStatus,
+  AccountVerificationEmailStatus,
   AccountSession,
   AccountSessionStatus,
   AuthToken,
@@ -36,7 +37,7 @@ import type {
   DigitalProduct,
   DigitalProductStatus,
   DiscountAllocation,
-  EmailDeliveryType,
+  CampaignConversationMessage,
   GetCollectionParams,
   GetDigitalLibraryProductParams,
   GetStorefrontDigitalProductParams,
@@ -125,6 +126,7 @@ import type {
   SupportConversation,
   SupportConversationStartResponse,
   SupportMessage,
+  SupportEmailStatus,
   UpdateCartParams,
   UpdateDigitalProductParams,
   UpdatePromoCodeParams,
@@ -139,6 +141,7 @@ import type {
   OrderQuote,
   PaymentProvider,
   WorkflowHttpNode,
+  WorkflowSendEmailNode,
   WorkflowExternalOperation,
   VerifyPendingAccountSessionParams,
   Webhook,
@@ -223,6 +226,12 @@ import type {
 import type { CancelOrderProductParams } from "../../dist/index.js";
 // @ts-expect-error Audience promotion snapshots no longer expose mutable usage state.
 import type { AudiencePromotionUsageStatus } from "../../dist/index.js";
+// @ts-expect-error generic EmailDelivery persistence no longer has a public SDK type.
+import type { EmailDelivery } from "../../dist/index.js";
+// @ts-expect-error generic Notification email requests were removed.
+import type { EmailSendRequest } from "../../dist/index.js";
+// @ts-expect-error generic delivery retry inputs were removed.
+import type { RetryEmailDeliveryParams } from "../../dist/index.js";
 import { createAdmin, SDK_VERSION } from "../../dist/index.js";
 import {
   COMMON_CUSTOMER_ACTION_KEYS,
@@ -500,6 +509,10 @@ quoteContract.payment_methods;
 
 declare const membershipContract: StoreMembership;
 const serverGeneratedMembershipUuid: string = membershipContract.id;
+const membershipInvitationEmailStatus: AccountVerificationEmailStatus | null | undefined =
+  membershipContract.invitation_email_status;
+// @ts-expect-error invitation state is Account-owned rather than a generic Delivery link.
+membershipContract.invitation_delivery_status;
 void createStoreContract;
 void createStoreLocationContract;
 void createBuildHookContract;
@@ -514,6 +527,7 @@ void checkoutContract;
 void quotedProviderId;
 void quotedProviderIds;
 void serverGeneratedMembershipUuid;
+void membershipInvitationEmailStatus;
 const merchantRefundReason: RefundRequestReason = "fraudulent";
 const refundMoney: Money = { amount: 1_250, currency: "usd" };
 const refundAllocation: RefundAllocation = {
@@ -1840,9 +1854,64 @@ const supportMessageWithNullState: SupportMessage = {
   attachments: [],
   metadata: {},
   ai_response: null,
+  email_status: null,
   created_at: 1,
   updated_at: 1,
 };
+const supportEmailStatus: SupportEmailStatus = {
+  status: "sent",
+  provider_message_id: "provider-support-message",
+  provider_thread_id: null,
+  provider_status: 202,
+  sent_at: 2,
+};
+
+const campaignConversationMessage: CampaignConversationMessage = {
+  message: {
+    id: "campaign-message-contract",
+    store_id: "store-contract",
+    campaign_id: "campaign-contract",
+    campaign_enrollment_id: "enrollment-contract",
+    position: 1,
+    parent_message_id: null,
+    type: {
+      type: "outgoing",
+      origin: {
+        origin: "account_session",
+        account_session_id: "account-session-contract",
+      },
+      media_ids: [],
+      submitted: true,
+    },
+    content: {
+      to_email: "recipient@example.test",
+      from_email: "sender@example.test",
+      subject: "Hello",
+      body_text: "Hello",
+      body_html: null,
+    },
+    created_at: 1,
+    updated_at: 2,
+  },
+  email_status: { status: "requested", requested_at: 2 },
+};
+
+const workflowEmailNode: WorkflowSendEmailNode = {
+  type: "send_email",
+  send: {
+    type: "contact_store_notification",
+    data: {
+      store_id: "{{input.store.id}}",
+      mailbox_id: "mailbox-contract",
+      template_id: "template-contract",
+      recipient: "{{input.store.email}}",
+      vars: {},
+    },
+  },
+  delay_ms: 0,
+};
+// @ts-expect-error one Workflow email operation accepts exactly one recipient.
+workflowEmailNode.send.data.recipients;
 
 const storefrontSupportMessage: StorefrontSendSupportMessageParams = {
   conversation_id: "conversation-contract",
@@ -1932,13 +2001,7 @@ const authToken: AuthToken = {
 // @ts-expect-error an Active Account Session is proof of verification.
 authToken.is_verified;
 
-const accountAuthDelivery: EmailDeliveryType = {
-  type: "platform_auth_code",
-  data: {
-    account_id: "account-contract",
-    session_id: pendingAccountSessionResponse.session_id,
-  },
-};
+const invitationEmailStatus: AccountVerificationEmailStatus = "processing";
 const pendingAccountSession: AccountSession = {
   id: "pending-session-contract",
   status: "pending_verification",
@@ -2439,6 +2502,9 @@ void [
   inboundSupportMessage,
   storefrontSupportStart,
   supportMessageWithNullState,
+  supportEmailStatus,
+  campaignConversationMessage,
+  workflowEmailNode,
   storefrontSupportMessage,
   storefrontSupportRead,
   storeSubscriptionRead,
@@ -2450,7 +2516,7 @@ void [
   pendingAccountSessionResponse,
   verifyPendingAccountSession,
   authToken,
-  accountAuthDelivery,
+  invitationEmailStatus,
   pendingAccountSession,
   activeAccountSession,
   revokedAccountSession,

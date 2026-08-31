@@ -94,7 +94,6 @@ export interface CreateMarketParams {
 
 export interface UpdateMarketParams {
   id: string;
-  currency?: Currency;
   tax_mode?: "inclusive" | "exclusive";
   payment_provider_ids?: string[];
   zones?: MarketZoneInput[];

@@ -1642,6 +1642,15 @@ export interface SubscriptionPlan {
 
 export type AccountApiTokenStatus = "active" | "revoked";
 
+export type AccountVerificationEmailStatus =
+  | "requested"
+  | "processing"
+  | "sent"
+  | "rejected"
+  | "failed"
+  | "unknown"
+  | "cancelled";
+
 export interface AccountApiToken {
   id: string;
   token_hint: string;
@@ -1662,7 +1671,7 @@ export interface StoreMembership {
   status: "invited" | "active";
   invited_by_account_id?: string | null;
   invited_at?: number | null;
-  invitation_delivery_status?: EmailDeliveryStatus | null;
+  invitation_email_status?: AccountVerificationEmailStatus | null;
   joined_at?: number | null;
   created_at: number;
   updated_at: number;
@@ -1852,6 +1861,7 @@ export type CampaignMessageType =
       type: "outgoing";
       origin: CampaignOutgoingOrigin;
       media_ids: string[];
+      submitted: boolean;
     }
   | {
       type: "incoming";
@@ -1859,7 +1869,7 @@ export type CampaignMessageType =
       provider_message_id: string;
       provider_thread_id?: string | null;
       provider_references: string[];
-      email_attachment_ids: string[];
+      attachments: EmailAttachmentReference[];
       received_at: number;
     };
 export type WorkflowStatus = "active" | "draft";
@@ -1874,8 +1884,7 @@ export type EmailTemplateType =
   | "order_booking_reminder_contact"
   | "contact_store_notification"
   | "subscription_confirmation"
-  | "campaign_email"
-  | "newsletter_email";
+  | "campaign_email";
 
 export type FormStatus = "active" | "draft" | "archived";
 export type ClassificationStatus = "active" | "draft" | "archived";
@@ -2197,39 +2206,23 @@ export type WorkflowHttpNode = WorkflowHttpNodeBase &
       }
   );
 
-export type EmailRecipients = string | string[];
-
-export interface EmailSendTemplateData {
+export interface WorkflowEmailSendTemplateData {
   store_id: string;
   mailbox_id: string;
   template_id: string;
-  recipients: EmailRecipients;
+  recipient: string;
   vars?: Record<string, unknown>;
 }
 
-export type EmailSend =
-  | { type: "order_store_notification"; data: EmailSendTemplateData }
-  | { type: "order_contact_notification"; data: EmailSendTemplateData }
-  | { type: "order_booking_reminder_contact"; data: EmailSendTemplateData }
-  | { type: "contact_store_notification"; data: EmailSendTemplateData }
-  | { type: "subscription_confirmation"; data: EmailSendTemplateData };
-
-export interface EmailSendRequest {
-  send_id: string;
-  send: EmailSend;
-}
-
-export type EmailDeliveryErrorKind =
-  "provider_call_not_started" | "provider_rejected" | "unknown_outcome";
-
-export type EmailDeliveryStatus =
-  | "pending"
-  | "sending"
-  | "sent"
-  | "rejected"
-  | "failed"
-  | "unknown"
-  | "skipped";
+export type WorkflowEmailSend =
+  | { type: "order_store_notification"; data: WorkflowEmailSendTemplateData }
+  | { type: "order_contact_notification"; data: WorkflowEmailSendTemplateData }
+  | {
+      type: "order_booking_reminder_contact";
+      data: WorkflowEmailSendTemplateData;
+    }
+  | { type: "contact_store_notification"; data: WorkflowEmailSendTemplateData }
+  | { type: "subscription_confirmation"; data: WorkflowEmailSendTemplateData };
 
 export interface EmailAttachmentReference {
   filename: string;
@@ -2239,112 +2232,9 @@ export interface EmailAttachmentReference {
   size_bytes: number;
 }
 
-export type EmailDeliveryType =
-  | {
-      type: "platform_auth_code";
-      data: { account_id: string; session_id: string };
-    }
-  | {
-      type: "store_auth_code";
-      data: { store_id: string; account_id: string; session_id: string };
-    }
-  | {
-      type: "customer_email_verification";
-      data: {
-        store_id: string;
-        customer_id: string;
-        customer_session_id: string;
-        identity_id: string;
-      };
-    }
-  | {
-      type: "audience_confirmation";
-      data: {
-        store_id: string;
-        audience_id: string;
-        membership_id: string;
-        customer_id: string;
-        email_identity_id: string;
-        workflow_execution_id: string;
-      };
-    }
-  | {
-      type: "tenant_mailbox";
-      data: {
-        send_id: string;
-        store_id: string;
-        mailbox_id: string;
-        template_id: string;
-      };
-    }
-  | {
-      type: "campaign_message";
-      data: {
-        store_id: string;
-        campaign_message_id: string;
-        mailbox_id: string;
-      };
-    }
-  | {
-      type: "support_message";
-      data: {
-        store_id: string;
-        support_message_id: string;
-        mailbox_id: string;
-      };
-    };
-
-export interface EmailDeliveryError {
-  type: EmailDeliveryErrorKind;
-  message: string;
-}
-
-export interface EmailDelivery {
-  id: string;
-  revision: number;
-  attempts: number;
-  type: EmailDeliveryType;
-  status: EmailDeliveryStatus;
-  error?: EmailDeliveryError | null;
-  provider_message_id?: string | null;
-  provider_thread_id?: string | null;
-  requested_at: number;
-  processing_started_at?: number | null;
-  completed_at?: number | null;
-  sent_at?: number | null;
-  created_at: number;
-  updated_at: number;
-}
-
-export interface GetEmailDeliveryParams {
-  delivery_id: string;
-}
-
-export interface RetryEmailDeliveryParams {
-  delivery_id: string;
-  revision: number;
-}
-
-export interface EmailSendDeliveryResult {
-  delivery_id: string;
-  revision: number;
-  recipient: string;
-  mailbox_id: string;
-  template_id: string;
-  status: EmailDeliveryStatus;
-  error?: EmailDeliveryError | null;
-  provider_message_id?: string | null;
-  provider_thread_id?: string | null;
-}
-
-export interface EmailSendResult {
-  sent: number;
-  deliveries: EmailSendDeliveryResult[];
-}
-
 export interface WorkflowSendEmailNode {
   type: "send_email";
-  send: EmailSend;
+  send: WorkflowEmailSend;
   delay_ms?: number;
 }
 
@@ -2357,16 +2247,20 @@ export interface WorkflowDeployWebhookNode {
 
 export type WorkflowConnectionType = "google_drive";
 
-export interface GoogleDriveWorkflowProfile {
+export interface GoogleDriveWorkflowAccount {
   external_account_id: string;
-  display_name: string;
+  display_name?: string | null;
   email?: string | null;
 }
 
+export type WorkflowConnectionAuthorizationStatus =
+  | "active"
+  | "reauthorization_required";
+
 export interface GoogleDriveWorkflowConnectionData {
   type: "google_drive";
-  connected: boolean;
-  profile: GoogleDriveWorkflowProfile | null;
+  account: GoogleDriveWorkflowAccount;
+  authorization_status: WorkflowConnectionAuthorizationStatus;
 }
 
 export type WorkflowConnectionData = GoogleDriveWorkflowConnectionData;
@@ -2466,7 +2360,10 @@ export interface WorkflowExecutionStarted {
 }
 
 export type WorkflowExternalOperationType =
-  "http_mutation" | "deploy_webhook" | "google_drive_upload";
+  | "http_mutation"
+  | "send_email"
+  | "deploy_webhook"
+  | "google_drive_upload";
 
 export type WorkflowExternalOperationStatus =
   "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
@@ -3112,9 +3009,29 @@ export interface CampaignEmailContent {
   body_html?: string | null;
 }
 
+export type CampaignEmailStatus =
+  | { status: "requested"; requested_at: number }
+  | { status: "processing"; started_at: number; deadline_at: number }
+  | {
+      status: "sent";
+      provider_message_id: string;
+      provider_thread_id?: string | null;
+      provider_status?: number | null;
+      delivery_failure?: string | null;
+      sent_at: number;
+    }
+  | {
+      status: "rejected";
+      provider_status?: number | null;
+      rejected_at: number;
+    }
+  | { status: "failed"; failed_at: number }
+  | { status: "unknown"; unknown_at: number }
+  | { status: "cancelled"; cancelled_at: number };
+
 export interface CampaignConversationMessage {
   message: CampaignMessage;
-  delivery?: EmailDelivery | null;
+  email_status?: CampaignEmailStatus | null;
 }
 
 export interface CampaignEnrollmentConversationResponse {

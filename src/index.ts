@@ -190,7 +190,8 @@ export type {
   WorkflowConnectionData,
   WorkflowConnectionType,
   GoogleDriveWorkflowConnectionData,
-  GoogleDriveWorkflowProfile,
+  GoogleDriveWorkflowAccount,
+  WorkflowConnectionAuthorizationStatus,
   WorkflowSwitchNode,
   WorkflowSwitchRule,
   WorkflowTransformNode,
@@ -269,20 +270,11 @@ export type {
   GalleryItem,
   EmailTemplate,
   EmailTemplateType,
-  EmailRecipients,
-  EmailSend,
-  EmailSendRequest,
-  EmailSendResult,
-  EmailSendDeliveryResult,
-  EmailDelivery,
-  EmailDeliveryError,
-  EmailDeliveryErrorKind,
-  EmailDeliveryStatus,
-  EmailDeliveryType,
+  AccountVerificationEmailStatus,
+  CampaignEmailStatus,
   EmailAttachmentReference,
-  GetEmailDeliveryParams,
-  RetryEmailDeliveryParams,
-  EmailSendTemplateData,
+  WorkflowEmailSend,
+  WorkflowEmailSendTemplateData,
   Form,
   FormSubmission,
   FormSchema,
@@ -715,6 +707,7 @@ export type {
   SupportConversationChannelContext,
   SupportAiResponse,
   SupportAiResponseStatus,
+  SupportEmailStatus,
   SupportMessage,
   SupportConversationResponse,
   SupportConversationStartResponse,
@@ -796,7 +789,6 @@ import { createAccountApi } from "./api/account";
 import { createAuthApi } from "./api/auth";
 import { createStoreApi } from "./api/store";
 import { createMediaApi } from "./api/media";
-import { createNotificationApi } from "./api/notification";
 import { createPromoCodeApi } from "./api/promoCode";
 import { createContentApi } from "./api/content";
 import { createEshopApi } from "./api/eshop";
@@ -1054,7 +1046,6 @@ export function createAdmin(config: CreateAdminConfig) {
   const leadResearchApi = createLeadResearchApi(apiConfig);
   const socialApi = createSocialApi(apiConfig);
   const paymentProviderApi = createPaymentProviderApi(apiConfig);
-  const notificationApi = createNotificationApi(apiConfig);
   const shippingApi = createShippingApi(apiConfig);
   const locationApi = createLocationApi(apiConfig);
   const marketApi = createMarketApi(apiConfig);
@@ -1155,11 +1146,6 @@ export function createAdmin(config: CreateAdminConfig) {
         get: emailTemplateApi.getEmailTemplate,
         find: emailTemplateApi.getEmailTemplates,
         preview: emailTemplateApi.previewEmailTemplate,
-      },
-      email: {
-        send: notificationApi.sendEmail,
-        getDelivery: notificationApi.getEmailDelivery,
-        retryDelivery: notificationApi.retryEmailDelivery,
       },
       mailbox: mailboxApi,
     },

@@ -163,6 +163,16 @@ const removedIdentifiers = [
   "getOrderProducts",
   "getOrderDigitalProducts",
   "cancelOrderProduct",
+  "EmailDelivery",
+  "EmailDeliveryError",
+  "EmailDeliveryErrorKind",
+  "EmailDeliveryStatus",
+  "EmailDeliveryType",
+  "EmailSendRequest",
+  "EmailSendResult",
+  "EmailSendDeliveryResult",
+  "GetEmailDeliveryParams",
+  "RetryEmailDeliveryParams",
 ];
 
 const removedIdentifierPattern = new RegExp(
@@ -170,6 +180,8 @@ const removedIdentifierPattern = new RegExp(
   "g",
 );
 const forbiddenProviderOperationPattern = /\bprovider(?:_|-)?operations?\b/gi;
+const removedGenericEmailRoutePattern =
+  /\/v1\/notifications\/email(?:-deliveries)?\b/g;
 const removedClassificationVocabularyPattern =
   /Taxonom|taxonom|LocalizedText|localized_text/g;
 const removedCommercePaymentVocabularyPattern = new RegExp(
@@ -303,6 +315,11 @@ for (const file of listTypeScriptFiles(sourceDir)) {
       match.index,
       `removed provider-operation name ${match[0]}`,
     );
+    failures++;
+  }
+
+  for (const match of source.matchAll(removedGenericEmailRoutePattern)) {
+    report(file, source, match.index, `removed generic email route ${match[0]}`);
     failures++;
   }
 
