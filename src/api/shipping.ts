@@ -5,15 +5,11 @@ import type {
   FindOrderShipmentsParams,
   GetOrderShipmentParams,
   GetFulfillmentOrderParams,
-  GetShippingLabelChargeParams,
-  GetShippingLabelChargeRefundParams,
   GetShippingRatesParams,
   RequestOptions,
   RequestShippingLabelRefundParams,
   RetryShippingLabelParams,
   RetryShippingLabelRefundParams,
-  RetryShippingLabelChargeParams,
-  RetryShippingLabelChargeRefundParams,
 } from "../types/api";
 import type {
   CreateOrderShipmentResponse,
@@ -21,8 +17,6 @@ import type {
   PaginatedResponse,
   OrderShipment,
   ShippingLabelRefund,
-  ShippingLabelCharge,
-  ShippingLabelChargeRefund,
   ShippingRate,
 } from "../types";
 
@@ -144,52 +138,5 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getShippingLabelCharge(
-      params: GetShippingLabelChargeParams,
-      options?: RequestOptions,
-    ): Promise<ShippingLabelCharge> {
-      return apiConfig.httpClient.get<ShippingLabelCharge>(
-        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/shipping-label-charge`,
-        options,
-      );
-    },
-
-    async retryShippingLabelCharge(
-      params: RetryShippingLabelChargeParams,
-      options?: RequestOptions,
-    ): Promise<ShippingLabelCharge> {
-      const path =
-        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}` +
-        `/shipments/${params.shipment_id}/shipping-label-charge`;
-      return apiConfig.httpClient.post<ShippingLabelCharge>(
-        `${path}/retry`,
-        {},
-        options,
-      );
-    },
-
-    async getShippingLabelChargeRefund(
-      params: GetShippingLabelChargeRefundParams,
-      options?: RequestOptions,
-    ): Promise<ShippingLabelChargeRefund> {
-      return apiConfig.httpClient.get<ShippingLabelChargeRefund>(
-        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}/shipments/${params.shipment_id}/shipping-label-charge-refund`,
-        options,
-      );
-    },
-
-    async retryShippingLabelChargeRefund(
-      params: RetryShippingLabelChargeRefundParams,
-      options?: RequestOptions,
-    ): Promise<ShippingLabelChargeRefund> {
-      const path =
-        `/v1/stores/${storeId(params.store_id)}/orders/${params.order_id}` +
-        `/shipments/${params.shipment_id}/shipping-label-charge-refund`;
-      return apiConfig.httpClient.post<ShippingLabelChargeRefund>(
-        `${path}/retry`,
-        {},
-        options,
-      );
-    },
   };
 };

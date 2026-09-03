@@ -33,7 +33,7 @@ async function capture(response, request) {
   }
 }
 
-test("shipping label and merchant-money effects use provider-neutral singular routes", async (t) => {
+test("shipping label effects use Shipment-owned provider-neutral state", async (t) => {
   const shipment = {
     id: shipmentId,
     store_id: storeId,
@@ -65,7 +65,15 @@ test("shipping label and merchant-money effects use provider-neutral singular ro
       total: { amount: 905, currency: "usd" },
       requested_at: 1,
       completed_at: null,
+      merchant_debit: {
+        id: "6ba7b815-9dad-41d1-80b4-00c04fd430c8",
+        status: "requested",
+        safe_error: null,
+        requested_at: 1,
+        completed_at: null,
+      },
       refund: null,
+      merchant_debit_reversal: null,
       safe_error: null,
     },
     created_at: 1,
@@ -77,33 +85,6 @@ test("shipping label and merchant-money effects use provider-neutral singular ro
     safe_error: null,
     requested_at: 2,
     completed_at: null,
-  };
-  const charge = {
-    id: "6ba7b815-9dad-41d1-80b4-00c04fd430c8",
-    order_shipment_id: shipmentId,
-    amount: { amount: 905, currency: "usd" },
-    status: "succeeded",
-    safe_error: null,
-    requested_at: 1,
-    completed_at: 2,
-    created_at: 1,
-    updated_at: 2,
-  };
-  const chargeRefund = {
-    id: "6ba7b816-9dad-41d1-80b4-00c04fd430c8",
-    order_shipment_id: shipmentId,
-    shipping_label_charge_id: charge.id,
-    reason: {
-      type: "unused_label_refund",
-      shipping_label_refund_id: labelRefund.id,
-    },
-    amount: charge.amount,
-    status: "requested",
-    safe_error: null,
-    requested_at: 3,
-    completed_at: null,
-    created_at: 3,
-    updated_at: 3,
   };
   const shipmentPath = `${baseUrl}/v1/stores/${storeId}/orders/${orderId}/shipments/${shipmentId}`;
 
@@ -150,62 +131,6 @@ test("shipping label and merchant-money effects use provider-neutral singular ro
         body: {},
       },
     },
-    {
-      name: "get merchant label charge",
-      response: charge,
-      request: (arky) =>
-        arky.eshop.shipment.shippingLabelCharge.get({
-          order_id: orderId,
-          shipment_id: shipmentId,
-        }),
-      expected: {
-        url: `${shipmentPath}/shipping-label-charge`,
-        method: "GET",
-        body: undefined,
-      },
-    },
-    {
-      name: "retry merchant label charge",
-      response: charge,
-      request: (arky) =>
-        arky.eshop.shipment.shippingLabelCharge.retry({
-          order_id: orderId,
-          shipment_id: shipmentId,
-        }),
-      expected: {
-        url: `${shipmentPath}/shipping-label-charge/retry`,
-        method: "POST",
-        body: {},
-      },
-    },
-    {
-      name: "get merchant label charge refund",
-      response: chargeRefund,
-      request: (arky) =>
-        arky.eshop.shipment.shippingLabelChargeRefund.get({
-          order_id: orderId,
-          shipment_id: shipmentId,
-        }),
-      expected: {
-        url: `${shipmentPath}/shipping-label-charge-refund`,
-        method: "GET",
-        body: undefined,
-      },
-    },
-    {
-      name: "retry merchant label charge refund",
-      response: chargeRefund,
-      request: (arky) =>
-        arky.eshop.shipment.shippingLabelChargeRefund.retry({
-          order_id: orderId,
-          shipment_id: shipmentId,
-        }),
-      expected: {
-        url: `${shipmentPath}/shipping-label-charge-refund/retry`,
-        method: "POST",
-        body: {},
-      },
-    },
   ];
 
   for (const contract of cases) {
@@ -219,9 +144,8 @@ test("shipping label and merchant-money effects use provider-neutral singular ro
     });
   }
 
-  assert.equal("provider" in charge, false);
-  assert.equal("provider" in chargeRefund, false);
-  assert.equal("attempt_count" in charge, false);
+  assert.equal("provider" in shipment.label.merchant_debit, false);
+  assert.equal("attempt_count" in shipment.label.merchant_debit, false);
   assert.equal("version" in shipment, false);
   assert.equal("shippo_label" in shipment, false);
 });

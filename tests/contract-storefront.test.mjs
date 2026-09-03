@@ -118,8 +118,6 @@ function payment(status, providerType = "cash_on_delivery", total = 1250) {
             checkout_expires_at: 1_800_000_000,
             checkout_session_id: "checkout-contract",
             payment_intent_id: "payment-intent-contract",
-            checkout_session_status: "complete",
-            checkout_payment_status: "paid",
           }
         : {
             type: "cash_on_delivery",

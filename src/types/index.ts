@@ -116,8 +116,6 @@ export type OrderRefundProvider =
       type: "stripe";
       payment_provider_id: string;
       refund_id: string | null;
-      refund_status: string | null;
-      failure_reason: string | null;
     };
 
 export interface OrderRefund {
@@ -175,8 +173,6 @@ export type OrderPaymentProvider =
       checkout_expires_at: number;
       checkout_session_id: string | null;
       payment_intent_id: string | null;
-      checkout_session_status: string | null;
-      checkout_payment_status: string | null;
     };
 
 export interface OrderMoney {
@@ -450,19 +446,6 @@ export interface ValidationError {
   error: string;
 }
 
-export type SocialPublishOperationType =
-  | "x_upload_media"
-  | "x_publish_post"
-  | "facebook_create_unpublished_photo"
-  | "facebook_publish_post"
-  | "instagram_create_media_container"
-  | "instagram_create_carousel_container"
-  | "instagram_publish_container"
-  | "youtube_initialize_upload"
-  | "youtube_upload"
-  | "tiktok_initialize_upload"
-  | "tiktok_upload";
-
 export type SocialPublishRequest =
   | {
       type: "x_upload_media";
@@ -563,7 +546,6 @@ export type SocialPublishOperationStatus =
 
 export interface SocialPublishOperation {
   id: string;
-  type: SocialPublishOperationType;
   request: SocialPublishRequest;
   status: SocialPublishOperationStatus;
 }
@@ -579,8 +561,6 @@ export type SocialPostStatus =
   | {
       type: "published";
       progress: SocialPublishProgress;
-      provider_post_id: string;
-      provider_post_url?: string | null;
       published_at: number;
     }
   | {
@@ -1311,8 +1291,6 @@ export interface StoreSubscription {
   updated_at: number;
 }
 
-export type StoreStatus = "active";
-
 export interface StoreDeletionResult {
   success: true;
   store_id: string;
@@ -1323,7 +1301,6 @@ export interface Store {
   name: string;
   email: string;
   publishable_key: string;
-  status: StoreStatus;
   default_market_id: string | null;
   timezone: string;
   default_language: string;
@@ -1772,13 +1749,24 @@ export type AudienceStatus = "draft" | "active" | "closed" | "archived";
 export type MailboxStatus = "active" | "draft" | "archived";
 export type MailboxPreset = "gmail" | "zoho" | "microsoft" | "custom";
 export type MailboxConnectionSecurity = "tls" | "start_tls";
-export type MailboxSyncStatus = "not_ready" | "ready" | "failed";
-export type MailboxSyncIssueType = "authentication" | "connection" | "recovery";
-export interface MailboxSyncIssue {
-  type: MailboxSyncIssueType;
+export type MailboxSyncFailureKind = "authentication" | "connection" | "recovery";
+export interface MailboxSyncRecoveryWarning {
   message: string;
   observed_at: number;
 }
+export interface MailboxSyncFailure {
+  kind: MailboxSyncFailureKind;
+  message: string;
+  observed_at: number;
+}
+export type MailboxSyncStatus =
+  | { type: "not_ready" }
+  | {
+      type: "ready";
+      ready_at: number;
+      recovery_warning: MailboxSyncRecoveryWarning | null;
+    }
+  | { type: "failed"; failure: MailboxSyncFailure };
 export interface ImapCursor {
   mailbox: "INBOX";
   uid_validity: number;
@@ -1799,9 +1787,7 @@ export type SmtpImapMailboxProviderInput = {
 };
 export type SmtpImapMailboxProvider = SmtpImapMailboxProviderInput & {
   password_configured: boolean;
-  sync_status?: MailboxSyncStatus;
-  sync_issue?: MailboxSyncIssue | null;
-  sync_ready_at?: number | null;
+  sync_status: MailboxSyncStatus;
   last_synced_at?: number | null;
   imap_cursor?: ImapCursor | null;
 };
@@ -1821,9 +1807,7 @@ export type GoogleMailboxProvider = {
   scopes: string[];
   sync_enabled: boolean;
   sync_interval_seconds: number;
-  sync_status?: MailboxSyncStatus;
-  sync_issue?: MailboxSyncIssue | null;
-  sync_ready_at?: number | null;
+  sync_status: MailboxSyncStatus;
   last_synced_at?: number | null;
   last_history_id?: string | null;
 };
@@ -3224,49 +3208,34 @@ export interface ShippingLabel {
   total: Money;
   requested_at: number;
   completed_at: number | null;
+  merchant_debit: MerchantDebit;
   refund: ShippingLabelRefund | null;
+  merchant_debit_reversal: MerchantDebitReversal | null;
   safe_error: string | null;
 }
 
-export type ShippingLabelChargeStatus =
+export type MerchantDebitStatus =
   "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
 
-/** The one merchant debit that funds a Shipment's label purchase. */
-export interface ShippingLabelCharge {
+/** The Shipment-owned merchant debit that funds its carrier label. */
+export interface MerchantDebit {
   id: string;
-  order_shipment_id: string;
-  amount: Money;
-  status: ShippingLabelChargeStatus;
+  status: MerchantDebitStatus;
   safe_error: string | null;
   requested_at: number;
   completed_at: number | null;
-  created_at: number;
-  updated_at: number;
 }
 
-export type ShippingLabelChargeRefundReason =
-  | { type: "label_purchase_failed" }
-  | {
-      type: "unused_label_refund";
-      shipping_label_refund_id: string;
-    };
-
-export type ShippingLabelChargeRefundStatus =
+export type MerchantDebitReversalStatus =
   "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
 
-/** The independently processed full return of one ShippingLabelCharge. */
-export interface ShippingLabelChargeRefund {
+/** The at-most-one Shipment-owned reversal of its merchant debit. */
+export interface MerchantDebitReversal {
   id: string;
-  order_shipment_id: string;
-  shipping_label_charge_id: string;
-  reason: ShippingLabelChargeRefundReason;
-  amount: Money;
-  status: ShippingLabelChargeRefundStatus;
+  status: MerchantDebitReversalStatus;
   safe_error: string | null;
   requested_at: number;
   completed_at: number | null;
-  created_at: number;
-  updated_at: number;
 }
 
 export interface OrderShipment {

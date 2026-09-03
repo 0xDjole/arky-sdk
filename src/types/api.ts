@@ -1998,15 +1998,6 @@ export type RequestShippingLabelRefundParams = GetOrderShipmentParams;
 
 export type RetryShippingLabelRefundParams = GetOrderShipmentParams;
 
-export type GetShippingLabelChargeParams = GetOrderShipmentParams;
-
-export type RetryShippingLabelChargeParams = GetShippingLabelChargeParams;
-
-export type GetShippingLabelChargeRefundParams = GetOrderShipmentParams;
-
-export type RetryShippingLabelChargeRefundParams =
-  GetShippingLabelChargeRefundParams;
-
 export interface FindCustomerSessionsParams {
   customer_id: string;
   store_id?: string;

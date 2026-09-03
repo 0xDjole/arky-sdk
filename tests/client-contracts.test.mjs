@@ -696,8 +696,6 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
         checkout_expires_at: 10,
         checkout_session_id: "checkout-provider-contract",
         payment_intent_id: null,
-        checkout_session_status: null,
-        checkout_payment_status: null,
       },
       status: "requires_action",
       amounts: {

@@ -68,9 +68,8 @@ import type {
   TaxLine,
   OrderShippingLine,
   ShippingLabel,
-  ShippingLabelCharge,
-  ShippingLabelChargeRefund,
-  ShippingLabelChargeRefundReason,
+  MerchantDebit,
+  MerchantDebitReversal,
   ShippingLabelRefund,
   ShippingRate,
   FulfillmentOrder,
@@ -135,6 +134,7 @@ import type {
   UpdateOrderParams,
   MarketZoneInput,
   Mailbox,
+  MailboxSyncStatus,
   Market,
   Media,
   Money,
@@ -302,7 +302,6 @@ const storeContract: Store = {
   name: "Contract Store",
   email: "owner@example.com",
   publishable_key: `arky_pk_${"a".repeat(43)}`,
-  status: "active",
   default_market_id: null,
   timezone: "Europe/Sarajevo",
   default_language: "en",
@@ -539,8 +538,6 @@ const stripeRefundProvider: OrderRefundProvider = {
   type: "stripe",
   payment_provider_id: "payment-provider-contract",
   refund_id: "stripe-refund-contract",
-  refund_status: "succeeded",
-  failure_reason: null,
 };
 const orderRefundStatus: RefundStatus = "succeeded";
 const orderRefund: OrderRefund = {
@@ -1057,9 +1054,9 @@ void invalidDigitalProductStatus;
 declare const mailbox: Mailbox;
 if (mailbox.provider.type === "smtp_imap") {
   const hasCredential: boolean = mailbox.provider.password_configured;
-  const safeIssueType: string | undefined = mailbox.provider.sync_issue?.type;
+  const syncStatus: MailboxSyncStatus = mailbox.provider.sync_status;
   void hasCredential;
-  void safeIssueType;
+  void syncStatus;
 }
 
 const clearCartAddresses: UpdateCartParams = {
@@ -1572,8 +1569,6 @@ const stripeOrderPaymentProvider: OrderPaymentProvider = {
   checkout_expires_at: 1_800_000_000,
   checkout_session_id: "checkout-session-contract",
   payment_intent_id: null,
-  checkout_session_status: "open",
-  checkout_payment_status: "unpaid",
 };
 const cashOrderPaymentProvider: OrderPaymentProvider = {
   type: "cash_on_delivery",
@@ -2075,6 +2070,20 @@ const shippingLabelRefund: ShippingLabelRefund = {
   requested_at: 2,
   completed_at: 3,
 };
+const merchantDebit: MerchantDebit = {
+  id: "6ba7b815-9dad-41d1-80b4-00c04fd430c8",
+  status: "succeeded",
+  safe_error: null,
+  requested_at: 1,
+  completed_at: 2,
+};
+const merchantDebitReversal: MerchantDebitReversal = {
+  id: "6ba7b816-9dad-41d1-80b4-00c04fd430c8",
+  status: "succeeded",
+  safe_error: null,
+  requested_at: 3,
+  completed_at: 4,
+};
 const shippingLabel: ShippingLabel = {
   id: "6ba7b811-9dad-41d1-80b4-00c04fd430c8",
   status: "succeeded",
@@ -2084,7 +2093,9 @@ const shippingLabel: ShippingLabel = {
   total: { amount: 905, currency: "usd" },
   requested_at: 1,
   completed_at: 2,
+  merchant_debit: merchantDebit,
   refund: shippingLabelRefund,
+  merchant_debit_reversal: merchantDebitReversal,
   safe_error: null,
 };
 const fulfillmentOrder: FulfillmentOrder = {
@@ -2154,34 +2165,6 @@ const shippingRate: ShippingRate = {
   total: { amount: 905, currency: "usd" },
   estimated_days: 3,
 };
-const shippingLabelCharge: ShippingLabelCharge = {
-  id: "6ba7b815-9dad-41d1-80b4-00c04fd430c8",
-  order_shipment_id: shipment.id,
-  amount: shippingRate.total,
-  status: "succeeded",
-  safe_error: null,
-  requested_at: 1,
-  completed_at: 2,
-  created_at: 1,
-  updated_at: 2,
-};
-const chargeRefundReason: ShippingLabelChargeRefundReason = {
-  type: "unused_label_refund",
-  shipping_label_refund_id: shippingLabelRefund.id,
-};
-const shippingLabelChargeRefund: ShippingLabelChargeRefund = {
-  id: "6ba7b816-9dad-41d1-80b4-00c04fd430c8",
-  order_shipment_id: shipment.id,
-  shipping_label_charge_id: shippingLabelCharge.id,
-  reason: chargeRefundReason,
-  amount: shippingLabelCharge.amount,
-  status: "succeeded",
-  safe_error: null,
-  requested_at: 3,
-  completed_at: 4,
-  created_at: 3,
-  updated_at: 4,
-};
 const shipmentStatus: OrderShipmentStatus = shipment.status;
 const shipmentTrackingStatusAt: number | null = shipment.tracking_status_at;
 const cancelledShippingStatus: OrderShipmentStatus = "cancelled";
@@ -2228,10 +2211,10 @@ shipment.version;
 shipment.shippo_label;
 // @ts-expect-error provider rate identity remains inside the server label state.
 shippingLabel.rate_id;
-// @ts-expect-error merchant charge retries are orchestration state, not Domain truth.
-shippingLabelCharge.attempt_count;
-// @ts-expect-error public merchant charge DTOs do not expose provider identifiers.
-shippingLabelCharge.provider;
+// @ts-expect-error merchant debit retries are orchestration state, not Domain truth.
+merchantDebit.attempt_count;
+// @ts-expect-error public merchant debit DTOs do not expose provider identifiers.
+merchantDebit.provider;
 // @ts-expect-error verification challenges are never part of the public account contract.
 account.verification_codes;
 // @ts-expect-error verification challenges are never part of the public Customer contract.

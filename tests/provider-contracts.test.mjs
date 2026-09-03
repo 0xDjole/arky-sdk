@@ -1207,8 +1207,6 @@ test("payment, refund, dispute, and shipment lifecycles are read through explici
           type: "stripe",
           payment_provider_id: "provider-stripe-contract",
           refund_id: "stripe-refund-contract",
-          refund_status: "pending",
-          failure_reason: null,
         },
         money: { amount: 500, currency: "usd" },
         allocations: [
