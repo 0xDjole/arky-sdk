@@ -579,9 +579,9 @@ console.log(result.shipment.label.total);
 ```
 
 Every created Shipment owns its durable `ShippingLabel` from the initial `requested` state;
-label-less Shipment responses are invalid. `ShippingLabel` and its optional embedded
-`ShippingLabelRefund` are carrier-neutral public DTOs. The one
-merchant debit and its independently processed full return are separate singular resources:
+label-less Shipment responses are invalid. `ShippingLabel`, its optional embedded
+`ShippingLabelRefund`, its `merchant_debit`, and its optional `merchant_debit_reversal` are
+carrier- and payment-provider-neutral public DTOs:
 
 ```typescript
 await admin.eshop.shipment.label.retry({
@@ -594,14 +594,8 @@ await admin.eshop.shipment.label.refund.request({
   shipment_id: result.shipment.id,
 });
 
-const charge = await admin.eshop.shipment.shippingLabelCharge.get({
-  order_id: result.shipment.order_id,
-  shipment_id: result.shipment.id,
-});
-const chargeRefund = await admin.eshop.shipment.shippingLabelChargeRefund.get({
-  order_id: result.shipment.order_id,
-  shipment_id: result.shipment.id,
-});
+console.log(result.shipment.label.merchant_debit.status);
+console.log(result.shipment.label.merchant_debit_reversal?.status);
 ```
 
 These DTOs expose safe lifecycle state and `Money` snapshots only. Carrier and payment-provider

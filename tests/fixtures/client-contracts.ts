@@ -1149,14 +1149,14 @@ const formBlockSchema: BlockSchema = {
   properties: {},
   children: [],
 };
-const legacyReferenceDeletePolicySchema: BlockSchema = {
-  id: "legacy-contact-form-schema",
-  key: "legacy_contact_form",
+const unsupportedReferencePropertySchema: BlockSchema = {
+  id: "invalid-contact-form-schema",
+  key: "invalid_contact_form",
   type: "form",
   required: false,
   properties: {
-    // @ts-expect-error Reference deletion is always restricted and is not configurable.
-    on_delete: "set_null",
+    // @ts-expect-error Reference properties are a closed contract.
+    unsupported: true,
   },
   children: [],
 };
@@ -1212,7 +1212,7 @@ void localizedTitleBlock;
 void markdownBlock;
 void formBlock;
 void formBlockSchema;
-void legacyReferenceDeletePolicySchema;
+void unsupportedReferencePropertySchema;
 void legacyMarkdownMap;
 void blockWithValueProperties;
 void classificationSchema;

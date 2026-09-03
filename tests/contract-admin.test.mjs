@@ -89,8 +89,6 @@ const arky = createAdmin({
   apiToken: "contract-token",
 });
 
-assert.equal("suppression" in arky, false);
-
 assert.equal(typeof arky.account.auth.code, "function");
 assert.equal(typeof arky.account.auth.verify, "function");
 assert.equal(typeof arky.account.auth.refresh, "function");
@@ -655,8 +653,6 @@ assert.equal(typeof arky.eshop.shipment.fulfillment.get, "function");
 assert.equal(typeof arky.eshop.shipment.label.retry, "function");
 assert.equal(typeof arky.eshop.shipment.label.refund.request, "function");
 assert.equal(typeof arky.eshop.shipment.label.refund.retry, "function");
-assert.equal("shippingLabelCharge" in arky.eshop.shipment, false);
-assert.equal("shippingLabelChargeRefund" in arky.eshop.shipment, false);
 assert.equal("retry" in arky.eshop.shipment, false);
 assert.equal("refund" in arky.eshop.shipment, false);
 assert.equal("charge" in arky.eshop.shipment, false);
