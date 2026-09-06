@@ -6,15 +6,43 @@ import type {
   GoogleMailboxConnectUrl,
   UpdateMailboxParams,
   FindMailboxesParams,
+  FindMailboxSyncIssuesParams,
   GetMailboxParams,
   DisconnectMailboxParams,
   PrepareMailboxParams,
   TestMailboxParams,
   TestMailboxResult,
 } from "../types/api";
-import type { Mailbox, PaginatedResponse } from "../types";
+import type { Mailbox, MailboxSyncIssue, PaginatedResponse } from "../types";
 
 export const createMailboxApi = (apiConfig: ApiConfig) => ({
+  async findSyncIssues(
+    params: FindMailboxSyncIssuesParams,
+    options?: RequestOptions,
+  ): Promise<PaginatedResponse<MailboxSyncIssue>> {
+    const { id, store_id, limit = 50, cursor } = params;
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+      throw new RangeError(
+        "Mailbox sync issue limit must be an integer from 1 to 100",
+      );
+    }
+    if (
+      cursor !== undefined &&
+      (typeof cursor !== "string" ||
+        cursor.length === 0 ||
+        new TextEncoder().encode(cursor).length > 2048)
+    ) {
+      throw new RangeError(
+        "Mailbox sync issue cursor must contain 1 to 2048 bytes",
+      );
+    }
+    const target_store_id = store_id || apiConfig.storeId;
+    return apiConfig.httpClient.get<PaginatedResponse<MailboxSyncIssue>>(
+      `/v1/stores/${target_store_id}/mailboxes/${id}/sync-issues`,
+      { ...options, params: { limit, cursor } },
+    );
+  },
+
   async disconnect(
     params: DisconnectMailboxParams,
     options?: RequestOptions,

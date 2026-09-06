@@ -1,9 +1,10 @@
+import type { EpochMilliseconds } from "../types/time";
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 
 export interface AnalyticsTimeRange {
-  from: number;
-  to: number;
+  from: EpochMilliseconds;
+  to: EpochMilliseconds;
 }
 
 export type AnalyticsReportKey =
@@ -67,7 +68,7 @@ type AnalyticsReportWithoutOptions = Exclude<
 
 type AnalyticsFeedCursor =
   | { cursor_created_at?: never; cursor_id?: never }
-  | { cursor_created_at: number; cursor_id: string };
+  | { cursor_created_at: EpochMilliseconds; cursor_id: string };
 
 export type AnalyticsReportRequest =
   | {
@@ -233,7 +234,7 @@ export interface CustomerActionFeedItem {
   description: string;
   href?: string | null;
   data: unknown;
-  created_at: number;
+  created_at: EpochMilliseconds;
 }
 
 export interface CustomerActionFeedSummary {
@@ -251,11 +252,11 @@ export interface CustomerActionFeedSummary {
   content: number;
   workflows: number;
   customer_actions: number;
-  window_start: number;
+  window_start: EpochMilliseconds;
 }
 
 export interface CustomerActionFeedCursor {
-  created_at: number;
+  created_at: EpochMilliseconds;
   id: string;
 }
 

@@ -1,12 +1,13 @@
+import type { EpochMilliseconds } from "../types/time";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
 
 export type ExperimentStatus =
   | { type: "draft" }
-  | { type: "running"; started_at: number }
-  | { type: "paused"; started_at: number; paused_at: number }
-  | { type: "completed"; started_at: number; completed_at: number };
+  | { type: "running"; started_at: EpochMilliseconds }
+  | { type: "paused"; started_at: EpochMilliseconds; paused_at: EpochMilliseconds }
+  | { type: "completed"; started_at: EpochMilliseconds; completed_at: EpochMilliseconds };
 
 export type ExperimentStatusFilter = ExperimentStatus["type"];
 
@@ -23,8 +24,8 @@ export interface Experiment {
   goal_action_key: string;
   attribution_window_days: number;
   variants: ExperimentVariant[];
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface CreateExperimentParams {
@@ -71,7 +72,7 @@ export interface ExperimentVariantResult {
 export interface ExperimentResults {
   experiment: Experiment;
   variants: ExperimentVariantResult[];
-  freshness_at: number;
+  freshness_at: EpochMilliseconds;
   maturing: boolean;
 }
 

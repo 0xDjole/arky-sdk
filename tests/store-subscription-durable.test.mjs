@@ -68,7 +68,7 @@ function openSubscription(checkoutId) {
       billing_email: "owner@example.test",
       return_url: request.return_url,
       trial_end: null,
-      expires_at: 1_800_000_000,
+      expires_at: 1_800_000_000_000,
       status: {
         type: "open",
         stripe_checkout_session_id: "cs_store_durable_subscription",
@@ -81,7 +81,7 @@ function openSubscription(checkoutId) {
       publishable_key: "pk_test_subscription",
       client_secret: "cs_store_durable_subscription_secret_exact",
       stripe_account_id: null,
-      expires_at: 1_800_000_000,
+      expires_at: 1_800_000_000_000,
     },
     trial_started_at: null,
     created_at: 1,

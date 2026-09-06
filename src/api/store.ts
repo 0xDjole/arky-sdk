@@ -12,6 +12,7 @@ import type {
   CreatePortalSessionParams,
   AddMemberParams,
   RemoveMemberParams,
+  TransferStoreOwnershipParams,
   FindStoreMembersParams,
   TestWebhookParams,
   TestWebhookResponse,
@@ -367,6 +368,21 @@ export const createStoreApi = (
       return apiConfig.httpClient.post<boolean>(
         `/v1/stores/${store_id || apiConfig.storeId}/invitation`,
         payload,
+        options,
+      );
+    },
+
+    async transferOwnership(
+      params: TransferStoreOwnershipParams,
+      options?: RequestOptions,
+    ): Promise<StoreMembership> {
+      const store_id = params.store_id || apiConfig.storeId;
+      if (!canonicalUuidV4.test(store_id) || !canonicalUuidV4.test(params.account_id)) {
+        throw new TypeError("Ownership transfer requires canonical Store and Account UUIDs");
+      }
+      return apiConfig.httpClient.post<StoreMembership>(
+        `/v1/stores/${store_id}/ownership/transfer`,
+        { account_id: params.account_id },
         options,
       );
     },

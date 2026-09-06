@@ -42,7 +42,7 @@ function installBrowserState() {
 
 function sessionStorage() {
   const value = JSON.stringify({
-    version: 1,
+    version: 2,
     customer: {
       id: "customer-audience-durable",
       status: "active",
@@ -77,7 +77,7 @@ function checkoutResult() {
     publishable_key: "pk_test_audience",
     client_secret: "cs_audience_secret_exact",
     connected_account_id: "acct_audience_exact",
-    expires_at: 1_900_000_000,
+    expires_at: 1_900_000_000_000,
   };
 }
 

@@ -1,3 +1,14 @@
+import { epochMilliseconds } from "arky-sdk";
+import type {
+  AddMemberParams,
+  TransferStoreOwnershipParams,
+  ActivateEmailSuppressionParams,
+  EmailSuppressionRecord,
+  EmailSuppressionSource,
+  EmailSuppressionStatus,
+  FindEmailSuppressionsParams,
+  ReleaseEmailSuppressionParams,
+} from "arky-sdk";
 import type {
   Account,
   AccountApiToken,
@@ -135,6 +146,10 @@ import type {
   UpdateOrderParams,
   MarketZoneInput,
   Mailbox,
+  MailboxIncomingSource,
+  MailboxSyncIssue,
+  MailboxSyncIssueReason,
+  FindMailboxSyncIssuesParams,
   MailboxSyncStatus,
   Market,
   Media,
@@ -173,8 +188,8 @@ const localNodeResult: NodeResult = {
   source: { type: "local" },
   output: null,
   route: "success",
-  started_at: 1,
-  completed_at: 1,
+  started_at: epochMilliseconds(1),
+  completed_at: epochMilliseconds(1),
   duration_ms: 0,
 };
 const externalNodeResult: NodeResult = {
@@ -182,7 +197,7 @@ const externalNodeResult: NodeResult = {
   source: { type: "external_operation", operation_id: "operation-id" },
 };
 // @ts-expect-error Every current NodeResult requires an explicit evidence source.
-const missingNodeResultSource: NodeResult = { output: null, route: "success", started_at: 1, completed_at: 1, duration_ms: 0 };
+const missingNodeResultSource: NodeResult = { output: null, route: "success", started_at: epochMilliseconds(1), completed_at: epochMilliseconds(1), duration_ms: 0 };
 // @ts-expect-error External evidence requires its exact operation ID.
 const missingNodeOperationId: NodeResult["source"] = { type: "external_operation" };
 void [localNodeResult, externalNodeResult, missingNodeResultSource, missingNodeOperationId];
@@ -283,12 +298,12 @@ const workflowExternalOperationContract: WorkflowExternalOperation = {
   iteration_key: "root",
   type: "http_mutation",
   status: "succeeded",
-  requested_at: 1,
-  processing_started_at: 2,
-  completed_at: 3,
+  requested_at: epochMilliseconds(1),
+  processing_started_at: epochMilliseconds(2),
+  completed_at: epochMilliseconds(3),
   result: { output: { provider_request_id: "request-contract" } },
   error: null,
-  updated_at: 3,
+  updated_at: epochMilliseconds(3),
 };
 void workflowExternalOperationContract;
 const bookingServiceFeature: SubscriptionPlanFeatureType = "booking_services";
@@ -307,16 +322,16 @@ const mediaContract: Media = {
     height_px: 100,
   },
   renditions: [],
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 // @ts-expect-error Media always exposes its owned Original file.
 const mediaWithoutOriginal: Media = {
   id: "media-contract",
   store_id: "store-contract",
   renditions: [],
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 const storeContract: Store = {
   id: "store-contract",
@@ -362,8 +377,8 @@ const storeLocationContract: StoreLocation = {
   key: "main",
   address: { city: "Sarajevo", country: "BA" },
   is_pickup_location: true,
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 const createStoreLocationContract: CreateStoreLocationParams = {
   key: "main",
@@ -382,8 +397,8 @@ const buildHookContract: BuildHook = {
   url: "••••••••",
   headers: { authorization: "••••••••" },
   status: "disabled",
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 const createBuildHookContract: CreateBuildHookParams = {
   store_id: "store-contract",
@@ -411,8 +426,8 @@ const webhookContract: Webhook = {
   headers: {},
   secret: "••••••••",
   status: "active",
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 const createWebhookContract: CreateWebhookParams = {
   store_id: "store-contract",
@@ -437,8 +452,8 @@ const totalStoreUsage: StoreUsage = {
   feature: "products",
   period: { type: "total" },
   count: 4,
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 const monthlyStoreUsage: StoreUsage = {
   ...totalStoreUsage,
@@ -456,8 +471,8 @@ const cashOnDeliveryProvider: PaymentProvider = {
   id: "provider-cash-on-delivery",
   store_id: "store-contract",
   configuration: { type: "cash_on_delivery" },
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 const stripeProvider: PaymentProvider = {
   id: "provider-stripe",
@@ -468,16 +483,16 @@ const stripeProvider: PaymentProvider = {
     account_setup_submitted: true,
     payments_enabled: true,
     payouts_enabled: true,
-    state_observed_at: 2,
+    state_observed_at: epochMilliseconds(2),
     platform_debit_consent: {
       connected_account_id: "acct_contract",
       accepted_by_account_id: "account-contract",
-      accepted_at: 2,
+      accepted_at: epochMilliseconds(2),
       terms_version: 1,
     },
   },
-  created_at: 1,
-  updated_at: 2,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(2),
 };
 const marketContract: Market = {
   id: "market-contract",
@@ -487,8 +502,8 @@ const marketContract: Market = {
   tax_mode: "inclusive",
   payment_provider_ids: [cashOnDeliveryProvider.id, stripeProvider.id],
   zones: [],
-  created_at: 1,
-  updated_at: 2,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(2),
 };
 const storefrontPaymentProviders: StorefrontPaymentProvider[] = [
   { id: cashOnDeliveryProvider.id, type: "cash_on_delivery" },
@@ -581,12 +596,12 @@ const orderRefund: OrderRefund = {
   private_note: null,
   status: orderRefundStatus,
   safe_error: null,
-  requested_at: 1,
-  processing_started_at: 2,
-  processing_deadline_at: 3,
-  completed_at: 4,
-  created_at: 1,
-  updated_at: 4,
+  requested_at: epochMilliseconds(1),
+  processing_started_at: epochMilliseconds(2),
+  processing_deadline_at: epochMilliseconds(3),
+  completed_at: epochMilliseconds(4),
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(4),
 };
 const createOrderRefund: CreateOrderRefundParams = {
   order_id: "order-contract",
@@ -617,8 +632,8 @@ const paymentDispute: PaymentDispute = {
   status: paymentDisputeStatus,
   reason: "fraudulent",
   provider: paymentDisputeProvider,
-  created_at: 1,
-  updated_at: 2,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(2),
 };
 const findPaymentDisputes: FindPaymentDisputesParams = {
   order_id: "order-contract",
@@ -677,7 +692,7 @@ const promotionConditions: PromotionCondition[] = [
     market: "us",
     money: { amount: 2_500, currency: "usd" },
   },
-  { type: "redemption_window", starts_at: null, ends_at: 1_800_000_000 },
+  { type: "redemption_window", starts_at: null, ends_at: epochMilliseconds(1_800_000_000_000) },
   { type: "maximum_uses", count: 100 },
   { type: "maximum_uses_per_customer", count: 1 },
 ];
@@ -690,8 +705,8 @@ const promoCodeContract: PromoCode = {
   conditions: promotionConditions,
   status: "active",
   uses: 0,
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 
 const createPromotionDiscounts: CreatePromotionDiscountInput[] = [
@@ -818,8 +833,8 @@ const legacyMinimumCondition: PromotionConditionInput = {
 const legacyWindowCondition: PromotionConditionInput = {
   // @ts-expect-error Redemption windows use the redemption_window tag.
   type: "date_range",
-  starts_at: 1,
-  ends_at: 2,
+  starts_at: epochMilliseconds(1),
+  ends_at: epochMilliseconds(2),
 };
 const legacyMaximumUsesCondition: PromotionConditionInput = {
   // @ts-expect-error Redemption limits use the maximum_uses tag.
@@ -840,24 +855,24 @@ const supportedPromoCodeList: GetPromoCodesParams = {
   cursor: "20",
   sort_field: "created_at",
   sort_direction: "desc",
-  created_at_from: 1,
-  created_at_to: 2,
+  created_at_from: epochMilliseconds(1),
+  created_at_to: epochMilliseconds(2),
 };
 const promoCodeListWithStartFrom: GetPromoCodesParams = {
   // @ts-expect-error Redemption-window bounds are not list endpoint filters.
-  starts_at_from: 1,
+  starts_at_from: epochMilliseconds(1),
 };
 const promoCodeListWithStartTo: GetPromoCodesParams = {
   // @ts-expect-error Redemption-window bounds are not list endpoint filters.
-  starts_at_to: 1,
+  starts_at_to: epochMilliseconds(1),
 };
 const promoCodeListWithExpiryFrom: GetPromoCodesParams = {
   // @ts-expect-error Expiry bounds are not list endpoint filters.
-  expires_at_from: 1,
+  expires_at_from: epochMilliseconds(1),
 };
 const promoCodeListWithExpiryTo: GetPromoCodesParams = {
   // @ts-expect-error Expiry bounds are not list endpoint filters.
-  expires_at_to: 1,
+  expires_at_to: epochMilliseconds(1),
 };
 
 const promotionDiscountAllocation: DiscountAllocation = {
@@ -927,8 +942,8 @@ const digitalProductContract: DigitalProduct = {
   prices: [digitalPrice],
   asset_ids: ["0198f8f7-2f25-4a14-86bb-64efc56e1a11"],
   status: "active",
-  created_at: 1,
-  updated_at: 2,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(2),
 };
 const storefrontDigitalProductContract: StorefrontDigitalProduct = {
   id: digitalProductContract.id,
@@ -979,8 +994,8 @@ const findDigitalProductsContract: FindDigitalProductsParams = {
   cursor: "cursor-contract",
   sort_field: "price",
   sort_direction: "asc",
-  created_at_from: 1,
-  created_at_to: 2,
+  created_at_from: epochMilliseconds(1),
+  created_at_to: epochMilliseconds(2),
 };
 const digitalProductLookupContract: GetStorefrontDigitalProductParams = {
   identifier: digitalProductContract.key,
@@ -1007,7 +1022,7 @@ const productQuoteInputContract: ProductQuoteInput = {
 };
 const bookingQuoteInputContract: BookingQuoteInput = {
   booking_offering_id: "booking-offering-contract",
-  requested_interval: { from: 1_800_000_000, to: 1_800_003_600 },
+  requested_interval: { from: epochMilliseconds(1_800_000_000_000), to: epochMilliseconds(1_800_003_600_000) },
   form_submission_id: "form-submission-booking-contract",
   price_override: digitalPrice,
 };
@@ -1292,6 +1307,53 @@ storefrontClient.classification.get({ key: "topics" });
 // @ts-expect-error Classification is a top-level module, not a Content child.
 storefrontClient.content.classification;
 declare const adminClient: ReturnType<typeof createAdmin>;
+const ordinaryAdminInvitation: AddMemberParams = { email: "admin@example.test" };
+const ownershipTransferParams: TransferStoreOwnershipParams = {
+  account_id: "a35bc883-e98c-4fa9-94a2-8cbb7c3ac755",
+};
+const ownershipTransferResult: Promise<StoreMembership> =
+  adminClient.store.member.transferOwnership(ownershipTransferParams);
+adminClient.store.member.invite(ordinaryAdminInvitation);
+// @ts-expect-error Ordinary membership creation cannot choose Owner or any other role.
+adminClient.store.member.add({ email: "owner@example.test", role: "owner" });
+// @ts-expect-error Invitations never grant Owner authority.
+adminClient.store.member.invite({ email: "admin@example.test", role: "admin" });
+void ownershipTransferResult;
+const mailboxIssueQuery: FindMailboxSyncIssuesParams = {
+  id: "mailbox-contract",
+  store_id: "store-contract",
+  limit: 50,
+  cursor: "opaque-cursor",
+};
+const mailboxIssues: Promise<PaginatedResponse<MailboxSyncIssue>> =
+  adminClient.notification.mailbox.findSyncIssues(mailboxIssueQuery);
+const mailboxIssueSource: MailboxIncomingSource = {
+  type: "imap", mailbox: "INBOX", uid_validity: 123, uid: 456,
+};
+const mailboxIssue: MailboxSyncIssue = {
+  id: "issue-contract", store_id: "store-contract", mailbox_id: "mailbox-contract",
+  source: mailboxIssueSource,
+  reason: "missing_sender", message: "The email has no sender header",
+  observed_at: epochMilliseconds(0),
+};
+const mailboxIssueInstant: import("arky-sdk").EpochMilliseconds = mailboxIssue.observed_at;
+const nativeImapUid: number = mailboxIssueSource.uid;
+const googleIssueSource: MailboxIncomingSource = { type: "google", message_id: "a123" };
+// @ts-expect-error Diagnostics never expose retained raw mail.
+mailboxIssue.raw_email;
+// @ts-expect-error Credential generation is private to the Server.
+mailboxIssue.credential_generation;
+// @ts-expect-error Observed time requires checked epoch milliseconds.
+mailboxIssue.observed_at = 1_800_000_000_001;
+// @ts-expect-error Source identity uses the canonical type discriminator.
+const legacyIssueSource: MailboxIncomingSource = { kind: "google", message_id: "a123" };
+// @ts-expect-error Diagnostic reasons are fixed safe values, not arbitrary error text.
+const unsafeIssueReason: MailboxSyncIssueReason = "private raw provider response";
+// @ts-expect-error Diagnostics have no retry command.
+adminClient.notification.mailbox.retrySyncIssue({ id: mailboxIssue.id });
+// @ts-expect-error Diagnostics have no purge command.
+adminClient.notification.mailbox.purgeSyncIssues({ id: "mailbox-contract" });
+void [mailboxIssues, mailboxIssueInstant, nativeImapUid, googleIssueSource, legacyIssueSource, unsafeIssueReason];
 const bookingItemLifecycleParams: BookingItemLifecycleParams = {
   order_id: "order-contract",
   order_booking_item_id: "order-booking-item-contract",
@@ -1336,7 +1398,7 @@ const bookingResourceEnglishSlug: string = bookingResourceContract.slugs.en;
 bookingServiceContract.slug;
 // @ts-expect-error Booking Resource records no longer expose the singular persisted field.
 bookingResourceContract.slug;
-const requestedInterval: TimeRange = { from: 1_800_000_000, to: 1_800_003_600 };
+const requestedInterval: TimeRange = { from: epochMilliseconds(1_800_000_000_000), to: epochMilliseconds(1_800_003_600_000) };
 const bookingCartInput: CartBookingInput = {
   booking_offering_id: "booking-offering-contract",
   requested_interval: requestedInterval,
@@ -1377,10 +1439,10 @@ const canonicalCartContract: Cart = {
   shipping_method_id: null,
   converted_order_id: null,
   item_count: 3,
-  last_action_at: 1,
+  last_action_at: epochMilliseconds(1),
   abandoned_at: null,
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 // @ts-expect-error Form submissions belong to individual Cart items.
 canonicalCartContract.forms;
@@ -1487,7 +1549,7 @@ const typedFormValues: FormValues = {
   name: "Jane",
   guests: 2,
   accepted: false,
-  date: 1_725_000_000,
+  date: 1_725_000_000_000,
   location: { coordinates: { lat: 43.8563, lon: 18.4131 } },
   channels: ["email"],
 };
@@ -1594,7 +1656,7 @@ const paymentAmounts: PaymentAmounts = {
 const stripeOrderPaymentProvider: OrderPaymentProvider = {
   type: "stripe",
   payment_provider_id: "payment-provider-contract",
-  checkout_expires_at: 1_800_000_000,
+  checkout_expires_at: epochMilliseconds(1_800_000_000_000),
   checkout_session_id: "checkout-session-contract",
   payment_intent_id: null,
 };
@@ -1610,10 +1672,10 @@ const orderPayment: OrderPayment = {
   provider: stripeOrderPaymentProvider,
   status: "requires_action",
   amounts: paymentAmounts,
-  requested_at: 1,
+  requested_at: epochMilliseconds(1),
   completed_at: null,
-  created_at: 1,
-  updated_at: 2,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(2),
   safe_error: null,
 };
 const zeroTotalCheckout: OrderCheckoutResult = {
@@ -1641,7 +1703,7 @@ const missingConnectedAccountCheckout: OrderCheckoutResult = {
     type: "stripe_embedded_checkout",
     publishable_key: "pk_test_contract",
     client_secret: "cs_test_contract",
-    expires_at: 2,
+    expires_at: epochMilliseconds(2),
   },
   payment: orderPayment,
 };
@@ -1686,8 +1748,8 @@ const embeddedOrderProductItem: OrderProductItem = {
   },
   status: { status: "confirmed" },
   money: shippingLine.money,
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 const embeddedOrderBookingItem: OrderBookingItem = {
   id: "order-booking-item-contract",
@@ -1707,8 +1769,8 @@ const embeddedOrderBookingItem: OrderBookingItem = {
   },
   status: { status: "confirmed" },
   money: shippingLine.money,
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 const embeddedOrderDigitalItem: OrderDigitalItem = {
   id: "order-digital-item-contract",
@@ -1717,8 +1779,8 @@ const embeddedOrderDigitalItem: OrderDigitalItem = {
   snapshot: orderDigitalSnapshotContract,
   status: { status: "confirmed" },
   money: shippingLine.money,
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 const orderContract: Order = {
   id: "order-contract",
@@ -1736,8 +1798,8 @@ const orderContract: Order = {
   shipping_lines: [shippingLine],
   shipping_address: null,
   billing_address: null,
-  created_at: 1,
-  updated_at: 2,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(2),
 };
 const nullableOrderPaymentId: string | null = orderContract.payment_id;
 const cancelEmbeddedProductItem: CancelOrderProductItemParams = {
@@ -1824,8 +1886,8 @@ const supportDefinitionWithNoAi: SupportAgentDefinition = {
   nodes: { message: supportMessageNode },
   edges: [],
   ai_config: null,
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 const supportConversationWithNullableSession: SupportConversation = {
   id: "conversation-contract",
@@ -1844,8 +1906,8 @@ const supportConversationWithNullableSession: SupportConversation = {
   status: "active",
   variables: {},
   channel_metadata: {},
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 const inboundSupportMessage: ReceiveSupportChannelMessageParams = {
   store_id: "store-contract",
@@ -1878,15 +1940,15 @@ const supportMessageWithNullState: SupportMessage = {
   metadata: {},
   ai_response: null,
   email_status: null,
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 const supportEmailStatus: SupportEmailStatus = {
   status: "sent",
   provider_message_id: "provider-support-message",
   provider_thread_id: null,
   provider_status: 202,
-  sent_at: 2,
+  sent_at: epochMilliseconds(2),
 };
 
 const campaignConversationMessage: CampaignConversationMessage = {
@@ -1913,10 +1975,10 @@ const campaignConversationMessage: CampaignConversationMessage = {
       body_text: "Hello",
       body_html: null,
     },
-    created_at: 1,
-    updated_at: 2,
+    created_at: epochMilliseconds(1),
+    updated_at: epochMilliseconds(2),
   },
-  email_status: { status: "requested", requested_at: 2 },
+  email_status: { status: "requested", requested_at: epochMilliseconds(2) },
 };
 
 const workflowEmailNode: WorkflowSendEmailNode = {
@@ -1958,8 +2020,8 @@ const storeSubscriptionRead: StoreSubscription = {
   checkout: null,
   payment_action: { type: "none" },
   trial_started_at: null,
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 const selectedStoreSubscription: StoreSubscription = {
   ...storeSubscriptionRead,
@@ -1968,7 +2030,7 @@ const selectedStoreSubscription: StoreSubscription = {
     publishable_key: "pk_test_contract",
     client_secret: "cs_contract_secret_exact",
     stripe_account_id: null,
-    expires_at: 2,
+    expires_at: epochMilliseconds(2),
   },
 };
 const storefrontSubscriptionCheckoutAction: StorefrontEmbeddedCheckoutAction =
@@ -1997,15 +2059,15 @@ const account: Account = {
   email: "operator@example.test",
   platform_role: "standard",
   last_login_at: null,
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 // @ts-expect-error Account lifecycle/onboarding was removed.
 account.lifecycle;
 
 const pendingAccountSessionResponse: PendingAccountSession = {
   session_id: "session-contract",
-  verification_expires_at: 600,
+  verification_expires_at: epochMilliseconds(600),
 };
 const verifyPendingAccountSession: VerifyPendingAccountSessionParams = {
   session_id: pendingAccountSessionResponse.session_id,
@@ -2015,11 +2077,11 @@ const authToken: AuthToken = {
   id: pendingAccountSessionResponse.session_id,
   access_token: "account_access_contract",
   refresh_token: "account_refresh_contract",
-  access_expires_at: 3_600,
-  refresh_expires_at: 604_800,
-  authenticated_at: 10,
-  created_at: 1,
-  updated_at: 10,
+  access_expires_at: epochMilliseconds(3_600),
+  refresh_expires_at: epochMilliseconds(604_800),
+  authenticated_at: epochMilliseconds(10),
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(10),
 };
 // @ts-expect-error an Active Account Session is proof of verification.
 authToken.is_verified;
@@ -2028,24 +2090,24 @@ const invitationEmailStatus: AccountVerificationEmailStatus = "processing";
 const pendingAccountSession: AccountSession = {
   id: "pending-session-contract",
   status: "pending_verification",
-  verification_expires_at: 600,
+  verification_expires_at: epochMilliseconds(600),
   access_expires_at: null,
   refresh_expires_at: null,
   authenticated_at: null,
   revoked_at: null,
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 const activeAccountSession: AccountSession = {
   id: "active-session-contract",
   status: "active",
   verification_expires_at: null,
-  access_expires_at: 3_600,
-  refresh_expires_at: 604_800,
-  authenticated_at: 10,
+  access_expires_at: epochMilliseconds(3_600),
+  refresh_expires_at: epochMilliseconds(604_800),
+  authenticated_at: epochMilliseconds(10),
   revoked_at: null,
-  created_at: 1,
-  updated_at: 10,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(10),
 };
 const revokedAccountSession: AccountSession = {
   id: "revoked-session-contract",
@@ -2054,9 +2116,9 @@ const revokedAccountSession: AccountSession = {
   access_expires_at: null,
   refresh_expires_at: null,
   authenticated_at: null,
-  revoked_at: 20,
-  created_at: 1,
-  updated_at: 20,
+  revoked_at: epochMilliseconds(20),
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(20),
 };
 const terminalSessionStatus: AccountSessionStatus = "superseded";
 
@@ -2065,9 +2127,9 @@ const personalApiToken: AccountApiToken = {
   token_hint: "ract",
   name: "Local automation",
   status: "active",
-  expires_at: 100,
-  created_at: 1,
-  updated_at: 1,
+  expires_at: epochMilliseconds(100),
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
   revoked_at: null,
 };
 // Expiry is derived from expires_at; it is not a persisted status.
@@ -2095,22 +2157,22 @@ const shippingLabelRefund: ShippingLabelRefund = {
   id: "6ba7b812-9dad-41d1-80b4-00c04fd430c8",
   status: "succeeded",
   safe_error: null,
-  requested_at: 2,
-  completed_at: 3,
+  requested_at: epochMilliseconds(2),
+  completed_at: epochMilliseconds(3),
 };
 const merchantDebit: MerchantDebit = {
   id: "6ba7b815-9dad-41d1-80b4-00c04fd430c8",
   status: "succeeded",
   safe_error: null,
-  requested_at: 1,
-  completed_at: 2,
+  requested_at: epochMilliseconds(1),
+  completed_at: epochMilliseconds(2),
 };
 const merchantDebitReversal: MerchantDebitReversal = {
   id: "6ba7b816-9dad-41d1-80b4-00c04fd430c8",
   status: "succeeded",
   safe_error: null,
-  requested_at: 3,
-  completed_at: 4,
+  requested_at: epochMilliseconds(3),
+  completed_at: epochMilliseconds(4),
 };
 const shippingLabel: ShippingLabel = {
   id: "6ba7b811-9dad-41d1-80b4-00c04fd430c8",
@@ -2119,8 +2181,8 @@ const shippingLabel: ShippingLabel = {
   postage: { amount: 895, currency: "usd" },
   platform_label_fee: { amount: 10, currency: "usd" },
   total: { amount: 905, currency: "usd" },
-  requested_at: 1,
-  completed_at: 2,
+  requested_at: epochMilliseconds(1),
+  completed_at: epochMilliseconds(2),
   merchant_debit: merchantDebit,
   refund: shippingLabelRefund,
   merchant_debit_reversal: merchantDebitReversal,
@@ -2142,8 +2204,8 @@ const fulfillmentOrder: FulfillmentOrder = {
       fulfilled_quantity: 1,
     },
   ],
-  created_at: 1,
-  updated_at: 2,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(2),
 };
 const shipment: OrderShipment = {
   id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
@@ -2172,10 +2234,10 @@ const shipment: OrderShipment = {
   service: "priority",
   tracking_number: "9400000000000000000000",
   tracking_url: "https://tracking.example.test/9400000000000000000000",
-  tracking_status_at: 2,
+  tracking_status_at: epochMilliseconds(2),
   label: shippingLabel,
-  created_at: 1,
-  updated_at: 2,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(2),
 };
 const shipmentWithoutLabel: OrderShipment = {
   ...shipment,
@@ -2351,7 +2413,7 @@ const customerAction: CustomerAction = {
     customer_session_id: "customer-session-contract",
   },
   type: customerActionType,
-  occurred_at: 1,
+  occurred_at: epochMilliseconds(1),
 };
 // @ts-expect-error immutable CustomerAction facts do not expose update timestamps.
 customerAction.updated_at;
@@ -2366,15 +2428,15 @@ const experiment: Experiment = {
   id: "experiment-contract",
   store_id: "store-contract",
   key: "homepage-hero",
-  status: { type: "running", started_at: 1 },
+  status: { type: "running", started_at: epochMilliseconds(1) },
   goal_action_key: "checkout.started",
   attribution_window_days: 7,
   variants: [
     { key: "control", allocation_bps: 5_000 },
     { key: "guided", allocation_bps: 5_000 },
   ],
-  created_at: 1,
-  updated_at: 1,
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(1),
 };
 const createExperiment: CreateExperimentParams = {
   key: "homepage-hero",
@@ -2407,7 +2469,7 @@ const customerActionFeed: CustomerActionFeedData = {
       title: "Page viewed",
       description: "A customer viewed a product.",
       data: {},
-      created_at: 1,
+      created_at: epochMilliseconds(1),
     },
   ],
   summary: {
@@ -2425,9 +2487,9 @@ const customerActionFeed: CustomerActionFeedData = {
     content: 0,
     workflows: 0,
     customer_actions: 1,
-    window_start: 1,
+    window_start: epochMilliseconds(1),
   },
-  next_cursor: { created_at: 1, id: "analytics-fact-contract" },
+  next_cursor: { created_at: epochMilliseconds(1), id: "analytics-fact-contract" },
   meta: { row_count: 1, execution_ms: 1 },
 };
 const checkoutAction: CheckoutPaymentAction = {
@@ -2435,7 +2497,7 @@ const checkoutAction: CheckoutPaymentAction = {
   publishable_key: "pk_test_contract",
   client_secret: "cs_contract_secret_exact",
   connected_account_id: "acct_contract",
-  expires_at: 2,
+  expires_at: epochMilliseconds(2),
 };
 const mediaUpdatedWebhook: WebhookEventSubscription = {
   event: "media.updated",
@@ -2557,3 +2619,27 @@ void [
   supportAction,
 ];
 void sdkVersionLiteral;
+
+const emailRestrictionPage: Promise<import("arky-sdk").PaginatedResponse<EmailSuppressionRecord>> =
+  adminClient.customers.emailSuppression.find({ status: "active", limit: 20 });
+const emailRestrictionSearch: FindEmailSuppressionsParams = { query: "person@example.com", type: "unsubscribe" };
+const emailRestrictionCommand: ActivateEmailSuppressionParams = {
+  id: "restriction-id", email: "person@example.com", command_id: "command-id", expected_version: null, note: "Recipient request",
+};
+const emailRestrictionRelease: ReleaseEmailSuppressionParams = {
+  id: "restriction-id", command_id: "command-id", expected_version: "opaque-version", note: "Recipient requested resubscription",
+};
+const emailRestrictionSource: EmailSuppressionSource = { type: "admin", account_session_id: null };
+// @ts-expect-error A restriction lifecycle uses status.type, not a bare string.
+const bareEmailRestrictionStatus: EmailSuppressionStatus = "active";
+// @ts-expect-error Exact email lookup cannot silently combine bounded Store pagination.
+const paginatedEmailRestrictionSearch: FindEmailSuppressionsParams = { query: "person@example.com", limit: 20 };
+// @ts-expect-error A command must explicitly provide a known version or null for new activation.
+const missingEmailRestrictionVersion: ActivateEmailSuppressionParams = { id: "id", email: "person@example.com", command_id: "command", note: "reason" };
+// @ts-expect-error Recipient evidence is CampaignMessage-owned, never invented Customer-session proof.
+const inventedEmailRestrictionSource: EmailSuppressionSource = { type: "customer", customer_id: "customer-id" };
+// @ts-expect-error No arbitrary deletion or release-both bypass is exposed.
+adminClient.customers.emailSuppression.delete({ id: "id" });
+void [emailRestrictionPage, emailRestrictionSearch, emailRestrictionCommand, emailRestrictionRelease,
+  emailRestrictionSource, bareEmailRestrictionStatus, paginatedEmailRestrictionSearch,
+  missingEmailRestrictionVersion, inventedEmailRestrictionSource];

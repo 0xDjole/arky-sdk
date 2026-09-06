@@ -94,7 +94,7 @@ its short-lived token; an email-authenticated record contains the current access
 credentials. Requesting a code returns only a safe Visitor view and retains the existing token in
 that record. Verification and refresh replace the full record atomically; refresh sends only the
 body credential with the Store's publishable key and never sends an access-token Authorization
-header. Initialization removes the retired Visitor-only storage entry. Customer credentials use the `customer_visitor_`,
+header. Customer credentials use the `customer_visitor_`,
 `customer_access_`, and `customer_refresh_` prefixes; `arky_vst_` is rejected. Storage is isolated by
 API endpoint and a fingerprint of the publishable key.
 
@@ -443,6 +443,48 @@ use `active`/`disabled` status values. Membership IDs are opaque, Server-generat
 `StoreUsage` represents one feature and either its current total or one UTC calendar month.
 Booking quotas use the canonical `booking_services` and `booking_resources` feature keys.
 
+Inspect skipped incoming emails through the Mailbox's read-only diagnostics:
+
+```typescript
+const issues = await admin.notification.mailbox.findSyncIssues({
+  id: "mailbox-id",
+  limit: 50,
+});
+```
+
+Each page defaults to 50 records and accepts at most 100; pass the returned `cursor` explicitly
+for the next page. Records contain an exact native IMAP or Gmail identity, a fixed safe reason
+and message, and `observed_at` in epoch milliseconds. They contain no email body, headers,
+attachments, or credentials. Inspection remains available after disconnect; there is no
+diagnostic retry or purge command.
+
+Manage Store-wide email restrictions through `admin.customers.emailSuppression`:
+
+```typescript
+const current = await admin.customers.emailSuppression.find({
+  query: "person@example.com",
+});
+```
+
+Exact email search returns at most two independent restrictions. Store-wide pages default to
+50 rows, accept at most 100, and retain their cursor even when type/status filtering returns
+an empty page. Use `block`/`unblock` for AdminBlock and `recordUnsubscribe`/`recordResubscribe`
+for an actual recipient request. Mutations require a current same-Store Owner/Admin AccountSession
+and a nonempty explanation; API tokens do not authorize these commands.
+
+Activation takes a caller-generated UUID-v4 `id` and `command_id`, with explicit
+`expected_version: null` for a new restriction. For an existing restriction, retain its ID and
+pass the returned opaque `version` as `expected_version`. Release requires the current version.
+Retry the identical command ID and payload after a lost response; never automatically generate a
+replacement command. A conflict requires reviewing the new authoritative record. Responses contain
+`{ restriction, version }`; `restriction.status.type` is `active` or `released`, with checked epoch
+millisecond timestamps and latest-change evidence only.
+
+Unsubscribe blocks automatic marketing; AdminBlock also blocks manual Campaign/Support email.
+Neither blocks essential login, receipt, or booking messages. Releasing one restriction does not
+release the other, restart Campaigns, resend cancelled email, or rejoin an Audience. No generic
+update/delete, Send anyway, public email lookup, or recipient self-service release is exposed.
+
 Store subscription reads expose the current `status` and optional `plan_access`; their
 `payment_action` is `none`. Selecting a paid plan returns any transient payment action directly on
 the subscription response, so callers complete that action without storing or retrieving a
@@ -607,6 +649,34 @@ These DTOs expose safe lifecycle state and `Money` snapshots only. Carrier and p
 object IDs, processing claims, attempt counters, and persistence versions remain Server-internal.
 
 ## TypeScript
+
+Every Arky-owned absolute instant is a signed UTC Unix epoch-millisecond number, represented in
+TypeScript by `EpochMilliseconds`. This includes API filters, booking intervals, Date Blocks,
+Form date values, session deadlines, lifecycle timestamps, and canonical provider evidence returned
+by Arky. Convert explicit numbers or JavaScript Dates through the checked helpers:
+
+```typescript
+import { epochMilliseconds, epochMillisecondsFromDate, epochMillisecondsToDate } from "arky-sdk";
+
+const from = epochMillisecondsFromDate(new Date("2024-01-02T03:04:05.678Z"));
+const to = epochMilliseconds(from + 60_000);
+console.log(epochMillisecondsToDate(from).toISOString());
+```
+
+There is no seconds fallback or magnitude detection: `epochMilliseconds(1_700_000_000)` is a valid
+instant in January 1970. Helpers reject fractional, nonfinite, and unsafe integers; Date conversion
+also rejects instants outside JavaScript's Date range. Duration fields retain their explicit units,
+elapsed request timing uses a monotonic clock, and calendar dates such as availability `local_date`
+remain strings. Prices and `compare_at` are money, not timestamps.
+
+The clean browser-auth boundary uses `arky_admin_session:v2` with a version-2 envelope and
+`arky_customer_session:v2:...` with version-2 Customer records. Older auth namespaces are ignored;
+users sign in again rather than having seconds-shaped records reinterpreted. Existing durable
+payment, refund, shipment, and media request recovery records are not cleared, rewritten, or assigned
+new request identities by this auth cutover. Deploying this contract still requires the coordinated
+Server/client preproduction reset and verification plan; an SDK update does not perform that reset.
+Durable media uploads retain `File.lastModified` as native browser millisecond metadata, including
+its exact frozen JSON bytes and replay identity; it is not a seconds-valued Arky domain timestamp.
 
 ```typescript
 import {

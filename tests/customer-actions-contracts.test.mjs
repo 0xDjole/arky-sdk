@@ -70,7 +70,7 @@ test("initialized storefront tracks Customer Actions", async () => {
   const sessionStorage = {
     getItem() {
       return JSON.stringify({
-        version: 1,
+        version: 2,
         customer: {
           id: "customer-actions-contract",
           store_id: storeId,

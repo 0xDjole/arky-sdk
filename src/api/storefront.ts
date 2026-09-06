@@ -1,3 +1,4 @@
+import type { EpochMilliseconds } from "../types/time";
 import type { StorefrontApiConfig } from "../services/clientTypes";
 import type {
   AddCartBookingParams,
@@ -268,19 +269,19 @@ export type StorefrontVisitorSessionRecord = {
   status: "active";
   superseded_at: null;
   revoked_at: null;
-  expires_at: number;
+  expires_at: EpochMilliseconds;
   email_verification: CustomerEmailVerification;
-  last_seen_at: number | null;
-  created_at: number;
-  updated_at: number;
+  last_seen_at: EpochMilliseconds | null;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 };
 
 export type RequestCodeResponse = {
   customer: StorefrontCustomer;
   session: StorefrontVisitorSessionRecord;
   email_verification: {
-    sent_at: number;
-    expires_at: number;
+    sent_at: EpochMilliseconds;
+    expires_at: EpochMilliseconds;
   };
 };
 

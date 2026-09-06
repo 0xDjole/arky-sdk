@@ -1,3 +1,4 @@
+import type { EpochMilliseconds } from "./time";
 export type Currency =
   | "usd"
   | "eur"
@@ -96,8 +97,8 @@ export interface PaymentDispute {
   status: PaymentDisputeStatus;
   reason: string;
   provider: PaymentDisputeProvider;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type RefundStatus =
@@ -131,12 +132,12 @@ export interface OrderRefund {
   private_note: string | null;
   status: RefundStatus;
   safe_error: string | null;
-  requested_at: number;
-  processing_started_at: number | null;
-  processing_deadline_at: number | null;
-  completed_at: number | null;
-  created_at: number;
-  updated_at: number;
+  requested_at: EpochMilliseconds;
+  processing_started_at: EpochMilliseconds | null;
+  processing_deadline_at: EpochMilliseconds | null;
+  completed_at: EpochMilliseconds | null;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface OrderPayment {
@@ -146,10 +147,10 @@ export interface OrderPayment {
   provider: OrderPaymentProvider;
   status: OrderPaymentStatus;
   amounts: PaymentAmounts;
-  requested_at: number;
-  completed_at: number | null;
-  created_at: number;
-  updated_at: number;
+  requested_at: EpochMilliseconds;
+  completed_at: EpochMilliseconds | null;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
   safe_error: string | null;
 }
 
@@ -170,7 +171,7 @@ export type OrderPaymentProvider =
   | {
       type: "stripe";
       payment_provider_id: string;
-      checkout_expires_at: number;
+      checkout_expires_at: EpochMilliseconds;
       checkout_session_id: string | null;
       payment_intent_id: string | null;
     };
@@ -246,8 +247,8 @@ export interface PostalAddress {
 export type Address = PostalAddress;
 
 export interface TimeRange {
-  from: number;
-  to: number;
+  from: EpochMilliseconds;
+  to: EpochMilliseconds;
 }
 
 export interface Coordinates {
@@ -278,7 +279,7 @@ export interface EshopCartItem {
   price: Price;
   quantity: number;
   form_submission_id?: string | null;
-  added_at: number;
+  added_at: EpochMilliseconds;
   max_stock?: number;
 }
 
@@ -305,10 +306,10 @@ export interface Cart {
   shipping_method_id: string | null;
   converted_order_id: string | null;
   item_count: number;
-  last_action_at: number;
-  abandoned_at: number | null;
-  created_at: number;
-  updated_at: number;
+  last_action_at: EpochMilliseconds;
+  abandoned_at: EpochMilliseconds | null;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface CartProductItem {
@@ -350,12 +351,12 @@ export interface SocialDestination {
 }
 
 export type SocialCredentialRefreshStatus =
-  | { type: "requested"; requested_at: number }
-  | { type: "processing"; started_at: number; deadline_at: number }
-  | { type: "succeeded"; completed_at: number }
-  | { type: "rejected"; error: string; rejected_at: number }
-  | { type: "failed"; error: string; failed_at: number }
-  | { type: "unknown"; error: string; detected_at: number };
+  | { type: "requested"; requested_at: EpochMilliseconds }
+  | { type: "processing"; started_at: EpochMilliseconds; deadline_at: EpochMilliseconds }
+  | { type: "succeeded"; completed_at: EpochMilliseconds }
+  | { type: "rejected"; error: string; rejected_at: EpochMilliseconds }
+  | { type: "failed"; error: string; failed_at: EpochMilliseconds }
+  | { type: "unknown"; error: string; detected_at: EpochMilliseconds };
 
 export interface SocialCredentialRefresh {
   credential_generation: number;
@@ -363,7 +364,7 @@ export interface SocialCredentialRefresh {
 }
 
 export interface SocialCredential {
-  expires_at?: number | null;
+  expires_at?: EpochMilliseconds | null;
   scopes: string[];
   has_refresh_token: boolean;
 }
@@ -376,7 +377,7 @@ export type SocialConnectionStatus =
     }
   | {
       type: "disconnected";
-      disconnected_at: number;
+      disconnected_at: EpochMilliseconds;
       last_refresh: SocialCredentialRefresh;
     };
 
@@ -386,8 +387,8 @@ export interface SocialConnection {
   type: SocialConnectionType;
   destination: SocialDestination;
   status: SocialConnectionStatus;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface SocialConnectResult {
@@ -537,12 +538,12 @@ export type SocialPublishEvidence =
     };
 
 export type SocialPublishOperationStatus =
-  | { type: "requested"; requested_at: number }
-  | { type: "processing"; started_at: number; deadline_at: number }
-  | { type: "succeeded"; evidence: SocialPublishEvidence; completed_at: number }
-  | { type: "failed"; error: string; failed_at: number }
-  | { type: "rejected"; error: string; rejected_at: number }
-  | { type: "unknown"; error: string; detected_at: number };
+  | { type: "requested"; requested_at: EpochMilliseconds }
+  | { type: "processing"; started_at: EpochMilliseconds; deadline_at: EpochMilliseconds }
+  | { type: "succeeded"; evidence: SocialPublishEvidence; completed_at: EpochMilliseconds }
+  | { type: "failed"; error: string; failed_at: EpochMilliseconds }
+  | { type: "rejected"; error: string; rejected_at: EpochMilliseconds }
+  | { type: "unknown"; error: string; detected_at: EpochMilliseconds };
 
 export interface SocialPublishOperation {
   id: string;
@@ -561,30 +562,30 @@ export type SocialPostStatus =
   | {
       type: "published";
       progress: SocialPublishProgress;
-      published_at: number;
+      published_at: EpochMilliseconds;
     }
   | {
       type: "failed";
       progress: SocialPublishProgress;
       error: string;
-      failed_at: number;
+      failed_at: EpochMilliseconds;
     }
   | {
       type: "rejected";
       progress: SocialPublishProgress;
       error: string;
-      rejected_at: number;
+      rejected_at: EpochMilliseconds;
     }
   | {
       type: "unknown";
       progress: SocialPublishProgress;
       error: string;
-      detected_at: number;
+      detected_at: EpochMilliseconds;
     }
   | {
       type: "cancelled";
       progress: SocialPublishProgress;
-      cancelled_at: number;
+      cancelled_at: EpochMilliseconds;
     };
 
 export interface SocialPost {
@@ -592,11 +593,11 @@ export interface SocialPost {
   store_id: string;
   social_connection_id: string;
   content: SocialPostContent;
-  publish_at: number;
+  publish_at: EpochMilliseconds;
   status: SocialPostStatus;
   comment_sync: SocialCommentSyncStatus;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type SocialCommentSyncStatus =
@@ -604,12 +605,12 @@ export type SocialCommentSyncStatus =
   | {
       type: "processing";
       claim_id: string;
-      started_at: number;
-      deadline_at: number;
+      started_at: EpochMilliseconds;
+      deadline_at: EpochMilliseconds;
     }
-  | { type: "succeeded"; claim_id: string; completed_at: number }
-  | { type: "failed"; claim_id: string; error: string; failed_at: number }
-  | { type: "unknown"; claim_id: string; error: string; detected_at: number };
+  | { type: "succeeded"; claim_id: string; completed_at: EpochMilliseconds }
+  | { type: "failed"; claim_id: string; error: string; failed_at: EpochMilliseconds }
+  | { type: "unknown"; claim_id: string; error: string; detected_at: EpochMilliseconds };
 
 export type SocialIncomingCommentRelation =
   { type: "root" } | { type: "reply"; parent_message_id: string };
@@ -632,13 +633,13 @@ export type SocialCommentAuthor =
   | { type: "unavailable" };
 
 export type SocialOutgoingCommentStatus =
-  | { type: "queued"; requested_at: number }
-  | { type: "cancelled"; cancelled_at: number }
-  | { type: "sending"; started_at: number; deadline_at: number }
-  | { type: "sent"; provider_comment_id: string; sent_at: number }
-  | { type: "failed"; error: string; failed_at: number }
-  | { type: "rejected"; error: string; rejected_at: number }
-  | { type: "unknown"; error: string; detected_at: number };
+  | { type: "queued"; requested_at: EpochMilliseconds }
+  | { type: "cancelled"; cancelled_at: EpochMilliseconds }
+  | { type: "sending"; started_at: EpochMilliseconds; deadline_at: EpochMilliseconds }
+  | { type: "sent"; provider_comment_id: string; sent_at: EpochMilliseconds }
+  | { type: "failed"; error: string; failed_at: EpochMilliseconds }
+  | { type: "rejected"; error: string; rejected_at: EpochMilliseconds }
+  | { type: "unknown"; error: string; detected_at: EpochMilliseconds };
 
 export type SocialCommentDirection =
   | {
@@ -646,8 +647,8 @@ export type SocialCommentDirection =
       relation: SocialIncomingCommentRelation;
       provider_comment_id: string;
       author: SocialCommentAuthor;
-      provider_created_at: number;
-      observed_at: number;
+      provider_created_at: EpochMilliseconds;
+      observed_at: EpochMilliseconds;
     }
   | {
       type: "outgoing_reply";
@@ -671,8 +672,8 @@ export interface SocialMessage {
   depth: number;
   reply_count: number;
   replied: boolean;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type SocialMessageSyncType =
@@ -695,7 +696,7 @@ export type SocialMessageSyncResult =
       reconciled: number;
       next_cursor?: string | null;
     }
-  | { type: "deferred"; retry_after_at: number };
+  | { type: "deferred"; retry_after_at: EpochMilliseconds };
 
 export type BuildHookStatus = "active" | "disabled";
 
@@ -705,14 +706,14 @@ export interface BuildHook {
   url: string;
   headers: Record<string, string>;
   status: BuildHookStatus;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface StripePlatformDebitConsent {
   connected_account_id: string;
   accepted_by_account_id: string;
-  accepted_at: number;
+  accepted_at: EpochMilliseconds;
   terms_version: number;
 }
 
@@ -724,7 +725,7 @@ export type PaymentProviderConfiguration =
       account_setup_submitted: boolean;
       payments_enabled: boolean;
       payouts_enabled: boolean;
-      state_observed_at: number;
+      state_observed_at: EpochMilliseconds;
       platform_debit_consent: StripePlatformDebitConsent | null;
     };
 
@@ -735,8 +736,8 @@ export interface PaymentProvider {
   id: string;
   store_id: string;
   configuration: PaymentProviderConfiguration;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface PaymentProviderConnectResponse {
@@ -765,8 +766,8 @@ export interface StoreLocation {
   key: string;
   address: PostalAddress;
   is_pickup_location: boolean;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface ProductInventory {
@@ -777,7 +778,7 @@ export interface ProductInventory {
   store_location_id: string;
   on_hand: number;
   reserved: number;
-  updated_at: number;
+  updated_at: EpochMilliseconds;
 }
 
 export interface ProductVariant {
@@ -798,8 +799,8 @@ export interface Product {
   classifications: ClassificationEntry[];
   variants: ProductVariant[];
   status: ProductStatus;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface GalleryItem {
@@ -827,8 +828,8 @@ export interface OrderBookingSnapshot {
 
 export interface BookingReminderScheduleItem {
   offset_minutes: number;
-  due_at: number;
-  emitted_at: number | null;
+  due_at: EpochMilliseconds;
+  emitted_at: EpochMilliseconds | null;
 }
 
 export interface OrderDigitalSnapshot {
@@ -864,12 +865,12 @@ export interface LineMoneySnapshot {
 }
 
 export type OrderItemStatus =
-  | { status: "pending"; expires_at: number }
+  | { status: "pending"; expires_at: EpochMilliseconds }
   | { status: "confirmed" }
   | { status: "cancelled"; reason: OrderCancellationReason };
 
 export type OrderBookingStatus =
-  | { status: "pending"; expires_at: number }
+  | { status: "pending"; expires_at: EpochMilliseconds }
   | { status: "confirmed" }
   | { status: "completed" }
   | { status: "no_show" }
@@ -919,8 +920,8 @@ export interface OrderProductItem {
   snapshot: OrderProductSnapshot;
   status: OrderItemStatus;
   money: LineMoneySnapshot;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface OrderBookingItem {
@@ -936,8 +937,8 @@ export interface OrderBookingItem {
   snapshot: OrderBookingSnapshot;
   status: OrderBookingStatus;
   money: LineMoneySnapshot;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface OrderDigitalItem {
@@ -947,8 +948,8 @@ export interface OrderDigitalItem {
   snapshot: OrderDigitalSnapshot;
   status: OrderItemStatus;
   money: LineMoneySnapshot;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface OrderShippingLine {
@@ -977,8 +978,8 @@ export interface FulfillmentOrder {
   status: FulfillmentOrderStatus;
   destination: PostalAddress | null;
   lines: FulfillmentOrderLine[];
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface Order {
@@ -997,8 +998,8 @@ export interface Order {
   shipping_lines: OrderShippingLine[];
   shipping_address: Address | null;
   billing_address: Address | null;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type DigitalProductStatus = "draft" | "active" | "archived";
@@ -1014,8 +1015,8 @@ export interface DigitalProduct {
   prices: Price[];
   asset_ids: string[];
   status: DigitalProductStatus;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface StorefrontDigitalProduct {
@@ -1033,8 +1034,8 @@ export interface DigitalAsset {
   file_name: string;
   mime_type: string;
   status: DigitalAssetStatus;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface DigitalLibraryAsset {
@@ -1060,7 +1061,7 @@ export interface DigitalLibraryProduct {
 
 export interface DigitalDownload {
   url: string;
-  expires_at: number;
+  expires_at: EpochMilliseconds;
   file_name: string;
   mime_type: string;
 }
@@ -1079,7 +1080,7 @@ export type CheckoutPaymentAction =
       publishable_key: string;
       client_secret: string;
       connected_account_id: string;
-      expires_at: number;
+      expires_at: EpochMilliseconds;
     };
 
 export type StoreSubscriptionCheckoutAction =
@@ -1089,7 +1090,7 @@ export type StoreSubscriptionCheckoutAction =
       publishable_key: string;
       client_secret: string;
       stripe_account_id: string | null;
-      expires_at: number;
+      expires_at: EpochMilliseconds;
     };
 
 export interface OrderCheckoutResult {
@@ -1116,8 +1117,8 @@ export interface Market {
   tax_mode: TaxMode;
   payment_provider_ids: string[];
   zones: Zone[];
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type WebhookEventSubscription =
@@ -1199,8 +1200,8 @@ export interface Webhook {
   headers: Record<string, string>;
   secret: string;
   status: WebhookStatus;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type StoreSubscriptionStatus =
@@ -1215,8 +1216,8 @@ export type StoreSubscriptionStatus =
 
 export interface ProviderOperationClaim {
   id: string;
-  started_at: number;
-  deadline_at: number;
+  started_at: EpochMilliseconds;
+  deadline_at: EpochMilliseconds;
 }
 
 export type ProviderEffectError =
@@ -1225,15 +1226,15 @@ export type ProviderEffectError =
       message: string;
       provider_code: string | null;
       provider_http_status: number | null;
-      at: number;
+      at: EpochMilliseconds;
     }
-  | { type: "provider_call_not_started"; message: string; at: number }
+  | { type: "provider_call_not_started"; message: string; at: EpochMilliseconds }
   | {
       type: "unknown_outcome";
       message: string;
       provider_code: string | null;
       provider_http_status: number | null;
-      at: number;
+      at: EpochMilliseconds;
     };
 
 export type StoreSubscriptionCheckoutStatus =
@@ -1265,18 +1266,18 @@ export interface StoreSubscriptionCheckout {
   stripe_customer_id: string | null;
   billing_email: string;
   return_url: string;
-  trial_end: number | null;
-  expires_at: number;
+  trial_end: EpochMilliseconds | null;
+  expires_at: EpochMilliseconds;
   status: StoreSubscriptionCheckoutStatus;
-  requested_at: number;
-  updated_at: number;
+  requested_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface StorePlanAccess {
   plan_id: string;
-  started_at: number;
+  started_at: EpochMilliseconds;
   /** Null means intentionally lifetime access. */
-  access_until: number | null;
+  access_until: EpochMilliseconds | null;
 }
 
 export interface StoreSubscription {
@@ -1286,9 +1287,9 @@ export interface StoreSubscription {
   status: StoreSubscriptionStatus;
   checkout: StoreSubscriptionCheckout | null;
   payment_action: StoreSubscriptionCheckoutAction;
-  trial_started_at: number | null;
-  created_at: number;
-  updated_at: number;
+  trial_started_at: EpochMilliseconds | null;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface StoreDeletionResult {
@@ -1344,7 +1345,7 @@ export interface BooleanBlock extends BlockBase {
 
 export interface DateBlock extends BlockBase {
   type: "date";
-  value: number | null;
+  value: EpochMilliseconds | null;
 }
 
 export interface MediaBlock extends BlockBase {
@@ -1492,7 +1493,7 @@ export type FormField =
   | (FormFieldBase & { type: "text"; value: string })
   | (FormFieldBase & { type: "number"; value: number })
   | (FormFieldBase & { type: "boolean"; value: boolean })
-  | (FormFieldBase & { type: "date"; value: number })
+  | (FormFieldBase & { type: "date"; value: EpochMilliseconds })
   | (FormFieldBase & { type: "geo_location"; value: GeoLocation })
   | (FormFieldBase & { type: "select"; value: string[] });
 
@@ -1562,8 +1563,8 @@ export interface Media {
   store_id: string;
   original: MediaFile;
   renditions: MediaRendition[];
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type SubscriptionPlanFeatureType =
@@ -1597,8 +1598,8 @@ export interface StoreUsage {
   feature: SubscriptionPlanFeatureType;
   period: UsagePeriod;
   count: number;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface SubscriptionPlanFeature {
@@ -1635,10 +1636,10 @@ export interface AccountApiToken {
   token_hint: string;
   name: string;
   status: AccountApiTokenStatus;
-  expires_at: number | null;
-  created_at: number;
-  updated_at: number;
-  revoked_at: number | null;
+  expires_at: EpochMilliseconds | null;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+  revoked_at: EpochMilliseconds | null;
 }
 
 export interface StoreMembership {
@@ -1649,11 +1650,11 @@ export interface StoreMembership {
   role: import("./api").StoreRole;
   status: "invited" | "active";
   invited_by_account_id?: string | null;
-  invited_at?: number | null;
+  invited_at?: EpochMilliseconds | null;
   invitation_email_status?: AccountVerificationEmailStatus | null;
-  joined_at?: number | null;
-  created_at: number;
-  updated_at: number;
+  joined_at?: EpochMilliseconds | null;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface StoreMember {
@@ -1665,9 +1666,9 @@ export interface Account {
   id: string;
   email: string;
   platform_role: import("./api").PlatformRole;
-  last_login_at: number | null;
-  created_at: number;
-  updated_at: number;
+  last_login_at: EpochMilliseconds | null;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface AccountApiTokenCreated {
@@ -1677,15 +1678,15 @@ export interface AccountApiTokenCreated {
 
 interface AccountSessionBase {
   id: string;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type AccountSession = AccountSessionBase &
   (
     | {
         status: "pending_verification";
-        verification_expires_at: number;
+        verification_expires_at: EpochMilliseconds;
         access_expires_at: null;
         refresh_expires_at: null;
         authenticated_at: null;
@@ -1694,9 +1695,9 @@ export type AccountSession = AccountSessionBase &
     | {
         status: "active";
         verification_expires_at: null;
-        access_expires_at: number;
-        refresh_expires_at: number;
-        authenticated_at: number;
+        access_expires_at: EpochMilliseconds;
+        refresh_expires_at: EpochMilliseconds;
+        authenticated_at: EpochMilliseconds;
         revoked_at: null;
       }
     | {
@@ -1713,7 +1714,7 @@ export type AccountSession = AccountSessionBase &
         access_expires_at: null;
         refresh_expires_at: null;
         authenticated_at: null;
-        revoked_at: number;
+        revoked_at: EpochMilliseconds;
       }
   );
 
@@ -1754,18 +1755,18 @@ export type MailboxConnectionSecurity = "tls" | "start_tls";
 export type MailboxSyncFailureKind = "authentication" | "connection" | "recovery";
 export interface MailboxSyncRecoveryWarning {
   message: string;
-  observed_at: number;
+  observed_at: EpochMilliseconds;
 }
 export interface MailboxSyncFailure {
   kind: MailboxSyncFailureKind;
   message: string;
-  observed_at: number;
+  observed_at: EpochMilliseconds;
 }
 export type MailboxSyncStatus =
   | { type: "not_ready" }
   | {
       type: "ready";
-      ready_at: number;
+      ready_at: EpochMilliseconds;
       recovery_warning: MailboxSyncRecoveryWarning | null;
     }
   | { type: "failed"; failure: MailboxSyncFailure };
@@ -1790,7 +1791,7 @@ export type SmtpImapMailboxProviderInput = {
 export type SmtpImapMailboxProvider = SmtpImapMailboxProviderInput & {
   password_configured: boolean;
   sync_status: MailboxSyncStatus;
-  last_synced_at?: number | null;
+  last_synced_at?: EpochMilliseconds | null;
   imap_cursor?: ImapCursor | null;
 };
 export interface GoogleMailboxProfile {
@@ -1804,21 +1805,21 @@ export type GoogleMailboxProvider = {
   profile: GoogleMailboxProfile;
   access_configured: boolean;
   refresh_configured: boolean;
-  token_expires_at?: number | null;
+  token_expires_at?: EpochMilliseconds | null;
   token_type?: string | null;
   scopes: string[];
   sync_enabled: boolean;
   sync_interval_seconds: number;
   sync_status: MailboxSyncStatus;
-  last_synced_at?: number | null;
+  last_synced_at?: EpochMilliseconds | null;
   last_history_id?: string | null;
 };
 export type CampaignThreadMode = "new_thread" | "reply_to_previous";
 export type CampaignStatus =
   | { status: "draft" }
-  | { status: "active"; launched_at: number }
-  | { status: "paused"; launched_at: number; paused_at: number }
-  | { status: "completed"; launched_at: number; completed_at: number };
+  | { status: "active"; launched_at: EpochMilliseconds }
+  | { status: "paused"; launched_at: EpochMilliseconds; paused_at: EpochMilliseconds }
+  | { status: "completed"; launched_at: EpochMilliseconds; completed_at: EpochMilliseconds };
 export type CampaignStatusFilter = CampaignStatus["status"];
 export type CampaignEnrollmentStopReason =
   | { reason: "operator" }
@@ -1826,13 +1827,13 @@ export type CampaignEnrollmentStopReason =
   | { reason: "outbound_unavailable" };
 export type CampaignEnrollmentStatus =
   | { status: "pending"; next_step_index: number }
-  | { status: "active"; next_step_index: number; next_step_at: number }
-  | { status: "replied"; message_id: string; replied_at: number }
-  | { status: "completed"; completed_at: number }
+  | { status: "active"; next_step_index: number; next_step_at: EpochMilliseconds }
+  | { status: "replied"; message_id: string; replied_at: EpochMilliseconds }
+  | { status: "completed"; completed_at: EpochMilliseconds }
   | {
       status: "stopped";
       reason: CampaignEnrollmentStopReason;
-      stopped_at: number;
+      stopped_at: EpochMilliseconds;
     };
 export type CampaignEnrollmentStatusFilter = CampaignEnrollmentStatus["status"];
 export type CampaignOutgoingOrigin =
@@ -1856,7 +1857,7 @@ export type CampaignMessageType =
       provider_thread_id?: string | null;
       provider_references: string[];
       attachments: EmailAttachmentReference[];
-      received_at: number;
+      received_at: EpochMilliseconds;
     };
 export type WorkflowStatus = "active" | "draft";
 export type MutableWorkflowStatus = WorkflowStatus;
@@ -1887,8 +1888,8 @@ export type OrderStatus =
   "pending" | "confirmed" | "partially_cancelled" | "cancelled";
 
 export interface TimeRange {
-  from: number;
-  to: number;
+  from: EpochMilliseconds;
+  to: EpochMilliseconds;
 }
 
 export type BlockSchemaType =
@@ -1933,8 +1934,8 @@ export interface Collection {
   schema: BlockSchema[];
   blocks: Block[];
   status: CollectionStatus;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface MediaRef {
@@ -1958,7 +1959,7 @@ export type EntryBlockQuery =
   | { type: "text"; key: string; values: string[] }
   | { type: "number"; key: string; operation: FieldOperation; value: number }
   | { type: "boolean"; key: string; value: boolean }
-  | { type: "date"; key: string; operation: FieldOperation; value: number };
+  | { type: "date"; key: string; operation: FieldOperation; value: EpochMilliseconds };
 
 export interface CollectionEntry {
   id: string;
@@ -1968,8 +1969,8 @@ export interface CollectionEntry {
   slug: Record<string, string>;
   blocks: Block[];
   status: EntryStatus;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface EmailTemplate {
@@ -1983,8 +1984,8 @@ export interface EmailTemplate {
   variables: EmailTemplateVariable[];
   sample_data: Record<string, unknown>;
   status: EmailTemplateStatus;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type EmailTemplateVariableSource = "template" | "system";
@@ -2001,8 +2002,8 @@ export interface Form {
   store_id: string;
   schema: FormSchema[];
   status: FormStatus;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface FormSubmission {
@@ -2012,7 +2013,7 @@ export interface FormSubmission {
   customer_id: string;
   customer_session_id: string | null;
   fields: FormField[];
-  created_at: number;
+  created_at: EpochMilliseconds;
 }
 
 export interface Classification {
@@ -2022,8 +2023,8 @@ export interface Classification {
   parent_id: string | null;
   schema: ClassificationSchema[];
   status: ClassificationStatus;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface ServiceDuration {
@@ -2073,8 +2074,8 @@ export interface BookingOffering {
   booking_window: BookingWindow;
   reminder_offsets_minutes: number[];
   status: BookingOfferingStatus;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface BookingService {
@@ -2084,8 +2085,8 @@ export interface BookingService {
   store_id: string;
   blocks: Block[];
   classifications: ClassificationEntry[];
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
   status: BookingServiceStatus;
 }
 
@@ -2099,15 +2100,15 @@ export interface BookingResource {
   classifications: ClassificationEntry[];
   timezone: string;
   capacity: number;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface BookingCapacityClaim {
   order_id: string;
   order_booking_item_id: string;
-  from: number;
-  to: number;
+  from: EpochMilliseconds;
+  to: EpochMilliseconds;
 }
 
 export interface BookingResourceCapacityDay {
@@ -2117,8 +2118,8 @@ export interface BookingResourceCapacityDay {
   local_date: string;
   timezone: string;
   claims: BookingCapacityClaim[];
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface WorkflowEdge {
@@ -2136,8 +2137,8 @@ export interface Workflow {
   schedule?: string | null;
   webhook_url: string;
   graph: WorkflowGraph;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface WorkflowListItem {
@@ -2146,8 +2147,8 @@ export interface WorkflowListItem {
   store_id: string;
   status: WorkflowStatus;
   schedule?: string | null;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface WorkflowWebhookUrl {
@@ -2255,8 +2256,8 @@ export interface WorkflowConnection {
   id: string;
   store_id: string;
   data: WorkflowConnectionData;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface WorkflowConnectionConnectUrl {
@@ -2310,8 +2311,8 @@ export interface NodeResult {
   source: NodeResultSource;
   output: any;
   route: string;
-  started_at: number;
-  completed_at: number;
+  started_at: EpochMilliseconds;
+  completed_at: EpochMilliseconds;
   duration_ms: number;
   error?: string;
 }
@@ -2328,11 +2329,11 @@ export interface WorkflowExecution {
   results: Record<string, NodeResult>;
   status: WorkflowExecutionStatus;
   error?: string | null;
-  scheduled_at: number;
-  started_at?: number | null;
-  completed_at?: number | null;
-  created_at: number;
-  updated_at: number;
+  scheduled_at: EpochMilliseconds;
+  started_at?: EpochMilliseconds | null;
+  completed_at?: EpochMilliseconds | null;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface WorkflowExecutionListItem {
@@ -2340,9 +2341,9 @@ export interface WorkflowExecutionListItem {
   workflow_id: string;
   status: WorkflowExecutionStatus;
   error?: string | null;
-  scheduled_at: number;
-  started_at?: number | null;
-  completed_at?: number | null;
+  scheduled_at: EpochMilliseconds;
+  started_at?: EpochMilliseconds | null;
+  completed_at?: EpochMilliseconds | null;
 }
 
 export interface WorkflowExecutionStarted {
@@ -2369,7 +2370,7 @@ export interface WorkflowExternalOperationResult {
 export interface WorkflowExternalOperationError {
   type: WorkflowExternalOperationErrorType;
   message: string;
-  at: number;
+  at: EpochMilliseconds;
 }
 
 export interface WorkflowExternalOperation {
@@ -2381,12 +2382,12 @@ export interface WorkflowExternalOperation {
   iteration_key: string;
   type: WorkflowExternalOperationType;
   status: WorkflowExternalOperationStatus;
-  requested_at: number;
-  processing_started_at?: number | null;
-  completed_at?: number | null;
+  requested_at: EpochMilliseconds;
+  processing_started_at?: EpochMilliseconds | null;
+  completed_at?: EpochMilliseconds | null;
   result?: WorkflowExternalOperationResult | null;
   error?: WorkflowExternalOperationError | null;
-  updated_at: number;
+  updated_at: EpochMilliseconds;
 }
 
 export type AudiencePaidCharge =
@@ -2412,40 +2413,40 @@ export type CustomerSessionStatus = "active" | "superseded" | "revoked";
 export interface CustomerEmailVerification {
   identity_id: string;
   failed_attempts: number;
-  sent_at: number;
-  expires_at: number;
+  sent_at: EpochMilliseconds;
+  expires_at: EpochMilliseconds;
 }
 
 interface CustomerSessionRecordBase {
   id: string;
   store_id: string;
   customer_id: string;
-  last_seen_at: number | null;
-  created_at: number;
-  updated_at: number;
+  last_seen_at: EpochMilliseconds | null;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 type CustomerSessionLifecycle =
   | { status: "active"; superseded_at: null; revoked_at: null }
-  | { status: "superseded"; superseded_at: number; revoked_at: null }
+  | { status: "superseded"; superseded_at: EpochMilliseconds; revoked_at: null }
   | {
       status: "revoked";
-      superseded_at: number | null;
-      revoked_at: number;
+      superseded_at: EpochMilliseconds | null;
+      revoked_at: EpochMilliseconds;
     };
 
 type CustomerSessionSafeType =
   | {
       type: "visitor";
-      expires_at: number;
+      expires_at: EpochMilliseconds;
       email_verification: CustomerEmailVerification | null;
     }
   | {
       type: "email_authenticated";
       identity_id: string;
-      access_expires_at: number;
-      refresh_expires_at: number;
-      authenticated_at: number;
+      access_expires_at: EpochMilliseconds;
+      refresh_expires_at: EpochMilliseconds;
+      authenticated_at: EpochMilliseconds;
     };
 
 export type CustomerSessionRecord = CustomerSessionRecordBase &
@@ -2459,7 +2460,7 @@ export type CustomerSessionIssued =
       status: "active";
       type: "visitor";
       token: string;
-      expires_at: number;
+      expires_at: EpochMilliseconds;
     }
   | {
       id: string;
@@ -2469,17 +2470,17 @@ export type CustomerSessionIssued =
       identity_id: string;
       access_token: string;
       refresh_token: string;
-      access_expires_at: number;
-      refresh_expires_at: number;
-      authenticated_at: number;
+      access_expires_at: EpochMilliseconds;
+      refresh_expires_at: EpochMilliseconds;
+      authenticated_at: EpochMilliseconds;
     };
 
 export interface CustomerIdentity {
   id: string;
   type: "email";
   email: string;
-  verified_at: number | null;
-  created_at: number;
+  verified_at: EpochMilliseconds | null;
+  created_at: EpochMilliseconds;
 }
 
 export interface Customer {
@@ -2488,8 +2489,8 @@ export interface Customer {
   status: CustomerStatus;
   identities: CustomerIdentity[];
   classifications: ClassificationEntry[];
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface Audience {
@@ -2498,8 +2499,8 @@ export interface Audience {
   name: string;
   status: AudienceStatus;
   type: AudienceType;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface StorefrontAudience {
@@ -2511,16 +2512,16 @@ export interface StorefrontAudience {
 
 export type AudienceMembershipStatus =
   | { type: "pending" }
-  | { type: "subscribed"; subscribed_at: number }
+  | { type: "subscribed"; subscribed_at: EpochMilliseconds }
   | {
       type: "unsubscribed";
-      unsubscribed_at: number;
+      unsubscribed_at: EpochMilliseconds;
       reason: AudienceUnsubscribeReason;
     };
 
 export type AudienceCheckoutState =
   | { type: "starting" }
-  | { type: "awaiting_customer"; checkout_id: string; expires_at: number }
+  | { type: "awaiting_customer"; checkout_id: string; expires_at: EpochMilliseconds }
   | { type: "awaiting_settlement"; checkout_id: string }
   | { type: "failed"; checkout_id: string }
   | { type: "expired"; checkout_id: string };
@@ -2532,25 +2533,25 @@ export interface AudienceBillingTerms {
 
 export type AudienceOneTimeState =
   | { type: "current" }
-  | { type: "fully_refunded"; refunded_at: number }
-  | { type: "revoked"; revoked_at: number };
+  | { type: "fully_refunded"; refunded_at: EpochMilliseconds }
+  | { type: "revoked"; revoked_at: EpochMilliseconds };
 
 export type AudienceSubscriptionState =
   | { type: "awaiting_first_payment" }
-  | { type: "active"; paid_through: number }
-  | { type: "past_due"; paid_through: number }
-  | { type: "unpaid"; since: number }
-  | { type: "cancelled"; ended_at: number };
+  | { type: "active"; paid_through: EpochMilliseconds }
+  | { type: "past_due"; paid_through: EpochMilliseconds }
+  | { type: "unpaid"; since: EpochMilliseconds }
+  | { type: "cancelled"; ended_at: EpochMilliseconds };
 
 export type AudienceCancellation =
   | { type: "period_end_pending" }
-  | { type: "period_end_scheduled"; cancel_at: number }
+  | { type: "period_end_scheduled"; cancel_at: EpochMilliseconds }
   | { type: "immediate_pending" }
   | { type: "failed" };
 
 export type AudienceMembershipType =
   | { type: "free" }
-  | { type: "confirmation_pending"; expires_at: number }
+  | { type: "confirmation_pending"; expires_at: EpochMilliseconds }
   | {
       type: "paid_checkout";
       terms: AudienceBillingTerms;
@@ -2575,8 +2576,8 @@ export interface AudienceMembership {
   status: AudienceMembershipStatus;
   type: AudienceMembershipType;
   insight: Record<string, unknown>;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface CustomerAudienceMembership {
@@ -2584,8 +2585,8 @@ export interface CustomerAudienceMembership {
   audience_id: string;
   status: AudienceMembershipStatus;
   type: AudienceMembershipType;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type AudienceJoinResult =
@@ -2597,7 +2598,7 @@ export interface StartAudienceCheckoutResult {
   publishable_key: string;
   client_secret: string;
   connected_account_id: string;
-  expires_at: number;
+  expires_at: EpochMilliseconds;
 }
 
 export interface AudienceBillingPortalSession {
@@ -2614,15 +2615,15 @@ export interface AudienceMembershipBillingRow {
   money: Money;
   refunded: Money;
   remaining: Money;
-  paid_at: number;
+  paid_at: EpochMilliseconds;
   period: AudienceBillingTimeRange | null;
   receipt_url: string | null;
   invoice_url: string | null;
 }
 
 export interface AudienceBillingTimeRange {
-  from: number;
-  to: number;
+  from: EpochMilliseconds;
+  to: EpochMilliseconds;
 }
 
 export type AudienceRefundStatus =
@@ -2652,12 +2653,12 @@ export interface AudienceRefund {
   amount: Money;
   requester: AudienceRefundRequester;
   status: AudienceRefundStatus;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type AudienceDisputeResponse =
-  { type: "due_at"; due_at: number } | { type: "response_not_allowed" };
+  { type: "due_at"; due_at: EpochMilliseconds } | { type: "response_not_allowed" };
 
 export type AudienceDisputeStatus =
   | {
@@ -2681,8 +2682,8 @@ export interface AudienceDispute {
   disputed: Money;
   reason: string;
   status: AudienceDisputeStatus;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type CustomerActionOrigin =
@@ -2704,12 +2705,12 @@ export type CustomerActionProviderObservation =
   | {
       type: "stripe_event";
       event_id: string;
-      event_created_at: number;
+      event_created_at: EpochMilliseconds;
     }
   | {
       type: "exact_read";
-      observed_at: number;
-      provider_updated_at?: number | null;
+      observed_at: EpochMilliseconds;
+      provider_updated_at?: EpochMilliseconds | null;
     };
 
 export type AudienceMembershipJoinSource =
@@ -2734,8 +2735,8 @@ export type AudienceUnsubscribeReason =
 export type AudienceCancellationTiming = "period_end" | "immediate";
 
 export interface AudienceActionTimeRange {
-  from: number;
-  to: number;
+  from: EpochMilliseconds;
+  to: EpochMilliseconds;
 }
 
 export type AudienceRefundActionStatus =
@@ -2862,7 +2863,7 @@ export type CustomerActionType =
         audience_id: string;
         membership_id: string;
         cancellation_id: string;
-        cancel_at: number;
+        cancel_at: EpochMilliseconds;
       };
     }
   | {
@@ -2871,7 +2872,7 @@ export type CustomerActionType =
         audience_id: string;
         membership_id: string;
         cancellation_id: string;
-        ended_at: number;
+        ended_at: EpochMilliseconds;
       };
     }
   | {
@@ -2917,7 +2918,7 @@ export interface CustomerAction {
   customer_id: string;
   origin: CustomerActionOrigin;
   type: CustomerActionType;
-  occurred_at: number;
+  occurred_at: EpochMilliseconds;
 }
 
 export interface Mailbox {
@@ -2931,11 +2932,35 @@ export interface Mailbox {
   status: MailboxStatus;
   daily_limit: number;
   sent_today: number;
-  last_sent_at?: number | null;
+  last_sent_at?: EpochMilliseconds | null;
   sync_revision: number;
-  next_sync_at?: number | null;
-  created_at: number;
-  updated_at: number;
+  next_sync_at?: EpochMilliseconds | null;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export type MailboxIncomingSource =
+  | { type: "imap"; mailbox: "INBOX"; uid_validity: number; uid: number }
+  | { type: "google"; message_id: string };
+
+export type MailboxSyncIssueReason =
+  | "invalid_mime"
+  | "missing_sender"
+  | "invalid_sender"
+  | "invalid_body_encoding"
+  | "invalid_attachment_encoding"
+  | "header_limit_exceeded"
+  | "attachment_limit_exceeded"
+  | "content_limit_exceeded";
+
+export interface MailboxSyncIssue {
+  id: string;
+  store_id: string;
+  mailbox_id: string;
+  source: MailboxIncomingSource;
+  reason: MailboxSyncIssueReason;
+  message: string;
+  observed_at: EpochMilliseconds;
 }
 
 export interface CampaignStep {
@@ -2955,8 +2980,8 @@ export interface Campaign {
   mailbox_ids: string[];
   status: CampaignStatus;
   steps: CampaignStep[];
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface CampaignEnrollment {
@@ -2968,8 +2993,8 @@ export interface CampaignEnrollment {
   audience_membership_id?: string | null;
   mailbox_id: string;
   status: CampaignEnrollmentStatus;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface EnrollCampaignResult {
@@ -2988,8 +3013,8 @@ export interface CampaignMessage {
   parent_message_id?: string | null;
   type: CampaignMessageType;
   content: CampaignEmailContent;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface CampaignEmailContent {
@@ -3001,24 +3026,24 @@ export interface CampaignEmailContent {
 }
 
 export type CampaignEmailStatus =
-  | { status: "requested"; requested_at: number }
-  | { status: "processing"; started_at: number; deadline_at: number }
+  | { status: "requested"; requested_at: EpochMilliseconds }
+  | { status: "processing"; started_at: EpochMilliseconds; deadline_at: EpochMilliseconds }
   | {
       status: "sent";
       provider_message_id: string;
       provider_thread_id?: string | null;
       provider_status?: number | null;
       delivery_failure?: string | null;
-      sent_at: number;
+      sent_at: EpochMilliseconds;
     }
   | {
       status: "rejected";
       provider_status?: number | null;
-      rejected_at: number;
+      rejected_at: EpochMilliseconds;
     }
-  | { status: "failed"; failed_at: number }
-  | { status: "unknown"; unknown_at: number }
-  | { status: "cancelled"; cancelled_at: number };
+  | { status: "failed"; failed_at: EpochMilliseconds }
+  | { status: "unknown"; unknown_at: EpochMilliseconds }
+  | { status: "cancelled"; cancelled_at: EpochMilliseconds };
 
 export interface CampaignConversationMessage {
   message: CampaignMessage;
@@ -3035,7 +3060,7 @@ export interface LeadResearch {
   store_id: string;
   audience_id: string;
   title: string;
-  created_at: number;
+  created_at: EpochMilliseconds;
 }
 
 export type LeadResearchAssistantFailureReason =
@@ -3043,19 +3068,19 @@ export type LeadResearchAssistantFailureReason =
 
 export type LeadResearchAssistantMessageStatus =
   | { status: "requested" }
-  | { status: "processing"; deadline_at: number }
-  | { status: "completed"; content: string; completed_at: number }
+  | { status: "processing"; deadline_at: EpochMilliseconds }
+  | { status: "completed"; content: string; completed_at: EpochMilliseconds }
   | {
       status: "failed";
       reason: LeadResearchAssistantFailureReason;
       error: string;
-      failed_at: number;
+      failed_at: EpochMilliseconds;
     }
-  | { status: "unknown"; error: string; detected_at: number }
+  | { status: "unknown"; error: string; detected_at: EpochMilliseconds }
   | {
       status: "cancelled";
       cancelled_by_account_session_id: string;
-      cancelled_at: number;
+      cancelled_at: EpochMilliseconds;
     };
 
 export type LeadResearchMessageType =
@@ -3077,7 +3102,7 @@ export interface LeadResearchMessage {
   lead_research_id: string;
   position: number;
   type: LeadResearchMessageType;
-  created_at: number;
+  created_at: EpochMilliseconds;
 }
 
 export interface LeadResearchMessagePair {
@@ -3166,7 +3191,7 @@ export interface Event {
   entity: string;
   event: EventAction;
   actor: string;
-  created_at: number;
+  created_at: EpochMilliseconds;
 }
 
 export type OrderShipmentStatus =
@@ -3201,8 +3226,8 @@ export interface ShippingLabelRefund {
   id: string;
   status: ShippingLabelRefundStatus;
   safe_error: string | null;
-  requested_at: number;
-  completed_at: number | null;
+  requested_at: EpochMilliseconds;
+  completed_at: EpochMilliseconds | null;
 }
 
 /** Provider-neutral carrier label embedded in one Shipment. */
@@ -3213,8 +3238,8 @@ export interface ShippingLabel {
   postage: Money;
   platform_label_fee: Money;
   total: Money;
-  requested_at: number;
-  completed_at: number | null;
+  requested_at: EpochMilliseconds;
+  completed_at: EpochMilliseconds | null;
   merchant_debit: MerchantDebit;
   refund: ShippingLabelRefund | null;
   merchant_debit_reversal: MerchantDebitReversal | null;
@@ -3229,8 +3254,8 @@ export interface MerchantDebit {
   id: string;
   status: MerchantDebitStatus;
   safe_error: string | null;
-  requested_at: number;
-  completed_at: number | null;
+  requested_at: EpochMilliseconds;
+  completed_at: EpochMilliseconds | null;
 }
 
 export type MerchantDebitReversalStatus =
@@ -3241,8 +3266,8 @@ export interface MerchantDebitReversal {
   id: string;
   status: MerchantDebitReversalStatus;
   safe_error: string | null;
-  requested_at: number;
-  completed_at: number | null;
+  requested_at: EpochMilliseconds;
+  completed_at: EpochMilliseconds | null;
 }
 
 export interface OrderShipment {
@@ -3259,10 +3284,10 @@ export interface OrderShipment {
   service: string | null;
   tracking_number: string | null;
   tracking_url: string | null;
-  tracking_status_at: number | null;
+  tracking_status_at: EpochMilliseconds | null;
   label: ShippingLabel;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface ShippingRate {
@@ -3335,8 +3360,8 @@ export type PromotionCondition =
   | { type: "minimum_order_amount"; market: string; money: Money }
   | {
       type: "redemption_window";
-      starts_at: number | null;
-      ends_at: number | null;
+      starts_at: EpochMilliseconds | null;
+      ends_at: EpochMilliseconds | null;
     }
   | { type: "maximum_uses"; count: number }
   | { type: "maximum_uses_per_customer"; count: number };
@@ -3349,6 +3374,6 @@ export interface PromoCode {
   conditions: PromotionCondition[];
   status: PromoCodeStatus;
   uses: number;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }

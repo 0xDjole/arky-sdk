@@ -20,7 +20,7 @@ function storedVisitorSession(
   customerId = "customer-provider-contract",
 ) {
   return JSON.stringify({
-    version: 1,
+    version: 2,
     customer: {
       id: customerId,
       status: "active",
@@ -117,7 +117,7 @@ test("commerce PromoCode create sends every canonical discount and condition wir
       {
         type: "redemption_window",
         starts_at: null,
-        ends_at: 1_800_000_000,
+        ends_at: 1_800_000_000_000,
       },
       { type: "maximum_uses", count: 100 },
       { type: "maximum_uses_per_customer", count: 1 },
@@ -185,7 +185,7 @@ test("commerce PromoCode create sends every canonical discount and condition wir
           {
             type: "redemption_window",
             starts_at: null,
-            ends_at: 1_800_000_000,
+            ends_at: 1_800_000_000_000,
           },
           { type: "maximum_uses", count: 100 },
           { type: "maximum_uses_per_customer", count: 1 },
@@ -200,7 +200,7 @@ test("commerce PromoCode create sends every canonical discount and condition wir
   assert.deepEqual(result.conditions[4], {
     type: "redemption_window",
     starts_at: null,
-    ends_at: 1_800_000_000,
+    ends_at: 1_800_000_000_000,
   });
 });
 
@@ -471,7 +471,7 @@ test("subscription selection returns its ephemeral Stripe action in one POST", a
       publishable_key: "pk_test_subscription",
       client_secret: "cs_subscription_secret_exact",
       stripe_account_id: null,
-      expires_at: 1_800_000_000,
+      expires_at: 1_800_000_000_000,
     },
     trial_started_at: null,
     created_at: 1,

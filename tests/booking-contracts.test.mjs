@@ -22,7 +22,7 @@ function sessionStorage() {
     [
       "seed",
       JSON.stringify({
-        version: 1,
+        version: 2,
         customer: {
           id: "customer-booking-contract",
           status: "active",
@@ -113,11 +113,11 @@ function embeddedBookingItem() {
     booking_offering_id: "booking-offering",
     booking_service_id: "booking-service",
     booking_resource_id: "booking-resource",
-    interval: { from: 1_800_000_000, to: 1_800_003_600 },
-    capacity_intervals: [{ from: 1_800_000_000, to: 1_800_003_600 }],
+    interval: { from: 1_800_000_000_000, to: 1_800_003_600_000 },
+    capacity_intervals: [{ from: 1_800_000_000_000, to: 1_800_003_600_000 }],
     form_submission_id: "form-submission",
     reminders: [
-      { offset_minutes: 60, due_at: 1_799_996_400, emitted_at: null },
+      { offset_minutes: 60, due_at: 1_799_996_400_000, emitted_at: null },
     ],
     snapshot: {
       service_key: "consultation",
@@ -346,8 +346,8 @@ test("storefront booking runtime sends one offering interval and reads embedded 
       return jsonResponse([bookingOffering()]);
     if (pathname.endsWith("/booking-services/availability"))
       return jsonResponse({
-        from: 1_800_000_000,
-        to: 1_800_086_400,
+        from: 1_800_000_000_000,
+        to: 1_800_086_400_000,
         booking_resources: [
           {
             booking_resource_id: "booking-resource",
@@ -376,14 +376,14 @@ test("storefront booking runtime sends one offering interval and reads embedded 
     await storefront.eshop.bookingService.getAvailability({
       booking_service_id: "booking-service",
       booking_resource_id: "booking-resource",
-      from: 1_800_000_000,
-      to: 1_800_086_400,
+      from: 1_800_000_000_000,
+      to: 1_800_086_400_000,
     });
     await storefront.eshop.cart.addBooking({
       id: "cart-booking",
       booking: {
         booking_offering_id: "booking-offering",
-        requested_interval: { from: 1_800_000_000, to: 1_800_003_600 },
+        requested_interval: { from: 1_800_000_000_000, to: 1_800_003_600_000 },
         form_submission_id: "form-submission",
         price_override: { amount: 1, currency: "eur", market: "bih" },
       },
@@ -410,7 +410,7 @@ test("storefront booking runtime sends one offering interval and reads embedded 
     id: "cart-booking",
     booking: {
       booking_offering_id: "booking-offering",
-      requested_interval: { from: 1_800_000_000, to: 1_800_003_600 },
+      requested_interval: { from: 1_800_000_000_000, to: 1_800_003_600_000 },
       form_submission_id: "form-submission",
     },
   });
@@ -480,8 +480,8 @@ test("high-level booking flow creates one Cart item per appointment", async () =
       return jsonResponse({ items: [bookingResource()], cursor: null });
     if (pathname.endsWith("/booking-services/availability"))
       return jsonResponse({
-        from: 1_800_000_000,
-        to: 1_802_678_400,
+        from: 1_800_000_000_000,
+        to: 1_802_678_400_000,
         booking_resources: [
           {
             booking_resource_id: "booking-resource",
@@ -490,8 +490,8 @@ test("high-level booking flow creates one Cart item per appointment", async () =
               {
                 date: availableLocalDate,
                 slots: [
-                  { from: 1_800_000_000, to: 1_800_003_600, spots: 2 },
-                  { from: 1_800_003_600, to: 1_800_007_200, spots: 0 },
+                  { from: 1_800_000_000_000, to: 1_800_003_600_000, spots: 2 },
+                  { from: 1_800_003_600_000, to: 1_800_007_200_000, spots: 0 },
                 ],
               },
             ],
@@ -529,8 +529,8 @@ test("high-level booking flow creates one Cart item per appointment", async () =
     bookingServiceId: "booking-service",
     bookingResourceId: "booking-resource",
     bookingOfferingId: "booking-offering",
-    from: 1_800_000_000,
-    to: 1_800_003_600,
+    from: 1_800_000_000_000,
+    to: 1_800_003_600_000,
     timeText: "10:00 - 11:00",
     dateText: "Monday, January 15",
   };
@@ -541,6 +541,15 @@ test("high-level booking flow creates one Cart item per appointment", async () =
       .calendar.find((day) => day.iso === availableLocalDate);
     assert.equal(availableDay?.available, true);
     store.eshop.bookingService.selectDate(availableDay);
+    const rendered = store.eshop.bookingService.state.get().slots[0];
+    const timezone = store.eshop.bookingService.state.get().timezone;
+    assert.equal(rendered.from, slot.from);
+    assert.equal(rendered.dateText, new Date(slot.from).toLocaleDateString([], {
+      weekday: "short", month: "short", day: "numeric", timeZone: timezone,
+    }));
+    assert.equal(rendered.timeText, [slot.from, slot.to].map((value) => new Date(value).toLocaleTimeString([], {
+      hour: "2-digit", minute: "2-digit", timeZone: timezone,
+    })).join(" - "));
     assert.deepEqual(
       store.eshop.bookingService.state.get().slots.map((candidate) => ({
         bookingOfferingId: candidate.bookingOfferingId,
@@ -555,7 +564,7 @@ test("high-level booking flow creates one Cart item per appointment", async () =
     );
     const items = store.eshop.bookingService.bookingItemsFromSlots([
       slot,
-      { ...slot, id: "slot-two", from: slot.to, to: slot.to + 3600 },
+      { ...slot, id: "slot-two", from: slot.to, to: slot.to + 3_600_000 },
     ]);
     assert.equal(items.length, 2);
     assert.deepEqual(items[0].requested_interval, {
@@ -566,9 +575,18 @@ test("high-level booking flow creates one Cart item per appointment", async () =
       [slot],
       "form-submission",
     );
+    await store.eshop.bookingService.loadMonth();
   } finally {
     globalThis.fetch = originalFetch;
   }
+
+  const availabilityCalls = calls.filter((call) => new URL(call.url).pathname.endsWith("/booking-services/availability"));
+  const firstBounds = new URL(availabilityCalls[0].url).searchParams;
+  assert.equal(Number(firstBounds.get("from")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth(), 1));
+  assert.equal(Number(firstBounds.get("to")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1));
+  const chainedBounds = new URL(availabilityCalls.at(-1).url).searchParams;
+  assert.equal(Number(chainedBounds.get("from")), slot.to);
+  assert.equal(Number(chainedBounds.get("to")), slot.to + 31 * 24 * 60 * 60 * 1_000);
 
   const update = calls.find(
     (call) =>

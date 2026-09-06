@@ -1,3 +1,4 @@
+import type { EpochMilliseconds } from "../types/time";
 import type { ApiConfig, StorefrontApiConfig } from "../services/clientTypes";
 import type { StorefrontDto } from "./storefront";
 import type { RequestOptions, ScheduledMutationOptions } from "../types/api";
@@ -64,8 +65,8 @@ export interface SupportAgent {
   status: SupportAgentStatus;
   channel_ids: string[];
   notes: string | null;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface SupportAgentDefinition {
@@ -76,8 +77,8 @@ export interface SupportAgentDefinition {
   nodes: Record<string, SupportAgentNode>;
   edges: SupportAgentEdge[];
   ai_config: SupportAgentAiConfig | null;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type SupportChannelConfig =
@@ -96,8 +97,8 @@ export interface SupportChannel {
   name: string;
   status: SupportChannelStatus;
   config: SupportChannelConfig;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type SupportConversationChannelContext =
@@ -127,8 +128,8 @@ export interface SupportConversation {
   status: "active" | "ai_mode" | "escalated" | "resolved";
   variables: Record<string, unknown>;
   channel_metadata: Record<string, unknown>;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface SupportMessage {
@@ -142,36 +143,36 @@ export interface SupportMessage {
   metadata: Record<string, unknown>;
   ai_response: SupportAiResponse | null;
   email_status: SupportEmailStatus | null;
-  created_at: number;
-  updated_at: number;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type SupportEmailStatus =
-  | { status: "requested"; requested_at: number }
-  | { status: "processing"; started_at: number; deadline_at: number }
+  | { status: "requested"; requested_at: EpochMilliseconds }
+  | { status: "processing"; started_at: EpochMilliseconds; deadline_at: EpochMilliseconds }
   | {
       status: "sent";
       provider_message_id: string;
       provider_thread_id?: string | null;
       provider_status?: number | null;
-      sent_at: number;
+      sent_at: EpochMilliseconds;
     }
   | {
       status: "rejected";
       provider_status?: number | null;
-      rejected_at: number;
+      rejected_at: EpochMilliseconds;
     }
-  | { status: "failed"; failed_at: number }
-  | { status: "unknown"; unknown_at: number }
-  | { status: "cancelled"; cancelled_at: number };
+  | { status: "failed"; failed_at: EpochMilliseconds }
+  | { status: "unknown"; unknown_at: EpochMilliseconds }
+  | { status: "cancelled"; cancelled_at: EpochMilliseconds };
 
 export type SupportAiResponseStatus =
   "requested" | "processing" | "succeeded" | "failed" | "unknown";
 
 export interface SupportAiResponse {
   status: SupportAiResponseStatus;
-  processing_deadline_at: number | null;
-  completed_at: number | null;
+  processing_deadline_at: EpochMilliseconds | null;
+  completed_at: EpochMilliseconds | null;
   error: string | null;
 }
 
@@ -211,7 +212,7 @@ export interface ReceiveSupportChannelMessageParams {
   external_message_id?: string;
   content: string;
   metadata?: Record<string, unknown>;
-  received_at?: number;
+  received_at?: EpochMilliseconds;
 }
 
 export interface ReplySupportConversationParams {
@@ -237,7 +238,7 @@ export interface GetSupportConversationParams {
   store_id: string;
   conversation_id: string;
   message_limit?: number;
-  after_created_at?: number;
+  after_created_at?: EpochMilliseconds;
   after_id?: string;
 }
 

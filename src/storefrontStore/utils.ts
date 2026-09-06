@@ -1,3 +1,5 @@
+import type { EpochMilliseconds } from "../types/time";
+import { epochMilliseconds, epochMillisecondsToDate } from "../utils/time";
 import type {
   Address,
   Block,
@@ -281,9 +283,9 @@ function buildFormField(field: FormSchema, value: FormValue): FormField {
       return { ...common, type: "boolean", value };
     case "date":
       if (typeof value !== "number" || !Number.isSafeInteger(value)) {
-        throw formValueError(field, "expected an integer timestamp");
+        throw formValueError(field, "expected signed safe-integer epoch milliseconds");
       }
-      return { ...common, type: "date", value };
+      return { ...common, type: "date", value: epochMilliseconds(value) };
     case "geo_location":
       if (!isValidGeoLocation(value))
         throw formValueError(field, "expected valid coordinates");
@@ -397,8 +399,8 @@ export function formSchemaToBlock(field: FormSchema): FormInputBlock {
   };
 }
 
-export function formatServiceTime(ts: number, tz: string): string {
-  return new Date(ts * 1000).toLocaleTimeString([], {
+export function formatServiceTime(ts: EpochMilliseconds, tz: string): string {
+  return epochMillisecondsToDate(ts).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
     timeZone: tz,
@@ -406,8 +408,8 @@ export function formatServiceTime(ts: number, tz: string): string {
 }
 
 export function formatServiceSlotTime(
-  from: number,
-  to: number,
+  from: EpochMilliseconds,
+  to: EpochMilliseconds,
   tz: string,
 ): string {
   return `${formatServiceTime(from, tz)} - ${formatServiceTime(to, tz)}`;
@@ -417,9 +419,9 @@ export function getSlotsForDate(
   availability: AvailabilityResponse | null,
   dateStr: string,
   bookingResourceId?: string | null,
-): { from: number; to: number; bookingResourceId: string }[] {
+): { from: EpochMilliseconds; to: EpochMilliseconds; bookingResourceId: string }[] {
   if (!availability) return [];
-  const slots: { from: number; to: number; bookingResourceId: string }[] = [];
+  const slots: { from: EpochMilliseconds; to: EpochMilliseconds; bookingResourceId: string }[] = [];
   for (const resource of availability.booking_resources) {
     if (
       bookingResourceId &&

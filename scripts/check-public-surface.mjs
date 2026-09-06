@@ -530,7 +530,7 @@ if (
   !/\n\s*customer_id:\s*string;/.test(customerActionContract[1]) ||
   !/\n\s*origin:\s*CustomerActionOrigin;/.test(customerActionContract[1]) ||
   !/\n\s*type:\s*CustomerActionType;/.test(customerActionContract[1]) ||
-  !/\n\s*occurred_at:\s*number;/.test(customerActionContract[1]) ||
+  !/\n\s*occurred_at:\s*EpochMilliseconds;/.test(customerActionContract[1]) ||
   /\n\s*(?:payload|description|canonical_customer_id|customer_session_id):/.test(
     customerActionContract[1],
   )

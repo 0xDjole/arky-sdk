@@ -1,3 +1,4 @@
+import type { EpochMilliseconds } from "../types/time";
 import type { AuthStorage, HttpClient } from "./createHttpClient";
 
 export interface ApiConfig {
@@ -22,7 +23,7 @@ export interface StorefrontApiConfig {
 export interface AdminSessionInternal {
   access_token: string;
   refresh_token: string;
-  access_expires_at?: number;
+  access_expires_at?: EpochMilliseconds;
   email?: string;
 }
 

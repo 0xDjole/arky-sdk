@@ -34,15 +34,17 @@ type StorefrontOpaqueKey =
   | "value";
 
 /** Storefront wire shape after routing ownership fields are removed. */
-export type StorefrontDto<T> = T extends readonly (infer Item)[]
-  ? StorefrontDto<Item>[]
-  : T extends object
-    ? {
-        [
-          Key in keyof T as Key extends "store_id" ? never : Key
-        ]: Key extends StorefrontOpaqueKey ? T[Key] : StorefrontDto<T[Key]>;
-      }
-    : T;
+export type StorefrontDto<T> = T extends number
+  ? T
+  : T extends readonly (infer Item)[]
+    ? StorefrontDto<Item>[]
+    : T extends object
+      ? {
+          [
+            Key in keyof T as Key extends "store_id" ? never : Key
+          ]: Key extends StorefrontOpaqueKey ? T[Key] : StorefrontDto<T[Key]>;
+        }
+      : T;
 
 export type StorefrontCart = StorefrontDto<Cart>;
 export type StorefrontCollectionEntry = StorefrontDto<CollectionEntry>;

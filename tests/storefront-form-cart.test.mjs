@@ -63,7 +63,7 @@ function identifyResponse(email = null) {
 
 function storedVisitorSession() {
   const { customer: customerRecord, session } = identifyResponse();
-  return JSON.stringify({ version: 1, customer: customerRecord, session });
+  return JSON.stringify({ version: 2, customer: customerRecord, session });
 }
 
 function form() {
@@ -127,7 +127,7 @@ test("a fresh cart load resolves Store defaults before loading persisted product
     item_count: 1,
     last_action_at: 1,
     abandoned_at: null,
-    created_at: 1,
+    created_at: 0,
     updated_at: 1,
   };
   const setup = {
@@ -244,7 +244,7 @@ test("a fresh cart load resolves Store defaults before loading persisted product
       price: { market: "ita", amount: 1250, currency: "EUR" },
       quantity: 1,
       form_submission_id: "form-submission-hydration-contract",
-      added_at: 1000,
+      added_at: 0,
       max_stock: 4,
     },
   ]);
@@ -484,7 +484,7 @@ test("a page reload reuses the stored Visitor without identifying again", async 
     ],
   );
   const stored = JSON.parse([...storage.values.values()][0]);
-  assert.equal(stored.version, 1);
+  assert.equal(stored.version, 2);
   assert.equal(stored.session.token, visitorToken);
 });
 

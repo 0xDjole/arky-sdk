@@ -1,3 +1,4 @@
+import type { EpochMilliseconds } from "./time";
 import type {
   Block,
   Currency,
@@ -276,8 +277,8 @@ export interface GetProductsParams {
   cursor?: string;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
-  created_at_from?: number | null;
-  created_at_to?: number | null;
+  created_at_from?: EpochMilliseconds | null;
+  created_at_to?: EpochMilliseconds | null;
 }
 
 export interface GetCollectionsParams {
@@ -290,8 +291,8 @@ export interface GetCollectionsParams {
   status?: CollectionStatus;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
-  created_at_from?: number;
-  created_at_to?: number;
+  created_at_from?: EpochMilliseconds;
+  created_at_to?: EpochMilliseconds;
 }
 
 export interface CreateCollectionParams {
@@ -331,8 +332,8 @@ export interface GetEntriesParams {
   cursor?: string;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
-  created_at_from?: number;
-  created_at_to?: number;
+  created_at_from?: EpochMilliseconds;
+  created_at_to?: EpochMilliseconds;
 }
 
 export interface GetEntriesByIdsParams {
@@ -428,18 +429,18 @@ export interface RefreshAccountSessionParams {
 
 export interface PendingAccountSession {
   session_id: string;
-  verification_expires_at: number;
+  verification_expires_at: EpochMilliseconds;
 }
 
 export interface AuthToken {
   id: string;
   access_token: string;
   refresh_token: string;
-  access_expires_at: number;
-  refresh_expires_at: number;
-  authenticated_at: number;
-  created_at: number;
-  updated_at: number;
+  access_expires_at: EpochMilliseconds;
+  refresh_expires_at: EpochMilliseconds;
+  authenticated_at: EpochMilliseconds;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface FindBookingServicesParams {
@@ -453,12 +454,12 @@ export interface FindBookingServicesParams {
   status?: BookingServiceStatus;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
-  created_at_from?: number;
-  created_at_to?: number;
+  created_at_from?: EpochMilliseconds;
+  created_at_to?: EpochMilliseconds;
   classification_query?: ClassificationQuery[];
   match_all?: boolean;
-  from?: number;
-  to?: number;
+  from?: EpochMilliseconds;
+  to?: EpochMilliseconds;
 }
 
 export interface GetAnalyticsParams {
@@ -508,8 +509,8 @@ export type PromotionConditionInput =
   | { type: "minimum_order_amount"; market: string; money: Money }
   | {
       type: "redemption_window";
-      starts_at?: number | null;
-      ends_at?: number | null;
+      starts_at?: EpochMilliseconds | null;
+      ends_at?: EpochMilliseconds | null;
     }
   | { type: "maximum_uses"; count: number }
   | { type: "maximum_uses_per_customer"; count: number };
@@ -550,8 +551,8 @@ export interface GetPromoCodesParams {
   cursor?: string;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
-  created_at_from?: number;
-  created_at_to?: number;
+  created_at_from?: EpochMilliseconds;
+  created_at_to?: EpochMilliseconds;
 }
 
 export interface CreateStoreParams {
@@ -610,7 +611,11 @@ export interface CreatePortalSessionParams {
 
 export interface AddMemberParams {
   email: string;
-  role?: StoreRole;
+  store_id?: string;
+}
+
+export interface TransferStoreOwnershipParams {
+  account_id: string;
   store_id?: string;
 }
 
@@ -712,16 +717,16 @@ export interface GetOrdersParams {
   product_ids?: string[];
   booking_service_ids?: string[];
   booking_resource_ids?: string[];
-  from?: number;
-  to?: number;
+  from?: EpochMilliseconds;
+  to?: EpochMilliseconds;
 
   query?: string | number | null;
   limit?: number | null;
   cursor?: string | null;
   sort_field?: string | null;
   sort_direction?: "asc" | "desc" | null;
-  created_at_from?: number | null;
-  created_at_to?: number | null;
+  created_at_from?: EpochMilliseconds | null;
+  created_at_to?: EpochMilliseconds | null;
   audience_id?: string;
 }
 
@@ -856,10 +861,10 @@ export interface FindBookingResourcesParams {
   cursor?: string;
   sort_field?: string | null;
   sort_direction?: "asc" | "desc" | null;
-  created_at_from?: number | null;
-  created_at_to?: number | null;
-  from?: number;
-  to?: number;
+  created_at_from?: EpochMilliseconds | null;
+  created_at_to?: EpochMilliseconds | null;
+  from?: EpochMilliseconds;
+  to?: EpochMilliseconds;
 }
 
 export interface GetBookingResourceParams {
@@ -869,7 +874,7 @@ export interface GetBookingResourceParams {
 
 export interface CreateAccountApiTokenParams {
   name: string;
-  expires_at?: number | null;
+  expires_at?: EpochMilliseconds | null;
 }
 
 export interface UpdateAccountApiTokenParams {
@@ -899,8 +904,8 @@ export interface GetEmailTemplatesParams {
   status?: EmailTemplateStatus;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
-  created_at_from?: number;
-  created_at_to?: number;
+  created_at_from?: EpochMilliseconds;
+  created_at_to?: EpochMilliseconds;
 }
 
 export interface CreateEmailTemplateParams {
@@ -970,8 +975,8 @@ export interface GetFormsParams {
   status?: FormStatus;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
-  created_at_from?: number;
-  created_at_to?: number;
+  created_at_from?: EpochMilliseconds;
+  created_at_to?: EpochMilliseconds;
 }
 
 export interface CreateFormParams {
@@ -1020,8 +1025,8 @@ export interface GetFormSubmissionsParams {
   cursor?: string;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
-  created_at_from?: number;
-  created_at_to?: number;
+  created_at_from?: EpochMilliseconds;
+  created_at_to?: EpochMilliseconds;
 }
 
 export interface FindCustomerActionsParams {
@@ -1055,8 +1060,8 @@ export interface GetClassificationsParams {
   status?: ClassificationStatus;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
-  created_at_from?: number;
-  created_at_to?: number;
+  created_at_from?: EpochMilliseconds;
+  created_at_to?: EpochMilliseconds;
 }
 
 export interface CreateClassificationParams {
@@ -1209,8 +1214,8 @@ export interface FindDigitalProductsParams {
   cursor?: string;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
-  created_at_from?: number;
-  created_at_to?: number;
+  created_at_from?: EpochMilliseconds;
+  created_at_to?: EpochMilliseconds;
 }
 
 export interface UploadDigitalAssetParams {
@@ -1256,14 +1261,14 @@ export type SystemTemplateKey =
 export interface GetAvailabilityParams {
   store_id?: string;
   booking_service_id: string;
-  from: number;
-  to: number;
+  from: EpochMilliseconds;
+  to: EpochMilliseconds;
   booking_resource_id?: string;
 }
 
 export interface AvailabilitySlot {
-  from: number;
-  to: number;
+  from: EpochMilliseconds;
+  to: EpochMilliseconds;
   spots: number;
 }
 
@@ -1279,8 +1284,8 @@ export interface BookingResourceAvailability {
 }
 
 export interface AvailabilityResponse {
-  from: number;
-  to: number;
+  from: EpochMilliseconds;
+  to: EpochMilliseconds;
   booking_resources: BookingResourceAvailability[];
 }
 
@@ -1321,8 +1326,8 @@ export interface GetWorkflowsParams {
   cursor?: string;
   sort_field?: string;
   sort_direction?: "asc" | "desc";
-  created_at_from?: number;
-  created_at_to?: number;
+  created_at_from?: EpochMilliseconds;
+  created_at_to?: EpochMilliseconds;
 }
 
 export interface RegenerateWorkflowWebhookUrlParams {
@@ -1646,6 +1651,13 @@ export interface GetMailboxParams {
   store_id?: string;
 }
 
+export interface FindMailboxSyncIssuesParams {
+  id: string;
+  store_id?: string;
+  limit?: number;
+  cursor?: string;
+}
+
 export interface DisconnectMailboxParams {
   id: string;
   store_id?: string;
@@ -1895,7 +1907,7 @@ export interface FindSocialPostsParams {
 export interface CreateSocialPostParams {
   social_connection_id: string;
   content: SocialPostContent;
-  publish_at: number;
+  publish_at: EpochMilliseconds;
   store_id?: string;
 }
 

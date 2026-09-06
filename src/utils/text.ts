@@ -37,17 +37,19 @@ export function categorify(text: string): string {
 		.toUpperCase();
 }
 
-export function formatDate(date: string | number | Date, locale: (typeof locales)[number]): string {
+export function formatDate(date: string | EpochMilliseconds | Date, locale: (typeof locales)[number]): string {
 	let localeString = "en-US";
 
 	if (locales.includes(locale)) {
 		localeString = localeMap[locale];
 	}
 
-	return new Date(date).toLocaleDateString(localeString, {
+	return (typeof date === "number" ? epochMillisecondsToDate(date) : new Date(date)).toLocaleDateString(localeString, {
 		timeZone: "UTC",
 		year: "numeric",
 		month: "short",
 		day: "numeric",
 	});
 }
+import type { EpochMilliseconds } from "../types/time";
+import { epochMillisecondsToDate } from "./time";

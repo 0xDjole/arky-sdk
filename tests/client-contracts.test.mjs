@@ -11,7 +11,7 @@ const publishableKey = `arky_pk_${"k".repeat(43)}`;
 
 function storedVisitorSession(token, customerId = "customer-client-contract") {
   return JSON.stringify({
-    version: 1,
+    version: 2,
     customer: {
       id: customerId,
       status: "active",

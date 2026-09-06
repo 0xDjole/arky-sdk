@@ -1,3 +1,4 @@
+import type { EpochMilliseconds } from "../types/time";
 import type { createStorefront, StorefrontOptions } from "../index";
 import type {
   StorefrontCart,
@@ -96,7 +97,7 @@ export interface ArkyLastOrder {
   total?: number;
   currency?: string | null;
   payment_provider_id?: string | null;
-  created_at: number;
+  created_at: EpochMilliseconds;
 }
 
 export interface ArkyCartInput {
@@ -154,8 +155,8 @@ export interface ArkyBookingSlot {
   bookingServiceId: string;
   bookingResourceId: string;
   bookingOfferingId: string;
-  from: number;
-  to: number;
+  from: EpochMilliseconds;
+  to: EpochMilliseconds;
   timeText: string;
   dateText: string;
   isMultiDay?: boolean;

@@ -1,3 +1,9 @@
+import type { EpochMilliseconds } from "../types/time";
+import {
+  epochMilliseconds,
+  epochMillisecondsNow,
+  epochMillisecondsToDate,
+} from "../utils/time";
 import { atom, computed, map } from "nanostores";
 import {
   createStorefront,
@@ -116,7 +122,7 @@ interface CheckoutContext {
   billing_address: Address | null;
   payment_provider_id: string | null;
   clear_after_checkout: boolean;
-  created_at: number;
+  created_at: EpochMilliseconds;
 }
 
 function initializeStoreCore(
@@ -409,7 +415,7 @@ function initializeStoreCore(
         ),
         quantity: item.quantity,
         form_submission_id: item.form_submission_id ?? null,
-        added_at: source.created_at ? source.created_at * 1000 : Date.now(),
+        added_at: epochMilliseconds(source.created_at),
         max_stock: freeToSellStock(client, inventory, variant.id),
       };
     } catch (error) {
@@ -779,7 +785,7 @@ function initializeStoreCore(
         billing_address: input.billing_address || null,
         payment_provider_id: paymentProviderId || null,
         clear_after_checkout: input.clear_after_checkout !== false,
-        created_at: Date.now(),
+        created_at: epochMillisecondsNow(),
       };
       const response = await client.eshop.cart.checkout(context.request);
       return finalizeCheckout(context, response);
@@ -874,7 +880,7 @@ function initializeStoreCore(
           from: slot.from,
           to: slot.to,
           timeText: formatServiceSlotTime(slot.from, slot.to, timezone),
-          dateText: new Date(slot.from * 1000).toLocaleDateString([], {
+          dateText: epochMillisecondsToDate(slot.from).toLocaleDateString([], {
             weekday: "short",
             month: "short",
             day: "numeric",
@@ -956,7 +962,9 @@ function initializeStoreCore(
   );
   const booking_chain_start = computed(booking_items, (items) => {
     if (!items.length) return null;
-    return Math.max(...items.map((item) => item.requested_interval.to));
+    return epochMilliseconds(
+      Math.max(...items.map((item) => item.requested_interval.to)),
+    );
   });
   const booking_service_total_steps = computed(booking_service_state, (state) =>
     state.bookingService ? 2 : 0,
@@ -1096,18 +1104,18 @@ function initializeStoreCore(
       booking_service_state.setKey("loading", true);
       try {
         const chainedStart = booking_chain_start.get();
-        let from: number;
-        let to: number;
-        if (chainedStart) {
+        let from: EpochMilliseconds;
+        let to: EpochMilliseconds;
+        if (chainedStart !== null) {
           from = chainedStart;
-          to = chainedStart + 31 * 24 * 60 * 60;
+          to = epochMilliseconds(chainedStart + 31 * 24 * 60 * 60 * 1_000);
         } else {
           const month = state.currentMonth;
-          from = Math.floor(
-            Date.UTC(month.getFullYear(), month.getMonth(), 1) / 1000,
+          from = epochMilliseconds(
+            Date.UTC(month.getFullYear(), month.getMonth(), 1),
           );
-          to = Math.floor(
-            Date.UTC(month.getFullYear(), month.getMonth() + 1, 1) / 1000,
+          to = epochMilliseconds(
+            Date.UTC(month.getFullYear(), month.getMonth() + 1, 1),
           );
         }
         const availability = await loadBookingAvailability({

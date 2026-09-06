@@ -12,7 +12,7 @@ import {
 
 function storedVisitorSession(token, customerId = "customer-scheduled-contract") {
   return JSON.stringify({
-    version: 1,
+    version: 2,
     customer: {
       id: customerId,
       status: "active",

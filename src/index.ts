@@ -6,6 +6,17 @@ export {
   epochMillisecondsToDate,
 } from "./utils/time";
 export type { EpochMilliseconds } from "./types/time";
+export type {
+  ActivateEmailSuppressionParams,
+  EmailSuppression,
+  EmailSuppressionRecord,
+  EmailSuppressionSource,
+  EmailSuppressionStatus,
+  EmailSuppressionType,
+  FindEmailSuppressionsParams,
+  GetEmailSuppressionParams,
+  ReleaseEmailSuppressionParams,
+} from "./types/emailSuppression";
 export { createStripeEmbeddedCheckout, mountCheckoutAction } from "./checkout";
 export { selectLocalizedObjectText } from "./utils/blocks";
 export type {
@@ -320,6 +331,9 @@ export type {
   AudienceRefundActionStatus,
   AudienceDisputeActionStatus,
   Mailbox,
+  MailboxIncomingSource,
+  MailboxSyncIssue,
+  MailboxSyncIssueReason,
   MailboxConnectionSecurity,
   MailboxPreset,
   MailboxSyncStatus,
@@ -543,6 +557,7 @@ export type {
   CreateMailboxParams,
   UpdateMailboxParams,
   FindMailboxesParams,
+  FindMailboxSyncIssuesParams,
   GetMailboxParams,
   DisconnectMailboxParams,
   PrepareMailboxParams,
@@ -588,6 +603,8 @@ export type {
   PlatformRole,
   StoreRole,
   UpdatePlatformRoleParams,
+  AddMemberParams,
+  TransferStoreOwnershipParams,
 } from "./types/api";
 
 export type {
@@ -798,6 +815,7 @@ import { createDigitalApi } from "./api/digital";
 import { createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
 import { createCustomersApi } from "./api/customers";
+import { createEmailSuppressionApi } from "./api/emailSuppression";
 import { createAudiencesApi } from "./api/audiences";
 import { createActionsApi } from "./api/actions";
 import { createMailboxApi } from "./api/mailbox";
@@ -922,13 +940,28 @@ function createUtilitySurface(apiConfig: Pick<ApiConfig, "market">) {
   };
 }
 
-const ADMIN_STORAGE_KEY = "arky_admin_session";
+const ADMIN_STORAGE_KEY = "arky_admin_session:v2";
 
 function readAdminSession(): AdminSessionInternal | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(ADMIN_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as AdminSessionInternal) : null;
+    if (!raw) return null;
+    const stored: unknown = JSON.parse(raw);
+    if (!isRecord(stored) || stored.version !== 2 || !isRecord(stored.session)) {
+      return null;
+    }
+    const session = stored.session;
+    if (
+      typeof session.access_token !== "string" ||
+      typeof session.refresh_token !== "string" ||
+      (session.access_expires_at !== undefined &&
+        !isEpochMilliseconds(session.access_expires_at)) ||
+      (session.email !== undefined && typeof session.email !== "string")
+    ) {
+      return null;
+    }
+    return session as unknown as AdminSessionInternal;
   } catch {
     return null;
   }
@@ -937,7 +970,18 @@ function readAdminSession(): AdminSessionInternal | null {
 function writeAdminSession(s: AdminSessionInternal | null): void {
   if (typeof window === "undefined") return;
   if (s) {
-    localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(s));
+    if (
+      s.access_expires_at !== undefined &&
+      !isEpochMilliseconds(s.access_expires_at)
+    ) {
+      throw new RangeError(
+        "Account access expiry must be signed safe-integer epoch milliseconds",
+      );
+    }
+    localStorage.setItem(
+      ADMIN_STORAGE_KEY,
+      JSON.stringify({ version: 2, session: s }),
+    );
   } else {
     localStorage.removeItem(ADMIN_STORAGE_KEY);
   }
@@ -1040,6 +1084,7 @@ export function createAdmin(config: CreateAdminConfig) {
   const digitalApi = createDigitalApi(apiConfig);
   const promoCodeApi = createPromoCodeApi(apiConfig);
   const customersApi = createCustomersApi(apiConfig);
+  const emailSuppressionApi = createEmailSuppressionApi(apiConfig);
   const audienceApi = createAudiencesApi(apiConfig);
   const actionsApi = createActionsApi(apiConfig);
   const mailboxApi = createMailboxApi(apiConfig);
@@ -1121,6 +1166,7 @@ export function createAdmin(config: CreateAdminConfig) {
         find: storeApi.findMembers,
         findOwn: storeApi.findOwnMemberships,
         remove: storeApi.removeMember,
+        transferOwnership: storeApi.transferOwnership,
       },
       buildHook: {
         list: storeApi.listBuildHooks,
@@ -1288,6 +1334,7 @@ export function createAdmin(config: CreateAdminConfig) {
       audienceMemberships: audienceApi.customer,
     },
     customers: {
+      emailSuppression: emailSuppressionApi,
       create: customersApi.create,
       get: customersApi.get,
       find: customersApi.find,
@@ -1466,17 +1513,23 @@ function storefrontSessionStorageKey(
   apiUrl: string,
   publishableKey: string,
 ): string {
-  return `arky_customer_session:v1:${encodeURIComponent(apiUrl.toLowerCase())}:${publishableKeyFingerprint(publishableKey)}`;
+  return `arky_customer_session:v2:${encodeURIComponent(apiUrl.toLowerCase())}:${publishableKeyFingerprint(publishableKey)}`;
 }
 
-interface StoredCustomerSessionV1 {
-  version: 1;
+interface StoredCustomerSessionV2 {
+  version: 2;
   customer: import("./api/storefront").StorefrontCustomer;
   session: import("./types").CustomerSessionIssued;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isEpochMilliseconds(
+  value: unknown,
+): value is import("./types/time").EpochMilliseconds {
+  return typeof value === "number" && Number.isSafeInteger(value);
 }
 
 function isIssuedCustomerSession(
@@ -1494,7 +1547,7 @@ function isIssuedCustomerSession(
     return (
       typeof value.token === "string" &&
       value.token.startsWith("customer_visitor_") &&
-      typeof value.expires_at === "number"
+      isEpochMilliseconds(value.expires_at)
     );
   }
   return (
@@ -1504,9 +1557,9 @@ function isIssuedCustomerSession(
     value.access_token.startsWith("customer_access_") &&
     typeof value.refresh_token === "string" &&
     value.refresh_token.startsWith("customer_refresh_") &&
-    typeof value.access_expires_at === "number" &&
-    typeof value.refresh_expires_at === "number" &&
-    typeof value.authenticated_at === "number"
+    isEpochMilliseconds(value.access_expires_at) &&
+    isEpochMilliseconds(value.refresh_expires_at) &&
+    isEpochMilliseconds(value.authenticated_at)
   );
 }
 
@@ -1518,8 +1571,10 @@ function parseStoredCustomerSession(
     const parsed: unknown = JSON.parse(value);
     if (
       !isRecord(parsed) ||
-      parsed.version !== 1 ||
+      parsed.version !== 2 ||
       !isRecord(parsed.customer) ||
+      !isEpochMilliseconds(parsed.customer.created_at) ||
+      !isEpochMilliseconds(parsed.customer.updated_at) ||
       !isIssuedCustomerSession(parsed.session)
     ) {
       return null;
@@ -1581,12 +1636,22 @@ function createStorefrontClientCore(
   }
 
   function writeCustomerSession(session: CustomerSessionInternal | null): void {
+    if (
+      session &&
+      (!isIssuedCustomerSession(session.session) ||
+        !isEpochMilliseconds(session.customer.created_at) ||
+        !isEpochMilliseconds(session.customer.updated_at))
+    ) {
+      throw new RangeError(
+        "Customer session timestamps must be signed safe-integer epoch milliseconds",
+      );
+    }
     memorySession = session;
     if (!sessionStorage) return;
     try {
       if (session) {
-        const stored: StoredCustomerSessionV1 = {
-          version: 1,
+        const stored: StoredCustomerSessionV2 = {
+          version: 2,
           customer: session.customer,
           session: session.session,
         };

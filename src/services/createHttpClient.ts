@@ -1,9 +1,11 @@
+import type { EpochMilliseconds } from "../types/time";
+import { epochMilliseconds, epochMillisecondsNow } from "../utils/time";
 import { buildQueryString, type QueryParams } from "../utils/queryParams";
 
 export interface TokenSet {
   access_token: string;
   refresh_token?: string;
-  access_expires_at?: number;
+  access_expires_at?: EpochMilliseconds;
 }
 
 export interface AuthStorage {
@@ -118,7 +120,8 @@ function isTokenSet(value: unknown): value is TokenSet {
     (value.refresh_token === undefined ||
       typeof value.refresh_token === "string") &&
     (value.access_expires_at === undefined ||
-      typeof value.access_expires_at === "number")
+      (typeof value.access_expires_at === "number" &&
+        Number.isSafeInteger(value.access_expires_at)))
   );
 }
 
@@ -255,8 +258,10 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
     };
 
     let tokens = authStorage.getTokens();
-    const nowSec = Date.now() / 1000;
-    if (tokens?.access_expires_at && nowSec > tokens.access_expires_at) {
+    if (
+      tokens?.access_expires_at !== undefined &&
+      epochMillisecondsNow() >= epochMilliseconds(tokens.access_expires_at)
+    ) {
       await ensureFreshToken();
       tokens = authStorage.getTokens();
     }
@@ -287,7 +292,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
     const fullUrl = `${cfg.baseUrl}${finalPath}`;
     let res: Response;
     let data: unknown;
-    const startedAt = Date.now();
+    const startedAt = performance.now();
 
     try {
       res = await fetch(fullUrl, fetchOptions);
@@ -375,7 +380,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
             status: res.status,
             response: serverErr,
             request_id: requestId || null,
-            duration_ms: Date.now() - startedAt,
+            duration_ms: performance.now() - startedAt,
           }),
         ).catch(() => {});
       }
@@ -392,7 +397,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
           url: fullUrl,
           status: res.status,
           request_id: requestId || null,
-          duration_ms: Date.now() - startedAt,
+          duration_ms: performance.now() - startedAt,
         }),
       ).catch(() => {});
     }

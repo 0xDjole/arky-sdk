@@ -131,7 +131,7 @@ export function formatBlockValue(block: Block | null | undefined): string {
   if (block?.value === null || block?.value === undefined) return "";
   if (block.type === "boolean") return block.value ? "Yes" : "No";
   if (block.type === "date") {
-    return new Date(Number(block.value) * 1000).toLocaleDateString();
+    return epochMillisecondsToDate(block.value).toLocaleDateString();
   }
   return String(block.value);
 }
@@ -266,3 +266,4 @@ export function getImageUrl(value: unknown, isBlock = true): string | null {
   if (isBlock && typeof value.url === "string") return value.url;
   return nestedUrl(value);
 }
+import { epochMillisecondsToDate } from "./time";

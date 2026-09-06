@@ -10,7 +10,7 @@ const arky = createAdmin({
 });
 
 test('formats the current date block type as a localized date', () => {
-	const timestamp = Math.floor(Date.UTC(2024, 0, 2) / 1000);
+	const timestamp = Date.UTC(2024, 0, 2);
 	const block = {
 		id: 'date',
 		key: 'published_at',
@@ -18,7 +18,7 @@ test('formats the current date block type as a localized date', () => {
 		value: timestamp,
 	};
 
-	assert.equal(arky.utils.formatBlockValue(block), new Date(timestamp * 1000).toLocaleDateString());
+	assert.equal(arky.utils.formatBlockValue(block), new Date(timestamp).toLocaleDateString());
 });
 
 test('formats a propertyless number block as its numeric value', () => {
@@ -31,4 +31,17 @@ test('formats a propertyless number block as its numeric value', () => {
 	};
 
 	assert.equal(arky.utils.formatBlockValue(block), String(timestamp));
+});
+
+test('date helpers preserve zero, negative and early-epoch milliseconds', () => {
+	for (const value of [-1, 0, 1, 1_700_000_000, 1_704_164_645_678]) {
+		const block = { id: 'date', key: 'date', type: 'date', value };
+		assert.equal(arky.utils.formatBlockValue(block), new Date(value).toLocaleDateString());
+		assert.equal(arky.utils.formatDate(value, 'en'), new Date(value).toLocaleDateString('en-US', {
+			timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric',
+		}));
+	}
+	for (const value of [0.1, '1704164645678', Number.MAX_SAFE_INTEGER + 1]) {
+		assert.throws(() => arky.utils.formatBlockValue({ id: 'date', key: 'date', type: 'date', value }), RangeError);
+	}
 });

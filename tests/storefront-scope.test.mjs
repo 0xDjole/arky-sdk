@@ -60,7 +60,7 @@ function identifyResponse(token = visitorTokenA, id = "customer-a") {
 
 function storedVisitorSession(token = visitorTokenA, id = "customer-a") {
   const { customer, session } = identifyResponse(token, id);
-  return JSON.stringify({ version: 1, customer, session });
+  return JSON.stringify({ version: 2, customer, session });
 }
 
 function cart(id = "cart-a") {
@@ -263,7 +263,7 @@ test("anonymous reads do not identify and concurrent first stateful calls share 
     assert.equal(storage.values.size, 1);
     const [[key, value]] = storage.values;
     assert.equal(key.includes(publishableKeyA), false);
-    assert.equal(JSON.parse(value).version, 1);
+    assert.equal(JSON.parse(value).version, 2);
     assert.equal(JSON.parse(value).session.token, visitorTokenA);
   } finally {
     globalThis.fetch = originalFetch;
@@ -672,7 +672,7 @@ test("code-only verification and refresh atomically rotate the discriminated Cus
       type: "email_authenticated",
       status: "active",
     });
-    assert.equal(authenticated.access_expires_at < Date.now() / 1000, true);
+    assert.equal(authenticated.access_expires_at < Date.now(), true);
     const refreshed = await client.customer.refresh();
     assert.equal(refreshed.session.id, rotated.id);
     const storedAfterRefresh = JSON.parse([...storage.values.values()][0]);
@@ -710,7 +710,7 @@ test("code-only verification and refresh atomically rotate the discriminated Cus
       ["/v1/storefront/customer/logout", "Bearer customer_access_2", {}],
     ],
   );
-  assert.equal(storedBeforeLogout.version, 1);
+  assert.equal(storedBeforeLogout.version, 2);
   assert.equal(storedBeforeLogout.session.id, rotated.id);
   assert.equal(storedBeforeLogout.session.access_token, "customer_access_2");
   assert.equal(storedBeforeLogout.session.refresh_token, "customer_refresh_2");
@@ -738,17 +738,17 @@ test("refresh 401 keeps the previous authenticated Session and never retries wit
     refresh_expires_at: 2,
     authenticated_at: 1,
   };
-  const initialRecord = JSON.stringify({ version: 1, customer, session });
+  const initialRecord = JSON.stringify({ version: 2, customer, session });
   let storedRecord = initialRecord;
   const storage = {
     getItem(key) {
-      return key.startsWith("arky_customer_session:v1:") ? storedRecord : null;
+      return key.startsWith("arky_customer_session:v2:") ? storedRecord : null;
     },
     setItem(_key, value) {
       storedRecord = value;
     },
     removeItem(key) {
-      if (key.startsWith("arky_customer_session:v1:")) storedRecord = null;
+      if (key.startsWith("arky_customer_session:v2:")) storedRecord = null;
     },
   };
   const calls = [];
@@ -803,7 +803,7 @@ test("initialization rejects a versioned record containing an invalid Visitor cr
   const invalid = storedVisitorSession("invalid-visitor-token");
   const storage = {
     getItem(key) {
-      return key.startsWith("arky_customer_session:v1:") ? invalid : null;
+      return key.startsWith("arky_customer_session:v2:") ? invalid : null;
     },
     setItem() {},
     removeItem(key) {
@@ -818,7 +818,7 @@ test("initialization rejects a versioned record containing an invalid Visitor cr
 
   assert.equal(client.session, null);
   assert.equal(
-    removed.some((key) => key.startsWith("arky_customer_session:v1:")),
+    removed.some((key) => key.startsWith("arky_customer_session:v2:")),
     true,
   );
 });

@@ -21,7 +21,7 @@ function jsonResponse(body, status = 200) {
 function sessionStorage(token = visitorToken) {
   const values = new Map();
   let initial = JSON.stringify({
-    version: 1,
+    version: 2,
     customer: {
       id: "customer-contract",
       status: "active",
@@ -115,7 +115,7 @@ function payment(status, providerType = "cash_on_delivery", total = 1250) {
         ? {
             type: "stripe",
             payment_provider_id: paymentProviderId,
-            checkout_expires_at: 1_800_000_000,
+            checkout_expires_at: 1_800_000_000_000,
             checkout_session_id: "checkout-contract",
             payment_intent_id: "payment-intent-contract",
           }
@@ -514,7 +514,7 @@ test("paid Audience checkout returns the exact embedded Checkout response withou
     publishable_key: "pk_test_audience",
     client_secret: "cs_subscription_secret_exact",
     connected_account_id: "acct_audience",
-    expires_at: 1_800_000_000,
+    expires_at: 1_800_000_000_000,
   };
   const calls = [];
   const originalFetch = globalThis.fetch;
@@ -602,7 +602,7 @@ test("card checkout returns an embedded Stripe action without navigating", async
         publishable_key: "pk_test_order",
         client_secret: "cs_order_secret_exact",
         connected_account_id: "acct_order",
-        expires_at: 1_800_000_000,
+        expires_at: 1_800_000_000_000,
       },
       payment: payment("requires_action", "stripe"),
     });

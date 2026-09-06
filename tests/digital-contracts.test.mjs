@@ -12,7 +12,7 @@ const visitorToken = `customer_visitor_${"d".repeat(64)}`;
 
 function storedVisitorSession(token, customerId = "customer-digital-contract") {
   return JSON.stringify({
-    version: 1,
+    version: 2,
     customer: {
       id: customerId,
       status: "active",
