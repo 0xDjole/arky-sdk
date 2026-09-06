@@ -559,8 +559,8 @@ export interface CreateStoreParams {
   timezone: string;
   default_language: string;
   supported_languages: string[];
-  /** Defaults to the creating Account's email when omitted. */
-  email?: string;
+  billing_email: string;
+  contact_email?: string | null;
 }
 
 export interface UpdateStoreParams {
@@ -570,7 +570,8 @@ export interface UpdateStoreParams {
   timezone?: string;
   default_language?: string;
   supported_languages?: string[];
-  email?: string;
+  billing_email?: string;
+  contact_email?: string | null;
 }
 
 export interface GetStoreParams {
@@ -1641,6 +1642,11 @@ export interface FindMailboxesParams {
 }
 
 export interface GetMailboxParams {
+  id: string;
+  store_id?: string;
+}
+
+export interface DisconnectMailboxParams {
   id: string;
   store_id?: string;
 }

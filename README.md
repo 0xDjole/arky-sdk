@@ -422,7 +422,8 @@ const store = await admin.store.regeneratePublishableKey({
 await admin.store.update({
   id: store.id,
   name: "Arky Sarajevo",
-  email: "team@example.com",
+  billing_email: "billing@example.com",
+  contact_email: "team@example.com",
   default_market_id: "market-id",
   default_language: "en",
   supported_languages: ["en", "bs"],
@@ -431,8 +432,12 @@ await admin.store.update({
 const classifications = await admin.classification.find({ limit: 20 });
 ```
 
-Admin Store records use `name`, one `email`, typed `status`, and explicit
-`default_language`/`supported_languages` fields. Physical places are exposed as `StoreLocation`
+Admin Store records use `name`, private `billing_email`, optional public `contact_email`, and
+explicit `default_language`/`supported_languages` fields. Creation requires an explicit billing
+email. Omit `contact_email` on update to preserve it or send `null` to clear it; editing either
+email never changes the other. Public `support.email` comes only from `contact_email`, with no
+billing or Account fallback. Mailboxes own sender and reply-to identity, and staff notification
+recipients remain explicitly configured. A new Store creates no inferred Mailbox. Physical places are exposed as `StoreLocation`
 values with the shared `PostalAddress` shape. Webhooks and Build Hooks are addressed by UUID and
 use `active`/`disabled` status values. Membership IDs are opaque, Server-generated UUID-v4 values;
 `StoreUsage` represents one feature and either its current total or one UTC calendar month.

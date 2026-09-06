@@ -300,7 +300,7 @@ test("request errors preserve the server response while normalizing validation d
   assert.deepEqual(errorContext.response, response);
 });
 
-test("admin Store methods use the explicit name, email, and language contract", async () => {
+test("admin Store methods keep billing and optional contact email independent", async () => {
   const admin = createAdmin({
     baseUrl,
     storeId,
@@ -309,7 +309,8 @@ test("admin Store methods use the explicit name, email, and language contract", 
   const store = {
     id: storeId,
     name: "Client Contract",
-    email: "owner@example.test",
+    billing_email: "owner@example.test",
+    contact_email: null,
     publishable_key: publishableKey,
     status: "active",
     default_market_id: "market-bih",
@@ -332,6 +333,8 @@ test("admin Store methods use the explicit name, email, and language contract", 
     assert.deepEqual(
       await admin.store.create({
         name: "Client Contract",
+        billing_email: "owner@example.test",
+        contact_email: "contact@example.test",
         timezone: "Europe/Sarajevo",
         default_language: "en",
         supported_languages: ["en", "bs"],
@@ -345,7 +348,8 @@ test("admin Store methods use the explicit name, email, and language contract", 
     await admin.store.update({
       id: storeId,
       name: "Client Contract",
-      email: "owner@example.test",
+      billing_email: "owner@example.test",
+      contact_email: null,
       default_market_id: "market-bih",
       default_language: "en",
       supported_languages: ["en", "bs"],
@@ -360,6 +364,8 @@ test("admin Store methods use the explicit name, email, and language contract", 
       method: "POST",
       body: {
         name: "Client Contract",
+        billing_email: "owner@example.test",
+        contact_email: "contact@example.test",
         timezone: "Europe/Sarajevo",
         default_language: "en",
         supported_languages: ["en", "bs"],
@@ -376,7 +382,8 @@ test("admin Store methods use the explicit name, email, and language contract", 
       body: {
         id: storeId,
         name: "Client Contract",
-        email: "owner@example.test",
+        billing_email: "owner@example.test",
+        contact_email: null,
         default_market_id: "market-bih",
         default_language: "en",
         supported_languages: ["en", "bs"],

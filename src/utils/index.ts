@@ -1,4 +1,11 @@
 export { isValidKey, validateKey, toKey, nameToKey } from "./keyValidation";
+export {
+  epochMilliseconds,
+  epochMillisecondsFromDate,
+  epochMillisecondsNow,
+  epochMillisecondsToDate,
+} from "./time";
+export type { EpochMilliseconds } from "../types/time";
 
 export {
   getCurrencySymbol,

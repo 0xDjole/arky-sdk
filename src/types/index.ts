@@ -1299,7 +1299,8 @@ export interface StoreDeletionResult {
 export interface Store {
   id: string;
   name: string;
-  email: string;
+  billing_email: string;
+  contact_email: string | null;
   publishable_key: string;
   default_market_id: string | null;
   timezone: string;
@@ -1573,6 +1574,7 @@ export type SubscriptionPlanFeatureType =
   | "booking_resources"
   | "workflows"
   | "audiences"
+  | "customers"
   | "media"
   | "members"
   | "classifications"
@@ -1582,7 +1584,7 @@ export type SubscriptionPlanFeatureType =
   | "social_connections"
   | "webhooks"
   | "support_agents"
-  | "lead_research_runs"
+  | "lead_research_operations"
   | "campaigns";
 
 /** A Store's current total or one UTC calendar month's consumption. */
@@ -2300,7 +2302,12 @@ export type WorkflowHttpMethod = "get" | "post" | "put" | "patch" | "delete";
 export type WorkflowExecutionStatus =
   "pending" | "running" | "completed" | "failed" | "cancelled";
 
+export type NodeResultSource =
+  | { type: "local" }
+  | { type: "external_operation"; operation_id: string };
+
 export interface NodeResult {
+  source: NodeResultSource;
   output: any;
   route: string;
   started_at: number;

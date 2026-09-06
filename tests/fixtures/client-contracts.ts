@@ -45,6 +45,7 @@ import type {
   GetPaymentDisputeParams,
   GetPromoCodesParams,
   OrderMoney,
+  NodeResult,
   Order,
   OrderCheckoutResult,
   OrderRefund,
@@ -167,6 +168,24 @@ import type {
   TrackCustomerActionParams,
   WebhookEventSubscription,
 } from "../../dist/index.js";
+
+const localNodeResult: NodeResult = {
+  source: { type: "local" },
+  output: null,
+  route: "success",
+  started_at: 1,
+  completed_at: 1,
+  duration_ms: 0,
+};
+const externalNodeResult: NodeResult = {
+  ...localNodeResult,
+  source: { type: "external_operation", operation_id: "operation-id" },
+};
+// @ts-expect-error Every current NodeResult requires an explicit evidence source.
+const missingNodeResultSource: NodeResult = { output: null, route: "success", started_at: 1, completed_at: 1, duration_ms: 0 };
+// @ts-expect-error External evidence requires its exact operation ID.
+const missingNodeOperationId: NodeResult["source"] = { type: "external_operation" };
+void [localNodeResult, externalNodeResult, missingNodeResultSource, missingNodeOperationId];
 // @ts-expect-error the Actions surface does not expose a generic Action compatibility alias.
 import type { Action, ActionData } from "../../dist/index.js";
 import type {
@@ -274,6 +293,8 @@ const workflowExternalOperationContract: WorkflowExternalOperation = {
 void workflowExternalOperationContract;
 const bookingServiceFeature: SubscriptionPlanFeatureType = "booking_services";
 const bookingResourceFeature: SubscriptionPlanFeatureType = "booking_resources";
+const customerFeature: SubscriptionPlanFeatureType = "customers";
+const socialConnectionFeature: SubscriptionPlanFeatureType = "social_connections";
 const mediaContract: Media = {
   id: "media-contract",
   store_id: "store-contract",
@@ -300,7 +321,8 @@ const mediaWithoutOriginal: Media = {
 const storeContract: Store = {
   id: "store-contract",
   name: "Contract Store",
-  email: "owner@example.com",
+  billing_email: "owner@example.com",
+  contact_email: null,
   publishable_key: `arky_pk_${"a".repeat(43)}`,
   default_market_id: null,
   timezone: "Europe/Sarajevo",
@@ -309,6 +331,8 @@ const storeContract: Store = {
 };
 const createStoreContract: CreateStoreParams = {
   name: "Contract Store",
+  billing_email: "billing@example.com",
+  contact_email: "contact@example.com",
   timezone: "Europe/Sarajevo",
   default_language: "en",
   supported_languages: ["en", "bs"],
@@ -319,14 +343,18 @@ storeContract.key;
 storeContract.lifecycle;
 // @ts-expect-error Store language defaults are explicit rather than positional.
 storeContract.languages;
-// @ts-expect-error Store email is one root field, not a billing/support object.
+// @ts-expect-error Store email fields are explicit, not a nested aliases object.
 storeContract.emails;
+// @ts-expect-error The overloaded Store email field is removed.
+storeContract.email;
 // @ts-expect-error Store creation accepts a name, not the removed mutable key.
 createStoreContract.key;
 // @ts-expect-error Store creation requires explicit language ownership fields.
 createStoreContract.languages;
-// @ts-expect-error Store creation accepts one optional email field.
+// @ts-expect-error Store creation accepts explicit billing and contact fields.
 createStoreContract.emails;
+// @ts-expect-error Store creation does not accept the overloaded email alias.
+createStoreContract.email;
 
 const storeLocationContract: StoreLocation = {
   id: "location-contract",
@@ -415,7 +443,7 @@ const totalStoreUsage: StoreUsage = {
 const monthlyStoreUsage: StoreUsage = {
   ...totalStoreUsage,
   id: "usage-month-contract",
-  feature: "lead_research_runs",
+  feature: "lead_research_operations",
   period: { type: "monthly", year: 2026, month: 8 },
 };
 const invalidMonthlyStoreUsage: StoreUsage = {
@@ -1899,7 +1927,7 @@ const workflowEmailNode: WorkflowSendEmailNode = {
       store_id: "{{input.store.id}}",
       mailbox_id: "mailbox-contract",
       template_id: "template-contract",
-      recipient: "{{input.store.email}}",
+      recipient: "operations@example.test",
       vars: {},
     },
   },

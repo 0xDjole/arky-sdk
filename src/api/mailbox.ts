@@ -7,6 +7,7 @@ import type {
   UpdateMailboxParams,
   FindMailboxesParams,
   GetMailboxParams,
+  DisconnectMailboxParams,
   PrepareMailboxParams,
   TestMailboxParams,
   TestMailboxResult,
@@ -14,6 +15,18 @@ import type {
 import type { Mailbox, PaginatedResponse } from "../types";
 
 export const createMailboxApi = (apiConfig: ApiConfig) => ({
+  async disconnect(
+    params: DisconnectMailboxParams,
+    options?: RequestOptions,
+  ): Promise<Mailbox> {
+    const target_store_id = params.store_id || apiConfig.storeId;
+    return apiConfig.httpClient.post<Mailbox>(
+      `/v1/stores/${target_store_id}/mailboxes/${params.id}/disconnect`,
+      {},
+      options,
+    );
+  },
+
   async connectGoogle(
     params: ConnectGoogleMailboxParams,
     options?: RequestOptions,

@@ -123,7 +123,10 @@ assert.equal(
   typeof arky.customer.audienceMemberships.createBillingPortal,
   "function",
 );
-assert.equal(typeof arky.customer.audienceMemberships.cancelRenewal, "function");
+assert.equal(
+  typeof arky.customer.audienceMemberships.cancelRenewal,
+  "function",
+);
 assert.equal(typeof arky.customer.audienceMemberships.unsubscribe, "function");
 assert.equal(typeof arky.store.member.add, "function");
 assert.equal(typeof arky.store.member.invite, "function");
@@ -180,9 +183,7 @@ assert.deepEqual(
     ...call,
     url: url.replace("http://127.0.0.1:1", ""),
   })),
-  [
-    { url: "/v1/stores/plans", method: "GET", body: null },
-  ],
+  [{ url: "/v1/stores/plans", method: "GET", body: null }],
 );
 
 const scheduledAdminCalls = [];
@@ -453,10 +454,7 @@ assert.deepEqual(
     ["POST", "/v1/stores/contract-store/social/posts/post-1/cancel"],
     ["GET", "/v1/stores/contract-store/social/posts/post-1/messages"],
     ["POST", "/v1/stores/contract-store/social/posts/post-1/messages"],
-    [
-      "POST",
-      "/v1/stores/contract-store/social/posts/post-1/messages/sync",
-    ],
+    ["POST", "/v1/stores/contract-store/social/posts/post-1/messages/sync"],
   ],
 );
 assert.deepEqual(JSON.parse(socialFetchCalls[1].body), {
@@ -498,10 +496,7 @@ assert.deepEqual(JSON.parse(socialFetchCalls[9].body), {
 });
 
 assert.equal(typeof arky.workflow.listConnections, "function");
-assert.equal(
-  typeof arky.workflow.getConnectionConnectUrl,
-  "function",
-);
+assert.equal(typeof arky.workflow.getConnectionConnectUrl, "function");
 assert.equal(typeof arky.workflow.deleteConnection, "function");
 
 const workflowFetchCalls = [];
@@ -551,6 +546,7 @@ assert.equal("automation" in arky, false);
 
 assert.equal(typeof arky.notification.mailbox.find, "function");
 assert.equal(typeof arky.notification.mailbox.connectGoogle, "function");
+assert.equal(typeof arky.notification.mailbox.disconnect, "function");
 assert.equal("email" in arky.notification, false);
 
 const mailboxFetchCalls = [];
@@ -576,6 +572,7 @@ try {
     sync_enabled: true,
     sync_interval_seconds: 300,
   });
+  await arky.notification.mailbox.disconnect({ id: "mailbox-id" });
 } finally {
   globalThis.fetch = originalFetch;
 }
@@ -591,6 +588,12 @@ assert.deepEqual(JSON.parse(mailboxFetchCalls[0].body), {
   sync_enabled: true,
   sync_interval_seconds: 300,
 });
+assert.equal(mailboxFetchCalls[1].method, "POST");
+assert.equal(
+  mailboxFetchCalls[1].url,
+  "http://127.0.0.1:1/v1/stores/contract-store/mailboxes/mailbox-id/disconnect",
+);
+assert.deepEqual(JSON.parse(mailboxFetchCalls[1].body), {});
 assert.equal(typeof arky.campaign.find, "function");
 assert.equal(typeof arky.campaign.findEnrollments, "function");
 assert.equal(typeof arky.campaignEnrollment.getConversation, "function");
@@ -637,10 +640,7 @@ assert.deepEqual(separateResourceCalls, [
 ]);
 
 assert.equal(typeof arky.eshop.order.createRefund, "function");
-assert.equal(
-  typeof arky.eshop.order.recordCashOnDeliveryRefund,
-  "function",
-);
+assert.equal(typeof arky.eshop.order.recordCashOnDeliveryRefund, "function");
 assert.equal(typeof arky.eshop.order.getRefunds, "function");
 assert.equal(typeof arky.eshop.order.getPayment, "function");
 assert.equal(typeof arky.eshop.order.markCashOnDeliveryPaid, "function");
@@ -736,10 +736,13 @@ globalThis.fetch = async (url, init = {}) => {
     method: init.method,
     body: init.body ? JSON.parse(String(init.body)) : null,
   });
-  return new Response(JSON.stringify({ time: { from: 0, to: 1 }, reports: [] }), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({ time: { from: 0, to: 1 }, reports: [] }),
+    {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    },
+  );
 };
 try {
   await arky.analytics.get(
@@ -784,7 +787,11 @@ for (const method of ["getCurrencies", "getWebhookEvents"]) {
 }
 const platformCalls = [];
 globalThis.fetch = async (url, init = {}) => {
-  platformCalls.push({ url: String(url), method: init.method, body: init.body ?? null });
+  platformCalls.push({
+    url: String(url),
+    method: init.method,
+    body: init.body ?? null,
+  });
   return new Response(JSON.stringify([]), {
     status: 200,
     headers: { "content-type": "application/json" },
@@ -848,9 +855,7 @@ globalThis.fetch = async (url, init = {}) => {
   if (init.method === "DELETE") {
     return new Response(null, { status: 204 });
   }
-  const body = String(url).includes("?")
-    ? { items: [], cursor: null }
-    : {};
+  const body = String(url).includes("?") ? { items: [], cursor: null } : {};
   return new Response(JSON.stringify(body), {
     status: 200,
     headers: { "content-type": "application/json" },
@@ -1018,7 +1023,15 @@ try {
     ...definition,
     key: "homepage_hero_v2",
   });
-  for (const method of ["deleteDraft", "start", "pause", "resume", "complete", "get", "results"]) {
+  for (const method of [
+    "deleteDraft",
+    "start",
+    "pause",
+    "resume",
+    "complete",
+    "get",
+    "results",
+  ]) {
     await arky.experiments[method]({ experiment_id: "experiment-contract" });
   }
   await arky.experiments.find({

@@ -1,4 +1,11 @@
 export { ScheduledResultTimeoutError } from "./utils/scheduledResult";
+export {
+  epochMilliseconds,
+  epochMillisecondsFromDate,
+  epochMillisecondsNow,
+  epochMillisecondsToDate,
+} from "./utils/time";
+export type { EpochMilliseconds } from "./types/time";
 export { createStripeEmbeddedCheckout, mountCheckoutAction } from "./checkout";
 export { selectLocalizedObjectText } from "./utils/blocks";
 export type {
@@ -537,6 +544,7 @@ export type {
   UpdateMailboxParams,
   FindMailboxesParams,
   GetMailboxParams,
+  DisconnectMailboxParams,
   PrepareMailboxParams,
   TestMailboxParams,
   TestMailboxResult,
