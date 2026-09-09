@@ -1,4 +1,11 @@
 import { epochMilliseconds } from "arky-sdk";
+import type { MembershipContracts } from "./membership-contracts.js";
+export type { MembershipContracts };
+import type { CatalogContracts } from "./catalog-contracts.js";
+import type { PriceContracts } from "./price-contracts.js";
+import type { CompanyContracts } from "./company-contracts.js";
+import type { OrderContracts } from "./order-contracts.js";
+import type { CartContracts } from "./cart-contracts.js";
 import type {
   AddMemberParams,
   TransferStoreOwnershipParams,
@@ -59,12 +66,12 @@ import type {
   NodeResult,
   Order,
   OrderCheckoutResult,
-  OrderRefund,
-  OrderRefundProvider,
+  Refund,
+  RefundProvider,
   RefundAllocation,
   RefundStatus,
-  OrderPayment,
-  OrderPaymentProvider,
+  Payment,
+  PaymentProviderBinding,
   PaymentAmounts,
   PaymentDispute,
   PaymentDisputeProvider,
@@ -96,7 +103,7 @@ import type {
   ProductVariant,
   Price,
   RefundRequestReason,
-  CreateOrderRefundParams,
+  CreateRefundParams,
   RecordCashOnDeliveryRefundParams,
   FindPaymentDisputesParams,
   BookingOffering,
@@ -339,7 +346,8 @@ const storeContract: Store = {
   billing_email: "owner@example.com",
   contact_email: null,
   publishable_key: `arky_pk_${"a".repeat(43)}`,
-  default_market_id: null,
+  default_market_id: "market-contract",
+  default_sales_channel_id: "channel-contract",
   timezone: "Europe/Sarajevo",
   default_language: "en",
   supported_languages: ["en", "bs"],
@@ -351,6 +359,7 @@ const createStoreContract: CreateStoreParams = {
   timezone: "Europe/Sarajevo",
   default_language: "en",
   supported_languages: ["en", "bs"],
+  initial_market: { key: "bih", currency: "bam", tax_mode: "inclusive" },
 };
 // @ts-expect-error Store routing identity is no longer a mutable key.
 storeContract.key;
@@ -500,6 +509,7 @@ const marketContract: Market = {
   key: "bih",
   currency: "bam",
   tax_mode: "inclusive",
+  status: { type: "active" },
   payment_provider_ids: [cashOnDeliveryProvider.id, stripeProvider.id],
   zones: [],
   created_at: epochMilliseconds(1),
@@ -530,11 +540,13 @@ const createMarketContract: CreateMarketParams = {
 };
 const checkoutContract: CheckoutCartParams = {
   id: "cart-contract",
+  locale: "en",
+  presentation_digest: "a".repeat(64),
   payment_provider_id: stripeProvider.id,
   return_url: "https://storefront.example.test/checkout/return",
 };
 declare const quoteContract: OrderQuote;
-const quotedProviderId: string = quoteContract.payment_provider_id;
+const quotedProviderId: string | null = quoteContract.payment_provider_id;
 const quotedProviderIds: string[] = quoteContract.payment_provider_ids;
 // @ts-expect-error Market no longer embeds Payment Methods.
 marketContract.payment_methods;
@@ -577,23 +589,31 @@ const refundAllocation: RefundAllocation = {
   item_id: "order-product-contract",
   amount: 1_250,
 };
-const stripeRefundProvider: OrderRefundProvider = {
+const audienceRefundAllocation: RefundAllocation = {
+  type: "audience",
+  item_id: "order-audience-contract",
+  amount: 1_250,
+};
+void audienceRefundAllocation;
+const stripeRefundProvider: RefundProvider = {
   type: "stripe",
   payment_provider_id: "payment-provider-contract",
   refund_id: "stripe-refund-contract",
 };
-const orderRefundStatus: RefundStatus = "succeeded";
-const orderRefund: OrderRefund = {
+const orderRefundStatus: RefundStatus = { type: "succeeded" };
+const orderRefund: Refund = {
   id: "order-refund-contract",
   store_id: "store-contract",
-  order_id: "order-contract",
   payment_id: "order-payment-contract",
   provider: stripeRefundProvider,
   money: refundMoney,
-  allocations: [refundAllocation],
-  requested_by_account_id: "account-contract",
-  reason: "customer_request",
-  private_note: null,
+  application: { type: "order_items", allocations: [refundAllocation] },
+  requester: {
+    type: "account",
+    actor: { account_id: "account-contract", snapshot: { email: "historical.operator@example.test", credential_type: "session" } },
+    reason: "customer_request",
+    private_note: null,
+  },
   status: orderRefundStatus,
   safe_error: null,
   requested_at: epochMilliseconds(1),
@@ -603,21 +623,21 @@ const orderRefund: OrderRefund = {
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(4),
 };
-const createOrderRefund: CreateOrderRefundParams = {
-  order_id: "order-contract",
+const createOrderRefund: CreateRefundParams = {
+  payment_id: "payment-contract",
   refund_id: "order-refund-contract",
   amount: 1_250,
-  allocations: [refundAllocation],
+  application: { type: "order_items", allocations: [refundAllocation] },
   reason: "customer_request",
 };
 const recordCashOnDeliveryRefund: RecordCashOnDeliveryRefundParams = {
-  order_id: "order-contract",
+  payment_id: "payment-contract",
   refund_id: "cash-refund-contract",
   amount: 1_250,
-  allocations: [{ type: "adjustment", amount: 1_250, reason: "cash return" }],
+  application: { type: "order_items", allocations: [{ type: "adjustment", amount: 1_250, reason: "cash return" }] },
   reason: "other",
 };
-const paymentDisputeStatus: PaymentDisputeStatus = "needs_response";
+const paymentDisputeStatus: PaymentDisputeStatus = { type: "needs_response", response: { type: "due_at", due_at: epochMilliseconds(123_000) } };
 const paymentDisputeProvider: PaymentDisputeProvider = {
   type: "stripe",
   dispute_id: "stripe-dispute-contract",
@@ -626,7 +646,6 @@ const paymentDisputeProvider: PaymentDisputeProvider = {
 const paymentDispute: PaymentDispute = {
   id: "payment-dispute-contract",
   store_id: "store-contract",
-  order_id: "order-contract",
   payment_id: "order-payment-contract",
   money: { amount: 1_250, currency: "usd" },
   status: paymentDisputeStatus,
@@ -636,11 +655,10 @@ const paymentDispute: PaymentDispute = {
   updated_at: epochMilliseconds(2),
 };
 const findPaymentDisputes: FindPaymentDisputesParams = {
-  order_id: "order-contract",
+  payment_id: "payment-contract",
   limit: 20,
 };
 const getPaymentDispute: GetPaymentDisputeParams = {
-  order_id: "order-contract",
   dispute_id: paymentDispute.id,
 };
 // @ts-expect-error refunds expose Money instead of flat amount fields.
@@ -1006,12 +1024,24 @@ const digitalLibraryLookupContract: GetDigitalLibraryProductParams = {
 const cartDigitalItemContract: CartDigitalItem = {
   id: "cart-digital-contract",
   digital_product_id: digitalProductContract.id,
+  name_block_id: "digital-name-block-contract",
   form_submission_id: null,
   price_override: digitalPrice,
 };
+const acceptedOrderPrice: OrderDigitalSnapshot['price'] = {
+  unit_price: { currency: 'usd', amount: 2500 },
+  compare_at: null,
+  billing: { type: 'one_time' },
+  min_quantity: 1,
+  max_quantity: null,
+  source: { type: 'base', price_id: 'price-contract' },
+  priced_at: epochMilliseconds(1),
+};
 const orderDigitalSnapshotContract: OrderDigitalSnapshot = {
   product_key: digitalProductContract.key,
-  price: digitalPrice,
+  product_name: { text: 'Accepted digital product', locale: 'en' },
+  price: acceptedOrderPrice,
+  asset_ids: [],
 };
 const productQuoteInputContract: ProductQuoteInput = {
   product_id: "product-contract",
@@ -1028,6 +1058,7 @@ const bookingQuoteInputContract: BookingQuoteInput = {
 };
 const digitalQuoteInputContract: DigitalProductQuoteInput = {
   digital_product_id: digitalProductContract.id,
+  name_block_id: "digital-name-block-contract",
   form_submission_id: "form-submission-digital-contract",
   price_override: digitalPrice,
 };
@@ -1046,6 +1077,7 @@ const cartProductInputContract: CartProductInput = {
 };
 const cartDigitalInputContract: CartDigitalItemInput = {
   digital_product_id: digitalProductContract.id,
+  name_block_id: "digital-name-block-contract",
   form_submission_id: "form-submission-digital-contract",
 };
 const trustedCartProductInputContract: TrustedCartProductInput = {
@@ -1423,15 +1455,17 @@ const canonicalCartContract: Cart = {
   id: "cart-contract",
   store_id: "store-contract",
   customer_id: "customer-contract",
-  customer_session_id: "customer-session-contract",
+  company_id: null,
+  company_location_id: null,
   token: "cart-token-contract",
-  status: "active",
-  origin: "storefront",
-  created_by_account_id: null,
-  market: "us",
+  status: { type: "active" },
+  origin: { type: "storefront", customer_id: "customer-contract", customer_session_id: "customer-session-contract" },
+  market_id: "market-contract",
+  sales_channel_id: "channel-contract",
   product_items: [cartProductItemContract],
   booking_items: [cartBookingItemContract],
   digital_items: [cartDigitalItemContract],
+  audience_items: [],
   shipping_address: null,
   billing_address: null,
   promo_code: null,
@@ -1653,25 +1687,28 @@ const paymentAmounts: PaymentAmounts = {
   refund_pending: 0,
   refunded: 0,
 };
-const stripeOrderPaymentProvider: OrderPaymentProvider = {
-  type: "stripe",
+const stripeOrderPaymentProvider: PaymentProviderBinding = {
+  type: "stripe_checkout",
   payment_provider_id: "payment-provider-contract",
   checkout_expires_at: epochMilliseconds(1_800_000_000_000),
   checkout_session_id: "checkout-session-contract",
   payment_intent_id: null,
 };
-const cashOrderPaymentProvider: OrderPaymentProvider = {
+const cashOrderPaymentProvider: PaymentProviderBinding = {
   type: "cash_on_delivery",
   payment_provider_id: "payment-provider-cash-contract",
   marked_paid_by_account_id: null,
 };
-const orderPayment: OrderPayment = {
+const orderPayment: Payment = {
   id: "order-payment-contract",
   store_id: "store-contract",
-  order_id: "order-contract",
+  source: { type: "order", order_id: "order-contract" },
+  payer_customer_id: null,
   provider: stripeOrderPaymentProvider,
-  status: "requires_action",
+  status: { type: "requires_action" },
+  checkout_expiration: null,
   amounts: paymentAmounts,
+  settlement: null,
   requested_at: epochMilliseconds(1),
   completed_at: null,
   created_at: epochMilliseconds(1),
@@ -1685,7 +1722,7 @@ const zeroTotalCheckout: OrderCheckoutResult = {
   payment: null,
 };
 const markCashOnDeliveryPaid: MarkCashOnDeliveryPaidParams = {
-  order_id: "order-contract",
+  id: "order-payment-contract",
 };
 // @ts-expect-error payment kind is the provider union tag, not a flat type.
 orderPayment.type;
@@ -1740,20 +1777,20 @@ const embeddedOrderProductItem: OrderProductItem = {
   form_submission_id: "form-submission-product-contract",
   snapshot: {
     product_key: "product-contract",
+    product_name: { text: "Accepted product", locale: "en" },
     variant_sku: null,
     variant_attributes: [],
-    price: digitalPrice,
+    price: acceptedOrderPrice,
     requires_shipping: true,
     weight_grams: 750,
   },
-  status: { status: "confirmed" },
+  status: { type: "confirmed" },
   money: shippingLine.money,
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(1),
 };
 const embeddedOrderBookingItem: OrderBookingItem = {
   id: "order-booking-item-contract",
-  customer_session_id: null,
   booking_offering_id: "booking-offering-contract",
   booking_service_id: "booking-service-contract",
   booking_resource_id: "booking-resource-contract",
@@ -1763,11 +1800,13 @@ const embeddedOrderBookingItem: OrderBookingItem = {
   reminders: [],
   snapshot: {
     service_key: "service-contract",
+    service_name: { text: "Accepted service", locale: "en" },
     resource_key: "resource-contract",
+    resource_name: { text: "Accepted resource", locale: "en" },
     timezone: "Europe/Sarajevo",
-    price: digitalPrice,
+    price: acceptedOrderPrice,
   },
-  status: { status: "confirmed" },
+  status: { type: "confirmed" },
   money: shippingLine.money,
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(1),
@@ -1777,7 +1816,7 @@ const embeddedOrderDigitalItem: OrderDigitalItem = {
   digital_product_id: digitalProductContract.id,
   form_submission_id: "form-submission-digital-contract",
   snapshot: orderDigitalSnapshotContract,
-  status: { status: "confirmed" },
+  status: { type: "confirmed" },
   money: shippingLine.money,
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(1),
@@ -1786,14 +1825,22 @@ const orderContract: Order = {
   id: "order-contract",
   number: "1002",
   store_id: "store-contract",
-  source_cart_id: canonicalCartContract.id,
+  source: { type: "cart", request_id: canonicalCartContract.id, cart_id: canonicalCartContract.id },
   customer_id: "customer-contract",
-  customer_session_id: "customer-session-contract",
-  status: "confirmed",
+  customer_snapshot: { email: "buyer@example.test", authentication: { type: "visitor" } },
+  company_id: null,
+  company_location_id: null,
+  company_snapshot: null,
+  market_id: "market-contract",
+  sales_channel_id: "channel-contract",
+  sales_channel_snapshot: { key: "web", name: "Web" },
+  origin: { type: "storefront", customer_id: "customer-contract", customer_session_id: "customer-session-contract" },
+  status: { type: "confirmed" },
   payment_id: orderPayment.id,
   product_items: [embeddedOrderProductItem],
   booking_items: [embeddedOrderBookingItem],
   digital_items: [embeddedOrderDigitalItem],
+  audience_items: [],
   money: orderMoney,
   shipping_lines: [shippingLine],
   shipping_address: null,

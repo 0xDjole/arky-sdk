@@ -1,4 +1,6 @@
 import type { EpochMilliseconds } from "./time";
+import type { ManualPriceInput } from "./price";
+import type { CatalogReadOptions } from "./catalog";
 import type {
   Block,
   Currency,
@@ -35,7 +37,6 @@ import type {
   FormSchema,
   FormField,
   ClassificationSchema,
-  Price,
   ServiceDuration,
   WeeklyAvailability,
   DateOverride,
@@ -45,7 +46,6 @@ import type {
   AudienceStatus,
   AudienceType,
   AudienceBillingCadence,
-  AudienceRefundReason,
   MailboxStatus,
   SmtpImapMailboxProviderInput,
   CampaignStatusFilter,
@@ -95,6 +95,7 @@ export interface CreateMarketParams {
 
 export interface UpdateMarketParams {
   id: string;
+  expected_updated_at: EpochMilliseconds;
   tax_mode?: "inclusive" | "exclusive";
   payment_provider_ids?: string[];
   zones?: MarketZoneInput[];
@@ -102,6 +103,7 @@ export interface UpdateMarketParams {
 
 export interface DeleteMarketParams {
   id: string;
+  expected_updated_at: EpochMilliseconds;
   replacement_default_market_id?: string;
 }
 
@@ -118,20 +120,21 @@ export interface ProductQuoteInput {
   variant_id: string;
   quantity: number;
   form_submission_id?: string | null;
-  price?: Price | null;
+  price_override?: ManualPriceInput | null;
 }
 
 export interface BookingQuoteInput {
   booking_offering_id: string;
   requested_interval: TimeRange;
   form_submission_id?: string | null;
-  price_override?: Price | null;
+  price_override?: ManualPriceInput | null;
 }
 
 export interface DigitalProductQuoteInput {
   digital_product_id: string;
+  name_block_id: string;
   form_submission_id?: string | null;
-  price_override?: Price | null;
+  price_override?: ManualPriceInput | null;
 }
 
 export interface CartBookingInput {
@@ -144,38 +147,59 @@ export interface CartBookingInput {
 export interface CartDigitalItemInput {
   id?: string;
   digital_product_id: string;
+  name_block_id: string;
   form_submission_id?: string | null;
 }
 
+export interface CartAudienceInput {
+  id?: string;
+  audience_id: string;
+  membership_id: string;
+}
+
+export interface AudienceQuoteInput {
+  audience_id: string;
+  membership_id: string;
+}
+
 export interface TrustedCartProductInput extends CartProductInput {
-  price_override?: Price | null;
+  price_override?: ManualPriceInput | null;
 }
 
 export interface TrustedCartBookingInput extends CartBookingInput {
-  price_override?: Price | null;
+  price_override?: ManualPriceInput | null;
 }
 
 export interface TrustedCartDigitalItemInput extends CartDigitalItemInput {
-  price_override?: Price | null;
+  price_override?: ManualPriceInput | null;
 }
 
 export interface GetQuoteParams {
   store_id?: string;
-  market: string;
+  locale?: string;
+  market?: string;
+  currency?: Currency;
+  sales_channel_id?: string;
+  company_id?: string | null;
+  company_location_id?: string | null;
   products?: ProductQuoteInput[];
   bookings?: BookingQuoteInput[];
   digital?: DigitalProductQuoteInput[];
+  audiences?: AudienceQuoteInput[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   payment_provider_id?: string;
   promo_code?: string;
   shipping_method_id?: string;
-  customer_id?: string;
+  customer_id?: string | null;
 }
 
 export interface GetCurrentCartParams {
   store_id?: string;
-  market?: string;
+  company_id?: string | null;
+  company_location_id?: string | null;
+  market_id?: string;
+  sales_channel_id?: string;
 }
 
 export interface GetCartParams {
@@ -187,8 +211,8 @@ export interface GetCartParams {
 export interface FindCartsParams {
   store_id?: string;
   customer_id?: string;
-  statuses?: import("./index").CartStatus[];
-  origins?: import("./index").CartOrigin[];
+  statuses?: import("./cart").CartStatus["type"][];
+  origins?: import("./commerce").PurchaseOrigin["type"][];
   has_items?: boolean;
   limit?: number;
   cursor?: string;
@@ -196,11 +220,15 @@ export interface FindCartsParams {
 
 export interface CreateCartParams {
   store_id?: string;
-  customer_id: string;
-  market: string;
+  customer_id?: string | null;
+  company_id?: string | null;
+  company_location_id?: string | null;
+  market_id?: string;
+  sales_channel_id?: string;
   product_items?: TrustedCartProductInput[];
   booking_items?: TrustedCartBookingInput[];
   digital_items?: TrustedCartDigitalItemInput[];
+  audience_items?: CartAudienceInput[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   promo_code?: string | null;
@@ -211,10 +239,15 @@ export interface CreateCartParams {
 export interface UpdateCartParams {
   id: string;
   store_id?: string;
-  market?: string;
+  customer_id?: string | null;
+  company_id?: string | null;
+  company_location_id?: string | null;
+  market_id?: string;
+  sales_channel_id?: string;
   product_items?: TrustedCartProductInput[];
   booking_items?: TrustedCartBookingInput[];
   digital_items?: TrustedCartDigitalItemInput[];
+  audience_items?: CartAudienceInput[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   promo_code?: string;
@@ -240,6 +273,12 @@ export interface AddCartDigitalProductParams {
   digital: TrustedCartDigitalItemInput;
 }
 
+export interface AddCartAudienceParams {
+  id: string;
+  store_id?: string;
+  audience: CartAudienceInput;
+}
+
 export type RemoveCartItemParams = {
   id: string;
   store_id?: string;
@@ -256,11 +295,14 @@ export interface ClearCartParams {
 export interface QuoteCartParams {
   id: string;
   store_id?: string;
+  locale?: string;
 }
 
 export interface CheckoutCartParams {
   id: string;
   store_id?: string;
+  locale: string;
+  presentation_digest: string;
   payment_provider_id?: string;
   return_url?: string;
 }
@@ -451,7 +493,7 @@ export interface FindBookingServicesParams {
   cursor?: string;
 
   query?: string | number;
-  status?: BookingServiceStatus;
+  status?: BookingServiceStatus["type"];
   sort_field?: string;
   sort_direction?: "asc" | "desc";
   created_at_from?: EpochMilliseconds;
@@ -555,6 +597,12 @@ export interface GetPromoCodesParams {
   created_at_to?: EpochMilliseconds;
 }
 
+export interface InitialMarketInput {
+  key: string;
+  currency: Currency;
+  tax_mode: "inclusive" | "exclusive";
+}
+
 export interface CreateStoreParams {
   name: string;
   timezone: string;
@@ -562,12 +610,14 @@ export interface CreateStoreParams {
   supported_languages: string[];
   billing_email: string;
   contact_email?: string | null;
+  initial_market: InitialMarketInput;
 }
 
 export interface UpdateStoreParams {
   id: string;
   name?: string;
   default_market_id?: string;
+  default_sales_channel_id?: string;
   timezone?: string;
   default_language?: string;
   supported_languages?: string[];
@@ -657,7 +707,6 @@ export type ProductInventoryInput = Pick<
 
 export interface CreateProductVariantInput {
   sku?: string | null;
-  prices: Price[];
   inventory: ProductInventoryInput[];
   attributes: Block[];
   requires_shipping?: boolean;
@@ -667,7 +716,6 @@ export interface CreateProductVariantInput {
 export interface UpdateProductVariantInput {
   id: string;
   sku?: string | null;
-  prices?: Price[];
   inventory?: ProductInventoryInput[];
   attributes?: Block[];
   requires_shipping?: boolean;
@@ -735,9 +783,6 @@ export interface UpdateOrderParams {
   store_id?: string;
   confirm?: boolean;
   cancel?: boolean;
-  shipping_address?: Address | null;
-  billing_address?: Address | null;
-  product_items?: TrustedCartProductInput[];
 }
 
 export interface CancelOrderProductItemParams {
@@ -806,7 +851,6 @@ export interface CreateBookingOfferingParams {
   booking_resource_id: string;
   weekly_availability: WeeklyAvailability[];
   date_overrides: DateOverride[];
-  prices: Price[];
   durations: ServiceDuration[];
   slot_interval_minutes: number;
   booking_window: BookingWindow;
@@ -819,7 +863,6 @@ export interface UpdateBookingOfferingParams {
   id: string;
   weekly_availability?: WeeklyAvailability[];
   date_overrides?: DateOverride[];
-  prices?: Price[];
   durations?: ServiceDuration[];
   slot_interval_minutes?: number;
   booking_window?: BookingWindow;
@@ -856,7 +899,7 @@ export interface FindBookingResourcesParams {
   match_all?: boolean;
 
   query?: string | number | null;
-  status?: BookingResourceStatus;
+  status?: BookingResourceStatus["type"];
   limit?: number;
   cursor?: string;
   sort_field?: string | null;
@@ -1113,63 +1156,67 @@ export interface SetupAnalyticsParams {
   store_id?: string;
 }
 
-export interface CreateOrderRefundParams {
-  order_id: string;
+export interface CreateRefundParams {
+  payment_id: string;
   refund_id: string;
   amount: number;
-  allocations: import("./index").RefundAllocation[];
+  application: import("./refund").RefundApplication;
   reason: import("./index").RefundReason;
   private_note?: string | null;
   store_id?: string;
 }
 
 export interface RecordCashOnDeliveryRefundParams {
-  order_id: string;
+  payment_id: string;
   refund_id: string;
   amount: number;
-  allocations: import("./index").RefundAllocation[];
+  application: import("./refund").RefundApplication;
   reason: import("./index").RefundReason;
   private_note?: string | null;
   store_id?: string;
 }
 
-export interface GetOrderPaymentParams {
-  order_id: string;
+export interface FindPaymentsParams {
+  store_id?: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface GetPaymentParams {
+  id: string;
   store_id?: string;
 }
 
 export interface MarkCashOnDeliveryPaidParams {
-  order_id: string;
+  id: string;
   store_id?: string;
 }
 
 export interface FindPaymentDisputesParams {
-  order_id: string;
+  payment_id?: string;
   store_id?: string;
   limit?: number;
   cursor?: string | null;
 }
 
 export interface GetPaymentDisputeParams {
-  order_id: string;
   dispute_id: string;
   store_id?: string;
 }
 
-export interface FindOrderRefundsParams {
-  order_id: string;
+export interface FindRefundsParams {
+  payment_id?: string;
   store_id?: string;
   limit?: number;
   cursor?: string | null;
 }
 
-export interface GetOrderRefundParams {
-  order_id: string;
-  refund_id: string;
+export interface GetRefundParams {
+  id: string;
   store_id?: string;
 }
 
-export interface CreateOrderRefundResponse {
+export interface CreateRefundResponse {
   refund_id: string;
   money: import("./index").Money;
   status: import("./index").RefundStatus;
@@ -1181,7 +1228,6 @@ export interface CreateDigitalProductParams {
   slugs?: Record<string, string>;
   blocks?: import("./index").Block[];
   classifications?: import("./index").ClassificationEntry[];
-  prices?: import("./index").Price[];
   asset_ids?: string[];
   status?: import("./index").DigitalProductStatus;
 }
@@ -1193,7 +1239,6 @@ export interface UpdateDigitalProductParams {
   slugs?: Record<string, string>;
   blocks?: import("./index").Block[];
   classifications?: import("./index").ClassificationEntry[];
-  prices?: import("./index").Price[];
   asset_ids?: string[];
   status?: import("./index").DigitalProductStatus;
 }
@@ -1208,7 +1253,7 @@ export interface FindDigitalProductsParams {
   ids?: string[];
   classification_query?: ClassificationQuery[];
   match_all?: boolean;
-  status?: import("./index").DigitalProductStatus;
+  status?: import("./index").DigitalProductStatus["type"];
   query?: string | number;
   limit?: number;
   cursor?: string;
@@ -1239,13 +1284,13 @@ export interface DownloadDigitalAssetParams {
   asset_id: string;
 }
 
-export interface FindStorefrontDigitalProductsParams {
+export interface FindStorefrontDigitalProductsParams extends CatalogReadOptions {
   ids?: string[];
   limit?: number;
   cursor?: string;
 }
 
-export interface GetStorefrontDigitalProductParams {
+export interface GetStorefrontDigitalProductParams extends CatalogReadOptions {
   identifier: string;
 }
 
@@ -1402,21 +1447,6 @@ export type PatchAudienceParams =
       audience_id: string;
       type: "update_name";
       data: { name: string };
-    }
-  | {
-      store_id?: string;
-      audience_id: string;
-      type: "replace_draft_paid_charge";
-      data: {
-        currency: Currency;
-        charge: import("./index").AudiencePaidCharge;
-      };
-    }
-  | {
-      store_id?: string;
-      audience_id: string;
-      type: "replace_paid_amount";
-      data: { cadence: AudienceBillingCadence; amount: number };
     };
 
 export interface AudienceReferenceParams {
@@ -1427,7 +1457,7 @@ export interface AudienceReferenceParams {
 export interface FindAudiencesParams {
   store_id?: string;
   ids?: string[];
-  status?: AudienceStatus;
+  status?: AudienceStatus["type"];
   query?: string;
   limit?: number;
   cursor?: string;
@@ -1449,6 +1479,12 @@ export interface FindAudienceMembershipsParams extends AudienceReferenceParams {
 
 export interface GetAudienceMembershipParams extends AudienceReferenceParams {
   membership_id: string;
+}
+
+export interface FindAudienceMembershipBillingParams extends GetAudienceMembershipParams {
+  limit?: number;
+  order_cursor?: string;
+  subscription_cursor?: string;
 }
 
 export interface EnrollAudienceMembershipParams extends AudienceReferenceParams {
@@ -1473,65 +1509,23 @@ export interface ReplaceAudienceMembershipInsightParams extends GetAudienceMembe
   insight: Record<string, unknown>;
 }
 
-export interface FindAudienceRefundsParams extends GetAudienceMembershipParams {
-  limit?: number;
-  cursor?: string;
-}
-
-export type AudienceRefundChargeSelector =
-  | {
-      type: "stripe_charge";
-      payment_provider_id: string;
-      stripe_charge_id: string;
-    }
-  | {
-      type: "stripe_invoice";
-      payment_provider_id: string;
-      stripe_invoice_id: string;
-    };
-
-export interface RequestAudienceRefundParams extends GetAudienceMembershipParams {
-  id: string;
-  charge: AudienceRefundChargeSelector;
-  amount: Money;
-  reason: AudienceRefundReason;
-  private_note?: string | null;
-}
-
-export interface GetAudienceRefundParams extends GetAudienceMembershipParams {
-  refund_id: string;
-}
-
-export interface FindAudienceDisputesParams extends GetAudienceMembershipParams {
-  limit?: number;
-  cursor?: string;
-}
-
-export interface GetAudienceDisputeParams extends GetAudienceMembershipParams {
-  dispute_id: string;
-}
-
 export interface FindStorefrontAudiencesParams {
   limit?: number;
   cursor?: string;
+  company_id?: string;
+  include_price?: boolean;
 }
 
 export interface GetStorefrontAudienceParams {
   key: string;
+  company_id?: string;
+  include_price?: boolean;
 }
 
 export interface JoinAudienceParams {
   store_id?: string;
   audience_id: string;
   email: string;
-}
-
-export interface StartAudienceCheckoutParams {
-  store_id?: string;
-  audience_id: string;
-  email: string;
-  cadence: AudienceBillingCadence;
-  return_url: string;
 }
 
 export interface FindCustomerAudienceMembershipsParams {

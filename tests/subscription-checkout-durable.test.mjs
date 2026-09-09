@@ -9,12 +9,21 @@ import {
 
 const apiUrl = "https://api.example.test";
 const publishableKey = `arky_pk_${"c".repeat(43)}`;
-const audienceId = "audience-durable-checkout";
-const storageKey = `arky:audience-checkout:v1:${encodeURIComponent(apiUrl)}:${encodeURIComponent(publishableKey)}:${encodeURIComponent(audienceId)}`;
+const audienceId = "ed5e9d77-17b0-4102-8ca5-b0e44b6a4b3c";
+const membershipId = "6ef796c1-e503-4679-b0d7-79966c193ca2";
+const storageKey = `arky:commerce-subscription-checkout:v1:${encodeURIComponent(`${apiUrl}:${publishableKey}`)}:${membershipId}`;
 const request = {
-  audience_id: audienceId,
-  email: "member@example.test",
-  cadence: "monthly",
+  request_id: "5718472c-5ab5-4a5f-99fd-afda6be3ac82",
+  selection: {
+    audience_id: audienceId,
+    membership_id: membershipId,
+    market_id: "ac61b4dc-aa97-4eb2-a27d-366b58232854",
+    sales_channel_id: "d8654f1f-bae5-4ffb-bf5f-de375017f4ed",
+    payment_provider_id: "4a2c7c0d-4389-4aae-b3d7-02ff834a024d",
+    currency: "eur",
+    billing: { type: "recurring", interval: "month", interval_count: 1 },
+  },
+  presentation_digest: "a".repeat(64),
   return_url: "https://merchant.example.test/audience-return",
 };
 const originalDescriptors = new Map(
@@ -57,7 +66,7 @@ function sessionStorage() {
       type: "visitor",
       token: `customer_visitor_${"d".repeat(64)}`,
       status: "active",
-      expires_at: 2_000_000_000,
+      expires_at: 1_900_000_000_000,
     },
   });
   return {
@@ -73,6 +82,8 @@ function storefront() {
 
 function checkoutResult() {
   return {
+    request_id: request.request_id,
+    subscription_id: "cf5e3226-0358-4d77-ba7f-458e1ca87e9d",
     checkout_id: "2a5d2950-6ea7-4d9f-82be-25e947ea7fca",
     publishable_key: "pk_test_audience",
     client_secret: "cs_audience_secret_exact",
@@ -99,7 +110,7 @@ afterEach(() => {
   restoreGlobals();
 });
 
-test("Audience Checkout reuses one SDK-owned request ID after a lost response and reload", async () => {
+test("Subscription Checkout preserves one exact request after a lost response and reload", async () => {
   const { storage } = installBrowserState();
   const calls = [];
   installGlobal("fetch", async (_url, init = {}) => {
@@ -107,7 +118,7 @@ test("Audience Checkout reuses one SDK-owned request ID after a lost response an
     throw new TypeError("response connection was lost");
   });
 
-  await assert.rejects(storefront().audiences.checkout(request));
+  await assert.rejects(storefront().eshop.cart.subscription.checkout(request));
   assert.equal(calls.length, 1);
   assert.match(
     calls[0].request_id,
@@ -121,14 +132,14 @@ test("Audience Checkout reuses one SDK-owned request ID after a lost response an
     calls.push(JSON.parse(init.body));
     return response(checkoutResult());
   });
-  const result = await storefront().audiences.checkout(request);
+  const result = await storefront().eshop.cart.subscription.checkout(request);
 
   assert.deepEqual(calls[1], calls[0]);
   assert.deepEqual(result, checkoutResult());
   assert.equal(storage.getItem(storageKey), null);
 });
 
-test("Audience Checkout rejects changed immutable input while an ambiguous request is retained", async () => {
+test("Subscription Checkout rejects changed accepted context while an ambiguous request is retained", async () => {
   const { storage } = installBrowserState();
   let calls = 0;
   installGlobal("fetch", async () => {
@@ -136,17 +147,17 @@ test("Audience Checkout rejects changed immutable input while an ambiguous reque
     throw new TypeError("response connection was lost");
   });
 
-  await assert.rejects(storefront().audiences.checkout(request));
+  await assert.rejects(storefront().eshop.cart.subscription.checkout(request));
   await assert.rejects(
-    storefront().audiences.checkout({ ...request, cadence: "yearly" }),
-    /different immutable input/,
+    storefront().eshop.cart.subscription.checkout({ ...request, selection: { ...request.selection, billing: { type: "recurring", interval: "year", interval_count: 1 } } }),
+    /different unresolved payload/,
   );
 
   assert.equal(calls, 1);
   assert.notEqual(storage.getItem(storageKey), null);
 });
 
-test("a definite Audience Checkout failure clears the request and permits a new ID", async () => {
+test("a definite Subscription Checkout failure permits an explicit new request ID", async () => {
   const { storage } = installBrowserState();
   const calls = [];
   installGlobal("fetch", async (_url, init = {}) => {
@@ -154,7 +165,7 @@ test("a definite Audience Checkout failure clears the request and permits a new 
     return response(
       {
         message:
-          "Audience Checkout failed definitively; retry with a new request_id",
+          "Subscription Checkout failed definitively; retry with a new request_id",
         error: "BAD_REQUEST",
         statusCode: 400,
         validationErrors: [],
@@ -163,16 +174,16 @@ test("a definite Audience Checkout failure clears the request and permits a new 
     );
   });
 
-  await assert.rejects(storefront().audiences.checkout(request), /failed definitively/);
+  await assert.rejects(storefront().eshop.cart.subscription.checkout(request), /failed definitively/);
   assert.equal(storage.getItem(storageKey), null);
-  await assert.rejects(storefront().audiences.checkout(request), /failed definitively/);
+  await assert.rejects(storefront().eshop.cart.subscription.checkout({ ...request, request_id: "cc2d4e40-fdd5-4a38-88d9-a8a0042f093c" }), /failed definitively/);
 
   assert.equal(calls.length, 2);
   assert.notEqual(calls[0].request_id, calls[1].request_id);
   assert.equal(storage.getItem(storageKey), null);
 });
 
-test("concurrent tabs issue at most one Audience Checkout POST", async () => {
+test("concurrent tabs issue at most one Subscription Checkout POST", async () => {
   installBrowserState();
   let releaseProvider;
   let markProviderEntered;
@@ -190,14 +201,45 @@ test("concurrent tabs issue at most one Audience Checkout POST", async () => {
     return response(checkoutResult());
   });
 
-  const first = storefront().audiences.checkout(request);
+  const first = storefront().eshop.cart.subscription.checkout(request);
   await providerEntered;
   await assert.rejects(
-    storefront().audiences.checkout(request),
+    storefront().eshop.cart.subscription.checkout(request),
     /already active in another tab/,
   );
   releaseProvider();
   await first;
 
   assert.equal(calls, 1);
+});
+
+test("Subscription Checkout cannot POST without writable storage and a cross-tab lock", async () => {
+  let calls = 0;
+  installGlobal("fetch", async () => { calls += 1; return response(checkoutResult()); });
+  installBrowserState();
+  installGlobal("navigator", {});
+  await assert.rejects(storefront().eshop.cart.subscription.checkout(request), /lock is unavailable/);
+  installGlobal("navigator", { locks: new ExclusiveLockManager() });
+  installGlobal("localStorage", { getItem: () => null, setItem() { throw new Error("full"); } });
+  await assert.rejects(storefront().eshop.cart.subscription.checkout(request), /cannot be saved/);
+  assert.equal(calls, 0);
+});
+
+test("Subscription Checkout retains ambiguous request evidence and rejects mismatched success", async () => {
+  const { storage } = installBrowserState();
+  installGlobal("fetch", async () => response({ ...checkoutResult(), request_id: "cc2d4e40-fdd5-4a38-88d9-a8a0042f093c" }));
+  await assert.rejects(storefront().eshop.cart.subscription.checkout(request), /mismatched or invalid/);
+  assert.notEqual(storage.getItem(storageKey), null);
+  assert.equal(storage.getItem(storageKey).includes("client_secret"), false);
+});
+
+test("Subscription Checkout rejects forged money and tenant selectors before network contact", async () => {
+  installBrowserState();
+  let calls = 0;
+  installGlobal("fetch", async () => { calls += 1; return response(checkoutResult()); });
+  for (const field of ["store_id", "price_id", "amount", "payer_email", "customer_id", "origin"]) {
+    await assert.rejects(storefront().eshop.cart.subscription.checkout({ ...request, selection: { ...request.selection, [field]: "forged" } }));
+  }
+  await assert.rejects(storefront().eshop.cart.subscription.checkout({ ...request, selection: { ...request.selection, market_id: undefined } }));
+  assert.equal(calls, 0);
 });

@@ -1,6 +1,7 @@
 export {
   COMMON_CUSTOMER_ACTION_KEYS,
   ScheduledResultTimeoutError,
+  CartPresentationChangedError,
   createStorefront,
 } from "./index";
 export { createCartController } from "./index";
@@ -27,6 +28,7 @@ export {
 export type { BlockReferences } from "./utils/blocks";
 export type {
   ArkyCartInput,
+  ArkyCartCheckoutInput,
   ArkyCartSnapshot,
   ArkyCartStore,
   ArkyCartStatus,
@@ -52,6 +54,9 @@ export type {
   CartControllerAddProductParams,
   CartControllerAddBookingParams,
   CartControllerAddDigitalParams,
+  CartControllerAddAudienceParams,
+  CartCheckoutRequest,
+  RecoverCartCheckoutParams,
   CartControllerCheckoutParams,
   CartControllerClearParams,
   CartControllerInitParams,

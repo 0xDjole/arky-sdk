@@ -98,6 +98,42 @@ header. Customer credentials use the `customer_visitor_`,
 `customer_access_`, and `customer_refresh_` prefixes; `arky_vst_` is rejected. Storage is isolated by
 API endpoint and a fingerprint of the publishable key.
 
+## Independent catalog pricing
+
+`createAdmin().eshop` exposes `price`, `priceList`, `assortment`, `assortmentItem`, `catalog` and
+`catalogEntitlement`. Product variants, digital products and booking offerings do not embed
+Prices. Create the sellable first, then create its independent Price with a typed `sellable`,
+currency, billing, quantity range and status. `price_list_id: null` means a base Price; list Prices
+belong to a reusable PriceList with explicit signed priority. Prices are not selected in the SDK.
+
+Storefront product, digital-product and booking-offering reads accept `include_price` and an
+optional explicitly selected `company_id`. The server checks the caller and current catalog
+grants; sending a Company ID does not grant membership or permission. Company selection is per
+request and is not remembered by the client. Normal catalog reads do not identify a visitor.
+
+```typescript
+const product = await arky.product.get({ id: productId, include_price: true });
+const variant = product.variants[0];
+const displayPrice = arky.utils.formatPrice(variant?.price);
+```
+
+Public sellables contain one nullable `price` and an independent `purchase_allowed` flag. Paid
+Audience offers have a safe price per supported billing cadence. `formatPrice` and `getPriceAmount`
+consume one server-resolved `StorefrontPrice`, not arrays of market or Audience prices. A null
+price is not zero. The public amount is a quantity-one display result; obtain a fresh Cart quote
+for actual quantities and accepted totals. Do not multiply that preview into a checkout authority
+or infer purchase permission merely because a price is visible.
+
+Price updates cannot move a Price to another sellable, list, currency or billing cadence. Update
+nullable fields explicitly and send `expected_updated_at`. Price and PriceList deletion return
+the accepted record, including `status: { type: "deleting" }`; acceptance is not proof of completed
+erasure. Manual price input contains money and a required reason, never a caller-supplied author.
+Accepted Order snapshots retain their separate immutable price provenance.
+
+`admin.eshop.priceList.usage({ id })` reports retained Catalog blockers separately from owned Prices.
+Removing a list does not turn its Prices into base Prices. The coordinated Admin/demo and consumer
+migration is still in progress; no Rule/Listing SDK owner is exposed.
+
 ## Actions and experiments
 
 Customer and business facts use the Actions surface across the SDK. Tracking an action
@@ -133,20 +169,59 @@ console.log(product.slugs.en, product.status);
 console.log(arky.utils.getFreeToSellStock({ inventory }));
 
 await arky.eshop.cart.addProduct(product, product.variants[0], 2);
-await arky.eshop.cart.quote();
-
-const checkout = await arky.eshop.cart.checkout({
+await arky.eshop.cart.quote({
   payment_provider_id: "payment-provider-id",
 });
+const checkout = await arky.eshop.cart.checkout();
 ```
 
-Cart responses expose the three canonical embedded collections: `product_items`,
-`booking_items`, and `digital_items`. A Form submission belongs to the individual item through
+Cart responses expose four canonical embedded collections: `product_items`,
+`booking_items`, `digital_items`, and `audience_items`. A Form submission belongs to the applicable individual item through
 `form_submission_id`; Cart requests and responses no longer carry one cart-wide `forms` array.
 Low-level quote calls use `ProductQuoteInput`, `BookingQuoteInput`, and
-`DigitalProductQuoteInput`, while Cart mutations use `CartProductInput`, `CartBookingInput`, and
-`CartDigitalItemInput`. Trusted Admin mutations accept the corresponding `TrustedCart*` inputs
-with `price_override`.
+`DigitalProductQuoteInput` and `AudienceQuoteInput`, while Cart mutations use `CartProductInput`,
+`CartBookingInput`, `CartDigitalItemInput` and `CartAudienceInput`. Audience input selects an
+Audience and Membership; it does not submit a browser price or override. Trusted Admin product,
+booking and digital mutations accept the corresponding `TrustedCart*` inputs with `price_override`.
+
+Cart has tagged `status.type` and `origin.type`, required `market_id`/`sales_channel_id`, and
+required nullable `customer_id`, `company_id` and `company_location_id`. Provenance is in `origin`,
+not a second top-level Session field. Admin create/update commands select context by UUID. An
+omitted buyer field preserves it on update; explicit `null` clears it. Storefront identity comes
+from its authenticated Session, and public inputs never allow manual price overrides.
+`client.eshop.cart.current({ company_id, company_location_id })` selects a Company explicitly;
+Market and channel for that endpoint come from the server's storefront context.
+
+An `OrderQuote` includes the resolved buyer/context snapshots, all four line families, `locale`
+and `presentation_digest`. Its selected `payment_provider_id` can be null. Low-level checkout
+requires the exact reviewed quote's locale and digest; `initialize` forwards its retained reviewed
+quote. A presentation conflict must be shown for review, not silently requoted and accepted.
+Quote methods use the configured locale unless one is explicitly supplied. Standalone Admin
+`order.getQuote` still accepts a Market key; Cart creation uses a Market UUID.
+
+Checkout submission does not synchronize items or accept new buyer, address or pricing selections.
+Prepare those through Cart mutations and quote first. `initialize` checkout accepts only the
+reviewed provider (if repeated), `return_url` and `clear_after_checkout`.
+
+Browser checkout saves the exact Cart UUID, locale, digest, optional provider and return URL under
+the shared cross-tab durable-request lock before POST. A lost response retains that request;
+`pendingCheckout()` reads it and an explicit `recoverCheckout()` submits the same request without
+requote or Cart mutation. These methods exist on `client.eshop.cart` and `arky.eshop.cart`;
+Admin exposes the same operations with an optional Store selector. Success checks the returned
+Order against a fresh read of that Cart's `converted_order_id` before clearing saved state.
+Do not clear storage manually after a conflict or allocate a new Cart to retry the same purchase.
+The coordinated Server handoff for a stale-presentation conflict is still an implementation gate;
+current conflict handling preserves the request instead of silently accepting its refreshed quote.
+
+```typescript
+const reviewed = await admin.eshop.cart.quote({ id: cart.id, locale: "en" });
+const purchase = await admin.eshop.cart.checkout({
+  id: cart.id,
+  locale: reviewed.locale,
+  presentation_digest: reviewed.presentation_digest,
+  payment_provider_id: reviewed.payment_provider_id ?? undefined,
+});
+```
 
 Product variants expose optional `weight_grams`. Inventory is a separate resource keyed by
 `product_id`, `variant_id`, and `store_location_id`; it persists `on_hand` and `reserved`, while
@@ -195,10 +270,21 @@ const submission = await arky.forms.submitByKey({
 await arky.eshop.bookingService.addToCart(undefined, submission.id);
 ```
 
-Completed Orders embed `product_items`, `booking_items`, and `digital_items`; the child item
+Completed Orders embed `product_items`, `booking_items`, `digital_items`, and `audience_items`; the child item
 snapshots, money, status, Form submission ID, and timestamps arrive with the Order. Product items
 also expose their inventory allocations. There are no separate Order product, digital, Booking, or
 OrderBooking read resources.
+
+Order is accepted purchase history. `order.update` accepts only `confirm` or `cancel`, not product,
+address or price edits. Use Cart for new selections, and the dedicated item/financial/fulfillment
+commands for ongoing obligations. Root and item statuses use `status.type`.
+
+`customer_id`, `company_id`, `company_location_id`, `market_id` and `sales_channel_id` are required
+nullable navigation fields. Their accepted snapshots remain independent of current records.
+`source` is `{ type: "cart", request_id, cart_id }` with nullable Cart navigation, or
+`{ type: "direct", request_id }`. `origin` retains the accepting Storefront Customer/Session or
+Admin actor; it is not live authorization. Render saved names and `snapshot.price.unit_price`,
+and use the line's saved `money.total` for its final total instead of repricing catalog definitions.
 
 Confirmed booking items have dedicated lifecycle commands. Admin clients can cancel, complete, or
 mark an item as a no-show; only the owning EmailAuthenticated CustomerSession can cancel through the
@@ -208,9 +294,10 @@ Each command returns the refreshed Order, and cancellation never implies a payme
 ```typescript
 import { createAdmin } from "arky-sdk/admin";
 
-const bookingCheckout = await arky.eshop.cart.checkout({
+await arky.eshop.cart.quote({
   payment_provider_id: "payment-provider-id",
 });
+const bookingCheckout = await arky.eshop.cart.checkout();
 const customerOrder = await arky.eshop.order.get({
   id: bookingCheckout.order_id,
 });
@@ -290,8 +377,10 @@ ordinary purchase to a Stripe-hosted Checkout page and it never exposes secret c
 ```typescript
 import { mountCheckoutAction } from "arky-sdk";
 
-const result = await arky.eshop.cart.checkout({
+await arky.eshop.cart.quote({
   payment_provider_id: "stripe-payment-provider-id",
+});
+const result = await arky.eshop.cart.checkout({
   return_url: window.location.href,
 });
 
@@ -425,6 +514,7 @@ await admin.store.update({
   billing_email: "billing@example.com",
   contact_email: "team@example.com",
   default_market_id: "market-id",
+  default_sales_channel_id: "sales-channel-id",
   default_language: "en",
   supported_languages: ["en", "bs"],
 });
@@ -442,6 +532,93 @@ values with the shared `PostalAddress` shape. Webhooks and Build Hooks are addre
 use `active`/`disabled` status values. Membership IDs are opaque, Server-generated UUID-v4 values;
 `StoreUsage` represents one feature and either its current total or one UTC calendar month.
 Booking quotas use the canonical `booking_services` and `booking_resources` feature keys.
+
+Store creation also requires `initial_market: { key, currency, tax_mode }`; for example,
+`{ key: "bih", currency: "bam", tax_mode: "inclusive" }`. Server creates that Market and the initial
+SalesChannel in the Store transaction. Store reads always contain `default_market_id` and
+`default_sales_channel_id`. An update may select other current same-Store defaults; neither accepts
+`null`, and the SDK does not select a replacement for the operator.
+
+### Companies and commercial groups
+
+Company management is top-level: `admin.companies` exposes `create`, `get`, `find`, `update`,
+`usage` and `delete`. Its `membership`, `role` and `location` owners expose their corresponding
+commands. Company Customers are members, while roles define explicit Company permissions;
+neither an arbitrary Company ID nor a commercial group grants membership or sign-in proof.
+
+```typescript
+const company = await admin.companies.create({
+  name: "Buyer Ltd",
+  profile: {
+    legal_name: "Buyer Ltd",
+    registration_number: null,
+    tax_number: null,
+    contact_email: "accounts@example.com",
+    contact_phone: null,
+    registered_address: null,
+  },
+  status: { type: "active" },
+});
+
+const roles = await admin.companies.role.find({ key: "buyer" });
+const buyerRole = roles.items[0];
+if (!buyerRole) throw new Error("The Store's buyer role is unavailable");
+
+await admin.companies.membership.create({
+  company_id: company.id,
+  customer_id: "customer-uuid-v4",
+  role_ids: [buyerRole.id],
+});
+
+const group = await admin.eshop.customerGroup.create({
+  key: "wholesale",
+  name: "Wholesale",
+  status: { type: "active" },
+});
+await admin.eshop.customerGroupCompany.create({
+  customer_group_id: group.id,
+  company_id: company.id,
+});
+```
+
+`CompanyProfile` and `CompanyAddress` mirror strict wire values: include every declared field and
+use `null` for an absent value. Address fields are `name`, `company`, `street1`, `street2`, `city`,
+`state`, `postal_code`, `country`, `phone` and `email`. CompanyLocation's shipping address must also
+satisfy Server shipping validation. A location update explicitly supplies `billing_address`,
+including `null` to clear it. Roles expose Server-owned `is_system`; callers cannot create that
+flag, edit built-in roles or change a role's key. The closed permission set distinguishes placing
+Orders from creating Subscriptions and own history from Company history.
+
+`admin.eshop.customerGroupCustomer` manages direct Customer edges, and
+`admin.eshop.customerGroupCompany` manages Company edges. These immutable relationships have
+`create`, `get`, `find` and `delete`, not a generic update. Commercial groups are not Audiences and
+do not subscribe anyone to marketing. Find results use `items` and an explicit continuation
+`cursor`; supplying both group and target filters selects an exact edge rather than a paged scan.
+Company membership queries select at most one of Company, Customer or role. Server validates
+supported filter combinations and current authority.
+
+### Markets, SalesChannels and deletion
+
+`admin.store.salesChannel` exposes typed `create`, `get`, `find`, `update`, `usage` and `delete`.
+Market management uses `admin.store.market`: `list()`, `get(id)`, `usage(id)`, `create`, `update`
+and `delete`. Market key/currency and SalesChannel key are immutable. Market reads use tagged
+`active`/`deleting` status; SalesChannels can additionally be archived.
+
+Company, membership, role, location, group, edge, channel and Market edits/deletes require the
+current `updated_at` as `expected_updated_at` where those commands exist. Inspect each available
+`usage` response before deletion: it names bounded actual dependencies, including CatalogEntitlements,
+with `more_*` flags. Default Market deletion needs `replacement_default_market_id`; default channel
+archival/deletion needs `replacement_default_sales_channel_id`. An unused non-default definition
+needs no replacement. Server checks live dependencies and validates any replacement in the same
+transaction; the SDK neither clears a grant nor silently reassigns a buyer's context.
+
+A successful asynchronous delete returns the exact record with `status.type === "deleting"`
+from HTTP 202, not a boolean or proof of physical removal. Reload after changes or a conflict;
+do not manufacture a newer version or replacement operation. Normal request options, cancellation
+signals and SDK errors are preserved. These operator APIs do not implement a storefront Company
+switcher or bypass backend permission checks.
+
+### Other operator commands
 
 Inspect skipped incoming emails through the Mailbox's read-only diagnostics:
 
@@ -540,25 +717,31 @@ if (itemDiscount?.type === "item_percentage") {
 `item_fixed` and `minimum_order_amount` carry a shared `Money` value. Redemption windows use
 nullable `starts_at` and `ends_at`; per-customer limits use the Customer vocabulary.
 
-Order refunds use one stable UUID-v4 for the concrete refund. Persist that ID with the immutable
+Refunds use the collected Payment ID and one stable UUID-v4 for the concrete refund. Persist that ID with the immutable
 request before sending or retrying a Stripe refund. After an operator has physically returned a
 cash-on-delivery payment, record the completed return through the dedicated command:
 
 ```typescript
-const result = await admin.eshop.order.recordCashOnDeliveryRefund({
-  order_id: "order-id",
+const result = await admin.eshop.refund.recordCashOnDelivery({
+  payment_id: "payment-id",
   refund_id: "persisted-refund-uuid-v4",
   amount: 2500,
-  allocations: [
-    { type: "product", item_id: "order-product-item-id", amount: 2500 },
-  ],
+  application: {
+    type: "order_items",
+    allocations: [
+      { type: "product", item_id: "order-product-item-id", amount: 2500 },
+    ],
+  },
   reason: "customer_request",
 });
 
 console.log(result.money.amount, result.money.currency, result.status);
 ```
 
-Refund reads expose typed provider evidence, one `money` value, and canonical product, booking,
+Use admin.eshop.refund.create for Stripe requests, get({ id }) for one Refund and
+find({ payment_id }) for a Payment's history (omit payment_id for Store history). The OrderItems
+application is checked against that Payment's exact Order. Invoice admission remains unavailable
+until the coordinated Subscription integration is complete. Refund reads expose typed provider evidence, one `money` value, and canonical product, booking,
 digital, shipping, or adjustment allocations. Payment disputes are read-only Stripe facts available
 through `admin.eshop.order.getDisputes` and `admin.eshop.order.getDispute`; their public provider
 evidence contains only `dispute_id` and `charge_id`.

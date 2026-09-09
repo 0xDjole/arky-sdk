@@ -1,4 +1,4 @@
-import type { OrderMoney, Price } from '../types';
+import type { OrderMoney, StorefrontPrice } from '../types';
 
 type OrderTotal = Pick<OrderMoney, 'total' | 'currency'>;
 
@@ -78,17 +78,13 @@ export function formatPayment(payment: OrderTotal): string {
     return formatMinor(payment.total, payment.currency);
 }
 
-export function formatPrice(prices: Price[], marketId?: string): string {
-    if (!prices || prices.length === 0 || !marketId) return '';
-
-    const price = prices.find(p => p.market === marketId);
-    if (!price || !Number.isSafeInteger(price.amount) || price.amount < 0 || !price.currency) return '';
-
-    return formatMinor(price.amount, price.currency);
+export function formatPrice(price: StorefrontPrice | null | undefined): string {
+    const amount = getPriceAmount(price);
+    if (amount === null || !price) return '';
+    return formatMinor(amount, price.unit_price.currency);
 }
 
-export function getPriceAmount(prices: Price[], marketId: string): number | null {
-    if (!prices || prices.length === 0 || !marketId) return null;
-    const price = prices.find(p => p.market === marketId);
-    return price && Number.isSafeInteger(price.amount) && price.amount >= 0 ? price.amount : null;
+export function getPriceAmount(price: StorefrontPrice | null | undefined): number | null {
+    if (!price || !Number.isSafeInteger(price.unit_price.amount) || price.unit_price.amount < 0) return null;
+    return price.unit_price.amount;
 }

@@ -8,6 +8,7 @@ export { buildFormFields, createFormEntry, createFormEntryFromValues } from "./u
 export type {
   ArkyCalendarDay,
   ArkyCartInput,
+  ArkyCartCheckoutInput,
   ArkyCartSnapshot,
   ArkyCartStatus,
   ArkyContentEntryParams,

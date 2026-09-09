@@ -1,4 +1,6 @@
 import type { EpochMilliseconds } from "../types/time";
+import type { CatalogReadOptions } from "../types/catalog";
+import { sanitizePublicCartAudiences, sanitizePublicCartDigitalProducts } from "../utils/cartInputs";
 import {
   epochMilliseconds,
   epochMillisecondsNow,
@@ -31,6 +33,7 @@ import type {
   Block,
   Cart,
   CartDigitalItem,
+  CartAudienceItem,
   EshopCartItem,
   CollectionEntry,
   Form,
@@ -38,7 +41,6 @@ import type {
   OrderCheckoutResult,
   OrderQuote,
   PaginatedResponse,
-  Price,
   Product,
   ProductVariant,
   BookingResource,
@@ -48,7 +50,7 @@ import type {
 } from "../types";
 import type {
   AvailabilityResponse,
-  CheckoutCartParams,
+  CartAudienceInput,
   FindBookingOfferingsParams,
   GetAvailabilityParams,
   GetCollectionParams,
@@ -77,6 +79,8 @@ import type {
   ArkyCalendarDay,
   ArkyContentEntryParams,
   ArkyCartInput,
+  ArkyCartCheckoutInput,
+  CheckoutContext,
   ArkyCartStatus,
   ArkyContentState,
   ArkyFormsState,
@@ -102,7 +106,6 @@ import {
   hasAvailableSlotsForDate,
   locationToAddress,
   normalizeTimezoneGroups,
-  priceForMarket,
   productName,
   bookingResourceName,
   readErrorMessage,
@@ -110,20 +113,6 @@ import {
   toCartProducts,
   toCartBookings,
 } from "./utils";
-
-type StorefrontCheckoutRequest = StorefrontParams<CheckoutCartParams>;
-
-interface CheckoutContext {
-  request: StorefrontCheckoutRequest;
-  product_items: EshopCartItem[];
-  booking_items: ArkyBookingCartItem[];
-  digital_items: CartDigitalItem[];
-  shipping_address: Address | null;
-  billing_address: Address | null;
-  payment_provider_id: string | null;
-  clear_after_checkout: boolean;
-  created_at: EpochMilliseconds;
-}
 
 function initializeStoreCore(
   publishableKey: string,
@@ -152,6 +141,7 @@ function initializeStoreCore(
   const product_items = atom<EshopCartItem[]>([]);
   const booking_items = atom<ArkyBookingCartItem[]>([]);
   const digital_items = atom<CartDigitalItem[]>([]);
+  const audience_items = atom<CartAudienceItem[]>([]);
   const quote = atom<StorefrontOrderQuote | null>(null);
   const promo_code = atom<string | null>(null);
   const last_order = atom<ArkyLastOrder | null>(null);
@@ -200,20 +190,21 @@ function initializeStoreCore(
       Math.max(rawDigitalItemCount(cartValue), items.length),
   );
   const item_count = computed(
-    [cart, product_item_count, booking_item_count, digital_item_count],
-    (cartValue, products, services, digitalProducts) =>
+    [cart, product_item_count, booking_item_count, digital_item_count, audience_items],
+    (cartValue, products, services, digitalProducts, audiences) =>
       Math.max(
         cartValue?.item_count || 0,
-        products + services + digitalProducts,
+        products + services + digitalProducts + audiences.length,
       ),
   );
   const snapshot = computed(
-    [cart, product_items, booking_items, digital_items, item_count],
-    (cartValue, products, services, digitalProducts, count) => ({
+    [cart, product_items, booking_items, digital_items, audience_items, item_count],
+    (cartValue, products, services, digitalProducts, audiences, count) => ({
       cart: cartValue,
       product_items: products,
       booking_items: services,
       digital_items: digitalProducts,
+      audience_items: audiences,
       item_count: count,
     }),
   );
@@ -358,7 +349,10 @@ function initializeStoreCore(
     const refreshRevision = cartWriteRevision;
     cartRequest = (async () => {
       await ensureSession();
-      const response = await client.eshop.cart.current();
+      const pending = await client.eshop.cart.pendingCheckout();
+      const response = pending
+        ? await client.eshop.cart.get({ id: pending.id })
+        : await client.eshop.cart.current();
       await applyCartResponse(response, { ifRevision: refreshRevision });
       return response;
     })();
@@ -380,13 +374,14 @@ function initializeStoreCore(
   async function buildProductCartItem(
     item: CartProductInput,
     source: StorefrontCart,
-    productHint?: StorefrontProduct,
   ): Promise<EshopCartItem | null> {
     try {
       const [product, inventory] = await Promise.all([
-        productHint?.id === item.product_id
-          ? Promise.resolve(productHint)
-          : client.eshop.product.get({ id: item.product_id }),
+        client.eshop.product.get({
+          id: item.product_id,
+          company_id: source.company_id ?? undefined,
+          include_price: true,
+        }),
         client.eshop.product.getInventory({ id: item.product_id }),
       ]);
       const variant = product.variants.find(
@@ -408,11 +403,7 @@ function initializeStoreCore(
         variant_attributes:
           variant.attributes as EshopCartItem["variant_attributes"],
         requires_shipping: variant.requires_shipping !== false,
-        price: priceForMarket(
-          variant.prices,
-          currentMarketKey(),
-          market.get()?.currency,
-        ),
+        price: variant.price,
         quantity: item.quantity,
         form_submission_id: item.form_submission_id ?? null,
         added_at: epochMilliseconds(source.created_at),
@@ -443,7 +434,7 @@ function initializeStoreCore(
 
   async function applyCartResponse(
     response: StorefrontCart,
-    options: { ifRevision?: number; productHint?: StorefrontProduct } = {},
+    options: { ifRevision?: number } = {},
   ): Promise<StorefrontCart> {
     if (
       options.ifRevision !== undefined &&
@@ -460,13 +451,21 @@ function initializeStoreCore(
     promo_code.set(response.promo_code || null);
     quote.set(null);
 
+    if (response.status.type === "converted") {
+      product_items.set([]);
+      booking_items.set([]);
+      digital_items.set([]);
+      audience_items.set([]);
+      return response;
+    }
+
     const cartProducts = response.product_items || [];
     const cartBookings = response.booking_items || [];
     const cartDigitalProducts = response.digital_items || [];
     if (cartProducts.length > 0 || cartBookings.length > 0) await loadSetup();
     const products = await Promise.all(
       cartProducts.map((item) =>
-        buildProductCartItem(item, response, options.productHint),
+        buildProductCartItem(item, response),
       ),
     );
     const services = await buildBookingCartItems(cartBookings);
@@ -475,6 +474,7 @@ function initializeStoreCore(
     );
     booking_items.set(services);
     digital_items.set(cartDigitalProducts);
+    audience_items.set(response.audience_items);
     return response;
   }
 
@@ -489,13 +489,11 @@ function initializeStoreCore(
   function checkoutDigitalProducts(
     input: ArkyCartInput = {},
   ): CartDigitalItemInput[] {
-    return (input.digital_items || digital_items.get()).map((item) => ({
-      ...(item.id ? { id: item.id } : {}),
-      digital_product_id: item.digital_product_id,
-      ...(item.form_submission_id
-        ? { form_submission_id: item.form_submission_id }
-        : {}),
-    }));
+    return sanitizePublicCartDigitalProducts(input.digital_items || digital_items.get());
+  }
+
+  function checkoutAudiences(input: ArkyCartInput = {}): CartAudienceInput[] {
+    return sanitizePublicCartAudiences(input.audience_items ?? audience_items.get());
   }
 
   async function syncCart(
@@ -511,6 +509,11 @@ function initializeStoreCore(
         product_items: checkoutProducts(input),
         booking_items: checkoutBookings(input),
         digital_items: checkoutDigitalProducts(input),
+        audience_items: checkoutAudiences(input),
+        company_id: input.company_id,
+        company_location_id: input.company_location_id,
+        market_id: input.market_id,
+        sales_channel_id: input.sales_channel_id,
         shipping_address: input.shipping_address,
         billing_address: input.billing_address,
         promo_code:
@@ -560,7 +563,6 @@ function initializeStoreCore(
       });
       await applyCartResponse(response, {
         ifRevision: writeRevision,
-        productHint: product,
       });
       return response;
     } catch (error) {
@@ -616,13 +618,13 @@ function initializeStoreCore(
   }
 
   async function addDigitalProduct(
-    digitalProductId: string,
+    item: CartDigitalItemInput,
   ): Promise<StorefrontCart> {
     const writeRevision = nextCartWriteRevision();
     const current = cart.get() || (await ensureCart());
     const response = await client.eshop.cart.addDigital({
       id: current.id,
-      digital: { digital_product_id: digitalProductId },
+      digital: sanitizePublicCartDigitalProducts([item])[0],
     });
     await applyCartResponse(response, { ifRevision: writeRevision });
     return response;
@@ -638,6 +640,26 @@ function initializeStoreCore(
       id: current.id,
       item_id: itemId,
     });
+    await applyCartResponse(response, { ifRevision: writeRevision });
+    return response;
+  }
+
+  async function addAudience(item: CartAudienceInput): Promise<StorefrontCart> {
+    const writeRevision = nextCartWriteRevision();
+    const current = cart.get() || (await ensureCart());
+    const response = await client.eshop.cart.addAudience({
+      id: current.id,
+      audience: sanitizePublicCartAudiences([item])[0],
+    });
+    await applyCartResponse(response, { ifRevision: writeRevision });
+    return response;
+  }
+
+  async function removeAudience(itemId: string): Promise<StorefrontCart | null> {
+    const writeRevision = nextCartWriteRevision();
+    const current = cart.get();
+    if (!current) return null;
+    const response = await client.eshop.cart.removeItem({ id: current.id, item_id: itemId });
     await applyCartResponse(response, { ifRevision: writeRevision });
     return response;
   }
@@ -663,6 +685,7 @@ function initializeStoreCore(
     product_items.set([]);
     booking_items.set([]);
     digital_items.set([]);
+    audience_items.set([]);
     cart.set(null);
     quote.set(null);
     promo_code.set(null);
@@ -675,7 +698,8 @@ function initializeStoreCore(
     if (
       checkoutProducts(input).length === 0 &&
       checkoutBookings(input).length === 0 &&
-      checkoutDigitalProducts(input).length === 0
+      checkoutDigitalProducts(input).length === 0 &&
+      checkoutAudiences(input).length === 0
     ) {
       quote.set(null);
       return null;
@@ -703,6 +727,11 @@ function initializeStoreCore(
     context: CheckoutContext,
     response: StorefrontOrderCheckoutResult,
   ): StorefrontOrderCheckoutResult {
+    const current = cart.get();
+    if (current?.id === context.request.id) {
+      cart.set({ ...current, status: { type: "converted" }, converted_order_id: response.order_id });
+    }
+    quote.set(null);
     last_order.set({
       order_id: response.order_id,
       number: response.number,
@@ -711,6 +740,7 @@ function initializeStoreCore(
       product_items: context.product_items,
       booking_items: context.booking_items,
       digital_items: context.digital_items,
+      audience_items: context.audience_items,
       shipping_address: context.shipping_address,
       billing_address: context.billing_address,
       total: response.payment?.amounts.total ?? 0,
@@ -728,8 +758,8 @@ function initializeStoreCore(
 
     if (
       context.clear_after_checkout &&
-      !["pending", "processing", "requires_action", "unknown"].includes(
-        response.payment.status,
+      ["paid", "partially_refunded", "refunded", "cancelled", "expired", "failed"].includes(
+        response.payment.status?.type,
       )
     ) {
       clearLocalCart();
@@ -751,23 +781,20 @@ function initializeStoreCore(
   }
 
   async function checkout(
-    input: ArkyCartInput = {},
+    input: ArkyCartCheckoutInput = {},
   ): Promise<StorefrontOrderCheckoutResult> {
-    if (
-      checkoutProducts(input).length === 0 &&
-      checkoutBookings(input).length === 0 &&
-      checkoutDigitalProducts(input).length === 0
-    ) {
-      throw new Error("Cart is empty");
-    }
+    if (Object.keys(input).some((key) => !["payment_provider_id", "return_url", "clear_after_checkout"].includes(key)))
+      throw new Error("Update and review Cart selections before checkout");
     return runCheckout(async () => {
-      const current = await syncCart(input);
+      const pending = await client.eshop.cart.pendingCheckout();
+      if (pending) throw new Error("Recover the unresolved Cart Checkout before submitting another request");
       const quoteValue = quote.get();
-      const paymentProviderId =
-        input.payment_provider_id ||
-        current.payment_provider_id ||
-        quoteValue?.payment_provider_id ||
-        undefined;
+      if (!quoteValue) throw new Error("Review a Cart quote before checkout");
+      const current = cart.get();
+      if (!current || current.status.type === "converted") throw new Error("Review an active Cart before checkout");
+      if (input.payment_provider_id !== undefined && input.payment_provider_id !== quoteValue.payment_provider_id)
+        throw new Error("Review the selected payment provider in a new Cart quote before checkout");
+      const paymentProviderId = quoteValue.payment_provider_id ?? undefined;
       const returnUrl =
         input.return_url ||
         (typeof window !== "undefined" ? window.location.href : undefined);
@@ -775,20 +802,40 @@ function initializeStoreCore(
       const context: CheckoutContext = {
         request: {
           id: current.id,
+          locale: quoteValue.locale,
+          presentation_digest: quoteValue.presentation_digest,
           payment_provider_id: paymentProviderId,
           return_url: returnUrl,
         },
-        product_items: input.product_items || product_items.get(),
-        booking_items: input.booking_items || booking_items.get(),
-        digital_items: input.digital_items || digital_items.get(),
-        shipping_address: input.shipping_address || null,
-        billing_address: input.billing_address || null,
+        product_items: product_items.get(),
+        booking_items: booking_items.get(),
+        digital_items: digital_items.get(),
+        audience_items: current.audience_items,
+        shipping_address: current.shipping_address,
+        billing_address: current.billing_address,
         payment_provider_id: paymentProviderId || null,
         clear_after_checkout: input.clear_after_checkout !== false,
         created_at: epochMillisecondsNow(),
       };
       const response = await client.eshop.cart.checkout(context.request);
       return finalizeCheckout(context, response);
+    });
+  }
+
+  async function recoverCheckout(): Promise<StorefrontOrderCheckoutResult | null> {
+    return runCheckout(async () => {
+      const pending = await client.eshop.cart.pendingCheckout();
+      if (!pending) return null;
+      const response = await client.eshop.cart.recoverCheckout();
+      if (!response) return null;
+      return finalizeCheckout({
+        request: pending,
+        product_items: [], booking_items: [], digital_items: [], audience_items: [],
+        shipping_address: null, billing_address: null,
+        payment_provider_id: pending.payment_provider_id ?? null,
+        clear_after_checkout: false,
+        created_at: epochMillisecondsNow(),
+      }, response);
     });
   }
 
@@ -1064,6 +1111,7 @@ function initializeStoreCore(
             client.eshop.bookingService.get({ id: bookingService.id }),
             client.eshop.bookingOffering.find({
               booking_service_id: bookingService.id,
+              include_price: true,
             }),
             client.eshop.bookingResource.find({
               booking_service_id: bookingService.id,
@@ -1323,9 +1371,7 @@ function initializeStoreCore(
       booking_service_state.setKey("loading", true);
       try {
         const result = await checkout({
-          booking_items: items,
           payment_provider_id: paymentProviderId,
-          promo_code: state.promoCode || undefined,
         });
         booking_service_state.setKey("cartId", cart.get()?.id || null);
         return result;
@@ -1402,12 +1448,7 @@ function initializeStoreCore(
       const offering = resolveBookingOffering(state);
       if (!offering) return "";
       try {
-        const price = priceForMarket(
-          offering.prices,
-          currentMarketKey(),
-          market.get()?.currency,
-        );
-        return client.utils.formatPrice([price]);
+        return client.utils.formatPrice(offering.price);
       } catch {
         return "";
       }
@@ -1533,9 +1574,9 @@ function initializeStoreCore(
   }
 
   async function loadProducts(
-    params: StorefrontParams<GetProductsParams> = {},
+    params: StorefrontParams<Omit<GetProductsParams, "status">> & CatalogReadOptions = {},
     options?: RequestOptions,
-  ): Promise<StorefrontPage<Product>> {
+  ): Promise<StorefrontPage<StorefrontProduct>> {
     eshop_state.setKey("loading_products", true);
     eshop_state.setKey("error", null);
     try {
@@ -1636,10 +1677,12 @@ function initializeStoreCore(
   }
 
   const cart_store = {
+    subscription: client.eshop.cart.subscription,
     cart,
     product_items,
     booking_items,
     digital_items,
+    audience_items,
     quote_result: quote,
     promo_code,
     last_order,
@@ -1658,10 +1701,14 @@ function initializeStoreCore(
     removeBooking,
     addDigital: addDigitalProduct,
     removeDigital: removeDigitalProduct,
+    addAudience,
+    removeAudience,
     clear: clearCart,
     clearLocal: clearLocalCart,
     quote: fetchQuote,
     checkout,
+    pendingCheckout: () => client.eshop.cart.pendingCheckout(),
+    recoverCheckout,
     applyPromoCode(
       code: string,
       input: Omit<ArkyCartInput, "promo_code"> = {},
@@ -1681,6 +1728,7 @@ function initializeStoreCore(
         product_items: checkoutProducts(input),
         booking_items: checkoutBookings(input),
         digital_items: checkoutDigitalProducts(input),
+        audience_items: checkoutAudiences(input),
       };
     },
     buildProductItems: toCartProducts,
@@ -1689,7 +1737,7 @@ function initializeStoreCore(
 
   const product_store = {
     get: (
-      params: StorefrontParams<GetProductParams>,
+      params: StorefrontParams<GetProductParams> & CatalogReadOptions,
       options?: RequestOptions,
     ) => client.eshop.product.get(params, options),
     getInventory: (
@@ -1706,7 +1754,7 @@ function initializeStoreCore(
     ) => client.eshop.bookingService.get(params, options),
     list: loadBookingServices,
     listOfferings: (
-      params: StorefrontParams<FindBookingOfferingsParams>,
+      params: StorefrontParams<Omit<FindBookingOfferingsParams, "status">> & CatalogReadOptions,
       options?: RequestOptions,
     ) => client.eshop.bookingOffering.find(params, options),
     getAvailability: loadBookingAvailability,

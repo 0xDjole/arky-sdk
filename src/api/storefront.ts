@@ -1,9 +1,11 @@
 import type { EpochMilliseconds } from "../types/time";
+import type { CheckoutSubscriptionParams, QuoteSubscriptionParams, SubscriptionCheckoutResult, SubscriptionQuote } from "../types/subscription";
+import { checkoutSubscription, subscriptionSelection } from "../services/subscription";
+import { checkoutCart, pendingCartCheckout, recoverCartCheckout, withCartMutation } from "../services/cartCheckout";
+import type { CartCheckoutTransport, CartCheckoutRequest } from "../types/cartCheckout";
 import type { StorefrontApiConfig } from "../services/clientTypes";
 import type {
-  AddCartBookingParams,
-  AddCartDigitalProductParams,
-  AddCartProductParams,
+  AddCartAudienceParams,
   AvailabilityResponse,
   CheckoutCartParams,
   ClearCartParams,
@@ -41,10 +43,8 @@ import type {
   RemoveCartItemParams,
   RequestOptions,
   JoinAudienceParams,
-  StartAudienceCheckoutParams,
   SubmitFormParams,
   UnsubscribeAudienceParams,
-  UpdateCartParams,
 } from "../types/api";
 import type {
   Cart,
@@ -74,12 +74,17 @@ import type {
   BookingResource,
   BookingService,
   BookingOffering,
-  StartAudienceCheckoutResult,
   StorefrontAudience,
   Classification,
 } from "../types";
 import type {
   StorefrontCustomer,
+  StorefrontCurrentCartParams,
+  StorefrontUpdateCartParams,
+  StorefrontAddCartProductParams,
+  StorefrontAddCartBookingParams,
+  StorefrontAddCartDigitalParams,
+  StorefrontProduct,
   StorefrontBookingOffering,
   StorefrontBookingResource,
   StorefrontBookingService,
@@ -89,6 +94,7 @@ import type {
   StorefrontParams,
   StorefrontZone,
 } from "../types/storefront";
+import type { CatalogReadOptions } from "../types/catalog";
 export type {
   StorefrontCustomer,
   StorefrontBookingOffering,
@@ -101,124 +107,11 @@ export type {
 } from "../types/storefront";
 import {
   sanitizePublicCartBookings,
+  sanitizePublicCartAudiences,
+  sanitizePublicCartUpdate,
   sanitizePublicCartDigitalProducts,
   sanitizePublicCartProducts,
 } from "../utils/cartInputs";
-import {
-  DurableRequestStorageError,
-  clearDurableRequest,
-  durableRequestPayload,
-  getOrCreateDurableRequest,
-  readDurableRequest,
-  withDurableRequestLock,
-} from "../utils/durableRequest";
-
-const audienceCheckoutLabel = "Audience Checkout";
-const canonicalUuidV4 =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-
-interface DurableAudienceCheckoutRequest {
-  audience_id: string;
-  request_id: string;
-  email: string;
-  cadence: "one_time" | "monthly" | "yearly";
-  return_url: string;
-}
-
-function browserHasDurableStorage(): boolean {
-  return typeof globalThis.window !== "undefined";
-}
-
-function responseStatusCode(value: unknown): number | null {
-  if (typeof value !== "object" || value === null || !("statusCode" in value)) {
-    return null;
-  }
-  return typeof value.statusCode === "number" ? value.statusCode : null;
-}
-
-function newAudienceCheckoutRequestId(): string {
-  const id = globalThis.crypto?.randomUUID?.();
-  if (!id || !canonicalUuidV4.test(id)) {
-    throw new DurableRequestStorageError(
-      `Cannot safely start ${audienceCheckoutLabel} because UUID-v4 generation is unavailable`,
-    );
-  }
-  return id;
-}
-
-function audienceCheckoutStorageKey(
-  apiConfig: StorefrontApiConfig,
-  audienceId: string,
-): string {
-  return `arky:audience-checkout:v1:${encodeURIComponent(apiConfig.apiUrl.toLowerCase())}:${encodeURIComponent(apiConfig.publishableKey)}:${encodeURIComponent(audienceId)}`;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function persistedAudienceCheckoutRequest(
-  value: unknown,
-): DurableAudienceCheckoutRequest {
-  if (!isRecord(value)) {
-    throw new DurableRequestStorageError(
-      `Cannot safely continue ${audienceCheckoutLabel} because its durable payload is invalid`,
-    );
-  }
-  const keys = Object.keys(value);
-  const expectedKeys = [
-    "audience_id",
-    "request_id",
-    "email",
-    "cadence",
-    "return_url",
-  ];
-  if (
-    keys.length !== expectedKeys.length ||
-    expectedKeys.some((key) => !keys.includes(key)) ||
-    typeof value.audience_id !== "string" ||
-    typeof value.request_id !== "string" ||
-    !canonicalUuidV4.test(value.request_id) ||
-    typeof value.email !== "string" ||
-    (value.cadence !== "one_time" &&
-      value.cadence !== "monthly" &&
-      value.cadence !== "yearly") ||
-    typeof value.return_url !== "string"
-  ) {
-    throw new DurableRequestStorageError(
-      `Cannot safely continue ${audienceCheckoutLabel} because its durable payload is invalid`,
-    );
-  }
-  return value as unknown as DurableAudienceCheckoutRequest;
-}
-
-function audienceCheckoutInputMatches(
-  request: DurableAudienceCheckoutRequest,
-  params: StorefrontParams<StartAudienceCheckoutParams>,
-): boolean {
-  return (
-    request.audience_id === params.audience_id &&
-    request.email === params.email &&
-    request.cadence === params.cadence &&
-    request.return_url === params.return_url
-  );
-}
-
-function matchingAudienceCheckoutResult(
-  value: StartAudienceCheckoutResult,
-): boolean {
-  return (
-    canonicalUuidV4.test(value.checkout_id) &&
-    typeof value.publishable_key === "string" &&
-    value.publishable_key.length > 0 &&
-    typeof value.client_secret === "string" &&
-    value.client_secret.length > 0 &&
-    typeof value.connected_account_id === "string" &&
-    value.connected_account_id.length > 0 &&
-    Number.isSafeInteger(value.expires_at) &&
-    value.expires_at > 0
-  );
-}
 
 export interface CustomerSessionInternal {
   customer: StorefrontCustomer;
@@ -363,6 +256,19 @@ export const createStorefrontApi = (
   lifecycle: StorefrontLifecycle,
 ) => {
   const base = "/v1/storefront";
+  const checkoutScope = `storefront:${apiConfig.apiUrl}:${apiConfig.publishableKey}`;
+  const checkoutTransport: CartCheckoutTransport<StorefrontDto<OrderCheckoutResult>> = {
+    async post({ id, ...request }, options) {
+      await lifecycle.ensureVisitorSession();
+      return apiConfig.httpClient.post<StorefrontDto<OrderCheckoutResult>>(
+        `${base}/carts/${encodeURIComponent(id)}/checkout`, request, options,
+      );
+    },
+    async getCart(id, options) {
+      await lifecycle.ensureVisitorSession();
+      return apiConfig.httpClient.get<StorefrontDto<Cart>>(`${base}/carts/${encodeURIComponent(id)}`, options);
+    },
+  };
 
   function persistIssuedSession<T extends IdentifyResponse>(result: T): T {
     updateCustomerSession(() => ({
@@ -623,7 +529,10 @@ export const createStorefrontApi = (
         ): Promise<StorefrontDto<StorefrontDigitalProduct>> {
           return apiConfig.httpClient.get<
             StorefrontDto<StorefrontDigitalProduct>
-          >(`${base}/digital-products/${params.identifier}`, options);
+          >(`${base}/digital-products/${encodeURIComponent(params.identifier)}`, {
+            ...options,
+            params: { company_id: params.company_id, include_price: params.include_price },
+          });
         },
         async library(
           params: FindStorefrontDigitalProductsParams = {},
@@ -667,15 +576,15 @@ export const createStorefrontApi = (
       },
       product: {
         get(
-          params: StorefrontParams<GetProductParams>,
+          params: StorefrontParams<GetProductParams> & CatalogReadOptions,
           options?: RequestOptions,
-        ): Promise<StorefrontDto<Product>> {
+        ): Promise<StorefrontProduct> {
           const identifier = params.id ?? params.slug;
           if (!identifier)
             throw new Error("GetProductParams requires id or slug");
-          return apiConfig.httpClient.get<StorefrontDto<Product>>(
-            `${base}/products/${identifier}`,
-            options,
+          return apiConfig.httpClient.get<StorefrontProduct>(
+            `${base}/products/${encodeURIComponent(identifier)}`,
+            { ...options, params: { company_id: params.company_id, include_price: params.include_price } },
           );
         },
         getInventory(
@@ -691,22 +600,59 @@ export const createStorefrontApi = (
           );
         },
         find(
-          params: StorefrontParams<GetProductsParams>,
+          params: StorefrontParams<Omit<GetProductsParams, "status">> & CatalogReadOptions,
           options?: RequestOptions,
-        ): Promise<StorefrontDto<PaginatedResponse<Product>>> {
+        ): Promise<PaginatedResponse<StorefrontProduct>> {
           return apiConfig.httpClient.get<
-            StorefrontDto<PaginatedResponse<Product>>
+            PaginatedResponse<StorefrontProduct>
           >(`${base}/products`, { ...options, params });
         },
       },
       cart: {
-        async current(options?: RequestOptions): Promise<StorefrontDto<Cart>> {
+        subscription: {
+          async quote(
+            params: StorefrontParams<QuoteSubscriptionParams>,
+            options?: RequestOptions,
+          ): Promise<StorefrontDto<SubscriptionQuote>> {
+            const selection = subscriptionSelection(params.selection);
+            await lifecycle.ensureVisitorSession();
+            return apiConfig.httpClient.post<StorefrontDto<SubscriptionQuote>>(
+              `${base}/carts/subscriptions/quote`, { selection }, options,
+            );
+          },
+          async checkout(
+            params: StorefrontParams<CheckoutSubscriptionParams>,
+            options?: RequestOptions,
+          ): Promise<SubscriptionCheckoutResult> {
+            return checkoutSubscription(`${apiConfig.apiUrl}:${apiConfig.publishableKey}`, params, async (payload) => {
+              await lifecycle.ensureVisitorSession();
+              return apiConfig.httpClient.post<SubscriptionCheckoutResult>(
+                `${base}/carts/subscriptions/checkout`, payload, options,
+              );
+            });
+          },
+        },
+        async current(
+          params: StorefrontCurrentCartParams = {},
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<Cart>> {
           await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.post<StorefrontDto<Cart>>(
+          const pending = await pendingCartCheckout(checkoutScope);
+          if (pending) {
+            const cart = await apiConfig.httpClient.get<StorefrontDto<Cart>>(`${base}/carts/${encodeURIComponent(pending.id)}`, options);
+            if ((params.company_id !== undefined && params.company_id !== cart.company_id) ||
+              (params.company_location_id !== undefined && params.company_location_id !== cart.company_location_id))
+              throw new Error("Recover the unresolved Cart Checkout before changing Company context");
+            return cart;
+          }
+          return withCartMutation(checkoutScope, () => apiConfig.httpClient.post<StorefrontDto<Cart>>(
             `${base}/carts/current`,
-            {},
+            {
+              ...(params.company_id !== undefined ? { company_id: params.company_id } : {}),
+              ...(params.company_location_id !== undefined ? { company_location_id: params.company_location_id } : {}),
+            },
             options,
-          );
+          ));
         },
         async get(
           params: StorefrontParams<GetCartParams>,
@@ -726,7 +672,7 @@ export const createStorefrontApi = (
             ),
           );
           return apiConfig.httpClient.get<StorefrontDto<Cart>>(
-            `${base}/carts/${params.id}`,
+            `${base}/carts/${encodeURIComponent(params.id)}`,
             {
               ...options,
               headers: {
@@ -739,92 +685,87 @@ export const createStorefrontApi = (
           );
         },
         async update(
-          params: StorefrontParams<UpdateCartParams>,
+          params: StorefrontUpdateCartParams,
           options?: RequestOptions,
         ): Promise<StorefrontDto<Cart>> {
           await lifecycle.ensureVisitorSession();
-          const { product_items, booking_items, digital_items, ...payload } =
-            params;
-          return apiConfig.httpClient.put<StorefrontDto<Cart>>(
-            `${base}/carts/${params.id}`,
-            {
-              ...payload,
-              ...(product_items
-                ? { product_items: sanitizePublicCartProducts(product_items) }
-                : {}),
-              ...(booking_items
-                ? { booking_items: sanitizePublicCartBookings(booking_items) }
-                : {}),
-              ...(digital_items
-                ? {
-                    digital_items:
-                      sanitizePublicCartDigitalProducts(digital_items),
-                  }
-                : {}),
-            },
+          const { id, ...payload } = sanitizePublicCartUpdate(params);
+          return withCartMutation(checkoutScope, () => apiConfig.httpClient.put<StorefrontDto<Cart>>(
+            `${base}/carts/${encodeURIComponent(id)}`,
+            payload,
             options,
-          );
+          ));
         },
         async addProduct(
-          params: StorefrontParams<AddCartProductParams>,
+          params: StorefrontAddCartProductParams,
           options?: RequestOptions,
         ): Promise<StorefrontDto<Cart>> {
           await lifecycle.ensureVisitorSession();
-          const { product, ...payload } = params;
-          return apiConfig.httpClient.post<StorefrontDto<Cart>>(
-            `${base}/carts/${params.id}/product-items`,
-            { ...payload, product: sanitizePublicCartProducts([product])[0] },
+          const { product } = params;
+          return withCartMutation(checkoutScope, () => apiConfig.httpClient.post<StorefrontDto<Cart>>(
+            `${base}/carts/${encodeURIComponent(params.id)}/product-items`,
+            { product: sanitizePublicCartProducts([product])[0] },
             options,
-          );
+          ));
         },
         async addBooking(
-          params: StorefrontParams<AddCartBookingParams>,
+          params: StorefrontAddCartBookingParams,
           options?: RequestOptions,
         ): Promise<StorefrontDto<Cart>> {
           await lifecycle.ensureVisitorSession();
-          const { booking, ...payload } = params;
-          return apiConfig.httpClient.post<StorefrontDto<Cart>>(
-            `${base}/carts/${params.id}/booking-items`,
-            { ...payload, booking: sanitizePublicCartBookings([booking])[0] },
+          const { booking } = params;
+          return withCartMutation(checkoutScope, () => apiConfig.httpClient.post<StorefrontDto<Cart>>(
+            `${base}/carts/${encodeURIComponent(params.id)}/booking-items`,
+            { booking: sanitizePublicCartBookings([booking])[0] },
             options,
-          );
+          ));
         },
         async addDigital(
-          params: StorefrontParams<AddCartDigitalProductParams>,
+          params: StorefrontAddCartDigitalParams,
           options?: RequestOptions,
         ): Promise<StorefrontDto<Cart>> {
           await lifecycle.ensureVisitorSession();
-          const { digital, ...payload } = params;
-          return apiConfig.httpClient.post<StorefrontDto<Cart>>(
-            `${base}/carts/${params.id}/digital-items`,
+          const { digital } = params;
+          return withCartMutation(checkoutScope, () => apiConfig.httpClient.post<StorefrontDto<Cart>>(
+            `${base}/carts/${encodeURIComponent(params.id)}/digital-items`,
             {
-              ...payload,
               digital: sanitizePublicCartDigitalProducts([digital])[0],
             },
             options,
-          );
+          ));
+        },
+        async addAudience(
+          params: StorefrontParams<AddCartAudienceParams>,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<Cart>> {
+          await lifecycle.ensureVisitorSession();
+          return withCartMutation(checkoutScope, () => apiConfig.httpClient.post<StorefrontDto<Cart>>(
+            `${base}/carts/${encodeURIComponent(params.id)}/audience-items`,
+            { audience: sanitizePublicCartAudiences([params.audience])[0] },
+            options,
+          ));
         },
         async removeItem(
           params: StorefrontParams<RemoveCartItemParams>,
           options?: RequestOptions,
         ): Promise<StorefrontDto<Cart>> {
           await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.post<StorefrontDto<Cart>>(
-            `${base}/carts/${params.id}/items/remove`,
+          return withCartMutation(checkoutScope, () => apiConfig.httpClient.post<StorefrontDto<Cart>>(
+            `${base}/carts/${encodeURIComponent(params.id)}/items/remove`,
             params,
             options,
-          );
+          ));
         },
         async clear(
           params: StorefrontParams<ClearCartParams>,
           options?: RequestOptions,
         ): Promise<StorefrontDto<Cart>> {
           await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.post<StorefrontDto<Cart>>(
-            `${base}/carts/${params.id}/clear`,
+          return withCartMutation(checkoutScope, () => apiConfig.httpClient.post<StorefrontDto<Cart>>(
+            `${base}/carts/${encodeURIComponent(params.id)}/clear`,
             { id: params.id },
             options,
-          );
+          ));
         },
         async quote(
           params: StorefrontParams<QuoteCartParams>,
@@ -832,8 +773,8 @@ export const createStorefrontApi = (
         ): Promise<StorefrontDto<OrderQuote>> {
           await lifecycle.ensureVisitorSession();
           return apiConfig.httpClient.post<StorefrontDto<OrderQuote>>(
-            `${base}/carts/${params.id}/quote`,
-            { id: params.id },
+            `${base}/carts/${encodeURIComponent(params.id)}/quote`,
+            { locale: params.locale ?? apiConfig.locale },
             options,
           );
         },
@@ -841,16 +782,13 @@ export const createStorefrontApi = (
           params: StorefrontParams<CheckoutCartParams>,
           options?: RequestOptions,
         ): Promise<StorefrontDto<OrderCheckoutResult>> {
-          await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.post<StorefrontDto<OrderCheckoutResult>>(
-            `${base}/carts/${params.id}/checkout`,
-            {
-              id: params.id,
-              payment_provider_id: params.payment_provider_id,
-              return_url: params.return_url,
-            },
-            options,
-          );
+          return checkoutCart(checkoutScope, params, checkoutTransport, options);
+        },
+        async pendingCheckout(): Promise<CartCheckoutRequest | null> {
+          return pendingCartCheckout(checkoutScope);
+        },
+        async recoverCheckout(options?: RequestOptions): Promise<StorefrontDto<OrderCheckoutResult> | null> {
+          return recoverCartCheckout(checkoutScope, checkoutTransport, options);
         },
       },
       order: {
@@ -928,10 +866,10 @@ export const createStorefrontApi = (
       },
       bookingOffering: {
         find(
-          params: StorefrontParams<FindBookingOfferingsParams>,
+          params: StorefrontParams<Omit<FindBookingOfferingsParams, "status">> & CatalogReadOptions,
           options?: RequestOptions,
-        ): Promise<StorefrontDto<BookingOffering[]>> {
-          return apiConfig.httpClient.get<StorefrontDto<BookingOffering[]>>(
+        ): Promise<StorefrontBookingOffering[]> {
+          return apiConfig.httpClient.get<StorefrontBookingOffering[]>(
             `${base}/booking-offerings`,
             { ...options, params },
           );
@@ -970,9 +908,10 @@ export const createStorefrontApi = (
         params: GetStorefrontAudienceParams,
         options?: RequestOptions,
       ): Promise<StorefrontAudience> {
+        const { key, ...query } = params;
         return apiConfig.httpClient.get<StorefrontAudience>(
-          `${base}/audiences/${params.key}`,
-          options,
+          `${base}/audiences/${encodeURIComponent(key)}`,
+          { ...options, params: query },
         );
       },
       async join(
@@ -985,75 +924,6 @@ export const createStorefrontApi = (
           `${base}/audiences/${audience_id}/join`,
           payload,
           options,
-        );
-      },
-      async checkout(
-        params: StorefrontParams<StartAudienceCheckoutParams>,
-        options?: RequestOptions,
-      ): Promise<StartAudienceCheckoutResult> {
-        await lifecycle.ensureVisitorSession();
-        const post = (request: DurableAudienceCheckoutRequest) => {
-          const { audience_id, ...payload } = request;
-          return apiConfig.httpClient.post<StartAudienceCheckoutResult>(
-            `${base}/audiences/${audience_id}/checkout`,
-            payload,
-            options,
-          );
-        };
-        const freshRequest = (): DurableAudienceCheckoutRequest => ({
-          audience_id: params.audience_id,
-          request_id: newAudienceCheckoutRequestId(),
-          email: params.email,
-          cadence: params.cadence,
-          return_url: params.return_url,
-        });
-
-        if (!browserHasDurableStorage()) {
-          return post(freshRequest());
-        }
-
-        const storageKey = audienceCheckoutStorageKey(
-          apiConfig,
-          params.audience_id,
-        );
-        return withDurableRequestLock(
-          storageKey,
-          audienceCheckoutLabel,
-          async () => {
-            const retained = readDurableRequest(storageKey, audienceCheckoutLabel);
-            const payload = retained
-              ? persistedAudienceCheckoutRequest(durableRequestPayload(retained))
-              : freshRequest();
-            if (!audienceCheckoutInputMatches(payload, params)) {
-              throw new DurableRequestStorageError(
-                `Cannot safely continue ${audienceCheckoutLabel} because its unresolved request has different immutable input`,
-              );
-            }
-            const durable = getOrCreateDurableRequest(
-              storageKey,
-              payload,
-              audienceCheckoutLabel,
-            );
-            const exactPayload = persistedAudienceCheckoutRequest(
-              durableRequestPayload(durable),
-            );
-            let result: StartAudienceCheckoutResult;
-            try {
-              result = await post(exactPayload);
-            } catch (error) {
-              if (responseStatusCode(error) === 400) {
-                clearDurableRequest(durable, audienceCheckoutLabel);
-              }
-              throw error;
-            }
-            if (!matchingAudienceCheckoutResult(result)) {
-              throw new DurableRequestStorageError(
-                `Cannot safely continue ${audienceCheckoutLabel} because Server returned invalid Checkout evidence`,
-              );
-            }
-            clearDurableRequest(durable, audienceCheckoutLabel);
-            return result;
-          },
         );
       },
       customer: {

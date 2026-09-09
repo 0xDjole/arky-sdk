@@ -242,6 +242,49 @@ test("storefront reference batches use explicit typed endpoints", async () => {
   assert.ok(calls.every((call) => call.method === "GET"));
 });
 
+test("digital cart selection preserves its exact content Block without accepting browser prices or labels", async () => {
+  const store = initialize(publishableKey, {
+    apiUrl,
+    market: "ita",
+    locale: "it",
+    sessionStorage: sessionStorage(),
+  });
+  const selection = {
+    id: "7c891cbf-a3da-4bb3-b1da-3a9277efc65e",
+    digital_product_id: "ab30ad23-c8ca-47fc-a9c6-33ad6bf6827f",
+    name_block_id: "ba7818b2-1bd2-4025-87b7-fc9f97052186",
+    form_submission_id: null,
+  };
+  const cart = { ...cartSnapshot(1), digital_items: [selection] };
+  store.eshop.cart.cart.set(cart);
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), body: JSON.parse(String(init.body || "{}")) });
+    return jsonResponse(cart);
+  };
+  const untrusted = {
+    ...selection,
+    price_override: { amount: 1, currency: "EUR", reason: "Browser override" },
+    display_name: "Browser wording",
+    product_name: "Another browser wording",
+  };
+  try {
+    await store.eshop.cart.addDigital(untrusted);
+    await store.eshop.cart.refresh({ digital_items: [untrusted] });
+    await store.client.eshop.cart.addDigital({ id: cart.id, digital: untrusted });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  const writes = calls.filter((call) => call.url.includes(`/carts/${cart.id}`));
+  assert.equal(writes.length, 3);
+  assert.deepEqual(writes[0].body.digital, selection);
+  assert.deepEqual(writes[1].body.digital_items, [selection]);
+  assert.deepEqual(writes[2].body.digital, selection);
+  assert.deepEqual(store.eshop.cart.buildItems().digital_items, [selection]);
+  assert.deepEqual(store.eshop.cart.digital_items.get(), [selection]);
+});
+
 test("market and locale remain independent and a populated cart fails closed on market changes", () => {
   const store = initialize(publishableKey, { locale: "it", market: "ita" });
   store.setContext({ locale: "en" });
@@ -504,17 +547,35 @@ test("storefront order payment lookup is an authenticated exact GET", async () =
   assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
 });
 
-test("paid Audience checkout returns the exact embedded Checkout response without polling", async () => {
+test("Cart Subscription checkout returns exact request evidence without creating or polling an Order", async () => {
   const storefront = createStorefront(publishableKey, {
     apiUrl,
     sessionStorage: sessionStorage(),
   });
   const response = {
+    request_id: "f9bc941f-9a46-4987-a5a1-754e758de912",
+    subscription_id: "bf8064c9-ef50-4f92-b2df-c6627a34b03d",
     checkout_id: "79a8b7f8-9927-4575-8849-917203778a71",
     publishable_key: "pk_test_audience",
     client_secret: "cs_subscription_secret_exact",
     connected_account_id: "acct_audience",
-    expires_at: 1_800_000_000_000,
+    expires_at: 1_900_000_000_000,
+  };
+  const request = {
+    request_id: response.request_id,
+    presentation_digest: "b".repeat(64),
+    return_url: "https://storefront.example.test/audience-return",
+    selection: {
+      audience_id: "da4b70e5-99ef-464c-b267-47bf04a9e32d",
+      membership_id: "5b776a5e-fb4b-4ac9-ac6a-5ae573fbe7d1",
+      company_id: null,
+      company_location_id: null,
+      market_id: "e51a6b97-acb8-4aa1-aa21-182112a773c3",
+      sales_channel_id: "74393b17-a4b7-4a57-8750-e2934e9c8c4c",
+      payment_provider_id: "7b3e13c6-8b6e-4636-8cc8-1075a562140d",
+      currency: "eur",
+      billing: { type: "recurring", interval: "month", interval_count: 1 },
+    },
   };
   const calls = [];
   const originalFetch = globalThis.fetch;
@@ -529,12 +590,7 @@ test("paid Audience checkout returns the exact embedded Checkout response withou
 
   try {
     assert.deepEqual(
-      await storefront.audiences.checkout({
-        audience_id: "audience-paid",
-        email: "member@example.test",
-        cadence: "monthly",
-        return_url: "https://storefront.example.test/audience-return",
-      }),
+      await storefront.eshop.cart.subscription.checkout(request),
       response,
     );
   } finally {
@@ -544,22 +600,15 @@ test("paid Audience checkout returns the exact embedded Checkout response withou
   assert.equal(calls.length, 1);
   assert.equal(
     calls[0].url,
-    `${apiUrl}/v1/storefront/audiences/audience-paid/checkout`,
+    `${apiUrl}/v1/storefront/carts/subscriptions/checkout`,
   );
   assert.equal(calls[0].method, "POST");
   assert.match(
     calls[0].body.request_id,
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
   );
-  assert.deepEqual(
-    { ...calls[0].body, request_id: "<sdk-owned>" },
-    {
-      request_id: "<sdk-owned>",
-      email: "member@example.test",
-      cadence: "monthly",
-      return_url: "https://storefront.example.test/audience-return",
-    },
-  );
+  assert.deepEqual(calls[0].body, request);
+  assert.equal("checkout" in storefront.audiences, false);
 });
 
 test("card checkout returns an embedded Stripe action without navigating", async () => {

@@ -11,7 +11,6 @@ import type {
   FormValue,
   FormValues,
   GeoLocation,
-  Price,
   Product,
   ProductInventory,
   ProductVariant,
@@ -126,55 +125,6 @@ export function productSlug(
   );
 }
 
-export function priceForMarket(
-  prices: Price[],
-  market: string,
-  marketCurrency: string | null | undefined,
-): Price {
-  const marketKey = market.trim();
-  if (!marketKey)
-    throw new Error("A market is required to select a product price");
-  const currency = marketCurrency?.trim().toUpperCase();
-  if (!currency)
-    throw new Error(
-      `Market ${marketKey} does not have an authoritative currency`,
-    );
-
-  const marketPrices = prices.filter(
-    (candidate) => candidate.market === marketKey,
-  );
-  if (marketPrices.length === 0) {
-    throw new Error(`Product is not priced for market ${marketKey}`);
-  }
-  if (
-    marketPrices.some(
-      (candidate) =>
-        !Number.isSafeInteger(candidate.amount) ||
-        candidate.amount < 0 ||
-        candidate.currency.trim().toUpperCase() !== currency,
-    )
-  ) {
-    throw new Error(`Product has an invalid price for market ${marketKey}`);
-  }
-
-  const authorizedPrices = marketPrices.filter(
-    (candidate) => candidate.audience_id,
-  );
-  if (authorizedPrices.length > 0) {
-    return authorizedPrices.reduce((lowest, candidate) =>
-      candidate.amount < lowest.amount ? candidate : lowest,
-    );
-  }
-
-  const basePrices = marketPrices.filter((candidate) => !candidate.audience_id);
-  if (basePrices.length !== 1) {
-    throw new Error(
-      `Product does not have one base price for market ${marketKey}`,
-    );
-  }
-  const price = basePrices[0];
-  return price;
-}
 
 export function freeToSellStock(
   client: ArkyStoreClient,

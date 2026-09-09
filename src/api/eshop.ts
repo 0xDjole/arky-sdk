@@ -1,4 +1,9 @@
 import type { ApiConfig } from "../services/clientTypes";
+import type { CheckoutSubscriptionParams, QuoteSubscriptionParams, SubscriptionCheckoutResult, SubscriptionQuote } from "../types/subscription";
+import { checkoutSubscription, subscriptionSelection } from "../services/subscription";
+import { checkoutCart, pendingCartCheckout, recoverCartCheckout, withCartMutation } from "../services/cartCheckout";
+import type { CartCheckoutTransport, CartCheckoutRequest, RecoverCartCheckoutParams } from "../types/cartCheckout";
+import type { OrderCheckoutResult } from "../types/index";
 import type {
   CreateBookingResourceParams,
   CreateProductParams,
@@ -18,6 +23,7 @@ import type {
   GetAvailabilityParams,
   AvailabilityResponse,
   AddCartBookingParams,
+  AddCartAudienceParams,
   AddCartDigitalProductParams,
   AddCartProductParams,
   CheckoutCartParams,
@@ -35,15 +41,6 @@ import type {
   UpdateBookingOfferingParams,
   GetOrderParams,
   GetOrdersParams,
-  CreateOrderRefundParams,
-  CreateOrderRefundResponse,
-  RecordCashOnDeliveryRefundParams,
-  FindOrderRefundsParams,
-  GetOrderRefundParams,
-  GetOrderPaymentParams,
-  MarkCashOnDeliveryPaidParams,
-  FindPaymentDisputesParams,
-  GetPaymentDisputeParams,
   QuoteCartParams,
   RemoveCartItemParams,
   RequestOptions,
@@ -57,45 +54,26 @@ import type {
   BookingService,
   BookingOffering,
   OrderQuote,
-  OrderRefund,
-  OrderPayment,
-  PaymentDispute,
-  RefundStatus,
   Cart,
   PaginatedResponse,
 } from "../types";
 
-const refundStatuses: RefundStatus[] = [
-  "requested",
-  "processing",
-  "succeeded",
-  "rejected",
-  "failed",
-  "unknown",
-];
-
-const validateRefundResponse = (
-  response: CreateOrderRefundResponse,
-  refundId: string,
-  amount: number,
-): CreateOrderRefundResponse => {
-  if (response.refund_id !== refundId) {
-    throw new Error("Refund response did not match the requested refund_id");
-  }
-  if (
-    !response.money ||
-    !Number.isSafeInteger(response.money.amount) ||
-    response.money.amount !== amount
-  ) {
-    throw new Error("Refund response did not match the requested amount");
-  }
-  if (!refundStatuses.includes(response.status)) {
-    throw new Error("Refund response contained an invalid status");
-  }
-  return response;
-};
-
 export const createEshopApi = (apiConfig: ApiConfig) => {
+  function checkoutScope(storeId: string): string {
+    return `admin:${apiConfig.baseUrl}:${storeId}`;
+  }
+
+  function checkoutTransport(storeId: string): CartCheckoutTransport<OrderCheckoutResult> {
+    return {
+      post: ({ id, ...request }, options) => apiConfig.httpClient.post<OrderCheckoutResult>(
+        `/v1/stores/${encodeURIComponent(storeId)}/carts/${encodeURIComponent(id)}/checkout`, request, options,
+      ),
+      getCart: (id, options) => apiConfig.httpClient.get<Cart>(
+        `/v1/stores/${encodeURIComponent(storeId)}/carts/${encodeURIComponent(id)}`, options,
+      ),
+    };
+  }
+
   return {
     async createProduct(
       params: CreateProductParams,
@@ -386,16 +364,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: UpdateOrderParams,
       options?: RequestOptions,
     ): Promise<Order> {
-      const { id, store_id, product_items, ...rest } = params;
+      const { id, store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      const payload = {
-        ...rest,
-        ...(product_items ? { product_items } : {}),
-      };
-      delete (payload as { booking_items?: unknown }).booking_items;
-
       return apiConfig.httpClient.put<Order>(
-        `/v1/stores/${target_store_id}/orders/${id}`,
+        `/v1/stores/${encodeURIComponent(target_store_id)}/orders/${encodeURIComponent(id)}`,
         payload,
         options,
       );
@@ -487,7 +459,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<PaginatedResponse<Cart>>(
-        `/v1/stores/${target_store_id}/carts`,
+        `/v1/stores/${encodeURIComponent(target_store_id)}/carts`,
         {
           ...options,
           params: queryParams,
@@ -501,7 +473,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     ): Promise<Cart> {
       const target_store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.get<Cart>(
-        `/v1/stores/${target_store_id}/carts/${params.id}`,
+        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(params.id)}`,
         options,
       );
     },
@@ -512,16 +484,17 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     ): Promise<Cart> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<Cart>(
-        `/v1/stores/${target_store_id}/carts`,
+      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
+        `/v1/stores/${encodeURIComponent(target_store_id)}/carts`,
         {
           ...payload,
           product_items: payload.product_items || [],
           booking_items: payload.booking_items || [],
           digital_items: payload.digital_items || [],
+          audience_items: payload.audience_items || [],
         },
         options,
-      );
+      ));
     },
 
     async updateCart(
@@ -534,19 +507,21 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         product_items,
         booking_items,
         digital_items,
+        audience_items,
         ...payload
       } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.put<Cart>(
-        `/v1/stores/${target_store_id}/carts/${id}`,
+      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.put<Cart>(
+        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(id)}`,
         {
           ...payload,
           ...(product_items ? { product_items } : {}),
           ...(booking_items ? { booking_items } : {}),
           ...(digital_items ? { digital_items } : {}),
+          ...(audience_items ? { audience_items } : {}),
         },
         options,
-      );
+      ));
     },
 
     async addCartProduct(
@@ -555,11 +530,11 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     ): Promise<Cart> {
       const { id, store_id, product } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<Cart>(
-        `/v1/stores/${target_store_id}/carts/${id}/product-items`,
+      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
+        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(id)}/product-items`,
         { product },
         options,
-      );
+      ));
     },
 
     async addCartBooking(
@@ -568,11 +543,11 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     ): Promise<Cart> {
       const { id, store_id, booking } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<Cart>(
-        `/v1/stores/${target_store_id}/carts/${id}/booking-items`,
+      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
+        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(id)}/booking-items`,
         { booking },
         options,
-      );
+      ));
     },
 
     async addCartDigitalProduct(
@@ -581,11 +556,24 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     ): Promise<Cart> {
       const { id, store_id, digital } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<Cart>(
-        `/v1/stores/${target_store_id}/carts/${id}/digital-items`,
+      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
+        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(id)}/digital-items`,
         { digital },
         options,
-      );
+      ));
+    },
+
+    async addCartAudience(
+      params: AddCartAudienceParams,
+      options?: RequestOptions,
+    ): Promise<Cart> {
+      const { id, store_id, audience } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
+        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(id)}/audience-items`,
+        { audience },
+        options,
+      ));
     },
 
     async removeCartItem(
@@ -594,11 +582,11 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     ): Promise<Cart> {
       const { id, store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<Cart>(
-        `/v1/stores/${target_store_id}/carts/${id}/items/remove`,
+      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
+        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(id)}/items/remove`,
         payload,
         options,
-      );
+      ));
     },
 
     async clearCart(
@@ -606,11 +594,11 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Cart> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<Cart>(
-        `/v1/stores/${target_store_id}/carts/${params.id}/clear`,
+      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
+        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(params.id)}/clear`,
         {},
         options,
-      );
+      ));
     },
 
     async quoteCart(
@@ -619,8 +607,8 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     ): Promise<OrderQuote> {
       const target_store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<OrderQuote>(
-        `/v1/stores/${target_store_id}/carts/${params.id}/quote`,
-        {},
+        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(params.id)}/quote`,
+        { locale: params.locale ?? apiConfig.locale },
         options,
       );
     },
@@ -629,12 +617,41 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: CheckoutCartParams,
       options?: RequestOptions,
     ): Promise<import("../types").OrderCheckoutResult> {
-      const { id, store_id, ...payload } = params;
+      const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<import("../types").OrderCheckoutResult>(
-        `/v1/stores/${target_store_id}/carts/${id}/checkout`,
-        payload,
+      return checkoutCart(checkoutScope(target_store_id), payload, checkoutTransport(target_store_id), options);
+    },
+
+    async pendingCartCheckout(params: RecoverCartCheckoutParams = {}): Promise<CartCheckoutRequest | null> {
+      return pendingCartCheckout(checkoutScope(params.store_id || apiConfig.storeId));
+    },
+
+    async recoverCartCheckout(params: RecoverCartCheckoutParams = {}, options?: RequestOptions): Promise<OrderCheckoutResult | null> {
+      const storeId = params.store_id || apiConfig.storeId;
+      return recoverCartCheckout(checkoutScope(storeId), checkoutTransport(storeId), options);
+    },
+
+    async quoteSubscription(
+      params: QuoteSubscriptionParams,
+      options?: RequestOptions,
+    ): Promise<SubscriptionQuote> {
+      const storeId = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<SubscriptionQuote>(
+        `/v1/stores/${storeId}/carts/subscriptions/quote`,
+        { selection: subscriptionSelection(params.selection) },
         options,
+      );
+    },
+
+    async checkoutSubscription(
+      params: CheckoutSubscriptionParams,
+      options?: RequestOptions,
+    ): Promise<SubscriptionCheckoutResult> {
+      const storeId = params.store_id || apiConfig.storeId;
+      return checkoutSubscription(`${apiConfig.baseUrl}:${storeId}`, params, (payload) =>
+        apiConfig.httpClient.post<SubscriptionCheckoutResult>(
+          `/v1/stores/${storeId}/carts/subscriptions/checkout`, payload, options,
+        ),
       );
     },
 
@@ -642,128 +659,22 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: GetQuoteParams,
       options?: RequestOptions,
     ): Promise<OrderQuote> {
-      const { store_id, products, bookings, digital, ...rest } = params;
+      const { store_id, products, bookings, digital, audiences, ...rest } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<OrderQuote>(
-        `/v1/stores/${target_store_id}/orders/quote`,
+        `/v1/stores/${encodeURIComponent(target_store_id)}/orders/quote`,
         {
           ...rest,
+          locale: rest.locale ?? apiConfig.locale,
           products: products || [],
           bookings: bookings || [],
           digital: digital || [],
+          audiences: audiences || [],
           market: rest.market,
         },
         options,
       );
     },
 
-    async createRefund(
-      params: CreateOrderRefundParams,
-      options?: RequestOptions,
-    ): Promise<CreateOrderRefundResponse> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      const response =
-        await apiConfig.httpClient.post<CreateOrderRefundResponse>(
-          `/v1/stores/${target_store_id}/orders/${params.order_id}/refunds`,
-          {
-            amount: params.amount,
-            refund_id: params.refund_id,
-            allocations: params.allocations,
-            reason: params.reason,
-            private_note: params.private_note,
-          },
-          options,
-        );
-      return validateRefundResponse(response, params.refund_id, params.amount);
-    },
-
-    async recordCashOnDeliveryRefund(
-      params: RecordCashOnDeliveryRefundParams,
-      options?: RequestOptions,
-    ): Promise<CreateOrderRefundResponse> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      const response =
-        await apiConfig.httpClient.post<CreateOrderRefundResponse>(
-          `/v1/stores/${target_store_id}/orders/${params.order_id}/refunds/cash-on-delivery`,
-          {
-            amount: params.amount,
-            refund_id: params.refund_id,
-            allocations: params.allocations,
-            reason: params.reason,
-            private_note: params.private_note,
-          },
-          options,
-        );
-      return validateRefundResponse(response, params.refund_id, params.amount);
-    },
-
-    async getPayment(
-      params: GetOrderPaymentParams,
-      options?: RequestOptions,
-    ): Promise<OrderPayment> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<OrderPayment>(
-        `/v1/stores/${target_store_id}/orders/${params.order_id}/payment`,
-        options,
-      );
-    },
-
-    async markCashOnDeliveryPaid(
-      params: MarkCashOnDeliveryPaidParams,
-      options?: RequestOptions,
-    ): Promise<OrderPayment> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<OrderPayment>(
-        `/v1/stores/${target_store_id}/orders/${params.order_id}/payment/cash-on-delivery/mark-paid`,
-        {},
-        options,
-      );
-    },
-
-    async getDisputes(
-      params: FindPaymentDisputesParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<PaymentDispute>> {
-      const { order_id, store_id, ...queryParams } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<PaymentDispute>>(
-        `/v1/stores/${target_store_id}/orders/${order_id}/disputes`,
-        { ...options, params: queryParams },
-      );
-    },
-
-    async getDispute(
-      params: GetPaymentDisputeParams,
-      options?: RequestOptions,
-    ): Promise<PaymentDispute> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaymentDispute>(
-        `/v1/stores/${target_store_id}/orders/${params.order_id}/disputes/${params.dispute_id}`,
-        options,
-      );
-    },
-
-    async getRefund(
-      params: GetOrderRefundParams,
-      options?: RequestOptions,
-    ): Promise<OrderRefund> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<OrderRefund>(
-        `/v1/stores/${target_store_id}/orders/${params.order_id}/refunds/${params.refund_id}`,
-        options,
-      );
-    },
-
-    async getRefunds(
-      params: FindOrderRefundsParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<OrderRefund>> {
-      const { order_id, store_id, ...queryParams } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<OrderRefund>>(
-        `/v1/stores/${target_store_id}/orders/${order_id}/refunds`,
-        { ...options, params: queryParams },
-      );
-    },
   };
 };

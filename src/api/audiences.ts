@@ -5,31 +5,25 @@ import type {
   CreateAudienceBillingPortalSessionParams,
   CreateAudienceParams,
   CustomerAudienceMembershipReferenceParams,
-  FindAudienceDisputesParams,
   FindAudienceMembershipsParams,
-  FindAudienceRefundsParams,
+  FindAudienceMembershipBillingParams,
   FindAudiencesParams,
   FindCustomerAudienceMembershipsParams,
-  GetAudienceDisputeParams,
   GetAudienceMembershipParams,
   GetAudienceParams,
-  GetAudienceRefundParams,
   ImportAudienceMembershipsParams,
   EnrollAudienceMembershipParams,
   PatchAudienceParams,
   PreviewAudienceMembershipImportParams,
   ReplaceAudienceMembershipInsightParams,
-  RequestAudienceRefundParams,
   RequestOptions,
   UnsubscribeAudienceParams,
 } from "../types/api";
 import type {
   Audience,
   AudienceBillingPortalSession,
-  AudienceDispute,
   AudienceMembership,
   AudienceMembershipBilling,
-  AudienceRefund,
   CustomerAudienceMembership,
   PaginatedResponse,
 } from "../types";
@@ -230,88 +224,16 @@ export const createAudiencesApi = (apiConfig: ApiConfig) => ({
     },
 
     async listBilling(
-      params: GetAudienceMembershipParams,
+      params: FindAudienceMembershipBillingParams,
       options?: RequestOptions,
     ): Promise<AudienceMembershipBilling> {
+      const { store_id, audience_id, membership_id, ...query } = params;
       return apiConfig.httpClient.get<AudienceMembershipBilling>(
-        `${membershipPath(apiConfig, params, params.membership_id)}/billing`,
-        options,
+        `${membershipPath(apiConfig, { store_id, audience_id }, membership_id)}/billing`,
+        { ...options, params: query },
       );
     },
 
-    refunds: {
-      async find(
-        params: FindAudienceRefundsParams,
-        options?: RequestOptions,
-      ): Promise<PaginatedResponse<AudienceRefund>> {
-        const { store_id, audience_id, membership_id, ...query } = params;
-        return apiConfig.httpClient.get<PaginatedResponse<AudienceRefund>>(
-          `${membershipPath(
-            apiConfig,
-            { store_id, audience_id },
-            membership_id,
-          )}/refunds`,
-          { ...options, params: query },
-        );
-      },
-
-      async request(
-        params: RequestAudienceRefundParams,
-        options?: RequestOptions,
-      ): Promise<AudienceRefund> {
-        const { store_id, audience_id, membership_id, ...payload } = params;
-        const refund = await apiConfig.httpClient.post<AudienceRefund>(
-          `${membershipPath(
-            apiConfig,
-            { store_id, audience_id },
-            membership_id,
-          )}/refunds`,
-          payload,
-          options,
-        );
-        if (refund.id !== params.id) {
-          throw new Error("Audience refund response did not match the requested refund ID");
-        }
-        return refund;
-      },
-
-      async get(
-        params: GetAudienceRefundParams,
-        options?: RequestOptions,
-      ): Promise<AudienceRefund> {
-        return apiConfig.httpClient.get<AudienceRefund>(
-          `${membershipPath(apiConfig, params, params.membership_id)}/refunds/${params.refund_id}`,
-          options,
-        );
-      },
-    },
-
-    disputes: {
-      async find(
-        params: FindAudienceDisputesParams,
-        options?: RequestOptions,
-      ): Promise<PaginatedResponse<AudienceDispute>> {
-        const { store_id, audience_id, membership_id, ...query } = params;
-        return apiConfig.httpClient.get<PaginatedResponse<AudienceDispute>>(
-          `${membershipPath(
-            apiConfig,
-            { store_id, audience_id },
-            membership_id,
-          )}/disputes`,
-          { ...options, params: query },
-        );
-      },
-
-      async get(
-        params: GetAudienceDisputeParams,
-        options?: RequestOptions,
-      ): Promise<AudienceDispute> {
-        return apiConfig.httpClient.get<AudienceDispute>(
-          `${membershipPath(apiConfig, params, params.membership_id)}/disputes/${params.dispute_id}`,
-          options,
-        );
-      },
-    },
   },
 
   customer: {

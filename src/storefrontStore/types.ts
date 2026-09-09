@@ -16,6 +16,7 @@ import type {
   Block,
   Cart,
   CartDigitalItem,
+  CartAudienceItem,
   EshopCartItem,
   CollectionEntry,
   Currency,
@@ -24,7 +25,6 @@ import type {
   FormValues,
   OrderCheckoutResult,
   OrderQuote,
-  Price,
   Product,
   BookingResource,
   BookingService,
@@ -32,6 +32,8 @@ import type {
   TimeRange,
 } from "../types";
 import type { AvailabilityResponse } from "../types/api";
+import type { CartAudienceInput, CheckoutCartParams } from "../types/api";
+import type { StorefrontParams } from "../types/storefront";
 
 export type ArkyStoreClient = ReturnType<typeof createStorefront>;
 export type ArkyStoreConfig = StorefrontOptions;
@@ -70,6 +72,7 @@ export interface ArkyCartSnapshot {
   product_items: EshopCartItem[];
   booking_items: ArkyBookingCartItem[];
   digital_items: CartDigitalItem[];
+  audience_items: CartAudienceItem[];
   item_count: number;
 }
 
@@ -92,6 +95,7 @@ export interface ArkyLastOrder {
   product_items?: EshopCartItem[];
   booking_items?: ArkyBookingCartItem[];
   digital_items?: CartDigitalItem[];
+  audience_items?: CartAudienceInput[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   total?: number;
@@ -104,13 +108,35 @@ export interface ArkyCartInput {
   product_items?: EshopCartItem[];
   booking_items?: ArkyBookingCartItem[];
   digital_items?: CartDigitalItem[];
+  audience_items?: CartAudienceInput[];
+  company_id?: string | null;
+  company_location_id?: string | null;
+  market_id?: string;
+  sales_channel_id?: string;
   shipping_address?: Address | null;
   billing_address?: Address | null;
   promo_code?: string | null;
   payment_provider_id?: string | null;
   shipping_method_id?: string | null;
+}
+
+export interface ArkyCartCheckoutInput {
+  payment_provider_id?: string;
   return_url?: string;
   clear_after_checkout?: boolean;
+}
+
+export interface CheckoutContext {
+  request: StorefrontParams<CheckoutCartParams>;
+  product_items: EshopCartItem[];
+  booking_items: ArkyBookingCartItem[];
+  digital_items: CartDigitalItem[];
+  audience_items: CartAudienceInput[];
+  shipping_address: Address | null;
+  billing_address: Address | null;
+  payment_provider_id: string | null;
+  clear_after_checkout: boolean;
+  created_at: EpochMilliseconds;
 }
 
 export interface ArkyContentState {

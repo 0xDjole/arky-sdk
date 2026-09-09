@@ -156,6 +156,8 @@ assert.equal(typeof arky.eshop.digital.product.create, "function");
 assert.equal(typeof arky.eshop.digital.asset.upload, "function");
 
 const customerAudienceCalls = [];
+assert.equal(typeof arky.eshop.cart.subscription.quote, "function");
+assert.equal(typeof arky.eshop.cart.subscription.checkout, "function");
 const customerAudienceOriginalFetch = globalThis.fetch;
 globalThis.fetch = async (url, init = {}) => {
   const call = {
@@ -602,8 +604,9 @@ assert.equal(typeof arky.leadResearch.create, "function");
 
 assert.equal(typeof arky.audiences.memberships.enroll, "function");
 assert.equal(typeof arky.audiences.memberships.find, "function");
-assert.equal(typeof arky.audiences.memberships.refunds.find, "function");
-assert.equal(typeof arky.audiences.memberships.disputes.find, "function");
+assert.equal("refunds" in arky.audiences.memberships, false);
+assert.equal("disputes" in arky.audiences.memberships, false);
+assert.equal(typeof arky.audiences.memberships.listBilling, "function");
 assert.equal(typeof arky.eshop.product.getInventory, "function");
 
 const separateResourceCalls = [];
@@ -639,13 +642,56 @@ assert.deepEqual(separateResourceCalls, [
   },
 ]);
 
-assert.equal(typeof arky.eshop.order.createRefund, "function");
-assert.equal(typeof arky.eshop.order.recordCashOnDeliveryRefund, "function");
-assert.equal(typeof arky.eshop.order.getRefunds, "function");
-assert.equal(typeof arky.eshop.order.getPayment, "function");
-assert.equal(typeof arky.eshop.order.markCashOnDeliveryPaid, "function");
-assert.equal(typeof arky.eshop.order.getDisputes, "function");
-assert.equal(typeof arky.eshop.order.getDispute, "function");
+assert.equal(typeof arky.eshop.refund.create, "function");
+const billingHistoryCalls = [];
+const billingHistory = {
+  orders: { items: [], cursor: "next-order-page" },
+  subscriptions: { items: [], cursor: "next-subscription-page" },
+};
+globalThis.fetch = async (url, init = {}) => {
+  billingHistoryCalls.push({ url: String(url), method: init.method });
+  return new Response(JSON.stringify(billingHistory), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+};
+try {
+  assert.deepEqual(await arky.audiences.memberships.listBilling({
+    audience_id: "history-audience",
+    membership_id: "history-member",
+    limit: 10,
+    order_cursor: "prior-order-page",
+    subscription_cursor: "prior-subscription-page",
+  }), billingHistory);
+} finally {
+  globalThis.fetch = originalFetch;
+}
+assert.equal(billingHistoryCalls.length, 1);
+const billingHistoryUrl = new URL(billingHistoryCalls[0].url);
+assert.equal(billingHistoryCalls[0].method, "GET");
+assert.equal(billingHistoryUrl.pathname, "/v1/stores/contract-store/audiences/history-audience/memberships/history-member/billing");
+assert.deepEqual(Object.fromEntries(billingHistoryUrl.searchParams), {
+  limit: "10",
+  order_cursor: "prior-order-page",
+  subscription_cursor: "prior-subscription-page",
+});
+
+assert.equal(typeof arky.eshop.refund.recordCashOnDelivery, "function");
+assert.equal(typeof arky.eshop.refund.find, "function");
+assert.equal(typeof arky.eshop.refund.get, "function");
+assert.equal("createRefund" in arky.eshop.order, false);
+assert.equal("getRefunds" in arky.eshop.order, false);
+assert.equal("getRefund" in arky.eshop.order, false);
+assert.equal("recordCashOnDeliveryRefund" in arky.eshop.order, false);
+assert.equal(typeof arky.eshop.payment.get, "function");
+assert.equal(typeof arky.eshop.payment.find, "function");
+assert.equal(arky.eshop.order.getPayment, undefined);
+assert.equal(arky.eshop.order.markCashOnDeliveryPaid, undefined);
+assert.equal(typeof arky.eshop.payment.markCashOnDeliveryPaid, "function");
+assert.equal(typeof arky.eshop.dispute.find, "function");
+assert.equal(typeof arky.eshop.dispute.get, "function");
+assert.equal(arky.eshop.order.getDisputes, undefined);
+assert.equal(arky.eshop.order.getDispute, undefined);
 assert.equal(typeof arky.eshop.shipment.getRates, "function");
 assert.equal(typeof arky.eshop.shipment.create, "function");
 assert.equal(typeof arky.eshop.shipment.fulfillment.find, "function");
@@ -707,8 +753,9 @@ globalThis.fetch = async (url, init = {}) => {
   });
 };
 try {
-  await arky.eshop.order.getPayment({ order_id: "order-1" });
-  await arky.eshop.order.markCashOnDeliveryPaid({ order_id: "order-1" });
+  await arky.eshop.payment.get({ id: "payment-1" });
+  await arky.eshop.payment.find({ store_id: "another-store", limit: 25, cursor: "next" });
+  await arky.eshop.payment.markCashOnDeliveryPaid({ id: "payment-1" });
 } finally {
   globalThis.fetch = originalFetch;
 }
@@ -716,12 +763,17 @@ assert.deepEqual(
   paymentCalls.map(({ url, method, body }) => [url, method, body]),
   [
     [
-      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment",
+      "http://127.0.0.1:1/v1/stores/contract-store/payments/payment-1",
       "GET",
       null,
     ],
     [
-      "http://127.0.0.1:1/v1/stores/contract-store/orders/order-1/payment/cash-on-delivery/mark-paid",
+      "http://127.0.0.1:1/v1/stores/another-store/payments?limit=25&cursor=next",
+      "GET",
+      null,
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/payments/payment-1/cash-on-delivery/mark-paid",
       "POST",
       {},
     ],

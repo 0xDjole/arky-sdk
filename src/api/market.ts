@@ -5,21 +5,26 @@ import type {
   RequestOptions,
   UpdateMarketParams,
 } from "../types/api";
-import type { Market } from "../types";
-
+import type { Market, MarketUsage } from "../types";
 
 export const createMarketApi = (apiConfig: ApiConfig) => {
+  const basePath = () =>
+    `/v1/stores/${encodeURIComponent(apiConfig.storeId)}/markets`;
   return {
     async list(options?: RequestOptions): Promise<Market[]> {
-      return apiConfig.httpClient.get<Market[]>(
-        `/v1/stores/${apiConfig.storeId}/markets`,
-        options,
-      );
+      return apiConfig.httpClient.get<Market[]>(basePath(), options);
     },
 
     async get(id: string, options?: RequestOptions): Promise<Market> {
       return apiConfig.httpClient.get<Market>(
-        `/v1/stores/${apiConfig.storeId}/markets/${id}`,
+        `${basePath()}/${encodeURIComponent(id)}`,
+        options,
+      );
+    },
+
+    async usage(id: string, options?: RequestOptions): Promise<MarketUsage> {
+      return apiConfig.httpClient.get<MarketUsage>(
+        `${basePath()}/${encodeURIComponent(id)}/usage`,
         options,
       );
     },
@@ -28,20 +33,17 @@ export const createMarketApi = (apiConfig: ApiConfig) => {
       params: CreateMarketParams,
       options?: RequestOptions,
     ): Promise<Market> {
-      return apiConfig.httpClient.post<Market>(
-        `/v1/stores/${apiConfig.storeId}/markets`,
-        { ...params, store_id: apiConfig.storeId },
-        options,
-      );
+      return apiConfig.httpClient.post<Market>(basePath(), params, options);
     },
 
     async update(
       params: UpdateMarketParams,
       options?: RequestOptions,
     ): Promise<Market> {
+      const { id, ...payload } = params;
       return apiConfig.httpClient.put<Market>(
-        `/v1/stores/${apiConfig.storeId}/markets/${params.id}`,
-        { ...params, store_id: apiConfig.storeId },
+        `${basePath()}/${encodeURIComponent(id)}`,
+        payload,
         options,
       );
     },
@@ -49,14 +51,13 @@ export const createMarketApi = (apiConfig: ApiConfig) => {
     async delete(
       params: DeleteMarketParams,
       options?: RequestOptions,
-    ): Promise<{ deleted: boolean }> {
-      return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${apiConfig.storeId}/markets/${params.id}`,
+    ): Promise<Market> {
+      const { id, ...query } = params;
+      return apiConfig.httpClient.delete<Market>(
+        `${basePath()}/${encodeURIComponent(id)}`,
         {
           ...options,
-          params: params.replacement_default_market_id
-            ? { replacement_default_market_id: params.replacement_default_market_id }
-            : options?.params,
+          params: query,
         },
       );
     },

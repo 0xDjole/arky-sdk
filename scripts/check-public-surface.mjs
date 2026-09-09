@@ -319,7 +319,12 @@ for (const file of listTypeScriptFiles(sourceDir)) {
   }
 
   for (const match of source.matchAll(removedGenericEmailRoutePattern)) {
-    report(file, source, match.index, `removed generic email route ${match[0]}`);
+    report(
+      file,
+      source,
+      match.index,
+      `removed generic email route ${match[0]}`,
+    );
     failures++;
   }
 
@@ -333,28 +338,50 @@ for (const file of listTypeScriptFiles(sourceDir)) {
     failures++;
   }
 
-  for (const match of source.matchAll(removedCommercePaymentVocabularyPattern)) {
-    report(file, source, match.index, `removed Commerce payment field ${match[0]}`);
+  for (const match of source.matchAll(
+    removedCommercePaymentVocabularyPattern,
+  )) {
+    report(
+      file,
+      source,
+      match.index,
+      `removed Commerce payment field ${match[0]}`,
+    );
     failures++;
   }
 
   for (const pattern of removedProductContractPatterns) {
     for (const match of source.matchAll(pattern)) {
-      report(file, source, match.index, "removed Product/Inventory contract field");
+      report(
+        file,
+        source,
+        match.index,
+        "removed Product/Inventory contract field",
+      );
       failures++;
     }
   }
 
   for (const pattern of removedDigitalContractPatterns) {
     for (const match of source.matchAll(pattern)) {
-      report(file, source, match.index, "removed Digital Product/Asset contract");
+      report(
+        file,
+        source,
+        match.index,
+        "removed Digital Product/Asset contract",
+      );
       failures++;
     }
   }
 
   for (const pattern of removedBookingContractPatterns) {
     for (const match of source.matchAll(pattern)) {
-      report(file, source, match.index, "removed Booking Service/Resource slug field");
+      report(
+        file,
+        source,
+        match.index,
+        "removed Booking Service/Resource slug field",
+      );
       failures++;
     }
   }
@@ -375,7 +402,12 @@ for (const file of listTypeScriptFiles(sourceDir)) {
 
   for (const pattern of removedPaymentDisputeContractPatterns) {
     for (const match of source.matchAll(pattern)) {
-      report(file, source, match.index, "removed Payment Dispute contract field");
+      report(
+        file,
+        source,
+        match.index,
+        "removed Payment Dispute contract field",
+      );
       failures++;
     }
   }
@@ -386,7 +418,12 @@ for (const file of listTypeScriptFiles(sourceDir)) {
   }
 
   for (const match of source.matchAll(removedPromotionVocabularyPattern)) {
-    report(file, source, match.index, `removed Promotion vocabulary ${match[0]}`);
+    report(
+      file,
+      source,
+      match.index,
+      `removed Promotion vocabulary ${match[0]}`,
+    );
     failures++;
   }
 
@@ -395,8 +432,15 @@ for (const file of listTypeScriptFiles(sourceDir)) {
     failures++;
   }
 
-  for (const match of source.matchAll(removedShippingProviderVocabularyPattern)) {
-    report(file, source, match.index, `provider-specific Shipping vocabulary ${match[0]}`);
+  for (const match of source.matchAll(
+    removedShippingProviderVocabularyPattern,
+  )) {
+    report(
+      file,
+      source,
+      match.index,
+      `provider-specific Shipping vocabulary ${match[0]}`,
+    );
     failures++;
   }
 
@@ -408,13 +452,23 @@ for (const file of listTypeScriptFiles(sourceDir)) {
   }
 
   for (const match of source.matchAll(removedCrmActionVocabularyPattern)) {
-    report(file, source, match.index, `removed CRM Action vocabulary ${match[0]}`);
+    report(
+      file,
+      source,
+      match.index,
+      `removed CRM Action vocabulary ${match[0]}`,
+    );
     failures++;
   }
 
   for (const pattern of removedCustomerVocabularyPatterns) {
     for (const match of source.matchAll(pattern)) {
-      report(file, source, match.index, `removed Customer vocabulary ${match[0]}`);
+      report(
+        file,
+        source,
+        match.index,
+        `removed Customer vocabulary ${match[0]}`,
+      );
       failures++;
     }
   }
@@ -478,7 +532,9 @@ const propertylessBlockNames = [
 ];
 for (const name of propertylessBlockNames) {
   const contract = activityTypesSource.match(
-    new RegExp(`export interface ${name}\\s+extends BlockBase\\s*\\{([\\s\\S]*?)\\n\\}`),
+    new RegExp(
+      `export interface ${name}\\s+extends BlockBase\\s*\\{([\\s\\S]*?)\\n\\}`,
+    ),
   );
   if (!contract || /\n\s*properties\??:/.test(contract[1])) {
     report(
@@ -544,7 +600,7 @@ if (
   failures++;
 }
 
-for (const typeName of ["Cart", "Order", "OrderBookingItem", "FormSubmission"]) {
+for (const typeName of ["FormSubmission"]) {
   const contract = activityTypesSource.match(
     new RegExp(`export interface ${typeName}\\s*\\{([\\s\\S]*?)\\n\\}`),
   );
@@ -560,6 +616,114 @@ for (const typeName of ["Cart", "Order", "OrderBookingItem", "FormSubmission"]) 
     );
     failures++;
   }
+}
+
+const cartTypesFile = resolve(sourceDir, "types/cart.ts");
+const cartTypesSource = readFileSync(cartTypesFile, "utf8");
+const cartContract = cartTypesSource.match(/export interface Cart\s*\{([\s\S]*?)\n\}/);
+const requiredCartFields = [
+  /\borigin:\s*PurchaseOrigin;/,
+  /\bstatus:\s*CartStatus;/,
+  /\bmarket_id:\s*string;/,
+  /\bsales_channel_id:\s*string;/,
+  /\baudience_items:\s*CartAudienceItem\[\];/,
+  ...["customer_id", "company_id", "company_location_id"].map(
+    (field) => new RegExp(`\\b${field}:\\s*string\\s*\\|\\s*null;`),
+  ),
+];
+if (!cartContract || requiredCartFields.some((field) => !field.test(cartContract[1])) ||
+  /\b(?:market|customer_session_id|created_by_account_id)\??:/.test(cartContract[1])) {
+  report(cartTypesFile, cartTypesSource, cartContract?.index ?? 0,
+    "Cart must expose current buyer/context IDs, tagged status/provenance and four item families without legacy aliases");
+  failures++;
+}
+
+const quoteTypesFile = resolve(sourceDir, "types/quote.ts");
+const quoteTypesSource = readFileSync(quoteTypesFile, "utf8");
+const quoteContract = quoteTypesSource.match(/export interface OrderQuote\s*\{([\s\S]*?)\n\}/);
+if (!quoteContract || [
+  /\bcontext:\s*PurchaseQuoteContext;/,
+  /\blocale:\s*string;/,
+  /\bpresentation_digest:\s*string;/,
+  /\baudience_lines:\s*AudienceQuoteLine\[\];/,
+  /\bpayment_provider_id:\s*string\s*\|\s*null;/,
+].some((field) => !field.test(quoteContract[1]))) {
+  report(quoteTypesFile, quoteTypesSource, quoteContract?.index ?? 0,
+    "OrderQuote must expose reviewed presentation, resolved buyer/context and all four line families");
+  failures++;
+}
+
+const orderTypesFile = resolve(sourceDir, "types/order.ts");
+const orderTypesSource = readFileSync(orderTypesFile, "utf8");
+const orderContract = orderTypesSource.match(
+  /export interface Order\s*\{([\s\S]*?)\n\}/,
+);
+const requiredOrderFields = [
+  /\borigin:\s*PurchaseOrigin;/,
+  /\bsource:\s*OrderSource;/,
+  /\bstatus:\s*OrderStatus;/,
+  /\bcustomer_snapshot:\s*PurchaseCustomerSnapshot\s*\|\s*null;/,
+  /\bcompany_snapshot:\s*CompanySnapshot\s*\|\s*null;/,
+  /\bsales_channel_snapshot:\s*SalesChannelSnapshot;/,
+  /\baudience_items:\s*OrderAudienceItem\[\];/,
+  ...[
+    "customer_id",
+    "company_id",
+    "company_location_id",
+    "market_id",
+    "sales_channel_id",
+  ].map((field) => new RegExp(`\\b${field}:\\s*string\\s*\\|\\s*null;`)),
+];
+if (
+  !orderContract ||
+  requiredOrderFields.some((field) => !field.test(orderContract[1])) ||
+  /\b(?:customer_session_id|source_cart_id)\??:/.test(orderContract[1])
+) {
+  report(
+    orderTypesFile,
+    orderTypesSource,
+    orderContract?.index ?? 0,
+    "Order must retain source/origin, buyer/channel snapshots, nullable current links and all four item families without duplicate Session or Cart fields",
+  );
+  failures++;
+}
+
+const bookingItemContract = activityTypesSource.match(
+  /export interface OrderBookingItem\s*\{([\s\S]*?)\n\}/,
+);
+if (
+  !bookingItemContract ||
+  /\bcustomer_session_id\??:/.test(bookingItemContract[1])
+) {
+  report(
+    activityTypesFile,
+    activityTypesSource,
+    bookingItemContract?.index ?? 0,
+    "OrderBookingItem must inherit purchase origin from Order rather than duplicate CustomerSession provenance",
+  );
+  failures++;
+}
+
+const orderUpdateContract = apiTypesSource.match(
+  /export interface UpdateOrderParams\s*\{([\s\S]*?)\n\}/,
+);
+const orderUpdateFields = [
+  ...(orderUpdateContract?.[1] ?? "").matchAll(/\b(\w+)\??:/g),
+].map((match) => match[1]);
+if (
+  !orderUpdateContract ||
+  orderUpdateFields.length !== 4 ||
+  orderUpdateFields.some(
+    (field) => !["id", "store_id", "confirm", "cancel"].includes(field),
+  )
+) {
+  report(
+    apiTypesFile,
+    apiTypesSource,
+    orderUpdateContract?.index ?? 0,
+    "Order updates accept only routing identity and confirm/cancel, never accepted purchase edits",
+  );
+  failures++;
 }
 
 const socialMessageContract = activityTypesSource.match(
@@ -614,7 +778,11 @@ if (
   failures++;
 }
 
-if (!/\|\s*\{\s*event:\s*["']customer\.archived["']\s*\}/.test(activityTypesSource)) {
+if (
+  !/\|\s*\{\s*event:\s*["']customer\.archived["']\s*\}/.test(
+    activityTypesSource,
+  )
+) {
   report(
     activityTypesFile,
     activityTypesSource,
@@ -654,11 +822,15 @@ if (
 }
 
 if (
-  /\bcrmApi\b|createCustomerApi|\bcms\s*:|\bcrm\s*:|\bautomation\s*:/.test(indexSource) ||
+  /\bcrmApi\b|createCustomerApi|\bcms\s*:|\bcrm\s*:|\bautomation\s*:/.test(
+    indexSource,
+  ) ||
   !/createCustomersApi\s*\}\s*from\s*["']\.\/api\/customers["']/.test(
     indexSource,
   ) ||
-  !/createAudiencesApi\s*\}\s*from\s*["']\.\/api\/audiences["']/.test(indexSource) ||
+  !/createAudiencesApi\s*\}\s*from\s*["']\.\/api\/audiences["']/.test(
+    indexSource,
+  ) ||
   !/\bcontent\s*:\s*\{/.test(indexSource) ||
   !/\bforms\s*:\s*\{/.test(indexSource) ||
   !/\bactions\s*:/.test(indexSource) ||
@@ -688,7 +860,10 @@ if (
   failures++;
 }
 
-for (const typeName of ["ImportCustomersParams", "ImportCustomersPreviewParams"]) {
+for (const typeName of [
+  "ImportCustomersParams",
+  "ImportCustomersPreviewParams",
+]) {
   const contract = apiTypesSource.match(
     new RegExp(`export interface ${typeName}\\s*\\{([\\s\\S]*?)\\n\\}`),
   );
@@ -774,9 +949,7 @@ const checkoutPaymentActionContract = activityTypesSource.match(
 );
 if (
   !checkoutPaymentActionContract ||
-  !/\n\s*connected_account_id:\s*string;/.test(
-    checkoutPaymentActionContract[1],
-  )
+  !/\n\s*connected_account_id:\s*string;/.test(checkoutPaymentActionContract[1])
 ) {
   report(
     activityTypesFile,

@@ -312,8 +312,8 @@ test("admin Store methods keep billing and optional contact email independent", 
     billing_email: "owner@example.test",
     contact_email: null,
     publishable_key: publishableKey,
-    status: "active",
     default_market_id: "market-bih",
+    default_sales_channel_id: "channel-storefront",
     timezone: "Europe/Sarajevo",
     default_language: "en",
     supported_languages: ["en", "bs"],
@@ -338,6 +338,7 @@ test("admin Store methods keep billing and optional contact email independent", 
         timezone: "Europe/Sarajevo",
         default_language: "en",
         supported_languages: ["en", "bs"],
+        initial_market: { key: "bih", currency: "bam", tax_mode: "inclusive" },
       }),
       store,
     );
@@ -351,6 +352,7 @@ test("admin Store methods keep billing and optional contact email independent", 
       billing_email: "owner@example.test",
       contact_email: null,
       default_market_id: "market-bih",
+      default_sales_channel_id: "channel-storefront",
       default_language: "en",
       supported_languages: ["en", "bs"],
     });
@@ -369,6 +371,7 @@ test("admin Store methods keep billing and optional contact email independent", 
         timezone: "Europe/Sarajevo",
         default_language: "en",
         supported_languages: ["en", "bs"],
+        initial_market: { key: "bih", currency: "bam", tax_mode: "inclusive" },
       },
     },
     {
@@ -385,6 +388,7 @@ test("admin Store methods keep billing and optional contact email independent", 
         billing_email: "owner@example.test",
         contact_email: null,
         default_market_id: "market-bih",
+        default_sales_channel_id: "channel-storefront",
         default_language: "en",
         supported_languages: ["en", "bs"],
       },
@@ -575,6 +579,7 @@ test("admin Market and Payment Provider APIs use provider roots and UUID allowli
     key: "bih",
     currency: "bam",
     tax_mode: "inclusive",
+    status: { type: "active" },
     payment_provider_ids: [cashProvider.id, stripeProvider.id],
     zones: [],
     created_at: 1,
@@ -629,7 +634,6 @@ test("admin Market and Payment Provider APIs use provider roots and UUID allowli
         tax_mode: "inclusive",
         payment_provider_ids: [cashProvider.id, stripeProvider.id],
         zones: [],
-        store_id: storeId,
       },
     },
   ]);
@@ -855,30 +859,39 @@ test("admin Order uses the embedded product-item route and canonical Customer fi
   ]);
 });
 
-test("admin market deletion sends an explicit replacement default as query context", async () => {
+test("admin market deletion preserves the version, replacement and accepted Deleting response", async () => {
   const admin = createAdmin({
     baseUrl,
     storeId,
     apiToken: "arky_api_admin_contract",
   });
   let call;
+  const deleting = {
+    id: "market-old",
+    status: { type: "deleting" },
+    updated_at: 1788862721001,
+  };
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     call = { url: String(url), method: init.method };
-    return jsonResponse({ deleted: true });
+    return jsonResponse(deleting, 202);
   };
 
   try {
-    await admin.store.market.delete({
-      id: "market-old",
-      replacement_default_market_id: "market-next",
-    });
+    assert.deepEqual(
+      await admin.store.market.delete({
+        id: "market-old",
+        expected_updated_at: 1788862721000,
+        replacement_default_market_id: "market-next",
+      }),
+      deleting,
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
 
   assert.deepEqual(call, {
-    url: `${baseUrl}/v1/stores/${storeId}/markets/market-old?replacement_default_market_id=market-next`,
+    url: `${baseUrl}/v1/stores/${storeId}/markets/market-old?expected_updated_at=1788862721000&replacement_default_market_id=market-next`,
     method: "DELETE",
   });
 });

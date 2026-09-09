@@ -803,36 +803,37 @@ test("provider-effect APIs send one resource identity and return direct server e
       response: {
         refund_id: resourceId,
         money: { amount: 1250, currency: "usd" },
-        status: "requested",
+        status: { type: "requested" },
       },
       request: (arky) =>
-        arky.eshop.order.createRefund({
-          order_id: "order-refund-contract",
+        arky.eshop.refund.create({
+          payment_id: "payment-refund-contract",
           refund_id: resourceId,
           amount: 1250,
-          allocations: [
+          application: { type: "order_items", allocations: [
             {
               type: "product",
               item_id: "order-product-contract",
               amount: 1250,
             },
-          ],
+          ] },
           reason: "duplicate",
           private_note: "Duplicate checkout",
         }),
       expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-refund-contract/refunds`,
+        url: `${baseUrl}/v1/stores/${defaultStoreId}/refunds`,
         method: "POST",
         body: {
+          payment_id: "payment-refund-contract",
           amount: 1250,
           refund_id: resourceId,
-          allocations: [
+          application: { type: "order_items", allocations: [
             {
               type: "product",
               item_id: "order-product-contract",
               amount: 1250,
             },
-          ],
+          ] },
           reason: "duplicate",
           private_note: "Duplicate checkout",
         },
@@ -843,74 +844,67 @@ test("provider-effect APIs send one resource identity and return direct server e
       response: {
         refund_id: resourceId,
         money: { amount: 700, currency: "usd" },
-        status: "succeeded",
+        status: { type: "succeeded" },
       },
       request: (arky) =>
-        arky.eshop.order.recordCashOnDeliveryRefund({
-          order_id: "order-cash-refund-contract",
+        arky.eshop.refund.recordCashOnDelivery({
+          payment_id: "payment-cash-refund-contract",
           refund_id: resourceId,
           amount: 700,
-          allocations: [
+          application: { type: "order_items", allocations: [
             {
               type: "shipping",
               line_id: "shipping-line-contract",
               amount: 700,
             },
-          ],
+          ] },
           reason: "other",
           private_note: "Cash returned by operator",
         }),
       expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-cash-refund-contract/refunds/cash-on-delivery`,
+        url: `${baseUrl}/v1/stores/${defaultStoreId}/refunds/cash-on-delivery`,
         method: "POST",
         body: {
+          payment_id: "payment-cash-refund-contract",
           amount: 700,
           refund_id: resourceId,
-          allocations: [
+          application: { type: "order_items", allocations: [
             {
               type: "shipping",
               line_id: "shipping-line-contract",
               amount: 700,
             },
-          ],
+          ] },
           reason: "other",
           private_note: "Cash returned by operator",
         },
       },
     },
     {
-      name: "Audience payment refund",
+      name: "common Refund for an Audience Order item",
       response: {
-        id: resourceId,
-        amount: { amount: 500, currency: "usd" },
-        status: "requested",
+        refund_id: resourceId,
+        money: { amount: 500, currency: "usd" },
+        status: { type: "requested" },
       },
       request: (arky) =>
-        arky.audiences.memberships.refunds.request({
+        arky.eshop.refund.create({
           store_id: defaultStoreId,
-          audience_id: "audience-refund-contract",
-          membership_id: "member-refund-contract",
-          id: resourceId,
-          charge: {
-            type: "stripe_charge",
-            payment_provider_id: "payment-provider-refund-contract",
-            stripe_charge_id: "charge-refund-contract",
-          },
-          amount: { amount: 500, currency: "usd" },
+          payment_id: "audience-payment-contract",
+          refund_id: resourceId,
+          amount: 500,
+          application: { type: "order_items", allocations: [{ type: "audience", item_id: "audience-order-item", amount: 500 }] },
           reason: "fraudulent",
           private_note: "Risk review",
         }),
       expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/audiences/audience-refund-contract/memberships/member-refund-contract/refunds`,
+        url: `${baseUrl}/v1/stores/${defaultStoreId}/refunds`,
         method: "POST",
         body: {
-          id: resourceId,
-          charge: {
-            type: "stripe_charge",
-            payment_provider_id: "payment-provider-refund-contract",
-            stripe_charge_id: "charge-refund-contract",
-          },
-          amount: { amount: 500, currency: "usd" },
+          payment_id: "audience-payment-contract",
+          refund_id: resourceId,
+          amount: 500,
+          application: { type: "order_items", allocations: [{ type: "audience", item_id: "audience-order-item", amount: 500 }] },
           reason: "fraudulent",
           private_note: "Risk review",
         },
@@ -1007,16 +1001,16 @@ test("money and shipping clients reject evidence for any other resource ID", asy
       response: {
         refund_id: otherResourceId,
         money: { amount: 1250, currency: "usd" },
-        status: "succeeded",
+        status: { type: "succeeded" },
       },
       request: (arky) =>
-        arky.eshop.order.createRefund({
-          order_id: "order-refund-contract",
+        arky.eshop.refund.create({
+          payment_id: "payment-refund-contract",
           refund_id: resourceId,
           amount: 1250,
-          allocations: [
+          application: { type: "order_items", allocations: [
             { type: "adjustment", amount: 1250, reason: "contract" },
-          ],
+          ] },
           reason: "customer_request",
         }),
       error: /Refund response did not match the requested refund_id/,
@@ -1026,42 +1020,37 @@ test("money and shipping clients reject evidence for any other resource ID", asy
       response: {
         refund_id: otherResourceId,
         money: { amount: 1250, currency: "usd" },
-        status: "succeeded",
+        status: { type: "succeeded" },
       },
       request: (arky) =>
-        arky.eshop.order.recordCashOnDeliveryRefund({
-          order_id: "order-refund-contract",
+        arky.eshop.refund.recordCashOnDelivery({
+          payment_id: "payment-refund-contract",
           refund_id: resourceId,
           amount: 1250,
-          allocations: [
+          application: { type: "order_items", allocations: [
             { type: "adjustment", amount: 1250, reason: "contract" },
-          ],
+          ] },
           reason: "customer_request",
         }),
       error: /Refund response did not match the requested refund_id/,
     },
     {
-      name: "Audience payment refund",
+      name: "common Audience-item Refund mismatched identity",
       response: {
-        id: otherResourceId,
-        amount: { amount: 500, currency: "usd" },
-        status: "succeeded",
+        refund_id: otherResourceId,
+        money: { amount: 500, currency: "usd" },
+        status: { type: "succeeded" },
       },
       request: (arky) =>
-        arky.audiences.memberships.refunds.request({
+        arky.eshop.refund.create({
           store_id: defaultStoreId,
-          audience_id: "audience-refund-contract",
-          membership_id: "member-refund-contract",
-          id: resourceId,
-          charge: {
-            type: "stripe_charge",
-            payment_provider_id: "payment-provider-refund-contract",
-            stripe_charge_id: "charge-refund-contract",
-          },
-          amount: { amount: 500, currency: "usd" },
+          payment_id: "audience-payment-contract",
+          refund_id: resourceId,
+          amount: 500,
+          application: { type: "order_items", allocations: [{ type: "audience", item_id: "audience-order-item", amount: 500 }] },
           reason: "customer_request",
         }),
-      error: /Audience refund response did not match the requested refund ID/,
+      error: /Refund response did not match the requested refund_id/,
     },
     {
       name: "shipping-label purchase",
@@ -1111,11 +1100,11 @@ test("money and shipping clients reject evidence for any other resource ID", asy
 
 test("order refunds reject mismatched money and statuses outside the closed lifecycle", async (t) => {
   const request = () =>
-    admin().eshop.order.createRefund({
-      order_id: "order-refund-contract",
+    admin().eshop.refund.create({
+      payment_id: "payment-refund-contract",
       refund_id: resourceId,
       amount: 1250,
-      allocations: [{ type: "adjustment", amount: 1250, reason: "contract" }],
+      application: { type: "order_items", allocations: [{ type: "adjustment", amount: 1250, reason: "contract" }] },
       reason: "other",
     });
 
@@ -1125,7 +1114,7 @@ test("order refunds reject mismatched money and statuses outside the closed life
         {
           refund_id: resourceId,
           money: { amount: 1251, currency: "usd" },
-          status: "succeeded",
+          status: { type: "succeeded" },
         },
         request,
       ),
@@ -1150,6 +1139,16 @@ test("order refunds reject mismatched money and statuses outside the closed life
     );
   });
 
+  for (const status of ["succeeded", null, [], { type: "succeeded", extra: true }, { type: "pending" }]) {
+    await t.test(`reject malformed refund status ${JSON.stringify(status)}`, async () => {
+      await assert.rejects(captureFetch({
+        refund_id: resourceId,
+        money: { amount: 1250, currency: "usd" },
+        status,
+      }, request), /Refund response contained an invalid status/);
+    });
+  }
+
   await t.test("unknown status value", async () => {
     await assert.rejects(
       captureFetch(
@@ -1172,13 +1171,23 @@ test("payment, refund, dispute, and shipment lifecycles are read through explici
       response: {
         id: "payment-contract",
         store_id: defaultStoreId,
-        order_id: "order-contract",
+        source: { type: "order", order_id: "order-contract" },
+        payer_customer_id: null,
         provider: {
           type: "cash_on_delivery",
           payment_provider_id: "provider-cash-contract",
           marked_paid_by_account_id: "account-operator-contract",
         },
-        status: "paid",
+        status: { type: "paid" },
+        checkout_expiration: null,
+        settlement: {
+          money: { amount: 1250, currency: "usd" },
+          paid_at: 2,
+          evidence: {
+            type: "cash_on_delivery",
+            marked_paid_by_account_id: "account-operator-contract",
+          },
+        },
         amounts: {
           currency: "usd",
           total: 1250,
@@ -1193,15 +1202,14 @@ test("payment, refund, dispute, and shipment lifecycles are read through explici
         safe_error: null,
       },
       request: (arky) =>
-        arky.eshop.order.getPayment({ order_id: "order-contract" }),
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-contract/payment`,
+        arky.eshop.payment.get({ id: "payment-contract" }),
+      url: `${baseUrl}/v1/stores/${defaultStoreId}/payments/payment-contract`,
     },
     {
       name: "refund",
       response: {
         id: resourceId,
         store_id: defaultStoreId,
-        order_id: "order-contract",
         payment_id: "payment-contract",
         provider: {
           type: "stripe",
@@ -1209,13 +1217,17 @@ test("payment, refund, dispute, and shipment lifecycles are read through explici
           refund_id: "stripe-refund-contract",
         },
         money: { amount: 500, currency: "usd" },
-        allocations: [
-          { type: "digital", item_id: "digital-item-contract", amount: 500 },
-        ],
-        requested_by_account_id: "account-contract",
-        reason: "customer_request",
-        private_note: null,
-        status: "unknown",
+        application: {
+          type: "order_items",
+          allocations: [{ type: "digital", item_id: "digital-item-contract", amount: 500 }],
+        },
+        requester: {
+          type: "account",
+          actor: { account_id: "account-contract", snapshot: { email: "historical.operator@example.test", credential_type: "session" } },
+          reason: "customer_request",
+          private_note: null,
+        },
+        status: { type: "unknown" },
         safe_error:
           "The refund outcome is unknown; contact support before retrying",
         requested_at: 1,
@@ -1226,21 +1238,19 @@ test("payment, refund, dispute, and shipment lifecycles are read through explici
         updated_at: 3,
       },
       request: (arky) =>
-        arky.eshop.order.getRefund({
-          order_id: "order-contract",
-          refund_id: resourceId,
+        arky.eshop.refund.get({
+          id: resourceId,
         }),
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-contract/refunds/${resourceId}`,
+      url: `${baseUrl}/v1/stores/${defaultStoreId}/refunds/${resourceId}`,
     },
     {
       name: "payment dispute",
       response: {
         id: "payment-dispute-contract",
         store_id: defaultStoreId,
-        order_id: "order-contract",
         payment_id: "payment-contract",
         money: { amount: 1250, currency: "usd" },
-        status: "needs_response",
+        status: { type: "needs_response", response: { type: "due_at", due_at: 123_000 } },
         reason: "fraudulent",
         provider: {
           type: "stripe",
@@ -1251,11 +1261,10 @@ test("payment, refund, dispute, and shipment lifecycles are read through explici
         updated_at: 2,
       },
       request: (arky) =>
-        arky.eshop.order.getDispute({
-          order_id: "order-contract",
+        arky.eshop.dispute.get({
           dispute_id: "payment-dispute-contract",
         }),
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-contract/disputes/payment-dispute-contract`,
+      url: `${baseUrl}/v1/stores/${defaultStoreId}/disputes/payment-dispute-contract`,
     },
     {
       name: "shipment",
@@ -1286,16 +1295,15 @@ test("payment, refund, dispute, and shipment lifecycles are read through explici
   }
 });
 
-test("payment dispute history uses the canonical order-scoped read", async () => {
+test("payment dispute history filters the common Payment owner", async () => {
   const response = {
     items: [
       {
         id: "payment-dispute-contract",
         store_id: defaultStoreId,
-        order_id: "order-contract",
         payment_id: "payment-contract",
         money: { amount: 1250, currency: "usd" },
-        status: "under_review",
+        status: { type: "under_review" },
         reason: "fraudulent",
         provider: {
           type: "stripe",
@@ -1309,8 +1317,8 @@ test("payment dispute history uses the canonical order-scoped read", async () =>
     cursor: "next-dispute-contract",
   };
   const { calls, result } = await captureFetch(response, () =>
-    admin().eshop.order.getDisputes({
-      order_id: "order-contract",
+    admin().eshop.dispute.find({
+      payment_id: "payment-contract",
       limit: 20,
       cursor: "cursor-contract",
     }),
@@ -1318,11 +1326,18 @@ test("payment dispute history uses the canonical order-scoped read", async () =>
 
   assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-contract/disputes?limit=20&cursor=cursor-contract`,
+      url: `${baseUrl}/v1/stores/${defaultStoreId}/disputes?payment_id=payment-contract&limit=20&cursor=cursor-contract`,
       method: "GET",
       body: undefined,
     },
   ]);
+  assert.deepEqual(result, response);
+});
+
+test("common dispute history can list the Store without an Order or Payment selector", async () => {
+  const response = { items: [], cursor: null };
+  const { calls, result } = await captureFetch(response, () => admin().eshop.dispute.find());
+  assert.deepEqual(calls, [{ url: `${baseUrl}/v1/stores/${defaultStoreId}/disputes`, method: "GET", body: undefined }]);
   assert.deepEqual(result, response);
 });
 
@@ -1349,4 +1364,71 @@ test("workflow webhook keeps arbitrary object payload data", async () => {
     },
   ]);
   assert.deepEqual(result, response);
+});
+
+test("common Refund history is Store-scoped and can filter by exact Payment without an Order", async () => {
+  const response = { items: [], cursor: null };
+  const filtered = await captureFetch(response, () =>
+    admin().eshop.refund.find({
+      store_id: "selected-store",
+      payment_id: "payment-history-contract",
+      limit: 20,
+      cursor: "next-page",
+    }),
+  );
+  assert.equal(filtered.calls.length, 1);
+  const url = new URL(filtered.calls[0].url);
+  assert.equal(url.pathname, "/v1/stores/selected-store/refunds");
+  assert.equal(url.searchParams.get("payment_id"), "payment-history-contract");
+  assert.equal(url.searchParams.get("limit"), "20");
+  assert.equal(url.searchParams.get("cursor"), "next-page");
+  assert.equal(url.searchParams.has("order_id"), false);
+  assert.equal(url.searchParams.has("store_id"), false);
+  assert.equal(filtered.calls[0].method, "GET");
+  assert.equal(filtered.calls[0].body, undefined);
+  assert.deepEqual(filtered.result, response);
+  const all = await captureFetch(response, () => admin().eshop.refund.find());
+  assert.equal(new URL(all.calls[0].url).pathname, `/v1/stores/${defaultStoreId}/refunds`);
+  assert.equal(new URL(all.calls[0].url).search, "");
+  assert.equal(all.calls[0].method, "GET");
+});
+
+test("common Refund commands preserve all four Order item allocation families", async (t) => {
+  const allocations = [
+    { type: "product", item_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45911", amount: 100 },
+    { type: "booking", item_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45912", amount: 200 },
+    { type: "digital", item_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45913", amount: 300 },
+    { type: "audience", item_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45914", amount: 400 },
+  ];
+  const request = {
+    payment_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45915",
+    refund_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45916",
+    amount: 1000,
+    application: { type: "order_items", allocations },
+    reason: "customer_request",
+    private_note: "Return across the accepted Order items",
+  };
+  for (const [method, suffix, status] of [
+    ["create", "", "requested"],
+    ["recordCashOnDelivery", "/cash-on-delivery", "succeeded"],
+  ]) {
+    await t.test(method, async () => {
+      const response = {
+        refund_id: request.refund_id,
+        money: { amount: request.amount, currency: "eur" },
+        status: { type: status },
+      };
+      const { calls, result } = await captureFetch(response, () =>
+        admin().eshop.refund[method](request),
+      );
+      assert.deepEqual(calls, [{
+        url: `${baseUrl}/v1/stores/${defaultStoreId}/refunds${suffix}`,
+        method: "POST",
+        body: request,
+      }]);
+      assert.deepEqual(result, response);
+      assert.equal("order_id" in calls[0].body, false);
+      assert.equal("membership_id" in calls[0].body, false);
+    });
+  }
 });
