@@ -65,12 +65,12 @@ export function sanitizePublicCartBookings(
 }
 
 export function sanitizePublicCartDigitalProducts(
-  items: readonly CartDigitalItemInput[],
+  items: readonly Omit<CartDigitalItemInput, "price_override">[],
 ): CartDigitalItemInput[] {
   return items.map((item) => ({
     ...(item.id ? { id: item.id } : {}),
     digital_product_id: item.digital_product_id,
-    name_block_id: item.name_block_id,
+    beneficiary_customer_id: item.beneficiary_customer_id,
     ...(item.form_submission_id !== undefined
       ? { form_submission_id: item.form_submission_id }
       : {}),

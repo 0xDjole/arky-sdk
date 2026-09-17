@@ -108,8 +108,15 @@ async function submit<Result extends Pick<OrderCheckoutResult, "order_id" | "num
     throw new DurableRequestStorageError("Cart Checkout returned invalid purchase evidence");
   }
   const cart = await transport.getCart(request.id, { signal: options?.signal });
-  if (!record(cart) || cart.id !== request.id || !record(cart.status) || cart.status.type !== "converted" || cart.converted_order_id !== result.order_id) {
-    throw new DurableRequestStorageError("Cart Checkout did not confirm its exact accepted Order");
+  if (
+    !record(cart) ||
+    cart.id !== request.id ||
+    !record(cart.status) ||
+    cart.status.type !== "converted" ||
+    typeof cart.status.checkout_id !== "string" ||
+    !uuid.test(cart.status.checkout_id)
+  ) {
+    throw new DurableRequestStorageError("Cart Checkout did not confirm its exact accepted Checkout");
   }
   return { result, success };
 }

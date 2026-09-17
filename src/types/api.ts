@@ -147,8 +147,9 @@ export interface CartBookingInput {
 export interface CartDigitalItemInput {
   id?: string;
   digital_product_id: string;
-  name_block_id: string;
+  beneficiary_customer_id: string;
   form_submission_id?: string | null;
+  price_override?: ManualPriceInput | null;
 }
 
 export type CustomerGroupMemberType =
@@ -168,6 +169,24 @@ export interface DeliveryQuoteAcceptance {
   customer_subtotal: Money;
   expires_at: number;
   cart_version: string;
+}
+
+export type CartPhysicalLineRef =
+  | { type: "product"; line_item_id: string }
+  | { type: "customer_group_benefit"; line_item_id: string; benefit_id: string };
+
+export interface CartDeliveryGroupItem {
+  line_item: CartPhysicalLineRef;
+  quantity: number;
+}
+
+export interface CartDeliveryGroup {
+  id: string;
+  items: CartDeliveryGroupItem[];
+  destination: CartDeliveryDestination;
+  shipping_rate_id: string | null;
+  quote_acceptance: DeliveryQuoteAcceptance | null;
+  scheduled_window: TimeRange | null;
 }
 
 export interface CartCustomerGroupDelivery {

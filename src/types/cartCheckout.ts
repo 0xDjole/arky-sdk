@@ -5,7 +5,7 @@ import type { OrderQuote } from "./quote";
 import type { RequestSuccessContext } from "./httpClient";
 
 export type CartCheckoutRequest = Omit<CheckoutCartParams, "store_id">;
-export type CartCheckoutProof = Pick<Cart, "id" | "status" | "converted_order_id">;
+export type CartCheckoutProof = Pick<Cart, "id" | "status">;
 
 export interface CartCheckoutTransport<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action">> {
   post(request: CartCheckoutRequest, options?: RequestOptions): Promise<Result>;

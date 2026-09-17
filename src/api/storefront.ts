@@ -640,8 +640,8 @@ export const createStorefrontApi = (
           const pending = await pendingCartCheckout(checkoutScope);
           if (pending) {
             const cart = await apiConfig.httpClient.get<StorefrontDto<Cart>>(`${base}/carts/${encodeURIComponent(pending.id)}`, options);
-            if ((params.company_id !== undefined && params.company_id !== cart.company_id) ||
-              (params.company_location_id !== undefined && params.company_location_id !== cart.company_location_id))
+            if ((params.company_id !== undefined && params.company_id !== (cart.company?.company_id ?? null)) ||
+              (params.company_location_id !== undefined && params.company_location_id !== (cart.company?.company_location_id ?? null)))
               throw new Error("Recover the unresolved Cart Checkout before changing Company context");
             return cart;
           }

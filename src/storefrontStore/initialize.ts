@@ -48,6 +48,12 @@ import type {
   BookingOffering,
   ZoneLocation,
 } from "../types";
+import {
+  cartProductItems,
+  cartBookingItems,
+  cartDigitalItems,
+  cartCustomerGroupPlanItems,
+} from "../types/cart";
 import type {
   AvailabilityResponse,
   CartCustomerGroupPlanInput,
@@ -157,18 +163,18 @@ function initializeStoreCore(
   });
 
   function rawProductItemCount(value: StorefrontCart | null): number {
-    return (value?.product_items || []).reduce(
+    return cartProductItems(value).reduce(
       (total, item) => total + (item.quantity || 0),
       0,
     );
   }
 
   function rawBookingItemCount(value: StorefrontCart | null): number {
-    return (value?.booking_items || []).length;
+    return cartBookingItems(value).length;
   }
 
   function rawDigitalItemCount(value: StorefrontCart | null): number {
-    return (value?.digital_items || []).length;
+    return cartDigitalItems(value).length;
   }
 
   const product_item_count = computed(
@@ -379,7 +385,7 @@ function initializeStoreCore(
       const [product, inventory] = await Promise.all([
         client.eshop.product.get({
           id: item.product_id,
-          company_id: source.company_id ?? undefined,
+          company_id: source.company?.company_id ?? undefined,
           include_price: true,
         }),
         client.eshop.product.getInventory({ id: item.product_id }),
@@ -443,12 +449,11 @@ function initializeStoreCore(
       return cart.get() || response;
     }
     cart.set(response);
-    cart_status.setKey("user_token", response.token || null);
     cart_status.setKey(
       "selected_shipping_method_id",
-      response.shipping_method_id || null,
+      response.delivery_groups[0]?.shipping_rate_id ?? null,
     );
-    promo_code.set(response.promo_code || null);
+    promo_code.set(response.promotion_code_ids[0] ?? null);
     quote.set(null);
 
     if (response.status.type === "converted") {
@@ -459,9 +464,9 @@ function initializeStoreCore(
       return response;
     }
 
-    const cartProducts = response.product_items || [];
-    const cartBookings = response.booking_items || [];
-    const cartDigitalProducts = response.digital_items || [];
+    const cartProducts = cartProductItems(response);
+    const cartBookings = cartBookingItems(response);
+    const cartDigitalProducts = cartDigitalItems(response);
     if (cartProducts.length > 0 || cartBookings.length > 0) await loadSetup();
     const products = await Promise.all(
       cartProducts.map((item) =>
@@ -474,7 +479,7 @@ function initializeStoreCore(
     );
     booking_items.set(services);
     digital_items.set(cartDigitalProducts);
-    customer_group_plan_items.set(response.customer_group_plan_items);
+    customer_group_plan_items.set(cartCustomerGroupPlanItems(response));
     return response;
   }
 
@@ -729,7 +734,7 @@ function initializeStoreCore(
   ): StorefrontOrderCheckoutResult {
     const current = cart.get();
     if (current?.id === context.request.id) {
-      cart.set({ ...current, status: { type: "converted" }, converted_order_id: response.order_id });
+      cart.set(null);
     }
     quote.set(null);
     last_order.set({
@@ -810,8 +815,8 @@ function initializeStoreCore(
         product_items: product_items.get(),
         booking_items: booking_items.get(),
         digital_items: digital_items.get(),
-        customer_group_plan_items: current.customer_group_plan_items,
-        shipping_address: current.shipping_address,
+        customer_group_plan_items: cartCustomerGroupPlanItems(current),
+        shipping_address: null,
         billing_address: current.billing_address,
         payment_provider_id: paymentProviderId || null,
         clear_after_checkout: input.clear_after_checkout !== false,
