@@ -8,6 +8,8 @@ export {
 export type { EpochMilliseconds } from "../types/time";
 
 export {
+  formatPrice,
+  getPriceAmount,
   getCurrencySymbol,
   getCurrencyName,
   formatMinor,

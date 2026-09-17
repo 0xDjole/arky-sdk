@@ -1,4 +1,5 @@
 export { ScheduledResultTimeoutError } from "./utils/scheduledResult";
+export { isValidKey, validateKey, toKey, nameToKey } from "./utils/keyValidation";
 export { CartPresentationChangedError } from "./types/cartCheckout";
 export type { CartCheckoutRequest, RecoverCartCheckoutParams } from "./types/cartCheckout";
 export type { InitialMarketInput } from "./types/api";
