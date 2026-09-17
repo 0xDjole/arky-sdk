@@ -510,8 +510,6 @@ const storefrontApiFile = resolve(sourceDir, "api/storefront.ts");
 const storefrontApiSource = readFileSync(storefrontApiFile, "utf8");
 const customersApiFile = resolve(sourceDir, "api/customers.ts");
 const customersApiSource = readFileSync(customersApiFile, "utf8");
-const audiencesApiFile = resolve(sourceDir, "api/audiences.ts");
-const audiencesApiSource = readFileSync(audiencesApiFile, "utf8");
 const indexFile = resolve(sourceDir, "index.ts");
 const indexSource = readFileSync(indexFile, "utf8");
 
@@ -811,28 +809,16 @@ if (
 }
 
 if (
-  !/export const createAudiencesApi\b/.test(audiencesApiSource) ||
-  /\b(?:CreateCustomer|UpdateCustomer|FindCustomers|ImportCustomers|CustomerSession)\w*\b|\/customers\b/.test(
-    audiencesApiSource,
-  )
-) {
-  report(
-    audiencesApiFile,
-    audiencesApiSource,
-    0,
-    "api/audiences.ts must own Audience only, never Customer identity",
-  );
-  failures++;
-}
-
-if (
   /\bcrmApi\b|createCustomerApi|\bcms\s*:|\bcrm\s*:|\bautomation\s*:/.test(
     indexSource,
   ) ||
   !/createCustomersApi\s*\}\s*from\s*["']\.\/api\/customers["']/.test(
     indexSource,
   ) ||
-  !/createAudiencesApi\s*\}\s*from\s*["']\.\/api\/audiences["']/.test(
+  !/createCustomerGroupPlanApi\s*\}\s*from\s*["']\.\/api\/customerGroupPlan["']/.test(
+    indexSource,
+  ) ||
+  !/createCustomerGroupMemberApi\s*\}\s*from\s*["']\.\/api\/customerGroupMember["']/.test(
     indexSource,
   ) ||
   !/\bcontent\s*:\s*\{/.test(indexSource) ||

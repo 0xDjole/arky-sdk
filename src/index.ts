@@ -9,6 +9,8 @@ export type { CompanyMembershipEditableStatus, CompanyMembershipStatus, CompanyM
 export type { CompanyPermission, CompanyRoleStatus, CompanyRole, CompanyRoleUsage, CreateCompanyRoleParams, GetCompanyRoleParams, UpdateCompanyRoleParams, DeleteCompanyRoleParams, FindCompanyRolesParams } from "./types/companyRole";
 export type { CompanyLocationEditableStatus, CompanyLocationStatus, CompanyLocation, CreateCompanyLocationParams, GetCompanyLocationParams, UpdateCompanyLocationParams, DeleteCompanyLocationParams, FindCompanyLocationsParams } from "./types/companyLocation";
 export type { CustomerGroupEditableStatus, CustomerGroupStatus, CustomerGroupJoinPolicy, CustomerGroupConsentPolicy, CustomerGroupCommunication, CustomerGroup, CustomerGroupUsage, CreateCustomerGroupParams, GetCustomerGroupParams, UpdateCustomerGroupParams, DeleteCustomerGroupParams, FindCustomerGroupsParams } from "./types/customerGroup";
+export type { CustomerGroupPlan, CustomerGroupPlanTerm, CustomerGroupPlanStatus, CustomerGroupPlanBenefit, CustomerGroupPlanBenefitType, CustomerGroupProductQuantity, CustomerGroupDeliverySchedule, CustomerGroupDigitalContent, RecurringCadence, RenewalRecoveryPolicy, BillingInterval, CreateCustomerGroupPlanParams, UpdateCustomerGroupPlanParams, GetCustomerGroupPlanParams, FindCustomerGroupPlansParams } from "./types/customerGroupPlan";
+export type { CustomerGroupSubscription, CustomerGroupSubscriptionStatus, CustomerGroupPurchaseState, CustomerGroupCollectionBlock, GetCustomerGroupSubscriptionParams, FindCustomerGroupSubscriptionsParams, FindCustomerGroupSubscriptionOrdersParams, FindCustomerGroupSubscriptionCommandsParams, GetCurrentCustomerGroupSubscriptionParams } from "./types/customerGroupSubscription";
 export type { CustomerGroupAdmission, CustomerGroupAdmissionSource, CustomerGroupAdministrativeAccess, CustomerGroupMember, CustomerGroupJoinScope, CustomerGroupJoinRequest, JoinCustomerGroupParams, GetCustomerGroupMemberParams, FindCustomerGroupMembersParams, GetCurrentCustomerGroupMemberParams, FindCustomerGroupMemberCommandsParams } from "./types/customerGroupMember";
 export type { SalesChannelEditableStatus, SalesChannelStatus, SalesChannel, SalesChannelUsage, CreateSalesChannelParams, GetSalesChannelParams, UpdateSalesChannelParams, DeleteSalesChannelParams, FindSalesChannelsParams } from "./types/salesChannel";
 export type { SellableRef } from "./types/sellable";
@@ -896,13 +898,14 @@ import { createCompanyRoleApi } from "./api/companyRole";
 import { createCompanyLocationApi } from "./api/companyLocation";
 import { createCustomerGroupApi } from "./api/customerGroup";
 import { createCustomerGroupMemberApi } from "./api/customerGroupMember";
+import { createCustomerGroupSubscriptionApi } from "./api/customerGroupSubscription";
+import { createCustomerGroupPlanApi } from "./api/customerGroupPlan";
 import { createSalesChannelApi } from "./api/salesChannel";
 import { createDigitalApi } from "./api/digital";
 import { createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
 import { createCustomersApi } from "./api/customers";
 import { createEmailSuppressionApi } from "./api/emailSuppression";
-import { createAudiencesApi } from "./api/audiences";
 import { createActionsApi } from "./api/actions";
 import { createMailboxApi } from "./api/mailbox";
 import { createCampaignApi } from "./api/campaign";
@@ -1173,7 +1176,6 @@ export function createAdmin(config: CreateAdminConfig) {
   const promoCodeApi = createPromoCodeApi(apiConfig);
   const customersApi = createCustomersApi(apiConfig);
   const emailSuppressionApi = createEmailSuppressionApi(apiConfig);
-  const audienceApi = createAudiencesApi(apiConfig);
   const actionsApi = createActionsApi(apiConfig);
   const mailboxApi = createMailboxApi(apiConfig);
   const campaignApi = createCampaignApi(apiConfig);
@@ -1340,6 +1342,7 @@ export function createAdmin(config: CreateAdminConfig) {
       priceList: createPriceListApi(apiConfig),
       customerGroup: createCustomerGroupApi(apiConfig),
       customerGroupMember: createCustomerGroupMemberApi(apiConfig),
+      customerGroupSubscription: createCustomerGroupSubscriptionApi(apiConfig),
       assortment: createAssortmentApi(apiConfig),
       assortmentItem: createAssortmentItemApi(apiConfig),
       catalog: createCatalogApi(apiConfig),
@@ -1438,9 +1441,6 @@ export function createAdmin(config: CreateAdminConfig) {
       },
       promoCode: promoCodeApi,
     },
-    customer: {
-      audienceMemberships: audienceApi.customer,
-    },
     customers: {
       emailSuppression: emailSuppressionApi,
       create: customersApi.create,
@@ -1454,17 +1454,7 @@ export function createAdmin(config: CreateAdminConfig) {
       revokeSession: customersApi.revokeSession,
       revokeAllSessions: customersApi.revokeAllSessions,
     },
-    customer_group_plans: {
-      create: audienceApi.create,
-      find: audienceApi.find,
-      get: audienceApi.get,
-      patch: audienceApi.patch,
-      activate: audienceApi.activate,
-      close: audienceApi.close,
-      reopen: audienceApi.reopen,
-      archive: audienceApi.archive,
-      memberships: audienceApi.memberships,
-    },
+    customerGroupPlan: createCustomerGroupPlanApi(apiConfig),
     actions: actionsApi,
     campaign: campaignApi.campaign,
     campaignEnrollment: campaignApi.campaignEnrollment,

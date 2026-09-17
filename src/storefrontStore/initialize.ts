@@ -197,20 +197,20 @@ function initializeStoreCore(
   );
   const item_count = computed(
     [cart, product_item_count, booking_item_count, digital_item_count, customer_group_plan_items],
-    (cartValue, products, services, digitalProducts, audiences) =>
+    (cartValue, products, services, digitalProducts, plans) =>
       Math.max(
         cartValue?.item_count || 0,
-        products + services + digitalProducts + audiences.length,
+        products + services + digitalProducts + plans.length,
       ),
   );
   const snapshot = computed(
     [cart, product_items, booking_items, digital_items, customer_group_plan_items, item_count],
-    (cartValue, products, services, digitalProducts, audiences, count) => ({
+    (cartValue, products, services, digitalProducts, plans, count) => ({
       cart: cartValue,
       product_items: products,
       booking_items: services,
       digital_items: digitalProducts,
-      customer_group_plan_items: audiences,
+      customer_group_plan_items: plans,
       item_count: count,
     }),
   );
