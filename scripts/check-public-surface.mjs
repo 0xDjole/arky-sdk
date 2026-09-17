@@ -626,15 +626,16 @@ const requiredCartFields = [
   /\bstatus:\s*CartStatus;/,
   /\bmarket_id:\s*string;/,
   /\bsales_channel_id:\s*string;/,
-  /\baudience_items:\s*CartAudienceItem\[\];/,
-  ...["customer_id", "company_id", "company_location_id"].map(
-    (field) => new RegExp(`\\b${field}:\\s*string\\s*\\|\\s*null;`),
-  ),
+  /\bcustomer_id:\s*string;/,
+  /\bcompany:\s*CartCompanyContext\s*\|\s*null;/,
+  /\bline_items:\s*CartLineItem\[\];/,
+  /\bdelivery_groups:\s*CartDeliveryGroup\[\];/,
+  /\bpromotion_code_ids:\s*string\[\];/,
 ];
 if (!cartContract || requiredCartFields.some((field) => !field.test(cartContract[1])) ||
-  /\b(?:market|customer_session_id|created_by_account_id)\??:/.test(cartContract[1])) {
+  /\b(?:market|customer_session_id|created_by_account_id|token|promo_code|converted_order_id|shipping_address|payment_provider_id|shipping_method_id|product_items|booking_items|digital_items|customer_group_plan_items|company_id|company_location_id)\??:/.test(cartContract[1])) {
   report(cartTypesFile, cartTypesSource, cartContract?.index ?? 0,
-    "Cart must expose current buyer/context IDs, tagged status/provenance and four item families without legacy aliases");
+    "Cart must expose its buyer/context IDs, tagged status/provenance and one typed line item array without legacy aliases");
   failures++;
 }
 
@@ -645,11 +646,11 @@ if (!quoteContract || [
   /\bcontext:\s*PurchaseQuoteContext;/,
   /\blocale:\s*string;/,
   /\bpresentation_digest:\s*string;/,
-  /\baudience_lines:\s*AudienceQuoteLine\[\];/,
+  /\bcustomer_group_lines:\s*CustomerGroupOrderQuoteLine\[\];/,
   /\bpayment_provider_id:\s*string\s*\|\s*null;/,
 ].some((field) => !field.test(quoteContract[1]))) {
   report(quoteTypesFile, quoteTypesSource, quoteContract?.index ?? 0,
-    "OrderQuote must expose reviewed presentation, resolved buyer/context and all four line families");
+    "OrderQuote must expose reviewed presentation, resolved buyer/context and every typed line family");
   failures++;
 }
 
@@ -659,20 +660,23 @@ const orderContract = orderTypesSource.match(
   /export interface Order\s*\{([\s\S]*?)\n\}/,
 );
 const requiredOrderFields = [
-  /\borigin:\s*PurchaseOrigin;/,
-  /\bsource:\s*OrderSource;/,
+  /\borigin:\s*PurchaseOriginSnapshot;/,
+  /\btype:\s*OrderType;/,
   /\bstatus:\s*OrderStatus;/,
-  /\bcustomer_snapshot:\s*PurchaseCustomerSnapshot\s*\|\s*null;/,
-  /\bcompany_snapshot:\s*CompanySnapshot\s*\|\s*null;/,
+  /\bcustomer_id:\s*string;/,
+  /\bcustomer_snapshot:\s*PurchaseCustomerSnapshot;/,
+  /\bcompany:\s*OrderCompanyContext\s*\|\s*null;/,
+  /\bmarket_snapshot:\s*MarketSnapshot;/,
   /\bsales_channel_snapshot:\s*SalesChannelSnapshot;/,
-  /\baudience_items:\s*OrderAudienceItem\[\];/,
-  ...[
-    "customer_id",
-    "company_id",
-    "company_location_id",
-    "market_id",
-    "sales_channel_id",
-  ].map((field) => new RegExp(`\\b${field}:\\s*string\\s*\\|\\s*null;`)),
+  /\bline_items:\s*OrderLineItem\[\];/,
+  /\bdelivery_groups:\s*OrderDeliveryGroup\[\];/,
+  /\bseller:\s*SellerSnapshot;/,
+  /\binvoice_policy:\s*OrderInvoicePolicy;/,
+  /\bcollection_policy:\s*CollectionPolicySnapshot;/,
+  /\bpayment_authorization:\s*CheckoutPaymentAuthorization;/,
+  ...["market_id", "sales_channel_id"].map(
+    (field) => new RegExp(`\\b${field}:\\s*string\\s*\\|\\s*null;`),
+  ),
 ];
 if (
   !orderContract ||

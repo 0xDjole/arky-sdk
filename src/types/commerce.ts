@@ -1,5 +1,5 @@
 import type { AccountActor } from "./accountActor";
-import type { LineMoneySnapshot, Money, OrderItemStatus } from "./index";
+import type { Address, LineMoneySnapshot, Money, OrderItemStatus } from "./index";
 import type { EpochMilliseconds } from "./time";
 
 export interface DisplayTextSnapshot {
@@ -35,20 +35,60 @@ export interface AppliedPriceSnapshot {
   priced_at: EpochMilliseconds;
 }
 
-export interface OrderAudienceItem {
+export interface OrderAccessRevocation {
+  command_id: string;
+  actor: AccountActor;
+  effective_at: EpochMilliseconds;
+  reason: string;
+}
+
+/// Accepted plan terms are opaque to clients; the server owns their exact shape.
+export interface CustomerGroupAcceptedTerms {
+  plan: CustomerGroupPlanSnapshot;
+  deliveries: CustomerGroupDeliveryTerms[];
+  billing_address: Address | null;
+}
+
+export interface CustomerGroupPlanSnapshot {
+  source_customer_group_id: string;
+  source_customer_group_plan_id: string;
+  key: string;
+  name: DisplayTextSnapshot;
+  price: AppliedPriceSnapshot;
+}
+
+export interface CustomerGroupDeliveryTerms {
   id: string;
-  audience_id: string | null;
-  membership_id: string | null;
-  snapshot: {
-    audience_key: string;
-    audience_name: DisplayTextSnapshot;
-    price: AppliedPriceSnapshot;
-  };
+  benefit_ids: string[];
+  acceptance_digest: string;
+}
+
+export type OrderCustomerGroupTerms =
+  | { type: "initial"; terms: CustomerGroupAcceptedTerms }
+  | { type: "accepted_revision" };
+
+export type CustomerGroupPurchaseOccurrence =
+  | { type: "permanent"; starts_at: EpochMilliseconds }
+  | { type: "period"; occurrence_index: number; period: BillingPeriod };
+
+export interface BillingPeriod {
+  from: EpochMilliseconds;
+  to: EpochMilliseconds;
+}
+
+export interface OrderCustomerGroupPlanItem {
+  id: string;
+  customer_group_subscription_id: string;
+  revision_id: string;
+  terms: OrderCustomerGroupTerms;
+  occurrence: CustomerGroupPurchaseOccurrence;
+  revocation: OrderAccessRevocation | null;
   status: OrderItemStatus;
   money: LineMoneySnapshot;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
+
 
 export interface SubscriptionAudienceSnapshot {
   key: string;

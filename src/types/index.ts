@@ -1,15 +1,15 @@
 import type { Payment } from "./payment";
 import type { AudienceMembershipAdminType, AudienceMembershipType } from "./audienceMembership";
 export type { AudienceMembershipAdminType, AudienceMembershipType, AudienceConfirmationEmailStatus, AudienceConfirmationEmailAdminStatus, PaidAudienceSource } from "./audienceMembership";
-import type { AppliedPriceSnapshot, DisplayTextSnapshot, OrderAudienceItem, StorefrontPrice, SubscriptionAudienceSnapshot } from "./commerce";
+import type { AppliedPriceSnapshot, DisplayTextSnapshot, OrderCustomerGroupPlanItem, StorefrontPrice, SubscriptionAudienceSnapshot } from "./commerce";
 export type { Price } from "./price";
 export type { StorefrontPrice } from "./commerce";
-export type { AppliedPriceSnapshot, AppliedPriceSource, DisplayTextSnapshot, OrderAudienceItem, PriceBilling, SubscriptionAudienceSnapshot } from "./commerce";
+export type { AppliedPriceSnapshot, AppliedPriceSource, DisplayTextSnapshot, OrderCustomerGroupPlanItem, PriceBilling, SubscriptionAudienceSnapshot } from "./commerce";
 export type { CompanySnapshot, PurchaseCustomerSnapshot, PurchaseOrigin, PurchaseQuoteContext, SalesChannelSnapshot } from "./commerce";
 export type { CheckoutSubscriptionParams, QuoteSubscriptionParams, SubscriptionCheckoutPayload, SubscriptionCheckoutResult, SubscriptionCheckoutSelection, SubscriptionPurchaseSelection, SubscriptionQuote } from "./subscription";
 export type { CommerceProviderObservation, PaymentSettlement, PaymentSettlementEvidence, Payment, PaymentStatus, PaymentSource, PaymentAmounts, PaymentProviderBinding, PaymentCheckoutExpiration, BillingPeriod } from "./payment";
 import type { EpochMilliseconds } from "./time";
-export type { Order, OrderSource, OrderStatus } from "./order";
+export type { Order, OrderType, OrderStatus } from "./order";
 export type Currency =
   | "usd"
   | "eur"
@@ -120,7 +120,7 @@ export interface OrderMoney {
   shipping_method_id: string | null;
 }
 
-export type { OrderQuote, ProductQuoteLine, BookingQuoteLine, DigitalProductQuoteLine, AudienceQuoteLine, BookingQuoteLineAvailability } from "./quote";
+export type { OrderQuote, ProductQuoteLine, BookingQuoteLine, DigitalProductQuoteLine, CustomerGroupOrderQuoteLine, BookingQuoteLineAvailability } from "./quote";
 
 export type IntervalPeriod = "month" | "year";
 
@@ -2404,7 +2404,7 @@ export interface AudienceMembershipOrderPurchase {
   order_id: string;
   order_number: string;
   payment_id: string | null;
-  item: OrderAudienceItem;
+  item: OrderCustomerGroupPlanItem;
   created_at: EpochMilliseconds;
 }
 

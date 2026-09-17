@@ -8,7 +8,13 @@ import type {
   ShippingMethod,
   TimeRange,
 } from "./index";
-import type { OrderAudienceItem, PurchaseQuoteContext } from "./commerce";
+import type {
+  CustomerGroupAcceptedTerms,
+  CustomerGroupPurchaseOccurrence,
+  PurchaseQuoteContext,
+} from "./commerce";
+import type { CustomerGroupMemberType } from "./api";
+import type { EpochMilliseconds } from "./time";
 
 export type BookingQuoteLineAvailability =
   | { type: "available"; spots: number }
@@ -38,11 +44,13 @@ export interface DigitalProductQuoteLine {
   snapshot: OrderDigitalSnapshot;
 }
 
-export interface AudienceQuoteLine {
-  audience_id: string;
-  membership_id: string;
+export interface CustomerGroupOrderQuoteLine {
+  line_item_id: string;
+  member: CustomerGroupMemberType;
+  starts_at: EpochMilliseconds;
+  terms: CustomerGroupAcceptedTerms;
+  occurrence: CustomerGroupPurchaseOccurrence;
   money: LineMoneySnapshot;
-  snapshot: OrderAudienceItem["snapshot"];
 }
 
 export interface OrderQuote {
@@ -52,7 +60,7 @@ export interface OrderQuote {
   product_lines: ProductQuoteLine[];
   booking_lines: BookingQuoteLine[];
   digital_lines: DigitalProductQuoteLine[];
-  audience_lines: AudienceQuoteLine[];
+  customer_group_lines: CustomerGroupOrderQuoteLine[];
   shipping_lines: OrderShippingLine[];
   shipping_methods: ShippingMethod[];
   payment_provider_id: string | null;

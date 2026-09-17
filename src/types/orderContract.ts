@@ -1,0 +1,145 @@
+import type { Address, Currency, Money, TimeRange } from "./index";
+import type { CompanySnapshot } from "./commerce";
+import type { AccountActor } from "./accountActor";
+import type { EpochMilliseconds } from "./time";
+
+export interface MarketSnapshot {
+  key: string;
+  currency: Currency;
+  tax_mode: TaxMode;
+  source_market_id: string;
+}
+
+export type TaxMode = "inclusive" | "exclusive";
+
+export type CustomerAuthenticationSnapshot =
+  | { type: "visitor" }
+  | { type: "email_authenticated"; authenticated_at: EpochMilliseconds };
+
+export type PurchaseOriginSnapshot =
+  | {
+      type: "storefront";
+      customer_id: string;
+      customer_session_id: string;
+      authentication: CustomerAuthenticationSnapshot;
+    }
+  | { type: "admin"; actor: AccountActor }
+  | { type: "customer_group"; authorization_digest: string };
+
+export interface CompanyLocationSnapshot {
+  name: string;
+  shipping_address: Address | null;
+  billing_address: Address | null;
+  source_company_location_id: string;
+}
+
+export interface SellerProfile {
+  legal_name: string;
+  tax_identifier: string | null;
+  address: Address;
+}
+
+export interface SellerSnapshot {
+  profile: SellerProfile;
+  configuration_digest: string;
+}
+
+export type InvoiceIssueTrigger = { type: "acceptance" } | { type: "confirmation" };
+
+export type OrderInvoicePolicy =
+  | { type: "not_required"; reason: string }
+  | { type: "native"; series_key: string; issue_trigger: InvoiceIssueTrigger }
+  | { type: "external" };
+
+export type RenewalRecoveryStatus =
+  | { type: "recovering" }
+  | { type: "exhausted"; exhausted_at: EpochMilliseconds; command_id: string }
+  | { type: "resolved"; resolved_at: EpochMilliseconds };
+
+export interface RenewalRecovery {
+  first_failure_at: EpochMilliseconds;
+  retries_started: number;
+  status: RenewalRecoveryStatus;
+}
+
+export type ReconciliationState =
+  | { type: "clear" }
+  | { type: "hold"; reason: string; opened_at: EpochMilliseconds };
+
+export type CollectionPolicySnapshot =
+  | { type: "prepaid"; due_at: EpochMilliseconds }
+  | { type: "cash_on_delivery" }
+  | { type: "on_account"; authorized_by: AccountActor; reason: string };
+
+export interface PromotionRedemption {
+  id: string;
+  order_id: string;
+  promotion_id: string;
+  promotion_code_id: string | null;
+  customer_id: string;
+  accepted_at: EpochMilliseconds;
+}
+
+export interface CheckoutPaymentAuthorization {
+  allowed_provider_ids: string[];
+  actor: PurchaseOriginSnapshot;
+  accepted_at: EpochMilliseconds;
+}
+
+export type PaymentTermsType =
+  | { type: "due_on_receipt" }
+  | { type: "net_days"; days: number };
+
+export interface PaymentTermsSnapshot {
+  key: string;
+  type: PaymentTermsType;
+  due_at: EpochMilliseconds;
+}
+
+export type OrderDeliveryDestinationSnapshot =
+  | { type: "delivery"; address: Address }
+  | {
+      type: "pickup";
+      store_location_id: string | null;
+      store_location_key: string;
+      source_store_location_id: string;
+      address: Address;
+    };
+
+export interface OrderDeliveryGroupItem {
+  order_product_item_id: string;
+  quantity: number;
+  unit_spans: UnitSpan[];
+}
+
+export interface UnitSpan {
+  first_unit: number;
+  quantity: number;
+}
+
+export interface AcceptedDeliveryPricing {
+  source_shipping_method_id: string;
+  source_shipping_rate_id: string;
+  source_shipping_profile_id: string;
+  selected_market_zone_id: string;
+  policy_digest: string;
+  merchandise_basis: Money;
+  weight_grams: number | null;
+  free_above_subtotal: number | null;
+  customer_subtotal: Money;
+  accepted_at: EpochMilliseconds;
+  rounding_version: string;
+}
+
+export interface OrderDeliveryGroup {
+  id: string;
+  items: OrderDeliveryGroupItem[];
+  destination: OrderDeliveryDestinationSnapshot;
+  shipping_method_id: string | null;
+  shipping_rate_id: string | null;
+  shipping_method_key: string;
+  shipping_profile_key: string;
+  name_block_id: string;
+  accepted_pricing: AcceptedDeliveryPricing;
+  scheduled_window: TimeRange | null;
+}

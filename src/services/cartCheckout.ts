@@ -61,7 +61,7 @@ function isOrderQuote(value: unknown): value is OrderQuote {
   return record(value) && typeof value.locale === "string" && value.locale.length > 0 &&
     typeof value.presentation_digest === "string" && /^[0-9a-f]{64}$/.test(value.presentation_digest) &&
     record(value.context) && record(value.money) &&
-    [value.product_lines, value.booking_lines, value.digital_lines, value.audience_lines, value.shipping_lines, value.shipping_methods, value.payment_provider_ids].every(Array.isArray);
+    [value.product_lines, value.booking_lines, value.digital_lines, value.customer_group_lines, value.shipping_lines, value.shipping_methods, value.payment_provider_ids].every(Array.isArray);
 }
 
 function presentationChanged(error: unknown): unknown {
