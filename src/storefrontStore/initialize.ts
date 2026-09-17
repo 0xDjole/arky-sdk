@@ -1,6 +1,6 @@
 import type { EpochMilliseconds } from "../types/time";
 import type { CatalogReadOptions } from "../types/catalog";
-import { sanitizePublicCartAudiences, sanitizePublicCartDigitalProducts } from "../utils/cartInputs";
+import { sanitizePublicCartCustomerGroupPlans, sanitizePublicCartDigitalProducts } from "../utils/cartInputs";
 import {
   epochMilliseconds,
   epochMillisecondsNow,
@@ -33,7 +33,7 @@ import type {
   Block,
   Cart,
   CartDigitalItem,
-  CartAudienceItem,
+  CartCustomerGroupPlanItem,
   EshopCartItem,
   CollectionEntry,
   Form,
@@ -50,7 +50,7 @@ import type {
 } from "../types";
 import type {
   AvailabilityResponse,
-  CartAudienceInput,
+  CartCustomerGroupPlanInput,
   FindBookingOfferingsParams,
   GetAvailabilityParams,
   GetCollectionParams,
@@ -141,7 +141,7 @@ function initializeStoreCore(
   const product_items = atom<EshopCartItem[]>([]);
   const booking_items = atom<ArkyBookingCartItem[]>([]);
   const digital_items = atom<CartDigitalItem[]>([]);
-  const audience_items = atom<CartAudienceItem[]>([]);
+  const customer_group_plan_items = atom<CartCustomerGroupPlanItem[]>([]);
   const quote = atom<StorefrontOrderQuote | null>(null);
   const promo_code = atom<string | null>(null);
   const last_order = atom<ArkyLastOrder | null>(null);
@@ -190,7 +190,7 @@ function initializeStoreCore(
       Math.max(rawDigitalItemCount(cartValue), items.length),
   );
   const item_count = computed(
-    [cart, product_item_count, booking_item_count, digital_item_count, audience_items],
+    [cart, product_item_count, booking_item_count, digital_item_count, customer_group_plan_items],
     (cartValue, products, services, digitalProducts, audiences) =>
       Math.max(
         cartValue?.item_count || 0,
@@ -198,13 +198,13 @@ function initializeStoreCore(
       ),
   );
   const snapshot = computed(
-    [cart, product_items, booking_items, digital_items, audience_items, item_count],
+    [cart, product_items, booking_items, digital_items, customer_group_plan_items, item_count],
     (cartValue, products, services, digitalProducts, audiences, count) => ({
       cart: cartValue,
       product_items: products,
       booking_items: services,
       digital_items: digitalProducts,
-      audience_items: audiences,
+      customer_group_plan_items: audiences,
       item_count: count,
     }),
   );
@@ -455,7 +455,7 @@ function initializeStoreCore(
       product_items.set([]);
       booking_items.set([]);
       digital_items.set([]);
-      audience_items.set([]);
+      customer_group_plan_items.set([]);
       return response;
     }
 
@@ -474,7 +474,7 @@ function initializeStoreCore(
     );
     booking_items.set(services);
     digital_items.set(cartDigitalProducts);
-    audience_items.set(response.audience_items);
+    customer_group_plan_items.set(response.customer_group_plan_items);
     return response;
   }
 
@@ -492,8 +492,8 @@ function initializeStoreCore(
     return sanitizePublicCartDigitalProducts(input.digital_items || digital_items.get());
   }
 
-  function checkoutAudiences(input: ArkyCartInput = {}): CartAudienceInput[] {
-    return sanitizePublicCartAudiences(input.audience_items ?? audience_items.get());
+  function checkoutCustomerGroupPlans(input: ArkyCartInput = {}): CartCustomerGroupPlanInput[] {
+    return sanitizePublicCartCustomerGroupPlans(input.customer_group_plan_items ?? customer_group_plan_items.get());
   }
 
   async function syncCart(
@@ -509,7 +509,7 @@ function initializeStoreCore(
         product_items: checkoutProducts(input),
         booking_items: checkoutBookings(input),
         digital_items: checkoutDigitalProducts(input),
-        audience_items: checkoutAudiences(input),
+        customer_group_plan_items: checkoutCustomerGroupPlans(input),
         company_id: input.company_id,
         company_location_id: input.company_location_id,
         market_id: input.market_id,
@@ -644,12 +644,12 @@ function initializeStoreCore(
     return response;
   }
 
-  async function addAudience(item: CartAudienceInput): Promise<StorefrontCart> {
+  async function addCustomerGroupPlan(item: CartCustomerGroupPlanInput): Promise<StorefrontCart> {
     const writeRevision = nextCartWriteRevision();
     const current = cart.get() || (await ensureCart());
-    const response = await client.eshop.cart.addAudience({
+    const response = await client.eshop.cart.addCustomerGroupPlan({
       id: current.id,
-      audience: sanitizePublicCartAudiences([item])[0],
+      customer_group_plan: sanitizePublicCartCustomerGroupPlans([item])[0],
     });
     await applyCartResponse(response, { ifRevision: writeRevision });
     return response;
@@ -685,7 +685,7 @@ function initializeStoreCore(
     product_items.set([]);
     booking_items.set([]);
     digital_items.set([]);
-    audience_items.set([]);
+    customer_group_plan_items.set([]);
     cart.set(null);
     quote.set(null);
     promo_code.set(null);
@@ -699,7 +699,7 @@ function initializeStoreCore(
       checkoutProducts(input).length === 0 &&
       checkoutBookings(input).length === 0 &&
       checkoutDigitalProducts(input).length === 0 &&
-      checkoutAudiences(input).length === 0
+      checkoutCustomerGroupPlans(input).length === 0
     ) {
       quote.set(null);
       return null;
@@ -740,7 +740,7 @@ function initializeStoreCore(
       product_items: context.product_items,
       booking_items: context.booking_items,
       digital_items: context.digital_items,
-      audience_items: context.audience_items,
+      customer_group_plan_items: context.customer_group_plan_items,
       shipping_address: context.shipping_address,
       billing_address: context.billing_address,
       total: response.payment?.amounts.total ?? 0,
@@ -810,7 +810,7 @@ function initializeStoreCore(
         product_items: product_items.get(),
         booking_items: booking_items.get(),
         digital_items: digital_items.get(),
-        audience_items: current.audience_items,
+        customer_group_plan_items: current.customer_group_plan_items,
         shipping_address: current.shipping_address,
         billing_address: current.billing_address,
         payment_provider_id: paymentProviderId || null,
@@ -830,7 +830,7 @@ function initializeStoreCore(
       if (!response) return null;
       return finalizeCheckout({
         request: pending,
-        product_items: [], booking_items: [], digital_items: [], audience_items: [],
+        product_items: [], booking_items: [], digital_items: [], customer_group_plan_items: [],
         shipping_address: null, billing_address: null,
         payment_provider_id: pending.payment_provider_id ?? null,
         clear_after_checkout: false,
@@ -1682,7 +1682,7 @@ function initializeStoreCore(
     product_items,
     booking_items,
     digital_items,
-    audience_items,
+    customer_group_plan_items,
     quote_result: quote,
     promo_code,
     last_order,
@@ -1701,7 +1701,7 @@ function initializeStoreCore(
     removeBooking,
     addDigital: addDigitalProduct,
     removeDigital: removeDigitalProduct,
-    addAudience,
+    addCustomerGroupPlan,
     removeAudience,
     clear: clearCart,
     clearLocal: clearLocalCart,
@@ -1728,7 +1728,7 @@ function initializeStoreCore(
         product_items: checkoutProducts(input),
         booking_items: checkoutBookings(input),
         digital_items: checkoutDigitalProducts(input),
-        audience_items: checkoutAudiences(input),
+        customer_group_plan_items: checkoutCustomerGroupPlans(input),
       };
     },
     buildProductItems: toCartProducts,
@@ -1866,7 +1866,7 @@ function initializeStoreCore(
       order: client.eshop.order,
       cart: cart_store,
     },
-    audiences: client.audiences,
+    customer_group_plans: client.customer_group_plans,
     actions: {
       track(params: TrackCustomerActionParams) {
         return trackCustomerAction(params);

@@ -122,9 +122,9 @@ export function createCartController(cartApi: CartApi): CartController {
       );
     },
 
-    addAudience(params, options) {
+    addCustomerGroupPlan(params, options) {
       return runCartMutation(() =>
-        cartApi.addAudience({ ...params, id: currentCartId(params.id) }, options),
+        cartApi.addCustomerGroupPlan({ ...params, id: currentCartId(params.id) }, options),
       );
     },
 

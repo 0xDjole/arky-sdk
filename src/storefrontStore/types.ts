@@ -16,7 +16,7 @@ import type {
   Block,
   Cart,
   CartDigitalItem,
-  CartAudienceItem,
+  CartCustomerGroupPlanItem,
   EshopCartItem,
   CollectionEntry,
   Currency,
@@ -32,7 +32,7 @@ import type {
   TimeRange,
 } from "../types";
 import type { AvailabilityResponse } from "../types/api";
-import type { CartAudienceInput, CheckoutCartParams } from "../types/api";
+import type { CartCustomerGroupPlanInput, CheckoutCartParams } from "../types/api";
 import type { StorefrontParams } from "../types/storefront";
 
 export type ArkyStoreClient = ReturnType<typeof createStorefront>;
@@ -72,7 +72,7 @@ export interface ArkyCartSnapshot {
   product_items: EshopCartItem[];
   booking_items: ArkyBookingCartItem[];
   digital_items: CartDigitalItem[];
-  audience_items: CartAudienceItem[];
+  customer_group_plan_items: CartCustomerGroupPlanItem[];
   item_count: number;
 }
 
@@ -95,7 +95,7 @@ export interface ArkyLastOrder {
   product_items?: EshopCartItem[];
   booking_items?: ArkyBookingCartItem[];
   digital_items?: CartDigitalItem[];
-  audience_items?: CartAudienceInput[];
+  customer_group_plan_items?: CartCustomerGroupPlanItem[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   total?: number;
@@ -108,7 +108,7 @@ export interface ArkyCartInput {
   product_items?: EshopCartItem[];
   booking_items?: ArkyBookingCartItem[];
   digital_items?: CartDigitalItem[];
-  audience_items?: CartAudienceInput[];
+  customer_group_plan_items?: CartCustomerGroupPlanInput[];
   company_id?: string | null;
   company_location_id?: string | null;
   market_id?: string;
@@ -131,7 +131,7 @@ export interface CheckoutContext {
   product_items: EshopCartItem[];
   booking_items: ArkyBookingCartItem[];
   digital_items: CartDigitalItem[];
-  audience_items: CartAudienceInput[];
+  customer_group_plan_items: CartCustomerGroupPlanItem[];
   shipping_address: Address | null;
   billing_address: Address | null;
   payment_provider_id: string | null;

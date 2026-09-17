@@ -23,7 +23,7 @@ import type {
   GetAvailabilityParams,
   AvailabilityResponse,
   AddCartBookingParams,
-  AddCartAudienceParams,
+  AddCartCustomerGroupPlanParams,
   AddCartDigitalProductParams,
   AddCartProductParams,
   CheckoutCartParams,
@@ -491,7 +491,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
           product_items: payload.product_items || [],
           booking_items: payload.booking_items || [],
           digital_items: payload.digital_items || [],
-          audience_items: payload.audience_items || [],
+          customer_group_plan_items: payload.customer_group_plan_items || [],
         },
         options,
       ));
@@ -507,7 +507,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         product_items,
         booking_items,
         digital_items,
-        audience_items,
+        customer_group_plan_items,
         ...payload
       } = params;
       const target_store_id = store_id || apiConfig.storeId;
@@ -518,7 +518,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
           ...(product_items ? { product_items } : {}),
           ...(booking_items ? { booking_items } : {}),
           ...(digital_items ? { digital_items } : {}),
-          ...(audience_items ? { audience_items } : {}),
+          ...(customer_group_plan_items ? { customer_group_plan_items } : {}),
         },
         options,
       ));
@@ -563,15 +563,15 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       ));
     },
 
-    async addCartAudience(
-      params: AddCartAudienceParams,
+    async addCartCustomerGroupPlan(
+      params: AddCartCustomerGroupPlanParams,
       options?: RequestOptions,
     ): Promise<Cart> {
-      const { id, store_id, audience } = params;
+      const { id, store_id, customer_group_plan } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(id)}/audience-items`,
-        { audience },
+        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(id)}/customer-group-plan-items`,
+        { customer_group_plan },
         options,
       ));
     },
@@ -659,7 +659,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: GetQuoteParams,
       options?: RequestOptions,
     ): Promise<OrderQuote> {
-      const { store_id, products, bookings, digital, audiences, ...rest } = params;
+      const { store_id, products, bookings, digital, customer_group_plans, ...rest } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<OrderQuote>(
         `/v1/stores/${encodeURIComponent(target_store_id)}/orders/quote`,
@@ -669,7 +669,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
           products: products || [],
           bookings: bookings || [],
           digital: digital || [],
-          audiences: audiences || [],
+          customer_group_plans: customer_group_plans || [],
           market: rest.market,
         },
         options,

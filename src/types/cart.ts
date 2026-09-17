@@ -1,6 +1,11 @@
 import type { Address, TimeRange } from "./index";
 import type { PurchaseOrigin } from "./commerce";
 import type { ManualPrice } from "./price";
+import type {
+  CartCustomerGroupDelivery,
+  CustomerGroupMemberType,
+  CustomerGroupPlanStart,
+} from "./api";
 import type { EpochMilliseconds } from "./time";
 
 export type CartStatus =
@@ -23,7 +28,7 @@ export interface Cart {
   product_items: CartProductItem[];
   booking_items: CartBookingItem[];
   digital_items: CartDigitalItem[];
-  audience_items: CartAudienceItem[];
+  customer_group_plan_items: CartCustomerGroupPlanItem[];
   shipping_address: Address | null;
   billing_address: Address | null;
   promo_code: string | null;
@@ -62,8 +67,11 @@ export interface CartDigitalItem {
   price_override: ManualPrice | null;
 }
 
-export interface CartAudienceItem {
+export interface CartCustomerGroupPlanItem {
   id: string;
-  audience_id: string;
-  membership_id: string;
+  customer_group_plan_id: string;
+  member: CustomerGroupMemberType;
+  start: CustomerGroupPlanStart;
+  deliveries: CartCustomerGroupDelivery[];
+  price_override: ManualPrice | null;
 }

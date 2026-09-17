@@ -197,7 +197,7 @@ export interface EshopCartItem {
   max_stock?: number;
 }
 
-export type { Cart, CartStatus, CartProductItem, CartBookingItem, CartDigitalItem, CartAudienceItem } from "./cart";
+export type { Cart, CartStatus, CartProductItem, CartBookingItem, CartDigitalItem, CartCustomerGroupPlanItem } from "./cart";
 
 export type SocialConnectionType =
   | "facebook_page"

@@ -1,18 +1,20 @@
 import type {
   CartBookingInput,
-  CartAudienceInput,
+  CartCustomerGroupPlanInput,
   CartDigitalItemInput,
   CartProductInput,
 } from "../types/api";
 import type { StorefrontUpdateCartParams } from "../types/storefront";
 
-export function sanitizePublicCartAudiences(
-  items: readonly CartAudienceInput[],
-): CartAudienceInput[] {
+export function sanitizePublicCartCustomerGroupPlans(
+  items: readonly Omit<CartCustomerGroupPlanInput, "price_override">[],
+): CartCustomerGroupPlanInput[] {
   return items.map((item) => ({
     ...(item.id ? { id: item.id } : {}),
-    audience_id: item.audience_id,
-    membership_id: item.membership_id,
+    customer_group_plan_id: item.customer_group_plan_id,
+    member: item.member,
+    start: item.start,
+    deliveries: item.deliveries,
   }));
 }
 
@@ -26,7 +28,7 @@ export function sanitizePublicCartUpdate(input: StorefrontUpdateCartParams): Sto
     ...(input.product_items !== undefined ? { product_items: sanitizePublicCartProducts(input.product_items) } : {}),
     ...(input.booking_items !== undefined ? { booking_items: sanitizePublicCartBookings(input.booking_items) } : {}),
     ...(input.digital_items !== undefined ? { digital_items: sanitizePublicCartDigitalProducts(input.digital_items) } : {}),
-    ...(input.audience_items !== undefined ? { audience_items: sanitizePublicCartAudiences(input.audience_items) } : {}),
+    ...(input.customer_group_plan_items !== undefined ? { customer_group_plan_items: sanitizePublicCartCustomerGroupPlans(input.customer_group_plan_items) } : {}),
     ...(input.shipping_address !== undefined ? { shipping_address: input.shipping_address } : {}),
     ...(input.billing_address !== undefined ? { billing_address: input.billing_address } : {}),
     ...(input.promo_code !== undefined ? { promo_code: input.promo_code } : {}),

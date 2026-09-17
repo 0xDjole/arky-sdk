@@ -172,8 +172,8 @@ export interface CustomerFunnelData {
 }
 
 export interface OutreachOverviewData {
-  audiences: number;
-  active_audiences: number;
+  customer_group_plans: number;
+  active_customer_group_plans: number;
   mailboxes: number;
   active_mailboxes: number;
   campaigns: number;
@@ -242,7 +242,7 @@ export interface CustomerActionFeedSummary {
   orders: number;
   submissions: number;
   customers: number;
-  audiences: number;
+  customer_group_plans: number;
   abandoned_carts: number;
   carts: number;
   promo_codes: number;

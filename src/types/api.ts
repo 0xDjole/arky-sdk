@@ -151,15 +151,40 @@ export interface CartDigitalItemInput {
   form_submission_id?: string | null;
 }
 
-export interface CartAudienceInput {
-  id?: string;
-  audience_id: string;
-  membership_id: string;
+export type CustomerGroupMemberType =
+  | { type: "customer"; customer_id: string }
+  | { type: "company"; company_id: string };
+
+export type CustomerGroupPlanStart =
+  | { type: "on_acceptance" }
+  | { type: "scheduled"; starts_at: number };
+
+export type CartDeliveryDestination =
+  | { type: "delivery"; address: PostalAddress }
+  | { type: "pickup"; store_location_id: string };
+
+export interface DeliveryQuoteAcceptance {
+  quote_digest: string;
+  customer_subtotal: Money;
+  expires_at: number;
+  cart_version: string;
 }
 
-export interface AudienceQuoteInput {
-  audience_id: string;
-  membership_id: string;
+export interface CartCustomerGroupDelivery {
+  id: string;
+  benefit_ids: string[];
+  destination: CartDeliveryDestination;
+  shipping_rate_id: string | null;
+  quote_acceptance: DeliveryQuoteAcceptance;
+}
+
+export interface CartCustomerGroupPlanInput {
+  id?: string;
+  customer_group_plan_id: string;
+  member: CustomerGroupMemberType;
+  start: CustomerGroupPlanStart;
+  deliveries: CartCustomerGroupDelivery[];
+  price_override?: ManualPriceInput | null;
 }
 
 export interface TrustedCartProductInput extends CartProductInput {
@@ -185,7 +210,7 @@ export interface GetQuoteParams {
   products?: ProductQuoteInput[];
   bookings?: BookingQuoteInput[];
   digital?: DigitalProductQuoteInput[];
-  audiences?: AudienceQuoteInput[];
+  customer_group_plans?: CartCustomerGroupPlanInput[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   payment_provider_id?: string;
@@ -228,7 +253,7 @@ export interface CreateCartParams {
   product_items?: TrustedCartProductInput[];
   booking_items?: TrustedCartBookingInput[];
   digital_items?: TrustedCartDigitalItemInput[];
-  audience_items?: CartAudienceInput[];
+  customer_group_plan_items?: CartCustomerGroupPlanInput[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   promo_code?: string | null;
@@ -247,7 +272,7 @@ export interface UpdateCartParams {
   product_items?: TrustedCartProductInput[];
   booking_items?: TrustedCartBookingInput[];
   digital_items?: TrustedCartDigitalItemInput[];
-  audience_items?: CartAudienceInput[];
+  customer_group_plan_items?: CartCustomerGroupPlanInput[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   promo_code?: string;
@@ -273,10 +298,10 @@ export interface AddCartDigitalProductParams {
   digital: TrustedCartDigitalItemInput;
 }
 
-export interface AddCartAudienceParams {
+export interface AddCartCustomerGroupPlanParams {
   id: string;
   store_id?: string;
-  audience: CartAudienceInput;
+  customer_group_plan: CartCustomerGroupPlanInput;
 }
 
 export type RemoveCartItemParams = {

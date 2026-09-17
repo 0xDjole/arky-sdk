@@ -1,6 +1,6 @@
 import type {
   AddCartBookingParams,
-  AddCartAudienceParams,
+  AddCartCustomerGroupPlanParams,
   AddCartDigitalProductParams,
   AddCartProductParams,
   CheckoutCartParams,
@@ -35,7 +35,10 @@ export interface CartApi {
     params: AddCartDigitalProductParams,
     options?: RequestOptions,
   ): Promise<Cart>;
-  addAudience(params: AddCartAudienceParams, options?: RequestOptions): Promise<Cart>;
+  addCustomerGroupPlan(
+    params: AddCartCustomerGroupPlanParams,
+    options?: RequestOptions,
+  ): Promise<Cart>;
   removeItem(
     params: RemoveCartItemParams,
     options?: RequestOptions,
@@ -82,7 +85,10 @@ export type CartControllerAddDigitalParams = Omit<
 > & {
   id?: string;
 };
-export type CartControllerAddAudienceParams = Omit<AddCartAudienceParams, "id"> & { id?: string };
+export type CartControllerAddCustomerGroupPlanParams = Omit<
+  AddCartCustomerGroupPlanParams,
+  "id"
+> & { id?: string };
 export type CartControllerRemoveItemParams =
   RemoveCartItemParams extends infer Params
     ? Params extends { id: string }
@@ -126,7 +132,7 @@ export interface CartController {
     params: CartControllerUpdateParams,
     options?: RequestOptions,
   ): Promise<Cart>;
-  addAudience(params: CartControllerAddAudienceParams, options?: RequestOptions): Promise<Cart>;
+  addCustomerGroupPlan(params: CartControllerAddCustomerGroupPlanParams, options?: RequestOptions): Promise<Cart>;
   removeItem(
     params: CartControllerRemoveItemParams,
     options?: RequestOptions,

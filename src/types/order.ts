@@ -42,7 +42,7 @@ export interface Order {
   product_items: OrderProductItem[];
   booking_items: OrderBookingItem[];
   digital_items: OrderDigitalItem[];
-  audience_items: OrderAudienceItem[];
+  customer_group_plan_items: OrderAudienceItem[];
   money: OrderMoney;
   shipping_lines: OrderShippingLine[];
   shipping_address: Address | null;

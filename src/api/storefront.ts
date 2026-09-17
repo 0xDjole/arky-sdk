@@ -5,7 +5,7 @@ import { checkoutCart, pendingCartCheckout, recoverCartCheckout, withCartMutatio
 import type { CartCheckoutTransport, CartCheckoutRequest } from "../types/cartCheckout";
 import type { StorefrontApiConfig } from "../services/clientTypes";
 import type {
-  AddCartAudienceParams,
+  AddCartCustomerGroupPlanParams,
   AvailabilityResponse,
   CheckoutCartParams,
   ClearCartParams,
@@ -107,7 +107,7 @@ export type {
 } from "../types/storefront";
 import {
   sanitizePublicCartBookings,
-  sanitizePublicCartAudiences,
+  sanitizePublicCartCustomerGroupPlans,
   sanitizePublicCartUpdate,
   sanitizePublicCartDigitalProducts,
   sanitizePublicCartProducts,
@@ -734,14 +734,18 @@ export const createStorefrontApi = (
             options,
           ));
         },
-        async addAudience(
-          params: StorefrontParams<AddCartAudienceParams>,
+        async addCustomerGroupPlan(
+          params: StorefrontParams<AddCartCustomerGroupPlanParams>,
           options?: RequestOptions,
         ): Promise<StorefrontDto<Cart>> {
           await lifecycle.ensureVisitorSession();
           return withCartMutation(checkoutScope, () => apiConfig.httpClient.post<StorefrontDto<Cart>>(
-            `${base}/carts/${encodeURIComponent(params.id)}/audience-items`,
-            { audience: sanitizePublicCartAudiences([params.audience])[0] },
+            `${base}/carts/${encodeURIComponent(params.id)}/customer-group-plan-items`,
+            {
+              customer_group_plan: sanitizePublicCartCustomerGroupPlans([
+                params.customer_group_plan,
+              ])[0],
+            },
             options,
           ));
         },
@@ -895,7 +899,7 @@ export const createStorefrontApi = (
         },
       },
     },
-    audiences: {
+    customer_group_plans: {
       find(
         params: FindStorefrontAudiencesParams = {},
         options?: RequestOptions,
