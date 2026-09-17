@@ -8,9 +8,8 @@ export type { CompanyAddress, CompanyProfile, CompanyEditableStatus, CompanyStat
 export type { CompanyMembershipEditableStatus, CompanyMembershipStatus, CompanyMembership, CreateCompanyMembershipParams, GetCompanyMembershipParams, UpdateCompanyMembershipParams, DeleteCompanyMembershipParams, FindCompanyMembershipsParams } from "./types/companyMembership";
 export type { CompanyPermission, CompanyRoleStatus, CompanyRole, CompanyRoleUsage, CreateCompanyRoleParams, GetCompanyRoleParams, UpdateCompanyRoleParams, DeleteCompanyRoleParams, FindCompanyRolesParams } from "./types/companyRole";
 export type { CompanyLocationEditableStatus, CompanyLocationStatus, CompanyLocation, CreateCompanyLocationParams, GetCompanyLocationParams, UpdateCompanyLocationParams, DeleteCompanyLocationParams, FindCompanyLocationsParams } from "./types/companyLocation";
-export type { CustomerGroupEditableStatus, CustomerGroupStatus, CustomerGroup, CustomerGroupUsage, CreateCustomerGroupParams, GetCustomerGroupParams, UpdateCustomerGroupParams, DeleteCustomerGroupParams, FindCustomerGroupsParams } from "./types/customerGroup";
-export type { CustomerGroupCustomerStatus, CustomerGroupCustomer, CreateCustomerGroupCustomerParams, GetCustomerGroupCustomerParams, DeleteCustomerGroupCustomerParams, FindCustomerGroupCustomersParams } from "./types/customerGroupCustomer";
-export type { CustomerGroupCompanyStatus, CustomerGroupCompany, CreateCustomerGroupCompanyParams, GetCustomerGroupCompanyParams, DeleteCustomerGroupCompanyParams, FindCustomerGroupCompaniesParams } from "./types/customerGroupCompany";
+export type { CustomerGroupEditableStatus, CustomerGroupStatus, CustomerGroupJoinPolicy, CustomerGroupConsentPolicy, CustomerGroupCommunication, CustomerGroup, CustomerGroupUsage, CreateCustomerGroupParams, GetCustomerGroupParams, UpdateCustomerGroupParams, DeleteCustomerGroupParams, FindCustomerGroupsParams } from "./types/customerGroup";
+export type { CustomerGroupAdmission, CustomerGroupAdmissionSource, CustomerGroupAdministrativeAccess, CustomerGroupMember, CustomerGroupJoinScope, CustomerGroupJoinRequest, JoinCustomerGroupParams, GetCustomerGroupMemberParams, FindCustomerGroupMembersParams, GetCurrentCustomerGroupMemberParams, FindCustomerGroupMemberCommandsParams } from "./types/customerGroupMember";
 export type { SalesChannelEditableStatus, SalesChannelStatus, SalesChannel, SalesChannelUsage, CreateSalesChannelParams, GetSalesChannelParams, UpdateSalesChannelParams, DeleteSalesChannelParams, FindSalesChannelsParams } from "./types/salesChannel";
 export type { SellableRef } from "./types/sellable";
 export type {
@@ -896,8 +895,7 @@ import { createCompanyMembershipApi } from "./api/companyMembership";
 import { createCompanyRoleApi } from "./api/companyRole";
 import { createCompanyLocationApi } from "./api/companyLocation";
 import { createCustomerGroupApi } from "./api/customerGroup";
-import { createCustomerGroupCustomerApi } from "./api/customerGroupCustomer";
-import { createCustomerGroupCompanyApi } from "./api/customerGroupCompany";
+import { createCustomerGroupMemberApi } from "./api/customerGroupMember";
 import { createSalesChannelApi } from "./api/salesChannel";
 import { createDigitalApi } from "./api/digital";
 import { createLocationApi } from "./api/location";
@@ -1341,8 +1339,7 @@ export function createAdmin(config: CreateAdminConfig) {
       price: createPriceApi(apiConfig),
       priceList: createPriceListApi(apiConfig),
       customerGroup: createCustomerGroupApi(apiConfig),
-      customerGroupCustomer: createCustomerGroupCustomerApi(apiConfig),
-      customerGroupCompany: createCustomerGroupCompanyApi(apiConfig),
+      customerGroupMember: createCustomerGroupMemberApi(apiConfig),
       assortment: createAssortmentApi(apiConfig),
       assortmentItem: createAssortmentItemApi(apiConfig),
       catalog: createCatalogApi(apiConfig),

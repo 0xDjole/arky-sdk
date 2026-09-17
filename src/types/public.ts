@@ -6,9 +6,7 @@ export type { CompanyAddress, CompanyProfile, CompanyEditableStatus, CompanyStat
 export type { CompanyMembershipEditableStatus, CompanyMembershipStatus, CompanyMembership, CreateCompanyMembershipParams, GetCompanyMembershipParams, UpdateCompanyMembershipParams, DeleteCompanyMembershipParams, FindCompanyMembershipsParams } from "./companyMembership";
 export type { CompanyPermission, CompanyRoleStatus, CompanyRole, CompanyRoleUsage, CreateCompanyRoleParams, GetCompanyRoleParams, UpdateCompanyRoleParams, DeleteCompanyRoleParams, FindCompanyRolesParams } from "./companyRole";
 export type { CompanyLocationEditableStatus, CompanyLocationStatus, CompanyLocation, CreateCompanyLocationParams, GetCompanyLocationParams, UpdateCompanyLocationParams, DeleteCompanyLocationParams, FindCompanyLocationsParams } from "./companyLocation";
-export type { CustomerGroupEditableStatus, CustomerGroupStatus, CustomerGroup, CustomerGroupUsage, CreateCustomerGroupParams, GetCustomerGroupParams, UpdateCustomerGroupParams, DeleteCustomerGroupParams, FindCustomerGroupsParams } from "./customerGroup";
-export type { CustomerGroupCustomerStatus, CustomerGroupCustomer, CreateCustomerGroupCustomerParams, GetCustomerGroupCustomerParams, DeleteCustomerGroupCustomerParams, FindCustomerGroupCustomersParams } from "./customerGroupCustomer";
-export type { CustomerGroupCompanyStatus, CustomerGroupCompany, CreateCustomerGroupCompanyParams, GetCustomerGroupCompanyParams, DeleteCustomerGroupCompanyParams, FindCustomerGroupCompaniesParams } from "./customerGroupCompany";
+export type { CustomerGroupEditableStatus, CustomerGroupStatus, CustomerGroupJoinPolicy, CustomerGroupConsentPolicy, CustomerGroupCommunication, CustomerGroup, CustomerGroupUsage, CreateCustomerGroupParams, GetCustomerGroupParams, UpdateCustomerGroupParams, DeleteCustomerGroupParams, FindCustomerGroupsParams } from "./customerGroup";
 export type { SalesChannelEditableStatus, SalesChannelStatus, SalesChannel, SalesChannelUsage, CreateSalesChannelParams, GetSalesChannelParams, UpdateSalesChannelParams, DeleteSalesChannelParams, FindSalesChannelsParams } from "./salesChannel";
 export type { SellableRef } from "./sellable";
 export type {
@@ -69,3 +67,4 @@ export type {
 } from "./emailSuppression";
 export type { PriceEditableStatus, PriceStatus, ManualPriceInput, ManualPrice, CreatePriceParams, UpdatePriceParams, GetPriceParams, DeletePriceParams, FindPricesParams } from "./price";
 export type { PriceList, PriceListEditableStatus, PriceListStatus, CreatePriceListParams, UpdatePriceListParams, GetPriceListParams, DeletePriceListParams, FindPriceListsParams } from "./priceList";
+export type { CustomerGroupAdmission, CustomerGroupAdmissionSource, CustomerGroupAdministrativeAccess, CustomerGroupMember, CustomerGroupJoinScope, CustomerGroupJoinRequest, JoinCustomerGroupParams, GetCustomerGroupMemberParams, FindCustomerGroupMembersParams, GetCurrentCustomerGroupMemberParams, FindCustomerGroupMemberCommandsParams } from "./customerGroupMember";
