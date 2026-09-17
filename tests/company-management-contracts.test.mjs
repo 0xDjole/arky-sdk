@@ -100,8 +100,19 @@ const definitions = [
   {
     path: ["eshop", "customerGroup"],
     route: "customer-groups",
-    create: { key: "wholesale", name: "Wholesale", status: { type: "active" } },
-    update: { name: "Wholesale 2", status: { type: "archived" } },
+    create: {
+      key: "wholesale",
+      name: "Wholesale",
+      status: { type: "active" },
+      join_policy: { type: "private" },
+      communication: { type: "disabled" },
+    },
+    update: {
+      name: "Wholesale 2",
+      status: { type: "archived" },
+      join_policy: { type: "private" },
+      communication: { type: "disabled" },
+    },
     query: { key: "wholesale" },
     usage: {
       catalog_entitlement_ids: [id],
@@ -111,20 +122,6 @@ const definitions = [
       company_edge_ids: [],
       more_company_edges: false,
     },
-  },
-  {
-    path: ["eshop", "customerGroupCustomer"],
-    route: "customer-group-customers",
-    create: { customer_group_id: selectedStoreId, customer_id: id },
-    query: { customer_group_id: selectedStoreId, customer_id: id },
-    exactBinding: true,
-  },
-  {
-    path: ["eshop", "customerGroupCompany"],
-    route: "customer-group-companies",
-    create: { customer_group_id: selectedStoreId, company_id: id },
-    query: { customer_group_id: selectedStoreId, company_id: id },
-    exactBinding: true,
   },
   {
     path: ["store", "salesChannel"],
