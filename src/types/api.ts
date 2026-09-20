@@ -928,6 +928,8 @@ export interface CreateBookingOfferingParams {
   slot_interval_minutes: number;
   booking_window: BookingWindow;
   reminder_offsets_minutes: number[];
+  service_location_id?: string | null;
+  tax_category_id?: string | null;
   status?: BookingOfferingStatus;
 }
 
@@ -940,6 +942,8 @@ export interface UpdateBookingOfferingParams {
   slot_interval_minutes?: number;
   booking_window?: BookingWindow;
   reminder_offsets_minutes?: number[];
+  service_location_id?: string | null;
+  tax_category_id?: string | null;
   status?: BookingOfferingStatus;
 }
 

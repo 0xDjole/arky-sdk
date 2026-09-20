@@ -95,6 +95,7 @@ import type {
   ArkyCartCheckoutInput,
   CheckoutContext,
   ArkyCartStatus,
+  ArkyCartQuoteStore,
   ArkyContentState,
   ArkyFormsState,
   ArkyEshopState,
@@ -151,7 +152,7 @@ function initializeStoreCore(
   const booking_items = atom<ArkyBookingCartItem[]>([]);
   const digital_items = atom<CartDigitalItem[]>([]);
   const customer_group_plan_items = atom<CartCustomerGroupPlanItem[]>([]);
-  const quote = atom<StorefrontCheckoutQuote | null>(null);
+  const quote: ArkyCartQuoteStore = atom<StorefrontCheckoutQuote | null>(null);
   const promotion_codes = atom<string[]>([]);
   const last_order = atom<ArkyLastOrder | null>(null);
   const cart_status = map<ArkyCartStatus>({
@@ -1967,10 +1968,10 @@ function initializeStoreCore(
     applyPromoCode(
       code: string,
       input: Omit<ArkyCartInput, "promotion_codes"> = {},
-    ) {
+    ): Promise<StorefrontCheckoutQuote | null> {
       return fetchQuote({ ...input, promotion_codes: [code] });
     },
-    removePromoCode(input: Omit<ArkyCartInput, "promotion_codes"> = {}) {
+    removePromoCode(input: Omit<ArkyCartInput, "promotion_codes"> = {}): Promise<StorefrontCheckoutQuote | null> {
       return fetchQuote({ ...input, promotion_codes: [] });
     },
     selectShippingMethod(id: string | null) {

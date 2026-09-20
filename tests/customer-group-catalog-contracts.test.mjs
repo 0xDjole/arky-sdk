@@ -36,10 +36,9 @@ function admin() {
 test("plan discovery forwards catalog pricing, group, ordering and protected continuation", async () => {
   const { calls, restore } = capture({ items: [], cursor: null });
   try {
-    const client = createStorefront({
-      baseUrl: apiUrl,
-      publishableKey: `arky_pk_${"b".repeat(42)}A`,
-      storeId: "selected-store", market: "us", locale: "en",
+    const client = createStorefront(`arky_pk_${"b".repeat(42)}A`, {
+      apiUrl,
+      market: "us", locale: "en",
     });
     await client.customer_group_plans.find({
       customer_group_id: groupId, company_id: "company", company_location_id: "branch",

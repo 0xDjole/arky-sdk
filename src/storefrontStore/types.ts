@@ -1,5 +1,8 @@
 import type { EpochMilliseconds } from "../types/time";
+import type { WritableAtom } from "nanostores";
 import type { createStorefront, StorefrontOptions } from "../index";
+
+export interface ArkyCartQuoteStore extends WritableAtom<StorefrontCheckoutQuote | null> {}
 import type {
   StorefrontCart,
   StorefrontCollectionEntry,

@@ -26,8 +26,10 @@ function sessionStorage() {
         version: 2,
         customer: {
           id: "customer-booking-contract",
-          status: "active",
-          identities: [],
+          status: { type: "active" },
+          primary_email_identity_id: null,
+          default_shipping_address_id: null,
+          default_billing_address_id: null,
           classifications: [],
           created_at: 1,
           updated_at: 1,
@@ -38,7 +40,7 @@ function sessionStorage() {
           type: "visitor",
           token: visitorToken,
           status: "active",
-          expires_at: 10_000,
+          expires_at: Date.now() + 3_600_000,
         },
       }),
     ],
@@ -50,11 +52,12 @@ function bookingService() {
   return {
     id: "booking-service",
     key: "consultation",
+    name_block_id: "service-name",
     slugs: { en: "consultation" },
     store_id: storeId,
     blocks: [],
     classifications: [],
-    status: "active",
+    status: { type: "active" },
     created_at: 1,
     updated_at: 1,
   };
@@ -64,13 +67,14 @@ function bookingResource() {
   return {
     id: "booking-resource",
     key: "room-one",
+    name_block_id: "resource-name",
     slugs: { en: "room-one" },
     store_id: storeId,
     blocks: [],
     classifications: [],
     timezone: "Europe/Sarajevo",
     capacity: 3,
-    status: "active",
+    status: { type: "active" },
     created_at: 1,
     updated_at: 1,
   };
@@ -89,7 +93,6 @@ function bookingOffering() {
       },
     ],
     date_overrides: [{ local_date: "2026-08-24", windows: [] }],
-    prices: [{ amount: 5000, currency: "eur", market: "bih" }],
     durations: [{ minutes: 60, is_pause: false }],
     slot_interval_minutes: 30,
     booking_window: {
@@ -97,7 +100,11 @@ function bookingOffering() {
       closes_before_start_minutes: 120,
     },
     reminder_offsets_minutes: [1440, 60],
-    status: "active",
+    service_location_id: "service-location",
+    tax_category_id: null,
+    status: { type: "active" },
+    price: { amount: 5000, currency: "eur", tax_mode: "exclusive" },
+    purchase_allowed: true,
     created_at: 1,
     updated_at: 1,
   };
@@ -106,31 +113,47 @@ function bookingOffering() {
 function embeddedBookingItem() {
   return {
     id: "order-booking-item",
-    customer_session_id: null,
     booking_offering_id: "booking-offering",
     booking_service_id: "booking-service",
     booking_resource_id: "booking-resource",
     interval: { from: 1_800_000_000_000, to: 1_800_003_600_000 },
     capacity_intervals: [{ from: 1_800_000_000_000, to: 1_800_003_600_000 }],
+    capacity_units: 1,
     form_submission_id: "form-submission",
-    reminders: [
-      { offset_minutes: 60, due_at: 1_799_996_400_000, emitted_at: null },
-    ],
+    form_submission: null,
     snapshot: {
       service_key: "consultation",
+      service_name: { text: "Consultation", locale: "en" },
       resource_key: "room-one",
+      resource_name: { text: "Room one", locale: "en" },
       timezone: "Europe/Sarajevo",
-      price: { amount: 5000, currency: "eur", market: "bih" },
+      source_service_id: "booking-service",
+      source_resource_id: "booking-resource",
+      source_offering_id: "booking-offering",
+      price: {
+        unit_price: { amount: 5000, currency: "eur" },
+        compare_at: null, tax_mode: "exclusive", min_quantity: 1, max_quantity: null,
+        source: { type: "base", price_id: "booking-price" }, priced_at: 1,
+      },
     },
-    status: { status: "confirmed" },
+    status: { type: "confirmed" },
     money: {
       unit_price: 5000,
       subtotal: 5000,
       discount_allocations: [],
       discount_total: 0,
-      taxable_base: 5000,
       tax_lines: [],
       tax_total: 0,
+      duty_lines: [],
+      duty_total: 0,
+      tax_assessment: {
+        type: "assessed", assessment: {
+          tax_mode: "exclusive", treatment: { type: "not_collecting", reason_code: "not_registered" },
+          address_basis: { type: "billing" }, address: { country: "BA", street1: "1 Booking Street", city: "Sarajevo", postal_code: "71000" },
+          location_evidence: [], source: { type: "arky_rule", market_zone_id: "market-zone", tax_rule_id: "tax-rule", tax_category_id: null, tax_category_key: null },
+          policy_version: "fixture", rounding_version: "fixture", assessed_at: 1, tax_date: 1, buyer_evidence: null,
+        },
+      },
       total: 5000,
     },
     created_at: 1,
@@ -276,27 +299,30 @@ test("Admin booking runtime uses booking service, resource, and offering roots",
   try {
     await admin.eshop.bookingService.create({
       key: "consultation",
+      name_block_id: "service-name",
       slugs: { en: "consultation" },
-      status: "active",
+      status: { type: "active" },
     });
     await admin.eshop.bookingResource.create({
       key: "room-one",
+      name_block_id: "resource-name",
       slugs: { en: "room-one" },
       timezone: "Europe/Sarajevo",
       capacity: 3,
-      status: "active",
+      status: { type: "active" },
     });
     await admin.eshop.bookingOffering.create({
       booking_service_id: "booking-service",
       booking_resource_id: "booking-resource",
       weekly_availability: bookingOffering().weekly_availability,
       date_overrides: bookingOffering().date_overrides,
-      prices: bookingOffering().prices,
       durations: bookingOffering().durations,
       slot_interval_minutes: 30,
       booking_window: bookingOffering().booking_window,
       reminder_offsets_minutes: [1440, 60],
-      status: "active",
+      service_location_id: "service-location",
+      tax_category_id: null,
+      status: { type: "active" },
     });
     const loadedOrder = await admin.eshop.order.get({ id: "order-booking" });
     assert.equal(orderBookingItems(loadedOrder)[0].id, "order-booking-item");
@@ -350,17 +376,22 @@ test("Admin booking runtime uses booking service, resource, and offering roots",
   );
   assert.deepEqual(calls[0].body, {
     key: "consultation",
+    name_block_id: "service-name",
     slugs: { en: "consultation" },
-    status: "active",
+    status: { type: "active" },
   });
   assert.deepEqual(calls[1].body, {
     key: "room-one",
+    name_block_id: "resource-name",
     slugs: { en: "room-one" },
     timezone: "Europe/Sarajevo",
     capacity: 3,
-    status: "active",
+    status: { type: "active" },
   });
   assert.equal("forms" in calls[2].body, false);
+  assert.equal("prices" in calls[2].body, false);
+  assert.equal(calls[2].body.service_location_id, "service-location");
+  assert.equal(calls[2].body.tax_category_id, null);
   assert.equal(calls[2].body.slot_interval_minutes, 30);
   assert.deepEqual(calls[2].body.reminder_offsets_minutes, [1440, 60]);
   assert.deepEqual(calls[4].body, {

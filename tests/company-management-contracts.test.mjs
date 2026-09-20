@@ -350,7 +350,6 @@ test("Market management preserves explicit creation, immutable route identity an
     tax_mode: "inclusive",
     status: { type: "active" },
     payment_provider_ids: [],
-    zones: [],
     created_at: now,
     updated_at: now,
   };
@@ -381,7 +380,7 @@ test("Market management preserves explicit creation, immutable route identity an
     if (call.method === "PUT") return response(updated);
     if (call.method === "POST") return response(record, 201);
     if (call.target.pathname.endsWith("/usage")) return response(usage);
-    if (call.target.pathname.endsWith("/markets")) return response([record]);
+    if (call.target.pathname.endsWith("/markets")) return response({ items: [record], cursor: null });
     return response(record);
   };
   try {
@@ -391,8 +390,8 @@ test("Market management preserves explicit creation, immutable route identity an
     assert.deepEqual(await api.create(create), record);
     assert.equal(calls.at(-1).method, "POST");
     assert.deepEqual(calls.at(-1).body, create);
-    assert.deepEqual(await api.list(), [record]);
-    assert.deepEqual(await api.get(id), record);
+    assert.deepEqual(await api.list(), { items: [record], cursor: null });
+    assert.deepEqual(await api.get({ id }), record);
     assert.deepEqual(await api.usage(id), usage);
     assert.equal(
       calls.at(-1).target.pathname,
@@ -435,7 +434,7 @@ test("Market management preserves explicit creation, immutable route identity an
       assert.equal(call.target.searchParams.has("store_id"), false);
     }
     const signal = new AbortController().signal;
-    await api.get("one/segment?only", {
+    await api.get({ id: "one/segment?only" }, {
       signal,
       headers: { "x-client-trace": "market-contract" },
     });

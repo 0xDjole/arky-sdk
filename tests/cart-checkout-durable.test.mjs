@@ -359,11 +359,11 @@ test("failed terminal storage clear does not notify success and retains recovery
 test("pending current Cart reads the original identity and blocks ordinary Cart mutations", async () => {
   browser();
   await loseResponse();
-  const calls = capture(() => Response.json({ id: cartId, status: { type: "active" }, company: { company_id: "company", company_location_id: "location" } }));
+  const calls = capture(() => Response.json({ id: cartId, customer_id: "customer", market_id: "market", status: { type: "active" }, company: { company_id: "company", company_location_id: "location" } }));
   const client = storefront().eshop.cart;
   assert.equal((await client.current()).id, cartId);
   assert.deepEqual(calls.map((call) => [call.method, call.path]), [["GET", `/v1/storefront/carts/${cartId}`]]);
-  await assert.rejects(client.current({ company_id: "another" }));
+  await assert.rejects(client.current({ company: { company_id: "another", company_location_id: null } }), /different Company context/);
   const reads = calls.length;
   for (const mutate of [
     () => client.update({ id: cartId, promotion_codes: ["new"] }),
