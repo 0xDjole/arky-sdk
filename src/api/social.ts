@@ -9,6 +9,7 @@ import type {
   FindSocialMessagesParams,
   FindSocialPostsParams,
   GetSocialPostParams,
+  GetSocialConnectionParams,
   RequestOptions,
   SyncSocialMessagesParams,
 } from "../types/api";
@@ -28,9 +29,20 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     async find(
       params?: FindSocialConnectionsParams,
       options?: RequestOptions,
-    ): Promise<SocialConnection[]> {
-      return apiConfig.httpClient.get<SocialConnection[]>(
-        `/v1/stores/${storeId(params?.store_id)}/social/connections`,
+    ): Promise<PaginatedResponse<SocialConnection>> {
+      const { store_id, ...queryParams } = params ?? {};
+      return apiConfig.httpClient.get<PaginatedResponse<SocialConnection>>(
+        `/v1/stores/${storeId(store_id)}/social/connections`,
+        { ...options, params: queryParams },
+      );
+    },
+
+    async get(
+      params: GetSocialConnectionParams,
+      options?: RequestOptions,
+    ): Promise<SocialConnection> {
+      return apiConfig.httpClient.get<SocialConnection>(
+        `/v1/stores/${storeId(params.store_id)}/social/connections/${params.connection_id}`,
         options,
       );
     },

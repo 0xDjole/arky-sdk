@@ -1879,6 +1879,16 @@ export interface DeleteBuildHookParams {
 
 export interface FindSocialConnectionsParams {
   store_id?: string;
+  limit?: number;
+  cursor?: string;
+  query?: string;
+  type?: SocialConnectionType;
+  status?: "connected" | "disconnected";
+}
+
+export interface GetSocialConnectionParams {
+  store_id?: string;
+  connection_id: string;
 }
 
 export interface DisconnectSocialConnectionParams {

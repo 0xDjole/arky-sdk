@@ -682,6 +682,7 @@ export type {
   CreateSocialPostParams,
   DisconnectSocialConnectionParams,
   FindSocialConnectionsParams,
+  GetSocialConnectionParams,
   FindSocialMessagesParams,
   FindSocialPostsParams,
   OpenStripeDashboardParams,

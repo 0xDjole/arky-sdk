@@ -1887,6 +1887,9 @@ const unsafeSocialCredential: SocialCredential = {
   access_token: "provider-secret",
 };
 declare const socialConnection: SocialConnection;
+const socialConnectionPage: Promise<{ items: SocialConnection[]; cursor: string | null }> =
+  adminClient.social.connections.find({ query: "Facebook Garden", status: "connected", limit: 20 });
+const exactSocialConnection: Promise<SocialConnection> = adminClient.social.connections.get({ connection_id: "connection-contract" });
 // @ts-expect-error connection credentials are embedded and never publicly exposed.
 socialConnection.credential;
 const tiktokConnectionType: SocialConnectionType = "tiktok_account";
