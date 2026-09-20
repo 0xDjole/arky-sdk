@@ -581,8 +581,8 @@ export interface SocialMessage {
   type: SocialMessageType;
   root_message_id: string;
   depth: number;
-  reply_count: number;
-  replied: boolean;
+  reply_count: number | null;
+  replied: boolean | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -2733,32 +2733,32 @@ export type LeadResearchAssistantFailureReason =
   "pre_call" | "provider_rejected";
 
 export type LeadResearchAssistantMessageStatus =
-  | { status: "requested" }
-  | { status: "processing"; deadline_at: EpochMilliseconds }
-  | { status: "completed"; content: string; completed_at: EpochMilliseconds }
+  | { type: "requested" }
+  | { type: "processing"; deadline_at: EpochMilliseconds }
+  | { type: "completed"; content: string; completed_at: EpochMilliseconds }
   | {
-      status: "failed";
+      type: "failed";
       reason: LeadResearchAssistantFailureReason;
       error: string;
       failed_at: EpochMilliseconds;
     }
-  | { status: "unknown"; error: string; detected_at: EpochMilliseconds }
+  | { type: "unknown"; error: string; detected_at: EpochMilliseconds }
   | {
-      status: "cancelled";
-      cancelled_by_account_session_id: string;
+      type: "cancelled";
+      cancelled_by: AccountActor;
       cancelled_at: EpochMilliseconds;
     };
 
 export type LeadResearchMessageType =
   | {
       type: "account";
-      account_session_id: string;
+      actor: AccountActor;
       content: string;
     }
   | {
       type: "assistant";
       responds_to_message_id: string;
-      requested_by_account_session_id: string;
+      requested_by: AccountActor;
       status: LeadResearchAssistantMessageStatus;
     };
 

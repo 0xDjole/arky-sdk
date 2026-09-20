@@ -1,4 +1,24 @@
 import { epochMilliseconds } from "arky-sdk";
+import type { AccountActor, LeadResearchAssistantMessageStatus, LeadResearchMessageType } from "arky-sdk";
+
+declare const leadResearchActor: AccountActor;
+const leadResearchAccount: LeadResearchMessageType = {
+  type: "account", actor: leadResearchActor, content: "Research independent suppliers",
+};
+const leadResearchAssistant: LeadResearchMessageType = {
+  type: "assistant", responds_to_message_id: "account-message", requested_by: leadResearchActor,
+  status: { type: "requested" },
+};
+const leadResearchCancelled: LeadResearchAssistantMessageStatus = {
+  type: "cancelled", cancelled_by: leadResearchActor, cancelled_at: epochMilliseconds(1),
+};
+// @ts-expect-error Lead Research status uses the canonical type discriminator.
+const legacyLeadResearchStatus: LeadResearchAssistantMessageStatus = { status: "requested" };
+// @ts-expect-error Account authorship retains an actor snapshot, not a Session navigation ID.
+const legacyLeadResearchAccount: LeadResearchMessageType = { type: "account", account_session_id: "session", content: "Research" };
+// @ts-expect-error Assistant authorship retains an actor snapshot, not a Session navigation ID.
+const legacyLeadResearchAssistant: LeadResearchMessageType = { type: "assistant", responds_to_message_id: "account-message", requested_by_account_session_id: "session", status: { type: "requested" } };
+export type LeadResearchContracts = [typeof leadResearchAccount, typeof leadResearchAssistant, typeof leadResearchCancelled];
 export type { BlockContracts } from "./block-contracts.js";
 import type { MembershipContracts } from "./membership-contracts.js";
 export type { MembershipContracts };
@@ -122,6 +142,7 @@ import type {
   OrderShipmentStatus,
   SocialCredential,
   SocialConnection,
+  SocialMessage,
   SocialConnectionType,
   SocialPostContent,
   SmtpImapMailboxProviderInput,
@@ -1887,6 +1908,13 @@ const unsafeSocialCredential: SocialCredential = {
   access_token: "provider-secret",
 };
 declare const socialConnection: SocialConnection;
+declare const socialMessage: SocialMessage;
+const replyCount: number | null = socialMessage.reply_count;
+const replied: boolean | null = socialMessage.replied;
+// @ts-expect-error projection summary may be unavailable.
+const alwaysKnownReplyCount: number = socialMessage.reply_count;
+// @ts-expect-error projection summary may be unavailable.
+const alwaysKnownReplied: boolean = socialMessage.replied;
 const socialConnectionPage: Promise<{ items: SocialConnection[]; cursor: string | null }> =
   adminClient.social.connections.find({ query: "Facebook Garden", status: "connected", limit: 20 });
 const exactSocialConnection: Promise<SocialConnection> = adminClient.social.connections.get({ connection_id: "connection-contract" });
