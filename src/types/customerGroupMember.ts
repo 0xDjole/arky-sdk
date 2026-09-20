@@ -30,6 +30,7 @@ export interface CustomerGroupAdministrativeAccess {
   actor: AccountActor;
   granted_at: EpochMilliseconds;
   expires_at: EpochMilliseconds | null;
+  reason: string;
 }
 
 export interface CustomerGroupMember {
@@ -71,8 +72,61 @@ export interface GetCustomerGroupMemberParams {
 export interface FindCustomerGroupMembersParams {
   store_id?: string;
   customer_group_id?: string;
+  customer_id?: string;
+  company_id?: string;
+  admission?: CustomerGroupAdmission["type"];
   limit?: number;
   cursor?: string;
+}
+
+export type GetCustomerGroupMemberByBindingParams = {
+  store_id?: string;
+  customer_group_id: string;
+} & (
+  | { customer_id: string; company_id?: never }
+  | { company_id: string; customer_id?: never }
+);
+
+export type CustomerGroupSelfAdmission =
+  | { type: "requested" }
+  | { type: "granted"; granted_at: EpochMilliseconds }
+  | { type: "revoked"; revoked_at: EpochMilliseconds };
+
+export type CustomerGroupMemberSelf = Omit<CustomerGroupMember, "admission" | "administrative_access"> & {
+  admission: CustomerGroupSelfAdmission;
+};
+
+export interface CustomerGroupJoinResult {
+  command_id: string;
+  accepted_at: EpochMilliseconds;
+  member: CustomerGroupMemberSelf;
+}
+
+export type CustomerGroupMemberCommandResultType =
+  | { type: "admission_granted"; policy_at_grant: CustomerGroupJoinPolicy }
+  | { type: "admission_revoked" }
+  | { type: "administrative_access_granted" }
+  | { type: "administrative_access_cleared" };
+
+export interface CustomerGroupMemberCommandReceipt {
+  id: string;
+  store_id: string;
+  accepted_at: EpochMilliseconds;
+  command: {
+    type: "customer_group_member";
+    actor: AccountActor;
+    request: CustomerGroupMemberCommand;
+    result: {
+      customer_group_member_id: string;
+      member_updated_at: EpochMilliseconds;
+      type: CustomerGroupMemberCommandResultType;
+    };
+  };
+}
+
+export interface CustomerGroupMemberCommandResponse {
+  receipt: CustomerGroupMemberCommandReceipt;
+  member: CustomerGroupMember;
 }
 
 export interface GetCurrentCustomerGroupMemberParams {
@@ -87,4 +141,37 @@ export interface FindCustomerGroupMemberCommandsParams {
   id: string;
   limit?: number;
   cursor?: string;
+}
+
+export type CustomerGroupMemberCommand =
+  | {
+      type: "grant_admission";
+      customer_group_id: string;
+      member: CustomerGroupMemberType;
+      expected_updated_at: EpochMilliseconds | null;
+    }
+  | {
+      type: "revoke_admission";
+      customer_group_member_id: string;
+      expected_updated_at: EpochMilliseconds;
+      reason: string;
+    }
+  | {
+      type: "grant_administrative_access";
+      customer_group_member_id: string;
+      expected_updated_at: EpochMilliseconds;
+      expires_at: EpochMilliseconds | null;
+      reason: string;
+    }
+  | {
+      type: "clear_administrative_access";
+      customer_group_member_id: string;
+      expected_updated_at: EpochMilliseconds;
+      reason: string;
+    };
+
+export interface ExecuteCustomerGroupMemberCommandParams {
+  store_id?: string;
+  command_id: string;
+  command: CustomerGroupMemberCommand;
 }

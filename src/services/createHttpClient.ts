@@ -246,8 +246,9 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
     try {
       const contentLength = res.headers.get("content-length");
       const contentType = res.headers.get("content-type");
-      if (
-        res.status === 204 ||
+      if (res.status === 204) {
+        data = undefined;
+      } else if (
         contentLength === "0" ||
         !contentType?.includes("application/json")
       ) {

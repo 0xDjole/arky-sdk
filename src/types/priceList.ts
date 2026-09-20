@@ -53,8 +53,15 @@ export interface DeletePriceListParams extends GetPriceListParams {
 }
 
 export interface FindPriceListsParams {
+  status?: PriceListStatus["type"];
+  sort_field?: "created_at" | "updated_at";
+  sort_direction?: "asc" | "desc";
   store_id?: string;
   key?: string;
   limit?: number;
   cursor?: string;
+}
+export interface GetPriceListByKeyParams {
+  store_id?: string;
+  key: string;
 }

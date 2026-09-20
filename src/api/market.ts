@@ -1,23 +1,30 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type {
   CreateMarketParams,
+  FindMarketsParams,
+  GetStoreConfigurationByKeyParams,
+  GetStoreConfigurationParams,
   DeleteMarketParams,
   RequestOptions,
   UpdateMarketParams,
 } from "../types/api";
-import type { Market, MarketUsage } from "../types";
+import type { Market, MarketUsage, PaginatedResponse } from "../types";
 
 export const createMarketApi = (apiConfig: ApiConfig) => {
-  const basePath = () =>
-    `/v1/stores/${encodeURIComponent(apiConfig.storeId)}/markets`;
+  const basePath = (storeId = apiConfig.storeId) =>
+    `/v1/stores/${encodeURIComponent(storeId)}/markets`;
   return {
-    async list(options?: RequestOptions): Promise<Market[]> {
-      return apiConfig.httpClient.get<Market[]>(basePath(), options);
+    async list(params: FindMarketsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Market>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<Market>>(basePath(store_id), { ...options, params: query });
     },
 
-    async get(id: string, options?: RequestOptions): Promise<Market> {
+    async getByKey(params: GetStoreConfigurationByKeyParams, options?: RequestOptions): Promise<Market> {
+      return apiConfig.httpClient.get<Market>(`${basePath(params.store_id)}/by-key/${encodeURIComponent(params.key)}`, options);
+    },
+    async get(params: GetStoreConfigurationParams, options?: RequestOptions): Promise<Market> {
       return apiConfig.httpClient.get<Market>(
-        `${basePath()}/${encodeURIComponent(id)}`,
+        `${basePath(params.store_id)}/${encodeURIComponent(params.id)}`,
         options,
       );
     },

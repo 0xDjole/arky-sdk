@@ -33,10 +33,14 @@ export interface CustomerGroup {
 export interface CustomerGroupUsage {
   catalog_entitlement_ids: string[];
   more_catalog_entitlements: boolean;
-  customer_edge_ids: string[];
-  more_customer_edges: boolean;
-  company_edge_ids: string[];
-  more_company_edges: boolean;
+  plan_ids: string[];
+  more_plans: boolean;
+  member_ids: string[];
+  more_members: boolean;
+  email_consent_ids: string[];
+  more_email_consents: boolean;
+  shipping_rate_ids: string[];
+  more_shipping_rates: boolean;
 }
 
 export interface CreateCustomerGroupParams {
@@ -51,6 +55,11 @@ export interface CreateCustomerGroupParams {
 export interface GetCustomerGroupParams {
   store_id?: string;
   id: string;
+}
+
+export interface GetCustomerGroupByKeyParams {
+  store_id?: string;
+  key: string;
 }
 
 export interface UpdateCustomerGroupParams {
@@ -74,4 +83,19 @@ export interface FindCustomerGroupsParams {
   limit?: number;
   cursor?: string;
   key?: string;
+  status?: CustomerGroupStatus["type"];
+}
+
+export interface StorefrontCustomerGroup {
+  id: string;
+  key: string;
+  name: string;
+  join_policy: CustomerGroupJoinPolicy;
+  communication: CustomerGroupCommunication;
+}
+
+export interface GetStorefrontCustomerGroupParams {
+  identifier: string;
+  company_id?: string;
+  company_location_id?: string;
 }

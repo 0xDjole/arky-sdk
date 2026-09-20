@@ -1,11 +1,14 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type {
   CreateStoreLocationParams,
+  FindStoreLocationsParams,
+  GetStoreConfigurationByKeyParams,
+  GetStoreConfigurationParams,
   DeleteStoreLocationParams,
   RequestOptions,
   UpdateStoreLocationParams,
 } from "../types/api";
-import type { StoreLocation } from "../types";
+import type { StoreLocation, PaginatedResponse } from "../types";
 
 export interface LocationState {
   code: string;
@@ -40,16 +43,22 @@ export const createLocationApi = (apiConfig: ApiConfig) => {
     },
 
 
-    async list(options?: RequestOptions): Promise<StoreLocation[]> {
-      return apiConfig.httpClient.get<StoreLocation[]>(
-        `/v1/stores/${apiConfig.storeId}/locations`,
-        options,
+    async list(params: FindStoreLocationsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<StoreLocation>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<StoreLocation>>(
+        `/v1/stores/${encodeURIComponent(store_id ?? apiConfig.storeId)}/locations`,
+        { ...options, params: query },
       );
     },
 
-    async get(id: string, options?: RequestOptions): Promise<StoreLocation> {
+    async getByKey(params: GetStoreConfigurationByKeyParams, options?: RequestOptions): Promise<StoreLocation> {
       return apiConfig.httpClient.get<StoreLocation>(
-        `/v1/stores/${apiConfig.storeId}/locations/${id}`,
+        `/v1/stores/${encodeURIComponent(params.store_id ?? apiConfig.storeId)}/locations/by-key/${encodeURIComponent(params.key)}`, options,
+      );
+    },
+    async get(params: GetStoreConfigurationParams, options?: RequestOptions): Promise<StoreLocation> {
+      return apiConfig.httpClient.get<StoreLocation>(
+        `/v1/stores/${encodeURIComponent(params.store_id ?? apiConfig.storeId)}/locations/${encodeURIComponent(params.id)}`,
         options,
       );
     },

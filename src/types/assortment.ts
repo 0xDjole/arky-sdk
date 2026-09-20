@@ -45,8 +45,15 @@ export interface DeleteAssortmentParams extends GetAssortmentParams {
 }
 
 export interface FindAssortmentsParams {
+  status?: AssortmentStatus["type"];
+  sort_field?: "created_at" | "updated_at";
+  sort_direction?: "asc" | "desc";
   store_id?: string;
   key?: string;
   limit?: number;
   cursor?: string;
+}
+export interface GetAssortmentByKeyParams {
+  store_id?: string;
+  key: string;
 }

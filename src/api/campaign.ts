@@ -132,8 +132,12 @@ export const createCampaignApi = (apiConfig: ApiConfig) => ({
       options?: RequestOptions,
     ): Promise<PaginatedResponse<CampaignEnrollment>> {
       const { store_id, campaign_id, ...query } = params;
+      const scope = `/v1/stores/${storeId(apiConfig.storeId, store_id)}`;
+      const path = campaign_id === undefined
+        ? `${scope}/campaign-enrollments`
+        : `${scope}/campaigns/${encodeURIComponent(campaign_id)}/enrollments`;
       return apiConfig.httpClient.get<PaginatedResponse<CampaignEnrollment>>(
-        `/v1/stores/${storeId(apiConfig.storeId, store_id)}/campaigns/${campaign_id}/enrollments`,
+        path,
         { ...options, params: query },
       );
     },

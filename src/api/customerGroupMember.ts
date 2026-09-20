@@ -3,6 +3,11 @@ import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
 import type {
   CustomerGroupMember,
+  CustomerGroupMemberSelf,
+  CustomerGroupJoinResult,
+  CustomerGroupMemberCommandResponse,
+  GetCustomerGroupMemberByBindingParams,
+  ExecuteCustomerGroupMemberCommandParams,
   FindCustomerGroupMemberCommandsParams,
   FindCustomerGroupMembersParams,
   GetCurrentCustomerGroupMemberParams,
@@ -17,9 +22,9 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
     join(
       params: JoinCustomerGroupParams,
       options?: RequestOptions,
-    ): Promise<CustomerGroupMember> {
+    ): Promise<CustomerGroupJoinResult> {
       const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<CustomerGroupMember>(
+      return apiConfig.httpClient.post<CustomerGroupJoinResult>(
         `${basePath(store_id)}/join`,
         payload,
         options,
@@ -35,6 +40,10 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
         options,
       );
     },
+    getByBinding(params: GetCustomerGroupMemberByBindingParams, options?: RequestOptions): Promise<CustomerGroupMember> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<CustomerGroupMember>(`${basePath(store_id)}/by-binding`, { ...options, params: query });
+    },
     find(
       params: FindCustomerGroupMembersParams = {},
       options?: RequestOptions,
@@ -48,11 +57,22 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
     current(
       params: GetCurrentCustomerGroupMemberParams,
       options?: RequestOptions,
-    ): Promise<CustomerGroupMember | null> {
+    ): Promise<CustomerGroupMemberSelf | null> {
       const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<CustomerGroupMember | null>(
+      return apiConfig.httpClient.get<CustomerGroupMemberSelf | null>(
         `${basePath(store_id)}/current`,
         { ...options, params: query },
+      );
+    },
+    execute(
+      params: ExecuteCustomerGroupMemberCommandParams,
+      options?: RequestOptions,
+    ): Promise<CustomerGroupMemberCommandResponse> {
+      const { store_id, ...payload } = params;
+      return apiConfig.httpClient.post<CustomerGroupMemberCommandResponse>(
+        `${basePath(store_id)}/commands`,
+        payload,
+        options,
       );
     },
     findCommands(

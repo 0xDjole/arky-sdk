@@ -43,10 +43,24 @@ export interface GetCustomerGroupSubscriptionParams {
   id: string;
 }
 
+export type CustomerGroupSubscriptionSelfStatus =
+  | { type: "awaiting_activation" }
+  | { type: "active" }
+  | { type: "blocked" }
+  | { type: "paused"; paused_at: EpochMilliseconds }
+  | { type: "cancelled"; ended_at: EpochMilliseconds };
+
+export interface CustomerGroupSubscriptionSelf
+  extends Omit<CustomerGroupSubscription, "status"> {
+  status: CustomerGroupSubscriptionSelfStatus;
+}
+
 export interface FindCustomerGroupSubscriptionsParams {
   store_id?: string;
   customer_id?: string;
   customer_group_member_id?: string;
+  order_id?: string;
+  status?: CustomerGroupSubscriptionStatus["type"];
   limit?: number;
   cursor?: string;
 }

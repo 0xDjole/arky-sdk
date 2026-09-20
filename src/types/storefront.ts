@@ -8,21 +8,24 @@ import type {
   Market,
   OrderCheckoutResult,
   OrderQuote,
+  CheckoutQuote,
   PaginatedResponse,
   Product,
   ProductVariant,
+  EntryBlockQuery,
   BookingResource,
   BookingService,
   BookingOffering,
-  Zone,
 } from "./index";
 import type { StorefrontPrice } from "./commerce";
+import type { CatalogReadOptions } from "./catalog";
 import type {
   AddCartBookingParams,
   AddCartDigitalProductParams,
   AddCartProductParams,
   CartBookingInput,
-  CartDigitalItemInput,
+  CartCustomerGroupPlanInput,
+  CartDigitalInput,
   CartProductInput,
   GetCurrentCartParams,
   UpdateCartParams,
@@ -58,11 +61,14 @@ export type StorefrontDto<T> = T extends number
       : T;
 
 export type StorefrontCart = StorefrontDto<Cart>;
-export type StorefrontCurrentCartParams = Pick<GetCurrentCartParams, "company_id" | "company_location_id">;
-export type StorefrontUpdateCartParams = Omit<StorefrontParams<UpdateCartParams>, "product_items" | "booking_items" | "digital_items"> & {
-  product_items?: CartProductInput[];
-  booking_items?: CartBookingInput[];
-  digital_items?: CartDigitalItemInput[];
+export type StorefrontCurrentCartParams = Pick<GetCurrentCartParams, "company">;
+export type CartPublicLineItemInput =
+  | ({ type: "product" } & CartProductInput)
+  | ({ type: "booking" } & CartBookingInput)
+  | ({ type: "digital_product" } & CartDigitalInput)
+  | ({ type: "customer_group_plan" } & Omit<CartCustomerGroupPlanInput, "price_override">);
+export type StorefrontUpdateCartParams = Omit<StorefrontParams<UpdateCartParams>, "line_items"> & {
+  line_items?: CartPublicLineItemInput[];
 };
 export type StorefrontAddCartProductParams = Omit<StorefrontParams<AddCartProductParams>, "product"> & {
   product: CartProductInput;
@@ -71,7 +77,7 @@ export type StorefrontAddCartBookingParams = Omit<StorefrontParams<AddCartBookin
   booking: CartBookingInput;
 };
 export type StorefrontAddCartDigitalParams = Omit<StorefrontParams<AddCartDigitalProductParams>, "digital"> & {
-  digital: CartDigitalItemInput;
+  digital: CartDigitalInput;
 };
 export type StorefrontCollectionEntry = StorefrontDto<CollectionEntry>;
 export type StorefrontCustomer = StorefrontDto<Customer>;
@@ -83,24 +89,38 @@ export type StorefrontLocation = Omit<
 >;
 export type StorefrontOrderCheckoutResult = StorefrontDto<OrderCheckoutResult>;
 export type StorefrontOrderQuote = StorefrontDto<OrderQuote>;
+export type StorefrontCheckoutQuote = StorefrontDto<CheckoutQuote>;
 export type StorefrontProduct = Pick<Product,
-  "id" | "key" | "slugs" | "blocks" | "classifications"
-> & { variants: StorefrontProductVariant[] };
-export type StorefrontProductVariant = ProductVariant & {
+  "id" | "key" | "name_block_id" | "slugs" | "blocks" | "classifications"
+> & { price: StorefrontPrice | null; purchase_allowed: boolean };
+export interface GetStorefrontProductVariantParams extends CatalogReadOptions {
+  product_id: string;
+  id: string;
+}
+export interface FindStorefrontProductVariantsParams extends CatalogReadOptions {
+  product_id: string;
+  filters?: EntryBlockQuery[];
+  limit?: number;
+  cursor?: string;
+}
+export type StorefrontProductVariant = Omit<
+  ProductVariant,
+  "store_id" | "created_at" | "updated_at"
+> & {
   price: StorefrontPrice | null;
   purchase_allowed: boolean;
 };
 export type StorefrontBookingResource = StorefrontDto<BookingResource>;
-export type StorefrontBookingService = StorefrontDto<BookingService>;
+export type StorefrontBookingService = StorefrontDto<BookingService> & {
+  price: StorefrontPrice | null;
+  purchase_allowed: boolean;
+};
 export type StorefrontBookingOffering = StorefrontDto<BookingOffering> & {
   price: StorefrontPrice | null;
   purchase_allowed: boolean;
 };
 export type StorefrontPage<T> = StorefrontDto<PaginatedResponse<T>>;
-export type StorefrontZone = Zone;
 export type StorefrontMarket = Omit<
   Market,
-  "store_id" | "created_at" | "updated_at" | "zones"
-> & {
-  zones: StorefrontZone[];
-};
+  "store_id" | "status" | "created_at" | "updated_at"
+>;

@@ -5,6 +5,7 @@ import type {
   CustomerGroup,
   CreateCustomerGroupParams,
   GetCustomerGroupParams,
+  GetCustomerGroupByKeyParams,
   FindCustomerGroupsParams,
   DeleteCustomerGroupParams,
   UpdateCustomerGroupParams,
@@ -35,6 +36,10 @@ export const createCustomerGroupApi = (apiConfig: ApiConfig) => {
         `${basePath(store_id)}/${encodeURIComponent(id)}`,
         options,
       );
+    },
+    getByKey(params: GetCustomerGroupByKeyParams, options?: RequestOptions): Promise<CustomerGroup> {
+      const { store_id, key } = params;
+      return apiConfig.httpClient.get<CustomerGroup>(`${basePath(store_id)}/by-key/${encodeURIComponent(key)}`, options);
     },
     find(
       params: FindCustomerGroupsParams = {},

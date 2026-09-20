@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { checkoutSources } from "./helpers/checkout-sources.mjs";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -338,12 +339,7 @@ test("admin Store methods keep billing and optional contact email independent", 
         timezone: "Europe/Sarajevo",
         default_language: "en",
         supported_languages: ["en", "bs"],
-        initial_market: { key: "bih", currency: "bam", tax_mode: "inclusive" },
       }),
-      store,
-    );
-    assert.deepEqual(
-      await admin.store.regeneratePublishableKey({ store_id: storeId }),
       store,
     );
     await admin.store.update({
@@ -351,8 +347,6 @@ test("admin Store methods keep billing and optional contact email independent", 
       name: "Client Contract",
       billing_email: "owner@example.test",
       contact_email: null,
-      default_market_id: "market-bih",
-      default_sales_channel_id: "channel-storefront",
       default_language: "en",
       supported_languages: ["en", "bs"],
     });
@@ -371,13 +365,7 @@ test("admin Store methods keep billing and optional contact email independent", 
         timezone: "Europe/Sarajevo",
         default_language: "en",
         supported_languages: ["en", "bs"],
-        initial_market: { key: "bih", currency: "bam", tax_mode: "inclusive" },
       },
-    },
-    {
-      url: `${baseUrl}/v1/stores/${storeId}/publishable-key/regenerate`,
-      method: "POST",
-      body: {},
     },
     {
       url: `${baseUrl}/v1/stores/${storeId}`,
@@ -387,8 +375,6 @@ test("admin Store methods keep billing and optional contact email independent", 
         name: "Client Contract",
         billing_email: "owner@example.test",
         contact_email: null,
-        default_market_id: "market-bih",
-        default_sales_channel_id: "channel-storefront",
         default_language: "en",
         supported_languages: ["en", "bs"],
       },
@@ -646,26 +632,32 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
     market: "bih",
     apiToken: "arky_api_admin_contract",
   });
-  const paymentProviderId = "provider-stripe";
+  const paymentProviderId = "5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31";
+  const cartId = "c4f2a9e1-6b83-4d57-9e02-1a7c5d8f3b46";
+  const orderId = "8a3e6f21-47bd-4c90-b5e3-0d7f19c4a8b2";
+  const checkoutId = "b6d1f83a-0e57-4c92-8a34-7f2b5d0c9e61";
+  const checkoutRequestId = "c4a8e1d2-7b93-4f6a-8c05-19d7f3b2e8a1";
+  const presentationDigest = "e".repeat(64);
   const cart = {
-    id: "cart-provider-contract",
+    id: cartId,
     store_id: storeId,
     customer_id: "customer-contract",
-    customer_session_id: null,
-    token: "cart-token-contract",
-    status: "active",
-    origin: "admin",
-    created_by_account_id: "account-contract",
-    market: "bih",
-    product_items: [],
-    booking_items: [],
-    digital_items: [],
-    shipping_address: null,
+    company: null,
+    sales_channel_id: "channel-contract",
+    status: { type: "converted", checkout_id: checkoutId },
+    origin: {
+      type: "admin",
+      actor: {
+        account_id: "account-contract",
+        snapshot: { email: "operator@example.com", credential_type: "api_token" },
+      },
+    },
+    market_id: "market-bih",
+    line_items: [],
+    delivery_groups: [],
     billing_address: null,
-    promo_code: null,
-    payment_provider_id: paymentProviderId,
-    shipping_method_id: null,
-    converted_order_id: null,
+    promotion_code_ids: [],
+    purchase_order_number: null,
     item_count: 0,
     last_action_at: 1,
     abandoned_at: null,
@@ -673,50 +665,58 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
     updated_at: 2,
   };
   const quote = {
+    sources: checkoutSources(cartId),
+    presentation_digest: presentationDigest,
+    order: {
+    context: {},
+    seller: {},
+    invoice_policy: { type: "external" },
+    timezone: "Europe/Sarajevo",
+    payment_terms: null,
+    purchase_order_number: null,
+    locale: "en",
+    presentation_digest: "f".repeat(64),
+    delivery_quote_version: "v1",
     product_lines: [],
     booking_lines: [],
     digital_lines: [],
-    shipping_lines: [],
-    shipping_methods: [],
+    customer_group_lines: [],
+    delivery_groups: [],
     payment_provider_id: paymentProviderId,
     payment_provider_ids: [paymentProviderId],
-    money: {
-      currency: "bam",
-      market: "bih",
-      subtotal: 0,
-      shipping: 0,
-      discount: 0,
-      tax_total: 0,
-      total: 0,
-      promo_code: null,
-      zone_id: null,
-      shipping_method_id: null,
+    money: null,
     },
   };
   const checkout = {
-    order_id: "order-provider-contract",
+    checkout_id: checkoutId,
+    order_id: orderId,
     number: "1001",
     payment_action: { type: "none" },
     payment: {
-      id: "payment-provider-contract",
+      id: "f17c0b95-2e4d-4a83-9b6c-31d5e8a70f24",
       store_id: storeId,
-      order_id: "order-provider-contract",
+      order_id: orderId,
+      payer_customer_id: "customer-contract",
       provider: {
-        type: "stripe",
+        type: "stripe_checkout",
         payment_provider_id: paymentProviderId,
         checkout_expires_at: 10,
         checkout_session_id: "checkout-provider-contract",
         payment_intent_id: null,
       },
-      status: "requires_action",
+      status: { type: "requires_action" },
+      checkout_expiration: null,
       amounts: {
         currency: "bam",
         total: 100,
-        paid: 0,
+        authorized: 0,
+        captured: 0,
+        capture_pending: 0,
         refund_pending: 0,
         refunded: 0,
       },
-      requested_at: 1,
+      request_id: "payment-request-contract",
+      reconciliation: { type: "clear" },
       completed_at: null,
       created_at: 1,
       updated_at: 1,
@@ -732,38 +732,37 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
       body: init.body ? JSON.parse(String(init.body)) : null,
     };
     calls.push(call);
-    if (call.url.endsWith("/checkout")) return jsonResponse(checkout);
+    if (call.url.endsWith("/checkouts")) return jsonResponse(checkout);
+    if (call.url.endsWith(`/checkouts/${checkoutId}`)) return jsonResponse({ id: checkoutId, request_id: checkoutRequestId, carts: quote.sources.carts, state: { type: "accepted", accepted_at: 1, result: { order_id: orderId, bindings: quote.sources.lines } } });
     if (call.url.endsWith("/quote")) return jsonResponse(quote);
     return jsonResponse(cart);
   };
 
   try {
     assert.equal(
-      (
-        await admin.eshop.cart.update({
-          id: cart.id,
-          payment_provider_id: paymentProviderId,
-        })
-      ).payment_provider_id,
-      paymentProviderId,
+      (await admin.eshop.cart.update({ id: cart.id })).status.checkout_id,
+      checkoutId,
     );
     assert.equal(
-      (await admin.eshop.cart.quote({ id: cart.id })).payment_provider_id,
+      (await admin.eshop.cart.quote({ id: cart.id })).order.payment_provider_id,
       paymentProviderId,
     );
     assert.equal(
       (
         await admin.eshop.order.getQuote({
           market: "bih",
-          payment_provider_id: paymentProviderId,
         })
-      ).payment_provider_ids[0],
+      ).order.payment_provider_ids[0],
       paymentProviderId,
     );
     assert.equal(
       (
         await admin.eshop.cart.checkout({
           id: cart.id,
+          request_id: checkoutRequestId,
+          locale: "en",
+          presentation_digest: presentationDigest,
+          sources: quote.sources,
           payment_provider_id: paymentProviderId,
           return_url: "https://admin.example.test/checkout/return",
         })
@@ -783,31 +782,39 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
       {
         url: `/v1/stores/${storeId}/carts/${cart.id}`,
         method: "PUT",
-        body: { payment_provider_id: paymentProviderId },
+        body: {},
       },
       {
         url: `/v1/stores/${storeId}/carts/${cart.id}/quote`,
         method: "POST",
-        body: {},
+        body: { locale: "en" },
       },
       {
         url: `/v1/stores/${storeId}/orders/quote`,
         method: "POST",
         body: {
-          payment_provider_id: paymentProviderId,
-          products: [],
-          bookings: [],
-          digital: [],
+          line_items: [],
+          delivery_groups: [],
+          locale: "en",
           market: "bih",
         },
       },
       {
-        url: `/v1/stores/${storeId}/carts/${cart.id}/checkout`,
+        url: `/v1/stores/${storeId}/checkouts`,
         method: "POST",
         body: {
+          request_id: checkoutRequestId,
+          sources: quote.sources,
+          locale: "en",
+          presentation_digest: presentationDigest,
           payment_provider_id: paymentProviderId,
           return_url: "https://admin.example.test/checkout/return",
         },
+      },
+      {
+        url: `/v1/stores/${storeId}/checkouts/${checkoutId}`,
+        method: "GET",
+        body: null,
       },
     ],
   );
@@ -1020,83 +1027,49 @@ test("admin Product writes and ProductInventory reads use the canonical wire fie
   const admin = createAdmin({ baseUrl, storeId, market: "us" });
   const create = {
     key: "canonical-product",
+    name_block_id: "name-contract",
     slugs: { en: "canonical-product" },
-    blocks: [],
+    blocks: [{ id: "name-contract", key: "name", type: "text", value: "Product" }],
     classifications: [],
-    variants: [
-      {
-        prices: [],
-        inventory: [
-          {
-            store_location_id: "location-contract",
-            on_hand: 10,
-          },
-        ],
-        attributes: [],
-        requires_shipping: true,
-        weight_grams: 500,
-      },
-    ],
   };
   const product = {
     id: "product-contract",
     store_id: storeId,
     key: create.key,
+    name_block_id: create.name_block_id,
     slugs: create.slugs,
-    blocks: [],
+    blocks: create.blocks,
     classifications: [],
-    variants: [
-      {
-        id: "variant-contract",
-        sku: null,
-        prices: [],
-        attributes: [],
-        requires_shipping: true,
-        weight_grams: 500,
-      },
-    ],
-    status: "active",
+    status: { type: "active" },
     created_at: 1,
     updated_at: 1,
   };
   const update = {
     id: product.id,
+    expected_updated_at: product.updated_at,
     slugs: { en: "canonical-product-updated" },
-    variants: [
-      {
-        id: "variant-contract",
-        inventory: [
-          {
-            store_location_id: "location-contract",
-            on_hand: 12,
-          },
-        ],
-        weight_grams: null,
-      },
-    ],
-    status: "draft",
+    status: { type: "draft" },
   };
   const inventory = [
     {
       id: "inventory-contract",
       store_id: storeId,
-      product_id: product.id,
-      variant_id: "variant-contract",
+      inventory_item_id: "item-contract",
       store_location_id: "location-contract",
       on_hand: 12,
       reserved: 3,
+      created_at: 1,
       updated_at: 2,
     },
   ];
   const updatedProduct = {
     ...product,
     slugs: update.slugs,
-    variants: [{ ...product.variants[0], weight_grams: null }],
-    status: "draft",
+    status: update.status,
     updated_at: 2,
   };
   const calls = [];
-  const responses = [product, updatedProduct, inventory];
+  const responses = [product, updatedProduct, { items: inventory, cursor: null }];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     calls.push({
@@ -1113,14 +1086,14 @@ test("admin Product writes and ProductInventory reads use the canonical wire fie
   try {
     created = await admin.eshop.product.create(create);
     updated = await admin.eshop.product.update(update);
-    loadedInventory = await admin.eshop.product.getInventory({ id: product.id });
+    loadedInventory = await admin.eshop.inventoryLevel.find({ inventory_item_id: "item-contract", store_location_id: "location-contract" });
   } finally {
     globalThis.fetch = originalFetch;
   }
 
   assert.deepEqual(created, product);
   assert.deepEqual(updated, updatedProduct);
-  assert.deepEqual(loadedInventory, inventory);
+  assert.deepEqual(loadedInventory, { items: inventory, cursor: null });
   assert.deepEqual(calls, [
     {
       url: `${baseUrl}/v1/stores/${storeId}/products`,
@@ -1133,14 +1106,14 @@ test("admin Product writes and ProductInventory reads use the canonical wire fie
       body: update,
     },
     {
-      url: `${baseUrl}/v1/stores/${storeId}/products/${product.id}/inventory`,
+      url: `${baseUrl}/v1/stores/${storeId}/inventory-levels?inventory_item_id=item-contract&store_location_id=location-contract`,
       method: "GET",
       body: null,
     },
   ]);
 });
 
-test("storefront product inventory is an explicit child-resource request", async () => {
+test("storefront variant read carries the exact product and buyer context", async () => {
   const storefront = createStorefront(publishableKey, {
     apiUrl: baseUrl,
     locale: "en",
@@ -1153,14 +1126,14 @@ test("storefront product inventory is an explicit child-resource request", async
   };
 
   try {
-    await storefront.eshop.product.getInventory({ slug: "lean-product" });
+    await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", company_id: "company-one", company_location_id: "branch-one", include_price: true });
   } finally {
     globalThis.fetch = originalFetch;
   }
 
   assert.equal(
     call.url,
-    `${baseUrl}/v1/storefront/products/lean-product/inventory`,
+    `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?company_id=company-one&company_location_id=branch-one&include_price=true`,
   );
   assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
 });
@@ -1218,16 +1191,33 @@ test("storefront money helpers preserve exact zero and reject invalid minor unit
     apiUrl: baseUrl,
     market: "ita",
   });
-  const prices = [
-    { market: "other", amount: 999, currency: "USD" },
-    { market: "ita", amount: 0, currency: "EUR" },
-  ];
+  const price = {
+    unit_price: { amount: 0, currency: "eur" },
+    compare_at: null,
+    billing: { type: "one_time" },
+    min_quantity: 1,
+    max_quantity: null,
+    priced_at: 1,
+  };
 
-  assert.equal(storefront.utils.getPriceAmount(prices), 0);
-  assert.notEqual(storefront.utils.formatPrice(prices), "");
-  storefront.setContext({ market: "missing" });
-  assert.equal(storefront.utils.getPriceAmount(prices), null);
-  assert.equal(storefront.utils.formatPrice(prices), "");
+  assert.equal(storefront.utils.getPriceAmount(price), 0);
+  assert.notEqual(storefront.utils.formatPrice(price), "");
+  assert.equal(storefront.utils.getPriceAmount(null), null);
+  assert.equal(storefront.utils.formatPrice(null), "");
+  assert.equal(
+    storefront.utils.getPriceAmount({
+      ...price,
+      unit_price: { amount: -1, currency: "eur" },
+    }),
+    null,
+  );
+  assert.equal(
+    storefront.utils.getPriceAmount({
+      ...price,
+      unit_price: { amount: 1.5, currency: "eur" },
+    }),
+    null,
+  );
   assert.throws(() => storefront.utils.formatMinor(1.5, "EUR"), /safe integer/);
 });
 

@@ -1,20 +1,19 @@
 import type { EpochMilliseconds } from "../types/time";
-import type { CheckoutSubscriptionParams, QuoteSubscriptionParams, SubscriptionCheckoutResult, SubscriptionQuote } from "../types/subscription";
-import { checkoutSubscription, subscriptionSelection } from "../services/subscription";
+import { createCartSelection } from "../services/cartSelection";
+import type { CartSelectionContext } from "../types/cartSelection";
 import { checkoutCart, pendingCartCheckout, recoverCartCheckout, withCartMutation } from "../services/cartCheckout";
 import type { CartCheckoutTransport, CartCheckoutRequest } from "../types/cartCheckout";
 import type { StorefrontApiConfig } from "../services/clientTypes";
+import type { StorefrontCustomerGroup, GetStorefrontCustomerGroupParams } from "../types/customerGroup";
+import type { StorefrontCustomerGroupPlan, FindStorefrontCustomerGroupPlansParams, GetStorefrontCustomerGroupPlanParams } from "../types/customerGroupPlan";
 import type {
   AddCartCustomerGroupPlanParams,
   AvailabilityResponse,
   CheckoutCartParams,
   ClearCartParams,
-  ConfirmAudienceParams,
-  CreateAudienceBillingPortalSessionParams,
-  CustomerAudienceMembershipReferenceParams,
-  FindCustomerAudienceMembershipsParams,
   FindBookingOfferingsParams,
-  FindStorefrontAudiencesParams,
+  FindStorefrontMarketsParams,
+  FindStorefrontLocationsParams,
   GetAvailabilityParams,
   GetCartParams,
   GetCollectionParams,
@@ -25,29 +24,30 @@ import type {
   GetFormParams,
   GetOrderParams,
   GetOrdersParams,
+  GetOrderPaymentParams,
+  FindOrderPaymentsParams,
   BookingItemLifecycleParams,
   GetProductParams,
   GetProductsParams,
   GetBookingResourceParams,
   FindBookingResourcesParams,
   GetBookingServiceParams,
-  FindBookingServicesParams,
-  GetStorefrontAudienceParams,
+  FindStorefrontBookingServicesParams,
   GetClassificationChildrenParams,
   GetStorefrontClassificationParams,
   QuoteCartParams,
   DownloadDigitalAssetParams,
   GetDigitalLibraryProductParams,
   FindStorefrontDigitalProductsParams,
+  FindDigitalLibraryParams,
   GetStorefrontDigitalProductParams,
   RemoveCartItemParams,
   RequestOptions,
-  JoinAudienceParams,
   SubmitFormParams,
-  UnsubscribeAudienceParams,
 } from "../types/api";
 import type {
   Cart,
+  CreatedCart,
   DigitalDownload,
   DigitalLibraryItem,
   DigitalLibraryProduct,
@@ -55,9 +55,6 @@ import type {
   StorefrontDigitalProduct,
   Collection,
   CollectionEntry,
-  AudienceBillingPortalSession,
-  AudienceJoinResult,
-  CustomerAudienceMembership,
   CustomerSessionIssued,
   CustomerEmailVerification,
   CustomerSessionRecord,
@@ -67,14 +64,13 @@ import type {
   Media,
   Order,
   OrderCheckoutResult,
-  OrderQuote,
+  CheckoutQuote,
   PaginatedResponse,
+  Payment,
   Product,
-  ProductInventory,
   BookingResource,
   BookingService,
   BookingOffering,
-  StorefrontAudience,
   Classification,
 } from "../types";
 import type {
@@ -85,6 +81,9 @@ import type {
   StorefrontAddCartBookingParams,
   StorefrontAddCartDigitalParams,
   StorefrontProduct,
+  StorefrontProductVariant,
+  GetStorefrontProductVariantParams,
+  FindStorefrontProductVariantsParams,
   StorefrontBookingOffering,
   StorefrontBookingResource,
   StorefrontBookingService,
@@ -92,10 +91,11 @@ import type {
   StorefrontLocation,
   StorefrontMarket,
   StorefrontParams,
-  StorefrontZone,
 } from "../types/storefront";
 import type { CatalogReadOptions } from "../types/catalog";
+import type { Checkout, GetCheckoutParams } from "../types/checkout";
 export type {
+  StorefrontCheckoutQuote,
   StorefrontCustomer,
   StorefrontBookingOffering,
   StorefrontBookingResource,
@@ -103,9 +103,9 @@ export type {
   StorefrontDto,
   StorefrontLocation,
   StorefrontMarket,
-  StorefrontZone,
 } from "../types/storefront";
 import {
+  publicCartReadOptions,
   sanitizePublicCartBookings,
   sanitizePublicCartCustomerGroupPlans,
   sanitizePublicCartUpdate,
@@ -126,19 +126,22 @@ export type CustomerSessionUpdater = (
 
 export interface StorefrontPaymentProvider {
   id: string;
-  type: "cash_on_delivery" | "stripe";
+  key: string;
+  blocks: import("../types").Block[];
+  type: "cash_on_delivery" | "manual" | "stripe";
 }
 
 export interface StorefrontSetup {
+  commerce:
+    | { type: "uninitialized" }
+    | { type: "initializing"; operation_id: string }
+    | { type: "ready"; default_market_id: string; default_sales_channel_id: string };
   timezone: string;
   languages: {
-    default: string;
+    default: string | null;
     available: string[];
   };
-  markets: {
-    default: string | null;
-    available: StorefrontMarket[];
-  };
+  default_market: StorefrontMarket | null;
   payment_providers: StorefrontPaymentProvider[];
   support: {
     email: string | null;
@@ -254,19 +257,33 @@ export const createStorefrontApi = (
   apiConfig: StorefrontApiConfig,
   updateCustomerSession: CustomerSessionUpdater,
   lifecycle: StorefrontLifecycle,
+  cartSelectionContext: CartSelectionContext,
 ) => {
   const base = "/v1/storefront";
   const checkoutScope = `storefront:${apiConfig.apiUrl}:${apiConfig.publishableKey}`;
+  const cartSelection = createCartSelection(cartSelectionContext, checkoutScope, {
+    get: (id, options) => apiConfig.httpClient.get<StorefrontDto<Cart>>(`${base}/carts/${encodeURIComponent(id)}`, publicCartReadOptions(options)),
+    create: (params, options) => apiConfig.httpClient.post<StorefrontDto<CreatedCart>>(
+      `${base}/carts`,
+      { ...(params.company !== undefined ? { company: params.company === null ? null : {
+        company_id: params.company.company_id,
+        company_location_id: params.company.company_location_id,
+      } } : {}) },
+      publicCartReadOptions(options),
+    ),
+  });
   const checkoutTransport: CartCheckoutTransport<StorefrontDto<OrderCheckoutResult>> = {
-    async post({ id, ...request }, options) {
+    async post({ id, request_id, locale: _locale, ...request }, options) {
       await lifecycle.ensureVisitorSession();
       return apiConfig.httpClient.post<StorefrontDto<OrderCheckoutResult>>(
-        `${base}/carts/${encodeURIComponent(id)}/checkout`, request, options,
+        `${base}/checkouts`,
+        { ...request, request_id },
+        options,
       );
     },
-    async getCart(id, options) {
+    async getCheckout(id, options) {
       await lifecycle.ensureVisitorSession();
-      return apiConfig.httpClient.get<StorefrontDto<Cart>>(`${base}/carts/${encodeURIComponent(id)}`, options);
+      return apiConfig.httpClient.get<StorefrontDto<Checkout>>(`${base}/checkouts/${encodeURIComponent(id)}`, options);
     },
   };
 
@@ -382,10 +399,10 @@ export const createStorefrontApi = (
             options,
           );
         },
-        list(options?: RequestOptions): Promise<StorefrontLocation[]> {
-          return apiConfig.httpClient.get<StorefrontLocation[]>(
+        list(params: FindStorefrontLocationsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<StorefrontLocation>> {
+          return apiConfig.httpClient.get<PaginatedResponse<StorefrontLocation>>(
             `${base}/locations`,
-            options,
+            { ...options, params },
           );
         },
         get(id: string, options?: RequestOptions): Promise<StorefrontLocation> {
@@ -396,10 +413,15 @@ export const createStorefrontApi = (
         },
       },
       market: {
-        list(options?: RequestOptions): Promise<StorefrontMarket[]> {
-          return apiConfig.httpClient.get<StorefrontMarket[]>(
+        getByKey(key: string, options?: RequestOptions): Promise<StorefrontMarket> {
+          return apiConfig.httpClient.get<StorefrontMarket>(
+            `${base}/markets/by-key/${encodeURIComponent(key)}`, options,
+          );
+        },
+        list(params: FindStorefrontMarketsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<StorefrontMarket>> {
+          return apiConfig.httpClient.get<PaginatedResponse<StorefrontMarket>>(
             `${base}/markets`,
-            options,
+            { ...options, params },
           );
         },
         get(id: string, options?: RequestOptions): Promise<StorefrontMarket> {
@@ -531,11 +553,11 @@ export const createStorefrontApi = (
             StorefrontDto<StorefrontDigitalProduct>
           >(`${base}/digital-products/${encodeURIComponent(params.identifier)}`, {
             ...options,
-            params: { company_id: params.company_id, include_price: params.include_price },
+            params: { company_id: params.company_id, company_location_id: params.company_location_id, include_price: params.include_price },
           });
         },
         async library(
-          params: FindStorefrontDigitalProductsParams = {},
+          params: FindDigitalLibraryParams = {},
           options?: RequestOptions,
         ): Promise<PaginatedResponse<DigitalLibraryItem>> {
           await lifecycle.ensureVisitorSession();
@@ -549,18 +571,18 @@ export const createStorefrontApi = (
         ): Promise<DigitalLibraryProduct> {
           await lifecycle.ensureVisitorSession();
           return apiConfig.httpClient.get<DigitalLibraryProduct>(
-            `${base}/digital-products/library/${params.digital_product_id}`,
-            options,
+            `${base}/digital-products/library/${encodeURIComponent(params.digital_product_id)}`,
+            { ...options, params: { company_id: params.company_id, company_location_id: params.company_location_id, limit: params.limit, cursor: params.cursor } },
           );
         },
         async getLibraryAssets(
           params: StorefrontParams<GetDigitalLibraryProductParams>,
           options?: RequestOptions,
-        ): Promise<DigitalLibraryAsset[]> {
+        ): Promise<PaginatedResponse<DigitalLibraryAsset>> {
           await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.get<DigitalLibraryAsset[]>(
-            `${base}/digital-products/library/${params.digital_product_id}/assets`,
-            options,
+          return apiConfig.httpClient.get<PaginatedResponse<DigitalLibraryAsset>>(
+            `${base}/digital-products/library/${encodeURIComponent(params.digital_product_id)}/assets`,
+            { ...options, params: { company_id: params.company_id, company_location_id: params.company_location_id, limit: params.limit, cursor: params.cursor } },
           );
         },
         async download(
@@ -569,8 +591,8 @@ export const createStorefrontApi = (
         ): Promise<DigitalDownload> {
           await lifecycle.ensureVisitorSession();
           return apiConfig.httpClient.get<DigitalDownload>(
-            `${base}/digital-products/${params.digital_product_id}/assets/${params.asset_id}/download`,
-            options,
+            `${base}/digital-products/${encodeURIComponent(params.digital_product_id)}/assets/${encodeURIComponent(params.asset_id)}/download`,
+            { ...options, params: { reference: params.reference, company_id: params.company_id, company_location_id: params.company_location_id } },
           );
         },
       },
@@ -584,19 +606,7 @@ export const createStorefrontApi = (
             throw new Error("GetProductParams requires id or slug");
           return apiConfig.httpClient.get<StorefrontProduct>(
             `${base}/products/${encodeURIComponent(identifier)}`,
-            { ...options, params: { company_id: params.company_id, include_price: params.include_price } },
-          );
-        },
-        getInventory(
-          params: StorefrontParams<GetProductParams>,
-          options?: RequestOptions,
-        ): Promise<StorefrontDto<ProductInventory[]>> {
-          const identifier = params.id ?? params.slug;
-          if (!identifier)
-            throw new Error("GetProductParams requires id or slug");
-          return apiConfig.httpClient.get<StorefrontDto<ProductInventory[]>>(
-            `${base}/products/${identifier}/inventory`,
-            options,
+            { ...options, params: { company_id: params.company_id, company_location_id: params.company_location_id, include_price: params.include_price } },
           );
         },
         find(
@@ -608,80 +618,57 @@ export const createStorefrontApi = (
           >(`${base}/products`, { ...options, params });
         },
       },
+      productVariant: {
+        get(params: GetStorefrontProductVariantParams, options?: RequestOptions): Promise<StorefrontProductVariant> {
+          const { product_id, id, ...query } = params;
+          return apiConfig.httpClient.get<StorefrontProductVariant>(
+            `${base}/products/${encodeURIComponent(product_id)}/variants/${encodeURIComponent(id)}`,
+            { ...options, params: query },
+          );
+        },
+        find(params: FindStorefrontProductVariantsParams, options?: RequestOptions): Promise<PaginatedResponse<StorefrontProductVariant>> {
+          const { product_id, ...query } = params;
+          return apiConfig.httpClient.get<PaginatedResponse<StorefrontProductVariant>>(
+            `${base}/products/${encodeURIComponent(product_id)}/variants`,
+            { ...options, params: query },
+          );
+        },
+      },
+      checkout: {
+        async get(params: Pick<GetCheckoutParams, "id">, options?: RequestOptions): Promise<StorefrontDto<Checkout>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<StorefrontDto<Checkout>>(`${base}/checkouts/${encodeURIComponent(params.id)}`, options);
+        },
+        async resumePayment(params: Pick<GetCheckoutParams, "id">, options?: RequestOptions): Promise<StorefrontDto<OrderCheckoutResult>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.post<StorefrontDto<OrderCheckoutResult>>(
+            `${base}/checkouts/${encodeURIComponent(params.id)}/payment-action`, {}, options,
+          );
+        },
+      },
       cart: {
-        subscription: {
-          async quote(
-            params: StorefrontParams<QuoteSubscriptionParams>,
-            options?: RequestOptions,
-          ): Promise<StorefrontDto<SubscriptionQuote>> {
-            const selection = subscriptionSelection(params.selection);
-            await lifecycle.ensureVisitorSession();
-            return apiConfig.httpClient.post<StorefrontDto<SubscriptionQuote>>(
-              `${base}/carts/subscriptions/quote`, { selection }, options,
-            );
-          },
-          async checkout(
-            params: StorefrontParams<CheckoutSubscriptionParams>,
-            options?: RequestOptions,
-          ): Promise<SubscriptionCheckoutResult> {
-            return checkoutSubscription(`${apiConfig.apiUrl}:${apiConfig.publishableKey}`, params, async (payload) => {
-              await lifecycle.ensureVisitorSession();
-              return apiConfig.httpClient.post<SubscriptionCheckoutResult>(
-                `${base}/carts/subscriptions/checkout`, payload, options,
-              );
-            });
-          },
+        async create(
+          params: StorefrontCurrentCartParams = {},
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<CreatedCart>> {
+          await lifecycle.ensureVisitorSession();
+          return cartSelection.create(params, options);
         },
         async current(
           params: StorefrontCurrentCartParams = {},
           options?: RequestOptions,
         ): Promise<StorefrontDto<Cart>> {
           await lifecycle.ensureVisitorSession();
-          const pending = await pendingCartCheckout(checkoutScope);
-          if (pending) {
-            const cart = await apiConfig.httpClient.get<StorefrontDto<Cart>>(`${base}/carts/${encodeURIComponent(pending.id)}`, options);
-            if ((params.company_id !== undefined && params.company_id !== (cart.company?.company_id ?? null)) ||
-              (params.company_location_id !== undefined && params.company_location_id !== (cart.company?.company_location_id ?? null)))
-              throw new Error("Recover the unresolved Cart Checkout before changing Company context");
-            return cart;
-          }
-          return withCartMutation(checkoutScope, () => apiConfig.httpClient.post<StorefrontDto<Cart>>(
-            `${base}/carts/current`,
-            {
-              ...(params.company_id !== undefined ? { company_id: params.company_id } : {}),
-              ...(params.company_location_id !== undefined ? { company_location_id: params.company_location_id } : {}),
-            },
-            options,
-          ));
+          return cartSelection.current(params, options);
         },
         async get(
           params: StorefrontParams<GetCartParams>,
           options?: RequestOptions,
         ): Promise<StorefrontDto<Cart>> {
           await lifecycle.ensureVisitorSession();
-          const queryParams = Object.fromEntries(
-            Object.entries(
-              (options?.params || {}) as Record<string, unknown>,
-            ).filter(
-              ([name]) => !["token", "cart_token"].includes(name.toLowerCase()),
-            ),
-          );
-          const headers = Object.fromEntries(
-            Object.entries(options?.headers || {}).filter(
-              ([name]) => name.toLowerCase() !== "x-arky-cart-token",
-            ),
-          );
           return apiConfig.httpClient.get<StorefrontDto<Cart>>(
             `${base}/carts/${encodeURIComponent(params.id)}`,
-            {
-              ...options,
-              headers: {
-                ...headers,
-                ...(params.token ? { "X-Arky-Cart-Token": params.token } : {}),
-              },
-              params:
-                Object.keys(queryParams).length > 0 ? queryParams : undefined,
-            },
+            publicCartReadOptions(options, params.token),
           );
         },
         async update(
@@ -774,11 +761,11 @@ export const createStorefrontApi = (
         async quote(
           params: StorefrontParams<QuoteCartParams>,
           options?: RequestOptions,
-        ): Promise<StorefrontDto<OrderQuote>> {
+        ): Promise<StorefrontDto<CheckoutQuote>> {
           await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.post<StorefrontDto<OrderQuote>>(
+          return apiConfig.httpClient.post<StorefrontDto<CheckoutQuote>>(
             `${base}/carts/${encodeURIComponent(params.id)}/quote`,
-            { locale: params.locale ?? apiConfig.locale },
+            {},
             options,
           );
         },
@@ -807,13 +794,24 @@ export const createStorefrontApi = (
           );
         },
         async getPayment(
-          params: StorefrontParams<GetOrderParams>,
+          params: StorefrontParams<GetOrderPaymentParams>,
           options?: RequestOptions,
-        ): Promise<StorefrontDto<OrderCheckoutResult>> {
+        ): Promise<StorefrontDto<Payment>> {
           await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.get<StorefrontDto<OrderCheckoutResult>>(
-            `${base}/orders/${params.id}/payment`,
+          return apiConfig.httpClient.get<StorefrontDto<Payment>>(
+            `${base}/orders/${encodeURIComponent(params.order_id)}/payments/${encodeURIComponent(params.payment_id)}`,
             options,
+          );
+        },
+        async findPayments(
+          params: StorefrontParams<FindOrderPaymentsParams>,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<PaginatedResponse<Payment>>> {
+          await lifecycle.ensureVisitorSession();
+          const { order_id, ...query } = params;
+          return apiConfig.httpClient.get<StorefrontDto<PaginatedResponse<Payment>>>(
+            `${base}/orders/${encodeURIComponent(order_id)}/payments`,
+            { ...options, params: query },
           );
         },
         async find(
@@ -839,27 +837,27 @@ export const createStorefrontApi = (
       },
       bookingService: {
         get(
-          params: StorefrontParams<GetBookingServiceParams>,
+          params: StorefrontParams<GetBookingServiceParams> & CatalogReadOptions,
           options?: RequestOptions,
-        ): Promise<StorefrontDto<BookingService>> {
+        ): Promise<StorefrontBookingService> {
           const identifier = params.id ?? params.slug;
           if (!identifier)
             throw new Error("GetBookingServiceParams requires id or slug");
-          return apiConfig.httpClient.get<StorefrontDto<BookingService>>(
+          return apiConfig.httpClient.get<StorefrontBookingService>(
             `${base}/booking-services/${identifier}`,
-            options,
+            { ...options, params: { company_id: params.company_id, company_location_id: params.company_location_id, include_price: params.include_price } },
           );
         },
         find(
-          params: StorefrontParams<FindBookingServicesParams>,
+          params: FindStorefrontBookingServicesParams = {},
           options?: RequestOptions,
-        ): Promise<StorefrontDto<PaginatedResponse<BookingService>>> {
+        ): Promise<PaginatedResponse<StorefrontBookingService>> {
           return apiConfig.httpClient.get<
-            StorefrontDto<PaginatedResponse<BookingService>>
+            PaginatedResponse<StorefrontBookingService>
           >(`${base}/booking-services`, { ...options, params });
         },
         getAvailability(
-          params: StorefrontParams<GetAvailabilityParams>,
+          params: StorefrontParams<GetAvailabilityParams> & Pick<CatalogReadOptions, "company_id" | "company_location_id">,
           options?: RequestOptions,
         ): Promise<AvailabilityResponse> {
           return apiConfig.httpClient.get<AvailabilityResponse>(
@@ -872,8 +870,8 @@ export const createStorefrontApi = (
         find(
           params: StorefrontParams<Omit<FindBookingOfferingsParams, "status">> & CatalogReadOptions,
           options?: RequestOptions,
-        ): Promise<StorefrontBookingOffering[]> {
-          return apiConfig.httpClient.get<StorefrontBookingOffering[]>(
+        ): Promise<PaginatedResponse<StorefrontBookingOffering>> {
+          return apiConfig.httpClient.get<PaginatedResponse<StorefrontBookingOffering>>(
             `${base}/booking-offerings`,
             { ...options, params },
           );
@@ -899,141 +897,36 @@ export const createStorefrontApi = (
         },
       },
     },
-    customer_group_plans: {
-      find(
-        params: FindStorefrontAudiencesParams = {},
-        options?: RequestOptions,
-      ): Promise<PaginatedResponse<StorefrontAudience>> {
-        return apiConfig.httpClient.get<
-          PaginatedResponse<StorefrontAudience>
-        >(`${base}/audiences`, { ...options, params });
-      },
+    customer_groups: {
       get(
-        params: GetStorefrontAudienceParams,
+        params: GetStorefrontCustomerGroupParams,
         options?: RequestOptions,
-      ): Promise<StorefrontAudience> {
-        const { key, ...query } = params;
-        return apiConfig.httpClient.get<StorefrontAudience>(
-          `${base}/audiences/${encodeURIComponent(key)}`,
+      ): Promise<StorefrontCustomerGroup> {
+        const { identifier, ...query } = params;
+        return apiConfig.httpClient.get<StorefrontCustomerGroup>(
+          `${base}/customer-groups/${encodeURIComponent(identifier)}`,
           { ...options, params: query },
         );
       },
-      async join(
-        params: StorefrontParams<JoinAudienceParams>,
+    },
+    customer_group_plans: {
+      find(
+        params: FindStorefrontCustomerGroupPlansParams = {},
         options?: RequestOptions,
-      ): Promise<AudienceJoinResult> {
-        await lifecycle.ensureVisitorSession();
-        const { audience_id, ...payload } = params;
-        return apiConfig.httpClient.post<AudienceJoinResult>(
-          `${base}/audiences/${audience_id}/join`,
-          payload,
-          options,
-        );
+      ): Promise<PaginatedResponse<StorefrontCustomerGroupPlan>> {
+        return apiConfig.httpClient.get<
+          PaginatedResponse<StorefrontCustomerGroupPlan>
+        >(`${base}/customer-group-plans`, { ...options, params });
       },
-      customer: {
-        async find(
-          params: FindCustomerAudienceMembershipsParams = {},
-          options?: RequestOptions,
-        ): Promise<PaginatedResponse<CustomerAudienceMembership>> {
-          await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.get<
-            PaginatedResponse<CustomerAudienceMembership>
-          >("/v1/customer/audience-memberships", { ...options, params });
-        },
-
-        async get(
-          params: CustomerAudienceMembershipReferenceParams,
-          options?: RequestOptions,
-        ): Promise<CustomerAudienceMembership> {
-          await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.get<CustomerAudienceMembership>(
-            `/v1/customer/audience-memberships/${params.membership_id}`,
-            options,
-          );
-        },
-
-        async resendConfirmation(
-          params: CustomerAudienceMembershipReferenceParams,
-          options?: RequestOptions,
-        ): Promise<CustomerAudienceMembership> {
-          await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.post<CustomerAudienceMembership>(
-            `/v1/customer/audience-memberships/${params.membership_id}/confirmation/resend`,
-            {},
-            options,
-          );
-        },
-
-        async resubscribe(
-          params: CustomerAudienceMembershipReferenceParams,
-          options?: RequestOptions,
-        ): Promise<CustomerAudienceMembership> {
-          await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.post<CustomerAudienceMembership>(
-            `/v1/customer/audience-memberships/${params.membership_id}/resubscribe`,
-            {},
-            options,
-          );
-        },
-
-        async leave(
-          params: CustomerAudienceMembershipReferenceParams,
-          options?: RequestOptions,
-        ): Promise<CustomerAudienceMembership> {
-          await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.post<CustomerAudienceMembership>(
-            `/v1/customer/audience-memberships/${params.membership_id}/leave`,
-            {},
-            options,
-          );
-        },
-
-        async cancelRenewal(
-          params: CustomerAudienceMembershipReferenceParams,
-          options?: RequestOptions,
-        ): Promise<CustomerAudienceMembership> {
-          await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.post<CustomerAudienceMembership>(
-            `/v1/customer/audience-memberships/${params.membership_id}/renewal/cancel`,
-            {},
-            options,
-          );
-        },
-
-        async createBillingPortal(
-          params: CreateAudienceBillingPortalSessionParams,
-          options?: RequestOptions,
-        ): Promise<AudienceBillingPortalSession> {
-          await lifecycle.ensureVisitorSession();
-          const { membership_id, ...payload } = params;
-          return apiConfig.httpClient.post<AudienceBillingPortalSession>(
-            `/v1/customer/audience-memberships/${membership_id}/billing-portal`,
-            payload,
-            options,
-          );
-        },
-
-        async confirm(
-          params: ConfirmAudienceParams,
-          options?: RequestOptions,
-        ): Promise<CustomerAudienceMembership> {
-          return apiConfig.httpClient.post<CustomerAudienceMembership>(
-            "/v1/customer/audience-memberships/confirm",
-            params,
-            options,
-          );
-        },
-
-        async unsubscribe(
-          params: UnsubscribeAudienceParams,
-          options?: RequestOptions,
-        ): Promise<boolean> {
-          return apiConfig.httpClient.post<boolean>(
-            "/v1/customer/audience-memberships/unsubscribe",
-            params,
-            options,
-          );
-        },
+      get(
+        params: GetStorefrontCustomerGroupPlanParams,
+        options?: RequestOptions,
+      ): Promise<StorefrontCustomerGroupPlan> {
+        const { identifier, ...query } = params;
+        return apiConfig.httpClient.get<StorefrontCustomerGroupPlan>(
+          `${base}/customer-group-plans/${encodeURIComponent(identifier)}`,
+          { ...options, params: query },
+        );
       },
     },
     actions: createActionsStorefrontApi(apiConfig, lifecycle),

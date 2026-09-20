@@ -17,22 +17,16 @@ function jsonResponse(body) {
 const customer = {
   id: customerId,
   store_id: storeId,
-  status: "active",
-  identities: [
-    {
-      id: "identity-contract",
-      type: "email",
-      email: "person@example.com",
-      verified_at: 2,
-      created_at: 1,
-    },
-  ],
+  status: { type: "active" },
+  primary_email_identity_id: "identity-contract",
+  default_shipping_address_id: null,
+  default_billing_address_id: null,
   classifications: [],
   created_at: 1,
   updated_at: 2,
 };
 
-test("Admin Customer namespace uses only canonical routes and flattened identities", async () => {
+test("Admin Customer namespace uses canonical routes, tagged status and independent identity selection", async () => {
   const admin = createAdmin({ baseUrl, storeId, market: "bih" });
   const calls = [];
   const originalFetch = globalThis.fetch;
@@ -127,13 +121,14 @@ test("Admin Customer namespace uses only canonical routes and flattened identiti
       email: "person@example.com",
       classifications: [],
     });
-    assert.equal(created.identities[0].type, "email");
+    assert.equal(created.primary_email_identity_id, "identity-contract");
+    assert.equal("identities" in created, false);
     assert.equal("email" in created, false);
     await admin.customers.find({ status: "active", has_verified_email: true });
     await admin.customers.get({ id: customerId });
     await admin.customers.update({ id: customerId, email: "new@example.com" });
-    await admin.customers.update({ id: customerId, status: "archived" });
-    await admin.customers.update({ id: customerId, status: "active" });
+    await admin.customers.update({ id: customerId, status: { type: "archived" } });
+    await admin.customers.update({ id: customerId, status: { type: "active" } });
     await admin.customers.archive({ id: customerId });
     const importRows = [{ email: "person@example.com", classifications: [] }];
     await admin.customers.previewImport({ rows: importRows });
@@ -196,8 +191,8 @@ test("Admin Customer namespace uses only canonical routes and flattened identiti
       .map(({ body }) => body),
     [
       { email: "new@example.com" },
-      { status: "archived" },
-      { status: "active" },
+      { status: { type: "archived" } },
+      { status: { type: "active" } },
     ],
   );
   assert.equal(

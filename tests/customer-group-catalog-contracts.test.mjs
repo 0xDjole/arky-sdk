@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/index.js";
+import { createStorefront } from "../dist/storefront.js";
 
 const apiUrl = "https://api.example.test";
 const groupId = "350082ac-9c53-497a-a7b2-4ecb36e1b53c";
@@ -31,6 +32,38 @@ function admin() {
     locale: "en",
   });
 }
+
+test("plan discovery forwards catalog pricing, group, ordering and protected continuation", async () => {
+  const { calls, restore } = capture({ items: [], cursor: null });
+  try {
+    const client = createStorefront({
+      baseUrl: apiUrl,
+      publishableKey: `arky_pk_${"b".repeat(42)}A`,
+      storeId: "selected-store", market: "us", locale: "en",
+    });
+    await client.customer_group_plans.find({
+      customer_group_id: groupId, company_id: "company", company_location_id: "branch",
+      include_price: true, query: "monthly", price_filter: { min_amount: 0, max_amount: 900, quantity: 1 },
+      sort_field: "price", sort_direction: "asc", limit: 10, cursor: "protected-position",
+      created_at_from: 1000, created_at_to: 2000,
+    });
+    const query = calls[0].url.searchParams;
+    assert.equal(query.get("customer_group_id"), groupId);
+    assert.equal(query.get("company_id"), "company");
+    assert.equal(query.get("company_location_id"), "branch");
+    assert.equal(query.get("include_price"), "true");
+    assert.equal(query.get("query"), "monthly");
+    assert.deepEqual(JSON.parse(query.get("price_filter")), { min_amount: 0, max_amount: 900, quantity: 1 });
+    assert.equal(query.get("sort_field"), "price");
+    assert.equal(query.get("sort_direction"), "asc");
+    assert.equal(query.get("cursor"), "protected-position");
+    assert.equal(query.get("created_at_from"), "1000");
+    assert.equal(query.get("created_at_to"), "2000");
+    await client.customer_group_plans.get({ identifier: "monthly", customer_group_id: groupId, include_price: true });
+    assert.equal(calls[1].url.searchParams.get("customer_group_id"), groupId);
+    assert.equal(calls[1].url.searchParams.get("include_price"), "true");
+  } finally { restore(); }
+});
 
 test("a CustomerGroup definition carries admission and communication, never commercial terms", async () => {
   const group = {

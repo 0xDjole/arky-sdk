@@ -1,17 +1,47 @@
 export { ScheduledResultTimeoutError } from "./utils/scheduledResult";
 export { isValidKey, validateKey, toKey, nameToKey } from "./utils/keyValidation";
 export { CartPresentationChangedError } from "./types/cartCheckout";
+export { CartSelectionError } from "./types/cartSelection";
+export {
+  cartProductItems,
+  cartBookingItems,
+  cartDigitalItems,
+  cartCustomerGroupPlanItems,
+} from "./types/cart";
+export {
+  orderProductItems,
+  orderBookingItems,
+  orderDigitalItems,
+  orderCustomerGroupPlanItems,
+} from "./types/order";
 export type { CartCheckoutRequest, RecoverCartCheckoutParams } from "./types/cartCheckout";
 export type { InitialMarketInput } from "./types/api";
 export type { MarketStatus, MarketUsage } from "./types";
 export type { CompanyAddress, CompanyProfile, CompanyEditableStatus, CompanyStatus, Company, CompanyUsage, CreateCompanyParams, GetCompanyParams, UpdateCompanyParams, DeleteCompanyParams, FindCompaniesParams } from "./types/company";
-export type { CompanyMembershipEditableStatus, CompanyMembershipStatus, CompanyMembership, CreateCompanyMembershipParams, GetCompanyMembershipParams, UpdateCompanyMembershipParams, DeleteCompanyMembershipParams, FindCompanyMembershipsParams } from "./types/companyMembership";
+export type { CompanyMembershipEditableStatus, CompanyMembershipStatus, CompanyMembershipScope, CompanyMembership, CreateCompanyMembershipParams, GetCompanyMembershipParams, UpdateCompanyMembershipParams, DeleteCompanyMembershipParams, FindCompanyMembershipsParams } from "./types/companyMembership";
 export type { CompanyPermission, CompanyRoleStatus, CompanyRole, CompanyRoleUsage, CreateCompanyRoleParams, GetCompanyRoleParams, UpdateCompanyRoleParams, DeleteCompanyRoleParams, FindCompanyRolesParams } from "./types/companyRole";
 export type { CompanyLocationEditableStatus, CompanyLocationStatus, CompanyLocation, CreateCompanyLocationParams, GetCompanyLocationParams, UpdateCompanyLocationParams, DeleteCompanyLocationParams, FindCompanyLocationsParams } from "./types/companyLocation";
-export type { CustomerGroupEditableStatus, CustomerGroupStatus, CustomerGroupJoinPolicy, CustomerGroupConsentPolicy, CustomerGroupCommunication, CustomerGroup, CustomerGroupUsage, CreateCustomerGroupParams, GetCustomerGroupParams, UpdateCustomerGroupParams, DeleteCustomerGroupParams, FindCustomerGroupsParams } from "./types/customerGroup";
-export type { CustomerGroupPlan, CustomerGroupPlanTerm, CustomerGroupPlanStatus, CustomerGroupPlanBenefit, CustomerGroupPlanBenefitType, CustomerGroupProductQuantity, CustomerGroupDeliverySchedule, CustomerGroupDigitalContent, RecurringCadence, RenewalRecoveryPolicy, BillingInterval, CreateCustomerGroupPlanParams, UpdateCustomerGroupPlanParams, GetCustomerGroupPlanParams, FindCustomerGroupPlansParams } from "./types/customerGroupPlan";
+export type { CompanyLocationTaxSettings, CompanyLocationCommercePolicy, TaxRegistration, TaxRegistrationStatus, TaxExemption } from "./types/companyLocation";
+export type { InventoryItem, InventoryItemStatus, InventoryItemEditableStatus, InventoryTracking, InventoryPhysical, InventoryCustoms, InventoryDimensions, CreateInventoryItemParams, UpdateInventoryItemParams, GetInventoryItemParams, GetInventoryItemByKeyParams, FindInventoryItemsParams, DeleteInventoryItemParams } from "./types/inventoryItem";
+export type { InventoryLevel, CreateInventoryLevelParams, GetInventoryLevelParams, RemoveInventoryLevelParams, FindInventoryLevelsParams, InventoryMovement, InventoryMovementReason, ManualInventoryMovementReason, RecordInventoryMovementParams, GetInventoryMovementParams, FindInventoryMovementsParams, InventoryReservation, InventoryReservationSource, InventoryReservationStatus, ReservationUnitProgress, CreateManualInventoryReservationParams, ReleaseManualInventoryReservationParams, GetInventoryReservationParams, FindInventoryReservationsParams, UnitSpan } from "./types/inventory";
+export type { Promotion, PromotionStatus, PromotionEditableStatus, PromotionActivation, PromotionStacking, PromotionEligibility, PromotionTarget, PromotionEffect, PromotionBuyRequirement, PromotionGetDiscount, PromotionProductVariantRef, CreatePromotionParams, UpdatePromotionParams, GetPromotionParams, GetPromotionByKeyParams, FindPromotionsParams, DeletePromotionParams, PromotionCode, PromotionCodeStatus, PromotionCodeEditableStatus, CreatePromotionCodeParams, UpdatePromotionCodeParams, GetPromotionCodeParams, GetPromotionCodeByCodeParams, FindPromotionCodesParams, DeletePromotionCodeParams } from "./types/promotion";
+export type { TaxCategory, TaxCategoryStatus, TaxCategoryEditableStatus, CreateTaxCategoryParams, UpdateTaxCategoryParams, GetTaxCategoryParams, FindTaxCategoriesParams, DeleteTaxCategoryParams, TaxRate, TaxCalculation, TaxComponent, TaxTreatment, TaxRule, TaxRuleStatus, TaxRuleEditableStatus, CreateTaxRuleParams, UpdateTaxRuleParams, GetTaxRuleParams, FindTaxRulesParams, DeleteTaxRuleParams } from "./types/tax";
+export type { PaymentTerms, PaymentTermsStatus, PaymentTermsEditableStatus, CreatePaymentTermsParams, UpdatePaymentTermsParams, GetPaymentTermsParams, FindPaymentTermsParams, DeletePaymentTermsParams } from "./types/paymentTerms";
+export type { OrderCredit, OrderCreditAllocation, OrderCreditSource, OrderCreditStatus, CreditTarget, CreditMoney, DiscountReversal, TaxComponentReversal, DutyComponentReversal, CreateOrderCreditParams, GetOrderCreditParams, FindOrderCreditsParams } from "./types/orderCredit";
+export type { CustomerPaymentMethod, CustomerPaymentMethodState, CustomerPaymentMethodCommand, CustomerPaymentMethodCommandType, CustomerPaymentMethodRevocation, CustomerPaymentMethodRevocationRecord, CustomerPaymentMethodRevocationRequest, NativeSetupOutcome, GetCustomerPaymentMethodParams, FindCustomerPaymentMethodsParams, FindCustomerPaymentMethodCommandsParams, RevokeCustomerPaymentMethodParams } from "./types/customerPaymentMethod";
+export type { CustomerGroupEmailConsent, CustomerGroupEmailConsentStatus, CustomerGroupEmailConfirmation, CustomerGroupConfirmationEmailStatus, CustomerGroupConfirmationHistoryEntry, CustomerGroupConsentEvent, CustomerGroupConsentEventType, CustomerGroupConsentSource, CustomerGroupUnsubscribeReason, RecordCustomerGroupEmailDecision, SubscribeCustomerGroupEmailsParams, RecordCustomerGroupEmailConsentParams, ImportCustomerGroupEmailConsentEntry, ImportCustomerGroupEmailConsentsParams, ImportCustomerGroupEmailConsentsResult, ConfirmCustomerGroupEmailsParams, UnsubscribeCustomerGroupEmailsParams, ResendCustomerGroupConfirmationParams, GetCustomerGroupEmailConsentParams, FindCustomerGroupEmailConsentsParams, FindCustomerGroupEmailConsentHistoryParams } from "./types/customerGroupEmailConsent";
+export type { Checkout, CheckoutState, CheckoutResult, CheckoutCartVersion, CheckoutLineBinding, CartLineItemRef, OrderLineItemRef, GetCheckoutParams, CheckoutQuote, CheckoutQuoteSources, CheckoutQuoteDeliveryBinding } from "./types/checkout";
+export type { FulfillmentRoutingPolicy, FulfillmentRoutingStrategy, FulfillmentRoutingLocation, FulfillmentRoutingPolicyStatus, FulfillmentRoutingPolicyEditableStatus, CreateFulfillmentRoutingPolicyParams, UpdateFulfillmentRoutingPolicyParams, GetFulfillmentRoutingPolicyParams, GetFulfillmentRoutingPolicyByKeyParams, FindFulfillmentRoutingPoliciesParams, DeleteFulfillmentRoutingPolicyParams } from "./types/fulfillmentRouting";
+export type { MarketSalesChannel, MarketSalesChannelStatus, CreateMarketSalesChannelParams, GetMarketSalesChannelParams, FindMarketSalesChannelsParams, RemoveMarketSalesChannelParams } from "./types/marketSalesChannel";
+export type { StorefrontClientRegistration, StorefrontClientStatus, CreateStorefrontClientParams, UpdateStorefrontClientParams, RevokeStorefrontClientParams, GetStorefrontClientParams, FindStorefrontClientsParams } from "./types/storefrontClient";
+export type { ShippingLabel, ShippingLabelStatus, ShippingLabelOwner, ShippingLabelQuoteOwner, ShippingLabelRequest, ShippingLabelPurchase, ShippingLabelQuoteRate, MerchantBalanceEffect, MerchantBalanceDirection, MerchantDebit, MerchantDebitStatus, StripePlatformDebitAuthorization, ShippingLabelRefund, ShippingLabelRefundStatus, ShippingLabelRefundStatusName, CarrierRefundEffect, MerchantDebitReversal, MerchantDebitReversalStatus, MerchantDebitReversalReason, QuoteShippingLabelParams, RequestShippingLabelParams, GetShippingLabelParams, FindShippingLabelsParams, RequestShippingLabelRefundParams, GetShippingLabelRefundParams, FindShippingLabelRefundsParams, RequestMerchantDebitReversalParams, GetMerchantDebitReversalParams, FindMerchantDebitReversalsParams } from "./types/shippingLabel";
+export type { ShippingMethod, ShippingMethodType, ShippingMethodStatus, ShippingMethodEditableStatus, CreateShippingMethodParams, UpdateShippingMethodParams, GetShippingMethodParams, FindShippingMethodsParams, DeleteShippingMethodParams, ShippingRateCondition, ShippingRateWeightTier, ShippingRateAdjustment, ShippingRatePricing, ShippingRate, ShippingRateStatus, ShippingRateEditableStatus, CreateShippingRateParams, UpdateShippingRateParams, GetShippingRateParams, FindShippingRatesParams, DeleteShippingRateParams } from "./types/shipping";
+export type { Zone, ZoneMatch, ZoneStatus, ZoneEditableStatus, CreateZoneParams, UpdateZoneParams, GetZoneParams, FindZonesParams, DeleteZoneParams, MarketZone, MarketZoneStatus, MarketZoneEditableStatus, CreateMarketZoneParams, UpdateMarketZoneParams, GetMarketZoneParams, FindMarketZonesParams, DeleteMarketZoneParams } from "./types/zone";
+export type { ShippingProfile, ShippingProfileStatus, ShippingProfileEditableStatus, CreateShippingProfileParams, UpdateShippingProfileParams, GetShippingProfileParams, GetShippingProfileByKeyParams, FindShippingProfilesParams, DeleteShippingProfileParams } from "./types/shippingProfile";
+export type { CustomerGroupEditableStatus, CustomerGroupStatus, CustomerGroupJoinPolicy, CustomerGroupConsentPolicy, CustomerGroupCommunication, CustomerGroup, CustomerGroupUsage, CreateCustomerGroupParams, GetCustomerGroupParams, GetCustomerGroupByKeyParams, UpdateCustomerGroupParams, DeleteCustomerGroupParams, FindCustomerGroupsParams, StorefrontCustomerGroup, GetStorefrontCustomerGroupParams } from "./types/customerGroup";
+export type { CustomerGroupPlan, CustomerGroupPlanTerm, CustomerGroupPlanStatus, CustomerGroupPlanBenefit, CustomerGroupPlanBenefitType, CustomerGroupProductQuantity, CustomerGroupDeliverySchedule, CustomerGroupDigitalContent, RecurringCadence, RenewalRecoveryPolicy, BillingInterval, CreateCustomerGroupPlanParams, UpdateCustomerGroupPlanParams, GetCustomerGroupPlanParams, FindCustomerGroupPlansParams, StorefrontCustomerGroupPlan, StorefrontCustomerGroupPlanBenefit, FindStorefrontCustomerGroupPlansParams, GetStorefrontCustomerGroupPlanParams } from "./types/customerGroupPlan";
 export type { CustomerGroupSubscription, CustomerGroupSubscriptionStatus, CustomerGroupPurchaseState, CustomerGroupCollectionBlock, GetCustomerGroupSubscriptionParams, FindCustomerGroupSubscriptionsParams, FindCustomerGroupSubscriptionOrdersParams, FindCustomerGroupSubscriptionCommandsParams, GetCurrentCustomerGroupSubscriptionParams } from "./types/customerGroupSubscription";
-export type { CustomerGroupAdmission, CustomerGroupAdmissionSource, CustomerGroupAdministrativeAccess, CustomerGroupMember, CustomerGroupJoinScope, CustomerGroupJoinRequest, JoinCustomerGroupParams, GetCustomerGroupMemberParams, FindCustomerGroupMembersParams, GetCurrentCustomerGroupMemberParams, FindCustomerGroupMemberCommandsParams } from "./types/customerGroupMember";
+export type { CustomerGroupAdmission, CustomerGroupAdmissionSource, CustomerGroupAdministrativeAccess, CustomerGroupMember, CustomerGroupMemberSelf, CustomerGroupSelfAdmission, CustomerGroupJoinResult, CustomerGroupMemberCommandResponse, CustomerGroupMemberCommandReceipt, CustomerGroupMemberCommandResultType, GetCustomerGroupMemberByBindingParams, CustomerGroupJoinScope, CustomerGroupJoinRequest, JoinCustomerGroupParams, GetCustomerGroupMemberParams, FindCustomerGroupMembersParams, GetCurrentCustomerGroupMemberParams, FindCustomerGroupMemberCommandsParams, CustomerGroupMemberCommand, ExecuteCustomerGroupMemberCommandParams } from "./types/customerGroupMember";
 export type { SalesChannelEditableStatus, SalesChannelStatus, SalesChannel, SalesChannelUsage, CreateSalesChannelParams, GetSalesChannelParams, UpdateSalesChannelParams, DeleteSalesChannelParams, FindSalesChannelsParams } from "./types/salesChannel";
 export type { SellableRef } from "./types/sellable";
 export type {
@@ -23,6 +53,7 @@ export type {
   UpdateAssortmentParams,
   DeleteAssortmentParams,
   GetAssortmentParams,
+  GetAssortmentByKeyParams,
   FindAssortmentsParams,
 } from "./types/assortment";
 export type {
@@ -42,6 +73,7 @@ export type {
   UpdateCatalogParams,
   DeleteCatalogParams,
   GetCatalogParams,
+  GetCatalogByKeyParams,
   FindCatalogsParams,
 } from "./types/catalog";
 export type {
@@ -57,7 +89,7 @@ export type {
 export type { CatalogAccess, CatalogCondition } from "./types/catalogEntitlement";
 export type { CatalogReadOptions } from "./types/catalog";
 export type { PriceListUsage } from "./types/priceList";
-export type { StorefrontProduct, StorefrontProductVariant } from "./types/storefront";
+export type { StorefrontProduct, StorefrontProductVariant, GetStorefrontProductVariantParams, FindStorefrontProductVariantsParams } from "./types/storefront";
 export type { StorefrontCurrentCartParams, StorefrontUpdateCartParams, StorefrontAddCartProductParams, StorefrontAddCartBookingParams, StorefrontAddCartDigitalParams } from "./types/storefront";
 export {
   epochMilliseconds,
@@ -66,8 +98,13 @@ export {
   epochMillisecondsToDate,
 } from "./utils/time";
 export type { EpochMilliseconds } from "./types/time";
-export type { CheckoutSubscriptionParams, QuoteSubscriptionParams, SubscriptionCheckoutResult, SubscriptionCheckoutSelection, SubscriptionPurchaseSelection, SubscriptionQuote } from "./types/subscription";
 export type { CompanySnapshot, PurchaseCustomerSnapshot, PurchaseOrigin, PurchaseQuoteContext, SalesChannelSnapshot } from "./types/commerce";
+export type { CustomerGroupAcceptedTerms, CustomerGroupPlanSnapshot, CustomerGroupBenefitSnapshot, CustomerGroupBenefitSnapshotType, CustomerGroupProductSnapshot, CustomerGroupDigitalSnapshot, CustomerGroupDeliveryTerms, CustomerGroupPurchaseOccurrence, OrderCustomerGroupTerms, OrderAccessRevocation } from "./types/commerce";
+export type * from "./types/orderMoney";
+export type * from "./types/orderLineItem";
+export type { OrderLinePrice, OrderInventoryRequirementSnapshot, OrderProductFulfillmentSnapshot, AcceptedAsset, OrderDigitalContent } from "./types/orderSnapshot";
+export type { CheckoutProductSnapshot, CheckoutBookingSnapshot, CheckoutDigitalSnapshot, QuotedProductMoneyRun, CustomerGroupBenefitOrderQuoteLine, QuotedDeliveryGroup, QuotedShippingOffer, QuotedDeliveryPricing, ShippingDeliveryEstimate } from "./types/quote";
+export type { OrderDeliveryGroup, OrderDeliveryGroupItem, OrderDeliveryDestinationSnapshot, AcceptedDeliveryPricing, AcceptedDeliveryCalculation, AcceptedCarrierQuoteLeg } from "./types/orderContract";
 export type {
   ActivateEmailSuppressionParams,
   EmailSuppression,
@@ -80,7 +117,7 @@ export type {
   ReleaseEmailSuppressionParams,
 } from "./types/emailSuppression";
 export { createStripeEmbeddedCheckout, mountCheckoutAction } from "./checkout";
-export { selectLocalizedObjectText } from "./utils/blocks";
+export { selectLocalizedObjectText, selectLocalizedText } from "./utils/blocks";
 export type {
   EmbeddedCheckoutCallbacks,
   EmbeddedCheckoutAction,
@@ -91,6 +128,9 @@ export type { ScheduledMutationOptions } from "./services/createHttpClient";
 
 export type {
   EshopCartItem,
+  CartLineItem,
+  CartCompanyContext,
+  CreatedCart,
   CartProductItem,
   CartBookingItem,
   CartDigitalItem,
@@ -139,6 +179,8 @@ export type {
   Block,
   BlockBase,
   TextBlock,
+  LocalizedText,
+  LocalizedTextBlock,
   MarkdownBlock,
   NumberBlock,
   BooleanBlock,
@@ -155,21 +197,32 @@ export type {
   Price,
   Payment,
   CommerceProviderObservation,
-  PaymentSettlement,
-  PaymentSettlementEvidence,
+  PaymentReconciliation,
+  StripeInvoicePaymentObject,
   PaymentProviderBinding,
-  PaymentSource,
   PaymentCheckoutExpiration,
   BillingPeriod,
   PaymentAmounts,
+  PaymentCaptureEvidence,
+  CaptureFinancialEffect,
+  PaymentCaptureStatus,
+  OrderPaymentCapture,
+  RecordedCollection,
+  RecordCashOnDeliveryCollectionParams,
+  RecordManualCollectionParams,
+  CreateManualPaymentParams,
   OrderMoney,
+  OrderPromotionSnapshot,
   PaymentProvider,
   PaymentProviderConfiguration,
   PaymentProviderConfigurationType,
   PaymentProviderConnectResponse,
+  StripeConnectionOperation,
+  StripeConnectionEffectStatus,
   StripePlatformDebitConsent,
+  StripeProviderConnection,
+  PaymentProviderStatus,
   TaxMode,
-  OrderPromoCodeSnapshot,
   AccountActor,
   AccountActorSnapshot,
   AccountCredentialType,
@@ -179,6 +232,14 @@ export type {
   Refund,
   RefundProvider,
   RefundAllocation,
+  CustomerMoneyEvidence,
+  RefundFinancialEffect,
+  RefundAllocationBalance,
+  RefundMoneySummary,
+  RecordedRefundMoney,
+  LocalRefundMovement,
+  RecordRefundMoneyParams,
+  CancelLocalRefundParams,
   RefundStatus,
   RefundReason,
   RefundRequestReason,
@@ -197,6 +258,7 @@ export type {
   DigitalLibraryProduct,
   PaymentDisputeProvider,
   PaymentDispute,
+  DisputeFinancialEffect,
   PaymentDisputeStatus,
   PaymentDisputeResponse,
   StripeDisputeStatus,
@@ -215,39 +277,11 @@ export type {
   SubscriptionPlanFeature,
   SubscriptionPlanFeatureType,
   SubscriptionPrice,
-  Audience,
-  AudienceStatus,
-  AudienceType,
-  StorefrontAudience,
-  StorefrontAudienceType,
   StorefrontPrice,
-  AudienceMembershipStatus,
-  AudienceCheckoutState,
-  AudienceBillingTerms,
-  AudienceOneTimeState,
-  AudienceSubscriptionState,
-  AudienceCancellation,
-  AudienceMembershipType,
-  AudienceMembershipAdminType,
-  AudienceConfirmationEmailStatus,
-  AudienceConfirmationEmailAdminStatus,
-  PaidAudienceSource,
-  AudienceMembership,
-  CustomerAudienceMembership,
-  AudienceJoinResult,
-  AudienceBillingPortalSession,
-  AudienceMembershipBilling,
-  AudienceMembershipOrderPurchase,
-  AudienceMembershipSubscriptionPurchase,
   AppliedPriceSnapshot,
   AppliedPriceSource,
   DisplayTextSnapshot,
   OrderCustomerGroupPlanItem,
-  PriceBilling,
-  SubscriptionAudienceSnapshot,
-  ShippingMethod,
-  ShippingWeightTier,
-  Zone,
   Market,
   Address,
   PostalAddress,
@@ -306,20 +340,11 @@ export type {
   EventAction,
   OrderShipmentStatus,
   ShippingRateLine,
-  OrderShippingLine,
   FulfillmentOrderStatus,
   FulfillmentOrderLine,
   FulfillmentOrder,
-  ShippingRate,
   Parcel,
-  ShippingLabelStatus,
-  ShippingLabel,
-  ShippingLabelRefund,
-  ShippingLabelRefundStatus,
-  MerchantDebit,
-  MerchantDebitStatus,
-  MerchantDebitReversal,
-  MerchantDebitReversalStatus,
+  FulfillmentExecution,
   OrderShipmentLine,
   OrderShipment,
   CreateOrderShipmentResponse,
@@ -332,7 +357,6 @@ export type {
   BookingCapacityClaim,
   BookingResourceCapacityDay,
   BookingWindow,
-  BookingReminderScheduleItem,
   ServiceDuration,
   Weekday,
   WorkingWindow,
@@ -341,16 +365,32 @@ export type {
   TimeRange,
   Order,
   OrderType,
+  OrderPurchaseSource,
+  OrderFinancialSummary,
+  OrderFinancialConcern,
+  GetOrderFinancialSummaryParams,
+  PurchaseOriginSnapshot,
+  MarketSnapshot,
+  SellerSnapshot,
+  OrderInvoicePolicy,
+  CollectionPolicySnapshot,
+  ReconciliationState,
+  CheckoutPaymentAuthorization,
+  PaymentTermsSnapshot,
+  PaymentTermsType,
+  PromotionRedemption,
+  OrderLineItem,
+  OrderCompanyContext,
   OrderProductItem,
-  OrderProductInventoryAllocation,
   OrderBookingItem,
   OrderProductSnapshot,
+  OrderBookingStatus,
+  BookingReminderScheduleItem,
   OrderBookingSnapshot,
   DiscountAllocation,
   TaxLine,
   LineMoneySnapshot,
   OrderItemStatus,
-  OrderBookingStatus,
   ProductQuoteLine,
   BookingQuoteLine,
   BookingQuoteLineAvailability,
@@ -358,7 +398,13 @@ export type {
   PaymentStatus,
   OrderCancellationReason,
   Product,
+  ProductEditableStatus,
   ProductVariant,
+  ProductVariantStatus,
+  ProductVariantEditableStatus,
+  ProductFulfillment,
+  InventoryRequirement,
+  BackorderPolicy,
   ProductInventory,
   GalleryItem,
   EmailTemplate,
@@ -387,27 +433,17 @@ export type {
   ClassificationCoordinates,
   ClassificationGeoLocation,
   ClassificationNumberOperation,
-  PromotionDiscount,
-  PromotionCondition,
-  PromoCode,
   Customer,
+  CustomerListItem,
   CustomerIdentity,
   CustomerEmailVerification,
   CustomerSessionRecord,
   CustomerSessionIssued,
   CustomerSessionStatus,
-  AudienceOutreachChannel,
   CustomerAction,
   CustomerActionType,
   CustomerActionOrigin,
   CustomerActionProviderObservation,
-  AudienceMembershipJoinSource,
-  AudienceBillingCadence,
-  AudienceUnsubscribeReason,
-  AudienceCancellationTiming,
-  AudienceActionTimeRange,
-  AudienceRefundActionStatus,
-  AudienceDisputeActionStatus,
   Mailbox,
   MailboxIncomingSource,
   MailboxSyncIssue,
@@ -424,6 +460,8 @@ export type {
   CampaignStep,
   Campaign,
   CampaignEnrollment,
+  CampaignEnrollmentSource,
+  CampaignGroupRecipient,
   CampaignConversationMessage,
   CampaignEnrollmentConversationResponse,
   EnrollCampaignResult,
@@ -456,12 +494,12 @@ export type {
   CampaignEnrollmentStatusFilter,
   CampaignEnrollmentStopReason,
   CampaignOutgoingOrigin,
+  CampaignOutgoingStatus,
   CampaignMessageType,
   CampaignEmailContent,
   WorkflowStatus,
   MutableWorkflowStatus,
   WorkflowSendEmailNode,
-  PromoCodeStatus,
   CollectionStatus,
   EntryStatus,
   EmailTemplateStatus,
@@ -482,6 +520,8 @@ export type {
   GetCustomerParams,
   ArchiveCustomerParams,
   FindCustomersParams,
+  FindCustomerIdentitiesParams,
+  CustomerIdentityCommandParams,
   FindCustomerSessionsParams,
   RevokeAllCustomerSessionsParams,
   RevokeCustomerSessionParams,
@@ -495,29 +535,27 @@ export type {
   UpdateBookingServiceParams,
   DeleteBookingServiceParams,
   GetBookingServiceParams,
+  GetBookingServiceByKeyParams,
   FindBookingServicesParams,
+  FindStorefrontBookingServicesParams,
   CreateBookingResourceParams,
   UpdateBookingResourceParams,
   DeleteBookingResourceParams,
   GetBookingResourceParams,
+  GetBookingResourceByKeyParams,
   FindBookingResourcesParams,
   CreateBookingOfferingParams,
   UpdateBookingOfferingParams,
   DeleteBookingOfferingParams,
   FindBookingOfferingsParams,
-  CreatePromoCodeParams,
-  UpdatePromoCodeParams,
-  CreatePromotionDiscountInput,
-  UpdatePromotionDiscountInput,
-  PromotionConditionInput,
-  DeletePromoCodeParams,
-  GetPromoCodeParams,
-  GetPromoCodesParams,
+  GetBookingOfferingByBindingParams,
   CreateProductParams,
   UpdateProductParams,
   DeleteProductParams,
   GetProductParams,
+  GetProductByKeyParams,
   GetProductsParams,
+  CatalogPriceFilter,
   ProductQuoteInput,
   BookingQuoteInput,
   GetQuoteParams,
@@ -529,18 +567,19 @@ export type {
   CartDigitalItemInput,
   CartCustomerGroupPlanInput,
   DigitalProductQuoteInput,
+  CartLineItemInput,
   TrustedCartProductInput,
   TrustedCartBookingInput,
   TrustedCartDigitalItemInput,
   CreateRefundParams,
-  RecordCashOnDeliveryRefundParams,
   CancelOrderProductItemParams,
   CreateRefundResponse,
   FindRefundsParams,
   GetRefundParams,
   GetPaymentParams,
   FindPaymentsParams,
-  MarkCashOnDeliveryPaidParams,
+  FindOrderPaymentsParams,
+  GetOrderPaymentParams,
   GetCurrentCartParams,
   GetCartParams,
   FindCartsParams,
@@ -553,12 +592,15 @@ export type {
   CreateDigitalProductParams,
   UpdateDigitalProductParams,
   GetDigitalProductParams,
+  GetDigitalProductByKeyParams,
+  GetDigitalAssetParams,
   FindDigitalProductsParams,
   UploadDigitalAssetParams,
   FindDigitalAssetsParams,
   ArchiveDigitalAssetParams,
   DownloadDigitalAssetParams,
   FindStorefrontDigitalProductsParams,
+  FindDigitalLibraryParams,
   GetStorefrontDigitalProductParams,
   GetDigitalLibraryProductParams,
   RemoveCartItemParams,
@@ -591,15 +633,12 @@ export type {
   UpdateEntryParams,
   GetEntryParams,
   DeleteEntryParams,
-  GetShippingRatesParams,
   FindOrderShipmentsParams,
   FindFulfillmentOrdersParams,
   GetFulfillmentOrderParams,
   GetOrderShipmentParams,
   CreateOrderShipmentParams,
-  RetryShippingLabelParams,
-  RequestShippingLabelRefundParams,
-  RetryShippingLabelRefundParams,
+  DispatchOrderShipmentParams,
   FindPaymentDisputesParams,
   GetPaymentDisputeParams,
   SelectStoreSubscriptionParams,
@@ -608,27 +647,6 @@ export type {
   TestWebhookParams,
   TestWebhookResponse,
   WebhookDeliveryStatus,
-  CreateAudienceParams,
-  PatchAudienceParams,
-  AudienceReferenceParams,
-  FindAudiencesParams,
-  GetAudienceParams,
-  FindAudienceMembershipsParams,
-  GetAudienceMembershipParams,
-  FindAudienceMembershipBillingParams,
-  EnrollAudienceMembershipParams,
-  AudienceMembershipImportRow,
-  PreviewAudienceMembershipImportParams,
-  ImportAudienceMembershipsParams,
-  ReplaceAudienceMembershipInsightParams,
-  FindStorefrontAudiencesParams,
-  GetStorefrontAudienceParams,
-  JoinAudienceParams,
-  FindCustomerAudienceMembershipsParams,
-  CustomerAudienceMembershipReferenceParams,
-  CreateAudienceBillingPortalSessionParams,
-  ConfirmAudienceParams,
-  UnsubscribeAudienceParams,
   CreateMailboxParams,
   UpdateMailboxParams,
   FindMailboxesParams,
@@ -658,6 +676,7 @@ export type {
   CancelLeadResearchMessageParams,
   CancelSocialPostParams,
   ConnectStripePaymentProviderParams,
+  GetStripeConnectionOperationParams,
   ConnectSocialConnectionParams,
   CreateSocialMessageParams,
   CreateSocialPostParams,
@@ -667,7 +686,17 @@ export type {
   FindSocialPostsParams,
   OpenStripeDashboardParams,
   GetSocialPostParams,
+  CreateLocalPaymentProviderParams,
   ListPaymentProvidersParams,
+  ConfigurationPageParams,
+  GetStoreConfigurationByKeyParams,
+  GetStoreConfigurationParams,
+  GetPaymentProviderParams,
+  GetPaymentProviderByConfigurationParams,
+  FindMarketsParams,
+  FindStoreLocationsParams,
+  FindStorefrontMarketsParams,
+  FindStorefrontLocationsParams,
   RefreshStripePaymentProviderParams,
   SyncSocialMessagesParams,
   AuthToken,
@@ -680,6 +709,10 @@ export type {
   UpdatePlatformRoleParams,
   AddMemberParams,
   TransferStoreOwnershipParams,
+  FindOwnStoreMembershipsParams,
+  GetStoresParams,
+  SearchAccountsParams,
+  GetOwnStoreMembershipParams,
 } from "./types/api";
 
 export type {
@@ -728,9 +761,15 @@ export type {
   DeleteStoreLocationParams,
   CreateMarketParams,
   UpdateMarketParams,
-  MarketZoneInput,
-  CreateProductVariantInput,
-  UpdateProductVariantInput,
+  DeleteMarketParams,
+  CreateStoreParams,
+  UpdateStoreParams,
+  CustomerGroupMemberType,
+  CreateProductVariantParams,
+  UpdateProductVariantParams,
+  GetProductVariantParams,
+  FindProductVariantsParams,
+  DeleteProductVariantParams,
   ProductInventoryInput,
 } from "./types/api";
 
@@ -748,12 +787,12 @@ export type {
   StorefrontBookingResource,
   StorefrontBookingService,
   StorefrontDto,
+  StorefrontCheckoutQuote,
   StorefrontLocation,
   StorefrontMarket,
   StorefrontPaymentProvider,
   StorefrontSetup,
   StorefrontVisitorSessionRecord,
-  StorefrontZone,
   UseExperimentParams,
 } from "./api/storefront";
 export { COMMON_CUSTOMER_ACTION_KEYS } from "./api/storefront";
@@ -830,7 +869,18 @@ export type {
 } from "./api/support";
 export type { EventMetadata, EventScopeField } from "./api/platform";
 
-export const SDK_VERSION = "0.26.2";
+export function storeCommerceDefaults(
+  store: Pick<Store, "commerce">,
+): { default_market_id: string; default_sales_channel_id: string } | null {
+  return store.commerce.type === "ready"
+    ? {
+        default_market_id: store.commerce.default_market_id,
+        default_sales_channel_id: store.commerce.default_sales_channel_id,
+      }
+    : null;
+}
+
+export const SDK_VERSION = "0.26.25";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -867,6 +917,7 @@ import {
   type HttpClient,
   type AuthStorage,
 } from "./services/createHttpClient";
+import type { Store } from "./types";
 import type {
   AdminSessionInternal,
   AdminSessionUpdater,
@@ -883,7 +934,6 @@ import { createAccountApi } from "./api/account";
 import { createAuthApi } from "./api/auth";
 import { createStoreApi } from "./api/store";
 import { createMediaApi } from "./api/media";
-import { createPromoCodeApi } from "./api/promoCode";
 import { createContentApi } from "./api/content";
 import { createEshopApi } from "./api/eshop";
 import { createAssortmentApi } from "./api/assortment";
@@ -891,6 +941,35 @@ import { createAssortmentItemApi } from "./api/assortmentItem";
 import { createCatalogApi } from "./api/catalog";
 import { createCatalogEntitlementApi } from "./api/catalogEntitlement";
 import { createPriceApi } from "./api/price";
+import { createProductVariantApi } from "./api/productVariant";
+import { createInventoryItemApi } from "./api/inventoryItem";
+import { createInventoryLevelApi } from "./api/inventoryLevel";
+import { createInventoryMovementApi } from "./api/inventoryMovement";
+import { createInventoryReservationApi } from "./api/inventoryReservation";
+import { createShippingProfileApi } from "./api/shippingProfile";
+import { createZoneApi } from "./api/zone";
+import { createMarketZoneApi } from "./api/marketZone";
+import { createTaxCategoryApi } from "./api/taxCategory";
+import { createPaymentTermsApi } from "./api/paymentTerms";
+import { createOrderCreditApi } from "./api/orderCredit";
+import { createOrderInvoiceApi } from "./api/orderInvoice";
+import { createOrderPickupApi } from "./api/orderPickup";
+import { createCustomerPaymentMethodApi } from "./api/customerPaymentMethod";
+import { createCustomerGroupEmailConsentApi } from "./api/customerGroupEmailConsent";
+import { createCheckoutApi } from "./api/checkoutRecord";
+import { createFulfillmentRoutingPolicyApi } from "./api/fulfillmentRoutingPolicy";
+import { createMarketSalesChannelApi } from "./api/marketSalesChannel";
+import { createStorefrontClientApi } from "./api/storefrontClient";
+import {
+  createShippingLabelApi,
+  createShippingLabelRefundApi,
+  createMerchantDebitReversalApi,
+} from "./api/shippingLabel";
+import { createTaxRuleApi } from "./api/taxRule";
+import { createShippingMethodApi } from "./api/shippingMethod";
+import { createShippingRateApi } from "./api/shippingRate";
+import { createPromotionApi } from "./api/promotion";
+import { createPromotionCodeApi } from "./api/promotionCode";
 import { createPriceListApi } from "./api/priceList";
 import { createCompanyApi } from "./api/company";
 import { createCompanyMembershipApi } from "./api/companyMembership";
@@ -950,6 +1029,7 @@ import {
   extractBlockValues,
   collectBlockReferences,
   selectLocalizedObjectText,
+  selectLocalizedText,
 } from "./utils/blocks";
 import {
   formatPrice,
@@ -997,6 +1077,7 @@ function createUtilitySurface(apiConfig: Pick<ApiConfig, "market">) {
     extractBlockValues,
     collectBlockReferences,
     selectLocalizedObjectText,
+    selectLocalizedText,
 
     formatPrice,
     getPriceAmount,
@@ -1173,7 +1254,6 @@ export function createAdmin(config: CreateAdminConfig) {
   const contentApi = createContentApi(apiConfig);
   const eshopApi = createEshopApi(apiConfig);
   const digitalApi = createDigitalApi(apiConfig);
-  const promoCodeApi = createPromoCodeApi(apiConfig);
   const customersApi = createCustomersApi(apiConfig);
   const emailSuppressionApi = createEmailSuppressionApi(apiConfig);
   const actionsApi = createActionsApi(apiConfig);
@@ -1192,8 +1272,13 @@ export function createAdmin(config: CreateAdminConfig) {
   const workflowApi = createWorkflowApi(apiConfig);
   const storePaymentProviderApi = {
     list: paymentProviderApi.list,
+    get: paymentProviderApi.get,
+    getByKey: paymentProviderApi.getByKey,
+    getByConfiguration: paymentProviderApi.getByConfiguration,
+    create: paymentProviderApi.create,
     stripe: {
       connect: paymentProviderApi.connectStripe,
+      getConnection: paymentProviderApi.getStripeConnection,
       refresh: paymentProviderApi.refreshStripe,
       openDashboard: paymentProviderApi.openDashboard,
     },
@@ -1239,12 +1324,21 @@ export function createAdmin(config: CreateAdminConfig) {
       auth: authApi,
     },
     store: {
+      zone: createZoneApi(apiConfig),
+      marketZone: createMarketZoneApi(apiConfig),
+      taxCategory: createTaxCategoryApi(apiConfig),
+      taxRule: createTaxRuleApi(apiConfig),
+      shippingMethod: createShippingMethodApi(apiConfig),
+      shippingRate: createShippingRateApi(apiConfig),
+      shippingProfile: createShippingProfileApi(apiConfig),
+      paymentTerms: createPaymentTermsApi(apiConfig),
+      marketSalesChannel: createMarketSalesChannelApi(apiConfig),
+      storefrontClient: createStorefrontClientApi(apiConfig),
       create: storeApi.createStore,
       update: storeApi.updateStore,
       get: storeApi.getStore,
       find: storeApi.getStores,
       requestDeletion: storeApi.requestDeletion,
-      regeneratePublishableKey: storeApi.regeneratePublishableKey,
       subscription: {
         get: storeApi.getSubscription,
         getPlans: storeApi.getSubscriptionPlans,
@@ -1258,6 +1352,7 @@ export function createAdmin(config: CreateAdminConfig) {
         invite: storeApi.inviteUser,
         find: storeApi.findMembers,
         findOwn: storeApi.findOwnMemberships,
+        getOwn: storeApi.getOwnMembership,
         remove: storeApi.removeMember,
         transferOwnership: storeApi.transferOwnership,
       },
@@ -1344,10 +1439,14 @@ export function createAdmin(config: CreateAdminConfig) {
       customerGroupPlan: createCustomerGroupPlanApi(apiConfig),
       customerGroupMember: createCustomerGroupMemberApi(apiConfig),
       customerGroupSubscription: createCustomerGroupSubscriptionApi(apiConfig),
+      customerPaymentMethod: createCustomerPaymentMethodApi(apiConfig),
+      customerGroupEmailConsent: createCustomerGroupEmailConsentApi(apiConfig),
       assortment: createAssortmentApi(apiConfig),
       assortmentItem: createAssortmentItemApi(apiConfig),
       catalog: createCatalogApi(apiConfig),
       catalogEntitlement: createCatalogEntitlementApi(apiConfig),
+      promotion: createPromotionApi(apiConfig),
+      promotionCode: createPromotionCodeApi(apiConfig),
       refund: refundApi,
       dispute: paymentDisputeApi,
       digital: {
@@ -1356,10 +1455,12 @@ export function createAdmin(config: CreateAdminConfig) {
           update: digitalApi.updateProduct,
           delete: digitalApi.deleteProduct,
           get: digitalApi.getProduct,
+          getByKey: digitalApi.getProductByKey,
           find: digitalApi.findProducts,
         },
         asset: {
           upload: digitalApi.uploadAsset,
+          get: digitalApi.getAsset,
           find: digitalApi.findAssets,
           archive: digitalApi.archiveAsset,
         },
@@ -1369,36 +1470,45 @@ export function createAdmin(config: CreateAdminConfig) {
         update: eshopApi.updateProduct,
         delete: eshopApi.deleteProduct,
         get: eshopApi.getProduct,
-        getInventory: eshopApi.getProductInventory,
+        getByKey: eshopApi.getProductByKey,
         find: eshopApi.getProducts,
       },
+      productVariant: createProductVariantApi(apiConfig),
+      inventoryItem: createInventoryItemApi(apiConfig),
+      inventoryLevel: createInventoryLevelApi(apiConfig),
+      inventoryMovement: createInventoryMovementApi(apiConfig),
+      inventoryReservation: createInventoryReservationApi(apiConfig),
+      orderCredit: createOrderCreditApi(apiConfig),
+      invoice: createOrderInvoiceApi(apiConfig),
+      pickup: createOrderPickupApi(apiConfig),
+      checkout: createCheckoutApi(apiConfig),
+      fulfillmentRoutingPolicy: createFulfillmentRoutingPolicyApi(apiConfig),
       order: {
         update: eshopApi.updateOrder,
+        getFinancialSummary: eshopApi.getOrderFinancialSummary,
         cancelProductItem: eshopApi.cancelOrderProductItem,
         cancelBookingItem: eshopApi.cancelBookingItem,
         completeBookingItem: eshopApi.completeBookingItem,
         markBookingItemNoShow: eshopApi.markBookingItemNoShow,
         get: eshopApi.getOrder,
+        getPayment: eshopApi.getOrderPayment,
+        findPayments: eshopApi.findOrderPayments,
         find: eshopApi.getOrders,
         getQuote: eshopApi.getQuote,
       },
       shipment: {
-        getRates: shippingApi.getRates,
         create: shippingApi.createOrderShipment,
         get: shippingApi.getOrderShipment,
         find: shippingApi.findOrderShipments,
+        dispatch: shippingApi.dispatchOrderShipment,
         fulfillment: {
           find: shippingApi.findFulfillmentOrders,
           get: shippingApi.getFulfillmentOrder,
         },
-        label: {
-          retry: shippingApi.retryShippingLabel,
-          refund: {
-            request: shippingApi.requestShippingLabelRefund,
-            retry: shippingApi.retryShippingLabelRefund,
-          },
-        },
       },
+      shippingLabel: createShippingLabelApi(apiConfig),
+      shippingLabelRefund: createShippingLabelRefundApi(apiConfig),
+      merchantDebitReversal: createMerchantDebitReversalApi(apiConfig),
       cart: {
         create: eshopApi.createCart,
         update: eshopApi.updateCart,
@@ -1414,16 +1524,13 @@ export function createAdmin(config: CreateAdminConfig) {
         checkout: eshopApi.checkoutCart,
         pendingCheckout: eshopApi.pendingCartCheckout,
         recoverCheckout: eshopApi.recoverCartCheckout,
-        subscription: {
-          quote: eshopApi.quoteSubscription,
-          checkout: eshopApi.checkoutSubscription,
-        },
       },
       bookingService: {
         create: eshopApi.createBookingService,
         update: eshopApi.updateBookingService,
         delete: eshopApi.deleteBookingService,
         get: eshopApi.getBookingService,
+        getByKey: eshopApi.getBookingServiceByKey,
         find: eshopApi.findBookingServices,
         getAvailability: eshopApi.getBookingServiceAvailability,
       },
@@ -1432,21 +1539,25 @@ export function createAdmin(config: CreateAdminConfig) {
         update: eshopApi.updateBookingResource,
         delete: eshopApi.deleteBookingResource,
         get: eshopApi.getBookingResource,
+        getByKey: eshopApi.getBookingResourceByKey,
         find: eshopApi.findBookingResources,
       },
       bookingOffering: {
+        getByBinding: eshopApi.getBookingOfferingByBinding,
         create: eshopApi.createBookingOffering,
         update: eshopApi.updateBookingOffering,
         delete: eshopApi.deleteBookingOffering,
         find: eshopApi.findBookingOfferings,
       },
-      promoCode: promoCodeApi,
     },
     customers: {
       emailSuppression: emailSuppressionApi,
       create: customersApi.create,
       get: customersApi.get,
       find: customersApi.find,
+      identities: customersApi.identities,
+      getIdentity: customersApi.getIdentity,
+      revokeIdentity: customersApi.revokeIdentity,
       update: customersApi.update,
       archive: customersApi.archive,
       import: customersApi.import,
@@ -1885,6 +1996,11 @@ function createStorefrontClientCore(
   const storefrontApi = createStorefrontApi(apiConfig, updateSession, {
     ensureVisitorSession,
     getSetup,
+  }, {
+    namespace: storageKey,
+    storage: sessionStorage,
+    customerId: () => memorySession?.customer.id ?? null,
+    market: () => market,
   });
   const customerApi = storefrontApi.customer;
 
@@ -2073,6 +2189,7 @@ function createStorefrontClientCore(
       logout,
       getMe: me,
     },
+    customer_groups: storefrontApi.customer_groups,
     customer_group_plans: storefrontApi.customer_group_plans,
     actions: storefrontApi.actions,
     experiments: storefrontApi.experiments,
@@ -2142,3 +2259,13 @@ export type {
 } from "./storefrontStore";
 export type { PriceEditableStatus, PriceStatus, ManualPriceInput, ManualPrice, CreatePriceParams, UpdatePriceParams, GetPriceParams, DeletePriceParams, FindPricesParams } from "./types/price";
 export type { PriceList, PriceListEditableStatus, PriceListStatus, CreatePriceListParams, UpdatePriceListParams, GetPriceListParams, DeletePriceListParams, FindPriceListsParams } from "./types/priceList";
+export type { GetPriceListByKeyParams } from "./types/priceList";
+export type { GetZoneByKeyParams } from "./types/zone";
+export type { GetTaxCategoryByKeyParams } from "./types/tax";
+export type { GetSalesChannelByKeyParams } from "./types/salesChannel";
+export type { GetMarketZoneByBindingParams } from "./types/zone";
+export type { GetMarketSalesChannelByBindingParams } from "./types/marketSalesChannel";
+export type { GetShippingMethodByKeyParams } from "./types/shipping";
+export type { CustomerGroupSubscriptionSelf, CustomerGroupSubscriptionSelfStatus } from "./types/customerGroupSubscription";
+export type { OrderPickup, OrderPickupLine, OrderPickupStatus, FindOrderPickupsParams, GetOrderPickupParams } from "./types/orderPickup";
+export type { OrderInvoice, OrderInvoiceState, OrderInvoiceProvider, OrderInvoiceReconciliation, FiscalDocument, DocumentArtifact, FindOrderInvoicesParams, GetOrderInvoiceParams } from "./types/orderInvoice";

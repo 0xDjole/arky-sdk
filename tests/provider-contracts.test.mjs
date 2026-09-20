@@ -74,390 +74,314 @@ async function captureFetch(responseBody, request) {
   }
 }
 
-test("commerce PromoCode create sends every canonical discount and condition wire variant without IDs", async () => {
-  const promo = {
-    id: "b7091941-b7f6-4776-8dc9-5167bc28fdc2",
-    store_id: defaultStoreId,
-    code: "SAVE10",
-    discounts: [
-      {
-        type: "item_percentage",
-        id: itemPercentageDiscountId,
-        market: "us",
-        basis_points: 1_000,
-      },
-      {
-        type: "item_fixed",
-        id: itemFixedDiscountId,
-        market: "eu",
-        money: { amount: 500, currency: "eur" },
-      },
-      {
-        type: "shipping_percentage",
-        id: shippingDiscountId,
-        market: "us",
-        basis_points: 2_000,
-      },
-    ],
-    conditions: [
-      { type: "products", product_ids: ["product-contract"] },
-      {
-        type: "booking_services",
-        service_ids: ["booking-service-contract"],
-      },
-      {
-        type: "digital_products",
-        product_ids: ["digital-product-contract"],
-      },
-      {
-        type: "minimum_order_amount",
-        market: "us",
-        money: { amount: 2_500, currency: "usd" },
-      },
-      {
-        type: "redemption_window",
-        starts_at: null,
-        ends_at: 1_800_000_000_000,
-      },
-      { type: "maximum_uses", count: 100 },
-      { type: "maximum_uses_per_customer", count: 1 },
-    ],
-    status: "active",
-    uses: 0,
-    created_at: 1,
-    updated_at: 1,
+test("Checkout quote preserves per-unit promotion/manual provenance and delivery money", async () => {
+  const address = {
+    street1: "1 Main Street",
+    city: "Boston",
+    postal_code: "02108",
+    country: "US",
   };
-  const { calls, result } = await captureFetch(promo, () =>
-    admin().eshop.promoCode.createPromoCode({
-      store_id: defaultStoreId,
-      code: promo.code,
-      discounts: [
-        { type: "item_percentage", market: "us", basis_points: 1_000 },
-        {
-          type: "item_fixed",
-          market: "eu",
-          money: { amount: 500, currency: "eur" },
-        },
-        {
-          type: "shipping_percentage",
-          market: "us",
-          basis_points: 2_000,
-        },
-      ],
-      conditions: promo.conditions,
-    }),
-  );
-
-  assert.deepEqual(calls, [
-    {
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/promo-codes`,
-      method: "POST",
-      body: {
-        code: "SAVE10",
-        discounts: [
-          { type: "item_percentage", market: "us", basis_points: 1_000 },
-          {
-            type: "item_fixed",
-            market: "eu",
-            money: { amount: 500, currency: "eur" },
-          },
-          {
-            type: "shipping_percentage",
-            market: "us",
-            basis_points: 2_000,
-          },
-        ],
-        conditions: [
-          { type: "products", product_ids: ["product-contract"] },
-          {
-            type: "booking_services",
-            service_ids: ["booking-service-contract"],
-          },
-          {
-            type: "digital_products",
-            product_ids: ["digital-product-contract"],
-          },
-          {
-            type: "minimum_order_amount",
-            market: "us",
-            money: { amount: 2_500, currency: "usd" },
-          },
-          {
-            type: "redemption_window",
-            starts_at: null,
-            ends_at: 1_800_000_000_000,
-          },
-          { type: "maximum_uses", count: 100 },
-          { type: "maximum_uses_per_customer", count: 1 },
-        ],
+  const taxAssessment = {
+    type: "assessed",
+    assessment: {
+      tax_mode: "exclusive",
+      treatment: { type: "not_collecting", reason_code: "not_registered" },
+      address_basis: { type: "delivery" },
+      address,
+      location_evidence: [],
+      source: {
+        type: "arky_rule",
+        market_zone_id: "zone",
+        tax_rule_id: "rule",
+        tax_category_id: null,
+        tax_category_key: null,
       },
+      policy_version: "policy",
+      rounding_version: "rounding",
+      assessed_at: 1,
+      tax_date: 1,
+      buyer_evidence: null,
     },
-  ]);
-  assert.deepEqual(result, promo);
-  for (const discount of result.discounts) {
-    assert.match(discount.id, uuidV4Pattern);
-  }
-  assert.deepEqual(result.conditions[4], {
-    type: "redemption_window",
-    starts_at: null,
-    ends_at: 1_800_000_000_000,
-  });
-});
-
-test("audience PromotionDiscount uses its canonical response ID and create can omit conditions", async () => {
-  const promo = {
-    id: "58152d68-559a-42a7-b98b-d173818dc6f1",
-    store_id: defaultStoreId,
-    code: "MEMBER15",
-    discounts: [
-      {
-        type: "audience_percentage",
-        id: audienceDiscountId,
-        audience_id: "audience-contract",
-        tier_ids: ["tier-contract"],
-        price_ids: ["price-contract"],
-        basis_points: 1_500,
-      },
-    ],
-    conditions: [],
-    status: "active",
-    uses: 0,
-    created_at: 1,
-    updated_at: 1,
   };
-  const { calls, result } = await captureFetch(promo, () =>
-    admin().eshop.promoCode.createPromoCode({
-      code: promo.code,
-      discounts: [
-        {
-          type: "audience_percentage",
-          audience_id: "audience-contract",
-          tier_ids: ["tier-contract"],
-          price_ids: ["price-contract"],
-          basis_points: 1_500,
-        },
-      ],
-    }),
-  );
-
-  assert.deepEqual(calls, [
-    {
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/promo-codes`,
-      method: "POST",
-      body: {
-        code: "MEMBER15",
-        discounts: [
-          {
-            type: "audience_percentage",
-            audience_id: "audience-contract",
-            tier_ids: ["tier-contract"],
-            price_ids: ["price-contract"],
-            basis_points: 1_500,
-          },
-        ],
-      },
-    },
-  ]);
-  assert.deepEqual(result, promo);
-  assert.match(result.discounts[0].id, uuidV4Pattern);
-});
-
-test("PromoCode update preserves owned discount IDs and omits IDs for additions", async () => {
-  const promoId = "b7091941-b7f6-4776-8dc9-5167bc28fdc2";
-  const promo = {
-    id: promoId,
-    store_id: defaultStoreId,
-    code: "SAVE20",
-    discounts: [
-      {
-        type: "item_percentage",
-        id: itemPercentageDiscountId,
-        market: "us",
-        basis_points: 2_000,
-      },
-      {
-        type: "shipping_percentage",
-        id: newShippingDiscountId,
-        market: "us",
-        basis_points: 1_000,
-      },
-    ],
-    conditions: [],
-    status: "draft",
-    uses: 2,
-    created_at: 1,
-    updated_at: 2,
-  };
-  const { calls, result } = await captureFetch(promo, () =>
-    admin().eshop.promoCode.updatePromoCode({
-      id: promoId,
-      store_id: defaultStoreId,
-      code: "SAVE20",
-      discounts: [
-        {
-          type: "item_percentage",
-          id: itemPercentageDiscountId,
-          market: "us",
-          basis_points: 2_000,
-        },
-        {
-          type: "shipping_percentage",
-          market: "us",
-          basis_points: 1_000,
-        },
-      ],
-      conditions: [],
-      status: "draft",
-    }),
-  );
-
-  assert.deepEqual(calls, [
-    {
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/promo-codes/${promoId}`,
-      method: "PUT",
-      body: {
-        code: "SAVE20",
-        discounts: [
-          {
-            type: "item_percentage",
-            id: itemPercentageDiscountId,
-            market: "us",
-            basis_points: 2_000,
-          },
-          {
-            type: "shipping_percentage",
-            market: "us",
-            basis_points: 1_000,
-          },
-        ],
-        conditions: [],
-        status: "draft",
-      },
-    },
-  ]);
-  assert.deepEqual(result, promo);
-  assert.equal(result.discounts[0].id, itemPercentageDiscountId);
-  assert.equal(result.discounts[1].id, newShippingDiscountId);
-});
-
-test("PromoCode list sends only the implemented server query contract", async () => {
-  const response = { items: [], cursor: null };
-  const { calls, result } = await captureFetch(response, () =>
-    admin().eshop.promoCode.getPromoCodes({
-      store_id: defaultStoreId,
-      ids: ["b7091941-b7f6-4776-8dc9-5167bc28fdc2"],
-      query: "SAVE",
-      status: "active",
-      limit: 20,
-      cursor: "20",
-      sort_field: "created_at",
-      sort_direction: "desc",
-      created_at_from: 1,
-      created_at_to: 2,
-    }),
-  );
-
-  assert.deepEqual(calls, [
-    {
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/promo-codes?ids=%5B%22b7091941-b7f6-4776-8dc9-5167bc28fdc2%22%5D&query=SAVE&status=active&limit=20&cursor=20&sort_field=created_at&sort_direction=desc&created_at_from=1&created_at_to=2`,
-      method: "GET",
-      body: undefined,
-    },
-  ]);
-  assert.deepEqual(result, response);
-});
-
-test("Order quote allocations preserve embedded PromotionDiscount provenance and canonical null", async () => {
   const lineMoney = {
     unit_price: 2_000,
     subtotal: 2_000,
     discount_allocations: [
-      { promotion_discount_id: itemPercentageDiscountId, amount: 200 },
-      { promotion_discount_id: null, amount: 50 },
+      {
+        id: "item-promotion-allocation",
+        source: {
+          type: "promotion",
+          promotion_id: "promotion",
+          effect_id: itemPercentageDiscountId,
+          promotion_code_id: null,
+        },
+        amount: 200,
+      },
+      {
+        id: "item-manual-allocation",
+        source: {
+          type: "manual",
+          actor: {
+            account_id: "operator",
+            snapshot: {
+              email: "operator@example.test",
+              credential_type: "api_token",
+            },
+          },
+          reason: "Accepted adjustment",
+        },
+        amount: 50,
+      },
     ],
     discount_total: 250,
-    taxable_base: 1_750,
     tax_lines: [],
     tax_total: 0,
+    duty_lines: [],
+    duty_total: 0,
+    tax_assessment: taxAssessment,
     total: 1_750,
   };
   const shippingMoney = {
     unit_price: 500,
     subtotal: 500,
     discount_allocations: [
-      { promotion_discount_id: shippingDiscountId, amount: 100 },
+      {
+        id: "shipping-allocation",
+        source: {
+          type: "promotion",
+          promotion_id: "promotion",
+          effect_id: shippingDiscountId,
+          promotion_code_id: null,
+        },
+        amount: 100,
+      },
     ],
     discount_total: 100,
-    taxable_base: 400,
     tax_lines: [],
     tax_total: 0,
+    duty_lines: [],
+    duty_total: 0,
+    tax_assessment: taxAssessment,
     total: 400,
   };
   const quote = {
+    context: {
+      market_id: "market",
+      market_snapshot: {
+        key: "us",
+        currency: "usd",
+        tax_mode: "exclusive",
+        source_market_id: "market",
+      },
+      sales_channel_id: "channel",
+      sales_channel_snapshot: {
+        key: "web",
+        name: "Web",
+        source_sales_channel_id: "channel",
+      },
+      customer_id: "customer",
+      customer_snapshot: {
+        email: null,
+        authentication: null,
+        source_customer_id: "customer",
+        source_email_identity_id: null,
+      },
+      company_id: null,
+      company_location_id: null,
+      company_snapshot: null,
+      company_location_snapshot: null,
+      origin: {
+        type: "admin",
+        actor: {
+          account_id: "operator",
+          snapshot: {
+            email: "operator@example.test",
+            credential_type: "api_token",
+          },
+        },
+      },
+    },
+    seller: {
+      profile: { legal_name: "Seller", tax_identifier: null, address },
+      configuration_digest: "a".repeat(64),
+    },
+    invoice_policy: { type: "external" },
+    timezone: "UTC",
+    payment_terms: null,
+    purchase_order_number: null,
+    locale: "en",
+    presentation_digest: "b".repeat(64),
+    delivery_quote_version: "v1",
     product_lines: [
       {
+        line_item_id: "cart-line",
         product_id: "product-contract",
         variant_id: "variant-contract",
         quantity: 1,
-        money: lineMoney,
+        money: {
+          subtotal: 2000,
+          discount_total: 250,
+          tax_total: 0,
+          duty_total: 0,
+          total: 1750,
+        },
+        money_runs: [
+          {
+            span: { first_unit: 0, quantity: 1 },
+            delivery_group_id: "delivery",
+            per_unit: lineMoney,
+          },
+        ],
         snapshot: {
           product_key: "product-contract",
+          product_name: { text: "Accepted product", locale: "en" },
           variant_sku: null,
           variant_attributes: [],
-          price: { amount: 2_000, currency: "usd", market: "us" },
-          requires_shipping: true,
-          weight_grams: 100,
+          price: {
+            unit_price: { amount: 2_000, currency: "usd" },
+            tax_mode: "exclusive",
+            compare_at: null,
+            min_quantity: 1,
+            max_quantity: null,
+            source: { type: "base", price_id: "price" },
+            priced_at: 1,
+          },
+          source_product_id: "product-contract",
+          source_variant_id: "variant-contract",
+          fulfillment: {
+            type: "physical",
+            shipping_profile_id: "profile",
+            shipping_profile_key: "default",
+            source_shipping_profile_id: "profile",
+            backorder: { type: "disallow" },
+            inventory_requirements: [
+              {
+                inventory_item_id: "component",
+                inventory_item_key: "component",
+                source_inventory_item_id: "component",
+                quantity: 1,
+                physical: { weight_grams: 100, dimensions: null },
+                customs: {
+                  origin_country: "US",
+                  hs_code: null,
+                  material: null,
+                },
+                tracking: { type: "tracked" },
+                sku: null,
+                barcode: null,
+              },
+            ],
+          },
         },
       },
     ],
     booking_lines: [],
     digital_lines: [],
-    shipping_lines: [
+    customer_group_lines: [],
+    delivery_groups: [
       {
-        id: "shipping-line-contract",
-        shipping_method_id: "shipping-method-contract",
-        title: "Standard",
+        cart_delivery_group_id: "delivery",
+        shipping_profile_id: "profile",
+        shipping_profile_key: "default",
+        selected_market_zone_id: "zone",
+        destination: { type: "delivery", address },
+        units: [
+          {
+            cart_delivery_group_id: "delivery",
+            line_item: { type: "product", line_item_id: "cart-line" },
+            unit_span: { first_unit: 0, quantity: 1 },
+          },
+        ],
+        selected_shipping_rate_id: "rate",
+        offers: [
+          {
+            shipping_rate_id: "rate",
+            shipping_method_id: "method",
+            shipping_method_key: "standard",
+            name_block_id: "name",
+            content: [
+              { id: "name", key: "name", type: "text", value: "Standard" },
+            ],
+            tax_category_id: null,
+            delivery_estimate: null,
+            pricing: {
+              type: "calculated",
+              pricing: {
+                source_shipping_method_id: "method",
+                source_shipping_rate_id: "rate",
+                source_shipping_profile_id: "profile",
+                selected_market_zone_id: "zone",
+                policy_digest: "policy",
+                merchandise_basis: { amount: 1750, currency: "usd" },
+                weight_grams: 100,
+                calculation: {
+                  type: "flat",
+                  amount: { amount: 500, currency: "usd" },
+                },
+                free_above_subtotal: null,
+                customer_subtotal: { amount: 500, currency: "usd" },
+                accepted_at: 1,
+                rounding_version: "rounding",
+              },
+            },
+          },
+        ],
         money: shippingMoney,
       },
     ],
-    shipping_methods: [],
     payment_provider_id: "payment-provider-contract",
     payment_provider_ids: ["payment-provider-contract"],
     money: {
       currency: "usd",
-      market: "us",
       subtotal: 2_000,
-      shipping: 400,
+      delivery: 500,
       discount: 350,
       tax_total: 0,
+      duty_total: 0,
       total: 2_150,
-      promo_code: { id: "promo-contract", code: "SAVE10" },
-      zone_id: null,
-      shipping_method_id: "shipping-method-contract",
+      promotions: [],
     },
   };
-  const { result } = await captureFetch(quote, () =>
-    admin().eshop.order.getQuote({ market: "us" }),
+  const response = {
+    sources: null,
+    order: quote,
+    presentation_digest: "c".repeat(64),
+  };
+  const { result } = await captureFetch(response, () =>
+    admin().eshop.order.getQuote({
+      market: "us",
+      locale: "en",
+      line_items: [
+        {
+          type: "product",
+          product_id: "product-contract",
+          variant_id: "variant-contract",
+          quantity: 1,
+        },
+      ],
+    }),
   );
+  assert.deepEqual(result, response);
+  const product = result.order.product_lines[0];
+  const allocations = product.money_runs[0].per_unit.discount_allocations;
 
+  assert.equal(allocations[0].source.effect_id, itemPercentageDiscountId);
+  assert.equal(allocations[0].source.promotion_code_id, null);
   assert.equal(
-    result.product_lines[0].money.discount_allocations[0].promotion_discount_id,
-    itemPercentageDiscountId,
-  );
-  assert.equal(
-    result.product_lines[0].money.discount_allocations[1].promotion_discount_id,
-    null,
-  );
-  assert.equal(
-    result.shipping_lines[0].money.discount_allocations[0]
-      .promotion_discount_id,
+    result.order.delivery_groups[0].money.discount_allocations[0].source
+      .effect_id,
     shippingDiscountId,
   );
+  assert.equal("discount_application_id" in allocations[0], false);
+  assert.equal(allocations[1].source.type, "manual");
+  assert.equal(allocations[1].source.reason, "Accepted adjustment");
   assert.equal(
-    "discount_application_id" in
-      result.product_lines[0].money.discount_allocations[0],
-    false,
+    product.money.total + result.order.delivery_groups[0].money.total,
+    result.order.money.total,
   );
+  assert.equal("unit_price" in product.money, false);
+  assert.equal("promotion_discount_id" in allocations[0], false);
+  assert.equal("shipping_lines" in result.order, false);
 });
 
 test("subscription selection returns its ephemeral Stripe action in one POST", async () => {
@@ -706,71 +630,61 @@ test("storefront support keeps its capability token in one forced header on the 
   assert.equal(calls[1].headers["X-Test-Header"], "preserved");
 });
 
-test("shipping rate lookup sends only persisted context identifiers and package facts", async () => {
+test("shipping label quotation sends its exact owner and returns signed carrier rates", async () => {
   const response = [
     {
-      id: "signed-rate-quote",
+      quote: "signed-rate-quote",
       carrier: "USPS",
       service: "usps_priority",
       display_name: "USPS Priority",
       postage: { amount: 895, currency: "usd" },
       platform_label_fee: { amount: 10, currency: "usd" },
       total: { amount: 905, currency: "usd" },
+      fee_refundable_if_unused: true,
       estimated_days: 3,
+      expires_at: 1789000000000,
     },
   ];
   const request = {
-    order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
-    store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
-    lines: [
-      {
-        order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
-        quantity: 2,
-      },
-    ],
-    parcel: {
-      length: 150,
-      width: 100,
-      height: 50,
-      weight: 750,
-      distance_unit: "mm",
-      mass_unit: "g",
-    },
-    customs_declaration: {
-      contents_type: "MERCHANDISE",
-      contents_explanation: null,
-      non_delivery_option: "RETURN",
-      certify: true,
-      certify_signer: "Warehouse Operator",
-      eel_pfc: "NOEEI_30_37_a",
-      incoterm: "DDU",
-      items: [
-        {
-          description: "Printed guide",
-          quantity: 2,
-          net_weight: "375",
-          mass_unit: "g",
-          value_amount: "12.50",
-          value_currency: "USD",
-          origin_country: "US",
-          tariff_number: null,
-        },
-      ],
+    owner: {
+      type: "outbound_shipment",
+      shipment_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
     },
   };
   const { calls, result } = await captureFetch(response, () =>
-    admin().eshop.shipment.getRates(request),
+    admin().eshop.shippingLabel.quote(request),
   );
 
   assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/${request.order_id}/shipping/rates`,
+      url: `${baseUrl}/v1/stores/${defaultStoreId}/shipping-labels/quotes`,
+      method: "POST",
+      body: { owner: request.owner },
+    },
+  ]);
+  assert.deepEqual(result, response);
+});
+
+test("shipping label purchase cites one signed quote and never a raw carrier rate", async () => {
+  const response = {
+    label: { id: "6ba7b81b-9dad-41d1-80b4-00c04fd430c8" },
+    merchant_debit: null,
+  };
+  const request = {
+    shipping_label_id: "6ba7b81b-9dad-41d1-80b4-00c04fd430c8",
+    quote: "signed-rate-quote",
+  };
+  const { calls, result } = await captureFetch(response, () =>
+    admin().eshop.shippingLabel.request(request),
+  );
+
+  assert.deepEqual(calls, [
+    {
+      url: `${baseUrl}/v1/stores/${defaultStoreId}/shipping-labels`,
       method: "POST",
       body: {
-        store_location_id: request.store_location_id,
-        lines: request.lines,
-        parcel: request.parcel,
-        customs_declaration: request.customs_declaration,
+        shipping_label_id: request.shipping_label_id,
+        quote: request.quote,
       },
     },
   ]);
@@ -809,14 +723,19 @@ test("provider-effect APIs send one resource identity and return direct server e
         arky.eshop.refund.create({
           payment_id: "payment-refund-contract",
           refund_id: resourceId,
-          amount: 1250,
-          application: { type: "order_items", allocations: [
-            {
-              type: "product",
-              item_id: "order-product-contract",
-              amount: 1250,
-            },
-          ] },
+          payment_capture_id: null,
+          money: { amount: 1250, currency: "usd" },
+          reference: null,
+          application: {
+            type: "commercial_credit",
+            allocations: [
+              {
+                order_credit_id: "order-credit-contract",
+                order_credit_allocation_id: "product-credit-allocation",
+                amount: 1250,
+              },
+            ],
+          },
           reason: "duplicate",
           private_note: "Duplicate checkout",
         }),
@@ -825,63 +744,78 @@ test("provider-effect APIs send one resource identity and return direct server e
         method: "POST",
         body: {
           payment_id: "payment-refund-contract",
-          amount: 1250,
+          payment_capture_id: null,
+          money: { amount: 1250, currency: "usd" },
+          reference: null,
           refund_id: resourceId,
-          application: { type: "order_items", allocations: [
-            {
-              type: "product",
-              item_id: "order-product-contract",
-              amount: 1250,
-            },
-          ] },
+          application: {
+            type: "commercial_credit",
+            allocations: [
+              {
+                order_credit_id: "order-credit-contract",
+                order_credit_allocation_id: "product-credit-allocation",
+                amount: 1250,
+              },
+            ],
+          },
           reason: "duplicate",
           private_note: "Duplicate checkout",
         },
       },
     },
     {
-      name: "cash-on-delivery refund record",
+      name: "cash-on-delivery refund intent",
       response: {
         refund_id: resourceId,
         money: { amount: 700, currency: "usd" },
-        status: { type: "succeeded" },
+        status: { type: "requested" },
       },
       request: (arky) =>
-        arky.eshop.refund.recordCashOnDelivery({
+        arky.eshop.refund.create({
           payment_id: "payment-cash-refund-contract",
           refund_id: resourceId,
-          amount: 700,
-          application: { type: "order_items", allocations: [
-            {
-              type: "shipping",
-              line_id: "shipping-line-contract",
-              amount: 700,
-            },
-          ] },
+          payment_capture_id: null,
+          money: { amount: 700, currency: "usd" },
+          reference: null,
+          application: {
+            type: "commercial_credit",
+            allocations: [
+              {
+                order_credit_id: "order-credit-contract",
+                order_credit_allocation_id: "delivery-credit-allocation",
+                amount: 700,
+              },
+            ],
+          },
           reason: "other",
           private_note: "Cash returned by operator",
         }),
       expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/refunds/cash-on-delivery`,
+        url: `${baseUrl}/v1/stores/${defaultStoreId}/refunds`,
         method: "POST",
         body: {
           payment_id: "payment-cash-refund-contract",
-          amount: 700,
+          payment_capture_id: null,
+          money: { amount: 700, currency: "usd" },
+          reference: null,
           refund_id: resourceId,
-          application: { type: "order_items", allocations: [
-            {
-              type: "shipping",
-              line_id: "shipping-line-contract",
-              amount: 700,
-            },
-          ] },
+          application: {
+            type: "commercial_credit",
+            allocations: [
+              {
+                order_credit_id: "order-credit-contract",
+                order_credit_allocation_id: "delivery-credit-allocation",
+                amount: 700,
+              },
+            ],
+          },
           reason: "other",
           private_note: "Cash returned by operator",
         },
       },
     },
     {
-      name: "common Refund for an Audience Order item",
+      name: "common Refund for a CustomerGroupPlan credit",
       response: {
         refund_id: resourceId,
         money: { amount: 500, currency: "usd" },
@@ -892,8 +826,19 @@ test("provider-effect APIs send one resource identity and return direct server e
           store_id: defaultStoreId,
           payment_id: "audience-payment-contract",
           refund_id: resourceId,
-          amount: 500,
-          application: { type: "order_items", allocations: [{ type: "audience", item_id: "audience-order-item", amount: 500 }] },
+          payment_capture_id: null,
+          money: { amount: 500, currency: "usd" },
+          reference: null,
+          application: {
+            type: "commercial_credit",
+            allocations: [
+              {
+                order_credit_id: "group-credit",
+                order_credit_allocation_id: "group-credit-allocation",
+                amount: 500,
+              },
+            ],
+          },
           reason: "fraudulent",
           private_note: "Risk review",
         }),
@@ -903,46 +848,48 @@ test("provider-effect APIs send one resource identity and return direct server e
         body: {
           payment_id: "audience-payment-contract",
           refund_id: resourceId,
-          amount: 500,
-          application: { type: "order_items", allocations: [{ type: "audience", item_id: "audience-order-item", amount: 500 }] },
+          payment_capture_id: null,
+          money: { amount: 500, currency: "usd" },
+          reference: null,
+          application: {
+            type: "commercial_credit",
+            allocations: [
+              {
+                order_credit_id: "group-credit",
+                order_credit_allocation_id: "group-credit-allocation",
+                amount: 500,
+              },
+            ],
+          },
           reason: "fraudulent",
           private_note: "Risk review",
         },
       },
     },
     {
-      name: "shipping-label purchase",
+      name: "shipment creation",
       response: {
         shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
         shipment: {
           id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-          status: "pending",
-          label: {
-            id: "6ba7b811-9dad-41d1-80b4-00c04fd430c8",
-            status: "requested",
-            label_url: null,
-            postage: { amount: 895, currency: "usd" },
-            platform_label_fee: { amount: 10, currency: "usd" },
-            total: { amount: 905, currency: "usd" },
-            requested_at: 1,
-            completed_at: null,
-            refund: null,
-            safe_error: null,
-          },
+          status: { type: "pending" },
+          selected_label_id: null,
+          dispatch: null,
         },
       },
       request: (arky) =>
         arky.eshop.shipment.create({
           order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
           shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-          rate_id: "signed-rate-quote",
           origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
           fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
           lines: [
             {
-              order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
+              order_product_line_item_id:
+                "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
               fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
               quantity: 2,
+              unit_spans: [{ first_unit: 0, quantity: 2 }],
             },
           ],
           parcel: {
@@ -959,14 +906,15 @@ test("provider-effect APIs send one resource identity and return direct server e
         method: "POST",
         body: {
           shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-          rate_id: "signed-rate-quote",
           origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
           fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
           lines: [
             {
-              order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
+              order_product_line_item_id:
+                "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
               fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
               quantity: 2,
+              unit_spans: [{ first_unit: 0, quantity: 2 }],
             },
           ],
           parcel: {
@@ -1007,35 +955,37 @@ test("money and shipping clients reject evidence for any other resource ID", asy
         arky.eshop.refund.create({
           payment_id: "payment-refund-contract",
           refund_id: resourceId,
-          amount: 1250,
-          application: { type: "order_items", allocations: [
-            { type: "adjustment", amount: 1250, reason: "contract" },
-          ] },
+          payment_capture_id: null,
+          money: { amount: 1250, currency: "usd" },
+          private_note: null,
+          reference: null,
+          application: { type: "excess_collection", reason: "contract" },
           reason: "customer_request",
         }),
       error: /Refund response did not match the requested refund_id/,
     },
     {
-      name: "cash-on-delivery refund record",
+      name: "cash-on-delivery refund intent",
       response: {
         refund_id: otherResourceId,
         money: { amount: 1250, currency: "usd" },
         status: { type: "succeeded" },
       },
       request: (arky) =>
-        arky.eshop.refund.recordCashOnDelivery({
+        arky.eshop.refund.create({
           payment_id: "payment-refund-contract",
           refund_id: resourceId,
-          amount: 1250,
-          application: { type: "order_items", allocations: [
-            { type: "adjustment", amount: 1250, reason: "contract" },
-          ] },
+          payment_capture_id: null,
+          money: { amount: 1250, currency: "usd" },
+          private_note: null,
+          reference: null,
+          application: { type: "excess_collection", reason: "contract" },
           reason: "customer_request",
         }),
       error: /Refund response did not match the requested refund_id/,
     },
     {
-      name: "common Audience-item Refund mismatched identity",
+      name: "common CustomerGroupPlan credit Refund mismatched identity",
       response: {
         refund_id: otherResourceId,
         money: { amount: 500, currency: "usd" },
@@ -1046,30 +996,43 @@ test("money and shipping clients reject evidence for any other resource ID", asy
           store_id: defaultStoreId,
           payment_id: "audience-payment-contract",
           refund_id: resourceId,
-          amount: 500,
-          application: { type: "order_items", allocations: [{ type: "audience", item_id: "audience-order-item", amount: 500 }] },
+          payment_capture_id: null,
+          money: { amount: 500, currency: "usd" },
+          private_note: null,
+          reference: null,
+          application: {
+            type: "commercial_credit",
+            allocations: [
+              {
+                order_credit_id: "group-credit",
+                order_credit_allocation_id: "group-credit-allocation",
+                amount: 500,
+              },
+            ],
+          },
           reason: "customer_request",
         }),
       error: /Refund response did not match the requested refund_id/,
     },
     {
-      name: "shipping-label purchase",
+      name: "shipment creation",
       response: {
         shipment_id: otherResourceId,
-        shipment: { id: otherResourceId, status: "label_created" },
+        shipment: { id: otherResourceId, status: { type: "label_created" } },
       },
       request: (arky) =>
         arky.eshop.shipment.create({
           order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
           shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-          rate_id: "signed-rate-quote",
           origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
           fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
           lines: [
             {
-              order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
+              order_product_line_item_id:
+                "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
               fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
               quantity: 1,
+              unit_spans: [{ first_unit: 0, quantity: 1 }],
             },
           ],
           parcel: {
@@ -1103,8 +1066,11 @@ test("order refunds reject mismatched money and statuses outside the closed life
     admin().eshop.refund.create({
       payment_id: "payment-refund-contract",
       refund_id: resourceId,
-      amount: 1250,
-      application: { type: "order_items", allocations: [{ type: "adjustment", amount: 1250, reason: "contract" }] },
+      payment_capture_id: null,
+      money: { amount: 1250, currency: "usd" },
+      private_note: null,
+      reference: null,
+      application: { type: "excess_collection", reason: "contract" },
       reason: "other",
     });
 
@@ -1118,7 +1084,7 @@ test("order refunds reject mismatched money and statuses outside the closed life
         },
         request,
       ),
-      /Refund response did not match the requested amount/,
+      /Refund response did not match the requested money/,
     );
   });
 
@@ -1135,18 +1101,33 @@ test("order refunds reject mismatched money and statuses outside the closed life
         },
         request,
       ),
-      /Refund response did not match the requested amount/,
+      /Refund response did not match the requested money/,
     );
   });
 
-  for (const status of ["succeeded", null, [], { type: "succeeded", extra: true }, { type: "pending" }]) {
-    await t.test(`reject malformed refund status ${JSON.stringify(status)}`, async () => {
-      await assert.rejects(captureFetch({
-        refund_id: resourceId,
-        money: { amount: 1250, currency: "usd" },
-        status,
-      }, request), /Refund response contained an invalid status/);
-    });
+  for (const status of [
+    "succeeded",
+    null,
+    [],
+    { type: "succeeded", extra: true },
+    { type: "not_a_status" },
+  ]) {
+    await t.test(
+      `reject malformed refund status ${JSON.stringify(status)}`,
+      async () => {
+        await assert.rejects(
+          captureFetch(
+            {
+              refund_id: resourceId,
+              money: { amount: 1250, currency: "usd" },
+              status,
+            },
+            request,
+          ),
+          /Refund response contained an invalid status/,
+        );
+      },
+    );
   }
 
   await t.test("unknown status value", async () => {
@@ -1171,38 +1152,32 @@ test("payment, refund, dispute, and shipment lifecycles are read through explici
       response: {
         id: "payment-contract",
         store_id: defaultStoreId,
-        source: { type: "order", order_id: "order-contract" },
-        payer_customer_id: null,
+        order_id: "order-contract",
+        payer_customer_id: "customer-contract",
         provider: {
           type: "cash_on_delivery",
           payment_provider_id: "provider-cash-contract",
           marked_paid_by_account_id: "account-operator-contract",
         },
-        status: { type: "paid" },
+        status: { type: "completed" },
         checkout_expiration: null,
-        settlement: {
-          money: { amount: 1250, currency: "usd" },
-          paid_at: 2,
-          evidence: {
-            type: "cash_on_delivery",
-            marked_paid_by_account_id: "account-operator-contract",
-          },
-        },
         amounts: {
           currency: "usd",
           total: 1250,
-          paid: 1250,
+          authorized: 0,
+          captured: 1250,
+          capture_pending: 0,
           refund_pending: 0,
           refunded: 0,
         },
-        requested_at: 1,
+        request_id: "payment-request-contract",
+        reconciliation: { type: "clear" },
         completed_at: 2,
         created_at: 1,
         updated_at: 2,
         safe_error: null,
       },
-      request: (arky) =>
-        arky.eshop.payment.get({ id: "payment-contract" }),
+      request: (arky) => arky.eshop.payment.get({ id: "payment-contract" }),
       url: `${baseUrl}/v1/stores/${defaultStoreId}/payments/payment-contract`,
     },
     {
@@ -1210,7 +1185,9 @@ test("payment, refund, dispute, and shipment lifecycles are read through explici
       response: {
         id: resourceId,
         store_id: defaultStoreId,
-        payment_id: "payment-contract",
+        order_id: "order-contract",
+        order_payment_id: "payment-contract",
+        order_payment_capture_id: null,
         provider: {
           type: "stripe",
           payment_provider_id: "provider-stripe-contract",
@@ -1218,16 +1195,29 @@ test("payment, refund, dispute, and shipment lifecycles are read through explici
         },
         money: { amount: 500, currency: "usd" },
         application: {
-          type: "order_items",
-          allocations: [{ type: "digital", item_id: "digital-item-contract", amount: 500 }],
+          type: "commercial_credit",
+          allocations: [
+            {
+              order_credit_id: "credit-contract",
+              order_credit_allocation_id: "credit-allocation-contract",
+              amount: 500,
+            },
+          ],
         },
         requester: {
           type: "account",
-          actor: { account_id: "account-contract", snapshot: { email: "historical.operator@example.test", credential_type: "session" } },
+          actor: {
+            account_id: "account-contract",
+            snapshot: {
+              email: "historical.operator@example.test",
+              credential_type: "session",
+            },
+          },
           reason: "customer_request",
           private_note: null,
         },
         status: { type: "unknown" },
+        financial_effects: [],
         safe_error:
           "The refund outcome is unknown; contact support before retrying",
         requested_at: 1,
@@ -1250,7 +1240,10 @@ test("payment, refund, dispute, and shipment lifecycles are read through explici
         store_id: defaultStoreId,
         payment_id: "payment-contract",
         money: { amount: 1250, currency: "usd" },
-        status: { type: "needs_response", response: { type: "due_at", due_at: 123_000 } },
+        status: {
+          type: "needs_response",
+          response: { type: "due_at", due_at: 123_000 },
+        },
         reason: "fraudulent",
         provider: {
           type: "stripe",
@@ -1336,8 +1329,16 @@ test("payment dispute history filters the common Payment owner", async () => {
 
 test("common dispute history can list the Store without an Order or Payment selector", async () => {
   const response = { items: [], cursor: null };
-  const { calls, result } = await captureFetch(response, () => admin().eshop.dispute.find());
-  assert.deepEqual(calls, [{ url: `${baseUrl}/v1/stores/${defaultStoreId}/disputes`, method: "GET", body: undefined }]);
+  const { calls, result } = await captureFetch(response, () =>
+    admin().eshop.dispute.find(),
+  );
+  assert.deepEqual(calls, [
+    {
+      url: `${baseUrl}/v1/stores/${defaultStoreId}/disputes`,
+      method: "GET",
+      body: undefined,
+    },
+  ]);
   assert.deepEqual(result, response);
 });
 
@@ -1388,44 +1389,67 @@ test("common Refund history is Store-scoped and can filter by exact Payment with
   assert.equal(filtered.calls[0].body, undefined);
   assert.deepEqual(filtered.result, response);
   const all = await captureFetch(response, () => admin().eshop.refund.find());
-  assert.equal(new URL(all.calls[0].url).pathname, `/v1/stores/${defaultStoreId}/refunds`);
+  assert.equal(
+    new URL(all.calls[0].url).pathname,
+    `/v1/stores/${defaultStoreId}/refunds`,
+  );
   assert.equal(new URL(all.calls[0].url).search, "");
   assert.equal(all.calls[0].method, "GET");
 });
 
-test("common Refund commands preserve all four Order item allocation families", async (t) => {
+test("common Refund commands preserve exact commercial-credit allocations for all four sellable families", async (t) => {
   const allocations = [
-    { type: "product", item_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45911", amount: 100 },
-    { type: "booking", item_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45912", amount: 200 },
-    { type: "digital", item_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45913", amount: 300 },
-    { type: "audience", item_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45914", amount: 400 },
+    {
+      order_credit_id: resourceId,
+      order_credit_allocation_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45911",
+      amount: 100,
+    },
+    {
+      order_credit_id: resourceId,
+      order_credit_allocation_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45912",
+      amount: 200,
+    },
+    {
+      order_credit_id: resourceId,
+      order_credit_allocation_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45913",
+      amount: 300,
+    },
+    {
+      order_credit_id: resourceId,
+      order_credit_allocation_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45914",
+      amount: 400,
+    },
   ];
   const request = {
     payment_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45915",
     refund_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45916",
-    amount: 1000,
-    application: { type: "order_items", allocations },
+    payment_capture_id: null,
+    money: { amount: 1000, currency: "eur" },
+    reference: null,
+    application: { type: "commercial_credit", allocations },
     reason: "customer_request",
     private_note: "Return across the accepted Order items",
   };
   for (const [method, suffix, status] of [
     ["create", "", "requested"],
-    ["recordCashOnDelivery", "/cash-on-delivery", "succeeded"],
+    ["create", "", "requires_action"],
   ]) {
     await t.test(method, async () => {
       const response = {
         refund_id: request.refund_id,
-        money: { amount: request.amount, currency: "eur" },
+        money: request.money,
         status: { type: status },
       };
       const { calls, result } = await captureFetch(response, () =>
         admin().eshop.refund[method](request),
       );
-      assert.deepEqual(calls, [{
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/refunds${suffix}`,
-        method: "POST",
-        body: request,
-      }]);
+      assert.deepEqual(calls, [
+        {
+          url: `${baseUrl}/v1/stores/${defaultStoreId}/refunds${suffix}`,
+          method: "POST",
+          body: request,
+        },
+      ]);
       assert.deepEqual(result, response);
       assert.equal("order_id" in calls[0].body, false);
       assert.equal("membership_id" in calls[0].body, false);

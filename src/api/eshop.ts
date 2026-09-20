@@ -1,6 +1,4 @@
 import type { ApiConfig } from "../services/clientTypes";
-import type { CheckoutSubscriptionParams, QuoteSubscriptionParams, SubscriptionCheckoutResult, SubscriptionQuote } from "../types/subscription";
-import { checkoutSubscription, subscriptionSelection } from "../services/subscription";
 import { checkoutCart, pendingCartCheckout, recoverCartCheckout, withCartMutation } from "../services/cartCheckout";
 import type { CartCheckoutTransport, CartCheckoutRequest, RecoverCartCheckoutParams } from "../types/cartCheckout";
 import type { OrderCheckoutResult } from "../types/index";
@@ -15,8 +13,11 @@ import type {
   DeleteBookingServiceParams,
   DeleteBookingOfferingParams,
   FindBookingOfferingsParams,
+  GetBookingOfferingByBindingParams,
   GetBookingResourceParams,
+  GetBookingResourceByKeyParams,
   GetProductParams,
+  GetProductByKeyParams,
   GetProductsParams,
   FindBookingResourcesParams,
   GetQuoteParams,
@@ -32,6 +33,7 @@ import type {
   FindCartsParams,
   GetCartParams,
   GetBookingServiceParams,
+  GetBookingServiceByKeyParams,
   FindBookingServicesParams,
   UpdateOrderParams,
   CancelOrderProductItemParams,
@@ -41,6 +43,8 @@ import type {
   UpdateBookingOfferingParams,
   GetOrderParams,
   GetOrdersParams,
+  GetOrderPaymentParams,
+  FindOrderPaymentsParams,
   QuoteCartParams,
   RemoveCartItemParams,
   RequestOptions,
@@ -48,15 +52,20 @@ import type {
 } from "../types/api";
 import type {
   Order,
+  OrderFinancialSummary,
+  GetOrderFinancialSummaryParams,
   Product,
-  ProductInventory,
   BookingResource,
   BookingService,
   BookingOffering,
-  OrderQuote,
+  CheckoutQuote,
   Cart,
+  CreatedCart,
   PaginatedResponse,
+  Payment,
 } from "../types";
+
+import type { Checkout } from "../types/checkout";
 
 export const createEshopApi = (apiConfig: ApiConfig) => {
   function checkoutScope(storeId: string): string {
@@ -65,11 +74,13 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
 
   function checkoutTransport(storeId: string): CartCheckoutTransport<OrderCheckoutResult> {
     return {
-      post: ({ id, ...request }, options) => apiConfig.httpClient.post<OrderCheckoutResult>(
-        `/v1/stores/${encodeURIComponent(storeId)}/carts/${encodeURIComponent(id)}/checkout`, request, options,
+      post: ({ id, request_id, ...request }, options) => apiConfig.httpClient.post<OrderCheckoutResult>(
+        `/v1/stores/${encodeURIComponent(storeId)}/checkouts`,
+        { ...request, request_id },
+        options,
       ),
-      getCart: (id, options) => apiConfig.httpClient.get<Cart>(
-        `/v1/stores/${encodeURIComponent(storeId)}/carts/${encodeURIComponent(id)}`, options,
+      getCheckout: (id, options) => apiConfig.httpClient.get<Checkout>(
+        `/v1/stores/${encodeURIComponent(storeId)}/checkouts/${encodeURIComponent(id)}`, options,
       ),
     };
   }
@@ -132,19 +143,13 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getProductInventory(
-      params: GetProductParams,
+    getProductByKey(
+      params: GetProductByKeyParams,
       options?: RequestOptions,
-    ): Promise<ProductInventory[]> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      const identifier = params.id
-        ? params.id
-        : params.slug
-          ? `${target_store_id}:${apiConfig.locale}:${params.slug}`
-          : null;
-      if (!identifier) throw new Error("GetProductParams requires id or slug");
-      return apiConfig.httpClient.get<ProductInventory[]>(
-        `/v1/stores/${target_store_id}/products/${identifier}/inventory`,
+    ): Promise<Product> {
+      const storeId = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<Product>(
+        `/v1/stores/${encodeURIComponent(storeId)}/products/by-key/${encodeURIComponent(params.key)}`,
         options,
       );
     },
@@ -217,6 +222,17 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
 
       return apiConfig.httpClient.get<BookingService>(
         `/v1/stores/${store_id}/booking-services/${identifier}`,
+        options,
+      );
+    },
+
+    getBookingServiceByKey(
+      params: GetBookingServiceByKeyParams,
+      options?: RequestOptions,
+    ): Promise<BookingService> {
+      const storeId = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<BookingService>(
+        `/v1/stores/${encodeURIComponent(storeId)}/booking-services/by-key/${encodeURIComponent(params.key)}`,
         options,
       );
     },
@@ -296,6 +312,17 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    getBookingResourceByKey(
+      params: GetBookingResourceByKeyParams,
+      options?: RequestOptions,
+    ): Promise<BookingResource> {
+      const storeId = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<BookingResource>(
+        `/v1/stores/${encodeURIComponent(storeId)}/booking-resources/by-key/${encodeURIComponent(params.key)}`,
+        options,
+      );
+    },
+
     async findBookingResources(
       params: FindBookingResourcesParams,
       options?: RequestOptions,
@@ -311,13 +338,24 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    getBookingOfferingByBinding(
+      params: GetBookingOfferingByBindingParams,
+      options?: RequestOptions,
+    ): Promise<BookingOffering> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<BookingOffering>(
+        `/v1/stores/${encodeURIComponent(store_id || apiConfig.storeId)}/booking-offerings/by-binding`,
+        { ...options, params: query },
+      );
+    },
+
     async findBookingOfferings(
       params: FindBookingOfferingsParams,
       options?: RequestOptions,
-    ): Promise<BookingOffering[]> {
+    ): Promise<PaginatedResponse<BookingOffering>> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<BookingOffering[]>(
+      return apiConfig.httpClient.get<PaginatedResponse<BookingOffering>>(
         `/v1/stores/${target_store_id}/booking-offerings`,
         { ...options, params: queryParams },
       );
@@ -356,6 +394,18 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       const target_store_id = params.store_id || apiConfig.storeId;
       return apiConfig.httpClient.delete<boolean>(
         `/v1/stores/${target_store_id}/booking-offerings/${params.id}`,
+        options,
+      );
+    },
+
+    async getOrderFinancialSummary(
+      params: GetOrderFinancialSummaryParams,
+      options?: RequestOptions,
+    ): Promise<OrderFinancialSummary> {
+      const { id, store_id } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<OrderFinancialSummary>(
+        `/v1/stores/${encodeURIComponent(target_store_id)}/orders/${encodeURIComponent(id)}/financial-summary`,
         options,
       );
     },
@@ -437,6 +487,29 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    async getOrderPayment(
+      params: GetOrderPaymentParams,
+      options?: RequestOptions,
+    ): Promise<Payment> {
+      const storeId = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<Payment>(
+        `/v1/stores/${encodeURIComponent(storeId)}/orders/${encodeURIComponent(params.order_id)}/payments/${encodeURIComponent(params.payment_id)}`,
+        options,
+      );
+    },
+
+    async findOrderPayments(
+      params: FindOrderPaymentsParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<Payment>> {
+      const { store_id, order_id, ...query } = params;
+      const storeId = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<PaginatedResponse<Payment>>(
+        `/v1/stores/${encodeURIComponent(storeId)}/orders/${encodeURIComponent(order_id)}/payments`,
+        { ...options, params: query },
+      );
+    },
+
     async getOrders(
       params: GetOrdersParams,
       options?: RequestOptions,
@@ -481,17 +554,15 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     async createCart(
       params: CreateCartParams,
       options?: RequestOptions,
-    ): Promise<Cart> {
+    ): Promise<CreatedCart> {
       const { store_id, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
+      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<CreatedCart>(
         `/v1/stores/${encodeURIComponent(target_store_id)}/carts`,
         {
           ...payload,
-          product_items: payload.product_items || [],
-          booking_items: payload.booking_items || [],
-          digital_items: payload.digital_items || [],
-          customer_group_plan_items: payload.customer_group_plan_items || [],
+          line_items: payload.line_items || [],
+          delivery_groups: payload.delivery_groups || [],
         },
         options,
       ));
@@ -501,24 +572,14 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: UpdateCartParams,
       options?: RequestOptions,
     ): Promise<Cart> {
-      const {
-        id,
-        store_id,
-        product_items,
-        booking_items,
-        digital_items,
-        customer_group_plan_items,
-        ...payload
-      } = params;
+      const { id, store_id, line_items, delivery_groups, ...payload } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.put<Cart>(
         `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(id)}`,
         {
           ...payload,
-          ...(product_items ? { product_items } : {}),
-          ...(booking_items ? { booking_items } : {}),
-          ...(digital_items ? { digital_items } : {}),
-          ...(customer_group_plan_items ? { customer_group_plan_items } : {}),
+          ...(line_items ? { line_items } : {}),
+          ...(delivery_groups ? { delivery_groups } : {}),
         },
         options,
       ));
@@ -604,9 +665,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     async quoteCart(
       params: QuoteCartParams,
       options?: RequestOptions,
-    ): Promise<OrderQuote> {
+    ): Promise<CheckoutQuote> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<OrderQuote>(
+      return apiConfig.httpClient.post<CheckoutQuote>(
         `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(params.id)}/quote`,
         { locale: params.locale ?? apiConfig.locale },
         options,
@@ -631,45 +692,19 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       return recoverCartCheckout(checkoutScope(storeId), checkoutTransport(storeId), options);
     },
 
-    async quoteSubscription(
-      params: QuoteSubscriptionParams,
-      options?: RequestOptions,
-    ): Promise<SubscriptionQuote> {
-      const storeId = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<SubscriptionQuote>(
-        `/v1/stores/${storeId}/carts/subscriptions/quote`,
-        { selection: subscriptionSelection(params.selection) },
-        options,
-      );
-    },
-
-    async checkoutSubscription(
-      params: CheckoutSubscriptionParams,
-      options?: RequestOptions,
-    ): Promise<SubscriptionCheckoutResult> {
-      const storeId = params.store_id || apiConfig.storeId;
-      return checkoutSubscription(`${apiConfig.baseUrl}:${storeId}`, params, (payload) =>
-        apiConfig.httpClient.post<SubscriptionCheckoutResult>(
-          `/v1/stores/${storeId}/carts/subscriptions/checkout`, payload, options,
-        ),
-      );
-    },
-
     async getQuote(
       params: GetQuoteParams,
       options?: RequestOptions,
-    ): Promise<OrderQuote> {
-      const { store_id, products, bookings, digital, customer_group_plans, ...rest } = params;
+    ): Promise<CheckoutQuote> {
+      const { store_id, line_items, delivery_groups, ...rest } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<OrderQuote>(
+      return apiConfig.httpClient.post<CheckoutQuote>(
         `/v1/stores/${encodeURIComponent(target_store_id)}/orders/quote`,
         {
           ...rest,
           locale: rest.locale ?? apiConfig.locale,
-          products: products || [],
-          bookings: bookings || [],
-          digital: digital || [],
-          customer_group_plans: customer_group_plans || [],
+          line_items: line_items || [],
+          delivery_groups: delivery_groups || [],
           market: rest.market,
         },
         options,

@@ -1,0 +1,94 @@
+import type { FulfillmentOrder, OrderShipment, OrderShipmentLine } from "../types";
+import type { UnitSpan } from "../types/orderContract";
+import { FulfillmentSelectionError } from "../types/fulfillmentSelection";
+
+function checked(spans: UnitSpan[]): UnitSpan[] {
+  if (spans.length > 1000) throw new FulfillmentSelectionError("Unit ranges exceed their supported bound.");
+  const sorted = spans.map((span) => ({ ...span })).sort((a, b) => a.first_unit - b.first_unit);
+  let end = 0;
+  for (const span of sorted) {
+    if (!Number.isInteger(span.first_unit) || span.first_unit < end || span.first_unit < 0
+      || !Number.isInteger(span.quantity) || span.quantity <= 0
+      || span.first_unit + span.quantity > 4294967295) {
+      throw new FulfillmentSelectionError("Fulfillment contains invalid or overlapping unit ranges.");
+    }
+    end = span.first_unit + span.quantity;
+  }
+  return sorted;
+}
+
+function count(spans: UnitSpan[]): number {
+  return spans.reduce((sum, span) => sum + span.quantity, 0);
+}
+
+function subtract(source: UnitSpan[], removed: UnitSpan[]): UnitSpan[] {
+  const result: UnitSpan[] = [];
+  let index = 0;
+  for (const span of source) {
+    let start = span.first_unit;
+    const end = start + span.quantity;
+    while (index < removed.length && removed[index].first_unit + removed[index].quantity <= start) index++;
+    for (let next = index; next < removed.length && removed[next].first_unit < end; next++) {
+      const cut = removed[next];
+      if (cut.first_unit > start) result.push({ first_unit: start, quantity: cut.first_unit - start });
+      start = Math.max(start, cut.first_unit + cut.quantity);
+      if (start >= end) break;
+    }
+    if (start < end) result.push({ first_unit: start, quantity: end - start });
+    if (result.length > 1000) throw new FulfillmentSelectionError("Remaining unit ranges exceed their supported bound.");
+  }
+  return result;
+}
+
+export function selectShipmentUnits(
+  work: FulfillmentOrder,
+  lineId: string,
+  quantity: number,
+  shipments: OrderShipment[],
+): OrderShipmentLine {
+  if (work.method.type !== "delivery" || ["completed", "cancelled"].includes(work.status.type)) {
+    throw new FulfillmentSelectionError("Select open delivery work.");
+  }
+  const line = work.lines.find((value) => value.id === lineId);
+  if (!line || !Number.isInteger(quantity) || quantity < 1 || quantity > 4294967295) {
+    throw new FulfillmentSelectionError("Select a valid assigned line and whole quantity.");
+  }
+  const assigned = checked(line.unit_spans);
+  const released = checked(line.released_units);
+  const cancelled = checked(line.cancelled_units);
+  if (count(assigned) !== line.quantity || count(subtract(released, assigned)) || count(subtract(cancelled, assigned))) {
+    throw new FulfillmentSelectionError("Fulfillment ranges disagree with their assignment.");
+  }
+  const active = subtract(subtract(assigned, released), cancelled);
+  if (count(active) !== line.allocated_quantity) throw new FulfillmentSelectionError("Reload the changed fulfillment assignment.");
+  const dispatched: UnitSpan[] = [];
+  for (const shipment of shipments) {
+    if (shipment.store_id !== work.store_id || shipment.order_id !== work.order_id) {
+      throw new FulfillmentSelectionError("Shipment history belongs to another Order.");
+    }
+    if (shipment.fulfillment_order_id !== work.id || !shipment.dispatch) continue;
+    for (const item of shipment.lines) {
+      if (item.fulfillment_order_line_id !== line.id) continue;
+      const units = checked(item.unit_spans);
+      if (item.order_product_line_item_id !== line.order_product_item_id || count(units) !== item.quantity) {
+        throw new FulfillmentSelectionError("Shipment history disagrees with its assigned line.");
+      }
+      dispatched.push(...units);
+    }
+  }
+  const handedOver = checked(dispatched);
+  if (count(handedOver) !== line.fulfilled_quantity || count(subtract(handedOver, active))) {
+    throw new FulfillmentSelectionError("Load or refresh shipment history until all dispatched units are visible.");
+  }
+  const available = subtract(active, handedOver);
+  if (count(available) < quantity) throw new FulfillmentSelectionError("The selected quantity exceeds remaining assigned units.");
+  const selected: UnitSpan[] = [];
+  let remaining = quantity;
+  for (const span of available) {
+    const take = Math.min(remaining, span.quantity);
+    if (take) selected.push({ first_unit: span.first_unit, quantity: take });
+    remaining -= take;
+    if (!remaining) break;
+  }
+  return { order_product_line_item_id: line.order_product_item_id, fulfillment_order_line_id: line.id, quantity, unit_spans: selected };
+}

@@ -1,5 +1,25 @@
+import type {
+  MarketSnapshot,
+  CompanyLocationSnapshot,
+  OrderDeliveryDestinationSnapshot,
+} from "./orderContract";
+import type {
+  CustomerGroupPlanTerm,
+  CustomerGroupProductQuantity,
+  CustomerGroupDeliverySchedule,
+} from "./customerGroupPlan";
+import type {
+  OrderProductSnapshot,
+  OrderDigitalSnapshot,
+} from "./orderSnapshot";
 import type { AccountActor } from "./accountActor";
-import type { Address, LineMoneySnapshot, Money, OrderItemStatus } from "./index";
+import type {
+  Address,
+  LineMoneySnapshot,
+  Money,
+  OrderItemStatus,
+  TaxMode,
+} from "./index";
 import type { EpochMilliseconds } from "./time";
 
 export interface DisplayTextSnapshot {
@@ -7,19 +27,15 @@ export interface DisplayTextSnapshot {
   locale: string | null;
 }
 
-export type PriceBilling =
-  | { type: "one_time" }
-  | { type: "recurring"; interval: "month" | "year"; interval_count: number };
-
 export type AppliedPriceSource =
   | { type: "base"; price_id: string }
   | { type: "price_list"; price_id: string; price_list_id: string }
   | { type: "manual"; actor: AccountActor; reason: string };
 
 export interface StorefrontPrice {
+  tax_mode: TaxMode;
   unit_price: Money;
   compare_at: number | null;
-  billing: PriceBilling;
   min_quantity: number;
   max_quantity: number | null;
   priced_at: EpochMilliseconds;
@@ -28,7 +44,7 @@ export interface StorefrontPrice {
 export interface AppliedPriceSnapshot {
   unit_price: Money;
   compare_at: number | null;
-  billing: PriceBilling;
+  tax_mode: TaxMode;
   min_quantity: number;
   max_quantity: number | null;
   source: AppliedPriceSource;
@@ -42,7 +58,7 @@ export interface OrderAccessRevocation {
   reason: string;
 }
 
-/// Accepted plan terms are opaque to clients; the server owns their exact shape.
+/** Frozen terms for this accepted plan purchase, not live catalog definitions. */
 export interface CustomerGroupAcceptedTerms {
   plan: CustomerGroupPlanSnapshot;
   deliveries: CustomerGroupDeliveryTerms[];
@@ -52,14 +68,54 @@ export interface CustomerGroupAcceptedTerms {
 export interface CustomerGroupPlanSnapshot {
   source_customer_group_id: string;
   source_customer_group_plan_id: string;
-  key: string;
-  name: DisplayTextSnapshot;
+  group_key: string;
+  group_name: DisplayTextSnapshot;
+  plan_key: string;
+  plan_name: DisplayTextSnapshot;
+  term: CustomerGroupPlanTerm;
   price: AppliedPriceSnapshot;
+  membership_allocation_weight: number;
+  membership_tax_category_id: string | null;
+  benefits: CustomerGroupBenefitSnapshot[];
+}
+
+export interface CustomerGroupProductSnapshot extends Omit<
+  OrderProductSnapshot,
+  "price"
+> {
+  tax_category_id: string | null;
+}
+
+export interface CustomerGroupDigitalSnapshot extends Omit<
+  OrderDigitalSnapshot,
+  "price"
+> {
+  tax_category_id: string | null;
+}
+
+export type CustomerGroupBenefitSnapshotType =
+  | {
+      type: "product";
+      snapshot: CustomerGroupProductSnapshot;
+      quantity: CustomerGroupProductQuantity;
+      delivery: CustomerGroupDeliverySchedule;
+    }
+  | { type: "digital_product"; snapshot: CustomerGroupDigitalSnapshot };
+
+export interface CustomerGroupBenefitSnapshot {
+  id: string;
+  type: CustomerGroupBenefitSnapshotType;
+  allocation_weight: number;
 }
 
 export interface CustomerGroupDeliveryTerms {
   id: string;
   benefit_ids: string[];
+  destination: OrderDeliveryDestinationSnapshot;
+  source_shipping_method_id: string;
+  source_shipping_profile_id: string;
+  base_fee: Money;
+  tax_mode: TaxMode;
   acceptance_digest: string;
 }
 
@@ -89,12 +145,6 @@ export interface OrderCustomerGroupPlanItem {
   updated_at: EpochMilliseconds;
 }
 
-
-export interface SubscriptionAudienceSnapshot {
-  key: string;
-  name: DisplayTextSnapshot;
-}
-
 export type PurchaseOrigin =
   | { type: "storefront"; customer_id: string; customer_session_id: string }
   | { type: "admin"; actor: AccountActor };
@@ -105,23 +155,27 @@ export interface PurchaseCustomerSnapshot {
     | { type: "visitor" }
     | { type: "email_authenticated"; authenticated_at: EpochMilliseconds }
     | null;
+  source_customer_id: string | null;
+  source_email_identity_id: string | null;
 }
 
 export interface CompanySnapshot {
   name: string;
   legal_name: string | null;
   registration_number: string | null;
-  tax_number: string | null;
   contact_email: string | null;
+  source_company_id: string;
 }
 
 export interface SalesChannelSnapshot {
   key: string;
   name: string;
+  source_sales_channel_id: string;
 }
 
 export interface PurchaseQuoteContext {
   market_id: string;
+  market_snapshot: MarketSnapshot;
   sales_channel_id: string;
   sales_channel_snapshot: SalesChannelSnapshot;
   customer_id: string | null;
@@ -129,5 +183,6 @@ export interface PurchaseQuoteContext {
   company_id: string | null;
   company_location_id: string | null;
   company_snapshot: CompanySnapshot | null;
+  company_location_snapshot: CompanyLocationSnapshot | null;
   origin: PurchaseOrigin;
 }

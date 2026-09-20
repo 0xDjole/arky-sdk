@@ -22,6 +22,11 @@ export interface CartCompanyContext {
   company_location_id: string | null;
 }
 
+export interface CreatedCart {
+  cart: Cart;
+  recovery_token: string;
+}
+
 export type CartLineItem =
   | { type: "product"; } & CartProductItem
   | { type: "booking"; } & CartBookingItem

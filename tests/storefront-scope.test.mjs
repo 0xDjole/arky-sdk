@@ -23,7 +23,7 @@ function memoryStorage(initialToken = null) {
     values,
     adapter: {
       getItem(key) {
-        return values.get(key) ?? fallback;
+        return values.get(key) ?? (key.startsWith("arky_customer_session:") ? fallback : null);
       },
       setItem(key, value) {
         fallback = null;
@@ -63,25 +63,20 @@ function storedVisitorSession(token = visitorTokenA, id = "customer-a") {
   return JSON.stringify({ version: 2, customer, session });
 }
 
-function cart(id = "cart-a") {
+function cart(id = "cart-a", customerId = "customer-a") {
   return {
     id,
-    customer_id: "customer-a",
-    customer_session_id: "session-customer-a",
-    token: "cart-token",
-    status: "active",
-    origin: "storefront",
-    created_by_account_id: null,
-    market: "bih",
-    product_items: [],
-    booking_items: [],
-    digital_items: [],
-    shipping_address: null,
+    customer_id: customerId,
+    company: null,
+    status: { type: "active" },
+    origin: { type: "storefront", customer_id: customerId, customer_session_id: `session-${customerId}` },
+    market_id: "market-a",
+    sales_channel_id: "channel-a",
+    line_items: [],
+    delivery_groups: [],
     billing_address: null,
-    promo_code: null,
-    payment_provider_id: null,
-    shipping_method_id: null,
-    converted_order_id: null,
+    promotion_code_ids: [],
+    purchase_order_number: null,
     item_count: 0,
     last_action_at: 1,
     abandoned_at: null,
@@ -182,9 +177,11 @@ test("setup is lazy and deduplicated without creating a visitor", async () => {
   const setup = {
     timezone: "Europe/Sarajevo",
     languages: { default: "en", available: ["en", "bs"] },
-    markets: { default: "bih", available: [] },
+    commerce: { type: "uninitialized" },
+    default_market: null,
+    payment_providers: [],
     support: { email: null },
-    readiness: { market: true, payment: false, commerce: false },
+    readiness: { market: false, payment: false, commerce: false },
   };
 
   try {
@@ -200,6 +197,32 @@ test("setup is lazy and deduplicated without creating a visitor", async () => {
     assert.deepEqual(await client.getSetup(), setup);
     assert.equal(setupCalls, 1);
     assert.equal(identifyCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("product text search preserves price ordering, range and continuation together", async () => {
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    calls.push(new URL(url));
+    return jsonResponse({ items: [], cursor: "next-search-page" });
+  };
+  try {
+    const client = createStorefront(publishableKeyA, { apiUrl, market: "bih", locale: "bs" });
+    const params = {
+      query: "KOŠULJA-0001", sort_field: "price", sort_direction: "asc",
+      price_filter: { min_amount: 0, max_amount: 5000, quantity: 1 },
+      limit: 20, cursor: "current-search-page",
+    };
+    assert.deepEqual(await client.eshop.product.find(params), { items: [], cursor: "next-search-page" });
+    const query = calls[0].searchParams;
+    assert.equal(query.get("query"), params.query);
+    assert.equal(query.get("sort_field"), "price");
+    assert.equal(query.get("sort_direction"), "asc");
+    assert.equal(query.get("cursor"), params.cursor);
+    assert.deepEqual(JSON.parse(query.get("price_filter")), params.price_filter);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -232,7 +255,7 @@ test("anonymous reads do not identify and concurrent first stateful calls share 
       await identifyGate;
       return jsonResponse(identifyResponse());
     }
-    if (request.url.endsWith("/carts/current")) return jsonResponse(cart());
+    if (request.url.endsWith("/carts")) return jsonResponse({ cart: cart(), recovery_token: "cart-recovery-token" });
     throw new Error(`Unexpected visitor request: ${request.url}`);
   };
 
@@ -257,10 +280,10 @@ test("anonymous reads do not identify and concurrent first stateful calls share 
     const identify = calls.find((call) => call.url.endsWith("/customer/identify"));
     assert.deepEqual(identify.body, {});
     assert.equal(identify.authorization, null);
-    const carts = calls.filter((call) => call.url.endsWith("/carts/current"));
-    assert.equal(carts.length, 2);
+    const carts = calls.filter((call) => call.url.endsWith("/carts"));
+    assert.equal(carts.length, 1);
     assert.equal(carts.every((call) => call.authorization === `Bearer ${visitorTokenA}`), true);
-    assert.equal(storage.values.size, 1);
+    assert.equal(storage.values.size, 2);
     const [[key, value]] = storage.values;
     assert.equal(key.includes(publishableKeyA), false);
     assert.equal(JSON.parse(value).version, 2);
@@ -284,10 +307,10 @@ test("an invalid Visitor session re-identifies once while an invalid publishable
     if (request.url.endsWith("/customer/identify")) {
       return jsonResponse(identifyResponse(visitorTokenB, "customer-b"));
     }
-    if (request.url.endsWith("/carts/current") && calls.filter((call) => call.url.endsWith("/carts/current")).length === 1) {
+    if (request.url.endsWith("/carts/cart-retried") && calls.filter((call) => call.url.endsWith("/carts/cart-retried")).length === 1) {
       return jsonResponse({ message: "expired", statusCode: 401 }, 401);
     }
-    if (request.url.endsWith("/carts/current")) return jsonResponse(cart("cart-retried"));
+    if (request.url.endsWith("/carts/cart-retried")) return jsonResponse(cart("cart-retried", "customer-b"));
     throw new Error(`Unexpected retry request: ${request.url}`);
   };
 
@@ -296,7 +319,7 @@ test("an invalid Visitor session re-identifies once while an invalid publishable
       apiUrl,
       sessionStorage: storage.adapter,
     });
-    assert.equal((await client.eshop.cart.current()).id, "cart-retried");
+    assert.equal((await client.eshop.cart.get({ id: "cart-retried" })).id, "cart-retried");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -304,9 +327,9 @@ test("an invalid Visitor session re-identifies once while an invalid publishable
   assert.deepEqual(
     calls.map(({ url, authorization }) => [url.slice(apiUrl.length), authorization]),
     [
-      ["/v1/storefront/carts/current", `Bearer ${expiredToken}`],
+      ["/v1/storefront/carts/cart-retried", `Bearer ${expiredToken}`],
       ["/v1/storefront/customer/identify", null],
-      ["/v1/storefront/carts/current", `Bearer ${visitorTokenB}`],
+      ["/v1/storefront/carts/cart-retried", `Bearer ${visitorTokenB}`],
     ],
   );
 
@@ -380,7 +403,7 @@ test("a delayed stale 401 retries with the newer visitor without replacing it", 
       assert.equal(authorization, null);
       return jsonResponse(identifyResponse(visitorTokenB, "customer-b"));
     }
-    if (requestUrl.endsWith("/carts/current")) {
+    if (requestUrl.endsWith("/carts/cart-existing")) {
       cartAuthorizations.push(authorization);
       if (authorization === `Bearer ${visitorTokenA}`) {
         oldTokenCartCalls += 1;
@@ -393,7 +416,7 @@ test("a delayed stale 401 retries with the newer visitor without replacing it", 
         return jsonResponse({ message: "expired", statusCode: 401 }, 401);
       }
       if (authorization === `Bearer ${visitorTokenB}`) {
-        return jsonResponse(cart(`cart-new-${cartAuthorizations.length}`));
+        return jsonResponse(cart("cart-existing", "customer-b"));
       }
     }
     throw new Error(`Unexpected stale-401 request: ${requestUrl}`);
@@ -406,11 +429,11 @@ test("a delayed stale 401 retries with the newer visitor without replacing it", 
       apiUrl,
       sessionStorage: storage.adapter,
     });
-    first = client.eshop.cart.current();
-    second = client.eshop.cart.current();
-    assert.match((await first).id, /^cart-new-/);
+    first = client.eshop.cart.get({ id: "cart-existing" });
+    second = client.eshop.cart.get({ id: "cart-existing" });
+    assert.equal((await first).id, "cart-existing");
     releaseSecondOldResponse();
-    assert.match((await second).id, /^cart-new-/);
+    assert.equal((await second).id, "cart-existing");
   } finally {
     releaseSecondOldResponse?.();
     await Promise.allSettled([first, second].filter(Boolean));
@@ -503,7 +526,11 @@ test("withContext creates an isolated visitor session while reusing explicit SSR
           : identifyResponse(visitorTokenB, "customer-b"),
       );
     }
-    if (request.url.endsWith("/carts/current")) return jsonResponse(cart());
+    if (request.url.endsWith("/carts")) return jsonResponse({
+      cart: cart(request.authorization === `Bearer ${visitorTokenA}` ? "cart-a" : "cart-b",
+        request.authorization === `Bearer ${visitorTokenA}` ? "customer-a" : "customer-b"),
+      recovery_token: "cart-recovery-token",
+    });
     throw new Error(`Unexpected scoped request: ${request.url}`);
   };
 
@@ -529,10 +556,10 @@ test("withContext creates an isolated visitor session while reusing explicit SSR
     globalThis.fetch = originalFetch;
   }
 
-  assert.equal(storage.values.size, 2);
+  assert.equal(storage.values.size, 4);
   assert.deepEqual(
     calls
-      .filter((call) => call.url.endsWith("/carts/current"))
+      .filter((call) => call.url.endsWith("/carts"))
       .map((call) => call.authorization),
     [`Bearer ${visitorTokenA}`, `Bearer ${visitorTokenB}`],
   );

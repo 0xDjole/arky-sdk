@@ -48,6 +48,9 @@ export interface DeleteCatalogEntitlementParams extends GetCatalogEntitlementPar
 }
 
 export interface FindCatalogEntitlementsParams {
+  status?: CatalogEntitlementStatus["type"];
+  sort_field?: "created_at" | "updated_at";
+  sort_direction?: "asc" | "desc";
   store_id?: string;
   catalog_id: string;
   limit?: number;

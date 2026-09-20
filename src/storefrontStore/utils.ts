@@ -12,7 +12,6 @@ import type {
   FormValues,
   GeoLocation,
   Product,
-  ProductInventory,
   ProductVariant,
   BookingResource,
   BookingService,
@@ -32,7 +31,6 @@ import { getBlockTextValue } from "../utils/blocks";
 import type {
   ArkyBookingCartItem,
   ArkyBookingServiceState,
-  ArkyStoreClient,
   FormInputBlock,
 } from "./types";
 
@@ -125,16 +123,6 @@ export function productSlug(
   );
 }
 
-
-export function freeToSellStock(
-  client: ArkyStoreClient,
-  inventory: Array<Omit<ProductInventory, "store_id">>,
-  variantId: string,
-): number | undefined {
-  const levels = inventory.filter((level) => level.variant_id === variantId);
-  const stock = client.utils.getFreeToSellStock({ inventory: levels });
-  return stock > 0 ? stock : undefined;
-}
 
 export function locationToAddress(location: ZoneLocation): Address {
   return {
@@ -427,6 +415,8 @@ export function createBookingServiceInitialState(): ArkyBookingServiceState {
     availability: null,
     bookingResources: [],
     bookingOfferings: [],
+    bookingOfferingsCursor: null,
+    loadingOfferings: false,
     selectedBookingResourceId: null,
     currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
     calendar: [],
@@ -447,7 +437,7 @@ export function createBookingServiceInitialState(): ArkyBookingServiceState {
     dateTimeConfirmed: false,
     availablePaymentProviderIds: [],
     cartId: null,
-    promoCode: null,
+    promotionCodes: [],
   };
 }
 

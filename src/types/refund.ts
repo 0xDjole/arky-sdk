@@ -1,13 +1,18 @@
 import type { AccountActor } from "./accountActor";
 import type { Money } from "./index";
 import type { EpochMilliseconds } from "./time";
+import type { CommerceProviderObservation, Payment } from "./payment";
+import type { OrderFinancialSummary } from "./order";
 
 export type RefundStatus =
   | { type: "requested" }
   | { type: "processing" }
+  | { type: "requires_action" }
+  | { type: "pending" }
   | { type: "succeeded" }
   | { type: "rejected" }
   | { type: "failed" }
+  | { type: "cancelled" }
   | { type: "unknown" };
 
 export type RefundReason =
@@ -19,17 +24,16 @@ export type RefundReason =
 export type RefundRequestReason = Exclude<RefundReason, "store_closure">;
 export type SystemRefundReason = "store_closure" | "late_charge";
 
-export type RefundAllocation =
-  | { type: "product"; item_id: string; amount: number }
-  | { type: "booking"; item_id: string; amount: number }
-  | { type: "digital"; item_id: string; amount: number }
-  | { type: "audience"; item_id: string; amount: number }
-  | { type: "shipping"; line_id: string; amount: number }
-  | { type: "adjustment"; amount: number; reason: string };
+export interface RefundAllocation {
+  order_credit_id: string;
+  order_credit_allocation_id: string;
+  amount: number;
+}
 
 export type RefundApplication =
-  | { type: "order_items"; allocations: RefundAllocation[] }
-  | { type: "subscription_invoice" };
+  | { type: "commercial_credit"; allocations: RefundAllocation[] }
+  | { type: "excess_collection"; reason: string }
+  | { type: "provider_observed"; reason: string };
 
 export type RefundRequester =
   | {
@@ -43,17 +47,21 @@ export type RefundRequester =
 
 export type RefundProvider =
   | { type: "cash_on_delivery"; payment_provider_id: string }
+  | { type: "manual"; payment_provider_id: string; reference: string | null }
   | { type: "stripe"; payment_provider_id: string; refund_id: string | null };
 
 export interface Refund {
   id: string;
   store_id: string;
-  payment_id: string;
+  order_id: string;
+  order_payment_id: string;
+  order_payment_capture_id: string | null;
   provider: RefundProvider;
   money: Money;
   application: RefundApplication;
   requester: RefundRequester;
   status: RefundStatus;
+  financial_effects: RefundFinancialEffect[];
   safe_error: string | null;
   requested_at: EpochMilliseconds;
   processing_started_at: EpochMilliseconds | null;
@@ -61,4 +69,56 @@ export interface Refund {
   completed_at: EpochMilliseconds | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+}
+
+export type CustomerMoneyEvidence =
+  | { type: "provider"; provider_effect_reference: string; observation: CommerceProviderObservation }
+  | { type: "manual"; actor: AccountActor; reference: string };
+
+export type RefundFinancialEffect = {
+  effect_id: string;
+  money: Money;
+  allocations: RefundAllocation[];
+  evidence: CustomerMoneyEvidence;
+  observed_at: EpochMilliseconds;
+} & ({ type: "sent" } | { type: "returned"; sent_effect_id: string });
+
+export interface RefundAllocationBalance {
+  order_credit_id: string;
+  order_credit_allocation_id: string;
+  effective_sent: number;
+  pending: number;
+}
+
+export interface RefundMoneySummary {
+  sent: Money;
+  returned: Money;
+  refunded: Money;
+  refund_pending: Money;
+  allocations: RefundAllocationBalance[];
+}
+
+export interface RecordedRefundMoney {
+  refund: Refund;
+  money: RefundMoneySummary;
+  payment: Payment;
+  financial_summary: OrderFinancialSummary;
+}
+
+export type LocalRefundMovement = { type: "sent" } | { type: "returned"; sent_effect_id: string };
+
+export interface RecordRefundMoneyParams {
+  store_id?: string;
+  id: string;
+  effect_id: string;
+  movement: LocalRefundMovement;
+  money: Money;
+  allocations: RefundAllocation[];
+  reference: string;
+}
+
+export interface CancelLocalRefundParams {
+  store_id?: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
 }

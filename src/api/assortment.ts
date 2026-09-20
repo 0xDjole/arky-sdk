@@ -8,6 +8,7 @@ import type {
   UpdateAssortmentParams,
   DeleteAssortmentParams,
   GetAssortmentParams,
+  GetAssortmentByKeyParams,
   FindAssortmentsParams,
 } from "../types/assortment";
 
@@ -16,6 +17,11 @@ export const createAssortmentApi = (apiConfig: ApiConfig) => {
     `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/assortments`;
 
   return {
+    getByKey(params: GetAssortmentByKeyParams, options?: RequestOptions): Promise<Assortment> {
+      return apiConfig.httpClient.get<Assortment>(
+        `${basePath(params.store_id)}/by-key/${encodeURIComponent(params.key)}`, options,
+      );
+    },
     create(
       params: CreateAssortmentParams,
       options?: RequestOptions,

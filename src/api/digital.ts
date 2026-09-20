@@ -5,6 +5,8 @@ import type {
   FindDigitalAssetsParams,
   FindDigitalProductsParams,
   GetDigitalProductParams,
+  GetDigitalProductByKeyParams,
+  GetDigitalAssetParams,
   RequestOptions,
   UpdateDigitalProductParams,
   UploadDigitalAssetParams,
@@ -49,6 +51,17 @@ export const createDigitalApi = (apiConfig: ApiConfig) => ({
     const storeId = params.store_id || apiConfig.storeId;
     return apiConfig.httpClient.get<DigitalProduct>(
       `/v1/stores/${storeId}/digital-products/${params.digital_product_id}`,
+      options,
+    );
+  },
+
+  getProductByKey(
+    params: GetDigitalProductByKeyParams,
+    options?: RequestOptions,
+  ): Promise<DigitalProduct> {
+    const storeId = params.store_id || apiConfig.storeId;
+    return apiConfig.httpClient.get<DigitalProduct>(
+      `/v1/stores/${storeId}/digital-products/by-key/${encodeURIComponent(params.key)}`,
       options,
     );
   },
@@ -98,6 +111,17 @@ export const createDigitalApi = (apiConfig: ApiConfig) => ({
     );
     if (!response.ok) throw new Error("Digital Asset upload failed");
     return response.json();
+  },
+
+  getAsset(
+    params: GetDigitalAssetParams,
+    options?: RequestOptions,
+  ): Promise<DigitalAsset> {
+    const storeId = params.store_id || apiConfig.storeId;
+    return apiConfig.httpClient.get<DigitalAsset>(
+      `/v1/stores/${storeId}/digital-assets/${params.asset_id}`,
+      options,
+    );
   },
 
   findAssets(

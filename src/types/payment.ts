@@ -1,4 +1,4 @@
-import type { Currency, Money } from "./index";
+import type { Currency } from "./index";
 import type { EpochMilliseconds } from "./time";
 
 export type PaymentStatus = {
@@ -6,34 +6,35 @@ export type PaymentStatus = {
     | "pending"
     | "requires_action"
     | "processing"
-    | "paid"
-    | "partially_refunded"
-    | "refunded"
+    | "authorized"
+    | "completed"
     | "cancelled"
     | "expired"
     | "failed"
     | "unknown";
 };
 
-export interface BillingPeriod {
-  start: EpochMilliseconds;
-  end: EpochMilliseconds;
-}
-
-export type PaymentSource =
-  | { type: "order"; order_id: string }
-  | {
-      type: "subscription_invoice";
-      subscription_id: string;
-      stripe_invoice_id: string;
-      stripe_invoice_payment_id: string;
-      period: BillingPeriod;
-    };
+export type StripeInvoicePaymentObject =
+  | { type: "payment_intent"; payment_intent_id: string }
+  | { type: "charge"; charge_id: string }
+  | { type: "payment_record"; payment_record_id: string };
 
 export type PaymentProviderBinding =
   | {
+      type: "stripe_saved_method";
+      payment_provider_id: string;
+      customer_payment_method_id: string;
+      payment_intent_id: string | null;
+    }
+  | {
       type: "cash_on_delivery";
       payment_provider_id: string;
+      marked_paid_by_account_id: string | null;
+    }
+  | {
+      type: "manual";
+      payment_provider_id: string;
+      reference: string | null;
       marked_paid_by_account_id: string | null;
     }
   | {
@@ -43,12 +44,20 @@ export type PaymentProviderBinding =
       checkout_session_id: string | null;
       payment_intent_id: string | null;
     }
-  | { type: "stripe_invoice"; payment_provider_id: string };
+  | {
+      type: "stripe_invoice";
+      payment_provider_id: string;
+      stripe_invoice_id: string;
+      stripe_invoice_payment_id: string;
+      payment_object: StripeInvoicePaymentObject;
+    };
 
 export interface PaymentAmounts {
   currency: Currency;
   total: number;
-  paid: number;
+  authorized: number;
+  captured: number;
+  capture_pending: number;
   refund_pending: number;
   refunded: number;
 }
@@ -68,14 +77,14 @@ export interface PaymentCheckoutExpiration {
 export interface Payment {
   id: string;
   store_id: string;
-  source: PaymentSource;
-  payer_customer_id: string | null;
+  order_id: string;
+  payer_customer_id: string;
   provider: PaymentProviderBinding;
   status: PaymentStatus;
   checkout_expiration: PaymentCheckoutExpiration | null;
   amounts: PaymentAmounts;
-  settlement: PaymentSettlement | null;
-  requested_at: EpochMilliseconds;
+  request_id: string;
+  reconciliation: PaymentReconciliation;
   completed_at: EpochMilliseconds | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -90,17 +99,6 @@ export type CommerceProviderObservation =
       provider_updated_at: EpochMilliseconds | null;
     };
 
-export type PaymentSettlementEvidence =
-  | { type: "cash_on_delivery"; marked_paid_by_account_id: string }
-  | {
-      type: "stripe";
-      charge_id: string;
-      payment_intent_id: string | null;
-      last_observation: CommerceProviderObservation;
-    };
-
-export interface PaymentSettlement {
-  money: Money;
-  paid_at: EpochMilliseconds;
-  evidence: PaymentSettlementEvidence;
-}
+export type PaymentReconciliation =
+  | { type: "clear" }
+  | { type: "hold"; opened_at: EpochMilliseconds };

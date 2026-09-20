@@ -22,7 +22,6 @@ const definitions = [
       currency: "bam",
       amount: 2500,
       compare_at: 3000,
-      billing: { type: "one_time" },
       min_quantity: 1,
       max_quantity: 9,
       status: { type: "active" },

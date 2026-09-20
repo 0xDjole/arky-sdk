@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createAdmin } from "../dist/admin.js";
+import { stripeConnectionFixture } from "./helpers/stripe-connection.mjs";
 import { createStorefront } from "../dist/storefront.js";
 import {
   admin,
@@ -265,27 +266,8 @@ test("direct provider calls keep their original store scope", async () => {
     apiToken: "scheduled-contract-token",
   });
   const providerId = "provider-store-scope";
-  const requestedProvider = {
-    id: providerId,
-    store_id: originalStoreId,
-    type: "stripe",
-    setup_status: "pending",
-    payments_enabled: false,
-    payouts_enabled: false,
-    platform_debits_authorized: false,
-    state_observed_at: 1,
-    disabled_at: null,
-    created_at: 1,
-    updated_at: 1,
-  };
-  const requestedConnection = {
-    id: "connection-store-scope",
-    store_id: originalStoreId,
-    payment_provider_id: providerId,
-    type: "stripe",
-    status: "requested",
-    requested_at: 1,
-  };
+  const operationId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const response = stripeConnectionFixture(originalStoreId, providerId, operationId);
   const calls = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
@@ -293,18 +275,16 @@ test("direct provider calls keep their original store scope", async () => {
     calls.push({ target, method: init.method || "GET" });
     if (init.method === "POST") {
       client.setStoreId(replacementStoreId);
-      return jsonResponse({
-        provider: requestedProvider,
-        connection: requestedConnection,
-        onboarding_url: null,
-      });
+      return jsonResponse(response);
     }
     throw new Error(`Unexpected provider observation: ${target}`);
   };
 
   try {
     await client.store.paymentProvider.stripe.connect({
-      attempt_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      operation_id: operationId,
+      payment_provider_id: providerId,
+      authorize_account_debits: false,
       return_url: "https://admin.example.test/return",
       refresh_url: "https://admin.example.test/refresh",
       country: "BA",

@@ -14,6 +14,8 @@ import type {
   RemoveMemberParams,
   TransferStoreOwnershipParams,
   FindStoreMembersParams,
+  FindOwnStoreMembershipsParams,
+  GetOwnStoreMembershipParams,
   TestWebhookParams,
   TestWebhookResponse,
   ListBuildHooksParams,
@@ -182,18 +184,6 @@ export const createStoreApi = (
         ...options,
         params,
       });
-    },
-
-    async regeneratePublishableKey(
-      params: { store_id?: string } = {},
-      options?: RequestOptions,
-    ): Promise<Store> {
-      const store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<Store>(
-        `/v1/stores/${store_id}/publishable-key/regenerate`,
-        {},
-        options,
-      );
     },
 
     async getSubscriptionPlans(
@@ -402,12 +392,22 @@ export const createStoreApi = (
     },
 
     async findOwnMemberships(
+      params: FindOwnStoreMembershipsParams = {},
       options?: RequestOptions,
     ): Promise<PaginatedResponse<StoreMembership>> {
       return apiConfig.httpClient.get<PaginatedResponse<StoreMembership>>(
         "/v1/stores/memberships",
-        options,
+        { ...options, params },
       );
+    },
+
+    async getOwnMembership(
+      params: GetOwnStoreMembershipParams = {},
+      options?: RequestOptions,
+    ): Promise<StoreMembership | null> {
+      const storeId = params.store_id || apiConfig.storeId;
+      if (!canonicalUuidV4.test(storeId)) throw new TypeError("Membership lookup requires a canonical Store UUID");
+      return apiConfig.httpClient.get<StoreMembership | null>(`/v1/stores/${storeId}/membership`, options);
     },
 
     async removeMember(

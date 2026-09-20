@@ -6,6 +6,8 @@ import type {
   GetCustomerParams,
   ArchiveCustomerParams,
   FindCustomersParams,
+  FindCustomerIdentitiesParams,
+  CustomerIdentityCommandParams,
   ImportCustomersParams,
   ImportCustomersPreviewParams,
   ImportCustomersPreviewResult,
@@ -16,6 +18,8 @@ import type {
 } from "../types/api";
 import type {
   Customer,
+  CustomerIdentity,
+  CustomerListItem,
   CustomerSessionRecord,
   PaginatedResponse,
 } from "../types";
@@ -43,10 +47,39 @@ export const createCustomersApi = (apiConfig: ApiConfig) => ({
     );
   },
 
+  async identities(
+    params: FindCustomerIdentitiesParams,
+    options?: RequestOptions,
+  ): Promise<PaginatedResponse<CustomerIdentity>> {
+    const query = new URLSearchParams();
+    if (params.limit !== undefined) query.set("limit", String(params.limit));
+    if (params.cursor !== undefined) query.set("cursor", params.cursor);
+    if (params.status !== undefined) query.set("status", params.status);
+    if (params.verified !== undefined) query.set("verified", String(params.verified));
+    return apiConfig.httpClient.get<PaginatedResponse<CustomerIdentity>>(
+      `/v1/stores/${params.store_id || apiConfig.storeId}/customers/${params.customer_id}/identities${query.size ? `?${query}` : ""}`,
+      options,
+    );
+  },
+
+  async getIdentity(params: CustomerIdentityCommandParams, options?: RequestOptions): Promise<CustomerIdentity> {
+    return apiConfig.httpClient.get<CustomerIdentity>(
+      `/v1/stores/${params.store_id || apiConfig.storeId}/customers/${params.customer_id}/identities/${params.identity_id}`,
+      options,
+    );
+  },
+
+  async revokeIdentity(params: CustomerIdentityCommandParams, options?: RequestOptions): Promise<CustomerIdentity> {
+    return apiConfig.httpClient.post<CustomerIdentity>(
+      `/v1/stores/${params.store_id || apiConfig.storeId}/customers/${params.customer_id}/identities/${params.identity_id}/revoke`,
+      {}, options,
+    );
+  },
+
   async find(
     params?: FindCustomersParams,
     options?: RequestOptions,
-  ): Promise<PaginatedResponse<Customer>> {
+  ): Promise<PaginatedResponse<CustomerListItem>> {
     const store_id = params?.store_id || apiConfig.storeId;
     const queryParams: Record<string, unknown> = {};
 
@@ -68,7 +101,7 @@ export const createCustomersApi = (apiConfig: ApiConfig) => ({
     if (params?.sort_direction)
       queryParams.sort_direction = params.sort_direction;
 
-    return apiConfig.httpClient.get<PaginatedResponse<Customer>>(
+    return apiConfig.httpClient.get<PaginatedResponse<CustomerListItem>>(
       `/v1/stores/${store_id}/customers`,
       {
         ...options,

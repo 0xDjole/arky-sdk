@@ -8,6 +8,7 @@ import type {
   UpdateCatalogParams,
   DeleteCatalogParams,
   GetCatalogParams,
+  GetCatalogByKeyParams,
   FindCatalogsParams,
 } from "../types/catalog";
 
@@ -16,6 +17,11 @@ export const createCatalogApi = (apiConfig: ApiConfig) => {
     `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/catalogs`;
 
   return {
+    getByKey(params: GetCatalogByKeyParams, options?: RequestOptions): Promise<Catalog> {
+      return apiConfig.httpClient.get<Catalog>(
+        `${basePath(params.store_id)}/by-key/${encodeURIComponent(params.key)}`, options,
+      );
+    },
     create(
       params: CreateCatalogParams,
       options?: RequestOptions,

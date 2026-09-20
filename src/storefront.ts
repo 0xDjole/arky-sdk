@@ -2,9 +2,20 @@ export {
   COMMON_CUSTOMER_ACTION_KEYS,
   ScheduledResultTimeoutError,
   CartPresentationChangedError,
+  CartSelectionError,
   createStorefront,
 } from "./index";
 export { createCartController } from "./index";
+export {
+  cartProductItems,
+  cartBookingItems,
+  cartDigitalItems,
+  cartCustomerGroupPlanItems,
+  orderProductItems,
+  orderBookingItems,
+  orderDigitalItems,
+  orderCustomerGroupPlanItems,
+} from "./index";
 export {
   buildFormFields,
   createFormEntry,
@@ -24,6 +35,7 @@ export {
   getBlockContentValue,
   getBlockTextValue,
   selectLocalizedObjectText,
+  selectLocalizedText,
 } from "./utils/blocks";
 export type { BlockReferences } from "./utils/blocks";
 export type {
@@ -82,9 +94,18 @@ export type {
   StorefrontBookingService,
   StorefrontMarket,
   StorefrontPaymentProvider,
-  StorefrontZone,
   StorefrontCustomer,
+  StorefrontCustomerGroup,
+  StorefrontCustomerGroupPlan,
+  StorefrontCustomerGroupPlanBenefit,
+  GetStorefrontCustomerGroupParams,
+  FindStorefrontCustomerGroupPlansParams,
+  GetStorefrontCustomerGroupPlanParams,
   StorefrontDto,
+  StorefrontCheckoutQuote,
+  CheckoutQuote,
+  CheckoutQuoteSources,
+  CheckoutQuoteDeliveryBinding,
   StorefrontLocation,
   StorefrontSupportConversationResponse,
   StorefrontSupportConversationStartResponse,

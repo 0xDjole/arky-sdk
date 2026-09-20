@@ -53,7 +53,6 @@ const removedIdentifiers = [
   "StoreSubscriptionBillingStatus",
   "GetStoreSubscriptionCheckoutParams",
   "getSubscriptionCheckout",
-  "InventoryLevel",
   "getAvailableStock",
   "getFirstAvailableFCId",
   "BookingProvider",
@@ -183,7 +182,7 @@ const forbiddenProviderOperationPattern = /\bprovider(?:_|-)?operations?\b/gi;
 const removedGenericEmailRoutePattern =
   /\/v1\/notifications\/email(?:-deliveries)?\b/g;
 const removedClassificationVocabularyPattern =
-  /Taxonom|taxonom|LocalizedText|localized_text/g;
+  /Taxonom|taxonom/g;
 const removedCommercePaymentVocabularyPattern = new RegExp(
   "\\b(?:payment_method_key|payment_methods|setup_status|platform_debits_authorized)\\b",
   "g",
@@ -224,7 +223,7 @@ const removedPaymentDisputeContractPatterns = [
 const removedBookingVocabularyPattern =
   /\b(?:working_days|specific_dates|min_advance|max_advance|slot_interval|provider_key|booking_provider_id)\b|service-providers|order_booking\./g;
 const removedPromotionVocabularyPattern =
-  /\b(?:items_percentage|items_fixed|digital_product_ids|min_order_amount|date_range|max_uses|max_uses_per_user|discount_application_id|starts_at_from|starts_at_to|expires_at_from|expires_at_to)\b|type:\s*["']services["']|\bbps\b/g;
+  /\b(?:items_percentage|items_fixed|min_order_amount|date_range|max_uses_per_user|discount_application_id|starts_at_from|starts_at_to|expires_at_from|expires_at_to)\b|type:\s*["']services["']|\bbps\b/g;
 const removedBookingQuotaFeaturePattern =
   /export type SubscriptionPlanFeatureType\s*=[^;]*\|\s*["'](?:services|providers)["'][^;]*;/g;
 const removedShippingProviderVocabularyPattern =
@@ -235,7 +234,7 @@ const removedShippingContractPatterns = [
   /export interface ShippingRateLine\s*\{[^}]*\border_product_id\??:/g,
   /export interface OrderShipmentLine\s*\{[^}]*\border_product_id\??:/g,
   /export interface OrderShipment\s*\{[^}]*\b(?:version|location_id|shippo_label|attempt_count|provider)\??:/g,
-  /export interface ShippingLabel(?:Refund|Charge|ChargeRefund)?\s*\{[^}]*\b(?:version|rate_id|transaction_id|refund_id|postage_amount|fee_amount|currency|attempt_count|provider)\??:/g,
+  /export interface ShippingLabel(?:Refund|Charge|ChargeRefund)?\s*\{[^}]*\b(?:version|transaction_id|refund_id|postage_amount|fee_amount|currency|attempt_count|provider)\??:/g,
   /export interface ShippingRate\s*\{[^}]*\b(?:amount|currency)\??:/g,
   /\/shippo-label\b|\/shipments\/[^\s`"']+\/retry\b|\/charges(?:\/|`|"|')/g,
 ];
@@ -515,6 +514,7 @@ const indexSource = readFileSync(indexFile, "utf8");
 
 const propertylessBlockNames = [
   "TextBlock",
+  "LocalizedTextBlock",
   "MarkdownBlock",
   "NumberBlock",
   "BooleanBlock",
@@ -558,6 +558,18 @@ if (
     markdownBlockContract?.index ?? 0,
     "MarkdownBlock must expose one nullable scalar string",
   );
+  failures++;
+}
+
+const localizedTextBlockContract = activityTypesSource.match(
+  /export interface LocalizedTextBlock\s+extends BlockBase\s*\{([\s\S]*?)\n\}/,
+);
+if (!localizedTextBlockContract ||
+  !/\n\s*type:\s*"localized_text";/.test(localizedTextBlockContract[1]) ||
+  !/\n\s*value:\s*LocalizedText\s*\|\s*null;/.test(localizedTextBlockContract[1]) ||
+  !/export type LocalizedText\s*=\s*Record<string,\s*string>;/.test(activityTypesSource)) {
+  report(activityTypesFile, activityTypesSource, localizedTextBlockContract?.index ?? 0,
+    "LocalizedTextBlock must retain its locale-to-string map with a required nullable value");
   failures++;
 }
 
@@ -642,9 +654,12 @@ const quoteTypesSource = readFileSync(quoteTypesFile, "utf8");
 const quoteContract = quoteTypesSource.match(/export interface OrderQuote\s*\{([\s\S]*?)\n\}/);
 if (!quoteContract || [
   /\bcontext:\s*PurchaseQuoteContext;/,
-  /\blocale:\s*string;/,
+  /\blocale:\s*string\s*\|\s*null;/,
   /\bpresentation_digest:\s*string;/,
   /\bcustomer_group_lines:\s*CustomerGroupOrderQuoteLine\[\];/,
+  /\bdelivery_groups:\s*QuotedDeliveryGroup\[\];/,
+  /\bseller:\s*SellerSnapshot;/,
+  /\binvoice_policy:\s*OrderInvoicePolicy;/,
   /\bpayment_provider_id:\s*string\s*\|\s*null;/,
 ].some((field) => !field.test(quoteContract[1]))) {
   report(quoteTypesFile, quoteTypesSource, quoteContract?.index ?? 0,

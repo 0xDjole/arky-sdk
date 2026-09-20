@@ -36,7 +36,7 @@ const definitions = [
       profile: { ...profile, registered_address: null },
       status: { type: "archived" },
     },
-    query: {},
+    query: { query: "Buyer registration", status: "archived", sort_field: "updated_at", sort_direction: "asc" },
     usage: {
       catalog_entitlement_ids: [id],
       more_catalog_entitlements: true,
@@ -46,16 +46,18 @@ const definitions = [
       more_memberships: false,
       location_ids: [id],
       more_locations: false,
-      group_edge_ids: [],
-      more_group_edges: false,
+      group_member_ids: [selectedStoreId],
+      more_group_members: true,
+      shipping_rate_ids: [id],
+      more_shipping_rates: true,
     },
   },
   {
     path: ["companies", "membership"],
     route: "company-memberships",
-    create: { company_id: selectedStoreId, customer_id: id, role_ids: [id] },
-    update: { role_ids: [selectedStoreId], status: { type: "disabled" } },
-    query: { company_id: selectedStoreId },
+    create: { company_id: selectedStoreId, customer_id: id, role_ids: [id], scope: { type: "locations", company_location_ids: [id] } },
+    update: { role_ids: [selectedStoreId], scope: { type: "locations", company_location_ids: [] }, status: { type: "disabled" } },
+    query: { company_id: selectedStoreId, customer_id: id, role_id: id },
   },
   {
     path: ["companies", "role"],
@@ -65,6 +67,7 @@ const definitions = [
       name: "Purchaser",
       permissions: [
         "place_orders",
+        "access_digital_products",
         "view_own_orders",
         "create_subscriptions",
         "view_own_subscriptions",
@@ -82,10 +85,14 @@ const definitions = [
   {
     path: ["companies", "location"],
     route: "company-locations",
+    response: {
+      tax: { registrations: [], exemptions: [] },
+      commerce: { payment_terms_id: null, allowed_payment_provider_ids: null, purchase_order_number_required: false },
+    },
     create: {
       company_id: selectedStoreId,
       name: "Depot",
-      shipping_address: address,
+      shipping_address: null,
       billing_address: null,
       status: { type: "active" },
     },
@@ -157,6 +164,37 @@ const response = (body, status = 200) =>
     status,
     headers: { "content-type": "application/json" },
   });
+
+test("Company-wide membership scope is sent explicitly and survives exact reads", async () => {
+  const originalFetch = globalThis.fetch;
+  const scope = { type: "company_wide" };
+  const record = {
+    id,
+    store_id: storeId,
+    company_id: selectedStoreId,
+    customer_id: id,
+    role_ids: [],
+    scope,
+    status: { type: "active" },
+    created_at: now,
+    updated_at: now,
+  };
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ path: new URL(url).pathname, body: init.body ? JSON.parse(init.body) : null });
+    return response(record);
+  };
+  try {
+    const api = createClient().companies.membership;
+    assert.deepEqual(await api.create({ company_id: selectedStoreId, customer_id: id, role_ids: [], scope }), record);
+    assert.deepEqual(calls[0].body.scope, scope);
+    assert.deepEqual(await api.get({ id }), record);
+    assert.equal(calls[1].path, `/v1/stores/${storeId}/company-memberships/${id}`);
+    assert.equal(calls.length, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 for (const definition of definitions) {
   test(`${definition.path.join(".")} preserves explicit owner commands, scopes and deletion acceptance`, async () => {

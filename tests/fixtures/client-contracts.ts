@@ -1,4 +1,5 @@
 import { epochMilliseconds } from "arky-sdk";
+export type { BlockContracts } from "./block-contracts.js";
 import type { MembershipContracts } from "./membership-contracts.js";
 export type { MembershipContracts };
 import type { CatalogContracts } from "./catalog-contracts.js";
@@ -6,6 +7,9 @@ import type { PriceContracts } from "./price-contracts.js";
 import type { CompanyContracts } from "./company-contracts.js";
 import type { OrderContracts } from "./order-contracts.js";
 import type { CartContracts } from "./cart-contracts.js";
+import type { InventoryContracts } from "./inventory-contracts.js";
+export type { InventoryContracts };
+export type { ShippingProfileContracts } from "./shipping-profile-contracts.js";
 import type {
   AddMemberParams,
   TransferStoreOwnershipParams,
@@ -18,13 +22,13 @@ import type {
 } from "arky-sdk";
 import type {
   Account,
+  AvailabilityResponse,
   AccountApiToken,
   AccountApiTokenStatus,
   AccountVerificationEmailStatus,
   AccountSession,
   AccountSessionStatus,
   AuthToken,
-  AudienceJoinResult,
   Block,
   BlockSchema,
   BuildHook,
@@ -43,10 +47,9 @@ import type {
   CartDigitalItemInput,
   CartProductInput,
   CheckoutCartParams,
-  CreatePromoCodeParams,
-  CreatePromotionDiscountInput,
   CreateMarketParams,
   CreateProductParams,
+  CreateProductVariantParams,
   CreateDigitalProductParams,
   CreateOrderShipmentParams,
   DigitalAsset,
@@ -59,9 +62,8 @@ import type {
   GetCollectionParams,
   GetDigitalLibraryProductParams,
   GetStorefrontDigitalProductParams,
-  GetShippingRatesParams,
+  QuoteShippingLabelParams,
   GetPaymentDisputeParams,
-  GetPromoCodesParams,
   OrderMoney,
   NodeResult,
   Order,
@@ -76,21 +78,18 @@ import type {
   PaymentDispute,
   PaymentDisputeProvider,
   PaymentDisputeStatus,
-  PromoCode,
-  PromotionCondition,
-  PromotionConditionInput,
-  PromotionDiscount,
   OrderDigitalSnapshot,
   OrderDigitalItem,
   OrderProductItem,
-  OrderPromoCodeSnapshot,
   TaxLine,
-  OrderShippingLine,
+  OrderDeliveryGroup,
+  AppliedPriceSnapshot,
   ShippingLabel,
   MerchantDebit,
   MerchantDebitReversal,
   ShippingLabelRefund,
-  ShippingRate,
+  ShippingLabelQuoteRate,
+  ShippingLabelPurchase,
   FulfillmentOrder,
   FulfillmentOrderStatus,
   FormBlock,
@@ -99,12 +98,16 @@ import type {
   Product,
   ProductInventory,
   ProductInventoryInput,
+  ProductFulfillment,
   ProductStatus,
   ProductVariant,
   Price,
+  ManualPrice,
+  PurchaseOriginSnapshot,
+  ManualPriceInput,
   RefundRequestReason,
   CreateRefundParams,
-  RecordCashOnDeliveryRefundParams,
+  RecordRefundMoneyParams,
   FindPaymentDisputesParams,
   BookingOffering,
   BookingResource,
@@ -147,11 +150,11 @@ import type {
   SupportEmailStatus,
   UpdateCartParams,
   UpdateDigitalProductParams,
-  UpdatePromoCodeParams,
-  UpdatePromotionDiscountInput,
   UpdateProductParams,
+  UpdateProductVariantParams,
   UpdateOrderParams,
-  MarketZoneInput,
+  CreateZoneParams,
+  CreateMarketZoneParams,
   Mailbox,
   MailboxIncomingSource,
   MailboxSyncIssue,
@@ -169,7 +172,7 @@ import type {
   VerifyPendingAccountSessionParams,
   Webhook,
   FindDigitalProductsParams,
-  MarkCashOnDeliveryPaidParams,
+  RecordCashOnDeliveryCollectionParams,
   CustomerAction,
   CustomerActionType,
   CustomerActionFeedData,
@@ -295,7 +298,7 @@ import type {
 // @ts-expect-error storefront CustomerAction keys have no Action compatibility alias.
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.26.2" = SDK_VERSION;
+const sdkVersionLiteral: "0.26.25" = SDK_VERSION;
 const workflowExternalOperationContract: WorkflowExternalOperation = {
   id: "operation-contract",
   store_id: "store-contract",
@@ -345,9 +348,14 @@ const storeContract: Store = {
   name: "Contract Store",
   billing_email: "owner@example.com",
   contact_email: null,
-  publishable_key: `arky_pk_${"a".repeat(43)}`,
-  default_market_id: "market-contract",
-  default_sales_channel_id: "channel-contract",
+  commerce: {
+    type: "ready",
+    default_market_id: "market-contract",
+    default_sales_channel_id: "channel-contract",
+    seller: null,
+    tax: null,
+    invoicing: null,
+  },
   timezone: "Europe/Sarajevo",
   default_language: "en",
   supported_languages: ["en", "bs"],
@@ -359,7 +367,6 @@ const createStoreContract: CreateStoreParams = {
   timezone: "Europe/Sarajevo",
   default_language: "en",
   supported_languages: ["en", "bs"],
-  initial_market: { key: "bih", currency: "bam", tax_mode: "inclusive" },
 };
 // @ts-expect-error Store routing identity is no longer a mutable key.
 storeContract.key;
@@ -385,13 +392,17 @@ const storeLocationContract: StoreLocation = {
   store_id: "store-contract",
   key: "main",
   address: { city: "Sarajevo", country: "BA" },
+  timezone: "Europe/Sarajevo",
   is_pickup_location: true,
+  blocks: [],
+  status: { type: "active" },
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(1),
 };
 const createStoreLocationContract: CreateStoreLocationParams = {
   key: "main",
   address: storeLocationContract.address,
+  timezone: storeLocationContract.timezone,
 };
 declare const storefrontLocationContract: StorefrontLocation;
 const storefrontCountry: string | null | undefined =
@@ -479,6 +490,9 @@ const invalidMonthlyStoreUsage: StoreUsage = {
 const cashOnDeliveryProvider: PaymentProvider = {
   id: "provider-cash-on-delivery",
   store_id: "store-contract",
+  key: "cash",
+  blocks: [],
+  status: { type: "active" },
   configuration: { type: "cash_on_delivery" },
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(1),
@@ -486,18 +500,24 @@ const cashOnDeliveryProvider: PaymentProvider = {
 const stripeProvider: PaymentProvider = {
   id: "provider-stripe",
   store_id: "store-contract",
+  key: "card",
+  blocks: [],
+  status: { type: "active" },
   configuration: {
     type: "stripe",
+    connection: {
+    type: "connected",
     connected_account_id: "acct_contract",
     account_setup_submitted: true,
     payments_enabled: true,
     payouts_enabled: true,
     state_observed_at: epochMilliseconds(2),
     platform_debit_consent: {
-      connected_account_id: "acct_contract",
-      accepted_by_account_id: "account-contract",
+      accepted_by: { account_id: "account-contract", snapshot: { email: "owner@example.test", credential_type: "session" } },
       accepted_at: epochMilliseconds(2),
       terms_version: 1,
+      revoked_at: null,
+    },
     },
   },
   created_at: epochMilliseconds(1),
@@ -511,26 +531,23 @@ const marketContract: Market = {
   tax_mode: "inclusive",
   status: { type: "active" },
   payment_provider_ids: [cashOnDeliveryProvider.id, stripeProvider.id],
-  zones: [],
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(2),
 };
 const storefrontPaymentProviders: StorefrontPaymentProvider[] = [
-  { id: cashOnDeliveryProvider.id, type: "cash_on_delivery" },
-  { id: stripeProvider.id, type: "stripe" },
+  { id: cashOnDeliveryProvider.id, key: cashOnDeliveryProvider.key, blocks: cashOnDeliveryProvider.blocks, type: "cash_on_delivery" },
+  { id: stripeProvider.id, key: stripeProvider.key, blocks: stripeProvider.blocks, type: "stripe" },
 ];
 const storefrontSetupContract: StorefrontSetup = {
+  commerce: { type: "ready", default_market_id: marketContract.id, default_sales_channel_id: "channel" },
   timezone: "Europe/Sarajevo",
   languages: { default: "en", available: ["en"] },
-  markets: {
-    default: marketContract.key,
-    available: [marketContract],
-  },
+  default_market: marketContract,
   payment_providers: storefrontPaymentProviders,
   support: { email: "store@example.test" },
   readiness: { market: true, payment: true, commerce: true },
 };
-const storefrontProviderType: "cash_on_delivery" | "stripe" =
+const storefrontProviderType: "cash_on_delivery" | "manual" | "stripe" =
   storefrontSetupContract.payment_providers[1].type;
 const createMarketContract: CreateMarketParams = {
   key: "bih",
@@ -542,6 +559,7 @@ const checkoutContract: CheckoutCartParams = {
   id: "cart-contract",
   locale: "en",
   presentation_digest: "a".repeat(64),
+  sources: { carts: [{ cart_id: "cart-contract", version: "reviewed-version" }], lines: [], delivery_groups: [] },
   payment_provider_id: stripeProvider.id,
   return_url: "https://storefront.example.test/checkout/return",
 };
@@ -585,16 +603,10 @@ void membershipInvitationEmailStatus;
 const merchantRefundReason: RefundRequestReason = "fraudulent";
 const refundMoney: Money = { amount: 1_250, currency: "usd" };
 const refundAllocation: RefundAllocation = {
-  type: "product",
-  item_id: "order-product-contract",
+  order_credit_id: "order-credit-contract",
+  order_credit_allocation_id: "order-credit-allocation-contract",
   amount: 1_250,
 };
-const audienceRefundAllocation: RefundAllocation = {
-  type: "audience",
-  item_id: "order-audience-contract",
-  amount: 1_250,
-};
-void audienceRefundAllocation;
 const stripeRefundProvider: RefundProvider = {
   type: "stripe",
   payment_provider_id: "payment-provider-contract",
@@ -604,10 +616,12 @@ const orderRefundStatus: RefundStatus = { type: "succeeded" };
 const orderRefund: Refund = {
   id: "order-refund-contract",
   store_id: "store-contract",
-  payment_id: "order-payment-contract",
+  order_id: "order-contract",
+  order_payment_id: "order-payment-contract",
+  order_payment_capture_id: null,
   provider: stripeRefundProvider,
   money: refundMoney,
-  application: { type: "order_items", allocations: [refundAllocation] },
+  application: { type: "commercial_credit", allocations: [refundAllocation] },
   requester: {
     type: "account",
     actor: { account_id: "account-contract", snapshot: { email: "historical.operator@example.test", credential_type: "session" } },
@@ -615,6 +629,7 @@ const orderRefund: Refund = {
     private_note: null,
   },
   status: orderRefundStatus,
+  financial_effects: [],
   safe_error: null,
   requested_at: epochMilliseconds(1),
   processing_started_at: epochMilliseconds(2),
@@ -626,16 +641,20 @@ const orderRefund: Refund = {
 const createOrderRefund: CreateRefundParams = {
   payment_id: "payment-contract",
   refund_id: "order-refund-contract",
-  amount: 1_250,
-  application: { type: "order_items", allocations: [refundAllocation] },
+  payment_capture_id: null,
+  money: refundMoney,
+  application: { type: "commercial_credit", allocations: [refundAllocation] },
   reason: "customer_request",
+  private_note: null,
+  reference: null,
 };
-const recordCashOnDeliveryRefund: RecordCashOnDeliveryRefundParams = {
-  payment_id: "payment-contract",
-  refund_id: "cash-refund-contract",
-  amount: 1_250,
-  application: { type: "order_items", allocations: [{ type: "adjustment", amount: 1_250, reason: "cash return" }] },
-  reason: "other",
+const recordRefundMoney: RecordRefundMoneyParams = {
+  id: "cash-refund-contract",
+  effect_id: "cash-receipt-contract",
+  movement: { type: "sent" },
+  money: refundMoney,
+  allocations: [refundAllocation],
+  reference: "cash-receipt-reference",
 };
 const paymentDisputeStatus: PaymentDisputeStatus = { type: "needs_response", response: { type: "due_at", due_at: epochMilliseconds(123_000) } };
 const paymentDisputeProvider: PaymentDisputeProvider = {
@@ -646,7 +665,10 @@ const paymentDisputeProvider: PaymentDisputeProvider = {
 const paymentDispute: PaymentDispute = {
   id: "payment-dispute-contract",
   store_id: "store-contract",
-  payment_id: "order-payment-contract",
+  order_payment_id: "order-payment-contract",
+  order_payment_capture_id: null,
+  livemode: false,
+  financial_effects: [{ type: "principal_withdrawn", effect_id: "effect-contract", money: { amount: 1_250, currency: "usd" }, observed_at: epochMilliseconds(2) }],
   money: { amount: 1_250, currency: "usd" },
   status: paymentDisputeStatus,
   reason: "fraudulent",
@@ -680,233 +702,21 @@ const itemFixedDiscountId = "fca5ba8e-86af-4dd8-a1cd-6d19bca62e12";
 const shippingDiscountId = "d8b35cf1-6867-49b0-863d-fdc1a6a6e6dc";
 const audienceDiscountId = "ac4425e9-c3ee-4b85-820c-7c8d9314d034";
 
-const promotionDiscounts: PromotionDiscount[] = [
-  {
-    type: "item_percentage",
-    id: itemPercentageDiscountId,
-    market: "us",
-    basis_points: 1_000,
-  },
-  {
-    type: "item_fixed",
-    id: itemFixedDiscountId,
-    market: "eu",
-    money: { amount: 500, currency: "eur" },
-  },
-  {
-    type: "shipping_percentage",
-    id: shippingDiscountId,
-    market: "us",
-    basis_points: 2_000,
-  },
-];
-
-const promotionConditions: PromotionCondition[] = [
-  { type: "products", product_ids: ["product-contract"] },
-  { type: "booking_services", service_ids: ["booking-service-contract"] },
-  { type: "digital_products", product_ids: ["digital-product-contract"] },
-  {
-    type: "minimum_order_amount",
-    market: "us",
-    money: { amount: 2_500, currency: "usd" },
-  },
-  { type: "redemption_window", starts_at: null, ends_at: epochMilliseconds(1_800_000_000_000) },
-  { type: "maximum_uses", count: 100 },
-  { type: "maximum_uses_per_customer", count: 1 },
-];
-
-const promoCodeContract: PromoCode = {
-  id: "b7091941-b7f6-4776-8dc9-5167bc28fdc2",
-  store_id: "store-contract",
-  code: "SAVE10",
-  discounts: promotionDiscounts,
-  conditions: promotionConditions,
-  status: "active",
-  uses: 0,
-  created_at: epochMilliseconds(1),
-  updated_at: epochMilliseconds(1),
-};
-
-const createPromotionDiscounts: CreatePromotionDiscountInput[] = [
-  { type: "item_percentage", market: "us", basis_points: 1_000 },
-  {
-    type: "item_fixed",
-    market: "eu",
-    money: { amount: 500, currency: "eur" },
-  },
-  { type: "shipping_percentage", market: "us", basis_points: 2_000 },
-];
-
-const promotionConditionInputs: PromotionConditionInput[] = [
-  { type: "products", product_ids: ["product-contract"] },
-  { type: "booking_services", service_ids: ["booking-service-contract"] },
-  { type: "digital_products", product_ids: ["digital-product-contract"] },
-  {
-    type: "minimum_order_amount",
-    market: "us",
-    money: { amount: 2_500, currency: "usd" },
-  },
-  { type: "redemption_window", starts_at: null },
-  { type: "maximum_uses", count: 100 },
-  { type: "maximum_uses_per_customer", count: 1 },
-];
-
-const createPromoCodeContract: CreatePromoCodeParams = {
-  code: "SAVE10",
-  discounts: createPromotionDiscounts,
-  conditions: promotionConditionInputs,
-};
-const createPromoCodeWithoutConditions: CreatePromoCodeParams = {
-  code: "SAVE20",
-  discounts: [{ type: "item_percentage", market: "us", basis_points: 2_000 }],
-};
-
-const updatePromotionDiscounts: UpdatePromotionDiscountInput[] = [
-  {
-    type: "item_percentage",
-    id: itemPercentageDiscountId,
-    market: "us",
-    basis_points: 2_000,
-  },
-  { type: "shipping_percentage", market: "us", basis_points: 1_000 },
-  {
-    type: "item_fixed",
-    id: null,
-    market: "eu",
-    money: { amount: 750, currency: "eur" },
-  },
-];
-const updatePromoCodeContract: UpdatePromoCodeParams = {
-  id: promoCodeContract.id,
-  discounts: updatePromotionDiscounts,
-  status: "draft",
-};
-const nullablePromoCodeUpdate: UpdatePromoCodeParams = {
-  id: promoCodeContract.id,
-  code: null,
-  discounts: null,
-  conditions: null,
-  status: null,
-};
-
-// @ts-expect-error Server responses require one UUID-v4 ID on every discount.
-const promotionDiscountWithoutId: PromotionDiscount = {
-  type: "item_percentage",
-  market: "us",
-  basis_points: 1_000,
-};
-const createPromotionDiscountWithId: CreatePromotionDiscountInput = {
-  type: "item_percentage",
-  market: "us",
-  basis_points: 1_000,
-  // @ts-expect-error Create commands never accept an embedded discount ID.
-  id: itemPercentageDiscountId,
-};
-// @ts-expect-error Response redemption windows always serialize both nullable keys.
-const responseWindowWithoutEnd: PromotionCondition = {
-  type: "redemption_window",
-  starts_at: null,
-};
-
-const legacyDiscountTag: CreatePromotionDiscountInput = {
-  // @ts-expect-error The response and command tag is singular item_percentage.
-  type: "items_percentage",
-  market: "us",
-  basis_points: 1_000,
-};
-const legacyDiscountMarket: CreatePromotionDiscountInput = {
-  type: "item_percentage",
-  // @ts-expect-error Promotion discounts identify the canonical Market key as market.
-  market_key: "us",
-  basis_points: 1_000,
-};
-const legacyDiscountBasisPoints: CreatePromotionDiscountInput = {
-  type: "shipping_percentage",
-  market: "us",
-  // @ts-expect-error Percentage values use basis_points.
-  bps: 1_000,
-};
-const legacyFixedAmount: CreatePromotionDiscountInput = {
-  type: "item_fixed",
-  market: "us",
-  // @ts-expect-error Fixed discounts carry typed Money.
-  amount: 500,
-};
-const legacyBookingCondition: PromotionConditionInput = {
-  // @ts-expect-error Booking targets use the booking_services tag.
-  type: "services",
-  service_ids: ["booking-service-contract"],
-};
-const legacyDigitalCondition: PromotionConditionInput = {
-  type: "digital_products",
-  // @ts-expect-error Digital targets share the canonical product_ids field.
-  digital_product_ids: ["digital-product-contract"],
-};
-const legacyMinimumCondition: PromotionConditionInput = {
-  // @ts-expect-error Minimum conditions use the full minimum_order_amount tag.
-  type: "min_order_amount",
-  market: "us",
-  money: { amount: 500, currency: "usd" },
-};
-const legacyWindowCondition: PromotionConditionInput = {
-  // @ts-expect-error Redemption windows use the redemption_window tag.
-  type: "date_range",
-  starts_at: epochMilliseconds(1),
-  ends_at: epochMilliseconds(2),
-};
-const legacyMaximumUsesCondition: PromotionConditionInput = {
-  // @ts-expect-error Redemption limits use the maximum_uses tag.
-  type: "max_uses",
-  count: 10,
-};
-const legacyCustomerLimitCondition: PromotionConditionInput = {
-  // @ts-expect-error Per-Customer limits use the canonical tag.
-  type: "max_uses_per_user",
-  count: 1,
-};
-
-const supportedPromoCodeList: GetPromoCodesParams = {
-  ids: [promoCodeContract.id],
-  query: "SAVE",
-  status: "active",
-  limit: 20,
-  cursor: "20",
-  sort_field: "created_at",
-  sort_direction: "desc",
-  created_at_from: epochMilliseconds(1),
-  created_at_to: epochMilliseconds(2),
-};
-const promoCodeListWithStartFrom: GetPromoCodesParams = {
-  // @ts-expect-error Redemption-window bounds are not list endpoint filters.
-  starts_at_from: epochMilliseconds(1),
-};
-const promoCodeListWithStartTo: GetPromoCodesParams = {
-  // @ts-expect-error Redemption-window bounds are not list endpoint filters.
-  starts_at_to: epochMilliseconds(1),
-};
-const promoCodeListWithExpiryFrom: GetPromoCodesParams = {
-  // @ts-expect-error Expiry bounds are not list endpoint filters.
-  expires_at_from: epochMilliseconds(1),
-};
-const promoCodeListWithExpiryTo: GetPromoCodesParams = {
-  // @ts-expect-error Expiry bounds are not list endpoint filters.
-  expires_at_to: epochMilliseconds(1),
-};
-
 const promotionDiscountAllocation: DiscountAllocation = {
-  promotion_discount_id: itemPercentageDiscountId,
+  id: "allocation-promotion",
+  source: { type: "promotion", promotion_id: "promotion", effect_id: itemPercentageDiscountId, promotion_code_id: null },
   amount: 500,
 };
 const automaticDiscountAllocation: DiscountAllocation = {
-  promotion_discount_id: null,
+  id: "allocation-manual",
+  source: { type: "manual", actor: { account_id: "account", snapshot: { email: "operator@example.test", credential_type: "api_token" } }, reason: "Agreed discount" },
   amount: 500,
 };
-// @ts-expect-error Allocation provenance is a required nullable wire key.
+// @ts-expect-error Allocations require their exact identity and typed provenance.
 const allocationWithoutProvenance: DiscountAllocation = { amount: 500 };
 const allocationWithLegacyProvenance: DiscountAllocation = {
-  promotion_discount_id: null,
-  amount: 500,
-  // @ts-expect-error Allocations point to the embedded PromotionDiscount ID.
+  ...promotionDiscountAllocation,
+  // @ts-expect-error Allocation provenance uses the promotion/effect source union.
   discount_application_id: itemPercentageDiscountId,
 };
 // @ts-expect-error Store closure is a system-only refund reason.
@@ -941,61 +751,77 @@ void smtpImapMailboxProviderInput;
 void smtpImapMailboxProviderWithoutType;
 
 declare const digitalAsset: DigitalAsset;
+const digitalAssetStatus: "active" | "archived" = digitalAsset.status.type;
+const digitalAssetPage = adminClient.eshop.digital.asset.find({ status: digitalAssetStatus, limit: 20 });
+const exactDigitalAsset = adminClient.eshop.digital.asset.get({ asset_id: digitalAsset.id });
+const exactDigitalProduct = adminClient.eshop.digital.product.getByKey({ key: "guide" });
+void [digitalAssetPage, exactDigitalAsset, exactDigitalProduct];
 // @ts-expect-error object storage keys are internal and never exposed by Admin responses.
 digitalAsset.object_key;
 const digitalPrice: Price = {
+  id: "e29a1c4b-3f76-4d18-8b05-7c6e2a91d430",
+  store_id: "store-contract",
+  sellable: {
+    type: "digital_product",
+    digital_product_id: "digital-product-contract",
+  },
+  price_list_id: null,
   currency: "usd",
-  market: "us",
   amount: 2500,
   compare_at: null,
-  audience_id: null,
+  min_quantity: 1,
+  max_quantity: null,
+  status: { type: "active" },
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(2),
 };
 const digitalProductContract: DigitalProduct = {
   id: "digital-product-contract",
   store_id: "store-contract",
   key: "digital-product-key",
+  name_block_id: "digital-product-name-block",
   slugs: { en: "digital-product" },
   blocks: [],
   classifications: [],
-  prices: [digitalPrice],
   asset_ids: ["0198f8f7-2f25-4a14-86bb-64efc56e1a11"],
-  status: "active",
+  tax_category_id: null,
+  status: { type: "active" },
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(2),
 };
 const storefrontDigitalProductContract: StorefrontDigitalProduct = {
   id: digitalProductContract.id,
   key: digitalProductContract.key,
+  name_block_id: digitalProductContract.name_block_id,
   slugs: digitalProductContract.slugs,
   blocks: [],
   classifications: [],
-  prices: [digitalPrice],
+  price: null,
+  purchase_allowed: true,
 };
 const digitalLibraryItemContract: DigitalLibraryItem = {
   digital_product_id: digitalProductContract.id,
   product_key: digitalProductContract.key,
-  slugs: digitalProductContract.slugs,
+  product_name: { text: "Purchased guide", locale: "en" },
 };
 const digitalLibraryProductContract: DigitalLibraryProduct = {
-  ...digitalLibraryItemContract,
-  blocks: [],
-  classifications: [],
-  asset_ids: digitalProductContract.asset_ids,
+  digital_product_id: digitalLibraryItemContract.digital_product_id,
+  presentation: digitalLibraryItemContract,
+  assets: { items: [{ id: digitalProductContract.asset_ids[0], file_name: "guide.txt", mime_type: "text/plain", download_reference: "protected-reference" }], cursor: null },
 };
 const createDigitalProductContract: CreateDigitalProductParams = {
   key: digitalProductContract.key,
+  name_block_id: digitalProductContract.name_block_id,
   slugs: digitalProductContract.slugs,
   blocks: [],
   classifications: [],
-  prices: [digitalPrice],
   asset_ids: digitalProductContract.asset_ids,
-  status: "draft",
+  status: { type: "draft" },
 };
 const updateDigitalProductContract: UpdateDigitalProductParams = {
   digital_product_id: digitalProductContract.id,
   slugs: { en: "digital-product-updated" },
-  prices: [digitalPrice],
-  status: "archived",
+  status: { type: "archived" },
 };
 const findDigitalProductsContract: FindDigitalProductsParams = {
   ids: [digitalProductContract.id],
@@ -1005,12 +831,11 @@ const findDigitalProductsContract: FindDigitalProductsParams = {
       query: [{ type: "boolean", key: "featured", value: true }],
     },
   ],
-  match_all: true,
   status: "active",
   query: 25,
   limit: 20,
   cursor: "cursor-contract",
-  sort_field: "price",
+  sort_field: "key",
   sort_direction: "asc",
   created_at_from: epochMilliseconds(1),
   created_at_to: epochMilliseconds(2),
@@ -1020,54 +845,66 @@ const digitalProductLookupContract: GetStorefrontDigitalProductParams = {
 };
 const digitalLibraryLookupContract: GetDigitalLibraryProductParams = {
   digital_product_id: digitalProductContract.id,
+  company_id: "company-contract",
+  company_location_id: "company-branch-contract",
+};
+const manualPrice: ManualPrice = {
+  allow_promotions: false,
+  money: { currency: "usd", amount: 2500 },
+  reason: "Negotiated contract price",
+  authorized_by: {
+    account_id: "account-contract",
+    snapshot: { email: "operator@example.com", credential_type: "api_token" },
+  },
+};
+const manualPriceInput: ManualPriceInput = {
+  allow_promotions: false,
+  currency: "usd",
+  amount: 2500,
+  reason: "Negotiated contract price",
 };
 const cartDigitalItemContract: CartDigitalItem = {
   id: "cart-digital-contract",
   digital_product_id: digitalProductContract.id,
-  name_block_id: "digital-name-block-contract",
+  beneficiary_customer_id: "customer-contract",
   form_submission_id: null,
-  price_override: digitalPrice,
+  price_override: manualPrice,
 };
-const acceptedOrderPrice: OrderDigitalSnapshot['price'] = {
+const appliedPrice: AppliedPriceSnapshot = {
   unit_price: { currency: 'usd', amount: 2500 },
   compare_at: null,
-  billing: { type: 'one_time' },
+  tax_mode: 'exclusive',
   min_quantity: 1,
   max_quantity: null,
   source: { type: 'base', price_id: 'price-contract' },
   priced_at: epochMilliseconds(1),
 };
+const acceptedOrderPrice: OrderDigitalSnapshot['price'] = { type: 'direct', price: appliedPrice };
 const orderDigitalSnapshotContract: OrderDigitalSnapshot = {
   product_key: digitalProductContract.key,
   product_name: { text: 'Accepted digital product', locale: 'en' },
   price: acceptedOrderPrice,
-  asset_ids: [],
+  source_digital_product_id: digitalProductContract.id,
+  content: { type: 'accepted_assets', assets: [{ source_asset_id: 'asset', object_key: 'retained-object', version_id: 'retained-version', content_digest: 'retained-digest', file_name: 'lesson.pdf', mime_type: 'application/pdf' }] },
 };
 const productQuoteInputContract: ProductQuoteInput = {
   product_id: "product-contract",
   variant_id: "variant-contract",
   quantity: 1,
   form_submission_id: "form-submission-product-contract",
-  price: digitalPrice,
+  price_override: manualPriceInput,
 };
 const bookingQuoteInputContract: BookingQuoteInput = {
   booking_offering_id: "booking-offering-contract",
   requested_interval: { from: epochMilliseconds(1_800_000_000_000), to: epochMilliseconds(1_800_003_600_000) },
   form_submission_id: "form-submission-booking-contract",
-  price_override: digitalPrice,
+  price_override: manualPriceInput,
 };
 const digitalQuoteInputContract: DigitalProductQuoteInput = {
   digital_product_id: digitalProductContract.id,
-  name_block_id: "digital-name-block-contract",
+  beneficiary_customer_id: "customer-contract",
   form_submission_id: "form-submission-digital-contract",
-  price_override: digitalPrice,
-};
-const quoteInputContract: GetQuoteParams = {
-  market: "us",
-  customer_id: "customer-contract",
-  products: [productQuoteInputContract],
-  bookings: [bookingQuoteInputContract],
-  digital: [digitalQuoteInputContract],
+  price_override: manualPriceInput,
 };
 const cartProductInputContract: CartProductInput = {
   product_id: "product-contract",
@@ -1077,19 +914,28 @@ const cartProductInputContract: CartProductInput = {
 };
 const cartDigitalInputContract: CartDigitalItemInput = {
   digital_product_id: digitalProductContract.id,
-  name_block_id: "digital-name-block-contract",
+  beneficiary_customer_id: "customer-contract",
   form_submission_id: "form-submission-digital-contract",
 };
 const trustedCartProductInputContract: TrustedCartProductInput = {
   ...cartProductInputContract,
-  price_override: digitalPrice,
+  price_override: manualPriceInput,
 };
 const trustedCartBookingInputContract: TrustedCartBookingInput = {
   ...bookingQuoteInputContract,
 };
 const trustedCartDigitalInputContract: TrustedCartDigitalItemInput = {
   ...cartDigitalInputContract,
-  price_override: digitalPrice,
+  price_override: manualPriceInput,
+};
+const quoteInputContract: GetQuoteParams = {
+  market: "us",
+  customer_id: "customer-contract",
+  line_items: [
+    { type: "product", ...trustedCartProductInputContract },
+    { type: "booking", ...trustedCartBookingInputContract },
+    { type: "digital_product", ...trustedCartDigitalInputContract },
+  ],
 };
 const digitalProductStatusContract: DigitalProductStatus =
   digitalProductContract.status;
@@ -1136,7 +982,6 @@ if (mailbox.provider.type === "smtp_imap") {
 
 const clearCartAddresses: UpdateCartParams = {
   id: "cart-contract",
-  shipping_address: null,
   billing_address: null,
 };
 
@@ -1146,38 +991,72 @@ const inventoryInput: ProductInventoryInput = {
 };
 const createProductInput: CreateProductParams = {
   key: "canonical-product",
+  name_block_id: "block-contract",
   slugs: { en: "canonical-product" },
-  variants: [
-    {
-      prices: [],
-      inventory: [inventoryInput],
-      attributes: [],
-      requires_shipping: true,
-      weight_grams: 500,
-    },
-  ],
 };
 const updateProductInput: UpdateProductParams = {
   id: "product-contract",
+  expected_updated_at: epochMilliseconds(1),
   slugs: { en: "updated-product" },
-  variants: [
-    {
-      id: "variant-contract",
-      inventory: [inventoryInput],
-      weight_grams: null,
-    },
-  ],
-  status: "archived",
+  status: { type: "archived" },
+};
+// @ts-expect-error Product replacement requires the revision loaded by the editor.
+const unversionedProductInput: UpdateProductParams = { id: "product-contract", key: "changed" };
+const createProductVariantInput: CreateProductVariantParams = {
+  product_id: "product-contract",
+  sku: "SKU-CONTRACT",
+  attributes: [],
+  reference_labels: {},
+  fulfillment: {
+    type: "physical",
+    shipping_profile_id: "shipping-profile-contract",
+    inventory_requirements: [
+      { inventory_item_id: "inventory-item-contract", quantity: 1 },
+    ],
+    backorder: { type: "disallow" },
+  },
+  tax_category_id: null,
+};
+const updateProductVariantInput: UpdateProductVariantParams = {
+  id: "variant-contract",
+  expected_updated_at: 1 as import("arky-sdk").EpochMilliseconds,
+  sku: null,
+  attributes: [],
+  reference_labels: {},
+  fulfillment: { type: "none" },
+  tax_category_id: null,
+  status: { type: "active" },
 };
 void createProductInput;
 void updateProductInput;
-const zoneInput: MarketZoneInput = {
-  countries: ["US"],
-  states: [],
-  postal_codes: [],
-  tax_bps: 0,
-  shipping_methods: [],
+void createProductVariantInput;
+void updateProductVariantInput;
+const deleteProductVariantResult: Promise<ProductVariant | void> = adminClient.eshop.productVariant.delete({
+  id: "variant-id", expected_updated_at: updateProductVariantInput.expected_updated_at,
+});
+// @ts-expect-error An already-absent variant returns no record, not a guaranteed Deleting root.
+const requiredDeletedVariant: Promise<ProductVariant> = deleteProductVariantResult;
+void requiredDeletedVariant;
+const variantListInput: import("arky-sdk").FindProductVariantsParams = {
+  product_id: "product", sku: "full-exact-sku", status: "deleting", sort_field: "updated_at", sort_direction: "asc", limit: 200,
 };
+// @ts-expect-error Variant discovery does not imply quantity/context-dependent price ordering.
+const variantPriceOrder: import("arky-sdk").FindProductVariantsParams = { sort_field: "price" };
+// @ts-expect-error Variant status uses the current lifecycle, not a removed published label.
+const variantPublishedFilter: import("arky-sdk").FindProductVariantsParams = { status: "published" };
+void [variantListInput, variantPriceOrder, variantPublishedFilter];
+const zoneInput: CreateZoneParams = {
+  key: "us-zone",
+  includes: [{ type: "country", country: "US" }],
+  excludes: [],
+  status: { type: "active" },
+};
+const marketZoneInput: CreateMarketZoneParams = {
+  market_id: marketContract.id,
+  zone_id: "zone-contract",
+  priority: 0,
+};
+void marketZoneInput;
 const collectionById: GetCollectionParams = { id: "collection-contract" };
 const collectionByKey: GetCollectionParams = {
   key: "articles",
@@ -1235,11 +1114,11 @@ const unsupportedReferencePropertySchema: BlockSchema = {
   },
   children: [],
 };
+// @ts-expect-error Markdown Blocks have one scalar string value.
 const legacyMarkdownMap: Block = {
   id: "legacy-body",
   key: "legacy_body",
   type: "markdown",
-  // @ts-expect-error Markdown Blocks have one scalar string value.
   value: { en: "# Legacy" },
 };
 const blockWithValueProperties: Block = {
@@ -1331,8 +1210,8 @@ const unsafeRequestTransform: RequestOptions = {
 };
 // @ts-expect-error inventory persistence IDs are assigned by the server.
 inventoryInput.product_id = "product-contract";
-// @ts-expect-error market ownership is assigned by the server.
-zoneInput.market_id = "market-contract";
+// @ts-expect-error Zone ownership is assigned by the server.
+zoneInput.store_id_assigned = "store-contract";
 
 declare const storefrontClient: ReturnType<typeof createStorefront>;
 storefrontClient.classification.get({ key: "topics" });
@@ -1410,7 +1289,7 @@ adminClient.classification.get({ key: "topics" });
 // @ts-expect-error Classification is a top-level module, not a Content child.
 adminClient.content.classification;
 void classificationChildren;
-const storefrontBookingOfferings: Promise<StorefrontDto<BookingOffering>[]> =
+const storefrontBookingOfferings: Promise<PaginatedResponse<StorefrontDto<BookingOffering>>> =
   storefrontClient.eshop.bookingOffering.find({
     booking_service_id: "booking-service-contract",
   });
@@ -1421,7 +1300,19 @@ const bookingResources: Promise<
 });
 const bookingServices: Promise<
   StorefrontDto<PaginatedResponse<BookingService>>
-> = storefrontClient.eshop.bookingService.find({ status: "active" });
+> = storefrontClient.eshop.bookingService.find({ sort_field: "price", include_price: true });
+const bookingAvailability: Promise<AvailabilityResponse> = storefrontClient.eshop.bookingService.getAvailability({
+  booking_service_id: "booking-service-contract",
+  company_id: "company-contract",
+  company_location_id: "branch-contract",
+  from: epochMilliseconds(1_800_000_000_000),
+  to: epochMilliseconds(1_800_086_400_000),
+  limit: 20,
+  cursor: "availability-position",
+});
+void bookingAvailability;
+// @ts-expect-error Storefront discovery determines publication; callers cannot select a status.
+storefrontClient.eshop.bookingService.find({ status: "active" });
 declare const bookingServiceContract: BookingService;
 declare const bookingResourceContract: BookingResource;
 const bookingServiceEnglishSlug: string = bookingServiceContract.slugs.en;
@@ -1442,12 +1333,13 @@ const cartProductItemContract: CartProductItem = {
   variant_id: "variant-contract",
   quantity: 1,
   form_submission_id: "form-submission-product-contract",
-  price_override: digitalPrice,
+  price_override: manualPrice,
 };
 const cartBookingItemContract: CartBookingItem = {
   id: "cart-booking-item-contract",
   booking_offering_id: bookingCartInput.booking_offering_id,
   requested_interval: requestedInterval,
+  capacity_units: 1,
   form_submission_id: bookingCartInput.form_submission_id ?? null,
   price_override: null,
 };
@@ -1455,23 +1347,24 @@ const canonicalCartContract: Cart = {
   id: "cart-contract",
   store_id: "store-contract",
   customer_id: "customer-contract",
-  company_id: null,
-  company_location_id: null,
-  token: "cart-token-contract",
+  company: null,
   status: { type: "active" },
-  origin: { type: "storefront", customer_id: "customer-contract", customer_session_id: "customer-session-contract" },
+  origin: {
+    type: "storefront",
+    customer_id: "customer-contract",
+    customer_session_id: "customer-session-contract",
+  },
   market_id: "market-contract",
   sales_channel_id: "channel-contract",
-  product_items: [cartProductItemContract],
-  booking_items: [cartBookingItemContract],
-  digital_items: [cartDigitalItemContract],
-  audience_items: [],
-  shipping_address: null,
+  line_items: [
+    { type: "product", ...cartProductItemContract },
+    { type: "booking", ...cartBookingItemContract },
+    { type: "digital_product", ...cartDigitalItemContract },
+  ],
+  delivery_groups: [],
   billing_address: null,
-  promo_code: null,
-  payment_provider_id: null,
-  shipping_method_id: null,
-  converted_order_id: null,
+  promotion_code_ids: [],
+  purchase_order_number: null,
   item_count: 3,
   last_action_at: epochMilliseconds(1),
   abandoned_at: null,
@@ -1481,7 +1374,7 @@ const canonicalCartContract: Cart = {
 // @ts-expect-error Form submissions belong to individual Cart items.
 canonicalCartContract.forms;
 declare const embeddedBookingItem: OrderBookingItem;
-const embeddedOfferingId: string = embeddedBookingItem.booking_offering_id;
+const embeddedOfferingId: string | null = embeddedBookingItem.booking_offering_id;
 void storefrontBookingOfferings;
 void bookingResources;
 void bookingServices;
@@ -1512,8 +1405,13 @@ declare const nestedStorefrontIdentification: Awaited<
 >;
 // @ts-expect-error Store ownership is not exposed by public catalog DTOs.
 storefrontProduct.store_id;
-// @ts-expect-error Nested Store ownership is not exposed by public inventory DTOs.
-storefrontProduct.variants[0].inventory[0].store_id;
+// @ts-expect-error Variants are an independently paginated resource.
+storefrontProduct.variants;
+declare const storefrontVariant: Awaited<ReturnType<typeof storefrontClient.eshop.productVariant.get>>;
+// @ts-expect-error Public variants do not expose Store routing identity.
+storefrontVariant.store_id;
+// @ts-expect-error Public variants do not expose location stock balances.
+storefrontVariant.inventory;
 // @ts-expect-error Store ownership is not exposed by public cart DTOs.
 storefrontCart.store_id;
 // @ts-expect-error Store ownership is not exposed by public support DTOs.
@@ -1576,6 +1474,12 @@ initialize(`arky_pk_${"a".repeat(42)}A`, {
 initialize({ baseUrl: "http://localhost:8000", storeId: "store-contract" });
 
 declare const initializedStorefront: ReturnType<typeof initialize>;
+initializedStorefront.eshop.bookingService.loadMoreAvailability();
+initializedStorefront.eshop.bookingService.select({
+  ...bookingServiceContract,
+  price: null,
+  purchase_allowed: true,
+}, { company_id: "company-contract", company_location_id: "branch-contract" });
 initializedStorefront.classification.get({ key: "topics" });
 // @ts-expect-error Classification is a top-level module, not a Content child.
 initializedStorefront.content.classification;
@@ -1629,8 +1533,6 @@ void invalidTextFormField;
 void mediaContract;
 void mediaWithoutOriginal;
 
-const audienceJoinResult: AudienceJoinResult = { type: "accepted" };
-
 declare const storefrontIdentify: StorefrontIdentifyResult;
 const storefrontEntryIdentify: StorefrontEntryIdentifyResult =
   storefrontIdentify;
@@ -1648,8 +1550,11 @@ declare const paymentStorefront: ReturnType<typeof initialize>;
 paymentStorefront.eshop.cart.payment;
 
 const accountingTaxLine: TaxLine = {
+  id: "tax-line",
   title: "Tax",
-  rate_bps: 2_000,
+  calculation: { type: "percentage", rate: { numerator: 1, denominator: 5 }, compound: false },
+  source: { type: "arky_component", component_id: "tax-component" },
+  component_index: 0,
   amount: 250,
   taxable_base: 1_250,
   included_in_price: false,
@@ -1659,23 +1564,18 @@ const accountingTaxLine: TaxLine = {
 };
 // @ts-expect-error no provider tax identity is fabricated by Arky.
 accountingTaxLine.tax_rate_id;
-// @ts-expect-error tax provenance is already expressed by typed line context.
-accountingTaxLine.source;
-const promoSnapshot: OrderPromoCodeSnapshot = {
-  id: "promo-contract",
-  code: "SAVE10",
-};
+const taxComponentId: string = accountingTaxLine.source.component_id;
+// @ts-expect-error Tax calculation is an exact rational or fixed-money union, not basis points.
+accountingTaxLine.rate_bps;
 const orderMoney: OrderMoney = {
   currency: "usd",
-  market: "us",
   subtotal: 1250,
-  shipping: 0,
+  delivery: 0,
   discount: 0,
   tax_total: 250,
+  duty_total: 0,
   total: 1250,
-  promo_code: promoSnapshot,
-  zone_id: null,
-  shipping_method_id: null,
+  promotions: [],
 };
 // @ts-expect-error capture_method is transaction/provider state, not order money.
 orderMoney.capture_method;
@@ -1683,7 +1583,9 @@ orderMoney.capture_method;
 const paymentAmounts: PaymentAmounts = {
   currency: "usd",
   total: 1_250,
-  paid: 0,
+  authorized: 0,
+  captured: 0,
+  capture_pending: 0,
   refund_pending: 0,
   refunded: 0,
 };
@@ -1702,27 +1604,52 @@ const cashOrderPaymentProvider: PaymentProviderBinding = {
 const orderPayment: Payment = {
   id: "order-payment-contract",
   store_id: "store-contract",
-  source: { type: "order", order_id: "order-contract" },
-  payer_customer_id: null,
+  order_id: "order-contract",
+  payer_customer_id: "customer-contract",
   provider: stripeOrderPaymentProvider,
   status: { type: "requires_action" },
   checkout_expiration: null,
   amounts: paymentAmounts,
-  settlement: null,
-  requested_at: epochMilliseconds(1),
+  request_id: "payment-request-contract",
+  reconciliation: { type: "clear" },
   completed_at: null,
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(2),
   safe_error: null,
 };
+const savedMethodPayment: Payment = {
+  ...orderPayment,
+  provider: { type: "stripe_saved_method", payment_provider_id: "provider", customer_payment_method_id: "method", payment_intent_id: null },
+  status: { type: "authorized" },
+};
+const invoicePayment: Payment = {
+  ...orderPayment,
+  provider: { type: "stripe_invoice", payment_provider_id: "provider", stripe_invoice_id: "invoice", stripe_invoice_payment_id: "invoice-payment", payment_object: { type: "charge", charge_id: "charge" } },
+  status: { type: "completed" },
+  reconciliation: { type: "hold", opened_at: epochMilliseconds(2) },
+};
+const manualPayment: Payment = {
+  ...orderPayment,
+  provider: { type: "manual", payment_provider_id: "provider", reference: null, marked_paid_by_account_id: null },
+};
+const paymentOwners: string[] = [savedMethodPayment.order_id, invoicePayment.payer_customer_id, manualPayment.request_id];
+// @ts-expect-error every collection belongs directly to its Order, not a polymorphic source.
+orderPayment.source;
+// @ts-expect-error captured money is independent of authorization and collection status.
+orderPayment.amounts.paid;
+// @ts-expect-error capture roots own collection evidence, not a duplicate settlement on Payment.
+orderPayment.settlement;
 const zeroTotalCheckout: OrderCheckoutResult = {
+  checkout_id: "checkout-zero-total-contract",
   order_id: "order-zero-total-contract",
   number: "1000",
   payment_action: { type: "none" },
   payment: null,
 };
-const markCashOnDeliveryPaid: MarkCashOnDeliveryPaidParams = {
+const recordCashOnDeliveryCollection: RecordCashOnDeliveryCollectionParams = {
   id: "order-payment-contract",
+  payment_capture_id: "capture-contract",
+  money: { currency: "usd", amount: 1250 },
 };
 // @ts-expect-error payment kind is the provider union tag, not a flat type.
 orderPayment.type;
@@ -1745,47 +1672,76 @@ const missingConnectedAccountCheckout: OrderCheckoutResult = {
   payment: orderPayment,
 };
 
-const shippingLine: OrderShippingLine = {
+const shippingLine: OrderDeliveryGroup = {
   id: "shipping-line-contract",
+  items: [{ order_product_item_id: "order-product-item-contract", quantity: 1, unit_spans: [{ first_unit: 0, quantity: 1 }] }],
+  destination: { type: "delivery", address: { country: "US", street1: "1 Main Street", city: "Boston", postal_code: "02108" } },
   shipping_method_id: "shipping-method-contract",
-  title: "Standard",
+  shipping_rate_id: "shipping-rate-contract",
+  shipping_method_key: "standard",
+  shipping_profile_key: "standard",
+  name_block_id: "shipping-name",
+  content: [{ id: "shipping-name", key: "name", type: "text", value: "Standard" }],
+  delivery_estimate: null,
+  scheduled_window: null,
+  accepted_pricing: {
+    source_shipping_method_id: "shipping-method-contract", source_shipping_rate_id: "shipping-rate-contract", source_shipping_profile_id: "profile-contract",
+    selected_market_zone_id: "zone-contract", policy_digest: "policy", merchandise_basis: { currency: "usd", amount: 2500 }, weight_grams: null,
+    calculation: { type: "flat", amount: { currency: "usd", amount: 500 } }, free_above_subtotal: null,
+    customer_subtotal: { currency: "usd", amount: 500 }, accepted_at: epochMilliseconds(1), rounding_version: "rounding",
+  },
   money: {
     unit_price: 500,
     subtotal: 500,
     discount_allocations: [],
     discount_total: 0,
-    taxable_base: 500,
     tax_lines: [],
     tax_total: 0,
+    duty_lines: [],
+    duty_total: 0,
     total: 500,
+    tax_assessment: { type: "assessed", assessment: {
+      tax_mode: "exclusive", treatment: { type: "not_collecting", reason_code: "not_registered" }, address_basis: { type: "delivery" },
+      address: { country: "US", street1: "1 Main Street", city: "Boston", postal_code: "02108" }, location_evidence: [],
+      source: { type: "arky_rule", market_zone_id: "zone-contract", tax_rule_id: "tax-rule", tax_category_id: null, tax_category_key: null },
+      policy_version: "policy", rounding_version: "rounding", assessed_at: epochMilliseconds(1), tax_date: epochMilliseconds(1), buyer_evidence: null,
+    } },
   },
 };
 // @ts-expect-error shipping method identity has one canonical field.
 shippingLine.code;
 const embeddedOrderProductItem: OrderProductItem = {
   id: "order-product-item-contract",
+  origin: { type: "direct" },
   product_id: "product-contract",
   variant_id: "variant-contract",
   quantity: 1,
-  inventory_allocations: [
+  cancelled_quantity: 0,
+  backordered_quantity: 0,
+  location_allocations: [
     {
       store_location_id: "store-location-contract",
       quantity: 1,
       cancelled_quantity: 0,
+      fulfillment_order_id: "fulfillment-order", fulfillment_order_line_id: "fulfillment-line", order_delivery_group_id: shippingLine.id,
+      unit_spans: [{ first_unit: 0, quantity: 1 }],
     },
   ],
   form_submission_id: "form-submission-product-contract",
+  form_submission: { source_submission_id: "form-submission-product-contract", source_form_id: "form", form_version: "v1", values: {}, accepted_at: epochMilliseconds(1) },
   snapshot: {
     product_key: "product-contract",
     product_name: { text: "Accepted product", locale: "en" },
     variant_sku: null,
     variant_attributes: [],
     price: acceptedOrderPrice,
-    requires_shipping: true,
-    weight_grams: 750,
+    fulfillment: { type: "physical", shipping_profile_id: "profile-contract", shipping_profile_key: "standard", source_shipping_profile_id: "profile-contract", backorder: { type: "disallow" }, inventory_requirements: [{ inventory_item_id: "inventory-item", source_inventory_item_id: "inventory-item", inventory_item_key: "shirt", quantity: 1, physical: { weight_grams: 750, dimensions: null }, customs: { origin_country: "US", hs_code: null, material: null }, tracking: { type: "tracked" }, sku: null, barcode: null }] },
+    source_product_id: "product-contract", source_variant_id: "variant-contract",
   },
   status: { type: "confirmed" },
   money: shippingLine.money,
+  money_runs: [{ id: "money-run", span: { first_unit: 0, quantity: 1 }, delivery_group_id: shippingLine.id, per_unit: shippingLine.money }],
+  cancelled_units: [],
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(1),
 };
@@ -1796,15 +1752,17 @@ const embeddedOrderBookingItem: OrderBookingItem = {
   booking_resource_id: "booking-resource-contract",
   interval: requestedInterval,
   capacity_intervals: [requestedInterval],
+  capacity_units: 1,
   form_submission_id: "form-submission-booking-contract",
-  reminders: [],
+  form_submission: { source_submission_id: "form-submission-booking-contract", source_form_id: "form", form_version: "v1", values: {}, accepted_at: epochMilliseconds(1) },
   snapshot: {
     service_key: "service-contract",
     service_name: { text: "Accepted service", locale: "en" },
     resource_key: "resource-contract",
     resource_name: { text: "Accepted resource", locale: "en" },
     timezone: "Europe/Sarajevo",
-    price: acceptedOrderPrice,
+    price: appliedPrice,
+    source_offering_id: "booking-offering-contract", source_service_id: "booking-service-contract", source_resource_id: "booking-resource-contract",
   },
   status: { type: "confirmed" },
   money: shippingLine.money,
@@ -1813,42 +1771,86 @@ const embeddedOrderBookingItem: OrderBookingItem = {
 };
 const embeddedOrderDigitalItem: OrderDigitalItem = {
   id: "order-digital-item-contract",
+  origin: { type: "direct" },
+  access: { recipient: { type: "customer", customer_id: "customer-contract" }, validity: { type: "permanent" }, revocation: null },
   digital_product_id: digitalProductContract.id,
   form_submission_id: "form-submission-digital-contract",
+  form_submission: { source_submission_id: "form-submission-digital-contract", source_form_id: "form", form_version: "v1", values: {}, accepted_at: epochMilliseconds(1) },
   snapshot: orderDigitalSnapshotContract,
   status: { type: "confirmed" },
   money: shippingLine.money,
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(1),
 };
+const orderOrigin: PurchaseOriginSnapshot = {
+  type: "storefront",
+  customer_id: "customer-contract",
+  customer_session_id: "customer-session-contract",
+  authentication: { type: "visitor" },
+};
 const orderContract: Order = {
   id: "order-contract",
   number: "1002",
   store_id: "store-contract",
-  source: { type: "cart", request_id: canonicalCartContract.id, cart_id: canonicalCartContract.id },
+  type: {
+    type: "purchase",
+    source: { type: "checkout", checkout_id: "checkout-contract" },
+  },
   customer_id: "customer-contract",
-  customer_snapshot: { email: "buyer@example.test", authentication: { type: "visitor" } },
-  company_id: null,
-  company_location_id: null,
-  company_snapshot: null,
+  customer_snapshot: {
+    email: "buyer@example.test",
+    authentication: { type: "visitor" },
+    source_customer_id: "customer-contract",
+    source_email_identity_id: null,
+  },
+  company: null,
+  payment_terms: null,
+  purchase_order_number: null,
   market_id: "market-contract",
+  market_snapshot: {
+    key: "web",
+    currency: "usd",
+    tax_mode: "exclusive",
+    source_market_id: "market-contract",
+  },
   sales_channel_id: "channel-contract",
-  sales_channel_snapshot: { key: "web", name: "Web" },
-  origin: { type: "storefront", customer_id: "customer-contract", customer_session_id: "customer-session-contract" },
+  sales_channel_snapshot: {
+    key: "web",
+    name: "Web",
+    source_sales_channel_id: "channel-contract",
+  },
+  origin: orderOrigin,
   status: { type: "confirmed" },
-  payment_id: orderPayment.id,
-  product_items: [embeddedOrderProductItem],
-  booking_items: [embeddedOrderBookingItem],
-  digital_items: [embeddedOrderDigitalItem],
-  audience_items: [],
+  line_items: [
+    { type: "product", ...embeddedOrderProductItem },
+    { type: "booking", ...embeddedOrderBookingItem },
+    { type: "digital_product", ...embeddedOrderDigitalItem },
+  ],
   money: orderMoney,
-  shipping_lines: [shippingLine],
-  shipping_address: null,
+  delivery_groups: [],
   billing_address: null,
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(2),
+  accepted_at: epochMilliseconds(1),
+  seller: {
+    profile: {
+      legal_name: "Contract Seller",
+      tax_identifier: null,
+      address: { country: "US" },
+    },
+    configuration_digest: "a".repeat(64),
+  },
+  invoice_policy: { type: "not_required", reason: "Contract fixture" },
+  renewal_recovery: null,
+  reconciliation: { type: "clear" },
+  collection_policy: { type: "prepaid", due_at: epochMilliseconds(1) },
+  promotion_redemptions: [],
+  payment_authorization: {
+    allowed_provider_ids: ["provider-contract"],
+    actor: orderOrigin,
+    accepted_at: epochMilliseconds(1),
+  },
 };
-const nullableOrderPaymentId: string | null = orderContract.payment_id;
 const cancelEmbeddedProductItem: CancelOrderProductItemParams = {
   order_id: orderContract.id,
   order_product_item_id: embeddedOrderProductItem.id,
@@ -1867,7 +1869,7 @@ orderContract.verified;
 orderContract.forms;
 // @ts-expect-error fulfillment is represented by dedicated FulfillmentOrder resources.
 orderContract.fulfillment_status;
-const fulfillmentOrderStatus: FulfillmentOrderStatus = "open";
+const fulfillmentOrderStatus: FulfillmentOrderStatus = { type: "open" };
 declare const cart: Cart;
 // @ts-expect-error cart recovery is not a product lifecycle in the current model.
 cart.recovery_sent_at;
@@ -2009,11 +2011,10 @@ const campaignConversationMessage: CampaignConversationMessage = {
     type: {
       type: "outgoing",
       origin: {
-        origin: "account_session",
+        type: "account_session",
         account_session_id: "account-session-contract",
       },
-      media_ids: [],
-      submitted: true,
+      status: { type: "submitted", delivery_status: { type: "requested", requested_at: epochMilliseconds(2) } },
     },
     content: {
       to_email: "recipient@example.test",
@@ -2025,7 +2026,7 @@ const campaignConversationMessage: CampaignConversationMessage = {
     created_at: epochMilliseconds(1),
     updated_at: epochMilliseconds(2),
   },
-  email_status: { status: "requested", requested_at: epochMilliseconds(2) },
+  email_status: { type: "requested", requested_at: epochMilliseconds(2) },
 };
 
 const workflowEmailNode: WorkflowSendEmailNode = {
@@ -2105,6 +2106,7 @@ const account: Account = {
   id: "account-contract",
   email: "operator@example.test",
   platform_role: "standard",
+  status: { type: "active" },
   last_login_at: null,
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(1),
@@ -2133,7 +2135,7 @@ const authToken: AuthToken = {
 // @ts-expect-error an Active Account Session is proof of verification.
 authToken.is_verified;
 
-const invitationEmailStatus: AccountVerificationEmailStatus = "processing";
+const invitationEmailStatus: AccountVerificationEmailStatus = { type: "processing" };
 const pendingAccountSession: AccountSession = {
   id: "pending-session-contract",
   status: "pending_verification",
@@ -2187,61 +2189,142 @@ declare const product: Product;
 declare const productInventory: ProductInventory;
 declare const productVariant: ProductVariant;
 const productStatus: ProductStatus = product.status;
-// @ts-expect-error Product status is the canonical draft/active/archived union.
-const invalidProductStatus: ProductStatus = "enabled";
+// @ts-expect-error Product status is the canonical typed status union.
+const invalidProductStatus: ProductStatus = { type: "enabled" };
 const productSlugs: Record<string, string> = product.slugs;
-const productWeightGrams: number | null = productVariant.weight_grams;
+const productFulfillment: ProductFulfillment = productVariant.fulfillment;
 const inventoryStoreLocationId: string = productInventory.store_location_id;
 const inventoryOnHand: number = productInventory.on_hand;
 const inventoryReserved: number = productInventory.reserved;
 void productStatus;
 void productSlugs;
-void productWeightGrams;
+void productFulfillment;
 void inventoryStoreLocationId;
 void inventoryOnHand;
 void inventoryReserved;
+const labelParcel = {
+  length: 100,
+  width: 75,
+  height: 25,
+  weight: 500,
+  distance_unit: "mm",
+  mass_unit: "g",
+};
+const labelAddress = {
+  name: "Warehouse",
+  company: null,
+  street1: "1 Main Street",
+  street2: null,
+  city: "Sarajevo",
+  state: null,
+  postal_code: "71000",
+  country: "BA",
+  phone: null,
+  email: null,
+};
 const shippingLabelRefund: ShippingLabelRefund = {
   id: "6ba7b812-9dad-41d1-80b4-00c04fd430c8",
-  status: "succeeded",
-  safe_error: null,
-  requested_at: epochMilliseconds(2),
-  completed_at: epochMilliseconds(3),
+  store_id: "6ba7b819-9dad-41d1-80b4-00c04fd430c8",
+  shipping_label_id: "6ba7b811-9dad-41d1-80b4-00c04fd430c8",
+  status: {
+    type: "succeeded",
+    carrier_refund_id: "carrier-refund-contract",
+    completed_at: epochMilliseconds(3),
+  },
+  idempotency_key: "label-refund-contract",
+  requested_money: { amount: 895, currency: "usd" },
+  financial_effects: [],
+  created_at: epochMilliseconds(2),
+  updated_at: epochMilliseconds(3),
 };
 const merchantDebit: MerchantDebit = {
   id: "6ba7b815-9dad-41d1-80b4-00c04fd430c8",
-  status: "succeeded",
-  safe_error: null,
-  requested_at: epochMilliseconds(1),
-  completed_at: epochMilliseconds(2),
+  store_id: "6ba7b819-9dad-41d1-80b4-00c04fd430c8",
+  shipping_label_id: "6ba7b811-9dad-41d1-80b4-00c04fd430c8",
+  payment_provider_id: "6ba7b81c-9dad-41d1-80b4-00c04fd430c8",
+  connected_account_id: "acct_contract",
+  authorization: {
+    accepted_by_account_id: "6ba7b81d-9dad-41d1-80b4-00c04fd430c8",
+    accepted_at: epochMilliseconds(1),
+    terms_version: 1,
+  },
+  status: {
+    type: "succeeded",
+    account_debit_payment_id: "py_contract",
+    source_transfer_id: "tr_contract",
+    completed_at: epochMilliseconds(2),
+  },
+  money: { amount: 905, currency: "usd" },
+  idempotency_key: "merchant-debit-contract",
+  livemode: false,
+  financial_effects: [],
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(2),
 };
 const merchantDebitReversal: MerchantDebitReversal = {
   id: "6ba7b816-9dad-41d1-80b4-00c04fd430c8",
-  status: "succeeded",
-  safe_error: null,
-  requested_at: epochMilliseconds(3),
-  completed_at: epochMilliseconds(4),
+  store_id: "6ba7b819-9dad-41d1-80b4-00c04fd430c8",
+  reason: {
+    type: "unused_label_refund",
+    shipping_label_refund_id: shippingLabelRefund.id,
+  },
+  status: {
+    type: "succeeded",
+    transfer_reversal_id: "trr_contract",
+    destination_payment_refund_id: "re_contract",
+    completed_at: epochMilliseconds(4),
+  },
+  money: { amount: 905, currency: "usd" },
+  idempotency_key: "merchant-debit-reversal-contract",
+  merchant_debit_id: merchantDebit.id,
+  financial_effects: [],
+  created_at: epochMilliseconds(3),
+  updated_at: epochMilliseconds(4),
 };
 const shippingLabel: ShippingLabel = {
   id: "6ba7b811-9dad-41d1-80b4-00c04fd430c8",
-  status: "succeeded",
-  label_url: "https://labels.example.test/label.pdf",
+  store_id: "6ba7b819-9dad-41d1-80b4-00c04fd430c8",
+  rate_id: "signed-rate-contract",
+  metadata: "{}",
   postage: { amount: 895, currency: "usd" },
   platform_label_fee: { amount: 10, currency: "usd" },
-  total: { amount: 905, currency: "usd" },
-  requested_at: epochMilliseconds(1),
-  completed_at: epochMilliseconds(2),
-  merchant_debit: merchantDebit,
-  refund: shippingLabelRefund,
-  merchant_debit_reversal: merchantDebitReversal,
-  safe_error: null,
+  status: {
+    type: "succeeded",
+    transaction_id: "txn_contract",
+    label_url: "https://labels.example.test/label.pdf",
+    completed_at: epochMilliseconds(2),
+  },
+  owner: { type: "outbound_shipment", shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8" },
+  request: {
+    origin: labelAddress,
+    destination: labelAddress,
+    parcel: labelParcel,
+    customs: null,
+    accepted_at: epochMilliseconds(1),
+  },
+  operation_id: "6ba7b81e-9dad-41d1-80b4-00c04fd430c8",
+  idempotency_key: "shipping-label-contract",
+  fee_refundable_if_unused: true,
+  provider_scope: "shippo",
+  reconciliation: { type: "clear" },
+  created_at: epochMilliseconds(1),
+  updated_at: epochMilliseconds(2),
 };
+const shippingLabelPurchase: ShippingLabelPurchase = {
+  label: shippingLabel,
+  merchant_debit: merchantDebit,
+};
+void shippingLabelPurchase;
+void merchantDebitReversal;
 const fulfillmentOrder: FulfillmentOrder = {
   id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
   store_id: "6ba7b819-9dad-41d1-80b4-00c04fd430c8",
   order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
   store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
-  status: "in_progress",
-  destination: null,
+  order_delivery_group_id: "6ba7b812-9dad-41d1-80b4-00c04fd430c8",
+  work_key: "original",
+  status: { type: "in_progress" },
+  method: { type: "delivery", destination: labelAddress },
   lines: [
     {
       id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
@@ -2249,6 +2332,9 @@ const fulfillmentOrder: FulfillmentOrder = {
       quantity: 2,
       allocated_quantity: 2,
       fulfilled_quantity: 1,
+      unit_spans: [{ first_unit: 0, quantity: 2 }],
+      released_units: [],
+      cancelled_units: [],
     },
   ],
   created_at: epochMilliseconds(1),
@@ -2262,12 +2348,13 @@ const shipment: OrderShipment = {
   origin_store_location_id: fulfillmentOrder.store_location_id,
   lines: [
     {
-      order_product_item_id: fulfillmentOrder.lines[0].order_product_item_id,
+      order_product_line_item_id: fulfillmentOrder.lines[0].order_product_item_id,
       fulfillment_order_line_id: fulfillmentOrder.lines[0].id,
       quantity: 1,
+      unit_spans: [{ first_unit: 0, quantity: 1 }],
     },
   ],
-  status: "label_created",
+  status: { type: "label_created" },
   parcel: {
     length: 100,
     width: 75,
@@ -2282,61 +2369,49 @@ const shipment: OrderShipment = {
   tracking_number: "9400000000000000000000",
   tracking_url: "https://tracking.example.test/9400000000000000000000",
   tracking_status_at: epochMilliseconds(2),
-  label: shippingLabel,
+  selected_label_id: shippingLabel.id,
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(2),
+  dispatch: null,
+  origin_address: labelAddress,
+  destination_address: labelAddress,
 };
-const shipmentWithoutLabel: OrderShipment = {
-  ...shipment,
-  // @ts-expect-error every Shipment begins with its durable requested label effect.
-  label: null,
-};
-void shipmentWithoutLabel;
-const shippingRate: ShippingRate = {
-  id: "signed-rate-contract",
+const shippingLabelRate: ShippingLabelQuoteRate = {
+  quote: "signed-rate-contract",
   carrier: "USPS",
   service: "priority",
   display_name: "USPS Priority",
   postage: { amount: 895, currency: "usd" },
   platform_label_fee: { amount: 10, currency: "usd" },
   total: { amount: 905, currency: "usd" },
+  fee_refundable_if_unused: true,
   estimated_days: 3,
+  expires_at: epochMilliseconds(5),
 };
 const shipmentStatus: OrderShipmentStatus = shipment.status;
 const shipmentTrackingStatusAt: number | null = shipment.tracking_status_at;
-const cancelledShippingStatus: OrderShipmentStatus = "cancelled";
-const shippingRateRequest: GetShippingRatesParams = {
-  order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
-  store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
-  lines: [
-    {
-      order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
-      quantity: 1,
-    },
-  ],
-  parcel: {
-    length: 100,
-    width: 75,
-    height: 25,
-    weight: 500,
-    distance_unit: "mm",
-    mass_unit: "g",
+const cancelledShippingStatus: OrderShipmentStatus = { type: "cancelled" };
+const shippingRateRequest: QuoteShippingLabelParams = {
+  owner: {
+    type: "outbound_shipment",
+    shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
   },
 };
 const createShipmentRequest: CreateOrderShipmentParams = {
   order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
   shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-  rate_id: "signed-rate-contract",
   origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
   fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
   lines: [
     {
-      order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
+      order_product_line_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
       fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
       quantity: 1,
+      unit_spans: [{ first_unit: 1, quantity: 1 }],
     },
   ],
-  parcel: shippingRateRequest.parcel,
+  parcel: labelParcel,
+  customs_declaration: null,
 };
 // @ts-expect-error FulfillmentOrder roots do not expose persistence versions.
 fulfillmentOrder.version;
@@ -2346,8 +2421,8 @@ fulfillmentOrder.location_id;
 shipment.version;
 // @ts-expect-error Shipment labels are provider-neutral.
 shipment.shippo_label;
-// @ts-expect-error provider rate identity remains inside the server label state.
-shippingLabel.rate_id;
+// @ts-expect-error carrier labels are independent roots, not Shipment projections.
+shipment.label;
 // @ts-expect-error merchant debit retries are orchestration state, not Domain truth.
 merchantDebit.attempt_count;
 // @ts-expect-error public merchant debit DTOs do not expose provider identifiers.
@@ -2524,10 +2599,9 @@ const customerActionFeed: CustomerActionFeedData = {
     orders: 0,
     submissions: 0,
     customers: 0,
-    audiences: 0,
+    customer_groups: 0,
     abandoned_carts: 0,
     carts: 0,
-    promo_codes: 0,
     products: 0,
     services: 0,
     providers: 0,
@@ -2568,7 +2642,6 @@ void [
   supportStart,
   storefrontIdentify,
   storefrontEntryIdentify,
-  audienceJoinResult,
   orderMoney,
   paymentAmounts,
   stripeOrderPaymentProvider,
@@ -2580,18 +2653,16 @@ void [
   orderRefundStatus,
   orderRefund,
   createOrderRefund,
-  recordCashOnDeliveryRefund,
+  recordRefundMoney,
   paymentDisputeStatus,
   paymentDisputeProvider,
   paymentDispute,
   findPaymentDisputes,
   getPaymentDispute,
   zeroTotalCheckout,
-  markCashOnDeliveryPaid,
-  nullableOrderPaymentId,
+  recordCashOnDeliveryCollection,
   missingConnectedAccountCheckout,
   accountingTaxLine,
-  promoSnapshot,
   shippingLine,
   embeddedOrderProductItem,
   embeddedOrderBookingItem,

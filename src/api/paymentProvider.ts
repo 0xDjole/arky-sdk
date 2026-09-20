@@ -1,14 +1,21 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type {
   ConnectStripePaymentProviderParams,
+  CreateLocalPaymentProviderParams,
   OpenStripeDashboardParams,
   ListPaymentProvidersParams,
+  GetStoreConfigurationByKeyParams,
+  GetPaymentProviderParams,
+  GetPaymentProviderByConfigurationParams,
+  GetStripeConnectionOperationParams,
   RefreshStripePaymentProviderParams,
   RequestOptions,
 } from "../types/api";
 import type {
   PaymentProvider,
+  PaginatedResponse,
   PaymentProviderConnectResponse,
+  StripeConnectionOperation,
 } from "../types";
 
 export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
@@ -18,9 +25,38 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
     async list(
       params?: ListPaymentProvidersParams,
       options?: RequestOptions,
-    ): Promise<PaymentProvider[]> {
-      return apiConfig.httpClient.get<PaymentProvider[]>(
-        `/v1/stores/${storeId(params?.store_id)}/payment-providers`,
+    ): Promise<PaginatedResponse<PaymentProvider>> {
+      const { store_id, ...query } = params ?? {};
+      return apiConfig.httpClient.get<PaginatedResponse<PaymentProvider>>(
+        `/v1/stores/${storeId(store_id)}/payment-providers`,
+        { ...options, params: query },
+      );
+    },
+
+    async get(params: GetPaymentProviderParams, options?: RequestOptions): Promise<PaymentProvider> {
+      return apiConfig.httpClient.get<PaymentProvider>(
+        `/v1/stores/${encodeURIComponent(storeId(params.store_id))}/payment-providers/${encodeURIComponent(params.id)}`, options,
+      );
+    },
+    async getByKey(params: GetStoreConfigurationByKeyParams, options?: RequestOptions): Promise<PaymentProvider> {
+      return apiConfig.httpClient.get<PaymentProvider>(
+        `/v1/stores/${encodeURIComponent(storeId(params.store_id))}/payment-providers/key/${encodeURIComponent(params.key)}`, options,
+      );
+    },
+    async getByConfiguration(params: GetPaymentProviderByConfigurationParams, options?: RequestOptions): Promise<PaymentProvider> {
+      return apiConfig.httpClient.get<PaymentProvider>(
+        `/v1/stores/${encodeURIComponent(storeId(params.store_id))}/payment-providers/by-configuration/${params.configuration_type}`, options,
+      );
+    },
+    async create(
+      params: CreateLocalPaymentProviderParams,
+      options?: RequestOptions,
+    ): Promise<PaymentProvider> {
+      const targetStoreId = storeId(params.store_id);
+      const { store_id: _store_id, ...rest } = params;
+      return apiConfig.httpClient.post<PaymentProvider>(
+        `/v1/stores/${targetStoreId}/payment-providers`,
+        { store_id: targetStoreId, ...rest },
         options,
       );
     },
@@ -43,8 +79,18 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
     ): Promise<PaymentProviderConnectResponse> {
       const targetStoreId = storeId(params.store_id);
       return apiConfig.httpClient.post<PaymentProviderConnectResponse>(
-        `/v1/stores/${targetStoreId}/payment-providers/stripe/connect`,
+        `/v1/stores/${encodeURIComponent(targetStoreId)}/payment-providers/stripe/connect`,
         { ...params, store_id: targetStoreId },
+        options,
+      );
+    },
+
+    async getStripeConnection(
+      params: GetStripeConnectionOperationParams,
+      options?: RequestOptions,
+    ): Promise<StripeConnectionOperation> {
+      return apiConfig.httpClient.get<StripeConnectionOperation>(
+        `/v1/stores/${encodeURIComponent(storeId(params.store_id))}/payment-providers/stripe/connections/${encodeURIComponent(params.operation_id)}`,
         options,
       );
     },

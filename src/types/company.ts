@@ -42,8 +42,10 @@ export interface CompanyUsage {
   more_memberships: boolean;
   location_ids: string[];
   more_locations: boolean;
-  group_edge_ids: string[];
-  more_group_edges: boolean;
+  group_member_ids: string[];
+  more_group_members: boolean;
+  shipping_rate_ids: string[];
+  more_shipping_rates: boolean;
 }
 
 export interface CreateCompanyParams {
@@ -75,6 +77,10 @@ export interface DeleteCompanyParams {
 
 export interface FindCompaniesParams {
   store_id?: string;
+  query?: string;
+  status?: CompanyStatus["type"];
+  sort_field?: "created_at" | "updated_at";
+  sort_direction?: "asc" | "desc";
   limit?: number;
   cursor?: string;
 }

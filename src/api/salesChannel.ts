@@ -5,6 +5,7 @@ import type {
   SalesChannel,
   CreateSalesChannelParams,
   GetSalesChannelParams,
+  GetSalesChannelByKeyParams,
   FindSalesChannelsParams,
   DeleteSalesChannelParams,
   UpdateSalesChannelParams,
@@ -35,6 +36,10 @@ export const createSalesChannelApi = (apiConfig: ApiConfig) => {
         `${basePath(store_id)}/${encodeURIComponent(id)}`,
         options,
       );
+    },
+    getByKey(params: GetSalesChannelByKeyParams, options?: RequestOptions): Promise<SalesChannel> {
+      const { store_id, key } = params;
+      return apiConfig.httpClient.get<SalesChannel>(`${basePath(store_id)}/by-key/${encodeURIComponent(key)}`, options);
     },
     find(
       params: FindSalesChannelsParams = {},

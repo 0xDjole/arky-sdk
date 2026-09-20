@@ -29,14 +29,13 @@ export type AnalyticsReportKey =
   | "collections_by_status"
   | "entries_by_status"
   | "customers_by_status"
-  | "audiences_by_status"
+  | "customer_groups_by_status"
   | "mailboxes_by_status"
   | "campaigns_by_status"
   | "campaign_enrollments_by_status"
   | "campaign_messages_by_status"
   | "support_conversations_by_status"
   | "workflows_by_status"
-  | "promo_codes_by_status"
   | "email_templates_by_status"
   | "forms_by_status"
   | "classifications_by_status"
@@ -48,10 +47,9 @@ export type AnalyticsReportKey =
 export type CustomerActionFeedCategory =
   | "orders"
   | "carts"
-  | "promo_codes"
   | "submissions"
   | "customers"
-  | "audiences"
+  | "customer_groups"
   | "products"
   | "services"
   | "providers"
@@ -172,8 +170,8 @@ export interface CustomerFunnelData {
 }
 
 export interface OutreachOverviewData {
-  customer_group_plans: number;
-  active_customer_group_plans: number;
+  customer_groups: number;
+  active_customer_groups: number;
   mailboxes: number;
   active_mailboxes: number;
   campaigns: number;
@@ -192,7 +190,7 @@ export interface OutreachOverviewData {
 
 export interface OutreachFunnelStage {
   key:
-    | "audiences"
+    | "customer_groups"
     | "campaigns"
     | "campaign_enrollments"
     | "campaign_messages_sent"
@@ -242,10 +240,9 @@ export interface CustomerActionFeedSummary {
   orders: number;
   submissions: number;
   customers: number;
-  customer_group_plans: number;
+  customer_groups: number;
   abandoned_carts: number;
   carts: number;
-  promo_codes: number;
   products: number;
   services: number;
   providers: number;
@@ -288,14 +285,13 @@ export type AnalyticsBreakdownReportKey =
   | "collections_by_status"
   | "entries_by_status"
   | "customers_by_status"
-  | "audiences_by_status"
+  | "customer_groups_by_status"
   | "mailboxes_by_status"
   | "campaigns_by_status"
   | "campaign_enrollments_by_status"
   | "campaign_messages_by_status"
   | "support_conversations_by_status"
   | "workflows_by_status"
-  | "promo_codes_by_status"
   | "email_templates_by_status"
   | "forms_by_status"
   | "classifications_by_status"

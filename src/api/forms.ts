@@ -59,9 +59,9 @@ export const createFormsApi = (apiConfig: ApiConfig) => {
       const target_store_id = params.store_id || apiConfig.storeId;
       let identifier: string;
       if (params.id) {
-        identifier = params.id;
+        identifier = encodeURIComponent(params.id);
       } else if (params.key) {
-        identifier = `${target_store_id}:${params.key}`;
+        identifier = `by-key/${encodeURIComponent(params.key)}`;
       } else {
         throw new Error("GetFormParams requires id or key");
       }

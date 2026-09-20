@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { initialize } from "../dist/storefront.js";
+import { storefrontSessionStorage } from "./helpers/storefront-session-storage.mjs";
 
 const apiUrl = "https://api.example.test";
 const publishableKey = `arky_pk_${"f".repeat(42)}A`;
@@ -91,23 +92,24 @@ test("a fresh cart load resolves Store defaults before loading persisted product
   const calls = [];
   const store = initialize(publishableKey, {
     apiUrl,
-    sessionStorage: {
-      getItem: () => storedVisitorSession(),
-      setItem() {},
-      removeItem() {},
-    },
+    sessionStorage: storefrontSessionStorage(storedVisitorSession()),
   });
   const cart = {
     id: "cart-hydration-contract",
+    store_id: "store-form-contract",
     customer_id: "customer-form-contract",
-    customer_session_id: "visitor-session-form-contract",
-    token: "cart-recovery-contract",
-    status: "active",
-    origin: "storefront",
-    created_by_account_id: null,
-    market: "ita",
-    product_items: [
+    company: null,
+    sales_channel_id: "channel-form-contract",
+    status: { type: "active" },
+    origin: {
+      type: "storefront",
+      customer_id: "customer-form-contract",
+      customer_session_id: "visitor-session-form-contract",
+    },
+    market_id: "market-ita",
+    line_items: [
       {
+        type: "product",
         id: "line-hydration-contract",
         product_id: "product-hydration-contract",
         variant_id: "variant-hydration-contract",
@@ -116,14 +118,10 @@ test("a fresh cart load resolves Store defaults before loading persisted product
         price_override: null,
       },
     ],
-    booking_items: [],
-    digital_items: [],
-    shipping_address: null,
+    delivery_groups: [],
     billing_address: null,
-    promo_code: null,
-    payment_provider_id: null,
-    shipping_method_id: null,
-    converted_order_id: null,
+    promotion_code_ids: [],
+    purchase_order_number: null,
     item_count: 1,
     last_action_at: 1,
     abandoned_at: null,
@@ -133,18 +131,15 @@ test("a fresh cart load resolves Store defaults before loading persisted product
   const setup = {
     timezone: "Europe/Rome",
     languages: { default: "it", available: ["it"] },
-    markets: {
-      default: "ita",
-      available: [
-        {
-          id: "market-ita",
-          key: "ita",
-          currency: "EUR",
-          payment_provider_ids: [],
-          zones: [],
-        },
-      ],
+    commerce: { type: "ready", default_market_id: "market-ita", default_sales_channel_id: "channel-form-contract" },
+    default_market: {
+      id: "market-ita",
+      key: "ita",
+      currency: "eur",
+      tax_mode: "exclusive",
+      payment_provider_ids: [],
     },
+    payment_providers: [],
     support: { email: "support@example.test" },
     readiness: { market: true, payment: false, commerce: true },
   };
@@ -172,13 +167,24 @@ test("a fresh cart load resolves Store defaults before loading persisted product
       {
         id: "variant-hydration-contract",
         sku: null,
-        prices: [{ market: "ita", amount: 1250, currency: "EUR" }],
+        price: {
+          unit_price: { amount: 1250, currency: "eur" },
+          compare_at: null,
+          tax_mode: "exclusive",
+          min_quantity: 1,
+          max_quantity: null,
+          priced_at: 1,
+        },
+        purchase_allowed: true,
         attributes: [],
-        requires_shipping: false,
-        weight_grams: null,
+        reference_labels: {},
+        fulfillment: { type: "none" },
+        tax_category_id: null,
+        status: { type: "active" },
+        product_id: "product-hydration-contract",
       },
     ],
-    status: "active",
+    status: { type: "active" },
     created_at: 1,
     updated_at: 1,
   };
@@ -190,23 +196,14 @@ test("a fresh cart load resolves Store defaults before loading persisted product
       authorization: new Headers(init.headers).get("authorization"),
     };
     calls.push(call);
-    if (call.url.endsWith("/carts/current")) return jsonResponse(cart);
+    if (call.url.endsWith("/carts")) return jsonResponse({ cart, recovery_token: "cart-recovery-token" });
     if (call.url === `${apiUrl}/v1/storefront`) return jsonResponse(setup);
-    if (call.url.endsWith("/products/product-hydration-contract")) {
-      return jsonResponse(product);
+    if (new URL(call.url).pathname.endsWith("/products/product-hydration-contract")) {
+      const { variants, status, created_at, updated_at, ...card } = product;
+      return jsonResponse({ ...card, name_block_id: "product-name", price: variants[0].price, purchase_allowed: true });
     }
-    if (call.url.endsWith("/products/product-hydration-contract/inventory")) {
-      return jsonResponse([
-        {
-          id: "inventory-hydration-contract",
-          product_id: product.id,
-          variant_id: "variant-hydration-contract",
-          store_location_id: "location-hydration-contract",
-          on_hand: 5,
-          reserved: 1,
-          updated_at: 1,
-        },
-      ]);
+    if (new URL(call.url).pathname.endsWith("/products/product-hydration-contract/variants/variant-hydration-contract")) {
+      return jsonResponse(product.variants[0]);
     }
     throw new Error(
       `Unexpected cart hydration request: ${call.method} ${call.url}`,
@@ -222,10 +219,10 @@ test("a fresh cart load resolves Store defaults before loading persisted product
   assert.deepEqual(
     calls.map((call) => call.url),
     [
-      `${apiUrl}/v1/storefront/carts/current`,
+      `${apiUrl}/v1/storefront/carts`,
       `${apiUrl}/v1/storefront`,
-      `${apiUrl}/v1/storefront/products/product-hydration-contract`,
-      `${apiUrl}/v1/storefront/products/product-hydration-contract/inventory`,
+      `${apiUrl}/v1/storefront/products/product-hydration-contract?include_price=true`,
+      `${apiUrl}/v1/storefront/products/product-hydration-contract/variants/variant-hydration-contract?include_price=true`,
     ],
   );
   assert.equal(
@@ -241,11 +238,17 @@ test("a fresh cart load resolves Store defaults before loading persisted product
       product_slug: "prodotto-idratato",
       variant_attributes: [],
       requires_shipping: false,
-      price: { market: "ita", amount: 1250, currency: "EUR" },
+      price: {
+        unit_price: { amount: 1250, currency: "eur" },
+        compare_at: null,
+        tax_mode: "exclusive",
+        min_quantity: 1,
+        max_quantity: null,
+        priced_at: 1,
+      },
       quantity: 1,
       form_submission_id: "form-submission-hydration-contract",
       added_at: 0,
-      max_stock: 4,
     },
   ]);
   assert.equal(store.eshop.cart.status.get().error, null);
@@ -424,31 +427,32 @@ test("a page reload reuses the stored Visitor without identifying again", async 
     if (request.url.endsWith("/customer/identify") && !request.authorization) {
       return jsonResponse(identifyResponse());
     }
-    if (request.url.endsWith("/carts/current")) {
-      return jsonResponse({
+    if (request.url.endsWith("/carts") || request.url.endsWith("/carts/cart-reload-contract")) {
+      const cart = {
         id: "cart-reload-contract",
+        store_id: "store-form-contract",
         customer_id: "customer-form-contract",
-        customer_session_id: "visitor-session-form-contract",
-        token: "cart-recovery-contract",
-        status: "active",
-        origin: "storefront",
-        created_by_account_id: null,
-        market: "ita",
-        product_items: [],
-        booking_items: [],
-        digital_items: [],
-        shipping_address: null,
+        company: null,
+        sales_channel_id: "channel-form-contract",
+        status: { type: "active" },
+        origin: {
+          type: "storefront",
+          customer_id: "customer-form-contract",
+          customer_session_id: "visitor-session-form-contract",
+        },
+        market_id: "market-ita",
+        line_items: [],
+        delivery_groups: [],
         billing_address: null,
-        promo_code: null,
-        payment_provider_id: null,
-        shipping_method_id: null,
-        converted_order_id: null,
+        promotion_code_ids: [],
+        purchase_order_number: null,
         item_count: 0,
         last_action_at: 1,
         abandoned_at: null,
         created_at: 1,
         updated_at: 1,
-      });
+      };
+      return jsonResponse(request.url.endsWith("/carts") ? { cart, recovery_token: "cart-recovery-token" } : cart);
     }
     throw new Error(`Unexpected reload request: ${request.url}`);
   };
@@ -479,8 +483,8 @@ test("a page reload reuses the stored Visitor without identifying again", async 
     ]),
     [
       ["/v1/storefront/customer/identify", null, {}],
-      ["/v1/storefront/carts/current", `Bearer ${visitorToken}`, {}],
-      ["/v1/storefront/carts/current", `Bearer ${visitorToken}`, {}],
+      ["/v1/storefront/carts", `Bearer ${visitorToken}`, {}],
+      ["/v1/storefront/carts/cart-reload-contract", `Bearer ${visitorToken}`, null],
     ],
   );
   const stored = JSON.parse([...storage.values.values()][0]);

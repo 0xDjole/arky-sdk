@@ -1,5 +1,14 @@
 import type {
+  FindPricesParams,
+  FindAssortmentItemsParams,
+  FindCatalogEntitlementsParams,
   AssortmentItem,
+  FindAssortmentsParams,
+  FindCatalogsParams,
+  FindPriceListsParams,
+  GetAssortmentByKeyParams,
+  GetCatalogByKeyParams,
+  GetPriceListByKeyParams,
   Catalog,
   CatalogAccess,
   CatalogCondition,
@@ -10,7 +19,7 @@ import type {
   DeleteCatalogParams,
   DeleteCatalogEntitlementParams,
   SellableRef,
-  StorefrontAudienceType,
+  StorefrontCustomerGroupPlan,
   StorefrontPrice,
   UpdateAssortmentItemParams,
   UpdateCatalogParams,
@@ -109,15 +118,27 @@ type EntitlementDeleteVersionRequired = AssertTrue<
 type PublicPricesHaveNoSource = AssertFalse<
   "source" extends keyof StorefrontPrice ? true : false
 >;
-type PaidAudience = Extract<StorefrontAudienceType, { type: "paid" }>;
-type AudienceResolvedPrices = AssertTrue<
-  PaidAudience["prices"] extends StorefrontPrice[] ? true : false
+type CustomerGroupPlanResolvedPrice = AssertTrue<
+  [StorefrontCustomerGroupPlan["price"]] extends [StorefrontPrice | null]
+    ? true
+    : false
 >;
-type AudienceNoEditableCharge = AssertFalse<
-  "charge" extends keyof PaidAudience ? true : false
+type CustomerGroupPlanNoEditableCharge = AssertFalse<
+  "charge" extends keyof StorefrontCustomerGroupPlan ? true : false
 >;
 
 export type CatalogContracts = [
+  AssertFalse<'draft' extends FindPricesParams['status'] ? true : false>,
+  AssertTrue<'deleting' extends FindCatalogEntitlementsParams['status'] ? true : false>,
+  AssertFalse<'amount' extends FindPricesParams['sort_field'] ? true : false>,
+  AssertTrue<SellableRef extends NonNullable<FindAssortmentItemsParams['sellable']> ? true : false>,
+  AssertFalse<'status' extends keyof FindAssortmentItemsParams ? true : false>,
+  AssertTrue<RequiredField<GetCatalogByKeyParams, 'key'>>,
+  AssertTrue<RequiredField<GetAssortmentByKeyParams, 'key'>>,
+  AssertTrue<RequiredField<GetPriceListByKeyParams, 'key'>>,
+  AssertTrue<'deleting' extends FindCatalogsParams['status'] ? true : false>,
+  AssertTrue<'updated_at' extends FindAssortmentsParams['sort_field'] ? true : false>,
+  AssertFalse<'price' extends FindPriceListsParams['sort_field'] ? true : false>,
   CatalogPublicEntryParity,
   PhysicalParentRequired,
   PhysicalVariantRequired,
@@ -146,6 +167,6 @@ export type CatalogContracts = [
   CatalogDeleteVersionRequired,
   EntitlementDeleteVersionRequired,
   PublicPricesHaveNoSource,
-  AudienceResolvedPrices,
-  AudienceNoEditableCharge,
+  CustomerGroupPlanResolvedPrice,
+  CustomerGroupPlanNoEditableCharge,
 ];

@@ -2,8 +2,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createAdmin } from "../dist/admin.js";
+import { createAdmin, orderBookingItems } from "../dist/admin.js";
 import { createStorefront, initialize } from "../dist/storefront.js";
+import { storefrontSessionStorage } from "./helpers/storefront-session-storage.mjs";
 
 const apiUrl = "https://api.booking-contract.test";
 const storeId = "store-booking-contract";
@@ -42,11 +43,7 @@ function sessionStorage() {
       }),
     ],
   ]);
-  return {
-    getItem: () => values.get("seed") ?? null,
-    setItem: (_key, value) => values.set("seed", value),
-    removeItem: () => values.delete("seed"),
-  };
+  return storefrontSessionStorage(values.get("seed"));
 }
 
 function bookingService() {
@@ -146,57 +143,102 @@ function order() {
     id: "order-booking",
     number: "1001",
     store_id: storeId,
-    source_cart_id: "cart-booking",
+    type: { type: "purchase", source: { type: "checkout", checkout_id: "checkout-booking" } },
     customer_id: "customer-booking",
-    customer_session_id: "customer-session-booking",
-    status: "confirmed",
-    payment_id: "payment-booking",
-    product_items: [],
-    booking_items: [embeddedBookingItem()],
-    digital_items: [],
+    customer_snapshot: {
+      email: null,
+      authentication: { type: "visitor" },
+      source_customer_id: "customer-booking",
+      source_email_identity_id: null,
+    },
+    company: null,
+    payment_terms: null,
+    purchase_order_number: null,
+    market_id: "market-bih",
+    market_snapshot: {
+      key: "bih",
+      currency: "eur",
+      tax_mode: "exclusive",
+      source_market_id: "market-bih",
+    },
+    sales_channel_id: "channel-booking",
+    sales_channel_snapshot: {
+      key: "web",
+      name: "Web",
+      source_sales_channel_id: "channel-booking",
+    },
+    origin: {
+      type: "storefront",
+      customer_id: "customer-booking",
+      customer_session_id: "customer-session-booking",
+      authentication: { type: "visitor" },
+    },
+    status: { type: "confirmed" },
+    line_items: [{ type: "booking", ...embeddedBookingItem() }],
     money: {
       currency: "eur",
-      market: "bih",
       subtotal: 5000,
-      shipping: 0,
+      delivery: 0,
       discount: 0,
       tax_total: 0,
+      duty_total: 0,
       total: 5000,
-      promo_code: null,
-      zone_id: null,
-      shipping_method_id: null,
+      promotions: [],
     },
-    shipping_lines: [],
-    shipping_address: null,
+    delivery_groups: [],
     billing_address: null,
     created_at: 1,
     updated_at: 2,
+    accepted_at: 1,
+    seller: {
+      profile: { legal_name: "Booking Seller", tax_identifier: null, address: { country: "BA" } },
+      configuration_digest: "a".repeat(64),
+    },
+    invoice_policy: { type: "external" },
+    renewal_recovery: null,
+    reconciliation: { type: "clear" },
+    collection_policy: { type: "prepaid", due_at: 1 },
+    promotion_redemptions: [],
+    payment_authorization: {
+      allowed_provider_ids: [],
+      actor: {
+        type: "storefront",
+        customer_id: "customer-booking",
+        customer_session_id: "customer-session-booking",
+        authentication: { type: "visitor" },
+      },
+      accepted_at: 1,
+    },
   };
 }
 
 function cart(bookingItems = []) {
   return {
     id: "cart-booking",
-    customer_id: "customer-booking",
-    customer_session_id: "customer-session-booking",
-    token: "cart-token",
-    status: "active",
-    origin: "storefront",
-    created_by_account_id: null,
-    market: "bih",
-    product_items: [],
-    booking_items: bookingItems.map((item) => ({
-      ...item,
+    store_id: storeId,
+    customer_id: "customer-booking-contract",
+    company: null,
+    sales_channel_id: "channel-booking",
+    status: { type: "active" },
+    origin: {
+      type: "storefront",
+      customer_id: "customer-booking-contract",
+      customer_session_id: "visitor-session-booking-contract",
+    },
+    market_id: "market-bih",
+    line_items: bookingItems.map((item) => ({
+      type: "booking",
+      id: item.id ?? "cart-booking-item",
+      booking_offering_id: item.booking_offering_id,
+      requested_interval: item.requested_interval,
+      capacity_units: item.capacity_units ?? 1,
       form_submission_id: item.form_submission_id ?? null,
       price_override: item.price_override ?? null,
     })),
-    digital_items: [],
-    shipping_address: null,
+    delivery_groups: [],
     billing_address: null,
-    promo_code: null,
-    payment_provider_id: null,
-    shipping_method_id: null,
-    converted_order_id: null,
+    promotion_code_ids: [],
+    purchase_order_number: null,
     item_count: bookingItems.length,
     last_action_at: 1,
     abandoned_at: null,
@@ -225,7 +267,9 @@ test("Admin booking runtime uses booking service, resource, and offering roots",
       return jsonResponse(bookingOffering());
     if (pathname.includes("/booking-items/")) return jsonResponse(order());
     if (pathname.endsWith("/orders/order-booking"))
-      return jsonResponse(order());
+      return call.method === "PUT"
+        ? jsonResponse({ message: "Unknown field booking_items" }, 422)
+        : jsonResponse(order());
     throw new Error(`Unexpected request ${call.method} ${call.url}`);
   };
 
@@ -255,22 +299,25 @@ test("Admin booking runtime uses booking service, resource, and offering roots",
       status: "active",
     });
     const loadedOrder = await admin.eshop.order.get({ id: "order-booking" });
-    assert.equal(loadedOrder.booking_items[0].id, "order-booking-item");
-    await admin.eshop.order.update({
-      id: loadedOrder.id,
-      booking_items: [{ id: "legacy-booking-rewrite" }],
-    });
+    assert.equal(orderBookingItems(loadedOrder)[0].id, "order-booking-item");
+    await assert.rejects(
+      admin.eshop.order.update({
+        id: loadedOrder.id,
+        booking_items: [{ id: "legacy-booking-rewrite" }],
+      }),
+      (error) => error.statusCode === 422,
+    );
     await admin.eshop.order.cancelBookingItem({
       order_id: loadedOrder.id,
-      order_booking_item_id: loadedOrder.booking_items[0].id,
+      order_booking_item_id: orderBookingItems(loadedOrder)[0].id,
     });
     await admin.eshop.order.completeBookingItem({
       order_id: loadedOrder.id,
-      order_booking_item_id: loadedOrder.booking_items[0].id,
+      order_booking_item_id: orderBookingItems(loadedOrder)[0].id,
     });
     await admin.eshop.order.markBookingItemNoShow({
       order_id: loadedOrder.id,
-      order_booking_item_id: loadedOrder.booking_items[0].id,
+      order_booking_item_id: orderBookingItems(loadedOrder)[0].id,
     });
   } finally {
     globalThis.fetch = originalFetch;
@@ -316,7 +363,9 @@ test("Admin booking runtime uses booking service, resource, and offering roots",
   assert.equal("forms" in calls[2].body, false);
   assert.equal(calls[2].body.slot_interval_minutes, 30);
   assert.deepEqual(calls[2].body.reminder_offsets_minutes, [1440, 60]);
-  assert.deepEqual(calls[4].body, {});
+  assert.deepEqual(calls[4].body, {
+    booking_items: [{ id: "legacy-booking-rewrite" }],
+  });
   assert.deepEqual(calls[5].body, {});
   assert.deepEqual(calls[6].body, {});
   assert.deepEqual(calls[7].body, {});
@@ -343,11 +392,12 @@ test("storefront booking runtime sends one offering interval and reads embedded 
     if (pathname.endsWith("/booking-resources"))
       return jsonResponse({ items: [bookingResource()], cursor: null });
     if (pathname.endsWith("/booking-offerings"))
-      return jsonResponse([bookingOffering()]);
+      return jsonResponse({ items: [bookingOffering()], cursor: null });
     if (pathname.endsWith("/booking-services/availability"))
       return jsonResponse({
         from: 1_800_000_000_000,
         to: 1_800_086_400_000,
+        cursor: null,
         booking_resources: [
           {
             booking_resource_id: "booking-resource",
@@ -366,7 +416,7 @@ test("storefront booking runtime sends one offering interval and reads embedded 
   };
 
   try {
-    await storefront.eshop.bookingService.find({ status: "active" });
+    await storefront.eshop.bookingService.find({ sort_field: "price", include_price: true });
     await storefront.eshop.bookingResource.find({
       booking_service_id: "booking-service",
     });
@@ -392,12 +442,12 @@ test("storefront booking runtime sends one offering interval and reads embedded 
       id: "order-booking",
     });
     assert.equal(
-      loadedOrder.booking_items[0].booking_resource_id,
+      orderBookingItems(loadedOrder)[0].booking_resource_id,
       "booking-resource",
     );
     await storefront.eshop.order.cancelBookingItem({
       order_id: loadedOrder.id,
-      order_booking_item_id: loadedOrder.booking_items[0].id,
+      order_booking_item_id: orderBookingItems(loadedOrder)[0].id,
     });
   } finally {
     globalThis.fetch = originalFetch;
@@ -407,13 +457,16 @@ test("storefront booking runtime sends one offering interval and reads embedded 
   assert.equal("provider" in storefront.eshop, false);
   assert.equal("getBookings" in storefront.eshop.order, false);
   assert.deepEqual(calls[4].body, {
-    id: "cart-booking",
     booking: {
       booking_offering_id: "booking-offering",
       requested_interval: { from: 1_800_000_000_000, to: 1_800_003_600_000 },
       form_submission_id: "form-submission",
     },
   });
+  assert.equal(
+    new URL(calls[4].url).pathname,
+    "/v1/storefront/carts/cart-booking/booking-items",
+  );
   assert.equal("price_override" in calls[4].body.booking, false);
   assert.deepEqual(calls[6].body, {});
   assert.equal(
@@ -438,6 +491,9 @@ test("Booking Service slug lookup stays singular while records expose slugs", as
   try {
     const service = await storefront.eshop.bookingService.get({
       slug: "consultation",
+      company_id: "company-context",
+      company_location_id: "branch-context",
+      include_price: true,
     });
     assert.equal(service.slugs.en, "consultation");
     assert.equal("slug" in service, false);
@@ -449,7 +505,31 @@ test("Booking Service slug lookup stays singular while records expose slugs", as
     new URL(call.url).pathname,
     "/v1/storefront/booking-services/consultation",
   );
+  assert.equal(new URL(call.url).searchParams.get("company_id"), "company-context");
+  assert.equal(new URL(call.url).searchParams.get("company_location_id"), "branch-context");
+  assert.equal(new URL(call.url).searchParams.get("include_price"), "true");
   assert.equal(call.method, "GET");
+});
+
+test("booking discovery forwards the Resource filter, catalog pricing and protected cursor", async () => {
+  const storefront = createStorefront(publishableKey, { apiUrl, market: "bih", sessionStorage: sessionStorage() });
+  const originalFetch = globalThis.fetch;
+  let called;
+  globalThis.fetch = async (url) => {
+    called = new URL(url);
+    return jsonResponse({ items: [], cursor: "next-page" });
+  };
+  const params = { query: "čas gitare", booking_resource_id: "resource", price_filter: { min_amount: 0, max_amount: 800, quantity: 1 }, sort_field: "price", sort_direction: "asc", limit: 10, cursor: "previous-page", include_price: true };
+  try {
+    assert.deepEqual(await storefront.eshop.bookingService.find(params), { items: [], cursor: "next-page" });
+  } finally { globalThis.fetch = originalFetch; }
+  assert.equal(called.pathname, "/v1/storefront/booking-services");
+  assert.equal(called.searchParams.get("booking_resource_id"), "resource");
+  assert.equal(called.searchParams.get("query"), params.query);
+  assert.equal(called.searchParams.get("sort_field"), "price");
+  assert.equal(called.searchParams.get("cursor"), "previous-page");
+  assert.deepEqual(JSON.parse(called.searchParams.get("price_filter")), params.price_filter);
+  assert.equal(called.searchParams.has("status"), false);
 });
 
 test("high-level booking flow creates one Cart item per appointment", async () => {
@@ -475,13 +555,14 @@ test("high-level booking flow creates one Cart item per appointment", async () =
     if (pathname.endsWith("/booking-services/booking-service"))
       return jsonResponse(bookingService());
     if (pathname.endsWith("/booking-offerings"))
-      return jsonResponse([bookingOffering()]);
+      return jsonResponse({ items: [bookingOffering()], cursor: null });
     if (pathname.endsWith("/booking-resources"))
       return jsonResponse({ items: [bookingResource()], cursor: null });
     if (pathname.endsWith("/booking-services/availability"))
       return jsonResponse({
-        from: 1_800_000_000_000,
-        to: 1_802_678_400_000,
+        from: Number(new URL(call.url).searchParams.get("from")),
+        to: Number(new URL(call.url).searchParams.get("to")),
+        cursor: null,
         booking_resources: [
           {
             booking_resource_id: "booking-resource",
@@ -498,28 +579,30 @@ test("high-level booking flow creates one Cart item per appointment", async () =
           },
         ],
       });
-    if (pathname.endsWith("/carts/current")) return jsonResponse(cart());
+    if (pathname.endsWith("/carts")) return jsonResponse({ cart: cart(), recovery_token: "cart-recovery-token" });
     if (pathname.endsWith("/carts/cart-booking"))
-      return jsonResponse(cart(call.body.booking_items));
+      return jsonResponse(
+        cart(
+          (call.body.line_items || [])
+            .filter((item) => item.type === "booking")
+            .map(({ type, ...item }) => item),
+        ),
+      );
     if (pathname === "/v1/storefront")
       return jsonResponse({
         timezone: "Europe/Sarajevo",
         languages: { default: "en", available: ["en"] },
-        markets: {
-          default: "bih",
-          available: [
-            {
+        commerce: { type: "ready", default_market_id: "market-bih", default_sales_channel_id: "channel-bih" },
+        default_market: {
               id: "market-bih",
               key: "bih",
-              currency: "EUR",
+              currency: "eur",
               tax_mode: "inclusive",
               payment_provider_ids: [],
-              zones: [],
-            },
-          ],
         },
+        payment_providers: [],
         support: { email: "support@example.test" },
-        readiness: { market: true, payment: true, commerce: true },
+        readiness: { market: true, payment: false, commerce: true },
       });
     throw new Error(`Unexpected request ${call.method} ${call.url}`);
   };
@@ -594,13 +677,15 @@ test("high-level booking flow creates one Cart item per appointment", async () =
       new URL(call.url).pathname.endsWith("/carts/cart-booking"),
   );
   assert.ok(update);
-  assert.equal(update.body.booking_items.length, 1);
+  const bookingLines = update.body.line_items.filter((item) => item.type === "booking");
+  assert.equal(bookingLines.length, 1);
   assert.deepEqual(
     {
-      ...update.body.booking_items[0],
+      ...bookingLines[0],
       id: "generated",
     },
     {
+      type: "booking",
       id: "generated",
       booking_offering_id: "booking-offering",
       requested_interval: { from: slot.from, to: slot.to },
@@ -608,4 +693,126 @@ test("high-level booking flow creates one Cart item per appointment", async () =
     },
   );
   assert.equal("form_state" in store.eshop.bookingService, false);
+});
+
+test("booking selection retains Company context and explicitly follows Offering and availability pages", async () => {
+  const store = initialize(publishableKey, { apiUrl, market: "bih", sessionStorage: sessionStorage() });
+  const originalFetch = globalThis.fetch;
+  const offeringCalls = [];
+  const resourceCalls = [];
+  const availabilityCalls = [];
+  let repeatAvailabilityCursor = false;
+  const laterOffering = { ...bookingOffering(), id: "offering-later", booking_resource_id: "resource-later" };
+  const laterResource = { ...bookingResource(), id: "resource-later" };
+  globalThis.fetch = async (url) => {
+    const request = new URL(String(url));
+    if (!request.pathname.endsWith("/booking-resources")) {
+      assert.equal(request.searchParams.get("company_id"), "company-one");
+      assert.equal(request.searchParams.get("company_location_id"), "branch-one");
+    }
+    if (request.pathname.endsWith("/booking-services/booking-service")) return jsonResponse(bookingService());
+    if (request.pathname.endsWith("/booking-offerings")) {
+      offeringCalls.push(request);
+      assert.equal(request.searchParams.get("limit"), "200");
+      assert.equal(request.searchParams.get("include_price"), "true");
+      return jsonResponse(request.searchParams.has("cursor")
+        ? { items: [laterOffering], cursor: null }
+        : { items: [bookingOffering()], cursor: "offering-next" });
+    }
+    if (request.pathname.endsWith("/booking-resources")) {
+      resourceCalls.push(request);
+      const ids = JSON.parse(request.searchParams.get("ids"));
+      assert.equal(ids.length, 1, "resources must be loaded only for this bounded Offering page");
+      return jsonResponse({ items: [ids[0] === "resource-later" ? laterResource : bookingResource()], cursor: null });
+    }
+    if (request.pathname.endsWith("/booking-services/availability")) {
+      availabilityCalls.push(request);
+      assert.equal(request.searchParams.get("limit"), "20");
+      assert.equal(request.searchParams.has("include_price"), false);
+      return jsonResponse({
+        from: Number(request.searchParams.get("from")), to: Number(request.searchParams.get("to")),
+        booking_resources: [{ booking_resource_id: request.searchParams.has("cursor") ? "resource-later" : "booking-resource", resource_key: "room", days: [] }],
+        cursor: request.searchParams.has("cursor") && !repeatAvailabilityCursor ? null : "availability-next",
+      });
+    }
+    throw new Error(`Unexpected request ${url}`);
+  };
+  try {
+    await store.eshop.bookingService.select(bookingService(), { company_id: "company-one", company_location_id: "branch-one" });
+    assert.equal(offeringCalls.length, 1);
+    assert.equal(availabilityCalls.length, 1, "availability must not eagerly follow continuations");
+    assert.equal(store.eshop.bookingService.state.get().availability.cursor, "availability-next");
+    assert.equal(store.eshop.bookingService.state.get().bookingOfferingsCursor, "offering-next");
+    await store.eshop.bookingService.loadMoreOfferings();
+    const state = store.eshop.bookingService.state.get();
+    assert.equal(offeringCalls.length, 2);
+    assert.equal(offeringCalls[1].searchParams.get("cursor"), "offering-next");
+    assert.deepEqual(state.bookingOfferings.map((row) => row.id), ["booking-offering", "offering-later"]);
+    assert.deepEqual(state.bookingResources.map((row) => row.id), ["booking-resource", "resource-later"]);
+    assert.equal(state.bookingOfferingsCursor, null);
+    assert.equal(state.loadingOfferings, false);
+    await store.eshop.bookingService.loadMoreOfferings();
+    assert.equal(offeringCalls.length, 2, "an exhausted list makes no further request");
+    assert.equal(resourceCalls.length, 2);
+    repeatAvailabilityCursor = true;
+    await assert.rejects(store.eshop.bookingService.loadMoreAvailability(), /did not advance/);
+    assert.equal(store.eshop.bookingService.state.get().availability.cursor, "availability-next");
+    assert.equal(store.eshop.bookingService.state.get().availability.booking_resources.length, 1);
+    assert.equal(store.eshop.bookingService.state.get().loading, false);
+    repeatAvailabilityCursor = false;
+    await store.eshop.bookingService.loadMoreAvailability();
+    assert.equal(availabilityCalls.length, 3);
+    assert.equal(availabilityCalls[1].searchParams.get("cursor"), "availability-next");
+    assert.equal(availabilityCalls[1].searchParams.get("from"), availabilityCalls[0].searchParams.get("from"));
+    assert.deepEqual(store.eshop.bookingService.state.get().availability.booking_resources.map((row) => row.booking_resource_id), ["booking-resource", "resource-later"]);
+    assert.equal(store.eshop.bookingService.state.get().availability.cursor, null);
+    await store.eshop.bookingService.loadMoreAvailability();
+    assert.equal(availabilityCalls.length, 3);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("late availability cannot replace a newer Service selection or its shared read state", async () => {
+  const store = initialize(publishableKey, { apiUrl, market: "bih", sessionStorage: sessionStorage() });
+  const originalFetch = globalThis.fetch;
+  let announcePending;
+  let releaseOld;
+  const pending = new Promise((resolve) => { announcePending = resolve; });
+  globalThis.fetch = async (url) => {
+    const request = new URL(String(url));
+    if (request.pathname.endsWith("/booking-services/availability")) {
+      const serviceId = request.searchParams.get("booking_service_id");
+      const response = {
+        from: Number(request.searchParams.get("from")),
+        to: Number(request.searchParams.get("to")),
+        cursor: null,
+        booking_resources: [{ booking_resource_id: serviceId, resource_key: serviceId, days: [] }],
+      };
+      if (serviceId === "booking-service") {
+        announcePending();
+        return new Promise((resolve) => { releaseOld = () => resolve(jsonResponse(response)); });
+      }
+      return jsonResponse(response);
+    }
+    if (request.pathname.endsWith("/booking-offerings")) return jsonResponse({ items: [], cursor: null });
+    if (request.pathname.includes("/booking-services/")) return jsonResponse({
+      ...bookingService(), id: request.pathname.split("/").at(-1),
+    });
+    throw new Error(`Unexpected request ${url}`);
+  };
+  try {
+    const first = store.eshop.bookingService.select(bookingService());
+    await pending;
+    await store.eshop.bookingService.select({ ...bookingService(), id: "service-new" });
+    releaseOld();
+    await first;
+    const state = store.eshop.bookingService.state.get();
+    assert.equal(state.bookingService.id, "service-new");
+    assert.equal(state.availability.booking_resources[0].booking_resource_id, "service-new");
+    assert.equal(state.loading, false);
+    assert.equal(store.eshop.state.get().availability.booking_resources[0].booking_resource_id, "service-new");
+    assert.equal(store.eshop.state.get().loading_availability, false);
+  } finally {
+    releaseOld?.();
+    globalThis.fetch = originalFetch;
+  }
 });

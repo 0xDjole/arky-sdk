@@ -1,10 +1,10 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { Payment } from "../types/payment";
+import type { CreateManualPaymentParams, RecordedCollection, RecordCashOnDeliveryCollectionParams, RecordManualCollectionParams } from "../types/paymentCapture";
 import type {
   FindPaymentsParams,
   GetPaymentParams,
-  MarkCashOnDeliveryPaidParams,
   RequestOptions,
 } from "../types/api";
 
@@ -27,13 +27,36 @@ export const createPaymentApi = (apiConfig: ApiConfig) => {
         options,
       );
     },
-    async markCashOnDeliveryPaid(
-      params: MarkCashOnDeliveryPaidParams,
+    async recordCashOnDeliveryCollection(
+      params: RecordCashOnDeliveryCollectionParams,
+      options?: RequestOptions,
+    ): Promise<RecordedCollection> {
+      const { store_id, id, ...payload } = params;
+      return apiConfig.httpClient.post<RecordedCollection>(
+        `/v1/stores/${storeId(store_id)}/payments/${id}/cash-on-delivery/collections`,
+        payload,
+        options,
+      );
+    },
+    async recordManualCollection(
+      params: RecordManualCollectionParams,
+      options?: RequestOptions,
+    ): Promise<RecordedCollection> {
+      const { store_id, id, ...payload } = params;
+      return apiConfig.httpClient.post<RecordedCollection>(
+        `/v1/stores/${storeId(store_id)}/payments/${id}/manual/collections`,
+        payload,
+        options,
+      );
+    },
+    async createManual(
+      params: CreateManualPaymentParams,
       options?: RequestOptions,
     ): Promise<Payment> {
+      const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<Payment>(
-        `/v1/stores/${storeId(params.store_id)}/payments/${params.id}/cash-on-delivery/mark-paid`,
-        {},
+        `/v1/stores/${storeId(store_id)}/payments/manual`,
+        payload,
         options,
       );
     },

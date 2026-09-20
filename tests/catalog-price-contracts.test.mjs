@@ -8,7 +8,7 @@ const companyId = "8f9a5793-561f-4655-8f6b-42f5d6ded326";
 const selectedPrice = {
   unit_price: { currency: "bam", amount: 2500 },
   compare_at: 3000,
-  billing: { type: "one_time" },
+  tax_mode: "exclusive",
   min_quantity: 1,
   max_quantity: 9,
   priced_at: 1788862721000,
@@ -18,15 +18,7 @@ for (const owner of ["product", "digital", "bookingOffering"]) {
   test(`${owner} forwards explicit catalog context and retains only the server-selected price`, async () => {
     const calls = [];
     const originalFetch = globalThis.fetch;
-    const record =
-      owner === "product"
-        ? {
-            id: "product",
-            variants: [
-              { id: "variant", price: selectedPrice, purchase_allowed: true },
-            ],
-          }
-        : { id: "sellable", price: selectedPrice, purchase_allowed: true };
+    const record = { id: "sellable", price: selectedPrice, purchase_allowed: true };
     globalThis.fetch = async (url, init = {}) => {
       const parsed = new URL(url);
       calls.push({
@@ -39,12 +31,7 @@ for (const owner of ["product", "digital", "bookingOffering"]) {
         /^\/v1\/storefront\/(products|digital-products|booking-offerings)/,
       );
       const isList = parsed.pathname.split("/").length === 4;
-      const body =
-        owner === "bookingOffering"
-          ? [record]
-          : isList
-            ? { items: [record], cursor: "next" }
-            : record;
+      const body = isList ? { items: [record], cursor: "next" } : record;
       return new Response(JSON.stringify(body), {
         status: 200,
         headers: { "content-type": "application/json" },
@@ -66,9 +53,7 @@ for (const owner of ["product", "digital", "bookingOffering"]) {
       });
       assert.deepEqual(
         page,
-        owner === "bookingOffering"
-          ? [record]
-          : { items: [record], cursor: "next" },
+        { items: [record], cursor: "next" },
       );
       assert.equal(calls[0].url.searchParams.get("company_id"), companyId);
       assert.equal(calls[0].url.searchParams.get("include_price"), "true");

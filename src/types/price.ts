@@ -1,5 +1,4 @@
 import type { AccountActor } from "./accountActor";
-import type { PriceBilling } from "./commerce";
 import type { Currency, Money } from "./index";
 import type { SellableRef } from "./sellable";
 import type { EpochMilliseconds } from "./time";
@@ -15,7 +14,6 @@ export interface Price {
   currency: Currency;
   amount: number;
   compare_at: number | null;
-  billing: PriceBilling;
   min_quantity: number;
   max_quantity: number | null;
   status: PriceStatus;
@@ -24,6 +22,7 @@ export interface Price {
 }
 
 export interface ManualPriceInput {
+  allow_promotions: boolean;
   currency: Currency;
   amount: number;
   reason: string;
@@ -33,6 +32,7 @@ export interface ManualPrice {
   money: Money;
   reason: string;
   authorized_by: AccountActor;
+  allow_promotions: boolean;
 }
 
 export interface CreatePriceParams {
@@ -42,7 +42,6 @@ export interface CreatePriceParams {
   currency: Currency;
   amount: number;
   compare_at?: number | null;
-  billing: PriceBilling;
   min_quantity: number;
   max_quantity?: number | null;
   status: PriceEditableStatus;
@@ -67,6 +66,11 @@ export interface DeletePriceParams extends GetPriceParams {
 }
 
 export interface FindPricesParams {
+  status?: PriceStatus["type"];
+  currency?: Currency;
+  base_only?: boolean;
+  sort_field?: "created_at" | "updated_at";
+  sort_direction?: "asc" | "desc";
   store_id?: string;
   limit?: number;
   cursor?: string;

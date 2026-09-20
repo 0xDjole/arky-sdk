@@ -1,4 +1,4 @@
-import type { Block, ObjectBlock } from "../types";
+import type { Block, LocalizedText, ObjectBlock } from "../types";
 
 type BlockContainer = { blocks?: readonly Block[] | null };
 type UnknownRecord = Record<string, unknown>;
@@ -11,11 +11,11 @@ function isBlock(value: unknown): value is Block {
   return isRecord(value) && typeof value.key === "string" && typeof value.type === "string";
 }
 
-function recordFromBlocks(values: readonly unknown[], locale: string): UnknownRecord {
+function recordFromBlocks(values: readonly unknown[], locale: string, defaultLocale?: string): UnknownRecord {
   const result: UnknownRecord = {};
   for (const value of values) {
     if (!isBlock(value)) continue;
-    result[value.key] = unwrapBlock(value, locale);
+    result[value.key] = unwrapBlock(value, locale, defaultLocale);
   }
   return result;
 }
@@ -73,46 +73,62 @@ export function selectLocalizedObjectText(
   return localizedBlockText(value, locale, fallbackLocales, true) ?? fallback;
 }
 
-function unwrapBlock(value: unknown, locale: string): unknown {
+export function selectLocalizedText(
+  value: Readonly<LocalizedText> | null | undefined,
+  locale: string | null | undefined,
+  defaultLocale?: string | null,
+): string | null {
+  if (!value) return null;
+  for (const selected of [locale, defaultLocale]) {
+    if (selected && Object.prototype.hasOwnProperty.call(value, selected)) {
+      return value[selected];
+    }
+  }
+  return null;
+}
+
+function unwrapBlock(value: unknown, locale: string, defaultLocale?: string): unknown {
   if (!isBlock(value)) return value;
+  if (value.type === "localized_text") return selectLocalizedText(value.value, locale, defaultLocale);
   if (value.type === "array") {
-    return value.value.map((item) => unwrapBlock(item, locale));
+    return value.value.map((item) => unwrapBlock(item, locale, defaultLocale));
   }
   if (value.type === "object") {
     const localized = localizedBlockText(value, locale, ["en"], false);
     if (localized !== undefined) return localized;
     return Object.fromEntries(
-      Object.entries(value.value).map(([key, nested]) => [key, unwrapBlock(nested, locale)]),
+      Object.entries(value.value).map(([key, nested]) => [key, unwrapBlock(nested, locale, defaultLocale)]),
     );
   }
   return value.value;
 }
 
-function blockContentArray(values: readonly unknown[], locale: string): unknown {
+function blockContentArray(values: readonly unknown[], locale: string, defaultLocale?: string): unknown {
   const blocks = values.filter(isBlock);
   if (blocks.length === 0) return [];
   if (blocks.every((block) => block.key === blocks[0].key)) {
-    return blocks.map((block) => blockContentValue(block, locale));
+    return blocks.map((block) => blockContentValue(block, locale, defaultLocale));
   }
   return Object.fromEntries(
-    blocks.map((block) => [block.key, blockContentValue(block, locale)]),
+    blocks.map((block) => [block.key, blockContentValue(block, locale, defaultLocale)]),
   );
 }
 
-function blockContentValue(block: Block, locale: string): unknown {
+function blockContentValue(block: Block, locale: string, defaultLocale?: string): unknown {
+  if (block.type === "localized_text") return selectLocalizedText(block.value, locale, defaultLocale);
   if (block.type === "media") return block.value ?? null;
   if (block.type === "array") {
-    return Array.isArray(block.value) ? blockContentArray(block.value, locale) : [];
+    return Array.isArray(block.value) ? blockContentArray(block.value, locale, defaultLocale) : [];
   }
   if (block.type === "object") {
     const localized = localizedBlockText(block, locale, ["en"], false);
     if (localized !== undefined) return localized;
-    if (Array.isArray(block.value)) return blockContentArray(block.value, locale);
+    if (Array.isArray(block.value)) return blockContentArray(block.value, locale, defaultLocale);
     if (!isRecord(block.value)) return {};
     return Object.fromEntries(
       Object.entries(block.value).map(([key, value]) => [
         key,
-        isBlock(value) ? blockContentValue(value, locale) : value,
+        isBlock(value) ? blockContentValue(value, locale, defaultLocale) : value,
       ]),
     );
   }
@@ -127,8 +143,9 @@ export function getBlockLabel(block: Pick<Block, "key"> | null | undefined): str
   return block?.key.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) ?? "";
 }
 
-export function formatBlockValue(block: Block | null | undefined): string {
+export function formatBlockValue(block: Block | null | undefined, locale = "en", defaultLocale?: string): string {
   if (block?.value === null || block?.value === undefined) return "";
+  if (block.type === "localized_text") return selectLocalizedText(block.value, locale, defaultLocale) ?? "";
   if (block.type === "boolean") return block.value ? "Yes" : "No";
   if (block.type === "date") {
     return epochMillisecondsToDate(block.value).toLocaleDateString();
@@ -196,8 +213,9 @@ export function getBlockValue<T = unknown>(
   return (findBlock(entry, key)?.value as T | undefined) ?? null;
 }
 
-export function getBlockTextValue(block: Block | null | undefined, locale = "en"): string {
+export function getBlockTextValue(block: Block | null | undefined, locale = "en", defaultLocale?: string): string {
   if (!block || block.value === null || block.value === undefined) return "";
+  if (block.type === "localized_text") return selectLocalizedText(block.value, locale, defaultLocale) ?? "";
   if (block.type === "object") {
     return selectLocalizedObjectText(block, locale);
   }
@@ -208,9 +226,10 @@ export function getBlockContentValue(
   entry: BlockContainer | null | undefined,
   key: string,
   locale = "en",
+  defaultLocale?: string,
 ): unknown {
   const block = findBlock(entry, key);
-  return block ? blockContentValue(block, locale) : null;
+  return block ? blockContentValue(block, locale, defaultLocale) : null;
 }
 
 export function getBlockValues<T = unknown>(
@@ -225,14 +244,15 @@ export function getBlockObjectValues(
   entry: BlockContainer | null | undefined,
   key: string,
   locale = "en",
+  defaultLocale?: string,
 ): UnknownRecord[] {
   return getBlockValues(entry, key).map((value) => {
     if (isRecord(value) && Array.isArray(value.value)) {
-      return recordFromBlocks(value.value, locale);
+      return recordFromBlocks(value.value, locale, defaultLocale);
     }
     return isRecord(value)
       ? Object.fromEntries(
-          Object.entries(value).map(([field, nested]) => [field, unwrapBlock(nested, locale)]),
+          Object.entries(value).map(([field, nested]) => [field, unwrapBlock(nested, locale, defaultLocale)]),
         )
       : {};
   });
@@ -242,12 +262,13 @@ export function getBlockFromArray(
   entry: BlockContainer | null | undefined,
   key: string,
   locale = "en",
+  defaultLocale?: string,
 ): UnknownRecord {
   const block = findBlock(entry, key);
   if (!block) return {};
-  const value = unwrapBlock(block, locale);
+  const value = unwrapBlock(block, locale, defaultLocale);
   if (isRecord(value)) return value;
-  if (Array.isArray(block.value)) return recordFromBlocks(block.value, locale);
+  if (Array.isArray(block.value)) return recordFromBlocks(block.value, locale, defaultLocale);
   return { [block.key]: value };
 }
 

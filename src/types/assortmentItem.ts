@@ -33,6 +33,7 @@ export interface DeleteAssortmentItemParams extends GetAssortmentItemParams {
 }
 
 export interface FindAssortmentItemsParams {
+  sellable?: SellableRef;
   store_id?: string;
   assortment_id: string;
   limit?: number;

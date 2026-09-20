@@ -33,7 +33,10 @@ async function capture(response, request) {
   }
 }
 
-test("shipping label effects use Shipment-owned provider-neutral state", async (t) => {
+test("shipping label effects are independent roots, not Shipment-owned projections", async (t) => {
+  const labelId = "6ba7b811-9dad-41d1-80b4-00c04fd430c8";
+  const labelRefundId = "6ba7b812-9dad-41d1-80b4-00c04fd430c8";
+  const debitReversalId = "6ba7b814-9dad-41d1-80b4-00c04fd430c8";
   const shipment = {
     id: shipmentId,
     store_id: storeId,
@@ -41,7 +44,7 @@ test("shipping label effects use Shipment-owned provider-neutral state", async (
     fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
     origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
     lines: [],
-    status: "pending",
+    status: { type: "pending" },
     parcel: {
       length: 150,
       width: 100,
@@ -56,77 +59,61 @@ test("shipping label effects use Shipment-owned provider-neutral state", async (
     tracking_number: null,
     tracking_url: null,
     tracking_status_at: null,
-    label: {
-      id: "6ba7b811-9dad-41d1-80b4-00c04fd430c8",
-      status: "requested",
-      label_url: null,
-      postage: { amount: 895, currency: "usd" },
-      platform_label_fee: { amount: 10, currency: "usd" },
-      total: { amount: 905, currency: "usd" },
-      requested_at: 1,
-      completed_at: null,
-      merchant_debit: {
-        id: "6ba7b815-9dad-41d1-80b4-00c04fd430c8",
-        status: "requested",
-        safe_error: null,
-        requested_at: 1,
-        completed_at: null,
-      },
-      refund: null,
-      merchant_debit_reversal: null,
-      safe_error: null,
-    },
+    selected_label_id: labelId,
     created_at: 1,
     updated_at: 1,
+    dispatch: null,
+    origin_address: {},
+    destination_address: {},
   };
-  const labelRefund = {
-    id: "6ba7b812-9dad-41d1-80b4-00c04fd430c8",
-    status: "requested",
-    safe_error: null,
-    requested_at: 2,
-    completed_at: null,
+  const purchase = {
+    label: { id: labelId, store_id: storeId },
+    merchant_debit: { id: "6ba7b815-9dad-41d1-80b4-00c04fd430c8", store_id: storeId },
   };
-  const shipmentPath = `${baseUrl}/v1/stores/${storeId}/orders/${orderId}/shipments/${shipmentId}`;
+  const labelRefund = { id: labelRefundId, store_id: storeId, shipping_label_id: labelId };
+  const debitReversal = { id: debitReversalId, store_id: storeId };
+  const labelPath = `${baseUrl}/v1/stores/${storeId}/shipping-labels`;
+  const refundPath = `${baseUrl}/v1/stores/${storeId}/shipping-label-refunds`;
+  const reversalPath = `${baseUrl}/v1/stores/${storeId}/merchant-debit-reversals`;
 
   const cases = [
     {
-      name: "retry label",
-      response: shipment,
-      request: (arky) =>
-        arky.eshop.shipment.label.retry({
-          order_id: orderId,
-          shipment_id: shipmentId,
-        }),
-      expected: {
-        url: `${shipmentPath}/label/retry`,
-        method: "POST",
-        body: {},
-      },
+      name: "reconcile label",
+      response: purchase,
+      request: (arky) => arky.eshop.shippingLabel.reconcile({ shipping_label_id: labelId }),
+      expected: { url: `${labelPath}/${labelId}/reconcile`, method: "POST", body: {} },
     },
     {
       name: "request carrier-label refund",
       response: labelRefund,
       request: (arky) =>
-        arky.eshop.shipment.label.refund.request({
-          order_id: orderId,
-          shipment_id: shipmentId,
-        }),
+        arky.eshop.shippingLabelRefund.request({ shipping_label_id: labelId }),
       expected: {
-        url: `${shipmentPath}/label/refund`,
+        url: refundPath,
         method: "POST",
-        body: {},
+        body: { shipping_label_id: labelId },
       },
     },
     {
       name: "retry carrier-label refund",
       response: labelRefund,
       request: (arky) =>
-        arky.eshop.shipment.label.refund.retry({
-          order_id: orderId,
-          shipment_id: shipmentId,
+        arky.eshop.shippingLabelRefund.retry({ shipping_label_refund_id: labelRefundId }),
+      expected: {
+        url: `${refundPath}/${labelRefundId}/retry`,
+        method: "POST",
+        body: {},
+      },
+    },
+    {
+      name: "reconcile merchant debit reversal",
+      response: debitReversal,
+      request: (arky) =>
+        arky.eshop.merchantDebitReversal.reconcile({
+          merchant_debit_reversal_id: debitReversalId,
         }),
       expected: {
-        url: `${shipmentPath}/label/refund/retry`,
+        url: `${reversalPath}/${debitReversalId}/reconcile`,
         method: "POST",
         body: {},
       },
@@ -144,8 +131,8 @@ test("shipping label effects use Shipment-owned provider-neutral state", async (
     });
   }
 
-  assert.equal("provider" in shipment.label.merchant_debit, false);
-  assert.equal("attempt_count" in shipment.label.merchant_debit, false);
+  assert.equal("label" in shipment, false);
   assert.equal("version" in shipment, false);
   assert.equal("shippo_label" in shipment, false);
+  assert.equal(shipment.selected_label_id, purchase.label.id);
 });

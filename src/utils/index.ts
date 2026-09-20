@@ -54,6 +54,7 @@ export {
   getImageUrl,
   prepareBlocksForSubmission,
   selectLocalizedObjectText,
+  selectLocalizedText,
 } from "./blocks";
 export type { BlockReferences } from "./blocks";
 
@@ -61,3 +62,5 @@ export {
   ScheduledResultTimeoutError,
   pollScheduledResult,
 } from "./scheduledResult";
+export { selectShipmentUnits } from "./fulfillmentSelection";
+export { FulfillmentSelectionError } from "../types/fulfillmentSelection";

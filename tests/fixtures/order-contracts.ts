@@ -1,7 +1,9 @@
 import type {
   Order,
-  OrderSource,
+  OrderLineItem,
+  OrderPurchaseSource,
   OrderStatus,
+  OrderType,
   UpdateOrderParams,
 } from "arky-sdk";
 import type * as Public from "arky-sdk/types";
@@ -14,10 +16,12 @@ type Equal<A, B> =
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type RequiredNullable<T, K extends keyof T> =
   {} extends Pick<T, K> ? false : null extends T[K] ? true : false;
+type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 
 export type OrderContracts = [
   Assert<Equal<Order, Public.Order>>,
-  Assert<Equal<OrderSource, Public.OrderSource>>,
+  Assert<Equal<OrderType, Public.OrderType>>,
+  Assert<Equal<OrderPurchaseSource, Public.OrderPurchaseSource>>,
   Assert<Equal<OrderStatus, Public.OrderStatus>>,
   Assert<
     Equal<keyof UpdateOrderParams, "id" | "store_id" | "confirm" | "cancel">
@@ -28,33 +32,51 @@ export type OrderContracts = [
       { type: "pending" | "confirmed" | "partially_cancelled" | "cancelled" }
     >
   >,
-  Assert<RequiredNullable<Order, "customer_id">>,
-  Assert<RequiredNullable<Order, "company_id">>,
-  Assert<RequiredNullable<Order, "company_location_id">>,
+  Assert<RequiredField<Order, "customer_id">>,
+  Assert<RequiredField<Order, "customer_snapshot">>,
+  Assert<RequiredNullable<Order, "company">>,
   Assert<RequiredNullable<Order, "market_id">>,
   Assert<RequiredNullable<Order, "sales_channel_id">>,
-  Assert<RequiredNullable<Order, "customer_snapshot">>,
-  Assert<RequiredNullable<Order, "company_snapshot">>,
+  Assert<RequiredField<Order, "market_snapshot">>,
+  Assert<RequiredField<Order, "sales_channel_snapshot">>,
+  Assert<Missing<Order, "company_id">>,
+  Assert<Missing<Order, "company_location_id">>,
+  Assert<Missing<Order, "company_snapshot">>,
   Assert<Missing<Order, "source_cart_id">>,
   Assert<Missing<Order, "customer_session_id">>,
-  Assert<Missing<Order["booking_items"][number], "customer_session_id">>,
-  Assert<Equal<Order["audience_items"], Public.OrderAudienceItem[]>>,
+  Assert<Missing<Order, "product_items">>,
+  Assert<Missing<Order, "booking_items">>,
+  Assert<Missing<Order, "digital_items">>,
+  Assert<Missing<Order, "audience_items">>,
+  Assert<Equal<Order["line_items"], OrderLineItem[]>>,
   Assert<
     Equal<
-      Extract<OrderSource, { type: "cart" }>,
-      { type: "cart"; request_id: string; cart_id: string | null }
+      Extract<OrderLineItem, { type: "customer_group_plan" }>["type"],
+      "customer_group_plan"
     >
   >,
   Assert<
     Equal<
-      Extract<OrderSource, { type: "direct" }>,
+      Extract<OrderPurchaseSource, { type: "checkout" }>,
+      { type: "checkout"; checkout_id: string }
+    >
+  >,
+  Assert<
+    Equal<
+      Extract<OrderPurchaseSource, { type: "direct" }>,
       { type: "direct"; request_id: string }
     >
   >,
   Assert<
     Equal<
-      Extract<Order["origin"], { type: "storefront" }>,
-      { type: "storefront"; customer_id: string; customer_session_id: string }
+      Extract<OrderType, { type: "customer_group" }>,
+      { type: "customer_group"; order_customer_group_line_item_id: string }
+    >
+  >,
+  Assert<
+    Equal<
+      Extract<Order["origin"], { type: "admin" }>["type"],
+      "admin"
     >
   >,
 ];

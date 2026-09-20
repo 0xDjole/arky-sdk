@@ -6,7 +6,35 @@ import {
 	getBlockContentValue,
 	getBlockTextValue,
 	selectLocalizedObjectText,
+	selectLocalizedText,
 } from '../dist/storefront.js';
+
+test('LocalizedText selects only the requested or explicitly configured default language', () => {
+	const translations = { en: 'Shirt', 'sr-Latn-BA': 'Košulja', ja: 'シャツ' };
+	const block = { id: 'name', key: 'name', type: 'localized_text', value: translations };
+	assert.equal(selectLocalizedText(translations, 'sr-Latn-BA', 'en'), 'Košulja');
+	assert.equal(selectLocalizedText(translations, 'ja', 'en'), 'シャツ');
+	assert.equal(selectLocalizedText(translations, 'de', 'en'), 'Shirt');
+	assert.equal(selectLocalizedText(translations, 'de'), null);
+	assert.equal(selectLocalizedText(translations, 'sr-latn-ba'), null);
+	assert.equal(selectLocalizedText(translations, 'toString'), null);
+	assert.equal(selectLocalizedText(null, 'en'), null);
+	assert.equal(getBlockTextValue(block, 'sr-Latn-BA'), 'Košulja');
+	assert.equal(getBlockTextValue(block, 'de'), '');
+	assert.equal(getBlockTextValue(block, 'de', 'en'), 'Shirt');
+	assert.deepEqual(block.value, translations);
+});
+
+test('LocalizedText is decoded recursively without treating translation keys as Block references', () => {
+	const localized = { id: 'name', key: 'name', type: 'localized_text', value: { en: 'Shirt', de: 'Hemd' } };
+	const entry = { blocks: [{ id: 'items', key: 'items', type: 'array', value: [
+		{ id: 'item', key: 'item', type: 'object', value: { name: localized } }
+	] }] };
+	assert.deepEqual(getBlockContentValue(entry, 'items', 'de'), [{ name: 'Hemd' }]);
+	assert.deepEqual(getBlockContentValue(entry, 'items', 'fr'), [{ name: null }]);
+	assert.deepEqual(getBlockContentValue(entry, 'items', 'fr', 'en'), [{ name: 'Shirt' }]);
+	assert.deepEqual(collectBlockReferences(entry.blocks), { mediaIds: [], entryIds: [], formIds: [], productIds: [], digitalProductIds: [] });
+});
 
 function localizedObject(values) {
 	return {

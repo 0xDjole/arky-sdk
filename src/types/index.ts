@@ -1,15 +1,46 @@
 import type { Payment } from "./payment";
-import type { AudienceMembershipAdminType, AudienceMembershipType } from "./audienceMembership";
-export type { AudienceMembershipAdminType, AudienceMembershipType, AudienceConfirmationEmailStatus, AudienceConfirmationEmailAdminStatus, PaidAudienceSource } from "./audienceMembership";
-import type { AppliedPriceSnapshot, DisplayTextSnapshot, OrderCustomerGroupPlanItem, StorefrontPrice, SubscriptionAudienceSnapshot } from "./commerce";
+import type { StripeConnectionOperation } from "./stripeConnection";
+export type { StripeConnectionOperation, StripeConnectionEffectStatus } from "./stripeConnection";
+import type { AppliedPriceSnapshot, DisplayTextSnapshot, StorefrontPrice } from "./commerce";
+import type { OrderBookingSnapshot, OrderDigitalSnapshot, OrderProductSnapshot } from "./orderSnapshot";
+import type { AcceptedProductMoneyRun, LineMoneySnapshot, ProductMoneyTotals } from "./orderMoney";
+export type * from "./orderSnapshot";
+export type * from "./orderMoney";
+export type * from "./orderLineItem";
+import type { AcceptedFormSubmission, OrderAccess, OrderLineItemOrigin, OrderProductLocationAllocation } from "./orderLineItem";
 export type { Price } from "./price";
+export type { Zone, ZoneMatch, ZoneStatus, ZoneEditableStatus } from "./zone";
+export type { ShippingMethod, ShippingRate } from "./shipping";
 export type { StorefrontPrice } from "./commerce";
-export type { AppliedPriceSnapshot, AppliedPriceSource, DisplayTextSnapshot, OrderCustomerGroupPlanItem, PriceBilling, SubscriptionAudienceSnapshot } from "./commerce";
+export type { AppliedPriceSnapshot, AppliedPriceSource, DisplayTextSnapshot, OrderCustomerGroupPlanItem } from "./commerce";
 export type { CompanySnapshot, PurchaseCustomerSnapshot, PurchaseOrigin, PurchaseQuoteContext, SalesChannelSnapshot } from "./commerce";
-export type { CheckoutSubscriptionParams, QuoteSubscriptionParams, SubscriptionCheckoutPayload, SubscriptionCheckoutResult, SubscriptionCheckoutSelection, SubscriptionPurchaseSelection, SubscriptionQuote } from "./subscription";
-export type { CommerceProviderObservation, PaymentSettlement, PaymentSettlementEvidence, Payment, PaymentStatus, PaymentSource, PaymentAmounts, PaymentProviderBinding, PaymentCheckoutExpiration, BillingPeriod } from "./payment";
+export type { CustomerGroupAcceptedTerms, CustomerGroupPlanSnapshot, CustomerGroupBenefitSnapshot, CustomerGroupBenefitSnapshotType, CustomerGroupProductSnapshot, CustomerGroupDigitalSnapshot, CustomerGroupDeliveryTerms, CustomerGroupPurchaseOccurrence, OrderCustomerGroupTerms, OrderAccessRevocation } from "./commerce";
+export type { BillingPeriod } from "./commerce";
+export type { PaymentCaptureEvidence, CaptureFinancialEffect, PaymentCaptureStatus, OrderPaymentCapture, RecordedCollection, RecordCashOnDeliveryCollectionParams, RecordManualCollectionParams, CreateManualPaymentParams } from "./paymentCapture";
+export type { CommerceProviderObservation, Payment, PaymentStatus, PaymentAmounts, PaymentProviderBinding, PaymentCheckoutExpiration, PaymentReconciliation, StripeInvoicePaymentObject } from "./payment";
 import type { EpochMilliseconds } from "./time";
-export type { Order, OrderType, OrderStatus } from "./order";
+export type { Order, OrderType, OrderPurchaseSource, OrderStatus, OrderLineItem, OrderCompanyContext, OrderFinancialSummary, OrderFinancialConcern, GetOrderFinancialSummaryParams } from "./order";
+export type {
+  MarketSnapshot,
+  PurchaseOriginSnapshot,
+  CompanyLocationSnapshot,
+  SellerProfile,
+  SellerSnapshot,
+  InvoiceIssueTrigger,
+  OrderInvoicePolicy,
+  RenewalRecovery,
+  RenewalRecoveryStatus,
+  ReconciliationState,
+  CollectionPolicySnapshot,
+  PromotionRedemption,
+  CheckoutPaymentAuthorization,
+  PaymentTermsSnapshot,
+  PaymentTermsType,
+  OrderDeliveryGroup,
+  AcceptedDeliveryPricing,
+  AcceptedDeliveryCalculation,
+  AcceptedCarrierQuoteLeg,
+} from "./orderContract";
 export type Currency =
   | "usd"
   | "eur"
@@ -57,9 +88,14 @@ export interface Money {
 
 export type TaxMode = "exclusive" | "inclusive";
 
-export interface OrderPromoCodeSnapshot {
-  id: string;
-  code: string;
+export interface OrderPromotionSnapshot {
+  promotion_id: string | null;
+  promotion_key: string;
+  promotion_code_id: string | null;
+  code: string | null;
+  effect_ids: string[];
+  policy_digest: string;
+  algorithm_version: number;
 }
 
 export type PaymentDisputeResponse =
@@ -95,7 +131,10 @@ export type PaymentDisputeProvider = {
 export interface PaymentDispute {
   id: string;
   store_id: string;
-  payment_id: string;
+  order_payment_id: string;
+  order_payment_capture_id: string | null;
+  livemode: boolean;
+  financial_effects: DisputeFinancialEffect[];
   money: Money;
   status: PaymentDisputeStatus;
   reason: string;
@@ -104,23 +143,31 @@ export interface PaymentDispute {
   updated_at: EpochMilliseconds;
 }
 
+export interface DisputeFinancialEffect {
+  type: "principal_withdrawn" | "principal_reinstated" | "fee";
+  effect_id: string;
+  money: Money;
+  observed_at: EpochMilliseconds;
+}
+
+import type { AccountActor } from "./accountActor";
 export type { AccountActor, AccountActorSnapshot, AccountCredentialType } from "./accountActor";
 export type { Refund, RefundProvider, RefundAllocation, RefundApplication, RefundRequester, SystemRefundReason, RefundReason, RefundRequestReason, RefundStatus } from "./refund";
+export type { CustomerMoneyEvidence, RefundFinancialEffect, RefundAllocationBalance, RefundMoneySummary, RecordedRefundMoney, LocalRefundMovement, RecordRefundMoneyParams, CancelLocalRefundParams } from "./refund";
 
 export interface OrderMoney {
   currency: Currency;
-  market: string;
   subtotal: number;
-  shipping: number;
+  delivery: number;
   discount: number;
   tax_total: number;
+  duty_total: number;
   total: number;
-  promo_code: OrderPromoCodeSnapshot | null;
-  zone_id: string | null;
-  shipping_method_id: string | null;
+  promotions: OrderPromotionSnapshot[];
 }
 
-export type { OrderQuote, ProductQuoteLine, BookingQuoteLine, DigitalProductQuoteLine, CustomerGroupOrderQuoteLine, BookingQuoteLineAvailability } from "./quote";
+export type * from "./quote";
+export type { CheckoutQuote, CheckoutQuoteSources, CheckoutQuoteDeliveryBinding } from "./checkout";
 
 export type IntervalPeriod = "month" | "year";
 
@@ -197,7 +244,8 @@ export interface EshopCartItem {
   max_stock?: number;
 }
 
-export type { Cart, CartStatus, CartProductItem, CartBookingItem, CartDigitalItem, CartCustomerGroupPlanItem } from "./cart";
+export type { Cart, CreatedCart, CartStatus, CartLineItem, CartCompanyContext, CartProductItem, CartBookingItem, CartDigitalItem, CartCustomerGroupPlanItem } from "./cart";
+export type { QuotedDeliveryGroup, QuotedShippingOffer, QuotedDeliveryPricing, ShippingDeliveryEstimate } from "./quote";
 
 export type SocialConnectionType =
   | "facebook_page"
@@ -574,16 +622,18 @@ export interface BuildHook {
 }
 
 export interface StripePlatformDebitConsent {
-  connected_account_id: string;
-  accepted_by_account_id: string;
+  accepted_by: AccountActor;
   accepted_at: EpochMilliseconds;
   terms_version: number;
+  revoked_at: EpochMilliseconds | null;
 }
 
-export type PaymentProviderConfiguration =
-  | { type: "cash_on_delivery" }
+export type PaymentProviderStatus = { type: "active" } | { type: "disabled" } | { type: "deleting" };
+
+export type StripeProviderConnection =
+  | { type: "unconnected" }
   | {
-      type: "stripe";
+      type: "connected";
       connected_account_id: string;
       account_setup_submitted: boolean;
       payments_enabled: boolean;
@@ -592,12 +642,23 @@ export type PaymentProviderConfiguration =
       platform_debit_consent: StripePlatformDebitConsent | null;
     };
 
+export type PaymentProviderConfiguration =
+  | { type: "cash_on_delivery" }
+  | { type: "manual" }
+  | {
+      type: "stripe";
+      connection: StripeProviderConnection;
+    };
+
 export type PaymentProviderConfigurationType =
   PaymentProviderConfiguration["type"];
 
 export interface PaymentProvider {
   id: string;
   store_id: string;
+  key: string;
+  blocks: Block[];
+  status: PaymentProviderStatus;
   configuration: PaymentProviderConfiguration;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -606,21 +667,11 @@ export interface PaymentProvider {
 export interface PaymentProviderConnectResponse {
   provider: PaymentProvider;
   onboarding_url: string | null;
+  operation: StripeConnectionOperation;
 }
 
-export interface ShippingWeightTier {
-  up_to_grams: number;
-  amount: number;
-}
-
-export interface ShippingMethod {
-  id: string;
-  taxable: boolean;
-  eta_text: string;
-  location_id?: string;
-  amount: number;
-  free_above?: number;
-  weight_tiers?: ShippingWeightTier[];
+export interface StoreLocationStatus {
+  type: "active" | "archived" | "deleting";
 }
 
 export interface StoreLocation {
@@ -628,7 +679,10 @@ export interface StoreLocation {
   store_id: string;
   key: string;
   address: PostalAddress;
+  timezone: string;
   is_pickup_location: boolean;
+  blocks: Block[];
+  status: StoreLocationStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -644,22 +698,51 @@ export interface ProductInventory {
   updated_at: EpochMilliseconds;
 }
 
+export interface InventoryRequirement {
+  inventory_item_id: string;
+  quantity: number;
+}
+
+export type BackorderPolicy = { type: "disallow" } | { type: "allow" };
+
+export type ProductFulfillment =
+  | { type: "none" }
+  | {
+      type: "physical";
+      shipping_profile_id: string;
+      inventory_requirements: InventoryRequirement[];
+      backorder: BackorderPolicy;
+    };
+
+export type ProductVariantEditableStatus =
+  | { type: "draft" }
+  | { type: "active" }
+  | { type: "archived" };
+export type ProductVariantStatus =
+  ProductVariantEditableStatus | { type: "deleting" };
+
 export interface ProductVariant {
   id: string;
+  store_id: string;
+  product_id: string;
   sku: string | null;
   attributes: Block[];
-  requires_shipping: boolean;
-  weight_grams: number | null;
+  reference_labels: Record<string, Record<string, string>>;
+  fulfillment: ProductFulfillment;
+  tax_category_id: string | null;
+  status: ProductVariantStatus;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface Product {
   id: string;
   store_id: string;
   key: string;
+  name_block_id: string;
   slugs: Record<string, string>;
   blocks: Block[];
   classifications: ClassificationEntry[];
-  variants: ProductVariant[];
   status: ProductStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -672,70 +755,12 @@ export interface GalleryItem {
   caption?: string;
 }
 
-export interface OrderProductSnapshot {
-  product_key: string;
-  product_name: DisplayTextSnapshot;
-  variant_sku: string | null;
-  variant_attributes: Block[];
-  price: AppliedPriceSnapshot;
-  requires_shipping: boolean;
-  weight_grams: number | null;
-}
-
-export interface OrderBookingSnapshot {
-  service_key: string;
-  service_name: DisplayTextSnapshot;
-  resource_key: string;
-  resource_name: DisplayTextSnapshot | null;
-  timezone: string;
-  price: AppliedPriceSnapshot;
-}
-
-export interface BookingReminderScheduleItem {
-  offset_minutes: number;
-  due_at: EpochMilliseconds;
-  emitted_at: EpochMilliseconds | null;
-}
-
-export interface OrderDigitalSnapshot {
-  product_key: string;
-  product_name: DisplayTextSnapshot;
-  price: AppliedPriceSnapshot;
-  asset_ids: string[];
-}
-
-export interface DiscountAllocation {
-  promotion_discount_id: string | null;
-  amount: number;
-}
-
-export interface TaxLine {
-  title: string;
-  rate_bps: number;
-  amount: number;
-  taxable_base: number;
-  included_in_price: boolean;
-  jurisdiction_country?: string | null;
-  jurisdiction_region?: string | null;
-  jurisdiction_postal_code?: string | null;
-}
-
-export interface LineMoneySnapshot {
-  unit_price: number;
-  subtotal: number;
-  discount_allocations: DiscountAllocation[];
-  discount_total: number;
-  taxable_base: number;
-  tax_lines: TaxLine[];
-  tax_total: number;
-  total: number;
-}
-
 export type OrderItemStatus =
-  | { type: "pending"; expires_at: EpochMilliseconds }
+  | { type: "pending"; expires_at: EpochMilliseconds | null }
   | { type: "confirmed" }
   | { type: "cancelled"; reason: OrderCancellationReason };
 
+/** Operational appointment status, separate from its accepted Order line. */
 export type OrderBookingStatus =
   | { type: "pending"; expires_at: EpochMilliseconds }
   | { type: "confirmed" }
@@ -743,38 +768,44 @@ export type OrderBookingStatus =
   | { type: "no_show" }
   | { type: "cancelled"; reason: OrderCancellationReason };
 
-
-export interface OrderProductInventoryAllocation {
-  store_location_id: string;
-  quantity: number;
-  cancelled_quantity: number;
+export interface BookingReminderScheduleItem {
+  offset_minutes: number;
+  due_at: EpochMilliseconds;
+  emitted_at: EpochMilliseconds | null;
 }
 
 export interface OrderProductItem {
   id: string;
-  product_id: string;
-  variant_id: string;
+  origin: OrderLineItemOrigin;
+  product_id: string | null;
+  variant_id: string | null;
   quantity: number;
-  inventory_allocations: OrderProductInventoryAllocation[];
+  cancelled_quantity: number;
+  backordered_quantity: number;
+  location_allocations: OrderProductLocationAllocation[];
   form_submission_id: string | null;
+  form_submission: AcceptedFormSubmission | null;
   snapshot: OrderProductSnapshot;
   status: OrderItemStatus;
-  money: LineMoneySnapshot;
+  money: ProductMoneyTotals;
+  money_runs: AcceptedProductMoneyRun[];
+  cancelled_units: import("./orderContract").UnitSpan[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
 export interface OrderBookingItem {
   id: string;
-  booking_offering_id: string;
-  booking_service_id: string;
-  booking_resource_id: string;
+  booking_offering_id: string | null;
+  booking_service_id: string | null;
+  booking_resource_id: string | null;
   interval: TimeRange;
   capacity_intervals: TimeRange[];
+  capacity_units: number;
   form_submission_id: string | null;
-  reminders: BookingReminderScheduleItem[];
+  form_submission: AcceptedFormSubmission | null;
   snapshot: OrderBookingSnapshot;
-  status: OrderBookingStatus;
+  status: OrderItemStatus;
   money: LineMoneySnapshot;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -782,8 +813,11 @@ export interface OrderBookingItem {
 
 export interface OrderDigitalItem {
   id: string;
-  digital_product_id: string;
+  origin: OrderLineItemOrigin;
+  digital_product_id: string | null;
+  access: OrderAccess;
   form_submission_id: string | null;
+  form_submission: AcceptedFormSubmission | null;
   snapshot: OrderDigitalSnapshot;
   status: OrderItemStatus;
   money: LineMoneySnapshot;
@@ -791,15 +825,8 @@ export interface OrderDigitalItem {
   updated_at: EpochMilliseconds;
 }
 
-export interface OrderShippingLine {
-  id: string;
-  shipping_method_id: string;
-  title: string;
-  money: LineMoneySnapshot;
-}
-
 export type FulfillmentOrderStatus =
-  "open" | "in_progress" | "completed" | "cancelled";
+  { type: "open" | "in_progress" | "completed" | "cancelled" };
 
 export interface FulfillmentOrderLine {
   id: string;
@@ -807,31 +834,38 @@ export interface FulfillmentOrderLine {
   quantity: number;
   allocated_quantity: number;
   fulfilled_quantity: number;
+  unit_spans: import("./orderContract").UnitSpan[];
+  released_units: import("./orderContract").UnitSpan[];
+  cancelled_units: import("./orderContract").UnitSpan[];
 }
 
 export interface FulfillmentOrder {
   id: string;
   store_id: string;
   order_id: string;
+  order_delivery_group_id: string;
+  work_key: string;
   store_location_id: string;
   status: FulfillmentOrderStatus;
-  destination: PostalAddress | null;
+  method: { type: "pickup" } | { type: "delivery"; destination: PostalAddress };
   lines: FulfillmentOrderLine[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
 export type DigitalProductStatus = { type: "draft" } | { type: "active" } | { type: "archived" };
-export type DigitalAssetStatus = "active" | "archived";
+export type DigitalAssetStatus = { type: "active" } | { type: "archived" };
 
 export interface DigitalProduct {
   id: string;
   store_id: string;
   key: string;
+  name_block_id: string;
   slugs: Record<string, string>;
   blocks: Block[];
   classifications: ClassificationEntry[];
   asset_ids: string[];
+  tax_category_id: string | null;
   status: DigitalProductStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -840,6 +874,7 @@ export interface DigitalProduct {
 export interface StorefrontDigitalProduct {
   id: string;
   key: string;
+  name_block_id: string;
   slugs: Record<string, string>;
   blocks: Block[];
   classifications: ClassificationEntry[];
@@ -861,21 +896,19 @@ export interface DigitalLibraryAsset {
   id: string;
   file_name: string;
   mime_type: string;
+  download_reference: string;
 }
 
 export interface DigitalLibraryItem {
   digital_product_id: string;
   product_key: string;
-  slugs: Record<string, string>;
+  product_name: DisplayTextSnapshot;
 }
 
 export interface DigitalLibraryProduct {
   digital_product_id: string;
-  product_key: string;
-  slugs: Record<string, string>;
-  blocks: Block[];
-  classifications: ClassificationEntry[];
-  asset_ids: string[];
+  presentation: DigitalLibraryItem | null;
+  assets: PaginatedResponse<DigitalLibraryAsset>;
 }
 
 export interface DigitalDownload {
@@ -906,19 +939,11 @@ export type StoreSubscriptionCheckoutAction =
     };
 
 export interface OrderCheckoutResult {
+  checkout_id: string;
   order_id: string;
   number: string;
   payment_action: CheckoutPaymentAction;
   payment: Payment | null;
-}
-
-export interface Zone {
-  id: string;
-  countries: string[];
-  states: string[];
-  postal_codes: string[];
-  tax_bps: number;
-  shipping_methods: ShippingMethod[];
 }
 
 export type MarketStatus = { type: "active" } | { type: "deleting" };
@@ -939,7 +964,6 @@ export interface Market {
   tax_mode: TaxMode;
   status: MarketStatus;
   payment_provider_ids: string[];
-  zones: Zone[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -999,15 +1023,15 @@ export type WebhookEventSubscription =
   | { event: "media.deleted" }
   | { event: "store.created" }
   | { event: "store.updated" }
-  | { event: "audience.created" }
-  | { event: "audience.updated" }
-  | { event: "audience.member_added" }
-  | { event: "audience.member_removed" }
-  | { event: "audience.member_pending" }
-  | { event: "audience.member_confirmed" }
-  | { event: "audience.member_access_cancelled" }
-  | { event: "audience.member_email_unsubscribed" }
-  | { event: "audience.member_email_resubscribed" }
+  | { event: "customer_group.created" }
+  | { event: "customer_group.updated" }
+  | { event: "customer_group.member_added" }
+  | { event: "customer_group.member_removed" }
+  | { event: "customer_group.member_pending" }
+  | { event: "customer_group.member_confirmed" }
+  | { event: "customer_group.member_access_cancelled" }
+  | { event: "customer_group.member_email_unsubscribed" }
+  | { event: "customer_group.member_email_resubscribed" }
   | { event: "customer.created" }
   | { event: "customer.updated" }
   | { event: "customer.archived" }
@@ -1042,6 +1066,7 @@ export interface ProviderOperationClaim {
   id: string;
   started_at: EpochMilliseconds;
   deadline_at: EpochMilliseconds;
+  fence: number;
 }
 
 export type ProviderEffectError =
@@ -1121,16 +1146,26 @@ export interface StoreDeletionResult {
   store_id: string;
 }
 
+export type StoreCommerceState =
+  | { type: "uninitialized" }
+  | { type: "initializing"; operation_id: string }
+  | {
+      type: "ready";
+      default_market_id: string;
+      default_sales_channel_id: string;
+      seller: unknown;
+      tax: unknown;
+      invoicing: unknown;
+    };
+
 export interface Store {
   id: string;
   name: string;
   billing_email: string;
   contact_email: string | null;
-  publishable_key: string;
-  default_market_id: string;
-  default_sales_channel_id: string;
+  commerce: StoreCommerceState;
   timezone: string;
-  default_language: string;
+  default_language: string | null;
   supported_languages: string[];
 }
 
@@ -1151,6 +1186,13 @@ export interface BlockBase {
 export interface TextBlock extends BlockBase {
   type: "text";
   value: string | null;
+}
+
+export type LocalizedText = Record<string, string>;
+
+export interface LocalizedTextBlock extends BlockBase {
+  type: "localized_text";
+  value: LocalizedText | null;
 }
 
 export interface MarkdownBlock extends BlockBase {
@@ -1332,6 +1374,7 @@ export interface FormEntry {
 
 export type BlockType =
   | "text"
+  | "localized_text"
   | "number"
   | "boolean"
   | "date"
@@ -1352,6 +1395,7 @@ export interface GeoLocationBlock extends BlockBase {
 
 export type Block =
   | TextBlock
+  | LocalizedTextBlock
   | MarkdownBlock
   | NumberBlock
   | BooleanBlock
@@ -1399,7 +1443,7 @@ export type SubscriptionPlanFeatureType =
   | "products"
   | "booking_resources"
   | "workflows"
-  | "audiences"
+  | "customer_groups"
   | "customers"
   | "media"
   | "members"
@@ -1448,13 +1492,7 @@ export interface SubscriptionPlan {
 export type AccountApiTokenStatus = "active" | "revoked";
 
 export type AccountVerificationEmailStatus =
-  | "requested"
-  | "processing"
-  | "sent"
-  | "rejected"
-  | "failed"
-  | "unknown"
-  | "cancelled";
+  { type: "requested" | "processing" | "sent" | "rejected" | "failed" | "unknown" | "cancelled" };
 
 export interface AccountApiToken {
   id: string;
@@ -1473,11 +1511,11 @@ export interface StoreMembership {
   store_id: string;
   account_id: string;
   role: import("./api").StoreRole;
-  status: "invited" | "active";
-  invited_by_account_id?: string | null;
-  invited_at?: EpochMilliseconds | null;
-  invitation_email_status?: AccountVerificationEmailStatus | null;
-  joined_at?: EpochMilliseconds | null;
+  status: { type: "invited" | "active" };
+  invited_by_account_id: string | null;
+  invited_at: EpochMilliseconds | null;
+  invitation_email_status: AccountVerificationEmailStatus | null;
+  joined_at: EpochMilliseconds | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -1491,6 +1529,7 @@ export interface Account {
   id: string;
   email: string;
   platform_role: import("./api").PlatformRole;
+  status: { type: "active" | "deleting" };
   last_login_at: EpochMilliseconds | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -1554,26 +1593,13 @@ export type BookingServiceStatus = { type: "active" } | { type: "draft" } | { ty
 export type BookingResourceStatus = { type: "active" } | { type: "draft" } | { type: "archived" };
 export type BookingOfferingStatus = { type: "active" } | { type: "draft" } | { type: "archived" };
 
-export type ProductStatus = "active" | "draft" | "archived";
-export type CustomerStatus = "active" | "archived";
+export type ProductEditableStatus =
+  | { type: "active" }
+  | { type: "draft" }
+  | { type: "archived" };
+export type ProductStatus = ProductEditableStatus | { type: "deleting" };
+export type CustomerStatus = { type: "active" } | { type: "archived" };
 
-export type AudienceOutreachChannel =
-  | "email"
-  | "phone"
-  | "whatsapp"
-  | "instagram"
-  | "facebook"
-  | "messenger"
-  | "linkedin_company"
-  | "linkedin_person"
-  | "contact_form"
-  | "booking_link"
-  | "telegram"
-  | "tiktok"
-  | "youtube"
-  | "x"
-  | "other";
-export type AudienceStatus = { type: "draft" } | { type: "active" } | { type: "closed" } | { type: "archived" };
 export type MailboxStatus = "active" | "draft" | "archived";
 export type MailboxPreset = "gmail" | "zoho" | "microsoft" | "custom";
 export type MailboxConnectionSecurity = "tls" | "start_tls";
@@ -1641,39 +1667,39 @@ export type GoogleMailboxProvider = {
 };
 export type CampaignThreadMode = "new_thread" | "reply_to_previous";
 export type CampaignStatus =
-  | { status: "draft" }
-  | { status: "active"; launched_at: EpochMilliseconds }
-  | { status: "paused"; launched_at: EpochMilliseconds; paused_at: EpochMilliseconds }
-  | { status: "completed"; launched_at: EpochMilliseconds; completed_at: EpochMilliseconds };
-export type CampaignStatusFilter = CampaignStatus["status"];
+  | { type: "draft" }
+  | { type: "active"; launched_at: EpochMilliseconds }
+  | { type: "paused"; launched_at: EpochMilliseconds; paused_at: EpochMilliseconds }
+  | { type: "completed"; launched_at: EpochMilliseconds; completed_at: EpochMilliseconds };
+export type CampaignStatusFilter = CampaignStatus["type"];
 export type CampaignEnrollmentStopReason =
-  | { reason: "operator" }
-  | { reason: "delivery"; message_id: string }
-  | { reason: "outbound_unavailable" };
+  | { type: "operator" }
+  | { type: "delivery"; message_id: string }
+  | { type: "outbound_unavailable" }
+  | { type: "email_suppression" };
 export type CampaignEnrollmentStatus =
-  | { status: "pending"; next_step_index: number }
-  | { status: "active"; next_step_index: number; next_step_at: EpochMilliseconds }
-  | { status: "replied"; message_id: string; replied_at: EpochMilliseconds }
-  | { status: "completed"; completed_at: EpochMilliseconds }
+  | { type: "pending"; next_step_index: number }
+  | { type: "active"; next_step_index: number; next_step_at: EpochMilliseconds }
+  | { type: "replied"; message_id: string; replied_at: EpochMilliseconds }
+  | { type: "completed"; completed_at: EpochMilliseconds }
   | {
-      status: "stopped";
+      type: "stopped";
       reason: CampaignEnrollmentStopReason;
       stopped_at: EpochMilliseconds;
     };
-export type CampaignEnrollmentStatusFilter = CampaignEnrollmentStatus["status"];
+export type CampaignEnrollmentStatusFilter = CampaignEnrollmentStatus["type"];
 export type CampaignOutgoingOrigin =
   | {
-      origin: "campaign_step";
+      type: "campaign_step";
       campaign_step_id: string;
       edited_by_account_session_id?: string | null;
     }
-  | { origin: "account_session"; account_session_id: string };
+  | { type: "account_session"; account_session_id: string };
 export type CampaignMessageType =
   | {
       type: "outgoing";
       origin: CampaignOutgoingOrigin;
-      media_ids: string[];
-      submitted: boolean;
+      status: CampaignOutgoingStatus;
     }
   | {
       type: "incoming";
@@ -1684,9 +1710,11 @@ export type CampaignMessageType =
       attachments: EmailAttachmentReference[];
       received_at: EpochMilliseconds;
     };
+export type CampaignOutgoingStatus =
+  | { type: "draft"; media_ids: string[] }
+  | { type: "submitted"; delivery_status: CampaignEmailStatus };
 export type WorkflowStatus = "active" | "draft";
 export type MutableWorkflowStatus = WorkflowStatus;
-export type PromoCodeStatus = "active" | "draft" | "archived";
 export type CollectionStatus = "active" | "draft" | "archived";
 export type EntryStatus = "active" | "draft" | "archived";
 export type EmailTemplateStatus = "active" | "draft" | "archived";
@@ -1716,6 +1744,7 @@ export interface TimeRange {
 
 export type BlockSchemaType =
   | "text"
+  | "localized_text"
   | "number"
   | "boolean"
   | "date"
@@ -1779,6 +1808,7 @@ export type FieldOperation =
 
 export type EntryBlockQuery =
   | { type: "text"; key: string; values: string[] }
+  | { type: "localized_text"; key: string; locale: string; values: string[] }
   | { type: "number"; key: string; operation: FieldOperation; value: number }
   | { type: "boolean"; key: string; value: boolean }
   | { type: "date"; key: string; operation: FieldOperation; value: EpochMilliseconds };
@@ -1902,6 +1932,7 @@ export interface BookingOffering {
 export interface BookingService {
   id: string;
   key: string;
+  name_block_id: string;
   slugs: Record<string, string>;
   store_id: string;
   blocks: Block[];
@@ -1914,6 +1945,7 @@ export interface BookingService {
 export interface BookingResource {
   id: string;
   key: string;
+  name_block_id: string;
   slugs: Record<string, string>;
   store_id: string;
   status: BookingResourceStatus;
@@ -2211,21 +2243,6 @@ export interface WorkflowExternalOperation {
   updated_at: EpochMilliseconds;
 }
 
-export type AudienceType =
-  | { type: "private" }
-  | { type: "open" }
-  | { type: "confirmation" }
-  | { type: "paid" };
-
-export type StorefrontAudienceType =
-  | { type: "open" }
-  | { type: "confirmation" }
-  | {
-      type: "paid";
-      prices: StorefrontPrice[];
-      purchase_allowed: boolean;
-    };
-
 export type CustomerSessionStatus = "active" | "superseded" | "revoked";
 
 export interface CustomerEmailVerification {
@@ -2295,124 +2312,31 @@ export type CustomerSessionIssued =
 
 export interface CustomerIdentity {
   id: string;
-  type: "email";
-  email: string;
+  store_id: string;
+  customer_id: string;
+  type: { type: "email"; email: string };
   verified_at: EpochMilliseconds | null;
+  status: { type: "active" | "revoked" };
   created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface Customer {
   id: string;
   store_id: string;
   status: CustomerStatus;
-  identities: CustomerIdentity[];
+  primary_email_identity_id: string | null;
+  default_shipping_address_id: string | null;
+  default_billing_address_id: string | null;
   classifications: ClassificationEntry[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export interface Audience {
-  id: string;
-  key: string;
-  name: string;
-  status: AudienceStatus;
-  type: AudienceType;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export interface StorefrontAudience {
-  id: string;
-  key: string;
-  name: string;
-  type: StorefrontAudienceType;
-}
-
-export type AudienceMembershipStatus =
-  | { type: "pending" }
-  | { type: "subscribed"; subscribed_at: EpochMilliseconds }
-  | {
-      type: "unsubscribed";
-      unsubscribed_at: EpochMilliseconds;
-      reason: AudienceUnsubscribeReason;
-    };
-
-export type AudienceCheckoutState =
-  | { type: "starting" }
-  | { type: "awaiting_customer"; checkout_id: string; expires_at: EpochMilliseconds }
-  | { type: "awaiting_settlement"; checkout_id: string }
-  | { type: "failed"; checkout_id: string }
-  | { type: "expired"; checkout_id: string };
-
-export interface AudienceBillingTerms {
-  money: Money;
-  cadence: AudienceBillingCadence;
-}
-
-export type AudienceOneTimeState =
-  | { type: "current" }
-  | { type: "fully_refunded"; refunded_at: EpochMilliseconds }
-  | { type: "revoked"; revoked_at: EpochMilliseconds };
-
-export type AudienceSubscriptionState =
-  | { type: "awaiting_first_payment" }
-  | { type: "active"; paid_through: EpochMilliseconds }
-  | { type: "past_due"; paid_through: EpochMilliseconds }
-  | { type: "unpaid"; since: EpochMilliseconds }
-  | { type: "cancelled"; ended_at: EpochMilliseconds };
-
-export type AudienceCancellation =
-  | { type: "period_end_pending" }
-  | { type: "period_end_scheduled"; cancel_at: EpochMilliseconds }
-  | { type: "immediate_pending" }
-  | { type: "failed" };
-
-export interface AudienceMembership {
-  id: string;
-  customer_id: string;
-  email_identity_id: string;
-  status: AudienceMembershipStatus;
-  type: AudienceMembershipAdminType;
-  insight: Record<string, unknown>;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export interface CustomerAudienceMembership {
-  id: string;
-  audience_id: string;
-  status: AudienceMembershipStatus;
-  type: AudienceMembershipType;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export type AudienceJoinResult =
-  | { type: "accepted" }
-  | { type: "membership"; membership: CustomerAudienceMembership };
-
-export interface AudienceBillingPortalSession {
-  portal_url: string;
-}
-
-export interface AudienceMembershipBilling {
-  orders: PaginatedResponse<AudienceMembershipOrderPurchase>;
-  subscriptions: PaginatedResponse<AudienceMembershipSubscriptionPurchase>;
-}
-
-export interface AudienceMembershipOrderPurchase {
-  order_id: string;
-  order_number: string;
-  payment_id: string | null;
-  item: OrderCustomerGroupPlanItem;
-  created_at: EpochMilliseconds;
-}
-
-export interface AudienceMembershipSubscriptionPurchase {
-  subscription_id: string;
-  audience_snapshot: SubscriptionAudienceSnapshot;
-  accepted_price: AppliedPriceSnapshot;
-  created_at: EpochMilliseconds;
+export interface CustomerListItem extends Customer {
+  primary_email: string | null;
+  has_verified_email: boolean;
+  primary_email_verified_at: EpochMilliseconds | null;
 }
 
 export type CustomerActionOrigin =
@@ -2442,7 +2366,7 @@ export type CustomerActionProviderObservation =
       provider_updated_at?: EpochMilliseconds | null;
     };
 
-export type AudienceMembershipJoinSource =
+export type CustomerGroupMemberJoinSource =
   | "private_admin"
   | "import"
   | "workflow"
@@ -2451,9 +2375,9 @@ export type AudienceMembershipJoinSource =
   | "confirmation"
   | "paid";
 
-export type AudienceBillingCadence = "one_time" | "monthly" | "yearly";
+export type CustomerGroupBillingCadence = "one_time" | "monthly" | "yearly";
 
-export type AudienceUnsubscribeReason =
+export type CustomerGroupUnsubscribeReason =
   | "customer_email_opt_out"
   | "customer_left"
   | "admin_ended"
@@ -2461,18 +2385,32 @@ export type AudienceUnsubscribeReason =
   | "fully_refunded"
   | "store_closure";
 
-export type AudienceCancellationTiming = "period_end" | "immediate";
+export type CustomerGroupCancellationTiming = "period_end" | "immediate";
 
-export interface AudienceActionTimeRange {
+export interface CustomerGroupActionTimeRange {
   from: EpochMilliseconds;
   to: EpochMilliseconds;
 }
 
-export type AudienceRefundActionStatus =
-  "requested" | "processing" | "pending" | "succeeded" | "failed" | "unknown";
+export type CustomerGroupRefundActionStatus =
+  | { type: "requested" }
+  | { type: "processing" }
+  | { type: "pending" }
+  | { type: "succeeded" }
+  | { type: "failed" }
+  | { type: "unknown" };
 
-export type AudienceDisputeActionStatus =
-  "needs_response" | "under_review" | "won" | "lost" | "closed";
+export type CustomerGroupDisputeActionStatus =
+  | { type: "needs_response" }
+  | { type: "under_review" }
+  | { type: "won" }
+  | { type: "lost" }
+  | { type: "closed" };
+
+interface CustomerGroupMemberActionValue {
+  customer_group_id: string;
+  membership_id: string;
+}
 
 export type CustomerActionType =
   | {
@@ -2520,124 +2458,102 @@ export type CustomerActionType =
       };
     }
   | {
-      type: "audience_membership_joined";
-      value: {
-        audience_id: string;
-        membership_id: string;
-        source: AudienceMembershipJoinSource;
+      type: "customer_group_member_joined";
+      value: CustomerGroupMemberActionValue & {
+        source: CustomerGroupMemberJoinSource;
       };
     }
   | {
       type:
-        "audience_confirmation_requested" | "audience_confirmation_completed";
-      value: { audience_id: string; membership_id: string };
+        | "customer_group_confirmation_requested"
+        | "customer_group_confirmation_completed"
+        | "customer_group_member_resubscribed"
+        | "customer_group_member_left"
+        | "customer_group_member_insight_replaced"
+        | "customer_group_renewal_failed";
+      value: CustomerGroupMemberActionValue;
     }
   | {
-      type: "audience_membership_unsubscribed";
-      value: {
-        audience_id: string;
-        membership_id: string;
-        reason: AudienceUnsubscribeReason;
+      type: "customer_group_member_unsubscribed";
+      value: CustomerGroupMemberActionValue & {
+        reason: CustomerGroupUnsubscribeReason;
       };
     }
   | {
-      type:
-        | "audience_membership_resubscribed"
-        | "audience_membership_left"
-        | "audience_membership_insight_replaced"
-        | "audience_checkout_failed"
-        | "audience_renewal_failed";
-      value: { audience_id: string; membership_id: string };
-    }
-  | {
-      type: "audience_checkout_started";
-      value: {
-        audience_id: string;
-        membership_id: string;
+      type: "customer_group_checkout_started";
+      value: CustomerGroupMemberActionValue & {
         checkout_id: string;
         money: Money;
-        cadence: AudienceBillingCadence;
+        cadence: CustomerGroupBillingCadence;
       };
     }
   | {
-      type: "audience_membership_paid";
-      value: {
-        audience_id: string;
-        membership_id: string;
+      type: "customer_group_checkout_failed";
+      value: CustomerGroupMemberActionValue & {
+        checkout_id: string;
+      };
+    }
+  | {
+      type: "customer_group_member_paid";
+      value: CustomerGroupMemberActionValue & {
         money: Money;
-        cadence: AudienceBillingCadence;
+        cadence: CustomerGroupBillingCadence;
       };
     }
   | {
-      type: "audience_membership_renewed";
-      value: {
-        audience_id: string;
-        membership_id: string;
+      type: "customer_group_member_renewed";
+      value: CustomerGroupMemberActionValue & {
         money: Money;
-        period: AudienceActionTimeRange;
+        period: CustomerGroupActionTimeRange;
       };
     }
   | {
-      type: "audience_cancellation_requested";
-      value: {
-        audience_id: string;
-        membership_id: string;
+      type: "customer_group_cancellation_requested";
+      value: CustomerGroupMemberActionValue & {
         cancellation_id: string;
-        timing: AudienceCancellationTiming;
+        timing: CustomerGroupCancellationTiming;
       };
     }
   | {
-      type: "audience_cancellation_scheduled";
-      value: {
-        audience_id: string;
-        membership_id: string;
+      type: "customer_group_cancellation_scheduled";
+      value: CustomerGroupMemberActionValue & {
         cancellation_id: string;
         cancel_at: EpochMilliseconds;
       };
     }
   | {
-      type: "audience_cancellation_completed";
-      value: {
-        audience_id: string;
-        membership_id: string;
+      type: "customer_group_cancellation_completed";
+      value: CustomerGroupMemberActionValue & {
         cancellation_id: string;
         ended_at: EpochMilliseconds;
       };
     }
   | {
-      type: "audience_refund_requested";
-      value: {
-        audience_id: string;
-        membership_id: string;
+      type: "customer_group_refund_requested";
+      value: CustomerGroupMemberActionValue & {
         refund_id: string;
         amount: Money;
       };
     }
   | {
-      type: "audience_refund_changed";
-      value: {
-        audience_id: string;
-        membership_id: string;
+      type: "customer_group_refund_changed";
+      value: CustomerGroupMemberActionValue & {
         refund_id: string;
-        status: AudienceRefundActionStatus;
+        status: CustomerGroupRefundActionStatus;
       };
     }
   | {
-      type: "audience_dispute_observed";
-      value: {
-        audience_id: string;
-        membership_id: string;
+      type: "customer_group_dispute_observed";
+      value: CustomerGroupMemberActionValue & {
         dispute_id: string;
         disputed: Money;
       };
     }
   | {
-      type: "audience_dispute_changed";
-      value: {
-        audience_id: string;
-        membership_id: string;
+      type: "customer_group_dispute_changed";
+      value: CustomerGroupMemberActionValue & {
         dispute_id: string;
-        status: AudienceDisputeActionStatus;
+        status: CustomerGroupDisputeActionStatus;
       };
     };
 
@@ -2713,13 +2629,26 @@ export interface Campaign {
   updated_at: EpochMilliseconds;
 }
 
+export type CampaignEnrollmentSource =
+  | { type: "customer" }
+  | {
+      type: "customer_group";
+      email_consent_id: string;
+      customer_group_member_id: string;
+    };
+
+export interface CampaignGroupRecipient {
+  email_consent_id: string;
+  customer_group_member_id: string;
+}
+
 export interface CampaignEnrollment {
   id: string;
   store_id: string;
   campaign_id: string;
   customer_id: string;
   customer_identity_id: string;
-  audience_membership_id?: string | null;
+  source: CampaignEnrollmentSource;
   mailbox_id: string;
   status: CampaignEnrollmentStatus;
   created_at: EpochMilliseconds;
@@ -2755,10 +2684,10 @@ export interface CampaignEmailContent {
 }
 
 export type CampaignEmailStatus =
-  | { status: "requested"; requested_at: EpochMilliseconds }
-  | { status: "processing"; started_at: EpochMilliseconds; deadline_at: EpochMilliseconds }
+  | { type: "requested"; requested_at: EpochMilliseconds }
+  | { type: "processing"; started_at: EpochMilliseconds; deadline_at: EpochMilliseconds }
   | {
-      status: "sent";
+      type: "sent";
       provider_message_id: string;
       provider_thread_id?: string | null;
       provider_status?: number | null;
@@ -2766,13 +2695,13 @@ export type CampaignEmailStatus =
       sent_at: EpochMilliseconds;
     }
   | {
-      status: "rejected";
+      type: "rejected";
       provider_status?: number | null;
       rejected_at: EpochMilliseconds;
     }
-  | { status: "failed"; failed_at: EpochMilliseconds }
-  | { status: "unknown"; unknown_at: EpochMilliseconds }
-  | { status: "cancelled"; cancelled_at: EpochMilliseconds };
+  | { type: "failed"; failed_at: EpochMilliseconds }
+  | { type: "unknown"; unknown_at: EpochMilliseconds }
+  | { type: "cancelled"; cancelled_at: EpochMilliseconds };
 
 export interface CampaignConversationMessage {
   message: CampaignMessage;
@@ -2784,10 +2713,16 @@ export interface CampaignEnrollmentConversationResponse {
   messages: PaginatedResponse<CampaignConversationMessage>;
 }
 
+export interface LeadResearchSnapshot {
+  customer_group_key: string;
+  customer_group_name: DisplayTextSnapshot;
+}
+
 export interface LeadResearch {
   id: string;
   store_id: string;
-  audience_id: string;
+  customer_group_id: string;
+  snapshot: LeadResearchSnapshot;
   title: string;
   created_at: EpochMilliseconds;
 }
@@ -2905,15 +2840,21 @@ export type EventAction =
   | { action: "media_deleted" }
   | { action: "store_created" }
   | { action: "store_updated" }
-  | { action: "audience_created" }
-  | { action: "audience_updated" }
-  | { action: "audience_member_added" }
-  | { action: "audience_member_removed" }
-  | { action: "audience_member_pending" }
-  | { action: "audience_member_confirmed" }
-  | { action: "audience_member_access_cancelled" }
-  | { action: "audience_member_email_unsubscribed" }
-  | { action: "audience_member_email_resubscribed" };
+  | { action: "customer_group_created" }
+  | { action: "customer_group_updated" }
+  | { action: "customer_group_deletion_requested" }
+  | { action: "customer_group_deleted" }
+  | { action: "customer_group_member_created" }
+  | { action: "customer_group_member_updated" }
+  | { action: "customer_group_confirmation_requested" }
+  | { action: "customer_group_plan_created" }
+  | { action: "customer_group_plan_updated" }
+  | { action: "customer_group_subscription_activated" }
+  | { action: "customer_group_subscription_paused" }
+  | { action: "customer_group_subscription_resumed" }
+  | { action: "customer_group_subscription_cancelled" }
+  | { action: "customer_group_subscription_funding_changed" }
+  | { action: "customer_group_subscription_next_purchase_skipped" };
 
 export interface Event {
   id: string;
@@ -2924,14 +2865,14 @@ export interface Event {
 }
 
 export type OrderShipmentStatus =
-  | "pending"
+  { type: "pending"
   | "label_created"
   | "in_transit"
   | "out_for_delivery"
   | "delivered"
   | "failed"
   | "returned"
-  | "cancelled";
+  | "cancelled" };
 
 export interface ShippingRateLine {
   order_product_item_id: string;
@@ -2939,64 +2880,16 @@ export interface ShippingRateLine {
 }
 
 export interface OrderShipmentLine {
-  order_product_item_id: string;
+  order_product_line_item_id: string;
   fulfillment_order_line_id: string;
   quantity: number;
+  unit_spans: import("./orderContract").UnitSpan[];
 }
 
-export type ShippingLabelStatus =
-  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
-
-export type ShippingLabelRefundStatus =
-  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
-
-/** Provider-neutral carrier-label refund evidence embedded in one Shipment. */
-export interface ShippingLabelRefund {
-  id: string;
-  status: ShippingLabelRefundStatus;
-  safe_error: string | null;
-  requested_at: EpochMilliseconds;
-  completed_at: EpochMilliseconds | null;
-}
-
-/** Provider-neutral carrier label embedded in one Shipment. */
-export interface ShippingLabel {
-  id: string;
-  status: ShippingLabelStatus;
-  label_url: string | null;
-  postage: Money;
-  platform_label_fee: Money;
-  total: Money;
-  requested_at: EpochMilliseconds;
-  completed_at: EpochMilliseconds | null;
-  merchant_debit: MerchantDebit;
-  refund: ShippingLabelRefund | null;
-  merchant_debit_reversal: MerchantDebitReversal | null;
-  safe_error: string | null;
-}
-
-export type MerchantDebitStatus =
-  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
-
-/** The Shipment-owned merchant debit that funds its carrier label. */
-export interface MerchantDebit {
-  id: string;
-  status: MerchantDebitStatus;
-  safe_error: string | null;
-  requested_at: EpochMilliseconds;
-  completed_at: EpochMilliseconds | null;
-}
-
-export type MerchantDebitReversalStatus =
-  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
-
-/** The at-most-one Shipment-owned reversal of its merchant debit. */
-export interface MerchantDebitReversal {
-  id: string;
-  status: MerchantDebitReversalStatus;
-  safe_error: string | null;
-  requested_at: EpochMilliseconds;
-  completed_at: EpochMilliseconds | null;
+export interface FulfillmentExecution {
+  command_id: string;
+  executed_at: EpochMilliseconds;
+  actor: AccountActor;
 }
 
 export interface OrderShipment {
@@ -3014,20 +2907,12 @@ export interface OrderShipment {
   tracking_number: string | null;
   tracking_url: string | null;
   tracking_status_at: EpochMilliseconds | null;
-  label: ShippingLabel;
+  selected_label_id: string | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
-}
-
-export interface ShippingRate {
-  id: string;
-  carrier: string;
-  service: string;
-  display_name: string;
-  postage: Money;
-  platform_label_fee: Money;
-  total: Money;
-  estimated_days: number | null;
+  dispatch: FulfillmentExecution | null;
+  origin_address: PostalAddress;
+  destination_address: PostalAddress;
 }
 
 export interface Parcel {
@@ -3065,44 +2950,4 @@ export interface CustomsDeclaration {
   aes_itn?: string | null;
   incoterm?: string | null;
   items: CustomsItem[];
-}
-
-export type PromotionDiscount =
-  | {
-      type: "item_percentage";
-      id: string;
-      market: string;
-      basis_points: number;
-    }
-  | { type: "item_fixed"; id: string; market: string; money: Money }
-  | {
-      type: "shipping_percentage";
-      id: string;
-      market: string;
-      basis_points: number;
-    };
-
-export type PromotionCondition =
-  | { type: "products"; product_ids: string[] }
-  | { type: "booking_services"; service_ids: string[] }
-  | { type: "digital_products"; product_ids: string[] }
-  | { type: "minimum_order_amount"; market: string; money: Money }
-  | {
-      type: "redemption_window";
-      starts_at: EpochMilliseconds | null;
-      ends_at: EpochMilliseconds | null;
-    }
-  | { type: "maximum_uses"; count: number }
-  | { type: "maximum_uses_per_customer"; count: number };
-
-export interface PromoCode {
-  id: string;
-  store_id: string;
-  code: string;
-  discounts: PromotionDiscount[];
-  conditions: PromotionCondition[];
-  status: PromoCodeStatus;
-  uses: number;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
 }

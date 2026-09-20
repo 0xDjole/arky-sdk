@@ -69,15 +69,13 @@ const retained = {
   ],
   money: {
     currency: "usd",
-    market: "us",
     subtotal: 1000,
-    shipping: 0,
+    delivery: 0,
     discount: 0,
     tax_total: 0,
+    duty_total: 0,
     total: 1000,
-    promo_code: null,
-    zone_id: null,
-    shipping_method_id: null,
+    promotions: [],
   },
   shipping_lines: [],
   shipping_address: null,
@@ -179,7 +177,7 @@ test("Unsupported accepted-line edits are not silently discarded into successful
     async () => {
       await assert.rejects(
         client().eshop.order.update({ id: retained.id, booking_items: [] }),
-        (error) => error.status === 422,
+        (error) => error.statusCode === 422,
       );
     },
   );
@@ -197,7 +195,7 @@ test("Order lifecycle denial is propagated without retry or a replacement comman
       async () => {
         await assert.rejects(
           client().eshop.order.update({ id: retained.id, confirm: true }),
-          (error) => error.status === status,
+          (error) => error.statusCode === status,
         );
       },
     );

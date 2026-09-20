@@ -16,13 +16,16 @@ import type {
   StorefrontDigitalProduct,
   StorefrontBookingOffering,
   StorefrontPrice,
-  CreateProductVariantInput,
+  CreateProductVariantParams,
   CreateDigitalProductParams,
   CreateBookingOfferingParams,
   OrderProductSnapshot,
   OrderBookingSnapshot,
   OrderDigitalSnapshot,
   AppliedPriceSnapshot,
+  OrderLinePrice,
+  CheckoutProductSnapshot,
+  CheckoutDigitalSnapshot,
   DeletePriceParams,
   DeletePriceListParams,
 } from "arky-sdk";
@@ -64,7 +67,7 @@ export type PriceContracts = [
   False<"prices" extends keyof ProductVariant ? true : false>,
   False<"prices" extends keyof DigitalProduct ? true : false>,
   False<"prices" extends keyof BookingOffering ? true : false>,
-  False<"prices" extends keyof CreateProductVariantInput ? true : false>,
+  False<"prices" extends keyof CreateProductVariantParams ? true : false>,
   False<"prices" extends keyof CreateDigitalProductParams ? true : false>,
   False<"prices" extends keyof CreateBookingOfferingParams ? true : false>,
   False<"status" extends keyof StorefrontProduct ? true : false>,
@@ -86,14 +89,16 @@ export type PriceContracts = [
   True<RequiredField<StorefrontProductVariant, "purchase_allowed">>,
   False<"source" extends keyof StorefrontPrice ? true : false>,
   True<
-    OrderProductSnapshot["price"] extends AppliedPriceSnapshot ? true : false
+    OrderProductSnapshot["price"] extends OrderLinePrice ? true : false
   >,
   True<
     OrderBookingSnapshot["price"] extends AppliedPriceSnapshot ? true : false
   >,
   True<
-    OrderDigitalSnapshot["price"] extends AppliedPriceSnapshot ? true : false
+    OrderDigitalSnapshot["price"] extends OrderLinePrice ? true : false
   >,
+  True<CheckoutProductSnapshot["price"] extends AppliedPriceSnapshot ? true : false>,
+  True<CheckoutDigitalSnapshot["price"] extends AppliedPriceSnapshot ? true : false>,
   True<RequiredField<ManualPriceInput, "reason">>,
   False<"authorized_by" extends keyof ManualPriceInput ? true : false>,
   True<RequiredField<ManualPrice, "authorized_by">>,

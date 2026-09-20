@@ -1,0 +1,13 @@
+import { createAdmin } from "arky-sdk/admin";
+import { epochMilliseconds } from "arky-sdk";
+import type { Promotion, PromotionCode, GetPromotionByKeyParams, GetPromotionCodeByCodeParams, FindPromotionsParams, FindPromotionCodesParams } from "arky-sdk/types";
+const admin = createAdmin({ storeId: "store", market: "configured-market", baseUrl: "https://api.example.test", apiToken: "arky_api_test" });
+const policyQuery: FindPromotionsParams = { store_id: "store", key: "sale", status: "deleting", limit: 20 };
+const codeQuery: FindPromotionCodesParams = { store_id: "store", promotion_id: "promotion", code: "SALE", status: "archived", cursor: "opaque", limit: 20 };
+const policyKey: GetPromotionByKeyParams = { store_id: "store", key: "sale" };
+const codeKey: GetPromotionCodeByCodeParams = { store_id: "store", code: "SALE" };
+const policy: Promise<Promotion> = admin.eshop.promotion.getByKey(policyKey);
+const code: Promise<PromotionCode> = admin.eshop.promotionCode.getByCode(codeKey);
+const deleted: Promise<Promotion | undefined> = admin.eshop.promotion.delete({ id: "id", expected_updated_at: epochMilliseconds(1) });
+const deletedCode: Promise<PromotionCode | undefined> = admin.eshop.promotionCode.delete({ id: "id", expected_updated_at: epochMilliseconds(1) });
+void [policy, code, deleted, deletedCode, admin.eshop.promotion.find(policyQuery), admin.eshop.promotionCode.find(codeQuery)];

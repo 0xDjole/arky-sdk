@@ -2,6 +2,7 @@ import type { EpochMilliseconds } from "./time";
 
 export type CompanyPermission =
   | "place_orders"
+  | "access_digital_products"
   | "view_own_orders"
   | "view_company_orders"
   | "manage_company"

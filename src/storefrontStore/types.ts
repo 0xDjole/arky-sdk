@@ -5,7 +5,7 @@ import type {
   StorefrontCollectionEntry,
   StorefrontForm,
   StorefrontOrderCheckoutResult,
-  StorefrontOrderQuote,
+  StorefrontCheckoutQuote,
   StorefrontProduct,
   StorefrontBookingResource,
   StorefrontBookingService,
@@ -15,6 +15,7 @@ import type {
   Address,
   Block,
   Cart,
+  CartCompanyContext,
   CartDigitalItem,
   CartCustomerGroupPlanItem,
   EshopCartItem,
@@ -24,7 +25,6 @@ import type {
   FormValue,
   FormValues,
   OrderCheckoutResult,
-  OrderQuote,
   Product,
   BookingResource,
   BookingService,
@@ -88,6 +88,7 @@ export interface ArkyCartStatus {
 }
 
 export interface ArkyLastOrder {
+  checkout_id: string;
   order_id: string;
   number: string;
   payment_action: StorefrontOrderCheckoutResult["payment_action"];
@@ -109,13 +110,12 @@ export interface ArkyCartInput {
   booking_items?: ArkyBookingCartItem[];
   digital_items?: CartDigitalItem[];
   customer_group_plan_items?: CartCustomerGroupPlanInput[];
-  company_id?: string | null;
-  company_location_id?: string | null;
+  company?: CartCompanyContext | null;
   market_id?: string;
   sales_channel_id?: string;
   shipping_address?: Address | null;
   billing_address?: Address | null;
-  promo_code?: string | null;
+  promotion_codes?: string[] | null;
   payment_provider_id?: string | null;
   shipping_method_id?: string | null;
 }
@@ -124,6 +124,8 @@ export interface ArkyCartCheckoutInput {
   payment_provider_id?: string;
   return_url?: string;
   clear_after_checkout?: boolean;
+  save_payment_method?: boolean;
+  payment_method_terms_version?: string;
 }
 
 export interface CheckoutContext {
@@ -204,6 +206,8 @@ export interface ArkyBookingServiceState {
   availability: AvailabilityResponse | null;
   bookingResources: StorefrontBookingResource[];
   bookingOfferings: StorefrontBookingOffering[];
+  bookingOfferingsCursor: string | null;
+  loadingOfferings: boolean;
   selectedBookingResourceId: string | null;
   currentMonth: Date;
   calendar: ArkyCalendarDay[];
@@ -214,12 +218,12 @@ export interface ArkyBookingServiceState {
   tzGroups: Record<string, { zone: string; name: string }[]>;
   loading: boolean;
   weekdays: string[];
-  quote: StorefrontOrderQuote | null;
+  quote: StorefrontCheckoutQuote | null;
   fetchingQuote: boolean;
   quoteError: string | null;
   currency: Currency | null;
   dateTimeConfirmed: boolean;
   availablePaymentProviderIds: string[];
   cartId: string | null;
-  promoCode: string | null;
+  promotionCodes: string[];
 }

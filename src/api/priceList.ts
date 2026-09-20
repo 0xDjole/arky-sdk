@@ -7,6 +7,7 @@ import type {
   CreatePriceListParams,
   UpdatePriceListParams,
   GetPriceListParams,
+  GetPriceListByKeyParams,
   DeletePriceListParams,
   FindPriceListsParams,
 } from "../types/priceList";
@@ -16,6 +17,11 @@ export const createPriceListApi = (apiConfig: ApiConfig) => {
     `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/price-lists`;
 
   return {
+    getByKey(params: GetPriceListByKeyParams, options?: RequestOptions): Promise<PriceList> {
+      return apiConfig.httpClient.get<PriceList>(
+        `${basePath(params.store_id)}/by-key/${encodeURIComponent(params.key)}`, options,
+      );
+    },
     usage(
       params: GetPriceListParams,
       options?: RequestOptions,

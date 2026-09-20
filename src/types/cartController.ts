@@ -14,7 +14,7 @@ import type {
 } from "./api";
 import type { OrderCheckoutResult } from "./index";
 import type { Cart } from "./cart";
-import type { OrderQuote } from "./quote";
+import type { CheckoutQuote } from "./checkout";
 
 export interface CartApi {
   current(
@@ -44,7 +44,7 @@ export interface CartApi {
     options?: RequestOptions,
   ): Promise<Cart>;
   clear(params: ClearCartParams, options?: RequestOptions): Promise<Cart>;
-  quote(params: QuoteCartParams, options?: RequestOptions): Promise<OrderQuote>;
+  quote(params: QuoteCartParams, options?: RequestOptions): Promise<CheckoutQuote>;
   checkout(
     params: CheckoutCartParams,
     options?: RequestOptions,
@@ -53,7 +53,7 @@ export interface CartApi {
 
 export interface CartControllerState {
   cart: Cart | null;
-  quote: OrderQuote | null;
+  quote: CheckoutQuote | null;
   checkoutResult: OrderCheckoutResult | null;
   loading: boolean;
   initialized: boolean;
@@ -144,7 +144,7 @@ export interface CartController {
   quote(
     params?: CartControllerQuoteParams,
     options?: RequestOptions,
-  ): Promise<OrderQuote>;
+  ): Promise<CheckoutQuote>;
   checkout(
     params: CartControllerCheckoutParams,
     options?: RequestOptions,

@@ -1,5 +1,9 @@
-import type { Address, Currency, Money, TimeRange } from "./index";
+import type { Address, Block, Currency, Money, Parcel, TimeRange } from "./index";
 import type { CompanySnapshot } from "./commerce";
+import type { CompanyLocationCommercePolicy, CompanyLocationTaxSettings } from "./companyLocation";
+import type { LineMoneySnapshot } from "./orderMoney";
+import type { ShippingRateAdjustment } from "./shipping";
+import type { ShippingDeliveryEstimate } from "./quote";
 import type { AccountActor } from "./accountActor";
 import type { EpochMilliseconds } from "./time";
 
@@ -30,6 +34,8 @@ export interface CompanyLocationSnapshot {
   name: string;
   shipping_address: Address | null;
   billing_address: Address | null;
+  tax: CompanyLocationTaxSettings;
+  commerce: CompanyLocationCommercePolicy;
   source_company_location_id: string;
 }
 
@@ -125,10 +131,33 @@ export interface AcceptedDeliveryPricing {
   policy_digest: string;
   merchandise_basis: Money;
   weight_grams: number | null;
+  calculation: AcceptedDeliveryCalculation;
   free_above_subtotal: number | null;
   customer_subtotal: Money;
   accepted_at: EpochMilliseconds;
   rounding_version: string;
+}
+
+export type AcceptedDeliveryCalculation =
+  | { type: "flat"; amount: Money }
+  | { type: "weight_tiered"; tier_index: number; upper_bound_grams: number | null; amount: Money }
+  | { type: "arky_calculated"; legs: AcceptedCarrierQuoteLeg[]; adjustment: ShippingRateAdjustment };
+
+export interface AcceptedCarrierQuoteLeg {
+  id: string;
+  provider_scope: string;
+  provider_quote_id: string;
+  source_origin_location_id: string;
+  origin: Address;
+  destination: Address;
+  parcel: Parcel;
+  items: OrderDeliveryGroupItem[];
+  carrier: string;
+  service: string;
+  amount: Money;
+  quoted_at: EpochMilliseconds;
+  expires_at: EpochMilliseconds;
+  response_digest: string;
 }
 
 export interface OrderDeliveryGroup {
@@ -140,6 +169,9 @@ export interface OrderDeliveryGroup {
   shipping_method_key: string;
   shipping_profile_key: string;
   name_block_id: string;
+  content: Block[];
+  delivery_estimate: ShippingDeliveryEstimate | null;
+  money: LineMoneySnapshot;
   accepted_pricing: AcceptedDeliveryPricing;
   scheduled_window: TimeRange | null;
 }

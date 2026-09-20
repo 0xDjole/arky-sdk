@@ -48,8 +48,8 @@ export const createContentApi = (apiConfig: ApiConfig) => {
     async getCollection(params: GetCollectionParams, options?: RequestOptions): Promise<Collection> {
       const target_store_id = params.store_id || apiConfig.storeId;
       const identifier = params.id !== undefined
-        ? params.id
-        : `${target_store_id}:${params.key}`;
+        ? encodeURIComponent(params.id)
+        : `by-key/${encodeURIComponent(params.key)}`;
 
       return apiConfig.httpClient.get<Collection>(
         `/v1/stores/${target_store_id}/collections/${identifier}`,

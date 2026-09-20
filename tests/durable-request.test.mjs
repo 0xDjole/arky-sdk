@@ -296,21 +296,21 @@ test("unavailable or contended Web Locks execute zero protected tasks", async (t
   );
 });
 
-test("the exact saved shipping request survives a changed signed rate and can be resumed", async () => {
+test("the exact saved shipment request survives a changed parcel and can be resumed", async () => {
   const { storage } = installBrowserState();
   const operations = await importDurableRequests();
-  const storageKey = "arky:shipping-label:store-1:order-1";
+  const storageKey = "arky:shipment:store-1:order-1";
   const originalRequest = {
     order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
     shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-    rate_id: "signed-rate-original",
     origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
     fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
     lines: [
       {
-        order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
+        order_product_line_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
         fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
         quantity: 2,
+        unit_spans: [{ first_unit: 0, quantity: 2 }],
       },
     ],
     parcel: {
@@ -325,19 +325,19 @@ test("the exact saved shipping request survives a changed signed rate and can be
   const saved = operations.getOrCreateDurableRequest(
     storageKey,
     originalRequest,
-    "shipping-label purchase",
+    "shipment creation",
   );
 
   let changedRequestCalls = 0;
   await assert.rejects(
     operations.withDurableRequestLock(
       storageKey,
-      "shipping-label purchase",
+      "shipment creation",
       async () => {
         operations.getOrCreateDurableRequest(
           storageKey,
-          { ...originalRequest, rate_id: "signed-rate-after-remount" },
-          "shipping-label purchase",
+          { ...originalRequest, parcel: { ...originalRequest.parcel, weight: 900 } },
+          "shipment creation",
         );
         changedRequestCalls += 1;
       },
@@ -347,7 +347,7 @@ test("the exact saved shipping request survives a changed signed rate and can be
   assert.equal(changedRequestCalls, 0);
   const remounted = operations.readDurableRequest(
     storageKey,
-    "shipping-label purchase",
+    "shipment creation",
   );
   assert.equal(remounted.requestJson, saved.requestJson);
   assert.deepEqual(

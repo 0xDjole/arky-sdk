@@ -4,6 +4,7 @@ import type { RequestOptions } from "../types/api";
 import type { Order } from "../types/order";
 import type {
   CustomerGroupSubscription,
+  CustomerGroupSubscriptionSelf,
   FindCustomerGroupSubscriptionCommandsParams,
   FindCustomerGroupSubscriptionOrdersParams,
   FindCustomerGroupSubscriptionsParams,
@@ -38,9 +39,9 @@ export const createCustomerGroupSubscriptionApi = (apiConfig: ApiConfig) => {
     current(
       params: GetCurrentCustomerGroupSubscriptionParams,
       options?: RequestOptions,
-    ): Promise<CustomerGroupSubscription> {
+    ): Promise<CustomerGroupSubscriptionSelf> {
       const { store_id, id } = params;
-      return apiConfig.httpClient.get<CustomerGroupSubscription>(
+      return apiConfig.httpClient.get<CustomerGroupSubscriptionSelf>(
         `${basePath(store_id)}/${encodeURIComponent(id)}/current`,
         options,
       );

@@ -98,33 +98,75 @@ header. Customer credentials use the `customer_visitor_`,
 `customer_access_`, and `customer_refresh_` prefixes; `arky_vst_` is rejected. Storage is isolated by
 API endpoint and a fingerprint of the publishable key.
 
+## Exact Admin definition reads
+
+Use `admin.eshop.product.getByKey({ store_id, key })`, `bookingService.getByKey(...)` and
+`bookingResource.getByKey(...)` for a known definition key. Fulfillment routing has the same
+`admin.eshop.fulfillmentRoutingPolicy.getByKey({ store_id, key })` lookup. `bookingOffering.getByBinding({
+store_id, booking_service_id, booking_resource_id })` resolves the exact parent pair. These reads
+return the current authorized definition without searching pages. A failed lookup is not permission
+to create a replacement; only an explicit not-found denotes absence. Storefront catalog access
+still requires its separate buyer-scoped reads and checkout checks.
+
+## Purchased digital library
+
+Purchased files are separate from catalog discovery. `eshop.digital.library({ limit, cursor,
+company_id, company_location_id })` returns `{ items, cursor }`; an empty page can still have a
+continuation. Keep that opaque cursor unchanged and use it only for the same Customer and selected
+Company/branch. Repeated purchases appear as one product card, and access is rechecked on every
+request. For Company access, pass both Company fields to `getLibraryProduct`, `getLibraryAssets`
+and `download` as well. Catalog visibility never authorizes a purchased download.
+
+`getLibraryAssets({ digital_product_id, limit, cursor, ...companyContext })` also returns
+`{ items, cursor }`. Keep loading explicitly while a cursor exists, including after an empty page.
+`getLibraryProduct` returns `{ digital_product_id, presentation, assets: { items, cursor } }`;
+`presentation` can be null while the bounded search is unfinished. Preserve the card's retained
+label rather than inventing one. File cursors are bound to this Customer/session, Product and
+Company/branch and expire after 15 minutes; each successful continuation renews the cursor lifetime,
+not access. Refresh the library after expiry or a context/session change.
+
+Pass the selected Asset's `download_reference` unchanged as `reference`:
+
+```typescript
+const download = await arky.eshop.digital.download({
+  digital_product_id: product.digital_product_id,
+  asset_id: asset.id,
+  reference: asset.download_reference,
+});
+```
+
+This reference expires after 15 minutes and is bound to the Customer session and selected context.
+Refresh the purchased library after expiry or a session change. It selects the exact purchase; it
+does not grant access. The server rechecks access before and after issuing the short-lived URL.
+
 ## Independent catalog pricing
 
 `createAdmin().eshop` exposes `price`, `priceList`, `assortment`, `assortmentItem`, `catalog` and
 `catalogEntitlement`. Product variants, digital products and booking offerings do not embed
 Prices. Create the sellable first, then create its independent Price with a typed `sellable`,
-currency, billing, quantity range and status. `price_list_id: null` means a base Price; list Prices
+currency, quantity range and status. `price_list_id: null` means a base Price; list Prices
 belong to a reusable PriceList with explicit signed priority. Prices are not selected in the SDK.
 
 Storefront product, digital-product and booking-offering reads accept `include_price` and an
-optional explicitly selected `company_id`. The server checks the caller and current catalog
+optional explicitly selected `company_id` and `company_location_id`. The server checks the caller and current catalog
 grants; sending a Company ID does not grant membership or permission. Company selection is per
 request and is not remembered by the client. Normal catalog reads do not identify a visitor.
 
 ```typescript
-const product = await arky.product.get({ id: productId, include_price: true });
-const variant = product.variants[0];
+const variant = await arky.eshop.productVariant.get({
+  product_id: productId, id: variantId, include_price: true,
+});
 const displayPrice = arky.utils.formatPrice(variant?.price);
 ```
 
 Public sellables contain one nullable `price` and an independent `purchase_allowed` flag. Paid
-Audience offers have a safe price per supported billing cadence. `formatPrice` and `getPriceAmount`
+CustomerGroupPlan offers have their own server-selected price. `formatPrice` and `getPriceAmount`
 consume one server-resolved `StorefrontPrice`, not arrays of market or Audience prices. A null
 price is not zero. The public amount is a quantity-one display result; obtain a fresh Cart quote
 for actual quantities and accepted totals. Do not multiply that preview into a checkout authority
 or infer purchase permission merely because a price is visible.
 
-Price updates cannot move a Price to another sellable, list, currency or billing cadence. Update
+Price updates cannot move a Price to another sellable, list or currency. Update
 nullable fields explicitly and send `expected_updated_at`. Price and PriceList deletion return
 the accepted record, including `status: { type: "deleting" }`; acceptance is not proof of completed
 erasure. Manual price input contains money and a required reason, never a caller-supplied author.
@@ -161,75 +203,128 @@ that word describes a command or verb rather than the Actions domain.
 ## Products, booking services, and checkout
 
 ```typescript
-const { items: products } = await arky.eshop.product.list({ limit: 20 });
-const product = await arky.eshop.product.get({ id: products[0].id });
-const inventory = await arky.eshop.product.getInventory({ id: product.id });
+const { items: products } = await arky.eshop.product.list({ limit: 20, include_price: true });
+const product = await arky.eshop.product.get({ id: products[0].id, include_price: true });
+const variants = await arky.eshop.productVariant.find({
+  product_id: product.id, limit: 20, include_price: true,
+});
 
-console.log(product.slugs.en, product.status);
-console.log(arky.utils.getFreeToSellStock({ inventory }));
+console.log(product.slugs.en, product.price?.unit_price);
 
-await arky.eshop.cart.addProduct(product, product.variants[0], 2);
+await arky.eshop.cart.addProduct(product, variants.items[0], 2);
 await arky.eshop.cart.quote({
   payment_provider_id: "payment-provider-id",
 });
 const checkout = await arky.eshop.cart.checkout();
 ```
 
-Cart responses expose four canonical embedded collections: `product_items`,
-`booking_items`, `digital_items`, and `audience_items`. A Form submission belongs to the applicable individual item through
-`form_submission_id`; Cart requests and responses no longer carry one cart-wide `forms` array.
-Low-level quote calls use `ProductQuoteInput`, `BookingQuoteInput`, and
-`DigitalProductQuoteInput` and `AudienceQuoteInput`, while Cart mutations use `CartProductInput`,
-`CartBookingInput`, `CartDigitalItemInput` and `CartAudienceInput`. Audience input selects an
-Audience and Membership; it does not submit a browser price or override. Trusted Admin product,
-booking and digital mutations accept the corresponding `TrustedCart*` inputs with `price_override`.
+Products are cards with a quantity-one "from" price, not embedded variant inventories.
+`productVariant.find` returns `{ items, cursor }`; pass its cursor to load further variants, even
+after an empty page. `productVariant.get({ product_id, id, include_price: true })` resolves an exact
+selection independently of paging. Both honor Company/branch context and current catalog access.
+Prices are null when not requested, not permitted or unavailable; zero remains a real price.
+Location stock is managed with Admin `inventoryLevel.find` and inventory movements. Storefronts
+use the authoritative quote/checkout for availability, not a sum of inventory across warehouses.
+
+Cart requests and responses use one tagged `line_items` array with `product`, `booking`,
+`digital_product` and `customer_group_plan` items. The `cartProductItems`, `cartBookingItems`,
+`cartDigitalItems` and `cartCustomerGroupPlanItems` helpers select each family. A Form submission
+belongs to the applicable individual item through `form_submission_id`, not a Cart-wide Forms array.
+Public inputs never authorize prices; supported Admin inputs can carry explicit manual overrides.
 
 Cart has tagged `status.type` and `origin.type`, required `market_id`/`sales_channel_id`, and
-required nullable `customer_id`, `company_id` and `company_location_id`. Provenance is in `origin`,
-not a second top-level Session field. Admin create/update commands select context by UUID. An
-omitted buyer field preserves it on update; explicit `null` clears it. Storefront identity comes
-from its authenticated Session, and public inputs never allow manual price overrides.
-`client.eshop.cart.current({ company_id, company_location_id })` selects a Company explicitly;
-Market and channel for that endpoint come from the server's storefront context.
+required `customer_id`, and nullable nested `company: { company_id, company_location_id }`.
+Provenance is in `origin`, not a second top-level Session field. Admin creation requires a Customer;
+ordinary updates cannot change it. Company update omission preserves the selection; `null` clears
+both Company fields. Storefront identity comes from its authenticated Session.
 
-An `OrderQuote` includes the resolved buyer/context snapshots, all four line families, `locale`
-and `presentation_digest`. Its selected `payment_provider_id` can be null. Low-level checkout
-requires the exact reviewed quote's locale and digest; `initialize` forwards its retained reviewed
-quote. A presentation conflict must be shown for review, not silently requoted and accepted.
+`client.eshop.cart.current({ company: { company_id, company_location_id } })` creates an empty Cart
+when none is selected, or exact-reads the selected Cart. Its ID is retained per Customer and Market
+in the configured session storage; there is no server-wide unique current Cart or search lookup.
+Market and channel at creation come from the server's storefront context. A Company mismatch fails
+instead of silently editing the selected Cart. Use `cart.update` explicitly to change context.
+`cart.create()` explicitly creates and selects another empty Cart and returns `{ cart, recovery_token }`,
+as does Admin creation. The selection helper never stores the recovery token, Cart contents or prices.
+Read errors do not discard a selection. A known converted, merged or expired Cart starts a new empty
+selection on the next `current()` call, unless an unresolved Checkout still pins the old Cart.
+An active, abandoned or checking-out Cart is retained. Signing in does not transfer guest ownership.
+
+The high-level Cart view clears when its Customer session or Market changes. Load the current
+Cart again after switching; late reads, item hydration and writes cannot repopulate the old view.
+Selection edits or language changes invalidate the reviewed quote. These view changes never erase
+an unresolved Checkout request: recovery still uses that exact retained request.
+
+Quote methods return `CheckoutQuote`: `{ sources, order, presentation_digest }`. The nested
+`order` includes the resolved buyer/context snapshots, all four line families, `locale` and the
+selected nullable `payment_provider_id`. Low-level checkout requires `quote.order.locale` and
+the outer `quote.presentation_digest`, which also binds the source Carts; the nested Order digest
+is not the acceptance digest. `initialize` forwards its retained reviewed quote. A presentation
+conflict exposes the complete replacement `CheckoutQuote` for review, never silent acceptance.
 Quote methods use the configured locale unless one is explicitly supplied. Standalone Admin
 `order.getQuote` still accepts a Market key; Cart creation uses a Market UUID.
 
 Checkout submission does not synchronize items or accept new buyer, address or pricing selections.
 Prepare those through Cart mutations and quote first. `initialize` checkout accepts only the
-reviewed provider (if repeated), `return_url` and `clear_after_checkout`.
+reviewed provider (if repeated), `return_url`, `clear_after_checkout`, `save_payment_method` and
+`payment_method_terms_version`. Saving a method requires a selected provider and explicit
+versioned consent. Recovery retains that exact consent with the original request.
 
-Browser checkout saves the exact Cart UUID, locale, digest, optional provider and return URL under
-the shared cross-tab durable-request lock before POST. A lost response retains that request;
-`pendingCheckout()` reads it and an explicit `recoverCheckout()` submits the same request without
-requote or Cart mutation. These methods exist on `client.eshop.cart` and `arky.eshop.cart`;
-Admin exposes the same operations with an optional Store selector. Success checks the returned
-Order against a fresh read of that Cart's `converted_order_id` before clearing saved state.
+Browser checkout saves the exact Cart UUID, generated `request_id`, locale, digest, optional
+provider and return URL under the shared cross-tab durable-request lock before POST. The request
+goes to `/checkouts` with the reviewed `sources`, and its `request_id` makes a repeat submission return the
+same accepted Checkout. A lost response retains that request; `pendingCheckout()` reads it and an
+explicit `recoverCheckout()` submits the same request without requote or Cart mutation. These
+methods exist on `client.eshop.cart` and `arky.eshop.cart`; Admin exposes the same operations with
+an optional Store selector. Success reads `/checkouts/{checkout_id}` and verifies the exact
+request, source Cart and accepted Order before clearing saved state. Recovery does not require
+the original Cart to survive cleanup.
+After a successful acceptance, use `eshop.checkout.get({ id: checkoutId })` to restore the saved
+Order link. This exact read performs no provider call. An explicit
+`eshop.checkout.resumePayment({ id: checkoutId })` can return a fresh transient action for the
+original open payment Session; it cannot create another Payment or Session. Pending, Processing,
+Unknown and terminal payments return local status with no action. These methods are available on
+the storefront client, `initialize` facade and Admin (with optional `store_id`). Persist only
+the accepted IDs, never the action's client secret. Unresolved acceptance still uses the original
+`cart.recoverCheckout()` request, not payment-action resume.
 Do not clear storage manually after a conflict or allocate a new Cart to retry the same purchase.
 The coordinated Server handoff for a stale-presentation conflict is still an implementation gate;
 current conflict handling preserves the request instead of silently accepting its refreshed quote.
 
 ```typescript
 const reviewed = await admin.eshop.cart.quote({ id: cart.id, locale: "en" });
+if (!reviewed.sources || !reviewed.order.locale || !reviewed.order.money) {
+  throw new Error("Review a complete Cart quote before accepting.");
+}
 const purchase = await admin.eshop.cart.checkout({
   id: cart.id,
-  locale: reviewed.locale,
+  locale: reviewed.order.locale,
+  sources: reviewed.sources,
   presentation_digest: reviewed.presentation_digest,
-  payment_provider_id: reviewed.payment_provider_id ?? undefined,
+  payment_provider_id: reviewed.order.payment_provider_id ?? undefined,
 });
 ```
 
-Product variants expose optional `weight_grams`. Inventory is a separate resource keyed by
-`product_id`, `variant_id`, and `store_location_id`; it persists `on_hand` and `reserved`, while
-free-to-sell stock is always derived as `on_hand - reserved`.
+The quote envelope contains `sources`, `order` and `presentation_digest`; accept the envelope's
+digest, not the inner Order presentation digest. Product quote lines have `line_item_id`, total
+`money` and exact per-unit `money_runs`. Do not invent one unit amount from a rounded total.
+Each run retains discount provenance, tax assessment and duties. Delivery charges live in
+`delivery_groups`, not a separate shipping-lines array.
+
+Quote Product/Digital snapshots carry an `AppliedPriceSnapshot`. Accepted Order snapshots use
+`price.type = "direct"` with that snapshot under `price.price`, or `"customer_group_allocation"`
+for plan components; the latter is an allocation, not a second standalone price. Accepted group
+terms retain `group_name`/`group_key` and `plan_name`/`plan_key`. In a plan quote, membership money
+and `benefit_lines` are separate portions of the package and must be shown without double counting.
+Historical live Product/variant/Offering/Resource/DigitalProduct links may be null; retained
+snapshot names, source identities and accepted money do not require a live definition lookup.
+
+Physical Product variants reference InventoryItem components through their fulfillment recipe.
+Weights/customs belong to InventoryItem; InventoryLevel is independent stock at one StoreLocation.
+Stock admission is decided by quote/checkout, not by a Product-wide client inventory sum.
 
 Booking services use the same Cart. A BookingResource is the person, place, or equipment that
-performs the service; a BookingOffering connects one service to one resource and owns its price,
-availability, booking window, and reminders:
+performs the service; a BookingOffering connects one service to one resource and owns its
+availability, booking window and reminders. Its prices are independent Price records:
 
 ```typescript
 await arky.customer.requestCode({ email: "customer@example.com" });
@@ -357,17 +452,37 @@ const page = await italian.content.entry.get({
 
 Changing the scoped client does not mutate the original client. A market change while the cart contains items throws `CART_MARKET_LOCKED`; the SDK never silently clears or reprices the cart.
 
+## Customer identity history
+
+Admin Customer identity history is separate from its selected email. Use
+`admin.customers.identities({ customer_id, status, verified, limit, cursor })` for a bounded page;
+follow the returned cursor even when a page is empty. `verified` filters retained proof, not current
+authentication. Resolve a Customer's `primary_email_identity_id` through
+`admin.customers.getIdentity({ customer_id, identity_id })`, not the first history item. No selection
+means no primary email; a failed exact read is not absence. The explicit `revokeIdentity` command
+retains historical proof while invalidating current use. Customer root statuses are tagged objects;
+the Customer/identity discovery `status` parameter is a scalar tag.
+
 ## Embedded card checkout
 
 Store setup is fetched lazily and deduplicated:
 
 ```typescript
 const setup = await arky.store.load();
-console.log(setup.languages.default, setup.markets.default);
-console.log(setup.payment_providers); // [{ id, type: "cash_on_delivery" | "stripe" }]
+console.log(setup.languages.default, setup.default_market?.key);
+console.log(setup.payment_providers); // [{ id, key, blocks, type: "cash_on_delivery" | "manual" | "stripe" }]
 ```
 
-The Storefront setup exposes only each provider UUID and safe provider type. Stripe account,
+Setup contains only the exact default Market (`null` before commerce is ready), not a list of
+Markets. An explicit non-default selection resolves through `client.store.market.getByKey(key)`;
+ordinary Market browsing uses `client.store.market.list({ limit, cursor })`. Neither configuration
+read creates a visitor or grants purchase permission. `setMarket(key)` changes context synchronously;
+call `await arky.store.load()` to resolve that selection before reading `arky.market` or currency.
+During resolution, a mismatched previous Market is unavailable; failed or stale reads never select
+the default instead. The public `commerce` tag supplies readiness and exact default IDs, not private
+seller or invoicing configuration. `languages.default` may be null.
+
+The Storefront setup exposes each provider UUID, key, content Blocks and safe provider type. Stripe account,
 capability, consent, and disablement evidence remain private Admin data.
 
 Payment configuration belongs to Arky. A card checkout returns a short-lived embedded Stripe
@@ -423,7 +538,7 @@ The module facade exposes its low-level client as `arky.client`:
 ```typescript
 await arky.client.eshop.product.find({ limit: 20 });
 const cart = await arky.client.eshop.cart.current();
-await arky.client.eshop.cart.get({ id: cart.id, token: cart.token });
+await arky.client.eshop.cart.get({ id: cart.id });
 await arky.client.content.entry.find({
   collection_id: "pages",
   key: "homepage",
@@ -533,11 +648,50 @@ use `active`/`disabled` status values. Membership IDs are opaque, Server-generat
 `StoreUsage` represents one feature and either its current total or one UTC calendar month.
 Booking quotas use the canonical `booking_services` and `booking_resources` feature keys.
 
+`admin.store.find` accepts literal name text, `sort_field: "name"`, and ascending/descending
+ordering. `admin.account.search` is platform-Administrator-only and orders by email.
+Both default to 50 records and accept at most 200. Pass an opaque returned cursor unchanged;
+an empty page with a cursor still has a continuation. Cursors belong to their original filters,
+sort and operator. Neither helper automatically fetches later pages. Permission panels use
+`admin.store.member.getOwn({ store_id })`, not an assumed-complete membership discovery page.
+
+`admin.store.market.list`, `admin.store.location.list` and `admin.store.paymentProvider.list`
+return `{ items, cursor }`, not complete arrays. Each accepts an explicit `store_id`, exact `key`,
+owner-specific filters, `created_at`/`updated_at` ordering and bounded `limit`/`cursor` paging.
+Market filters include currency and active/deleting status; Location filters include
+`is_pickup_location` and active/archived/deleting status; configured providers filter by
+`configuration_type` and active/disabled/deleting status. No helper silently fetches all pages.
+Storefront Market/Location lists also return pages; their authenticated context supplies Store
+and active-only visibility, so neither `store_id` nor status belongs in their query.
+
+Use `market.get({ store_id, id })` or `location.get({ store_id, id })` for a saved selection,
+and `getByKey({ store_id, key })` for exact configuration lookup. Provider configuration has
+`paymentProvider.getByConfiguration({ store_id, configuration_type })` in addition to exact ID/key
+reads. A missing discovery candidate is not proof that configuration is absent and never
+authorizes repeated creation, connection or payment. Only exact reads confirm a saved identity.
+
 Store creation also requires `initial_market: { key, currency, tax_mode }`; for example,
 `{ key: "bih", currency: "bam", tax_mode: "inclusive" }`. Server creates that Market and the initial
-SalesChannel in the Store transaction. Store reads always contain `default_market_id` and
-`default_sales_channel_id`. An update may select other current same-Store defaults; neither accepts
-`null`, and the SDK does not select a replacement for the operator.
+SalesChannel in the Store transaction. Ready Store reads expose `default_market_id` and
+`default_sales_channel_id` inside `commerce` when `commerce.type === "ready"`.
+Use `storeCommerceDefaults(store)` to read that pair; uninitialized/initializing Stores have no
+implicit defaults. An update may select other current same-Store defaults; neither accepts `null`,
+and the SDK does not select a replacement for the operator.
+
+### Stripe connection setup
+
+Create a local Stripe PaymentProvider before calling `store.paymentProvider.stripe.connect`.
+The connection request requires its `payment_provider_id`, a canonical UUID-v4 `operation_id`,
+explicit `authorize_account_debits`, and return/refresh URLs. An unconnected account also needs
+its two-letter country. The response contains `provider`, the retained eleven-field `operation`,
+and a response-only `onboarding_url`.
+
+Inspect an uncertain result with `store.paymentProvider.stripe.getConnection({ store_id,
+operation_id })`. This exact authorized read makes no Stripe call. Account creation and metadata
+binding have independent tagged statuses; `unknown` is not a failed request or permission to
+create another account. Browser integrations must persist the exact request with the shared
+durable-request utilities before sending and retain it through failed reads or ambiguous responses.
+The low-level SDK neither generates a replacement operation nor automatically retries connection.
 
 ### Companies and commercial groups
 
@@ -717,32 +871,69 @@ if (itemDiscount?.type === "item_percentage") {
 `item_fixed` and `minimum_order_amount` carry a shared `Money` value. Redemption windows use
 nullable `starts_at` and `ends_at`; per-customer limits use the Customer vocabulary.
 
-Refunds use the collected Payment ID and one stable UUID-v4 for the concrete refund. Persist that ID with the immutable
-request before sending or retrying a Stripe refund. After an operator has physically returned a
-cash-on-delivery payment, record the completed return through the dedicated command:
+Payments belong directly to an Order through `order_id`. Collection status (`authorized`, `completed`,
+`unknown`, and the other lifecycle states) is separate from money: `amounts.authorized` is an
+authorization ceiling, `amounts.captured` is evidenced collected money, and refunds and unresolved
+capture/refund reservations have their own fields. A completed Payment can later be partially or
+fully refunded without changing its collection status. Use `admin.eshop.order.getFinancialSummary({ id })`
+for the Order-wide balance, including commercial credits, all Payments and dispute losses. Do not
+calculate the Order balance from one Payment or treat `unknown` as permission to collect again.
+
+Cash and manual collection commands record money already received; they do not charge a customer.
+Persist the complete command before sending it. Recover an interrupted command with the same
+`payment_capture_id` and money, then validate the returned capture receipt before clearing it:
 
 ```typescript
-const result = await admin.eshop.refund.recordCashOnDelivery({
+const recorded = await admin.eshop.payment.recordCashOnDeliveryCollection(savedReceipt);
+console.log(recorded.capture.id, recorded.payment.amounts.captured);
+console.log(recorded.financial_summary.outstanding);
+```
+
+`savedReceipt` contains `id` (the Payment UUID), `payment_capture_id` (a new UUID-v4 for this receipt),
+`money: { amount, currency }`, and optionally `store_id`. Each amount is a positive integer in minor
+units. `recordManualCollection` additionally requires `reference: string | null`.
+`createManual` creates the separate manual collection intent with its own stable `id`, `order_id`,
+`payment_provider_id`, `money` and required nullable `reference`; intent creation is not money received.
+Unexpected receipts remain recorded and may open a reconciliation hold.
+
+Refunds use the collected Payment ID and one stable UUID-v4 for the concrete refund. Persist that ID
+with the immutable request before sending or recovering it. The common `create` command reserves
+eligible money for Stripe, manual and cash-on-delivery refunds; it does not prove money was sent.
+Commercial refunds require existing active OrderCredit allocations and actual refundable principal:
+
+```typescript
+const result = await admin.eshop.refund.create({
   payment_id: "payment-id",
   refund_id: "persisted-refund-uuid-v4",
-  amount: 2500,
+  payment_capture_id: null,
+  money: { amount: 2500, currency: "eur" },
   application: {
-    type: "order_items",
+    type: "commercial_credit",
     allocations: [
-      { type: "product", item_id: "order-product-item-id", amount: 2500 },
+      { order_credit_id: "credit-id", order_credit_allocation_id: "allocation-id", amount: 2500 },
     ],
   },
   reason: "customer_request",
+  private_note: null,
+  reference: null,
 });
 
 console.log(result.money.amount, result.money.currency, result.status);
 ```
 
-Use admin.eshop.refund.create for Stripe requests, get({ id }) for one Refund and
-find({ payment_id }) for a Payment's history (omit payment_id for Store history). The OrderItems
-application is checked against that Payment's exact Order. Invoice admission remains unavailable
-until the coordinated Subscription integration is complete. Refund reads expose typed provider evidence, one `money` value, and canonical product, booking,
-digital, shipping, or adjustment allocations. Payment disputes are read-only Stripe facts available
+For cash/manual refunds, record actual money separately with `recordMoney({ id, effect_id, movement,
+money, allocations, reference })`. Persist the exact receipt before sending it. `effect_id` is a new
+UUID-v4 for that actual movement; retry keeps it unchanged. `movement: { type: "sent" }` records cash
+sent to the customer; `{ type: "returned", sent_effect_id }` records money returned to the business
+against that original Sent effect. `reference` is required. Commercial allocations describe the
+exact portion actually moved. Stripe money is recorded from provider evidence, not manual receipts.
+
+Use `get({ id })` for one Refund and `find({ payment_id })` for a Payment's history (omit payment_id
+for Store history). Reads expose immutable `financial_effects`; requested `money` and process status
+alone are not actual refunded money. Receipt results include sent/returned/effective/pending amounts,
+the Payment, and the Order financial summary. `cancelLocal({ id, expected_updated_at })` releases only
+the unperformed local remainder and preserves actual receipts. ExcessCollection has a reason and
+no commercial allocations; it does not alter the accepted bill. Payment disputes are read-only Stripe facts available
 through `admin.eshop.order.getDisputes` and `admin.eshop.order.getDispute`; their public provider
 evidence contains only `dispute_id` and `charge_id`.
 

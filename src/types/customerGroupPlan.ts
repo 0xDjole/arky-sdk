@@ -1,5 +1,8 @@
 import type { Block } from "./index";
+import type { StorefrontPrice } from "./commerce";
 import type { EpochMilliseconds } from "./time";
+import type { CatalogReadOptions } from "./catalog";
+import type { CatalogPriceFilter } from "./api";
 
 export type BillingInterval = "day" | "week" | "month" | "year";
 
@@ -122,4 +125,45 @@ export interface FindCustomerGroupPlansParams {
   customer_group_id?: string;
   limit?: number;
   cursor?: string;
+  key?: string;
+  status?: CustomerGroupPlanStatus;
+  query?: string;
+  sort_field?: "key" | "created_at" | "status";
+  sort_direction?: "asc" | "desc";
+  created_at_from?: EpochMilliseconds;
+  created_at_to?: EpochMilliseconds;
+}
+
+export interface StorefrontCustomerGroupPlanBenefit {
+  id: string;
+  type: CustomerGroupPlanBenefitType;
+}
+
+export interface StorefrontCustomerGroupPlan {
+  id: string;
+  customer_group_id: string;
+  key: string;
+  name_block_id: string;
+  blocks: Block[];
+  term: CustomerGroupPlanTerm;
+  benefits: StorefrontCustomerGroupPlanBenefit[];
+  price: StorefrontPrice | null;
+  purchase_allowed: boolean;
+}
+
+export interface FindStorefrontCustomerGroupPlansParams extends CatalogReadOptions {
+  customer_group_id?: string;
+  limit?: number;
+  cursor?: string;
+  query?: string;
+  price_filter?: CatalogPriceFilter;
+  sort_field?: "key" | "created_at" | "price";
+  sort_direction?: "asc" | "desc";
+  created_at_from?: EpochMilliseconds;
+  created_at_to?: EpochMilliseconds;
+}
+
+export interface GetStorefrontCustomerGroupPlanParams extends CatalogReadOptions {
+  identifier: string;
+  customer_group_id?: string;
 }
