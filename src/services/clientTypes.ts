@@ -21,6 +21,7 @@ export interface StorefrontApiConfig {
 }
 
 export interface AdminSessionInternal {
+  scope: import('../types').AccountSessionScope;
   access_token: string;
   refresh_token: string;
   access_expires_at?: EpochMilliseconds;

@@ -1,5 +1,6 @@
 export * from "./index";
 export * from "./api";
+export type * from './storeAdminDomain';
 export type { OrderBooking, GetOrderBookingParams } from "./orderBooking";
 export type { CancelPendingOrderParams, OrderCancellationReceipt } from "./orderCancellation";
 export type * from "./inventory";

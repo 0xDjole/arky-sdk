@@ -21,6 +21,7 @@ export const createAuthApi = (
   function applyAuthToken(result: AuthToken, email?: string) {
     updateSession((previous) => {
       const next: AdminSessionInternal = {
+        scope: result.scope,
         access_token: result.access_token,
         refresh_token: result.refresh_token,
         access_expires_at: result.access_expires_at,

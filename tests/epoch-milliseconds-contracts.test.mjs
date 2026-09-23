@@ -32,6 +32,7 @@ function adminSession(expiresAt) {
   return {
     version: 2,
     session: {
+      scope: { type: 'account' },
       access_token: "account-access",
       refresh_token: "account-refresh",
       access_expires_at: expiresAt,

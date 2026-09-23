@@ -929,6 +929,7 @@ export const SUPPORTED_FRAMEWORKS = [
 
 
 export interface AdminSession {
+  scope: import('./types').AccountSessionScope;
   email?: string;
 }
 
@@ -999,6 +1000,8 @@ import { createCheckoutApi } from "./api/checkoutRecord";
 import { createFulfillmentRoutingPolicyApi } from "./api/fulfillmentRoutingPolicy";
 import { createMarketSalesChannelApi } from "./api/marketSalesChannel";
 import { createStorefrontClientApi } from "./api/storefrontClient";
+import { createStoreAdminDomainApi } from "./api/storeAdminDomain";
+export type * from "./types/storeAdminDomain";
 import {
   createShippingLabelApi,
   createShippingLabelRefundApi,
@@ -1166,6 +1169,8 @@ function readAdminSession(): AdminSessionInternal | null {
     if (
       typeof session.access_token !== "string" ||
       typeof session.refresh_token !== "string" ||
+      !isRecord(session.scope) ||
+      !(session.scope.type === 'account' || (session.scope.type === 'store' && typeof session.scope.store_id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(session.scope.store_id))) ||
       (session.access_expires_at !== undefined &&
         !isEpochMilliseconds(session.access_expires_at)) ||
       (session.email !== undefined && typeof session.email !== "string")
@@ -1213,7 +1218,7 @@ export function createAdmin(config: CreateAdminConfig) {
   const listeners = new Set<AuthStateListener<AdminSession>>();
 
   function toPublic(s: AdminSessionInternal | null): AdminSession | null {
-    return s ? { email: s.email } : null;
+    return s ? { email: s.email, scope: s.scope } : null;
   }
 
   function emit(): void {
@@ -1374,6 +1379,7 @@ export function createAdmin(config: CreateAdminConfig) {
       paymentTerms: createPaymentTermsApi(apiConfig),
       marketSalesChannel: createMarketSalesChannelApi(apiConfig),
       storefrontClient: createStorefrontClientApi(apiConfig),
+      adminDomain: createStoreAdminDomainApi(apiConfig),
       create: storeApi.createStore,
       update: storeApi.updateStore,
       get: storeApi.getStore,

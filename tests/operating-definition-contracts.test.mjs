@@ -12,6 +12,7 @@ for (const definition of [
   { path: ["store", "paymentTerms"], route: "payment-terms", filters: {} },
   { path: ["eshop", "fulfillmentRoutingPolicy"], route: "fulfillment-routing-policies", filters: { market_id: marketId, sales_channel_id: id } },
   { path: ["store", "storefrontClient"], route: "storefront-clients", filters: { sales_channel_id: id } },
+  { path: ["store", "adminDomain"], route: "admin-domains", filters: {} },
 ]) {
   test(`${definition.route} retains empty-page continuation and exact Store/filter binding`, async () => {
     const calls = [];
