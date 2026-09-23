@@ -2,10 +2,15 @@ import type { createAdmin } from "arky-sdk/admin";
 import type { OrderInvoice, OrderPickup, OrderShipment, FulfillmentOrder, CreateOrderShipmentParams } from "arky-sdk";
 import type { OrderInvoice as PublicInvoice, OrderPickup as PublicPickup, PaginatedResponse } from "arky-sdk/types";
 import { selectShipmentUnits } from "arky-sdk/utils";
+import type { ShippingLabelRequestResolution } from "arky-sdk";
+import type { ShippingLabelRequestResolution as PublicLabelResolution } from "arky-sdk/types";
 type Same<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false;
 type True<T extends true> = T;
 type Api = ReturnType<typeof createAdmin>["eshop"];
 export type HistoryContract = [
+  True<Same<ShippingLabelRequestResolution, PublicLabelResolution>>,
+  True<Same<Awaited<ReturnType<Api["shippingLabel"]["resolveRequest"]>>, ShippingLabelRequestResolution>>,
+  True<Same<ShippingLabelRequestResolution["result"]["type"], "accepted" | "not_accepted">>,
   True<Same<OrderInvoice, PublicInvoice>>,
   True<Same<OrderPickup, PublicPickup>>,
   True<Same<Awaited<ReturnType<Api["invoice"]["find"]>>, PaginatedResponse<OrderInvoice>>>,

@@ -1077,6 +1077,17 @@ For an active parcel, `shippingLabel.request` accepts the selected signed quote 
 merchant-debit reversals have separate APIs and lifecycle records. A successful label purchase is
 not dispatch, and a carrier refund is not customer repayment or proof that goods returned.
 
+If an uncertain saved quote expires, an explicit `shippingLabel.resolveRequest` call sends that
+same `shipping_label_id` and `quote`. Its `accepted` result returns the existing purchase without
+changing it. Its `not_accepted` result proves the original quote was invalidated under the physical
+owner's transaction fence, so a late copy cannot create that purchase. Correlate `store_id`,
+`shipping_label_id`, typed `owner` and `quote_digest` (SHA-256 of the exact UTF-8 signed quote) before
+clearing browser state. Hold the shared durable-request Web Lock throughout. A lost resolution
+response keeps the same request for resolution again. Review fresh rates explicitly; this command
+never purchases a new label, cancels an accepted one, refunds money or contacts a provider.
+It is not a backup-recovery tool: operations lost inside the database backup RPO still require
+the platform's provider-side/manual reconciliation before ordinary operation resumes.
+
 ## TypeScript
 
 Every Arky-owned absolute instant is a signed UTC Unix epoch-millisecond number, represented in

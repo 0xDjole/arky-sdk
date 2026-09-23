@@ -14,6 +14,7 @@ import type {
   RequestShippingLabelParams,
   RequestShippingLabelRefundParams,
   ShippingLabelPurchase,
+  ShippingLabelRequestResolution,
   ShippingLabelQuoteRate,
   ShippingLabelRefund,
 } from "../types/shippingLabel";
@@ -49,6 +50,17 @@ export const createShippingLabelApi = (apiConfig: ApiConfig) => {
       const { store_id, shipping_label_id } = params;
       return apiConfig.httpClient.get<ShippingLabelPurchase>(
         `${basePath(store_id)}/${encodeURIComponent(shipping_label_id)}`,
+        options,
+      );
+    },
+    resolveRequest(
+      params: RequestShippingLabelParams,
+      options?: RequestOptions,
+    ): Promise<ShippingLabelRequestResolution> {
+      const { store_id, shipping_label_id, quote } = params;
+      return apiConfig.httpClient.post<ShippingLabelRequestResolution>(
+        `${basePath(store_id)}/${encodeURIComponent(shipping_label_id)}/resolve-request`,
+        { quote },
         options,
       );
     },

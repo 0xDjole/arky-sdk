@@ -1,4 +1,5 @@
 import type { Payment } from "./payment";
+export type { ShippingLabelRequestResolution } from "./shippingLabel";
 export type * from "./fulfillmentUnitSelection";
 import type { SellerProfile } from "./orderContract";
 import type { StoreTaxPolicy, StoreInvoicePolicy } from "./storeCommerce";

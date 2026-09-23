@@ -97,6 +97,14 @@ test("shipping label effects are independent roots, not Shipment-owned projectio
 
   const cases = [
     {
+      name: "resolve the original signed label request without another purchase",
+      response: { store_id: storeId, shipping_label_id: labelId,
+        owner: { type: "outbound_shipment", shipment_id: shipmentId },
+        quote_digest: "a".repeat(64), result: { type: "not_accepted" } },
+      request: (arky) => arky.eshop.shippingLabel.resolveRequest({ shipping_label_id: labelId, quote: "original.signed-quote" }),
+      expected: { url: `${labelPath}/${labelId}/resolve-request`, method: "POST", body: { quote: "original.signed-quote" } },
+    },
+    {
       name: "reconcile label",
       response: purchase,
       request: (arky) => arky.eshop.shippingLabel.reconcile({ shipping_label_id: labelId }),

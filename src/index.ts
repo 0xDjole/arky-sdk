@@ -1,6 +1,7 @@
 export { ScheduledResultTimeoutError } from "./utils/scheduledResult";
 export { isValidKey, validateKey, toKey, nameToKey } from "./utils/keyValidation";
 export { CartPresentationChangedError } from "./types/cartCheckout";
+export type { ShippingLabelRequestResolution } from "./types/shippingLabel";
 export { CartSelectionError } from "./types/cartSelection";
 export {
   cartProductItems,

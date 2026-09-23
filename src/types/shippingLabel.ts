@@ -136,6 +136,14 @@ export interface ShippingLabelPurchase {
   merchant_debit: MerchantDebit | null;
 }
 
+export interface ShippingLabelRequestResolution {
+  store_id: string;
+  shipping_label_id: string;
+  owner: ShippingLabelOwner;
+  quote_digest: string;
+  result: { type: "accepted"; purchase: ShippingLabelPurchase } | { type: "not_accepted" };
+}
+
 export interface ShippingLabelQuoteRate {
   quote: string;
   carrier: string;
