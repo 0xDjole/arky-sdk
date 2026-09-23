@@ -832,6 +832,11 @@ export interface OrderDigitalItem {
 export type FulfillmentOrderStatus =
   { type: "open" | "in_progress" | "completed" | "cancelled" };
 
+export interface FulfillmentUnitSpan {
+  first_unit: number;
+  quantity: number;
+}
+
 export interface FulfillmentOrderLine {
   id: string;
   order_product_item_id: string;
@@ -839,8 +844,8 @@ export interface FulfillmentOrderLine {
   allocated_quantity: number;
   fulfilled_quantity: number;
   unit_spans: import("./orderContract").UnitSpan[];
-  released_units: import("./orderContract").UnitSpan[];
-  cancelled_units: import("./orderContract").UnitSpan[];
+  released_units: FulfillmentUnitSpan[];
+  cancelled_units: FulfillmentUnitSpan[];
 }
 
 export interface FulfillmentOrder {

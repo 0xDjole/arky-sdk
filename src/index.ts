@@ -355,6 +355,7 @@ export type {
   ShippingRateLine,
   FulfillmentOrderStatus,
   FulfillmentOrderLine,
+  FulfillmentUnitSpan,
   FulfillmentOrder,
   Parcel,
   FulfillmentExecution,

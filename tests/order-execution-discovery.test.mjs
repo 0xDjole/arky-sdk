@@ -48,8 +48,8 @@ function assignment() {
     lines: [{
       id: "line", order_product_item_id: "product", quantity: 10, allocated_quantity: 7, fulfilled_quantity: 2,
       unit_spans: [{ first_unit: 10, quantity: 10 }],
-      released_units: [{ first_unit: 12, quantity: 2 }],
-      cancelled_units: [{ first_unit: 16, quantity: 1 }],
+      released_units: [{ first_unit: 2, quantity: 2 }],
+      cancelled_units: [{ first_unit: 6, quantity: 1 }],
     }],
   };
 }
@@ -94,4 +94,35 @@ test("shipment selection refuses incomplete history, foreign or repeated custody
   const invalid = assignment();
   invalid.lines[0].unit_spans = [{ first_unit: 4294967295, quantity: 1 }];
   assert.throws(() => selectShipmentUnits(invalid, "line", 1, []), /invalid/);
+});
+
+test("shipment selection maps sparse local work progress without treating it as Order positions", () => {
+  const work = assignment();
+  Object.assign(work.lines[0], {
+    quantity: 3, allocated_quantity: 1, fulfilled_quantity: 0,
+    unit_spans: [{ first_unit: 5, quantity: 2 }, { first_unit: 11, quantity: 1 }],
+    released_units: [{ first_unit: 0, quantity: 1 }],
+    cancelled_units: [{ first_unit: 2, quantity: 1 }],
+  });
+  assert.deepEqual(selectShipmentUnits(work, "line", 1, []).unit_spans, [{ first_unit: 6, quantity: 1 }]);
+  work.lines[0].cancelled_units = [{ first_unit: 11, quantity: 1 }];
+  assert.throws(() => selectShipmentUnits(work, "line", 1, []), /Work positions exceed/);
+  work.lines[0].cancelled_units = [{ first_unit: 0, quantity: 1 }];
+  work.lines[0].allocated_quantity = 2;
+  assert.throws(() => selectShipmentUnits(work, "line", 1, []), /disagree/);
+});
+
+test("shipment work mapping rejects noncanonical source ranges and fragmented overflow", () => {
+  const work = assignment();
+  work.lines[0].unit_spans = [{ first_unit: 10, quantity: 2 }, { first_unit: 12, quantity: 8 }];
+  assert.throws(() => selectShipmentUnits(work, "line", 1, []), /coalesced/);
+  work.lines[0].unit_spans.reverse();
+  assert.throws(() => selectShipmentUnits(work, "line", 1, []), /coalesced/);
+  Object.assign(work.lines[0], {
+    quantity: 3000, allocated_quantity: 1002, fulfilled_quantity: 0,
+    unit_spans: Array.from({ length: 1000 }, (_, index) => ({ first_unit: index * 4, quantity: 3 })),
+    released_units: Array.from({ length: 999 }, (_, index) => ({ first_unit: index * 3 + 2, quantity: 2 })),
+    cancelled_units: [],
+  });
+  assert.throws(() => selectShipmentUnits(work, "line", 1, []), /Mapped unit ranges exceed/);
 });

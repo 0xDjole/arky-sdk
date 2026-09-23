@@ -1,4 +1,4 @@
-import type { FulfillmentOrder, OrderShipment, OrderShipmentLine } from "../types";
+import type { FulfillmentOrder, FulfillmentUnitSpan, OrderShipment, OrderShipmentLine } from "../types";
 import type { UnitSpan } from "../types/orderContract";
 import { FulfillmentSelectionError } from "../types/fulfillmentSelection";
 
@@ -21,6 +21,50 @@ function count(spans: UnitSpan[]): number {
   return spans.reduce((sum, span) => sum + span.quantity, 0);
 }
 
+function canonical(spans: UnitSpan[]): UnitSpan[] {
+  const ranges = checked(spans);
+  for (let index = 0; index < spans.length; index++) {
+    if (ranges[index].first_unit !== spans[index].first_unit
+      || (index > 0 && ranges[index - 1].first_unit + ranges[index - 1].quantity === ranges[index].first_unit)) {
+      throw new FulfillmentSelectionError("Unit ranges must be sorted, disjoint and coalesced.");
+    }
+  }
+  return ranges;
+}
+
+function orderUnits(assigned: UnitSpan[], positions: FulfillmentUnitSpan[]): UnitSpan[] {
+  const local = canonical(positions);
+  const last = local[local.length - 1];
+  if (last && last.first_unit + last.quantity > count(assigned)) {
+    throw new FulfillmentSelectionError("Work positions exceed their frozen assignment.");
+  }
+  const result: UnitSpan[] = [];
+  let offset = 0;
+  let index = 0;
+  for (const order of assigned) {
+    const end = offset + order.quantity;
+    while (index < local.length && local[index].first_unit < end) {
+      const selected = local[index];
+      const stop = Math.min(end, selected.first_unit + selected.quantity);
+      const start = Math.max(offset, selected.first_unit);
+      if (start < stop) {
+        const first_unit = order.first_unit + start - offset;
+        const previous = result[result.length - 1];
+        if (previous && previous.first_unit + previous.quantity === first_unit) {
+          previous.quantity += stop - start;
+        } else {
+          if (result.length === 1000) throw new FulfillmentSelectionError("Mapped unit ranges exceed their supported bound.");
+          result.push({ first_unit, quantity: stop - start });
+        }
+      }
+      if (selected.first_unit + selected.quantity > end) break;
+      index++;
+    }
+    offset = end;
+  }
+  return result;
+}
+
 function subtract(source: UnitSpan[], removed: UnitSpan[]): UnitSpan[] {
   const result: UnitSpan[] = [];
   let index = 0;
@@ -40,6 +84,19 @@ function subtract(source: UnitSpan[], removed: UnitSpan[]): UnitSpan[] {
   return result;
 }
 
+function combinedExclusions(first: UnitSpan[], second: UnitSpan[]): UnitSpan[] {
+  const result: UnitSpan[] = [];
+  for (const span of [...first, ...second].sort((a, b) => a.first_unit - b.first_unit)) {
+    const previous = result[result.length - 1];
+    if (previous && previous.first_unit + previous.quantity === span.first_unit) {
+      previous.quantity += span.quantity;
+    } else {
+      result.push({ ...span });
+    }
+  }
+  return result;
+}
+
 export function selectShipmentUnits(
   work: FulfillmentOrder,
   lineId: string,
@@ -53,13 +110,13 @@ export function selectShipmentUnits(
   if (!line || !Number.isInteger(quantity) || quantity < 1 || quantity > 4294967295) {
     throw new FulfillmentSelectionError("Select a valid assigned line and whole quantity.");
   }
-  const assigned = checked(line.unit_spans);
-  const released = checked(line.released_units);
-  const cancelled = checked(line.cancelled_units);
-  if (count(assigned) !== line.quantity || count(subtract(released, assigned)) || count(subtract(cancelled, assigned))) {
+  const assigned = canonical(line.unit_spans);
+  const released = orderUnits(assigned, line.released_units);
+  const cancelled = orderUnits(assigned, line.cancelled_units);
+  if (count(assigned) !== line.quantity || count(subtract(released, cancelled)) !== count(released)) {
     throw new FulfillmentSelectionError("Fulfillment ranges disagree with their assignment.");
   }
-  const active = subtract(subtract(assigned, released), cancelled);
+  const active = subtract(assigned, combinedExclusions(released, cancelled));
   if (count(active) !== line.allocated_quantity) throw new FulfillmentSelectionError("Reload the changed fulfillment assignment.");
   const dispatched: UnitSpan[] = [];
   for (const shipment of shipments) {
