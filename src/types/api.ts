@@ -1485,8 +1485,10 @@ export interface DaySlots {
 }
 
 export interface BookingResourceAvailability {
+  booking_offering_id: string;
   booking_resource_id: string;
   resource_key: string;
+  timezone: string;
   days: DaySlots[];
 }
 

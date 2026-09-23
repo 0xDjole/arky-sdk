@@ -467,8 +467,10 @@ test("storefront booking runtime sends one offering interval and reads embedded 
         cursor: null,
         booking_resources: [
           {
+            booking_offering_id: "booking-offering",
             booking_resource_id: "booking-resource",
             resource_key: "room-one",
+            timezone: "Europe/Sarajevo",
             days: [],
           },
         ],
@@ -711,8 +713,10 @@ test("high-level booking flow creates one Cart item per appointment", async () =
         cursor: null,
         booking_resources: [
           {
+            booking_offering_id: "booking-offering",
             booking_resource_id: "booking-resource",
             resource_key: "room-one",
+            timezone: "Europe/Sarajevo",
             days: [
               {
                 date: availableLocalDate,
@@ -877,7 +881,7 @@ test("booking selection retains Company context and explicitly follows Offering 
       assert.equal(request.searchParams.has("include_price"), false);
       return jsonResponse({
         from: Number(request.searchParams.get("from")), to: Number(request.searchParams.get("to")),
-        booking_resources: [{ booking_resource_id: request.searchParams.has("cursor") ? "resource-later" : "booking-resource", resource_key: "room", days: [] }],
+        booking_resources: [{ booking_offering_id: request.searchParams.has("cursor") ? laterOffering.id : "booking-offering", booking_resource_id: request.searchParams.has("cursor") ? "resource-later" : "booking-resource", resource_key: "room", timezone: "Europe/Sarajevo", days: [] }],
         cursor: request.searchParams.has("cursor") && !repeatAvailabilityCursor ? null : "availability-next",
       });
     }
@@ -931,7 +935,7 @@ test("late availability cannot replace a newer Service selection or its shared r
         from: Number(request.searchParams.get("from")),
         to: Number(request.searchParams.get("to")),
         cursor: null,
-        booking_resources: [{ booking_resource_id: serviceId, resource_key: serviceId, days: [] }],
+        booking_resources: [{ booking_offering_id: `offering-${serviceId}`, booking_resource_id: serviceId, resource_key: serviceId, timezone: "Europe/Sarajevo", days: [] }],
       };
       if (serviceId === "booking-service") {
         announcePending();

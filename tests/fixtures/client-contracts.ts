@@ -361,7 +361,7 @@ import type {
 // @ts-expect-error storefront CustomerAction keys have no Action compatibility alias.
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.26.31" = SDK_VERSION;
+const sdkVersionLiteral: "0.26.32" = SDK_VERSION;
 const workflowExternalOperationContract: WorkflowExternalOperation = {
   id: "operation-contract",
   store_id: "store-contract",
