@@ -4,6 +4,8 @@ import type {
   FindInventoryMovementsParams,
   FindInventoryReservationsParams,
   InventoryReservation,
+  InventoryItem,
+  InventoryTracking,
   ReservationUnitProgress,
 } from "arky-sdk";
 import type { InventoryReservation as PublicReservation, ReservationUnitProgress as PublicProgress } from "arky-sdk/types";
@@ -17,6 +19,9 @@ type PublicProgressParity = AssertTrue<PublicProgress extends ReservationUnitPro
 type MovementOrder = AssertTrue<NonNullable<FindInventoryMovementsParams["sort_field"]> extends "created_at" ? true : false>;
 type KeyRequired = AssertTrue<{} extends Pick<GetInventoryItemByKeyParams, "key"> ? false : true>;
 type KeyQueryPublicParity = AssertTrue<PublicKeyQuery extends GetInventoryItemByKeyParams ? true : false>;
+type TrackingChoices = AssertTrue<InventoryTracking["type"] extends "tracked" | "individual" | "untracked" ? true : false>;
+type IndividualItem = AssertTrue<{ type: "individual" } extends InventoryItem["tracking"] ? true : false>;
+type IndividualDiscovery = AssertTrue<"individual" extends FindInventoryItemsParams["tracking"] ? true : false>;
 
 export type InventoryContracts = [
   ProgressIsRequired,
@@ -26,6 +31,9 @@ export type InventoryContracts = [
   MovementOrder,
   KeyRequired,
   KeyQueryPublicParity,
+  TrackingChoices,
+  IndividualItem,
+  IndividualDiscovery,
 ];
 
 export const combinedReservationQuery: FindInventoryReservationsParams = {

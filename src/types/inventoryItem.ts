@@ -1,6 +1,9 @@
 import type { EpochMilliseconds } from "./time";
 
-export type InventoryTracking = { type: "tracked" } | { type: "untracked" };
+export type InventoryTracking =
+  | { type: "tracked" }
+  | { type: "individual" }
+  | { type: "untracked" };
 
 export interface InventoryDimensions {
   length_mm: number;
