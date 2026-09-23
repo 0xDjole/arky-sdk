@@ -1,4 +1,5 @@
 import type { ApiConfig } from "../services/clientTypes";
+import type { FulfillmentUnitSlots, ResolveFulfillmentUnitSlotsParams } from "../types/fulfillmentUnitSelection";
 import type {
   CreateOrderShipmentParams,
   FindFulfillmentOrdersParams,
@@ -20,6 +21,18 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
   const storeId = (value?: string) => value || apiConfig.storeId;
 
   return {
+    async resolveFulfillmentUnitSlots(
+      params: ResolveFulfillmentUnitSlotsParams,
+      options?: RequestOptions,
+    ): Promise<FulfillmentUnitSlots> {
+      const { store_id, order_id, fulfillment_order_id, ...payload } = params;
+      return apiConfig.httpClient.post<FulfillmentUnitSlots>(
+        `/v1/stores/${storeId(store_id)}/orders/${order_id}/fulfillment-orders/${fulfillment_order_id}/unit-slots`,
+        payload,
+        options,
+      );
+    },
+
     async findFulfillmentOrders(
       params: FindFulfillmentOrdersParams,
       options?: RequestOptions,

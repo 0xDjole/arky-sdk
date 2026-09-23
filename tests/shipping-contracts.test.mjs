@@ -33,6 +33,25 @@ async function capture(response, request) {
   }
 }
 
+test("warehouse slot resolution sends bounded work selections without client-supplied holds", async () => {
+  const work = "6ba7b813-9dad-41d1-80b4-00c04fd430c8";
+  const lines = [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 2, quantity: 1 }] }];
+  const slots = {
+    fulfillment_order_id: work, store_location_id: "location", updated_at: 1700000000000,
+    slots: [{ fulfillment_order_line_id: "line", fulfillment_unit_index: 2,
+      inventory_item_id: "item", inventory_item_key: "camera", inventory_reservation_id: "hold",
+      reservation_unit_index: 4, inventory_unit: null }],
+  };
+  const result = await capture(slots, (api) => api.eshop.shipment.fulfillment.resolveUnitSlots({
+    order_id: orderId, fulfillment_order_id: work, expected_updated_at: 1700000000000, lines,
+  }));
+  assert.deepEqual(result.result, slots);
+  assert.deepEqual(result.calls, [{
+    url: `${baseUrl}/v1/stores/${storeId}/orders/${orderId}/fulfillment-orders/${work}/unit-slots`,
+    method: "POST", body: { expected_updated_at: 1700000000000, lines },
+  }]);
+});
+
 test("shipping label effects are independent roots, not Shipment-owned projections", async (t) => {
   const labelId = "6ba7b811-9dad-41d1-80b4-00c04fd430c8";
   const labelRefundId = "6ba7b812-9dad-41d1-80b4-00c04fd430c8";

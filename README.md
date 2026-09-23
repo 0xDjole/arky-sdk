@@ -1044,6 +1044,16 @@ bindings for the complete accepted component recipe, at most 100 distinct Units 
 The Unit must already be allocated to the corresponding reservation slot. Work positions are not
 Order positions or physical serial numbers.
 
+Use `admin.eshop.shipment.fulfillment.resolveUnitSlots({ order_id, fulfillment_order_id,
+expected_updated_at: work.updated_at, lines })` to read the required Individual component slots
+for selected `{ fulfillment_order_line_id, unit_spans }` lines. It returns the exact existing
+reservation/slot, Item/key and nullable current Unit for each component; it does not reserve stock.
+Discover available objects with `inventoryUnit.find` filtered by that Item, the returned Location
+and `status: "available"`. Pass the chosen Unit's loaded revision and the returned reservation/slot
+to `inventoryUnit.allocate`, then resolve again to display saved assignments after reload or an
+uncertain response. Build the manifest's `unit_bindings` from those confirmed assignments. At most
+100 physical component slots are resolved per request; quantity-only goods return an empty list.
+
 `selectShipmentUnits` from `arky-sdk/utils` builds a quantity selection from loaded work and complete
 shipment history without expanding every unit. It excludes both dispatched positions and positions
 claimed by unexecuted, non-cancelled parcels. Its empty bindings array supports quantity-tracked
