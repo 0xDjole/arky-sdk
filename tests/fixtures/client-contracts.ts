@@ -361,7 +361,7 @@ import type {
 // @ts-expect-error storefront CustomerAction keys have no Action compatibility alias.
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.26.32" = SDK_VERSION;
+const sdkVersionLiteral: "0.26.33" = SDK_VERSION;
 const workflowExternalOperationContract: WorkflowExternalOperation = {
   id: "operation-contract",
   store_id: "store-contract",
@@ -2489,6 +2489,17 @@ const fulfillmentOrder: FulfillmentOrder = {
   work_key: "original",
   status: { type: "in_progress" },
   method: { type: "delivery", destination: labelAddress },
+  recipient: {
+    source_customer_id: "6ba7b815-9dad-41d1-80b4-00c04fd430c8",
+    email: "recipient@example.com",
+    company: {
+      source_company_id: "6ba7b820-9dad-41d1-80b4-00c04fd430c8",
+      company_name: "Company",
+      source_company_location_id: "6ba7b821-9dad-41d1-80b4-00c04fd430c8",
+      company_location_name: "Branch",
+    },
+  },
+  scheduled_window: { from: epochMilliseconds(3), to: epochMilliseconds(4) },
   lines: [
     {
       id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",

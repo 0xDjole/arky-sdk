@@ -855,6 +855,24 @@ export interface FulfillmentOrderLine {
   cancelled_units: FulfillmentUnitSpan[];
 }
 
+export interface FulfillmentCompanyRecipient {
+  source_company_id: string;
+  company_name: string;
+  source_company_location_id: string;
+  company_location_name: string;
+}
+
+export interface FulfillmentRecipient {
+  source_customer_id: string;
+  email: string | null;
+  company: FulfillmentCompanyRecipient | null;
+}
+
+export interface FulfillmentWindow {
+  from: EpochMilliseconds;
+  to: EpochMilliseconds;
+}
+
 export interface FulfillmentOrder {
   id: string;
   store_id: string;
@@ -862,6 +880,8 @@ export interface FulfillmentOrder {
   store_location_id: string;
   status: FulfillmentOrderStatus;
   method: { type: "pickup" } | { type: "delivery"; destination: PostalAddress };
+  recipient: FulfillmentRecipient;
+  scheduled_window: FulfillmentWindow | null;
   lines: FulfillmentOrderLine[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
