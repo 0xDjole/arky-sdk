@@ -3,6 +3,7 @@ import type { ManualPriceInput } from "./price";
 import type { CatalogReadOptions } from "./catalog";
 import type { CheckoutQuoteSources } from "./checkout";
 import type {
+  AccountSessionScope,
   Block,
   StoreLocationStatus,
   Currency,
@@ -563,6 +564,7 @@ export interface PendingAccountSession {
 
 export interface AuthToken {
   id: string;
+  scope: AccountSessionScope;
   access_token: string;
   refresh_token: string;
   access_expires_at: EpochMilliseconds;

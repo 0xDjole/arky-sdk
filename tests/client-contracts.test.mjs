@@ -110,6 +110,7 @@ test("admin code login activates the same pending Account Session", async () => 
     },
     {
       id: "session-client-contract",
+      scope: { type: "account" },
       access_token: "access-client-contract",
       refresh_token: "refresh-client-contract",
       access_expires_at: 1000,
@@ -133,10 +134,11 @@ test("admin code login activates the same pending Account Session", async () => 
     const pending = await admin.account.auth.code({
       email: "operator@example.test",
     });
-    await admin.account.auth.verify({
+    const verified = await admin.account.auth.verify({
       session_id: pending.session_id,
       code: "123456",
     });
+    assert.deepEqual(verified.scope, { type: "account" });
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -169,6 +171,7 @@ test("Store invitation login wraps the platform-global pending Account Session",
     },
     {
       id: "session-invitation-contract",
+      scope: { type: "account" },
       access_token: "access-invitation-contract",
       refresh_token: "refresh-invitation-contract",
       access_expires_at: 1000,
@@ -193,10 +196,11 @@ test("Store invitation login wraps the platform-global pending Account Session",
       invitationStoreId,
       { email: "invitee@example.test" },
     );
-    await admin.account.auth.storeVerify(invitationStoreId, {
+    const verified = await admin.account.auth.storeVerify(invitationStoreId, {
       session_id: pending.session_id,
       code: "123456",
     });
+    assert.deepEqual(verified.scope, { type: "account" });
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -223,6 +227,7 @@ test("admin refresh returns the rotated Account Session contract", async () => {
   const calls = [];
   const response = {
     id: "session-rotated",
+    scope: { type: "store", store_id: storeId },
     access_token: "access-rotated",
     refresh_token: "refresh-rotated",
     access_expires_at: 2_000,
@@ -252,6 +257,7 @@ test("admin refresh returns the rotated Account Session contract", async () => {
 
   assert.deepEqual(result, response);
   assert.equal(result.authenticated_at, 500);
+  assert.deepEqual(result.scope, { type: "store", store_id: storeId });
   assert.deepEqual(calls, [
     {
       url: `${baseUrl}/v1/auth/refresh`,

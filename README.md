@@ -617,7 +617,7 @@ const admin = createAdmin({
 ```
 
 Interactive operator login starts a pending Account Session. Verification activates that same
-Session ID; token refresh returns a new Session while preserving `authenticated_at`:
+Session ID; token refresh returns a new Session while preserving `authenticated_at` and `scope`:
 
 ```typescript
 const pending = await admin.account.auth.code({
@@ -631,6 +631,13 @@ const session = await admin.account.auth.verify({
 
 Session listings are discriminated by `pending_verification`, `active`, `locked`, `superseded`,
 or `revoked`. Expiry is derived from the deadline fields and is not a stored Session status.
+Token and Session responses also expose `scope: { type: "account" }` or
+`{ type: "store", store_id: string }`. A Store restriction never grants permission and cannot be
+widened by changing the client's `storeId` or refreshing credentials. Restricted credentials
+cannot create Personal API Tokens, list other Stores or perform Account-wide administration;
+they can revoke their own Session. Ordinary platform-origin and Store-branded login remain
+Account-wide. Verified custom-domain issuance is not yet exposed; scope is server-selected,
+not a login request option.
 
 The SDK keeps the wire/domain name `AccountApiToken`, while documentation and product copy call
 these credentials Personal API Tokens. Expiry is determined from `expires_at`; token status is

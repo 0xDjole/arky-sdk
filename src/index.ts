@@ -498,6 +498,7 @@ export type {
   AccountApiTokenStatus,
   AccountApiTokenCreated,
   AccountSession,
+  AccountSessionScope,
   AccountSessionStatus,
   StoreMembership,
   StoreMember,
@@ -917,7 +918,7 @@ export function storeCommerceDefaults(
     : null;
 }
 
-export const SDK_VERSION = "0.26.35";
+export const SDK_VERSION = "0.26.36";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",

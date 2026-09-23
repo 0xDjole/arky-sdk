@@ -1625,8 +1625,13 @@ export interface AccountApiTokenCreated {
   value: string;
 }
 
+export type AccountSessionScope =
+  | { type: "account" }
+  | { type: "store"; store_id: string };
+
 interface AccountSessionBase {
   id: string;
+  scope: AccountSessionScope;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }

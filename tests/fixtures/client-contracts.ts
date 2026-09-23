@@ -86,6 +86,7 @@ import type {
   AccountApiTokenStatus,
   AccountVerificationEmailStatus,
   AccountSession,
+  AccountSessionScope,
   AccountSessionStatus,
   AuthToken,
   Block,
@@ -361,7 +362,7 @@ import type {
 // @ts-expect-error storefront CustomerAction keys have no Action compatibility alias.
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.26.35" = SDK_VERSION;
+const sdkVersionLiteral: "0.26.36" = SDK_VERSION;
 const workflowExternalOperationContract: WorkflowExternalOperation = {
   id: "operation-contract",
   store_id: "store-contract",
@@ -2286,6 +2287,7 @@ const verifyPendingAccountSession: VerifyPendingAccountSessionParams = {
 };
 const authToken: AuthToken = {
   id: pendingAccountSessionResponse.session_id,
+  scope: { type: "account" },
   access_token: "account_access_contract",
   refresh_token: "account_refresh_contract",
   access_expires_at: epochMilliseconds(3_600),
@@ -2300,6 +2302,7 @@ authToken.is_verified;
 const invitationEmailStatus: AccountVerificationEmailStatus = { type: "processing" };
 const pendingAccountSession: AccountSession = {
   id: "pending-session-contract",
+  scope: { type: "account" },
   status: { type: "pending_verification" },
   verification_expires_at: epochMilliseconds(600),
   access_expires_at: null,
@@ -2311,6 +2314,7 @@ const pendingAccountSession: AccountSession = {
 };
 const activeAccountSession: AccountSession = {
   id: "active-session-contract",
+  scope: { type: "store", store_id: "store-contract" },
   status: { type: "active" },
   verification_expires_at: null,
   access_expires_at: epochMilliseconds(3_600),
@@ -2322,6 +2326,7 @@ const activeAccountSession: AccountSession = {
 };
 const revokedAccountSession: AccountSession = {
   id: "revoked-session-contract",
+  scope: { type: "account" },
   status: { type: "revoked" },
   verification_expires_at: null,
   access_expires_at: null,
@@ -2332,6 +2337,14 @@ const revokedAccountSession: AccountSession = {
   updated_at: epochMilliseconds(20),
 };
 const terminalSessionStatus: AccountSessionStatus = { type: "superseded" };
+const storeSessionScope: AccountSessionScope = { type: "store", store_id: "store-contract" };
+// @ts-expect-error Store confinement requires an exact Store.
+const missingStoreSessionScope: AccountSessionScope = { type: "store" };
+// @ts-expect-error Account-wide scope cannot carry a separate Store authority.
+const accountScopeWithStore: AccountSessionScope = { type: "account", store_id: "store-contract" };
+void storeSessionScope;
+void missingStoreSessionScope;
+void accountScopeWithStore;
 
 const personalApiToken: AccountApiToken = {
   id: "api-token-contract",
