@@ -128,25 +128,34 @@ export function selectShipmentUnits(
   orderUnits(assigned, active);
   if (count(active) !== line.allocated_quantity) throw new FulfillmentSelectionError("Reload the changed fulfillment assignment.");
   const dispatched: FulfillmentUnitSpan[] = [];
+  const prepared: FulfillmentUnitSpan[] = [];
   for (const shipment of shipments) {
     if (shipment.store_id !== work.store_id || shipment.order_id !== line.source.order_id) {
       throw new FulfillmentSelectionError("Shipment history belongs to another Order.");
     }
-    if (shipment.fulfillment_order_id !== work.id || !shipment.dispatch) continue;
+    if (shipment.fulfillment_order_id !== work.id) continue;
+    if (!shipment.dispatch && shipment.status.type === "cancelled") continue;
+    if (!shipment.dispatch && !["pending", "label_created"].includes(shipment.status.type)) {
+      throw new FulfillmentSelectionError("Unexecuted shipment has inconsistent preparation status.");
+    }
     for (const item of shipment.lines) {
       if (item.fulfillment_order_line_id !== line.id) continue;
       const units = canonical(item.unit_spans);
       if (count(units) === 0) {
         throw new FulfillmentSelectionError("Shipment history requires a nonempty work selection.");
       }
-      dispatched.push(...units);
+      (shipment.dispatch ? dispatched : prepared).push(...units);
     }
   }
   const handedOver = checked(dispatched);
   if (count(handedOver) !== line.fulfilled_quantity || count(subtract(handedOver, active))) {
     throw new FulfillmentSelectionError("Load or refresh shipment history until all dispatched units are visible.");
   }
-  const available = subtract(active, handedOver);
+  const occupied = checked([...handedOver, ...prepared]);
+  if (count(subtract(occupied, active))) {
+    throw new FulfillmentSelectionError("Prepared shipment no longer fits the remaining assignment.");
+  }
+  const available = subtract(active, occupied);
   if (count(available) < quantity) throw new FulfillmentSelectionError("The selected quantity exceeds remaining assigned units.");
   const selected: FulfillmentUnitSpan[] = [];
   let remaining = quantity;
@@ -157,5 +166,5 @@ export function selectShipmentUnits(
     if (!remaining) break;
   }
   orderUnits(assigned, selected);
-  return { fulfillment_order_line_id: line.id, unit_spans: selected };
+  return { fulfillment_order_line_id: line.id, unit_spans: selected, unit_bindings: [] };
 }

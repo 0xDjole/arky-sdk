@@ -3005,6 +3005,12 @@ export interface ShippingRateLine {
 export interface OrderShipmentLine {
   fulfillment_order_line_id: string;
   unit_spans: FulfillmentUnitSpan[];
+  unit_bindings: ShipmentUnitBinding[];
+}
+
+export interface ShipmentUnitBinding {
+  fulfillment_unit_index: number;
+  inventory_unit_id: string;
 }
 
 export interface FulfillmentExecution {

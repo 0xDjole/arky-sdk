@@ -19,7 +19,10 @@ export type HistoryContract = [
   True<"unit_spans" extends keyof FulfillmentOrder["lines"][number] ? false : true>,
   True<"order_product_item_id" extends keyof FulfillmentOrder["lines"][number] ? false : true>,
   True<Same<ReturnType<typeof selectShipmentUnits>, CreateOrderShipmentParams["lines"][number]>>,
-  True<Same<keyof OrderShipment["lines"][number], "fulfillment_order_line_id" | "unit_spans">>,
-  True<Same<keyof OrderPickup["lines"][number], "fulfillment_order_line_id" | "unit_spans">>,
+  True<Same<keyof OrderShipment["lines"][number], "fulfillment_order_line_id" | "unit_spans" | "unit_bindings">>,
+  True<Same<keyof OrderPickup["lines"][number], "fulfillment_order_line_id" | "unit_spans" | "unit_bindings">>,
+  True<Same<OrderPickup["lines"][number]["unit_bindings"], OrderShipment["lines"][number]["unit_bindings"]>>,
+  True<{} extends Pick<OrderShipment["lines"][number], "unit_bindings"> ? false : true>,
+  True<Same<Awaited<ReturnType<Api["shipment"]["cancel"]>>, OrderShipment>>,
   True<"order_product_item_id" extends keyof OrderShipment["lines"][number] ? false : true>,
 ];

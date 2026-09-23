@@ -1,4 +1,4 @@
-import type { FulfillmentExecution, FulfillmentUnitSpan } from "./index";
+import type { FulfillmentExecution, FulfillmentUnitSpan, ShipmentUnitBinding } from "./index";
 import type { EpochMilliseconds } from "./time";
 
 export type OrderPickupStatus =
@@ -10,6 +10,7 @@ export type OrderPickupStatus =
 export interface OrderPickupLine {
   fulfillment_order_line_id: string;
   unit_spans: FulfillmentUnitSpan[];
+  unit_bindings: ShipmentUnitBinding[];
 }
 
 export interface OrderPickup {

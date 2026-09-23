@@ -26,6 +26,7 @@ export type { CompanyLocationEditableStatus, CompanyLocationStatus, CompanyLocat
 export type { CompanyLocationTaxSettings, CompanyLocationCommercePolicy, TaxRegistration, TaxRegistrationStatus, TaxExemption } from "./types/companyLocation";
 export type { InventoryItem, InventoryItemStatus, InventoryItemEditableStatus, InventoryTracking, InventoryPhysical, InventoryCustoms, InventoryDimensions, CreateInventoryItemParams, UpdateInventoryItemParams, GetInventoryItemParams, GetInventoryItemByKeyParams, FindInventoryItemsParams, DeleteInventoryItemParams } from "./types/inventoryItem";
 export type { InventoryLevel, CreateInventoryLevelParams, GetInventoryLevelParams, RemoveInventoryLevelParams, FindInventoryLevelsParams, InventoryMovement, InventoryMovementReason, ManualInventoryMovementReason, RecordInventoryMovementParams, GetInventoryMovementParams, FindInventoryMovementsParams, InventoryReservation, InventoryReservationSource, InventoryReservationStatus, ReservationUnitProgress, CreateManualInventoryReservationParams, ReleaseManualInventoryReservationParams, GetInventoryReservationParams, FindInventoryReservationsParams, UnitSpan } from "./types/inventory";
+export type * from "./types/inventoryUnit";
 export type { Promotion, PromotionStatus, PromotionEditableStatus, PromotionActivation, PromotionStacking, PromotionEligibility, PromotionTarget, PromotionEffect, PromotionBuyRequirement, PromotionGetDiscount, PromotionProductVariantRef, CreatePromotionParams, UpdatePromotionParams, GetPromotionParams, GetPromotionByKeyParams, FindPromotionsParams, DeletePromotionParams, PromotionCode, PromotionCodeStatus, PromotionCodeEditableStatus, CreatePromotionCodeParams, UpdatePromotionCodeParams, GetPromotionCodeParams, GetPromotionCodeByCodeParams, FindPromotionCodesParams, DeletePromotionCodeParams } from "./types/promotion";
 export type { TaxCategory, TaxCategoryStatus, TaxCategoryEditableStatus, CreateTaxCategoryParams, UpdateTaxCategoryParams, GetTaxCategoryParams, FindTaxCategoriesParams, DeleteTaxCategoryParams, TaxRate, TaxCalculation, TaxComponent, TaxTreatment, TaxRule, TaxRuleStatus, TaxRuleEditableStatus, CreateTaxRuleParams, UpdateTaxRuleParams, GetTaxRuleParams, FindTaxRulesParams, DeleteTaxRuleParams } from "./types/tax";
 export type { PaymentTerms, PaymentTermsStatus, PaymentTermsEditableStatus, CreatePaymentTermsParams, UpdatePaymentTermsParams, GetPaymentTermsParams, FindPaymentTermsParams, DeletePaymentTermsParams } from "./types/paymentTerms";
@@ -364,6 +365,7 @@ export type {
   Parcel,
   FulfillmentExecution,
   OrderShipmentLine,
+  ShipmentUnitBinding,
   OrderShipment,
   CreateOrderShipmentResponse,
   CustomsItem,
@@ -662,6 +664,7 @@ export type {
   GetOrderShipmentParams,
   CreateOrderShipmentParams,
   DispatchOrderShipmentParams,
+  CancelOrderShipmentParams,
   FindPaymentDisputesParams,
   GetPaymentDisputeParams,
   SelectStoreSubscriptionParams,
@@ -914,7 +917,7 @@ export function storeCommerceDefaults(
     : null;
 }
 
-export const SDK_VERSION = "0.26.34";
+export const SDK_VERSION = "0.26.35";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -978,6 +981,7 @@ import { createPriceApi } from "./api/price";
 import { createProductVariantApi } from "./api/productVariant";
 import { createInventoryItemApi } from "./api/inventoryItem";
 import { createInventoryLevelApi } from "./api/inventoryLevel";
+import { createInventoryUnitApi } from "./api/inventoryUnit";
 import { createInventoryMovementApi } from "./api/inventoryMovement";
 import { createInventoryReservationApi } from "./api/inventoryReservation";
 import { createShippingProfileApi } from "./api/shippingProfile";
@@ -1520,6 +1524,7 @@ export function createAdmin(config: CreateAdminConfig) {
       productVariant: createProductVariantApi(apiConfig),
       inventoryItem: createInventoryItemApi(apiConfig),
       inventoryLevel: createInventoryLevelApi(apiConfig),
+      inventoryUnit: createInventoryUnitApi(apiConfig),
       inventoryMovement: createInventoryMovementApi(apiConfig),
       inventoryReservation: createInventoryReservationApi(apiConfig),
       orderCredit: createOrderCreditApi(apiConfig),
@@ -1547,6 +1552,7 @@ export function createAdmin(config: CreateAdminConfig) {
         get: shippingApi.getOrderShipment,
         find: shippingApi.findOrderShipments,
         dispatch: shippingApi.dispatchOrderShipment,
+        cancel: shippingApi.cancelOrderShipment,
         fulfillment: {
           find: shippingApi.findFulfillmentOrders,
           get: shippingApi.getFulfillmentOrder,

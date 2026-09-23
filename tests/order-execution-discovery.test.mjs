@@ -73,6 +73,7 @@ test("shipment selection rejects mixed source ownership instead of trusting remo
   work.order_id = "untrusted-legacy-field";
   assert.deepEqual(selectShipmentUnits(work, "line", 1, [dispatched()]), {
     fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 4, quantity: 1 }],
+    unit_bindings: [],
   });
 });
 
@@ -83,6 +84,7 @@ test("shipment selection uses exact assigned ranges without expanding individual
   assert.deepEqual(selectShipmentUnits(work, "line", 4, history), {
     fulfillment_order_line_id: "line",
     unit_spans: [{ first_unit: 4, quantity: 2 }, { first_unit: 7, quantity: 2 }],
+    unit_bindings: [],
   });
   assert.deepEqual({ work, history }, before);
   const large = assignment();
@@ -91,6 +93,49 @@ test("shipment selection uses exact assigned ranges without expanding individual
     source: { ...large.lines[0].source, order_unit_spans: [{ first_unit: 0, quantity: 2_000_000_000 }] }, released_units: [], cancelled_units: [],
   });
   assert.deepEqual(selectShipmentUnits(large, "line", 1_000_000_000, []).unit_spans, [{ first_unit: 0, quantity: 1_000_000_000 }]);
+});
+
+test("prepared parcels exclude their positions until explicitly cancelled without claiming dispatch", () => {
+  const work = assignment();
+  const prepared = {
+    ...dispatched(), id: "prepared", dispatch: null, status: { type: "pending" },
+    lines: [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 4, quantity: 1 }], unit_bindings: [] }],
+  };
+  const before = structuredClone(prepared);
+  assert.deepEqual(selectShipmentUnits(work, "line", 1, [dispatched(), prepared]), {
+    fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 5, quantity: 1 }], unit_bindings: [],
+  });
+  assert.deepEqual(prepared, before);
+  assert.throws(() => selectShipmentUnits(work, "line", 5, [dispatched(), prepared]), /exceeds/);
+  assert.throws(() => selectShipmentUnits(work, "line", 1, [dispatched(), prepared, prepared]), /overlapping/);
+  prepared.lines[0].unit_spans = [{ first_unit: 0, quantity: 1 }];
+  assert.throws(() => selectShipmentUnits(work, "line", 1, [dispatched(), prepared]), /overlapping/);
+  prepared.lines[0].unit_spans = [{ first_unit: 2, quantity: 1 }];
+  assert.throws(() => selectShipmentUnits(work, "line", 1, [dispatched(), prepared]), /remaining assignment/);
+  prepared.status = { type: "cancelled" };
+  assert.deepEqual(selectShipmentUnits(work, "line", 1, [dispatched(), prepared]).unit_spans, [{ first_unit: 4, quantity: 1 }]);
+  prepared.status = { type: "delivered" };
+  assert.throws(() => selectShipmentUnits(work, "line", 1, [dispatched(), prepared]), /preparation status/);
+});
+
+test("shipment cancellation sends only the loaded parcel revision under exact owners", async () => {
+  const original = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: new URL(url), method: init.method, body: JSON.parse(init.body) });
+    return new Response(JSON.stringify({ id: "parcel", status: { type: "cancelled" }, dispatch: null }), {
+      headers: { "content-type": "application/json" },
+    });
+  };
+  try {
+    const api = createAdmin({ storeId: "default", baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop;
+    const result = await api.shipment.cancel({ store_id: "selected", order_id: "order", shipment_id: "parcel", expected_updated_at: 1700000000000 });
+    assert.equal(result.status.type, "cancelled");
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url.pathname, "/v1/stores/selected/orders/order/shipments/parcel/cancel");
+    assert.equal(calls[0].method, "POST");
+    assert.deepEqual(calls[0].body, { expected_updated_at: 1700000000000 });
+  } finally { globalThis.fetch = original; }
 });
 
 test("shipment selection refuses incomplete history, foreign or repeated custody, invalid ranges and excess quantities", () => {

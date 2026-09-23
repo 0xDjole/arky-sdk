@@ -361,7 +361,7 @@ import type {
 // @ts-expect-error storefront CustomerAction keys have no Action compatibility alias.
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.26.34" = SDK_VERSION;
+const sdkVersionLiteral: "0.26.35" = SDK_VERSION;
 const workflowExternalOperationContract: WorkflowExternalOperation = {
   id: "operation-contract",
   store_id: "store-contract",
@@ -2530,6 +2530,7 @@ const shipment: OrderShipment = {
     {
       fulfillment_order_line_id: fulfillmentOrder.lines[0].id,
       unit_spans: [{ first_unit: 0, quantity: 1 }],
+      unit_bindings: [],
     },
   ],
   status: { type: "label_created" },
@@ -2584,6 +2585,7 @@ const createShipmentRequest: CreateOrderShipmentParams = {
     {
       fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
       unit_spans: [{ first_unit: 1, quantity: 1 }],
+      unit_bindings: [],
     },
   ],
   parcel: labelParcel,

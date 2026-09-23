@@ -2110,6 +2110,10 @@ export interface DispatchOrderShipmentParams {
   late_reason: string | null;
 }
 
+export interface CancelOrderShipmentParams extends GetOrderShipmentParams {
+  expected_updated_at: EpochMilliseconds;
+}
+
 export interface FindCustomerSessionsParams {
   customer_id: string;
   store_id?: string;

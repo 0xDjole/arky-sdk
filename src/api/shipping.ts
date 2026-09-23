@@ -6,6 +6,7 @@ import type {
   GetOrderShipmentParams,
   GetFulfillmentOrderParams,
   DispatchOrderShipmentParams,
+  CancelOrderShipmentParams,
   RequestOptions,
 } from "../types/api";
 import type {
@@ -80,6 +81,18 @@ export const createShippingApi = (apiConfig: ApiConfig) => {
         );
       }
       return response;
+    },
+
+    async cancelOrderShipment(
+      params: CancelOrderShipmentParams,
+      options?: RequestOptions,
+    ): Promise<OrderShipment> {
+      const { store_id, order_id, shipment_id, ...payload } = params;
+      return apiConfig.httpClient.post<OrderShipment>(
+        `/v1/stores/${encodeURIComponent(storeId(store_id))}/orders/${encodeURIComponent(order_id)}/shipments/${encodeURIComponent(shipment_id)}/cancel`,
+        payload,
+        options,
+      );
     },
 
     async dispatchOrderShipment(

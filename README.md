@@ -226,6 +226,15 @@ Prices are null when not requested, not permitted or unavailable; zero remains a
 Location stock is managed with Admin `inventoryLevel.find` and inventory movements. Storefronts
 use the authoritative quote/checkout for availability, not a sum of inventory across warehouses.
 
+Individually tracked objects use `admin.eshop.inventoryUnit`. `find` combines exact Item, Location,
+asset-tag and physical-status filters, with timestamp sorting and explicit continuation. Asset tags
+are case-sensitive; follow the cursor even after an empty page. `get` reads one exact Unit.
+`receive` requires a caller-retained Unit UUID, asset tag, explicit nullable manufacturer serial and
+the loaded Level ID/update epoch. Reuse that same request after an uncertain result; never generate
+another receipt identity just to retry. `allocate` selects one existing reservation/component slot;
+`unassign` frees that selection without releasing the quantity hold. Both require the loaded Unit
+update epoch. These methods do not expose arbitrary status editing or physical-history deletion.
+
 Cart requests and responses use one tagged `line_items` array with `product`, `booking`,
 `digital_product` and `customer_group_plan` items. The `cartProductItems`, `cartBookingItems`,
 `cartDigitalItems` and `cartCustomerGroupPlanItems` helpers select each family. A Form submission
@@ -970,40 +979,21 @@ await admin.eshop.order.cancelProductItem({
 
 ## Fulfillment and shipping labels
 
-Fulfillment work is scoped to a StoreLocation. Rate requests and Shipment lines address stable
-embedded Order product-item IDs, while one Shipment freezes its parcel and optional customs facts:
+Fulfillment work is scoped to a StoreLocation. Its line source maps stable local work positions
+to accepted Order units. A Shipment selects those local positions and freezes its parcel and
+optional customs facts. Create the parcel first; carrier-label quoting/purchase is a separate flow:
 
 ```typescript
-const [rate] = await admin.eshop.shipment.getRates({
-  order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
-  store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
-  lines: [
-    {
-      order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
-      quantity: 1,
-    },
-  ],
-  parcel: {
-    length: 150,
-    width: 100,
-    height: 50,
-    weight: 750,
-    distance_unit: "mm",
-    mass_unit: "g",
-  },
-});
-
 const result = await admin.eshop.shipment.create({
   order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
   shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-  rate_id: rate.id,
   origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
   fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
   lines: [
     {
-      order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
       fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
-      quantity: 1,
+      unit_spans: [{ first_unit: 0, quantity: 1 }],
+      unit_bindings: [],
     },
   ],
   parcel: {
@@ -1014,34 +1004,43 @@ const result = await admin.eshop.shipment.create({
     distance_unit: "mm",
     mass_unit: "g",
   },
+  customs_declaration: null,
 });
 
-console.log(rate.postage, rate.platform_label_fee, rate.total);
-console.log(result.shipment.label.total);
+const rates = await admin.eshop.shippingLabel.quote({
+  owner: { type: "outbound_shipment", shipment_id: result.shipment.id },
+});
+console.log(rates.map((rate) => ({ service: rate.display_name, total: rate.total })));
 ```
 
-Every created Shipment owns its durable `ShippingLabel` from the initial `requested` state;
-label-less Shipment responses are invalid. `ShippingLabel`, its optional embedded
-`ShippingLabelRefund`, its `merchant_debit`, and its optional `merchant_debit_reversal` are
-carrier- and payment-provider-neutral public DTOs:
+`unit_bindings` is required on Shipment and Pickup lines. Quantity-tracked goods use an empty array;
+individually tracked components require explicit `{ fulfillment_unit_index, inventory_unit_id }`
+bindings for the complete accepted component recipe, at most 100 distinct Units per manifest.
+The Unit must already be allocated to the corresponding reservation slot. Work positions are not
+Order positions or physical serial numbers.
+
+`selectShipmentUnits` from `arky-sdk/utils` builds a quantity selection from loaded work and complete
+shipment history without expanding every unit. It excludes both dispatched positions and positions
+claimed by unexecuted, non-cancelled parcels. Its empty bindings array supports quantity-tracked
+goods; supply explicit allocated Unit bindings for individually tracked goods before creating the
+parcel. Server admission remains authoritative if work changes after the read.
+
+An unshipped parcel can be cancelled explicitly. Cancellation frees its prepared positions, not
+the underlying stock hold, and does not automatically refund postage:
 
 ```typescript
-await admin.eshop.shipment.label.retry({
+await admin.eshop.shipment.cancel({
   order_id: result.shipment.order_id,
   shipment_id: result.shipment.id,
+  expected_updated_at: result.shipment.updated_at,
 });
-
-await admin.eshop.shipment.label.refund.request({
-  order_id: result.shipment.order_id,
-  shipment_id: result.shipment.id,
-});
-
-console.log(result.shipment.label.merchant_debit.status);
-console.log(result.shipment.label.merchant_debit_reversal?.status);
 ```
 
-These DTOs expose safe lifecycle state and `Money` snapshots only. Carrier and payment-provider
-object IDs, processing claims, attempt counters, and persistence versions remain Server-internal.
+For an active parcel, `shippingLabel.request` accepts the selected signed quote and a retained
+`shipping_label_id`; preserve the identity through an uncertain response. Inspect it with
+`shippingLabel.get` or use its supported `reconcile` command. Labels, carrier refund requests and
+merchant-debit reversals have separate APIs and lifecycle records. A successful label purchase is
+not dispatch, and a carrier refund is not customer repayment or proof that goods returned.
 
 ## TypeScript
 
