@@ -6,7 +6,7 @@ import type { EpochMilliseconds } from "./time";
 export type PaymentCaptureEvidence =
   | { type: "cash_on_delivery"; marked_paid_by_account_id: string }
   | { type: "manual"; marked_paid_by_account_id: string; reference: string | null }
-  | { type: "stripe"; charge_id: string; payment_intent_id: string | null; last_observation: CommerceProviderObservation };
+  | { type: "stripe"; connected_account_id: string; livemode: boolean; charge_id: string; payment_intent_id: string | null; last_observation: CommerceProviderObservation };
 
 export interface CaptureFinancialEffect {
   effect_id: string;

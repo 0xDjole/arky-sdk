@@ -23,7 +23,7 @@ function storedVisitorSession(
     version: 2,
     customer: {
       id: customerId,
-      status: "active",
+      status: { type: "active" },
       identities: [],
       classifications: [],
       created_at: 1,
@@ -32,7 +32,7 @@ function storedVisitorSession(
     session: {
       id: `session-${customerId}`,
       customer_id: customerId,
-      status: "active",
+      status: { type: "active" },
       type: "visitor",
       token,
       expires_at: 10_000,
@@ -202,7 +202,7 @@ test("Checkout quote preserves per-unit promotion/manual provenance and delivery
       },
     },
     seller: {
-      profile: { legal_name: "Seller", tax_identifier: null, address },
+      profile: { legal_name: "Seller", registration_number: null, tax_registrations: [], address },
       configuration_digest: "a".repeat(64),
     },
     invoice_policy: { type: "external" },
@@ -389,7 +389,19 @@ test("subscription selection returns its ephemeral Stripe action in one POST", a
     id: "d397ff50-690b-4da7-9fb9-17740e535d69",
     store_id: "store-subscription",
     plan_access: null,
-    status: "pending",
+    status: { type: "pending" },
+    operation: null,
+    checkout: {
+      id: "018f477d-1cae-4c12-bf12-123456789abc",
+      plan_id: "pro",
+      stripe_price_id: "price_pro",
+      stripe_customer_id: null,
+      trial_end: null,
+      expires_at: 1_800_000_000_000,
+      status: { type: "open", stripe_checkout_session_id: "cs_subscription" },
+      requested_at: 1,
+      updated_at: 2,
+    },
     payment_action: {
       type: "stripe_embedded_checkout",
       publishable_key: "pk_test_subscription",
@@ -432,7 +444,8 @@ test("subscription selection returns its ephemeral Stripe action in one POST", a
   assert.equal(calls[0].body.plan_id, "pro");
   assert.equal(calls[0].body.return_url, "https://merchant.test/return");
   assert.deepEqual(result, subscription);
-  assert.equal(result.status, "pending");
+  assert.deepEqual(result.status, { type: "pending" });
+  assert.equal(result.operation, null);
   assert.equal("provider" in result, false);
   assert.equal("checkout_id" in result, false);
   assert.equal("payment" in result, false);
@@ -447,8 +460,9 @@ test("subscription reads return no payment action", async () => {
       started_at: 1,
       access_until: null,
     },
-    status: "active",
+    status: { type: "active" },
     checkout: null,
+    operation: null,
     payment_action: { type: "none" },
     trial_started_at: null,
     created_at: 1,
@@ -523,10 +537,11 @@ test("storefront support keeps its capability token in one forced header on the 
           id: "conversation-contract",
           customer_id: customerId,
           customer_session_id: customerSessionId,
-          status: "active",
+          status: { type: "active" },
         },
         messages: [],
         support_token: supportToken,
+        messages_cursor: null,
       });
     }
     return jsonResponse({
@@ -534,7 +549,7 @@ test("storefront support keeps its capability token in one forced header on the 
         id: "conversation-contract",
         customer_id: customerId,
         customer_session_id: customerSessionId,
-        status: "active",
+        status: { type: "active" },
       },
       messages: [
         {
@@ -543,7 +558,7 @@ test("storefront support keeps its capability token in one forced header on the 
           role: "user",
           content: "Help",
           metadata: {},
-          ai_response: null,
+          ai_response_status: null,
         },
       ],
     });

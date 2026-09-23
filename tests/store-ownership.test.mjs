@@ -9,7 +9,7 @@ const accountId = "a35bc883-e98c-4fa9-94a2-8cbb7c3ac755";
 
 test("platform discovery keeps sorting and opaque continuation without hidden page reads", async (context) => {
   const calls = [];
-  const cursor = "platform:/+==";
+  const cursor = "platform:/+==" + "x".repeat(1_024);
   context.mock.method(globalThis, "fetch", async (url) => {
     const parsed = new URL(url); calls.push(parsed);
     return new Response(JSON.stringify({ items: [], cursor: parsed.searchParams.has("cursor") ? null : cursor }), {

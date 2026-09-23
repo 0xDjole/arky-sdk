@@ -25,6 +25,33 @@ test('tax-rule writes preserve exact treatments, revisions and explicit schedule
   } finally { globalThis.fetch = original; }
 });
 
+test('shipping-rate writes preserve explicit nulls, schedules, prices and revisions', async () => {
+  const original = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: new URL(url), init });
+    return new Response(JSON.stringify({ id: 'rate' }), { headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    const api = createAdmin({ baseUrl: 'https://api.example.test', storeId: 'store', apiToken: 'arky_api_test' }).store.shippingRate;
+    const values = {
+      conditions: [], pricing: { type: 'flat', amount: 495, free_above_subtotal: null },
+      delivery_estimate: null, status: { type: 'active' }, starts_at: null, ends_at: null
+    };
+    const create = { market_zone_id: 'assignment', shipping_method_id: 'method', shipping_profile_id: 'profile', ...values };
+    const update = { ...values, expected_updated_at: 100, starts_at: 1900000000123, ends_at: 1900000000456 };
+    await api.create(create);
+    await api.update({ id: 'rate', ...update });
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].url.pathname, '/v1/stores/store/shipping-rates');
+    assert.equal(calls[1].url.pathname, '/v1/stores/store/shipping-rates/rate');
+    assert.equal(calls[0].init.method, 'POST');
+    assert.equal(calls[1].init.method, 'PUT');
+    assert.deepEqual(JSON.parse(calls[0].init.body), create);
+    assert.deepEqual(JSON.parse(calls[1].init.body), update);
+  } finally { globalThis.fetch = original; }
+});
+
 const owners = [
   ['marketZone','market-zones',{market_id:'market',zone_id:'zone'},'Binding'],
   ['marketSalesChannel','market-sales-channels',{market_id:'market',sales_channel_id:'channel'},'Binding'],

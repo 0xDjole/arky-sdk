@@ -16,7 +16,7 @@ function storedVisitorSession(token, customerId = "customer-scheduled-contract")
     version: 2,
     customer: {
       id: customerId,
-      status: "active",
+      status: { type: "active" },
       identities: [],
       classifications: [],
       created_at: 1,
@@ -25,7 +25,7 @@ function storedVisitorSession(token, customerId = "customer-scheduled-contract")
     session: {
       id: `session-${customerId}`,
       customer_id: customerId,
-      status: "active",
+      status: { type: "active" },
       type: "visitor",
       token,
       expires_at: 10_000,
@@ -39,13 +39,14 @@ test("support AI POSTs once, polls the exact message, then loads the conversatio
   const supportToken = "b".repeat(64);
   const messageId = "support-message-scheduled";
   const pending = {
-    conversation: { id: "conversation-scheduled", status: "ai_mode" },
+    conversation: { id: "conversation-scheduled", status: { type: "ai_mode" } },
+    messages_cursor: null,
     messages: [
       {
         id: messageId,
         role: "user",
         content: "Help",
-        ai_response: { status: "requested" },
+        ai_response_status: { type: "requested", requested_at: 1 },
       },
     ],
   };
@@ -54,7 +55,7 @@ test("support AI POSTs once, polls the exact message, then loads the conversatio
     messages: [
       {
         ...pending.messages[0],
-        ai_response: { status: "succeeded", completed_at: 10 },
+        ai_response_status: { type: "succeeded", completed_at: 10 },
       },
       {
         id: "support-assistant-scheduled",
@@ -128,14 +129,15 @@ test("storefront support exact-reads a requested message omitted from the write 
   const supportToken = "c".repeat(64);
   const messageId = "support-message-exact-observation";
   const response = {
-    conversation: { id: "conversation-escalated", status: "escalated" },
+    conversation: { id: "conversation-escalated", status: { type: "escalated" } },
+    messages_cursor: null,
     messages: [
       {
         id: "support-handoff-response",
         role: "action",
         content: "A team member will join shortly.",
         metadata: {},
-        ai_response: null,
+        ai_response_status: null,
       },
     ],
   };
@@ -144,7 +146,7 @@ test("storefront support exact-reads a requested message omitted from the write 
     role: "user",
     content: "Talk to human",
     metadata: { input: { type: "button", label: "Talk to human" } },
-    ai_response: null,
+    ai_response_status: null,
   };
   const calls = [];
   const originalFetch = globalThis.fetch;
@@ -201,7 +203,8 @@ test("storefront support exact-reads a requested message omitted from the write 
 test("admin support exact-reads a requested message omitted from the write response", async () => {
   const messageId = "support-staff-message-exact-observation";
   const response = {
-    conversation: { id: "conversation-staff", status: "escalated" },
+    conversation: { id: "conversation-staff", status: { type: "escalated" } },
+    messages_cursor: null,
     messages: [],
   };
   const requestedMessage = {
@@ -211,7 +214,7 @@ test("admin support exact-reads a requested message omitted from the write respo
     role: "user",
     content: "I can help from here.",
     metadata: { input: { type: "text", content: "I can help from here." } },
-    ai_response: null,
+    ai_response_status: null,
   };
   const calls = [];
   const originalFetch = globalThis.fetch;

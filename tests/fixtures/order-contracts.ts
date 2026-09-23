@@ -24,7 +24,7 @@ export type OrderContracts = [
   Assert<Equal<OrderPurchaseSource, Public.OrderPurchaseSource>>,
   Assert<Equal<OrderStatus, Public.OrderStatus>>,
   Assert<
-    Equal<keyof UpdateOrderParams, "id" | "store_id" | "confirm" | "cancel">
+    Equal<keyof UpdateOrderParams, "id" | "store_id" | "confirm">
   >,
   Assert<
     Equal<

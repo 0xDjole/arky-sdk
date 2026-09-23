@@ -30,7 +30,7 @@ function memoryStorage() {
 function customer(email = null) {
   return {
     id: "customer-form-contract",
-    status: "active",
+    status: { type: "active" },
     identities: email
       ? [
           {
@@ -56,7 +56,7 @@ function identifyResponse(email = null) {
       customer_id: "customer-form-contract",
       type: "visitor",
       token: visitorToken,
-      status: "active",
+      status: { type: "active" },
       expires_at: 10_000,
     },
   };
@@ -71,20 +71,20 @@ function form() {
   return {
     id: "form-contact",
     key: "contact-form",
+    locale: "it",
+    presentation_digest: "a".repeat(64),
     schema: [
-      { id: "field-name", key: "name", type: "text", required: true },
-      { id: "field-age", key: "age", type: "number", required: false },
-      { id: "field-member", key: "member", type: "boolean", required: false },
+      { id: "field-name", key: "name", type: "text", required: true, question: null },
+      { id: "field-age", key: "age", type: "number", required: false, question: null, min: null, max: null },
+      { id: "field-member", key: "member", type: "boolean", required: false, question: null },
       {
         id: "field-location",
         key: "location",
         type: "geo_location",
         required: false,
+        question: null,
       },
     ],
-    blocks: [],
-    created_at: 1,
-    updated_at: 1,
   };
 }
 
@@ -288,7 +288,8 @@ test("submitByKey reads anonymously, identifies lazily, and submits no Store rou
   };
 
   try {
-    const result = await store.forms.submitByKey({
+    await store.forms.get({ key: "contact-form" });
+    const result = await store.forms.submitByKey({ id: "submission-contact",
       key: "contact-form",
       values: {
         name: "Jane",
@@ -319,6 +320,8 @@ test("submitByKey reads anonymously, identifies lazily, and submits no Store rou
   assert.equal(calls[2].headers.get("x-arky-market"), "ita");
   assert.deepEqual(calls[1].body, {});
   assert.deepEqual(calls[2].body, {
+    id: "submission-contact",
+    presentation_digest: "a".repeat(64),
     form_id: "form-contact",
     fields: [
       { id: "field-name", key: "name", type: "text", value: "Jane" },
@@ -339,7 +342,7 @@ test("submitByKey reads anonymously, identifies lazily, and submits no Store rou
   assert.deepEqual([...storage.values.values()], [storedVisitorSession()]);
 });
 
-test("submitByKey validates the latest schema before identifying or submitting", async () => {
+test("submitByKey validates the displayed schema before identifying or submitting", async () => {
   const storage = memoryStorage();
   const store = initialize(publishableKey, {
     apiUrl,
@@ -354,19 +357,20 @@ test("submitByKey validates the latest schema before identifying or submitting",
   };
 
   try {
+    await store.forms.get({ key: "contact-form" });
     await assert.rejects(
-      store.forms.submitByKey({
+      store.forms.submitByKey({ id: "submission-contact",
         key: "contact-form",
         values: { name: "Jane", unknown: "no" },
       }),
       /not defined by the form schema/,
     );
     await assert.rejects(
-      store.forms.submitByKey({ key: "contact-form", values: {} }),
+      store.forms.submitByKey({ id: "submission-contact", key: "contact-form", values: {} }),
       /required value is missing/,
     );
     await assert.rejects(
-      store.forms.submitByKey({
+      store.forms.submitByKey({ id: "submission-contact",
         key: "contact-form",
         values: { name: 42 },
       }),
@@ -376,7 +380,7 @@ test("submitByKey validates the latest schema before identifying or submitting",
     globalThis.fetch = originalFetch;
   }
 
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 1);
   assert.equal(
     calls.every((call) => call.method === "GET"),
     true,
@@ -496,6 +500,7 @@ test("raw form submission remains stateful and keeps only caller form fields", a
   const storage = memoryStorage();
   const store = initialize(publishableKey, {
     apiUrl,
+    locale: "it",
     sessionStorage: storage.adapter,
   });
   const calls = [];
@@ -513,6 +518,7 @@ test("raw form submission remains stateful and keeps only caller form fields", a
 
   try {
     await store.forms.submit({
+      id: "submission-raw", locale: "it", presentation_digest: "b".repeat(64),
       form_id: "form-raw",
       fields: [
         { id: "field-raw", key: "message", type: "text", value: "Hello" },
@@ -530,6 +536,7 @@ test("raw form submission remains stateful and keeps only caller form fields", a
     ],
   );
   assert.deepEqual(calls[1].body, {
+    id: "submission-raw", presentation_digest: "b".repeat(64),
     form_id: "form-raw",
     fields: [{ id: "field-raw", key: "message", type: "text", value: "Hello" }],
   });

@@ -3,6 +3,8 @@ import type {
   CreateAccountApiTokenParams,
   DeleteAccountParams,
   GetMeParams,
+  ListAccountApiTokensParams,
+  ListAccountSessionsParams,
   RequestOptions,
   SearchAccountsParams,
   UpdatePlatformRoleParams,
@@ -56,11 +58,12 @@ export const createAccountApi = (apiConfig: ApiConfig) => ({
   },
 
   async listApiTokens(
+    params: ListAccountApiTokensParams = {},
     options?: RequestOptions,
   ): Promise<PaginatedResponse<AccountApiToken>> {
     return apiConfig.httpClient.get<PaginatedResponse<AccountApiToken>>(
       "/v1/accounts/me/api-tokens",
-      options,
+      { ...options, params },
     );
   },
 
@@ -98,11 +101,12 @@ export const createAccountApi = (apiConfig: ApiConfig) => ({
   },
 
   async listSessions(
+    params: ListAccountSessionsParams = {},
     options?: RequestOptions,
   ): Promise<PaginatedResponse<AccountSession>> {
     return apiConfig.httpClient.get<PaginatedResponse<AccountSession>>(
       "/v1/accounts/me/sessions",
-      options,
+      { ...options, params },
     );
   },
 

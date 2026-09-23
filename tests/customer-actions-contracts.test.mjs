@@ -74,7 +74,7 @@ test("initialized storefront tracks Customer Actions", async () => {
         customer: {
           id: "customer-actions-contract",
           store_id: storeId,
-          status: "active",
+          status: { type: "active" },
           identities: [],
           classifications: [],
           created_at: 1,
@@ -83,7 +83,7 @@ test("initialized storefront tracks Customer Actions", async () => {
         session: {
           id: "session-actions-contract",
           customer_id: "customer-actions-contract",
-          status: "active",
+          status: { type: "active" },
           type: "visitor",
           token: visitorToken,
           expires_at: 10_000,

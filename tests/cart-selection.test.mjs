@@ -12,8 +12,8 @@ afterEach(() => { globalThis.fetch = savedFetch; });
 
 function session(customerId = "customer-a") {
   return {
-    customer: { id: customerId, status: "active", created_at: 1, updated_at: 1 },
-    session: { id: `session-${customerId}`, customer_id: customerId, type: "visitor", token: `customer_visitor_${"a".repeat(64)}`, status: "active", expires_at: 1900000000000 },
+    customer: { id: customerId, status: { type: "active" }, created_at: 1, updated_at: 1 },
+    session: { id: `session-${customerId}`, customer_id: customerId, type: "visitor", token: `customer_visitor_${"a".repeat(64)}`, status: { type: "active" }, expires_at: 1900000000000 },
   };
 }
 

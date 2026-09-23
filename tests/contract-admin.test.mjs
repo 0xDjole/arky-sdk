@@ -222,14 +222,13 @@ const selectedSubscription = {
   id: "d397ff50-690b-4da7-9fb9-17740e535d69",
   store_id: "contract-store",
   plan_access: null,
-  status: "pending",
+  status: { type: "pending" },
+  operation: null,
   checkout: {
     id: "018f477d-1cae-4c12-bf12-123456789abc",
     plan_id: "basic",
     stripe_price_id: "price-basic",
     stripe_customer_id: null,
-    billing_email: "owner@example.test",
-    return_url: "https://admin.test/return",
     trial_end: null,
     expires_at: 10,
     status: {
@@ -292,7 +291,8 @@ try {
     plan_id: "basic",
     return_url: "https://admin.test/return",
   });
-  assert.equal(subscription.status, "pending");
+  assert.deepEqual(subscription.status, { type: "pending" });
+  assert.equal(subscription.operation, null);
   assert.equal(subscription.plan_access, null);
   assert.equal("provider" in subscription, false);
   assert.equal(

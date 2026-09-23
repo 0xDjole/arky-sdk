@@ -138,8 +138,8 @@ export interface CreateShippingRateParams {
   pricing: ShippingRatePricing;
   delivery_estimate: ShippingDeliveryEstimate | null;
   status: ShippingRateEditableStatus;
-  starts_at?: EpochMilliseconds | null;
-  ends_at?: EpochMilliseconds | null;
+  starts_at: EpochMilliseconds | null;
+  ends_at: EpochMilliseconds | null;
 }
 
 export interface UpdateShippingRateParams {
@@ -150,8 +150,8 @@ export interface UpdateShippingRateParams {
   pricing: ShippingRatePricing;
   delivery_estimate: ShippingDeliveryEstimate | null;
   status: ShippingRateEditableStatus;
-  starts_at?: EpochMilliseconds | null;
-  ends_at?: EpochMilliseconds | null;
+  starts_at: EpochMilliseconds | null;
+  ends_at: EpochMilliseconds | null;
 }
 
 export interface GetShippingRateParams {

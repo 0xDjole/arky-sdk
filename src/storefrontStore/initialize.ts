@@ -1814,7 +1814,6 @@ function initializeStoreCore(
     params: StorefrontParams<SubmitFormParams>,
     options?: RequestOptions,
   ): Promise<StorefrontFormSubmission> {
-    await ensureSession();
     return client.forms.submit(params, options);
   }
 
@@ -1822,9 +1821,11 @@ function initializeStoreCore(
     params: ArkySubmitFormByKeyParams,
     options?: RequestOptions,
   ): Promise<StorefrontFormSubmission> {
-    const form = await loadForm({ key: params.key }, options);
+    const form = forms_state.get().forms[formCacheKey({ key: params.key })];
+    if (!form) throw new Error("Load the Form presentation before submitting its values");
     const entry = createFormEntryFromValues(form, params.values);
-    return submitForm({ form_id: form.id, fields: entry.fields }, options);
+    return submitForm({ id: params.id, form_id: form.id, fields: entry.fields,
+      locale: form.locale, presentation_digest: form.presentation_digest }, options);
   }
 
   async function loadProducts(

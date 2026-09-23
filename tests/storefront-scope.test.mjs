@@ -41,7 +41,7 @@ function identifyResponse(token = visitorTokenA, id = "customer-a") {
   return {
     customer: {
       id,
-      status: "active",
+      status: { type: "active" },
       identities: [],
       classifications: [],
       created_at: 1,
@@ -52,7 +52,7 @@ function identifyResponse(token = visitorTokenA, id = "customer-a") {
       customer_id: id,
       type: "visitor",
       token,
-      status: "active",
+      status: { type: "active" },
       expires_at: 10_000,
     },
   };
@@ -62,6 +62,52 @@ function storedVisitorSession(token = visitorTokenA, id = "customer-a") {
   const { customer, session } = identifyResponse(token, id);
   return JSON.stringify({ version: 2, customer, session });
 }
+
+test("stored Customer sessions require the canonical active status tag", () => {
+  const good = memoryStorage(storedVisitorSession());
+  const client = createStorefront(publishableKeyA, { apiUrl, sessionStorage: good.adapter });
+  assert.equal(client.hasSession, true);
+  assert.deepEqual(client.session.status, { type: "active" });
+  for (const status of ["active", null, {}, { type: "revoked" }, { type: "superseded" }, { type: "active", extra: true }]) {
+    const issued = identifyResponse();
+    const storage = memoryStorage(JSON.stringify({ version: 2, ...issued, session: { ...issued.session, status } }));
+    const rejected = createStorefront(publishableKeyA, { apiUrl, sessionStorage: storage.adapter });
+    assert.equal(rejected.hasSession, false);
+    assert.equal(rejected.session, null);
+  }
+});
+
+test("issued Customer sessions preserve tagged status and reject malformed lifecycle without persisting credentials", async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const type of ["visitor", "email_authenticated"]) {
+      const response = identifyResponse();
+      if (type === "email_authenticated") response.session = {
+        id: "session-authenticated", customer_id: response.customer.id, type,
+        status: { type: "active" }, identity_id: "identity", access_token: "customer_access_exact",
+        refresh_token: "customer_refresh_exact", access_expires_at: 1900000000000,
+        refresh_expires_at: 1900000001000, authenticated_at: 1,
+      };
+      for (const status of [{ type: "active" }, "active", null, { type: "revoked" }, { type: "active", extra: true }]) {
+        const storage = memoryStorage();
+        const client = createStorefront(publishableKeyA, { apiUrl, sessionStorage: storage.adapter });
+        globalThis.fetch = async () => jsonResponse({ ...response, session: { ...response.session, status } });
+        if (typeof status === "object" && status !== null && Object.keys(status).length === 1 && status.type === "active") {
+          const result = await client.customer.identify();
+          assert.deepEqual(result.session.status, { type: "active" });
+          assert.deepEqual(client.session.status, { type: "active" });
+          assert.equal(client.hasSession, true);
+          assert.equal(client.isAuthenticated, type === "email_authenticated");
+          assert.deepEqual(JSON.parse([...storage.values.values()][0]).session.status, { type: "active" });
+        } else {
+          await assert.rejects(client.customer.identify(), /active tagged status/);
+          assert.equal(client.session, null);
+          assert.equal(storage.values.size, 0);
+        }
+      }
+    }
+  } finally { globalThis.fetch = originalFetch; }
+});
 
 function cart(id = "cart-a", customerId = "customer-a") {
   return {
@@ -577,7 +623,7 @@ test("code-only verification and refresh atomically rotate the discriminated Cus
   let storedBeforeLogout = null;
   const customer = {
     id: "customer-rotation",
-    status: "active",
+    status: { type: "active" },
     identities: [
       {
         id: "identity-rotation",
@@ -594,7 +640,7 @@ test("code-only verification and refresh atomically rotate the discriminated Cus
   const authenticated = {
     id: "session-authenticated-1",
     customer_id: customer.id,
-    status: "active",
+    status: { type: "active" },
     type: "email_authenticated",
     identity_id: "identity-rotation",
     access_token: "customer_access_1",
@@ -630,7 +676,7 @@ test("code-only verification and refresh atomically rotate the discriminated Cus
           id: `session-${customer.id}`,
           customer_id: customer.id,
           type: "visitor",
-          status: "active",
+          status: { type: "active" },
           superseded_at: null,
           revoked_at: null,
           expires_at: 10_000,
@@ -660,7 +706,7 @@ test("code-only verification and refresh atomically rotate the discriminated Cus
           id: rotated.id,
           customer_id: customer.id,
           type: "email_authenticated",
-          status: "active",
+          status: { type: "active" },
           superseded_at: null,
           revoked_at: null,
           identity_id: rotated.identity_id,
@@ -697,7 +743,7 @@ test("code-only verification and refresh atomically rotate the discriminated Cus
       customer,
       id: authenticated.id,
       type: "email_authenticated",
-      status: "active",
+      status: { type: "active" },
     });
     assert.equal(authenticated.access_expires_at < Date.now(), true);
     const refreshed = await client.customer.refresh();
@@ -747,7 +793,7 @@ test("code-only verification and refresh atomically rotate the discriminated Cus
 test("refresh 401 keeps the previous authenticated Session and never retries with Authorization", async () => {
   const customer = {
     id: "customer-refresh-failure",
-    status: "active",
+    status: { type: "active" },
     identities: [],
     classifications: [],
     created_at: 1,
@@ -756,7 +802,7 @@ test("refresh 401 keeps the previous authenticated Session and never retries wit
   const session = {
     id: "session-refresh-failure",
     customer_id: customer.id,
-    status: "active",
+    status: { type: "active" },
     type: "email_authenticated",
     identity_id: "identity-refresh-failure",
     access_token: "customer_access_expired",
@@ -808,7 +854,7 @@ test("refresh 401 keeps the previous authenticated Session and never retries wit
       customer,
       id: session.id,
       type: "email_authenticated",
-      status: "active",
+      status: { type: "active" },
     });
   } finally {
     globalThis.fetch = originalFetch;

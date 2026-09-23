@@ -45,7 +45,7 @@ function customerSession(instant) {
     version: 2,
     customer: {
       id: "customer-time",
-      status: "active",
+      status: { type: "active" },
       identities: [],
       classifications: [],
       created_at: instant,
@@ -56,7 +56,7 @@ function customerSession(instant) {
       customer_id: "customer-time",
       type: "visitor",
       token: "customer_visitor_time",
-      status: "active",
+      status: { type: "active" },
       expires_at: instant,
     },
   };

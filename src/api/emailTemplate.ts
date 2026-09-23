@@ -9,7 +9,7 @@ import type {
   PreviewEmailTemplateResponse,
   RequestOptions,
 } from "../types/api";
-import type { EmailTemplate, PaginatedResponse } from "../types";
+import type { EmailTemplate } from "../types";
 
 export const createEmailTemplateApi = (apiConfig: ApiConfig) => {
   return {
@@ -33,9 +33,9 @@ export const createEmailTemplateApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async deleteEmailTemplate(params: DeleteEmailTemplateParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
+    async deleteEmailTemplate(params: DeleteEmailTemplateParams, options?: RequestOptions): Promise<boolean> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.delete<{ deleted: boolean }>(
+      return apiConfig.httpClient.delete<boolean>(
         `/v1/stores/${target_store_id}/email-templates/${params.id}`,
         options
       );
@@ -53,15 +53,15 @@ export const createEmailTemplateApi = (apiConfig: ApiConfig) => {
       }
 
       return apiConfig.httpClient.get<EmailTemplate>(
-        `/v1/stores/${target_store_id}/email-templates/${identifier}`,
+        `/v1/stores/${target_store_id}/email-templates/${encodeURIComponent(identifier)}`,
         options
       );
     },
 
-    async getEmailTemplates(params: GetEmailTemplatesParams, options?: RequestOptions): Promise<PaginatedResponse<EmailTemplate>> {
+    async getEmailTemplates(params: GetEmailTemplatesParams, options?: RequestOptions): Promise<{ items: EmailTemplate[]; cursor: string | null }> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<EmailTemplate>>(
+      return apiConfig.httpClient.get<{ items: EmailTemplate[]; cursor: string | null }>(
         `/v1/stores/${target_store_id}/email-templates`,
         {
           ...options,

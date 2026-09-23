@@ -132,10 +132,10 @@ export const createMailboxApi = (apiConfig: ApiConfig) => ({
   async find(
     params?: FindMailboxesParams,
     options?: RequestOptions,
-  ): Promise<PaginatedResponse<Mailbox>> {
+  ): Promise<{ items: Mailbox[]; cursor: string | null }> {
     const { store_id, ...queryParams } = params || {};
     const target_store_id = store_id || apiConfig.storeId;
-    return apiConfig.httpClient.get<PaginatedResponse<Mailbox>>(
+    return apiConfig.httpClient.get<{ items: Mailbox[]; cursor: string | null }>(
       `/v1/stores/${target_store_id}/mailboxes`,
       { ...options, params: queryParams },
     );

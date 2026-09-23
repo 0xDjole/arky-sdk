@@ -1,4 +1,6 @@
 import type { ApiConfig } from "../services/clientTypes";
+import type { OrderBooking, GetOrderBookingParams } from "../types/orderBooking";
+import type { CancelPendingOrderParams, OrderCancellationReceipt } from "../types/orderCancellation";
 import { checkoutCart, pendingCartCheckout, recoverCartCheckout, withCartMutation } from "../services/cartCheckout";
 import type { CartCheckoutTransport, CartCheckoutRequest, RecoverCartCheckoutParams } from "../types/cartCheckout";
 import type { OrderCheckoutResult } from "../types/index";
@@ -38,6 +40,7 @@ import type {
   UpdateOrderParams,
   CancelOrderProductItemParams,
   BookingItemLifecycleParams,
+  CancelBookingItemParams,
   UpdateBookingResourceParams,
   UpdateBookingServiceParams,
   UpdateBookingOfferingParams,
@@ -423,28 +426,53 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    async cancelPendingOrder(
+      params: CancelPendingOrderParams,
+      options?: RequestOptions,
+    ): Promise<OrderCancellationReceipt> {
+      const { store_id, order_id, command_id } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<OrderCancellationReceipt>(
+        `/v1/stores/${encodeURIComponent(target_store_id)}/orders/${encodeURIComponent(order_id)}/cancel`,
+        { command_id },
+        options,
+      );
+    },
+
     async cancelOrderProductItem(
       params: CancelOrderProductItemParams,
       options?: RequestOptions,
     ): Promise<Order> {
-      const { store_id, order_id, order_product_item_id, quantity } = params;
+      const { store_id, order_id, order_product_item_id, command_id, expected_updated_at, units } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<Order>(
-        `/v1/stores/${target_store_id}/orders/${order_id}/product-items/${order_product_item_id}/cancel`,
-        { quantity },
+        `/v1/stores/${encodeURIComponent(target_store_id)}/orders/${encodeURIComponent(order_id)}/product-items/${encodeURIComponent(order_product_item_id)}/cancel`,
+        { command_id, expected_updated_at, units },
+        options,
+      );
+    },
+
+    async getBookingAppointment(
+      params: GetOrderBookingParams,
+      options?: RequestOptions,
+    ): Promise<OrderBooking> {
+      const { store_id, order_id, order_booking_item_id } = params;
+      const target_store_id = store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<OrderBooking>(
+        `/v1/stores/${encodeURIComponent(target_store_id)}/orders/${encodeURIComponent(order_id)}/booking-items/${encodeURIComponent(order_booking_item_id)}/appointment`,
         options,
       );
     },
 
     async cancelBookingItem(
-      params: BookingItemLifecycleParams,
+      params: CancelBookingItemParams,
       options?: RequestOptions,
     ): Promise<Order> {
-      const { store_id, order_id, order_booking_item_id } = params;
+      const { store_id, order_id, order_booking_item_id, command_id } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return apiConfig.httpClient.post<Order>(
-        `/v1/stores/${target_store_id}/orders/${order_id}/booking-items/${order_booking_item_id}/cancel`,
-        {},
+        `/v1/stores/${encodeURIComponent(target_store_id)}/orders/${encodeURIComponent(order_id)}/booking-items/${encodeURIComponent(order_booking_item_id)}/cancel`,
+        { command_id },
         options,
       );
     },
@@ -513,10 +541,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     async getOrders(
       params: GetOrdersParams,
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<Order>> {
+    ): Promise<{ items: Order[]; cursor: string | null }> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<Order>>(
+      return apiConfig.httpClient.get<{ items: Order[]; cursor: string | null }>(
         `/v1/stores/${target_store_id}/orders`,
         {
           ...options,

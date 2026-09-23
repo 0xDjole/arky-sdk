@@ -3,6 +3,52 @@ import test from 'node:test';
 import { createAdmin } from '../dist/admin.js';
 import { createStorefront } from '../dist/storefront.js';
 
+test('Market mutations honor explicit Store scope without sending routing fields as data', async () => {
+  const original = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: new URL(url), init });
+    return new Response(JSON.stringify({ id: 'market-id' }), { headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    const api = createAdmin({ baseUrl: 'https://api.example.test', storeId: 'default', market: 'configured', apiToken: 'arky_api_test' }).store.market;
+    const create = { key: 'europe', currency: 'eur', tax_mode: 'inclusive', payment_provider_ids: [] };
+    const update = { expected_updated_at: 123, tax_mode: 'exclusive', payment_provider_ids: [] };
+    for (const store_id of ['selected', undefined]) {
+      const scope = store_id ?? 'default';
+      await api.create({ store_id, ...create });
+      await api.update({ store_id, id: 'market-id', ...update });
+      await api.delete({ store_id, id: 'market-id', expected_updated_at: 124, replacement_default_market_id: 'replacement' });
+      const [created, updated, deleted] = calls.slice(-3);
+      assert.equal(created.url.pathname, `/v1/stores/${scope}/markets`);
+      assert.equal(created.init.method, 'POST');
+      assert.deepEqual(JSON.parse(created.init.body), create);
+      assert.equal(updated.url.pathname, `/v1/stores/${scope}/markets/market-id`);
+      assert.equal(updated.init.method, 'PUT');
+      assert.deepEqual(JSON.parse(updated.init.body), update);
+      assert.equal(deleted.url.pathname, `/v1/stores/${scope}/markets/market-id`);
+      assert.equal(deleted.init.method, 'DELETE');
+      assert.deepEqual(Object.fromEntries(deleted.url.searchParams), {
+        expected_updated_at: '124', replacement_default_market_id: 'replacement',
+      });
+    }
+    assert.equal(calls.length, 6);
+    for (const status of [403, 409, 503]) {
+      let count = 0;
+      globalThis.fetch = async () => {
+        count++;
+        return new Response(JSON.stringify({ message: 'failed' }), { status });
+      };
+      await assert.rejects(api.create({ store_id: 'selected', ...create }), error => error.statusCode === status);
+      await assert.rejects(api.update({ store_id: 'selected', id: 'market-id', ...update }), error => error.statusCode === status);
+      await assert.rejects(api.delete({ store_id: 'selected', id: 'market-id', expected_updated_at: 124 }), error => error.statusCode === status);
+      assert.equal(count, 3, 'no implicit mutation replay');
+    }
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
 for (const [owner,path,filter] of [
   ['market','markets',{currency:'eur'}],
   ['location','locations',{is_pickup_location:true}],

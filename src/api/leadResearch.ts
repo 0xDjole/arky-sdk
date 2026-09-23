@@ -5,6 +5,7 @@ import type {
   FindLeadResearchesParams,
   FindLeadResearchMessagesParams,
   GetLeadResearchParams,
+  GetLeadResearchMessageParams,
   RequestOptions,
   RetryLeadResearchMessageParams,
   SendLeadResearchMessageParams,
@@ -74,6 +75,16 @@ export const createLeadResearchApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<PaginatedResponse<LeadResearchMessage>>(
         `/v1/stores/${storeId(store_id)}/lead-research/${lead_research_id}/messages`,
         { ...options, params: queryParams },
+      );
+    },
+
+    async getMessage(
+      params: GetLeadResearchMessageParams,
+      options?: RequestOptions,
+    ): Promise<LeadResearchMessage> {
+      return apiConfig.httpClient.get<LeadResearchMessage>(
+        `/v1/stores/${storeId(params.store_id)}/lead-research/${params.lead_research_id}/messages/${params.message_id}`,
+        options,
       );
     },
 

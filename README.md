@@ -365,21 +365,20 @@ const submission = await arky.forms.submitByKey({
 await arky.eshop.bookingService.addToCart(undefined, submission.id);
 ```
 
-Completed Orders embed `product_items`, `booking_items`, `digital_items`, and `audience_items`; the child item
-snapshots, money, status, Form submission ID, and timestamps arrive with the Order. Product items
-also expose their inventory allocations. There are no separate Order product, digital, Booking, or
-OrderBooking read resources.
+Accepted Orders embed tagged `line_items` for products, bookings, digital products and customer-group
+plans. Their snapshots, money, commercial status, Form evidence and timestamps arrive with the Order.
+`orderBookingItems(order)` selects its booking lines. Independent `OrderBooking` roots retain
+appointment execution and reminders; Admin reads one with `eshop.order.getBookingAppointment`.
+Completed and NoShow appointments keep their Order line commercially Confirmed.
 
-Order is accepted purchase history. `order.update` accepts only `confirm` or `cancel`, not product,
-address or price edits. Use Cart for new selections, and the dedicated item/financial/fulfillment
+Order is accepted purchase history, not a product, address or price editor.
+Use Cart for new selections, and the dedicated item/financial/fulfillment
 commands for ongoing obligations. Root and item statuses use `status.type`.
 
-`customer_id`, `company_id`, `company_location_id`, `market_id` and `sales_channel_id` are required
-nullable navigation fields. Their accepted snapshots remain independent of current records.
-`source` is `{ type: "cart", request_id, cart_id }` with nullable Cart navigation, or
-`{ type: "direct", request_id }`. `origin` retains the accepting Storefront Customer/Session or
-Admin actor; it is not live authorization. Render saved names and `snapshot.price.unit_price`,
-and use the line's saved `money.total` for its final total instead of repricing catalog definitions.
+Accepted buyer, company, Market and SalesChannel snapshots remain independent of current definitions.
+`Order.type` identifies a purchase and its Checkout/direct/exchange source, or a customer-group
+renewal. `origin` retains the accepting actor; it is not live authorization. Render saved names
+and each line's saved `money.total` instead of repricing historical catalog definitions.
 
 Confirmed booking items have dedicated lifecycle commands. Admin clients can cancel, complete, or
 mark an item as a no-show; only the owning EmailAuthenticated CustomerSession can cancel through the
@@ -388,6 +387,7 @@ Each command returns the refreshed Order, and cancellation never implies a payme
 
 ```typescript
 import { createAdmin } from "arky-sdk/admin";
+import { orderBookingItems } from "arky-sdk";
 
 await arky.eshop.cart.quote({
   payment_provider_id: "payment-provider-id",
@@ -405,20 +405,31 @@ const admin = createAdmin({
 const adminOrder = await admin.eshop.order.get({
   id: "another-confirmed-booking-order-id",
 });
+const appointment = await admin.eshop.order.getBookingAppointment({
+  order_id: adminOrder.id,
+  order_booking_item_id: orderBookingItems(adminOrder)[0].id,
+});
+console.log(appointment.status.type);
 
 await admin.eshop.order.completeBookingItem({
   order_id: adminOrder.id,
-  order_booking_item_id: adminOrder.booking_items[0].id,
+  order_booking_item_id: orderBookingItems(adminOrder)[0].id,
 });
 
 await arky.eshop.order.cancelBookingItem({
+  command_id: savedCancellation.command_id,
   order_id: customerOrder.id,
-  order_booking_item_id: customerOrder.booking_items[0].id,
+  order_booking_item_id: orderBookingItems(customerOrder)[0].id,
 });
 ```
 
 Those are separate terminal alternatives on different confirmed items. One item cannot be
 completed and then cancelled (or moved to any other terminal state).
+Import `orderBookingItems` from `arky-sdk` to select the accepted booking lines. Before cancelling,
+generate and persist one UUID-v4 `command_id` with the exact Order/item selection; the example's
+`savedCancellation` is that caller-owned saved request. Reuse it after a failed response rather than
+generating a new command on each attempt. Cancellation credits the remaining booking obligation;
+any provider refund is a separate operation.
 
 Nano Stores expose reactive module state:
 
@@ -644,9 +655,19 @@ email never changes the other. Public `support.email` comes only from `contact_e
 billing or Account fallback. Mailboxes own sender and reply-to identity, and staff notification
 recipients remain explicitly configured. A new Store creates no inferred Mailbox. Physical places are exposed as `StoreLocation`
 values with the shared `PostalAddress` shape. Webhooks and Build Hooks are addressed by UUID and
-use `active`/`disabled` status values. Membership IDs are opaque, Server-generated UUID-v4 values;
+use `{ type: "active" }` / `{ type: "disabled" }` statuses. Membership IDs are opaque, Server-generated UUID-v4 values;
 `StoreUsage` represents one feature and either its current total or one UTC calendar month.
 Booking quotas use the canonical `booking_services` and `booking_resources` feature keys.
+
+`admin.store.buildHook.list` and `admin.store.webhook.list` require `store_id` and return
+`{ items, cursor }`. Both support `query`, flat `status: "active" | "disabled"`, `limit` (1–200,
+default 50), `cursor`, `sort_field: "created_at" | "updated_at"` and `sort_direction: "asc" | "desc"`.
+Search matches BuildHook IDs or Webhook IDs/subscribed event names, not private destination URLs.
+Keep following a returned cursor even when a page is empty. Returned URLs, header values and
+Webhook secrets are masked; omit those fields when updating to preserve their stored values.
+Webhook subscriptions use `{ type: "order.created" }` or a scoped value such as
+`{ type: "entry.updated", collection_id: "collection-id", key: null }`. The platform event catalog's
+separate `event` metadata field is not the subscription discriminator.
 
 `admin.store.find` accepts literal name text, `sort_field: "name"`, and ascending/descending
 ordering. `admin.account.search` is platform-Administrator-only and orders by email.

@@ -6,13 +6,13 @@ import type {
   PermanentlyDeleteFormParams,
   GetFormParams,
   GetFormsParams,
-  SubmitFormParams,
+  GetFormsByIdsParams,
   GetFormSubmissionsParams,
   GetFormSubmissionParams,
   DeleteFormSubmissionParams,
   RequestOptions,
 } from "../types/api";
-import type { Form, FormSubmission, PaginatedResponse } from "../types";
+import type { Form, FormSubmission } from "../types";
 
 export const createFormsApi = (apiConfig: ApiConfig) => {
   return {
@@ -36,9 +36,9 @@ export const createFormsApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async deleteForm(params: DeleteFormParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
+    async deleteForm(params: DeleteFormParams, options?: RequestOptions): Promise<boolean> {
       const target_store_id = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.delete<{ deleted: boolean }>(
+      return apiConfig.httpClient.delete<boolean>(
         `/v1/stores/${target_store_id}/forms/${params.id}`,
         options
       );
@@ -72,10 +72,10 @@ export const createFormsApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getForms(params: GetFormsParams, options?: RequestOptions): Promise<PaginatedResponse<Form>> {
+    async getForms(params: GetFormsParams = {}, options?: RequestOptions): Promise<{ items: Form[]; cursor: string | null }> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<Form>>(
+      return apiConfig.httpClient.get<{ items: Form[]; cursor: string | null }>(
         `/v1/stores/${target_store_id}/forms`,
         {
           ...options,
@@ -84,20 +84,18 @@ export const createFormsApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async submit(params: SubmitFormParams, options?: RequestOptions): Promise<FormSubmission> {
-      const { store_id, form_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<FormSubmission>(
-        `/v1/stores/${target_store_id}/forms/${form_id}/submissions`,
-        { ...payload, form_id, store_id: target_store_id },
-        options
+    async getFormsByIds(params: GetFormsByIdsParams, options?: RequestOptions): Promise<{ items: Form[]; cursor: null }> {
+      const target_store_id = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<{ items: Form[]; cursor: null }>(
+        `/v1/stores/${target_store_id}/forms`,
+        { ...options, params: { ids: params.ids } }
       );
     },
 
-    async getSubmissions(params: GetFormSubmissionsParams, options?: RequestOptions): Promise<PaginatedResponse<FormSubmission>> {
+    async getSubmissions(params: GetFormSubmissionsParams = {}, options?: RequestOptions): Promise<{ items: FormSubmission[]; cursor: string | null }> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<FormSubmission>>(
+      return apiConfig.httpClient.get<{ items: FormSubmission[]; cursor: string | null }>(
         `/v1/stores/${target_store_id}/forms/submissions`,
         { ...options, params: queryParams }
       );

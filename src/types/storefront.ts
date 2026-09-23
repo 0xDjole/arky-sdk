@@ -2,7 +2,7 @@ import type {
   Cart,
   CollectionEntry,
   Customer,
-  Form,
+  FormPresentation,
   FormSubmission,
   StoreLocation,
   Market,
@@ -81,7 +81,7 @@ export type StorefrontAddCartDigitalParams = Omit<StorefrontParams<AddCartDigita
 };
 export type StorefrontCollectionEntry = StorefrontDto<CollectionEntry>;
 export type StorefrontCustomer = StorefrontDto<Customer>;
-export type StorefrontForm = StorefrontDto<Form>;
+export type StorefrontForm = StorefrontDto<FormPresentation>;
 export type StorefrontFormSubmission = StorefrontDto<FormSubmission>;
 export type StorefrontLocation = Omit<
   StorefrontDto<StoreLocation>,

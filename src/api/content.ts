@@ -57,10 +57,10 @@ export const createContentApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getCollections(params: GetCollectionsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Collection>> {
+    async getCollections(params: GetCollectionsParams = {}, options?: RequestOptions): Promise<{ items: Collection[]; cursor: string | null }> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<Collection>>(
+      return apiConfig.httpClient.get<{ items: Collection[]; cursor: string | null }>(
         `/v1/stores/${target_store_id}/collections`,
         {
           ...options,
@@ -108,10 +108,10 @@ export const createContentApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getEntries(params: GetEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<CollectionEntry>> {
+    async getEntries(params: GetEntriesParams, options?: RequestOptions): Promise<{ items: CollectionEntry[]; cursor: string | null }> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<CollectionEntry>>(
+      return apiConfig.httpClient.get<{ items: CollectionEntry[]; cursor: string | null }>(
         `/v1/stores/${target_store_id}/entries`,
         {
           ...options,

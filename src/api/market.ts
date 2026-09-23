@@ -40,16 +40,17 @@ export const createMarketApi = (apiConfig: ApiConfig) => {
       params: CreateMarketParams,
       options?: RequestOptions,
     ): Promise<Market> {
-      return apiConfig.httpClient.post<Market>(basePath(), params, options);
+      const { store_id, ...payload } = params;
+      return apiConfig.httpClient.post<Market>(basePath(store_id), payload, options);
     },
 
     async update(
       params: UpdateMarketParams,
       options?: RequestOptions,
     ): Promise<Market> {
-      const { id, ...payload } = params;
+      const { id, store_id, ...payload } = params;
       return apiConfig.httpClient.put<Market>(
-        `${basePath()}/${encodeURIComponent(id)}`,
+        `${basePath(store_id)}/${encodeURIComponent(id)}`,
         payload,
         options,
       );
@@ -59,9 +60,9 @@ export const createMarketApi = (apiConfig: ApiConfig) => {
       params: DeleteMarketParams,
       options?: RequestOptions,
     ): Promise<Market> {
-      const { id, ...query } = params;
+      const { id, store_id, ...query } = params;
       return apiConfig.httpClient.delete<Market>(
-        `${basePath()}/${encodeURIComponent(id)}`,
+        `${basePath(store_id)}/${encodeURIComponent(id)}`,
         {
           ...options,
           params: query,

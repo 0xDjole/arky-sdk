@@ -29,6 +29,12 @@ import type {
   RequestOptions,
 } from "../types/api";
 import type { StoreDeletionResult } from "../types";
+import type {
+  InitializeStoreCommerceParams,
+  GetStoreCommerceInitializationParams,
+  AbortStoreCommerceInitializationParams,
+  StoreCommerceInitialization,
+} from "../types/storeCommerce";
 import {
   DurableRequestStorageError,
   clearDurableRequest,
@@ -138,6 +144,41 @@ export const createStoreApi = (
   _updateSession: AdminSessionUpdater,
 ) => {
   return {
+    async initializeCommerce(
+      params: InitializeStoreCommerceParams,
+      options?: RequestOptions,
+    ): Promise<StoreCommerceInitialization> {
+      const storeId = params.store_id ?? apiConfig.storeId;
+      return apiConfig.httpClient.post<StoreCommerceInitialization>(
+        `/v1/stores/${encodeURIComponent(storeId)}/commerce/initializations`,
+        { operation_id: params.operation_id, request: params.request },
+        options,
+      );
+    },
+
+    async getCommerceInitialization(
+      params: GetStoreCommerceInitializationParams,
+      options?: RequestOptions,
+    ): Promise<StoreCommerceInitialization> {
+      const storeId = params.store_id ?? apiConfig.storeId;
+      return apiConfig.httpClient.get<StoreCommerceInitialization>(
+        `/v1/stores/${encodeURIComponent(storeId)}/commerce/initializations/${encodeURIComponent(params.operation_id)}`,
+        options,
+      );
+    },
+
+    async abortCommerceInitialization(
+      params: AbortStoreCommerceInitializationParams,
+      options?: RequestOptions,
+    ): Promise<StoreCommerceInitialization> {
+      const storeId = params.store_id ?? apiConfig.storeId;
+      return apiConfig.httpClient.post<StoreCommerceInitialization>(
+        `/v1/stores/${encodeURIComponent(storeId)}/commerce/initializations/${encodeURIComponent(params.operation_id)}/abort`,
+        {},
+        options,
+      );
+    },
+
     async createStore(
       params: CreateStoreParams,
       options?: RequestOptions,
@@ -150,7 +191,7 @@ export const createStoreApi = (
       options?: RequestOptions,
     ): Promise<Store> {
       return apiConfig.httpClient.put<Store>(
-        `/v1/stores/${params.id}`,
+        `/v1/stores/${encodeURIComponent(params.id)}`,
         params,
         options,
       );
@@ -161,7 +202,7 @@ export const createStoreApi = (
       options?: RequestOptions,
     ): Promise<Store> {
       const store_id = params.id || apiConfig.storeId;
-      return apiConfig.httpClient.get<Store>(`/v1/stores/${store_id}`, options);
+      return apiConfig.httpClient.get<Store>(`/v1/stores/${encodeURIComponent(store_id)}`, options);
     },
 
     async requestDeletion(
@@ -170,7 +211,7 @@ export const createStoreApi = (
     ): Promise<StoreDeletionResult> {
       const store_id = params.id || apiConfig.storeId;
       return apiConfig.httpClient.post<StoreDeletionResult>(
-        `/v1/stores/${store_id}/deletion`,
+        `/v1/stores/${encodeURIComponent(store_id)}/deletion`,
         { confirmation: params.confirmation },
         options,
       );
@@ -434,10 +475,11 @@ export const createStoreApi = (
     async listBuildHooks(
       params: ListBuildHooksParams,
       options?: RequestOptions,
-    ): Promise<BuildHook[]> {
-      return apiConfig.httpClient.get<BuildHook[]>(
-        `/v1/stores/${params.store_id}/build-hooks`,
-        options,
+    ): Promise<PaginatedResponse<BuildHook>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<BuildHook>>(
+        `/v1/stores/${store_id}/build-hooks`,
+        { ...options, params: query },
       );
     },
 
@@ -478,10 +520,11 @@ export const createStoreApi = (
     async listWebhooks(
       params: ListWebhooksParams,
       options?: RequestOptions,
-    ): Promise<Webhook[]> {
-      return apiConfig.httpClient.get<Webhook[]>(
-        `/v1/stores/${params.store_id}/webhooks`,
-        options,
+    ): Promise<PaginatedResponse<Webhook>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<Webhook>>(
+        `/v1/stores/${store_id}/webhooks`,
+        { ...options, params: query },
       );
     },
 

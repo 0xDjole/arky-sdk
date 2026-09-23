@@ -15,7 +15,7 @@ function storedVisitorSession(token, customerId = "customer-digital-contract") {
     version: 2,
     customer: {
       id: customerId,
-      status: "active",
+      status: { type: "active" },
       identities: [],
       classifications: [],
       created_at: 1,
@@ -24,7 +24,7 @@ function storedVisitorSession(token, customerId = "customer-digital-contract") {
     session: {
       id: `session-${customerId}`,
       customer_id: customerId,
-      status: "active",
+      status: { type: "active" },
       type: "visitor",
       token,
       expires_at: 10_000,

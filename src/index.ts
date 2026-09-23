@@ -16,6 +16,8 @@ export {
 } from "./types/order";
 export type { CartCheckoutRequest, RecoverCartCheckoutParams } from "./types/cartCheckout";
 export type { InitialMarketInput } from "./types/api";
+export type { GetEmailTemplatesParams, GetEmailTemplateParams, CreateEmailTemplateParams, UpdateEmailTemplateParams, DeleteEmailTemplateParams, PreviewEmailTemplateParams, PreviewEmailTemplateResponse } from "./types/api";
+export type { GetFormsParams, GetFormsByIdsParams, GetFormParams, CreateFormParams, UpdateFormParams, DeleteFormParams, PermanentlyDeleteFormParams, SubmitFormParams, GetFormSubmissionsParams, GetFormSubmissionParams, DeleteFormSubmissionParams } from "./types/api";
 export type { MarketStatus, MarketUsage } from "./types";
 export type { CompanyAddress, CompanyProfile, CompanyEditableStatus, CompanyStatus, Company, CompanyUsage, CreateCompanyParams, GetCompanyParams, UpdateCompanyParams, DeleteCompanyParams, FindCompaniesParams } from "./types/company";
 export type { CompanyMembershipEditableStatus, CompanyMembershipStatus, CompanyMembershipScope, CompanyMembership, CreateCompanyMembershipParams, GetCompanyMembershipParams, UpdateCompanyMembershipParams, DeleteCompanyMembershipParams, FindCompanyMembershipsParams } from "./types/companyMembership";
@@ -44,6 +46,11 @@ export type { CustomerGroupSubscription, CustomerGroupSubscriptionStatus, Custom
 export type { CustomerGroupAdmission, CustomerGroupAdmissionSource, CustomerGroupAdministrativeAccess, CustomerGroupMember, CustomerGroupMemberSelf, CustomerGroupSelfAdmission, CustomerGroupJoinResult, CustomerGroupMemberCommandResponse, CustomerGroupMemberCommandReceipt, CustomerGroupMemberCommandResultType, GetCustomerGroupMemberByBindingParams, CustomerGroupJoinScope, CustomerGroupJoinRequest, JoinCustomerGroupParams, GetCustomerGroupMemberParams, FindCustomerGroupMembersParams, GetCurrentCustomerGroupMemberParams, FindCustomerGroupMemberCommandsParams, CustomerGroupMemberCommand, ExecuteCustomerGroupMemberCommandParams } from "./types/customerGroupMember";
 export type { SalesChannelEditableStatus, SalesChannelStatus, SalesChannel, SalesChannelUsage, CreateSalesChannelParams, GetSalesChannelParams, UpdateSalesChannelParams, DeleteSalesChannelParams, FindSalesChannelsParams } from "./types/salesChannel";
 export type { SellableRef } from "./types/sellable";
+export type { OrderBooking, GetOrderBookingParams } from "./types/orderBooking";
+export type { CancelPendingOrderParams, OrderCancellationReceipt } from "./types/orderCancellation";
+export type * from "./types/storeCommerce";
+export type { SellerProfile, SellerTaxRegistration } from "./types/orderContract";
+
 export type {
   Assortment,
   AssortmentEditableStatus,
@@ -271,6 +278,9 @@ export type {
   StoreSubscriptionCheckoutStatus,
   StorePlanAccess,
   StoreSubscriptionStatus,
+  StoreSubscriptionOperation,
+  StoreSubscriptionOperationType,
+  StoreSubscriptionOperationStatus,
   ProviderOperationClaim,
   ProviderEffectError,
   SubscriptionPlan,
@@ -506,6 +516,10 @@ export type {
   EmailTemplateVariable,
   EmailTemplateVariableSource,
   FormStatus,
+  FormPresentation,
+  FormPresentedSchema,
+  FormSubmissionSnapshot,
+  FormQuestionSnapshot,
   ClassificationStatus,
 } from "./types";
 export type {
@@ -531,6 +545,7 @@ export type {
   BookingResourceAvailability,
   AvailabilityResponse,
   BookingItemLifecycleParams,
+  CancelBookingItemParams,
   CreateBookingServiceParams,
   UpdateBookingServiceParams,
   DeleteBookingServiceParams,
@@ -670,6 +685,16 @@ export type {
   CreateLeadResearchParams,
   FindLeadResearchesParams,
   GetLeadResearchParams,
+  GetLeadResearchMessageParams,
+  GetWorkflowsParams,
+  GetWorkflowExecutionsParams,
+  GetWorkflowExecutionParams,
+  GetWorkflowConnectionParams,
+  GetWorkflowConnectionsParams,
+  GetWorkflowParams,
+  CreateWorkflowParams,
+  UpdateWorkflowParams,
+  DeleteWorkflowParams,
   SendLeadResearchMessageParams,
   FindLeadResearchMessagesParams,
   RetryLeadResearchMessageParams,
@@ -840,8 +865,8 @@ export type {
   SupportChannelType,
   SupportConversation,
   SupportConversationChannelContext,
-  SupportAiResponse,
   SupportAiResponseStatus,
+  SupportConversationStatus,
   SupportEmailStatus,
   SupportMessage,
   SupportConversationResponse,
@@ -881,7 +906,7 @@ export function storeCommerceDefaults(
     : null;
 }
 
-export const SDK_VERSION = "0.26.26";
+export const SDK_VERSION = "0.26.28";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -1297,6 +1322,7 @@ export function createAdmin(config: CreateAdminConfig) {
     listExternalOperations: workflowApi.getWorkflowExternalOperations,
     getExternalOperation: workflowApi.getWorkflowExternalOperation,
     listConnections: workflowApi.getWorkflowConnections,
+    getConnection: workflowApi.getWorkflowConnection,
     getConnectionConnectUrl: workflowApi.getWorkflowConnectionConnectUrl,
     deleteConnection: workflowApi.deleteWorkflowConnection,
   };
@@ -1340,6 +1366,11 @@ export function createAdmin(config: CreateAdminConfig) {
       get: storeApi.getStore,
       find: storeApi.getStores,
       requestDeletion: storeApi.requestDeletion,
+      commerce: {
+        initialize: storeApi.initializeCommerce,
+        getInitialization: storeApi.getCommerceInitialization,
+        abortInitialization: storeApi.abortCommerceInitialization,
+      },
       subscription: {
         get: storeApi.getSubscription,
         getPlans: storeApi.getSubscriptionPlans,
@@ -1427,7 +1458,7 @@ export function createAdmin(config: CreateAdminConfig) {
       permanentlyDelete: formsApi.permanentlyDeleteForm,
       get: formsApi.getForm,
       find: formsApi.getForms,
-      submit: formsApi.submit,
+      findByIds: formsApi.getFormsByIds,
       getSubmissions: formsApi.getSubmissions,
       getSubmission: formsApi.getSubmission,
       deleteSubmission: formsApi.deleteSubmission,
@@ -1488,6 +1519,8 @@ export function createAdmin(config: CreateAdminConfig) {
         update: eshopApi.updateOrder,
         getFinancialSummary: eshopApi.getOrderFinancialSummary,
         cancelProductItem: eshopApi.cancelOrderProductItem,
+        cancelPending: eshopApi.cancelPendingOrder,
+        getBookingAppointment: eshopApi.getBookingAppointment,
         cancelBookingItem: eshopApi.cancelBookingItem,
         completeBookingItem: eshopApi.completeBookingItem,
         markBookingItemNoShow: eshopApi.markBookingItemNoShow,
@@ -1749,7 +1782,9 @@ function isIssuedCustomerSession(
   if (
     typeof value.id !== "string" ||
     typeof value.customer_id !== "string" ||
-    value.status !== "active"
+    !isRecord(value.status) ||
+    value.status.type !== "active" ||
+    Object.keys(value.status).length !== 1
   ) {
     return false;
   }
@@ -1839,7 +1874,7 @@ function createStorefrontClientCore(
   function authorizationToken(
     session: CustomerSessionInternal | null = memorySession,
   ): string | null {
-    if (!session || session.session.status !== "active") return null;
+    if (!session || session.session.status.type !== "active") return null;
     return session.session.type === "visitor"
       ? session.session.token
       : session.session.access_token;
@@ -1853,7 +1888,7 @@ function createStorefrontClientCore(
         !isEpochMilliseconds(session.customer.updated_at))
     ) {
       throw new RangeError(
-        "Customer session timestamps must be signed safe-integer epoch milliseconds",
+        "Customer session must have an active tagged status and signed safe-integer epoch-millisecond timestamps",
       );
     }
     memorySession = session;
@@ -1902,7 +1937,7 @@ function createStorefrontClientCore(
 
   const authStorage: AuthStorage = {
     getTokens() {
-      if (!memorySession || memorySession.session.status !== "active")
+      if (!memorySession || memorySession.session.status.type !== "active")
         return null;
       const issued = memorySession.session;
       return issued.type === "visitor"
@@ -2156,7 +2191,7 @@ function createStorefrontClientCore(
 
     get isAuthenticated(): boolean {
       return (
-        memorySession?.session.status === "active" &&
+        memorySession?.session.status.type === "active" &&
         memorySession.session.type === "email_authenticated"
       );
     },

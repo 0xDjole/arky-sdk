@@ -15,7 +15,7 @@ function storedVisitorSession(token, customerId = "customer-client-contract") {
     version: 2,
     customer: {
       id: customerId,
-      status: "active",
+      status: { type: "active" },
       identities: [],
       classifications: [],
       created_at: 1,
@@ -24,7 +24,7 @@ function storedVisitorSession(token, customerId = "customer-client-contract") {
     session: {
       id: `session-${customerId}`,
       customer_id: customerId,
-      status: "active",
+      status: { type: "active" },
       type: "visitor",
       token,
       expires_at: 10_000,
@@ -53,11 +53,11 @@ test("workflow external-operation audit routes preserve execution scope", async 
     node_id: "http_1",
     iteration_key: "root",
     type: "http_mutation",
-    status: "succeeded",
+    status: { type: "succeeded" },
     requested_at: 1,
     processing_started_at: 2,
     completed_at: 3,
-    result: { output: { provider_request_id: "request-contract" } },
+    result: { type: "provider", provider_status: 200 },
     error: null,
     updated_at: 3,
   };
@@ -447,25 +447,25 @@ test("Store endpoint configurations and physical locations use their cleaned con
     await admin.store.buildHook.create({
       store_id: storeId,
       url: "https://deploy.example.test/hook",
-      status: "disabled",
+      status: { type: "disabled" },
     });
     await admin.store.buildHook.update({
       store_id: storeId,
       id: "build-hook-contract",
-      status: "active",
+      status: { type: "active" },
     });
     await admin.store.webhook.create({
       store_id: storeId,
       url: "https://events.example.test/hook",
-      events: [{ event: "customer.archived" }],
+      events: [{ type: "customer.archived" }],
       headers: {},
       secret: "s".repeat(32),
-      status: "disabled",
+      status: { type: "disabled" },
     });
     await admin.store.webhook.update({
       store_id: storeId,
       id: "webhook-contract",
-      status: "active",
+      status: { type: "active" },
     });
   } finally {
     globalThis.fetch = originalFetch;
@@ -496,29 +496,29 @@ test("Store endpoint configurations and physical locations use their cleaned con
         method: "POST",
         body: {
           url: "https://deploy.example.test/hook",
-          status: "disabled",
+          status: { type: "disabled" },
         },
       },
       {
         url: `/v1/stores/${storeId}/build-hooks/build-hook-contract`,
         method: "PUT",
-        body: { status: "active" },
+        body: { status: { type: "active" } },
       },
       {
         url: `/v1/stores/${storeId}/webhooks`,
         method: "POST",
         body: {
           url: "https://events.example.test/hook",
-          events: [{ event: "customer.archived" }],
+          events: [{ type: "customer.archived" }],
           headers: {},
           secret: "s".repeat(32),
-          status: "disabled",
+          status: { type: "disabled" },
         },
       },
       {
         url: `/v1/stores/${storeId}/webhooks/webhook-contract`,
         method: "PUT",
-        body: { status: "active" },
+        body: { status: { type: "active" } },
       },
     ],
   );
@@ -567,7 +567,6 @@ test("admin Market and Payment Provider APIs use provider roots and UUID allowli
     tax_mode: "inclusive",
     status: { type: "active" },
     payment_provider_ids: [cashProvider.id, stripeProvider.id],
-    zones: [],
     created_at: 1,
     updated_at: 1,
   };
@@ -597,7 +596,6 @@ test("admin Market and Payment Provider APIs use provider roots and UUID allowli
         currency: "bam",
         tax_mode: "inclusive",
         payment_provider_ids: [cashProvider.id, stripeProvider.id],
-        zones: [],
       }),
       market,
     );
@@ -619,7 +617,6 @@ test("admin Market and Payment Provider APIs use provider roots and UUID allowli
         currency: "bam",
         tax_mode: "inclusive",
         payment_provider_ids: [cashProvider.id, stripeProvider.id],
-        zones: [],
       },
     },
   ]);
@@ -843,7 +840,9 @@ test("admin Order uses the embedded product-item route and canonical Customer fi
     await admin.eshop.order.cancelProductItem({
       order_id: "order-contract",
       order_product_item_id: "order-product-item-contract",
-      quantity: 1,
+      command_id: "cancellation-command",
+      expected_updated_at: 1789990000000,
+      units: [{ first_unit: 0, quantity: 1 }],
     });
   } finally {
     globalThis.fetch = originalFetch;
@@ -861,9 +860,45 @@ test("admin Order uses the embedded product-item route and canonical Customer fi
     {
       url: `${baseUrl}/v1/stores/${storeId}/orders/order-contract/product-items/order-product-item-contract/cancel`,
       method: "POST",
-      body: { quantity: 1 },
+      body: {
+        command_id: "cancellation-command",
+        expected_updated_at: 1789990000000,
+        units: [{ first_unit: 0, quantity: 1 }],
+      },
     },
   ]);
+});
+
+test("product cancellation preserves exact units and revision through explicit retry and encodes owner IDs", async () => {
+  const admin = createAdmin({ baseUrl, storeId, apiToken: "arky_api_admin_contract" });
+  const request = {
+    store_id: "store/one",
+    order_id: "order/one",
+    order_product_item_id: "line/one",
+    command_id: "cancellation-command",
+    expected_updated_at: 1789990000000,
+    units: [{ first_unit: 1, quantity: 2 }, { first_unit: 5, quantity: 1 }],
+  };
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), method: init.method, body: JSON.parse(init.body) });
+    return jsonResponse(calls.length === 1 ? { message: "Response unavailable" } : { id: request.order_id }, calls.length === 1 ? 503 : 200);
+  };
+  try {
+    await assert.rejects(admin.eshop.order.cancelProductItem(request), (error) => error.statusCode === 503);
+    assert.equal(calls.length, 1);
+    assert.deepEqual(await admin.eshop.order.cancelProductItem(request), { id: request.order_id });
+    assert.equal(calls.length, 2);
+    assert.deepEqual(calls[1], calls[0]);
+    assert.deepEqual(calls[0], {
+      url: `${baseUrl}/v1/stores/store%2Fone/orders/order%2Fone/product-items/line%2Fone/cancel`,
+      method: "POST",
+      body: { command_id: request.command_id, expected_updated_at: request.expected_updated_at, units: request.units },
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("admin market deletion preserves the version, replacement and accepted Deleting response", async () => {
@@ -915,7 +950,7 @@ test("Classification is top-level and uses the renamed Admin and storefront rout
       method: init.method || "GET",
       body: init.body ? JSON.parse(String(init.body)) : null,
     });
-    if (target.endsWith("/children")) return jsonResponse([]);
+    if (target.endsWith("/children")) return jsonResponse({ items: [], cursor: null });
     if ((init.method || "GET") === "DELETE") return jsonResponse(true);
     if (target.includes("?status=active")) {
       return jsonResponse({ items: [], cursor: null });
@@ -926,7 +961,7 @@ test("Classification is top-level and uses the renamed Admin and storefront rout
       key: "topics",
       parent_id: null,
       schema: [],
-      status: "active",
+      status: { type: "active" },
       created_at: 1,
       updated_at: 1,
     });

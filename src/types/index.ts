@@ -1,4 +1,7 @@
 import type { Payment } from "./payment";
+import type { SellerProfile } from "./orderContract";
+import type { StoreTaxPolicy, StoreInvoicePolicy } from "./storeCommerce";
+export type * from "./storeCommerce";
 import type { StripeConnectionOperation } from "./stripeConnection";
 export type { StripeConnectionOperation, StripeConnectionEffectStatus } from "./stripeConnection";
 import type { AppliedPriceSnapshot, DisplayTextSnapshot, StorefrontPrice } from "./commerce";
@@ -25,6 +28,7 @@ export type {
   PurchaseOriginSnapshot,
   CompanyLocationSnapshot,
   SellerProfile,
+  SellerTaxRegistration,
   SellerSnapshot,
   InvoiceIssueTrigger,
   OrderInvoicePolicy,
@@ -609,7 +613,7 @@ export type SocialMessageSyncResult =
     }
   | { type: "deferred"; retry_after_at: EpochMilliseconds };
 
-export type BuildHookStatus = "active" | "disabled";
+export type BuildHookStatus = { type: "active" } | { type: "disabled" };
 
 export interface BuildHook {
   id: string;
@@ -949,6 +953,12 @@ export interface OrderCheckoutResult {
 export type MarketStatus = { type: "active" } | { type: "deleting" };
 
 export interface MarketUsage {
+  market_sales_channel_ids: string[];
+  more_market_sales_channels: boolean;
+  fulfillment_routing_policy_ids: string[];
+  more_fulfillment_routing_policies: boolean;
+  market_zone_ids: string[];
+  more_market_zones: boolean;
   catalog_entitlement_ids: string[];
   more_catalog_entitlements: boolean;
   cart_ids: string[];
@@ -969,76 +979,76 @@ export interface Market {
 }
 
 export type WebhookEventSubscription =
-  | { event: "collection.created"; key?: string }
-  | { event: "collection.updated"; key?: string }
-  | { event: "collection.deleted"; key?: string }
-  | { event: "entry.created"; collection_id?: string; key?: string }
-  | { event: "entry.updated"; collection_id?: string; key?: string }
-  | { event: "entry.deleted"; collection_id?: string; key?: string }
-  | { event: "order.created" }
-  | { event: "order.updated" }
-  | { event: "order.confirmed" }
-  | { event: "order.payment_received" }
-  | { event: "order.payment_failed" }
-  | { event: "order.refunded" }
-  | { event: "refund.succeeded" }
-  | { event: "order.cancelled" }
-  | { event: "order_product_item.created" }
-  | { event: "order_product_item.updated" }
-  | { event: "order_product_item.confirmed" }
-  | { event: "order_product_item.cancelled" }
-  | { event: "order_booking_item.created" }
-  | { event: "order_booking_item.updated" }
-  | { event: "order_booking_item.confirmed" }
-  | { event: "order_booking_item.completed" }
-  | { event: "order_booking_item.no_show" }
-  | { event: "order_booking_item.cancelled" }
-  | { event: "order_booking_item.reminder" }
-  | { event: "order_digital_item.created" }
-  | { event: "order_digital_item.updated" }
-  | { event: "order_digital_item.confirmed" }
-  | { event: "order_digital_item.cancelled" }
-  | { event: "order.shipment_created" }
-  | { event: "order.shipment_in_transit" }
-  | { event: "order.shipment_out_for_delivery" }
-  | { event: "order.shipment_delivered" }
-  | { event: "order.shipment_failed" }
-  | { event: "order.shipment_returned" }
-  | { event: "order.shipment_status_changed" }
-  | { event: "cart.created" }
-  | { event: "cart.updated" }
-  | { event: "cart.abandoned" }
-  | { event: "cart.converted" }
-  | { event: "product.created" }
-  | { event: "product.updated" }
-  | { event: "product.deleted" }
-  | { event: "booking_resource.created" }
-  | { event: "booking_resource.updated" }
-  | { event: "booking_resource.deleted" }
-  | { event: "booking_service.created" }
-  | { event: "booking_service.updated" }
-  | { event: "booking_service.deleted" }
-  | { event: "media.created" }
-  | { event: "media.updated" }
-  | { event: "media.deleted" }
-  | { event: "store.created" }
-  | { event: "store.updated" }
-  | { event: "customer_group.created" }
-  | { event: "customer_group.updated" }
-  | { event: "customer_group.member_added" }
-  | { event: "customer_group.member_removed" }
-  | { event: "customer_group.member_pending" }
-  | { event: "customer_group.member_confirmed" }
-  | { event: "customer_group.member_access_cancelled" }
-  | { event: "customer_group.member_email_unsubscribed" }
-  | { event: "customer_group.member_email_resubscribed" }
-  | { event: "customer.created" }
-  | { event: "customer.updated" }
-  | { event: "customer.archived" }
-  | { event: "form_submission.created"; form_id?: string }
-  | { event: "account.updated" };
+  | { type: "collection.created"; key?: string | null }
+  | { type: "collection.updated"; key?: string | null }
+  | { type: "collection.deleted"; key?: string | null }
+  | { type: "entry.created"; collection_id?: string | null; key?: string | null }
+  | { type: "entry.updated"; collection_id?: string | null; key?: string | null }
+  | { type: "entry.deleted"; collection_id?: string | null; key?: string | null }
+  | { type: "form_submission.created"; form_id?: string | null }
+  | { type: "order.created" }
+  | { type: "order.updated" }
+  | { type: "order.confirmed" }
+  | { type: "order.payment_received" }
+  | { type: "order.payment_failed" }
+  | { type: "order.refunded" }
+  | { type: "refund.succeeded" }
+  | { type: "order.cancelled" }
+  | { type: "order_product_item.created" }
+  | { type: "order_product_item.updated" }
+  | { type: "order_product_item.confirmed" }
+  | { type: "order_product_item.cancelled" }
+  | { type: "order_booking_item.created" }
+  | { type: "order_booking_item.updated" }
+  | { type: "order_booking_item.confirmed" }
+  | { type: "order_booking_item.completed" }
+  | { type: "order_booking_item.no_show" }
+  | { type: "order_booking_item.cancelled" }
+  | { type: "order_booking_item.reminder" }
+  | { type: "order_digital_item.created" }
+  | { type: "order_digital_item.updated" }
+  | { type: "order_digital_item.confirmed" }
+  | { type: "order_digital_item.cancelled" }
+  | { type: "order.shipment_created" }
+  | { type: "order.shipment_in_transit" }
+  | { type: "order.shipment_out_for_delivery" }
+  | { type: "order.shipment_delivered" }
+  | { type: "order.shipment_failed" }
+  | { type: "order.shipment_returned" }
+  | { type: "order.shipment_status_changed" }
+  | { type: "cart.created" }
+  | { type: "cart.updated" }
+  | { type: "cart.abandoned" }
+  | { type: "cart.converted" }
+  | { type: "product.created" }
+  | { type: "product.updated" }
+  | { type: "product.deleted" }
+  | { type: "booking_resource.created" }
+  | { type: "booking_resource.updated" }
+  | { type: "booking_resource.deleted" }
+  | { type: "booking_service.created" }
+  | { type: "booking_service.updated" }
+  | { type: "booking_service.deleted" }
+  | { type: "media.created" }
+  | { type: "media.updated" }
+  | { type: "media.deleted" }
+  | { type: "store.created" }
+  | { type: "store.updated" }
+  | { type: "customer_group.created" }
+  | { type: "customer_group.updated" }
+  | { type: "customer_group.member_added" }
+  | { type: "customer_group.member_removed" }
+  | { type: "customer_group.member_pending" }
+  | { type: "customer_group.member_confirmed" }
+  | { type: "customer_group.member_access_cancelled" }
+  | { type: "customer_group.member_email_unsubscribed" }
+  | { type: "customer_group.member_email_resubscribed" }
+  | { type: "customer.created" }
+  | { type: "customer.updated" }
+  | { type: "customer.archived" }
+  | { type: "account.updated" };
 
-export type WebhookStatus = "active" | "disabled";
+export type WebhookStatus = { type: "active" } | { type: "disabled" };
 
 export interface Webhook {
   id: string;
@@ -1053,14 +1063,14 @@ export interface Webhook {
 }
 
 export type StoreSubscriptionStatus =
-  | "pending"
-  | "trialing"
-  | "active"
-  | "past_due"
-  | "cancellation_scheduled"
-  | "unpaid"
-  | "cancelled"
-  | "expired";
+  | { type: "pending" }
+  | { type: "trialing" }
+  | { type: "active" }
+  | { type: "past_due" }
+  | { type: "cancellation_scheduled" }
+  | { type: "unpaid" }
+  | { type: "cancelled" }
+  | { type: "expired" };
 
 export interface ProviderOperationClaim {
   id: string;
@@ -1090,8 +1100,9 @@ export type StoreSubscriptionCheckoutStatus =
   | { type: "requested" }
   | {
       type: "processing";
-      claim: ProviderOperationClaim;
-      retry_error?: ProviderEffectError;
+      started_at: EpochMilliseconds;
+      deadline_at: EpochMilliseconds;
+      retry_error: ProviderEffectError | null;
     }
   | { type: "open"; stripe_checkout_session_id: string }
   | {
@@ -1103,7 +1114,8 @@ export type StoreSubscriptionCheckoutStatus =
   | { type: "failed"; error: ProviderEffectError }
   | {
       type: "unknown";
-      claim: ProviderOperationClaim;
+      started_at: EpochMilliseconds;
+      deadline_at: EpochMilliseconds;
       stripe_checkout_session_id: string | null;
       error: ProviderEffectError;
     };
@@ -1113,8 +1125,6 @@ export interface StoreSubscriptionCheckout {
   plan_id: string;
   stripe_price_id: string;
   stripe_customer_id: string | null;
-  billing_email: string;
-  return_url: string;
   trial_end: EpochMilliseconds | null;
   expires_at: EpochMilliseconds;
   status: StoreSubscriptionCheckoutStatus;
@@ -1129,12 +1139,41 @@ export interface StorePlanAccess {
   access_until: EpochMilliseconds | null;
 }
 
+export type StoreSubscriptionOperationType =
+  | "cancel_at_period_end"
+  | "cancel_immediately"
+  | "reactivate";
+
+export type StoreSubscriptionOperationStatus =
+  | { type: "requested"; requested_at: EpochMilliseconds }
+  | {
+      type: "processing";
+      started_at: EpochMilliseconds;
+      deadline_at: EpochMilliseconds;
+      retry_error: ProviderEffectError | null;
+    }
+  | { type: "succeeded"; observed_at: EpochMilliseconds }
+  | { type: "failed"; error: ProviderEffectError }
+  | {
+      type: "unknown";
+      started_at: EpochMilliseconds;
+      deadline_at: EpochMilliseconds;
+      error: ProviderEffectError;
+    };
+
+export interface StoreSubscriptionOperation {
+  id: string;
+  type: StoreSubscriptionOperationType;
+  status: StoreSubscriptionOperationStatus;
+}
+
 export interface StoreSubscription {
   id: string;
   store_id: string;
   plan_access: StorePlanAccess | null;
   status: StoreSubscriptionStatus;
   checkout: StoreSubscriptionCheckout | null;
+  operation: StoreSubscriptionOperation | null;
   payment_action: StoreSubscriptionCheckoutAction;
   trial_started_at: EpochMilliseconds | null;
   created_at: EpochMilliseconds;
@@ -1153,9 +1192,9 @@ export type StoreCommerceState =
       type: "ready";
       default_market_id: string;
       default_sales_channel_id: string;
-      seller: unknown;
-      tax: unknown;
-      invoicing: unknown;
+      seller: SellerProfile;
+      tax: StoreTaxPolicy;
+      invoicing: StoreInvoicePolicy;
     };
 
 export interface Store {
@@ -1330,23 +1369,36 @@ export interface ClassificationQuery {
 export type FormSchemaType =
   "text" | "number" | "boolean" | "date" | "geo_location" | "select";
 
-interface FormSchemaBase {
+interface FormSchemaBase<Question> {
   id: string;
   key: string;
   required: boolean;
+  question: Question | null;
 }
 
-export type FormSchema =
-  | (FormSchemaBase & { type: "text" })
-  | (FormSchemaBase & {
+type FormSchemaDefinition<Question> =
+  | (FormSchemaBase<Question> & { type: "text" })
+  | (FormSchemaBase<Question> & {
       type: "number";
       min?: number | null;
       max?: number | null;
     })
-  | (FormSchemaBase & { type: "boolean" })
-  | (FormSchemaBase & { type: "date" })
-  | (FormSchemaBase & { type: "geo_location" })
-  | (FormSchemaBase & { type: "select"; options: string[] });
+  | (FormSchemaBase<Question> & { type: "boolean" })
+  | (FormSchemaBase<Question> & { type: "date" })
+  | (FormSchemaBase<Question> & { type: "geo_location" })
+  | (FormSchemaBase<Question> & { type: "select"; options: string[] });
+
+export type FormSchema = FormSchemaDefinition<LocalizedText>;
+export type FormPresentedSchema = FormSchemaDefinition<DisplayTextSnapshot>;
+
+export interface FormPresentation {
+  id: string;
+  store_id: string;
+  key: string;
+  locale: string;
+  presentation_digest: string;
+  schema: FormPresentedSchema[];
+}
 
 export type FormFieldType =
   "text" | "number" | "boolean" | "date" | "geo_location" | "select";
@@ -1489,7 +1541,7 @@ export interface SubscriptionPlan {
   features: Record<SubscriptionPlanFeatureType, SubscriptionPlanFeature>;
 }
 
-export type AccountApiTokenStatus = "active" | "revoked";
+export type AccountApiTokenStatus = { type: "active" | "revoked" };
 
 export type AccountVerificationEmailStatus =
   { type: "requested" | "processing" | "sent" | "rejected" | "failed" | "unknown" | "cancelled" };
@@ -1549,7 +1601,7 @@ interface AccountSessionBase {
 export type AccountSession = AccountSessionBase &
   (
     | {
-        status: "pending_verification";
+        status: { type: "pending_verification" };
         verification_expires_at: EpochMilliseconds;
         access_expires_at: null;
         refresh_expires_at: null;
@@ -1557,7 +1609,7 @@ export type AccountSession = AccountSessionBase &
         revoked_at: null;
       }
     | {
-        status: "active";
+        status: { type: "active" };
         verification_expires_at: null;
         access_expires_at: EpochMilliseconds;
         refresh_expires_at: EpochMilliseconds;
@@ -1565,7 +1617,7 @@ export type AccountSession = AccountSessionBase &
         revoked_at: null;
       }
     | {
-        status: "locked" | "superseded";
+        status: { type: "locked" | "superseded" };
         verification_expires_at: null;
         access_expires_at: null;
         refresh_expires_at: null;
@@ -1573,7 +1625,7 @@ export type AccountSession = AccountSessionBase &
         revoked_at: null;
       }
     | {
-        status: "revoked";
+        status: { type: "revoked" };
         verification_expires_at: null;
         access_expires_at: null;
         refresh_expires_at: null;
@@ -1600,7 +1652,7 @@ export type ProductEditableStatus =
 export type ProductStatus = ProductEditableStatus | { type: "deleting" };
 export type CustomerStatus = { type: "active" } | { type: "archived" };
 
-export type MailboxStatus = "active" | "draft" | "archived";
+export type MailboxStatus = { type: "active" } | { type: "draft" } | { type: "archived" };
 export type MailboxPreset = "gmail" | "zoho" | "microsoft" | "custom";
 export type MailboxConnectionSecurity = "tls" | "start_tls";
 export type MailboxSyncFailureKind = "authentication" | "connection" | "recovery";
@@ -1713,11 +1765,11 @@ export type CampaignMessageType =
 export type CampaignOutgoingStatus =
   | { type: "draft"; media_ids: string[] }
   | { type: "submitted"; delivery_status: CampaignEmailStatus };
-export type WorkflowStatus = "active" | "draft";
+export type WorkflowStatus = { type: "active" } | { type: "draft" };
 export type MutableWorkflowStatus = WorkflowStatus;
-export type CollectionStatus = "active" | "draft" | "archived";
-export type EntryStatus = "active" | "draft" | "archived";
-export type EmailTemplateStatus = "active" | "draft" | "archived";
+export type CollectionStatus = { type: "active" } | { type: "draft" } | { type: "archived" };
+export type EntryStatus = { type: "active" } | { type: "draft" } | { type: "archived" };
+export type EmailTemplateStatus = { type: "active" } | { type: "draft" } | { type: "archived" };
 export type EmailTemplateType =
   | "order_store_notification"
   | "order_contact_notification"
@@ -1726,8 +1778,14 @@ export type EmailTemplateType =
   | "subscription_confirmation"
   | "campaign_email";
 
-export type FormStatus = "active" | "draft" | "archived";
-export type ClassificationStatus = "active" | "draft" | "archived";
+export type FormStatus =
+  | { type: "active" }
+  | { type: "draft" }
+  | { type: "archived" };
+export type ClassificationStatus =
+  | { type: "active" }
+  | { type: "draft" }
+  | { type: "archived" };
 
 export type OrderCancellationReason =
   | "admin_rejected"
@@ -1832,7 +1890,7 @@ export interface EmailTemplate {
   type: EmailTemplateType;
   subject: Record<string, string>;
   body: string;
-  preheader?: string;
+  preheader: string | null;
   variables: EmailTemplateVariable[];
   sample_data: Record<string, unknown>;
   status: EmailTemplateStatus;
@@ -1863,9 +1921,21 @@ export interface FormSubmission {
   form_id: string;
   store_id: string;
   customer_id: string;
-  customer_session_id: string | null;
+  customer_session_id: string;
+  authentication: import("./orderContract").CustomerAuthenticationSnapshot;
+  snapshot: FormSubmissionSnapshot;
   fields: FormField[];
   created_at: EpochMilliseconds;
+}
+
+export interface FormSubmissionSnapshot {
+  form_key: string;
+  questions: FormQuestionSnapshot[];
+}
+
+export interface FormQuestionSnapshot {
+  field_id: string;
+  question: DisplayTextSnapshot;
 }
 
 export interface Classification {
@@ -2096,8 +2166,8 @@ export interface GoogleDriveWorkflowAccount {
 }
 
 export type WorkflowConnectionAuthorizationStatus =
-  | "active"
-  | "reauthorization_required";
+  | { type: "active" }
+  | { type: "reauthorization_required"; detected_at: EpochMilliseconds };
 
 export interface GoogleDriveWorkflowConnectionData {
   type: "google_drive";
@@ -2138,25 +2208,29 @@ export interface WorkflowSwitchRule {
 export interface WorkflowSwitchNode {
   type: "switch";
   rules: WorkflowSwitchRule[];
-  delay_ms?: number;
+  delay_ms?: number | null;
 }
 
 export interface WorkflowTransformNode {
   type: "transform";
   code: string;
-  delay_ms?: number;
+  delay_ms?: number | null;
 }
 
 export interface WorkflowLoopNode {
   type: "loop";
   expression: string;
-  delay_ms?: number;
+  delay_ms?: number | null;
 }
 
 export type WorkflowHttpMethod = "get" | "post" | "put" | "patch" | "delete";
 
 export type WorkflowExecutionStatus =
-  "pending" | "running" | "completed" | "failed" | "cancelled";
+  | { type: "pending" }
+  | { type: "running" }
+  | { type: "completed" }
+  | { type: "failed" }
+  | { type: "cancelled" };
 
 export type NodeResultSource =
   | { type: "local" }
@@ -2213,19 +2287,30 @@ export type WorkflowExternalOperationType =
   | "google_drive_upload";
 
 export type WorkflowExternalOperationStatus =
-  "requested" | "processing" | "succeeded" | "rejected" | "failed" | "unknown";
+  | { type: "requested" }
+  | { type: "processing" }
+  | { type: "succeeded" }
+  | { type: "rejected" }
+  | { type: "failed" }
+  | { type: "unknown" };
 
 export type WorkflowExternalOperationErrorType =
   "provider_call_not_started" | "provider_rejected" | "unknown_outcome";
 
-export interface WorkflowExternalOperationResult {
-  output: unknown;
-}
+export type WorkflowExternalOperationResult =
+  | { type: "provider"; provider_status?: number; provider_file_id?: string }
+  | {
+      type: "send_email";
+      provider_message_id: string;
+      provider_thread_id: string | null;
+      sent_at: EpochMilliseconds;
+    };
 
 export interface WorkflowExternalOperationError {
   type: WorkflowExternalOperationErrorType;
   message: string;
   at: EpochMilliseconds;
+  provider_status?: number;
 }
 
 export interface WorkflowExternalOperation {
@@ -2238,14 +2323,17 @@ export interface WorkflowExternalOperation {
   type: WorkflowExternalOperationType;
   status: WorkflowExternalOperationStatus;
   requested_at: EpochMilliseconds;
-  processing_started_at?: EpochMilliseconds | null;
-  completed_at?: EpochMilliseconds | null;
-  result?: WorkflowExternalOperationResult | null;
-  error?: WorkflowExternalOperationError | null;
+  processing_started_at: EpochMilliseconds | null;
+  completed_at: EpochMilliseconds | null;
+  result: WorkflowExternalOperationResult | null;
+  error: WorkflowExternalOperationError | null;
   updated_at: EpochMilliseconds;
 }
 
-export type CustomerSessionStatus = "active" | "superseded" | "revoked";
+export type CustomerSessionStatus =
+  | { type: "active" }
+  | { type: "superseded" }
+  | { type: "revoked" };
 
 export interface CustomerEmailVerification {
   identity_id: string;
@@ -2264,10 +2352,10 @@ interface CustomerSessionRecordBase {
 }
 
 type CustomerSessionLifecycle =
-  | { status: "active"; superseded_at: null; revoked_at: null }
-  | { status: "superseded"; superseded_at: EpochMilliseconds; revoked_at: null }
+  | { status: { type: "active" }; superseded_at: null; revoked_at: null }
+  | { status: { type: "superseded" }; superseded_at: EpochMilliseconds; revoked_at: null }
   | {
-      status: "revoked";
+      status: { type: "revoked" };
       superseded_at: EpochMilliseconds | null;
       revoked_at: EpochMilliseconds;
     };
@@ -2294,7 +2382,7 @@ export type CustomerSessionIssued =
   | {
       id: string;
       customer_id: string;
-      status: "active";
+      status: { type: "active" };
       type: "visitor";
       token: string;
       expires_at: EpochMilliseconds;
@@ -2302,7 +2390,7 @@ export type CustomerSessionIssued =
   | {
       id: string;
       customer_id: string;
-      status: "active";
+      status: { type: "active" };
       type: "email_authenticated";
       identity_id: string;
       access_token: string;

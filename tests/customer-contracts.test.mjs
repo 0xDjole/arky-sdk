@@ -47,7 +47,7 @@ test("Admin Customer namespace uses canonical routes, tagged status and independ
             id: "session-visitor",
             store_id: storeId,
             customer_id: customerId,
-            status: "active",
+            status: { type: "active" },
             type: "visitor",
             last_seen_at: 2,
             created_at: 1,
@@ -66,7 +66,7 @@ test("Admin Customer namespace uses canonical routes, tagged status and independ
             id: "session-authenticated",
             store_id: storeId,
             customer_id: customerId,
-            status: "superseded",
+            status: { type: "superseded" },
             type: "email_authenticated",
             last_seen_at: 3,
             created_at: 2,
@@ -139,8 +139,8 @@ test("Admin Customer namespace uses canonical routes, tagged status and independ
     assert.deepEqual(
       sessions.items.map((session) => [session.type, session.status]),
       [
-        ["visitor", "active"],
-        ["email_authenticated", "superseded"],
+        ["visitor", { type: "active" }],
+        ["email_authenticated", { type: "superseded" }],
       ],
     );
     await admin.customers.revokeSession({

@@ -18,8 +18,8 @@ afterEach(() => { globalThis.fetch = savedFetch; });
 function sessionStorage() {
   const value = JSON.stringify({
     version: 2,
-    customer: { id: "customer", status: "active", identities: [], classifications: [], created_at: 1, updated_at: 1 },
-    session: { id: "session", customer_id: "customer", type: "visitor", token: visitorToken, status: "active", expires_at: 1900000000000 },
+    customer: { id: "customer", status: { type: "active" }, identities: [], classifications: [], created_at: 1, updated_at: 1 },
+    session: { id: "session", customer_id: "customer", type: "visitor", token: visitorToken, status: { type: "active" }, expires_at: 1900000000000 },
   });
   return storefrontSessionStorage(value);
 }
@@ -64,7 +64,7 @@ function quote() {
       company_location_snapshot: null,
       origin: cart().origin,
     },
-    seller: { profile: { legal_name: "Seller", tax_identifier: null, address: { country: "BA" } }, configuration_digest: "a".repeat(64) },
+    seller: { profile: { legal_name: "Seller", registration_number: null, tax_registrations: [], address: { country: "BA" } }, configuration_digest: "a".repeat(64) },
     invoice_policy: { type: "external" },
     timezone: "Europe/Sarajevo",
     payment_terms: null,

@@ -5,6 +5,8 @@ import type {
   Block,
   EshopCartItem,
   Form,
+  FormPresentation,
+  FormPresentedSchema,
   FormEntry,
   FormField,
   FormSchema,
@@ -169,7 +171,7 @@ export function toCartBookings(
   }));
 }
 
-function formValueError(field: FormSchema, message: string): Error {
+function formValueError(field: FormSchema | FormPresentedSchema, message: string): Error {
   return new Error(`Invalid value for form field '${field.key}': ${message}`);
 }
 
@@ -195,7 +197,7 @@ function isValidGeoLocation(value: unknown): value is GeoLocation {
   );
 }
 
-function buildFormField(field: FormSchema, value: FormValue): FormField {
+function buildFormField(field: FormSchema | FormPresentedSchema, value: FormValue): FormField {
   const common = { id: field.id, key: field.key };
   switch (field.type) {
     case "text":
@@ -249,7 +251,7 @@ function buildFormField(field: FormSchema, value: FormValue): FormField {
   }
 }
 
-function isEmptyOptionalValue(field: FormSchema, value: FormValue): boolean {
+function isEmptyOptionalValue(field: FormSchema | FormPresentedSchema, value: FormValue): boolean {
   if (field.required) return false;
   if (field.type === "text") return value === "";
   if (field.type === "select")
@@ -266,7 +268,7 @@ function isEmptyOptionalValue(field: FormSchema, value: FormValue): boolean {
 }
 
 export function buildFormFields(
-  schema: FormSchema[],
+  schema: (FormSchema | FormPresentedSchema)[],
   values: FormValues,
 ): FormField[] {
   const knownKeys = new Set(schema.map((field) => field.key));
@@ -291,20 +293,20 @@ export function buildFormFields(
 }
 
 export function createFormEntryFromValues(
-  form: Pick<Form, "id" | "schema">,
+  form: Pick<Form | FormPresentation, "id" | "schema">,
   values: FormValues,
 ): FormEntry {
   return createFormEntry(form.id, buildFormFields(form.schema, values));
 }
 
-export function getFormBlockType(field: FormSchema): string {
+export function getFormBlockType(field: FormSchema | FormPresentedSchema): string {
   if (field.key === "email") return "email";
   if (field.key === "phone") return "phone";
   if (field.type === "geo_location") return "address";
   return field.type;
 }
 
-export function getFormBlockValue(field: FormSchema): FormValue | undefined {
+export function getFormBlockValue(field: FormSchema | FormPresentedSchema): FormValue | undefined {
   if (field.type === "boolean") return false;
   if (field.type === "select") return [];
   if (field.type === "geo_location") return {};
@@ -312,7 +314,7 @@ export function getFormBlockValue(field: FormSchema): FormValue | undefined {
   return "";
 }
 
-export function formSchemaToBlock(field: FormSchema): FormInputBlock {
+export function formSchemaToBlock(field: FormSchema | FormPresentedSchema): FormInputBlock {
   const min = field.type === "number" ? field.min : undefined;
   const max = field.type === "number" ? field.max : undefined;
   const options = field.type === "select" ? field.options : undefined;

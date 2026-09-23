@@ -59,14 +59,13 @@ function openSubscription(checkoutId) {
     id: "d397ff50-690b-4da7-9fb9-17740e535d69",
     store_id: storeId,
     plan_access: null,
-    status: "pending",
+    status: { type: "pending" },
+    operation: null,
     checkout: {
       id: checkoutId,
       plan_id: request.plan_id,
       stripe_price_id: "price_basic_monthly",
       stripe_customer_id: null,
-      billing_email: "owner@example.test",
-      return_url: request.return_url,
       trial_end: null,
       expires_at: 1_800_000_000_000,
       status: {

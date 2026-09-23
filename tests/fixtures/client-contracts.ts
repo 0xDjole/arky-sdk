@@ -1,5 +1,43 @@
 import { epochMilliseconds } from "arky-sdk";
-import type { AccountActor, LeadResearchAssistantMessageStatus, LeadResearchMessageType } from "arky-sdk";
+import type { WorkflowExecutionStatus, GetWorkflowExecutionsParams, GetWorkflowExecutionParams } from "arky-sdk";
+const executionStatus: WorkflowExecutionStatus = { type: "completed" };
+const executionQuery: GetWorkflowExecutionsParams = { workflow_id: "workflow", status: "completed", query: "execution", limit: 1, cursor: "opaque", sort_field: "created_at", sort_direction: "desc" };
+const exactExecution: GetWorkflowExecutionParams = { workflow_id: "workflow", execution_id: "execution" };
+// @ts-expect-error Execution responses carry tagged lifecycle status.
+const oldExecutionStatus: WorkflowExecutionStatus = "completed";
+// @ts-expect-error Execution list filters carry a flat status value.
+const invalidExecutionStatusFilter: GetWorkflowExecutionsParams = { workflow_id: "workflow", status: { type: "running" } };
+// @ts-expect-error Execution errors are private detail, not a supported sort key.
+const invalidExecutionSort: GetWorkflowExecutionsParams = { workflow_id: "workflow", sort_field: "error" };
+export type WorkflowExecutionContracts = [typeof executionStatus, typeof executionQuery, typeof exactExecution];
+import type { WorkflowConnectionAuthorizationStatus, GetWorkflowConnectionsParams, GetWorkflowConnectionParams } from "arky-sdk";
+const workflowConnectionStatus: WorkflowConnectionAuthorizationStatus = { type: "reauthorization_required", detected_at: epochMilliseconds(0) };
+const workflowConnectionsQuery: GetWorkflowConnectionsParams = { query: "Drive", type: "google_drive", status: "active", limit: 20, cursor: "opaque", sort_field: "updated_at", sort_direction: "asc" };
+const exactWorkflowConnection: GetWorkflowConnectionParams = { id: "connection" };
+// @ts-expect-error Connection response status is a tagged object, not a string.
+const oldWorkflowConnectionStatus: WorkflowConnectionAuthorizationStatus = "active";
+// @ts-expect-error Reauthorization retains its detection timestamp.
+const incompleteWorkflowConnectionStatus: WorkflowConnectionAuthorizationStatus = { type: "reauthorization_required" };
+// @ts-expect-error Connection search status is a flat filter.
+const oldWorkflowConnectionFilter: GetWorkflowConnectionsParams = { status: { type: "active" } };
+// @ts-expect-error Connection names are text predicates, not a supported ordering field.
+const invalidWorkflowConnectionSort: GetWorkflowConnectionsParams = { sort_field: "name" };
+export type WorkflowConnectionContracts = [typeof workflowConnectionStatus, typeof workflowConnectionsQuery, typeof exactWorkflowConnection];
+import type { WorkflowStatus, GetWorkflowsParams, CreateWorkflowParams, WorkflowTransformNode, WorkflowLoopNode, WorkflowSwitchNode } from "arky-sdk";
+const workflowLocalNodes: [WorkflowTransformNode, WorkflowLoopNode, WorkflowSwitchNode] = [
+  { type: "transform", code: "return input;", delay_ms: null },
+  { type: "loop", expression: "input.items", delay_ms: null },
+  { type: "switch", rules: [], delay_ms: null },
+];
+const workflowStatusContract: WorkflowStatus = { type: "draft" };
+const workflowListContract: GetWorkflowsParams = { status: "active", created_at_from: epochMilliseconds(-1) };
+const workflowCreateContract: CreateWorkflowParams = { key: "demo_workflow", status: { type: "active" }, graph: { nodes: {}, edges: [] } };
+// @ts-expect-error Workflow responses and writes use tagged status objects.
+const legacyWorkflowStatusContract: WorkflowStatus = "active";
+// @ts-expect-error Workflow search filters use a flat status value.
+const legacyWorkflowFilterContract: GetWorkflowsParams = { status: { type: "active" } };
+export type WorkflowStatusContracts = [typeof workflowStatusContract, typeof workflowListContract, typeof workflowCreateContract, typeof workflowLocalNodes];
+import type { AccountActor, LeadResearchAssistantMessageStatus, LeadResearchMessageType, GetLeadResearchMessageParams } from "arky-sdk";
 
 declare const leadResearchActor: AccountActor;
 const leadResearchAccount: LeadResearchMessageType = {
@@ -18,7 +56,8 @@ const legacyLeadResearchStatus: LeadResearchAssistantMessageStatus = { status: "
 const legacyLeadResearchAccount: LeadResearchMessageType = { type: "account", account_session_id: "session", content: "Research" };
 // @ts-expect-error Assistant authorship retains an actor snapshot, not a Session navigation ID.
 const legacyLeadResearchAssistant: LeadResearchMessageType = { type: "assistant", responds_to_message_id: "account-message", requested_by_account_session_id: "session", status: { type: "requested" } };
-export type LeadResearchContracts = [typeof leadResearchAccount, typeof leadResearchAssistant, typeof leadResearchCancelled];
+const exactResearchMessage: GetLeadResearchMessageParams = { lead_research_id: "research", message_id: "message" };
+export type LeadResearchContracts = [typeof leadResearchAccount, typeof leadResearchAssistant, typeof leadResearchCancelled, typeof exactResearchMessage];
 export type { BlockContracts } from "./block-contracts.js";
 import type { MembershipContracts } from "./membership-contracts.js";
 export type { MembershipContracts };
@@ -202,6 +241,9 @@ import type {
   CheckoutPaymentAction,
   CancelOrderProductItemParams,
   BookingItemLifecycleParams,
+  CancelBookingItemParams,
+  OrderBooking,
+  GetOrderBookingParams,
   DigitalProductQuoteInput,
   GetQuoteParams,
   ProductQuoteInput,
@@ -319,7 +361,7 @@ import type {
 // @ts-expect-error storefront CustomerAction keys have no Action compatibility alias.
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.26.26" = SDK_VERSION;
+const sdkVersionLiteral: "0.26.28" = SDK_VERSION;
 const workflowExternalOperationContract: WorkflowExternalOperation = {
   id: "operation-contract",
   store_id: "store-contract",
@@ -328,15 +370,28 @@ const workflowExternalOperationContract: WorkflowExternalOperation = {
   node_id: "http_1",
   iteration_key: "root",
   type: "http_mutation",
-  status: "succeeded",
+  status: { type: "succeeded" },
   requested_at: epochMilliseconds(1),
   processing_started_at: epochMilliseconds(2),
   completed_at: epochMilliseconds(3),
-  result: { output: { provider_request_id: "request-contract" } },
+  result: { type: "provider", provider_status: 200 },
   error: null,
   updated_at: epochMilliseconds(3),
 };
 void workflowExternalOperationContract;
+// @ts-expect-error External operation statuses use the tagged Server DTO.
+const flatOperationStatus: WorkflowExternalOperation["status"] = "succeeded";
+// @ts-expect-error Private provider response bodies are not public operation results.
+const privateOperationOutput: WorkflowExternalOperation["result"] = { output: {} };
+const sentEmailOperationResult: WorkflowExternalOperation["result"] = {
+  type: "send_email",
+  provider_message_id: "message-contract",
+  provider_thread_id: null,
+  sent_at: epochMilliseconds(3),
+};
+void flatOperationStatus;
+void privateOperationOutput;
+void sentEmailOperationResult;
 const bookingServiceFeature: SubscriptionPlanFeatureType = "booking_services";
 const bookingResourceFeature: SubscriptionPlanFeatureType = "booking_resources";
 const customerFeature: SubscriptionPlanFeatureType = "customers";
@@ -373,9 +428,9 @@ const storeContract: Store = {
     type: "ready",
     default_market_id: "market-contract",
     default_sales_channel_id: "channel-contract",
-    seller: null,
-    tax: null,
-    invoicing: null,
+    seller: { legal_name: "Synthetic seller", address: { country: "US" }, registration_number: null, tax_registrations: [] },
+    tax: { version: "fixture", noncommercial_customer_group_grants: false },
+    invoicing: { series_key: "sales", issue_trigger: { type: "acceptance" } },
   },
   timezone: "Europe/Sarajevo",
   default_language: "en",
@@ -437,14 +492,14 @@ const buildHookContract: BuildHook = {
   store_id: "store-contract",
   url: "••••••••",
   headers: { authorization: "••••••••" },
-  status: "disabled",
+  status: { type: "disabled" },
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(1),
 };
 const createBuildHookContract: CreateBuildHookParams = {
   store_id: "store-contract",
   url: "https://deploy.example.com/hook",
-  status: "active",
+  status: { type: "active" },
 };
 // @ts-expect-error Build Hooks are addressed by UUID, not a mutable key.
 buildHookContract.key;
@@ -463,20 +518,20 @@ const webhookContract: Webhook = {
   id: "webhook-contract",
   store_id: "store-contract",
   url: "••••••••",
-  events: [{ event: "store.updated" }],
+  events: [{ type: "store.updated" }],
   headers: {},
   secret: "••••••••",
-  status: "active",
+  status: { type: "active" },
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(1),
 };
 const createWebhookContract: CreateWebhookParams = {
   store_id: "store-contract",
   url: "https://events.example.com/hook",
-  events: [{ event: "store.updated" }],
+  events: [{ type: "store.updated" }],
   headers: {},
   secret: "s".repeat(32),
-  status: "disabled",
+  status: { type: "disabled" },
 };
 // @ts-expect-error Webhooks are addressed by UUID, not a mutable key.
 webhookContract.key;
@@ -1290,19 +1345,32 @@ const bookingItemLifecycleParams: BookingItemLifecycleParams = {
   order_id: "order-contract",
   order_booking_item_id: "order-booking-item-contract",
 };
+const getAppointment: GetOrderBookingParams = bookingItemLifecycleParams;
+const appointment: Promise<OrderBooking> = adminClient.eshop.order.getBookingAppointment(getAppointment);
+// @ts-expect-error Appointment inspection is an Admin operation, not public discovery.
+storefrontClient.eshop.order.getBookingAppointment(getAppointment);
+void appointment;
+const cancelBookingItemParams: CancelBookingItemParams = {
+  ...bookingItemLifecycleParams,
+  command_id: "bef10d85-72e3-4853-9c12-8e419dc2d8dc",
+};
 const adminBookingCancellation: Promise<Order> =
-  adminClient.eshop.order.cancelBookingItem(bookingItemLifecycleParams);
+  adminClient.eshop.order.cancelBookingItem(cancelBookingItemParams);
 const adminBookingCompletion: Promise<Order> =
   adminClient.eshop.order.completeBookingItem(bookingItemLifecycleParams);
 const adminBookingNoShow: Promise<Order> =
   adminClient.eshop.order.markBookingItemNoShow(bookingItemLifecycleParams);
 const storefrontBookingCancellation: Promise<StorefrontDto<Order>> =
-  storefrontClient.eshop.order.cancelBookingItem(bookingItemLifecycleParams);
+  storefrontClient.eshop.order.cancelBookingItem(cancelBookingItemParams);
+// @ts-expect-error Cancellation requires a caller-retained command identity.
+adminClient.eshop.order.cancelBookingItem(bookingItemLifecycleParams);
+// @ts-expect-error Storefront cancellation requires the same stable command identity.
+storefrontClient.eshop.order.cancelBookingItem(bookingItemLifecycleParams);
 // @ts-expect-error A verified owning Customer cannot complete a booking item.
 storefrontClient.eshop.order.completeBookingItem(bookingItemLifecycleParams);
 // @ts-expect-error A verified owning Customer cannot mark a booking item as a no-show.
 storefrontClient.eshop.order.markBookingItemNoShow(bookingItemLifecycleParams);
-const classificationChildren: Promise<Classification[]> =
+const classificationChildren: Promise<{ items: Classification[]; cursor: string | null }> =
   adminClient.classification.getChildren({ id: "classification-contract" });
 adminClient.classification.get({ id: "classification-contract" });
 // @ts-expect-error Admin Classification lookup uses its UUID, not a derived key.
@@ -1318,7 +1386,18 @@ const bookingResources: Promise<
   StorefrontDto<PaginatedResponse<BookingResource>>
 > = storefrontClient.eshop.bookingResource.find({
   booking_service_id: "booking-service-contract",
+  sort_field: "key",
+  sort_direction: "asc",
+  created_at_from: epochMilliseconds(0),
 });
+// @ts-expect-error Resources have no Catalog price ordering.
+storefrontClient.eshop.bookingResource.find({ sort_field: "price" });
+// @ts-expect-error Availability windows belong to Service availability, not Resource discovery.
+storefrontClient.eshop.bookingResource.find({ from: epochMilliseconds(0) });
+// @ts-expect-error Availability windows belong to Service availability, not Resource discovery.
+storefrontClient.eshop.bookingResource.find({ to: epochMilliseconds(1) });
+// @ts-expect-error Resource classification predicates have no match_all switch.
+adminClient.eshop.bookingResource.find({ match_all: true });
 const bookingServices: Promise<
   StorefrontDto<PaginatedResponse<BookingService>>
 > = storefrontClient.eshop.bookingService.find({ sort_field: "price", include_price: true });
@@ -1513,16 +1592,19 @@ const typedFormValues: FormValues = {
   channels: ["email"],
 };
 initializedStorefront.forms.submitByKey({
+  id: 'accepted-form-request',
   key: "contact-form",
   values: typedFormValues,
 });
 initializedStorefront.forms.submitByKey({
+  id: 'accepted-form-request',
   key: "contact-form",
   // @ts-expect-error Store IDs are not part of storefront request inputs.
   store_id: "store-contract",
   values: typedFormValues,
 });
 initializedStorefront.forms.submitByKey({
+  id: 'accepted-form-request',
   key: "contact-form",
   values: {
     // @ts-expect-error form values cannot contain arbitrary objects.
@@ -1530,6 +1612,7 @@ initializedStorefront.forms.submitByKey({
   },
 });
 const textFormSchema: FormSchema = {
+  question: null,
   id: "field-name",
   key: "name",
   type: "text",
@@ -1856,7 +1939,8 @@ const orderContract: Order = {
   seller: {
     profile: {
       legal_name: "Contract Seller",
-      tax_identifier: null,
+      registration_number: null,
+      tax_registrations: [],
       address: { country: "US" },
     },
     configuration_digest: "a".repeat(64),
@@ -1875,8 +1959,22 @@ const orderContract: Order = {
 const cancelEmbeddedProductItem: CancelOrderProductItemParams = {
   order_id: orderContract.id,
   order_product_item_id: embeddedOrderProductItem.id,
-  quantity: 1,
+  command_id: "product-cancellation-command",
+  expected_updated_at: orderContract.updated_at,
+  units: [{ first_unit: 0, quantity: 1 }],
 };
+const pendingOrderCancellation: Promise<import("arky-sdk").OrderCancellationReceipt> =
+  adminClient.eshop.order.cancelPending({ order_id: orderContract.id, command_id: "cancellation-command" });
+// @ts-expect-error general Order updates cannot cancel an accepted purchase.
+adminClient.eshop.order.update({ id: orderContract.id, cancel: true });
+// @ts-expect-error asynchronous pending cancellation requires a caller-owned command ID.
+adminClient.eshop.order.cancelPending({ order_id: orderContract.id });
+// @ts-expect-error pending whole-Order cancellation is Admin-only.
+storefrontClient.eshop.order.cancelPending({ order_id: orderContract.id, command_id: "cancellation-command" });
+// @ts-expect-error cancellation needs stable command identity, an Order revision and exact units.
+const quantityOnlyProductCancellation: CancelOrderProductItemParams = { order_id: orderContract.id, order_product_item_id: embeddedOrderProductItem.id, quantity: 1 };
+// @ts-expect-error product cancellation is an Admin-only command.
+storefrontClient.eshop.order.cancelProductItem(cancelEmbeddedProductItem);
 const forbiddenBookingRewrite: UpdateOrderParams = {
   id: orderContract.id,
   // @ts-expect-error persisted booking items change only through dedicated lifecycle commands.
@@ -1983,7 +2081,7 @@ const supportConversationWithNullableSession: SupportConversation = {
   customer_id: "customer-contract",
   customer_session_id: null,
   assigned_account_id: null,
-  status: "active",
+  status: { type: "active" },
   variables: {},
   channel_metadata: {},
   created_at: epochMilliseconds(1),
@@ -2018,13 +2116,13 @@ const supportMessageWithNullState: SupportMessage = {
   buttons: null,
   attachments: [],
   metadata: {},
-  ai_response: null,
+  ai_response_status: null,
   email_status: null,
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(1),
 };
 const supportEmailStatus: SupportEmailStatus = {
-  status: "sent",
+  type: "sent",
   provider_message_id: "provider-support-message",
   provider_thread_id: null,
   provider_status: 202,
@@ -2088,15 +2186,31 @@ const storefrontSupportRead: StorefrontGetSupportConversationParams = {
   conversation_id: "conversation-contract",
   support_token: "a".repeat(64),
   message_limit: 25,
+  message_cursor: "opaque-history-position",
 };
+// @ts-expect-error history uses an opaque continuation, not a timestamp watermark.
+storefrontSupportRead.after_created_at;
+// @ts-expect-error public messages expose the safe AI status, not the private operation.
+supportMessageWithNullState.ai_response;
+// @ts-expect-error Support response statuses are tagged objects.
+supportConversationWithNullableSession.status = "active";
+// @ts-expect-error Support email status uses the type discriminator.
+supportEmailStatus.status;
+const supportPendingMessage: SupportMessage = {
+  ...supportMessageWithNullState,
+  ai_response_status: { type: "processing", started_at: epochMilliseconds(1), deadline_at: epochMilliseconds(2) },
+};
+// @ts-expect-error pending AI status must include its exact processing deadline.
+supportPendingMessage.ai_response_status = { type: "processing", started_at: epochMilliseconds(1) };
 
-const subscriptionStatus: StoreSubscriptionStatus = "pending";
+const subscriptionStatus: StoreSubscriptionStatus = { type: "pending" };
 const storeSubscriptionRead: StoreSubscription = {
   id: "d397ff50-690b-4da7-9fb9-17740e535d69",
   store_id: "store-contract",
   plan_access: null,
   status: subscriptionStatus,
   checkout: null,
+  operation: null,
   payment_action: { type: "none" },
   trial_started_at: null,
   created_at: epochMilliseconds(1),
@@ -2125,6 +2239,22 @@ storeSubscriptionRead.checkout_id;
 // @ts-expect-error checkout state is not a subscription status.
 const invalidStoreSubscriptionStatus: StoreSubscriptionStatus =
   "requires_action";
+
+// @ts-expect-error Subscription lifecycle responses are tagged, not bare strings.
+const legacyStoreSubscriptionStatus: StoreSubscriptionStatus = "active";
+const processingStoreCheckout: import('arky-sdk').StoreSubscriptionCheckoutStatus = {
+  type: "processing", started_at: epochMilliseconds(1), deadline_at: epochMilliseconds(2), retry_error: null,
+};
+// @ts-expect-error Public subscription processing does not expose its private claim.
+processingStoreCheckout.claim;
+const requestedStoreCancellation: import('arky-sdk').StoreSubscriptionOperation = {
+  id: "operation", type: "cancel_immediately", status: { type: "requested", requested_at: epochMilliseconds(1) },
+};
+// @ts-expect-error Public Checkout does not retain the private billing address.
+storeSubscriptionRead.checkout?.billing_email;
+// @ts-expect-error Return URLs belong to the command, not the public Checkout read.
+storeSubscriptionRead.checkout?.return_url;
+export type StoreSubscriptionStatusContracts = [typeof processingStoreCheckout, typeof requestedStoreCancellation];
 
 // @ts-expect-error storefront support messages require the capability token.
 const supportMessageWithoutCapability: StorefrontSendSupportMessageParams = {
@@ -2169,7 +2299,7 @@ authToken.is_verified;
 const invitationEmailStatus: AccountVerificationEmailStatus = { type: "processing" };
 const pendingAccountSession: AccountSession = {
   id: "pending-session-contract",
-  status: "pending_verification",
+  status: { type: "pending_verification" },
   verification_expires_at: epochMilliseconds(600),
   access_expires_at: null,
   refresh_expires_at: null,
@@ -2180,7 +2310,7 @@ const pendingAccountSession: AccountSession = {
 };
 const activeAccountSession: AccountSession = {
   id: "active-session-contract",
-  status: "active",
+  status: { type: "active" },
   verification_expires_at: null,
   access_expires_at: epochMilliseconds(3_600),
   refresh_expires_at: epochMilliseconds(604_800),
@@ -2191,7 +2321,7 @@ const activeAccountSession: AccountSession = {
 };
 const revokedAccountSession: AccountSession = {
   id: "revoked-session-contract",
-  status: "revoked",
+  status: { type: "revoked" },
   verification_expires_at: null,
   access_expires_at: null,
   refresh_expires_at: null,
@@ -2200,13 +2330,13 @@ const revokedAccountSession: AccountSession = {
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(20),
 };
-const terminalSessionStatus: AccountSessionStatus = "superseded";
+const terminalSessionStatus: AccountSessionStatus = { type: "superseded" };
 
 const personalApiToken: AccountApiToken = {
   id: "api-token-contract",
   token_hint: "ract",
   name: "Local automation",
-  status: "active",
+  status: { type: "active" },
   expires_at: epochMilliseconds(100),
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(1),
@@ -2214,7 +2344,11 @@ const personalApiToken: AccountApiToken = {
 };
 // Expiry is derived from expires_at; it is not a persisted status.
 // @ts-expect-error Account API Token status is only active or revoked.
-const expiredApiTokenStatus: AccountApiTokenStatus = "expired";
+const expiredApiTokenStatus: AccountApiTokenStatus = { type: "expired" };
+// @ts-expect-error Account API Token status is a tagged value.
+const untaggedApiTokenStatus: AccountApiTokenStatus = "active";
+// @ts-expect-error Account Session status is a tagged value.
+const untaggedAccountSessionStatus: AccountSessionStatus = "active";
 declare const customer: Customer;
 declare const product: Product;
 declare const productInventory: ProductInventory;
@@ -2652,16 +2786,16 @@ const checkoutAction: CheckoutPaymentAction = {
   expires_at: epochMilliseconds(2),
 };
 const mediaUpdatedWebhook: WebhookEventSubscription = {
-  event: "media.updated",
+  type: "media.updated",
 };
 const productItemUpdatedWebhook: WebhookEventSubscription = {
-  event: "order_product_item.updated",
+  type: "order_product_item.updated",
 };
 const digitalItemConfirmedWebhook: WebhookEventSubscription = {
-  event: "order_digital_item.confirmed",
+  type: "order_digital_item.confirmed",
 };
 const customerArchivedWebhook: WebhookEventSubscription = {
-  event: "customer.archived",
+  type: "customer.archived",
 };
 const eventAction: EventAction = { action: "product_created" };
 const supportAction: SupportAction = {

@@ -3,7 +3,7 @@ import type {
     FindMarketZonesParams, FindMarketSalesChannelsParams, FindShippingMethodsParams, FindShippingRatesParams, FindTaxRulesParams,
     GetMarketZoneByBindingParams, GetMarketSalesChannelByBindingParams, GetShippingMethodByKeyParams,
     MarketZone, MarketSalesChannel, ShippingMethod, ShippingRate, TaxRule, UpdateShippingMethodParams, ShippingMethodType,
-    CreateTaxRuleParams, UpdateTaxRuleParams, EpochMilliseconds
+    CreateTaxRuleParams, UpdateTaxRuleParams, CreateShippingRateParams, UpdateShippingRateParams, EpochMilliseconds
 } from 'arky-sdk';
 type True<T extends true> = T;
 type Same<A,B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
@@ -26,5 +26,7 @@ export type ShippingDiscoveryContract=[
  True<Same<Awaited<ReturnType<Api['taxRule']['delete']>>,TaxRule|void>>,
  True<Same<UpdateShippingMethodParams['type'],ShippingMethodType>>,
  True<Same<Pick<CreateTaxRuleParams,'starts_at'|'ends_at'>,{starts_at:EpochMilliseconds|null;ends_at:EpochMilliseconds|null}>>,
- True<Same<Pick<UpdateTaxRuleParams,'starts_at'|'ends_at'>,{starts_at:EpochMilliseconds|null;ends_at:EpochMilliseconds|null}>>
+ True<Same<Pick<UpdateTaxRuleParams,'starts_at'|'ends_at'>,{starts_at:EpochMilliseconds|null;ends_at:EpochMilliseconds|null}>>,
+ True<Same<Pick<CreateShippingRateParams,'starts_at'|'ends_at'>,{starts_at:EpochMilliseconds|null;ends_at:EpochMilliseconds|null}>>,
+ True<Same<Pick<UpdateShippingRateParams,'starts_at'|'ends_at'>,{starts_at:EpochMilliseconds|null;ends_at:EpochMilliseconds|null}>>
 ];

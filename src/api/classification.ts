@@ -8,7 +8,7 @@ import type {
   GetClassificationChildrenParams,
   RequestOptions,
 } from "../types/api";
-import type { Classification, PaginatedResponse } from "../types";
+import type { Classification } from "../types";
 
 export const createClassificationApi = (apiConfig: ApiConfig) => {
   return {
@@ -63,10 +63,10 @@ export const createClassificationApi = (apiConfig: ApiConfig) => {
     async getClassifications(
       params: GetClassificationsParams,
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<Classification>> {
+    ): Promise<{ items: Classification[]; cursor: string | null }> {
       const { store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<PaginatedResponse<Classification>>(
+      return apiConfig.httpClient.get<{ items: Classification[]; cursor: string | null }>(
         `/v1/stores/${target_store_id}/classifications`,
         {
           ...options,
@@ -78,12 +78,12 @@ export const createClassificationApi = (apiConfig: ApiConfig) => {
     async getClassificationChildren(
       params: GetClassificationChildrenParams,
       options?: RequestOptions,
-    ): Promise<Classification[]> {
-      const { id, store_id } = params;
+    ): Promise<{ items: Classification[]; cursor: string | null }> {
+      const { id, store_id, ...queryParams } = params;
       const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<Classification[]>(
+      return apiConfig.httpClient.get<{ items: Classification[]; cursor: string | null }>(
         `/v1/stores/${target_store_id}/classifications/${id}/children`,
-        options,
+        { ...options, params: queryParams },
       );
     },
   };

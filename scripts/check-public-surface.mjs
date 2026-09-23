@@ -60,7 +60,6 @@ const removedIdentifiers = [
   "ServiceProvider",
   "ServiceStatus",
   "ProviderStatus",
-  "OrderBooking",
   "SlotRange",
   "ProviderAvailability",
   "CreateServiceParams",
@@ -616,13 +615,13 @@ for (const typeName of ["FormSubmission"]) {
   );
   if (
     !contract ||
-    !/\n\s*customer_session_id:\s*string\s*\|\s*null;/.test(contract[1])
+    !/\n\s*customer_session_id:\s*string;/.test(contract[1])
   ) {
     report(
       activityTypesFile,
       activityTypesSource,
       contract?.index ?? 0,
-      `${typeName} must expose nullable immutable CustomerSession provenance`,
+      `${typeName} must expose required immutable CustomerSession provenance`,
     );
     failures++;
   }
@@ -710,14 +709,29 @@ const bookingItemContract = activityTypesSource.match(
 );
 if (
   !bookingItemContract ||
-  /\bcustomer_session_id\??:/.test(bookingItemContract[1])
+  /\b(?:customer_session_id|reminders)\??:/.test(bookingItemContract[1]) ||
+  !/\bstatus:\s*OrderItemStatus;/.test(bookingItemContract[1])
 ) {
   report(
     activityTypesFile,
     activityTypesSource,
     bookingItemContract?.index ?? 0,
-    "OrderBookingItem must inherit purchase origin from Order rather than duplicate CustomerSession provenance",
+    "OrderBookingItem must retain commercial status and inherited purchase origin, not appointment reminders or duplicate CustomerSession provenance",
   );
+  failures++;
+}
+
+const appointmentFile = join(sourceDir, "types/orderBooking.ts");
+const appointmentSource = readFileSync(appointmentFile, "utf8");
+const appointmentContract = appointmentSource.match(/export interface OrderBooking\s*\{([\s\S]*?)\n\}/);
+const appointmentFields = [...(appointmentContract?.[1] ?? "").matchAll(/\b(\w+)\??:/g)].map(match => match[1]).sort();
+const requiredAppointmentFields = ["id", "store_id", "order_id", "order_booking_line_item_id", "booking_resource_id", "source_booking_resource_id", "interval", "status", "reminders", "created_at", "updated_at"].sort();
+if (!appointmentContract || JSON.stringify(appointmentFields) !== JSON.stringify(requiredAppointmentFields) ||
+    !/\bstatus:\s*OrderBookingStatus;/.test(appointmentContract[1]) ||
+    !/\bbooking_resource_id:\s*string\s*\|\s*null;/.test(appointmentContract[1]) ||
+    !/\breminders:\s*BookingReminderScheduleItem\[\];/.test(appointmentContract[1])) {
+  report(appointmentFile, appointmentSource, appointmentContract?.index ?? 0,
+    "OrderBooking must match the independent execution root, without accepted money or presentation fields");
   failures++;
 }
 
@@ -729,16 +743,16 @@ const orderUpdateFields = [
 ].map((match) => match[1]);
 if (
   !orderUpdateContract ||
-  orderUpdateFields.length !== 4 ||
+  orderUpdateFields.length !== 3 ||
   orderUpdateFields.some(
-    (field) => !["id", "store_id", "confirm", "cancel"].includes(field),
+    (field) => !["id", "store_id", "confirm"].includes(field),
   )
 ) {
   report(
     apiTypesFile,
     apiTypesSource,
     orderUpdateContract?.index ?? 0,
-    "Order updates accept only routing identity and confirm/cancel, never accepted purchase edits",
+    "Order updates accept only routing identity and confirmation; cancellation uses its dedicated command",
   );
   failures++;
 }
@@ -796,7 +810,7 @@ if (
 }
 
 if (
-  !/\|\s*\{\s*event:\s*["']customer\.archived["']\s*\}/.test(
+  !/\|\s*\{\s*type:\s*["']customer\.archived["']\s*\}/.test(
     activityTypesSource,
   )
 ) {

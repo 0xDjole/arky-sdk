@@ -132,6 +132,7 @@ export interface UpdateMarketParams {
 }
 
 export interface DeleteMarketParams {
+  store_id?: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   replacement_default_market_id?: string;
@@ -415,10 +416,10 @@ export interface GetCollectionsParams {
   ids?: string[];
   key?: string;
   limit?: number;
-  cursor?: string;
+  cursor?: string | null;
   query?: string;
-  status?: CollectionStatus;
-  sort_field?: string;
+  status?: CollectionStatus["type"];
+  sort_field?: "key" | "status" | "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
   created_at_from?: EpochMilliseconds;
   created_at_to?: EpochMilliseconds;
@@ -427,8 +428,8 @@ export interface GetCollectionsParams {
 export interface CreateCollectionParams {
   store_id?: string;
   key: string;
-  schema?: BlockSchema[];
-  blocks?: Block[];
+  schema: BlockSchema[];
+  blocks: Block[];
 }
 
 export interface UpdateCollectionParams {
@@ -452,14 +453,13 @@ export interface DeleteCollectionParams {
 export interface GetEntriesParams {
   store_id?: string;
   collection_id: string;
-  ids?: string[];
   key?: string;
-  status?: EntryStatus;
-  query?: string | number;
+  status?: EntryStatus["type"];
+  query?: string;
   filters?: EntryBlockQuery[];
   limit?: number;
-  cursor?: string;
-  sort_field?: string;
+  cursor?: string | null;
+  sort_field?: "key" | "status" | "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
   created_at_from?: EpochMilliseconds;
   created_at_to?: EpochMilliseconds;
@@ -479,8 +479,8 @@ export interface CreateEntryParams {
   store_id?: string;
   collection_id: string;
   key: string;
-  slug?: Record<string, string>;
-  blocks?: Block[];
+  slug: Record<string, string>;
+  blocks: Block[];
 }
 
 export interface UpdateEntryParams {
@@ -538,8 +538,8 @@ export interface FindMediaParams {
   limit?: number;
   ids?: string[];
   query?: string;
-  mime_type?: string;
-  sort_field?: string;
+  mime_type?: "image" | "video" | "application" | "image/jpeg" | "image/png" | "image/webp" | "image/gif" | "video/mp4" | "video/webm" | "video/quicktime" | "application/pdf";
+  sort_field?: "original_file_name" | "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
 }
 
@@ -634,7 +634,7 @@ export interface InitialMarketInput {
 export interface CreateStoreParams {
   name: string;
   timezone: string;
-  default_language: string;
+  default_language: string | null;
   supported_languages: string[];
   billing_email: string;
   contact_email?: string | null;
@@ -646,7 +646,7 @@ export interface UpdateStoreParams {
   default_market_id?: string;
   default_sales_channel_id?: string;
   timezone?: string;
-  default_language?: string;
+  default_language?: string | null;
   supported_languages?: string[];
   billing_email?: string;
   contact_email?: string | null;
@@ -828,19 +828,19 @@ export interface GetOrderParams {
 export interface GetOrdersParams {
   store_id?: string;
   customer_id?: string;
-  statuses?: string[];
-  product_statuses?: string[];
-  booking_statuses?: string[];
+  statuses?: ("pending" | "confirmed" | "partially_cancelled" | "cancelled")[];
+  product_statuses?: ("pending" | "confirmed" | "cancelled")[];
+  booking_statuses?: ("pending" | "confirmed" | "completed" | "no_show" | "cancelled")[];
   product_ids?: string[];
   booking_service_ids?: string[];
   booking_resource_ids?: string[];
   from?: EpochMilliseconds;
   to?: EpochMilliseconds;
 
-  query?: string | number | null;
+  query?: string | null;
   limit?: number | null;
   cursor?: string | null;
-  sort_field?: string | null;
+  sort_field?: "number" | "price" | "status" | "created_at" | null;
   sort_direction?: "asc" | "desc" | null;
   created_at_from?: EpochMilliseconds | null;
   created_at_to?: EpochMilliseconds | null;
@@ -851,20 +851,25 @@ export interface UpdateOrderParams {
   id: string;
   store_id?: string;
   confirm?: boolean;
-  cancel?: boolean;
 }
 
 export interface CancelOrderProductItemParams {
   store_id?: string;
   order_id: string;
   order_product_item_id: string;
-  quantity: number;
+  command_id: string;
+  expected_updated_at: EpochMilliseconds;
+  units: import("./orderContract").UnitSpan[];
 }
 
 export interface BookingItemLifecycleParams {
   store_id?: string;
   order_id: string;
   order_booking_item_id: string;
+}
+
+export interface CancelBookingItemParams extends BookingItemLifecycleParams {
+  command_id: string;
 }
 
 export interface CreateBookingResourceParams {
@@ -989,18 +994,15 @@ export interface FindBookingResourcesParams {
   booking_service_id?: string;
   ids?: string[];
   classification_query?: ClassificationQuery[];
-  match_all?: boolean;
 
   query?: string | number | null;
   status?: BookingResourceStatus["type"];
   limit?: number;
   cursor?: string;
-  sort_field?: string | null;
+  sort_field?: "key" | "status" | "created_at" | "updated_at" | null;
   sort_direction?: "asc" | "desc" | null;
   created_at_from?: EpochMilliseconds | null;
   created_at_to?: EpochMilliseconds | null;
-  from?: EpochMilliseconds;
-  to?: EpochMilliseconds;
 }
 
 export interface GetBookingResourceParams {
@@ -1011,6 +1013,16 @@ export interface GetBookingResourceParams {
 export interface GetBookingResourceByKeyParams {
   store_id?: string;
   key: string;
+}
+
+export interface ListAccountApiTokensParams {
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface ListAccountSessionsParams {
+  limit?: number;
+  cursor?: string | null;
 }
 
 export interface CreateAccountApiTokenParams {
@@ -1039,11 +1051,11 @@ export interface GetEmailTemplatesParams {
   ids?: string[];
   key?: string;
   limit?: number;
-  cursor?: string;
+  cursor?: string | null;
 
-  query?: string | number;
-  status?: EmailTemplateStatus;
-  sort_field?: string;
+  query?: string;
+  status?: EmailTemplateStatus["type"];
+  sort_field?: "key" | "status" | "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
   created_at_from?: EpochMilliseconds;
   created_at_to?: EpochMilliseconds;
@@ -1067,7 +1079,7 @@ export interface UpdateEmailTemplateParams {
   type?: EmailTemplateType;
   subject?: Record<string, string>;
   body?: string;
-  preheader?: string;
+  preheader?: string | null;
   variables?: EmailTemplateVariable[];
   sample_data?: Record<string, unknown>;
   status?: EmailTemplateStatus;
@@ -1107,23 +1119,26 @@ export interface DeleteEmailTemplateParams {
 
 export interface GetFormsParams {
   store_id?: string;
-  ids?: string[];
   key?: string;
   limit?: number;
-  cursor?: string;
-
-  query?: string | number;
-  status?: FormStatus;
-  sort_field?: string;
+  cursor?: string | null;
+  query?: string;
+  status?: FormStatus["type"];
+  sort_field?: "key" | "status" | "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
   created_at_from?: EpochMilliseconds;
   created_at_to?: EpochMilliseconds;
 }
 
+export interface GetFormsByIdsParams {
+  store_id?: string;
+  ids: string[];
+}
+
 export interface CreateFormParams {
   store_id?: string;
   key: string;
-  schema?: FormSchema[];
+  schema: FormSchema[];
 }
 
 export interface UpdateFormParams {
@@ -1151,20 +1166,24 @@ export interface PermanentlyDeleteFormParams {
 }
 
 export interface SubmitFormParams {
+  id: string;
+  locale: string;
+  presentation_digest: string;
   form_id: string;
   store_id?: string;
   fields: FormField[];
 }
 
 export interface GetFormSubmissionsParams {
+  form_id?: string;
   form_ids?: string[];
   store_id?: string;
   customer_id?: string;
 
-  query?: string | number;
+  query?: string;
   limit?: number;
-  cursor?: string;
-  sort_field?: string;
+  cursor?: string | null;
+  sort_field?: "created_at";
   sort_direction?: "asc" | "desc";
   created_at_from?: EpochMilliseconds;
   created_at_to?: EpochMilliseconds;
@@ -1174,7 +1193,7 @@ export interface FindCustomerActionsParams {
   store_id?: string;
   customer_id?: string;
   limit?: number;
-  cursor?: string;
+  cursor?: string | null;
 }
 
 export interface GetFormSubmissionParams {
@@ -1195,11 +1214,11 @@ export interface GetClassificationsParams {
   ids?: string[];
   key?: string;
   limit?: number;
-  cursor?: string;
+  cursor?: string | null;
 
   query?: string;
-  status?: ClassificationStatus;
-  sort_field?: string;
+  status?: ClassificationStatus["type"];
+  sort_field?: "key" | "status" | "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
   created_at_from?: EpochMilliseconds;
   created_at_to?: EpochMilliseconds;
@@ -1236,8 +1255,10 @@ export interface DeleteClassificationParams {
 }
 
 export interface GetClassificationChildrenParams {
-  id: string;
-  store_id?: string;
+    id: string;
+    store_id?: string;
+    limit?: number;
+    cursor?: string | null;
 }
 
 export interface GetMeParams {}
@@ -1508,7 +1529,7 @@ export interface GetWorkflowsParams {
   ids?: string[];
 
   query?: string | number;
-  status?: WorkflowStatus;
+  status?: WorkflowStatus["type"];
   limit?: number;
   cursor?: string;
   sort_field?: string;
@@ -1530,9 +1551,12 @@ export interface InvokeWorkflowWebhookParams {
 export interface GetWorkflowExecutionsParams {
   workflow_id: string;
   store_id?: string;
-  status?: import("./index").WorkflowExecutionStatus;
+  status?: import("./index").WorkflowExecutionStatus["type"];
   limit?: number;
   cursor?: string;
+  query?: string;
+  sort_field?: "created_at" | "updated_at";
+  sort_direction?: "asc" | "desc";
 }
 
 export interface GetWorkflowExecutionParams {
@@ -1563,6 +1587,18 @@ export interface GetWorkflowConnectionConnectUrlParams {
 
 export interface GetWorkflowConnectionsParams {
   store_id?: string;
+  query?: string;
+  type?: import("./index").WorkflowConnectionType;
+  status?: import("./index").WorkflowConnectionAuthorizationStatus["type"];
+  limit?: number;
+  cursor?: string;
+  sort_field?: "created_at" | "updated_at";
+  sort_direction?: "asc" | "desc";
+}
+
+export interface GetWorkflowConnectionParams {
+  store_id?: string;
+  id: string;
 }
 
 export interface DeleteWorkflowConnectionParams {
@@ -1652,12 +1688,12 @@ export interface UpdateMailboxParams {
 export interface FindMailboxesParams {
   store_id?: string;
   ids?: string[];
-  status?: MailboxStatus;
+  status?: MailboxStatus["type"];
   provider_type?: "smtp_imap" | "google";
-  query?: string | number;
+  query?: string;
   limit?: number;
-  cursor?: string;
-  sort_field?: string;
+  cursor?: string | null;
+  sort_field?: "key" | "email" | "status" | "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
 }
 
@@ -1847,6 +1883,12 @@ export interface RetryLeadResearchMessageParams {
   store_id?: string;
 }
 
+export interface GetLeadResearchMessageParams {
+  lead_research_id: string;
+  message_id: string;
+  store_id?: string;
+}
+
 export interface CancelLeadResearchMessageParams {
   lead_research_id: string;
   assistant_message_id: string;
@@ -1855,6 +1897,12 @@ export interface CancelLeadResearchMessageParams {
 
 export interface ListBuildHooksParams {
   store_id: string;
+  query?: string;
+  status?: BuildHookStatus["type"];
+  sort_field?: "created_at" | "updated_at";
+  sort_direction?: "asc" | "desc";
+  limit?: number;
+  cursor?: string | null;
 }
 
 export interface CreateBuildHookParams {
@@ -1987,6 +2035,12 @@ export interface SyncSocialMessagesParams {
 
 export interface ListWebhooksParams {
   store_id: string;
+  query?: string;
+  status?: WebhookStatus["type"];
+  sort_field?: "created_at" | "updated_at";
+  sort_direction?: "asc" | "desc";
+  limit?: number;
+  cursor?: string | null;
 }
 
 export interface CreateWebhookParams {
@@ -2112,14 +2166,14 @@ export interface FindCustomersParams {
   store_id?: string;
   ids?: string[];
 
-  query?: string | number;
+  query?: string;
   classification_query?: ClassificationQuery[];
   status?: CustomerStatus["type"];
   has_verified_email?: boolean;
   has_customer_action?: boolean;
   has_cart?: boolean;
   limit?: number;
-  cursor?: string;
-  sort_field?: string;
+  cursor?: string | null;
+  sort_field?: "id" | "email" | "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
 }

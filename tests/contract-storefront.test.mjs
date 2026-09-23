@@ -26,7 +26,7 @@ function sessionStorage(token = visitorToken) {
     version: 2,
     customer: {
       id: "customer-contract",
-      status: "active",
+      status: { type: "active" },
       identities: [],
       classifications: [],
       created_at: 1,
@@ -37,7 +37,7 @@ function sessionStorage(token = visitorToken) {
       customer_id: "customer-contract",
       type: "visitor",
       token,
-      status: "active",
+      status: { type: "active" },
       expires_at: 10_000,
     },
   }));

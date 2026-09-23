@@ -329,6 +329,7 @@ export type CompanyContracts = [
   True<Equal<Awaited<ReturnType<MarketApi["delete"]>>, Market>>,
   True<Equal<Awaited<ReturnType<MarketApi["usage"]>>, MarketUsage>>,
   True<Equal<PublicTypes.MarketUsage, MarketUsage>>,
+  True<Equal<keyof MarketUsage, "market_sales_channel_ids" | "more_market_sales_channels" | "fulfillment_routing_policy_ids" | "more_fulfillment_routing_policies" | "market_zone_ids" | "more_market_zones" | "catalog_entitlement_ids" | "more_catalog_entitlements" | "cart_ids" | "more_carts" | "is_default">>,
   True<RequiredField<UpdateMarketParams, "expected_updated_at">>,
   True<RequiredField<DeleteMarketParams, "expected_updated_at">>,
   False<

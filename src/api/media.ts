@@ -7,7 +7,7 @@ import type {
   ReplaceMediaContentParams,
   RequestOptions,
 } from "../types/api";
-import type { Media, PaginatedResponse } from "../types";
+import type { Media } from "../types";
 import {
   clearPendingMediaCreate,
   getOrCreatePendingMediaCreate,
@@ -151,9 +151,9 @@ export const createMediaApi = (apiConfig: ApiConfig) => ({
   async find(
     params: FindMediaParams = {},
     options?: RequestOptions,
-  ): Promise<PaginatedResponse<Media>> {
+  ): Promise<{ items: Media[]; cursor: string | null }> {
     const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<Media>>(
+    return apiConfig.httpClient.get<{ items: Media[]; cursor: string | null }>(
       mediaPath(apiConfig, store_id),
       { ...options, params: query },
     );

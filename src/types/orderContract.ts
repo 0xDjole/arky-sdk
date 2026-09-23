@@ -1,6 +1,6 @@
 import type { Address, Block, Currency, Money, Parcel, TimeRange } from "./index";
 import type { CompanySnapshot } from "./commerce";
-import type { CompanyLocationCommercePolicy, CompanyLocationTaxSettings } from "./companyLocation";
+import type { CompanyLocationCommercePolicy, CompanyLocationTaxSettings, TaxRegistration } from "./companyLocation";
 import type { LineMoneySnapshot } from "./orderMoney";
 import type { ShippingRateAdjustment } from "./shipping";
 import type { ShippingDeliveryEstimate } from "./quote";
@@ -41,8 +41,15 @@ export interface CompanyLocationSnapshot {
 
 export interface SellerProfile {
   legal_name: string;
-  tax_identifier: string | null;
   address: Address;
+  registration_number: string | null;
+  tax_registrations: SellerTaxRegistration[];
+}
+
+export interface SellerTaxRegistration {
+  registration: TaxRegistration;
+  starts_at: EpochMilliseconds;
+  ends_at: EpochMilliseconds | null;
 }
 
 export interface SellerSnapshot {

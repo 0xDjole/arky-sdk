@@ -9,8 +9,9 @@ import {
   scheduledObservationOptions,
 } from "../utils/scheduledResult";
 
-export type SupportAgentStatus = "draft" | "active" | "archived";
-export type SupportChannelStatus = "draft" | "active" | "disabled" | "archived";
+export type SupportAgentStatus = { type: "draft" } | { type: "active" } | { type: "archived" };
+export type SupportChannelStatus = { type: "draft" } | { type: "active" } | { type: "disabled" } | { type: "archived" };
+export type SupportConversationStatus = { type: "active" } | { type: "ai_mode" } | { type: "escalated" } | { type: "resolved" };
 export type SupportChannelType = "web" | "email";
 
 export type SupportAgentNode =
@@ -125,7 +126,7 @@ export interface SupportConversation {
   customer_id: string;
   customer_session_id: string | null;
   assigned_account_id: string | null;
-  status: "active" | "ai_mode" | "escalated" | "resolved";
+  status: SupportConversationStatus;
   variables: Record<string, unknown>;
   channel_metadata: Record<string, unknown>;
   created_at: EpochMilliseconds;
@@ -141,44 +142,42 @@ export interface SupportMessage {
   buttons: string[] | null;
   attachments: EmailAttachmentReference[];
   metadata: Record<string, unknown>;
-  ai_response: SupportAiResponse | null;
+  ai_response_status: SupportAiResponseStatus | null;
   email_status: SupportEmailStatus | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
 export type SupportEmailStatus =
-  | { status: "requested"; requested_at: EpochMilliseconds }
-  | { status: "processing"; started_at: EpochMilliseconds; deadline_at: EpochMilliseconds }
+  | { type: "requested"; requested_at: EpochMilliseconds }
+  | { type: "processing"; started_at: EpochMilliseconds; deadline_at: EpochMilliseconds }
   | {
-      status: "sent";
+      type: "sent";
       provider_message_id: string;
       provider_thread_id?: string | null;
       provider_status?: number | null;
       sent_at: EpochMilliseconds;
     }
   | {
-      status: "rejected";
+      type: "rejected";
       provider_status?: number | null;
       rejected_at: EpochMilliseconds;
     }
-  | { status: "failed"; failed_at: EpochMilliseconds }
-  | { status: "unknown"; unknown_at: EpochMilliseconds }
-  | { status: "cancelled"; cancelled_at: EpochMilliseconds };
+  | { type: "failed"; failed_at: EpochMilliseconds }
+  | { type: "unknown"; unknown_at: EpochMilliseconds }
+  | { type: "cancelled"; cancelled_at: EpochMilliseconds };
 
 export type SupportAiResponseStatus =
-  "requested" | "processing" | "succeeded" | "failed" | "unknown";
-
-export interface SupportAiResponse {
-  status: SupportAiResponseStatus;
-  processing_deadline_at: EpochMilliseconds | null;
-  completed_at: EpochMilliseconds | null;
-  error: string | null;
-}
+  | { type: "requested"; requested_at: EpochMilliseconds }
+  | { type: "processing"; started_at: EpochMilliseconds; deadline_at: EpochMilliseconds }
+  | { type: "succeeded"; completed_at: EpochMilliseconds }
+  | { type: "failed"; completed_at: EpochMilliseconds; error: string }
+  | { type: "unknown"; completed_at: EpochMilliseconds; error: string };
 
 export interface SupportConversationResponse {
   conversation: SupportConversation;
   messages: SupportMessage[];
+  messages_cursor: string | null;
 }
 
 export interface SupportConversationStartResponse extends SupportConversationResponse {
@@ -238,8 +237,7 @@ export interface GetSupportConversationParams {
   store_id: string;
   conversation_id: string;
   message_limit?: number;
-  after_created_at?: EpochMilliseconds;
-  after_id?: string;
+  message_cursor?: string;
 }
 
 export interface GetSupportMessageParams {
@@ -265,11 +263,15 @@ export type StorefrontGetSupportMessageParams = Omit<
 
 export interface FindSupportConversationsParams {
   store_id: string;
-  status?: string;
+  statuses?: SupportConversationStatus["type"][];
   agent_id?: string;
   channel_id?: string;
   channel_type?: SupportChannelType;
+  customer_id?: string;
+  assigned_account_id?: string;
   query?: string;
+  sort_field?: "created_at" | "updated_at";
+  sort_direction?: "asc" | "desc";
   limit?: number;
   cursor?: string;
 }
@@ -278,18 +280,16 @@ function supportConversationQuery(
   params: GetSupportConversationParams,
 ): string {
   const qs = new URLSearchParams({ store_id: params.store_id });
-  if (params.message_limit)
+  if (params.message_limit !== undefined)
     qs.set("message_limit", String(params.message_limit));
-  if (typeof params.after_created_at === "number")
-    qs.set("after_created_at", String(params.after_created_at));
-  if (params.after_id) qs.set("after_id", params.after_id);
+  if (params.message_cursor) qs.set("message_cursor", params.message_cursor);
   return qs.toString();
 }
 
 function supportAiResponsePending(
-  message: Pick<SupportMessage, "ai_response">,
+  message: Pick<SupportMessage, "ai_response_status">,
 ): boolean {
-  const status = message.ai_response?.status;
+  const status = message.ai_response_status?.type;
   return status === "requested" || status === "processing";
 }
 
@@ -384,12 +384,9 @@ export function createStorefrontSupportApi(
       await ensureVisitorSession();
       const { support_token, ...request } = params;
       const query = new URLSearchParams();
-      if (request.message_limit)
+      if (request.message_limit !== undefined)
         query.set("message_limit", String(request.message_limit));
-      if (typeof request.after_created_at === "number") {
-        query.set("after_created_at", String(request.after_created_at));
-      }
-      if (request.after_id) query.set("after_id", request.after_id);
+      if (request.message_cursor) query.set("message_cursor", request.message_cursor);
       const suffix = query.size ? `?${query}` : "";
       return httpClient.get<StorefrontSupportConversationResponse>(
         `/v1/storefront/support/conversations/${request.conversation_id}${suffix}`,
@@ -461,8 +458,11 @@ export interface UpdateSupportChannelParams {
 
 export interface FindSupportChannelsParams {
   store_id: string;
-  status?: SupportChannelStatus;
+  status?: SupportChannelStatus["type"];
   channel_type?: SupportChannelType;
+  query?: string;
+  sort_field?: "created_at" | "updated_at";
+  sort_direction?: "asc" | "desc";
   limit?: number;
   cursor?: string;
 }
@@ -500,6 +500,9 @@ export function createAdminSupportApi(config: ApiConfig) {
         const qs = new URLSearchParams({ store_id: params.store_id });
         if (params.status) qs.set("status", params.status);
         if (params.channel_type) qs.set("channel_type", params.channel_type);
+        if (params.query) qs.set("query", params.query);
+        if (params.sort_field) qs.set("sort_field", params.sort_field);
+        if (params.sort_direction) qs.set("sort_direction", params.sort_direction);
         if (params.limit) qs.set("limit", String(params.limit));
         if (params.cursor) qs.set("cursor", params.cursor);
         return httpClient.get<{ items: SupportChannel[]; cursor?: string }>(
@@ -589,6 +592,9 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: {
           store_id: string;
           status?: string;
+          query?: string;
+          sort_field?: "created_at" | "updated_at";
+          sort_direction?: "asc" | "desc";
           limit?: number;
           cursor?: string;
         },
@@ -596,6 +602,9 @@ export function createAdminSupportApi(config: ApiConfig) {
       ): Promise<{ items: SupportAgent[]; cursor?: string }> {
         const qs = new URLSearchParams({ store_id: params.store_id });
         if (params.status) qs.set("status", params.status);
+        if (params.query) qs.set("query", params.query);
+        if (params.sort_field) qs.set("sort_field", params.sort_field);
+        if (params.sort_direction) qs.set("sort_direction", params.sort_direction);
         if (params.limit) qs.set("limit", String(params.limit));
         if (params.cursor) qs.set("cursor", params.cursor);
         return httpClient.get<{ items: SupportAgent[]; cursor?: string }>(
@@ -630,18 +639,22 @@ export function createAdminSupportApi(config: ApiConfig) {
       async find(
         params: FindSupportConversationsParams,
         opts?: RequestOptions,
-      ): Promise<{ items: SupportConversation[]; cursor?: string }> {
+      ): Promise<{ items: SupportConversation[]; cursor: string | null }> {
         const qs = new URLSearchParams({ store_id: params.store_id });
-        if (params.status) qs.set("status", params.status);
+        if (params.statuses) qs.set("statuses", JSON.stringify(params.statuses));
         if (params.agent_id) qs.set("agent_id", params.agent_id);
         if (params.channel_id) qs.set("channel_id", params.channel_id);
         if (params.channel_type) qs.set("channel_type", params.channel_type);
+        if (params.customer_id) qs.set("customer_id", params.customer_id);
+        if (params.assigned_account_id) qs.set("assigned_account_id", params.assigned_account_id);
         if (params.query) qs.set("query", params.query);
-        if (params.limit) qs.set("limit", String(params.limit));
+        if (params.sort_field) qs.set("sort_field", params.sort_field);
+        if (params.sort_direction) qs.set("sort_direction", params.sort_direction);
+        if (params.limit !== undefined) qs.set("limit", String(params.limit));
         if (params.cursor) qs.set("cursor", params.cursor);
         return httpClient.get<{
           items: SupportConversation[];
-          cursor?: string;
+          cursor: string | null;
         }>(`/v1/stores/${params.store_id}/support/conversations?${qs}`, opts);
       },
 

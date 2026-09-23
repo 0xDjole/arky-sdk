@@ -13,6 +13,7 @@ import type {
   GetWorkflowExternalOperationParams,
   GetWorkflowConnectionConnectUrlParams,
   GetWorkflowConnectionsParams,
+  GetWorkflowConnectionParams,
   DeleteWorkflowConnectionParams,
   RequestOptions,
 } from "../types/api";
@@ -186,12 +187,18 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
     async getWorkflowConnections(
       params?: GetWorkflowConnectionsParams,
       options?: RequestOptions,
-    ): Promise<WorkflowConnection[]> {
+    ): Promise<PaginatedResponse<WorkflowConnection>> {
       const store_id = params?.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<WorkflowConnection[]>(
+      const { store_id: _storeId, ...query } = params || {};
+      return apiConfig.httpClient.get<PaginatedResponse<WorkflowConnection>>(
         `/v1/stores/${store_id}/workflow-connections`,
-        options,
+        { ...options, params: query },
       );
+    },
+
+    getWorkflowConnection(params: GetWorkflowConnectionParams, options?: RequestOptions): Promise<WorkflowConnection> {
+      const storeId = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.get<WorkflowConnection>(`/v1/stores/${encodeURIComponent(storeId)}/workflow-connections/${encodeURIComponent(params.id)}`, options);
     },
 
     async getWorkflowConnectionConnectUrl(

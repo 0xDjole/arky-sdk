@@ -38,12 +38,12 @@ export interface ManualPrice {
 export interface CreatePriceParams {
   store_id?: string;
   sellable: SellableRef;
-  price_list_id?: string | null;
+  price_list_id: string | null;
   currency: Currency;
   amount: number;
-  compare_at?: number | null;
+  compare_at: number | null;
   min_quantity: number;
-  max_quantity?: number | null;
+  max_quantity: number | null;
   status: PriceEditableStatus;
 }
 

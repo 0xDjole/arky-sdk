@@ -29,7 +29,7 @@ function session(customerId = "customer-a") {
   return {
     customer: {
       id: customerId,
-      status: "active",
+      status: { type: "active" },
       identities: [],
       classifications: [],
       created_at: 1,
@@ -40,7 +40,7 @@ function session(customerId = "customer-a") {
       customer_id: customerId,
       type: "visitor",
       token: `customer_visitor_${(customerId === "customer-a" ? "a" : "b").repeat(64)}`,
-      status: "active",
+      status: { type: "active" },
       expires_at: 1900000000000,
     },
   };
