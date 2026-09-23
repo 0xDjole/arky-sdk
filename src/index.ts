@@ -28,6 +28,7 @@ export type { CompanyLocationTaxSettings, CompanyLocationCommercePolicy, TaxRegi
 export type { InventoryItem, InventoryItemStatus, InventoryItemEditableStatus, InventoryTracking, InventoryPhysical, InventoryCustoms, InventoryDimensions, CreateInventoryItemParams, UpdateInventoryItemParams, GetInventoryItemParams, GetInventoryItemByKeyParams, FindInventoryItemsParams, DeleteInventoryItemParams } from "./types/inventoryItem";
 export type { InventoryLevel, CreateInventoryLevelParams, GetInventoryLevelParams, RemoveInventoryLevelParams, FindInventoryLevelsParams, InventoryMovement, InventoryMovementReason, ManualInventoryMovementReason, RecordInventoryMovementParams, GetInventoryMovementParams, FindInventoryMovementsParams, InventoryReservation, InventoryReservationSource, InventoryReservationStatus, ReservationUnitProgress, CreateManualInventoryReservationParams, ReleaseManualInventoryReservationParams, GetInventoryReservationParams, FindInventoryReservationsParams, UnitSpan } from "./types/inventory";
 export type * from "./types/inventoryUnit";
+export type * from "./types/return";
 export type * from "./types/fulfillmentUnitSelection";
 export type { Promotion, PromotionStatus, PromotionEditableStatus, PromotionActivation, PromotionStacking, PromotionEligibility, PromotionTarget, PromotionEffect, PromotionBuyRequirement, PromotionGetDiscount, PromotionProductVariantRef, CreatePromotionParams, UpdatePromotionParams, GetPromotionParams, GetPromotionByKeyParams, FindPromotionsParams, DeletePromotionParams, PromotionCode, PromotionCodeStatus, PromotionCodeEditableStatus, CreatePromotionCodeParams, UpdatePromotionCodeParams, GetPromotionCodeParams, GetPromotionCodeByCodeParams, FindPromotionCodesParams, DeletePromotionCodeParams } from "./types/promotion";
 export type { TaxCategory, TaxCategoryStatus, TaxCategoryEditableStatus, CreateTaxCategoryParams, UpdateTaxCategoryParams, GetTaxCategoryParams, FindTaxCategoriesParams, DeleteTaxCategoryParams, TaxRate, TaxCalculation, TaxComponent, TaxTreatment, TaxRule, TaxRuleStatus, TaxRuleEditableStatus, CreateTaxRuleParams, UpdateTaxRuleParams, GetTaxRuleParams, FindTaxRulesParams, DeleteTaxRuleParams } from "./types/tax";
@@ -986,6 +987,7 @@ import { createProductVariantApi } from "./api/productVariant";
 import { createInventoryItemApi } from "./api/inventoryItem";
 import { createInventoryLevelApi } from "./api/inventoryLevel";
 import { createInventoryUnitApi } from "./api/inventoryUnit";
+import { createReturnApi } from "./api/return";
 import { createInventoryMovementApi } from "./api/inventoryMovement";
 import { createInventoryReservationApi } from "./api/inventoryReservation";
 import { createShippingProfileApi } from "./api/shippingProfile";
@@ -1534,6 +1536,7 @@ export function createAdmin(config: CreateAdminConfig) {
       inventoryItem: createInventoryItemApi(apiConfig),
       inventoryLevel: createInventoryLevelApi(apiConfig),
       inventoryUnit: createInventoryUnitApi(apiConfig),
+      return: createReturnApi(apiConfig),
       inventoryMovement: createInventoryMovementApi(apiConfig),
       inventoryReservation: createInventoryReservationApi(apiConfig),
       orderCredit: createOrderCreditApi(apiConfig),

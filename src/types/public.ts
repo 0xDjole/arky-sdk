@@ -5,6 +5,7 @@ export type { OrderBooking, GetOrderBookingParams } from "./orderBooking";
 export type { CancelPendingOrderParams, OrderCancellationReceipt } from "./orderCancellation";
 export type * from "./inventory";
 export type * from "./inventoryUnit";
+export type * from "./return";
 export type * from "./promotion";
 export type * from "./inventoryItem";
 export type * from "./fulfillmentRouting";

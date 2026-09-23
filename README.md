@@ -235,6 +235,17 @@ another receipt identity just to retry. `allocate` selects one existing reservat
 `unassign` frees that selection without releasing the quantity hold. Both require the loaded Unit
 update epoch. These methods do not expose arbitrary status editing or physical-history deletion.
 
+Physical returns use the Store Admin API `admin.eshop.return.create/get/find/execute`. Create names
+an accepted Order, its exact product-unit spans and components, a destination Location and retained
+request/Return UUIDs. `execute` keeps the caller's command UUID, source and loaded update epoch;
+retry the same request after an uncertain result. Authorize checks actual dispatch/collection and
+remaining returnable quantities. Receive records custody; Dispose explicitly selects restock,
+write-off or discard. Close requires all received goods to have a disposition; before transit, use
+Cancel. None of these commands refunds the customer or cancels a shipping-label charge.
+`find` combines optional Order, destination and physical-status filters with timestamp sorting and
+explicit continuation. Follow its cursor even after an empty page; use `get` for exact current state.
+This is operator control, not a Customer self-service Return API or a Rental agreement API.
+
 Cart requests and responses use one tagged `line_items` array with `product`, `booking`,
 `digital_product` and `customer_group_plan` items. The `cartProductItems`, `cartBookingItems`,
 `cartDigitalItems` and `cartCustomerGroupPlanItems` helpers select each family. A Form submission
