@@ -625,7 +625,7 @@ const storefrontSetupContract: StorefrontSetup = {
   support: { email: "store@example.test" },
   readiness: { market: true, payment: true, commerce: true },
 };
-const storefrontProviderType: "cash_on_delivery" | "manual" | "stripe" =
+const storefrontProviderType: "cash_on_delivery" | "manual" | "stripe" | "monri" =
   storefrontSetupContract.payment_providers[1].type;
 const createMarketContract: CreateMarketParams = {
   key: "bih",

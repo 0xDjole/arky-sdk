@@ -128,7 +128,7 @@ export interface StorefrontPaymentProvider {
   id: string;
   key: string;
   blocks: import("../types").Block[];
-  type: "cash_on_delivery" | "manual" | "stripe";
+  type: "cash_on_delivery" | "manual" | "stripe" | "monri";
 }
 
 export interface StorefrontSetup {

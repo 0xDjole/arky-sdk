@@ -59,6 +59,8 @@ import type {
   ProductFulfillment,
   ProductVariantEditableStatus,
   ProductVariantStatus,
+  MonriEnvironment,
+  PaymentProviderConfigurationType,
 } from "./index";
 
 export type {
@@ -91,7 +93,7 @@ export interface GetStoreConfigurationParams { store_id?: string; id: string }
 export interface GetPaymentProviderParams { store_id?: string; id: string }
 export interface GetPaymentProviderByConfigurationParams {
   store_id?: string;
-  configuration_type: "cash_on_delivery" | "manual" | "stripe";
+  configuration_type: PaymentProviderConfigurationType;
 }
 export interface CreateStoreLocationParams {
   key: string;
@@ -1950,7 +1952,7 @@ export interface DisconnectSocialConnectionParams {
 
 export interface ListPaymentProvidersParams extends ConfigurationPageParams {
   store_id?: string;
-  configuration_type?: "cash_on_delivery" | "manual" | "stripe";
+  configuration_type?: PaymentProviderConfigurationType;
   status?: "active" | "disabled" | "deleting";
 }
 
@@ -1965,6 +1967,17 @@ export interface CreateLocalPaymentProviderParams {
 
 export interface RefreshStripePaymentProviderParams {
   store_id?: string;
+}
+
+export interface CreateMonriPaymentProviderParams {
+  store_id?: string;
+  id: string;
+  key: string;
+  blocks: Block[];
+  environment: MonriEnvironment;
+  merchant_key: string;
+  authenticity_token: string;
+  status: { type: "active" | "disabled" };
 }
 
 export interface ConnectStripePaymentProviderParams {

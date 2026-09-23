@@ -229,6 +229,7 @@ export type {
   OrderPromotionSnapshot,
   PaymentProvider,
   PaymentProviderConfiguration,
+  MonriEnvironment,
   PaymentProviderConfigurationType,
   PaymentProviderConnectResponse,
   StripeConnectionOperation,
@@ -728,6 +729,7 @@ export type {
   OpenStripeDashboardParams,
   GetSocialPostParams,
   CreateLocalPaymentProviderParams,
+  CreateMonriPaymentProviderParams,
   ListPaymentProvidersParams,
   ConfigurationPageParams,
   GetStoreConfigurationByKeyParams,
@@ -1319,6 +1321,7 @@ export function createAdmin(config: CreateAdminConfig) {
   const marketApi = createMarketApi(apiConfig);
   const workflowApi = createWorkflowApi(apiConfig);
   const storePaymentProviderApi = {
+    monri: { create: paymentProviderApi.createMonri },
     list: paymentProviderApi.list,
     get: paymentProviderApi.get,
     getByKey: paymentProviderApi.getByKey,

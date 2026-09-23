@@ -654,7 +654,10 @@ export type PaymentProviderConfiguration =
   | {
       type: "stripe";
       connection: StripeProviderConnection;
-    };
+    }
+  | { type: "monri"; environment: MonriEnvironment };
+
+export type MonriEnvironment = "test" | "live";
 
 export type PaymentProviderConfigurationType =
   PaymentProviderConfiguration["type"];

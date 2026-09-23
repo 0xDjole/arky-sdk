@@ -2,6 +2,7 @@ import type { ApiConfig } from "../services/clientTypes";
 import type {
   ConnectStripePaymentProviderParams,
   CreateLocalPaymentProviderParams,
+  CreateMonriPaymentProviderParams,
   OpenStripeDashboardParams,
   ListPaymentProvidersParams,
   GetStoreConfigurationByKeyParams,
@@ -57,6 +58,19 @@ export const createPaymentProviderApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<PaymentProvider>(
         `/v1/stores/${targetStoreId}/payment-providers`,
         { store_id: targetStoreId, ...rest },
+        options,
+      );
+    },
+
+    async createMonri(
+      params: CreateMonriPaymentProviderParams,
+      options?: RequestOptions,
+    ): Promise<PaymentProvider> {
+      const targetStoreId = storeId(params.store_id);
+      const { store_id: _store_id, ...input } = params;
+      return apiConfig.httpClient.post<PaymentProvider>(
+        `/v1/stores/${encodeURIComponent(targetStoreId)}/payment-providers/monri`,
+        { store_id: targetStoreId, ...input },
         options,
       );
     },
