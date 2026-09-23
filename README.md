@@ -643,11 +643,11 @@ The SDK keeps the wire/domain name `AccountApiToken`, while documentation and pr
 these credentials Personal API Tokens. Expiry is determined from `expires_at`; token status is
 only `active` or `revoked`.
 
-Store connection management is available through the Admin surface:
+Store settings and storefront-client registrations are separate Admin surfaces:
 
 ```typescript
-const store = await admin.store.regeneratePublishableKey({
-  store_id: "internal-store-id",
+const store = await admin.store.get({
+  id: "internal-store-id",
 });
 
 await admin.store.update({
@@ -661,8 +661,17 @@ await admin.store.update({
   supported_languages: ["en", "bs"],
 });
 
+const storefrontClients = await admin.storefrontClient.find({
+  store_id: store.id,
+  limit: 20,
+});
+
 const classifications = await admin.classification.find({ limit: 20 });
 ```
+
+Publishable credentials belong to individual StorefrontClient registrations and their allowed
+sales channels, not to Store settings. Use `storefrontClient.create/update/revoke` to manage those
+registrations. Store reads and updates do not return or regenerate a reusable Store-wide key.
 
 Admin Store records use `name`, private `billing_email`, optional public `contact_email`, and
 explicit `default_language`/`supported_languages` fields. Creation requires an explicit billing
@@ -974,15 +983,24 @@ no commercial allocations; it does not alter the accepted bill. Payment disputes
 through `admin.eshop.order.getDisputes` and `admin.eshop.order.getDispute`; their public provider
 evidence contains only `dispute_id` and `charge_id`.
 
-To cancel part of an embedded product item, address its canonical item ID directly:
+To cancel part of an embedded product item, address its canonical item ID and exact accepted unit
+positions. Before the first request, persist a UUID-v4 `command_id`, the Order's current `updated_at`
+and the selected unit spans in your application's durable command storage. Send that saved request:
 
 ```typescript
 await admin.eshop.order.cancelProductItem({
-  order_id: "order-id",
-  order_product_item_id: "order-product-item-id",
-  quantity: 1,
+  order_id: savedProductCancellation.order_id,
+  order_product_item_id: savedProductCancellation.order_product_item_id,
+  command_id: savedProductCancellation.command_id,
+  expected_updated_at: savedProductCancellation.expected_updated_at,
+  units: savedProductCancellation.units,
 });
 ```
+
+For example, `units: [{ first_unit: 0, quantity: 1 }]` selects the first accepted unit, not any
+arbitrary remaining quantity. Retry an uncertain result with the same saved payload; do not create
+a replacement command or substitute a newer revision. A separately reviewed cancellation uses a
+fresh command and current Order state. The response is the updated Order.
 
 ## Fulfillment and shipping labels
 
