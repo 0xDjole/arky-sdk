@@ -1,5 +1,4 @@
-import type { FulfillmentExecution } from "./index";
-import type { UnitSpan } from "./orderContract";
+import type { FulfillmentExecution, FulfillmentUnitSpan } from "./index";
 import type { EpochMilliseconds } from "./time";
 
 export type OrderPickupStatus =
@@ -9,10 +8,8 @@ export type OrderPickupStatus =
   | { type: "cancelled"; cancelled_at: EpochMilliseconds };
 
 export interface OrderPickupLine {
-  order_product_line_item_id: string;
   fulfillment_order_line_id: string;
-  quantity: number;
-  unit_spans: UnitSpan[];
+  unit_spans: FulfillmentUnitSpan[];
 }
 
 export interface OrderPickup {

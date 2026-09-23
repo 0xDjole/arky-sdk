@@ -2983,10 +2983,8 @@ export interface ShippingRateLine {
 }
 
 export interface OrderShipmentLine {
-  order_product_line_item_id: string;
   fulfillment_order_line_id: string;
-  quantity: number;
-  unit_spans: import("./orderContract").UnitSpan[];
+  unit_spans: FulfillmentUnitSpan[];
 }
 
 export interface FulfillmentExecution {

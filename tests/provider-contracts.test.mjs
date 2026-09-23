@@ -900,10 +900,7 @@ test("provider-effect APIs send one resource identity and return direct server e
           fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
           lines: [
             {
-              order_product_line_item_id:
-                "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
               fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
-              quantity: 2,
               unit_spans: [{ first_unit: 0, quantity: 2 }],
             },
           ],
@@ -925,10 +922,7 @@ test("provider-effect APIs send one resource identity and return direct server e
           fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
           lines: [
             {
-              order_product_line_item_id:
-                "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
               fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
-              quantity: 2,
               unit_spans: [{ first_unit: 0, quantity: 2 }],
             },
           ],
@@ -1043,10 +1037,7 @@ test("money and shipping clients reject evidence for any other resource ID", asy
           fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
           lines: [
             {
-              order_product_line_item_id:
-                "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
               fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
-              quantity: 1,
               unit_spans: [{ first_unit: 0, quantity: 1 }],
             },
           ],

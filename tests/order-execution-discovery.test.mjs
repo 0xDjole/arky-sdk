@@ -58,7 +58,7 @@ function assignment() {
 function dispatched() {
   return {
     id: "shipment", store_id: "store", order_id: "order", fulfillment_order_id: "work", dispatch: { command_id: "handover" },
-    lines: [{ fulfillment_order_line_id: "line", order_product_line_item_id: "product", quantity: 2, unit_spans: [{ first_unit: 10, quantity: 2 }] }],
+    lines: [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 0, quantity: 2 }] }],
   };
 }
 
@@ -71,7 +71,9 @@ test("shipment selection rejects mixed source ownership instead of trusting remo
   }
   const work = assignment();
   work.order_id = "untrusted-legacy-field";
-  assert.equal(selectShipmentUnits(work, "line", 1, [dispatched()]).order_product_line_item_id, "product");
+  assert.deepEqual(selectShipmentUnits(work, "line", 1, [dispatched()]), {
+    fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 4, quantity: 1 }],
+  });
 });
 
 test("shipment selection uses exact assigned ranges without expanding individual units or changing inputs", () => {
@@ -79,8 +81,8 @@ test("shipment selection uses exact assigned ranges without expanding individual
   const history = [dispatched()];
   const before = structuredClone({ work, history });
   assert.deepEqual(selectShipmentUnits(work, "line", 4, history), {
-    order_product_line_item_id: "product", fulfillment_order_line_id: "line", quantity: 4,
-    unit_spans: [{ first_unit: 14, quantity: 2 }, { first_unit: 17, quantity: 2 }],
+    fulfillment_order_line_id: "line",
+    unit_spans: [{ first_unit: 4, quantity: 2 }, { first_unit: 7, quantity: 2 }],
   });
   assert.deepEqual({ work, history }, before);
   const large = assignment();
@@ -117,7 +119,7 @@ test("shipment selection maps sparse local work progress without treating it as 
     released_units: [{ first_unit: 0, quantity: 1 }],
     cancelled_units: [{ first_unit: 2, quantity: 1 }],
   });
-  assert.deepEqual(selectShipmentUnits(work, "line", 1, []).unit_spans, [{ first_unit: 6, quantity: 1 }]);
+  assert.deepEqual(selectShipmentUnits(work, "line", 1, []).unit_spans, [{ first_unit: 1, quantity: 1 }]);
   work.lines[0].cancelled_units = [{ first_unit: 11, quantity: 1 }];
   assert.throws(() => selectShipmentUnits(work, "line", 1, []), /Work positions exceed/);
   work.lines[0].cancelled_units = [{ first_unit: 0, quantity: 1 }];

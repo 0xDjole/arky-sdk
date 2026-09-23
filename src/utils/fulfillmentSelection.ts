@@ -117,14 +117,17 @@ export function selectShipmentUnits(
     throw new FulfillmentSelectionError("Work lines must share one accepted Order delivery group.");
   }
   const assigned = canonical(line.source.order_unit_spans);
-  const released = orderUnits(assigned, line.released_units);
-  const cancelled = orderUnits(assigned, line.cancelled_units);
+  const released = canonical(line.released_units);
+  const cancelled = canonical(line.cancelled_units);
+  orderUnits(assigned, released);
+  orderUnits(assigned, cancelled);
   if (count(assigned) !== line.quantity || count(subtract(released, cancelled)) !== count(released)) {
     throw new FulfillmentSelectionError("Fulfillment ranges disagree with their assignment.");
   }
-  const active = subtract(assigned, combinedExclusions(released, cancelled));
+  const active = subtract([{ first_unit: 0, quantity: line.quantity }], combinedExclusions(released, cancelled));
+  orderUnits(assigned, active);
   if (count(active) !== line.allocated_quantity) throw new FulfillmentSelectionError("Reload the changed fulfillment assignment.");
-  const dispatched: UnitSpan[] = [];
+  const dispatched: FulfillmentUnitSpan[] = [];
   for (const shipment of shipments) {
     if (shipment.store_id !== work.store_id || shipment.order_id !== line.source.order_id) {
       throw new FulfillmentSelectionError("Shipment history belongs to another Order.");
@@ -132,9 +135,9 @@ export function selectShipmentUnits(
     if (shipment.fulfillment_order_id !== work.id || !shipment.dispatch) continue;
     for (const item of shipment.lines) {
       if (item.fulfillment_order_line_id !== line.id) continue;
-      const units = checked(item.unit_spans);
-      if (item.order_product_line_item_id !== line.source.order_product_line_item_id || count(units) !== item.quantity) {
-        throw new FulfillmentSelectionError("Shipment history disagrees with its assigned line.");
+      const units = canonical(item.unit_spans);
+      if (count(units) === 0) {
+        throw new FulfillmentSelectionError("Shipment history requires a nonempty work selection.");
       }
       dispatched.push(...units);
     }
@@ -145,7 +148,7 @@ export function selectShipmentUnits(
   }
   const available = subtract(active, handedOver);
   if (count(available) < quantity) throw new FulfillmentSelectionError("The selected quantity exceeds remaining assigned units.");
-  const selected: UnitSpan[] = [];
+  const selected: FulfillmentUnitSpan[] = [];
   let remaining = quantity;
   for (const span of available) {
     const take = Math.min(remaining, span.quantity);
@@ -153,5 +156,6 @@ export function selectShipmentUnits(
     remaining -= take;
     if (!remaining) break;
   }
-  return { order_product_line_item_id: line.source.order_product_line_item_id, fulfillment_order_line_id: line.id, quantity, unit_spans: selected };
+  orderUnits(assigned, selected);
+  return { fulfillment_order_line_id: line.id, unit_spans: selected };
 }

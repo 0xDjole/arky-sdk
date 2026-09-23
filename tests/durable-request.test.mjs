@@ -307,9 +307,7 @@ test("the exact saved shipment request survives a changed parcel and can be resu
     fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
     lines: [
       {
-        order_product_line_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
         fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
-        quantity: 2,
         unit_spans: [{ first_unit: 0, quantity: 2 }],
       },
     ],
