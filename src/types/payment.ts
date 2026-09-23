@@ -1,4 +1,4 @@
-import type { Currency } from "./index";
+import type { Currency, MonriEnvironment } from "./index";
 import type { EpochMilliseconds } from "./time";
 
 export type PaymentStatus = {
@@ -20,6 +20,13 @@ export type StripeInvoicePaymentObject =
   | { type: "payment_record"; payment_record_id: string };
 
 export type PaymentProviderBinding =
+  | {
+      type: "monri_checkout";
+      payment_provider_id: string;
+      environment: MonriEnvironment;
+      transaction_type: "authorize" | "purchase";
+      transaction_id: string | null;
+    }
   | {
       type: "stripe_saved_method";
       payment_provider_id: string;
