@@ -44,10 +44,11 @@ test("Order execution readers preserve empty continuations, explicit ownership a
 
 function assignment() {
   return {
-    id: "work", store_id: "store", order_id: "order", method: { type: "delivery" }, status: { type: "open" },
+    id: "work", store_id: "store", method: { type: "delivery" }, status: { type: "open" },
     lines: [{
-      id: "line", order_product_item_id: "product", quantity: 10, allocated_quantity: 7, fulfilled_quantity: 2,
-      unit_spans: [{ first_unit: 10, quantity: 10 }],
+      id: "line", quantity: 10, allocated_quantity: 7, fulfilled_quantity: 2,
+      source: { type: "order_product", order_id: "order", order_delivery_group_id: "group",
+        order_product_line_item_id: "product", order_unit_spans: [{ first_unit: 10, quantity: 10 }] },
       released_units: [{ first_unit: 2, quantity: 2 }],
       cancelled_units: [{ first_unit: 6, quantity: 1 }],
     }],
@@ -61,6 +62,18 @@ function dispatched() {
   };
 }
 
+test("shipment selection rejects mixed source ownership instead of trusting removed root fields", () => {
+  for (const field of ["order_id", "order_delivery_group_id"]) {
+    const work = assignment();
+    work.lines.push({ ...structuredClone(work.lines[0]), id: "other-line" });
+    work.lines[1].source[field] = "another-owner";
+    assert.throws(() => selectShipmentUnits(work, "line", 1, [dispatched()]), /one accepted Order delivery group/);
+  }
+  const work = assignment();
+  work.order_id = "untrusted-legacy-field";
+  assert.equal(selectShipmentUnits(work, "line", 1, [dispatched()]).order_product_line_item_id, "product");
+});
+
 test("shipment selection uses exact assigned ranges without expanding individual units or changing inputs", () => {
   const work = assignment();
   const history = [dispatched()];
@@ -73,7 +86,7 @@ test("shipment selection uses exact assigned ranges without expanding individual
   const large = assignment();
   Object.assign(large.lines[0], {
     quantity: 2_000_000_000, allocated_quantity: 2_000_000_000, fulfilled_quantity: 0,
-    unit_spans: [{ first_unit: 0, quantity: 2_000_000_000 }], released_units: [], cancelled_units: [],
+    source: { ...large.lines[0].source, order_unit_spans: [{ first_unit: 0, quantity: 2_000_000_000 }] }, released_units: [], cancelled_units: [],
   });
   assert.deepEqual(selectShipmentUnits(large, "line", 1_000_000_000, []).unit_spans, [{ first_unit: 0, quantity: 1_000_000_000 }]);
 });
@@ -92,7 +105,7 @@ test("shipment selection refuses incomplete history, foreign or repeated custody
   const pickup = assignment(); pickup.method = { type: "pickup" };
   assert.throws(() => selectShipmentUnits(pickup, "line", 1, [dispatched()]), /delivery/);
   const invalid = assignment();
-  invalid.lines[0].unit_spans = [{ first_unit: 4294967295, quantity: 1 }];
+  invalid.lines[0].source.order_unit_spans = [{ first_unit: 4294967295, quantity: 1 }];
   assert.throws(() => selectShipmentUnits(invalid, "line", 1, []), /invalid/);
 });
 
@@ -100,7 +113,7 @@ test("shipment selection maps sparse local work progress without treating it as 
   const work = assignment();
   Object.assign(work.lines[0], {
     quantity: 3, allocated_quantity: 1, fulfilled_quantity: 0,
-    unit_spans: [{ first_unit: 5, quantity: 2 }, { first_unit: 11, quantity: 1 }],
+    source: { ...work.lines[0].source, order_unit_spans: [{ first_unit: 5, quantity: 2 }, { first_unit: 11, quantity: 1 }] },
     released_units: [{ first_unit: 0, quantity: 1 }],
     cancelled_units: [{ first_unit: 2, quantity: 1 }],
   });
@@ -114,13 +127,13 @@ test("shipment selection maps sparse local work progress without treating it as 
 
 test("shipment work mapping rejects noncanonical source ranges and fragmented overflow", () => {
   const work = assignment();
-  work.lines[0].unit_spans = [{ first_unit: 10, quantity: 2 }, { first_unit: 12, quantity: 8 }];
+  work.lines[0].source.order_unit_spans = [{ first_unit: 10, quantity: 2 }, { first_unit: 12, quantity: 8 }];
   assert.throws(() => selectShipmentUnits(work, "line", 1, []), /coalesced/);
-  work.lines[0].unit_spans.reverse();
+  work.lines[0].source.order_unit_spans.reverse();
   assert.throws(() => selectShipmentUnits(work, "line", 1, []), /coalesced/);
   Object.assign(work.lines[0], {
     quantity: 3000, allocated_quantity: 1002, fulfilled_quantity: 0,
-    unit_spans: Array.from({ length: 1000 }, (_, index) => ({ first_unit: index * 4, quantity: 3 })),
+    source: { ...work.lines[0].source, order_unit_spans: Array.from({ length: 1000 }, (_, index) => ({ first_unit: index * 4, quantity: 3 })) },
     released_units: Array.from({ length: 999 }, (_, index) => ({ first_unit: index * 3 + 2, quantity: 2 })),
     cancelled_units: [],
   });

@@ -837,13 +837,20 @@ export interface FulfillmentUnitSpan {
   quantity: number;
 }
 
+export type FulfillmentOrderLineSource = {
+  type: "order_product";
+  order_id: string;
+  order_delivery_group_id: string;
+  order_product_line_item_id: string;
+  order_unit_spans: import("./orderContract").UnitSpan[];
+};
+
 export interface FulfillmentOrderLine {
   id: string;
-  order_product_item_id: string;
+  source: FulfillmentOrderLineSource;
   quantity: number;
   allocated_quantity: number;
   fulfilled_quantity: number;
-  unit_spans: import("./orderContract").UnitSpan[];
   released_units: FulfillmentUnitSpan[];
   cancelled_units: FulfillmentUnitSpan[];
 }
@@ -851,8 +858,6 @@ export interface FulfillmentOrderLine {
 export interface FulfillmentOrder {
   id: string;
   store_id: string;
-  order_id: string;
-  order_delivery_group_id: string;
   work_key: string;
   store_location_id: string;
   status: FulfillmentOrderStatus;

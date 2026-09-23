@@ -361,7 +361,7 @@ import type {
 // @ts-expect-error storefront CustomerAction keys have no Action compatibility alias.
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.26.28" = SDK_VERSION;
+const sdkVersionLiteral: "0.26.30" = SDK_VERSION;
 const workflowExternalOperationContract: WorkflowExternalOperation = {
   id: "operation-contract",
   store_id: "store-contract",
@@ -421,6 +421,7 @@ const mediaWithoutOriginal: Media = {
 };
 const storeContract: Store = {
   id: "store-contract",
+  branding: { logo_media_id: null, icon_media_id: null, accent_color: null },
   name: "Contract Store",
   billing_email: "owner@example.com",
   contact_email: null,
@@ -2484,20 +2485,23 @@ void merchantDebitReversal;
 const fulfillmentOrder: FulfillmentOrder = {
   id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
   store_id: "6ba7b819-9dad-41d1-80b4-00c04fd430c8",
-  order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
   store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
-  order_delivery_group_id: "6ba7b812-9dad-41d1-80b4-00c04fd430c8",
   work_key: "original",
   status: { type: "in_progress" },
   method: { type: "delivery", destination: labelAddress },
   lines: [
     {
       id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
-      order_product_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
+      source: {
+        type: "order_product",
+        order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
+        order_delivery_group_id: "6ba7b812-9dad-41d1-80b4-00c04fd430c8",
+        order_product_line_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
+        order_unit_spans: [{ first_unit: 0, quantity: 2 }],
+      },
       quantity: 2,
       allocated_quantity: 2,
       fulfilled_quantity: 1,
-      unit_spans: [{ first_unit: 0, quantity: 2 }],
       released_units: [],
       cancelled_units: [],
     },
@@ -2513,7 +2517,7 @@ const shipment: OrderShipment = {
   origin_store_location_id: fulfillmentOrder.store_location_id,
   lines: [
     {
-      order_product_line_item_id: fulfillmentOrder.lines[0].order_product_item_id,
+      order_product_line_item_id: fulfillmentOrder.lines[0].source.order_product_line_item_id,
       fulfillment_order_line_id: fulfillmentOrder.lines[0].id,
       quantity: 1,
       unit_spans: [{ first_unit: 0, quantity: 1 }],

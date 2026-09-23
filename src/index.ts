@@ -355,6 +355,7 @@ export type {
   ShippingRateLine,
   FulfillmentOrderStatus,
   FulfillmentOrderLine,
+  FulfillmentOrderLineSource,
   FulfillmentUnitSpan,
   FulfillmentOrder,
   Parcel,
@@ -910,7 +911,7 @@ export function storeCommerceDefaults(
     : null;
 }
 
-export const SDK_VERSION = "0.26.28";
+export const SDK_VERSION = "0.26.30";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",

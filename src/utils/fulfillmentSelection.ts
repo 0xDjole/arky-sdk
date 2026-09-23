@@ -110,7 +110,13 @@ export function selectShipmentUnits(
   if (!line || !Number.isInteger(quantity) || quantity < 1 || quantity > 4294967295) {
     throw new FulfillmentSelectionError("Select a valid assigned line and whole quantity.");
   }
-  const assigned = canonical(line.unit_spans);
+  if (line.source.type !== "order_product" || !work.lines.every((candidate) =>
+    candidate.source.type === "order_product"
+      && candidate.source.order_id === line.source.order_id
+      && candidate.source.order_delivery_group_id === line.source.order_delivery_group_id)) {
+    throw new FulfillmentSelectionError("Work lines must share one accepted Order delivery group.");
+  }
+  const assigned = canonical(line.source.order_unit_spans);
   const released = orderUnits(assigned, line.released_units);
   const cancelled = orderUnits(assigned, line.cancelled_units);
   if (count(assigned) !== line.quantity || count(subtract(released, cancelled)) !== count(released)) {
@@ -120,14 +126,14 @@ export function selectShipmentUnits(
   if (count(active) !== line.allocated_quantity) throw new FulfillmentSelectionError("Reload the changed fulfillment assignment.");
   const dispatched: UnitSpan[] = [];
   for (const shipment of shipments) {
-    if (shipment.store_id !== work.store_id || shipment.order_id !== work.order_id) {
+    if (shipment.store_id !== work.store_id || shipment.order_id !== line.source.order_id) {
       throw new FulfillmentSelectionError("Shipment history belongs to another Order.");
     }
     if (shipment.fulfillment_order_id !== work.id || !shipment.dispatch) continue;
     for (const item of shipment.lines) {
       if (item.fulfillment_order_line_id !== line.id) continue;
       const units = checked(item.unit_spans);
-      if (item.order_product_line_item_id !== line.order_product_item_id || count(units) !== item.quantity) {
+      if (item.order_product_line_item_id !== line.source.order_product_line_item_id || count(units) !== item.quantity) {
         throw new FulfillmentSelectionError("Shipment history disagrees with its assigned line.");
       }
       dispatched.push(...units);
@@ -147,5 +153,5 @@ export function selectShipmentUnits(
     remaining -= take;
     if (!remaining) break;
   }
-  return { order_product_line_item_id: line.order_product_item_id, fulfillment_order_line_id: line.id, quantity, unit_spans: selected };
+  return { order_product_line_item_id: line.source.order_product_line_item_id, fulfillment_order_line_id: line.id, quantity, unit_spans: selected };
 }
