@@ -18,6 +18,8 @@ export type UnitContract = [
   True<Same<Awaited<ReturnType<Api["find"]>>, PaginatedResponse<InventoryUnit>>>,
   True<Same<Awaited<ReturnType<Api["allocate"]>>, InventoryUnit>>,
   True<Same<InventoryUnitStatus["type"], "available" | "allocated" | "issued" | "inspection" | "written_off">>,
+  True<Same<keyof Extract<InventoryUnitStatus, { type: "inspection" }>, "type" | "store_location_id" | "return_id" | "return_component_id" | "received_at">>,
+  True<{} extends Pick<Extract<InventoryUnitStatus, { type: "inspection" }>, "return_component_id"> ? false : true>,
   True<{} extends Pick<ReceiveInventoryUnitParams, "manufacturer_serial"> ? false : true>,
   True<null extends ReceiveInventoryUnitParams["manufacturer_serial"] ? true : false>,
   True<{} extends Pick<InventoryUnit, "inventory_item_id"> ? false : true>,

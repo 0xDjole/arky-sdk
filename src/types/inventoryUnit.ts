@@ -27,7 +27,7 @@ export type InventoryUnitStatus =
   | { type: "available"; store_location_id: string }
   | { type: "allocated"; store_location_id: string; allocation: InventoryUnitAllocation }
   | { type: "issued"; execution: InventoryUnitExecution }
-  | { type: "inspection"; store_location_id: string; return_id: string; received_at: EpochMilliseconds }
+  | { type: "inspection"; store_location_id: string; return_id: string; return_component_id: string; received_at: EpochMilliseconds }
   | { type: "written_off"; actor: AccountActor; reason: string; written_off_at: EpochMilliseconds };
 
 export interface InventoryUnit {
