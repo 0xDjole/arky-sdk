@@ -2,6 +2,33 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 
+test("Social page controls preserve explicit invalid sizes for server rejection without replay", async () => {
+  const original = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: new URL(url), body: init?.body ? JSON.parse(init.body) : null });
+    return new Response(JSON.stringify({ message: "Page limit must be between 1 and 100", error: "BAD_REQUEST" }), {
+      status: 400, headers: { "content-type": "application/json" },
+    });
+  };
+  try {
+    const admin = createAdmin({ baseUrl: "https://example.test", apiToken: "arky_api_test", storeId: "selected-store" });
+    for (const limit of [0, 101]) {
+      await assert.rejects(admin.social.posts.find({ limit }));
+      assert.equal(calls.at(-1).url.searchParams.get("limit"), String(limit));
+      await assert.rejects(admin.social.posts.messages.find({ post_id: "post", limit }));
+      assert.equal(calls.at(-1).url.searchParams.get("limit"), String(limit));
+      await assert.rejects(admin.social.posts.messages.sync({
+        post_id: "post", sync: { type: { type: "top_level", cursor: null, limit } },
+      }));
+      assert.equal(calls.at(-1).body.sync.type.limit, limit);
+    }
+    assert.equal(calls.length, 6);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
 test("Social connections use explicit native pages and exact reads without enumerating", async () => {
   const calls = [];
   const original = globalThis.fetch;

@@ -1202,11 +1202,14 @@ export interface Store {
   name: string;
   billing_email: string;
   contact_email: string | null;
+  branding: import("./storeBranding").StoreBranding;
   commerce: StoreCommerceState;
   timezone: string;
   default_language: string | null;
   supported_languages: string[];
 }
+
+export type { StoreBranding, StoreBrandingPresentation, UpdateStoreBrandingParams } from "./storeBranding";
 
 export interface EshopStoreState {
   store_id: string;

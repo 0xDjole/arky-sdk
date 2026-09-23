@@ -1,5 +1,5 @@
 import { createAdmin, createStorefront, epochMilliseconds } from 'arky-sdk';
-import type { CommerceInitializationRequest, SellerProfile, Store, StoreCommerceInitialization, StoreTaxPolicy, StoreInvoicePolicy } from 'arky-sdk';
+import type { CommerceInitializationRequest, SellerProfile, Store, StoreBranding, StoreBrandingPresentation, StoreCommerceInitialization, StoreTaxPolicy, StoreInvoicePolicy } from 'arky-sdk';
 import type * as Public from 'arky-sdk/types';
 
 type Assert<T extends true> = T;
@@ -12,6 +12,9 @@ export type Contracts = [
   Assert<Equal<Ready['tax'], StoreTaxPolicy>>,
   Assert<Equal<Ready['invoicing'], StoreInvoicePolicy>>,
   Assert<Equal<keyof SellerProfile, 'legal_name' | 'address' | 'registration_number' | 'tax_registrations'>>,
+  Assert<Equal<Store['branding'], StoreBranding>>,
+  Assert<Equal<StoreBranding, Public.StoreBranding>>,
+  Assert<Equal<keyof StoreBrandingPresentation, 'id' | 'name' | 'logo' | 'icon' | 'accent_color'>>,
 ];
 
 const request: CommerceInitializationRequest = {
@@ -26,6 +29,11 @@ const request: CommerceInitializationRequest = {
 };
 const admin = createAdmin({ baseUrl: 'https://api.example.test', storeId: 'store', market: 'us' });
 admin.store.update({ id: 'store', default_language: null, contact_email: null });
+admin.store.branding.update({ branding: { logo_media_id: null, icon_media_id: null, accent_color: null } });
+const branding: Promise<StoreBrandingPresentation> = admin.store.branding.get({ id: 'store' });
+void branding;
+// @ts-expect-error Branding replacement must state all selections, including explicit clears.
+admin.store.branding.update({ branding: { accent_color: '#123456' } });
 admin.store.create({ name: 'Content workspace', billing_email: 'owner@example.test', timezone: 'UTC', default_language: null, supported_languages: [] });
 const started: Promise<StoreCommerceInitialization> = admin.store.commerce.initialize({ operation_id: 'operation', request });
 const inspected: Promise<StoreCommerceInitialization> = admin.store.commerce.getInitialization({ store_id: 'store', operation_id: 'operation' });

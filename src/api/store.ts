@@ -29,6 +29,7 @@ import type {
   RequestOptions,
 } from "../types/api";
 import type { StoreDeletionResult } from "../types";
+import type { StoreBrandingPresentation, UpdateStoreBrandingParams } from "../types/storeBranding";
 import type {
   InitializeStoreCommerceParams,
   GetStoreCommerceInitializationParams,
@@ -214,6 +215,27 @@ export const createStoreApi = (
         `/v1/stores/${encodeURIComponent(store_id)}/deletion`,
         { confirmation: params.confirmation },
         options,
+      );
+    },
+
+    async getBranding(
+      params: GetStoreParams = {},
+      options?: RequestOptions,
+    ): Promise<StoreBrandingPresentation> {
+      const storeId = params.id ?? apiConfig.storeId;
+      return apiConfig.httpClient.get<StoreBrandingPresentation>(
+        `/v1/stores/${encodeURIComponent(storeId)}/branding`, options,
+      );
+    },
+
+    async updateBranding(
+      params: UpdateStoreBrandingParams,
+      options?: RequestOptions,
+    ): Promise<Store> {
+      const storeId = params.id ?? apiConfig.storeId;
+      return apiConfig.httpClient.put<Store>(
+        `/v1/stores/${encodeURIComponent(storeId)}/branding`,
+        { branding: params.branding }, options,
       );
     },
 

@@ -146,6 +146,9 @@ export type {
   CartStatus,
   EshopStoreState,
   Store,
+  StoreBranding,
+  StoreBrandingPresentation,
+  UpdateStoreBrandingParams,
   StoreDeletionResult,
   StoreUsage,
   UsagePeriod,
@@ -1364,6 +1367,10 @@ export function createAdmin(config: CreateAdminConfig) {
       create: storeApi.createStore,
       update: storeApi.updateStore,
       get: storeApi.getStore,
+      branding: {
+        get: storeApi.getBranding,
+        update: storeApi.updateBranding,
+      },
       find: storeApi.getStores,
       requestDeletion: storeApi.requestDeletion,
       commerce: {
