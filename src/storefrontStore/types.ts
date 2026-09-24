@@ -35,7 +35,7 @@ import type {
   TimeRange,
 } from "../types";
 import type { AvailabilityResponse } from "../types/api";
-import type { CartCustomerGroupPlanInput, CheckoutCartParams } from "../types/api";
+import type { CartCustomerGroupPlanInput, CartDeliveryGroup, CheckoutCartParams } from "../types/api";
 import type { StorefrontParams } from "../types/storefront";
 
 export type ArkyStoreClient = ReturnType<typeof createStorefront>;
@@ -118,11 +118,10 @@ export interface ArkyCartInput {
   company?: CartCompanyContext | null;
   market_id?: string;
   sales_channel_id?: string;
+  delivery_groups?: CartDeliveryGroup[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   promotion_codes?: string[] | null;
-  payment_provider_id?: string | null;
-  shipping_method_id?: string | null;
 }
 
 export interface ArkyCartCheckoutInput {

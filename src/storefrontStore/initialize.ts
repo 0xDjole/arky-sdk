@@ -624,6 +624,8 @@ function initializeStoreCore(
     cart_status.setKey("syncing", true);
     cart_status.setKey("error", null);
     try {
+      if (input.delivery_groups !== undefined && input.shipping_address !== undefined)
+        throw new CartSelectionError("Supply delivery groups or a shipping address, not both");
       const current = cart.get() || (await ensureCart());
       scope.assertCurrent();
       const lineItems: CartPublicLineItemInput[] = [
@@ -644,7 +646,9 @@ function initializeStoreCore(
       const response = await client.eshop.cart.update({
         id: current.id,
         line_items: lineItems,
-        ...(shippingAddress && physical.length
+        ...(input.delivery_groups !== undefined
+          ? { delivery_groups: input.delivery_groups }
+          : shippingAddress && physical.length
           ? {
               delivery_groups: [
                 {
@@ -969,9 +973,9 @@ function initializeStoreCore(
       const current = cart.get();
       if (!current || current.status.type === "converted") throw new Error("Review an active Cart before checkout");
       if (!quoteValue.sources) throw new Error("Review a saved Cart quote with its source bindings before checkout");
-      if (input.payment_provider_id !== undefined && input.payment_provider_id !== quoteValue.order.payment_provider_id)
-        throw new Error("Review the selected payment provider in a new Cart quote before checkout");
-      const paymentProviderId = quoteValue.order.payment_provider_id ?? undefined;
+      const paymentProviderId = input.payment_provider_id ?? quoteValue.order.payment_provider_id ?? undefined;
+      if (paymentProviderId !== undefined && !quoteValue.order.payment_provider_ids.includes(paymentProviderId))
+        throw new Error("The selected payment provider is not available in the reviewed Cart quote");
       if (!quoteValue.order.locale) throw new Error("Review a Cart quote with a presentation language before checkout");
       const returnUrl =
         input.return_url ||
@@ -1635,10 +1639,8 @@ function initializeStoreCore(
     },
 
     async fetchQuote(
-      paymentProviderId?: string,
       promotionCodes?: string[] | null,
     ): Promise<StorefrontCheckoutQuote | null> {
-      const state = booking_service_state.get();
       const items = booking_items.get();
       if (!items.length) return null;
       booking_service_state.setKey("fetchingQuote", true);
@@ -1647,7 +1649,6 @@ function initializeStoreCore(
         booking_service_state.setKey("promotionCodes", promotionCodes ?? []);
         const response = await fetchQuote({
           booking_items: items,
-          payment_provider_id: paymentProviderId,
           promotion_codes: promotionCodes ?? undefined,
         });
         booking_service_state.setKey("cartId", cart.get()?.id || null);

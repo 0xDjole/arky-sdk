@@ -223,10 +223,10 @@ const variants = await arky.eshop.productVariant.find({
 console.log(product.slugs.en, product.price?.unit_price);
 
 await arky.eshop.cart.addProduct(product, variants.items[0], 2);
-await arky.eshop.cart.quote({
+await arky.eshop.cart.quote();
+const checkout = await arky.eshop.cart.checkout({
   payment_provider_id: "payment-provider-id",
 });
-const checkout = await arky.eshop.cart.checkout();
 ```
 
 Products are cards with a quantity-one "from" price, not embedded variant inventories.
@@ -295,10 +295,19 @@ Quote methods use the configured locale unless one is explicitly supplied. Stand
 `order.getQuote` still accepts a Market key; Cart creation uses a Market UUID.
 
 Checkout submission does not synchronize items or accept new buyer, address or pricing selections.
-Prepare those through Cart mutations and quote first. `initialize` checkout accepts only the
-reviewed provider (if repeated), `return_url`, `clear_after_checkout`, `save_payment_method` and
+Prepare those through Cart mutations and quote first. `initialize` checkout accepts only a
+provider from the reviewed `order.payment_provider_ids`, `return_url`, `clear_after_checkout`, `save_payment_method` and
 `payment_method_terms_version`. Saving a method requires a selected provider and explicit
 versioned consent. Recovery retains that exact consent with the original request.
+Omitting the provider selects the quote's suggested provider; choosing another permitted provider
+does not alter the reviewed selections or prices. An unquoted provider is rejected before submission.
+
+The high-level `cart.refresh` and `cart.quote` accept native `delivery_groups`. Each group retains
+its own ID, destination, items, selected `shipping_rate_id`, optional quote acceptance and schedule.
+Omitting the field preserves existing groups; `[]` explicitly clears them. Do not supply both
+`delivery_groups` and the simple `shipping_address` convenience input. Shipping methods are not
+prices: select a quoted ShippingRate on its delivery group, then quote again and review the total.
+Payment-provider choice belongs to `checkout`, not `quote`.
 
 Browser checkout saves the exact Cart UUID, generated `request_id`, locale, digest, optional
 provider and return URL under the shared cross-tab durable-request lock before POST. The request
@@ -424,10 +433,10 @@ Each command returns the refreshed Order, and cancellation never implies a payme
 import { createAdmin } from "arky-sdk/admin";
 import { orderBookingItems } from "arky-sdk";
 
-await arky.eshop.cart.quote({
+await arky.eshop.cart.quote();
+const bookingCheckout = await arky.eshop.cart.checkout({
   payment_provider_id: "payment-provider-id",
 });
-const bookingCheckout = await arky.eshop.cart.checkout();
 const customerOrder = await arky.eshop.order.get({
   id: bookingCheckout.order_id,
 });
@@ -539,10 +548,9 @@ Arky. `none` has no form and mounts to `null`.
 ```typescript
 import { mountCheckoutAction } from "arky-sdk";
 
-await arky.eshop.cart.quote({
-  payment_provider_id: "stripe-payment-provider-id",
-});
+await arky.eshop.cart.quote();
 const result = await arky.eshop.cart.checkout({
+  payment_provider_id: "stripe-payment-provider-id",
   return_url: window.location.href,
 });
 

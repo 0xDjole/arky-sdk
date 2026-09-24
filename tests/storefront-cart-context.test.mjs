@@ -123,6 +123,75 @@ function gate() {
   return { release, enter, waiting, started };
 }
 
+test("Cart helper saves explicit delivery identities, rates and schedules without manufacturing another group", async () => {
+  const group = {
+    id: "8b79e7c7-7e98-4962-a245-7836a7774054",
+    items: [{ line_item: { type: "product", line_item_id: "line-a" }, quantity: 1 }],
+    destination: { type: "pickup", store_location_id: "location-a" },
+    shipping_rate_id: "rate-a",
+    quote_acceptance: null,
+    scheduled_window: { from: 1800000000000, to: 1800003600000 },
+  };
+  let saved = cart({ line_items: [productLine], item_count: 1 });
+  const { store, calls } = setup((call) => {
+    if (call.path === "/v1/storefront/carts")
+      return Response.json({ cart: saved, recovery_token: "private" });
+    if (call.path === "/v1/storefront/products/product-a")
+      return Response.json(product());
+    if (call.path === "/v1/storefront/products/product-a/variants/variant-a")
+      return Response.json({ ...product().variants[0], fulfillment: { type: "physical", shipping_profile_id: "profile-a", inventory_requirements: [], backorder: { type: "disallow" } } });
+    if (call.method === "PUT") {
+      saved = { ...saved, ...call.body };
+      return Response.json(saved);
+    }
+    throw new Error(`Unexpected request ${call.path}`);
+  });
+  await store.eshop.cart.load();
+  await store.eshop.cart.refresh({ delivery_groups: [group] });
+  assert.deepEqual(calls.find((call) => call.method === "PUT").body.delivery_groups, [group]);
+  assert.deepEqual(store.eshop.cart.cart.get().delivery_groups, [group]);
+  await store.eshop.cart.refresh();
+  assert.equal(Object.hasOwn(calls.filter((call) => call.method === "PUT").at(-1).body, "delivery_groups"), false);
+  await store.eshop.cart.refresh({ delivery_groups: [] });
+  assert.deepEqual(calls.filter((call) => call.method === "PUT").at(-1).body.delivery_groups, []);
+  const before = calls.length;
+  await assert.rejects(store.eshop.cart.refresh({ delivery_groups: [group], shipping_address: null }), /not both/);
+  assert.equal(calls.length, before);
+});
+
+for (const permitted of [true, false]) {
+  test(`Cart checkout ${permitted ? "retains a permitted alternative" : "rejects an unquoted"} payment provider`, async () => {
+    const durable = new MemoryStorage();
+    for (const [name, value] of [
+      ["window", { location: { href: "https://merchant.example/checkout" } }],
+      ["localStorage", durable],
+      ["navigator", { locks: new ExclusiveLockManager() }],
+    ]) Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
+    const suggested = "79f91663-1603-4b63-9953-42316875906e";
+    const selected = "01c2af6e-ad1d-445f-a818-a135d9abca0a";
+    const { store, calls } = setup((call) => {
+      assert.equal(call.path, "/v1/storefront/checkouts");
+      throw new TypeError("response lost");
+    });
+    store.eshop.cart.cart.set(cart());
+    store.eshop.cart.quote_result.set({
+      sources: checkoutSources(cartId),
+      presentation_digest: "a".repeat(64),
+      order: { locale: "en", payment_provider_id: suggested, payment_provider_ids: permitted ? [suggested, selected] : [suggested] },
+    });
+    await assert.rejects(
+      store.eshop.cart.checkout({ payment_provider_id: selected }),
+      permitted ? /response lost/ : /not available in the reviewed Cart quote/,
+    );
+    const posts = calls.filter((call) => call.path.endsWith("/checkouts"));
+    assert.equal(posts.length, permitted ? 1 : 0);
+    if (permitted) {
+      assert.equal(posts[0].body.payment_provider_id, selected);
+      assert.equal((await store.eshop.cart.pendingCheckout()).payment_provider_id, selected);
+    } else assert.equal(await store.eshop.cart.pendingCheckout(), null);
+  });
+}
+
 const productLine = {
   type: "product",
   id: "line-a",
