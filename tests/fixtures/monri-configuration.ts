@@ -1,9 +1,14 @@
 import type { createAdmin } from 'arky-sdk/admin';
-import type { CreateMonriPaymentProviderParams, MonriEnvironment, PaymentProvider } from 'arky-sdk';
+import type { CreateMonriPaymentProviderParams, UpdatePaymentProviderParams, MonriEnvironment, PaymentProvider } from 'arky-sdk';
 type Admin = ReturnType<typeof createAdmin>;
 type True<T extends true> = T;
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 export type MonriResult = True<Same<Awaited<ReturnType<Admin['store']['paymentProvider']['monri']['create']>>, PaymentProvider>>;
+export type AvailabilityInput = True<Same<Parameters<Admin['store']['paymentProvider']['update']>[0], UpdatePaymentProviderParams>>;
+export type AvailabilityResult = True<Same<Awaited<ReturnType<Admin['store']['paymentProvider']['update']>>, PaymentProvider>>;
+declare const update: UpdatePaymentProviderParams;
+// @ts-expect-error Availability updates cannot replace merchant credentials.
+update.merchant_key;
 export const input: CreateMonriPaymentProviderParams = {
   id: 'provider', key: 'cards', blocks: [], environment: 'test',
   merchant_key: 'submitted-secret', authenticity_token: 'submitted-token', status: { type: 'disabled' },

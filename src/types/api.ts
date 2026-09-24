@@ -1980,6 +1980,14 @@ export interface CreateMonriPaymentProviderParams {
   status: { type: "active" | "disabled" };
 }
 
+export interface UpdatePaymentProviderParams {
+  store_id?: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  blocks: Block[];
+  status: { type: "active" | "disabled" };
+}
+
 export interface ConnectStripePaymentProviderParams {
   store_id?: string;
   payment_provider_id: string;

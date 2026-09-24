@@ -575,6 +575,13 @@ proof. Stripe uses its supported signed-event/exact-observation policy; Monri in
 uses signed backend notifications. An approved or declined browser result never settles money in
 the SDK. A delayed notification can leave the same Order awaiting payment.
 
+Store Admin configures Monri with `store.paymentProvider.monri.create`. Merchant key and
+authenticity token are write-only; configuration reads return only its environment. Use
+`store.paymentProvider.update` with the current `expected_updated_at`, unchanged content Blocks
+and explicit Active/Disabled status to change availability. That update cannot replace merchant
+credentials, provider identity or environment. Saving configuration performs no provider call;
+selecting one card provider on the Market remains a separate step.
+
 ## SSR and static generation
 
 Anonymous reads work without browser storage. Stateful SSR requires an explicit request-local adapter so a server module cannot retain one visitor across requests:

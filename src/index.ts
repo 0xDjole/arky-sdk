@@ -737,6 +737,7 @@ export type {
   GetSocialPostParams,
   CreateLocalPaymentProviderParams,
   CreateMonriPaymentProviderParams,
+  UpdatePaymentProviderParams,
   ListPaymentProvidersParams,
   ConfigurationPageParams,
   GetStoreConfigurationByKeyParams,
@@ -1334,6 +1335,7 @@ export function createAdmin(config: CreateAdminConfig) {
     getByKey: paymentProviderApi.getByKey,
     getByConfiguration: paymentProviderApi.getByConfiguration,
     create: paymentProviderApi.create,
+    update: paymentProviderApi.update,
     stripe: {
       connect: paymentProviderApi.connectStripe,
       getConnection: paymentProviderApi.getStripeConnection,

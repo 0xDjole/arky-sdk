@@ -29,3 +29,22 @@ test('Monri creation sends explicit credentials once to the selected Store and r
     }
   } finally { globalThis.fetch = original; }
 });
+
+test('provider availability uses the exact current owner and timestamp without resending credentials', async () => {
+  const original = globalThis.fetch;
+  const calls = [];
+  const result = { id: 'provider', store_id: 'selected', status: { type: 'disabled' }, configuration: { type: 'monri', environment: 'test' } };
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: new URL(url), init });
+    return Response.json(result);
+  };
+  try {
+    const api = createAdmin({ baseUrl: 'https://api.example.test', storeId: 'default', apiToken: 'arky_api_test' }).store.paymentProvider;
+    const input = { store_id: 'selected', id: 'provider', expected_updated_at: 1000, blocks: [], status: { type: 'disabled' } };
+    assert.deepEqual(await api.update(input), result);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url.pathname, '/v1/stores/selected/payment-providers/provider');
+    assert.equal(calls[0].init.method, 'PUT');
+    assert.deepEqual(JSON.parse(calls[0].init.body), input);
+  } finally { globalThis.fetch = original; }
+});
