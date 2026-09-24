@@ -1593,14 +1593,17 @@ const typedFormValues: FormValues = {
   location: { coordinates: { lat: 43.8563, lon: 18.4131 } },
   channels: ["email"],
 };
+declare const displayedForm: Awaited<ReturnType<typeof initializedStorefront.forms.get>>;
 initializedStorefront.forms.submitByKey({
   id: 'accepted-form-request',
   key: "contact-form",
+  presentation: displayedForm,
   values: typedFormValues,
 });
 initializedStorefront.forms.submitByKey({
   id: 'accepted-form-request',
   key: "contact-form",
+  presentation: displayedForm,
   // @ts-expect-error Store IDs are not part of storefront request inputs.
   store_id: "store-contract",
   values: typedFormValues,
@@ -1608,6 +1611,7 @@ initializedStorefront.forms.submitByKey({
 initializedStorefront.forms.submitByKey({
   id: 'accepted-form-request',
   key: "contact-form",
+  presentation: displayedForm,
   values: {
     // @ts-expect-error form values cannot contain arbitrary objects.
     invalid: new Date(),

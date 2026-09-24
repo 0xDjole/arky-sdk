@@ -1821,8 +1821,11 @@ function initializeStoreCore(
     params: ArkySubmitFormByKeyParams,
     options?: RequestOptions,
   ): Promise<StorefrontFormSubmission> {
-    const form = forms_state.get().forms[formCacheKey({ key: params.key })];
-    if (!form) throw new Error("Load the Form presentation before submitting its values");
+    const form = params.presentation;
+    if (!form) throw new Error("Pass the displayed Form presentation before submitting its values");
+    if (form.key !== params.key) {
+      throw new Error("Form presentation key differs from the requested Form");
+    }
     const entry = createFormEntryFromValues(form, params.values);
     return submitForm({ id: params.id, form_id: form.id, fields: entry.fields,
       locale: form.locale, presentation_digest: form.presentation_digest }, options);

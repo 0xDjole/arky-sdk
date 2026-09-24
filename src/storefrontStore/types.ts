@@ -55,6 +55,7 @@ export type ArkyContentEntryParams = ArkyStoreContext & {
 export interface ArkySubmitFormByKeyParams {
   id: string;
   key: string;
+  presentation: StorefrontForm;
   values: FormValues;
 }
 

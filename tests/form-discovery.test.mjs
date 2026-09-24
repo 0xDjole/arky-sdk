@@ -57,6 +57,8 @@ test("Form submitByKey retains the displayed presentation and caller request ide
   const calls = [];
   const presentation = { id: "form", key: "intake", locale: "en", presentation_digest: "a".repeat(64),
     schema: [{ id: "field", key: "answer", type: "text", required: true, question: null }] };
+  let currentPresentation = presentation;
+  let submissions = 0;
   const session = JSON.stringify({ version: 2, customer: { id: "customer", created_at: 1, updated_at: 1 },
     session: { id: "session", type: "visitor", token: "customer_visitor_" + "a".repeat(64),
       customer_id: "customer", status: { type: "active" }, expires_at: 10_000 } });
@@ -65,23 +67,78 @@ test("Form submitByKey retains the displayed presentation and caller request ide
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     calls.push({ url: new URL(url), method: init.method, body: init.body ? JSON.parse(init.body) : undefined,
       headers: new Headers(init.headers) });
-    if (init.method === "GET") return new Response(JSON.stringify(presentation), { headers: { "content-type": "application/json" } });
-    if (calls.length === 2) throw new TypeError("response lost");
+    if (init.method === "GET") return Response.json(currentPresentation);
+    if (++submissions === 1) throw new TypeError("response lost");
     return new Response(JSON.stringify({ id: "request", snapshot: { form_key: "intake", questions: [] } }),
       { headers: { "content-type": "application/json" } });
   });
-  const request = { id: "request", key: "intake", values: { answer: "kept" } };
-  await assert.rejects(store.forms.submitByKey(request), /Load the Form presentation/);
+  const identity = { id: "request", key: "intake", values: { answer: "kept" } };
+  await assert.rejects(store.forms.submitByKey(identity), /Pass the displayed Form presentation/);
   assert.equal(calls.length, 0);
-  await store.forms.get({ key: "intake" });
+  const request = { ...identity, presentation: await store.forms.get({ key: "intake" }) };
+  await assert.rejects(store.forms.submitByKey({ ...request, key: "another-form" }), /presentation key differs/);
+  assert.equal(calls.length, 1);
   await assert.rejects(store.forms.submitByKey(request), /response lost|fetch|network/i);
+  currentPresentation = { ...presentation, presentation_digest: "b".repeat(64),
+    schema: [{ ...presentation.schema[0], id: "replacement-field", question: { text: "A different question?", locale: "en" } }] };
+  await store.forms.get({ key: "intake" });
   await store.forms.submitByKey(request);
-  assert.equal(calls.filter((call) => call.method === "GET").length, 1);
-  assert.deepEqual(calls[1].body, calls[2].body);
-  assert.deepEqual(calls[2].body, { id: "request", form_id: "form", presentation_digest: presentation.presentation_digest,
+  assert.equal(calls.filter((call) => call.method === "GET").length, 2);
+  assert.equal(calls.length, 4);
+  assert.deepEqual(calls[1].body, calls[3].body);
+  assert.deepEqual(calls[3].body, { id: "request", form_id: "form", presentation_digest: presentation.presentation_digest,
     fields: [{ id: "field", key: "answer", type: "text", value: "kept" }] });
-  assert.equal(calls[2].headers.get("x-arky-locale"), "en");
+  assert.equal(calls[3].headers.get("x-arky-locale"), "en");
   store.setContext({ locale: "bs" });
   await assert.rejects(store.forms.submitByKey(request), /presentation locale differs/);
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 4);
+});
+
+test("Form submitByKey can replay a retained presentation after reinitialization without fetching it again", async (context) => {
+  const session = JSON.stringify({ version: 2, customer: { id: "customer", created_at: 1, updated_at: 1 },
+    session: { id: "session", type: "visitor", token: "customer_visitor_" + "a".repeat(64),
+      customer_id: "customer", status: { type: "active" }, expires_at: 10_000 } });
+  const store = initialize("arky_pk_" + "f".repeat(42) + "A", { apiUrl: "https://forms.test", market: "us",
+    locale: "en", sessionStorage: storefrontSessionStorage(session) });
+  const request = { id: "retained-request", key: "intake", values: { answer: "Original answer" },
+    presentation: { id: "form", key: "intake", locale: "en", presentation_digest: "a".repeat(64),
+      schema: [{ id: "field", key: "answer", type: "text", required: true, question: null }] } };
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    calls.push({ url: new URL(url), method: init.method, body: JSON.parse(init.body) });
+    return Response.json({ id: request.id, form_id: request.presentation.id });
+  });
+  assert.equal((await store.forms.submitByKey(request)).id, request.id);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].method, "POST");
+  assert.equal(calls[0].url.pathname, "/v1/storefront/forms/form/submissions");
+  assert.deepEqual(calls[0].body, { id: request.id, form_id: "form", presentation_digest: "a".repeat(64),
+    fields: [{ id: "field", key: "answer", type: "text", value: "Original answer" }] });
+});
+
+test("Form presentation changes propagate without a hidden reload or resubmission", async (context) => {
+  const session = JSON.stringify({ version: 2, customer: { id: "customer", created_at: 1, updated_at: 1 },
+    session: { id: "session", type: "visitor", token: "customer_visitor_" + "a".repeat(64),
+      customer_id: "customer", status: { type: "active" }, expires_at: 10_000 } });
+  const store = initialize("arky_pk_" + "f".repeat(42) + "A", { apiUrl: "https://forms.test", market: "us",
+    locale: "en", sessionStorage: storefrontSessionStorage(session) });
+  const presentation = { id: "form", key: "intake", locale: "en", presentation_digest: "a".repeat(64),
+    schema: [{ id: "field", key: "answer", type: "text", required: true, question: null }] };
+  const replacement = { ...presentation, presentation_digest: "b".repeat(64) };
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    calls.push({ url: new URL(url), method: init.method, body: JSON.parse(init.body) });
+    return Response.json({ message: "Review the changed questions", error: "FORM.PRESENTATION_CHANGED",
+      presentation: replacement }, { status: 409 });
+  });
+  await assert.rejects(store.forms.submitByKey({ id: "request", key: "intake", presentation,
+    values: { answer: "Kept" } }), (error) => {
+      assert.equal(error.code, "FORM.PRESENTATION_CHANGED");
+      assert.equal(error.statusCode, 409);
+      assert.deepEqual(error.response.presentation, replacement);
+      return true;
+    });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].method, "POST");
+  assert.equal(calls[0].body.presentation_digest, presentation.presentation_digest);
 });

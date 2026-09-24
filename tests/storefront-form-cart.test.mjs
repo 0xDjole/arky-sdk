@@ -288,9 +288,10 @@ test("submitByKey reads anonymously, identifies lazily, and submits no Store rou
   };
 
   try {
-    await store.forms.get({ key: "contact-form" });
+    const presentation = await store.forms.get({ key: "contact-form" });
     const result = await store.forms.submitByKey({ id: "submission-contact",
       key: "contact-form",
+      presentation,
       values: {
         name: "Jane",
         age: 32,
@@ -357,21 +358,23 @@ test("submitByKey validates the displayed schema before identifying or submittin
   };
 
   try {
-    await store.forms.get({ key: "contact-form" });
+    const presentation = await store.forms.get({ key: "contact-form" });
     await assert.rejects(
       store.forms.submitByKey({ id: "submission-contact",
         key: "contact-form",
+        presentation,
         values: { name: "Jane", unknown: "no" },
       }),
       /not defined by the form schema/,
     );
     await assert.rejects(
-      store.forms.submitByKey({ id: "submission-contact", key: "contact-form", values: {} }),
+      store.forms.submitByKey({ id: "submission-contact", key: "contact-form", presentation, values: {} }),
       /required value is missing/,
     );
     await assert.rejects(
       store.forms.submitByKey({ id: "submission-contact",
         key: "contact-form",
+        presentation,
         values: { name: 42 },
       }),
       /expected text/,

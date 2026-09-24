@@ -15,6 +15,12 @@ api.submit(request);
 const schema: FormSchema = { type: "text", id: "field", key: "answer", required: true, question: { en: "Answer?" } };
 const presentation: FormPresentation = { id: "form", store_id: "store", key: "intake", locale: "en",
   presentation_digest: "digest", schema: [{ ...schema, question: { text: "Answer?", locale: "en" } }] };
+const storefront = initialize("arky_pk_" + "f".repeat(42) + "A");
+storefront.forms.submitByKey({ id: "submission", key: "intake", presentation, values: { answer: "Kept" } });
+// @ts-expect-error Submission must use the exact presentation displayed by the caller, not the cache.
+storefront.forms.submitByKey({ id: "submission", key: "intake", values: { answer: "Kept" } });
+// @ts-expect-error Submission requires a caller-owned identity even when the presentation is supplied.
+storefront.forms.submitByKey({ key: "intake", presentation, values: { answer: "Kept" } });
 // @ts-expect-error Form mutations use tagged statuses.
 const plain: UpdateFormParams = { id: "form", status: "archived" };
 // @ts-expect-error Form searches use plain status filters.

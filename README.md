@@ -80,14 +80,25 @@ FormSubmission.
 Stateful operations identify the visitor lazily. Concurrent first operations share one identify request:
 
 ```typescript
-await arky.forms.submitByKey({
+const presentation = await arky.forms.get({ key: "contact" });
+const request = {
+  id: crypto.randomUUID(),
   key: "contact",
+  presentation,
   values: {
     email: "visitor@example.com",
     message: "Hello from the storefront",
   },
-});
+};
+await arky.forms.submitByKey(request);
 ```
+
+Display the returned presentation before collecting answers. Retain `request` for a retry:
+the same ID, presentation, locale and values must be resubmitted after a lost response. The helper
+does not substitute a later cached Form or fetch new questions during submission. An explicit
+`FORM.PRESENTATION_CHANGED` response is nonacceptance: show the returned presentation and require
+another user submission, with a new request ID. Keep the storefront locale equal to the retained
+presentation's locale when retrying.
 
 The browser persists one versioned, discriminated Customer-session record. A Visitor record contains
 its short-lived token; an email-authenticated record contains the current access and refresh
@@ -377,10 +388,14 @@ One Cart booking item is one appointment and contains one `booking_offering_id` 
 standalone Form first, pass only its resulting submission ID with the appointment:
 
 ```typescript
-const submission = await arky.forms.submitByKey({
+const presentation = await arky.forms.get({ key: "booking-details" });
+const request = {
+  id: crypto.randomUUID(),
   key: "booking-details",
+  presentation,
   values: { note: "Window seat, please" },
-});
+};
+const submission = await arky.forms.submitByKey(request);
 
 await arky.eshop.bookingService.addToCart(undefined, submission.id);
 ```
