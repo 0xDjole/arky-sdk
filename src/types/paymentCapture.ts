@@ -1,9 +1,10 @@
-import type { Money, ProviderEffectError, ProviderOperationClaim } from "./index";
+import type { Money, MonriEnvironment, ProviderEffectError, ProviderOperationClaim } from "./index";
 import type { OrderFinancialSummary } from "./order";
 import type { CommerceProviderObservation, Payment } from "./payment";
 import type { EpochMilliseconds } from "./time";
 
 export type PaymentCaptureEvidence =
+  | { type: "monri"; payment_provider_id: string; environment: MonriEnvironment; transaction_id: string; receipt_id: string }
   | { type: "cash_on_delivery"; marked_paid_by_account_id: string }
   | { type: "manual"; marked_paid_by_account_id: string; reference: string | null }
   | { type: "stripe"; connected_account_id: string; livemode: boolean; charge_id: string; payment_intent_id: string | null; last_observation: CommerceProviderObservation };

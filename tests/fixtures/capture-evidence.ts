@@ -21,3 +21,17 @@ const invalidAccount: PaymentCaptureEvidence = missingAccount;
 const invalidMode: PaymentCaptureEvidence = missingMode;
 
 export type CaptureEvidenceContract = typeof evidence;
+
+export const monriEvidence = {
+  type: "monri",
+  payment_provider_id: "550e8400-e29b-41d4-a716-446655440000",
+  environment: "test",
+  transaction_id: "18446744073709551615",
+  receipt_id: "550e8400-e29b-41d4-a716-446655440001",
+} satisfies PaymentCaptureEvidence;
+
+const { receipt_id, ...missingReceipt } = monriEvidence;
+// @ts-expect-error Monri collection evidence must identify its retained authenticated receipt.
+const invalidMonriReceipt: PaymentCaptureEvidence = missingReceipt;
+// @ts-expect-error Native transaction identities must not lose precision in JavaScript numbers.
+const invalidMonriTransaction: PaymentCaptureEvidence = { ...monriEvidence, transaction_id: 123 };
