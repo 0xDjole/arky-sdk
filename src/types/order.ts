@@ -121,6 +121,8 @@ export function orderCustomerGroupPlanItems(
 }
 
 export type OrderFinancialConcern =
+  | { type: "unapplied_monri_evidence"; receipt_id: string }
+  | { type: "monri_review"; receipt_id: string }
   | { type: "order_hold" }
   | { type: "payment_hold"; payment_id: string }
   | { type: "payment_evidence"; payment_id: string }

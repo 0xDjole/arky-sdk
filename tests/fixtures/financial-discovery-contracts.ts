@@ -1,5 +1,11 @@
 import { createAdmin, createStorefront } from "arky-sdk";
-import type { FindPaymentsParams, FindRefundsParams, FindPaymentDisputesParams, PaymentDispute, DisputeFinancialEffect } from "arky-sdk";
+import type { FindPaymentsParams, FindRefundsParams, FindPaymentDisputesParams, PaymentDispute, DisputeFinancialEffect, OrderFinancialConcern } from "arky-sdk";
+
+const monriConcerns: OrderFinancialConcern[] = [
+  { type: "unapplied_monri_evidence", receipt_id: "receipt" },
+  { type: "monri_review", receipt_id: "receipt" },
+];
+void monriConcerns;
 
 const payments: FindPaymentsParams = { order_id: "order", status: "unknown", sort_field: "updated_at", sort_direction: "asc", limit: 25 };
 const refunds: FindRefundsParams = { order_id: "order", payment_id: "payment", status: "requested", sort_field: "created_at", sort_direction: "desc", cursor: "opaque" };
