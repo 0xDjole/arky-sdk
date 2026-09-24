@@ -511,6 +511,7 @@ function initializeStoreCore(
         variant_attributes:
           variant.attributes as EshopCartItem["variant_attributes"],
         requires_shipping: variant.fulfillment.type === "physical",
+        shipping_profile_id: variant.fulfillment.type === "physical" ? variant.fulfillment.shipping_profile_id : null,
         price: variant.price,
         quantity: item.quantity,
         form_submission_id: item.form_submission_id ?? null,
@@ -559,7 +560,7 @@ function initializeStoreCore(
       "selected_shipping_method_id",
       response.delivery_groups[0]?.shipping_rate_id ?? null,
     );
-    promotion_codes.set(response.promotion_code_ids);
+    promotion_codes.set([]);
     quote.set(null);
 
     if (response.status.type === "converted") {
@@ -672,7 +673,7 @@ function initializeStoreCore(
         promotion_codes:
           input.promotion_codes === null
             ? []
-            : (input.promotion_codes ?? promotion_codes.get()),
+            : input.promotion_codes,
       });
       await applyCartResponse(response, { ifRevision: revision, scope });
       return response;
@@ -880,6 +881,7 @@ function initializeStoreCore(
       scope.assertCurrent();
       if (!isCurrent()) throw new CartSelectionError("Cart selections or language changed while quoting; review the current Cart");
       quote.set(response);
+      promotion_codes.set((response.order.money?.promotions ?? []).flatMap((promotion) => promotion.code === null ? [] : [promotion.code]));
       return response;
     } catch (error) {
       if (isCurrent()) {

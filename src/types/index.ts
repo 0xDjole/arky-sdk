@@ -245,6 +245,7 @@ export interface EshopCartItem {
   product_slug: string;
   variant_attributes: Record<string, any>;
   requires_shipping: boolean;
+  shipping_profile_id: string | null;
   price: StorefrontPrice | null;
   quantity: number;
   form_submission_id?: string | null;

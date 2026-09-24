@@ -309,6 +309,12 @@ Omitting the field preserves existing groups; `[]` explicitly clears them. Do no
 prices: select a quoted ShippingRate on its delivery group, then quote again and review the total.
 Payment-provider choice belongs to `checkout`, not `quote`.
 
+Hydrated `product_items` expose `shipping_profile_id` from the same Variant read used to hydrate
+the item; nonphysical variants have `null`. Use it when assigning physical items to delivery groups.
+Omit `promotion_codes` during unrelated Cart edits to preserve applied promotions; `[]` or `null`
+explicitly removes them. The helper's `promotion_codes` atom contains display codes from the latest
+quote, not the Cart's stored promotion UUIDs, and is cleared when that quote is invalidated.
+
 Browser checkout saves the exact Cart UUID, generated `request_id`, locale, digest, optional
 provider and return URL under the shared cross-tab durable-request lock before POST. The request
 goes to `/checkouts` with the reviewed `sources`, and its `request_id` makes a repeat submission return the

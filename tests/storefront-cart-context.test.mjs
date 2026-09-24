@@ -148,6 +148,7 @@ test("Cart helper saves explicit delivery identities, rates and schedules withou
   });
   await store.eshop.cart.load();
   await store.eshop.cart.refresh({ delivery_groups: [group] });
+  assert.equal(store.eshop.cart.product_items.get()[0].shipping_profile_id, "profile-a");
   assert.deepEqual(calls.find((call) => call.method === "PUT").body.delivery_groups, [group]);
   assert.deepEqual(store.eshop.cart.cart.get().delivery_groups, [group]);
   await store.eshop.cart.refresh();
@@ -157,6 +158,45 @@ test("Cart helper saves explicit delivery identities, rates and schedules withou
   const before = calls.length;
   await assert.rejects(store.eshop.cart.refresh({ delivery_groups: [group], shipping_address: null }), /not both/);
   assert.equal(calls.length, before);
+});
+
+test("Cart edits preserve promotion identities without submitting them as coupon codes", async () => {
+  const promotionId = "292e102d-c879-4813-925a-e508ab7015e5";
+  let saved = cart({ promotion_code_ids: [promotionId] });
+  const { store, calls } = setup((call) => {
+    if (call.path === "/v1/storefront/carts")
+      return Response.json({ cart: saved, recovery_token: "private" });
+    if (call.method === "PUT") {
+      if (Object.hasOwn(call.body, "promotion_codes")) {
+        assert.deepEqual(call.body.promotion_codes, []);
+        saved = { ...saved, promotion_code_ids: [] };
+      }
+      return Response.json(saved);
+    }
+    if (call.path.endsWith("/quote"))
+      return Response.json({
+        sources: checkoutSources(cartId),
+        presentation_digest: "a".repeat(64),
+        order: {
+          locale: "en",
+          money: { promotions: saved.promotion_code_ids.length ? [{ code: "SAVE10" }, { code: null }] : [] },
+        },
+      });
+    throw new Error(`Unexpected request ${call.path}`);
+  });
+  await store.eshop.cart.load();
+  assert.deepEqual(store.eshop.cart.promotion_codes.get(), []);
+  await store.eshop.cart.quote({ delivery_groups: [] });
+  assert.deepEqual(store.eshop.cart.promotion_codes.get(), ["SAVE10"]);
+  await store.eshop.cart.refresh({ billing_address: null });
+  assert.deepEqual(store.eshop.cart.cart.get().promotion_code_ids, [promotionId]);
+  assert.deepEqual(store.eshop.cart.promotion_codes.get(), []);
+  for (const call of calls.filter((call) => call.method === "PUT"))
+    assert.equal(Object.hasOwn(call.body, "promotion_codes"), false);
+  await store.eshop.cart.removePromoCode();
+  assert.deepEqual(store.eshop.cart.cart.get().promotion_code_ids, []);
+  assert.deepEqual(store.eshop.cart.promotion_codes.get(), []);
+  assert.deepEqual(calls.filter((call) => call.method === "PUT").at(-1).body.promotion_codes, []);
 });
 
 for (const permitted of [true, false]) {
