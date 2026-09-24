@@ -22,7 +22,7 @@ export type { CompanySnapshot, PurchaseCustomerSnapshot, PurchaseOrigin, Purchas
 export type { CustomerGroupAcceptedTerms, CustomerGroupPlanSnapshot, CustomerGroupBenefitSnapshot, CustomerGroupBenefitSnapshotType, CustomerGroupProductSnapshot, CustomerGroupDigitalSnapshot, CustomerGroupDeliveryTerms, CustomerGroupPurchaseOccurrence, OrderCustomerGroupTerms, OrderAccessRevocation } from "./commerce";
 export type { BillingPeriod } from "./commerce";
 export type { MonriCaptureProof, PaymentCaptureEvidence, CaptureFinancialEffect, PaymentCaptureStatus, OrderPaymentCapture, RecordedCollection, RecordCashOnDeliveryCollectionParams, RecordManualCollectionParams, CreateManualPaymentParams } from "./paymentCapture";
-export type { CommerceProviderObservation, Payment, PaymentStatus, PaymentAmounts, PaymentProviderBinding, PaymentCheckoutExpiration, PaymentReconciliation, StripeInvoicePaymentObject } from "./payment";
+export type { CommerceProviderObservation, Payment, PaymentStatus, PaymentAmounts, PaymentProviderBinding, PaymentCheckoutExpiration, PaymentReconciliation, StripeInvoicePaymentObject, MonriAuthorizationVoid, MonriVoidStatus, MonriVoidResult } from "./payment";
 import type { EpochMilliseconds } from "./time";
 export type { Order, OrderType, OrderPurchaseSource, OrderStatus, OrderLineItem, OrderCompanyContext, OrderFinancialSummary, OrderFinancialConcern, GetOrderFinancialSummaryParams } from "./order";
 export type {
