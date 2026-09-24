@@ -247,6 +247,7 @@ export type {
   SystemRefundReason,
   Refund,
   RefundProvider,
+  MonriRefundResult,
   RefundAllocation,
   CustomerMoneyEvidence,
   RefundFinancialEffect,

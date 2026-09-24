@@ -42,7 +42,7 @@ export const createRefundApi = (apiConfig: ApiConfig) => {
         `/v1/stores/${storeId(store_id)}/refunds/${id}/cancel-local`, payload, options,
       );
       validateRefundMoneyOwner(result, id, storeId(store_id));
-      if (result.refund.provider.type === "stripe" || result.refund.status.type !== "cancelled" || result.money.refund_pending.amount !== 0) {
+      if (!["manual", "cash_on_delivery"].includes(result.refund.provider.type) || result.refund.status.type !== "cancelled" || result.money.refund_pending.amount !== 0) {
         throw new Error("Local refund cancellation did not confirm a cancelled remainder");
       }
       return result;

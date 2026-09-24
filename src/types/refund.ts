@@ -1,5 +1,5 @@
 import type { AccountActor } from "./accountActor";
-import type { Money } from "./index";
+import type { Currency, Money, MonriEnvironment, ProviderOperationClaim } from "./index";
 import type { EpochMilliseconds } from "./time";
 import type { CommerceProviderObservation, Payment } from "./payment";
 import type { OrderFinancialSummary } from "./order";
@@ -46,9 +46,21 @@ export type RefundRequester =
   | { type: "stripe" };
 
 export type RefundProvider =
+  | { type: "monri"; payment_provider_id: string; environment: MonriEnvironment; result: MonriRefundResult | null }
   | { type: "cash_on_delivery"; payment_provider_id: string }
   | { type: "manual"; payment_provider_id: string; reference: string | null }
   | { type: "stripe"; payment_provider_id: string; refund_id: string | null };
+
+export interface MonriRefundResult {
+  claim: ProviderOperationClaim;
+  transaction_id: string;
+  amount: number;
+  currency: Currency | null;
+  status: "approved" | "declined";
+  response_code: string;
+  transaction_created_at: EpochMilliseconds;
+  observed_at: EpochMilliseconds;
+}
 
 export interface Refund {
   id: string;
@@ -72,6 +84,7 @@ export interface Refund {
 }
 
 export type CustomerMoneyEvidence =
+  | { type: "monri"; transaction_id: string }
   | { type: "provider"; provider_effect_reference: string; observation: CommerceProviderObservation }
   | { type: "manual"; actor: AccountActor; reference: string };
 

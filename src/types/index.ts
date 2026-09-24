@@ -158,7 +158,7 @@ export interface DisputeFinancialEffect {
 
 import type { AccountActor } from "./accountActor";
 export type { AccountActor, AccountActorSnapshot, AccountCredentialType } from "./accountActor";
-export type { Refund, RefundProvider, RefundAllocation, RefundApplication, RefundRequester, SystemRefundReason, RefundReason, RefundRequestReason, RefundStatus } from "./refund";
+export type { Refund, RefundProvider, MonriRefundResult, RefundAllocation, RefundApplication, RefundRequester, SystemRefundReason, RefundReason, RefundRequestReason, RefundStatus } from "./refund";
 export type { CustomerMoneyEvidence, RefundFinancialEffect, RefundAllocationBalance, RefundMoneySummary, RecordedRefundMoney, LocalRefundMovement, RecordRefundMoneyParams, CancelLocalRefundParams } from "./refund";
 
 export interface OrderMoney {
