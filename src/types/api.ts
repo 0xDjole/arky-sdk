@@ -2155,6 +2155,10 @@ export interface RevokeAllCustomerSessionsParams {
   store_id?: string;
 }
 
+export interface CaptureCustomerEmailParams {
+  email: string;
+}
+
 export interface CreateCustomerParams {
   store_id?: string;
   email?: string;

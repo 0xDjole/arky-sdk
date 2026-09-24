@@ -109,6 +109,18 @@ header. Customer credentials use the `customer_visitor_`,
 `customer_access_`, and `customer_refresh_` prefixes; `arky_vst_` is rejected. Storage is isolated by
 API endpoint and a fingerprint of the publishable key.
 
+To explicitly capture a contact address on the current Customer without signing in:
+
+```typescript
+const identity = await arky.customer.captureEmail({ email: "visitor@example.com" });
+```
+
+The helper lazily creates a Visitor if needed and reuses that Session on later calls. Capture
+creates an unverified email identity or reuses the Visitor's own active identity. It does not select a primary
+email, send email, authenticate, join a Group or record marketing consent. Those are separate
+explicit flows. A signed-in Session accepts only its proven address and returns that exact
+identity unchanged. Ambiguous active bindings fail rather than selecting one automatically.
+
 ## Exact Admin definition reads
 
 Use `admin.eshop.product.getByKey({ store_id, key })`, `bookingService.getByKey(...)` and

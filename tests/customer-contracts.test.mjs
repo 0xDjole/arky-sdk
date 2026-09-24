@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createAdmin } from "../dist/admin.js";
+import { createStorefront, initialize } from "../dist/storefront.js";
+import { MemoryStorage } from "./helpers/durable-request-fixtures.mjs";
 
 const baseUrl = "https://api.example.test";
 const storeId = "store-customer-contract";
@@ -25,6 +27,72 @@ const customer = {
   created_at: 1,
   updated_at: 2,
 };
+
+test("storefront email capture reuses its Visitor without changing primary selection or sending email", async (t) => {
+  const storage = new MemoryStorage();
+  const publishableKey = `arky_pk_${"k".repeat(43)}`;
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const captured = {
+    id: "identity-captured", customer_id: customerId,
+    type: { type: "email", email: "reader@example.test" },
+    status: { type: "active" }, verified_at: null, created_at: 1, updated_at: 1,
+  };
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    const headers = new Headers(init.headers);
+    const body = init.body ? JSON.parse(init.body) : null;
+    calls.push({ path, method: init.method, body, authorization: headers.get("Authorization") });
+    assert.equal(headers.get("X-Arky-Publishable-Key"), publishableKey);
+    assert.equal(headers.has("X-Arky-Market"), false);
+    if (path === "/v1/storefront/customer/identify") return jsonResponse({
+      customer: { ...customer, primary_email_identity_id: null },
+      session: {
+        id: "session-capture", customer_id: customerId, type: "visitor",
+        status: { type: "active" }, token: `customer_visitor_${"a".repeat(64)}`,
+        expires_at: Date.now() + 60_000,
+      },
+    });
+    assert.equal(path, "/v1/storefront/customer/email-identities");
+    return jsonResponse(captured);
+  };
+  const client = createStorefront(publishableKey, { apiUrl: baseUrl, sessionStorage: storage });
+  const first = await client.customer.captureEmail({ email: "reader@example.test" });
+  const retainedStorage = [...storage.values.entries()];
+  const second = await client.customer.captureEmail({ email: "reader@example.test" });
+  assert.deepEqual(first, captured);
+  assert.deepEqual(second, first);
+  assert.deepEqual([...storage.values.entries()], retainedStorage);
+  assert.equal(client.session.customer.primary_email_identity_id, null);
+  assert.equal(client.isAuthenticated, false);
+  assert.equal(calls.length, 3);
+  assert.equal(calls[0].authorization, null);
+  for (const call of calls.slice(1)) {
+    assert.equal(call.method, "POST");
+    assert.deepEqual(call.body, { email: "reader@example.test" });
+    assert.equal(call.authorization, `Bearer customer_visitor_${"a".repeat(64)}`);
+  }
+  const initialized = initialize(publishableKey, { apiUrl: baseUrl, sessionStorage: storage });
+  assert.deepEqual(await initialized.customer.captureEmail({ email: "reader@example.test" }), captured);
+  assert.equal(calls.filter(call => call.path.endsWith("/identify")).length, 1);
+  let conflicts = 0;
+  const beforeConflict = [...storage.values.entries()];
+  globalThis.fetch = async (url, init = {}) => {
+    assert.equal(new URL(url).pathname, "/v1/storefront/customer/email-identities");
+    assert.equal(new Headers(init.headers).get("Authorization"), `Bearer customer_visitor_${"a".repeat(64)}`);
+    conflicts += 1;
+    return new Response(JSON.stringify({ message: "Ambiguous email identity", statusCode: 409 }), {
+      status: 409, headers: { "content-type": "application/json" },
+    });
+  };
+  await assert.rejects(
+    initialized.customer.captureEmail({ email: "reader@example.test" }),
+    error => error.statusCode === 409,
+  );
+  assert.equal(conflicts, 1);
+  assert.deepEqual([...storage.values.entries()], beforeConflict);
+});
 
 test("Admin Customer namespace uses canonical routes, tagged status and independent identity selection", async () => {
   const admin = createAdmin({ baseUrl, storeId, market: "bih" });

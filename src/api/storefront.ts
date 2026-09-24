@@ -8,6 +8,7 @@ import type { StorefrontCustomerGroup, GetStorefrontCustomerGroupParams } from "
 import type { StorefrontCustomerGroupPlan, FindStorefrontCustomerGroupPlansParams, GetStorefrontCustomerGroupPlanParams } from "../types/customerGroupPlan";
 import type {
   AddCartCustomerGroupPlanParams,
+  CaptureCustomerEmailParams,
   AvailabilityResponse,
   CheckoutCartParams,
   ClearCartParams,
@@ -56,6 +57,7 @@ import type {
   Collection,
   CollectionEntry,
   CustomerSessionIssued,
+  CustomerIdentity,
   CustomerEmailVerification,
   CustomerSessionRecord,
   FormPresentation,
@@ -315,6 +317,17 @@ export const createStorefrontApi = (
         options?: RequestOptions,
       ): Promise<IdentifyResponse> {
         return submitIdentification("identify", params, options);
+      },
+      async captureEmail(
+        params: CaptureCustomerEmailParams,
+        options?: RequestOptions,
+      ): Promise<StorefrontDto<CustomerIdentity>> {
+        await lifecycle.ensureVisitorSession();
+        return apiConfig.httpClient.post<StorefrontDto<CustomerIdentity>>(
+          `${base}/customer/email-identities`,
+          { email: params.email },
+          options,
+        );
       },
       async requestCode(
         params: { email: string },

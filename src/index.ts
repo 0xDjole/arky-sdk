@@ -19,6 +19,7 @@ export {
 } from "./types/order";
 export type { CartCheckoutRequest, RecoverCartCheckoutParams } from "./types/cartCheckout";
 export type { InitialMarketInput, CartDeliveryGroup, CartDeliveryGroupItem } from "./types/api";
+export type { CaptureCustomerEmailParams } from "./types/api";
 export type { StorefrontCart, StorefrontOrderCheckoutResult } from "./types/storefront";
 export type { GetEmailTemplatesParams, GetEmailTemplateParams, CreateEmailTemplateParams, UpdateEmailTemplateParams, DeleteEmailTemplateParams, PreviewEmailTemplateParams, PreviewEmailTemplateResponse } from "./types/api";
 export type { GetFormsParams, GetFormsByIdsParams, GetFormParams, CreateFormParams, UpdateFormParams, DeleteFormParams, PermanentlyDeleteFormParams, SubmitFormParams, GetFormSubmissionsParams, GetFormSubmissionParams, DeleteFormSubmissionParams } from "./types/api";
@@ -932,7 +933,7 @@ export function storeCommerceDefaults(
     : null;
 }
 
-export const SDK_VERSION = "0.26.54";
+export const SDK_VERSION = "0.26.55";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -2263,6 +2264,7 @@ function createStorefrontClientCore(
     eshop: storefrontApi.eshop,
     customer: {
       identify,
+      captureEmail: customerApi.captureEmail,
       requestCode,
       verify,
       refresh,

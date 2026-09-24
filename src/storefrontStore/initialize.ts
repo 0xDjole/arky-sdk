@@ -2066,6 +2066,7 @@ function initializeStoreCore(
     allowed_payment_provider_ids,
     customer: {
       identify,
+      captureEmail: client.customer.captureEmail,
       requestCode: client.customer.requestCode,
       verify: client.customer.verify,
       refresh: client.customer.refresh,
