@@ -3,6 +3,9 @@ import type { AdminDomainOperation, StoreAdminDomain, StoreAdminDomainConnection
 import type * as Public from 'arky-sdk/types';
 
 const admin = createAdmin({ baseUrl: 'https://api.example.test', storeId: 'store', market: 'us' });
+const nonCommerceAdmin = createAdmin({ baseUrl: 'https://api.example.test', storeId: 'store' });
+const selectedAdminMarket: string | undefined = nonCommerceAdmin.getMarket();
+void selectedAdminMarket;
 const domains: Promise<PaginatedResponse<StoreAdminDomain>> = admin.store.adminDomain.find({ limit: 25, cursor: 'opaque' });
 const connection: Promise<StoreAdminDomainConnection> = admin.store.adminDomain.get({ id: 'domain' });
 const created: Promise<StoreAdminDomain> = admin.store.adminDomain.create({ id: 'domain', hostname: 'admin.example.com' });

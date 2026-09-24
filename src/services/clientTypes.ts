@@ -5,7 +5,7 @@ export interface ApiConfig {
   httpClient: HttpClient;
   storeId: string;
   baseUrl: string;
-  market: string;
+  market?: string;
   locale: string;
   authStorage: AuthStorage;
 }

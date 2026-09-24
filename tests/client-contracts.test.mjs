@@ -39,6 +39,24 @@ function jsonResponse(body, status = 200) {
   });
 }
 
+test("Admin non-commerce reads do not need or invent a Market", async (t) => {
+  const admin = createAdmin({ baseUrl, storeId, apiToken: "arky_api_admin_contract" });
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), headers: new Headers(init.headers) });
+    return jsonResponse({ id: storeId });
+  };
+  assert.equal(admin.getMarket(), undefined);
+  await admin.store.get({ id: storeId });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, `${baseUrl}/v1/stores/${storeId}`);
+  assert.equal(calls[0].headers.has("X-Arky-Market"), false);
+  admin.setMarket("bih");
+  assert.equal(admin.getMarket(), "bih");
+});
+
 test("workflow external-operation audit routes preserve execution scope", async () => {
   const admin = createAdmin({
     baseUrl,

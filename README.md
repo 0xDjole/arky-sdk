@@ -694,6 +694,9 @@ const admin = createAdmin({
 });
 ```
 
+Admin client configuration does not require a Market. Non-commerce calls need no placeholder
+Market or commerce initialization; commands that use a Market take their explicit context.
+
 Interactive operator login starts a pending Account Session. Verification activates that same
 Session ID; token refresh returns a new Session while preserving `authenticated_at` and `scope`:
 
@@ -739,7 +742,7 @@ await admin.store.update({
   supported_languages: ["en", "bs"],
 });
 
-const storefrontClients = await admin.storefrontClient.find({
+const storefrontClients = await admin.store.storefrontClient.find({
   store_id: store.id,
   limit: 20,
 });
@@ -748,7 +751,7 @@ const classifications = await admin.classification.find({ limit: 20 });
 ```
 
 Publishable credentials belong to individual StorefrontClient registrations and their allowed
-sales channels, not to Store settings. Use `storefrontClient.create/update/revoke` to manage those
+sales channels, not to Store settings. Use `store.storefrontClient.create/update/revoke` to manage those
 registrations. Store reads and updates do not return or regenerate a reusable Store-wide key.
 
 Admin Store records use `name`, private `billing_email`, optional public `contact_email`, and
@@ -794,9 +797,10 @@ and `getByKey({ store_id, key })` for exact configuration lookup. Provider confi
 reads. A missing discovery candidate is not proof that configuration is absent and never
 authorizes repeated creation, connection or payment. Only exact reads confirm a saved identity.
 
-Store creation also requires `initial_market: { key, currency, tax_mode }`; for example,
-`{ key: "bih", currency: "bam", tax_mode: "inclusive" }`. Server creates that Market and the initial
-SalesChannel in the Store transaction. Ready Store reads expose `default_market_id` and
+Store creation leaves Commerce uninitialized. Content, Forms, and Support work without a Market;
+a non-commerce StorefrontClient can have an empty `sales_channel_ids` list. An Owner explicitly
+starts commerce with `store.commerce.initialize({ operation_id, request })` and inspects the same
+operation with `store.commerce.getInitialization({ operation_id })`. Ready Store reads expose `default_market_id` and
 `default_sales_channel_id` inside `commerce` when `commerce.type === "ready"`.
 Use `storeCommerceDefaults(store)` to read that pair; uninitialized/initializing Stores have no
 implicit defaults. An update may select other current same-Store defaults; neither accepts `null`,

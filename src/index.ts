@@ -932,7 +932,7 @@ export function storeCommerceDefaults(
     : null;
 }
 
-export const SDK_VERSION = "0.26.36";
+export const SDK_VERSION = "0.26.54";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -1223,7 +1223,7 @@ export type CreateAdminConfig = Omit<
   "authStorage" | "storeId"
 > & {
   storeId: string;
-  market: string;
+  market?: string;
   locale?: string;
   apiToken?: string;
 };
