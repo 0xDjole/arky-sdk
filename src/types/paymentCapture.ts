@@ -1,10 +1,14 @@
-import type { Money, MonriEnvironment, ProviderEffectError, ProviderOperationClaim } from "./index";
+import type { Currency, Money, MonriEnvironment, ProviderEffectError, ProviderOperationClaim } from "./index";
 import type { OrderFinancialSummary } from "./order";
 import type { CommerceProviderObservation, Payment } from "./payment";
 import type { EpochMilliseconds } from "./time";
 
+export type MonriCaptureProof =
+  | { type: "notification"; receipt_id: string }
+  | { type: "original_response"; claim: ProviderOperationClaim; response_code: string; transaction_created_at: EpochMilliseconds; currency: Currency | null };
+
 export type PaymentCaptureEvidence =
-  | { type: "monri"; payment_provider_id: string; environment: MonriEnvironment; transaction_id: string; receipt_id: string }
+  | { type: "monri"; payment_provider_id: string; environment: MonriEnvironment; transaction_id: string; proof: MonriCaptureProof }
   | { type: "cash_on_delivery"; marked_paid_by_account_id: string }
   | { type: "manual"; marked_paid_by_account_id: string; reference: string | null }
   | { type: "stripe"; connected_account_id: string; livemode: boolean; charge_id: string; payment_intent_id: string | null; last_observation: CommerceProviderObservation };

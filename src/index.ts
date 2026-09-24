@@ -218,6 +218,7 @@ export type {
   BillingPeriod,
   PaymentAmounts,
   PaymentCaptureEvidence,
+  MonriCaptureProof,
   CaptureFinancialEffect,
   PaymentCaptureStatus,
   OrderPaymentCapture,
