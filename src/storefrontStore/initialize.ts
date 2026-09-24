@@ -153,7 +153,11 @@ function initializeStoreCore(
   const digital_items = atom<CartDigitalItem[]>([]);
   const customer_group_plan_items = atom<CartCustomerGroupPlanItem[]>([]);
   const quote: ArkyCartQuoteStore = atom<StorefrontCheckoutQuote | null>(null);
-  const promotion_codes = atom<string[]>([]);
+  const promotion_codes = computed(quote, (value) =>
+    (value?.order.money?.promotions ?? []).flatMap((promotion) =>
+      promotion.code === null ? [] : [promotion.code],
+    ),
+  );
   const last_order = atom<ArkyLastOrder | null>(null);
   const cart_status = map<ArkyCartStatus>({
     loading: false,
@@ -560,7 +564,6 @@ function initializeStoreCore(
       "selected_shipping_method_id",
       response.delivery_groups[0]?.shipping_rate_id ?? null,
     );
-    promotion_codes.set([]);
     quote.set(null);
 
     if (response.status.type === "converted") {
@@ -849,7 +852,6 @@ function initializeStoreCore(
     customer_group_plan_items.set([]);
     cart.set(null);
     quote.set(null);
-    promotion_codes.set([]);
     cart_status.setKey("selected_shipping_method_id", null);
   }
 
@@ -881,7 +883,6 @@ function initializeStoreCore(
       scope.assertCurrent();
       if (!isCurrent()) throw new CartSelectionError("Cart selections or language changed while quoting; review the current Cart");
       quote.set(response);
-      promotion_codes.set((response.order.money?.promotions ?? []).flatMap((promotion) => promotion.code === null ? [] : [promotion.code]));
       return response;
     } catch (error) {
       if (isCurrent()) {

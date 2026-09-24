@@ -188,6 +188,10 @@ test("Cart edits preserve promotion identities without submitting them as coupon
   assert.deepEqual(store.eshop.cart.promotion_codes.get(), []);
   await store.eshop.cart.quote({ delivery_groups: [] });
   assert.deepEqual(store.eshop.cart.promotion_codes.get(), ["SAVE10"]);
+  store.setLocale("de");
+  assert.deepEqual(store.eshop.cart.promotion_codes.get(), []);
+  await store.eshop.cart.quote();
+  assert.deepEqual(store.eshop.cart.promotion_codes.get(), ["SAVE10"]);
   await store.eshop.cart.refresh({ billing_address: null });
   assert.deepEqual(store.eshop.cart.cart.get().promotion_code_ids, [promotionId]);
   assert.deepEqual(store.eshop.cart.promotion_codes.get(), []);
