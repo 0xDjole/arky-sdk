@@ -110,13 +110,14 @@ export function selectShipmentUnits(
   if (!line || !Number.isInteger(quantity) || quantity < 1 || quantity > 4294967295) {
     throw new FulfillmentSelectionError("Select a valid assigned line and whole quantity.");
   }
-  if (line.source.type !== "order_product" || !work.lines.every((candidate) =>
+  const source = line.source;
+  if (source.type !== "order_product" || !work.lines.every((candidate) =>
     candidate.source.type === "order_product"
-      && candidate.source.order_id === line.source.order_id
-      && candidate.source.order_delivery_group_id === line.source.order_delivery_group_id)) {
+      && candidate.source.order_id === source.order_id
+      && candidate.source.order_delivery_group_id === source.order_delivery_group_id)) {
     throw new FulfillmentSelectionError("Work lines must share one accepted Order delivery group.");
   }
-  const assigned = canonical(line.source.order_unit_spans);
+  const assigned = canonical(source.order_unit_spans);
   const released = canonical(line.released_units);
   const cancelled = canonical(line.cancelled_units);
   orderUnits(assigned, released);
@@ -130,7 +131,7 @@ export function selectShipmentUnits(
   const dispatched: FulfillmentUnitSpan[] = [];
   const prepared: FulfillmentUnitSpan[] = [];
   for (const shipment of shipments) {
-    if (shipment.store_id !== work.store_id || shipment.order_id !== line.source.order_id) {
+    if (shipment.store_id !== work.store_id || shipment.order_id !== source.order_id) {
       throw new FulfillmentSelectionError("Shipment history belongs to another Order.");
     }
     if (shipment.fulfillment_order_id !== work.id) continue;

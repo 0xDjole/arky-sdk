@@ -77,6 +77,20 @@ test("shipment selection rejects mixed source ownership instead of trusting remo
   });
 });
 
+test("sale shipment selection does not use a Product line to authorize Rental issue work", () => {
+  const rental = {
+    ...structuredClone(assignment().lines[0]), id: "rental-line",
+    source: { type: "rental_issue", rental_id: "rental", terms_revision_id: "revision", replaces_placement_id: null },
+  };
+  const mixed = assignment();
+  mixed.lines.push(rental);
+  const before = structuredClone(mixed);
+  assert.throws(() => selectShipmentUnits(mixed, "line", 1, [dispatched()]), /one accepted Order delivery group/);
+  assert.throws(() => selectShipmentUnits(mixed, "rental-line", 1, []), /one accepted Order delivery group/);
+  assert.deepEqual(mixed, before);
+  assert.throws(() => selectShipmentUnits({ ...mixed, lines: [rental] }, "rental-line", 1, []), /one accepted Order delivery group/);
+});
+
 test("shipment selection uses exact assigned ranges without expanding individual units or changing inputs", () => {
   const work = assignment();
   const history = [dispatched()];

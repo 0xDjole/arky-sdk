@@ -7,6 +7,7 @@ import type { ShippingLabelRequestResolution as PublicLabelResolution } from "ar
 type Same<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false;
 type True<T extends true> = T;
 type Api = ReturnType<typeof createAdmin>["eshop"];
+type WorkSource = FulfillmentOrder["lines"][number]["source"];
 export type HistoryContract = [
   True<Same<ShippingLabelRequestResolution, PublicLabelResolution>>,
   True<Same<Awaited<ReturnType<Api["shippingLabel"]["resolveRequest"]>>, ShippingLabelRequestResolution>>,
@@ -17,8 +18,9 @@ export type HistoryContract = [
   True<Same<Awaited<ReturnType<Api["pickup"]["get"]>>, OrderPickup>>,
   True<Same<OrderShipment["status"]["type"], "pending" | "label_created" | "in_transit" | "out_for_delivery" | "delivered" | "failed" | "returned" | "cancelled">>,
   True<Same<FulfillmentOrder["method"]["type"], "pickup" | "delivery">>,
-  True<Same<FulfillmentOrder["lines"][number]["source"]["type"], "order_product">>,
-  True<Same<keyof FulfillmentOrder["lines"][number]["source"], "type" | "order_id" | "order_delivery_group_id" | "order_product_line_item_id" | "order_unit_spans">>,
+  True<Same<WorkSource["type"], "order_product" | "rental_issue">>,
+  True<Same<keyof Extract<WorkSource, { type: "order_product" }>, "type" | "order_id" | "order_delivery_group_id" | "order_product_line_item_id" | "order_unit_spans">>,
+  True<Same<keyof Extract<WorkSource, { type: "rental_issue" }>, "type" | "rental_id" | "terms_revision_id" | "replaces_placement_id">>,
   True<"order_id" extends keyof FulfillmentOrder ? false : true>,
   True<"order_delivery_group_id" extends keyof FulfillmentOrder ? false : true>,
   True<"unit_spans" extends keyof FulfillmentOrder["lines"][number] ? false : true>,

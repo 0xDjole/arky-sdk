@@ -1121,8 +1121,14 @@ fresh command and current Order state. The response is the updated Order.
 
 ## Fulfillment and shipping labels
 
-Fulfillment work is scoped to a StoreLocation. Its line source maps stable local work positions
-to accepted Order units. A Shipment selects those local positions and freezes its parcel and
+Fulfillment work is scoped to a StoreLocation. An `order_product` line source maps stable local work
+positions to accepted Order units. Narrow on `source.type`: `rental_issue` instead names a Rental,
+accepted terms revision and explicit nullable predecessor Placement; it has no Order-unit mapping.
+The current Order shipment API and `selectShipmentUnits` require sale-only work and reject rental
+or mixed work. Recognizing that source type is not a Rental creation/dispatch API or permission to
+borrow another line's paid status.
+
+A Shipment selects those local positions and freezes its parcel and
 optional customs facts. Create the parcel first; carrier-label quoting/purchase is a separate flow:
 
 ```typescript

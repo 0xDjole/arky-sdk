@@ -851,6 +851,11 @@ export type FulfillmentOrderLineSource = {
   order_delivery_group_id: string;
   order_product_line_item_id: string;
   order_unit_spans: import("./orderContract").UnitSpan[];
+} | {
+  type: "rental_issue";
+  rental_id: string;
+  terms_revision_id: string;
+  replaces_placement_id: string | null;
 };
 
 export interface FulfillmentOrderLine {
