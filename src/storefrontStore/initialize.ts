@@ -2132,6 +2132,7 @@ function initializeStoreCore(
       cart: cart_store,
     },
     customer_groups: client.customer_groups,
+    customer_group_members: client.customer_group_members,
     customer_group_plans: client.customer_group_plans,
     actions: {
       track(params: TrackCustomerActionParams) {

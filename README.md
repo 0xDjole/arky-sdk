@@ -121,6 +121,29 @@ email, send email, authenticate, join a Group or record marketing consent. Those
 explicit flows. A signed-in Session accepts only its proven address and returns that exact
 identity unchanged. Ambiguous active bindings fail rather than selecting one automatically.
 
+To join an open Group independently of buying a Plan:
+
+```typescript
+const membership = await arky.customer_group_members.current({ customer_group_id: group.id });
+const joinRequest = {
+  command_id: crypto.randomUUID(),
+  request: {
+    customer_group_id: group.id,
+    scope: { type: "customer" as const },
+    expected_updated_at: membership?.updated_at ?? null,
+  },
+};
+const joined = await arky.customer_group_members.join(joinRequest);
+```
+
+Only submit Join when membership is absent or Requested. Keep the same request and command ID
+for a lost-response retry; a conflict requires refreshing membership, not silently issuing another
+command. The existing Visitor Session is reused, or created lazily without requiring a Market.
+Store and Customer come from the public key and Session, never caller-supplied IDs. For Company
+membership, select both `company_id` and `company_location_id`; the Server checks permission for
+that branch. Responses contain only self-visible membership, not private administrative grants.
+Joining does not buy a Plan, grant catalog/paid benefits, verify email or record email consent.
+
 ## Exact Admin definition reads
 
 Use `admin.eshop.product.getByKey({ store_id, key })`, `bookingService.getByKey(...)` and

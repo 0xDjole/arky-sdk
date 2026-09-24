@@ -5,6 +5,12 @@ import { checkoutCart, pendingCartCheckout, recoverCartCheckout, withCartMutatio
 import type { CartCheckoutTransport, CartCheckoutRequest } from "../types/cartCheckout";
 import type { StorefrontApiConfig } from "../services/clientTypes";
 import type { StorefrontCustomerGroup, GetStorefrontCustomerGroupParams } from "../types/customerGroup";
+import type {
+  CustomerGroupJoinResult,
+  CustomerGroupMemberSelf,
+  JoinStorefrontCustomerGroupParams,
+  GetStorefrontCustomerGroupMemberParams,
+} from "../types/customerGroupMember";
 import type { StorefrontCustomerGroupPlan, FindStorefrontCustomerGroupPlansParams, GetStorefrontCustomerGroupPlanParams } from "../types/customerGroupPlan";
 import type {
   AddCartCustomerGroupPlanParams,
@@ -923,6 +929,33 @@ export const createStorefrontApi = (
         return apiConfig.httpClient.get<StorefrontCustomerGroup>(
           `${base}/customer-groups/${encodeURIComponent(identifier)}`,
           { ...options, params: query },
+        );
+      },
+    },
+    customer_group_members: {
+      async join(
+        params: JoinStorefrontCustomerGroupParams,
+        options?: RequestOptions,
+      ): Promise<StorefrontDto<CustomerGroupJoinResult>> {
+        await lifecycle.ensureVisitorSession();
+        return apiConfig.httpClient.post<StorefrontDto<CustomerGroupJoinResult>>(
+          `${base}/customer-group-members/join`,
+          { command_id: params.command_id, request: params.request },
+          options,
+        );
+      },
+      async current(
+        params: GetStorefrontCustomerGroupMemberParams,
+        options?: RequestOptions,
+      ): Promise<StorefrontDto<CustomerGroupMemberSelf> | null> {
+        await lifecycle.ensureVisitorSession();
+        return apiConfig.httpClient.get<StorefrontDto<CustomerGroupMemberSelf> | null>(
+          `${base}/customer-group-members/current`,
+          { ...options, params: {
+            customer_group_id: params.customer_group_id,
+            company_id: params.company_id,
+            company_location_id: params.company_location_id,
+          } },
         );
       },
     },

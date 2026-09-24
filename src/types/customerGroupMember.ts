@@ -49,7 +49,7 @@ export type CustomerGroupJoinScope =
   | {
       type: "company";
       company_id: string;
-      company_location_id: string | null;
+      company_location_id: string;
     };
 
 export interface CustomerGroupJoinRequest {
@@ -63,6 +63,15 @@ export interface JoinCustomerGroupParams {
   command_id: string;
   request: CustomerGroupJoinRequest;
 }
+
+export type JoinStorefrontCustomerGroupParams = Omit<JoinCustomerGroupParams, "store_id">;
+
+export type GetStorefrontCustomerGroupMemberParams = {
+  customer_group_id: string;
+} & (
+  | { company_id?: never; company_location_id?: never }
+  | { company_id: string; company_location_id: string }
+);
 
 export interface GetCustomerGroupMemberParams {
   store_id?: string;

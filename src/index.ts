@@ -933,7 +933,7 @@ export function storeCommerceDefaults(
     : null;
 }
 
-export const SDK_VERSION = "0.26.55";
+export const SDK_VERSION = "0.26.56";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -2272,6 +2272,7 @@ function createStorefrontClientCore(
       getMe: me,
     },
     customer_groups: storefrontApi.customer_groups,
+    customer_group_members: storefrontApi.customer_group_members,
     customer_group_plans: storefrontApi.customer_group_plans,
     actions: storefrontApi.actions,
     experiments: storefrontApi.experiments,
@@ -2349,5 +2350,6 @@ export type { GetMarketZoneByBindingParams } from "./types/zone";
 export type { GetMarketSalesChannelByBindingParams } from "./types/marketSalesChannel";
 export type { GetShippingMethodByKeyParams } from "./types/shipping";
 export type { CustomerGroupSubscriptionSelf, CustomerGroupSubscriptionSelfStatus } from "./types/customerGroupSubscription";
+export type { JoinStorefrontCustomerGroupParams, GetStorefrontCustomerGroupMemberParams } from "./types/customerGroupMember";
 export type { OrderPickup, OrderPickupLine, OrderPickupStatus, FindOrderPickupsParams, GetOrderPickupParams } from "./types/orderPickup";
 export type { OrderInvoice, OrderInvoiceState, OrderInvoiceProvider, OrderInvoiceReconciliation, FiscalDocument, DocumentArtifact, FindOrderInvoicesParams, GetOrderInvoiceParams } from "./types/orderInvoice";
