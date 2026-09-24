@@ -1,4 +1,6 @@
 export { ScheduledResultTimeoutError } from "./utils/scheduledResult";
+export { MonriCheckoutError } from "./types/monriCheckout";
+export type { MonriComponentsAction, MonriBuyerDetails } from "./types/monriCheckout";
 export { isValidKey, validateKey, toKey, nameToKey } from "./utils/keyValidation";
 export { CartPresentationChangedError } from "./types/cartCheckout";
 export type { ShippingLabelRequestResolution } from "./types/shippingLabel";

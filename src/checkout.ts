@@ -1,35 +1,10 @@
 import {
   loadStripe,
   type StripeEmbeddedCheckout,
-  type StripeEmbeddedCheckoutOptions,
 } from "@stripe/stripe-js";
-import type {
-  CheckoutPaymentAction,
-  StoreSubscriptionCheckoutAction,
-} from "./types";
-
-export type StripeEmbeddedCheckoutAction = Extract<
-  CheckoutPaymentAction,
-  { type: "stripe_embedded_checkout" }
-> |
-  Extract<
-    StoreSubscriptionCheckoutAction,
-    { type: "stripe_embedded_checkout" }
-  >;
-
-export type EmbeddedCheckoutAction =
-  | CheckoutPaymentAction
-  | StoreSubscriptionCheckoutAction;
-
-export interface EmbeddedCheckoutMount {
-  checkout: StripeEmbeddedCheckout;
-  unmount(): void;
-  destroy(): void;
-}
-
-export interface EmbeddedCheckoutCallbacks {
-  onComplete?: StripeEmbeddedCheckoutOptions["onComplete"];
-}
+import type { EmbeddedCheckoutAction, EmbeddedCheckoutCallbacks, EmbeddedCheckoutMount, StripeEmbeddedCheckoutAction } from "./types/embeddedCheckout";
+import { mountMonriCheckoutAction } from "./services/monriCheckout";
+export type { EmbeddedCheckoutAction, EmbeddedCheckoutCallbacks, EmbeddedCheckoutMount, StripeEmbeddedCheckoutAction } from "./types/embeddedCheckout";
 
 export async function createStripeEmbeddedCheckout(
   action: StripeEmbeddedCheckoutAction,
@@ -58,9 +33,11 @@ export async function mountCheckoutAction(
   callbacks: EmbeddedCheckoutCallbacks = {},
 ): Promise<EmbeddedCheckoutMount | null> {
   if (action.type === "none") return null;
+  if (action.type === "monri_components") return mountMonriCheckoutAction(action, location, callbacks);
   const checkout = await createStripeEmbeddedCheckout(action, callbacks);
   checkout.mount(location);
   return {
+    type: "stripe_embedded_checkout",
     checkout,
     unmount: () => checkout.unmount(),
     destroy: () => checkout.destroy(),

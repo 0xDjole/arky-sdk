@@ -24,6 +24,8 @@ export {
 } from "./storefrontStore";
 
 export { createStripeEmbeddedCheckout, mountCheckoutAction } from "./checkout";
+export { MonriCheckoutError } from "./types/monriCheckout";
+export type { MonriComponentsAction, MonriBuyerDetails } from "./types/monriCheckout";
 export type {
   EmbeddedCheckoutCallbacks,
   EmbeddedCheckoutAction,

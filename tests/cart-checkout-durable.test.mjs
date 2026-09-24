@@ -61,6 +61,19 @@ function stripeResult() {
   };
 }
 
+function monriResult() {
+  const payment = stripeResult().payment;
+  return {
+    ...result(),
+    payment: {
+      ...payment,
+      provider: { type: 'monri_checkout', payment_provider_id: providerId, environment: 'test', transaction_type: 'purchase', transaction_id: null, authorization_void: null },
+      amounts: { ...payment.amounts, capture_pending: payment.amounts.total },
+    },
+    payment_action: { type: 'monri_components', payment_id: otherId, environment: 'test', authenticity_token: 'test-token', client_secret: 'test-session-secret' },
+  };
+}
+
 function capture(respond) {
   const calls = [];
   install("fetch", async (url, init = {}) => {
@@ -323,6 +336,48 @@ test("validated Stripe checkout exposes capabilities only after exact proof and 
   assert.equal(storageAtSuccess, null);
   assert.equal(calls.length, 2);
   assert.equal(storage.getItem(storageKey), null);
+});
+
+test('Monri checkout keeps one accepted Order and exposes its capability without browser persistence', async () => {
+  const { storage } = browser();
+  const calls = capture((call) => {
+    const retained = storage.getItem(storageKey);
+    assert.equal(retained.includes('client_secret'), false);
+    assert.equal(retained.includes('authenticity_token'), false);
+    return Response.json(call.method === 'GET' ? proof() : monriResult());
+  });
+  assert.deepEqual(await storefront().eshop.cart.checkout(request), monriResult());
+  assert.equal(storage.getItem(storageKey), null);
+  assert.equal(calls.length, 2);
+  assert.equal(calls.filter((call) => call.method === 'POST').length, 1);
+});
+
+test('invalid Monri capability bindings and reservations retain the original Checkout request', async () => {
+  const original = monriResult();
+  const mutations = [
+    { ...original, payment: null },
+    ...[
+      { payment_id: orderId }, { environment: 'live' }, { authenticity_token: '' },
+      { client_secret: '' }, { expires_at: 1900000000000 }, { merchant_key: 'not-public' },
+    ].map((fields) => ({ ...original, payment_action: { ...original.payment_action, ...fields } })),
+    ...[
+      { capture_pending: 0 }, { capture_pending: 999 }, { authorized: 1 }, { captured: 1 },
+      { refunded: 1 }, { refund_pending: 1 },
+    ].map((amounts) => ({ ...original, payment: { ...original.payment, amounts: { ...original.payment.amounts, ...amounts } } })),
+    ...[
+      { transaction_type: 'authorize' }, { transaction_id: '123' }, { environment: 'live' },
+      { authorization_void: { status: { type: 'requested' } } },
+    ].map((provider) => ({ ...original, payment: { ...original.payment, provider: { ...original.payment.provider, ...provider } } })),
+    { ...original, payment: { ...original.payment, status: { type: 'unknown' } } },
+    { ...original, payment: { ...original.payment, reconciliation: { type: 'hold', opened_at: 1 } } },
+  ];
+  for (const body of mutations) {
+    const { storage } = browser();
+    const calls = capture(() => Response.json(body));
+    await assert.rejects(storefront().eshop.cart.checkout(request), /invalid purchase evidence/);
+    assert.notEqual(storage.getItem(storageKey), null);
+    assert.equal(calls.length, 1);
+  }
 });
 
 test("collection status, partial refunds and held evidence remain readable without a new payment action", async () => {

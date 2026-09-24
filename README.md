@@ -516,9 +516,10 @@ seller or invoicing configuration. `languages.default` may be null.
 The Storefront setup exposes each provider UUID, key, content Blocks and safe provider type. Stripe account,
 capability, consent, and disablement evidence remain private Admin data.
 
-Payment configuration belongs to Arky. A card checkout returns a short-lived embedded Stripe
-action. The SDK mounts that exact Checkout Session inside the merchant page; it never redirects the
-ordinary purchase to a Stripe-hosted Checkout page and it never exposes secret credentials:
+Payment configuration belongs to Arky. Card checkout returns either `stripe_embedded_checkout`
+or `monri_components`. Both use the same accepted Checkout, Order and Payment. The SDK mounts
+the exact provider form inside the merchant page; server-only merchant credentials never leave
+Arky. `none` has no form and mounts to `null`.
 
 ```typescript
 import { mountCheckoutAction } from "arky-sdk";
@@ -537,12 +538,42 @@ const mounted = await mountCheckoutAction(result.payment_action, "#payment", {
 // Call mounted?.destroy() when the checkout view is disposed.
 ```
 
-Purchase and paid Audience actions include a required `connected_account_id`. Store subscription
-selection uses its separate checkout-action contract with nullable `stripe_account_id`;
-`mountCheckoutAction` accepts either action without changing either wire shape.
+Stripe purchase actions include a required `connected_account_id`. Store subscription selection
+uses its separate Stripe action with nullable `stripe_account_id`. Stripe owns submission inside
+its form; the returned mount has `type: "stripe_embedded_checkout"` and a `checkout` instance.
 
-Embedded Checkout completion and a browser return are navigation signals only. Authoritative Arky
-state, advanced by a signed Stripe event or an exact provider read, settles the payment.
+Monri requires an HTTPS page and loads its card fields directly from Monri's official script
+origin. The action provides only the exact Payment ID, Test/Live environment, browser authenticity
+token and session client secret. Do not persist the action or invent an expiry. A page cannot mix
+Monri Test and Live libraries. The returned mount has `type: "monri_components"`; connect its
+`confirm` method to the buyer's explicit form submission with their actual billing details:
+
+```typescript
+import type { MonriBuyerDetails } from "arky-sdk";
+
+async function submitMonri(details: MonriBuyerDetails) {
+  if (mounted?.type === "monri_components") {
+    await mounted.confirm(details);
+  }
+}
+```
+
+Billing requires `fullName`, `address`, `city`, `zip`, `phone`, `country` and `email`. Card numbers
+and security codes stay in Monri's hosted fields. This path does not save a reusable card or offer
+installments. `onValidationError` provides safe card-validation text. `MonriCheckoutError.code`
+distinguishes invalid billing from an uncertain submitted result. Invalid billing can be corrected
+before submission; an attempted native confirmation is not automatically retried. After uncertainty,
+read the same ARKY Payment instead of starting another Checkout. Checking status must not remount
+an unchanged capability and silently re-enable submission.
+
+Both mounts expose `destroy` and `unmount`. Monri cleanup removes only the SDK-owned host and
+suppresses its later callbacks; Monri does not document a native component-destruction method.
+Neither method cancels a provider payment.
+
+Embedded completion and browser return are prompts to read authoritative ARKY state, not payment
+proof. Stripe uses its supported signed-event/exact-observation policy; Monri initial Purchase
+uses signed backend notifications. An approved or declined browser result never settles money in
+the SDK. A delayed notification can leave the same Order awaiting payment.
 
 ## SSR and static generation
 

@@ -1,4 +1,6 @@
 import type { Payment } from "./payment";
+import type { MonriComponentsAction } from "./monriCheckout";
+export type { MonriComponentsAction, MonriBuyerDetails } from "./monriCheckout";
 export type { ShippingLabelRequestResolution } from "./shippingLabel";
 export type * from "./fulfillmentUnitSelection";
 import type { SellerProfile } from "./orderContract";
@@ -959,6 +961,7 @@ export interface DigitalDownload {
 
 export type CheckoutPaymentAction =
   | { type: "none" }
+  | MonriComponentsAction
   | {
       type: "stripe_embedded_checkout";
       publishable_key: string;

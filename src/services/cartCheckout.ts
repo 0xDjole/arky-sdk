@@ -10,6 +10,7 @@ import { CartPresentationChangedError } from "../types/cartCheckout";
 import type { RequestSuccessContext } from "../types/httpClient";
 import type { CheckoutQuote } from "../types/checkout";
 import { checkoutQuoteSources } from "./checkoutSources";
+import { isMonriComponentsAction } from "./monriCheckout";
 import {
   clearDurableRequest,
   DurableRequestStorageError,
@@ -36,14 +37,14 @@ function validPaymentResult(value: unknown, request: CartCheckoutRequest): boole
     typeof value.checkout_id !== "string" || !uuid.test(value.checkout_id) ||
     typeof value.number !== "string" || !value.number.length || !record(value.payment_action)) return false;
   const action = value.payment_action;
-  if (action.type !== "none" && action.type !== "stripe_embedded_checkout") return false;
+  if (action.type !== "none" && action.type !== "stripe_embedded_checkout" && action.type !== "monri_components") return false;
   if (value.payment === null) return action.type === "none";
   const payment = value.payment;
   if (!record(payment) || typeof payment.id !== "string" || !uuid.test(payment.id) ||
     payment.order_id !== value.order_id ||
     !record(payment.provider) || typeof payment.provider.payment_provider_id !== "string" || !uuid.test(payment.provider.payment_provider_id) ||
     (request.payment_provider_id !== undefined && request.payment_provider_id !== payment.provider.payment_provider_id) ||
-    !["cash_on_delivery", "stripe_checkout"].includes(String(payment.provider.type)) ||
+    !["cash_on_delivery", "stripe_checkout", "monri_checkout"].includes(String(payment.provider.type)) ||
     !record(payment.status) || !["pending", "requires_action", "processing", "authorized", "completed", "cancelled", "expired", "failed", "unknown"].includes(String(payment.status.type)) ||
     !record(payment.reconciliation) || !["clear", "hold"].includes(String(payment.reconciliation.type)) ||
     (payment.reconciliation.type === "hold" && (!Number.isSafeInteger(payment.reconciliation.opened_at) || Number(payment.reconciliation.opened_at) < 0)) ||
@@ -51,6 +52,16 @@ function validPaymentResult(value: unknown, request: CartCheckoutRequest): boole
     ![payment.amounts.total, payment.amounts.authorized, payment.amounts.captured, payment.amounts.capture_pending, payment.amounts.refund_pending, payment.amounts.refunded].every((amount) => Number.isSafeInteger(amount) && Number(amount) >= 0) ||
     Number(payment.amounts.total) <= 0) return false;
   if (action.type === "none") return true;
+  if (action.type === "monri_components") {
+    return isMonriComponentsAction(action) && action.payment_id === payment.id &&
+      payment.provider.type === "monri_checkout" && payment.provider.environment === action.environment &&
+      payment.provider.transaction_type === "purchase" && payment.provider.transaction_id === null &&
+      payment.provider.authorization_void === null && payment.status.type === "requires_action" &&
+      payment.reconciliation.type === "clear" && payment.checkout_expiration === null &&
+      payment.amounts.authorized === 0 && payment.amounts.captured === 0 &&
+      payment.amounts.capture_pending === payment.amounts.total &&
+      payment.amounts.refunded === 0 && payment.amounts.refund_pending === 0;
+  }
   return payment.provider.type === "stripe_checkout" && payment.status.type === "requires_action" &&
     payment.reconciliation.type === "clear" && payment.checkout_expiration === null &&
     payment.amounts.captured === 0 && payment.amounts.capture_pending === 0 &&
