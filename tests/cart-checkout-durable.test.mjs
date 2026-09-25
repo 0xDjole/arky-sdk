@@ -436,7 +436,7 @@ test("pending current Cart reads the original identity and blocks ordinary Cart 
           deliveries: [],
         },
       }),
-    () => client.removeItem({ id: cartId, item_id: otherId }),
+    () => client.removeItem({ id: cartId, line_item: { type: "product", line_item_id: otherId } }),
     () => client.clear({ id: cartId }),
   ]) await assert.rejects(mutate(), /Recover the unresolved Cart Checkout/);
   assert.equal(calls.length, reads);

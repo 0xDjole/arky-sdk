@@ -1,7 +1,7 @@
 import type { EpochMilliseconds } from "./time";
 import type { ManualPriceInput } from "./price";
 import type { CatalogReadOptions } from "./catalog";
-import type { CheckoutQuoteSources } from "./checkout";
+import type { CartLineItemRef, CheckoutQuoteSources } from "./checkout";
 import type {
   AccountSessionScope,
   Block,
@@ -361,13 +361,11 @@ export interface AddCartSubscriptionPlanParams {
   subscription_plan: CartSubscriptionPlanInput;
 }
 
-export type RemoveCartItemParams = {
+export interface RemoveCartItemParams {
   id: string;
   store_id?: string;
-} & (
-  | { item_id: string; product_id?: never; variant_id?: never }
-  | { item_id?: never; product_id: string; variant_id: string }
-);
+  line_item: CartLineItemRef;
+}
 
 export interface ClearCartParams {
   id: string;

@@ -89,12 +89,9 @@ export type CartControllerAddSubscriptionPlanParams = Omit<
   AddCartSubscriptionPlanParams,
   "id"
 > & { id?: string };
-export type CartControllerRemoveItemParams =
-  RemoveCartItemParams extends infer Params
-    ? Params extends { id: string }
-      ? Omit<Params, "id"> & { id?: string }
-      : never
-    : never;
+export type CartControllerRemoveItemParams = Omit<RemoveCartItemParams, "id"> & {
+  id?: string;
+};
 export type CartControllerClearParams = Omit<ClearCartParams, "id"> & {
   id?: string;
 };

@@ -754,7 +754,7 @@ function initializeStoreCore(
     if (!current || !item) return null;
     const response = await client.eshop.cart.removeItem({
       id: current.id,
-      item_id: item.id,
+      line_item: { type: "product", line_item_id: item.id },
     });
     await applyCartResponse(response, { ifRevision: writeRevision, scope });
     return response;
@@ -794,7 +794,7 @@ function initializeStoreCore(
     if (!current) return null;
     const response = await client.eshop.cart.removeItem({
       id: current.id,
-      item_id: itemId,
+      line_item: { type: "digital_product", line_item_id: itemId },
     });
     await applyCartResponse(response, { ifRevision: writeRevision, scope });
     return response;
@@ -818,7 +818,10 @@ function initializeStoreCore(
     const writeRevision = nextCartWriteRevision();
     const current = cart.get();
     if (!current) return null;
-    const response = await client.eshop.cart.removeItem({ id: current.id, item_id: itemId });
+    const response = await client.eshop.cart.removeItem({
+      id: current.id,
+      line_item: { type: "subscription_plan", line_item_id: itemId },
+    });
     await applyCartResponse(response, { ifRevision: writeRevision, scope });
     return response;
   }
