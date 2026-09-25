@@ -87,7 +87,6 @@ test("Admin Digital Product and Digital Asset methods use the canonical contract
   });
   const create = {
     key: "digital-product-key",
-    name_block_id: "32a0602a-9d84-4e6c-9e84-fb6801f8d898",
     slugs: { en: "digital-product" },
     blocks: [],
     classifications: [],
@@ -320,7 +319,6 @@ test("Storefront Digital Product lookup and library routes keep distinct selecto
   const product = {
     id: "0198f8f7-2f25-4a14-86bb-64efc56e1a10",
     key: "digital-product-key",
-    name_block_id: "32a0602a-9d84-4e6c-9e84-fb6801f8d898",
     slugs: { en: "digital-product" },
     blocks: [],
     classifications: [],
@@ -329,7 +327,7 @@ test("Storefront Digital Product lookup and library routes keep distinct selecto
   };
   const libraryProduct = {
     digital_product_id: product.id,
-    presentation: { digital_product_id: product.id, product_key: product.key, product_name: { text: "Purchased guide", locale: "en" } },
+    presentation: { digital_product_id: product.id, product_key: product.key },
     assets: { items: [{ id: "0198f8f7-2f25-4a14-86bb-64efc56e1a11", file_name: "guide.txt", mime_type: "text/plain", download_reference: "protected-reference" }], cursor: null },
   };
   const calls = [];

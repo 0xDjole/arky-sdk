@@ -15,18 +15,18 @@ export type * from "./orderSnapshot";
 export type * from "./orderMoney";
 export type * from "./orderLineItem";
 import type { AcceptedFormSubmission, OrderAccess, OrderLineItemOrigin, OrderProductLocationAllocation } from "./orderLineItem";
-export type { Price } from "./price";
+export type { Price, PriceScope } from "./price";
 export type { Zone, ZoneMatch, ZoneStatus, ZoneEditableStatus } from "./zone";
 export type { ShippingMethod, ShippingRate } from "./shipping";
 export type { StorefrontPrice } from "./commerce";
-export type { AppliedPriceSnapshot, AppliedPriceSource, DisplayTextSnapshot, OrderCustomerGroupPlanItem } from "./commerce";
+export type { AppliedPriceSnapshot, AppliedPriceSource, DisplayTextSnapshot, OrderSubscriptionPlanItem } from "./commerce";
 export type { CompanySnapshot, PurchaseCustomerSnapshot, PurchaseOrigin, PurchaseQuoteContext, SalesChannelSnapshot } from "./commerce";
-export type { CustomerGroupAcceptedTerms, CustomerGroupPlanSnapshot, CustomerGroupBenefitSnapshot, CustomerGroupBenefitSnapshotType, CustomerGroupProductSnapshot, CustomerGroupDigitalSnapshot, CustomerGroupDeliveryTerms, CustomerGroupPurchaseOccurrence, OrderCustomerGroupTerms, OrderAccessRevocation } from "./commerce";
+export type { SubscriptionAcceptedTerms, SubscriptionPlanSnapshot, SubscriptionPlanEntitlementSnapshot, SubscriptionPlanEntitlementSnapshotType, SubscriptionProductSnapshot, SubscriptionDigitalSnapshot, SubscriptionDeliveryTerms, SubscriptionPurchaseOccurrence, OrderSubscriptionTerms, OrderAccessRevocation } from "./commerce";
 export type { BillingPeriod } from "./commerce";
 export type { MonriCaptureProof, PaymentCaptureEvidence, CaptureFinancialEffect, PaymentCaptureStatus, OrderPaymentCapture, RecordedCollection, RecordCashOnDeliveryCollectionParams, RecordManualCollectionParams, CreateManualPaymentParams } from "./paymentCapture";
 export type { CommerceProviderObservation, Payment, PaymentStatus, PaymentAmounts, PaymentProviderBinding, PaymentCheckoutExpiration, PaymentReconciliation, StripeInvoicePaymentObject, MonriAuthorizationVoid, MonriVoidStatus, MonriVoidResult } from "./payment";
 import type { EpochMilliseconds } from "./time";
-export type { Order, OrderType, OrderPurchaseSource, OrderStatus, OrderLineItem, OrderCompanyContext, OrderFinancialSummary, OrderFinancialConcern, GetOrderFinancialSummaryParams } from "./order";
+export type { Order, OrderSource, OrderSourceFilter, OrderRentalUseItem, OrderStatus, OrderLineItem, OrderCompanyContext, OrderFinancialSummary, OrderFinancialConcern, GetOrderFinancialSummaryParams } from "./order";
 export type {
   MarketSnapshot,
   PurchaseOriginSnapshot,
@@ -178,27 +178,6 @@ export interface OrderMoney {
 export type * from "./quote";
 export type { CheckoutQuote, CheckoutQuoteSources, CheckoutQuoteDeliveryBinding } from "./checkout";
 
-export type IntervalPeriod = "month" | "year";
-
-export interface SubscriptionInterval {
-  period: IntervalPeriod;
-  count: number;
-}
-
-export interface PriceProvider {
-  type: "stripe";
-  id: string;
-}
-
-export interface SubscriptionPrice {
-  id: string;
-  currency: Currency;
-  amount: number;
-  compare_at?: number | null;
-  interval?: SubscriptionInterval | null;
-  providers: PriceProvider[];
-}
-
 /** Shared postal-address value used across Store and commerce resources. */
 export interface PostalAddress {
   name?: string | null;
@@ -254,7 +233,7 @@ export interface EshopCartItem {
   max_stock?: number;
 }
 
-export type { Cart, CreatedCart, CartStatus, CartLineItem, CartCompanyContext, CartProductItem, CartBookingItem, CartDigitalItem, CartCustomerGroupPlanItem } from "./cart";
+export type { Cart, CreatedCart, CartStatus, CartLineItem, CartCompanyContext, CartProductItem, CartBookingItem, CartDigitalItem, CartSubscriptionPlanItem } from "./cart";
 export type { QuotedDeliveryGroup, QuotedShippingOffer, QuotedDeliveryPricing, ShippingDeliveryEstimate } from "./quote";
 
 export type SocialConnectionType =
@@ -752,7 +731,6 @@ export interface Product {
   id: string;
   store_id: string;
   key: string;
-  name_block_id: string;
   slugs: Record<string, string>;
   blocks: Block[];
   classifications: ClassificationEntry[];
@@ -906,8 +884,52 @@ export interface FulfillmentOrder {
   recipient: FulfillmentRecipient;
   scheduled_window: FulfillmentWindow | null;
   lines: FulfillmentOrderLine[];
+  executor: FulfillmentExecutor;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+}
+
+export type FulfillmentExternalStatus =
+  | { type: "assigned" }
+  | { type: "requested"; webhook_delivery_id: string; requested_at: EpochMilliseconds }
+  | {
+      type: "acknowledged";
+      webhook_delivery_id: string;
+      requested_at: EpochMilliseconds;
+      acknowledged_at: EpochMilliseconds;
+      actor: import("./accountActor").AccountActor;
+    }
+  | {
+      type: "rejected";
+      webhook_delivery_id: string | null;
+      reason: string;
+      rejected_at: EpochMilliseconds;
+      actor: import("./accountActor").AccountActor;
+    };
+
+export type FulfillmentExecutor =
+  | { type: "internal" }
+  | {
+      type: "external";
+      webhook_endpoint_id: string;
+      request_id: string;
+      assigned_by: import("./accountActor").AccountActor;
+      assigned_at: EpochMilliseconds;
+      status: FulfillmentExternalStatus;
+    };
+
+export type FulfillmentExecutorCommand =
+  | { type: "assign_external"; webhook_endpoint_id: string }
+  | { type: "assign_internal" }
+  | { type: "request_external" }
+  | { type: "record_acknowledged" }
+  | { type: "record_rejected"; reason: string };
+
+export interface ControlFulfillmentExecutorParams {
+  store_id?: string;
+  fulfillment_order_id: string;
+  expected_updated_at: EpochMilliseconds;
+  command: FulfillmentExecutorCommand;
 }
 
 export type DigitalProductStatus = { type: "draft" } | { type: "active" } | { type: "archived" };
@@ -917,7 +939,6 @@ export interface DigitalProduct {
   id: string;
   store_id: string;
   key: string;
-  name_block_id: string;
   slugs: Record<string, string>;
   blocks: Block[];
   classifications: ClassificationEntry[];
@@ -931,7 +952,6 @@ export interface DigitalProduct {
 export interface StorefrontDigitalProduct {
   id: string;
   key: string;
-  name_block_id: string;
   slugs: Record<string, string>;
   blocks: Block[];
   classifications: ClassificationEntry[];
@@ -959,7 +979,6 @@ export interface DigitalLibraryAsset {
 export interface DigitalLibraryItem {
   digital_product_id: string;
   product_key: string;
-  product_name: DisplayTextSnapshot;
 }
 
 export interface DigitalLibraryProduct {
@@ -997,7 +1016,6 @@ export type StoreSubscriptionCheckoutAction =
     };
 
 export interface OrderCheckoutResult {
-  checkout_id: string;
   order_id: string;
   number: string;
   payment_action: CheckoutPaymentAction;
@@ -1007,6 +1025,8 @@ export interface OrderCheckoutResult {
 export type MarketStatus = { type: "active" } | { type: "deleting" };
 
 export interface MarketUsage {
+  market_payment_provider_ids: string[];
+  more_market_payment_providers: boolean;
   market_sales_channel_ids: string[];
   more_market_sales_channels: boolean;
   fulfillment_routing_policy_ids: string[];
@@ -1027,7 +1047,6 @@ export interface Market {
   currency: Currency;
   tax_mode: TaxMode;
   status: MarketStatus;
-  payment_provider_ids: string[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -1549,7 +1568,7 @@ export interface Media {
   updated_at: EpochMilliseconds;
 }
 
-export type SubscriptionPlanFeatureType =
+export type StorePlanFeatureType =
   | "collections"
   | "entries"
   | "booking_services"
@@ -1577,19 +1596,19 @@ export type UsagePeriod =
 export interface StoreUsage {
   id: string;
   store_id: string;
-  feature: SubscriptionPlanFeatureType;
+  feature: StorePlanFeatureType;
   period: UsagePeriod;
   count: number;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export interface SubscriptionPlanFeature {
+export interface StorePlanFeature {
   limit: number | null;
   reset: "never" | "monthly";
 }
 
-export interface SubscriptionPlan {
+export interface StorePlan {
   id: string;
   provider_price_id: string | null;
   name: string;
@@ -1599,7 +1618,7 @@ export interface SubscriptionPlan {
   interval: "lifetime" | "month" | "year";
   interval_count: number;
   trial_days: number | null;
-  features: Record<SubscriptionPlanFeatureType, SubscriptionPlanFeature>;
+  features: Record<StorePlanFeatureType, StorePlanFeature>;
 }
 
 export type AccountApiTokenStatus = { type: "active" | "revoked" };
@@ -2070,7 +2089,6 @@ export interface BookingOffering {
 export interface BookingService {
   id: string;
   key: string;
-  name_block_id: string;
   slugs: Record<string, string>;
   store_id: string;
   blocks: Block[];
@@ -2083,7 +2101,6 @@ export interface BookingService {
 export interface BookingResource {
   id: string;
   key: string;
-  name_block_id: string;
   slugs: Record<string, string>;
   store_id: string;
   status: BookingResourceStatus;
@@ -2528,40 +2545,13 @@ export type CustomerGroupMemberJoinSource =
   | "workflow"
   | "lead_research"
   | "open"
-  | "confirmation"
-  | "paid";
-
-export type CustomerGroupBillingCadence = "one_time" | "monthly" | "yearly";
+  | "confirmation";
 
 export type CustomerGroupUnsubscribeReason =
   | "customer_email_opt_out"
   | "customer_left"
   | "admin_ended"
-  | "billing_ended"
-  | "fully_refunded"
   | "store_closure";
-
-export type CustomerGroupCancellationTiming = "period_end" | "immediate";
-
-export interface CustomerGroupActionTimeRange {
-  from: EpochMilliseconds;
-  to: EpochMilliseconds;
-}
-
-export type CustomerGroupRefundActionStatus =
-  | { type: "requested" }
-  | { type: "processing" }
-  | { type: "pending" }
-  | { type: "succeeded" }
-  | { type: "failed" }
-  | { type: "unknown" };
-
-export type CustomerGroupDisputeActionStatus =
-  | { type: "needs_response" }
-  | { type: "under_review" }
-  | { type: "won" }
-  | { type: "lost" }
-  | { type: "closed" };
 
 interface CustomerGroupMemberActionValue {
   customer_group_id: string;
@@ -2625,91 +2615,13 @@ export type CustomerActionType =
         | "customer_group_confirmation_completed"
         | "customer_group_member_resubscribed"
         | "customer_group_member_left"
-        | "customer_group_member_insight_replaced"
-        | "customer_group_renewal_failed";
+        | "customer_group_member_insight_replaced";
       value: CustomerGroupMemberActionValue;
     }
   | {
       type: "customer_group_member_unsubscribed";
       value: CustomerGroupMemberActionValue & {
         reason: CustomerGroupUnsubscribeReason;
-      };
-    }
-  | {
-      type: "customer_group_checkout_started";
-      value: CustomerGroupMemberActionValue & {
-        checkout_id: string;
-        money: Money;
-        cadence: CustomerGroupBillingCadence;
-      };
-    }
-  | {
-      type: "customer_group_checkout_failed";
-      value: CustomerGroupMemberActionValue & {
-        checkout_id: string;
-      };
-    }
-  | {
-      type: "customer_group_member_paid";
-      value: CustomerGroupMemberActionValue & {
-        money: Money;
-        cadence: CustomerGroupBillingCadence;
-      };
-    }
-  | {
-      type: "customer_group_member_renewed";
-      value: CustomerGroupMemberActionValue & {
-        money: Money;
-        period: CustomerGroupActionTimeRange;
-      };
-    }
-  | {
-      type: "customer_group_cancellation_requested";
-      value: CustomerGroupMemberActionValue & {
-        cancellation_id: string;
-        timing: CustomerGroupCancellationTiming;
-      };
-    }
-  | {
-      type: "customer_group_cancellation_scheduled";
-      value: CustomerGroupMemberActionValue & {
-        cancellation_id: string;
-        cancel_at: EpochMilliseconds;
-      };
-    }
-  | {
-      type: "customer_group_cancellation_completed";
-      value: CustomerGroupMemberActionValue & {
-        cancellation_id: string;
-        ended_at: EpochMilliseconds;
-      };
-    }
-  | {
-      type: "customer_group_refund_requested";
-      value: CustomerGroupMemberActionValue & {
-        refund_id: string;
-        amount: Money;
-      };
-    }
-  | {
-      type: "customer_group_refund_changed";
-      value: CustomerGroupMemberActionValue & {
-        refund_id: string;
-        status: CustomerGroupRefundActionStatus;
-      };
-    }
-  | {
-      type: "customer_group_dispute_observed";
-      value: CustomerGroupMemberActionValue & {
-        dispute_id: string;
-        disputed: Money;
-      };
-    }
-  | {
-      type: "customer_group_dispute_changed";
-      value: CustomerGroupMemberActionValue & {
-        dispute_id: string;
-        status: CustomerGroupDisputeActionStatus;
       };
     };
 
@@ -3003,16 +2915,16 @@ export type EventAction =
   | { action: "customer_group_member_created" }
   | { action: "customer_group_member_updated" }
   | { action: "customer_group_confirmation_requested" }
-  | { action: "customer_group_plan_created" }
-  | { action: "customer_group_plan_updated" }
-  | { action: "customer_group_subscription_activated" }
-  | { action: "customer_group_subscription_paused" }
-  | { action: "customer_group_subscription_resumed" }
-  | { action: "customer_group_subscription_cancelled" }
-  | { action: "customer_group_subscription_funding_changed" }
-  | { action: "customer_group_subscription_next_purchase_skipped" }
-  | { action: "customer_group_subscription_renewal_due" }
-  | { action: "customer_group_subscription_renewal_collection_due" };
+  | { action: "subscription_plan_created" }
+  | { action: "subscription_plan_updated" }
+  | { action: "subscription_activated" }
+  | { action: "subscription_paused" }
+  | { action: "subscription_resumed" }
+  | { action: "subscription_cancelled" }
+  | { action: "subscription_funding_changed" }
+  | { action: "subscription_next_purchase_skipped" }
+  | { action: "subscription_renewal_due" }
+  | { action: "subscription_renewal_collection_due" };
 
 export interface Event {
   id: string;

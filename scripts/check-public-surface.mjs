@@ -264,9 +264,8 @@ const removedShippingContractPatterns = [
   /export interface ShippingRate\s*\{[^}]*\b(?:amount|currency)\??:/g,
   /\/shippo-label\b|\/shipments\/[^\s`"']+\/retry\b|\/charges(?:\/|`|"|')/g,
 ];
-const removedCustomerGroupPlanContractPatterns = [
-  /export interface (?:CustomerGroupPlan|CreateCustomerGroupPlanParams|UpdateCustomerGroupPlanParams)\s*(?:extends[^{]*)?\{[^}]*\bbenefits\??:/g,
-];
+const removedGroupOwnedSubscriptionPattern =
+  /\bCustomerGroup(?:Plan|PlanBenefit|Subscription|SubscriptionRevision)\w*\b|\bcustomer_group_(?:plan|subscription)\w*\b|\bmembership_allocation_weight\b|\bname_block_id\b/g;
 const removedCrmActionVocabularyPattern =
   /\b(?:has_action|action_id|opportunity_action_id|action_by_country|top_action_pages|recent_action)\b|\b(?:crmApi|storefrontApi|client)\.action\b/g;
 const removedCustomerVocabularyPatterns = [
@@ -479,11 +478,9 @@ for (const file of listTypeScriptFiles(sourceDir)) {
     }
   }
 
-  for (const pattern of removedCustomerGroupPlanContractPatterns) {
-    for (const match of source.matchAll(pattern)) {
-      report(file, source, match.index, "CustomerGroupPlan benefits are separate CustomerGroupPlanBenefit roots");
-      failures++;
-    }
+  for (const match of source.matchAll(removedGroupOwnedSubscriptionPattern)) {
+    report(file, source, match.index, `removed group-owned subscription or name-block vocabulary ${match[0]}`);
+    failures++;
   }
 
   for (const match of source.matchAll(removedCrmActionVocabularyPattern)) {
@@ -692,7 +689,7 @@ if (!quoteContract || [
   /\bcontext:\s*PurchaseQuoteContext;/,
   /\blocale:\s*string\s*\|\s*null;/,
   /\bpresentation_digest:\s*string;/,
-  /\bcustomer_group_lines:\s*CustomerGroupOrderQuoteLine\[\];/,
+  /\bsubscription_lines:\s*SubscriptionOrderQuoteLine\[\];/,
   /\bdelivery_groups:\s*QuotedDeliveryGroup\[\];/,
   /\bseller:\s*SellerSnapshot;/,
   /\binvoice_policy:\s*OrderInvoicePolicy;/,
@@ -710,7 +707,7 @@ const orderContract = orderTypesSource.match(
 );
 const requiredOrderFields = [
   /\borigin:\s*PurchaseOriginSnapshot;/,
-  /\btype:\s*OrderType;/,
+  /\bsource:\s*OrderSource;/,
   /\bstatus:\s*OrderStatus;/,
   /\bcustomer_id:\s*string;/,
   /\bcustomer_snapshot:\s*PurchaseCustomerSnapshot;/,
@@ -881,13 +878,19 @@ if (
   !/createCustomersApi\s*\}\s*from\s*["']\.\/api\/customers["']/.test(
     indexSource,
   ) ||
-  !/createCustomerGroupPlanApi\s*\}\s*from\s*["']\.\/api\/customerGroupPlan["']/.test(
+  !/createSubscriptionOfferingApi\s*\}\s*from\s*["']\.\/api\/subscriptionOffering["']/.test(
+    indexSource,
+  ) ||
+  !/createSubscriptionPlanApi\s*\}\s*from\s*["']\.\/api\/subscriptionPlan["']/.test(
     indexSource,
   ) ||
   !/createCustomerGroupMemberApi\s*\}\s*from\s*["']\.\/api\/customerGroupMember["']/.test(
     indexSource,
   ) ||
-  !/createCustomerGroupPlanBenefitApi\s*\}\s*from\s*["']\.\/api\/customerGroupPlanBenefit["']/.test(
+  !/createSubscriptionPlanEntitlementApi\s*\}\s*from\s*["']\.\/api\/subscriptionPlanEntitlement["']/.test(
+    indexSource,
+  ) ||
+  !/createMarketPaymentProviderApi\s*\}\s*from\s*["']\.\/api\/marketPaymentProvider["']/.test(
     indexSource,
   ) ||
   !/createFulfillmentOrderApi\s*\}\s*from\s*["']\.\/api\/fulfillmentOrder["']/.test(
@@ -1134,16 +1137,16 @@ if (
   !/\n\s*source:\s*AcceptedDeliveryPricingSource;/.test(acceptedPricingContract[1]) ||
   !acceptedPricingSourceContract ||
   !/type:\s*"shipping_rate";[^}]*\bcalculation:\s*AcceptedDeliveryCalculation;/.test(acceptedPricingSourceContract[1]) ||
-  !/type:\s*"subscription_terms";[^}]*\border_customer_group_line_item_id:\s*string;[^}]*\bdelivery_terms_id:\s*string;/.test(acceptedPricingSourceContract[1])
+  !/type:\s*"subscription_terms";[^}]*\border_subscription_line_item_id:\s*string;[^}]*\bdelivery_terms_id:\s*string;/.test(acceptedPricingSourceContract[1])
 ) {
   report(orderContractFile, orderContractSource, acceptedPricingContract?.index ?? 0,
     "Accepted delivery pricing must name its ShippingRate or accepted subscription-terms source");
   failures++;
 }
 
-const planTypesFile = resolve(sourceDir, "types/customerGroupPlan.ts");
+const planTypesFile = resolve(sourceDir, "types/subscriptionPlan.ts");
 const planTypesSource = readFileSync(planTypesFile, "utf8");
-if (!/type:\s*"recurring";[^}]*\bcommitment:\s*CustomerGroupCommitment\s*\|\s*null;/.test(planTypesSource)) {
+if (!/type:\s*"recurring";[^}]*\bcommitment:\s*SubscriptionCommitment\s*\|\s*null;/.test(planTypesSource)) {
   report(planTypesFile, planTypesSource, 0,
     "Recurring plan terms must carry a required nullable commitment");
   failures++;

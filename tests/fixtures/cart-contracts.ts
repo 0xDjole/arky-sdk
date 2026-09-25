@@ -1,5 +1,5 @@
 import type {
-  Cart, CreatedCart, CartCompanyContext, CartLineItem, CartCustomerGroupPlanItem, CartStatus, PurchaseOrigin, OrderQuote, CheckoutQuote, CustomerGroupOrderQuoteLine,
+  Cart, CreatedCart, CartCompanyContext, CartLineItem, CartSubscriptionPlanItem, CartStatus, PurchaseOrigin, OrderQuote, CheckoutQuote, SubscriptionOrderQuoteLine,
   CheckoutCartParams, CreateCartParams, UpdateCartParams, FindCartsParams,
   StorefrontUpdateCartParams, StorefrontAddCartProductParams, StorefrontCurrentCartParams,
   CartCheckoutRequest, CartPresentationChangedError,
@@ -17,7 +17,7 @@ type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 export type CartContracts = [
   Assert<Equal<Cart, Public.Cart>>,
   Assert<Equal<CartStatus, Public.CartStatus>>,
-  Assert<Equal<CartStatus["type"], "active" | "abandoned" | "checking_out" | "converted" | "merged" | "expired">>,
+  Assert<Equal<CartStatus["type"], "active" | "abandoned" | "converted" | "merged" | "expired">>,
   Assert<Equal<Cart["origin"], PurchaseOrigin>>,
   Assert<Equal<Cart["line_items"], CartLineItem[]>>,
   Assert<RequiredField<Cart, "customer_id">>,
@@ -52,9 +52,9 @@ export type CartContracts = [
   Assert<Equal<CheckoutQuote["order"], OrderQuote>>,
   Assert<RequiredNullable<CheckoutQuote, "sources">>,
   Assert<RequiredField<CheckoutQuote, "presentation_digest">>,
-  Assert<Equal<OrderQuote["customer_group_lines"], CustomerGroupOrderQuoteLine[]>>,
+  Assert<Equal<OrderQuote["subscription_lines"], SubscriptionOrderQuoteLine[]>>,
   Assert<Missing<OrderQuote, "audience_lines">>,
-  Assert<Equal<CartCustomerGroupPlanItem["price_override"], Public.ManualPrice | null>>,
+  Assert<Equal<CartSubscriptionPlanItem["price_override"], Public.ManualPrice | null>>,
   Assert<RequiredNullable<OrderQuote, "payment_provider_id">>,
   Assert<RequiredField<OrderQuote, "presentation_digest">>,
   Assert<RequiredField<CheckoutCartParams, "presentation_digest">>,

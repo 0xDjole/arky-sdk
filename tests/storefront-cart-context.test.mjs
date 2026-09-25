@@ -218,7 +218,7 @@ for (const permitted of [true, false]) {
     const suggested = "79f91663-1603-4b63-9953-42316875906e";
     const selected = "01c2af6e-ad1d-445f-a818-a135d9abca0a";
     const { store, calls } = setup((call) => {
-      assert.equal(call.path, "/v1/storefront/checkouts");
+      assert.equal(call.path, "/v1/storefront/carts/accept");
       throw new TypeError("response lost");
     });
     store.eshop.cart.cart.set(cart());
@@ -231,7 +231,7 @@ for (const permitted of [true, false]) {
       store.eshop.cart.checkout({ payment_provider_id: selected }),
       permitted ? /response lost/ : /not available in the reviewed Cart quote/,
     );
-    const posts = calls.filter((call) => call.path.endsWith("/checkouts"));
+    const posts = calls.filter((call) => call.path.endsWith("/carts/accept"));
     assert.equal(posts.length, permitted ? 1 : 0);
     if (permitted) {
       assert.equal(posts[0].body.payment_provider_id, selected);
@@ -423,7 +423,7 @@ for (const change of ["buyer", "language"]) {
     assert.equal(store.eshop.cart.status.get().fetching_quote, false);
     assert.equal(store.eshop.cart.status.get().quote_error, null);
     assert.equal(
-      calls.filter((call) => call.path.endsWith("/checkouts")).length,
+      calls.filter((call) => call.path.endsWith("/carts/accept")).length,
       0,
     );
   });
@@ -443,7 +443,7 @@ test("identity and Market invalidation leave the unresolved Checkout request byt
     });
   }
   const { store, calls } = setup((call) => {
-    assert.equal(call.path, "/v1/storefront/checkouts");
+    assert.equal(call.path, "/v1/storefront/carts/accept");
     throw new TypeError("response lost");
   });
   const request = {
@@ -468,7 +468,7 @@ test("identity and Market invalidation leave the unresolved Checkout request byt
   assert.equal(durable.getItem(key), retained);
   assert.deepEqual(await store.eshop.cart.pendingCheckout(), pending);
   assert.equal(
-    calls.filter((call) => call.path.endsWith("/checkouts")).length,
+    calls.filter((call) => call.path.endsWith("/carts/accept")).length,
     1,
   );
 });

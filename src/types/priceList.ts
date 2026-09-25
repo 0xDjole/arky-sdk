@@ -9,7 +9,6 @@ export interface PriceList {
   store_id: string;
   key: string;
   name: string;
-  priority: number;
   status: PriceListStatus;
   starts_at: EpochMilliseconds | null;
   ends_at: EpochMilliseconds | null;
@@ -28,7 +27,6 @@ export interface CreatePriceListParams {
   store_id?: string;
   key: string;
   name: string;
-  priority: number;
   status: PriceListEditableStatus;
   starts_at?: EpochMilliseconds | null;
   ends_at?: EpochMilliseconds | null;
@@ -42,7 +40,6 @@ export interface GetPriceListParams {
 export interface UpdatePriceListParams extends GetPriceListParams {
   expected_updated_at: EpochMilliseconds;
   name: string;
-  priority: number;
   status: PriceListEditableStatus;
   starts_at: EpochMilliseconds | null;
   ends_at: EpochMilliseconds | null;

@@ -3,7 +3,7 @@ import type { StorefrontPrice } from "./commerce";
 import type { EpochMilliseconds } from "./time";
 import type { CatalogReadOptions } from "./catalog";
 import type { CatalogPriceFilter } from "./api";
-import type { CustomerGroupPlanBenefitType } from "./customerGroupPlanBenefit";
+import type { SubscriptionPlanEntitlementType } from "./subscriptionPlanEntitlement";
 
 export type BillingInterval = "day" | "week" | "month" | "year";
 
@@ -25,31 +25,31 @@ export interface RenewalRecoveryPolicy {
   unpaid_order: UnpaidRenewalDisposition;
 }
 
-export type CustomerGroupCommitmentEndAction =
+export type SubscriptionCommitmentEndAction =
   | { type: "renew" }
   | { type: "renew_once" }
   | { type: "continue_without_term" }
   | { type: "stop" };
 
-export interface CustomerGroupCommitment {
+export interface SubscriptionCommitment {
   occurrences: number;
-  end_action: CustomerGroupCommitmentEndAction;
+  end_action: SubscriptionCommitmentEndAction;
 }
 
-export type CustomerGroupPlanTerm =
+export type SubscriptionPlanTerm =
   | { type: "permanent" }
   | {
       type: "recurring";
       cadence: RecurringCadence;
       recovery_policy: RenewalRecoveryPolicy;
-      commitment: CustomerGroupCommitment | null;
+      commitment: SubscriptionCommitment | null;
     };
 
-export type CustomerGroupProductQuantity =
+export type SubscriptionProductQuantity =
   | { type: "per_period"; quantity: number }
   | { type: "per_delivery"; quantity: number };
 
-export type CustomerGroupDeliverySchedule =
+export type SubscriptionDeliverySchedule =
   | { type: "none" }
   | { type: "once"; offset_days: number; window_days: number }
   | {
@@ -59,65 +59,59 @@ export type CustomerGroupDeliverySchedule =
       window_days: number;
     };
 
-export type CustomerGroupDigitalContent =
+export type SubscriptionDigitalContent =
   | { type: "accepted_assets" }
   | { type: "current_bundle" };
 
-export type CustomerGroupPlanStatus =
+export type SubscriptionPlanStatus =
   | { type: "draft" }
   | { type: "active" }
   | { type: "closed" }
   | { type: "archived" };
 
-export interface CustomerGroupPlan {
+export interface SubscriptionPlan {
   id: string;
   store_id: string;
-  customer_group_id: string;
+  subscription_offering_id: string;
   key: string;
-  name_block_id: string;
   blocks: Block[];
-  term: CustomerGroupPlanTerm;
-  membership_allocation_weight: number;
-  membership_tax_category_id: string | null;
-  status: CustomerGroupPlanStatus;
+  term: SubscriptionPlanTerm;
+  status: SubscriptionPlanStatus;
   starts_at: EpochMilliseconds | null;
   ends_at: EpochMilliseconds | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export interface CreateCustomerGroupPlanParams {
+export interface CreateSubscriptionPlanParams {
   store_id?: string;
-  customer_group_id: string;
+  subscription_offering_id: string;
   key: string;
-  name_block_id: string;
   blocks: Block[];
-  term: CustomerGroupPlanTerm;
-  membership_allocation_weight: number;
-  membership_tax_category_id: string | null;
-  status: CustomerGroupPlanStatus;
+  term: SubscriptionPlanTerm;
+  status: SubscriptionPlanStatus;
   starts_at: EpochMilliseconds | null;
   ends_at: EpochMilliseconds | null;
 }
 
-export interface UpdateCustomerGroupPlanParams
-  extends Omit<CreateCustomerGroupPlanParams, "customer_group_id" | "key"> {
+export interface UpdateSubscriptionPlanParams
+  extends Omit<CreateSubscriptionPlanParams, "subscription_offering_id" | "key"> {
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface GetCustomerGroupPlanParams {
+export interface GetSubscriptionPlanParams {
   store_id?: string;
   id: string;
 }
 
-export interface FindCustomerGroupPlansParams {
+export interface FindSubscriptionPlansParams {
   store_id?: string;
-  customer_group_id?: string;
+  subscription_offering_id?: string;
   limit?: number;
   cursor?: string;
   key?: string;
-  status?: CustomerGroupPlanStatus;
+  status?: SubscriptionPlanStatus;
   query?: string;
   sort_field?: "key" | "created_at" | "status";
   sort_direction?: "asc" | "desc";
@@ -125,25 +119,24 @@ export interface FindCustomerGroupPlansParams {
   created_at_to?: EpochMilliseconds;
 }
 
-export interface StorefrontCustomerGroupPlanBenefit {
+export interface StorefrontSubscriptionPlanEntitlement {
   id: string;
-  type: CustomerGroupPlanBenefitType;
+  type: SubscriptionPlanEntitlementType;
 }
 
-export interface StorefrontCustomerGroupPlan {
+export interface StorefrontSubscriptionPlan {
   id: string;
-  customer_group_id: string;
+  subscription_offering_id: string;
   key: string;
-  name_block_id: string;
   blocks: Block[];
-  term: CustomerGroupPlanTerm;
-  benefits: StorefrontCustomerGroupPlanBenefit[];
+  term: SubscriptionPlanTerm;
+  entitlements: StorefrontSubscriptionPlanEntitlement[];
   price: StorefrontPrice | null;
   purchase_allowed: boolean;
 }
 
-export interface FindStorefrontCustomerGroupPlansParams extends CatalogReadOptions {
-  customer_group_id?: string;
+export interface FindStorefrontSubscriptionPlansParams extends CatalogReadOptions {
+  subscription_offering_id?: string;
   limit?: number;
   cursor?: string;
   query?: string;
@@ -154,7 +147,7 @@ export interface FindStorefrontCustomerGroupPlansParams extends CatalogReadOptio
   created_at_to?: EpochMilliseconds;
 }
 
-export interface GetStorefrontCustomerGroupPlanParams extends CatalogReadOptions {
+export interface GetStorefrontSubscriptionPlanParams extends CatalogReadOptions {
   identifier: string;
-  customer_group_id?: string;
+  subscription_offering_id?: string;
 }

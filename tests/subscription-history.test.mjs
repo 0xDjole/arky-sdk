@@ -20,7 +20,7 @@ test("Subscription history forwards its own cursor and exposes no retired financ
       market: "us",
       locale: "en",
     });
-    const subscriptions = client.eshop.customerGroupSubscription;
+    const subscriptions = client.eshop.subscription;
     for (const owner of ["refunds", "disputes", "billing", "memberships"]) {
       assert.equal(owner in subscriptions, false, owner);
     }
@@ -41,7 +41,7 @@ test("Subscription history forwards its own cursor and exposes no retired financ
       assert.equal(request.body, undefined);
       assert.equal(
         request.url.pathname,
-        "/v1/stores/exact-store/customer-group-subscriptions/subscription/orders",
+        "/v1/stores/exact-store/subscriptions/subscription/orders",
       );
       assert.equal(request.url.searchParams.get("limit"), "25");
     }

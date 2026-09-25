@@ -11,7 +11,8 @@ import type {
   JoinStorefrontCustomerGroupParams,
   GetStorefrontCustomerGroupMemberParams,
 } from "../types/customerGroupMember";
-import type { StorefrontCustomerGroupPlan, FindStorefrontCustomerGroupPlansParams, GetStorefrontCustomerGroupPlanParams } from "../types/customerGroupPlan";
+import type { StorefrontSubscriptionPlan, FindStorefrontSubscriptionPlansParams, GetStorefrontSubscriptionPlanParams } from "../types/subscriptionPlan";
+import type { GetStorefrontSubscriptionOfferingParams, StorefrontSubscriptionOffering } from "../types/subscriptionOffering";
 import type {
   CustomerGroupEmailConsent,
   GetStorefrontCustomerGroupEmailConsentParams,
@@ -19,7 +20,7 @@ import type {
   SubscribeStorefrontCustomerGroupEmailsParams,
 } from "../types/customerGroupEmailConsent";
 import type {
-  AddCartCustomerGroupPlanParams,
+  AddCartSubscriptionPlanParams,
   CaptureCustomerEmailParams,
   AvailabilityResponse,
   CheckoutCartParams,
@@ -107,7 +108,6 @@ import type {
   StorefrontParams,
 } from "../types/storefront";
 import type { CatalogReadOptions } from "../types/catalog";
-import type { Checkout, GetCheckoutParams } from "../types/checkout";
 export type {
   StorefrontCheckoutQuote,
   StorefrontCustomer,
@@ -121,7 +121,7 @@ export type {
 import {
   publicCartReadOptions,
   sanitizePublicCartBookings,
-  sanitizePublicCartCustomerGroupPlans,
+  sanitizePublicCartSubscriptionPlans,
   sanitizePublicCartUpdate,
   sanitizePublicCartDigitalProducts,
   sanitizePublicCartProducts,
@@ -290,14 +290,14 @@ export const createStorefrontApi = (
     async post({ id, request_id, locale: _locale, ...request }, options) {
       await lifecycle.ensureVisitorSession();
       return apiConfig.httpClient.post<StorefrontDto<OrderCheckoutResult>>(
-        `${base}/checkouts`,
+        `${base}/carts/accept`,
         { ...request, request_id },
         options,
       );
     },
-    async getCheckout(id, options) {
+    async getOrder(id, options) {
       await lifecycle.ensureVisitorSession();
-      return apiConfig.httpClient.get<StorefrontDto<Checkout>>(`${base}/checkouts/${encodeURIComponent(id)}`, options);
+      return apiConfig.httpClient.get<StorefrontDto<Order>>(`${base}/orders/${encodeURIComponent(id)}`, options);
     },
   };
 
@@ -664,14 +664,10 @@ export const createStorefrontApi = (
         },
       },
       checkout: {
-        async get(params: Pick<GetCheckoutParams, "id">, options?: RequestOptions): Promise<StorefrontDto<Checkout>> {
-          await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.get<StorefrontDto<Checkout>>(`${base}/checkouts/${encodeURIComponent(params.id)}`, options);
-        },
-        async resumePayment(params: Pick<GetCheckoutParams, "id">, options?: RequestOptions): Promise<StorefrontDto<OrderCheckoutResult>> {
+        async resumePayment(params: { order_id: string }, options?: RequestOptions): Promise<StorefrontDto<OrderCheckoutResult>> {
           await lifecycle.ensureVisitorSession();
           return apiConfig.httpClient.post<StorefrontDto<OrderCheckoutResult>>(
-            `${base}/checkouts/${encodeURIComponent(params.id)}/payment-action`, {}, options,
+            `${base}/orders/${encodeURIComponent(params.order_id)}/payment-action`, {}, options,
           );
         },
       },
@@ -750,16 +746,16 @@ export const createStorefrontApi = (
             options,
           ));
         },
-        async addCustomerGroupPlan(
-          params: StorefrontParams<AddCartCustomerGroupPlanParams>,
+        async addSubscriptionPlan(
+          params: StorefrontParams<AddCartSubscriptionPlanParams>,
           options?: RequestOptions,
         ): Promise<StorefrontDto<Cart>> {
           await lifecycle.ensureVisitorSession();
           return withCartMutation(checkoutScope, () => apiConfig.httpClient.post<StorefrontDto<Cart>>(
-            `${base}/carts/${encodeURIComponent(params.id)}/customer-group-plan-items`,
+            `${base}/carts/${encodeURIComponent(params.id)}/subscription-plan-items`,
             {
-              customer_group_plan: sanitizePublicCartCustomerGroupPlans([
-                params.customer_group_plan,
+              subscription_plan: sanitizePublicCartSubscriptionPlans([
+                params.subscription_plan,
               ])[0],
             },
             options,
@@ -1007,22 +1003,33 @@ export const createStorefrontApi = (
         );
       },
     },
-    customer_group_plans: {
-      find(
-        params: FindStorefrontCustomerGroupPlansParams = {},
+    subscription_offerings: {
+      get(
+        params: GetStorefrontSubscriptionOfferingParams,
         options?: RequestOptions,
-      ): Promise<PaginatedResponse<StorefrontCustomerGroupPlan>> {
+      ): Promise<StorefrontSubscriptionOffering> {
+        return apiConfig.httpClient.get<StorefrontSubscriptionOffering>(
+          `${base}/subscription-offerings/${encodeURIComponent(params.identifier)}`,
+          options,
+        );
+      },
+    },
+    subscription_plans: {
+      find(
+        params: FindStorefrontSubscriptionPlansParams = {},
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<StorefrontSubscriptionPlan>> {
         return apiConfig.httpClient.get<
-          PaginatedResponse<StorefrontCustomerGroupPlan>
-        >(`${base}/customer-group-plans`, { ...options, params });
+          PaginatedResponse<StorefrontSubscriptionPlan>
+        >(`${base}/subscription-plans`, { ...options, params });
       },
       get(
-        params: GetStorefrontCustomerGroupPlanParams,
+        params: GetStorefrontSubscriptionPlanParams,
         options?: RequestOptions,
-      ): Promise<StorefrontCustomerGroupPlan> {
+      ): Promise<StorefrontSubscriptionPlan> {
         const { identifier, ...query } = params;
-        return apiConfig.httpClient.get<StorefrontCustomerGroupPlan>(
-          `${base}/customer-group-plans/${encodeURIComponent(identifier)}`,
+        return apiConfig.httpClient.get<StorefrontSubscriptionPlan>(
+          `${base}/subscription-plans/${encodeURIComponent(identifier)}`,
           { ...options, params: query },
         );
       },

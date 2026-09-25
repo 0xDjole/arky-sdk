@@ -1,5 +1,6 @@
 import type {
   Price,
+  PriceScope,
   PriceList,
   PriceListUsage,
   CreatePriceParams,
@@ -37,6 +38,7 @@ import type {
 type True<T extends true> = T;
 type False<T extends false> = T;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 
 export type PriceContracts = [
   False<"rule_ids" extends keyof PriceListUsage ? true : false>,
@@ -45,14 +47,15 @@ export type PriceContracts = [
   True<PublicPrice extends Price ? true : false>,
   True<PublicPriceList extends PriceList ? true : false>,
   True<RequiredField<Price, "sellable">>,
-  True<RequiredField<Price, "price_list_id">>,
-  True<null extends Price["price_list_id"] ? true : false>,
+  True<RequiredField<Price, "scope">>,
+  True<Same<Price["scope"], PriceScope>>,
+  False<"price_list_id" extends keyof Price ? true : false>,
   False<"market" extends keyof Price ? true : false>,
   False<"audience_id" extends keyof Price ? true : false>,
   False<"draft" extends Price["status"]["type"] ? true : false>,
   True<"deleting" extends Price["status"]["type"] ? true : false>,
   False<"deleting" extends CreatePriceParams["status"]["type"] ? true : false>,
-  True<RequiredField<CreatePriceParams, "price_list_id">>,
+  True<RequiredField<CreatePriceParams, "scope">>,
   True<RequiredField<CreatePriceParams, "compare_at">>,
   True<RequiredField<CreatePriceParams, "max_quantity">>,
   False<"sellable" extends keyof UpdatePriceParams ? true : false>,
@@ -63,8 +66,8 @@ export type PriceContracts = [
   True<RequiredField<UpdatePriceParams, "max_quantity">>,
   True<RequiredField<DeletePriceParams, "expected_updated_at">>,
   True<RequiredField<DeletePriceListParams, "expected_updated_at">>,
-  True<RequiredField<CreatePriceListParams, "priority">>,
-  True<RequiredField<UpdatePriceListParams, "priority">>,
+  False<"priority" extends keyof CreatePriceListParams ? true : false>,
+  False<"priority" extends keyof UpdatePriceListParams ? true : false>,
   True<RequiredField<UpdatePriceListParams, "ends_at">>,
   False<"conditions" extends keyof PriceList ? true : false>,
   False<"prices" extends keyof ProductVariant ? true : false>,

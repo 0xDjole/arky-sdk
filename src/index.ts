@@ -9,15 +9,16 @@ export {
   cartProductItems,
   cartBookingItems,
   cartDigitalItems,
-  cartCustomerGroupPlanItems,
+  cartSubscriptionPlanItems,
 } from "./types/cart";
 export {
   orderProductItems,
   orderBookingItems,
   orderDigitalItems,
-  orderCustomerGroupPlanItems,
+  orderSubscriptionPlanItems,
+  orderRentalUseItems,
 } from "./types/order";
-export type { CartCheckoutRequest, RecoverCartCheckoutParams } from "./types/cartCheckout";
+export type { CartCheckoutRequest, CartAcceptanceProof, RecoverCartCheckoutParams } from "./types/cartCheckout";
 export type { InitialMarketInput, CartDeliveryGroup, CartDeliveryGroupItem } from "./types/api";
 export type { CaptureCustomerEmailParams } from "./types/api";
 export type { StorefrontCart, StorefrontOrderCheckoutResult } from "./types/storefront";
@@ -40,7 +41,7 @@ export type { PaymentTerms, PaymentTermsStatus, PaymentTermsEditableStatus, Crea
 export type { OrderCredit, OrderCreditAllocation, OrderCreditSource, OrderCreditStatus, CreditTarget, CreditMoney, DiscountReversal, TaxComponentReversal, DutyComponentReversal, CreateOrderCreditParams, GetOrderCreditParams, FindOrderCreditsParams } from "./types/orderCredit";
 export type { CustomerPaymentMethod, CustomerPaymentMethodState, CustomerPaymentMethodCommand, CustomerPaymentMethodCommandType, CustomerPaymentMethodRevocation, CustomerPaymentMethodRevocationRecord, CustomerPaymentMethodRevocationRequest, NativeSetupOutcome, GetCustomerPaymentMethodParams, FindCustomerPaymentMethodsParams, FindCustomerPaymentMethodCommandsParams, RevokeCustomerPaymentMethodParams } from "./types/customerPaymentMethod";
 export type { CustomerGroupEmailConsent, CustomerGroupEmailConsentStatus, CustomerGroupEmailConfirmation, CustomerGroupConfirmationEmailStatus, CustomerGroupConfirmationHistoryEntry, CustomerGroupConsentEvent, CustomerGroupConsentEventType, CustomerGroupConsentSource, CustomerGroupUnsubscribeReason, RecordCustomerGroupEmailDecision, SubscribeCustomerGroupEmailsParams, RecordCustomerGroupEmailConsentParams, ImportCustomerGroupEmailConsentEntry, ImportCustomerGroupEmailConsentsParams, ImportCustomerGroupEmailConsentsResult, ConfirmCustomerGroupEmailsParams, UnsubscribeCustomerGroupEmailsParams, ResendCustomerGroupConfirmationParams, GetCustomerGroupEmailConsentParams, FindCustomerGroupEmailConsentsParams, FindCustomerGroupEmailConsentHistoryParams } from "./types/customerGroupEmailConsent";
-export type { Checkout, CheckoutState, CheckoutResult, CheckoutCartVersion, CheckoutLineBinding, CartLineItemRef, OrderLineItemRef, GetCheckoutParams, CheckoutQuote, CheckoutQuoteSources, CheckoutQuoteDeliveryBinding } from "./types/checkout";
+export type { CheckoutCartVersion, CheckoutLineBinding, CartLineItemRef, OrderLineItemRef, CheckoutQuote, CheckoutQuoteSources, CheckoutQuoteDeliveryBinding } from "./types/checkout";
 export type { FulfillmentRoutingPolicy, FulfillmentRoutingStrategy, FulfillmentRoutingLocation, FulfillmentRoutingPolicyStatus, FulfillmentRoutingPolicyEditableStatus, CreateFulfillmentRoutingPolicyParams, UpdateFulfillmentRoutingPolicyParams, GetFulfillmentRoutingPolicyParams, GetFulfillmentRoutingPolicyByKeyParams, FindFulfillmentRoutingPoliciesParams, DeleteFulfillmentRoutingPolicyParams } from "./types/fulfillmentRouting";
 export type { MarketSalesChannel, MarketSalesChannelStatus, CreateMarketSalesChannelParams, GetMarketSalesChannelParams, FindMarketSalesChannelsParams, RemoveMarketSalesChannelParams } from "./types/marketSalesChannel";
 export type { StorefrontClientRegistration, StorefrontClientStatus, CreateStorefrontClientParams, UpdateStorefrontClientParams, RevokeStorefrontClientParams, GetStorefrontClientParams, FindStorefrontClientsParams } from "./types/storefrontClient";
@@ -49,10 +50,11 @@ export type { ShippingMethod, ShippingMethodType, ShippingMethodStatus, Shipping
 export type { Zone, ZoneMatch, ZoneStatus, ZoneEditableStatus, CreateZoneParams, UpdateZoneParams, GetZoneParams, FindZonesParams, DeleteZoneParams, MarketZone, MarketZoneStatus, MarketZoneEditableStatus, CreateMarketZoneParams, UpdateMarketZoneParams, GetMarketZoneParams, FindMarketZonesParams, DeleteMarketZoneParams } from "./types/zone";
 export type { ShippingProfile, ShippingProfileStatus, ShippingProfileEditableStatus, CreateShippingProfileParams, UpdateShippingProfileParams, GetShippingProfileParams, GetShippingProfileByKeyParams, FindShippingProfilesParams, DeleteShippingProfileParams } from "./types/shippingProfile";
 export type { CustomerGroupEditableStatus, CustomerGroupStatus, CustomerGroupJoinPolicy, CustomerGroupConsentPolicy, CustomerGroupCommunication, CustomerGroup, CustomerGroupUsage, CreateCustomerGroupParams, GetCustomerGroupParams, GetCustomerGroupByKeyParams, UpdateCustomerGroupParams, DeleteCustomerGroupParams, FindCustomerGroupsParams, StorefrontCustomerGroup, GetStorefrontCustomerGroupParams } from "./types/customerGroup";
-export type { CustomerGroupPlan, CustomerGroupPlanTerm, CustomerGroupPlanStatus, CustomerGroupCommitment, CustomerGroupCommitmentEndAction, CustomerGroupProductQuantity, CustomerGroupDeliverySchedule, CustomerGroupDigitalContent, RecurringCadence, RenewalRecoveryPolicy, BillingInterval, CreateCustomerGroupPlanParams, UpdateCustomerGroupPlanParams, GetCustomerGroupPlanParams, FindCustomerGroupPlansParams, StorefrontCustomerGroupPlan, StorefrontCustomerGroupPlanBenefit, FindStorefrontCustomerGroupPlansParams, GetStorefrontCustomerGroupPlanParams } from "./types/customerGroupPlan";
-export type { CustomerGroupPlanBenefit, CustomerGroupPlanBenefitType, FindCustomerGroupPlanBenefitsParams, CreateCustomerGroupPlanBenefitParams, UpdateCustomerGroupPlanBenefitParams, DeleteCustomerGroupPlanBenefitParams } from "./types/customerGroupPlanBenefit";
-export type { CustomerGroupSubscription, CustomerGroupSubscriptionStatus, CustomerGroupPurchaseState, CustomerGroupCollectionBlock, GetCustomerGroupSubscriptionParams, FindCustomerGroupSubscriptionsParams, FindCustomerGroupSubscriptionOrdersParams, FindCustomerGroupSubscriptionCommandsParams, GetCurrentCustomerGroupSubscriptionParams, CustomerGroupSubscriptionControlType, CustomerGroupSubscriptionControl, ControlCustomerGroupSubscriptionParams, CustomerGroupSubscriptionControlResult } from "./types/customerGroupSubscription";
-export type * from "./types/customerGroupSubscriptionRevision";
+export type { SubscriptionPlan, SubscriptionPlanTerm, SubscriptionPlanStatus, SubscriptionCommitment, SubscriptionCommitmentEndAction, SubscriptionProductQuantity, SubscriptionDeliverySchedule, SubscriptionDigitalContent, RecurringCadence, RenewalRecoveryPolicy, BillingInterval, CreateSubscriptionPlanParams, UpdateSubscriptionPlanParams, GetSubscriptionPlanParams, FindSubscriptionPlansParams, StorefrontSubscriptionPlan, StorefrontSubscriptionPlanEntitlement, FindStorefrontSubscriptionPlansParams, GetStorefrontSubscriptionPlanParams } from "./types/subscriptionPlan";
+export type { SubscriptionPlanEntitlement, SubscriptionPlanEntitlementType, FindSubscriptionPlanEntitlementsParams, CreateSubscriptionPlanEntitlementParams, UpdateSubscriptionPlanEntitlementParams, DeleteSubscriptionPlanEntitlementParams } from "./types/subscriptionPlanEntitlement";
+export type { Subscription, SubscriptionSubject, SubscriptionStatus, SubscriptionPurchaseState, SubscriptionCollectionBlock, GetSubscriptionParams, FindSubscriptionsParams, FindSubscriptionOrdersParams, FindSubscriptionCommandsParams, GetCurrentSubscriptionParams, SubscriptionControlType, SubscriptionControl, ControlSubscriptionParams, SubscriptionControlResult } from "./types/subscription";
+export type * from "./types/subscriptionRevision";
+export type * from "./types/subscriptionOffering";
 export type * from "./types/rental";
 export type * from "./types/rentalPlacement";
 export type { CustomerGroupAdmission, CustomerGroupAdmissionSource, CustomerGroupAdministrativeAccess, CustomerGroupMember, CustomerGroupMemberSelf, CustomerGroupSelfAdmission, CustomerGroupJoinResult, CustomerGroupMemberCommandResponse, CustomerGroupMemberCommandReceipt, CustomerGroupMemberCommandResultType, GetCustomerGroupMemberByBindingParams, CustomerGroupJoinScope, CustomerGroupJoinRequest, JoinCustomerGroupParams, GetCustomerGroupMemberParams, FindCustomerGroupMembersParams, GetCurrentCustomerGroupMemberParams, FindCustomerGroupMemberCommandsParams, CustomerGroupMemberCommand, ExecuteCustomerGroupMemberCommandParams } from "./types/customerGroupMember";
@@ -118,11 +120,11 @@ export {
 } from "./utils/time";
 export type { EpochMilliseconds } from "./types/time";
 export type { CompanySnapshot, PurchaseCustomerSnapshot, PurchaseOrigin, PurchaseQuoteContext, SalesChannelSnapshot } from "./types/commerce";
-export type { CustomerGroupAcceptedTerms, CustomerGroupPlanSnapshot, CustomerGroupBenefitSnapshot, CustomerGroupBenefitSnapshotType, CustomerGroupProductSnapshot, CustomerGroupDigitalSnapshot, CustomerGroupDeliveryTerms, CustomerGroupPurchaseOccurrence, OrderCustomerGroupTerms, OrderAccessRevocation } from "./types/commerce";
+export type { SubscriptionAcceptedTerms, SubscriptionPlanSnapshot, SubscriptionPlanEntitlementSnapshot, SubscriptionPlanEntitlementSnapshotType, SubscriptionProductSnapshot, SubscriptionDigitalSnapshot, SubscriptionDeliveryTerms, SubscriptionPurchaseOccurrence, OrderSubscriptionTerms, OrderAccessRevocation } from "./types/commerce";
 export type * from "./types/orderMoney";
 export type * from "./types/orderLineItem";
 export type { OrderLinePrice, OrderInventoryRequirementSnapshot, OrderProductFulfillmentSnapshot, AcceptedAsset, OrderDigitalContent } from "./types/orderSnapshot";
-export type { CheckoutProductSnapshot, CheckoutBookingSnapshot, CheckoutDigitalSnapshot, QuotedProductMoneyRun, CustomerGroupBenefitOrderQuoteLine, QuotedDeliveryGroup, QuotedShippingOffer, QuotedDeliveryPricing, ShippingDeliveryEstimate } from "./types/quote";
+export type { CheckoutProductSnapshot, CheckoutBookingSnapshot, CheckoutDigitalSnapshot, QuotedProductMoneyRun, SubscriptionEntitlementOrderQuoteLine, QuotedDeliveryGroup, QuotedShippingOffer, QuotedDeliveryPricing, ShippingDeliveryEstimate } from "./types/quote";
 export type { OrderDeliveryGroup, OrderDeliveryGroupItem, OrderDeliveryGroupRentalItem, OrderDeliveryDestinationSnapshot, AcceptedDeliveryPricing, AcceptedDeliveryPricingSource, AcceptedDeliveryCalculation, AcceptedCarrierQuoteLeg } from "./types/orderContract";
 export type {
   ActivateEmailSuppressionParams,
@@ -153,7 +155,7 @@ export type {
   CartProductItem,
   CartBookingItem,
   CartDigitalItem,
-  CartCustomerGroupPlanItem,
+  CartSubscriptionPlanItem,
   Cart,
   CartStatus,
   EshopStoreState,
@@ -274,7 +276,7 @@ export type {
   OrderDigitalItem,
   OrderDigitalSnapshot,
   DigitalProductQuoteLine,
-  CustomerGroupOrderQuoteLine,
+  SubscriptionOrderQuoteLine,
   DigitalProduct,
   StorefrontDigitalProduct,
   DigitalAsset,
@@ -304,15 +306,14 @@ export type {
   StoreSubscriptionOperationStatus,
   ProviderOperationClaim,
   ProviderEffectError,
-  SubscriptionPlan,
-  SubscriptionPlanFeature,
-  SubscriptionPlanFeatureType,
-  SubscriptionPrice,
+  StorePlan,
+  StorePlanFeature,
+  StorePlanFeatureType,
   StorefrontPrice,
   AppliedPriceSnapshot,
   AppliedPriceSource,
   DisplayTextSnapshot,
-  OrderCustomerGroupPlanItem,
+  OrderSubscriptionPlanItem,
   Market,
   Address,
   PostalAddress,
@@ -378,6 +379,10 @@ export type {
   FulfillmentUnitSpan,
   FulfillmentOrderMethod,
   FulfillmentOrder,
+  FulfillmentExecutor,
+  FulfillmentExternalStatus,
+  FulfillmentExecutorCommand,
+  ControlFulfillmentExecutorParams,
   FulfillmentRecipient,
   FulfillmentCompanyRecipient,
   FulfillmentWindow,
@@ -403,8 +408,9 @@ export type {
   DateOverride,
   TimeRange,
   Order,
-  OrderType,
-  OrderPurchaseSource,
+  OrderSource,
+  OrderSourceFilter,
+  OrderRentalUseItem,
   OrderFinancialSummary,
   OrderFinancialConcern,
   GetOrderFinancialSummaryParams,
@@ -610,7 +616,7 @@ export type {
   CartProductInput,
   CartBookingInput,
   CartDigitalItemInput,
-  CartCustomerGroupPlanInput,
+  CartSubscriptionPlanInput,
   DigitalProductQuoteInput,
   CartLineItemInput,
   TrustedCartProductInput,
@@ -633,7 +639,7 @@ export type {
   AddCartProductParams,
   AddCartBookingParams,
   AddCartDigitalProductParams,
-  AddCartCustomerGroupPlanParams,
+  AddCartSubscriptionPlanParams,
   CreateDigitalProductParams,
   UpdateDigitalProductParams,
   GetDigitalProductParams,
@@ -875,7 +881,7 @@ export {
   type CartControllerAddProductParams,
   type CartControllerAddBookingParams,
   type CartControllerAddDigitalParams,
-  type CartControllerAddCustomerGroupPlanParams,
+  type CartControllerAddSubscriptionPlanParams,
   type CartControllerCheckoutParams,
   type CartControllerClearParams,
   type CartControllerInitParams,
@@ -939,7 +945,7 @@ export function storeCommerceDefaults(
     : null;
 }
 
-export const SDK_VERSION = "0.26.58";
+export const SDK_VERSION = "0.26.59";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -1021,9 +1027,10 @@ import { createRentalApi } from "./api/rental";
 import { createRentalPlacementApi } from "./api/rentalPlacement";
 import { createCustomerPaymentMethodApi } from "./api/customerPaymentMethod";
 import { createCustomerGroupEmailConsentApi } from "./api/customerGroupEmailConsent";
-import { createCheckoutApi } from "./api/checkoutRecord";
+import { createCheckoutApi } from "./api/checkout";
 import { createFulfillmentRoutingPolicyApi } from "./api/fulfillmentRoutingPolicy";
 import { createMarketSalesChannelApi } from "./api/marketSalesChannel";
+import { createMarketPaymentProviderApi } from "./api/marketPaymentProvider";
 import { createStorefrontClientApi } from "./api/storefrontClient";
 import { createStoreAdminDomainApi } from "./api/storeAdminDomain";
 export type * from "./types/storeAdminDomain";
@@ -1044,9 +1051,10 @@ import { createCompanyRoleApi } from "./api/companyRole";
 import { createCompanyLocationApi } from "./api/companyLocation";
 import { createCustomerGroupApi } from "./api/customerGroup";
 import { createCustomerGroupMemberApi } from "./api/customerGroupMember";
-import { createCustomerGroupSubscriptionApi } from "./api/customerGroupSubscription";
-import { createCustomerGroupPlanApi } from "./api/customerGroupPlan";
-import { createCustomerGroupPlanBenefitApi } from "./api/customerGroupPlanBenefit";
+import { createSubscriptionApi } from "./api/subscription";
+import { createSubscriptionPlanApi } from "./api/subscriptionPlan";
+import { createSubscriptionOfferingApi } from "./api/subscriptionOffering";
+import { createSubscriptionPlanEntitlementApi } from "./api/subscriptionPlanEntitlement";
 import { createSalesChannelApi } from "./api/salesChannel";
 import { createDigitalApi } from "./api/digital";
 import { createLocationApi } from "./api/location";
@@ -1406,6 +1414,7 @@ export function createAdmin(config: CreateAdminConfig) {
       shippingProfile: createShippingProfileApi(apiConfig),
       paymentTerms: createPaymentTermsApi(apiConfig),
       marketSalesChannel: createMarketSalesChannelApi(apiConfig),
+      marketPaymentProvider: createMarketPaymentProviderApi(apiConfig),
       storefrontClient: createStorefrontClientApi(apiConfig),
       adminDomain: createStoreAdminDomainApi(apiConfig),
       create: storeApi.createStore,
@@ -1424,7 +1433,7 @@ export function createAdmin(config: CreateAdminConfig) {
       },
       subscription: {
         get: storeApi.getSubscription,
-        getPlans: storeApi.getSubscriptionPlans,
+        getPlans: storeApi.getStorePlans,
         select: storeApi.selectSubscription,
         cancel: storeApi.cancelSubscription,
         reactivate: storeApi.reactivateSubscription,
@@ -1519,10 +1528,11 @@ export function createAdmin(config: CreateAdminConfig) {
       price: createPriceApi(apiConfig),
       priceList: createPriceListApi(apiConfig),
       customerGroup: createCustomerGroupApi(apiConfig),
-      customerGroupPlan: createCustomerGroupPlanApi(apiConfig),
-      customerGroupPlanBenefit: createCustomerGroupPlanBenefitApi(apiConfig),
+      subscriptionOffering: createSubscriptionOfferingApi(apiConfig),
+      subscriptionPlan: createSubscriptionPlanApi(apiConfig),
+      subscriptionPlanEntitlement: createSubscriptionPlanEntitlementApi(apiConfig),
       customerGroupMember: createCustomerGroupMemberApi(apiConfig),
-      customerGroupSubscription: createCustomerGroupSubscriptionApi(apiConfig),
+      subscription: createSubscriptionApi(apiConfig),
       customerPaymentMethod: createCustomerPaymentMethodApi(apiConfig),
       customerGroupEmailConsent: createCustomerGroupEmailConsentApi(apiConfig),
       assortment: createAssortmentApi(apiConfig),
@@ -1605,7 +1615,7 @@ export function createAdmin(config: CreateAdminConfig) {
         addProduct: eshopApi.addCartProduct,
         addBooking: eshopApi.addCartBooking,
         addDigital: eshopApi.addCartDigitalProduct,
-        addCustomerGroupPlan: eshopApi.addCartCustomerGroupPlan,
+        addSubscriptionPlan: eshopApi.addCartSubscriptionPlan,
         removeItem: eshopApi.removeCartItem,
         clear: eshopApi.clearCart,
         quote: eshopApi.quoteCart,
@@ -2283,7 +2293,8 @@ function createStorefrontClientCore(
     customer_groups: storefrontApi.customer_groups,
     customer_group_members: storefrontApi.customer_group_members,
     customer_group_email_consents: storefrontApi.customer_group_email_consents,
-    customer_group_plans: storefrontApi.customer_group_plans,
+    subscription_offerings: storefrontApi.subscription_offerings,
+    subscription_plans: storefrontApi.subscription_plans,
     actions: storefrontApi.actions,
     experiments: storefrontApi.experiments,
     support: createStorefrontSupportApi(apiConfig, ensureVisitorSession),
@@ -2350,7 +2361,7 @@ export type {
   ArkyStoreConfig,
   ArkyStoreContext,
 } from "./storefrontStore";
-export type { PriceEditableStatus, PriceStatus, ManualPriceInput, ManualPrice, CreatePriceParams, UpdatePriceParams, GetPriceParams, DeletePriceParams, FindPricesParams } from "./types/price";
+export type { PriceEditableStatus, PriceStatus, PriceScope, ManualPriceInput, ManualPrice, CreatePriceParams, UpdatePriceParams, GetPriceParams, DeletePriceParams, FindPricesParams } from "./types/price";
 export type { PriceList, PriceListEditableStatus, PriceListStatus, CreatePriceListParams, UpdatePriceListParams, GetPriceListParams, DeletePriceListParams, FindPriceListsParams } from "./types/priceList";
 export type { GetPriceListByKeyParams } from "./types/priceList";
 export type { GetZoneByKeyParams } from "./types/zone";
@@ -2358,8 +2369,9 @@ export type { GetTaxCategoryByKeyParams } from "./types/tax";
 export type { GetSalesChannelByKeyParams } from "./types/salesChannel";
 export type { GetMarketZoneByBindingParams } from "./types/zone";
 export type { GetMarketSalesChannelByBindingParams } from "./types/marketSalesChannel";
+export type { MarketPaymentProvider, MarketPaymentProviderStatus, CreateMarketPaymentProviderParams, GetMarketPaymentProviderParams, GetMarketPaymentProviderByBindingParams, FindMarketPaymentProvidersParams, RemoveMarketPaymentProviderParams } from "./types/marketPaymentProvider";
 export type { GetShippingMethodByKeyParams } from "./types/shipping";
-export type { CustomerGroupSubscriptionSelf, CustomerGroupSubscriptionSelfStatus } from "./types/customerGroupSubscription";
+export type { SubscriptionSelf, SubscriptionSelfStatus } from "./types/subscription";
 export type { JoinStorefrontCustomerGroupParams, GetStorefrontCustomerGroupMemberParams } from "./types/customerGroupMember";
 export type { SubscribeStorefrontCustomerGroupEmailsParams, GetStorefrontCustomerGroupEmailConsentParams, ResendStorefrontCustomerGroupConfirmationParams } from "./types/customerGroupEmailConsent";
 export type { Pickup, PickupLine, PickupStatus, PickupCommand, CreatePickupParams, ExecutePickupParams, FindPickupsParams, GetPickupParams } from "./types/pickup";

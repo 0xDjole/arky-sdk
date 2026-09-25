@@ -1,9 +1,8 @@
 import type {
   Order,
   OrderLineItem,
-  OrderPurchaseSource,
+  OrderSource,
   OrderStatus,
-  OrderType,
   UpdateOrderParams,
 } from "arky-sdk";
 import type * as Public from "arky-sdk/types";
@@ -20,8 +19,7 @@ type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 
 export type OrderContracts = [
   Assert<Equal<Order, Public.Order>>,
-  Assert<Equal<OrderType, Public.OrderType>>,
-  Assert<Equal<OrderPurchaseSource, Public.OrderPurchaseSource>>,
+  Assert<Equal<OrderSource, Public.OrderSource>>,
   Assert<Equal<OrderStatus, Public.OrderStatus>>,
   Assert<
     Equal<keyof UpdateOrderParams, "id" | "store_id" | "confirm">
@@ -51,26 +49,28 @@ export type OrderContracts = [
   Assert<Equal<Order["line_items"], OrderLineItem[]>>,
   Assert<
     Equal<
-      Extract<OrderLineItem, { type: "customer_group_plan" }>["type"],
-      "customer_group_plan"
+      Extract<OrderLineItem, { type: "subscription_plan" }>["type"],
+      "subscription_plan"
+    >
+  >,
+  Assert<Equal<Order["source"], OrderSource>>,
+  Assert<Missing<Order, "type">>,
+  Assert<
+    Equal<
+      OrderSource["type"],
+      "cart_acceptance" | "direct" | "exchange" | "subscription"
     >
   >,
   Assert<
     Equal<
-      Extract<OrderPurchaseSource, { type: "checkout" }>,
-      { type: "checkout"; checkout_id: string }
-    >
-  >,
-  Assert<
-    Equal<
-      Extract<OrderPurchaseSource, { type: "direct" }>,
+      Extract<OrderSource, { type: "direct" }>,
       { type: "direct"; request_id: string }
     >
   >,
   Assert<
     Equal<
-      Extract<OrderType, { type: "customer_group" }>,
-      { type: "customer_group"; order_customer_group_line_item_id: string }
+      Extract<OrderSource, { type: "subscription" }>,
+      { type: "subscription"; order_subscription_line_item_id: string }
     >
   >,
   Assert<

@@ -24,7 +24,7 @@ import type {
   AddCartDigitalProductParams,
   AddCartProductParams,
   CartBookingInput,
-  CartCustomerGroupPlanInput,
+  CartSubscriptionPlanInput,
   CartDigitalInput,
   CartProductInput,
   GetCurrentCartParams,
@@ -66,7 +66,7 @@ export type CartPublicLineItemInput =
   | ({ type: "product" } & CartProductInput)
   | ({ type: "booking" } & CartBookingInput)
   | ({ type: "digital_product" } & CartDigitalInput)
-  | ({ type: "customer_group_plan" } & Omit<CartCustomerGroupPlanInput, "price_override">);
+  | ({ type: "subscription_plan" } & Omit<CartSubscriptionPlanInput, "price_override">);
 export type StorefrontUpdateCartParams = Omit<StorefrontParams<UpdateCartParams>, "line_items"> & {
   line_items?: CartPublicLineItemInput[];
 };
@@ -91,7 +91,7 @@ export type StorefrontOrderCheckoutResult = StorefrontDto<OrderCheckoutResult>;
 export type StorefrontOrderQuote = StorefrontDto<OrderQuote>;
 export type StorefrontCheckoutQuote = StorefrontDto<CheckoutQuote>;
 export type StorefrontProduct = Pick<Product,
-  "id" | "key" | "name_block_id" | "slugs" | "blocks" | "classifications"
+  "id" | "key" | "slugs" | "blocks" | "classifications"
 > & { price: StorefrontPrice | null; purchase_allowed: boolean };
 export interface GetStorefrontProductVariantParams extends CatalogReadOptions {
   product_id: string;
@@ -123,4 +123,4 @@ export type StorefrontPage<T> = StorefrontDto<PaginatedResponse<T>>;
 export type StorefrontMarket = Omit<
   Market,
   "store_id" | "status" | "created_at" | "updated_at"
->;
+> & { payment_provider_ids: string[] };

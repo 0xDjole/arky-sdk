@@ -234,7 +234,6 @@ test("Checkout quote preserves per-unit promotion/manual provenance and delivery
         ],
         snapshot: {
           product_key: "product-contract",
-          product_name: { text: "Accepted product", locale: "en" },
           variant_sku: null,
           variant_attributes: [],
           price: {
@@ -277,7 +276,7 @@ test("Checkout quote preserves per-unit promotion/manual provenance and delivery
     ],
     booking_lines: [],
     digital_lines: [],
-    customer_group_lines: [],
+    subscription_lines: [],
     delivery_groups: [
       {
         cart_delivery_group_id: "delivery",
@@ -299,7 +298,6 @@ test("Checkout quote preserves per-unit promotion/manual provenance and delivery
             shipping_rate_id: "rate",
             shipping_method_id: "method",
             shipping_method_key: "standard",
-            name_block_id: "name",
             content: [
               { id: "name", key: "name", type: "text", value: "Standard" },
             ],
@@ -834,7 +832,7 @@ test("provider-effect APIs send one resource identity and return direct server e
       },
     },
     {
-      name: "common Refund for a CustomerGroupPlan credit",
+      name: "common Refund for a SubscriptionPlan credit",
       response: {
         refund_id: resourceId,
         money: { amount: 500, currency: "usd" },
@@ -997,7 +995,7 @@ test("money and shipping clients reject evidence for any other resource ID", asy
       error: /Refund response did not match the requested refund_id/,
     },
     {
-      name: "common CustomerGroupPlan credit Refund mismatched identity",
+      name: "common SubscriptionPlan credit Refund mismatched identity",
       response: {
         refund_id: otherResourceId,
         money: { amount: 500, currency: "usd" },

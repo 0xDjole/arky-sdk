@@ -2,7 +2,7 @@ import type { EpochMilliseconds } from "../types/time";
 import type { CatalogReadOptions } from "../types/catalog";
 import type { CartViewScope } from "../types/cartView";
 import { CartSelectionError } from "../types/cartSelection";
-import { sanitizePublicCartCustomerGroupPlans, sanitizePublicCartDigitalProducts } from "../utils/cartInputs";
+import { sanitizePublicCartSubscriptionPlans, sanitizePublicCartDigitalProducts } from "../utils/cartInputs";
 function newDeliveryGroupId(): string {
   const generated = globalThis.crypto?.randomUUID?.();
   if (generated) return generated;
@@ -41,7 +41,7 @@ import type {
   Block,
   Cart,
   CartDigitalItem,
-  CartCustomerGroupPlanItem,
+  CartSubscriptionPlanItem,
   EshopCartItem,
   CollectionEntry,
   Form,
@@ -59,11 +59,11 @@ import {
   cartProductItems,
   cartBookingItems,
   cartDigitalItems,
-  cartCustomerGroupPlanItems,
+  cartSubscriptionPlanItems,
 } from "../types/cart";
 import type {
   AvailabilityResponse,
-  CartCustomerGroupPlanInput,
+  CartSubscriptionPlanInput,
   FindBookingOfferingsParams,
   GetAvailabilityParams,
   GetCollectionParams,
@@ -151,7 +151,7 @@ function initializeStoreCore(
   const product_items = atom<EshopCartItem[]>([]);
   const booking_items = atom<ArkyBookingCartItem[]>([]);
   const digital_items = atom<CartDigitalItem[]>([]);
-  const customer_group_plan_items = atom<CartCustomerGroupPlanItem[]>([]);
+  const subscription_plan_items = atom<CartSubscriptionPlanItem[]>([]);
   const quote: ArkyCartQuoteStore = atom<StorefrontCheckoutQuote | null>(null);
   const promotion_codes = computed(quote, (value) =>
     (value?.order.money?.promotions ?? []).flatMap((promotion) =>
@@ -204,7 +204,7 @@ function initializeStoreCore(
       Math.max(rawDigitalItemCount(cartValue), items.length),
   );
   const item_count = computed(
-    [cart, product_item_count, booking_item_count, digital_item_count, customer_group_plan_items],
+    [cart, product_item_count, booking_item_count, digital_item_count, subscription_plan_items],
     (cartValue, products, services, digitalProducts, plans) =>
       Math.max(
         cartValue?.item_count || 0,
@@ -212,13 +212,13 @@ function initializeStoreCore(
       ),
   );
   const snapshot = computed(
-    [cart, product_items, booking_items, digital_items, customer_group_plan_items, item_count],
+    [cart, product_items, booking_items, digital_items, subscription_plan_items, item_count],
     (cartValue, products, services, digitalProducts, plans, count) => ({
       cart: cartValue,
       product_items: products,
       booking_items: services,
       digital_items: digitalProducts,
-      customer_group_plan_items: plans,
+      subscription_plan_items: plans,
       item_count: count,
     }),
   );
@@ -559,7 +559,7 @@ function initializeStoreCore(
     product_items.set([]);
     booking_items.set([]);
     digital_items.set([]);
-    customer_group_plan_items.set([]);
+    subscription_plan_items.set([]);
     cart_status.setKey(
       "selected_shipping_method_id",
       response.delivery_groups[0]?.shipping_rate_id ?? null,
@@ -570,7 +570,7 @@ function initializeStoreCore(
       product_items.set([]);
       booking_items.set([]);
       digital_items.set([]);
-      customer_group_plan_items.set([]);
+      subscription_plan_items.set([]);
       return response;
     }
 
@@ -593,7 +593,7 @@ function initializeStoreCore(
     );
     booking_items.set(services);
     digital_items.set(cartDigitalProducts);
-    customer_group_plan_items.set(cartCustomerGroupPlanItems(response));
+    subscription_plan_items.set(cartSubscriptionPlanItems(response));
     return response;
   }
 
@@ -611,8 +611,8 @@ function initializeStoreCore(
     return sanitizePublicCartDigitalProducts(input.digital_items || digital_items.get());
   }
 
-  function checkoutCustomerGroupPlans(input: ArkyCartInput = {}): CartCustomerGroupPlanInput[] {
-    return sanitizePublicCartCustomerGroupPlans(input.customer_group_plan_items ?? customer_group_plan_items.get());
+  function checkoutSubscriptionPlans(input: ArkyCartInput = {}): CartSubscriptionPlanInput[] {
+    return sanitizePublicCartSubscriptionPlans(input.subscription_plan_items ?? subscription_plan_items.get());
   }
 
   async function syncCart(
@@ -639,8 +639,8 @@ function initializeStoreCore(
           type: "digital_product" as const,
           ...item,
         })),
-        ...checkoutCustomerGroupPlans(input).map((item) => ({
-          type: "customer_group_plan" as const,
+        ...checkoutSubscriptionPlans(input).map((item) => ({
+          type: "subscription_plan" as const,
           ...item,
         })),
       ];
@@ -800,20 +800,20 @@ function initializeStoreCore(
     return response;
   }
 
-  async function addCustomerGroupPlan(item: CartCustomerGroupPlanInput): Promise<StorefrontCart> {
+  async function addSubscriptionPlan(item: CartSubscriptionPlanInput): Promise<StorefrontCart> {
     const scope = await beginCartOperation();
     const writeRevision = nextCartWriteRevision();
     const current = cart.get() || (await ensureCart());
     scope.assertCurrent();
-    const response = await client.eshop.cart.addCustomerGroupPlan({
+    const response = await client.eshop.cart.addSubscriptionPlan({
       id: current.id,
-      customer_group_plan: sanitizePublicCartCustomerGroupPlans([item])[0],
+      subscription_plan: sanitizePublicCartSubscriptionPlans([item])[0],
     });
     await applyCartResponse(response, { ifRevision: writeRevision, scope });
     return response;
   }
 
-  async function removeCustomerGroupPlan(itemId: string): Promise<StorefrontCart | null> {
+  async function removeSubscriptionPlan(itemId: string): Promise<StorefrontCart | null> {
     const scope = await beginCartOperation();
     const writeRevision = nextCartWriteRevision();
     const current = cart.get();
@@ -849,7 +849,7 @@ function initializeStoreCore(
     product_items.set([]);
     booking_items.set([]);
     digital_items.set([]);
-    customer_group_plan_items.set([]);
+    subscription_plan_items.set([]);
     cart.set(null);
     quote.set(null);
     cart_status.setKey("selected_shipping_method_id", null);
@@ -865,7 +865,7 @@ function initializeStoreCore(
       checkoutProducts(input).length === 0 &&
       checkoutBookings(input).length === 0 &&
       checkoutDigitalProducts(input).length === 0 &&
-      checkoutCustomerGroupPlans(input).length === 0
+      checkoutSubscriptionPlans(input).length === 0
     ) {
       quote.set(null);
       cart_status.setKey("fetching_quote", false);
@@ -909,7 +909,6 @@ function initializeStoreCore(
     }
     quote.set(null);
     last_order.set({
-      checkout_id: response.checkout_id,
       order_id: response.order_id,
       number: response.number,
       payment_action: response.payment_action,
@@ -917,7 +916,7 @@ function initializeStoreCore(
       product_items: context.product_items,
       booking_items: context.booking_items,
       digital_items: context.digital_items,
-      customer_group_plan_items: context.customer_group_plan_items,
+      subscription_plan_items: context.subscription_plan_items,
       shipping_address: context.shipping_address,
       billing_address: context.billing_address,
       total: response.payment?.amounts.total ?? 0,
@@ -998,7 +997,7 @@ function initializeStoreCore(
         product_items: product_items.get(),
         booking_items: booking_items.get(),
         digital_items: digital_items.get(),
-        customer_group_plan_items: cartCustomerGroupPlanItems(current),
+        subscription_plan_items: cartSubscriptionPlanItems(current),
         shipping_address: null,
         billing_address: current.billing_address,
         payment_provider_id: paymentProviderId || null,
@@ -1021,7 +1020,7 @@ function initializeStoreCore(
       if (!response) return null;
       return finalizeCheckout({
         request: pending,
-        product_items: [], booking_items: [], digital_items: [], customer_group_plan_items: [],
+        product_items: [], booking_items: [], digital_items: [], subscription_plan_items: [],
         shipping_address: null, billing_address: null,
         payment_provider_id: pending.payment_provider_id ?? null,
         clear_after_checkout: false,
@@ -1946,7 +1945,7 @@ function initializeStoreCore(
     product_items,
     booking_items,
     digital_items,
-    customer_group_plan_items,
+    subscription_plan_items,
     quote_result: quote,
     promotion_codes,
     last_order,
@@ -1965,8 +1964,8 @@ function initializeStoreCore(
     removeBooking,
     addDigital: addDigitalProduct,
     removeDigital: removeDigitalProduct,
-    addCustomerGroupPlan,
-    removeCustomerGroupPlan,
+    addSubscriptionPlan,
+    removeSubscriptionPlan,
     clear: clearCart,
     clearLocal: clearLocalCart,
     quote: fetchQuote,
@@ -1992,7 +1991,7 @@ function initializeStoreCore(
         product_items: checkoutProducts(input),
         booking_items: checkoutBookings(input),
         digital_items: checkoutDigitalProducts(input),
-        customer_group_plan_items: checkoutCustomerGroupPlans(input),
+        subscription_plan_items: checkoutSubscriptionPlans(input),
       };
     },
     buildProductItems: toCartProducts,
@@ -2134,7 +2133,7 @@ function initializeStoreCore(
     customer_groups: client.customer_groups,
     customer_group_members: client.customer_group_members,
     customer_group_email_consents: client.customer_group_email_consents,
-    customer_group_plans: client.customer_group_plans,
+    subscription_plans: client.subscription_plans,
     actions: {
       track(params: TrackCustomerActionParams) {
         return trackCustomerAction(params);

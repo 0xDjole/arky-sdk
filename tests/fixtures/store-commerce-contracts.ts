@@ -24,7 +24,7 @@ const request: CommerceInitializationRequest = {
     legal_name: 'Synthetic seller', address: { country: 'US' }, registration_number: null,
     tax_registrations: [{ registration: { country: 'US', region: null, identifier: 'fixture', status: { type: 'verified', verified_at: epochMilliseconds(0) } }, starts_at: epochMilliseconds(0), ends_at: null }],
   },
-  tax: { version: 'fixture', noncommercial_customer_group_grants: false },
+  tax: { version: 'fixture', noncommercial_subscription_grants: false },
   invoicing: { series_key: 'sales', issue_trigger: { type: 'acceptance' } },
 };
 const admin = createAdmin({ baseUrl: 'https://api.example.test', storeId: 'store', market: 'us' });

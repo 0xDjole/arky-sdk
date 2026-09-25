@@ -5,7 +5,7 @@ import {
   orderProductItems,
   orderBookingItems,
   orderDigitalItems,
-  orderCustomerGroupPlanItems,
+  orderSubscriptionPlanItems,
 } from "../dist/index.js";
 import { retainedOrder as retained } from "./fixtures/retained-order.mjs";
 
@@ -40,7 +40,8 @@ test("Order reads retain detached navigation, immutable provenance, accepted nam
     async () => {
       const order = await client().eshop.order.get({ id: retained.id });
       assert.deepEqual(order, retained);
-      assert.deepEqual(order.type, { type: "purchase", source: { type: "checkout", checkout_id: "accepted-checkout" } });
+      assert.equal(order.source.type, "cart_acceptance");
+      assert.equal(order.source.command_id, "accepted-command");
       assert.equal(order.customer_id, "retained-customer");
       assert.equal(order.market_id, null);
       assert.equal(order.market_snapshot.source_market_id, "accepted-market");
@@ -49,23 +50,23 @@ test("Order reads retain detached navigation, immutable provenance, accepted nam
       const [product] = orderProductItems(order);
       const [booking] = orderBookingItems(order);
       const [digital] = orderDigitalItems(order);
-      const [groupPlan] = orderCustomerGroupPlanItems(order);
-      assert.deepEqual(order.line_items.map((line) => line.type), ["product", "booking", "digital_product", "customer_group_plan"]);
+      const [planLine] = orderSubscriptionPlanItems(order);
+      assert.deepEqual(order.line_items.map((line) => line.type), ["product", "booking", "digital_product", "subscription_plan"]);
       assert.equal(product.product_id, null);
       assert.equal(product.variant_id, null);
       assert.equal(product.snapshot.source_product_id, "accepted-product");
-      assert.equal(product.snapshot.product_name.text, "Saved product");
+      assert.equal(product.snapshot.product_key, "consultation-credit");
       assert.equal(product.money_runs[0].per_unit.unit_price, 1000);
       assert.equal(booking.booking_service_id, null);
       assert.equal(booking.snapshot.source_service_id, "accepted-service");
-      assert.equal(booking.snapshot.service_name.text, "Saved service");
+      assert.equal(booking.snapshot.service_key, "consultation");
       assert.equal(digital.digital_product_id, null);
-      assert.equal(digital.snapshot.product_name.text, "Saved guide");
+      assert.equal(digital.snapshot.product_key, "guide");
       assert.equal(digital.snapshot.content.assets[0].file_name, "guide.pdf");
-      assert.equal(groupPlan.terms.terms.plan.plan_name.text, "Saved membership");
-      assert.equal(groupPlan.terms.terms.plan.source_customer_group_plan_id, "accepted-plan");
-      assert.equal(order.money.total, 4000);
-      for (const retiredField of ["source", "product_items", "booking_items", "digital_items", "audience_items", "payment_id", "shipping_lines"]) {
+      assert.equal(planLine.terms.terms.plan.plan_key, "permanent");
+      assert.equal(planLine.terms.terms.plan.source_subscription_plan_id, "accepted-plan");
+      assert.equal(order.money.total, 3000);
+      for (const retiredField of ["type", "product_items", "booking_items", "digital_items", "audience_items", "payment_id", "shipping_lines"]) {
         assert.equal(retiredField in order, false);
       }
     },

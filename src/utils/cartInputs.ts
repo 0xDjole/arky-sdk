@@ -1,6 +1,6 @@
 import type {
   CartBookingInput,
-  CartCustomerGroupPlanInput,
+  CartSubscriptionPlanInput,
   CartDigitalItemInput,
   CartProductInput,
   RequestOptions,
@@ -19,13 +19,13 @@ export function publicCartReadOptions(options?: RequestOptions, token?: string):
   };
 }
 
-export function sanitizePublicCartCustomerGroupPlans(
-  items: readonly Omit<CartCustomerGroupPlanInput, "price_override">[],
-): CartCustomerGroupPlanInput[] {
+export function sanitizePublicCartSubscriptionPlans(
+  items: readonly Omit<CartSubscriptionPlanInput, "price_override">[],
+): CartSubscriptionPlanInput[] {
   return items.map((item) => ({
     ...(item.id ? { id: item.id } : {}),
-    customer_group_plan_id: item.customer_group_plan_id,
-    member: item.member,
+    subscription_plan_id: item.subscription_plan_id,
+    subject: item.subject,
     start: item.start,
     deliveries: item.deliveries,
   }));
@@ -44,8 +44,8 @@ export function sanitizePublicCartLineItems(
         return { type: "digital_product", ...sanitizePublicCartDigitalProducts([item])[0] };
       default:
         return {
-          type: "customer_group_plan",
-          ...sanitizePublicCartCustomerGroupPlans([item])[0],
+          type: "subscription_plan",
+          ...sanitizePublicCartSubscriptionPlans([item])[0],
         };
     }
   });

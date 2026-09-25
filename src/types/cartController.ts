@@ -1,6 +1,6 @@
 import type {
   AddCartBookingParams,
-  AddCartCustomerGroupPlanParams,
+  AddCartSubscriptionPlanParams,
   AddCartDigitalProductParams,
   AddCartProductParams,
   CheckoutCartParams,
@@ -35,8 +35,8 @@ export interface CartApi {
     params: AddCartDigitalProductParams,
     options?: RequestOptions,
   ): Promise<Cart>;
-  addCustomerGroupPlan(
-    params: AddCartCustomerGroupPlanParams,
+  addSubscriptionPlan(
+    params: AddCartSubscriptionPlanParams,
     options?: RequestOptions,
   ): Promise<Cart>;
   removeItem(
@@ -85,8 +85,8 @@ export type CartControllerAddDigitalParams = Omit<
 > & {
   id?: string;
 };
-export type CartControllerAddCustomerGroupPlanParams = Omit<
-  AddCartCustomerGroupPlanParams,
+export type CartControllerAddSubscriptionPlanParams = Omit<
+  AddCartSubscriptionPlanParams,
   "id"
 > & { id?: string };
 export type CartControllerRemoveItemParams =
@@ -132,7 +132,7 @@ export interface CartController {
     params: CartControllerUpdateParams,
     options?: RequestOptions,
   ): Promise<Cart>;
-  addCustomerGroupPlan(params: CartControllerAddCustomerGroupPlanParams, options?: RequestOptions): Promise<Cart>;
+  addSubscriptionPlan(params: CartControllerAddSubscriptionPlanParams, options?: RequestOptions): Promise<Cart>;
   removeItem(
     params: CartControllerRemoveItemParams,
     options?: RequestOptions,

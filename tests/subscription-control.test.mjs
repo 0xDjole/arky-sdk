@@ -19,7 +19,7 @@ function capture(reply) {
 
 function subscriptions() {
   return createAdmin({ storeId: "configured", baseUrl: "https://api.example.test", apiToken: "arky_api_test" })
-    .eshop.customerGroupSubscription;
+    .eshop.subscription;
 }
 
 test("future-purchase control sends one command envelope and replays the same identity after uncertainty", async () => {
@@ -35,7 +35,7 @@ test("future-purchase control sends one command envelope and replays the same id
       const params = {
         store_id: store,
         command_id: result.command_id,
-        request: { customer_group_subscription_id: subscriptionId, expected_updated_at: 1700000000000, type },
+        request: { subscription_id: subscriptionId, expected_updated_at: 1700000000000, type },
       };
       const before = structuredClone(params);
       assert.deepEqual(await api.control(params), result);
@@ -46,7 +46,7 @@ test("future-purchase control sends one command envelope and replays the same id
     }
     assert.equal(calls.length, 4);
     assert.ok(calls.every((call) => call.method === "POST"
-      && call.url.pathname === `/v1/stores/${store}/customer-group-subscriptions/commands`
+      && call.url.pathname === `/v1/stores/${store}/subscriptions/commands`
       && !call.url.search));
   } finally { restore(); }
 });
@@ -58,7 +58,7 @@ test("calendar and funding changes review first and accept only the reviewed dig
     const command_id = "2b7e9c14-5d3a-4f6b-8e1c-0a9d7f3e5b21";
     const end = { type: "before", occurrence_index: 4 };
     const calendar = {
-      customer_group_subscription_id: subscriptionId,
+      subscription_id: subscriptionId,
       expected_updated_at: 1700000000000,
       expected_previous_revision_id: revisionId,
       expected_next_occurrence_index: 3,
@@ -72,7 +72,7 @@ test("calendar and funding changes review first and accept only the reviewed dig
       reason: "Customer is away next month",
     };
     const funding = {
-      customer_group_subscription_id: subscriptionId,
+      subscription_id: subscriptionId,
       expected_updated_at: 1700000000000,
       expected_previous_revision_id: revisionId,
       expected_next_occurrence_index: 3,
@@ -83,14 +83,14 @@ test("calendar and funding changes review first and accept only the reviewed dig
     };
     const timeline_digest = `v1:sha256:${"a".repeat(64)}`;
     const before = structuredClone({ calendar, funding });
-    await api.calendarOptions({ store_id: store, command_id, customer_group_subscription_id: subscriptionId });
+    await api.calendarOptions({ store_id: store, command_id, subscription_id: subscriptionId });
     await api.calendarReview({ store_id: store, command_id, request: calendar });
     await api.calendarAccept({ store_id: store, command_id, request: calendar, timeline_digest });
     await api.fundingReview({ command_id, request: funding });
     await api.fundingAccept({ command_id, request: funding, timeline_digest });
     assert.deepEqual({ calendar, funding }, before);
-    const base = `/v1/stores/${store}/customer-group-subscriptions`;
-    const fallback = "/v1/stores/configured/customer-group-subscriptions";
+    const base = `/v1/stores/${store}/subscriptions`;
+    const fallback = "/v1/stores/configured/subscriptions";
     assert.deepEqual(calls.map((call) => [call.method, call.url.pathname]), [
       ["POST", `${base}/calendar/options`],
       ["POST", `${base}/calendar/review`],
@@ -99,7 +99,7 @@ test("calendar and funding changes review first and accept only the reviewed dig
       ["POST", `${fallback}/funding/accept`],
     ]);
     assert.deepEqual(calls.map((call) => call.body), [
-      { command_id, customer_group_subscription_id: subscriptionId },
+      { command_id, subscription_id: subscriptionId },
       { command_id, request: calendar },
       { command_id, request: calendar, timeline_digest },
       { command_id, request: funding },

@@ -34,7 +34,6 @@ function record(value: unknown): value is Record<string, unknown> {
 
 function validPaymentResult(value: unknown, request: CartCheckoutRequest): boolean {
   if (!record(value) || typeof value.order_id !== "string" || !uuid.test(value.order_id) ||
-    typeof value.checkout_id !== "string" || !uuid.test(value.checkout_id) ||
     typeof value.number !== "string" || !value.number.length || !record(value.payment_action)) return false;
   const action = value.payment_action;
   if (action.type !== "none" && action.type !== "stripe_embedded_checkout" && action.type !== "monri_components") return false;
@@ -89,7 +88,7 @@ function isCheckoutQuote(value: unknown): value is CheckoutQuote {
   return (order.locale === null || (typeof order.locale === "string" && order.locale.length > 0)) &&
     typeof order.presentation_digest === "string" && /^[0-9a-f]{64}$/.test(order.presentation_digest) &&
     record(order.context) && (order.money === null || record(order.money)) &&
-    [order.product_lines, order.booking_lines, order.digital_lines, order.customer_group_lines, order.delivery_groups, order.payment_provider_ids].every(Array.isArray);
+    [order.product_lines, order.booking_lines, order.digital_lines, order.subscription_lines, order.delivery_groups, order.payment_provider_ids].every(Array.isArray);
 }
 
 function presentationChanged(error: unknown): unknown {
@@ -142,7 +141,7 @@ export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
   };
 }
 
-async function submit<Result extends Pick<OrderCheckoutResult, "checkout_id" | "order_id" | "number" | "payment_action">>(
+async function submit<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action">>(
   request: CartCheckoutRequest,
   transport: CartCheckoutTransport<Result>,
   options?: RequestOptions,
@@ -159,20 +158,21 @@ async function submit<Result extends Pick<OrderCheckoutResult, "checkout_id" | "
   if (!validPaymentResult(result, request)) {
     throw new DurableRequestStorageError("Cart Checkout returned invalid purchase evidence");
   }
-  const checkout = await transport.getCheckout(result.checkout_id, { signal: options?.signal });
+  const order = await transport.getOrder(result.order_id, { signal: options?.signal });
+  const source = record(order) && record(order.source) ? order.source : null;
   if (
-    !record(checkout) ||
-    checkout.id !== result.checkout_id ||
-    checkout.request_id !== request.request_id ||
-    !Array.isArray(checkout.carts) || checkout.carts.length !== 1 ||
-    !record(checkout.carts[0]) || checkout.carts[0].cart_id !== request.id ||
-    checkout.carts[0].version !== request.sources.carts[0].version ||
-    !record(checkout.state) || checkout.state.type !== "accepted" ||
-    !record(checkout.state.result) || checkout.state.result.order_id !== result.order_id ||
-    !Array.isArray(checkout.state.result.bindings) ||
-    !sameBindings(checkout.state.result.bindings, request)
+    !record(order) ||
+    order.id !== result.order_id ||
+    source === null ||
+    source.type !== "cart_acceptance" ||
+    source.command_id !== request.request_id ||
+    !Array.isArray(source.carts) || source.carts.length !== 1 ||
+    !record(source.carts[0]) || source.carts[0].cart_id !== request.id ||
+    source.carts[0].version !== request.sources.carts[0].version ||
+    !Array.isArray(source.bindings) ||
+    !sameBindings(source.bindings, request)
   ) {
-    throw new DurableRequestStorageError("Cart Checkout did not confirm its exact retained acceptance receipt");
+    throw new DurableRequestStorageError("Cart Checkout did not confirm its exact accepted Order");
   }
   return { result, success };
 }
@@ -213,7 +213,7 @@ export async function withCartMutation<T>(scope: string, operation: () => Promis
   });
 }
 
-export async function checkoutCart<Result extends Pick<OrderCheckoutResult, "checkout_id" | "order_id" | "number" | "payment_action">>(
+export async function checkoutCart<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action">>(
   scope: string,
   input: CartCheckoutInput,
   transport: CartCheckoutTransport<Result>,
@@ -230,7 +230,7 @@ export async function checkoutCart<Result extends Pick<OrderCheckoutResult, "che
   });
 }
 
-export async function recoverCartCheckout<Result extends Pick<OrderCheckoutResult, "checkout_id" | "order_id" | "number" | "payment_action">>(
+export async function recoverCartCheckout<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action">>(
   scope: string,
   transport: CartCheckoutTransport<Result>,
   options?: RequestOptions,

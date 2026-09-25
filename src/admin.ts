@@ -3,11 +3,11 @@ export {
   cartProductItems,
   cartBookingItems,
   cartDigitalItems,
-  cartCustomerGroupPlanItems,
+  cartSubscriptionPlanItems,
   orderProductItems,
   orderBookingItems,
   orderDigitalItems,
-  orderCustomerGroupPlanItems,
+  orderSubscriptionPlanItems,
 } from "./index";
 export type {
   ApiConfig,

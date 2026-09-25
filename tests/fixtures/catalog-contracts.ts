@@ -19,7 +19,7 @@ import type {
   DeleteCatalogParams,
   DeleteCatalogEntitlementParams,
   SellableRef,
-  StorefrontCustomerGroupPlan,
+  StorefrontSubscriptionPlan,
   StorefrontPrice,
   UpdateAssortmentItemParams,
   UpdateCatalogParams,
@@ -118,13 +118,13 @@ type EntitlementDeleteVersionRequired = AssertTrue<
 type PublicPricesHaveNoSource = AssertFalse<
   "source" extends keyof StorefrontPrice ? true : false
 >;
-type CustomerGroupPlanResolvedPrice = AssertTrue<
-  [StorefrontCustomerGroupPlan["price"]] extends [StorefrontPrice | null]
+type SubscriptionPlanResolvedPrice = AssertTrue<
+  [StorefrontSubscriptionPlan["price"]] extends [StorefrontPrice | null]
     ? true
     : false
 >;
-type CustomerGroupPlanNoEditableCharge = AssertFalse<
-  "charge" extends keyof StorefrontCustomerGroupPlan ? true : false
+type SubscriptionPlanNoEditableCharge = AssertFalse<
+  "charge" extends keyof StorefrontSubscriptionPlan ? true : false
 >;
 
 export type CatalogContracts = [
@@ -167,6 +167,6 @@ export type CatalogContracts = [
   CatalogDeleteVersionRequired,
   EntitlementDeleteVersionRequired,
   PublicPricesHaveNoSource,
-  CustomerGroupPlanResolvedPrice,
-  CustomerGroupPlanNoEditableCharge,
+  SubscriptionPlanResolvedPrice,
+  SubscriptionPlanNoEditableCharge,
 ];

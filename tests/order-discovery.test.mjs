@@ -19,7 +19,7 @@ for (const scope of ['admin', 'storefront']) {
         sessionStorage: storefrontSessionStorage(JSON.stringify({ version: 2,
           customer: { id: 'customer', status: { type: 'active' }, created_at: 1, updated_at: 1 },
           session: { id: 'session', customer_id: 'customer', type: 'visitor', token, status: { type: 'active' }, expires_at: 10_000 } })) }).eshop.order;
-    const filters = { customer_id: 'customer', customer_group_subscription_id: 'subscription', query: 'ORD-2026',
+    const filters = { customer_id: 'customer', subscription_id: 'subscription', query: 'ORD-2026',
       statuses: ['confirmed'], product_statuses: ['confirmed'], booking_statuses: ['completed'],
       product_ids: ['product'], booking_service_ids: ['service'], booking_resource_ids: ['resource'],
       from: 0, to: 20, created_at_from: 0, created_at_to: 30, limit: 1, sort_field: 'price', sort_direction: 'asc' };

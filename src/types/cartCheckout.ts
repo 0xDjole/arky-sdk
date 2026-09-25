@@ -1,15 +1,16 @@
 import type { CheckoutCartParams, RequestOptions } from "./api";
 import type { OrderCheckoutResult } from "./index";
-import type { Checkout, CheckoutQuote } from "./checkout";
+import type { CheckoutQuote } from "./checkout";
+import type { Order } from "./order";
 import type { RequestSuccessContext } from "./httpClient";
 
 export type CartCheckoutInput = Omit<CheckoutCartParams, "store_id">;
 export type CartCheckoutRequest = CartCheckoutInput & { request_id: string };
-export type CheckoutReceiptProof = Pick<Checkout, "id" | "request_id" | "carts" | "state">;
+export type CartAcceptanceProof = Pick<Order, "id" | "source">;
 
-export interface CartCheckoutTransport<Result extends Pick<OrderCheckoutResult, "checkout_id" | "order_id" | "number" | "payment_action">> {
+export interface CartCheckoutTransport<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action">> {
   post(request: CartCheckoutRequest, options?: RequestOptions): Promise<Result>;
-  getCheckout(id: string, options?: RequestOptions): Promise<CheckoutReceiptProof>;
+  getOrder(id: string, options?: RequestOptions): Promise<CartAcceptanceProof>;
 }
 
 export interface CartCheckoutSubmission<Result> {

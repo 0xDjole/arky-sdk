@@ -16,20 +16,20 @@ test("consent and subscription transport preserves combined filters, empty pages
   try {
     const api = createAdmin({ storeId: "other", market: "configured", baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop;
     const subscriptions = { store_id: store, customer_id: "customer", customer_group_member_id: "member", order_id: "order", status: "paused", limit: 20 };
-    assert.deepEqual(await api.customerGroupSubscription.find(subscriptions), { items: [], cursor });
+    assert.deepEqual(await api.subscription.find(subscriptions), { items: [], cursor });
     assert.equal(calls.length, 1);
-    await api.customerGroupSubscription.find({ ...subscriptions, cursor });
+    await api.subscription.find({ ...subscriptions, cursor });
     const consents = { store_id: store, customer_group_id: "group", customer_id: "customer", email_identity_id: "identity", status: "unsubscribed", limit: 20 };
     assert.deepEqual(await api.customerGroupEmailConsent.find(consents), { items: [], cursor });
     await api.customerGroupEmailConsent.find({ ...consents, cursor });
-    assert.deepEqual(await api.customerGroupSubscription.findOrders({ store_id: store, id: "selected", cursor, limit: 20 }), { items: [], cursor });
-    assert.deepEqual(await api.customerGroupSubscription.current({ store_id: store, id: "selected" }), self);
+    assert.deepEqual(await api.subscription.findOrders({ store_id: store, id: "selected", cursor, limit: 20 }), { items: [], cursor });
+    assert.deepEqual(await api.subscription.current({ store_id: store, id: "selected" }), self);
     assert.equal(await api.customerGroupEmailConsent.confirm({ store_id: store, token: "confirm-capability" }), true);
     assert.equal(await api.customerGroupEmailConsent.unsubscribe({ store_id: store, token: "unsubscribe-capability" }), false);
     assert.deepEqual(Object.fromEntries(calls[1].url.searchParams), { customer_id: "customer", customer_group_member_id: "member", order_id: "order", status: "paused", limit: "20", cursor });
     assert.deepEqual(Object.fromEntries(calls[3].url.searchParams), { customer_group_id: "group", customer_id: "customer", email_identity_id: "identity", status: "unsubscribed", limit: "20", cursor });
-    assert.equal(calls[4].url.pathname, `/v1/stores/${store}/customer-group-subscriptions/selected/orders`);
-    assert.equal(calls[5].url.pathname, `/v1/stores/${store}/customer-group-subscriptions/selected/current`);
+    assert.equal(calls[4].url.pathname, `/v1/stores/${store}/subscriptions/selected/orders`);
+    assert.equal(calls[5].url.pathname, `/v1/stores/${store}/subscriptions/selected/current`);
     assert.deepEqual(calls[6].body, { token: "confirm-capability" });
     assert.deepEqual(calls[7].body, { token: "unsubscribe-capability" });
     assert.equal(calls.length, 8);

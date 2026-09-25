@@ -11,8 +11,8 @@ export type PromotionTarget =
   | { type: "product_variants"; variants: PromotionProductVariantRef[] }
   | { type: "booking_services"; booking_service_ids: string[] }
   | { type: "digital_products"; digital_product_ids: string[] }
-  | { type: "customer_groups"; customer_group_ids: string[] }
-  | { type: "customer_group_plans"; customer_group_plan_ids: string[] }
+  | { type: "subscription_offerings"; subscription_offering_ids: string[] }
+  | { type: "subscription_plans"; subscription_plan_ids: string[] }
   | { type: "assortments"; assortment_ids: string[] }
   | { type: "all_eligible_items" };
 

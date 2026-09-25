@@ -4,10 +4,10 @@ import type {
   OrderDeliveryDestinationSnapshot,
 } from "./orderContract";
 import type {
-  CustomerGroupPlanTerm,
-  CustomerGroupProductQuantity,
-  CustomerGroupDeliverySchedule,
-} from "./customerGroupPlan";
+  SubscriptionPlanTerm,
+  SubscriptionProductQuantity,
+  SubscriptionDeliverySchedule,
+} from "./subscriptionPlan";
 import type {
   OrderProductSnapshot,
   OrderDigitalSnapshot,
@@ -59,64 +59,60 @@ export interface OrderAccessRevocation {
 }
 
 /** Frozen terms for this accepted plan purchase, not live catalog definitions. */
-export interface CustomerGroupAcceptedTerms {
-  plan: CustomerGroupPlanSnapshot;
-  deliveries: CustomerGroupDeliveryTerms[];
+export interface SubscriptionAcceptedTerms {
+  plan: SubscriptionPlanSnapshot;
+  deliveries: SubscriptionDeliveryTerms[];
   billing_address: Address | null;
 }
 
-export interface CustomerGroupPlanSnapshot {
-  source_customer_group_id: string;
-  source_customer_group_plan_id: string;
-  group_key: string;
-  group_name: DisplayTextSnapshot;
+export interface SubscriptionPlanSnapshot {
+  source_subscription_offering_id: string;
+  source_subscription_plan_id: string;
+  offering_key: string;
   plan_key: string;
-  plan_name: DisplayTextSnapshot;
-  term: CustomerGroupPlanTerm;
+  term: SubscriptionPlanTerm;
   price: AppliedPriceSnapshot;
-  membership_allocation_weight: number;
-  membership_tax_category_id: string | null;
-  benefits: CustomerGroupBenefitSnapshot[];
+  entitlements: SubscriptionPlanEntitlementSnapshot[];
 }
 
-export interface CustomerGroupProductSnapshot extends Omit<
+export interface SubscriptionProductSnapshot extends Omit<
   OrderProductSnapshot,
   "price"
 > {
   tax_category_id: string | null;
 }
 
-export interface CustomerGroupDigitalSnapshot extends Omit<
+export interface SubscriptionDigitalSnapshot extends Omit<
   OrderDigitalSnapshot,
   "price"
 > {
   tax_category_id: string | null;
 }
 
-export type CustomerGroupBenefitSnapshotType =
+export type SubscriptionPlanEntitlementSnapshotType =
   | {
       type: "product";
-      snapshot: CustomerGroupProductSnapshot;
-      quantity: CustomerGroupProductQuantity;
-      delivery: CustomerGroupDeliverySchedule;
+      snapshot: SubscriptionProductSnapshot;
+      quantity: SubscriptionProductQuantity;
+      delivery: SubscriptionDeliverySchedule;
     }
-  | { type: "digital_product"; snapshot: CustomerGroupDigitalSnapshot }
+  | { type: "digital_product"; snapshot: SubscriptionDigitalSnapshot }
   | {
       type: "rental";
-      snapshot: CustomerGroupProductSnapshot;
+      snapshot: SubscriptionProductSnapshot;
       quantity: number;
       inventory_item_id: string;
     };
 
-export interface CustomerGroupBenefitSnapshot {
+export interface SubscriptionPlanEntitlementSnapshot {
   id: string;
-  type: CustomerGroupBenefitSnapshotType;
+  type: SubscriptionPlanEntitlementSnapshotType;
   allocation_weight: number;
 }
 
-export interface CustomerGroupDeliveryTerms {
+export interface SubscriptionDeliveryTerms {
   id: string;
-  benefit_ids: string[];
+  entitlement_ids: string[];
   destination: OrderDeliveryDestinationSnapshot;
   source_shipping_method_id: string;
   source_shipping_profile_id: string;
@@ -125,11 +121,11 @@ export interface CustomerGroupDeliveryTerms {
   acceptance_digest: string;
 }
 
-export type OrderCustomerGroupTerms =
-  | { type: "initial"; terms: CustomerGroupAcceptedTerms }
+export type OrderSubscriptionTerms =
+  | { type: "initial"; terms: SubscriptionAcceptedTerms }
   | { type: "accepted_revision" };
 
-export type CustomerGroupPurchaseOccurrence =
+export type SubscriptionPurchaseOccurrence =
   | { type: "permanent"; starts_at: EpochMilliseconds }
   | { type: "period"; occurrence_index: number; period: BillingPeriod };
 
@@ -138,12 +134,12 @@ export interface BillingPeriod {
   to: EpochMilliseconds;
 }
 
-export interface OrderCustomerGroupPlanItem {
+export interface OrderSubscriptionPlanItem {
   id: string;
-  customer_group_subscription_id: string;
+  subscription_id: string;
   revision_id: string;
-  terms: OrderCustomerGroupTerms;
-  occurrence: CustomerGroupPurchaseOccurrence;
+  terms: OrderSubscriptionTerms;
+  occurrence: SubscriptionPurchaseOccurrence;
   revocation: OrderAccessRevocation | null;
   status: OrderItemStatus;
   money: LineMoneySnapshot;

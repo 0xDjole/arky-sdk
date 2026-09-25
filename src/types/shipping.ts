@@ -16,7 +16,6 @@ export interface ShippingMethod {
   id: string;
   store_id: string;
   key: string;
-  name_block_id: string;
   blocks: Block[];
   type: ShippingMethodType;
   tax_category_id: string | null;
@@ -28,7 +27,6 @@ export interface ShippingMethod {
 export interface CreateShippingMethodParams {
   store_id?: string;
   key: string;
-  name_block_id: string;
   blocks: Block[];
   type: ShippingMethodType;
   tax_category_id: string | null;
@@ -39,7 +37,6 @@ export interface UpdateShippingMethodParams {
   store_id?: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  name_block_id: string;
   blocks: Block[];
   type: ShippingMethodType;
   tax_category_id: string | null;

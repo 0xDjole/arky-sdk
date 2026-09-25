@@ -656,7 +656,6 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
   const paymentProviderId = "5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31";
   const cartId = "c4f2a9e1-6b83-4d57-9e02-1a7c5d8f3b46";
   const orderId = "8a3e6f21-47bd-4c90-b5e3-0d7f19c4a8b2";
-  const checkoutId = "b6d1f83a-0e57-4c92-8a34-7f2b5d0c9e61";
   const checkoutRequestId = "c4a8e1d2-7b93-4f6a-8c05-19d7f3b2e8a1";
   const presentationDigest = "e".repeat(64);
   const cart = {
@@ -665,7 +664,7 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
     customer_id: "customer-contract",
     company: null,
     sales_channel_id: "channel-contract",
-    status: { type: "converted", checkout_id: checkoutId },
+    status: { type: "converted", order_id: orderId, command_id: checkoutRequestId },
     origin: {
       type: "admin",
       actor: {
@@ -701,7 +700,7 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
     product_lines: [],
     booking_lines: [],
     digital_lines: [],
-    customer_group_lines: [],
+    subscription_lines: [],
     delivery_groups: [],
     payment_provider_id: paymentProviderId,
     payment_provider_ids: [paymentProviderId],
@@ -709,7 +708,6 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
     },
   };
   const checkout = {
-    checkout_id: checkoutId,
     order_id: orderId,
     number: "1001",
     payment_action: { type: "none" },
@@ -753,16 +751,16 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
       body: init.body ? JSON.parse(String(init.body)) : null,
     };
     calls.push(call);
-    if (call.url.endsWith("/checkouts")) return jsonResponse(checkout);
-    if (call.url.endsWith(`/checkouts/${checkoutId}`)) return jsonResponse({ id: checkoutId, request_id: checkoutRequestId, carts: quote.sources.carts, state: { type: "accepted", accepted_at: 1, result: { order_id: orderId, bindings: quote.sources.lines } } });
+    if (call.url.endsWith("/carts/accept")) return jsonResponse(checkout);
+    if (call.url.endsWith(`/orders/${orderId}`)) return jsonResponse({ id: orderId, source: { type: "cart_acceptance", command_id: checkoutRequestId, carts: quote.sources.carts, bindings: quote.sources.lines } });
     if (call.url.endsWith("/quote")) return jsonResponse(quote);
     return jsonResponse(cart);
   };
 
   try {
     assert.equal(
-      (await admin.eshop.cart.update({ id: cart.id })).status.checkout_id,
-      checkoutId,
+      (await admin.eshop.cart.update({ id: cart.id })).status.order_id,
+      orderId,
     );
     assert.equal(
       (await admin.eshop.cart.quote({ id: cart.id })).order.payment_provider_id,
@@ -821,7 +819,7 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
         },
       },
       {
-        url: `/v1/stores/${storeId}/checkouts`,
+        url: `/v1/stores/${storeId}/carts/accept`,
         method: "POST",
         body: {
           request_id: checkoutRequestId,
@@ -833,7 +831,7 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
         },
       },
       {
-        url: `/v1/stores/${storeId}/checkouts/${checkoutId}`,
+        url: `/v1/stores/${storeId}/orders/${orderId}`,
         method: "GET",
         body: null,
       },
@@ -1086,7 +1084,6 @@ test("admin Product writes and ProductInventory reads use the canonical wire fie
   const admin = createAdmin({ baseUrl, storeId, market: "us" });
   const create = {
     key: "canonical-product",
-    name_block_id: "name-contract",
     slugs: { en: "canonical-product" },
     blocks: [{ id: "name-contract", key: "name", type: "text", value: "Product" }],
     classifications: [],
@@ -1095,7 +1092,6 @@ test("admin Product writes and ProductInventory reads use the canonical wire fie
     id: "product-contract",
     store_id: storeId,
     key: create.key,
-    name_block_id: create.name_block_id,
     slugs: create.slugs,
     blocks: create.blocks,
     classifications: [],

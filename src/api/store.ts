@@ -48,7 +48,7 @@ import type {
   Store,
   Webhook,
   PaginatedResponse,
-  SubscriptionPlan,
+  StorePlan,
   BuildHook,
   StoreSubscription,
   StoreMember,
@@ -249,10 +249,10 @@ export const createStoreApi = (
       });
     },
 
-    async getSubscriptionPlans(
+    async getStorePlans(
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<SubscriptionPlan>> {
-      return apiConfig.httpClient.get<PaginatedResponse<SubscriptionPlan>>(
+    ): Promise<PaginatedResponse<StorePlan>> {
+      return apiConfig.httpClient.get<PaginatedResponse<StorePlan>>(
         "/v1/stores/plans",
         options,
       );

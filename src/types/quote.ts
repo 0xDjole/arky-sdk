@@ -1,3 +1,4 @@
+import type { SubscriptionSubject } from "./subscription";
 import type {
   Block,
   LineMoneySnapshot,
@@ -15,14 +16,13 @@ import type {
   SellerSnapshot,
 } from "./orderContract";
 import type {
-  CustomerGroupAcceptedTerms,
-  CustomerGroupPurchaseOccurrence,
+  SubscriptionAcceptedTerms,
+  SubscriptionPurchaseOccurrence,
   PurchaseQuoteContext,
 } from "./commerce";
 import type {
   CartDeliveryRentalAssignment,
   CartDeliveryUnitAssignment,
-  CustomerGroupMemberType,
 } from "./api";
 import type { EpochMilliseconds } from "./time";
 import type { AppliedPriceSnapshot } from "./commerce";
@@ -87,24 +87,25 @@ export interface DigitalProductQuoteLine {
   snapshot: CheckoutDigitalSnapshot;
 }
 
-export type CustomerGroupBenefitOrderQuoteLine =
+export type SubscriptionEntitlementOrderQuoteLine =
   | {
       type: "product";
-      benefit_id: string;
+      entitlement_id: string;
       quantity: number;
       money: ProductMoneyTotals;
       money_runs: QuotedProductMoneyRun[];
     }
-  | { type: "digital_product"; benefit_id: string; money: LineMoneySnapshot };
+  | { type: "digital_product"; entitlement_id: string; money: LineMoneySnapshot }
+  | { type: "rental"; entitlement_id: string; quantity: number; money: LineMoneySnapshot };
 
-export interface CustomerGroupOrderQuoteLine {
+export interface SubscriptionOrderQuoteLine {
   line_item_id: string;
-  member: CustomerGroupMemberType;
+  subject: SubscriptionSubject;
   starts_at: EpochMilliseconds;
-  terms: CustomerGroupAcceptedTerms;
-  occurrence: CustomerGroupPurchaseOccurrence;
+  terms: SubscriptionAcceptedTerms;
+  occurrence: SubscriptionPurchaseOccurrence;
   money: LineMoneySnapshot;
-  benefit_lines: CustomerGroupBenefitOrderQuoteLine[];
+  entitlement_lines: SubscriptionEntitlementOrderQuoteLine[];
 }
 
 export interface OrderQuote {
@@ -120,7 +121,7 @@ export interface OrderQuote {
   product_lines: ProductQuoteLine[];
   booking_lines: BookingQuoteLine[];
   digital_lines: DigitalProductQuoteLine[];
-  customer_group_lines: CustomerGroupOrderQuoteLine[];
+  subscription_lines: SubscriptionOrderQuoteLine[];
   delivery_groups: QuotedDeliveryGroup[];
   payment_provider_id: string | null;
   payment_provider_ids: string[];
@@ -140,7 +141,6 @@ export interface QuotedShippingOffer {
   shipping_rate_id: string;
   shipping_method_id: string;
   shipping_method_key: string;
-  name_block_id: string;
   content: Block[];
   tax_category_id: string | null;
   delivery_estimate: ShippingDeliveryEstimate | null;

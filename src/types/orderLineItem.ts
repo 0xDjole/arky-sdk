@@ -5,9 +5,9 @@ import type { EpochMilliseconds } from "./time";
 export type OrderLineItemOrigin =
   | { type: "direct" }
   | {
-      type: "customer_group";
-      order_customer_group_line_item_id: string;
-      benefit_id: string;
+      type: "subscription";
+      order_subscription_line_item_id: string;
+      entitlement_id: string;
     };
 
 export interface OrderProductLocationAllocation {
@@ -30,10 +30,10 @@ export interface AcceptedFormSubmission {
 
 export type OrderAccessRecipient =
   | { type: "customer"; customer_id: string }
-  | { type: "customer_group_member"; customer_group_member_id: string };
+  | { type: "company"; company_id: string };
 
 export type OrderAccessValidity =
-  { type: "permanent" } | { type: "customer_group_purchase" };
+  { type: "permanent" } | { type: "subscription_purchase" };
 
 export interface OrderAccess {
   recipient: OrderAccessRecipient;

@@ -2,7 +2,7 @@ import type { CheckoutQuoteSources } from "../types/checkout";
 import { DurableRequestStorageError } from "../utils/durableRequest";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const families = new Set(["product", "booking", "digital_product", "customer_group_plan"]);
+const families = new Set(["product", "booking", "digital_product", "subscription_plan"]);
 
 function fields(value: unknown, keys: string[]): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value) &&

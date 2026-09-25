@@ -4,7 +4,7 @@ import type { EpochMilliseconds } from "./time";
 
 export interface StoreTaxPolicy {
   version: string;
-  noncommercial_customer_group_grants: boolean;
+  noncommercial_subscription_grants: boolean;
 }
 
 export interface StoreInvoicePolicy {

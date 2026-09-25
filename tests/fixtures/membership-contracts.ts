@@ -5,17 +5,17 @@ import type {
   CustomerGroupJoinPolicy,
   CustomerGroupAdmission,
   CustomerGroupAdministrativeAccess,
-  CustomerGroupPlanStatus,
+  SubscriptionPlanStatus,
   StorefrontCustomerGroup,
-  StorefrontCustomerGroupPlan,
+  StorefrontSubscriptionPlan,
   UpdateCustomerGroupParams,
   BookingServiceStatus,
   BookingResourceStatus,
   BookingOfferingStatus,
   DigitalProductStatus,
   EpochMilliseconds,
-  FindStorefrontCustomerGroupPlansParams,
-  GetStorefrontCustomerGroupPlanParams,
+  FindStorefrontSubscriptionPlansParams,
+  GetStorefrontSubscriptionPlanParams,
 } from "arky-sdk";
 
 type Expect<T extends true> = T;
@@ -31,9 +31,9 @@ type EmailCommunication = Extract<
 >;
 
 export type MembershipContracts = [
-  Expect<Equal<NonNullable<FindStorefrontCustomerGroupPlansParams["sort_field"]>, "key" | "created_at" | "price">>,
-  Expect<Equal<FindStorefrontCustomerGroupPlansParams["include_price"], boolean | undefined>>,
-  Expect<Equal<GetStorefrontCustomerGroupPlanParams["customer_group_id"], string | undefined>>,
+  Expect<Equal<NonNullable<FindStorefrontSubscriptionPlansParams["sort_field"]>, "key" | "created_at" | "price">>,
+  Expect<Equal<FindStorefrontSubscriptionPlansParams["include_price"], boolean | undefined>>,
+  Expect<Equal<GetStorefrontSubscriptionPlanParams["subscription_offering_id"], string | undefined>>,
   Expect<
     Equal<
       CustomerGroupStatus["type"],
@@ -73,16 +73,16 @@ export type MembershipContracts = [
       never
     >
   >,
-  Expect<Equal<StorefrontCustomerGroupPlan["purchase_allowed"], boolean>>,
+  Expect<Equal<StorefrontSubscriptionPlan["purchase_allowed"], boolean>>,
   Expect<
     Equal<
-      Extract<keyof StorefrontCustomerGroupPlan, "status" | "store_id">,
+      Extract<keyof StorefrontSubscriptionPlan, "status" | "store_id">,
       never
     >
   >,
   Expect<
     Equal<
-      CustomerGroupPlanStatus["type"],
+      SubscriptionPlanStatus["type"],
       "draft" | "active" | "closed" | "archived"
     >
   >,

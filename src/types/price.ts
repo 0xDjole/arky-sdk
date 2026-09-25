@@ -6,11 +6,15 @@ import type { EpochMilliseconds } from "./time";
 export type PriceEditableStatus = { type: "active" } | { type: "archived" };
 export type PriceStatus = PriceEditableStatus | { type: "deleting" };
 
+export type PriceScope =
+  | { type: "base" }
+  | { type: "price_list"; price_list_id: string };
+
 export interface Price {
   id: string;
   store_id: string;
   sellable: SellableRef;
-  price_list_id: string | null;
+  scope: PriceScope;
   currency: Currency;
   amount: number;
   compare_at: number | null;
@@ -38,7 +42,7 @@ export interface ManualPrice {
 export interface CreatePriceParams {
   store_id?: string;
   sellable: SellableRef;
-  price_list_id: string | null;
+  scope: PriceScope;
   currency: Currency;
   amount: number;
   compare_at: number | null;

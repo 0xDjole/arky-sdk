@@ -45,7 +45,7 @@ export interface DutyLine {
 }
 
 export type TaxNotRequiredReason = {
-  type: "noncommercial_customer_group_grant";
+  type: "noncommercial_subscription_grant";
 };
 
 export type TaxAssessmentSnapshot =

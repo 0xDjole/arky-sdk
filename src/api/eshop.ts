@@ -26,7 +26,7 @@ import type {
   GetAvailabilityParams,
   AvailabilityResponse,
   AddCartBookingParams,
-  AddCartCustomerGroupPlanParams,
+  AddCartSubscriptionPlanParams,
   AddCartDigitalProductParams,
   AddCartProductParams,
   CheckoutCartParams,
@@ -68,7 +68,7 @@ import type {
   Payment,
 } from "../types";
 
-import type { Checkout } from "../types/checkout";
+import type { Order } from "../types/order";
 
 export const createEshopApi = (apiConfig: ApiConfig) => {
   function checkoutScope(storeId: string): string {
@@ -78,12 +78,12 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
   function checkoutTransport(storeId: string): CartCheckoutTransport<OrderCheckoutResult> {
     return {
       post: ({ id, request_id, ...request }, options) => apiConfig.httpClient.post<OrderCheckoutResult>(
-        `/v1/stores/${encodeURIComponent(storeId)}/checkouts`,
+        `/v1/stores/${encodeURIComponent(storeId)}/carts/accept`,
         { ...request, request_id },
         options,
       ),
-      getCheckout: (id, options) => apiConfig.httpClient.get<Checkout>(
-        `/v1/stores/${encodeURIComponent(storeId)}/checkouts/${encodeURIComponent(id)}`, options,
+      getOrder: (id, options) => apiConfig.httpClient.get<Order>(
+        `/v1/stores/${encodeURIComponent(storeId)}/orders/${encodeURIComponent(id)}`, options,
       ),
     };
   }
@@ -652,15 +652,15 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       ));
     },
 
-    async addCartCustomerGroupPlan(
-      params: AddCartCustomerGroupPlanParams,
+    async addCartSubscriptionPlan(
+      params: AddCartSubscriptionPlanParams,
       options?: RequestOptions,
     ): Promise<Cart> {
-      const { id, store_id, customer_group_plan } = params;
+      const { id, store_id, subscription_plan } = params;
       const target_store_id = store_id || apiConfig.storeId;
       return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(id)}/customer-group-plan-items`,
-        { customer_group_plan },
+        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(id)}/subscription-plan-items`,
+        { subscription_plan },
         options,
       ));
     },

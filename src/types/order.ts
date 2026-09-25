@@ -1,6 +1,6 @@
 import type {
   CompanySnapshot,
-  OrderCustomerGroupPlanItem,
+  OrderSubscriptionPlanItem,
   PurchaseCustomerSnapshot,
   PurchaseOrigin,
   SalesChannelSnapshot,
@@ -10,10 +10,15 @@ import type {
   Currency,
   OrderBookingItem,
   OrderDigitalItem,
+  OrderItemStatus,
   OrderMoney,
   OrderProductItem,
 } from "./index";
 import type { EpochMilliseconds } from "./time";
+import type { CheckoutCartVersion, CheckoutLineBinding } from "./checkout";
+import type { OrderLineItemOrigin } from "./orderLineItem";
+import type { LineMoneySnapshot } from "./orderMoney";
+import type { OrderProductSnapshot } from "./orderSnapshot";
 import type {
   CheckoutPaymentAuthorization,
   CollectionPolicySnapshot,
@@ -29,14 +34,29 @@ import type {
   SellerSnapshot,
 } from "./orderContract";
 
-export type OrderPurchaseSource =
-  | { type: "checkout"; checkout_id: string }
+export type OrderSource =
+  | {
+      type: "cart_acceptance";
+      command_id: string;
+      carts: CheckoutCartVersion[];
+      bindings: CheckoutLineBinding[];
+    }
   | { type: "direct"; request_id: string }
-  | { type: "exchange"; exchange_id: string };
+  | { type: "exchange"; exchange_id: string }
+  | { type: "subscription"; order_subscription_line_item_id: string };
 
-export type OrderType =
-  | { type: "purchase"; source: OrderPurchaseSource }
-  | { type: "customer_group"; order_customer_group_line_item_id: string };
+export type OrderSourceFilter = OrderSource["type"];
+
+export interface OrderRentalUseItem {
+  id: string;
+  origin: OrderLineItemOrigin;
+  snapshot: OrderProductSnapshot;
+  quantity: number;
+  status: OrderItemStatus;
+  money: LineMoneySnapshot;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
 
 export interface OrderCompanyContext {
   company_id: string | null;
@@ -49,7 +69,8 @@ export type OrderLineItem =
   | { type: "product" } & OrderProductItem
   | { type: "booking" } & OrderBookingItem
   | { type: "digital_product" } & OrderDigitalItem
-  | { type: "customer_group_plan" } & OrderCustomerGroupPlanItem;
+  | { type: "subscription_plan" } & OrderSubscriptionPlanItem
+  | { type: "rental_use" } & OrderRentalUseItem;
 
 export type OrderStatus = {
   type: "pending" | "confirmed" | "partially_cancelled" | "cancelled";
@@ -59,7 +80,7 @@ export interface Order {
   id: string;
   number: string;
   store_id: string;
-  type: OrderType;
+  source: OrderSource;
   customer_id: string;
   customer_snapshot: PurchaseCustomerSnapshot;
   company: OrderCompanyContext | null;
@@ -109,14 +130,22 @@ export function orderDigitalItems(order: Pick<Order, "line_items"> | null): Orde
     .map(({ type: _type, ...item }) => item);
 }
 
-export function orderCustomerGroupPlanItems(
+export function orderSubscriptionPlanItems(
   order: Pick<Order, "line_items"> | null,
-): OrderCustomerGroupPlanItem[] {
+): OrderSubscriptionPlanItem[] {
   return (order?.line_items ?? [])
     .filter(
-      (item): item is OrderLineItem & { type: "customer_group_plan" } =>
-        item.type === "customer_group_plan",
+      (item): item is OrderLineItem & { type: "subscription_plan" } =>
+        item.type === "subscription_plan",
     )
+    .map(({ type: _type, ...item }) => item);
+}
+
+export function orderRentalUseItems(
+  order: Pick<Order, "line_items"> | null,
+): OrderRentalUseItem[] {
+  return (order?.line_items ?? [])
+    .filter((item): item is OrderLineItem & { type: "rental_use" } => item.type === "rental_use")
     .map(({ type: _type, ...item }) => item);
 }
 

@@ -5,7 +5,11 @@ import type {
   GetFulfillmentOrderParams,
   RequestOptions,
 } from "../types/api";
-import type { FulfillmentOrder, PaginatedResponse } from "../types";
+import type {
+  ControlFulfillmentExecutorParams,
+  FulfillmentOrder,
+  PaginatedResponse,
+} from "../types";
 
 export const createFulfillmentOrderApi = (apiConfig: ApiConfig) => {
   const basePath = (storeId?: string) =>
@@ -38,6 +42,17 @@ export const createFulfillmentOrderApi = (apiConfig: ApiConfig) => {
       const { store_id, fulfillment_order_id, ...payload } = params;
       return apiConfig.httpClient.post<FulfillmentUnitSlots>(
         `${basePath(store_id)}/${encodeURIComponent(fulfillment_order_id)}/unit-slots`,
+        payload,
+        options,
+      );
+    },
+    controlExecutor(
+      params: ControlFulfillmentExecutorParams,
+      options?: RequestOptions,
+    ): Promise<FulfillmentOrder> {
+      const { store_id, fulfillment_order_id, ...payload } = params;
+      return apiConfig.httpClient.post<FulfillmentOrder>(
+        `${basePath(store_id)}/${encodeURIComponent(fulfillment_order_id)}/executor`,
         payload,
         options,
       );

@@ -19,7 +19,6 @@ export interface CompanyRole {
   store_id: string;
   key: string;
   name: string;
-  is_system: boolean;
   permissions: CompanyPermission[];
   status: CompanyRoleStatus;
   created_at: EpochMilliseconds;

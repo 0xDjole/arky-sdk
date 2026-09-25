@@ -53,7 +53,6 @@ function bookingService() {
   return {
     id: "booking-service",
     key: "consultation",
-    name_block_id: "service-name",
     slugs: { en: "consultation" },
     store_id: storeId,
     blocks: [],
@@ -68,7 +67,6 @@ function bookingResource() {
   return {
     id: "booking-resource",
     key: "room-one",
-    name_block_id: "resource-name",
     slugs: { en: "room-one" },
     store_id: storeId,
     blocks: [],
@@ -124,9 +122,7 @@ function embeddedBookingItem() {
     form_submission: null,
     snapshot: {
       service_key: "consultation",
-      service_name: { text: "Consultation", locale: "en" },
       resource_key: "room-one",
-      resource_name: { text: "Room one", locale: "en" },
       timezone: "Europe/Sarajevo",
       source_service_id: "booking-service",
       source_resource_id: "booking-resource",
@@ -167,7 +163,7 @@ function order() {
     id: "order-booking",
     number: "1001",
     store_id: storeId,
-    type: { type: "purchase", source: { type: "checkout", checkout_id: "checkout-booking" } },
+    source: { type: "direct", request_id: "request-booking" },
     customer_id: "customer-booking",
     customer_snapshot: {
       email: null,
@@ -334,13 +330,11 @@ test("Admin booking runtime uses booking service, resource, and offering roots",
   try {
     await admin.eshop.bookingService.create({
       key: "consultation",
-      name_block_id: "service-name",
       slugs: { en: "consultation" },
       status: { type: "active" },
     });
     await admin.eshop.bookingResource.create({
       key: "room-one",
-      name_block_id: "resource-name",
       slugs: { en: "room-one" },
       timezone: "Europe/Sarajevo",
       capacity: 3,
@@ -412,13 +406,11 @@ test("Admin booking runtime uses booking service, resource, and offering roots",
   );
   assert.deepEqual(calls[0].body, {
     key: "consultation",
-    name_block_id: "service-name",
     slugs: { en: "consultation" },
     status: { type: "active" },
   });
   assert.deepEqual(calls[1].body, {
     key: "room-one",
-    name_block_id: "resource-name",
     slugs: { en: "room-one" },
     timezone: "Europe/Sarajevo",
     capacity: 3,

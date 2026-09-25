@@ -2,19 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 
-test("Admin payment resume targets an accepted Checkout without creating a new request", async () => {
+test("Admin payment resume targets the accepted Order without creating a new request", async () => {
   const original = globalThis.fetch;
   const calls = [];
-  const result = { checkout_id: "checkout", order_id: "order", number: "123", payment: null, payment_action: { type: "none" } };
+  const result = { order_id: "order", number: "123", payment: null, payment_action: { type: "none" } };
   globalThis.fetch = async (url, init) => {
     calls.push({ url: new URL(url), method: init.method, body: init.body });
     return new Response(JSON.stringify(result), { headers: { "content-type": "application/json" } });
   };
   try {
     const api = createAdmin({ baseUrl: "https://api.example.test", storeId: "default", apiToken: "arky_api_test" }).eshop;
-    assert.deepEqual(await api.checkout.resumePayment({ store_id: "selected", id: "checkout" }), result);
+    assert.deepEqual(await api.checkout.resumePayment({ store_id: "selected", order_id: "order" }), result);
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].url.pathname, "/v1/stores/selected/checkouts/checkout/payment-action");
+    assert.equal(calls[0].url.pathname, "/v1/stores/selected/orders/order/payment-action");
     assert.equal(calls[0].method, "POST");
     assert.deepEqual(JSON.parse(calls[0].body), {});
   } finally { globalThis.fetch = original; }

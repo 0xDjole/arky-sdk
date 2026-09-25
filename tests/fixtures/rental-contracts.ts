@@ -23,13 +23,13 @@ import type {
   InventoryUnitExecutionSource,
   OrderDeliveryGroup,
   OrderDeliveryGroupRentalItem,
-  CustomerGroupProductSnapshot,
+  SubscriptionProductSnapshot,
   EpochMilliseconds,
   PostalAddress,
   FulfillmentOrder,
   FulfillmentOrderMethod,
   QuotedDeliveryGroup,
-  CustomerGroupBenefitOrderQuoteLine,
+  SubscriptionEntitlementOrderQuoteLine,
 } from "arky-sdk";
 import type {
   Rental as PublicRental,
@@ -53,7 +53,7 @@ type Ending = Extract<RentalStatus, { type: "ending" }>;
 export type RentalContract = [
   True<Same<Rental, PublicRental>>,
   True<Same<RentalDetail, PublicDetail>>,
-  True<Same<keyof Rental, "id" | "store_id" | "customer_group_subscription_id" | "customer_group_plan_benefit_id" | "terms_revision_id" | "status" | "created_at" | "updated_at">>,
+  True<Same<keyof Rental, "id" | "store_id" | "subscription_id" | "creation_revision_id" | "creation_entitlement_id" | "subscription_plan_entitlement_id" | "terms_revision_id" | "status" | "created_at" | "updated_at">>,
   True<"product_id" extends keyof Rental ? false : true>,
   True<"quantity" extends keyof Rental ? false : true>,
   True<"inventory_item_id" extends keyof Rental ? false : true>,
@@ -65,7 +65,7 @@ export type RentalContract = [
   True<Same<RentalActor["type"], "account" | "system">>,
   True<Same<keyof Extract<RentalStatus, { type: "closed" }>, "type" | "closed_at">>,
   True<Same<keyof RentalTerms, "product_id" | "variant_id" | "quantity" | "inventory_item_id" | "snapshot">>,
-  True<Same<RentalTerms["snapshot"], CustomerGroupProductSnapshot>>,
+  True<Same<RentalTerms["snapshot"], SubscriptionProductSnapshot>>,
   True<Same<keyof RentalDetail, "rental" | "terms">>,
   True<Same<RentalCommand["type"], "request_replacement" | "end" | "close" | "cancel_issue">>,
   True<Same<keyof Command<"request_replacement">, "type" | "fulfillment_order_id" | "fulfillment_order_line_id" | "predecessor_placement_id" | "store_location_id" | "method" | "overlap_authorized">>,
@@ -80,7 +80,7 @@ export type RentalContract = [
   True<Same<keyof Command<"cancel_issue">, "type" | "fulfillment_order_id" | "fulfillment_order_line_id">>,
   True<Same<keyof RentalApi, "find" | "get" | "execute">>,
   True<Same<Parameters<RentalApi["find"]>[0], FindRentalsParams | undefined>>,
-  True<Same<keyof FindRentalsParams, "store_id" | "customer_group_subscription_id" | "status" | "limit" | "cursor" | "sort_field" | "sort_direction">>,
+  True<Same<keyof FindRentalsParams, "store_id" | "subscription_id" | "status" | "limit" | "cursor" | "sort_field" | "sort_direction">>,
   True<Same<Awaited<ReturnType<RentalApi["find"]>>, PaginatedResponse<Rental>>>,
   True<Same<Parameters<RentalApi["get"]>[0], GetRentalParams>>,
   True<Same<Awaited<ReturnType<RentalApi["get"]>>, RentalDetail>>,
@@ -136,7 +136,7 @@ export type RentalIssueWorkContract = [
   True<RequiredField<QuotedDeliveryGroup, "rental_items">>,
   True<Same<keyof CartDeliveryRentalAssignment, "cart_delivery_group_id" | "line_item" | "quantity">>,
   True<Same<CartDeliveryRentalAssignment["line_item"], CartPhysicalLineRef>>,
-  True<Same<CustomerGroupBenefitOrderQuoteLine["type"], "product" | "digital_product">>,
+  True<Same<SubscriptionEntitlementOrderQuoteLine["type"], "product" | "digital_product" | "rental">>,
 ];
 
 const ending: RentalCommand = { type: "end", reason: "Customer ended the agreement", return_due_at: null };

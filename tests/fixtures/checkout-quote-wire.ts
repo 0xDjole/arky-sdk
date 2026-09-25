@@ -5,9 +5,9 @@ import type {
   CheckoutBookingSnapshot,
   CheckoutDigitalSnapshot,
   CheckoutProductSnapshot,
-  CustomerGroupBenefitOrderQuoteLine,
-  CustomerGroupOrderQuoteLine,
-  CustomerGroupPlanSnapshot,
+  SubscriptionEntitlementOrderQuoteLine,
+  SubscriptionOrderQuoteLine,
+  SubscriptionPlanSnapshot,
   DigitalProductQuoteLine,
   LineMoneySnapshot,
   OrderBookingItem,
@@ -42,11 +42,11 @@ type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 
 export type CheckoutQuoteWireContracts = [
-  True<RequiredField<CustomerGroupPlanSnapshot, "plan_name">>,
-  True<RequiredField<CustomerGroupPlanSnapshot, "group_name">>,
-  True<RequiredField<CustomerGroupPlanSnapshot, "benefits">>,
-  False<"name" extends keyof CustomerGroupPlanSnapshot ? true : false>,
-  False<"key" extends keyof CustomerGroupPlanSnapshot ? true : false>,
+  True<RequiredField<SubscriptionPlanSnapshot, "offering_key">>,
+  True<RequiredField<SubscriptionPlanSnapshot, "plan_key">>,
+  True<RequiredField<SubscriptionPlanSnapshot, "entitlements">>,
+  False<"plan_name" extends keyof SubscriptionPlanSnapshot ? true : false>,
+  False<"key" extends keyof SubscriptionPlanSnapshot ? true : false>,
   True<Same<PublicProductQuoteLine, ProductQuoteLine>>,
   True<Same<PublicAcceptedProductMoneyRun, AcceptedProductMoneyRun>>,
   True<Same<PublicCheckoutProductSnapshot, CheckoutProductSnapshot>>,
@@ -71,13 +71,13 @@ export type CheckoutQuoteWireContracts = [
   True<Same<OrderQuote["payment_terms"], PaymentTerms | null>>,
   True<
     Same<
-      CustomerGroupOrderQuoteLine["benefit_lines"],
-      CustomerGroupBenefitOrderQuoteLine[]
+      SubscriptionOrderQuoteLine["entitlement_lines"],
+      SubscriptionEntitlementOrderQuoteLine[]
     >
   >,
   True<
     Same<
-      Extract<CustomerGroupBenefitOrderQuoteLine, { type: "product" }>["money"],
+      Extract<SubscriptionEntitlementOrderQuoteLine, { type: "product" }>["money"],
       ProductMoneyTotals
     >
   >,
@@ -117,12 +117,12 @@ export type CheckoutQuoteWireContracts = [
   True<Same<Extract<AcceptedDeliveryPricingSource, { type: "shipping_rate" }>["calculation"], AcceptedDeliveryCalculation>>,
   True<Same<Extract<AcceptedDeliveryPricingSource, { type: "shipping_rate" }>["weight_grams"], number | null>>,
   True<RequiredField<Extract<AcceptedDeliveryPricingSource, { type: "shipping_rate" }>, "free_above_subtotal">>,
-  True<Same<keyof Extract<AcceptedDeliveryPricingSource, { type: "subscription_terms" }>, "type" | "order_customer_group_line_item_id" | "delivery_terms_id">>,
+  True<Same<keyof Extract<AcceptedDeliveryPricingSource, { type: "subscription_terms" }>, "type" | "order_subscription_line_item_id" | "delivery_terms_id">>,
   False<"merchandise_basis" extends keyof AcceptedDeliveryPricing ? true : false>,
   False<"calculation" extends keyof AcceptedDeliveryPricing ? true : false>,
   False<"source_shipping_rate_id" extends keyof AcceptedDeliveryPricing ? true : false>,
-  True<[Extract<EventAction, { action: "customer_group_subscription_renewal_due" }>] extends [never] ? false : true>,
-  True<[Extract<EventAction, { action: "customer_group_subscription_renewal_collection_due" }>] extends [never] ? false : true>,
+  True<[Extract<EventAction, { action: "subscription_renewal_due" }>] extends [never] ? false : true>,
+  True<[Extract<EventAction, { action: "subscription_renewal_collection_due" }>] extends [never] ? false : true>,
 ];
 
 declare const line: ProductQuoteLine;

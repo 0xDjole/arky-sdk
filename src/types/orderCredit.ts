@@ -6,7 +6,8 @@ export type CreditTarget =
   | { type: "product"; line_item_id: string; unit_index: number }
   | { type: "booking"; line_item_id: string }
   | { type: "digital"; line_item_id: string }
-  | { type: "customer_group_plan"; line_item_id: string }
+  | { type: "subscription_plan"; line_item_id: string }
+  | { type: "rental_use"; line_item_id: string }
   | { type: "delivery"; delivery_group_id: string };
 
 export type OrderCreditSource =

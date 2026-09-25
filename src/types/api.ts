@@ -54,7 +54,6 @@ import type {
   SocialConnectionType,
   SocialMessageSync,
   SocialPostContent,
-  SubscriptionInterval,
   ProductInventory,
   ProductFulfillment,
   ProductVariantEditableStatus,
@@ -123,7 +122,6 @@ export interface CreateMarketParams {
   key: string;
   currency: Currency;
   tax_mode: "inclusive" | "exclusive";
-  payment_provider_ids?: string[];
 }
 
 export interface UpdateMarketParams {
@@ -131,7 +129,6 @@ export interface UpdateMarketParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   tax_mode?: "inclusive" | "exclusive";
-  payment_provider_ids?: string[];
 }
 
 export interface DeleteMarketParams {
@@ -193,7 +190,7 @@ export type CustomerGroupMemberType =
   | { type: "customer"; customer_id: string }
   | { type: "company"; company_id: string };
 
-export type CustomerGroupPlanStart =
+export type SubscriptionPlanStart =
   | { type: "on_acceptance" }
   | { type: "scheduled"; starts_at: number };
 
@@ -210,7 +207,7 @@ export interface DeliveryQuoteAcceptance {
 
 export type CartPhysicalLineRef =
   | { type: "product"; line_item_id: string }
-  | { type: "customer_group_benefit"; line_item_id: string; benefit_id: string };
+  | { type: "subscription_entitlement"; line_item_id: string; entitlement_id: string };
 
 export interface CartDeliveryGroupItem {
   line_item: CartPhysicalLineRef;
@@ -238,20 +235,20 @@ export interface CartDeliveryGroup {
   scheduled_window: TimeRange | null;
 }
 
-export interface CartCustomerGroupDelivery {
+export interface CartSubscriptionDelivery {
   id: string;
-  benefit_ids: string[];
+  entitlement_ids: string[];
   destination: CartDeliveryDestination;
   shipping_rate_id: string | null;
   quote_acceptance: DeliveryQuoteAcceptance;
 }
 
-export interface CartCustomerGroupPlanInput {
+export interface CartSubscriptionPlanInput {
   id?: string;
-  customer_group_plan_id: string;
-  member: CustomerGroupMemberType;
-  start: CustomerGroupPlanStart;
-  deliveries: CartCustomerGroupDelivery[];
+  subscription_plan_id: string;
+  subject: import("./subscription").SubscriptionSubject;
+  start: SubscriptionPlanStart;
+  deliveries: CartSubscriptionDelivery[];
   price_override?: ManualPriceInput | null;
 }
 
@@ -271,7 +268,7 @@ export type CartLineItemInput =
   | ({ type: "product" } & TrustedCartProductInput)
   | ({ type: "booking" } & TrustedCartBookingInput)
   | ({ type: "digital_product" } & TrustedCartDigitalItemInput)
-  | ({ type: "customer_group_plan" } & CartCustomerGroupPlanInput);
+  | ({ type: "subscription_plan" } & CartSubscriptionPlanInput);
 
 export interface GetQuoteParams {
   store_id?: string;
@@ -358,10 +355,10 @@ export interface AddCartDigitalProductParams {
   digital: TrustedCartDigitalItemInput;
 }
 
-export interface AddCartCustomerGroupPlanParams {
+export interface AddCartSubscriptionPlanParams {
   id: string;
   store_id?: string;
-  customer_group_plan: CartCustomerGroupPlanInput;
+  subscription_plan: CartSubscriptionPlanInput;
 }
 
 export type RemoveCartItemParams = {
@@ -798,7 +795,6 @@ export interface DeleteProductVariantParams {
 export interface CreateProductParams {
   store_id?: string;
   key: string;
-  name_block_id: string;
   slugs?: Record<string, string>;
   blocks?: Block[];
   classifications?: ClassificationEntry[];
@@ -809,7 +805,6 @@ export interface UpdateProductParams {
   store_id?: string;
   expected_updated_at: EpochMilliseconds;
   key?: string;
-  name_block_id?: string;
   slugs?: Record<string, string>;
   blocks?: Block[];
   classifications?: ClassificationEntry[];
@@ -839,6 +834,7 @@ export interface GetOrdersParams {
   store_id?: string;
   customer_id?: string;
   statuses?: ("pending" | "confirmed" | "partially_cancelled" | "cancelled")[];
+  sources?: ("cart_acceptance" | "direct" | "exchange" | "subscription")[];
   product_statuses?: ("pending" | "confirmed" | "cancelled")[];
   booking_statuses?: ("pending" | "confirmed" | "completed" | "no_show" | "cancelled")[];
   product_ids?: string[];
@@ -854,7 +850,7 @@ export interface GetOrdersParams {
   sort_direction?: "asc" | "desc" | null;
   created_at_from?: EpochMilliseconds | null;
   created_at_to?: EpochMilliseconds | null;
-  customer_group_subscription_id?: string;
+  subscription_id?: string;
 }
 
 export interface UpdateOrderParams {
@@ -885,7 +881,6 @@ export interface CancelBookingItemParams extends BookingItemLifecycleParams {
 export interface CreateBookingResourceParams {
   store_id?: string;
   key: string;
-  name_block_id: string;
   slugs?: Record<string, string>;
   status?: BookingResourceStatus;
   blocks?: Block[];
@@ -898,7 +893,6 @@ export interface UpdateBookingResourceParams {
   id: string;
   store_id?: string;
   key?: string;
-  name_block_id?: string;
   slugs?: Record<string, string>;
   status?: BookingResourceStatus;
   blocks?: Block[];
@@ -915,7 +909,6 @@ export interface DeleteBookingResourceParams {
 export interface CreateBookingServiceParams {
   store_id?: string;
   key: string;
-  name_block_id: string;
   slugs?: Record<string, string>;
   blocks?: Block[];
   classifications?: ClassificationEntry[];
@@ -926,7 +919,6 @@ export interface UpdateBookingServiceParams {
   id: string;
   store_id?: string;
   key?: string;
-  name_block_id?: string;
   slugs?: Record<string, string>;
   blocks?: Block[];
   classifications?: ClassificationEntry[];
@@ -1364,7 +1356,6 @@ export interface CreateRefundResponse {
 export interface CreateDigitalProductParams {
   store_id?: string;
   key: string;
-  name_block_id: string;
   slugs?: Record<string, string>;
   blocks?: import("./index").Block[];
   classifications?: import("./index").ClassificationEntry[];
@@ -1377,7 +1368,6 @@ export interface UpdateDigitalProductParams {
   store_id?: string;
   digital_product_id: string;
   key?: string;
-  name_block_id?: string;
   slugs?: Record<string, string>;
   blocks?: import("./index").Block[];
   classifications?: import("./index").ClassificationEntry[];

@@ -84,12 +84,12 @@ test("Company is one nested context; selecting another does not silently change 
   assert.equal(calls.filter((call) => call.method !== "GET").length, 1);
 });
 
-for (const type of ["active", "abandoned", "checking_out", "converted", "merged", "expired"]) {
+for (const type of ["active", "abandoned", "converted", "merged", "expired"]) {
   test(`selected ${type} Cart has an explicit reuse or terminal replacement policy`, async () => {
     let creates = 0;
     const { client, calls } = setup((call) => {
       if (call.method === "POST") return receipt(cart({ id: ++creates === 1 ? cartId : secondId }));
-      return Response.json(cart({ status: { type, checkout_id: secondId, target_cart_id: secondId, command_id: secondId } }));
+      return Response.json(cart({ status: { type, order_id: secondId, target_cart_id: secondId, command_id: secondId } }));
     });
     await client().eshop.cart.current();
     const terminal = ["converted", "merged", "expired"].includes(type);

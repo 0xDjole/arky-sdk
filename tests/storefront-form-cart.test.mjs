@@ -200,7 +200,7 @@ test("a fresh cart load resolves Store defaults before loading persisted product
     if (call.url === `${apiUrl}/v1/storefront`) return jsonResponse(setup);
     if (new URL(call.url).pathname.endsWith("/products/product-hydration-contract")) {
       const { variants, status, created_at, updated_at, ...card } = product;
-      return jsonResponse({ ...card, name_block_id: "product-name", price: variants[0].price, purchase_allowed: true });
+      return jsonResponse({ ...card, price: variants[0].price, purchase_allowed: true });
     }
     if (new URL(call.url).pathname.endsWith("/products/product-hydration-contract/variants/variant-hydration-contract")) {
       return jsonResponse(product.variants[0]);

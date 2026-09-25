@@ -28,7 +28,7 @@ export type PurchaseOriginSnapshot =
       authentication: CustomerAuthenticationSnapshot;
     }
   | { type: "admin"; actor: AccountActor }
-  | { type: "customer_group"; authorization_digest: string };
+  | { type: "subscription"; authorization_digest: string };
 
 export interface CompanyLocationSnapshot {
   name: string;
@@ -157,7 +157,7 @@ export type AcceptedDeliveryPricingSource =
     }
   | {
       type: "subscription_terms";
-      order_customer_group_line_item_id: string;
+      order_subscription_line_item_id: string;
       delivery_terms_id: string;
     };
 
@@ -192,7 +192,6 @@ export interface OrderDeliveryGroup {
   shipping_rate_id: string | null;
   shipping_method_key: string;
   shipping_profile_key: string;
-  name_block_id: string;
   content: Block[];
   delivery_estimate: ShippingDeliveryEstimate | null;
   money: LineMoneySnapshot;

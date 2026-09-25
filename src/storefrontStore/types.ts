@@ -20,7 +20,7 @@ import type {
   Cart,
   CartCompanyContext,
   CartDigitalItem,
-  CartCustomerGroupPlanItem,
+  CartSubscriptionPlanItem,
   EshopCartItem,
   CollectionEntry,
   Currency,
@@ -35,7 +35,7 @@ import type {
   TimeRange,
 } from "../types";
 import type { AvailabilityResponse } from "../types/api";
-import type { CartCustomerGroupPlanInput, CartDeliveryGroup, CheckoutCartParams } from "../types/api";
+import type { CartSubscriptionPlanInput, CartDeliveryGroup, CheckoutCartParams } from "../types/api";
 import type { StorefrontParams } from "../types/storefront";
 
 export type ArkyStoreClient = ReturnType<typeof createStorefront>;
@@ -77,7 +77,7 @@ export interface ArkyCartSnapshot {
   product_items: EshopCartItem[];
   booking_items: ArkyBookingCartItem[];
   digital_items: CartDigitalItem[];
-  customer_group_plan_items: CartCustomerGroupPlanItem[];
+  subscription_plan_items: CartSubscriptionPlanItem[];
   item_count: number;
 }
 
@@ -93,7 +93,6 @@ export interface ArkyCartStatus {
 }
 
 export interface ArkyLastOrder {
-  checkout_id: string;
   order_id: string;
   number: string;
   payment_action: StorefrontOrderCheckoutResult["payment_action"];
@@ -101,7 +100,7 @@ export interface ArkyLastOrder {
   product_items?: EshopCartItem[];
   booking_items?: ArkyBookingCartItem[];
   digital_items?: CartDigitalItem[];
-  customer_group_plan_items?: CartCustomerGroupPlanItem[];
+  subscription_plan_items?: CartSubscriptionPlanItem[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
   total?: number;
@@ -114,7 +113,7 @@ export interface ArkyCartInput {
   product_items?: EshopCartItem[];
   booking_items?: ArkyBookingCartItem[];
   digital_items?: CartDigitalItem[];
-  customer_group_plan_items?: CartCustomerGroupPlanInput[];
+  subscription_plan_items?: CartSubscriptionPlanInput[];
   company?: CartCompanyContext | null;
   market_id?: string;
   sales_channel_id?: string;
@@ -137,7 +136,7 @@ export interface CheckoutContext {
   product_items: EshopCartItem[];
   booking_items: ArkyBookingCartItem[];
   digital_items: CartDigitalItem[];
-  customer_group_plan_items: CartCustomerGroupPlanItem[];
+  subscription_plan_items: CartSubscriptionPlanItem[];
   shipping_address: Address | null;
   billing_address: Address | null;
   payment_provider_id: string | null;

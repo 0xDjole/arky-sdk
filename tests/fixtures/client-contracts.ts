@@ -192,12 +192,13 @@ import type {
   StoreMembership,
   StoreSubscriptionStatus,
   StoreUsage,
-  SubscriptionPlanFeatureType,
+  StorePlanFeatureType,
   TiktokPrivacy,
   StorefrontIdentifyResult,
   StorefrontDigitalProduct,
   StorefrontDto,
   StorefrontLocation,
+  StorefrontMarket,
   StorefrontPaymentProvider,
   StorefrontSetup,
   StorefrontGetSupportConversationParams,
@@ -362,7 +363,7 @@ import type {
 // @ts-expect-error storefront CustomerAction keys have no Action compatibility alias.
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.26.58" = SDK_VERSION;
+const sdkVersionLiteral: "0.26.59" = SDK_VERSION;
 const workflowExternalOperationContract: WorkflowExternalOperation = {
   id: "operation-contract",
   store_id: "store-contract",
@@ -393,10 +394,10 @@ const sentEmailOperationResult: WorkflowExternalOperation["result"] = {
 void flatOperationStatus;
 void privateOperationOutput;
 void sentEmailOperationResult;
-const bookingServiceFeature: SubscriptionPlanFeatureType = "booking_services";
-const bookingResourceFeature: SubscriptionPlanFeatureType = "booking_resources";
-const customerFeature: SubscriptionPlanFeatureType = "customers";
-const socialConnectionFeature: SubscriptionPlanFeatureType = "social_connections";
+const bookingServiceFeature: StorePlanFeatureType = "booking_services";
+const bookingResourceFeature: StorePlanFeatureType = "booking_resources";
+const customerFeature: StorePlanFeatureType = "customers";
+const socialConnectionFeature: StorePlanFeatureType = "social_connections";
 const mediaContract: Media = {
   id: "media-contract",
   store_id: "store-contract",
@@ -431,7 +432,7 @@ const storeContract: Store = {
     default_market_id: "market-contract",
     default_sales_channel_id: "channel-contract",
     seller: { legal_name: "Synthetic seller", address: { country: "US" }, registration_number: null, tax_registrations: [] },
-    tax: { version: "fixture", noncommercial_customer_group_grants: false },
+    tax: { version: "fixture", noncommercial_subscription_grants: false },
     invoicing: { series_key: "sales", issue_trigger: { type: "acceptance" } },
   },
   timezone: "Europe/Sarajevo",
@@ -608,9 +609,15 @@ const marketContract: Market = {
   currency: "bam",
   tax_mode: "inclusive",
   status: { type: "active" },
-  payment_provider_ids: [cashOnDeliveryProvider.id, stripeProvider.id],
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(2),
+};
+const storefrontMarketContract: StorefrontMarket = {
+  id: marketContract.id,
+  key: marketContract.key,
+  currency: marketContract.currency,
+  tax_mode: marketContract.tax_mode,
+  payment_provider_ids: [cashOnDeliveryProvider.id, stripeProvider.id],
 };
 const storefrontPaymentProviders: StorefrontPaymentProvider[] = [
   { id: cashOnDeliveryProvider.id, key: cashOnDeliveryProvider.key, blocks: cashOnDeliveryProvider.blocks, type: "cash_on_delivery" },
@@ -620,7 +627,7 @@ const storefrontSetupContract: StorefrontSetup = {
   commerce: { type: "ready", default_market_id: marketContract.id, default_sales_channel_id: "channel" },
   timezone: "Europe/Sarajevo",
   languages: { default: "en", available: ["en"] },
-  default_market: marketContract,
+  default_market: storefrontMarketContract,
   payment_providers: storefrontPaymentProviders,
   support: { email: "store@example.test" },
   readiness: { market: true, payment: true, commerce: true },
@@ -631,7 +638,6 @@ const createMarketContract: CreateMarketParams = {
   key: "bih",
   currency: "bam",
   tax_mode: "inclusive",
-  payment_provider_ids: [cashOnDeliveryProvider.id, stripeProvider.id],
 };
 const checkoutContract: CheckoutCartParams = {
   id: "cart-contract",
@@ -646,8 +652,10 @@ const quotedProviderId: string | null = quoteContract.payment_provider_id;
 const quotedProviderIds: string[] = quoteContract.payment_provider_ids;
 // @ts-expect-error Market no longer embeds Payment Methods.
 marketContract.payment_methods;
-// @ts-expect-error Market creation accepts provider UUIDs, not Payment Methods.
+// @ts-expect-error Market creation does not embed Payment Methods.
 createMarketContract.payment_methods;
+// @ts-expect-error Market payment assignments are MarketPaymentProvider records.
+createMarketContract.payment_provider_ids;
 // @ts-expect-error Cart checkout selects a Payment Provider UUID.
 checkoutContract.payment_method_key;
 // @ts-expect-error Provider configuration is a tagged value, not a flat provider type.
@@ -843,7 +851,7 @@ const digitalPrice: Price = {
     type: "digital_product",
     digital_product_id: "digital-product-contract",
   },
-  price_list_id: null,
+  scope: { type: "base" },
   currency: "usd",
   amount: 2500,
   compare_at: null,
@@ -857,7 +865,6 @@ const digitalProductContract: DigitalProduct = {
   id: "digital-product-contract",
   store_id: "store-contract",
   key: "digital-product-key",
-  name_block_id: "digital-product-name-block",
   slugs: { en: "digital-product" },
   blocks: [],
   classifications: [],
@@ -870,7 +877,6 @@ const digitalProductContract: DigitalProduct = {
 const storefrontDigitalProductContract: StorefrontDigitalProduct = {
   id: digitalProductContract.id,
   key: digitalProductContract.key,
-  name_block_id: digitalProductContract.name_block_id,
   slugs: digitalProductContract.slugs,
   blocks: [],
   classifications: [],
@@ -880,7 +886,6 @@ const storefrontDigitalProductContract: StorefrontDigitalProduct = {
 const digitalLibraryItemContract: DigitalLibraryItem = {
   digital_product_id: digitalProductContract.id,
   product_key: digitalProductContract.key,
-  product_name: { text: "Purchased guide", locale: "en" },
 };
 const digitalLibraryProductContract: DigitalLibraryProduct = {
   digital_product_id: digitalLibraryItemContract.digital_product_id,
@@ -889,7 +894,6 @@ const digitalLibraryProductContract: DigitalLibraryProduct = {
 };
 const createDigitalProductContract: CreateDigitalProductParams = {
   key: digitalProductContract.key,
-  name_block_id: digitalProductContract.name_block_id,
   slugs: digitalProductContract.slugs,
   blocks: [],
   classifications: [],
@@ -960,7 +964,6 @@ const appliedPrice: AppliedPriceSnapshot = {
 const acceptedOrderPrice: OrderDigitalSnapshot['price'] = { type: 'direct', price: appliedPrice };
 const orderDigitalSnapshotContract: OrderDigitalSnapshot = {
   product_key: digitalProductContract.key,
-  product_name: { text: 'Accepted digital product', locale: 'en' },
   price: acceptedOrderPrice,
   source_digital_product_id: digitalProductContract.id,
   content: { type: 'accepted_assets', assets: [{ source_asset_id: 'asset', object_key: 'retained-object', version_id: 'retained-version', content_digest: 'retained-digest', file_name: 'lesson.pdf', mime_type: 'application/pdf' }] },
@@ -1069,7 +1072,6 @@ const inventoryInput: ProductInventoryInput = {
 };
 const createProductInput: CreateProductParams = {
   key: "canonical-product",
-  name_block_id: "block-contract",
   slugs: { en: "canonical-product" },
 };
 const updateProductInput: UpdateProductParams = {
@@ -1750,7 +1752,6 @@ orderPayment.amounts.paid;
 // @ts-expect-error capture roots own collection evidence, not a duplicate settlement on Payment.
 orderPayment.settlement;
 const zeroTotalCheckout: OrderCheckoutResult = {
-  checkout_id: "checkout-zero-total-contract",
   order_id: "order-zero-total-contract",
   number: "1000",
   payment_action: { type: "none" },
@@ -1791,7 +1792,6 @@ const shippingLine: OrderDeliveryGroup = {
   shipping_rate_id: "shipping-rate-contract",
   shipping_method_key: "standard",
   shipping_profile_key: "standard",
-  name_block_id: "shipping-name",
   content: [{ id: "shipping-name", key: "name", type: "text", value: "Standard" }],
   delivery_estimate: null,
   scheduled_window: null,
@@ -1846,7 +1846,6 @@ const embeddedOrderProductItem: OrderProductItem = {
   form_submission: { source_submission_id: "form-submission-product-contract", source_form_id: "form", form_version: "v1", values: {}, accepted_at: epochMilliseconds(1) },
   snapshot: {
     product_key: "product-contract",
-    product_name: { text: "Accepted product", locale: "en" },
     variant_sku: null,
     variant_attributes: [],
     price: acceptedOrderPrice,
@@ -1872,9 +1871,7 @@ const embeddedOrderBookingItem: OrderBookingItem = {
   form_submission: { source_submission_id: "form-submission-booking-contract", source_form_id: "form", form_version: "v1", values: {}, accepted_at: epochMilliseconds(1) },
   snapshot: {
     service_key: "service-contract",
-    service_name: { text: "Accepted service", locale: "en" },
     resource_key: "resource-contract",
-    resource_name: { text: "Accepted resource", locale: "en" },
     timezone: "Europe/Sarajevo",
     price: appliedPrice,
     source_offering_id: "booking-offering-contract", source_service_id: "booking-service-contract", source_resource_id: "booking-resource-contract",
@@ -1907,10 +1904,7 @@ const orderContract: Order = {
   id: "order-contract",
   number: "1002",
   store_id: "store-contract",
-  type: {
-    type: "purchase",
-    source: { type: "checkout", checkout_id: "checkout-contract" },
-  },
+  source: { type: "direct", request_id: "direct-request-contract" },
   customer_id: "customer-contract",
   customer_snapshot: {
     email: "buyer@example.test",
@@ -2539,6 +2533,7 @@ const fulfillmentOrder: FulfillmentOrder = {
       cancelled_units: [],
     },
   ],
+  executor: { type: "internal" },
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(2),
 };

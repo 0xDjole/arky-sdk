@@ -8,7 +8,7 @@ import type {
 
 export type OrderLinePrice =
   | { type: "direct"; price: AppliedPriceSnapshot }
-  | { type: "customer_group_allocation" };
+  | { type: "subscription_allocation" };
 
 export interface OrderInventoryRequirementSnapshot {
   inventory_item_id: string | null;
@@ -35,7 +35,6 @@ export type OrderProductFulfillmentSnapshot =
 
 export interface OrderProductSnapshot {
   product_key: string;
-  product_name: DisplayTextSnapshot;
   variant_sku: string | null;
   variant_attributes: Block[];
   price: OrderLinePrice;
@@ -46,9 +45,7 @@ export interface OrderProductSnapshot {
 
 export interface OrderBookingSnapshot {
   service_key: string;
-  service_name: DisplayTextSnapshot;
   resource_key: string;
-  resource_name: DisplayTextSnapshot | null;
   timezone: string;
   price: AppliedPriceSnapshot;
   source_offering_id: string;
@@ -71,7 +68,6 @@ export type OrderDigitalContent =
 
 export interface OrderDigitalSnapshot {
   product_key: string;
-  product_name: DisplayTextSnapshot;
   price: OrderLinePrice;
   source_digital_product_id: string;
   content: OrderDigitalContent;

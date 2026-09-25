@@ -122,9 +122,9 @@ assert.equal("customer" in arky, false);
 assert.equal(typeof arky.eshop.customerGroupMember.find, "function");
 assert.equal(typeof arky.eshop.customerGroupMember.get, "function");
 assert.equal(typeof arky.eshop.customerGroupMember.join, "function");
-assert.equal(typeof arky.eshop.customerGroupSubscription.find, "function");
-assert.equal(typeof arky.eshop.customerGroupSubscription.get, "function");
-assert.equal(typeof arky.eshop.customerGroupSubscription.findOrders, "function");
+assert.equal(typeof arky.eshop.subscription.find, "function");
+assert.equal(typeof arky.eshop.subscription.get, "function");
+assert.equal(typeof arky.eshop.subscription.findOrders, "function");
 assert.equal(typeof arky.store.member.add, "function");
 assert.equal(typeof arky.store.member.invite, "function");
 assert.equal(typeof arky.store.member.remove, "function");
@@ -178,8 +178,8 @@ try {
 
 const storePlanCalls = [];
 assert.equal("subscription" in arky.eshop.cart, false);
-assert.equal(typeof arky.eshop.customerGroupSubscription.find, "function");
-assert.equal(typeof arky.eshop.customerGroupPlan.create, "function");
+assert.equal(typeof arky.eshop.subscription.find, "function");
+assert.equal(typeof arky.eshop.subscriptionPlan.create, "function");
 const storePlanOriginalFetch = globalThis.fetch;
 globalThis.fetch = async (url, init = {}) => {
   const call = {
@@ -581,9 +581,9 @@ assert.equal(typeof arky.leadResearch.create, "function");
 
 assert.equal("audiences" in arky, false);
 assert.equal(typeof arky.eshop.customerGroupMember.findCommands, "function");
-assert.equal(typeof arky.eshop.customerGroupSubscription.findCommands, "function");
-assert.equal("refunds" in arky.eshop.customerGroupSubscription, false);
-assert.equal("disputes" in arky.eshop.customerGroupSubscription, false);
+assert.equal(typeof arky.eshop.subscription.findCommands, "function");
+assert.equal("refunds" in arky.eshop.subscription, false);
+assert.equal("disputes" in arky.eshop.subscription, false);
 assert.equal("getInventory" in arky.eshop.product, false);
 assert.equal(typeof arky.eshop.inventoryLevel.find, "function");
 
@@ -633,7 +633,7 @@ globalThis.fetch = async (url, init = {}) => {
   });
 };
 try {
-  assert.deepEqual(await arky.eshop.customerGroupSubscription.findOrders({
+  assert.deepEqual(await arky.eshop.subscription.findOrders({
     id: "history-subscription",
     limit: 10,
     cursor: "prior-order-page",
@@ -644,7 +644,7 @@ try {
 assert.equal(subscriptionOrderCalls.length, 1);
 const subscriptionOrderUrl = new URL(subscriptionOrderCalls[0].url);
 assert.equal(subscriptionOrderCalls[0].method, "GET");
-assert.equal(subscriptionOrderUrl.pathname, "/v1/stores/contract-store/customer-group-subscriptions/history-subscription/orders");
+assert.equal(subscriptionOrderUrl.pathname, "/v1/stores/contract-store/subscriptions/history-subscription/orders");
 assert.deepEqual(Object.fromEntries(subscriptionOrderUrl.searchParams), {
   limit: "10",
   cursor: "prior-order-page",
@@ -682,8 +682,8 @@ assert.equal(typeof arky.eshop.rental.find, "function");
 assert.equal(typeof arky.eshop.rental.execute, "function");
 assert.equal(typeof arky.eshop.rentalPlacement.find, "function");
 assert.equal(typeof arky.eshop.rentalPlacement.execute, "function");
-assert.equal(typeof arky.eshop.customerGroupPlanBenefit.find, "function");
-assert.equal(typeof arky.eshop.customerGroupSubscription.control, "function");
+assert.equal(typeof arky.eshop.subscriptionPlanEntitlement.find, "function");
+assert.equal(typeof arky.eshop.subscription.control, "function");
 assert.equal("getRates" in arky.eshop.shipment, false);
 assert.equal("label" in arky.eshop.shipment, false);
 assert.equal(typeof arky.eshop.shippingLabel.quote, "function");

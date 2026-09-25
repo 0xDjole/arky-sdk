@@ -33,8 +33,6 @@ export interface CustomerGroup {
 export interface CustomerGroupUsage {
   catalog_entitlement_ids: string[];
   more_catalog_entitlements: boolean;
-  plan_ids: string[];
-  more_plans: boolean;
   member_ids: string[];
   more_members: boolean;
   email_consent_ids: string[];

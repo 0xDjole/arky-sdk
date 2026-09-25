@@ -38,14 +38,16 @@ function storefront() {
   return createStorefront(publishableKey, { apiUrl, locale: "en", sessionStorage: storefrontSessionStorage(session) });
 }
 
-const checkoutId = "3e6b7f70-4d2f-4f0e-9b7b-5d3b6c0a51d2";
-
-function proof(overrides = {}) {
-  return { id: checkoutId, request_id: requestId, carts: request.sources.carts, state: { type: "accepted", accepted_at: 1, result: { order_id: orderId, bindings: request.sources.lines } }, ...overrides };
+function acceptedOrder(source = {}, overrides = {}) {
+  return {
+    id: orderId,
+    source: { type: "cart_acceptance", command_id: requestId, carts: request.sources.carts, bindings: request.sources.lines, ...source },
+    ...overrides,
+  };
 }
 
 function result() {
-  return { checkout_id: checkoutId, order_id: orderId, number: "1001", payment: null, payment_action: { type: "none" } };
+  return { order_id: orderId, number: "1001", payment: null, payment_action: { type: "none" } };
 }
 
 function stripeResult() {
@@ -85,8 +87,8 @@ function capture(respond) {
 }
 
 function success(call) {
-  if (call.method === "POST" && call.path.endsWith("/checkouts")) return Response.json(result());
-  if (call.method === "GET" && call.path.endsWith(`/checkouts/${checkoutId}`)) return Response.json(proof());
+  if (call.method === "POST" && call.path.endsWith("/carts/accept")) return Response.json(result());
+  if (call.method === "GET" && call.path.endsWith(`/orders/${orderId}`)) return Response.json(acceptedOrder());
   throw new Error(`Recovery must not depend on a live Cart: ${call.path}`);
 }
 
@@ -102,7 +104,7 @@ test("an unresolved Checkout pins selected Cart reads and blocks explicit replac
   const calls = capture((call) => {
     assert.equal(call.method, "GET");
     assert.equal(call.path, `/v1/storefront/carts/${cartId}`);
-    return Response.json({ id: cartId, customer_id: "customer", company: null, market_id: "market", status: { type: "converted", checkout_id: checkoutId } });
+    return Response.json({ id: cartId, customer_id: "customer", company: null, market_id: "market", status: { type: "converted", order_id: orderId, command_id: requestId } });
   });
   const client = storefront();
   assert.equal((await client.eshop.cart.current()).id, cartId);
@@ -143,7 +145,7 @@ test("Cart checkout persists before POST and explicitly recovers the exact reque
   const calls = capture(success);
   assert.deepEqual(await fresh.eshop.cart.recoverCheckout(), result());
   assert.deepEqual(calls[0], first[0]);
-  assert.deepEqual(calls[1], { method: "GET", path: `/v1/storefront/checkouts/${checkoutId}`, body: null });
+  assert.deepEqual(calls[1], { method: "GET", path: `/v1/storefront/orders/${orderId}`, body: null });
   assert.equal(calls.length, 2);
   assert.equal(retained.includes("client_secret"), false);
   assert.equal(storage.getItem(storageKey), null);
@@ -244,7 +246,7 @@ test("only a definite checkout POST 400 clears the saved request", async () => {
     const { storage } = browser();
     const calls = capture(() => Response.json({ message: "Rejected", error: "COMMERCE.REJECTED", statusCode: status }, { status }));
     await assert.rejects(storefront().eshop.cart.checkout(request));
-    assert.equal(calls.filter((call) => call.path.endsWith('/checkouts')).length, 1);
+    assert.equal(calls.filter((call) => call.path.endsWith('/carts/accept')).length, 1);
     assert.equal(storage.getItem(storageKey) === null, status === 400);
   }
 });
@@ -262,22 +264,21 @@ test("malformed or aborted checkout responses retain the same request", async ()
   }
 });
 
-test("success followed by failed or mismatched retained Checkout proof stays pending without notifying success", async () => {
+test("success followed by failed or mismatched accepted Order evidence stays pending without notifying success", async () => {
   for (const getResponse of [
     () => Response.json({ message: "Bad read" }, { status: 400 }),
     () => { throw new TypeError("read lost"); },
-    () => Response.json(proof({ id: otherId })),
-    () => Response.json(proof({ request_id: otherId })),
-    () => Response.json(proof({ carts: [{ cart_id: otherId, version: "reviewed-version" }] })),
-    () => Response.json(proof({ carts: [] })),
-    () => Response.json(proof({ carts: [{ cart_id: cartId, version: "" }] })),
-    () => Response.json(proof({ carts: [{ cart_id: cartId, version: "another-version" }] })),
-    () => Response.json(proof({ state: { type: "preparing" } })),
-    () => Response.json(proof({ state: null })),
-    () => Response.json(proof({ state: { type: "accepted", result: { order_id: otherId, bindings: [] } } })),
-    () => Response.json(proof({ state: { type: "accepted", result: { order_id: orderId, bindings: [] } } })),
-    () => Response.json(proof({ state: { type: "accepted", result: { order_id: orderId, bindings: checkoutSources(cartId, "product", otherId).lines } } })),
-    () => Response.json(proof({ state: { type: "accepted", result: { order_id: orderId, bindings: checkoutSources(cartId, "product", request.sources.lines[0].cart_line_item.line_item_id, 2).lines } } })),
+    () => Response.json(acceptedOrder({}, { id: otherId })),
+    () => Response.json(acceptedOrder({ command_id: otherId })),
+    () => Response.json(acceptedOrder({ carts: [{ cart_id: otherId, version: "reviewed-version" }] })),
+    () => Response.json(acceptedOrder({ carts: [] })),
+    () => Response.json(acceptedOrder({ carts: [{ cart_id: cartId, version: "" }] })),
+    () => Response.json(acceptedOrder({ carts: [{ cart_id: cartId, version: "another-version" }] })),
+    () => Response.json(acceptedOrder({}, { source: { type: "direct", request_id: requestId } })),
+    () => Response.json(acceptedOrder({}, { source: null })),
+    () => Response.json(acceptedOrder({ bindings: [] })),
+    () => Response.json(acceptedOrder({ bindings: checkoutSources(cartId, "product", otherId).lines })),
+    () => Response.json(acceptedOrder({ bindings: checkoutSources(cartId, "product", request.sources.lines[0].cart_line_item.line_item_id, 2).lines })),
   ]) {
     const { storage } = browser();
     let notified = 0;
@@ -327,7 +328,7 @@ test("validated Stripe checkout exposes capabilities only after exact proof and 
   let storageAtSuccess = "not notified";
   const calls = capture((call) => {
     assert.equal(storage.getItem(storageKey).includes("client_secret"), false);
-    return Response.json(call.method === "GET" ? proof() : stripeResult());
+    return Response.json(call.method === "GET" ? acceptedOrder() : stripeResult());
   });
   const accepted = await storefront().eshop.cart.checkout(request, { onSuccess: () => { storageAtSuccess = storage.getItem(storageKey); notified += 1; } });
   await Promise.resolve();
@@ -344,7 +345,7 @@ test('Monri checkout keeps one accepted Order and exposes its capability without
     const retained = storage.getItem(storageKey);
     assert.equal(retained.includes('client_secret'), false);
     assert.equal(retained.includes('authenticity_token'), false);
-    return Response.json(call.method === 'GET' ? proof() : monriResult());
+    return Response.json(call.method === 'GET' ? acceptedOrder() : monriResult());
   });
   assert.deepEqual(await storefront().eshop.cart.checkout(request), monriResult());
   assert.equal(storage.getItem(storageKey), null);
@@ -394,7 +395,7 @@ test("collection status, partial refunds and held evidence remain readable witho
       payment: { ...stripeResult().payment, status: { type: status }, reconciliation,
         amounts: { ...stripeResult().payment.amounts, authorized: 1000, captured, refunded } },
     };
-    const calls = capture((call) => Response.json(call.method === "GET" ? proof() : response));
+    const calls = capture((call) => Response.json(call.method === "GET" ? acceptedOrder() : response));
     assert.deepEqual(await storefront().eshop.cart.checkout(request), response);
     assert.equal(calls.length, 2);
     assert.equal(storage.getItem(storageKey), null);
@@ -424,13 +425,13 @@ test("pending current Cart reads the original identity and blocks ordinary Cart 
     () => client.update({ id: cartId, promotion_codes: ["new"] }),
     () => client.addProduct({ id: cartId, product: { product_id: otherId, variant_id: otherId, quantity: 1 } }),
     () => client.addBooking({ id: cartId, booking: { booking_offering_id: otherId } }),
-    () => client.addDigital({ id: cartId, digital: { digital_product_id: otherId, name_block_id: otherId } }),
+    () => client.addDigital({ id: cartId, digital: { digital_product_id: otherId } }),
     () =>
-      client.addCustomerGroupPlan({
+      client.addSubscriptionPlan({
         id: cartId,
-        customer_group_plan: {
-          customer_group_plan_id: otherId,
-          member: { type: "customer", customer_id: otherId },
+        subscription_plan: {
+          subscription_plan_id: otherId,
+          subject: { type: "customer", customer_id: otherId },
           start: { type: "on_acceptance" },
           deliveries: [],
         },
@@ -445,7 +446,7 @@ test("presentation conflicts expose the quote without silently replacing the loc
   const { storage } = browser();
   const quote = {
     sources: { carts: [{ cart_id: cartId, version: "reviewed-version" }], lines: [], delivery_groups: [] },
-    order: { locale: "en", presentation_digest: "c".repeat(64), context: {}, money: {}, product_lines: [], booking_lines: [], digital_lines: [], customer_group_lines: [], delivery_groups: [], payment_provider_ids: [] },
+    order: { locale: "en", presentation_digest: "c".repeat(64), context: {}, money: {}, product_lines: [], booking_lines: [], digital_lines: [], subscription_lines: [], delivery_groups: [], payment_provider_ids: [] },
     presentation_digest: "b".repeat(64),
   };
   const calls = capture(() => Response.json({ message: "Review the changed quote", error: "COMMERCE.PRESENTATION_CHANGED", quote }, { status: 409 }));
@@ -491,7 +492,7 @@ test("saving a payment method requires explicit well-formed consent before trans
 });
 
 test("flat or incomplete presentation conflicts are not treated as reviewed Checkout quotes", async () => {
-  const order = { locale: "en", presentation_digest: "c".repeat(64), context: {}, money: null, product_lines: [], booking_lines: [], digital_lines: [], customer_group_lines: [], delivery_groups: [], payment_provider_ids: [] };
+  const order = { locale: "en", presentation_digest: "c".repeat(64), context: {}, money: null, product_lines: [], booking_lines: [], digital_lines: [], subscription_lines: [], delivery_groups: [], payment_provider_ids: [] };
   for (const quote of [order, { order, presentation_digest: "b".repeat(64) }, { sources: null, order, presentation_digest: "invalid" }]) {
     const { storage } = browser();
     capture(() => Response.json({ message: "Review", error: "COMMERCE.PRESENTATION_CHANGED", quote }, { status: 409 }));
@@ -510,7 +511,7 @@ test("Admin checkout uses the same exact-request recovery and blocks a competing
   await assert.rejects(admin().eshop.cart.create({}), /Recover the unresolved Cart Checkout/);
   assert.equal(calls.length, 0);
   assert.deepEqual(await admin().eshop.cart.recoverCheckout(), result());
-  assert.deepEqual(calls.map((call) => [call.method, call.path]), [["POST", "/v1/stores/store/checkouts"], ["GET", `/v1/stores/store/checkouts/${checkoutId}`]]);
+  assert.deepEqual(calls.map((call) => [call.method, call.path]), [["POST", "/v1/stores/store/carts/accept"], ["GET", `/v1/stores/store/orders/${orderId}`]]);
 });
 
 test("server-side checkout uses the caller's exact request without browser storage or an implicit retry", async () => {

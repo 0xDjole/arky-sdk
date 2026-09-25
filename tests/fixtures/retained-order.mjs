@@ -46,6 +46,14 @@ const money = {
   },
 };
 
+/** @type {import("arky-sdk").LineMoneySnapshot} */
+const unpricedPlan = {
+  ...money,
+  unit_price: 0,
+  subtotal: 0,
+  total: 0,
+};
+
 /** @type {import("arky-sdk").PurchaseOriginSnapshot} */
 const origin = {
   type: "storefront",
@@ -59,7 +67,18 @@ export const retainedOrder = {
   id: "order-history-contract",
   number: "1001",
   store_id: "store-history-contract",
-  type: { type: "purchase", source: { type: "checkout", checkout_id: "accepted-checkout" } },
+  source: {
+    type: "cart_acceptance",
+    command_id: "accepted-command",
+    carts: [{ cart_id: "accepted-cart", version: "accepted-cart-version" }],
+    bindings: [{
+      cart_id: "accepted-cart",
+      cart_line_item: { type: "product", line_item_id: "cart-product-line" },
+      cart_units: { first_unit: 0, quantity: 1 },
+      order_line_item: { type: "product", line_item_id: "product-item" },
+      order_units: { first_unit: 0, quantity: 1 },
+    }],
+  },
   customer_id: "retained-customer",
   customer_snapshot: {
     email: "buyer@example.test",
@@ -91,7 +110,6 @@ export const retainedOrder = {
       form_submission: null,
       snapshot: {
         product_key: "consultation-credit",
-        product_name: { text: "Saved product", locale: "en" },
         variant_sku: "CREDIT-1",
         variant_attributes: [],
         price: { type: "direct", price },
@@ -119,9 +137,7 @@ export const retainedOrder = {
       form_submission: null,
       snapshot: {
         service_key: "consultation",
-        service_name: { text: "Saved service", locale: "en" },
         resource_key: "consultant",
-        resource_name: { text: "Saved resource", locale: "en" },
         timezone: "America/New_York",
         price,
         source_offering_id: "accepted-offering",
@@ -143,7 +159,6 @@ export const retainedOrder = {
       form_submission: null,
       snapshot: {
         product_key: "guide",
-        product_name: { text: "Saved guide", locale: "en" },
         price: { type: "direct", price },
         source_digital_product_id: "accepted-digital",
         content: { type: "accepted_assets", assets: [{
@@ -157,23 +172,19 @@ export const retainedOrder = {
       updated_at: acceptedAt,
     },
     {
-      type: "customer_group_plan",
+      type: "subscription_plan",
       id: "group-plan-item",
-      customer_group_subscription_id: "retained-subscription",
+      subscription_id: "retained-subscription",
       revision_id: "accepted-revision",
       terms: { type: "initial", terms: {
         plan: {
-          source_customer_group_id: "accepted-group",
-          source_customer_group_plan_id: "accepted-plan",
-          group_key: "members",
-          group_name: { text: "Saved group", locale: "en" },
+          source_subscription_offering_id: "accepted-offering",
+          source_subscription_plan_id: "accepted-plan",
+          offering_key: "members",
           plan_key: "permanent",
-          plan_name: { text: "Saved membership", locale: "en" },
           term: { type: "permanent" },
-          price,
-          membership_allocation_weight: 1,
-          membership_tax_category_id: null,
-          benefits: [],
+          price: { ...price, unit_price: { currency: "usd", amount: 0 } },
+          entitlements: [],
         },
         deliveries: [],
         billing_address: address,
@@ -181,12 +192,12 @@ export const retainedOrder = {
       occurrence: { type: "permanent", starts_at: acceptedAt },
       revocation: null,
       status: { type: "confirmed" },
-      money,
+      money: unpricedPlan,
       created_at: acceptedAt,
       updated_at: acceptedAt,
     },
   ],
-  money: { currency: "usd", subtotal: 4000, delivery: 0, discount: 0, tax_total: 0, duty_total: 0, total: 4000, promotions: [] },
+  money: { currency: "usd", subtotal: 3000, delivery: 0, discount: 0, tax_total: 0, duty_total: 0, total: 3000, promotions: [] },
   delivery_groups: [],
   billing_address: address,
   created_at: acceptedAt,

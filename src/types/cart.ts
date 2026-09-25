@@ -3,17 +3,16 @@ import type { PurchaseOrigin } from "./commerce";
 import type { ManualPrice } from "./price";
 import type {
   CartDeliveryGroup,
-  CartCustomerGroupDelivery,
-  CustomerGroupMemberType,
-  CustomerGroupPlanStart,
+  CartSubscriptionDelivery,
+  SubscriptionPlanStart,
 } from "./api";
+import type { SubscriptionSubject } from "./subscription";
 import type { EpochMilliseconds } from "./time";
 
 export type CartStatus =
   | { type: "active" }
   | { type: "abandoned" }
-  | { type: "checking_out"; checkout_id: string }
-  | { type: "converted"; checkout_id: string }
+  | { type: "converted"; order_id: string; command_id: string }
   | { type: "merged"; target_cart_id: string; command_id: string }
   | { type: "expired" };
 
@@ -31,7 +30,7 @@ export type CartLineItem =
   | { type: "product"; } & CartProductItem
   | { type: "booking"; } & CartBookingItem
   | { type: "digital_product"; } & CartDigitalItem
-  | { type: "customer_group_plan"; } & CartCustomerGroupPlanItem;
+  | { type: "subscription_plan"; } & CartSubscriptionPlanItem;
 
 export interface Cart {
   id: string;
@@ -81,12 +80,12 @@ export interface CartDigitalItem {
   price_override: ManualPrice | null;
 }
 
-export interface CartCustomerGroupPlanItem {
+export interface CartSubscriptionPlanItem {
   id: string;
-  customer_group_plan_id: string;
-  member: CustomerGroupMemberType;
-  start: CustomerGroupPlanStart;
-  deliveries: CartCustomerGroupDelivery[];
+  subscription_plan_id: string;
+  subject: SubscriptionSubject;
+  start: SubscriptionPlanStart;
+  deliveries: CartSubscriptionDelivery[];
   price_override: ManualPrice | null;
 }
 
@@ -111,13 +110,13 @@ export function cartDigitalItems(cart: Pick<Cart, "line_items"> | null): CartDig
     .map(({ type: _type, ...item }) => item);
 }
 
-export function cartCustomerGroupPlanItems(
+export function cartSubscriptionPlanItems(
   cart: Pick<Cart, "line_items"> | null,
-): CartCustomerGroupPlanItem[] {
+): CartSubscriptionPlanItem[] {
   return (cart?.line_items ?? [])
     .filter(
-      (item): item is CartLineItem & { type: "customer_group_plan" } =>
-        item.type === "customer_group_plan",
+      (item): item is CartLineItem & { type: "subscription_plan" } =>
+        item.type === "subscription_plan",
     )
     .map(({ type: _type, ...item }) => item);
 }

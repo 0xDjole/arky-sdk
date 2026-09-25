@@ -43,7 +43,7 @@ function selectionScope(context: CartSelectionContext): CartSelectionScope {
       assertContext();
       if (!cart || typeof cart.id !== "string" || !cart.id.length ||
         cart.customer_id !== customerId || typeof cart.market_id !== "string" || !cart.market_id.length ||
-        !cart.status || !["active", "abandoned", "checking_out", "converted", "merged", "expired"].includes(cart.status.type) ||
+        !cart.status || !["active", "abandoned", "converted", "merged", "expired"].includes(cart.status.type) ||
         (selected && (cart.id !== selected.id || cart.market_id !== selected.market_id))) {
         throw new CartSelectionError("The response does not match the selected Cart and Customer context");
       }

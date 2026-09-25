@@ -26,7 +26,7 @@ test("Rental discovery forwards combined filters, preserves empty continuation a
   const { calls, restore } = capture((count) => (count <= 2 ? { items: [], cursor: count === 1 ? "next:/+=" : null } : detail));
   try {
     const api = eshop().rental;
-    const query = { store_id: "selected", customer_group_subscription_id: "subscription", status: "ending", limit: 20, sort_field: "updated_at", sort_direction: "desc" };
+    const query = { store_id: "selected", subscription_id: "subscription", status: "ending", limit: 20, sort_field: "updated_at", sort_direction: "desc" };
     assert.deepEqual(await api.find(query), { items: [], cursor: "next:/+=" });
     assert.equal(calls.length, 1);
     assert.deepEqual(await api.find({ ...query, cursor: "next:/+=" }), { items: [], cursor: null });
@@ -37,7 +37,7 @@ test("Rental discovery forwards combined filters, preserves empty continuation a
       ["GET", "/v1/stores/default/rentals/rental%2Fid"],
     ]);
     assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), {
-      customer_group_subscription_id: "subscription", status: "ending", limit: "20",
+      subscription_id: "subscription", status: "ending", limit: "20",
       sort_field: "updated_at", sort_direction: "desc",
     });
     assert.equal(calls[1].url.searchParams.get("cursor"), "next:/+=");

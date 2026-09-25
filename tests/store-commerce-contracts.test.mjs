@@ -11,7 +11,7 @@ const request = {
     registration_number: null,
     tax_registrations: [],
   },
-  tax: { version: "synthetic-fixture", noncommercial_customer_group_grants: false },
+  tax: { version: "synthetic-fixture", noncommercial_subscription_grants: false },
   invoicing: { series_key: "sales", issue_trigger: { type: "acceptance" } },
 };
 const operation = {

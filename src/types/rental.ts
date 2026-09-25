@@ -1,5 +1,5 @@
 import type { AccountActor } from "./accountActor";
-import type { CustomerGroupProductSnapshot } from "./commerce";
+import type { SubscriptionProductSnapshot } from "./commerce";
 import type { FulfillmentOrderMethod } from "./index";
 import type { EpochMilliseconds } from "./time";
 
@@ -21,8 +21,10 @@ export type RentalStatus =
 export interface Rental {
   id: string;
   store_id: string;
-  customer_group_subscription_id: string;
-  customer_group_plan_benefit_id: string;
+  subscription_id: string;
+  creation_revision_id: string;
+  creation_entitlement_id: string;
+  subscription_plan_entitlement_id: string;
   terms_revision_id: string;
   status: RentalStatus;
   created_at: EpochMilliseconds;
@@ -34,7 +36,7 @@ export interface RentalTerms {
   variant_id: string;
   quantity: number;
   inventory_item_id: string;
-  snapshot: CustomerGroupProductSnapshot;
+  snapshot: SubscriptionProductSnapshot;
 }
 
 export interface RentalDetail {
@@ -71,7 +73,7 @@ export interface GetRentalParams {
 
 export interface FindRentalsParams {
   store_id?: string;
-  customer_group_subscription_id?: string;
+  subscription_id?: string;
   status?: RentalStatus["type"];
   limit?: number;
   cursor?: string;
