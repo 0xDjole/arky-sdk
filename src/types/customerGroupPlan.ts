@@ -3,6 +3,7 @@ import type { StorefrontPrice } from "./commerce";
 import type { EpochMilliseconds } from "./time";
 import type { CatalogReadOptions } from "./catalog";
 import type { CatalogPriceFilter } from "./api";
+import type { CustomerGroupPlanBenefitType } from "./customerGroupPlanBenefit";
 
 export type BillingInterval = "day" | "week" | "month" | "year";
 
@@ -24,12 +25,24 @@ export interface RenewalRecoveryPolicy {
   unpaid_order: UnpaidRenewalDisposition;
 }
 
+export type CustomerGroupCommitmentEndAction =
+  | { type: "renew" }
+  | { type: "renew_once" }
+  | { type: "continue_without_term" }
+  | { type: "stop" };
+
+export interface CustomerGroupCommitment {
+  occurrences: number;
+  end_action: CustomerGroupCommitmentEndAction;
+}
+
 export type CustomerGroupPlanTerm =
   | { type: "permanent" }
   | {
       type: "recurring";
       cadence: RecurringCadence;
       recovery_policy: RenewalRecoveryPolicy;
+      commitment: CustomerGroupCommitment | null;
     };
 
 export type CustomerGroupProductQuantity =
@@ -50,26 +63,6 @@ export type CustomerGroupDigitalContent =
   | { type: "accepted_assets" }
   | { type: "current_bundle" };
 
-export type CustomerGroupPlanBenefitType =
-  | {
-      type: "product";
-      product_id: string;
-      variant_id: string;
-      quantity: CustomerGroupProductQuantity;
-      delivery: CustomerGroupDeliverySchedule;
-    }
-  | {
-      type: "digital_product";
-      digital_product_id: string;
-      content: CustomerGroupDigitalContent;
-    };
-
-export interface CustomerGroupPlanBenefit {
-  id: string;
-  type: CustomerGroupPlanBenefitType;
-  allocation_weight: number;
-}
-
 export type CustomerGroupPlanStatus =
   | { type: "draft" }
   | { type: "active" }
@@ -86,7 +79,6 @@ export interface CustomerGroupPlan {
   term: CustomerGroupPlanTerm;
   membership_allocation_weight: number;
   membership_tax_category_id: string | null;
-  benefits: CustomerGroupPlanBenefit[];
   status: CustomerGroupPlanStatus;
   starts_at: EpochMilliseconds | null;
   ends_at: EpochMilliseconds | null;
@@ -103,7 +95,6 @@ export interface CreateCustomerGroupPlanParams {
   term: CustomerGroupPlanTerm;
   membership_allocation_weight: number;
   membership_tax_category_id: string | null;
-  benefits: CustomerGroupPlanBenefit[];
   status: CustomerGroupPlanStatus;
   starts_at: EpochMilliseconds | null;
   ends_at: EpochMilliseconds | null;

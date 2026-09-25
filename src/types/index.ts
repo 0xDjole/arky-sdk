@@ -46,6 +46,7 @@ export type {
   PaymentTermsType,
   OrderDeliveryGroup,
   AcceptedDeliveryPricing,
+  AcceptedDeliveryPricingSource,
   AcceptedDeliveryCalculation,
   AcceptedCarrierQuoteLeg,
 } from "./orderContract";
@@ -845,6 +846,11 @@ export interface FulfillmentUnitSpan {
   quantity: number;
 }
 
+export interface RentalIssueReplacement {
+  predecessor_placement_id: string;
+  overlap_authorized: boolean;
+}
+
 export type FulfillmentOrderLineSource = {
   type: "order_product";
   order_id: string;
@@ -855,7 +861,7 @@ export type FulfillmentOrderLineSource = {
   type: "rental_issue";
   rental_id: string;
   terms_revision_id: string;
-  replaces_placement_id: string | null;
+  replacement: RentalIssueReplacement | null;
 };
 
 export interface FulfillmentOrderLine {
@@ -886,13 +892,17 @@ export interface FulfillmentWindow {
   to: EpochMilliseconds;
 }
 
+export type FulfillmentOrderMethod =
+  | { type: "pickup" }
+  | { type: "delivery"; destination: PostalAddress };
+
 export interface FulfillmentOrder {
   id: string;
   store_id: string;
   work_key: string;
   store_location_id: string;
   status: FulfillmentOrderStatus;
-  method: { type: "pickup" } | { type: "delivery"; destination: PostalAddress };
+  method: FulfillmentOrderMethod;
   recipient: FulfillmentRecipient;
   scheduled_window: FulfillmentWindow | null;
   lines: FulfillmentOrderLine[];
@@ -1053,13 +1063,17 @@ export type WebhookEventSubscription =
   | { type: "order_digital_item.updated" }
   | { type: "order_digital_item.confirmed" }
   | { type: "order_digital_item.cancelled" }
-  | { type: "order.shipment_created" }
-  | { type: "order.shipment_in_transit" }
-  | { type: "order.shipment_out_for_delivery" }
-  | { type: "order.shipment_delivered" }
-  | { type: "order.shipment_failed" }
-  | { type: "order.shipment_returned" }
-  | { type: "order.shipment_status_changed" }
+  | { type: "shipment.created" }
+  | { type: "shipment.in_transit" }
+  | { type: "shipment.out_for_delivery" }
+  | { type: "shipment.delivered" }
+  | { type: "shipment.failed" }
+  | { type: "shipment.returned" }
+  | { type: "shipment.status_changed" }
+  | { type: "pickup.created" }
+  | { type: "pickup.ready" }
+  | { type: "pickup.collected" }
+  | { type: "pickup.cancelled" }
   | { type: "cart.created" }
   | { type: "cart.updated" }
   | { type: "cart.abandoned" }
@@ -2947,17 +2961,17 @@ export type EventAction =
   | { action: "order_booking_item_cancelled" }
   | { action: "order_booking_item_reminder_due" }
   | { action: "order_booking_item_reminder" }
-  | { action: "order_shipment_created"; data: { shipment_id: string } }
-  | { action: "order_shipment_in_transit"; data: { shipment_id: string } }
-  | { action: "order_shipment_out_for_delivery"; data: { shipment_id: string } }
-  | { action: "order_shipment_delivered"; data: { shipment_id: string } }
+  | { action: "shipment_created"; data: { shipment_id: string } }
+  | { action: "shipment_in_transit"; data: { shipment_id: string } }
+  | { action: "shipment_out_for_delivery"; data: { shipment_id: string } }
+  | { action: "shipment_delivered"; data: { shipment_id: string } }
   | {
-      action: "order_shipment_failed";
+      action: "shipment_failed";
       data: { shipment_id: string; reason?: string };
     }
-  | { action: "order_shipment_returned"; data: { shipment_id: string } }
+  | { action: "shipment_returned"; data: { shipment_id: string } }
   | {
-      action: "order_shipment_status_changed";
+      action: "shipment_status_changed";
       data: { shipment_id: string; from: string; to: string };
     }
   | { action: "product_created" }
@@ -2996,7 +3010,9 @@ export type EventAction =
   | { action: "customer_group_subscription_resumed" }
   | { action: "customer_group_subscription_cancelled" }
   | { action: "customer_group_subscription_funding_changed" }
-  | { action: "customer_group_subscription_next_purchase_skipped" };
+  | { action: "customer_group_subscription_next_purchase_skipped" }
+  | { action: "customer_group_subscription_renewal_due" }
+  | { action: "customer_group_subscription_renewal_collection_due" };
 
 export interface Event {
   id: string;
@@ -3006,7 +3022,7 @@ export interface Event {
   created_at: EpochMilliseconds;
 }
 
-export type OrderShipmentStatus =
+export type ShipmentStatus =
   { type: "pending"
   | "label_created"
   | "in_transit"
@@ -3021,7 +3037,7 @@ export interface ShippingRateLine {
   quantity: number;
 }
 
-export interface OrderShipmentLine {
+export interface ShipmentLine {
   fulfillment_order_line_id: string;
   unit_spans: FulfillmentUnitSpan[];
   unit_bindings: ShipmentUnitBinding[];
@@ -3038,14 +3054,13 @@ export interface FulfillmentExecution {
   actor: AccountActor;
 }
 
-export interface OrderShipment {
+export interface Shipment {
   id: string;
   store_id: string;
-  order_id: string;
   fulfillment_order_id: string;
   origin_store_location_id: string;
-  lines: OrderShipmentLine[];
-  status: OrderShipmentStatus;
+  lines: ShipmentLine[];
+  status: ShipmentStatus;
   parcel: Parcel;
   customs_declaration: CustomsDeclaration | null;
   carrier: string | null;
@@ -3070,9 +3085,9 @@ export interface Parcel {
   mass_unit: string;
 }
 
-export interface CreateOrderShipmentResponse {
+export interface CreateShipmentResponse {
   shipment_id: string;
-  shipment: OrderShipment;
+  shipment: Shipment;
 }
 
 export interface CustomsItem {

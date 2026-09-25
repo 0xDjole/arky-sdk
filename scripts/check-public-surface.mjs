@@ -98,6 +98,27 @@ const removedIdentifiers = [
   "ShippoLabel",
   "ShippoLabelRefundStatus",
   "ShippoLabelRefund",
+  "OrderShipment",
+  "OrderShipmentLine",
+  "OrderShipmentStatus",
+  "CreateOrderShipmentParams",
+  "CancelOrderShipmentParams",
+  "DispatchOrderShipmentParams",
+  "FindOrderShipmentsParams",
+  "GetOrderShipmentParams",
+  "OrderPickup",
+  "OrderPickupLine",
+  "OrderPickupStatus",
+  "OrderPickupCommand",
+  "CreateOrderPickupParams",
+  "ExecuteOrderPickupParams",
+  "FindOrderPickupsParams",
+  "GetOrderPickupParams",
+  "replaces_placement_id",
+  "findFulfillmentOrders",
+  "getFulfillmentOrder",
+  "resolveFulfillmentUnitSlots",
+  "resolveUnitSlots",
   "ProviderOrderShipmentCharge",
   "OrderShipmentCharge",
   "OrderShipmentChargeDirection",
@@ -231,11 +252,20 @@ const removedShippingContractPatterns = [
   /export interface FulfillmentOrderLine\s*\{[^}]*\b(?:order_product_id|remaining_quantity)\??:/g,
   /export interface FulfillmentOrder\s*\{[^}]*\b(?:version|location_id)\??:/g,
   /export interface ShippingRateLine\s*\{[^}]*\border_product_id\??:/g,
-  /export interface OrderShipmentLine\s*\{[^}]*\border_product_id\??:/g,
-  /export interface OrderShipment\s*\{[^}]*\b(?:version|location_id|shippo_label|attempt_count|provider)\??:/g,
+  /export interface ShipmentLine\s*\{[^}]*\b(?:order_product_id|order_product_line_item_id|quantity)\??:/g,
+  /export interface Shipment\s*\{[^}]*\b(?:order_id|version|location_id|shippo_label|attempt_count|provider)\??:/g,
+  /export interface Pickup\s*\{[^}]*\border_id\??:/g,
+  /export interface (?:Create|Get|Dispatch)ShipmentParams\s*\{[^}]*\border_id\??:/g,
+  /export interface (?:Create|Execute|Get)PickupParams\s*(?:extends[^{]*)?\{[^}]*\border_id\??:/g,
+  /export interface (?:GetFulfillmentOrderParams|ResolveFulfillmentUnitSlotsParams)\s*\{[^}]*\border_id\??:/g,
+  /\/orders\/\$\{[^}]+\}\/(?:shipments|pickups|fulfillment-orders)\b/g,
+  /export interface AcceptedDeliveryPricing\s*\{[^}]*\b(?:source_shipping_rate_id|merchandise_basis|weight_grams|calculation|free_above_subtotal)\??:/g,
   /export interface ShippingLabel(?:Refund|Charge|ChargeRefund)?\s*\{[^}]*\b(?:version|transaction_id|refund_id|postage_amount|fee_amount|currency|attempt_count|provider)\??:/g,
   /export interface ShippingRate\s*\{[^}]*\b(?:amount|currency)\??:/g,
   /\/shippo-label\b|\/shipments\/[^\s`"']+\/retry\b|\/charges(?:\/|`|"|')/g,
+];
+const removedCustomerGroupPlanContractPatterns = [
+  /export interface (?:CustomerGroupPlan|CreateCustomerGroupPlanParams|UpdateCustomerGroupPlanParams)\s*(?:extends[^{]*)?\{[^}]*\bbenefits\??:/g,
 ];
 const removedCrmActionVocabularyPattern =
   /\b(?:has_action|action_id|opportunity_action_id|action_by_country|top_action_pages|recent_action)\b|\b(?:crmApi|storefrontApi|client)\.action\b/g;
@@ -445,6 +475,13 @@ for (const file of listTypeScriptFiles(sourceDir)) {
   for (const pattern of removedShippingContractPatterns) {
     for (const match of source.matchAll(pattern)) {
       report(file, source, match.index, "removed Shipping contract");
+      failures++;
+    }
+  }
+
+  for (const pattern of removedCustomerGroupPlanContractPatterns) {
+    for (const match of source.matchAll(pattern)) {
+      report(file, source, match.index, "CustomerGroupPlan benefits are separate CustomerGroupPlanBenefit roots");
       failures++;
     }
   }
@@ -850,6 +887,16 @@ if (
   !/createCustomerGroupMemberApi\s*\}\s*from\s*["']\.\/api\/customerGroupMember["']/.test(
     indexSource,
   ) ||
+  !/createCustomerGroupPlanBenefitApi\s*\}\s*from\s*["']\.\/api\/customerGroupPlanBenefit["']/.test(
+    indexSource,
+  ) ||
+  !/createFulfillmentOrderApi\s*\}\s*from\s*["']\.\/api\/fulfillmentOrder["']/.test(
+    indexSource,
+  ) ||
+  !/createRentalApi\s*\}\s*from\s*["']\.\/api\/rental["']/.test(indexSource) ||
+  !/createRentalPlacementApi\s*\}\s*from\s*["']\.\/api\/rentalPlacement["']/.test(
+    indexSource,
+  ) ||
   !/\bcontent\s*:\s*\{/.test(indexSource) ||
   !/\bforms\s*:\s*\{/.test(indexSource) ||
   !/\bactions\s*:/.test(indexSource) ||
@@ -1015,6 +1062,90 @@ if (
     storeSubscriptionContract?.index ?? 0,
     "StoreSubscription must expose its embedded Checkout and distinct Checkout action",
   );
+  failures++;
+}
+
+const rentalIssueContract = activityTypesSource.match(
+  /export type FulfillmentOrderLineSource\s*=([\s\S]*?)\n\};/,
+);
+if (
+  !rentalIssueContract ||
+  !/type:\s*"rental_issue";[^}]*\breplacement:\s*RentalIssueReplacement\s*\|\s*null;/.test(
+    rentalIssueContract[1],
+  ) ||
+  !/export interface RentalIssueReplacement\s*\{[^}]*\bpredecessor_placement_id:\s*string;[^}]*\boverlap_authorized:\s*boolean;/.test(
+    activityTypesSource,
+  )
+) {
+  report(activityTypesFile, activityTypesSource, rentalIssueContract?.index ?? 0,
+    "Rental issue work must name its nullable typed replacement, never a bare predecessor field");
+  failures++;
+}
+
+const orderContractFile = resolve(sourceDir, "types/orderContract.ts");
+const orderContractSource = readFileSync(orderContractFile, "utf8");
+const deliveryGroupContract = orderContractSource.match(
+  /export interface OrderDeliveryGroup\s*\{([\s\S]*?)\n\}/,
+);
+if (
+  !deliveryGroupContract ||
+  !/\n\s*rental_items:\s*OrderDeliveryGroupRentalItem\[\];/.test(deliveryGroupContract[1])
+) {
+  report(orderContractFile, orderContractSource, deliveryGroupContract?.index ?? 0,
+    "OrderDeliveryGroup must carry its accepted initial rental issue promises");
+  failures++;
+}
+
+const quotedDeliveryContract = quoteTypesSource.match(
+  /export interface QuotedDeliveryGroup\s*\{([\s\S]*?)\n\}/,
+);
+if (
+  !quotedDeliveryContract ||
+  !/\n\s*rental_items:\s*CartDeliveryRentalAssignment\[\];/.test(quotedDeliveryContract[1])
+) {
+  report(quoteTypesFile, quoteTypesSource, quotedDeliveryContract?.index ?? 0,
+    "QuotedDeliveryGroup must quote included rental deliveries beside Product units");
+  failures++;
+}
+
+const inventoryTypesFile = resolve(sourceDir, "types/inventory.ts");
+const inventoryTypesSource = readFileSync(inventoryTypesFile, "utf8");
+const movementReasonContract = inventoryTypesSource.match(
+  /export type InventoryMovementReason\s*=([\s\S]*?);\n\n/,
+);
+if (
+  !movementReasonContract ||
+  !/\{\s*type:\s*"rental_issue";\s*rental_id:\s*string;\s*fulfillment_order_id:\s*string\s*\}/.test(movementReasonContract[1]) ||
+  !/\{\s*type:\s*"fulfillment";\s*order_id:\s*string;\s*fulfillment_order_id:\s*string\s*\}/.test(movementReasonContract[1])
+) {
+  report(inventoryTypesFile, inventoryTypesSource, movementReasonContract?.index ?? 0,
+    "Outbound stock movements distinguish Order fulfillment from Rental issue without borrowing an Order");
+  failures++;
+}
+
+const acceptedPricingContract = orderContractSource.match(
+  /export interface AcceptedDeliveryPricing\s*\{([\s\S]*?)\n\}/,
+);
+const acceptedPricingSourceContract = orderContractSource.match(
+  /export type AcceptedDeliveryPricingSource\s*=([\s\S]*?)\n\s*\};/,
+);
+if (
+  !acceptedPricingContract ||
+  !/\n\s*source:\s*AcceptedDeliveryPricingSource;/.test(acceptedPricingContract[1]) ||
+  !acceptedPricingSourceContract ||
+  !/type:\s*"shipping_rate";[^}]*\bcalculation:\s*AcceptedDeliveryCalculation;/.test(acceptedPricingSourceContract[1]) ||
+  !/type:\s*"subscription_terms";[^}]*\border_customer_group_line_item_id:\s*string;[^}]*\bdelivery_terms_id:\s*string;/.test(acceptedPricingSourceContract[1])
+) {
+  report(orderContractFile, orderContractSource, acceptedPricingContract?.index ?? 0,
+    "Accepted delivery pricing must name its ShippingRate or accepted subscription-terms source");
+  failures++;
+}
+
+const planTypesFile = resolve(sourceDir, "types/customerGroupPlan.ts");
+const planTypesSource = readFileSync(planTypesFile, "utf8");
+if (!/type:\s*"recurring";[^}]*\bcommitment:\s*CustomerGroupCommitment\s*\|\s*null;/.test(planTypesSource)) {
+  report(planTypesFile, planTypesSource, 0,
+    "Recurring plan terms must carry a required nullable commitment");
   failures++;
 }
 

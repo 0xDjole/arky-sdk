@@ -238,6 +238,7 @@ test("a fresh cart load resolves Store defaults before loading persisted product
       product_slug: "prodotto-idratato",
       variant_attributes: [],
       requires_shipping: false,
+      shipping_profile_id: null,
       price: {
         unit_price: { amount: 1250, currency: "eur" },
         compare_at: null,

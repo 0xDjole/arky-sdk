@@ -100,7 +100,13 @@ export type CustomerGroupBenefitSnapshotType =
       quantity: CustomerGroupProductQuantity;
       delivery: CustomerGroupDeliverySchedule;
     }
-  | { type: "digital_product"; snapshot: CustomerGroupDigitalSnapshot };
+  | { type: "digital_product"; snapshot: CustomerGroupDigitalSnapshot }
+  | {
+      type: "rental";
+      snapshot: CustomerGroupProductSnapshot;
+      quantity: number;
+      inventory_item_id: string;
+    };
 
 export interface CustomerGroupBenefitSnapshot {
   id: string;

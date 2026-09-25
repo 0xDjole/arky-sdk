@@ -2,13 +2,20 @@ import type { AccountActor } from "./accountActor";
 import type { UnitSpan } from "./orderContract";
 import type { EpochMilliseconds } from "./time";
 
-export type ReturnSource = { type: "order"; order_id: string };
+export type ReturnSource =
+  | { type: "order"; order_id: string }
+  | { type: "rental"; rental_id: string };
 
-export type ReturnLineSource = {
-  type: "order_product";
-  order_product_line_item_id: string;
-  unit_spans: UnitSpan[];
-};
+export type ReturnLineSource =
+  | {
+      type: "order_product";
+      order_product_line_item_id: string;
+      unit_spans: UnitSpan[];
+    }
+  | {
+      type: "rental_placement";
+      rental_placement_id: string;
+    };
 
 export type ReturnReason = "customer_request" | "wrong_item" | "damaged" | "defective" | "not_as_described" | "other";
 
@@ -106,13 +113,15 @@ export interface ExecuteReturnParams extends GetReturnParams {
   command: ReturnCommand;
 }
 
-export interface FindReturnsParams {
+export type FindReturnsParams = {
   store_id?: string;
-  order_id?: string;
   destination_store_location_id?: string;
   status?: ReturnStatus["type"];
   limit?: number;
   cursor?: string;
   sort_field?: "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
-}
+} & (
+  | { order_id?: string; rental_id?: never }
+  | { rental_id?: string; order_id?: never }
+);

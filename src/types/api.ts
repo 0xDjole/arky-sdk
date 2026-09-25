@@ -17,7 +17,7 @@ import type {
   Parcel,
   CustomsDeclaration,
   ShippingRateLine,
-  OrderShipmentLine,
+  ShipmentLine,
   ClassificationEntry,
   ClassificationQuery,
   BookingServiceStatus,
@@ -221,6 +221,12 @@ export interface CartDeliveryUnitAssignment {
   cart_delivery_group_id: string;
   line_item: CartPhysicalLineRef;
   unit_span: import("./orderContract").UnitSpan;
+}
+
+export interface CartDeliveryRentalAssignment {
+  cart_delivery_group_id: string;
+  line_item: CartPhysicalLineRef;
+  quantity: number;
 }
 
 export interface CartDeliveryGroup {
@@ -2092,48 +2098,54 @@ export interface DeleteWebhookParams {
   id: string;
 }
 
-export interface FindOrderShipmentsParams {
+export type FindShipmentsParams = {
   store_id?: string;
-  order_id: string;
   limit?: number;
   cursor?: string;
-}
+} & (
+  | { order_id: string; fulfillment_order_id?: never; rental_id?: never }
+  | { fulfillment_order_id: string; order_id?: never; rental_id?: never }
+  | { rental_id: string; order_id?: never; fulfillment_order_id?: never }
+);
 
-export type FindFulfillmentOrdersParams = FindOrderShipmentsParams;
+export type FindFulfillmentOrdersParams = {
+  store_id?: string;
+  limit?: number;
+  cursor?: string;
+} & (
+  | { order_id: string; rental_id?: never }
+  | { rental_id: string; order_id?: never }
+);
 
 export interface GetFulfillmentOrderParams {
   store_id?: string;
-  order_id: string;
   fulfillment_order_id: string;
 }
 
-export interface GetOrderShipmentParams {
+export interface GetShipmentParams {
   store_id?: string;
-  order_id: string;
   shipment_id: string;
 }
 
-export interface CreateOrderShipmentParams {
+export interface CreateShipmentParams {
   store_id?: string;
-  order_id: string;
   shipment_id: string;
   origin_store_location_id: string;
   fulfillment_order_id: string;
-  lines: OrderShipmentLine[];
+  lines: ShipmentLine[];
   parcel: Parcel;
   customs_declaration: CustomsDeclaration | null;
 }
 
-export interface DispatchOrderShipmentParams {
+export interface DispatchShipmentParams {
   store_id?: string;
-  order_id: string;
   shipment_id: string;
   command_id: string;
   expected_updated_at: EpochMilliseconds;
   late_reason: string | null;
 }
 
-export interface CancelOrderShipmentParams extends GetOrderShipmentParams {
+export interface CancelShipmentParams extends GetShipmentParams {
   expected_updated_at: EpochMilliseconds;
 }
 

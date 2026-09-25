@@ -1,5 +1,6 @@
-import type { FulfillmentOrder, FulfillmentUnitSpan, OrderShipment, OrderShipmentLine } from "../types";
+import type { FulfillmentOrder, FulfillmentOrderLine, FulfillmentUnitSpan, Shipment, ShipmentLine } from "../types";
 import type { UnitSpan } from "../types/orderContract";
+import type { Pickup, PickupLine } from "../types/pickup";
 import { FulfillmentSelectionError } from "../types/fulfillmentSelection";
 
 function checked(spans: UnitSpan[]): UnitSpan[] {
@@ -97,27 +98,56 @@ function combinedExclusions(first: UnitSpan[], second: UnitSpan[]): UnitSpan[] {
   return result;
 }
 
+function assignedUnits(line: FulfillmentOrderLine): UnitSpan[] {
+  switch (line.source.type) {
+    case "order_product":
+      return canonical(line.source.order_unit_spans);
+    case "rental_issue":
+      return canonical([{ first_unit: 0, quantity: line.quantity }]);
+    default:
+      throw new FulfillmentSelectionError("Work line has an unsupported source.");
+  }
+}
+
 export function selectShipmentUnits(
   work: FulfillmentOrder,
   lineId: string,
   quantity: number,
-  shipments: OrderShipment[],
-): OrderShipmentLine {
-  if (work.method.type !== "delivery" || ["completed", "cancelled"].includes(work.status.type)) {
-    throw new FulfillmentSelectionError("Select open delivery work.");
+  shipments: Shipment[],
+): ShipmentLine {
+  return selectFulfillmentUnits(work, lineId, quantity, shipments, "delivery");
+}
+
+export function selectPickupUnits(
+  work: FulfillmentOrder,
+  lineId: string,
+  quantity: number,
+  pickups: Pickup[],
+): PickupLine {
+  return selectFulfillmentUnits(work, lineId, quantity, pickups, "pickup");
+}
+
+function selectFulfillmentUnits(
+  work: FulfillmentOrder,
+  lineId: string,
+  quantity: number,
+  history: (Shipment | Pickup)[],
+  method: "delivery" | "pickup",
+): ShipmentLine {
+  if (work.method.type !== method || ["completed", "cancelled"].includes(work.status.type)) {
+    throw new FulfillmentSelectionError(`Select open ${method} work.`);
   }
   const line = work.lines.find((value) => value.id === lineId);
   if (!line || !Number.isInteger(quantity) || quantity < 1 || quantity > 4294967295) {
     throw new FulfillmentSelectionError("Select a valid assigned line and whole quantity.");
   }
-  const source = line.source;
-  if (source.type !== "order_product" || !work.lines.every((candidate) =>
-    candidate.source.type === "order_product"
-      && candidate.source.order_id === source.order_id
-      && candidate.source.order_delivery_group_id === source.order_delivery_group_id)) {
+  const sold = work.lines.flatMap((candidate) =>
+    candidate.source.type === "order_product" ? [candidate.source] : []);
+  if (sold.some((source) => source.order_id !== sold[0].order_id
+      || source.order_delivery_group_id !== sold[0].order_delivery_group_id)) {
     throw new FulfillmentSelectionError("Work lines must share one accepted Order delivery group.");
   }
-  const assigned = canonical(source.order_unit_spans);
+  const assigned = assignedUnits(line);
   const released = canonical(line.released_units);
   const cancelled = canonical(line.cancelled_units);
   orderUnits(assigned, released);
@@ -130,13 +160,19 @@ export function selectShipmentUnits(
   if (count(active) !== line.allocated_quantity) throw new FulfillmentSelectionError("Reload the changed fulfillment assignment.");
   const dispatched: FulfillmentUnitSpan[] = [];
   const prepared: FulfillmentUnitSpan[] = [];
-  for (const shipment of shipments) {
-    if (shipment.store_id !== work.store_id || shipment.order_id !== source.order_id) {
-      throw new FulfillmentSelectionError("Shipment history belongs to another Order.");
+  for (const shipment of history) {
+    const isShipment = "dispatch" in shipment;
+    if (isShipment !== (method === "delivery")) {
+      throw new FulfillmentSelectionError("History does not match the selected delivery method.");
+    }
+    const execution = isShipment ? shipment.dispatch : shipment.collection;
+    if (shipment.store_id !== work.store_id) {
+      throw new FulfillmentSelectionError("Physical history belongs to another Store.");
     }
     if (shipment.fulfillment_order_id !== work.id) continue;
-    if (!shipment.dispatch && shipment.status.type === "cancelled") continue;
-    if (!shipment.dispatch && !["pending", "label_created"].includes(shipment.status.type)) {
+    if (!execution && shipment.status.type === "cancelled") continue;
+    const preparing = isShipment ? ["pending", "label_created"] : ["preparing", "ready"];
+    if (!execution && !preparing.includes(shipment.status.type)) {
       throw new FulfillmentSelectionError("Unexecuted shipment has inconsistent preparation status.");
     }
     for (const item of shipment.lines) {
@@ -145,12 +181,14 @@ export function selectShipmentUnits(
       if (count(units) === 0) {
         throw new FulfillmentSelectionError("Shipment history requires a nonempty work selection.");
       }
-      (shipment.dispatch ? dispatched : prepared).push(...units);
+      (execution ? dispatched : prepared).push(...units);
     }
   }
   const handedOver = checked(dispatched);
   if (count(handedOver) !== line.fulfilled_quantity || count(subtract(handedOver, active))) {
-    throw new FulfillmentSelectionError("Load or refresh shipment history until all dispatched units are visible.");
+    throw new FulfillmentSelectionError(method === "pickup"
+      ? "Load or refresh pickup history until all collected units are visible."
+      : "Load or refresh shipment history until all dispatched units are visible.");
   }
   const occupied = checked([...handedOver, ...prepared]);
   if (count(subtract(occupied, active))) {

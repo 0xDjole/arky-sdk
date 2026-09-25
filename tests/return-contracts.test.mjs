@@ -65,3 +65,57 @@ test("Return commands retain exact caller identities and distinguish custody fro
     }
   } finally { globalThis.fetch = original; }
 });
+
+test("Rental Returns name the exact placement and keep the Rental source on every command", async () => {
+  const original = globalThis.fetch;
+  const calls = [];
+  const retained = { id: "rental-return", selected_label_id: null, status: { type: "authorized" } };
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: new URL(url), method: init.method, body: init.body ? JSON.parse(init.body) : null });
+    return new Response(JSON.stringify(retained), { headers: { "content-type": "application/json" } });
+  };
+  try {
+    const api = createAdmin({ storeId: "default", baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop.return;
+    const source = { type: "rental", rental_id: "rental" };
+    const request = {
+      store_id: "selected", return_id: "rental-return", source, destination_store_location_id: "warehouse", command_id: "request",
+      lines: [{ id: "line", source: { type: "rental_placement", rental_placement_id: "placement" }, reason: "customer_request",
+        components: [{ id: "component", unit_index: 0, source_inventory_item_id: "machine", authorized_quantity: 1 }] }],
+    };
+    const before = structuredClone(request);
+    assert.deepEqual(await api.create(request), retained);
+    await api.create(request);
+    assert.deepEqual(request, before);
+    const receipt = { store_id: "selected", return_id: "rental-return", source, command_id: "receive", expected_updated_at: 1700000000000,
+      command: { type: "receive", components: [{ component_id: "component", quantity: 1, inventory_unit_ids: ["unit"] }] } };
+    await api.execute(receipt);
+    await api.execute(receipt);
+    const { store_id, ...created } = request;
+    assert.deepEqual(calls.map((call) => [call.method, call.url.pathname]), [
+      ["POST", "/v1/stores/selected/returns"],
+      ["POST", "/v1/stores/selected/returns"],
+      ["POST", "/v1/stores/selected/returns/rental-return/execute"],
+      ["POST", "/v1/stores/selected/returns/rental-return/execute"],
+    ]);
+    assert.equal(store_id, "selected");
+    assert.deepEqual(calls[0].body, created);
+    assert.deepEqual(calls[1].body, created);
+    assert.deepEqual(calls[2].body, { source, command_id: "receive", expected_updated_at: 1700000000000, command: receipt.command });
+    assert.deepEqual(calls[3].body, calls[2].body);
+  } finally { globalThis.fetch = original; }
+});
+
+test("Return discovery scopes an exact Rental without an Order filter", async () => {
+  const original = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    calls.push(new URL(url));
+    return new Response(JSON.stringify({ items: [], cursor: null }), { headers: { "content-type": "application/json" } });
+  };
+  try {
+    const api = createAdmin({ storeId: "default", baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop.return;
+    assert.deepEqual(await api.find({ rental_id: "rental", status: "authorized" }), { items: [], cursor: null });
+    assert.equal(calls[0].pathname, "/v1/stores/default/returns");
+    assert.deepEqual(Object.fromEntries(calls[0].searchParams), { rental_id: "rental", status: "authorized" });
+  } finally { globalThis.fetch = original; }
+});

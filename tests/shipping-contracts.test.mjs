@@ -5,7 +5,6 @@ import { createAdmin } from "../dist/admin.js";
 
 const baseUrl = "https://api.example.test";
 const storeId = "6ba7b819-9dad-41d1-80b4-00c04fd430c8";
-const orderId = "6ba7b81a-9dad-41d1-80b4-00c04fd430c8";
 const shipmentId = "6ba7b810-9dad-41d1-80b4-00c04fd430c8";
 
 function admin() {
@@ -42,14 +41,32 @@ test("warehouse slot resolution sends bounded work selections without client-sup
       inventory_item_id: "item", inventory_item_key: "camera", inventory_reservation_id: "hold",
       reservation_unit_index: 4, inventory_unit: null }],
   };
-  const result = await capture(slots, (api) => api.eshop.shipment.fulfillment.resolveUnitSlots({
-    order_id: orderId, fulfillment_order_id: work, expected_updated_at: 1700000000000, lines,
+  const result = await capture(slots, (api) => api.eshop.fulfillmentOrder.unitSlots({
+    fulfillment_order_id: work, expected_updated_at: 1700000000000, lines,
   }));
   assert.deepEqual(result.result, slots);
   assert.deepEqual(result.calls, [{
-    url: `${baseUrl}/v1/stores/${storeId}/orders/${orderId}/fulfillment-orders/${work}/unit-slots`,
+    url: `${baseUrl}/v1/stores/${storeId}/fulfillment-orders/${work}/unit-slots`,
     method: "POST", body: { expected_updated_at: 1700000000000, lines },
   }]);
+});
+
+test("parcel handover sends one explicit command without buying a label or changing its retry identity", async () => {
+  const command = { command_id: "6ba7b811-9dad-41d1-80b4-00c04fd430c8",
+    expected_updated_at: 1700000000000, late_reason: null };
+  const shipment = { id: shipmentId, dispatch: { command_id: command.command_id } };
+  const { calls, result } = await capture(shipment, async (api) => {
+    const request = { shipment_id: shipmentId, ...command };
+    const first = await api.eshop.shipment.dispatch(request);
+    const recovered = await api.eshop.shipment.dispatch(request);
+    assert.deepEqual(recovered, first);
+    return recovered;
+  });
+  assert.deepEqual(result, shipment);
+  assert.deepEqual(calls, [0, 1].map(() => ({
+    url: `${baseUrl}/v1/stores/${storeId}/shipments/${shipmentId}/dispatch`,
+    method: "POST", body: command,
+  })));
 });
 
 test("shipping label effects are independent roots, not Shipment-owned projections", async (t) => {
@@ -59,7 +76,6 @@ test("shipping label effects are independent roots, not Shipment-owned projectio
   const shipment = {
     id: shipmentId,
     store_id: storeId,
-    order_id: orderId,
     fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
     origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
     lines: [],

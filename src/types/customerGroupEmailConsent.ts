@@ -96,6 +96,10 @@ export interface SubscribeCustomerGroupEmailsParams {
   expected_updated_at: EpochMilliseconds | null;
 }
 
+export type SubscribeStorefrontCustomerGroupEmailsParams = Omit<SubscribeCustomerGroupEmailsParams, "store_id">;
+export type GetStorefrontCustomerGroupEmailConsentParams = Omit<GetCustomerGroupEmailConsentParams, "store_id">;
+export type ResendStorefrontCustomerGroupConfirmationParams = Omit<ResendCustomerGroupConfirmationParams, "store_id">;
+
 export interface RecordCustomerGroupEmailConsentParams {
   store_id?: string;
   customer_group_id: string;

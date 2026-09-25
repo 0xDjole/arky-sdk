@@ -111,7 +111,7 @@ import type {
   CreateProductParams,
   CreateProductVariantParams,
   CreateDigitalProductParams,
-  CreateOrderShipmentParams,
+  CreateShipmentParams,
   DigitalAsset,
   DigitalLibraryItem,
   DigitalLibraryProduct,
@@ -178,8 +178,8 @@ import type {
   TrustedCartProductInput,
   OrderBookingItem,
   TimeRange,
-  OrderShipment,
-  OrderShipmentStatus,
+  Shipment,
+  ShipmentStatus,
   SocialCredential,
   SocialConnection,
   SocialMessage,
@@ -310,7 +310,7 @@ import type { GetOrderDisputeParams } from "../../dist/index.js";
 // @ts-expect-error carrier-label DTOs are provider-neutral.
 import type { ShippoLabel } from "../../dist/index.js";
 // @ts-expect-error merchant label debits use their literal root name.
-import type { OrderShipmentCharge } from "../../dist/index.js";
+import type { ShipmentCharge } from "../../dist/index.js";
 import type {
   CreateBuildHookParams,
   CreateStoreLocationParams,
@@ -362,7 +362,7 @@ import type {
 // @ts-expect-error storefront CustomerAction keys have no Action compatibility alias.
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.26.57" = SDK_VERSION;
+const sdkVersionLiteral: "0.26.58" = SDK_VERSION;
 const workflowExternalOperationContract: WorkflowExternalOperation = {
   id: "operation-contract",
   store_id: "store-contract",
@@ -1785,6 +1785,7 @@ const missingConnectedAccountCheckout: OrderCheckoutResult = {
 const shippingLine: OrderDeliveryGroup = {
   id: "shipping-line-contract",
   items: [{ order_product_item_id: "order-product-item-contract", quantity: 1, unit_spans: [{ first_unit: 0, quantity: 1 }] }],
+  rental_items: [{ rental_id: "rental-contract", quantity: 1 }],
   destination: { type: "delivery", address: { country: "US", street1: "1 Main Street", city: "Boston", postal_code: "02108" } },
   shipping_method_id: "shipping-method-contract",
   shipping_rate_id: "shipping-rate-contract",
@@ -1795,10 +1796,14 @@ const shippingLine: OrderDeliveryGroup = {
   delivery_estimate: null,
   scheduled_window: null,
   accepted_pricing: {
-    source_shipping_method_id: "shipping-method-contract", source_shipping_rate_id: "shipping-rate-contract", source_shipping_profile_id: "profile-contract",
-    selected_market_zone_id: "zone-contract", policy_digest: "policy", merchandise_basis: { currency: "usd", amount: 2500 }, weight_grams: null,
-    calculation: { type: "flat", amount: { currency: "usd", amount: 500 } }, free_above_subtotal: null,
-    customer_subtotal: { currency: "usd", amount: 500 }, accepted_at: epochMilliseconds(1), rounding_version: "rounding",
+    source_shipping_method_id: "shipping-method-contract", source_shipping_profile_id: "profile-contract",
+    selected_market_zone_id: "zone-contract",
+    source: {
+      type: "shipping_rate", source_shipping_rate_id: "shipping-rate-contract", merchandise_basis: { currency: "usd", amount: 2500 },
+      weight_grams: null, calculation: { type: "flat", amount: { currency: "usd", amount: 500 } }, free_above_subtotal: null,
+    },
+    policy_digest: "policy",
+    customer_subtotal: { currency: "usd", amount: 500 }, accepted_at: epochMilliseconds(1), rounding_version: "arky-shipping-half-up-v1",
   },
   money: {
     unit_price: 500,
@@ -2537,10 +2542,9 @@ const fulfillmentOrder: FulfillmentOrder = {
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(2),
 };
-const shipment: OrderShipment = {
+const shipment: Shipment = {
   id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
   store_id: "6ba7b819-9dad-41d1-80b4-00c04fd430c8",
-  order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
   fulfillment_order_id: fulfillmentOrder.id,
   origin_store_location_id: fulfillmentOrder.store_location_id,
   lines: [
@@ -2584,17 +2588,16 @@ const shippingLabelRate: ShippingLabelQuoteRate = {
   estimated_days: 3,
   expires_at: epochMilliseconds(5),
 };
-const shipmentStatus: OrderShipmentStatus = shipment.status;
+const shipmentStatus: ShipmentStatus = shipment.status;
 const shipmentTrackingStatusAt: number | null = shipment.tracking_status_at;
-const cancelledShippingStatus: OrderShipmentStatus = { type: "cancelled" };
+const cancelledShippingStatus: ShipmentStatus = { type: "cancelled" };
 const shippingRateRequest: QuoteShippingLabelParams = {
   owner: {
     type: "outbound_shipment",
     shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
   },
 };
-const createShipmentRequest: CreateOrderShipmentParams = {
-  order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
+const createShipmentRequest: CreateShipmentParams = {
   shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
   origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
   fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
@@ -2827,6 +2830,19 @@ const digitalItemConfirmedWebhook: WebhookEventSubscription = {
 const customerArchivedWebhook: WebhookEventSubscription = {
   type: "customer.archived",
 };
+const physicalWebhooks: WebhookEventSubscription[] = [
+  { type: "shipment.created" },
+  { type: "shipment.in_transit" },
+  { type: "shipment.out_for_delivery" },
+  { type: "shipment.delivered" },
+  { type: "shipment.failed" },
+  { type: "shipment.returned" },
+  { type: "shipment.status_changed" },
+  { type: "pickup.created" },
+  { type: "pickup.ready" },
+  { type: "pickup.collected" },
+  { type: "pickup.cancelled" },
+];
 const eventAction: EventAction = { action: "product_created" };
 const supportAction: SupportAction = {
   type: "end_conversation",
@@ -2873,6 +2889,7 @@ void [
   productItemUpdatedWebhook,
   digitalItemConfirmedWebhook,
   customerArchivedWebhook,
+  physicalWebhooks,
   tiktokConnectionType,
   tiktokContent,
   clearCartAddresses,

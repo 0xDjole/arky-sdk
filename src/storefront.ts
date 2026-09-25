@@ -27,6 +27,7 @@ export { createStripeEmbeddedCheckout, mountCheckoutAction } from "./checkout";
 export { MonriCheckoutError } from "./types/monriCheckout";
 export type { CaptureCustomerEmailParams } from "./types/api";
 export type { JoinStorefrontCustomerGroupParams, GetStorefrontCustomerGroupMemberParams } from "./types/customerGroupMember";
+export type { SubscribeStorefrontCustomerGroupEmailsParams, GetStorefrontCustomerGroupEmailConsentParams, ResendStorefrontCustomerGroupConfirmationParams } from "./types/customerGroupEmailConsent";
 export type { MonriComponentsAction, MonriBuyerDetails } from "./types/monriCheckout";
 export type {
   EmbeddedCheckoutCallbacks,

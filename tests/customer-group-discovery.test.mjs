@@ -82,7 +82,7 @@ test("storefront Company membership keeps the explicitly selected branch", async
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
   const calls = [];
-  const client = createStorefront(`arky_pk_${"h".repeat(43)}`, { apiUrl: "https://api.example.test", sessionStorage: new MemoryStorage() });
+  const client = createStorefront(`arky_pk_${"h".repeat(42)}A`, { apiUrl: "https://api.example.test", sessionStorage: new MemoryStorage() });
   const command = {
     command_id: "6b9d9e19-3d13-4f30-a1a0-442a3c92f212",
     request: {

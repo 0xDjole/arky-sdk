@@ -9,7 +9,6 @@ export interface FulfillmentUnitSelection {
 
 export interface ResolveFulfillmentUnitSlotsParams {
   store_id?: string;
-  order_id: string;
   fulfillment_order_id: string;
   expected_updated_at: EpochMilliseconds;
   lines: FulfillmentUnitSelection[];

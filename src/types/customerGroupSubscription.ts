@@ -55,6 +55,28 @@ export interface CustomerGroupSubscriptionSelf
   status: CustomerGroupSubscriptionSelfStatus;
 }
 
+export type CustomerGroupSubscriptionControlType =
+  | { type: "pause"; reason: string }
+  | { type: "cancel"; reason: string };
+
+export interface CustomerGroupSubscriptionControl {
+  customer_group_subscription_id: string;
+  expected_updated_at: EpochMilliseconds;
+  type: CustomerGroupSubscriptionControlType;
+}
+
+export interface ControlCustomerGroupSubscriptionParams {
+  store_id?: string;
+  command_id: string;
+  request: CustomerGroupSubscriptionControl;
+}
+
+export interface CustomerGroupSubscriptionControlResult {
+  command_id: string;
+  accepted_at: EpochMilliseconds;
+  subscription: CustomerGroupSubscriptionSelf;
+}
+
 export interface FindCustomerGroupSubscriptionsParams {
   store_id?: string;
   customer_id?: string;

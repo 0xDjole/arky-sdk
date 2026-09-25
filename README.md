@@ -282,14 +282,15 @@ another receipt identity just to retry. `allocate` selects one existing reservat
 update epoch. These methods do not expose arbitrary status editing or physical-history deletion.
 
 Physical returns use the Store Admin API `admin.eshop.return.create/get/find/execute`. Create names
-an accepted Order, its exact product-unit spans and components, a destination Location and retained
-request/Return UUIDs. `execute` keeps the caller's command UUID, source and loaded update epoch;
+an accepted Order with its exact product-unit spans and components, or a Rental with exact
+`rental_placement` lines (one component each, `unit_index: 0`, quantity one), a destination Location
+and retained request/Return UUIDs. `execute` keeps the caller's command UUID, source and loaded update epoch;
 retry the same request after an uncertain result. Authorize checks actual dispatch/collection and
 remaining returnable quantities. Receive records custody; Dispose explicitly selects restock,
 write-off or discard. Close requires all received goods to have a disposition; before transit, use
 Cancel. None of these commands refunds the customer or cancels a shipping-label charge.
-`find` combines optional Order, destination and physical-status filters with timestamp sorting and
-explicit continuation. Follow its cursor even after an empty page; use `get` for exact current state.
+`find` combines an optional Order or Rental scope (never both), destination and physical-status
+filters with timestamp sorting and explicit continuation. Follow its cursor even after an empty page; use `get` for exact current state.
 This is operator control, not a Customer self-service Return API or a Rental agreement API.
 
 Cart requests and responses use one tagged `line_items` array with `product`, `booking`,
@@ -1123,17 +1124,20 @@ fresh command and current Order state. The response is the updated Order.
 
 Fulfillment work is scoped to a StoreLocation. An `order_product` line source maps stable local work
 positions to accepted Order units. Narrow on `source.type`: `rental_issue` instead names a Rental,
-accepted terms revision and explicit nullable predecessor Placement; it has no Order-unit mapping.
-The current Order shipment API and `selectShipmentUnits` require sale-only work and reject rental
-or mixed work. Recognizing that source type is not a Rental creation/dispatch API or permission to
-borrow another line's paid status.
+accepted terms revision and a nullable `replacement` (`predecessor_placement_id`,
+`overlap_authorized`); its positions are local issue positions with no Order-unit mapping. One job
+may mix `order_product` lines of one exact Order delivery group with `rental_issue` lines.
+`admin.eshop.fulfillmentOrder.find({ order_id })` or `find({ rental_id })` reads work under
+`/v1/stores/{store_id}/fulfillment-orders`; `get({ fulfillment_order_id })` reads one job.
+Shipments and Pickups are Store-scoped (`/shipments`, `/pickups`) and resolve their Order or Rental
+authority from the work; their `find` takes exactly one `order_id`, `fulfillment_order_id` or
+`rental_id` scope. Recognizing a source type never borrows another line's paid status.
 
 A Shipment selects those local positions and freezes its parcel and
 optional customs facts. Create the parcel first; carrier-label quoting/purchase is a separate flow:
 
 ```typescript
 const result = await admin.eshop.shipment.create({
-  order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
   shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
   origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
   fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
@@ -1167,7 +1171,7 @@ bindings for the complete accepted component recipe, at most 100 distinct Units 
 The Unit must already be allocated to the corresponding reservation slot. Work positions are not
 Order positions or physical serial numbers.
 
-Use `admin.eshop.shipment.fulfillment.resolveUnitSlots({ order_id, fulfillment_order_id,
+Use `admin.eshop.fulfillmentOrder.unitSlots({ fulfillment_order_id,
 expected_updated_at: work.updated_at, lines })` to read the required Individual component slots
 for selected `{ fulfillment_order_line_id, unit_spans }` lines. It returns the exact existing
 reservation/slot, Item/key and nullable current Unit for each component; it does not reserve stock.
@@ -1177,18 +1181,18 @@ to `inventoryUnit.allocate`, then resolve again to display saved assignments aft
 uncertain response. Build the manifest's `unit_bindings` from those confirmed assignments. At most
 100 physical component slots are resolved per request; quantity-only goods return an empty list.
 
-`selectShipmentUnits` from `arky-sdk/utils` builds a quantity selection from loaded work and complete
-shipment history without expanding every unit. It excludes both dispatched positions and positions
-claimed by unexecuted, non-cancelled parcels. Its empty bindings array supports quantity-tracked
-goods; supply explicit allocated Unit bindings for individually tracked goods before creating the
-parcel. Server admission remains authoritative if work changes after the read.
+`selectShipmentUnits` and `selectPickupUnits` from `arky-sdk/utils` build a quantity selection from
+loaded work and complete shipment or pickup history without expanding every unit. They exclude both
+executed positions and positions claimed by unexecuted, non-cancelled parcels or pickups. The empty
+bindings array supports quantity-tracked goods; supply explicit allocated Unit bindings for
+individually tracked goods, including every rented Unit, before creating the parcel or pickup.
+Server admission remains authoritative if work changes after the read.
 
 An unshipped parcel can be cancelled explicitly. Cancellation frees its prepared positions, not
 the underlying stock hold, and does not automatically refund postage:
 
 ```typescript
 await admin.eshop.shipment.cancel({
-  order_id: result.shipment.order_id,
   shipment_id: result.shipment.id,
   expected_updated_at: result.shipment.updated_at,
 });

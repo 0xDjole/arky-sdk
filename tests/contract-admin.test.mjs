@@ -674,8 +674,16 @@ assert.equal(arky.eshop.order.getDisputes, undefined);
 assert.equal(arky.eshop.order.getDispute, undefined);
 assert.equal(typeof arky.eshop.shipment.create, "function");
 assert.equal(typeof arky.eshop.shipment.dispatch, "function");
-assert.equal(typeof arky.eshop.shipment.fulfillment.find, "function");
-assert.equal(typeof arky.eshop.shipment.fulfillment.get, "function");
+assert.equal(typeof arky.eshop.fulfillmentOrder.find, "function");
+assert.equal(typeof arky.eshop.fulfillmentOrder.get, "function");
+assert.equal(typeof arky.eshop.fulfillmentOrder.unitSlots, "function");
+assert.equal("fulfillment" in arky.eshop.shipment, false);
+assert.equal(typeof arky.eshop.rental.find, "function");
+assert.equal(typeof arky.eshop.rental.execute, "function");
+assert.equal(typeof arky.eshop.rentalPlacement.find, "function");
+assert.equal(typeof arky.eshop.rentalPlacement.execute, "function");
+assert.equal(typeof arky.eshop.customerGroupPlanBenefit.find, "function");
+assert.equal(typeof arky.eshop.customerGroupSubscription.control, "function");
 assert.equal("getRates" in arky.eshop.shipment, false);
 assert.equal("label" in arky.eshop.shipment, false);
 assert.equal(typeof arky.eshop.shippingLabel.quote, "function");
@@ -710,12 +718,14 @@ globalThis.fetch = async (url, init = {}) => {
   });
 };
 try {
-  await arky.eshop.shipment.fulfillment.find({
+  await arky.eshop.fulfillmentOrder.find({
     order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
     limit: 20,
   });
-  await arky.eshop.shipment.fulfillment.get({
-    order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
+  await arky.eshop.fulfillmentOrder.find({
+    rental_id: "6ba7b816-9dad-41d1-80b4-00c04fd430c8",
+  });
+  await arky.eshop.fulfillmentOrder.get({
     fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
   });
 } finally {
@@ -725,11 +735,15 @@ assert.deepEqual(
   fulfillmentCalls.map(({ url, method }) => [url, method]),
   [
     [
-      "http://127.0.0.1:1/v1/stores/contract-store/orders/6ba7b81a-9dad-41d1-80b4-00c04fd430c8/fulfillment-orders?limit=20",
+      "http://127.0.0.1:1/v1/stores/contract-store/fulfillment-orders?order_id=6ba7b81a-9dad-41d1-80b4-00c04fd430c8&limit=20",
       "GET",
     ],
     [
-      "http://127.0.0.1:1/v1/stores/contract-store/orders/6ba7b81a-9dad-41d1-80b4-00c04fd430c8/fulfillment-orders/6ba7b813-9dad-41d1-80b4-00c04fd430c8",
+      "http://127.0.0.1:1/v1/stores/contract-store/fulfillment-orders?rental_id=6ba7b816-9dad-41d1-80b4-00c04fd430c8",
+      "GET",
+    ],
+    [
+      "http://127.0.0.1:1/v1/stores/contract-store/fulfillment-orders/6ba7b813-9dad-41d1-80b4-00c04fd430c8",
       "GET",
     ],
   ],

@@ -2133,6 +2133,7 @@ function initializeStoreCore(
     },
     customer_groups: client.customer_groups,
     customer_group_members: client.customer_group_members,
+    customer_group_email_consents: client.customer_group_email_consents,
     customer_group_plans: client.customer_group_plans,
     actions: {
       track(params: TrackCustomerActionParams) {

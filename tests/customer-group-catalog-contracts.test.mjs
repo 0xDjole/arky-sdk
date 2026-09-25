@@ -99,7 +99,7 @@ test("a CustomerGroup definition carries admission and communication, never comm
   }
 });
 
-test("a CustomerGroupPlan owns the commercial term and its benefit allocation", async () => {
+test("a CustomerGroupPlan owns the commercial term while benefits stay separate roots", async () => {
   const plan = {
     id: planId,
     store_id: "selected-store",
@@ -110,7 +110,6 @@ test("a CustomerGroupPlan owns the commercial term and its benefit allocation", 
     term: { type: "permanent" },
     membership_allocation_weight: 1,
     membership_tax_category_id: null,
-    benefits: [],
     status: { type: "active" },
     starts_at: null,
     ends_at: null,
@@ -128,12 +127,12 @@ test("a CustomerGroupPlan owns the commercial term and its benefit allocation", 
       term: { type: "permanent" },
       membership_allocation_weight: 1,
       membership_tax_category_id: null,
-      benefits: [],
       status: { type: "active" },
       starts_at: null,
       ends_at: null,
     });
     assert.equal(saved.customer_group_id, groupId);
+    assert.equal("benefits" in calls[0].body, false);
     assert.deepEqual(saved.term, { type: "permanent" });
     assert.equal(calls.length, 1);
     assert.equal(
@@ -143,6 +142,63 @@ test("a CustomerGroupPlan owns the commercial term and its benefit allocation", 
     assert.equal(calls[0].method, "POST");
     assert.equal(calls[0].body.customer_group_id, groupId);
     assert.equal("store_id" in calls[0].body, false);
+  } finally {
+    restore();
+  }
+});
+
+test("plan benefits are separate replay-safe roots under their exact plan", async () => {
+  const benefitId = "0b9a4b7e-51a1-4d5f-9d9f-7a0e3f9ce0a1";
+  const benefit = {
+    id: benefitId,
+    store_id: "selected-store",
+    customer_group_plan_id: planId,
+    type: { type: "rental", product_id: "product", variant_id: "variant", quantity: 1 },
+    allocation_weight: 0,
+    created_at: 1788862721000,
+    updated_at: 1788862721001,
+  };
+  const { calls, restore } = capture(benefit);
+  try {
+    const api = admin().eshop.customerGroupPlanBenefit;
+    const create = {
+      store_id: "selected-store",
+      customer_group_plan_id: planId,
+      benefit_id: benefitId,
+      type: benefit.type,
+      allocation_weight: 0,
+    };
+    const before = structuredClone(create);
+    assert.deepEqual(await api.create(create), benefit);
+    await api.create(create);
+    assert.deepEqual(create, before);
+    await api.find({ store_id: "selected-store", customer_group_plan_id: planId });
+    await api.update({
+      customer_group_plan_id: planId, id: benefitId, expected_updated_at: 1788862721001,
+      type: { type: "digital_product", digital_product_id: "digital", content: { type: "current_bundle" } },
+      allocation_weight: 3,
+    });
+    await api.delete({ customer_group_plan_id: planId, id: benefitId, expected_updated_at: 1788862721002 });
+    const base = `/v1/stores/selected-store/customer-group-plans/${planId}/benefits`;
+    const fallback = `/v1/stores/configured-store/customer-group-plans/${planId}/benefits`;
+    assert.deepEqual(calls.map((call) => [call.method, call.url.pathname]), [
+      ["POST", base],
+      ["POST", base],
+      ["GET", base],
+      ["PUT", `${fallback}/${benefitId}`],
+      ["DELETE", `${fallback}/${benefitId}`],
+    ]);
+    assert.deepEqual(calls[0].body, { benefit_id: benefitId, type: benefit.type, allocation_weight: 0 });
+    assert.deepEqual(calls[1].body, calls[0].body);
+    assert.equal(calls[2].body, undefined);
+    assert.equal(calls[2].url.search, "");
+    assert.deepEqual(calls[3].body, {
+      expected_updated_at: 1788862721001,
+      type: { type: "digital_product", digital_product_id: "digital", content: { type: "current_bundle" } },
+      allocation_weight: 3,
+    });
+    assert.equal(calls[4].body, undefined);
+    assert.deepEqual(Object.fromEntries(calls[4].url.searchParams), { expected_updated_at: "1788862721002" });
   } finally {
     restore();
   }

@@ -125,6 +125,11 @@ export interface OrderDeliveryGroupItem {
   unit_spans: UnitSpan[];
 }
 
+export interface OrderDeliveryGroupRentalItem {
+  rental_id: string;
+  quantity: number;
+}
+
 export interface UnitSpan {
   first_unit: number;
   quantity: number;
@@ -132,18 +137,29 @@ export interface UnitSpan {
 
 export interface AcceptedDeliveryPricing {
   source_shipping_method_id: string;
-  source_shipping_rate_id: string;
   source_shipping_profile_id: string;
   selected_market_zone_id: string;
+  source: AcceptedDeliveryPricingSource;
   policy_digest: string;
-  merchandise_basis: Money;
-  weight_grams: number | null;
-  calculation: AcceptedDeliveryCalculation;
-  free_above_subtotal: number | null;
   customer_subtotal: Money;
   accepted_at: EpochMilliseconds;
   rounding_version: string;
 }
+
+export type AcceptedDeliveryPricingSource =
+  | {
+      type: "shipping_rate";
+      source_shipping_rate_id: string;
+      merchandise_basis: Money;
+      weight_grams: number | null;
+      calculation: AcceptedDeliveryCalculation;
+      free_above_subtotal: number | null;
+    }
+  | {
+      type: "subscription_terms";
+      order_customer_group_line_item_id: string;
+      delivery_terms_id: string;
+    };
 
 export type AcceptedDeliveryCalculation =
   | { type: "flat"; amount: Money }
@@ -170,6 +186,7 @@ export interface AcceptedCarrierQuoteLeg {
 export interface OrderDeliveryGroup {
   id: string;
   items: OrderDeliveryGroupItem[];
+  rental_items: OrderDeliveryGroupRentalItem[];
   destination: OrderDeliveryDestinationSnapshot;
   shipping_method_id: string | null;
   shipping_rate_id: string | null;

@@ -7,8 +7,14 @@ const orderId = "030a5ec0-eccf-430c-8c0a-3a68c842de1f";
 const cursor = "opaque:page/+=binding";
 
 for (const definition of [
-  { path: ["eshop", "orderCredit"], route: "credits", limit: 25 },
-  { path: ["eshop", "shipment", "fulfillment"], route: "fulfillment-orders", limit: 100 },
+  {
+    path: ["eshop", "orderCredit"], route: "credits", limit: 25,
+    pathname: `/v1/stores/${selectedStoreId}/orders/${orderId}/credits`, scope: {},
+  },
+  {
+    path: ["eshop", "fulfillmentOrder"], route: "fulfillment-orders", limit: 100,
+    pathname: `/v1/stores/${selectedStoreId}/fulfillment-orders`, scope: { order_id: orderId },
+  },
 ]) {
   test(`${definition.route} keeps exact Order scope and empty-page continuation`, async () => {
     const calls = [];
@@ -30,10 +36,10 @@ for (const definition of [
       assert.equal(calls.length, 2, "Continuation is explicit, not an automatic whole-history scan");
       for (const call of calls) {
         assert.equal(call.method, "GET");
-        assert.equal(call.url.pathname, `/v1/stores/${selectedStoreId}/orders/${orderId}/${definition.route}`);
+        assert.equal(call.url.pathname, definition.pathname);
       }
-      assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), {});
-      assert.deepEqual(Object.fromEntries(calls[1].url.searchParams), { limit: String(definition.limit), cursor });
+      assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), definition.scope);
+      assert.deepEqual(Object.fromEntries(calls[1].url.searchParams), { ...definition.scope, limit: String(definition.limit), cursor });
       assert.deepEqual(query, { store_id: selectedStoreId, order_id: orderId });
     } finally {
       globalThis.fetch = originalFetch;

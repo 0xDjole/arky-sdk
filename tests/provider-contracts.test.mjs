@@ -292,6 +292,7 @@ test("Checkout quote preserves per-unit promotion/manual provenance and delivery
             unit_span: { first_unit: 0, quantity: 1 },
           },
         ],
+        rental_items: [],
         selected_shipping_rate_id: "rate",
         offers: [
           {
@@ -308,20 +309,23 @@ test("Checkout quote preserves per-unit promotion/manual provenance and delivery
               type: "calculated",
               pricing: {
                 source_shipping_method_id: "method",
-                source_shipping_rate_id: "rate",
                 source_shipping_profile_id: "profile",
                 selected_market_zone_id: "zone",
-                policy_digest: "policy",
-                merchandise_basis: { amount: 1750, currency: "usd" },
-                weight_grams: 100,
-                calculation: {
-                  type: "flat",
-                  amount: { amount: 500, currency: "usd" },
+                source: {
+                  type: "shipping_rate",
+                  source_shipping_rate_id: "rate",
+                  merchandise_basis: { amount: 1750, currency: "usd" },
+                  weight_grams: 100,
+                  calculation: {
+                    type: "flat",
+                    amount: { amount: 500, currency: "usd" },
+                  },
+                  free_above_subtotal: null,
                 },
-                free_above_subtotal: null,
+                policy_digest: "policy",
                 customer_subtotal: { amount: 500, currency: "usd" },
                 accepted_at: 1,
-                rounding_version: "rounding",
+                rounding_version: "arky-shipping-half-up-v1",
               },
             },
           },
@@ -894,7 +898,6 @@ test("provider-effect APIs send one resource identity and return direct server e
       },
       request: (arky) =>
         arky.eshop.shipment.create({
-          order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
           shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
           origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
           fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
@@ -914,7 +917,7 @@ test("provider-effect APIs send one resource identity and return direct server e
           },
         }),
       expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/6ba7b81a-9dad-41d1-80b4-00c04fd430c8/shipments`,
+        url: `${baseUrl}/v1/stores/${defaultStoreId}/shipments`,
         method: "POST",
         body: {
           shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
@@ -1031,7 +1034,6 @@ test("money and shipping clients reject evidence for any other resource ID", asy
       },
       request: (arky) =>
         arky.eshop.shipment.create({
-          order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
           shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
           origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
           fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
@@ -1269,15 +1271,14 @@ test("payment, refund, dispute, and shipment lifecycles are read through explici
       name: "shipment",
       response: {
         id: "shipment-contract",
-        order_id: "order-contract",
+        fulfillment_order_id: "work-contract",
         label_status: "unknown",
       },
       request: (arky) =>
         arky.eshop.shipment.get({
-          order_id: "order-contract",
           shipment_id: "shipment-contract",
         }),
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-contract/shipments/shipment-contract`,
+      url: `${baseUrl}/v1/stores/${defaultStoreId}/shipments/shipment-contract`,
     },
   ];
 

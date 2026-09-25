@@ -20,6 +20,7 @@ import type {
   PurchaseQuoteContext,
 } from "./commerce";
 import type {
+  CartDeliveryRentalAssignment,
   CartDeliveryUnitAssignment,
   CustomerGroupMemberType,
 } from "./api";
@@ -153,6 +154,7 @@ export interface QuotedDeliveryGroup {
   selected_market_zone_id: string;
   destination: OrderDeliveryDestinationSnapshot;
   units: CartDeliveryUnitAssignment[];
+  rental_items: CartDeliveryRentalAssignment[];
   selected_shipping_rate_id: string | null;
   offers: QuotedShippingOffer[];
   money: LineMoneySnapshot | null;

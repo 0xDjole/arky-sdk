@@ -162,10 +162,14 @@ test("Cart helper saves explicit delivery identities, rates and schedules withou
 
 test("Cart edits preserve promotion identities without submitting them as coupon codes", async () => {
   const promotionId = "292e102d-c879-4813-925a-e508ab7015e5";
-  let saved = cart({ promotion_code_ids: [promotionId] });
+  let saved = cart({ promotion_code_ids: [promotionId], line_items: [productLine], item_count: 1 });
   const { store, calls } = setup((call) => {
     if (call.path === "/v1/storefront/carts")
       return Response.json({ cart: saved, recovery_token: "private" });
+    if (call.path === "/v1/storefront/products/product-a")
+      return Response.json(product());
+    if (call.path === "/v1/storefront/products/product-a/variants/variant-a")
+      return Response.json(product().variants[0]);
     if (call.method === "PUT") {
       if (Object.hasOwn(call.body, "promotion_codes")) {
         assert.deepEqual(call.body.promotion_codes, []);

@@ -46,6 +46,7 @@ export type InventoryMovementReason =
   | { type: "receiving"; reference: string | null }
   | { type: "adjustment"; actor: AccountActor; reason: string }
   | { type: "fulfillment"; order_id: string; fulfillment_order_id: string }
+  | { type: "rental_issue"; rental_id: string; fulfillment_order_id: string }
   | { type: "return_restock"; return_id: string }
   | { type: "damage"; reference: string | null }
   | { type: "transfer_in"; inventory_transfer_id: string }
@@ -106,6 +107,12 @@ export type InventoryReservationSource =
       fulfillment_order_id: string;
       fulfillment_order_line_id: string;
       unit_spans: UnitSpan[];
+    }
+  | {
+      type: "rental_issue";
+      rental_id: string;
+      fulfillment_order_id: string;
+      fulfillment_order_line_id: string;
     }
   | {
       type: "transfer_line";

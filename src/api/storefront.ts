@@ -13,6 +13,12 @@ import type {
 } from "../types/customerGroupMember";
 import type { StorefrontCustomerGroupPlan, FindStorefrontCustomerGroupPlansParams, GetStorefrontCustomerGroupPlanParams } from "../types/customerGroupPlan";
 import type {
+  CustomerGroupEmailConsent,
+  GetStorefrontCustomerGroupEmailConsentParams,
+  ResendStorefrontCustomerGroupConfirmationParams,
+  SubscribeStorefrontCustomerGroupEmailsParams,
+} from "../types/customerGroupEmailConsent";
+import type {
   AddCartCustomerGroupPlanParams,
   CaptureCustomerEmailParams,
   AvailabilityResponse,
@@ -956,6 +962,48 @@ export const createStorefrontApi = (
             company_id: params.company_id,
             company_location_id: params.company_location_id,
           } },
+        );
+      },
+    },
+    customer_group_email_consents: {
+      async subscribe(
+        params: SubscribeStorefrontCustomerGroupEmailsParams,
+        options?: RequestOptions,
+      ): Promise<StorefrontDto<CustomerGroupEmailConsent>> {
+        await lifecycle.ensureVisitorSession();
+        return apiConfig.httpClient.post<StorefrontDto<CustomerGroupEmailConsent>>(
+          `${base}/customer-group-email-consents/subscribe`,
+          {
+            customer_group_id: params.customer_group_id,
+            email_identity_id: params.email_identity_id,
+            expected_updated_at: params.expected_updated_at,
+          },
+          options,
+        );
+      },
+      async get(
+        params: GetStorefrontCustomerGroupEmailConsentParams,
+        options?: RequestOptions,
+      ): Promise<StorefrontDto<CustomerGroupEmailConsent>> {
+        await lifecycle.ensureVisitorSession();
+        return apiConfig.httpClient.get<StorefrontDto<CustomerGroupEmailConsent>>(
+          `${base}/customer-group-email-consents/${encodeURIComponent(params.id)}`,
+          options,
+        );
+      },
+      async resendConfirmation(
+        params: ResendStorefrontCustomerGroupConfirmationParams,
+        options?: RequestOptions,
+      ): Promise<StorefrontDto<CustomerGroupEmailConsent>> {
+        await lifecycle.ensureVisitorSession();
+        return apiConfig.httpClient.post<StorefrontDto<CustomerGroupEmailConsent>>(
+          `${base}/customer-group-email-consents/resend-confirmation`,
+          {
+            id: params.id,
+            confirmation_id: params.confirmation_id,
+            expected_updated_at: params.expected_updated_at,
+          },
+          options,
         );
       },
     },

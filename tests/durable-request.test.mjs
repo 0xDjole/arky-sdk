@@ -301,7 +301,6 @@ test("the exact saved shipment request survives a changed parcel and can be resu
   const operations = await importDurableRequests();
   const storageKey = "arky:shipment:store-1:order-1";
   const originalRequest = {
-    order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
     shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
     origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
     fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
