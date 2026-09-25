@@ -89,6 +89,7 @@ export function sanitizePublicCartBookings(
     ...(item.id ? { id: item.id } : {}),
     booking_offering_id: item.booking_offering_id,
     requested_interval: item.requested_interval,
+    capacity_units: item.capacity_units,
     ...(item.form_submission_id !== undefined
       ? { form_submission_id: item.form_submission_id }
       : {}),

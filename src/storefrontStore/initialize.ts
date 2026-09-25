@@ -540,6 +540,7 @@ function initializeStoreCore(
       id: item.id || createId("booking"),
       booking_offering_id: item.booking_offering_id,
       requested_interval: item.requested_interval,
+      capacity_units: item.capacity_units,
       form_submission_id: item.form_submission_id ?? null,
     }));
   }
@@ -1147,6 +1148,7 @@ function initializeStoreCore(
       id: createId("booking"),
       booking_offering_id: slot.bookingOfferingId,
       requested_interval: { from: slot.from, to: slot.to },
+      capacity_units: 1,
       ...(formSubmissionId
         ? { form_submission_id: formSubmissionId }
         : {}),

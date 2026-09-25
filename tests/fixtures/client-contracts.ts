@@ -363,7 +363,7 @@ import type {
 // @ts-expect-error storefront CustomerAction keys have no Action compatibility alias.
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.26.60" = SDK_VERSION;
+const sdkVersionLiteral: "0.26.61" = SDK_VERSION;
 const workflowExternalOperationContract: WorkflowExternalOperation = {
   id: "operation-contract",
   store_id: "store-contract",
@@ -1004,6 +1004,7 @@ const trustedCartProductInputContract: TrustedCartProductInput = {
 };
 const trustedCartBookingInputContract: TrustedCartBookingInput = {
   ...bookingQuoteInputContract,
+  capacity_units: 1,
 };
 const trustedCartDigitalInputContract: TrustedCartDigitalItemInput = {
   ...cartDigitalInputContract,
@@ -1429,6 +1430,7 @@ const requestedInterval: TimeRange = { from: epochMilliseconds(1_800_000_000_000
 const bookingCartInput: CartBookingInput = {
   booking_offering_id: "booking-offering-contract",
   requested_interval: requestedInterval,
+  capacity_units: 1,
   form_submission_id: "form-submission-contract",
 };
 const cartProductItemContract: CartProductItem = {

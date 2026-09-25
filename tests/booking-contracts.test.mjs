@@ -495,6 +495,7 @@ test("storefront booking runtime sends one offering interval and reads embedded 
       booking: {
         booking_offering_id: "booking-offering",
         requested_interval: { from: 1_800_000_000_000, to: 1_800_003_600_000 },
+        capacity_units: 1,
         form_submission_id: "form-submission",
         price_override: { amount: 1, currency: "eur", market: "bih" },
       },
@@ -522,6 +523,7 @@ test("storefront booking runtime sends one offering interval and reads embedded 
     booking: {
       booking_offering_id: "booking-offering",
       requested_interval: { from: 1_800_000_000_000, to: 1_800_003_600_000 },
+      capacity_units: 1,
       form_submission_id: "form-submission",
     },
   });
@@ -831,6 +833,7 @@ test("high-level booking flow creates one Cart item per appointment", async () =
       id: "generated",
       booking_offering_id: "booking-offering",
       requested_interval: { from: slot.from, to: slot.to },
+      capacity_units: 1,
       form_submission_id: "form-submission",
     },
   );

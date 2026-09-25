@@ -172,6 +172,7 @@ export interface CartBookingInput {
   id?: string;
   booking_offering_id: string;
   requested_interval: TimeRange;
+  capacity_units: number;
   form_submission_id?: string | null;
 }
 

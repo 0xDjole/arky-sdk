@@ -168,7 +168,7 @@ test("Storefront Cart permits explicit Company selection but strips browser auth
     id: "cart", customer_id: "spoof", store_id: "spoof", origin: { type: "admin" }, company: null,
     line_items: [
       { type: "product", product_id: "product", variant_id: "variant", quantity: 0, price_override: override },
-      { type: "booking", booking_offering_id: "offering", requested_interval: { from: 0, to: 60000 }, price_override: override },
+      { type: "booking", booking_offering_id: "offering", requested_interval: { from: 0, to: 60000 }, capacity_units: 1, price_override: override },
       { type: "digital_product", digital_product_id: "digital", beneficiary_customer_id: "customer", form_submission_id: null, price_override: override },
       { type: "subscription_plan", ...planSelection, price_override: override },
     ],
@@ -177,7 +177,7 @@ test("Storefront Cart permits explicit Company selection but strips browser auth
     company: null,
     line_items: [
       { type: "product", product_id: "product", variant_id: "variant", quantity: 0 },
-      { type: "booking", booking_offering_id: "offering", requested_interval: { from: 0, to: 60000 } },
+      { type: "booking", booking_offering_id: "offering", requested_interval: { from: 0, to: 60000 }, capacity_units: 1 },
       { type: "digital_product", digital_product_id: "digital", beneficiary_customer_id: "customer", form_submission_id: null },
       { type: "subscription_plan", ...planSelection },
     ],

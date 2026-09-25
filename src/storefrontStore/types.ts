@@ -63,6 +63,7 @@ export interface ArkyBookingCartItem {
   id: string;
   booking_offering_id: string;
   requested_interval: TimeRange;
+  capacity_units: number;
   form_submission_id?: string | null;
   booking_service_id?: string;
   booking_resource_id?: string;
