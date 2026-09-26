@@ -804,8 +804,25 @@ export interface OrderDigitalItem {
   updated_at: EpochMilliseconds;
 }
 
-export type FulfillmentOrderStatus =
-  { type: "open" | "in_progress" | "completed" | "cancelled" };
+export type FulfillmentOrderStatus = {
+  type: "scheduled" | "on_hold" | "open" | "in_progress" | "completed" | "cancelled";
+};
+
+export interface FulfillmentOrderRef {
+  order_id: string;
+  order_delivery_group_id: string;
+}
+
+export type FulfillmentHoldReason =
+  | { type: "awaiting_release" }
+  | { type: "manual"; actor: import("./accountActor").AccountActor; note: string }
+  | { type: "partner_rejected"; fulfillment_partner_id: string; note: string };
+
+export interface FulfillmentHold {
+  id: string;
+  reason: FulfillmentHoldReason;
+  created_at: EpochMilliseconds;
+}
 
 export interface FulfillmentUnitSpan {
   first_unit: number;
@@ -821,8 +838,6 @@ export interface RentalIssueReplacement {
 
 export type FulfillmentOrderLineSource = {
   type: "order_product";
-  order_id: string;
-  order_delivery_group_id: string;
   order_product_line_item_id: string;
   order_unit_spans: import("./orderContract").UnitSpan[];
 } | {
@@ -836,10 +851,9 @@ export interface FulfillmentOrderLine {
   id: string;
   source: FulfillmentOrderLineSource;
   quantity: number;
-  allocated_quantity: number;
   fulfilled_quantity: number;
-  released_units: FulfillmentUnitSpan[];
   cancelled_units: FulfillmentUnitSpan[];
+  moved_units: FulfillmentUnitSpan[];
 }
 
 export interface FulfillmentCompanyRecipient {
@@ -867,9 +881,10 @@ export type FulfillmentOrderMethod =
 export interface FulfillmentOrder {
   id: string;
   store_id: string;
-  work_key: string;
   store_location_id: string;
+  order: FulfillmentOrderRef | null;
   status: FulfillmentOrderStatus;
+  holds: FulfillmentHold[];
   method: FulfillmentOrderMethod;
   recipient: FulfillmentRecipient;
   scheduled_window: FulfillmentWindow | null;
@@ -1078,6 +1093,13 @@ export type WebhookEventSubscription =
   | { type: "pickup.ready" }
   | { type: "pickup.collected" }
   | { type: "pickup.cancelled" }
+  | { type: "fulfillment_order.created" }
+  | { type: "fulfillment_order.opened" }
+  | { type: "fulfillment_order.held" }
+  | { type: "fulfillment_order.released" }
+  | { type: "fulfillment_order.moved" }
+  | { type: "fulfillment_order.completed" }
+  | { type: "fulfillment_order.cancelled" }
   | { type: "cart.created" }
   | { type: "cart.updated" }
   | { type: "cart.abandoned" }

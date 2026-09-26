@@ -141,23 +141,19 @@ function selectFulfillmentUnits(
   if (!line || !Number.isInteger(quantity) || quantity < 1 || quantity > 4294967295) {
     throw new FulfillmentSelectionError("Select a valid assigned line and whole quantity.");
   }
-  const sold = work.lines.flatMap((candidate) =>
-    candidate.source.type === "order_product" ? [candidate.source] : []);
-  if (sold.some((source) => source.order_id !== sold[0].order_id
-      || source.order_delivery_group_id !== sold[0].order_delivery_group_id)) {
-    throw new FulfillmentSelectionError("Work lines must share one accepted Order delivery group.");
+  if (line.source.type === "order_product" && work.order === null) {
+    throw new FulfillmentSelectionError("Product work must name its accepted Order delivery.");
   }
   const assigned = assignedUnits(line);
-  const released = canonical(line.released_units);
+  const moved = canonical(line.moved_units);
   const cancelled = canonical(line.cancelled_units);
-  orderUnits(assigned, released);
+  orderUnits(assigned, moved);
   orderUnits(assigned, cancelled);
-  if (count(assigned) !== line.quantity || count(subtract(released, cancelled)) !== count(released)) {
+  if (count(assigned) !== line.quantity || count(subtract(moved, cancelled)) !== count(moved)) {
     throw new FulfillmentSelectionError("Fulfillment ranges disagree with their assignment.");
   }
-  const active = subtract([{ first_unit: 0, quantity: line.quantity }], combinedExclusions(released, cancelled));
+  const active = subtract([{ first_unit: 0, quantity: line.quantity }], combinedExclusions(moved, cancelled));
   orderUnits(assigned, active);
-  if (count(active) !== line.allocated_quantity) throw new FulfillmentSelectionError("Reload the changed fulfillment assignment.");
   const dispatched: FulfillmentUnitSpan[] = [];
   const prepared: FulfillmentUnitSpan[] = [];
   for (const shipment of history) {

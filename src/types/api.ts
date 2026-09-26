@@ -2100,12 +2100,34 @@ export type FindShipmentsParams = {
 
 export type FindFulfillmentOrdersParams = {
   store_id?: string;
+  store_location_id?: string;
+  status?: import("./index").FulfillmentOrderStatus["type"];
+  scheduled_from?: EpochMilliseconds;
+  scheduled_to?: EpochMilliseconds;
+  sort_field?: "created_at" | "updated_at" | "scheduled_at";
+  sort_direction?: "asc" | "desc";
   limit?: number;
   cursor?: string;
 } & (
   | { order_id: string; rental_id?: never }
   | { rental_id: string; order_id?: never }
+  | { order_id?: never; rental_id?: never }
 );
+
+export interface AddFulfillmentHoldParams {
+  store_id?: string;
+  fulfillment_order_id: string;
+  hold_id: string;
+  expected_updated_at: EpochMilliseconds;
+  note: string;
+}
+
+export interface ReleaseFulfillmentHoldParams {
+  store_id?: string;
+  fulfillment_order_id: string;
+  hold_id: string;
+  expected_updated_at: EpochMilliseconds;
+}
 
 export interface GetFulfillmentOrderParams {
   store_id?: string;
