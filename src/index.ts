@@ -158,7 +158,6 @@ export type {
   CartSubscriptionPlanItem,
   Cart,
   CartStatus,
-  EshopStoreState,
   Store,
   StoreBranding,
   StoreBrandingPresentation,
@@ -945,7 +944,7 @@ export function storeCommerceDefaults(
     : null;
 }
 
-export const SDK_VERSION = "0.26.61";
+export const SDK_VERSION = "0.26.62";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",

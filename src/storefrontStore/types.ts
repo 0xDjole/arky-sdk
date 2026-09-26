@@ -89,8 +89,6 @@ export interface ArkyCartStatus {
   processing_checkout: boolean;
   error: string | null;
   quote_error: string | null;
-  selected_shipping_method_id: string | null;
-  user_token: string | null;
 }
 
 export interface ArkyLastOrder {

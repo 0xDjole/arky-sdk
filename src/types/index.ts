@@ -1288,15 +1288,6 @@ export interface Store {
 
 export type { StoreBranding, StoreBrandingPresentation, UpdateStoreBrandingParams } from "./storeBranding";
 
-export interface EshopStoreState {
-  store_id: string;
-  selected_shipping_method_id: string | null;
-  user_token: string | null;
-  processing_checkout: boolean;
-  loading: boolean;
-  error: string | null;
-}
-
 export interface BlockBase {
   id: string;
   key: string;

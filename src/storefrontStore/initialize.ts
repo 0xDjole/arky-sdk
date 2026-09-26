@@ -166,8 +166,6 @@ function initializeStoreCore(
     processing_checkout: false,
     error: null,
     quote_error: null,
-    selected_shipping_method_id: null,
-    user_token: null,
   });
 
   function rawProductItemCount(value: StorefrontCart | null): number {
@@ -408,8 +406,6 @@ function initializeStoreCore(
       processing_checkout: false,
       error: null,
       quote_error: null,
-      selected_shipping_method_id: null,
-      user_token: null,
     });
   }
 
@@ -561,10 +557,6 @@ function initializeStoreCore(
     booking_items.set([]);
     digital_items.set([]);
     subscription_plan_items.set([]);
-    cart_status.setKey(
-      "selected_shipping_method_id",
-      response.delivery_groups[0]?.shipping_rate_id ?? null,
-    );
     quote.set(null);
 
     if (response.status.type === "converted") {
@@ -856,7 +848,6 @@ function initializeStoreCore(
     subscription_plan_items.set([]);
     cart.set(null);
     quote.set(null);
-    cart_status.setKey("selected_shipping_method_id", null);
   }
 
   async function fetchQuote(
@@ -1985,9 +1976,6 @@ function initializeStoreCore(
     },
     removePromoCode(input: Omit<ArkyCartInput, "promotion_codes"> = {}): Promise<StorefrontCheckoutQuote | null> {
       return fetchQuote({ ...input, promotion_codes: [] });
-    },
-    selectShippingMethod(id: string | null) {
-      cart_status.setKey("selected_shipping_method_id", id);
     },
     locationToAddress,
     createFormEntry,
