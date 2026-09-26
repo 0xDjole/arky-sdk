@@ -10,12 +10,11 @@ npm install arky-sdk
 
 ## Storefront quick start
 
-The next coordinated browser contract on `develop` is `arky-sdk@0.26.2`. After that exact version
-is released from protected `master`, pin it so the Server, App, and storefront route/header
-contracts move together:
+Pin the exact released version so the Server, Admin and storefront route/header contracts move
+together:
 
 ```bash
-npm install --save-exact arky-sdk@0.26.2
+npm install --save-exact arky-sdk@<version>
 ```
 
 Copy the Store publishable key from Developer and initialize one client:
@@ -54,10 +53,10 @@ const titleBlock = page.blocks.find((block) => block.key === "title");
 const title = arky.utils.getBlockTextValue(titleBlock, arky.getLocale());
 ```
 
-Localized content uses the shared Block vocabulary: the field is an `object`, each locale is a key,
-and each locale value is a propertyless `text` or `markdown` Block. There is no separate
-localized-text Block or schema type, and a standalone `markdown` Block always has one scalar string
-value:
+Localized text has two Block shapes: a `localized_text` Block whose value maps each locale to a
+string, or an `object` Block whose keys are locales and whose values are `text` or `markdown`
+Blocks. `getBlockTextValue(block, locale)` reads both. A standalone `markdown` Block holds one
+string:
 
 ```typescript
 import type { Block } from "arky-sdk";
@@ -121,7 +120,7 @@ email, send email, authenticate, join a Group or record marketing consent. Those
 explicit flows. A signed-in Session accepts only its proven address and returns that exact
 identity unchanged. Ambiguous active bindings fail rather than selecting one automatically.
 
-To join an open Group independently of buying a Plan:
+To join an open Customer group:
 
 ```typescript
 const membership = await arky.customer_group_members.current({ customer_group_id: group.id });
@@ -142,7 +141,8 @@ command. The existing Visitor Session is reused, or created lazily without requi
 Store and Customer come from the public key and Session, never caller-supplied IDs. For Company
 membership, select both `company_id` and `company_location_id`; the Server checks permission for
 that branch. Responses contain only self-visible membership, not private administrative grants.
-Joining does not buy a Plan, grant catalog/paid benefits, verify email or record email consent.
+Joining buys nothing and grants no paid or digital access; it does not verify email or record email
+consent. A Granted membership only satisfies group conditions on catalogs, promotions and shipping.
 
 ## Exact Admin definition reads
 
@@ -190,8 +190,9 @@ does not grant access. The server rechecks access before and after issuing the s
 `createAdmin().eshop` exposes `price`, `priceList`, `assortment`, `assortmentItem`, `catalog` and
 `catalogEntitlement`. Product variants, digital products and booking offerings do not embed
 Prices. Create the sellable first, then create its independent Price with a typed `sellable`,
-currency, quantity range and status. `price_list_id: null` means a base Price; list Prices
-belong to a reusable PriceList with explicit signed priority. Prices are not selected in the SDK.
+currency, quantity range and status. `scope: { type: "base" }` is a base Price;
+`{ type: "price_list", price_list_id }` belongs to a reusable, optionally scheduled PriceList.
+Prices are not selected in the SDK.
 
 Storefront product, digital-product and booking-offering reads accept `include_price` and an
 optional explicitly selected `company_id` and `company_location_id`. The server checks the caller and current catalog
@@ -205,9 +206,10 @@ const variant = await arky.eshop.productVariant.get({
 const displayPrice = arky.utils.formatPrice(variant?.price);
 ```
 
-Public sellables contain one nullable `price` and an independent `purchase_allowed` flag. Paid
-CustomerGroupPlan offers have their own server-selected price. `formatPrice` and `getPriceAmount`
-consume one server-resolved `StorefrontPrice`, not arrays of market or Audience prices. A null
+Public sellables contain one nullable `price` and an independent `purchase_allowed` flag.
+Subscription plans read through `subscription_plans.find/get` carry their own server-selected price.
+`formatPrice` and `getPriceAmount` consume one server-resolved `StorefrontPrice`, not arrays of
+Market prices. A null
 price is not zero. The public amount is a quantity-one display result; obtain a fresh Cart quote
 for actual quantities and accepted totals. Do not multiply that preview into a checkout authority
 or infer purchase permission merely because a price is visible.
@@ -219,8 +221,7 @@ erasure. Manual price input contains money and a required reason, never a caller
 Accepted Order snapshots retain their separate immutable price provenance.
 
 `admin.eshop.priceList.usage({ id })` reports retained Catalog blockers separately from owned Prices.
-Removing a list does not turn its Prices into base Prices. The coordinated Admin/demo and consumer
-migration is still in progress; no Rule/Listing SDK owner is exposed.
+Removing a list does not turn its Prices into base Prices.
 
 ## Actions and experiments
 
@@ -270,7 +271,7 @@ after an empty page. `productVariant.get({ product_id, id, include_price: true }
 selection independently of paging. Both honor Company/branch context and current catalog access.
 Prices are null when not requested, not permitted or unavailable; zero remains a real price.
 Location stock is managed with Admin `inventoryLevel.find` and inventory movements. Storefronts
-use the authoritative quote/checkout for availability, not a sum of inventory across warehouses.
+use the authoritative quote and acceptance for availability, not a sum of inventory across warehouses.
 
 Individually tracked objects use `admin.eshop.inventoryUnit`. `find` combines exact Item, Location,
 asset-tag and physical-status filters, with timestamp sorting and explicit continuation. Asset tags
@@ -294,8 +295,12 @@ filters with timestamp sorting and explicit continuation. Follow its cursor even
 This is operator control, not a Customer self-service Return API or a Rental agreement API.
 
 Cart requests and responses use one tagged `line_items` array with `product`, `booking`,
-`digital_product` and `customer_group_plan` items. The `cartProductItems`, `cartBookingItems`,
-`cartDigitalItems` and `cartCustomerGroupPlanItems` helpers select each family. A Form submission
+`digital_product` and `subscription_plan` items. The `cartProductItems`, `cartBookingItems`,
+`cartDigitalItems` and `cartSubscriptionPlanItems` helpers select each family. The low-level
+`client.eshop.cart.removeItem({ id, line_item: { type, line_item_id } })` removes one item by its
+typed reference; the `initialize` facade wraps it as `removeProduct`, `removeDigital`,
+`removeSubscriptionPlan` and `removeBooking`. A booking input carries its `capacity_units` (seat
+count). A Form submission
 belongs to the applicable individual item through `form_submission_id`, not a Cart-wide Forms array.
 Public inputs never authorize prices; supported Admin inputs can carry explicit manual overrides.
 
@@ -313,25 +318,28 @@ instead of silently editing the selected Cart. Use `cart.update` explicitly to c
 `cart.create()` explicitly creates and selects another empty Cart and returns `{ cart, recovery_token }`,
 as does Admin creation. The selection helper never stores the recovery token, Cart contents or prices.
 Read errors do not discard a selection. A known converted, merged or expired Cart starts a new empty
-selection on the next `current()` call, unless an unresolved Checkout still pins the old Cart.
+selection on the next `current()` call, unless an unresolved acceptance request still pins the old
+Cart.
 An active, abandoned or checking-out Cart is retained. Signing in does not transfer guest ownership.
 
 The high-level Cart view clears when its Customer session or Market changes. Load the current
 Cart again after switching; late reads, item hydration and writes cannot repopulate the old view.
 Selection edits or language changes invalidate the reviewed quote. These view changes never erase
-an unresolved Checkout request: recovery still uses that exact retained request.
+an unresolved acceptance request: recovery still uses that exact retained request.
 
 Quote methods return `CheckoutQuote`: `{ sources, order, presentation_digest }`. The nested
-`order` includes the resolved buyer/context snapshots, all four line families, `locale` and the
-selected nullable `payment_provider_id`. Low-level checkout requires `quote.order.locale` and
+`order` includes the resolved buyer/context snapshots, all four line families, `locale`, the
+selected nullable `payment_provider_id` and the permitted `payment_provider_ids`. Low-level
+acceptance requires `quote.order.locale` and
 the outer `quote.presentation_digest`, which also binds the source Carts; the nested Order digest
 is not the acceptance digest. `initialize` forwards its retained reviewed quote. A presentation
 conflict exposes the complete replacement `CheckoutQuote` for review, never silent acceptance.
 Quote methods use the configured locale unless one is explicitly supplied. Standalone Admin
 `order.getQuote` still accepts a Market key; Cart creation uses a Market UUID.
 
-Checkout submission does not synchronize items or accept new buyer, address or pricing selections.
-Prepare those through Cart mutations and quote first. `initialize` checkout accepts only a
+Acceptance does not synchronize items or accept new buyer, address or pricing selections.
+Prepare those through Cart mutations and quote first. The `initialize` facade's `checkout` accepts
+only a
 provider from the reviewed `order.payment_provider_ids`, `return_url`, `clear_after_checkout`, `save_payment_method` and
 `payment_method_terms_version`. Saving a method requires a selected provider and explicit
 versioned consent. Recovery retains that exact consent with the original request.
@@ -351,26 +359,27 @@ Omit `promotion_codes` during unrelated Cart edits to preserve applied promotion
 explicitly removes them. The helper's `promotion_codes` atom contains display codes from the latest
 quote, not the Cart's stored promotion UUIDs, and is cleared when that quote is invalidated.
 
-Browser checkout saves the exact Cart UUID, generated `request_id`, locale, digest, optional
+`cart.checkout` accepts the reviewed Cart into one Order; there is no separate Checkout record.
+Browser acceptance saves the exact Cart UUID, generated `request_id`, locale, digest, optional
 provider and return URL under the shared cross-tab durable-request lock before POST. The request
-goes to `/checkouts` with the reviewed `sources`, and its `request_id` makes a repeat submission return the
-same accepted Checkout. A lost response retains that request; `pendingCheckout()` reads it and an
-explicit `recoverCheckout()` submits the same request without requote or Cart mutation. These
-methods exist on `client.eshop.cart` and `arky.eshop.cart`; Admin exposes the same operations with
-an optional Store selector. Success reads `/checkouts/{checkout_id}` and verifies the exact
-request, source Cart and accepted Order before clearing saved state. Recovery does not require
-the original Cart to survive cleanup.
-After a successful acceptance, use `eshop.checkout.get({ id: checkoutId })` to restore the saved
-Order link. This exact read performs no provider call. An explicit
-`eshop.checkout.resumePayment({ id: checkoutId })` can return a fresh transient action for the
-original open payment Session; it cannot create another Payment or Session. Pending, Processing,
-Unknown and terminal payments return local status with no action. These methods are available on
-the storefront client, `initialize` facade and Admin (with optional `store_id`). Persist only
-the accepted IDs, never the action's client secret. Unresolved acceptance still uses the original
-`cart.recoverCheckout()` request, not payment-action resume.
+goes to `/carts/accept` with the reviewed `sources`, and its `request_id` makes a repeat submission
+return the same accepted Order. A lost response retains that request; `pendingCheckout()` reads it
+and an explicit `recoverCheckout()` submits the same request without requote or Cart mutation.
+These methods exist on `client.eshop.cart` and `arky.eshop.cart`; Admin exposes the same operations
+with an optional Store selector. Success reads the returned Order and verifies that its `source` is
+the `cart_acceptance` of this request, with the same Cart version and line bindings, before
+clearing saved state. A definite rejection clears the saved request. Recovery does not require the
+original Cart to survive cleanup.
+The result carries `order_id`, `number`, `payment` and a transient `payment_action`; read the Order
+with `eshop.order.get({ id: order_id })`. An explicit
+`eshop.checkout.resumePayment({ order_id })` (`POST /orders/{id}/payment-action`) can return a fresh
+transient action for the original open payment Session; it cannot create another Payment or
+Session. Pending, Processing, Unknown and terminal payments return local status with no action.
+These methods are available on the storefront client, `initialize` facade and Admin (with optional
+`store_id`). Persist only the accepted IDs, never the action's client secret. Unresolved acceptance
+still uses the original `cart.recoverCheckout()` request, not payment-action resume.
 Do not clear storage manually after a conflict or allocate a new Cart to retry the same purchase.
-The coordinated Server handoff for a stale-presentation conflict is still an implementation gate;
-current conflict handling preserves the request instead of silently accepting its refreshed quote.
+A presentation conflict preserves the request instead of silently accepting its refreshed quote.
 
 ```typescript
 const reviewed = await admin.eshop.cart.quote({ id: cart.id, locale: "en" });
@@ -393,16 +402,18 @@ Each run retains discount provenance, tax assessment and duties. Delivery charge
 `delivery_groups`, not a separate shipping-lines array.
 
 Quote Product/Digital snapshots carry an `AppliedPriceSnapshot`. Accepted Order snapshots use
-`price.type = "direct"` with that snapshot under `price.price`, or `"customer_group_allocation"`
-for plan components; the latter is an allocation, not a second standalone price. Accepted group
-terms retain `group_name`/`group_key` and `plan_name`/`plan_key`. In a plan quote, membership money
-and `benefit_lines` are separate portions of the package and must be shown without double counting.
+`price.type = "direct"` with that snapshot under `price.price`, or `"subscription_allocation"` for a
+plan's entitlement lines; an allocation is a share of the plan price, not a second standalone
+price. The Subscription plan line carries no money of its own: its linked Product, DigitalProduct
+and `rental_use` lines carry the allocated plan price, and the plan's Price snapshot is accepted
+evidence that is not added again. Accepted plan terms retain `offering_key` and `plan_key`. In a
+plan quote, show the `entitlement_lines` as the package's portions without double counting.
 Historical live Product/variant/Offering/Resource/DigitalProduct links may be null; retained
 snapshot names, source identities and accepted money do not require a live definition lookup.
 
 Physical Product variants reference InventoryItem components through their fulfillment recipe.
 Weights/customs belong to InventoryItem; InventoryLevel is independent stock at one StoreLocation.
-Stock admission is decided by quote/checkout, not by a Product-wide client inventory sum.
+Stock admission is decided by quote and acceptance, not by a Product-wide client inventory sum.
 
 Booking services use the same Cart. A BookingResource is the person, place, or equipment that
 performs the service; a BookingOffering connects one service to one resource and owns its
@@ -434,8 +445,8 @@ const service = await arky.eshop.bookingService.get({ slug: "consultation" });
 console.log(service.slugs.en);
 ```
 
-One Cart booking item is one appointment and contains one `booking_offering_id` plus one
-`requested_interval`. BookingOffering does not configure Forms. If application code submits a
+One Cart booking item is one appointment and contains one `booking_offering_id`, one
+`requested_interval` and its `capacity_units`. BookingOffering does not configure Forms. If application code submits a
 standalone Form first, pass only its resulting submission ID with the appointment:
 
 ```typescript
@@ -451,8 +462,9 @@ const submission = await arky.forms.submitByKey(request);
 await arky.eshop.bookingService.addToCart(undefined, submission.id);
 ```
 
-Accepted Orders embed tagged `line_items` for products, bookings, digital products and customer-group
-plans. Their snapshots, money, commercial status, Form evidence and timestamps arrive with the Order.
+Accepted Orders embed tagged `line_items` for products, bookings, digital products, subscription
+plans and rental use. Their snapshots, money, commercial status, Form evidence and timestamps arrive
+with the Order.
 `orderBookingItems(order)` selects its booking lines. Independent `OrderBooking` roots retain
 appointment execution and reminders; Admin reads one with `eshop.order.getBookingAppointment`.
 Completed and NoShow appointments keep their Order line commercially Confirmed.
@@ -462,9 +474,10 @@ Use Cart for new selections, and the dedicated item/financial/fulfillment
 commands for ongoing obligations. Root and item statuses use `status.type`.
 
 Accepted buyer, company, Market and SalesChannel snapshots remain independent of current definitions.
-`Order.type` identifies a purchase and its Checkout/direct/exchange source, or a customer-group
-renewal. `origin` retains the accepting actor; it is not live authorization. Render saved names
-and each line's saved `money.total` instead of repricing historical catalog definitions.
+`Order.source` records what generated the purchase: `cart_acceptance`, `direct`, `exchange` or
+`subscription` (a renewal occurrence). `origin` retains the accepting actor; it is not live
+authorization. Render the saved snapshots and each line's saved `money.total` instead of repricing
+historical catalog definitions.
 
 Confirmed booking items have dedicated lifecycle commands. Admin clients can cancel, complete, or
 mark an item as a no-show; only the owning EmailAuthenticated CustomerSession can cancel through the
@@ -583,7 +596,7 @@ The Storefront setup exposes each provider UUID, key, content Blocks and safe pr
 capability, consent, and disablement evidence remain private Admin data.
 
 Payment configuration belongs to Arky. Card checkout returns either `stripe_embedded_checkout`
-or `monri_components`. Both use the same accepted Checkout, Order and Payment. The SDK mounts
+or `monri_components`. Both use the same accepted Order and Payment. The SDK mounts
 the exact provider form inside the merchant page; server-only merchant credentials never leave
 Arky. `none` has no form and mounts to `null`.
 
@@ -628,7 +641,7 @@ and security codes stay in Monri's hosted fields. This path does not save a reus
 installments. `onValidationError` provides safe card-validation text. `MonriCheckoutError.code`
 distinguishes invalid billing from an uncertain submitted result. Invalid billing can be corrected
 before submission; an attempted native confirmation is not automatically retried. After uncertainty,
-read the same ARKY Payment instead of starting another Checkout. Checking status must not remount
+read the same ARKY Payment instead of accepting the Cart again. Checking status must not remount
 an unchanged capability and silently re-enable submission.
 
 Both mounts expose `destroy` and `unmount`. Monri cleanup removes only the SDK-owned host and
@@ -753,8 +766,8 @@ Token and Session responses also expose `scope: { type: "account" }` or
 widened by changing the client's `storeId` or refreshing credentials. Restricted credentials
 cannot create Personal API Tokens, list other Stores or perform Account-wide administration;
 they can revoke their own Session. Ordinary platform-origin and Store-branded login remain
-Account-wide. Verified custom-domain issuance is not yet exposed; scope is server-selected,
-not a login request option.
+Account-wide; login on a Store's verified Admin domain (`admin.store.adminDomain`) issues a
+Store-scoped Session. Scope is server-selected from the login origin, not a request option.
 
 The SDK keeps the wire/domain name `AccountApiToken`, while documentation and product copy call
 these credentials Personal API Tokens. Expiry is determined from `expires_at`; token status is
@@ -857,12 +870,12 @@ create another account. Browser integrations must persist the exact request with
 durable-request utilities before sending and retain it through failed reads or ambiguous responses.
 The low-level SDK neither generates a replacement operation nor automatically retries connection.
 
-### Companies and commercial groups
+### Companies and Customer groups
 
 Company management is top-level: `admin.companies` exposes `create`, `get`, `find`, `update`,
 `usage` and `delete`. Its `membership`, `role` and `location` owners expose their corresponding
 commands. Company Customers are members, while roles define explicit Company permissions;
-neither an arbitrary Company ID nor a commercial group grants membership or sign-in proof.
+neither an arbitrary Company ID nor a Customer group grants membership or sign-in proof.
 
 ```typescript
 const company = await admin.companies.create({
@@ -886,16 +899,24 @@ await admin.companies.membership.create({
   company_id: company.id,
   customer_id: "customer-uuid-v4",
   role_ids: [buyerRole.id],
+  scope: { type: "company_wide" },
 });
 
 const group = await admin.eshop.customerGroup.create({
   key: "wholesale",
   name: "Wholesale",
   status: { type: "active" },
+  join_policy: { type: "private" },
+  communication: { type: "disabled" },
 });
-await admin.eshop.customerGroupCompany.create({
-  customer_group_id: group.id,
-  company_id: company.id,
+await admin.eshop.customerGroupMember.execute({
+  command_id: crypto.randomUUID(),
+  command: {
+    type: "grant_admission",
+    customer_group_id: group.id,
+    member: { type: "company", company_id: company.id },
+    expected_updated_at: null,
+  },
 });
 ```
 
@@ -903,17 +924,18 @@ await admin.eshop.customerGroupCompany.create({
 use `null` for an absent value. Address fields are `name`, `company`, `street1`, `street2`, `city`,
 `state`, `postal_code`, `country`, `phone` and `email`. CompanyLocation's shipping address must also
 satisfy Server shipping validation. A location update explicitly supplies `billing_address`,
-including `null` to clear it. Roles expose Server-owned `is_system`; callers cannot create that
-flag, edit built-in roles or change a role's key. The closed permission set distinguishes placing
-Orders from creating Subscriptions and own history from Company history.
+including `null` to clear it. A membership's `scope` is `company_wide` or explicit
+`locations`. A role's key cannot change. The closed permission set distinguishes placing Orders
+from creating Subscriptions and own history from Company history.
 
-`admin.eshop.customerGroupCustomer` manages direct Customer edges, and
-`admin.eshop.customerGroupCompany` manages Company edges. These immutable relationships have
-`create`, `get`, `find` and `delete`, not a generic update. Commercial groups are not Audiences and
-do not subscribe anyone to marketing. Find results use `items` and an explicit continuation
-`cursor`; supplying both group and target filters selects an exact edge rather than a paged scan.
-Company membership queries select at most one of Company, Customer or role. Server validates
-supported filter combinations and current authority.
+A Customer group is an audience. `admin.eshop.customerGroupMember` holds its one relationship per
+Customer or Company member: `execute` runs a journaled `grant_admission`, `revoke_admission`,
+`grant_administrative_access` or `clear_administrative_access` command under a caller-retained
+`command_id` (retry the same command after a lost response), `getByBinding` reads the exact member
+and `find`/`findCommands` page members and command history. Membership buys nothing and subscribes
+no one to email; group email consent is `admin.eshop.customerGroupEmailConsent`. Company membership
+queries select at most one of Company, Customer or role. Server validates supported filter
+combinations and current authority.
 
 ### Markets, SalesChannels and deletion
 
@@ -922,7 +944,7 @@ Market management uses `admin.store.market`: `list()`, `get(id)`, `usage(id)`, `
 and `delete`. Market key/currency and SalesChannel key are immutable. Market reads use tagged
 `active`/`deleting` status; SalesChannels can additionally be archived.
 
-Company, membership, role, location, group, edge, channel and Market edits/deletes require the
+Company, membership, role, location, group, channel and Market edits/deletes require the
 current `updated_at` as `expected_updated_at` where those commands exist. Inspect each available
 `usage` response before deletion: it names bounded actual dependencies, including CatalogEntitlements,
 with `more_*` flags. Default Market deletion needs `replacement_default_market_id`; default channel
@@ -977,7 +999,7 @@ millisecond timestamps and latest-change evidence only.
 
 Unsubscribe blocks automatic marketing; AdminBlock also blocks manual Campaign/Support email.
 Neither blocks essential login, receipt, or booking messages. Releasing one restriction does not
-release the other, restart Campaigns, resend cancelled email, or rejoin an Audience. No generic
+release the other, restart Campaigns, resend cancelled email, or restore a group email consent. No generic
 update/delete, Send anyway, public email lookup, or recipient self-service release is exposed.
 
 Store subscription reads expose the current `status` and optional `plan_access`; their
@@ -1000,40 +1022,46 @@ if (subscription.payment_action.type !== "none") {
 }
 ```
 
-Promotion commands use typed discount and condition variants. A create command omits embedded
-discount IDs; each response returns a stable Server-generated UUID-v4. On update, include an
-existing embedded ID to preserve that discount, and omit the ID for a new discount. Supplying a
-discount array replaces the complete existing array:
+A Promotion owns typed eligibility `conditions` and discount `effects`; `activation` is
+`automatic` or `code`, and a code-activated Promotion is redeemed through its PromotionCode
+records. Each effect carries a caller-generated UUID-v4 `id`, unique within the Promotion; keep it
+unchanged on update to preserve that effect. An update sends `expected_updated_at` and replaces the
+complete condition and effect arrays:
 
 ```typescript
-const promo = await admin.eshop.promoCode.createPromoCode({
-  code: "WELCOME10",
-  discounts: [{ type: "item_percentage", market: "bih", basis_points: 1_000 }],
+const promotion = await admin.eshop.promotion.create({
+  key: "welcome-10",
+  activation: { type: "code" },
   conditions: [
-    { type: "products", product_ids: ["product-id"] },
-    {
-      type: "minimum_order_amount",
-      market: "bih",
-      money: { amount: 5_000, currency: "bam" },
-    },
-    { type: "maximum_uses_per_customer", count: 1 },
+    { type: "minimum_order_amount", money: { amount: 5_000, currency: "eur" } },
   ],
+  effects: [
+    {
+      type: "item_percentage",
+      id: crypto.randomUUID(),
+      target: { type: "products", product_ids: ["product-id"] },
+      basis_points: 1_000,
+    },
+  ],
+  stacking: { type: "combinable" },
+  priority: 0,
+  max_uses: null,
+  max_uses_per_customer: 1,
+  status: { type: "active" },
+  starts_at: null,
+  ends_at: null,
 });
 
-const itemDiscount = promo.discounts[0];
-if (itemDiscount?.type === "item_percentage") {
-  await admin.eshop.promoCode.updatePromoCode({
-    id: promo.id,
-    discounts: [
-      { ...itemDiscount, basis_points: 1_500 },
-      { type: "shipping_percentage", market: "bih", basis_points: 1_000 },
-    ],
-  });
-}
+await admin.eshop.promotionCode.create({
+  promotion_id: promotion.id,
+  code: "WELCOME10",
+  max_uses: null,
+  status: { type: "active" },
+});
 ```
 
-`item_fixed` and `minimum_order_amount` carry a shared `Money` value. Redemption windows use
-nullable `starts_at` and `ends_at`; per-customer limits use the Customer vocabulary.
+`item_fixed`, `order_fixed`, `delivery_fixed` and `minimum_order_amount` carry a shared `Money`
+value. Redemption windows use nullable `starts_at` and `ends_at`.
 
 Payments belong directly to an Order through `order_id`. Collection status (`authorized`, `completed`,
 `unknown`, and the other lifecycle states) is separate from money: `amounts.authorized` is an
@@ -1098,8 +1126,8 @@ alone are not actual refunded money. Receipt results include sent/returned/effec
 the Payment, and the Order financial summary. `cancelLocal({ id, expected_updated_at })` releases only
 the unperformed local remainder and preserves actual receipts. ExcessCollection has a reason and
 no commercial allocations; it does not alter the accepted bill. Payment disputes are read-only Stripe facts available
-through `admin.eshop.order.getDisputes` and `admin.eshop.order.getDispute`; their public provider
-evidence contains only `dispute_id` and `charge_id`.
+through `admin.eshop.dispute.find({ payment_id })` and `admin.eshop.dispute.get({ dispute_id })`;
+their public provider evidence contains only `dispute_id` and `charge_id`.
 
 To cancel part of an embedded product item, address its canonical item ID and exact accepted unit
 positions. Before the first request, persist a UUID-v4 `command_id`, the Order's current `updated_at`
@@ -1240,9 +1268,7 @@ The clean browser-auth boundary uses `arky_admin_session:v2` with a version-2 en
 `arky_customer_session:v2:...` with version-2 Customer records. Older auth namespaces are ignored;
 users sign in again rather than having seconds-shaped records reinterpreted. Existing durable
 payment, refund, shipment, and media request recovery records are not cleared, rewritten, or assigned
-new request identities by this auth cutover. Deploying this contract still requires the coordinated
-Server/client preproduction reset and verification plan; an SDK update does not perform that reset.
-Durable media uploads retain `File.lastModified` as native browser millisecond metadata, including
+new request identities by this auth cutover. Durable media uploads retain `File.lastModified` as native browser millisecond metadata, including
 its exact frozen JSON bytes and replay identity; it is not a seconds-valued Arky domain timestamp.
 
 ```typescript
@@ -1252,7 +1278,7 @@ import {
   type StorefrontDto,
   type StorefrontSetup,
 } from "arky-sdk/storefront";
-import type { Block, Cart, Order, Price, Product, Service } from "arky-sdk";
+import type { Block, BookingService, Cart, Order, Price, Product } from "arky-sdk";
 
 type StorefrontProduct = StorefrontDto<Product>;
 type StorefrontCart = StorefrontDto<Cart>;
@@ -1268,10 +1294,11 @@ Run the complete SDK package contract with one command:
 npm test
 ```
 
-It builds the distributable package and runs every SDK contract case. App alone verifies the SDK
-against the exact immutable test Server image digest. Each storefront owns a
-hermetic repo-local build/preview Playwright smoke through its own `npm test`; storefronts never pull
-or run the shared test Server image.
+It builds the distributable package and runs every SDK contract case. Admin verifies the SDK
+against a real test Server: on CI the published test image pinned to its immutable digest, locally
+a host Server built from the current source. Each storefront owns a hermetic repo-local
+build/preview Playwright smoke through its own `npm test`; storefronts never pull or run the shared
+test Server image.
 
 ## Adding an endpoint
 
