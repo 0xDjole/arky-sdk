@@ -46,6 +46,7 @@ export type OrderSource =
 export type OrderSourceFilter = OrderSource["type"];
 
 export interface OrderRentalUseItem {
+  rental_id: string;
   id: string;
   origin: OrderLineItemOrigin;
   snapshot: OrderProductSnapshot;

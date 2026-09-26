@@ -62,5 +62,5 @@ export {
   ScheduledResultTimeoutError,
   pollScheduledResult,
 } from "./scheduledResult";
-export { selectFulfillmentUnits } from "./fulfillmentSelection";
+export { selectFulfillmentUnits, selectFulfillmentMoveUnits } from "./fulfillmentSelection";
 export { FulfillmentSelectionError } from "../types/fulfillmentSelection";

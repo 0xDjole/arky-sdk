@@ -19,6 +19,10 @@ export interface InventoryLevel {
   updated_at: EpochMilliseconds;
 }
 
+export interface InventoryStockLevel extends InventoryLevel {
+  item: { key: string; sku: string | null; tracking: import("./inventoryItem").InventoryTracking };
+}
+
 export interface CreateInventoryLevelParams {
   store_id?: string;
   inventory_item_id: string;
@@ -50,6 +54,18 @@ export interface MoveInventoryParams {
   to_store_location_id: string;
   quantity: number;
   expected_updated_at: EpochMilliseconds;
+}
+
+export type IncomingStock =
+  | { type: "counted"; from_store_location_id: string; quantity: number }
+  | { type: "unit"; asset_tag: string };
+
+export interface ReceiveStockMoveParams {
+  store_id?: string;
+  id: string;
+  command_id: string;
+  expected_updated_at: EpochMilliseconds;
+  type: IncomingStock;
 }
 
 export interface FindInventoryLevelsParams {

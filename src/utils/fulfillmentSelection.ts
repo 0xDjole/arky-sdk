@@ -1,3 +1,4 @@
+import type { FulfillmentOrderMoveLine } from "../types";
 import type { FulfillmentOrder, FulfillmentOrderLine, FulfillmentUnitSpan } from "../types";
 import type { UnitSpan } from "../types/orderContract";
 import type { Fulfillment, FulfillmentLine } from "../types/fulfillment";
@@ -109,15 +110,18 @@ function assignedUnits(line: FulfillmentOrderLine): UnitSpan[] {
   }
 }
 
-export function selectFulfillmentUnits(
-  work: FulfillmentOrder,
-  lineId: string,
-  quantity: number,
-  history: Fulfillment[],
-): FulfillmentLine {
-  if (!["open", "in_progress"].includes(work.status.type)) {
-    throw new FulfillmentSelectionError("Select released fulfillment work.");
-  }
+export function selectFulfillmentUnits(work: FulfillmentOrder, lineId: string, quantity: number, history: Fulfillment[]): FulfillmentLine {
+  if (!["open", "in_progress"].includes(work.status.type)) throw new FulfillmentSelectionError("Select released fulfillment work.");
+  return { ...selectUnits(work, lineId, quantity, history), selected_units: [], lot_reference: null };
+}
+
+export function selectFulfillmentMoveUnits(work: FulfillmentOrder, lineId: string, quantity: number, history: Fulfillment[]): FulfillmentOrderMoveLine {
+  if (work.partner_request || work.method.type === "pickup") throw new FulfillmentSelectionError("Only unsent delivery work that is not with a partner can move.");
+  return selectUnits(work, lineId, quantity, history);
+}
+
+function selectUnits(work: FulfillmentOrder, lineId: string, quantity: number, history: Fulfillment[]): FulfillmentOrderMoveLine {
+  if (["completed", "cancelled"].includes(work.status.type)) throw new FulfillmentSelectionError("Finished work has no units to select.");
   const line = work.lines.find((value) => value.id === lineId);
   if (!line || !Number.isInteger(quantity) || quantity < 1 || quantity > 4294967295) {
     throw new FulfillmentSelectionError("Select a valid assigned line and whole quantity.");
@@ -176,5 +180,5 @@ export function selectFulfillmentUnits(
     if (!remaining) break;
   }
   orderUnits(assigned, selected);
-  return { fulfillment_order_line_id: line.id, unit_spans: selected, selected_units: [], lot_reference: null };
+  return { fulfillment_order_line_id: line.id, unit_spans: selected };
 }

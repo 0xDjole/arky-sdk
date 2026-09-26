@@ -7,6 +7,8 @@ import type {
   FindInventoryLevelsParams,
   GetInventoryLevelParams,
   InventoryLevel,
+  InventoryStockLevel,
+  ReceiveStockMoveParams,
   MoveInventoryParams,
   RemoveInventoryLevelParams,
 } from "../types/inventory";
@@ -40,6 +42,10 @@ export const createInventoryLevelApi = (apiConfig: ApiConfig) => {
         params: query,
       });
     },
+    stock(params: FindInventoryLevelsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<InventoryStockLevel>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<InventoryStockLevel>>(`${basePath(store_id)}/stock`, { ...options, params: query });
+    },
     setAside(params: ChangeSetAsideParams, options?: RequestOptions): Promise<InventoryLevel> {
       const { store_id, id, ...payload } = params;
       return apiConfig.httpClient.post<InventoryLevel>(
@@ -63,6 +69,10 @@ export const createInventoryLevelApi = (apiConfig: ApiConfig) => {
         payload,
         options,
       );
+    },
+    receiveMove(params: ReceiveStockMoveParams, options?: RequestOptions): Promise<InventoryLevel> {
+      const { store_id, id, ...payload } = params;
+      return apiConfig.httpClient.post<InventoryLevel>(`${basePath(store_id)}/${encodeURIComponent(id)}/incoming`, payload, options);
     },
     remove(params: RemoveInventoryLevelParams, options?: RequestOptions): Promise<void> {
       const { store_id, id, expected_updated_at } = params;

@@ -97,8 +97,10 @@ export interface CreateStoreLocationParams {
   address: PostalAddress;
   timezone: string;
   is_pickup_location?: boolean;
+  operator?: import("./index").LocationOperator;
   blocks?: Block[];
   status?: StoreLocationStatus;
+  store_id?: string;
 }
 
 export interface UpdateStoreLocationParams {
@@ -107,12 +109,15 @@ export interface UpdateStoreLocationParams {
   address?: PostalAddress;
   timezone?: string;
   is_pickup_location?: boolean;
+  operator?: import("./index").LocationOperator;
   blocks?: Block[];
   status?: StoreLocationStatus;
+  store_id?: string;
 }
 
 export interface DeleteStoreLocationParams {
   id: string;
+  store_id?: string;
 }
 
 export interface CreateMarketParams {
@@ -693,6 +698,7 @@ export interface CreatePortalSessionParams {
 export interface AddMemberParams {
   email: string;
   store_id?: string;
+  access: import("./index").StoreAccess;
 }
 
 export interface TransferStoreOwnershipParams {

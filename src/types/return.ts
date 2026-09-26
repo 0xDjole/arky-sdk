@@ -1,4 +1,5 @@
 import type { AccountActor } from "./accountActor";
+import type { Tracking } from "./index";
 import type { UnitSpan } from "./orderContract";
 import type { EpochMilliseconds } from "./time";
 
@@ -7,55 +8,44 @@ export type ReturnSource =
   | { type: "rental"; rental_id: string };
 
 export type ReturnLineSource =
-  | {
-      type: "order_product";
-      order_product_line_item_id: string;
-      unit_spans: UnitSpan[];
-    }
-  | {
-      type: "rental_unit";
-      inventory_unit_id: string;
-    };
+  | { type: "order_product"; order_product_line_item_id: string; unit_spans: UnitSpan[] }
+  | { type: "rental_unit"; inventory_unit_id: string };
 
 export type ReturnReason = "customer_request" | "wrong_item" | "damaged" | "defective" | "not_as_described" | "other";
 
 export type ReturnRequester =
   | { type: "customer"; customer_id: string }
-  | { type: "account"; actor: AccountActor };
+  | { type: "account"; actor: AccountActor }
+  | { type: "system" };
 
 export type ReturnStatus =
-  | { type: "requested" }
-  | { type: "authorized" }
-  | { type: "in_transit" }
-  | { type: "partially_received" }
-  | { type: "received" }
-  | { type: "closed" }
-  | { type: "cancelled" };
+  | { type: "requested"; requested_at: EpochMilliseconds }
+  | { type: "declined"; declined_at: EpochMilliseconds; reason: string }
+  | { type: "open" }
+  | { type: "closed"; closed_at: EpochMilliseconds }
+  | { type: "cancelled"; cancelled_at: EpochMilliseconds };
 
-export interface ReturnComponentRequest {
-  id: string;
-  unit_index: number;
-  source_inventory_item_id: string;
-  authorized_quantity: number;
+export interface ReturnItemRequest {
+  inventory_item_id: string;
+  quantity: number;
 }
 
-export interface ReturnComponentReceipt extends ReturnComponentRequest {
-  received_quantity: number;
-  closed_unreceived_quantity: number;
-  restocked_quantity: number;
-  written_off_quantity: number;
-  discarded_quantity: number;
+export interface ReturnItem extends ReturnItemRequest {
+  received: number;
+  restocked: number;
+  not_restocked: number;
+  missing: number;
 }
 
 export interface ReturnLineRequest {
   id: string;
   source: ReturnLineSource;
   reason: ReturnReason;
-  components: ReturnComponentRequest[];
+  items: ReturnItemRequest[];
 }
 
 export interface ReturnLine extends ReturnLineRequest {
-  components: ReturnComponentReceipt[];
+  items: ReturnItem[];
 }
 
 export interface Return {
@@ -65,33 +55,39 @@ export interface Return {
   destination_store_location_id: string;
   requested_by: ReturnRequester;
   lines: ReturnLine[];
+  tracking: Tracking | null;
   status: ReturnStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
   command_id: string;
 }
 
-export interface ReceiveReturnComponent {
-  component_id: string;
+export interface MissingReturnItem {
+  line_id: string;
+  inventory_item_id: string;
   quantity: number;
+}
+
+export interface ReceiveReturnItem extends MissingReturnItem {
   inventory_unit_ids: string[];
 }
 
 export type ReturnDisposition =
   | { type: "restock" }
-  | { type: "write_off"; reason: string }
-  | { type: "discard"; reason: string };
+  | { type: "not_restocked"; reason: string };
 
-export interface DisposeReturnComponent extends ReceiveReturnComponent {
+export interface DisposeReturnItem extends ReceiveReturnItem {
   disposition: ReturnDisposition;
 }
 
 export type ReturnCommand =
-  | { type: "authorize" }
+  | { type: "approve"; destination_store_location_id?: string | null }
+  | { type: "decline"; reason: string }
   | { type: "cancel" }
-  | { type: "receive"; components: ReceiveReturnComponent[] }
-  | { type: "dispose"; components: DisposeReturnComponent[] }
-  | { type: "close" };
+  | { type: "receive"; items: ReceiveReturnItem[] }
+  | { type: "dispose"; items: DisposeReturnItem[] }
+  | { type: "missing"; items: MissingReturnItem[] }
+  | { type: "tracking"; tracking: Tracking };
 
 export interface GetReturnParams {
   store_id?: string;
@@ -100,7 +96,7 @@ export interface GetReturnParams {
 
 export interface CreateReturnParams extends GetReturnParams {
   source: ReturnSource;
-  destination_store_location_id: string;
+  destination_store_location_id?: string | null;
   command_id: string;
   lines: ReturnLineRequest[];
 }

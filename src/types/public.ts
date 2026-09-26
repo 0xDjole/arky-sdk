@@ -92,3 +92,4 @@ export type { CustomerGroupEmailConsent, CustomerGroupEmailConsentStatus, Custom
 export type { SubscribeStorefrontCustomerGroupEmailsParams, GetStorefrontCustomerGroupEmailConsentParams, ResendStorefrontCustomerGroupConfirmationParams } from "./customerGroupEmailConsent";
 
 export type * from "./fulfillment";
+export type * from "./fulfillmentPartner";

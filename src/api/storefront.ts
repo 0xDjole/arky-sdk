@@ -1,3 +1,4 @@
+import type { CreateReturnParams, GetReturnParams, FindReturnsParams, Return } from "../types/return";
 import type { EpochMilliseconds } from "../types/time";
 import type {
   FindPaymentMethodsParams,
@@ -818,6 +819,20 @@ export const createStorefrontApi = (
         },
         async recoverCheckout(options?: RequestOptions): Promise<StorefrontDto<OrderCheckoutResult> | null> {
           return recoverCartCheckout(checkoutScope, checkoutTransport, options);
+        },
+      },
+      return: {
+        async create(params: StorefrontParams<CreateReturnParams>, options?: RequestOptions): Promise<StorefrontDto<Return>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.post<StorefrontDto<Return>>(`${base}/returns`, params, options);
+        },
+        async get(params: StorefrontParams<GetReturnParams>, options?: RequestOptions): Promise<StorefrontDto<Return>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<StorefrontDto<Return>>(`${base}/returns/${encodeURIComponent(params.return_id)}`, options);
+        },
+        async find(params: StorefrontParams<FindReturnsParams> & ({ order_id: string } | { rental_id: string }), options?: RequestOptions): Promise<StorefrontDto<PaginatedResponse<Return>>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<StorefrontDto<PaginatedResponse<Return>>>(`${base}/returns`, { ...options, params });
         },
       },
       order: {

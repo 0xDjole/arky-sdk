@@ -30,7 +30,7 @@ export type { CompanyPermission, CompanyRoleStatus, CompanyRole, CompanyRoleUsag
 export type { CompanyLocationEditableStatus, CompanyLocationStatus, CompanyLocation, CreateCompanyLocationParams, GetCompanyLocationParams, UpdateCompanyLocationParams, DeleteCompanyLocationParams, FindCompanyLocationsParams } from "./types/companyLocation";
 export type { CompanyLocationTaxSettings, CompanyLocationCommercePolicy, TaxRegistration, TaxRegistrationStatus, TaxExemption } from "./types/companyLocation";
 export type { InventoryItem, InventoryItemStatus, InventoryItemEditableStatus, InventoryTracking, InventoryPhysical, InventoryCustoms, InventoryDimensions, CreateInventoryItemParams, UpdateInventoryItemParams, GetInventoryItemParams, GetInventoryItemByKeyParams, FindInventoryItemsParams, DeleteInventoryItemParams } from "./types/inventoryItem";
-export type { InventoryLevel, CreateInventoryLevelParams, GetInventoryLevelParams, RemoveInventoryLevelParams, FindInventoryLevelsParams, ChangeSetAsideParams, MoveInventoryParams, InventoryQuantity, InventoryMovement, InventoryMovementReason, ManualInventoryMovementReason, RecordInventoryMovementParams, GetInventoryMovementParams, FindInventoryMovementsParams, UnitSpan } from "./types/inventory";
+export type { InventoryLevel, InventoryStockLevel, IncomingStock, ReceiveStockMoveParams, CreateInventoryLevelParams, GetInventoryLevelParams, RemoveInventoryLevelParams, FindInventoryLevelsParams, ChangeSetAsideParams, MoveInventoryParams, InventoryQuantity, InventoryMovement, InventoryMovementReason, ManualInventoryMovementReason, RecordInventoryMovementParams, GetInventoryMovementParams, FindInventoryMovementsParams, UnitSpan } from "./types/inventory";
 export type * from "./types/inventoryUnit";
 export type * from "./types/return";
 export type * from "./types/fulfillmentUnitSelection";
@@ -314,6 +314,7 @@ export type {
   GeoLocation,
   ZoneLocation,
   StoreLocation,
+  LocationOperator,
   PaginatedResponse,
   Access,
   Media,
@@ -367,6 +368,9 @@ export type {
   ShippingRateLine,
   FulfillmentOrderStatus,
   FulfillmentOrderRef,
+  FulfillmentOrderMoveLine,
+  MoveFulfillmentOrderParams,
+  MoveFulfillmentOrderResult,
   FulfillmentHold,
   FulfillmentHoldReason,
   FulfillmentOrderLine,
@@ -375,10 +379,13 @@ export type {
   FulfillmentUnitSpan,
   FulfillmentOrderMethod,
   FulfillmentOrder,
-  FulfillmentExecutor,
-  FulfillmentExternalStatus,
-  FulfillmentExecutorCommand,
-  ControlFulfillmentExecutorParams,
+  FulfillmentJobItem,
+  PartnerRequest,
+  PartnerChange,
+  PartnerChangeRequest,
+  PartnerLineUnits,
+  PartnerAction,
+  ControlPartnerRequestParams,
   FulfillmentRecipient,
   FulfillmentCompanyRecipient,
   FulfillmentWindow,
@@ -516,6 +523,7 @@ export type {
   AccountSessionScope,
   AccountSessionStatus,
   StoreMembership,
+  StoreAccess,
   StoreMember,
   BookingServiceStatus,
   BookingResourceStatus,
@@ -1007,6 +1015,7 @@ import { createTaxCategoryApi } from "./api/taxCategory";
 import { createPaymentTermsApi } from "./api/paymentTerms";
 import { createOrderCreditApi } from "./api/orderCredit";
 import { createFulfillmentApi } from "./api/fulfillment";
+import { createFulfillmentPartnerApi } from "./api/fulfillmentPartner";
 import { createFulfillmentOrderApi } from "./api/fulfillmentOrder";
 import { createRentalApi } from "./api/rental";
 import { createPaymentMethodApi } from "./api/paymentMethod";
@@ -1552,6 +1561,7 @@ export function createAdmin(config: CreateAdminConfig) {
       inventoryMovement: createInventoryMovementApi(apiConfig),
       orderCredit: createOrderCreditApi(apiConfig),
       fulfillment: createFulfillmentApi(apiConfig),
+      fulfillmentPartner: createFulfillmentPartnerApi(apiConfig),
       fulfillmentOrder: createFulfillmentOrderApi(apiConfig),
       rental: createRentalApi(apiConfig),
       checkout: createCheckoutApi(apiConfig),
@@ -2340,3 +2350,4 @@ export type { JoinStorefrontCustomerGroupParams, GetStorefrontCustomerGroupMembe
 export type { SubscribeStorefrontCustomerGroupEmailsParams, GetStorefrontCustomerGroupEmailConsentParams, ResendStorefrontCustomerGroupConfirmationParams } from "./types/customerGroupEmailConsent";
 
 export type * from "./types/fulfillment";
+export type * from "./types/fulfillmentPartner";

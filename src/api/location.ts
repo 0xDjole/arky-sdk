@@ -63,36 +63,16 @@ export const createLocationApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async create(
-      params: CreateStoreLocationParams,
-      options?: RequestOptions,
-    ): Promise<StoreLocation> {
-      return apiConfig.httpClient.post<StoreLocation>(
-        `/v1/stores/${apiConfig.storeId}/locations`,
-        { ...params, store_id: apiConfig.storeId },
-        options,
-      );
+    async create(params: CreateStoreLocationParams, options?: RequestOptions): Promise<StoreLocation> {
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.post<StoreLocation>(`/v1/stores/${encodeURIComponent(store_id ?? apiConfig.storeId)}/locations`, body, options);
     },
-
-    async update(
-      params: UpdateStoreLocationParams,
-      options?: RequestOptions,
-    ): Promise<StoreLocation> {
-      return apiConfig.httpClient.put<StoreLocation>(
-        `/v1/stores/${apiConfig.storeId}/locations/${params.id}`,
-        { ...params, store_id: apiConfig.storeId },
-        options,
-      );
+    async update(params: UpdateStoreLocationParams, options?: RequestOptions): Promise<StoreLocation> {
+      const { store_id, id, ...body } = params;
+      return apiConfig.httpClient.put<StoreLocation>(`/v1/stores/${encodeURIComponent(store_id ?? apiConfig.storeId)}/locations/${encodeURIComponent(id)}`, body, options);
     },
-
-    async delete(
-      params: DeleteStoreLocationParams,
-      options?: RequestOptions,
-    ): Promise<{ deleted: boolean }> {
-      return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${apiConfig.storeId}/locations/${params.id}`,
-        options,
-      );
+    async delete(params: DeleteStoreLocationParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
+      return apiConfig.httpClient.delete<{ deleted: boolean }>(`/v1/stores/${encodeURIComponent(params.store_id ?? apiConfig.storeId)}/locations/${encodeURIComponent(params.id)}`, options);
     },
   };
 };

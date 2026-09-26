@@ -25,6 +25,7 @@ export interface FulfillmentRoutingPolicy {
   sales_channel_id: string;
   market_zone_id: string | null;
   shipping_profile_id: string | null;
+  company_location_ids: string[];
   strategy: FulfillmentRoutingStrategy;
   locations: FulfillmentRoutingLocation[];
   status: FulfillmentRoutingPolicyStatus;
@@ -39,6 +40,7 @@ export interface CreateFulfillmentRoutingPolicyParams {
   sales_channel_id: string;
   market_zone_id: string | null;
   shipping_profile_id: string | null;
+  company_location_ids: string[];
   strategy: FulfillmentRoutingStrategy;
   locations: FulfillmentRoutingLocation[];
   status: FulfillmentRoutingPolicyEditableStatus;
@@ -52,6 +54,7 @@ export interface UpdateFulfillmentRoutingPolicyParams {
   sales_channel_id: string;
   market_zone_id: string | null;
   shipping_profile_id: string | null;
+  company_location_ids: string[];
   strategy: FulfillmentRoutingStrategy;
   locations: FulfillmentRoutingLocation[];
   status: FulfillmentRoutingPolicyEditableStatus;

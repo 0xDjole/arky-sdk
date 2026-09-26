@@ -6,6 +6,7 @@ import type {
   FindInventoryUnitsParams,
   GetInventoryUnitParams,
   InventoryUnit,
+  InventoryUnitExecution,
   MoveInventoryUnitParams,
   ReceiveInventoryUnitParams,
   UnassignInventoryUnitParams,
@@ -26,6 +27,12 @@ export const createInventoryUnitApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<InventoryUnit>(
         `${basePath(store_id)}/${encodeURIComponent(id)}`,
         options,
+      );
+    },
+    execution(params: GetInventoryUnitParams, options?: RequestOptions): Promise<InventoryUnitExecution | null> {
+      const { store_id, id } = params;
+      return apiConfig.httpClient.get<InventoryUnitExecution | null>(
+        `${basePath(store_id)}/${encodeURIComponent(id)}/execution`, options,
       );
     },
     find(

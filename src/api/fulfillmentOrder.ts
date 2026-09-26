@@ -8,8 +8,11 @@ import type {
   RequestOptions,
 } from "../types/api";
 import type {
-  ControlFulfillmentExecutorParams,
+  ControlPartnerRequestParams,
+  MoveFulfillmentOrderParams,
+  MoveFulfillmentOrderResult,
   FulfillmentOrder,
+  FulfillmentJobItem,
   PaginatedResponse,
 } from "../types";
 
@@ -36,6 +39,9 @@ export const createFulfillmentOrderApi = (apiConfig: ApiConfig) => {
         `${basePath(params.store_id)}/${encodeURIComponent(params.fulfillment_order_id)}`,
         options,
       );
+    },
+    items(params: GetFulfillmentOrderParams, options?: RequestOptions): Promise<FulfillmentJobItem[]> {
+      return apiConfig.httpClient.get<FulfillmentJobItem[]>(`${basePath(params.store_id)}/${encodeURIComponent(params.fulfillment_order_id)}/items`, options);
     },
     unitSlots(
       params: ResolveFulfillmentUnitSlotsParams,
@@ -70,13 +76,17 @@ export const createFulfillmentOrderApi = (apiConfig: ApiConfig) => {
         options,
       );
     },
-    controlExecutor(
-      params: ControlFulfillmentExecutorParams,
+    move(params: MoveFulfillmentOrderParams, options?: RequestOptions): Promise<MoveFulfillmentOrderResult> {
+      const { store_id, fulfillment_order_id, ...payload } = params;
+      return apiConfig.httpClient.post<MoveFulfillmentOrderResult>(`${basePath(store_id)}/${encodeURIComponent(fulfillment_order_id)}/move`, payload, options);
+    },
+    controlPartner(
+      params: ControlPartnerRequestParams,
       options?: RequestOptions,
     ): Promise<FulfillmentOrder> {
       const { store_id, fulfillment_order_id, ...payload } = params;
       return apiConfig.httpClient.post<FulfillmentOrder>(
-        `${basePath(store_id)}/${encodeURIComponent(fulfillment_order_id)}/executor`,
+        `${basePath(store_id)}/${encodeURIComponent(fulfillment_order_id)}/partner`,
         payload,
         options,
       );
