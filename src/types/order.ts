@@ -25,7 +25,6 @@ import type {
   CompanyLocationSnapshot,
   MarketSnapshot,
   OrderDeliveryGroup,
-  OrderInvoicePolicy,
   PaymentTermsSnapshot,
   PromotionRedemption,
   PurchaseOriginSnapshot,
@@ -99,7 +98,6 @@ export interface Order {
   updated_at: EpochMilliseconds;
   accepted_at: EpochMilliseconds;
   seller: SellerSnapshot;
-  invoice_policy: OrderInvoicePolicy;
   renewal_recovery: RenewalRecovery | null;
   reconciliation: ReconciliationState;
   collection_policy: CollectionPolicySnapshot;
@@ -155,9 +153,6 @@ export type OrderFinancialConcern =
   | { type: "payment_hold"; payment_id: string }
   | { type: "payment_evidence"; payment_id: string }
   | { type: "payment_projection"; payment_id: string }
-  | { type: "invoice_payment_review"; receipt_id: string }
-  | { type: "unattributed_invoice_payment_evidence"; receipt_id: string }
-  | { type: "unapplied_invoice_payment_evidence"; receipt_id: string }
   | { type: "unapplied_capture_evidence"; receipt_id: string }
   | { type: "capture_review"; receipt_id: string }
   | { type: "dispute_review"; dispute_id: string }
@@ -168,8 +163,7 @@ export type OrderFinancialConcern =
   | { type: "credit_refund_allocation"; order_credit_id: string; allocation_id: string }
   | { type: "principal_capacity_conflict" }
   | { type: "refund_reservations_exceed_excess" }
-  | { type: "provider_refund_created_debt" }
-  | { type: "invoice_reconciliation_required" };
+  | { type: "provider_refund_created_debt" };
 
 export interface OrderFinancialSummary {
   currency: Currency;

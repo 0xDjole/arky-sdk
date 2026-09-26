@@ -34,7 +34,9 @@ export const createOrderCreditApi = (apiConfig: ApiConfig) => {
     ): Promise<PaginatedResponse<OrderCredit>> {
       const { store_id, order_id, ...query } = params;
       return apiConfig.httpClient.get<PaginatedResponse<OrderCredit>>(
-        basePath(store_id, order_id),
+        order_id === undefined
+          ? `/v1/stores/${encodeURIComponent(store_id ?? apiConfig.storeId)}/credits`
+          : basePath(store_id, order_id),
         { ...options, params: query },
       );
     },

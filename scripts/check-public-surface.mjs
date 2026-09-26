@@ -692,9 +692,8 @@ if (!quoteContract || [
   /\bsubscription_lines:\s*SubscriptionOrderQuoteLine\[\];/,
   /\bdelivery_groups:\s*QuotedDeliveryGroup\[\];/,
   /\bseller:\s*SellerSnapshot;/,
-  /\binvoice_policy:\s*OrderInvoicePolicy;/,
   /\bpayment_provider_id:\s*string\s*\|\s*null;/,
-].some((field) => !field.test(quoteContract[1]))) {
+].some((field) => !field.test(quoteContract[1])) || /invoice/i.test(quoteContract[1])) {
   report(quoteTypesFile, quoteTypesSource, quoteContract?.index ?? 0,
     "OrderQuote must expose reviewed presentation, resolved buyer/context and every typed line family");
   failures++;
@@ -717,7 +716,6 @@ const requiredOrderFields = [
   /\bline_items:\s*OrderLineItem\[\];/,
   /\bdelivery_groups:\s*OrderDeliveryGroup\[\];/,
   /\bseller:\s*SellerSnapshot;/,
-  /\binvoice_policy:\s*OrderInvoicePolicy;/,
   /\bcollection_policy:\s*CollectionPolicySnapshot;/,
   /\bpayment_authorization:\s*CheckoutPaymentAuthorization;/,
   ...["market_id", "sales_channel_id"].map(
@@ -727,7 +725,7 @@ const requiredOrderFields = [
 if (
   !orderContract ||
   requiredOrderFields.some((field) => !field.test(orderContract[1])) ||
-  /\b(?:customer_session_id|source_cart_id)\??:/.test(orderContract[1])
+  /\b(?:customer_session_id|source_cart_id|invoice_policy)\??:/.test(orderContract[1])
 ) {
   report(
     orderTypesFile,
@@ -898,6 +896,7 @@ if (
   ) ||
   !/createRentalApi\s*\}\s*from\s*["']\.\/api\/rental["']/.test(indexSource) ||
   /createRentalPlacementApi|\/api\/rentalPlacement/.test(indexSource) ||
+  /createOrderInvoiceApi|\/api\/orderInvoice|\/invoices/.test(indexSource) ||
   !/\bcontent\s*:\s*\{/.test(indexSource) ||
   !/\bforms\s*:\s*\{/.test(indexSource) ||
   !/\bactions\s*:/.test(indexSource) ||

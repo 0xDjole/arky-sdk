@@ -91,4 +91,3 @@ export type * from "./rental";
 export type { CustomerGroupEmailConsent, CustomerGroupEmailConsentStatus, CustomerGroupConsentEvent, CustomerGroupConsentEventType, CustomerGroupConsentSource, CustomerGroupConfirmationHistoryEntry, FindCustomerGroupEmailConsentsParams, FindCustomerGroupEmailConsentHistoryParams } from "./customerGroupEmailConsent";
 export type { SubscribeStorefrontCustomerGroupEmailsParams, GetStorefrontCustomerGroupEmailConsentParams, ResendStorefrontCustomerGroupConfirmationParams } from "./customerGroupEmailConsent";
 export type { Pickup, PickupLine, PickupStatus, PickupCommand, CreatePickupParams, ExecutePickupParams, FindPickupsParams, GetPickupParams } from "./pickup";
-export type { OrderInvoice, OrderInvoiceState, OrderInvoiceProvider, OrderInvoiceReconciliation, FiscalDocument, DocumentArtifact, FindOrderInvoicesParams, GetOrderInvoiceParams } from "./orderInvoice";

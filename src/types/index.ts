@@ -3,7 +3,7 @@ import type { MonriComponentsAction } from "./monriCheckout";
 export type { MonriComponentsAction, MonriBuyerDetails } from "./monriCheckout";
 export type * from "./fulfillmentUnitSelection";
 import type { SellerProfile } from "./orderContract";
-import type { StoreTaxPolicy, StoreInvoicePolicy } from "./storeCommerce";
+import type { StoreTaxPolicy } from "./storeCommerce";
 export type * from "./storeCommerce";
 import type { StripeConnectionOperation } from "./stripeConnection";
 export type { StripeConnectionOperation, StripeConnectionEffectStatus } from "./stripeConnection";
@@ -23,7 +23,7 @@ export type { CompanySnapshot, PurchaseCustomerSnapshot, PurchaseOrigin, Purchas
 export type { SubscriptionAcceptedTerms, SubscriptionPlanSnapshot, SubscriptionPlanEntitlementSnapshot, SubscriptionPlanEntitlementSnapshotType, SubscriptionProductSnapshot, SubscriptionDigitalSnapshot, SubscriptionDeliveryTerms, SubscriptionPurchaseOccurrence, OrderSubscriptionTerms, OrderAccessRevocation } from "./commerce";
 export type { BillingPeriod } from "./commerce";
 export type { MonriCaptureProof, PaymentCaptureEvidence, CaptureFinancialEffect, PaymentCaptureStatus, OrderPaymentCapture, RecordedCollection, RecordCashOnDeliveryCollectionParams, RecordManualCollectionParams, CreateManualPaymentParams } from "./paymentCapture";
-export type { CommerceProviderObservation, Payment, PaymentStatus, PaymentAmounts, PaymentProviderBinding, PaymentCheckoutExpiration, PaymentReconciliation, StripeInvoicePaymentObject, MonriAuthorizationVoid, MonriVoidStatus, MonriVoidResult } from "./payment";
+export type { CommerceProviderObservation, Payment, PaymentStatus, PaymentAmounts, PaymentProviderBinding, PaymentCheckoutExpiration, PaymentReconciliation, MonriAuthorizationVoid, MonriVoidStatus, MonriVoidResult } from "./payment";
 import type { EpochMilliseconds } from "./time";
 export type { Order, OrderSource, OrderSourceFilter, OrderRentalUseItem, OrderStatus, OrderLineItem, OrderCompanyContext, OrderFinancialSummary, OrderFinancialConcern, GetOrderFinancialSummaryParams } from "./order";
 export type {
@@ -33,8 +33,6 @@ export type {
   SellerProfile,
   SellerTaxRegistration,
   SellerSnapshot,
-  InvoiceIssueTrigger,
-  OrderInvoicePolicy,
   RenewalRecovery,
   RenewalRecoveryStatus,
   ReconciliationState,
@@ -1258,7 +1256,6 @@ export type StoreCommerceState =
       default_sales_channel_id: string;
       seller: SellerProfile;
       tax: StoreTaxPolicy;
-      invoicing: StoreInvoicePolicy;
     };
 
 export interface Store {

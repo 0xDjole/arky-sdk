@@ -218,7 +218,6 @@ export type {
   Payment,
   CommerceProviderObservation,
   PaymentReconciliation,
-  StripeInvoicePaymentObject,
   PaymentProviderBinding,
   PaymentCheckoutExpiration,
   MonriAuthorizationVoid,
@@ -410,7 +409,6 @@ export type {
   PurchaseOriginSnapshot,
   MarketSnapshot,
   SellerSnapshot,
-  OrderInvoicePolicy,
   CollectionPolicySnapshot,
   ReconciliationState,
   CheckoutPaymentAuthorization,
@@ -1013,7 +1011,6 @@ import { createMarketZoneApi } from "./api/marketZone";
 import { createTaxCategoryApi } from "./api/taxCategory";
 import { createPaymentTermsApi } from "./api/paymentTerms";
 import { createOrderCreditApi } from "./api/orderCredit";
-import { createOrderInvoiceApi } from "./api/orderInvoice";
 import { createPickupApi } from "./api/pickup";
 import { createFulfillmentOrderApi } from "./api/fulfillmentOrder";
 import { createRentalApi } from "./api/rental";
@@ -1562,7 +1559,6 @@ export function createAdmin(config: CreateAdminConfig) {
       inventoryMovement: createInventoryMovementApi(apiConfig),
       inventoryReservation: createInventoryReservationApi(apiConfig),
       orderCredit: createOrderCreditApi(apiConfig),
-      invoice: createOrderInvoiceApi(apiConfig),
       pickup: createPickupApi(apiConfig),
       fulfillmentOrder: createFulfillmentOrderApi(apiConfig),
       rental: createRentalApi(apiConfig),
@@ -2358,4 +2354,3 @@ export type { SubscriptionSelf, SubscriptionSelfStatus } from "./types/subscript
 export type { JoinStorefrontCustomerGroupParams, GetStorefrontCustomerGroupMemberParams } from "./types/customerGroupMember";
 export type { SubscribeStorefrontCustomerGroupEmailsParams, GetStorefrontCustomerGroupEmailConsentParams, ResendStorefrontCustomerGroupConfirmationParams } from "./types/customerGroupEmailConsent";
 export type { Pickup, PickupLine, PickupStatus, PickupCommand, CreatePickupParams, ExecutePickupParams, FindPickupsParams, GetPickupParams } from "./types/pickup";
-export type { OrderInvoice, OrderInvoiceState, OrderInvoiceProvider, OrderInvoiceReconciliation, FiscalDocument, DocumentArtifact, FindOrderInvoicesParams, GetOrderInvoiceParams } from "./types/orderInvoice";

@@ -844,10 +844,11 @@ export interface GetOrdersParams {
   query?: string | null;
   limit?: number | null;
   cursor?: string | null;
-  sort_field?: "number" | "price" | "status" | "created_at" | null;
+  sort_field?: "number" | "price" | "status" | "created_at" | "updated_at" | null;
   sort_direction?: "asc" | "desc" | null;
   created_at_from?: EpochMilliseconds | null;
   created_at_to?: EpochMilliseconds | null;
+  updated_at_from?: EpochMilliseconds | null;
   subscription_id?: string;
 }
 
@@ -1293,6 +1294,7 @@ export interface FindPaymentsParams {
   store_id?: string;
   order_id?: string;
   status?: import("./payment").PaymentStatus["type"];
+  updated_at_from?: EpochMilliseconds;
   sort_field?: "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
   limit?: number;
@@ -1310,7 +1312,7 @@ export interface GetOrderPaymentParams {
   payment_id: string;
 }
 
-export interface FindOrderPaymentsParams extends Omit<FindPaymentsParams, "order_id"> {
+export interface FindOrderPaymentsParams extends Omit<FindPaymentsParams, "order_id" | "updated_at_from"> {
   order_id: string;
 }
 
@@ -1334,6 +1336,7 @@ export interface FindRefundsParams {
   order_id?: string;
   store_id?: string;
   status?: import("./refund").RefundStatus["type"];
+  updated_at_from?: EpochMilliseconds;
   sort_field?: "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
   limit?: number;

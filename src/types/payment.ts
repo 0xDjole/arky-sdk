@@ -14,11 +14,6 @@ export type PaymentStatus = {
     | "unknown";
 };
 
-export type StripeInvoicePaymentObject =
-  | { type: "payment_intent"; payment_intent_id: string }
-  | { type: "charge"; charge_id: string }
-  | { type: "payment_record"; payment_record_id: string };
-
 export interface MonriVoidResult {
   claim: ProviderOperationClaim;
   transaction_id: string;
@@ -75,13 +70,6 @@ export type PaymentProviderBinding =
       checkout_expires_at: EpochMilliseconds;
       checkout_session_id: string | null;
       payment_intent_id: string | null;
-    }
-  | {
-      type: "stripe_invoice";
-      payment_provider_id: string;
-      stripe_invoice_id: string;
-      stripe_invoice_payment_id: string;
-      payment_object: StripeInvoicePaymentObject;
     };
 
 export interface PaymentAmounts {

@@ -56,13 +56,6 @@ export interface SellerSnapshot {
   configuration_digest: string;
 }
 
-export type InvoiceIssueTrigger = { type: "acceptance" } | { type: "confirmation" };
-
-export type OrderInvoicePolicy =
-  | { type: "not_required"; reason: string }
-  | { type: "native"; series_key: string; issue_trigger: InvoiceIssueTrigger }
-  | { type: "external" };
-
 export type RenewalRecoveryStatus =
   | { type: "recovering" }
   | { type: "exhausted"; exhausted_at: EpochMilliseconds; command_id: string }

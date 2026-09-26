@@ -11,7 +11,6 @@ import type {
 import type {
   AcceptedDeliveryPricing,
   OrderDeliveryDestinationSnapshot,
-  OrderInvoicePolicy,
   UnitSpan,
   SellerSnapshot,
 } from "./orderContract";
@@ -111,7 +110,6 @@ export interface SubscriptionOrderQuoteLine {
 export interface OrderQuote {
   context: PurchaseQuoteContext;
   seller: SellerSnapshot;
-  invoice_policy: OrderInvoicePolicy;
   timezone: string;
   payment_terms: PaymentTerms | null;
   purchase_order_number: string | null;

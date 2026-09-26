@@ -1,5 +1,5 @@
 import type { Currency } from "./index";
-import type { InvoiceIssueTrigger, SellerProfile, TaxMode } from "./orderContract";
+import type { SellerProfile, TaxMode } from "./orderContract";
 import type { EpochMilliseconds } from "./time";
 
 export interface StoreTaxPolicy {
@@ -7,17 +7,11 @@ export interface StoreTaxPolicy {
   noncommercial_subscription_grants: boolean;
 }
 
-export interface StoreInvoicePolicy {
-  series_key: string;
-  issue_trigger: InvoiceIssueTrigger;
-}
-
 export interface CommerceInitializationRequest {
   market: { key: string; currency: Currency; tax_mode: TaxMode };
   sales_channel: { key: string; name: string };
   seller: SellerProfile;
   tax: StoreTaxPolicy;
-  invoicing: StoreInvoicePolicy;
 }
 
 export type CommerceInitializationFailure = "configuration_conflict" | "storage_unavailable";

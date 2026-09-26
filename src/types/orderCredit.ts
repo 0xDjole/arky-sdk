@@ -81,7 +81,10 @@ export interface GetOrderCreditParams {
 
 export interface FindOrderCreditsParams {
   store_id?: string;
-  order_id: string;
+  order_id?: string;
+  updated_at_from?: EpochMilliseconds;
+  sort_field?: "created_at" | "updated_at";
+  sort_direction?: "asc" | "desc";
   limit?: number;
   cursor?: string;
 }
