@@ -86,21 +86,12 @@ export interface ShippingRateWeightTier {
   amount: number;
 }
 
-export interface ShippingRateAdjustment {
-  fixed_amount: number;
-  basis_points: number;
-}
 
 export type ShippingRatePricing =
   | { type: "flat"; amount: number; free_above_subtotal: number | null }
   | {
       type: "weight_tiered";
       tiers: ShippingRateWeightTier[];
-      free_above_subtotal: number | null;
-    }
-  | {
-      type: "arky_calculated";
-      adjustment: ShippingRateAdjustment;
       free_above_subtotal: number | null;
     };
 

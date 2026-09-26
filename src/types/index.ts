@@ -1,7 +1,6 @@
 import type { Payment } from "./payment";
 import type { MonriComponentsAction } from "./monriCheckout";
 export type { MonriComponentsAction, MonriBuyerDetails } from "./monriCheckout";
-export type { ShippingLabelRequestResolution } from "./shippingLabel";
 export type * from "./fulfillmentUnitSelection";
 import type { SellerProfile } from "./orderContract";
 import type { StoreTaxPolicy, StoreInvoicePolicy } from "./storeCommerce";
@@ -48,7 +47,6 @@ export type {
   AcceptedDeliveryPricing,
   AcceptedDeliveryPricingSource,
   AcceptedDeliveryCalculation,
-  AcceptedCarrierQuoteLeg,
 } from "./orderContract";
 export type Currency =
   | "usd"
@@ -610,13 +608,6 @@ export interface BuildHook {
   updated_at: EpochMilliseconds;
 }
 
-export interface StripePlatformDebitConsent {
-  accepted_by: AccountActor;
-  accepted_at: EpochMilliseconds;
-  terms_version: number;
-  revoked_at: EpochMilliseconds | null;
-}
-
 export type PaymentProviderStatus = { type: "active" } | { type: "disabled" } | { type: "deleting" };
 
 export type StripeProviderConnection =
@@ -628,7 +619,6 @@ export type StripeProviderConnection =
       payments_enabled: boolean;
       payouts_enabled: boolean;
       state_observed_at: EpochMilliseconds;
-      platform_debit_consent: StripePlatformDebitConsent | null;
     };
 
 export type PaymentProviderConfiguration =
@@ -1085,11 +1075,6 @@ export type WebhookEventSubscription =
   | { type: "order_digital_item.confirmed" }
   | { type: "order_digital_item.cancelled" }
   | { type: "shipment.created" }
-  | { type: "shipment.in_transit" }
-  | { type: "shipment.out_for_delivery" }
-  | { type: "shipment.delivered" }
-  | { type: "shipment.failed" }
-  | { type: "shipment.returned" }
   | { type: "shipment.status_changed" }
   | { type: "pickup.created" }
   | { type: "pickup.ready" }
@@ -2867,14 +2852,6 @@ export type EventAction =
   | { action: "order_booking_item_reminder_due" }
   | { action: "order_booking_item_reminder" }
   | { action: "shipment_created"; data: { shipment_id: string } }
-  | { action: "shipment_in_transit"; data: { shipment_id: string } }
-  | { action: "shipment_out_for_delivery"; data: { shipment_id: string } }
-  | { action: "shipment_delivered"; data: { shipment_id: string } }
-  | {
-      action: "shipment_failed";
-      data: { shipment_id: string; reason?: string };
-    }
-  | { action: "shipment_returned"; data: { shipment_id: string } }
   | {
       action: "shipment_status_changed";
       data: { shipment_id: string; from: string; to: string };
@@ -2927,15 +2904,13 @@ export interface Event {
   created_at: EpochMilliseconds;
 }
 
-export type ShipmentStatus =
-  { type: "pending"
-  | "label_created"
-  | "in_transit"
-  | "out_for_delivery"
-  | "delivered"
-  | "failed"
-  | "returned"
-  | "cancelled" };
+export type ShipmentStatus = { type: "pending" | "dispatched" | "cancelled" };
+
+export interface Tracking {
+  carrier: string;
+  number: string;
+  url: string | null;
+}
 
 export interface ShippingRateLine {
   order_product_item_id: string;
@@ -2966,28 +2941,10 @@ export interface Shipment {
   origin_store_location_id: string;
   lines: ShipmentLine[];
   status: ShipmentStatus;
-  parcel: Parcel;
-  customs_declaration: CustomsDeclaration | null;
-  carrier: string | null;
-  service: string | null;
-  tracking_number: string | null;
-  tracking_url: string | null;
-  tracking_status_at: EpochMilliseconds | null;
-  selected_label_id: string | null;
+  tracking: Tracking | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
   dispatch: FulfillmentExecution | null;
-  origin_address: PostalAddress;
-  destination_address: PostalAddress;
-}
-
-export interface Parcel {
-  length: number;
-  width: number;
-  height: number;
-  weight: number;
-  distance_unit: string;
-  mass_unit: string;
 }
 
 export interface CreateShipmentResponse {
@@ -2995,25 +2952,3 @@ export interface CreateShipmentResponse {
   shipment: Shipment;
 }
 
-export interface CustomsItem {
-  description: string;
-  quantity: number;
-  net_weight: string;
-  mass_unit: string;
-  value_amount: string;
-  value_currency: string;
-  origin_country: string;
-  tariff_number?: string | null;
-}
-
-export interface CustomsDeclaration {
-  contents_type: string;
-  contents_explanation?: string | null;
-  non_delivery_option: string;
-  certify: boolean;
-  certify_signer: string;
-  eel_pfc?: string | null;
-  aes_itn?: string | null;
-  incoterm?: string | null;
-  items: CustomsItem[];
-}

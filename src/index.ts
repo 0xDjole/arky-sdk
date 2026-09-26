@@ -3,7 +3,6 @@ export { MonriCheckoutError } from "./types/monriCheckout";
 export type { MonriComponentsAction, MonriBuyerDetails } from "./types/monriCheckout";
 export { isValidKey, validateKey, toKey, nameToKey } from "./utils/keyValidation";
 export { CartPresentationChangedError } from "./types/cartCheckout";
-export type { ShippingLabelRequestResolution } from "./types/shippingLabel";
 export { CartSelectionError } from "./types/cartSelection";
 export {
   cartProductItems,
@@ -45,8 +44,7 @@ export type { CheckoutCartVersion, ConvertedCartLine, CartLineItemRef, OrderLine
 export type { FulfillmentRoutingPolicy, FulfillmentRoutingStrategy, FulfillmentRoutingLocation, FulfillmentRoutingPolicyStatus, FulfillmentRoutingPolicyEditableStatus, CreateFulfillmentRoutingPolicyParams, UpdateFulfillmentRoutingPolicyParams, GetFulfillmentRoutingPolicyParams, GetFulfillmentRoutingPolicyByKeyParams, FindFulfillmentRoutingPoliciesParams, DeleteFulfillmentRoutingPolicyParams } from "./types/fulfillmentRouting";
 export type { MarketSalesChannel, MarketSalesChannelStatus, CreateMarketSalesChannelParams, GetMarketSalesChannelParams, FindMarketSalesChannelsParams, RemoveMarketSalesChannelParams } from "./types/marketSalesChannel";
 export type { StorefrontClientRegistration, StorefrontClientStatus, CreateStorefrontClientParams, UpdateStorefrontClientParams, RevokeStorefrontClientParams, GetStorefrontClientParams, FindStorefrontClientsParams } from "./types/storefrontClient";
-export type { ShippingLabel, ShippingLabelStatus, ShippingLabelOwner, ShippingLabelQuoteOwner, ShippingLabelRequest, ShippingLabelPurchase, ShippingLabelQuoteRate, MerchantBalanceEffect, MerchantBalanceDirection, MerchantDebit, MerchantDebitStatus, StripePlatformDebitAuthorization, ShippingLabelRefund, ShippingLabelRefundStatus, ShippingLabelRefundStatusName, CarrierRefundEffect, MerchantDebitReversal, MerchantDebitReversalStatus, MerchantDebitReversalReason, QuoteShippingLabelParams, RequestShippingLabelParams, GetShippingLabelParams, FindShippingLabelsParams, RequestShippingLabelRefundParams, GetShippingLabelRefundParams, FindShippingLabelRefundsParams, RequestMerchantDebitReversalParams, GetMerchantDebitReversalParams, FindMerchantDebitReversalsParams } from "./types/shippingLabel";
-export type { ShippingMethod, ShippingMethodType, ShippingMethodStatus, ShippingMethodEditableStatus, CreateShippingMethodParams, UpdateShippingMethodParams, GetShippingMethodParams, FindShippingMethodsParams, DeleteShippingMethodParams, ShippingRateCondition, ShippingRateWeightTier, ShippingRateAdjustment, ShippingRatePricing, ShippingRate, ShippingRateStatus, ShippingRateEditableStatus, CreateShippingRateParams, UpdateShippingRateParams, GetShippingRateParams, FindShippingRatesParams, DeleteShippingRateParams } from "./types/shipping";
+export type { ShippingMethod, ShippingMethodType, ShippingMethodStatus, ShippingMethodEditableStatus, CreateShippingMethodParams, UpdateShippingMethodParams, GetShippingMethodParams, FindShippingMethodsParams, DeleteShippingMethodParams, ShippingRateCondition, ShippingRateWeightTier, ShippingRatePricing, ShippingRate, ShippingRateStatus, ShippingRateEditableStatus, CreateShippingRateParams, UpdateShippingRateParams, GetShippingRateParams, FindShippingRatesParams, DeleteShippingRateParams } from "./types/shipping";
 export type { Zone, ZoneMatch, ZoneStatus, ZoneEditableStatus, CreateZoneParams, UpdateZoneParams, GetZoneParams, FindZonesParams, DeleteZoneParams, MarketZone, MarketZoneStatus, MarketZoneEditableStatus, CreateMarketZoneParams, UpdateMarketZoneParams, GetMarketZoneParams, FindMarketZonesParams, DeleteMarketZoneParams } from "./types/zone";
 export type { ShippingProfile, ShippingProfileStatus, ShippingProfileEditableStatus, CreateShippingProfileParams, UpdateShippingProfileParams, GetShippingProfileParams, GetShippingProfileByKeyParams, FindShippingProfilesParams, DeleteShippingProfileParams } from "./types/shippingProfile";
 export type { CustomerGroupEditableStatus, CustomerGroupStatus, CustomerGroupJoinPolicy, CustomerGroupConsentPolicy, CustomerGroupCommunication, CustomerGroup, CustomerGroupUsage, CreateCustomerGroupParams, GetCustomerGroupParams, GetCustomerGroupByKeyParams, UpdateCustomerGroupParams, DeleteCustomerGroupParams, FindCustomerGroupsParams, StorefrontCustomerGroup, GetStorefrontCustomerGroupParams } from "./types/customerGroup";
@@ -124,7 +122,7 @@ export type * from "./types/orderMoney";
 export type * from "./types/orderLineItem";
 export type { OrderLinePrice, OrderInventoryRequirementSnapshot, OrderProductFulfillmentSnapshot, AcceptedAsset, OrderDigitalContent } from "./types/orderSnapshot";
 export type { CheckoutProductSnapshot, CheckoutBookingSnapshot, CheckoutDigitalSnapshot, QuotedProductMoneyRun, SubscriptionEntitlementOrderQuoteLine, QuotedDeliveryGroup, QuotedShippingOffer, QuotedDeliveryPricing, ShippingDeliveryEstimate } from "./types/quote";
-export type { OrderDeliveryGroup, OrderDeliveryGroupItem, OrderDeliveryGroupRentalItem, OrderDeliveryDestinationSnapshot, AcceptedDeliveryPricing, AcceptedDeliveryPricingSource, AcceptedDeliveryCalculation, AcceptedCarrierQuoteLeg } from "./types/orderContract";
+export type { OrderDeliveryGroup, OrderDeliveryGroupItem, OrderDeliveryGroupRentalItem, OrderDeliveryDestinationSnapshot, AcceptedDeliveryPricing, AcceptedDeliveryPricingSource, AcceptedDeliveryCalculation } from "./types/orderContract";
 export type {
   ActivateEmailSuppressionParams,
   EmailSuppression,
@@ -246,7 +244,6 @@ export type {
   PaymentProviderConnectResponse,
   StripeConnectionOperation,
   StripeConnectionEffectStatus,
-  StripePlatformDebitConsent,
   StripeProviderConnection,
   PaymentProviderStatus,
   TaxMode,
@@ -384,14 +381,12 @@ export type {
   FulfillmentRecipient,
   FulfillmentCompanyRecipient,
   FulfillmentWindow,
-  Parcel,
   FulfillmentExecution,
   ShipmentLine,
   ShipmentUnitBinding,
   Shipment,
   CreateShipmentResponse,
-  CustomsItem,
-  CustomsDeclaration,
+  Tracking,
   GeoLocationBlock,
   BookingService,
   BookingResource,
@@ -1031,11 +1026,6 @@ import { createMarketPaymentProviderApi } from "./api/marketPaymentProvider";
 import { createStorefrontClientApi } from "./api/storefrontClient";
 import { createStoreAdminDomainApi } from "./api/storeAdminDomain";
 export type * from "./types/storeAdminDomain";
-import {
-  createShippingLabelApi,
-  createShippingLabelRefundApi,
-  createMerchantDebitReversalApi,
-} from "./api/shippingLabel";
 import { createTaxRuleApi } from "./api/taxRule";
 import { createShippingMethodApi } from "./api/shippingMethod";
 import { createShippingRateApi } from "./api/shippingRate";
@@ -1600,9 +1590,6 @@ export function createAdmin(config: CreateAdminConfig) {
         dispatch: shippingApi.dispatchShipment,
         cancel: shippingApi.cancelShipment,
       },
-      shippingLabel: createShippingLabelApi(apiConfig),
-      shippingLabelRefund: createShippingLabelRefundApi(apiConfig),
-      merchantDebitReversal: createMerchantDebitReversalApi(apiConfig),
       cart: {
         create: eshopApi.createCart,
         update: eshopApi.updateCart,

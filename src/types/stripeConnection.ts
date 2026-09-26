@@ -21,7 +21,6 @@ export interface StripeConnectionOperation {
   requested_connected_account_id: string | null;
   email: string | null;
   country: string | null;
-  debit_consent_account_id: string | null;
   account_creation_status: StripeConnectionEffectStatus;
   metadata_binding_status: StripeConnectionEffectStatus | null;
   created_at: EpochMilliseconds;

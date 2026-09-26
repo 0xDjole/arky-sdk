@@ -1,8 +1,7 @@
-import type { Address, Block, Currency, Money, Parcel, TimeRange } from "./index";
+import type { Address, Block, Currency, Money, TimeRange } from "./index";
 import type { CompanySnapshot } from "./commerce";
 import type { CompanyLocationCommercePolicy, CompanyLocationTaxSettings, TaxRegistration } from "./companyLocation";
 import type { LineMoneySnapshot } from "./orderMoney";
-import type { ShippingRateAdjustment } from "./shipping";
 import type { ShippingDeliveryEstimate } from "./quote";
 import type { AccountActor } from "./accountActor";
 import type { EpochMilliseconds } from "./time";
@@ -163,25 +162,7 @@ export type AcceptedDeliveryPricingSource =
 
 export type AcceptedDeliveryCalculation =
   | { type: "flat"; amount: Money }
-  | { type: "weight_tiered"; tier_index: number; upper_bound_grams: number | null; amount: Money }
-  | { type: "arky_calculated"; legs: AcceptedCarrierQuoteLeg[]; adjustment: ShippingRateAdjustment };
-
-export interface AcceptedCarrierQuoteLeg {
-  id: string;
-  provider_scope: string;
-  provider_quote_id: string;
-  source_origin_location_id: string;
-  origin: Address;
-  destination: Address;
-  parcel: Parcel;
-  items: OrderDeliveryGroupItem[];
-  carrier: string;
-  service: string;
-  amount: Money;
-  quoted_at: EpochMilliseconds;
-  expires_at: EpochMilliseconds;
-  response_digest: string;
-}
+  | { type: "weight_tiered"; tier_index: number; upper_bound_grams: number | null; amount: Money };
 
 export interface OrderDeliveryGroup {
   id: string;

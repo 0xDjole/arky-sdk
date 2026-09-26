@@ -14,9 +14,8 @@ import type {
   BuildHookStatus,
   WebhookEventSubscription,
   WebhookStatus,
-  Parcel,
-  CustomsDeclaration,
   ShippingRateLine,
+  Tracking,
   ShipmentLine,
   ClassificationEntry,
   ClassificationQuery,
@@ -1989,7 +1988,6 @@ export interface ConnectStripePaymentProviderParams {
   operation_id: string;
   return_url: string;
   refresh_url: string;
-  authorize_account_debits: boolean;
   email?: string | null;
   country?: string | null;
   connected_account_id?: string | null;
@@ -2122,8 +2120,6 @@ export interface CreateShipmentParams {
   origin_store_location_id: string;
   fulfillment_order_id: string;
   lines: ShipmentLine[];
-  parcel: Parcel;
-  customs_declaration: CustomsDeclaration | null;
 }
 
 export interface DispatchShipmentParams {
@@ -2132,6 +2128,7 @@ export interface DispatchShipmentParams {
   command_id: string;
   expected_updated_at: EpochMilliseconds;
   late_reason: string | null;
+  tracking: Tracking | null;
 }
 
 export interface CancelShipmentParams extends GetShipmentParams {

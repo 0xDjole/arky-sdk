@@ -133,9 +133,7 @@ export interface ShippingDeliveryEstimate {
   max_business_days: number;
 }
 
-export type QuotedDeliveryPricing =
-  | { type: "calculated"; pricing: AcceptedDeliveryPricing }
-  | { type: "carrier_quote_required" };
+export type QuotedDeliveryPricing = { type: "calculated"; pricing: AcceptedDeliveryPricing };
 
 export interface QuotedShippingOffer {
   shipping_rate_id: string;

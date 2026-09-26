@@ -65,7 +65,6 @@ export interface Return {
   destination_store_location_id: string;
   requested_by: ReturnRequester;
   lines: ReturnLine[];
-  selected_label_id: string | null;
   status: ReturnStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
