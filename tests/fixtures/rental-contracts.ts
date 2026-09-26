@@ -9,18 +9,13 @@ import type {
   ExecuteRentalParams,
   FindRentalsParams,
   GetRentalParams,
-  RentalPlacement,
-  RentalPlacementCommand,
-  RentalPlacementExecution,
-  RentalPlacementExecutionSource,
-  RentalPlacementIssue,
-  RentalPlacementStatus,
-  ExecuteRentalPlacementParams,
-  FindRentalPlacementsParams,
-  GetRentalPlacementParams,
+  RentalIssueReplacement,
   InventoryReservationSource,
   InventoryMovementReason,
-  InventoryUnitExecutionSource,
+  InventoryUnit,
+  InventoryUnitExecution,
+  InventoryUnitStatus,
+  FindInventoryUnitsParams,
   OrderDeliveryGroup,
   OrderDeliveryGroupRentalItem,
   SubscriptionProductSnapshot,
@@ -33,7 +28,6 @@ import type {
 } from "arky-sdk";
 import type {
   Rental as PublicRental,
-  RentalPlacement as PublicPlacement,
   RentalDetail as PublicDetail,
   PaginatedResponse,
   CartDeliveryRentalAssignment,
@@ -45,8 +39,7 @@ type True<T extends true> = T;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 type Admin = ReturnType<typeof createAdmin>["eshop"];
 type RentalApi = Admin["rental"];
-type PlacementApi = Admin["rentalPlacement"];
-type Status<T extends RentalPlacementStatus["type"]> = Extract<RentalPlacementStatus, { type: T }>;
+type UnitStatus<T extends InventoryUnitStatus["type"]> = Extract<InventoryUnitStatus, { type: T }>;
 type Command<T extends RentalCommand["type"]> = Extract<RentalCommand, { type: T }>;
 type Ending = Extract<RentalStatus, { type: "ending" }>;
 
@@ -68,8 +61,10 @@ export type RentalContract = [
   True<Same<RentalTerms["snapshot"], SubscriptionProductSnapshot>>,
   True<Same<keyof RentalDetail, "rental" | "terms">>,
   True<Same<RentalCommand["type"], "request_replacement" | "end" | "close" | "cancel_issue">>,
-  True<Same<keyof Command<"request_replacement">, "type" | "fulfillment_order_id" | "fulfillment_order_line_id" | "predecessor_placement_id" | "store_location_id" | "method" | "overlap_authorized">>,
-  True<Same<Command<"request_replacement">["overlap_authorized"], boolean>>,
+  True<Same<keyof Command<"request_replacement">, "type" | "fulfillment_order_id" | "fulfillment_order_line_id" | "replacement" | "store_location_id" | "method">>,
+  True<Same<Command<"request_replacement">["replacement"], RentalIssueReplacement>>,
+  True<Same<keyof RentalIssueReplacement, "predecessor_inventory_unit_id" | "predecessor_fulfillment_order_line_id" | "predecessor_fulfillment_unit_index" | "overlap_authorized">>,
+  True<Same<RentalIssueReplacement["overlap_authorized"], boolean>>,
   True<Same<Command<"request_replacement">["method"], FulfillmentOrderMethod>>,
   True<Same<FulfillmentOrder["method"], FulfillmentOrderMethod>>,
   True<Same<FulfillmentOrderMethod, { type: "delivery"; destination: PostalAddress } | { type: "pickup" }>>,
@@ -88,39 +83,16 @@ export type RentalContract = [
   True<Same<keyof ExecuteRentalParams, "store_id" | "id" | "command_id" | "expected_updated_at" | "type">>,
   True<Same<ExecuteRentalParams["type"], RentalCommand>>,
   True<Same<Awaited<ReturnType<RentalApi["execute"]>>, Rental>>,
+  True<"rentalPlacement" extends keyof Admin ? false : true>,
 ];
 
-export type PlacementContract = [
-  True<Same<RentalPlacement, PublicPlacement>>,
-  True<Same<keyof RentalPlacement, "id" | "store_id" | "rental_id" | "inventory_unit_id" | "issue" | "status" | "created_at" | "updated_at">>,
-  True<Same<keyof RentalPlacementIssue, "fulfillment_order_id" | "fulfillment_order_line_id" | "fulfillment_unit_index">>,
-  True<Same<keyof RentalPlacementExecution, "source" | "executed_at">>,
-  True<Same<RentalPlacementExecution["source"], RentalPlacementExecutionSource>>,
-  True<Same<RentalPlacementExecutionSource, InventoryUnitExecutionSource>>,
-  True<Same<RentalPlacementExecutionSource, { type: "shipment"; shipment_id: string } | { type: "pickup"; pickup_id: string }>>,
-  True<Same<RentalPlacementStatus["type"], "assigned" | "cancelled" | "in_transit" | "with_customer" | "return_requested" | "returned" | "lost">>,
-  True<Same<keyof Status<"assigned">, "type">>,
-  True<Same<keyof Status<"cancelled">, "type" | "cancelled_at">>,
-  True<Same<keyof Status<"in_transit">, "type" | "execution">>,
-  True<Same<keyof Status<"with_customer">, "type" | "execution" | "handed_over_at">>,
-  True<Same<Status<"with_customer">["handed_over_at"], EpochMilliseconds>>,
-  True<Same<keyof Status<"return_requested">, "type" | "execution" | "handed_over_at" | "return_id">>,
-  True<Same<Status<"return_requested">["handed_over_at"], EpochMilliseconds | null>>,
-  True<RequiredField<Status<"return_requested">, "handed_over_at">>,
-  True<Same<keyof Status<"returned">, "type" | "execution" | "handed_over_at" | "return_id" | "return_component_id" | "received_at">>,
-  True<Same<keyof Status<"lost">, "type" | "execution" | "handed_over_at" | "actor" | "reason" | "lost_at">>,
-  True<Same<RentalPlacementCommand["type"], "confirm_handover" | "mark_lost">>,
-  True<Same<keyof Extract<RentalPlacementCommand, { type: "confirm_handover" }>, "type" | "handed_over_at">>,
-  True<Same<keyof Extract<RentalPlacementCommand, { type: "mark_lost" }>, "type" | "reason">>,
-  True<Same<keyof PlacementApi, "find" | "get" | "execute">>,
-  True<Same<Parameters<PlacementApi["find"]>[0], FindRentalPlacementsParams | undefined>>,
-  True<Same<keyof FindRentalPlacementsParams, "store_id" | "rental_id" | "inventory_unit_id" | "status" | "limit" | "cursor" | "sort_field" | "sort_direction">>,
-  True<Same<Awaited<ReturnType<PlacementApi["find"]>>, PaginatedResponse<RentalPlacement>>>,
-  True<Same<Parameters<PlacementApi["get"]>[0], GetRentalPlacementParams>>,
-  True<Same<Awaited<ReturnType<PlacementApi["get"]>>, RentalPlacement>>,
-  True<Same<Parameters<PlacementApi["execute"]>[0], ExecuteRentalPlacementParams>>,
-  True<Same<keyof ExecuteRentalPlacementParams, "store_id" | "id" | "command_id" | "expected_updated_at" | "type">>,
-  True<Same<Awaited<ReturnType<PlacementApi["execute"]>>, RentalPlacement>>,
+export type RentedUnitContract = [
+  True<Same<keyof UnitStatus<"rented">, "type" | "rental_id" | "execution" | "return_id">>,
+  True<Same<UnitStatus<"rented">["execution"], InventoryUnitExecution>>,
+  True<Same<UnitStatus<"rented">["return_id"], string | null>>,
+  True<Same<UnitStatus<"written_off">["rental_id"], string | null>>,
+  True<Same<InventoryUnit["status"], InventoryUnitStatus>>,
+  True<Same<FindInventoryUnitsParams["rental_id"], string | undefined>>,
 ];
 
 export type RentalIssueWorkContract = [
@@ -144,10 +116,13 @@ const replacement: RentalCommand = {
   type: "request_replacement",
   fulfillment_order_id: "work",
   fulfillment_order_line_id: "line",
-  predecessor_placement_id: "placement",
+  replacement: {
+    predecessor_inventory_unit_id: "unit",
+    predecessor_fulfillment_order_line_id: "delivered-line",
+    predecessor_fulfillment_unit_index: 0,
+    overlap_authorized: false,
+  },
   store_location_id: "location",
   method: { type: "pickup" },
-  overlap_authorized: false,
 };
-const handover: RentalPlacementCommand = { type: "confirm_handover", handed_over_at: 1700000000000 as EpochMilliseconds };
-void [ending, replacement, handover];
+void [ending, replacement];

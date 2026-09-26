@@ -88,7 +88,6 @@ export type { SubscriptionSelf, SubscriptionSelfStatus } from "./subscription";
 export type { Subscription, SubscriptionStatus, SubscriptionPurchaseState, SubscriptionCollectionBlock, GetSubscriptionParams, FindSubscriptionsParams, FindSubscriptionOrdersParams, FindSubscriptionCommandsParams, GetCurrentSubscriptionParams, SubscriptionControlType, SubscriptionControl, ControlSubscriptionParams, SubscriptionControlResult } from "./subscription";
 export type * from "./subscriptionRevision";
 export type * from "./rental";
-export type * from "./rentalPlacement";
 export type { CustomerGroupEmailConsent, CustomerGroupEmailConsentStatus, CustomerGroupConsentEvent, CustomerGroupConsentEventType, CustomerGroupConsentSource, CustomerGroupConfirmationHistoryEntry, FindCustomerGroupEmailConsentsParams, FindCustomerGroupEmailConsentHistoryParams } from "./customerGroupEmailConsent";
 export type { SubscribeStorefrontCustomerGroupEmailsParams, GetStorefrontCustomerGroupEmailConsentParams, ResendStorefrontCustomerGroupConfirmationParams } from "./customerGroupEmailConsent";
 export type { Pickup, PickupLine, PickupStatus, PickupCommand, CreatePickupParams, ExecutePickupParams, FindPickupsParams, GetPickupParams } from "./pickup";

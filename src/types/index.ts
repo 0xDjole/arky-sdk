@@ -825,7 +825,9 @@ export interface FulfillmentUnitSpan {
 }
 
 export interface RentalIssueReplacement {
-  predecessor_placement_id: string;
+  predecessor_inventory_unit_id: string;
+  predecessor_fulfillment_order_line_id: string;
+  predecessor_fulfillment_unit_index: number;
   overlap_authorized: boolean;
 }
 

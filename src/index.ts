@@ -56,7 +56,6 @@ export type { Subscription, SubscriptionSubject, SubscriptionStatus, Subscriptio
 export type * from "./types/subscriptionRevision";
 export type * from "./types/subscriptionOffering";
 export type * from "./types/rental";
-export type * from "./types/rentalPlacement";
 export type { CustomerGroupAdmission, CustomerGroupAdmissionSource, CustomerGroupAdministrativeAccess, CustomerGroupMember, CustomerGroupMemberSelf, CustomerGroupSelfAdmission, CustomerGroupJoinResult, CustomerGroupMemberCommandResponse, CustomerGroupMemberCommandReceipt, CustomerGroupMemberCommandResultType, GetCustomerGroupMemberByBindingParams, CustomerGroupJoinScope, CustomerGroupJoinRequest, JoinCustomerGroupParams, GetCustomerGroupMemberParams, FindCustomerGroupMembersParams, GetCurrentCustomerGroupMemberParams, FindCustomerGroupMemberCommandsParams, CustomerGroupMemberCommand, ExecuteCustomerGroupMemberCommandParams } from "./types/customerGroupMember";
 export type { SalesChannelEditableStatus, SalesChannelStatus, SalesChannel, SalesChannelUsage, CreateSalesChannelParams, GetSalesChannelParams, UpdateSalesChannelParams, DeleteSalesChannelParams, FindSalesChannelsParams } from "./types/salesChannel";
 export type { SellableRef } from "./types/sellable";
@@ -1023,7 +1022,6 @@ import { createOrderInvoiceApi } from "./api/orderInvoice";
 import { createPickupApi } from "./api/pickup";
 import { createFulfillmentOrderApi } from "./api/fulfillmentOrder";
 import { createRentalApi } from "./api/rental";
-import { createRentalPlacementApi } from "./api/rentalPlacement";
 import { createCustomerPaymentMethodApi } from "./api/customerPaymentMethod";
 import { createCustomerGroupEmailConsentApi } from "./api/customerGroupEmailConsent";
 import { createCheckoutApi } from "./api/checkout";
@@ -1578,7 +1576,6 @@ export function createAdmin(config: CreateAdminConfig) {
       pickup: createPickupApi(apiConfig),
       fulfillmentOrder: createFulfillmentOrderApi(apiConfig),
       rental: createRentalApi(apiConfig),
-      rentalPlacement: createRentalPlacementApi(apiConfig),
       checkout: createCheckoutApi(apiConfig),
       fulfillmentRoutingPolicy: createFulfillmentRoutingPolicyApi(apiConfig),
       order: {

@@ -13,7 +13,7 @@ export type RentalIssueContract = [
   True<Same<keyof RentalIssue, 'type' | 'rental_id' | 'terms_revision_id' | 'replacement'>>,
   True<Same<RentalIssue['replacement'], RentalIssueReplacement | null>>,
   True<RequiredField<RentalIssue, 'replacement'>>,
-  True<Same<keyof RentalIssueReplacement, 'predecessor_placement_id' | 'overlap_authorized'>>,
+  True<Same<keyof RentalIssueReplacement, 'predecessor_inventory_unit_id' | 'predecessor_fulfillment_order_line_id' | 'predecessor_fulfillment_unit_index' | 'overlap_authorized'>>,
   True<RequiredField<RentalIssueReplacement, 'overlap_authorized'>>,
   True<Same<RentalIssueReplacement['overlap_authorized'], boolean>>,
   True<Same<RentalIssueReplacement, PublicReplacement>>,
@@ -29,12 +29,18 @@ const issue: FulfillmentOrderLineSource = {
   type: 'rental_issue', rental_id: 'rental', terms_revision_id: 'revision', replacement: null,
 };
 const replacement: FulfillmentOrderLineSource = {
-  ...issue, replacement: { predecessor_placement_id: 'old-placement', overlap_authorized: false },
+  ...issue,
+  replacement: {
+    predecessor_inventory_unit_id: 'old-unit',
+    predecessor_fulfillment_order_line_id: 'delivered-line',
+    predecessor_fulfillment_unit_index: 0,
+    overlap_authorized: false,
+  },
 };
 
 function sourceIdentity(source: FulfillmentOrderLineSource): string {
   if (source.type === 'rental_issue') {
-    return source.replacement?.predecessor_placement_id ?? source.rental_id;
+    return source.replacement?.predecessor_inventory_unit_id ?? source.rental_id;
   }
   return source.order_id;
 }

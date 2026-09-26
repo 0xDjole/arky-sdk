@@ -27,8 +27,9 @@ export type InventoryUnitStatus =
   | { type: "available"; store_location_id: string }
   | { type: "allocated"; store_location_id: string; allocation: InventoryUnitAllocation }
   | { type: "issued"; execution: InventoryUnitExecution }
+  | { type: "rented"; rental_id: string; execution: InventoryUnitExecution; return_id: string | null }
   | { type: "inspection"; store_location_id: string; return_id: string; return_component_id: string; received_at: EpochMilliseconds }
-  | { type: "written_off"; actor: AccountActor; reason: string; written_off_at: EpochMilliseconds };
+  | { type: "written_off"; actor: AccountActor; reason: string; written_off_at: EpochMilliseconds; rental_id: string | null };
 
 export interface InventoryUnit {
   id: string;
@@ -51,6 +52,7 @@ export interface FindInventoryUnitsParams {
   store_id?: string;
   inventory_item_id?: string;
   store_location_id?: string;
+  rental_id?: string;
   asset_tag?: string;
   status?: InventoryUnitStatus["type"];
   limit?: number;

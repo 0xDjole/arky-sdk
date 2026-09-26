@@ -897,9 +897,7 @@ if (
     indexSource,
   ) ||
   !/createRentalApi\s*\}\s*from\s*["']\.\/api\/rental["']/.test(indexSource) ||
-  !/createRentalPlacementApi\s*\}\s*from\s*["']\.\/api\/rentalPlacement["']/.test(
-    indexSource,
-  ) ||
+  /createRentalPlacementApi|\/api\/rentalPlacement/.test(indexSource) ||
   !/\bcontent\s*:\s*\{/.test(indexSource) ||
   !/\bforms\s*:\s*\{/.test(indexSource) ||
   !/\bactions\s*:/.test(indexSource) ||
@@ -1076,9 +1074,10 @@ if (
   !/type:\s*"rental_issue";[^}]*\breplacement:\s*RentalIssueReplacement\s*\|\s*null;/.test(
     rentalIssueContract[1],
   ) ||
-  !/export interface RentalIssueReplacement\s*\{[^}]*\bpredecessor_placement_id:\s*string;[^}]*\boverlap_authorized:\s*boolean;/.test(
+  !/export interface RentalIssueReplacement\s*\{[^}]*\bpredecessor_inventory_unit_id:\s*string;[^}]*\bpredecessor_fulfillment_order_line_id:\s*string;[^}]*\bpredecessor_fulfillment_unit_index:\s*number;[^}]*\boverlap_authorized:\s*boolean;/.test(
     activityTypesSource,
-  )
+  ) ||
+  /predecessor_placement_id/.test(activityTypesSource)
 ) {
   report(activityTypesFile, activityTypesSource, rentalIssueContract?.index ?? 0,
     "Rental issue work must name its nullable typed replacement, never a bare predecessor field");

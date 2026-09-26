@@ -79,7 +79,7 @@ test("Rental Returns name the exact placement and keep the Rental source on ever
     const source = { type: "rental", rental_id: "rental" };
     const request = {
       store_id: "selected", return_id: "rental-return", source, destination_store_location_id: "warehouse", command_id: "request",
-      lines: [{ id: "line", source: { type: "rental_placement", rental_placement_id: "placement" }, reason: "customer_request",
+      lines: [{ id: "line", source: { type: "rental_unit", inventory_unit_id: "unit" }, reason: "customer_request",
         components: [{ id: "component", unit_index: 0, source_inventory_item_id: "machine", authorized_quantity: 1 }] }],
     };
     const before = structuredClone(request);

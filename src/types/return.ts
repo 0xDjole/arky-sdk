@@ -13,8 +13,8 @@ export type ReturnLineSource =
       unit_spans: UnitSpan[];
     }
   | {
-      type: "rental_placement";
-      rental_placement_id: string;
+      type: "rental_unit";
+      inventory_unit_id: string;
     };
 
 export type ReturnReason = "customer_request" | "wrong_item" | "damaged" | "defective" | "not_as_described" | "other";

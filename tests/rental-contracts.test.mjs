@@ -53,9 +53,12 @@ test("Rental commands keep the caller's command identity, loaded revision and ty
     const commands = [
       {
         type: "request_replacement", fulfillment_order_id: "work", fulfillment_order_line_id: "line",
-        predecessor_placement_id: "placement", store_location_id: "location",
+        replacement: {
+          predecessor_inventory_unit_id: "unit", predecessor_fulfillment_order_line_id: "delivered-line",
+          predecessor_fulfillment_unit_index: 0, overlap_authorized: false,
+        },
+        store_location_id: "location",
         method: { type: "delivery", destination: { country: "DE", street1: "Hauptstrasse 1", city: "Berlin", postal_code: "10115" } },
-        overlap_authorized: false,
       },
       { type: "end", reason: "Customer ended the agreement", return_due_at: null },
       { type: "end", reason: "Agreed collection date", return_due_at: 1700000100000 },
@@ -74,40 +77,6 @@ test("Rental commands keep the caller's command identity, loaded revision and ty
     assert.equal(calls.length, commands.length * 2);
     assert.ok(calls.every((call) => call.method === "POST" && call.url.pathname === "/v1/stores/selected/rentals/rental/commands"));
     assert.ok(calls.every((call) => !call.url.search && !("store_id" in call.body) && !("id" in call.body)));
-  } finally { restore(); }
-});
-
-test("Placement discovery and custody commands stay on the placement root without inventing handover", async () => {
-  const placement = { id: "placement", rental_id: "rental", status: { type: "in_transit" } };
-  const { calls, restore } = capture((count) => (count === 1 ? { items: [], cursor: "next" } : placement));
-  try {
-    const api = eshop().rentalPlacement;
-    const query = { rental_id: "rental", inventory_unit_id: "unit", status: "in_transit", limit: 10 };
-    assert.deepEqual(await api.find(query), { items: [], cursor: "next" });
-    assert.deepEqual(await api.get({ store_id: "selected", id: "placement" }), placement);
-    const commands = [
-      { type: "confirm_handover", handed_over_at: 1700000000500 },
-      { type: "mark_lost", reason: "Courier confirmed the parcel was destroyed" },
-    ];
-    for (const [index, type] of commands.entries()) {
-      const request = { store_id: "selected", id: "placement", command_id: `custody-${index}`, expected_updated_at: 1700000000000, type };
-      await api.execute(request);
-      await api.execute(request);
-      assert.deepEqual(calls.at(-1), calls.at(-2));
-      assert.deepEqual(calls.at(-1).body, { command_id: `custody-${index}`, expected_updated_at: 1700000000000, type });
-    }
-    assert.deepEqual(calls.map((call) => [call.method, call.url.pathname]), [
-      ["GET", "/v1/stores/default/rental-placements"],
-      ["GET", "/v1/stores/selected/rental-placements/placement"],
-      ["POST", "/v1/stores/selected/rental-placements/placement/commands"],
-      ["POST", "/v1/stores/selected/rental-placements/placement/commands"],
-      ["POST", "/v1/stores/selected/rental-placements/placement/commands"],
-      ["POST", "/v1/stores/selected/rental-placements/placement/commands"],
-    ]);
-    assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), {
-      rental_id: "rental", inventory_unit_id: "unit", status: "in_transit", limit: "10",
-    });
-    assert.deepEqual(Object.keys(api).sort(), ["execute", "find", "get"]);
   } finally { restore(); }
 });
 

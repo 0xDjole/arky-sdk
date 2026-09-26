@@ -1,6 +1,6 @@
 import type { AccountActor } from "./accountActor";
 import type { SubscriptionProductSnapshot } from "./commerce";
-import type { FulfillmentOrderMethod } from "./index";
+import type { FulfillmentOrderMethod, RentalIssueReplacement } from "./index";
 import type { EpochMilliseconds } from "./time";
 
 export type RentalActor =
@@ -49,10 +49,9 @@ export type RentalCommand =
       type: "request_replacement";
       fulfillment_order_id: string;
       fulfillment_order_line_id: string;
-      predecessor_placement_id: string;
+      replacement: RentalIssueReplacement;
       store_location_id: string;
       method: FulfillmentOrderMethod;
-      overlap_authorized: boolean;
     }
   | {
       type: "end";
