@@ -2,10 +2,12 @@ import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
 import type {
+  ChangeSetAsideParams,
   CreateInventoryLevelParams,
   FindInventoryLevelsParams,
   GetInventoryLevelParams,
   InventoryLevel,
+  MoveInventoryParams,
   RemoveInventoryLevelParams,
 } from "../types/inventory";
 
@@ -37,6 +39,30 @@ export const createInventoryLevelApi = (apiConfig: ApiConfig) => {
         ...options,
         params: query,
       });
+    },
+    setAside(params: ChangeSetAsideParams, options?: RequestOptions): Promise<InventoryLevel> {
+      const { store_id, id, ...payload } = params;
+      return apiConfig.httpClient.post<InventoryLevel>(
+        `${basePath(store_id)}/${encodeURIComponent(id)}/set-aside`,
+        payload,
+        options,
+      );
+    },
+    makeAvailable(params: ChangeSetAsideParams, options?: RequestOptions): Promise<InventoryLevel> {
+      const { store_id, id, ...payload } = params;
+      return apiConfig.httpClient.post<InventoryLevel>(
+        `${basePath(store_id)}/${encodeURIComponent(id)}/make-available`,
+        payload,
+        options,
+      );
+    },
+    move(params: MoveInventoryParams, options?: RequestOptions): Promise<InventoryLevel> {
+      const { store_id, id, ...payload } = params;
+      return apiConfig.httpClient.post<InventoryLevel>(
+        `${basePath(store_id)}/${encodeURIComponent(id)}/move`,
+        payload,
+        options,
+      );
     },
     remove(params: RemoveInventoryLevelParams, options?: RequestOptions): Promise<void> {
       const { store_id, id, expected_updated_at } = params;

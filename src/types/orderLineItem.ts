@@ -10,16 +10,6 @@ export type OrderLineItemOrigin =
       entitlement_id: string;
     };
 
-export interface OrderProductLocationAllocation {
-  store_location_id: string;
-  quantity: number;
-  cancelled_quantity: number;
-  fulfillment_order_id: string;
-  fulfillment_order_line_id: string;
-  order_delivery_group_id: string;
-  unit_spans: UnitSpan[];
-}
-
 export interface AcceptedFormSubmission {
   source_submission_id: string;
   source_form_id: string;

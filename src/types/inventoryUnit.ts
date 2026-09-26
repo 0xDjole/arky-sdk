@@ -1,14 +1,10 @@
 import type { AccountActor } from "./accountActor";
 import type { EpochMilliseconds } from "./time";
 
-export interface InventoryUnitItemSnapshot {
-  source_inventory_item_id: string;
-  key: string;
-}
-
 export interface InventoryUnitAllocation {
-  inventory_reservation_id: string;
-  reservation_unit_index: number;
+  fulfillment_order_id: string;
+  fulfillment_order_line_id: string;
+  fulfillment_unit_index: number;
 }
 
 export type InventoryUnitExecutionSource =
@@ -34,8 +30,7 @@ export type InventoryUnitStatus =
 export interface InventoryUnit {
   id: string;
   store_id: string;
-  inventory_item_id: string | null;
-  inventory_item_snapshot: InventoryUnitItemSnapshot;
+  inventory_item_id: string;
   asset_tag: string;
   manufacturer_serial: string | null;
   status: InventoryUnitStatus;
@@ -73,8 +68,21 @@ export interface ReceiveInventoryUnitParams {
 }
 
 export interface AllocateInventoryUnitParams extends GetInventoryUnitParams {
-  inventory_reservation_id: string;
-  reservation_unit_index: number;
+  fulfillment_order_id: string;
+  fulfillment_order_line_id: string;
+  fulfillment_unit_index: number;
+  expected_updated_at: EpochMilliseconds;
+}
+
+export interface MoveInventoryUnitParams extends GetInventoryUnitParams {
+  command_id: string;
+  to_store_location_id: string;
+  expected_updated_at: EpochMilliseconds;
+}
+
+export interface WriteOffInventoryUnitParams extends GetInventoryUnitParams {
+  command_id: string;
+  reason: string;
   expected_updated_at: EpochMilliseconds;
 }
 

@@ -191,6 +191,11 @@ const removedIdentifiers = [
   "EmailSendDeliveryResult",
   "GetEmailDeliveryParams",
   "RetryEmailDeliveryParams",
+  "createInventoryReservationApi",
+  "InventoryReservation",
+  "ReservationUnitProgress",
+  "OrderProductLocationAllocation",
+  "InventoryUnitItemSnapshot",
 ];
 
 const removedIdentifierPattern = new RegExp(
@@ -1122,11 +1127,11 @@ const movementReasonContract = inventoryTypesSource.match(
 );
 if (
   !movementReasonContract ||
-  !/\{\s*type:\s*"rental_issue";\s*rental_id:\s*string;\s*fulfillment_order_id:\s*string\s*\}/.test(movementReasonContract[1]) ||
-  !/\{\s*type:\s*"fulfillment";\s*order_id:\s*string;\s*fulfillment_order_id:\s*string\s*\}/.test(movementReasonContract[1])
+  !/\{\s*type:\s*"dispatched";\s*fulfillment_order_id:\s*string;\s*fulfillment_id:\s*string\s*\}/.test(movementReasonContract[1]) ||
+  /"fulfillment"|"rental_issue"|"transfer_in"|"transfer_out"/.test(movementReasonContract[1])
 ) {
   report(inventoryTypesFile, inventoryTypesSource, movementReasonContract?.index ?? 0,
-    "Outbound stock movements distinguish Order fulfillment from Rental issue without borrowing an Order");
+    "Outbound stock rows name the job and the fulfillment that took the goods out");
   failures++;
 }
 

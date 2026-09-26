@@ -13,6 +13,8 @@ export interface InventoryLevel {
   store_location_id: string;
   on_hand: number;
   reserved: number;
+  unavailable: number;
+  available: number;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -32,6 +34,24 @@ export interface RemoveInventoryLevelParams extends GetInventoryLevelParams {
   expected_updated_at: EpochMilliseconds;
 }
 
+export interface ChangeSetAsideParams {
+  store_id?: string;
+  id: string;
+  command_id: string;
+  quantity: number;
+  reason: string;
+  expected_updated_at: EpochMilliseconds;
+}
+
+export interface MoveInventoryParams {
+  store_id?: string;
+  id: string;
+  command_id: string;
+  to_store_location_id: string;
+  quantity: number;
+  expected_updated_at: EpochMilliseconds;
+}
+
 export interface FindInventoryLevelsParams {
   store_id?: string;
   inventory_item_id?: string;
@@ -42,15 +62,22 @@ export interface FindInventoryLevelsParams {
   sort_direction?: "asc" | "desc";
 }
 
+export type InventoryQuantity = { type: "on_hand" } | { type: "unavailable" };
+
 export type InventoryMovementReason =
-  | { type: "receiving"; reference: string | null }
+  | { type: "receiving"; actor: AccountActor; reference: string | null }
   | { type: "adjustment"; actor: AccountActor; reason: string }
-  | { type: "fulfillment"; order_id: string; fulfillment_order_id: string }
-  | { type: "rental_issue"; rental_id: string; fulfillment_order_id: string }
+  | { type: "damage"; actor: AccountActor; reference: string | null }
+  | { type: "dispatched"; fulfillment_order_id: string; fulfillment_id: string }
   | { type: "return_restock"; return_id: string }
-  | { type: "damage"; reference: string | null }
-  | { type: "transfer_in"; inventory_transfer_id: string }
-  | { type: "transfer_out"; inventory_transfer_id: string };
+  | { type: "set_aside"; actor: AccountActor; reason: string }
+  | { type: "made_available"; actor: AccountActor; reason: string }
+  | {
+      type: "moved";
+      actor: AccountActor;
+      from_store_location_id: string;
+      to_store_location_id: string;
+    };
 
 export type ManualInventoryMovementReason =
   | { type: "receiving"; reference: string | null }
@@ -61,9 +88,11 @@ export interface InventoryMovement {
   id: string;
   store_id: string;
   inventory_item_id: string;
+  inventory_unit_id: string | null;
   store_location_id: string;
-  quantity_delta: number;
-  on_hand_after: number;
+  quantity: InventoryQuantity;
+  delta: number;
+  after: number;
   reason: InventoryMovementReason;
   created_at: EpochMilliseconds;
   command_id: string;
@@ -78,7 +107,8 @@ export interface RecordInventoryMovementParams {
   source_line_id: string;
   expected_level_id: string;
   expected_level_updated_at: EpochMilliseconds;
-  quantity_delta: number;
+  delta: number;
+  from_set_aside?: boolean;
   reason: ManualInventoryMovementReason;
 }
 
@@ -91,96 +121,10 @@ export interface FindInventoryMovementsParams {
   store_id?: string;
   inventory_item_id?: string;
   store_location_id?: string;
+  inventory_unit_id?: string;
   command_id?: string;
   limit?: number;
   cursor?: string;
   sort_field?: "created_at";
-  sort_direction?: "asc" | "desc";
-}
-
-export type InventoryReservationSource =
-  | {
-      type: "order_item";
-      order_id: string;
-      order_product_item_id: string;
-      order_delivery_group_id: string;
-      fulfillment_order_id: string;
-      fulfillment_order_line_id: string;
-      unit_spans: UnitSpan[];
-    }
-  | {
-      type: "rental_issue";
-      rental_id: string;
-      fulfillment_order_id: string;
-      fulfillment_order_line_id: string;
-    }
-  | {
-      type: "transfer_line";
-      inventory_transfer_id: string;
-      transfer_line_id: string;
-    }
-  | { type: "manual"; actor: AccountActor; reason: string };
-
-export type InventoryReservationStatus =
-  | { type: "active" }
-  | { type: "closed"; closed_at: EpochMilliseconds };
-
-export interface InventoryReservation {
-  id: string;
-  store_id: string;
-  inventory_item_id: string;
-  store_location_id: string;
-  source: InventoryReservationSource;
-  quantity: number;
-  status: InventoryReservationStatus;
-  expires_at: EpochMilliseconds | null;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-  consumed_quantity: number;
-  released_quantity: number;
-  command_id: string;
-  unit_progress: ReservationUnitProgress | null;
-}
-
-export interface ReservationUnitProgress {
-  consumed_units: UnitSpan[];
-  released_units: UnitSpan[];
-}
-
-export interface CreateManualInventoryReservationParams {
-  store_id?: string;
-  inventory_item_id: string;
-  store_location_id: string;
-  command_id: string;
-  quantity: number;
-  reason: string;
-  expires_at: EpochMilliseconds | null;
-  expected_level_id: string;
-  expected_level_updated_at: EpochMilliseconds;
-}
-
-export interface ReleaseManualInventoryReservationParams {
-  store_id?: string;
-  id: string;
-  released_quantity: number;
-  expected_updated_at: EpochMilliseconds;
-}
-
-export interface GetInventoryReservationParams {
-  store_id?: string;
-  id: string;
-}
-
-export interface FindInventoryReservationsParams {
-  store_id?: string;
-  inventory_item_id?: string;
-  store_location_id?: string;
-  command_id?: string;
-  order_id?: string;
-  inventory_transfer_id?: string;
-  active_only?: boolean;
-  limit?: number;
-  cursor?: string;
-  sort_field?: "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
 }

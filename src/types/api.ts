@@ -2101,6 +2101,7 @@ export type FindShipmentsParams = {
 export type FindFulfillmentOrdersParams = {
   store_id?: string;
   store_location_id?: string;
+  inventory_item_id?: string;
   status?: import("./index").FulfillmentOrderStatus["type"];
   scheduled_from?: EpochMilliseconds;
   scheduled_to?: EpochMilliseconds;

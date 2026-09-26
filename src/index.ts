@@ -30,7 +30,7 @@ export type { CompanyPermission, CompanyRoleStatus, CompanyRole, CompanyRoleUsag
 export type { CompanyLocationEditableStatus, CompanyLocationStatus, CompanyLocation, CreateCompanyLocationParams, GetCompanyLocationParams, UpdateCompanyLocationParams, DeleteCompanyLocationParams, FindCompanyLocationsParams } from "./types/companyLocation";
 export type { CompanyLocationTaxSettings, CompanyLocationCommercePolicy, TaxRegistration, TaxRegistrationStatus, TaxExemption } from "./types/companyLocation";
 export type { InventoryItem, InventoryItemStatus, InventoryItemEditableStatus, InventoryTracking, InventoryPhysical, InventoryCustoms, InventoryDimensions, CreateInventoryItemParams, UpdateInventoryItemParams, GetInventoryItemParams, GetInventoryItemByKeyParams, FindInventoryItemsParams, DeleteInventoryItemParams } from "./types/inventoryItem";
-export type { InventoryLevel, CreateInventoryLevelParams, GetInventoryLevelParams, RemoveInventoryLevelParams, FindInventoryLevelsParams, InventoryMovement, InventoryMovementReason, ManualInventoryMovementReason, RecordInventoryMovementParams, GetInventoryMovementParams, FindInventoryMovementsParams, InventoryReservation, InventoryReservationSource, InventoryReservationStatus, ReservationUnitProgress, CreateManualInventoryReservationParams, ReleaseManualInventoryReservationParams, GetInventoryReservationParams, FindInventoryReservationsParams, UnitSpan } from "./types/inventory";
+export type { InventoryLevel, CreateInventoryLevelParams, GetInventoryLevelParams, RemoveInventoryLevelParams, FindInventoryLevelsParams, ChangeSetAsideParams, MoveInventoryParams, InventoryQuantity, InventoryMovement, InventoryMovementReason, ManualInventoryMovementReason, RecordInventoryMovementParams, GetInventoryMovementParams, FindInventoryMovementsParams, UnitSpan } from "./types/inventory";
 export type * from "./types/inventoryUnit";
 export type * from "./types/return";
 export type * from "./types/fulfillmentUnitSelection";
@@ -1009,7 +1009,6 @@ import { createInventoryLevelApi } from "./api/inventoryLevel";
 import { createInventoryUnitApi } from "./api/inventoryUnit";
 import { createReturnApi } from "./api/return";
 import { createInventoryMovementApi } from "./api/inventoryMovement";
-import { createInventoryReservationApi } from "./api/inventoryReservation";
 import { createShippingProfileApi } from "./api/shippingProfile";
 import { createZoneApi } from "./api/zone";
 import { createMarketZoneApi } from "./api/marketZone";
@@ -1562,7 +1561,6 @@ export function createAdmin(config: CreateAdminConfig) {
       inventoryUnit: createInventoryUnitApi(apiConfig),
       return: createReturnApi(apiConfig),
       inventoryMovement: createInventoryMovementApi(apiConfig),
-      inventoryReservation: createInventoryReservationApi(apiConfig),
       orderCredit: createOrderCreditApi(apiConfig),
       pickup: createPickupApi(apiConfig),
       fulfillmentOrder: createFulfillmentOrderApi(apiConfig),

@@ -6,8 +6,10 @@ import type {
   FindInventoryUnitsParams,
   GetInventoryUnitParams,
   InventoryUnit,
+  MoveInventoryUnitParams,
   ReceiveInventoryUnitParams,
   UnassignInventoryUnitParams,
+  WriteOffInventoryUnitParams,
 } from "../types/inventoryUnit";
 
 export const createInventoryUnitApi = (apiConfig: ApiConfig) => {
@@ -40,6 +42,22 @@ export const createInventoryUnitApi = (apiConfig: ApiConfig) => {
       const { store_id, id, ...payload } = params;
       return apiConfig.httpClient.post<InventoryUnit>(
         `${basePath(store_id)}/${encodeURIComponent(id)}/allocate`,
+        payload,
+        options,
+      );
+    },
+    move(params: MoveInventoryUnitParams, options?: RequestOptions): Promise<InventoryUnit> {
+      const { store_id, id, ...payload } = params;
+      return apiConfig.httpClient.post<InventoryUnit>(
+        `${basePath(store_id)}/${encodeURIComponent(id)}/move`,
+        payload,
+        options,
+      );
+    },
+    writeOff(params: WriteOffInventoryUnitParams, options?: RequestOptions): Promise<InventoryUnit> {
+      const { store_id, id, ...payload } = params;
+      return apiConfig.httpClient.post<InventoryUnit>(
+        `${basePath(store_id)}/${encodeURIComponent(id)}/write-off`,
         payload,
         options,
       );

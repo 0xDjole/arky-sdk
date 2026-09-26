@@ -13,7 +13,7 @@ import type { AcceptedProductMoneyRun, LineMoneySnapshot, ProductMoneyTotals } f
 export type * from "./orderSnapshot";
 export type * from "./orderMoney";
 export type * from "./orderLineItem";
-import type { AcceptedFormSubmission, OrderAccess, OrderLineItemOrigin, OrderProductLocationAllocation } from "./orderLineItem";
+import type { AcceptedFormSubmission, OrderAccess, OrderLineItemOrigin } from "./orderLineItem";
 export type { Price, PriceScope } from "./price";
 export type { Zone, ZoneMatch, ZoneStatus, ZoneEditableStatus } from "./zone";
 export type { ShippingMethod, ShippingRate } from "./shipping";
@@ -760,8 +760,6 @@ export interface OrderProductItem {
   variant_id: string | null;
   quantity: number;
   cancelled_quantity: number;
-  backordered_quantity: number;
-  location_allocations: OrderProductLocationAllocation[];
   form_submission_id: string | null;
   form_submission: AcceptedFormSubmission | null;
   snapshot: OrderProductSnapshot;
@@ -850,6 +848,7 @@ export type FulfillmentOrderLineSource = {
 export interface FulfillmentOrderLine {
   id: string;
   source: FulfillmentOrderLineSource;
+  inventory_requirements: InventoryRequirement[];
   quantity: number;
   fulfilled_quantity: number;
   cancelled_units: FulfillmentUnitSpan[];

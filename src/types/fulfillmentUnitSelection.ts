@@ -19,8 +19,6 @@ export interface FulfillmentUnitSlot {
   fulfillment_unit_index: number;
   inventory_item_id: string;
   inventory_item_key: string;
-  inventory_reservation_id: string;
-  reservation_unit_index: number;
   inventory_unit: InventoryUnit | null;
 }
 
