@@ -83,7 +83,7 @@ function isCheckoutQuote(value: unknown): value is CheckoutQuote {
   if (!record(value) || typeof value.presentation_digest !== "string" ||
     !/^[0-9a-f]{64}$/.test(value.presentation_digest) || !record(value.order)) return false;
   if (value.sources !== null && (!record(value.sources) ||
-    ![value.sources.carts, value.sources.lines, value.sources.delivery_groups].every(Array.isArray))) return false;
+    !record(value.sources.cart) || !Array.isArray(value.sources.converted_lines))) return false;
   const order = value.order;
   return (order.locale === null || (typeof order.locale === "string" && order.locale.length > 0)) &&
     typeof order.presentation_digest === "string" && /^[0-9a-f]{64}$/.test(order.presentation_digest) &&
@@ -125,7 +125,7 @@ export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
     throw new DurableRequestStorageError("Cart Checkout requires an exact Cart UUID and reviewed locale, presentation digest, provider and return URL");
   }
   const sources = checkoutQuoteSources(input.sources);
-  if (sources.carts.length !== 1 || sources.carts[0].cart_id !== input.id) {
+  if (sources.cart.cart_id !== input.id) {
     throw new DurableRequestStorageError("Cart Checkout requires the reviewed source to match this exact Cart");
   }
   return {
@@ -166,22 +166,21 @@ async function submit<Result extends Pick<OrderCheckoutResult, "order_id" | "num
     source === null ||
     source.type !== "cart_acceptance" ||
     source.command_id !== request.request_id ||
-    !Array.isArray(source.carts) || source.carts.length !== 1 ||
-    !record(source.carts[0]) || source.carts[0].cart_id !== request.id ||
-    source.carts[0].version !== request.sources.carts[0].version ||
-    !Array.isArray(source.bindings) ||
-    !sameBindings(source.bindings, request)
+    !record(source.cart) || source.cart.cart_id !== request.id ||
+    source.cart.version !== request.sources.cart.version ||
+    !Array.isArray(source.converted_lines) ||
+    !sameConvertedLines(source.converted_lines, request)
   ) {
     throw new DurableRequestStorageError("Cart Checkout did not confirm its exact accepted Order");
   }
   return { result, success };
 }
 
-function sameBindings(bindings: unknown[], request: CartCheckoutRequest): boolean {
+function sameConvertedLines(convertedLines: unknown[], request: CartCheckoutRequest): boolean {
   try {
-    const actual = checkoutQuoteSources({ ...request.sources, lines: bindings }).lines;
-    if (actual.length !== request.sources.lines.length) return false;
-    const expected = new Map(request.sources.lines.map((line) => [line.cart_line_item.line_item_id, line]));
+    const actual = checkoutQuoteSources({ ...request.sources, converted_lines: convertedLines }).converted_lines;
+    if (actual.length !== request.sources.converted_lines.length) return false;
+    const expected = new Map(request.sources.converted_lines.map((line) => [line.cart_line_item.line_item_id, line]));
     return actual.every((line) => {
       const accepted = expected.get(line.cart_line_item.line_item_id);
       return accepted !== undefined && line.cart_line_item.type === accepted.cart_line_item.type &&

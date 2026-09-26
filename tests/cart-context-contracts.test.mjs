@@ -226,7 +226,7 @@ test("initialize handles a SubscriptionPlan-only Cart through quote and exact re
       checkoutRequestId = call.body.request_id;
       return result;
     }
-    if (call.method === "GET") return { id: orderId, source: { type: "cart_acceptance", command_id: checkoutRequestId, carts: quote().sources.carts, bindings: quote().sources.lines } };
+    if (call.method === "GET") return { id: orderId, source: { type: "cart_acceptance", command_id: checkoutRequestId, cart: quote().sources.cart, converted_lines: quote().sources.converted_lines } };
     return current;
   });
   await assert.rejects(store.eshop.cart.checkout(), /Review a Cart quote/);

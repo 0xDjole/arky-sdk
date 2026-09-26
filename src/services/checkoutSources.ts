@@ -26,46 +26,24 @@ function units(value: unknown): value is { first_unit: number; quantity: number 
 
 export function checkoutQuoteSources(value: unknown): CheckoutQuoteSources {
   const fail = (): never => {
-    throw new DurableRequestStorageError("Cart Checkout requires its exact reviewed Cart versions and line/delivery bindings");
+    throw new DurableRequestStorageError("Cart Checkout requires its exact reviewed Cart version and converted lines");
   };
-  if (!fields(value, ["carts", "lines", "delivery_groups"]) ||
-    !Array.isArray(value.carts) || value.carts.length === 0 || value.carts.length > 100 ||
-    !Array.isArray(value.lines) || value.lines.length === 0 || value.lines.length > 10000 ||
-    !Array.isArray(value.delivery_groups) || value.delivery_groups.length > 100) return fail();
-  const carts = new Set<string>();
-  for (const cart of value.carts) {
-    if (!fields(cart, ["cart_id", "version"]) || !identity(cart.cart_id) ||
-      typeof cart.version !== "string" || !cart.version.length || cart.version.length > 512 ||
-      cart.version.trim() !== cart.version || carts.has(cart.cart_id)) return fail();
-    carts.add(cart.cart_id);
-  }
-  const covered = new Set<string>();
-  const sourceLines = new Set<string>();
-  const targetLines = new Set<string>();
-  for (const line of value.lines) {
-    if (!fields(line, ["cart_id", "cart_line_item", "cart_units", "order_line_item", "order_units"]) ||
-      typeof line.cart_id !== "string" || !carts.has(line.cart_id) ||
+  if (!fields(value, ["cart", "converted_lines"]) ||
+    !fields(value.cart, ["cart_id", "version"]) || !identity(value.cart.cart_id) ||
+    typeof value.cart.version !== "string" || !value.cart.version.length || value.cart.version.length > 512 ||
+    value.cart.version.trim() !== value.cart.version ||
+    !Array.isArray(value.converted_lines) || value.converted_lines.length === 0 || value.converted_lines.length > 10000) return fail();
+  const lines = new Set<string>();
+  for (const line of value.converted_lines) {
+    if (!fields(line, ["cart_line_item", "cart_units", "order_line_item", "order_units"]) ||
       !reference(line.cart_line_item) || !reference(line.order_line_item) ||
-      line.cart_line_item.type !== line.order_line_item.type || !units(line.cart_units) || !units(line.order_units) ||
+      line.cart_line_item.type !== line.order_line_item.type ||
+      line.cart_line_item.line_item_id !== line.order_line_item.line_item_id ||
+      !units(line.cart_units) || !units(line.order_units) ||
       line.cart_units.quantity !== line.order_units.quantity ||
-      (line.cart_line_item.type !== "product" && line.cart_units.quantity !== 1)) return fail();
-    const source = `${line.cart_id}:${line.cart_line_item.line_item_id}`;
-    if (sourceLines.has(source) || targetLines.has(line.order_line_item.line_item_id)) return fail();
-    sourceLines.add(source);
-    targetLines.add(line.order_line_item.line_item_id);
-    covered.add(line.cart_id);
-  }
-  if (covered.size !== carts.size) return fail();
-  const sourceGroups = new Set<string>();
-  const targetGroups = new Set<string>();
-  for (const group of value.delivery_groups) {
-    if (!fields(group, ["cart_id", "cart_delivery_group_id", "delivery_group_id"]) ||
-      typeof group.cart_id !== "string" || !carts.has(group.cart_id) ||
-      !identity(group.cart_delivery_group_id) || !identity(group.delivery_group_id)) return fail();
-    const source = `${group.cart_id}:${group.cart_delivery_group_id}`;
-    if (sourceGroups.has(source) || targetGroups.has(group.delivery_group_id)) return fail();
-    sourceGroups.add(source);
-    targetGroups.add(group.delivery_group_id);
+      (line.cart_line_item.type !== "product" && line.cart_units.quantity !== 1) ||
+      lines.has(line.cart_line_item.line_item_id)) return fail();
+    lines.add(line.cart_line_item.line_item_id);
   }
   const serialized = JSON.stringify(value);
   if (new TextEncoder().encode(serialized).length > 4 * 1024 * 1024) return fail();

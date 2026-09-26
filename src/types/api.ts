@@ -833,7 +833,7 @@ export interface GetOrdersParams {
   store_id?: string;
   customer_id?: string;
   statuses?: ("pending" | "confirmed" | "partially_cancelled" | "cancelled")[];
-  sources?: ("cart_acceptance" | "direct" | "exchange" | "subscription")[];
+  sources?: ("cart_acceptance" | "direct" | "subscription")[];
   product_statuses?: ("pending" | "confirmed" | "cancelled")[];
   booking_statuses?: ("pending" | "confirmed" | "completed" | "no_show" | "cancelled")[];
   product_ids?: string[];

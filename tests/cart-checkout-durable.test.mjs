@@ -41,7 +41,7 @@ function storefront() {
 function acceptedOrder(source = {}, overrides = {}) {
   return {
     id: orderId,
-    source: { type: "cart_acceptance", command_id: requestId, carts: request.sources.carts, bindings: request.sources.lines, ...source },
+    source: { type: "cart_acceptance", command_id: requestId, cart: request.sources.cart, converted_lines: request.sources.converted_lines, ...source },
     ...overrides,
   };
 }
@@ -156,16 +156,17 @@ test("Cart checkout persists before POST and explicitly recovers the exact reque
 test("missing, malformed or foreign quote sources fail before persisting or posting acceptance", async () => {
   const originalSources = request.sources;
   const mutations = [
-    undefined, null, { ...originalSources, lines: [] },
-    { ...originalSources, carts: [{ cart_id: cartId, version: "" }] },
+    undefined, null, { ...originalSources, converted_lines: [] },
+    { ...originalSources, cart: { cart_id: cartId, version: "" } },
     checkoutSources(otherId),
-    { ...originalSources, lines: [originalSources.lines[0], originalSources.lines[0]] },
-    { ...originalSources, lines: [{ ...originalSources.lines[0], order_units: { first_unit: 0, quantity: 2 } }] },
-    { ...originalSources, lines: [{ ...originalSources.lines[0], order_line_item: { type: "booking", line_item_id: otherId } }] },
-    { ...originalSources, lines: [{ ...originalSources.lines[0], cart_units: { first_unit: 1, quantity: 1 } }] },
+    { ...originalSources, converted_lines: [originalSources.converted_lines[0], originalSources.converted_lines[0]] },
+    { ...originalSources, converted_lines: [{ ...originalSources.converted_lines[0], order_units: { first_unit: 0, quantity: 2 } }] },
+    { ...originalSources, converted_lines: [{ ...originalSources.converted_lines[0], order_line_item: { type: "booking", line_item_id: otherId } }] },
+    { ...originalSources, converted_lines: [{ ...originalSources.converted_lines[0], order_line_item: { type: "product", line_item_id: otherId } }] },
+    { ...originalSources, converted_lines: [{ ...originalSources.converted_lines[0], cart_units: { first_unit: 1, quantity: 1 } }] },
     { ...originalSources, amount: 0 },
-    { ...originalSources, carts: [{ ...originalSources.carts[0], version: "x".repeat(513) }] },
-    { ...originalSources, delivery_groups: [{ cart_id: otherId, cart_delivery_group_id: otherId, delivery_group_id: otherId }] },
+    { ...originalSources, cart: { ...originalSources.cart, version: "x".repeat(513) } },
+    { ...originalSources, delivery_groups: [] },
   ];
   for (const sources of mutations) {
     const { storage } = browser();
@@ -176,17 +177,15 @@ test("missing, malformed or foreign quote sources fail before persisting or post
   }
 });
 
-test("reviewed delivery bindings survive ambiguity and cannot change during recovery", async () => {
+test("reviewed converted lines survive ambiguity and cannot change during recovery", async () => {
   browser();
-  const sources = {
-    ...request.sources,
-    delivery_groups: [{ cart_id: cartId, cart_delivery_group_id: otherId, delivery_group_id: otherId }],
-  };
+  const lineId = request.sources.converted_lines[0].cart_line_item.line_item_id;
+  const sources = checkoutSources(cartId, "product", lineId, 2);
   const input = { ...request, sources };
   const first = capture(() => { throw new TypeError("response lost"); });
   await assert.rejects(storefront().eshop.cart.checkout(input), /response lost/);
   const calls = capture(success);
-  const changed = { ...sources, delivery_groups: [{ ...sources.delivery_groups[0], delivery_group_id: providerId }] };
+  const changed = checkoutSources(cartId, "product", lineId, 3);
   await assert.rejects(storefront().eshop.cart.checkout({ ...input, sources: changed }), /different unresolved payload/);
   assert.equal(calls.length, 0);
   assert.deepEqual(await storefront().eshop.cart.recoverCheckout(), result());
@@ -200,7 +199,7 @@ test("every changed checkout field stays blocked after ambiguity without another
   const calls = capture(success);
   for (const change of [
     { id: otherId, sources: checkoutSources(otherId) }, { locale: "bs" }, { presentation_digest: "b".repeat(64) },
-    { sources: { ...request.sources, carts: [{ cart_id: cartId, version: "another-version" }] } },
+    { sources: { ...request.sources, cart: { cart_id: cartId, version: "another-version" } } },
     { sources: checkoutSources(cartId, "product", otherId) },
     { payment_provider_id: otherId }, { payment_provider_id: undefined },
     { return_url: "https://merchant.example.test/another" }, { return_url: undefined },
@@ -270,15 +269,15 @@ test("success followed by failed or mismatched accepted Order evidence stays pen
     () => { throw new TypeError("read lost"); },
     () => Response.json(acceptedOrder({}, { id: otherId })),
     () => Response.json(acceptedOrder({ command_id: otherId })),
-    () => Response.json(acceptedOrder({ carts: [{ cart_id: otherId, version: "reviewed-version" }] })),
-    () => Response.json(acceptedOrder({ carts: [] })),
-    () => Response.json(acceptedOrder({ carts: [{ cart_id: cartId, version: "" }] })),
-    () => Response.json(acceptedOrder({ carts: [{ cart_id: cartId, version: "another-version" }] })),
+    () => Response.json(acceptedOrder({ cart: { cart_id: otherId, version: "reviewed-version" } })),
+    () => Response.json(acceptedOrder({ cart: null })),
+    () => Response.json(acceptedOrder({ cart: { cart_id: cartId, version: "" } })),
+    () => Response.json(acceptedOrder({ cart: { cart_id: cartId, version: "another-version" } })),
     () => Response.json(acceptedOrder({}, { source: { type: "direct", request_id: requestId } })),
     () => Response.json(acceptedOrder({}, { source: null })),
-    () => Response.json(acceptedOrder({ bindings: [] })),
-    () => Response.json(acceptedOrder({ bindings: checkoutSources(cartId, "product", otherId).lines })),
-    () => Response.json(acceptedOrder({ bindings: checkoutSources(cartId, "product", request.sources.lines[0].cart_line_item.line_item_id, 2).lines })),
+    () => Response.json(acceptedOrder({ converted_lines: [] })),
+    () => Response.json(acceptedOrder({ converted_lines: checkoutSources(cartId, "product", otherId).converted_lines })),
+    () => Response.json(acceptedOrder({ converted_lines: checkoutSources(cartId, "product", request.sources.converted_lines[0].cart_line_item.line_item_id, 2).converted_lines })),
   ]) {
     const { storage } = browser();
     let notified = 0;
@@ -445,7 +444,7 @@ test("pending current Cart reads the original identity and blocks ordinary Cart 
 test("presentation conflicts expose the quote without silently replacing the locked request", async () => {
   const { storage } = browser();
   const quote = {
-    sources: { carts: [{ cart_id: cartId, version: "reviewed-version" }], lines: [], delivery_groups: [] },
+    sources: { cart: { cart_id: cartId, version: "reviewed-version" }, converted_lines: [] },
     order: { locale: "en", presentation_digest: "c".repeat(64), context: {}, money: {}, product_lines: [], booking_lines: [], digital_lines: [], subscription_lines: [], delivery_groups: [], payment_provider_ids: [] },
     presentation_digest: "b".repeat(64),
   };

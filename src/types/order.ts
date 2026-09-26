@@ -15,7 +15,7 @@ import type {
   OrderProductItem,
 } from "./index";
 import type { EpochMilliseconds } from "./time";
-import type { CheckoutCartVersion, CheckoutLineBinding } from "./checkout";
+import type { CheckoutCartVersion, ConvertedCartLine } from "./checkout";
 import type { OrderLineItemOrigin } from "./orderLineItem";
 import type { LineMoneySnapshot } from "./orderMoney";
 import type { OrderProductSnapshot } from "./orderSnapshot";
@@ -38,11 +38,10 @@ export type OrderSource =
   | {
       type: "cart_acceptance";
       command_id: string;
-      carts: CheckoutCartVersion[];
-      bindings: CheckoutLineBinding[];
+      cart: CheckoutCartVersion;
+      converted_lines: ConvertedCartLine[];
     }
   | { type: "direct"; request_id: string }
-  | { type: "exchange"; exchange_id: string }
   | { type: "subscription"; order_subscription_line_item_id: string };
 
 export type OrderSourceFilter = OrderSource["type"];

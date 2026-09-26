@@ -16,24 +16,16 @@ export interface CheckoutCartVersion {
   version: string;
 }
 
-export interface CheckoutLineBinding {
-  cart_id: string;
+export interface ConvertedCartLine {
   cart_line_item: CartLineItemRef;
   cart_units: UnitSpan;
   order_line_item: OrderLineItemRef;
   order_units: UnitSpan;
 }
 
-export interface CheckoutQuoteDeliveryBinding {
-  cart_id: string;
-  cart_delivery_group_id: string;
-  delivery_group_id: string;
-}
-
 export interface CheckoutQuoteSources {
-  carts: CheckoutCartVersion[];
-  lines: CheckoutLineBinding[];
-  delivery_groups: CheckoutQuoteDeliveryBinding[];
+  cart: CheckoutCartVersion;
+  converted_lines: ConvertedCartLine[];
 }
 
 export interface CheckoutQuote {

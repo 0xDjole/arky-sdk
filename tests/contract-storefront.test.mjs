@@ -97,8 +97,8 @@ function acceptedOrder(requestId, orderId = orderContractId) {
     source: {
       type: "cart_acceptance",
       command_id: requestId,
-      carts: checkoutSources(contractCartId).carts,
-      bindings: checkoutSources(contractCartId).lines,
+      cart: checkoutSources(contractCartId).cart,
+      converted_lines: checkoutSources(contractCartId).converted_lines,
     },
   };
 }

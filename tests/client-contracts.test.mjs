@@ -752,7 +752,7 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
     };
     calls.push(call);
     if (call.url.endsWith("/carts/accept")) return jsonResponse(checkout);
-    if (call.url.endsWith(`/orders/${orderId}`)) return jsonResponse({ id: orderId, source: { type: "cart_acceptance", command_id: checkoutRequestId, carts: quote.sources.carts, bindings: quote.sources.lines } });
+    if (call.url.endsWith(`/orders/${orderId}`)) return jsonResponse({ id: orderId, source: { type: "cart_acceptance", command_id: checkoutRequestId, cart: quote.sources.cart, converted_lines: quote.sources.converted_lines } });
     if (call.url.endsWith("/quote")) return jsonResponse(quote);
     return jsonResponse(cart);
   };

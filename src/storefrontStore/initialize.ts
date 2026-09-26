@@ -969,7 +969,7 @@ function initializeStoreCore(
       if (!quoteValue) throw new Error("Review a Cart quote before checkout");
       const current = cart.get();
       if (!current || current.status.type === "converted") throw new Error("Review an active Cart before checkout");
-      if (!quoteValue.sources) throw new Error("Review a saved Cart quote with its source bindings before checkout");
+      if (!quoteValue.sources) throw new Error("Review a saved Cart quote with its converted lines before checkout");
       const paymentProviderId = input.payment_provider_id ?? quoteValue.order.payment_provider_id ?? undefined;
       if (paymentProviderId !== undefined && !quoteValue.order.payment_provider_ids.includes(paymentProviderId))
         throw new Error("The selected payment provider is not available in the reviewed Cart quote");

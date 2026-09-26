@@ -176,7 +176,7 @@ export interface OrderMoney {
 }
 
 export type * from "./quote";
-export type { CheckoutQuote, CheckoutQuoteSources, CheckoutQuoteDeliveryBinding } from "./checkout";
+export type { CheckoutQuote, CheckoutQuoteSources } from "./checkout";
 
 /** Shared postal-address value used across Store and commerce resources. */
 export interface PostalAddress {

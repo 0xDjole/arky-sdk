@@ -114,7 +114,6 @@ export type {
   StorefrontCheckoutQuote,
   CheckoutQuote,
   CheckoutQuoteSources,
-  CheckoutQuoteDeliveryBinding,
   StorefrontLocation,
   StorefrontSupportConversationResponse,
   StorefrontSupportConversationStartResponse,

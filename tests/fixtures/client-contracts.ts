@@ -643,7 +643,7 @@ const checkoutContract: CheckoutCartParams = {
   id: "cart-contract",
   locale: "en",
   presentation_digest: "a".repeat(64),
-  sources: { carts: [{ cart_id: "cart-contract", version: "reviewed-version" }], lines: [], delivery_groups: [] },
+  sources: { cart: { cart_id: "cart-contract", version: "reviewed-version" }, converted_lines: [] },
   payment_provider_id: stripeProvider.id,
   return_url: "https://storefront.example.test/checkout/return",
 };

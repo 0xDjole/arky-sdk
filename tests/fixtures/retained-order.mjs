@@ -70,9 +70,8 @@ export const retainedOrder = {
   source: {
     type: "cart_acceptance",
     command_id: "accepted-command",
-    carts: [{ cart_id: "accepted-cart", version: "accepted-cart-version" }],
-    bindings: [{
-      cart_id: "accepted-cart",
+    cart: { cart_id: "accepted-cart", version: "accepted-cart-version" },
+    converted_lines: [{
       cart_line_item: { type: "product", line_item_id: "cart-product-line" },
       cart_units: { first_unit: 0, quantity: 1 },
       order_line_item: { type: "product", line_item_id: "product-item" },
