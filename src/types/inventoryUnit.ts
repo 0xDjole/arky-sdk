@@ -7,15 +7,11 @@ export interface InventoryUnitAllocation {
   fulfillment_unit_index: number;
 }
 
-export type InventoryUnitExecutionSource =
-  | { type: "shipment"; shipment_id: string }
-  | { type: "pickup"; pickup_id: string };
-
 export interface InventoryUnitExecution {
   fulfillment_order_id: string;
   fulfillment_order_line_id: string;
   fulfillment_unit_index: number;
-  source: InventoryUnitExecutionSource;
+  fulfillment_id: string;
   executed_at: EpochMilliseconds;
 }
 

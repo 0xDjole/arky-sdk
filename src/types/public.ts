@@ -90,4 +90,5 @@ export type * from "./subscriptionRevision";
 export type * from "./rental";
 export type { CustomerGroupEmailConsent, CustomerGroupEmailConsentStatus, CustomerGroupConsentEvent, CustomerGroupConsentEventType, CustomerGroupConsentSource, CustomerGroupConfirmationHistoryEntry, FindCustomerGroupEmailConsentsParams, FindCustomerGroupEmailConsentHistoryParams } from "./customerGroupEmailConsent";
 export type { SubscribeStorefrontCustomerGroupEmailsParams, GetStorefrontCustomerGroupEmailConsentParams, ResendStorefrontCustomerGroupConfirmationParams } from "./customerGroupEmailConsent";
-export type { Pickup, PickupLine, PickupStatus, PickupCommand, CreatePickupParams, ExecutePickupParams, FindPickupsParams, GetPickupParams } from "./pickup";
+
+export type * from "./fulfillment";

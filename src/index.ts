@@ -364,7 +364,6 @@ export type {
   NodeResult,
   Event,
   EventAction,
-  ShipmentStatus,
   ShippingRateLine,
   FulfillmentOrderStatus,
   FulfillmentOrderRef,
@@ -384,10 +383,7 @@ export type {
   FulfillmentCompanyRecipient,
   FulfillmentWindow,
   FulfillmentExecution,
-  ShipmentLine,
   SelectedUnit,
-  Shipment,
-  CreateShipmentResponse,
   Tracking,
   GeoLocationBlock,
   BookingService,
@@ -678,15 +674,10 @@ export type {
   UpdateEntryParams,
   GetEntryParams,
   DeleteEntryParams,
-  FindShipmentsParams,
   FindFulfillmentOrdersParams,
   GetFulfillmentOrderParams,
   AddFulfillmentHoldParams,
   ReleaseFulfillmentHoldParams,
-  GetShipmentParams,
-  CreateShipmentParams,
-  DispatchShipmentParams,
-  CancelShipmentParams,
   FindPaymentDisputesParams,
   GetPaymentDisputeParams,
   SelectStoreSubscriptionParams,
@@ -1015,7 +1006,7 @@ import { createMarketZoneApi } from "./api/marketZone";
 import { createTaxCategoryApi } from "./api/taxCategory";
 import { createPaymentTermsApi } from "./api/paymentTerms";
 import { createOrderCreditApi } from "./api/orderCredit";
-import { createPickupApi } from "./api/pickup";
+import { createFulfillmentApi } from "./api/fulfillment";
 import { createFulfillmentOrderApi } from "./api/fulfillmentOrder";
 import { createRentalApi } from "./api/rental";
 import { createPaymentMethodApi } from "./api/paymentMethod";
@@ -1060,7 +1051,6 @@ import { createLeadResearchApi } from "./api/leadResearch";
 import { createSocialApi } from "./api/social";
 import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
-import { createShippingApi } from "./api/shipping";
 import { createPaymentOptionApi } from "./api/paymentOption";
 import { createPaymentApi } from "./api/payment";
 import { createRefundApi } from "./api/refund";
@@ -1332,7 +1322,6 @@ export function createAdmin(config: CreateAdminConfig) {
   const paymentApi = createPaymentApi(apiConfig);
   const refundApi = createRefundApi(apiConfig);
   const paymentDisputeApi = createPaymentDisputeApi(apiConfig);
-  const shippingApi = createShippingApi(apiConfig);
   const locationApi = createLocationApi(apiConfig);
   const marketApi = createMarketApi(apiConfig);
   const workflowApi = createWorkflowApi(apiConfig);
@@ -1562,7 +1551,7 @@ export function createAdmin(config: CreateAdminConfig) {
       return: createReturnApi(apiConfig),
       inventoryMovement: createInventoryMovementApi(apiConfig),
       orderCredit: createOrderCreditApi(apiConfig),
-      pickup: createPickupApi(apiConfig),
+      fulfillment: createFulfillmentApi(apiConfig),
       fulfillmentOrder: createFulfillmentOrderApi(apiConfig),
       rental: createRentalApi(apiConfig),
       checkout: createCheckoutApi(apiConfig),
@@ -1581,13 +1570,6 @@ export function createAdmin(config: CreateAdminConfig) {
         findPayments: eshopApi.findOrderPayments,
         find: eshopApi.getOrders,
         getQuote: eshopApi.getQuote,
-      },
-      shipment: {
-        create: shippingApi.createShipment,
-        get: shippingApi.getShipment,
-        find: shippingApi.findShipments,
-        dispatch: shippingApi.dispatchShipment,
-        cancel: shippingApi.cancelShipment,
       },
       cart: {
         create: eshopApi.createCart,
@@ -2356,4 +2338,5 @@ export type { GetShippingMethodByKeyParams } from "./types/shipping";
 export type { SubscriptionSelf, SubscriptionSelfStatus } from "./types/subscription";
 export type { JoinStorefrontCustomerGroupParams, GetStorefrontCustomerGroupMemberParams } from "./types/customerGroupMember";
 export type { SubscribeStorefrontCustomerGroupEmailsParams, GetStorefrontCustomerGroupEmailConsentParams, ResendStorefrontCustomerGroupConfirmationParams } from "./types/customerGroupEmailConsent";
-export type { Pickup, PickupLine, PickupStatus, PickupCommand, CreatePickupParams, ExecutePickupParams, FindPickupsParams, GetPickupParams } from "./types/pickup";
+
+export type * from "./types/fulfillment";

@@ -16,7 +16,6 @@ import type {
   WebhookStatus,
   ShippingRateLine,
   Tracking,
-  ShipmentLine,
   ClassificationEntry,
   ClassificationQuery,
   BookingServiceStatus,
@@ -2088,16 +2087,6 @@ export interface DeleteWebhookParams {
   id: string;
 }
 
-export type FindShipmentsParams = {
-  store_id?: string;
-  limit?: number;
-  cursor?: string;
-} & (
-  | { order_id: string; fulfillment_order_id?: never; rental_id?: never }
-  | { fulfillment_order_id: string; order_id?: never; rental_id?: never }
-  | { rental_id: string; order_id?: never; fulfillment_order_id?: never }
-);
-
 export type FindFulfillmentOrdersParams = {
   store_id?: string;
   store_location_id?: string;
@@ -2133,32 +2122,6 @@ export interface ReleaseFulfillmentHoldParams {
 export interface GetFulfillmentOrderParams {
   store_id?: string;
   fulfillment_order_id: string;
-}
-
-export interface GetShipmentParams {
-  store_id?: string;
-  shipment_id: string;
-}
-
-export interface CreateShipmentParams {
-  store_id?: string;
-  shipment_id: string;
-  origin_store_location_id: string;
-  fulfillment_order_id: string;
-  lines: ShipmentLine[];
-}
-
-export interface DispatchShipmentParams {
-  store_id?: string;
-  shipment_id: string;
-  command_id: string;
-  expected_updated_at: EpochMilliseconds;
-  late_reason: string | null;
-  tracking: Tracking | null;
-}
-
-export interface CancelShipmentParams extends GetShipmentParams {
-  expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindCustomerSessionsParams {

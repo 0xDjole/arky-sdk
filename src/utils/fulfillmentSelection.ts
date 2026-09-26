@@ -1,6 +1,6 @@
-import type { FulfillmentOrder, FulfillmentOrderLine, FulfillmentUnitSpan, Shipment, ShipmentLine } from "../types";
+import type { FulfillmentOrder, FulfillmentOrderLine, FulfillmentUnitSpan } from "../types";
 import type { UnitSpan } from "../types/orderContract";
-import type { Pickup, PickupLine } from "../types/pickup";
+import type { Fulfillment, FulfillmentLine } from "../types/fulfillment";
 import { FulfillmentSelectionError } from "../types/fulfillmentSelection";
 
 function checked(spans: UnitSpan[]): UnitSpan[] {
@@ -109,33 +109,14 @@ function assignedUnits(line: FulfillmentOrderLine): UnitSpan[] {
   }
 }
 
-export function selectShipmentUnits(
+export function selectFulfillmentUnits(
   work: FulfillmentOrder,
   lineId: string,
   quantity: number,
-  shipments: Shipment[],
-): ShipmentLine {
-  return selectFulfillmentUnits(work, lineId, quantity, shipments, "delivery");
-}
-
-export function selectPickupUnits(
-  work: FulfillmentOrder,
-  lineId: string,
-  quantity: number,
-  pickups: Pickup[],
-): PickupLine {
-  return selectFulfillmentUnits(work, lineId, quantity, pickups, "pickup");
-}
-
-function selectFulfillmentUnits(
-  work: FulfillmentOrder,
-  lineId: string,
-  quantity: number,
-  history: (Shipment | Pickup)[],
-  method: "delivery" | "pickup",
-): ShipmentLine {
-  if (work.method.type !== method || ["completed", "cancelled"].includes(work.status.type)) {
-    throw new FulfillmentSelectionError(`Select open ${method} work.`);
+  history: Fulfillment[],
+): FulfillmentLine {
+  if (!["open", "in_progress"].includes(work.status.type)) {
+    throw new FulfillmentSelectionError("Select released fulfillment work.");
   }
   const line = work.lines.find((value) => value.id === lineId);
   if (!line || !Number.isInteger(quantity) || quantity < 1 || quantity > 4294967295) {
@@ -156,39 +137,33 @@ function selectFulfillmentUnits(
   orderUnits(assigned, active);
   const dispatched: FulfillmentUnitSpan[] = [];
   const prepared: FulfillmentUnitSpan[] = [];
-  for (const shipment of history) {
-    const isShipment = "dispatch" in shipment;
-    if (isShipment !== (method === "delivery")) {
-      throw new FulfillmentSelectionError("History does not match the selected delivery method.");
-    }
-    const execution = isShipment ? shipment.dispatch : shipment.collection;
-    if (shipment.store_id !== work.store_id) {
+  for (const fulfillment of history) {
+    const execution = fulfillment.status.type === "fulfilled" ? fulfillment.status.execution : null;
+    if (fulfillment.store_id !== work.store_id) {
       throw new FulfillmentSelectionError("Physical history belongs to another Store.");
     }
-    if (shipment.fulfillment_order_id !== work.id) continue;
-    if (!execution && shipment.status.type === "cancelled") continue;
-    const preparing = isShipment ? ["pending", "label_created"] : ["preparing", "ready"];
-    if (!execution && !preparing.includes(shipment.status.type)) {
-      throw new FulfillmentSelectionError("Unexecuted shipment has inconsistent preparation status.");
+    if (fulfillment.fulfillment_order_id !== work.id) continue;
+    if (!execution && fulfillment.status.type === "cancelled") continue;
+    const preparing = ["preparing", "ready"];
+    if (!execution && !preparing.includes(fulfillment.status.type)) {
+      throw new FulfillmentSelectionError("Unexecuted fulfillment has inconsistent preparation status.");
     }
-    for (const item of shipment.lines) {
+    for (const item of fulfillment.lines) {
       if (item.fulfillment_order_line_id !== line.id) continue;
       const units = canonical(item.unit_spans);
       if (count(units) === 0) {
-        throw new FulfillmentSelectionError("Shipment history requires a nonempty work selection.");
+        throw new FulfillmentSelectionError("Fulfillment history requires a nonempty work selection.");
       }
       (execution ? dispatched : prepared).push(...units);
     }
   }
   const handedOver = checked(dispatched);
   if (count(handedOver) !== line.fulfilled_quantity || count(subtract(handedOver, active))) {
-    throw new FulfillmentSelectionError(method === "pickup"
-      ? "Load or refresh pickup history until all collected units are visible."
-      : "Load or refresh shipment history until all dispatched units are visible.");
+    throw new FulfillmentSelectionError("Load or refresh fulfillment history until all fulfilled units are visible.");
   }
   const occupied = checked([...handedOver, ...prepared]);
   if (count(subtract(occupied, active))) {
-    throw new FulfillmentSelectionError("Prepared shipment no longer fits the remaining assignment.");
+    throw new FulfillmentSelectionError("Prepared fulfillment no longer fits the remaining assignment.");
   }
   const available = subtract(active, occupied);
   if (count(available) < quantity) throw new FulfillmentSelectionError("The selected quantity exceeds remaining assigned units.");
@@ -201,5 +176,5 @@ function selectFulfillmentUnits(
     if (!remaining) break;
   }
   orderUnits(assigned, selected);
-  return { fulfillment_order_line_id: line.id, unit_spans: selected, selected_units: [] };
+  return { fulfillment_order_line_id: line.id, unit_spans: selected, selected_units: [], lot_reference: null };
 }

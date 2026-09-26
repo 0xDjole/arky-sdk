@@ -1086,12 +1086,12 @@ export type WebhookEventSubscription =
   | { type: "order_digital_item.updated" }
   | { type: "order_digital_item.confirmed" }
   | { type: "order_digital_item.cancelled" }
-  | { type: "shipment.created" }
-  | { type: "shipment.status_changed" }
-  | { type: "pickup.created" }
-  | { type: "pickup.ready" }
-  | { type: "pickup.collected" }
-  | { type: "pickup.cancelled" }
+  | { type: "fulfillment.delivered" }
+  | { type: "fulfillment.tracking_updated" }
+  | { type: "fulfillment.created" }
+  | { type: "fulfillment.ready" }
+  | { type: "fulfillment.fulfilled" }
+  | { type: "fulfillment.cancelled" }
   | { type: "fulfillment_order.created" }
   | { type: "fulfillment_order.opened" }
   | { type: "fulfillment_order.held" }
@@ -2869,11 +2869,8 @@ export type EventAction =
   | { action: "order_booking_item_cancelled" }
   | { action: "order_booking_item_reminder_due" }
   | { action: "order_booking_item_reminder" }
-  | { action: "shipment_created"; data: { shipment_id: string } }
-  | {
-      action: "shipment_status_changed";
-      data: { shipment_id: string; from: string; to: string };
-    }
+  | { action: "fulfillment_created" | "fulfillment_ready" | "fulfillment_fulfilled" | "fulfillment_cancelled"; data: import("./fulfillment").Fulfillment }
+  | { action: "fulfillment_delivered" | "fulfillment_tracking_updated"; data: { fulfillment: import("./fulfillment").Fulfillment; actor: AccountActor } }
   | { action: "product_created" }
   | { action: "product_updated" }
   | { action: "product_deleted" }
@@ -2922,8 +2919,6 @@ export interface Event {
   created_at: EpochMilliseconds;
 }
 
-export type ShipmentStatus = { type: "pending" | "dispatched" | "cancelled" };
-
 export interface Tracking {
   carrier: string;
   number: string;
@@ -2933,12 +2928,6 @@ export interface Tracking {
 export interface ShippingRateLine {
   order_product_item_id: string;
   quantity: number;
-}
-
-export interface ShipmentLine {
-  fulfillment_order_line_id: string;
-  unit_spans: FulfillmentUnitSpan[];
-  selected_units: SelectedUnit[];
 }
 
 export interface SelectedUnit {
@@ -2951,22 +2940,3 @@ export interface FulfillmentExecution {
   executed_at: EpochMilliseconds;
   actor: AccountActor;
 }
-
-export interface Shipment {
-  id: string;
-  store_id: string;
-  fulfillment_order_id: string;
-  origin_store_location_id: string;
-  lines: ShipmentLine[];
-  status: ShipmentStatus;
-  tracking: Tracking | null;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-  dispatch: FulfillmentExecution | null;
-}
-
-export interface CreateShipmentResponse {
-  shipment_id: string;
-  shipment: Shipment;
-}
-
