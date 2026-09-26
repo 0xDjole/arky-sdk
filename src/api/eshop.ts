@@ -15,7 +15,7 @@ import type {
   DeleteBookingServiceParams,
   DeleteBookingOfferingParams,
   FindBookingOfferingsParams,
-  GetBookingOfferingByBindingParams,
+  LookupBookingOfferingParams,
   GetBookingResourceParams,
   GetBookingResourceByKeyParams,
   GetProductParams,
@@ -341,13 +341,13 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    getBookingOfferingByBinding(
-      params: GetBookingOfferingByBindingParams,
+    lookupBookingOffering(
+      params: LookupBookingOfferingParams,
       options?: RequestOptions,
     ): Promise<BookingOffering> {
       const { store_id, ...query } = params;
       return apiConfig.httpClient.get<BookingOffering>(
-        `/v1/stores/${encodeURIComponent(store_id || apiConfig.storeId)}/booking-offerings/by-binding`,
+        `/v1/stores/${encodeURIComponent(store_id || apiConfig.storeId)}/booking-offerings/lookup`,
         { ...options, params: query },
       );
     },

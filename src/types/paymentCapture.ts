@@ -8,7 +8,7 @@ export type MonriCaptureProof =
   | { type: "original_response"; claim: ProviderOperationClaim; response_code: string; transaction_created_at: EpochMilliseconds; currency: Currency | null };
 
 export type PaymentCaptureEvidence =
-  | { type: "monri"; payment_provider_id: string; environment: MonriEnvironment; transaction_id: string; proof: MonriCaptureProof }
+  | { type: "monri"; payment_option_id: string; environment: MonriEnvironment; transaction_id: string; proof: MonriCaptureProof }
   | { type: "cash_on_delivery"; marked_paid_by_account_id: string }
   | { type: "manual"; marked_paid_by_account_id: string; reference: string | null }
   | { type: "stripe"; connected_account_id: string; livemode: boolean; charge_id: string; payment_intent_id: string | null; last_observation: CommerceProviderObservation };
@@ -28,10 +28,10 @@ export type PaymentCaptureStatus =
   | { type: "rejected" | "failed"; error: ProviderEffectError; completed_at: EpochMilliseconds }
   | { type: "unknown"; claim: ProviderOperationClaim | null; error: ProviderEffectError; retry_at: EpochMilliseconds };
 
-export interface OrderPaymentCapture {
+export interface PaymentCapture {
   id: string;
   store_id: string;
-  order_payment_id: string;
+  payment_id: string;
   money: Money;
   status: PaymentCaptureStatus;
   operation_id: string;
@@ -42,7 +42,7 @@ export interface OrderPaymentCapture {
 }
 
 export interface RecordedCollection {
-  capture: OrderPaymentCapture;
+  capture: PaymentCapture;
   payment: Payment;
   financial_summary: OrderFinancialSummary;
 }
@@ -62,7 +62,7 @@ export interface CreateManualPaymentParams {
   store_id?: string;
   id: string;
   order_id: string;
-  payment_provider_id: string;
+  payment_option_id: string;
   money: Money;
   reference: string | null;
 }

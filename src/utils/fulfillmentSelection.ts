@@ -205,5 +205,5 @@ function selectFulfillmentUnits(
     if (!remaining) break;
   }
   orderUnits(assigned, selected);
-  return { fulfillment_order_line_id: line.id, unit_spans: selected, unit_bindings: [] };
+  return { fulfillment_order_line_id: line.id, unit_spans: selected, selected_units: [] };
 }

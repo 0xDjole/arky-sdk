@@ -78,7 +78,7 @@ test("calendar and funding changes review first and accept only the reviewed dig
       expected_next_occurrence_index: 3,
       first_occurrence: 3,
       end: { type: "from_here_onward" },
-      customer_payment_method_id: methodId,
+      payment_method_id: methodId,
       reason: "Customer replaced the saved card",
     };
     const timeline_digest = `v1:sha256:${"a".repeat(64)}`;

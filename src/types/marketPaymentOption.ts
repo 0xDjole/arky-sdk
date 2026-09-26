@@ -1,34 +1,34 @@
 import type { EpochMilliseconds } from "./time";
 
-export type MarketPaymentProviderStatus =
+export type MarketPaymentOptionStatus =
   | { type: "active" }
   | { type: "deleting" };
 
-export interface MarketPaymentProvider {
+export interface MarketPaymentOption {
   id: string;
   store_id: string;
   market_id: string;
-  payment_provider_id: string;
-  status: MarketPaymentProviderStatus;
+  payment_option_id: string;
+  status: MarketPaymentOptionStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export interface CreateMarketPaymentProviderParams {
+export interface CreateMarketPaymentOptionParams {
   store_id?: string;
   market_id: string;
-  payment_provider_id: string;
+  payment_option_id: string;
 }
 
-export interface GetMarketPaymentProviderParams {
+export interface GetMarketPaymentOptionParams {
   store_id?: string;
   id: string;
 }
 
-export interface FindMarketPaymentProvidersParams {
+export interface FindMarketPaymentOptionsParams {
   store_id?: string;
   market_id?: string;
-  payment_provider_id?: string;
+  payment_option_id?: string;
   status?: "active" | "deleting";
   sort_field?: "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
@@ -36,13 +36,13 @@ export interface FindMarketPaymentProvidersParams {
   cursor?: string;
 }
 
-export interface GetMarketPaymentProviderByBindingParams {
+export interface LookupMarketPaymentOptionParams {
   store_id?: string;
   market_id: string;
-  payment_provider_id: string;
+  payment_option_id: string;
 }
 
-export interface RemoveMarketPaymentProviderParams {
+export interface RemoveMarketPaymentOptionParams {
   store_id?: string;
   id: string;
   expected_updated_at: EpochMilliseconds;

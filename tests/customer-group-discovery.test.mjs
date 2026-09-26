@@ -145,7 +145,7 @@ test("group and member transport preserves combined predicates, empty continuati
     const members = { store_id: store, customer_group_id: groupId, customer_id: customerId, admission: "requested", limit: 20 };
     assert.deepEqual(await admin.eshop.customerGroupMember.find(members), { items: [], cursor });
     assert.deepEqual(await admin.eshop.customerGroupMember.find({ ...members, cursor }), { items: [member], cursor: null });
-    assert.deepEqual(await admin.eshop.customerGroupMember.getByBinding({ store_id: store, customer_group_id: groupId, customer_id: customerId }), member);
+    assert.deepEqual(await admin.eshop.customerGroupMember.lookup({ store_id: store, customer_group_id: groupId, customer_id: customerId }), member);
     assert.deepEqual(await admin.eshop.customerGroupMember.execute(command), accepted);
     assert.deepEqual(await admin.eshop.customerGroupMember.current({ store_id: store, customer_group_id: groupId }), self);
     assert.deepEqual(await admin.eshop.customerGroupMember.join({ store_id: store, command_id: command.command_id, request: { customer_group_id: groupId, scope: { type: "customer" }, expected_updated_at: null } }), joined);
@@ -153,7 +153,7 @@ test("group and member transport preserves combined predicates, empty continuati
     assert.deepEqual(Object.fromEntries(calls[1].url.searchParams), { key: group.key, status: "active", limit: "20", cursor });
     assert.deepEqual(Object.fromEntries(calls[4].url.searchParams), { customer_group_id: groupId, customer_id: customerId, admission: "requested", limit: "20", cursor });
     assert.equal(calls[2].url.pathname, `/v1/stores/${store}/customer-groups/by-key/members`);
-    assert.equal(calls[5].url.pathname, `/v1/stores/${store}/customer-group-members/by-binding`);
+    assert.equal(calls[5].url.pathname, `/v1/stores/${store}/customer-group-members/lookup`);
     assert.deepEqual(Object.fromEntries(calls[5].url.searchParams), { customer_group_id: groupId, customer_id: customerId });
     assert.equal(calls[6].method, "POST");
     assert.deepEqual(calls[6].body, { command_id: command.command_id, command: command.command });

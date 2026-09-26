@@ -1,7 +1,7 @@
 import type { createAdmin } from 'arky-sdk/admin';
 import type {
     FindMarketZonesParams, FindMarketSalesChannelsParams, FindShippingMethodsParams, FindShippingRatesParams, FindTaxRulesParams,
-    GetMarketZoneByBindingParams, GetMarketSalesChannelByBindingParams, GetShippingMethodByKeyParams,
+    LookupMarketZoneParams, LookupMarketSalesChannelParams, GetShippingMethodByKeyParams,
     MarketZone, MarketSalesChannel, ShippingMethod, ShippingRate, TaxRule, UpdateShippingMethodParams, ShippingMethodType,
     CreateTaxRuleParams, UpdateTaxRuleParams, CreateShippingRateParams, UpdateShippingRateParams, EpochMilliseconds
 } from 'arky-sdk';
@@ -16,8 +16,8 @@ export type ShippingDiscoveryContract=[
  True<Same<FindShippingMethodsParams,Page&{key?:string;location_id?:string;tax_category_id?:string}>>,
  True<Same<FindShippingRatesParams,Page&{market_zone_id?:string;shipping_method_id?:string;shipping_profile_id?:string}>>,
  True<Same<FindTaxRulesParams,Page&{market_zone_id?:string;tax_category_id?:string;default_only?:boolean}>>,
- True<Same<Parameters<Api['marketZone']['getByBinding']>[0],GetMarketZoneByBindingParams>>,
- True<Same<Parameters<Api['marketSalesChannel']['getByBinding']>[0],GetMarketSalesChannelByBindingParams>>,
+ True<Same<Parameters<Api['marketZone']['lookup']>[0],LookupMarketZoneParams>>,
+ True<Same<Parameters<Api['marketSalesChannel']['lookup']>[0],LookupMarketSalesChannelParams>>,
  True<Same<Parameters<Api['shippingMethod']['getByKey']>[0],GetShippingMethodByKeyParams>>,
  True<Same<Awaited<ReturnType<Api['marketZone']['delete']>>,MarketZone|void>>,
  True<Same<Awaited<ReturnType<Api['marketSalesChannel']['remove']>>,MarketSalesChannel|void>>,

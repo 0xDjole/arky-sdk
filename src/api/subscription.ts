@@ -28,6 +28,8 @@ import type {
   ReviewSubscriptionPlanChangeParams,
   SubscriptionPlanChangeResult,
   SubscriptionPlanChangeReview,
+  SubscriptionCardUpdateResult,
+  UpdateSubscriptionCardParams,
 } from "../types/subscriptionRevision";
 
 export const createSubscriptionApi = (apiConfig: ApiConfig) => {
@@ -169,6 +171,17 @@ export const createSubscriptionApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<SubscriptionFundingChangeResult>(
         `${basePath(store_id)}/funding/accept`,
         { command_id, request, timeline_digest },
+        options,
+      );
+    },
+    updateCard(
+      params: UpdateSubscriptionCardParams,
+      options?: RequestOptions,
+    ): Promise<SubscriptionCardUpdateResult> {
+      const { store_id, command_id, request } = params;
+      return apiConfig.httpClient.post<SubscriptionCardUpdateResult>(
+        `${basePath(store_id)}/card`,
+        { command_id, request },
         options,
       );
     },

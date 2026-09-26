@@ -137,9 +137,9 @@ test("a fresh cart load resolves Store defaults before loading persisted product
       key: "ita",
       currency: "eur",
       tax_mode: "exclusive",
-      payment_provider_ids: [],
+      payment_option_ids: [],
     },
-    payment_providers: [],
+    payment_options: [],
     support: { email: "support@example.test" },
     readiness: { market: true, payment: false, commerce: true },
   };

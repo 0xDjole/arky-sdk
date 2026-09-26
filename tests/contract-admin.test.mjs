@@ -130,14 +130,14 @@ assert.equal(typeof arky.store.member.invite, "function");
 assert.equal(typeof arky.store.member.remove, "function");
 assert.equal(typeof arky.store.buildHook.list, "function");
 assert.equal(typeof arky.store.webhook.list, "function");
-assert.equal(typeof arky.store.paymentProvider.list, "function");
-assert.equal(typeof arky.store.paymentProvider.stripe.connect, "function");
-assert.equal(typeof arky.store.paymentProvider.stripe.refresh, "function");
+assert.equal(typeof arky.store.paymentOption.list, "function");
+assert.equal(typeof arky.store.paymentOption.stripe.connect, "function");
+assert.equal(typeof arky.store.paymentOption.stripe.refresh, "function");
 assert.equal(
-  typeof arky.store.paymentProvider.stripe.openDashboard,
+  typeof arky.store.paymentOption.stripe.openDashboard,
   "function",
 );
-assert.equal("delete" in arky.store.paymentProvider, false);
+assert.equal("delete" in arky.store.paymentOption, false);
 assert.equal(typeof arky.media.replaceContent, "function");
 assert.equal(typeof arky.classification.create, "function");
 assert.equal(typeof arky.classification.find, "function");
@@ -255,7 +255,7 @@ globalThis.fetch = async (url, init = {}) => {
   const method = init.method || "GET";
   scheduledAdminCalls.push([target, method]);
   let body;
-  if (target.endsWith("/payment-providers/stripe/connect")) {
+  if (target.endsWith("/payment-options/stripe/connect")) {
     body = succeededConnection;
   } else if (target.endsWith("/subscription") && method === "POST") {
     body = selectedSubscription;
@@ -268,10 +268,10 @@ globalThis.fetch = async (url, init = {}) => {
   });
 };
 try {
-  const connected = await arky.store.paymentProvider.stripe.connect({
+  const connected = await arky.store.paymentOption.stripe.connect({
     store_id: "contract-store",
     operation_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-    payment_provider_id: "provider-scheduled",
+    payment_option_id: "provider-scheduled",
     authorize_account_debits: true,
     return_url: "https://admin.test/return",
     refresh_url: "https://admin.test/refresh",
@@ -313,7 +313,7 @@ assert.deepEqual(
     method,
   ]),
   [
-    ["/v1/stores/contract-store/payment-providers/stripe/connect", "POST"],
+    ["/v1/stores/contract-store/payment-options/stripe/connect", "POST"],
     ["/v1/stores/contract-store/subscription", "POST"],
   ],
 );
@@ -765,7 +765,7 @@ try {
   await arky.eshop.payment.find({ store_id: "another-store", limit: 25, cursor: "next" });
   await arky.eshop.payment.recordCashOnDeliveryCollection({ id: "payment-1", payment_capture_id: "capture-1", money: { amount: 1250, currency: "usd" } });
   await arky.eshop.payment.recordManualCollection({ store_id: "another-store", id: "payment-2", payment_capture_id: "capture-2", money: { amount: 900, currency: "eur" }, reference: "bank-receipt" });
-  await arky.eshop.payment.createManual({ id: "payment-3", order_id: "order-3", payment_provider_id: "provider-3", money: { amount: 500, currency: "usd" }, reference: null });
+  await arky.eshop.payment.createManual({ id: "payment-3", order_id: "order-3", payment_option_id: "provider-3", money: { amount: 500, currency: "usd" }, reference: null });
 } finally {
   globalThis.fetch = originalFetch;
 }
@@ -793,7 +793,7 @@ assert.deepEqual(
     ],
     [
       "http://127.0.0.1:1/v1/stores/contract-store/payments/manual", "POST",
-      { id: "payment-3", order_id: "order-3", payment_provider_id: "provider-3", money: { amount: 500, currency: "usd" }, reference: null },
+      { id: "payment-3", order_id: "order-3", payment_option_id: "provider-3", money: { amount: 500, currency: "usd" }, reference: null },
     ],
   ],
 );

@@ -87,7 +87,7 @@ const definitions = [
     route: "company-locations",
     response: {
       tax: { registrations: [], exemptions: [] },
-      commerce: { payment_terms_id: null, allowed_payment_provider_ids: null, purchase_order_number_required: false },
+      commerce: { payment_terms_id: null, allowed_payment_option_ids: null, purchase_order_number_required: false },
     },
     create: {
       company_id: selectedStoreId,
@@ -349,7 +349,7 @@ test("Market management preserves explicit creation, immutable route identity an
     currency: "bam",
     tax_mode: "inclusive",
     status: { type: "active" },
-    payment_provider_ids: [],
+    payment_option_ids: [],
     created_at: now,
     updated_at: now,
   };
@@ -400,7 +400,7 @@ test("Market management preserves explicit creation, immutable route identity an
     const update = {
       expected_updated_at: now,
       tax_mode: "exclusive",
-      payment_provider_ids: [],
+      payment_option_ids: [],
     };
     assert.deepEqual(await api.update({ id, ...update }), updated);
     assert.deepEqual(calls.at(-1).body, update);

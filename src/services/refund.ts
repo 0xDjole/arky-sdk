@@ -46,7 +46,7 @@ export function validateRefundMoneyOwner(response: RecordedRefundMoney, refundId
   const refund = response?.refund;
   const payment = response?.payment;
   if (!refund || refund.id !== refundId || refund.store_id !== storeId ||
-    !payment || payment.id !== refund.order_payment_id || payment.order_id !== refund.order_id || payment.store_id !== storeId ||
+    !payment || payment.id !== refund.payment_id || payment.order_id !== refund.order_id || payment.store_id !== storeId ||
     !refund.money || payment.amounts?.currency !== refund.money.currency || response.financial_summary?.currency !== refund.money.currency ||
     !response.money || ![response.money.sent, response.money.returned, response.money.refunded, response.money.refund_pending].every(
       (money) => money?.currency === refund.money.currency && Number.isSafeInteger(money?.amount) && money.amount >= 0) ||

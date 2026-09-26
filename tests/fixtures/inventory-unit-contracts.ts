@@ -1,5 +1,5 @@
 import type { createAdmin } from "arky-sdk/admin";
-import type { InventoryUnit, InventoryUnitStatus, ReceiveInventoryUnitParams, ShipmentUnitBinding } from "arky-sdk";
+import type { InventoryUnit, InventoryUnitStatus, ReceiveInventoryUnitParams, SelectedUnit } from "arky-sdk";
 import type { InventoryUnit as PublicUnit, PaginatedResponse } from "arky-sdk/types";
 import type { FulfillmentUnitSlots, ResolveFulfillmentUnitSlotsParams } from "arky-sdk";
 
@@ -24,5 +24,5 @@ export type UnitContract = [
   True<null extends ReceiveInventoryUnitParams["manufacturer_serial"] ? true : false>,
   True<{} extends Pick<InventoryUnit, "inventory_item_id"> ? false : true>,
   True<null extends InventoryUnit["inventory_item_id"] ? true : false>,
-  True<Same<keyof ShipmentUnitBinding, "fulfillment_unit_index" | "inventory_unit_id">>,
+  True<Same<keyof SelectedUnit, "fulfillment_unit_index" | "inventory_unit_id">>,
 ];

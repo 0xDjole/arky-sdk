@@ -98,7 +98,7 @@ export type {
   StorefrontBookingResource,
   StorefrontBookingService,
   StorefrontMarket,
-  StorefrontPaymentProvider,
+  StorefrontPaymentOption,
   StorefrontCustomer,
   StorefrontCustomerGroup,
   StorefrontSubscriptionPlan,

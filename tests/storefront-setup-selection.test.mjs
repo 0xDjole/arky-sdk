@@ -6,11 +6,11 @@ const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
 const key = `arky_pk_${'a'.repeat(42)}A`;
 const apiUrl = 'https://api.example.test';
-const market = (key, currency = 'eur') => ({ id: `id-${key}`, key, currency, tax_mode: 'exclusive', payment_provider_ids: [`provider-${key}`] });
+const market = (key, currency = 'eur') => ({ id: `id-${key}`, key, currency, tax_mode: 'exclusive', payment_option_ids: [`provider-${key}`] });
 const setup = () => ({
   commerce: { type: 'ready', default_market_id: 'id-retail', default_sales_channel_id: 'channel' },
   timezone: 'UTC', languages: { default: null, available: [] }, default_market: market('retail'),
-  payment_providers: [{ id: 'provider-retail', key: 'manual', type: 'manual', blocks: [] }],
+  payment_options: [{ id: 'provider-retail', key: 'manual', type: 'manual', blocks: [] }],
   support: { email: null }, readiness: { commerce: true, market: true, payment: true }
 });
 
@@ -28,7 +28,7 @@ test('setup returns only its exact default, while explicit selected configuratio
   assert.equal(first, second);
   assert.equal('markets' in first, false);
   assert.equal(store.currency.get(), 'usd');
-  assert.deepEqual(store.allowed_payment_provider_ids.get(), ['provider-trade']);
+  assert.deepEqual(store.allowed_payment_option_ids.get(), ['provider-trade']);
   assert.deepEqual(calls.map(call => call.path), ['/v1/storefront', '/v1/storefront/markets/by-key/trade']);
   assert.ok(calls.every(call => call.method === 'GET'));
 });
@@ -60,13 +60,13 @@ test('late exact Market selection cannot replace a newer context or its currency
   await requested;
   store.setMarket('new');
   assert.equal(store.market.get(), null);
-  assert.deepEqual(store.allowed_payment_provider_ids.get(), []);
+  assert.deepEqual(store.allowed_payment_option_ids.get(), []);
   await store.store.load();
   release();
   await rejected;
   assert.equal(store.market.get().key, 'new');
   assert.equal(store.currency.get(), 'usd');
-  assert.deepEqual(store.allowed_payment_provider_ids.get(), ['provider-new']);
+  assert.deepEqual(store.allowed_payment_option_ids.get(), ['provider-new']);
 });
 
 test('failed or mismatched exact selection never falls back to default or a discovery page', async () => {

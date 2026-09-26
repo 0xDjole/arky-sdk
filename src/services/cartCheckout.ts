@@ -22,7 +22,7 @@ import {
 
 const label = "Cart Checkout";
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const requestKeys = new Set(["id", "request_id", "locale", "presentation_digest", "sources", "payment_provider_id", "return_url", "save_payment_method", "payment_method_terms_version"]);
+const requestKeys = new Set(["id", "request_id", "locale", "presentation_digest", "sources", "payment_option_id", "return_url", "save_payment_method", "payment_method_terms_version"]);
 
 function storageKey(scope: string): string {
   return `arky:commerce-cart-checkout:v1:${encodeURIComponent(scope)}`;
@@ -41,9 +41,9 @@ function validPaymentResult(value: unknown, request: CartCheckoutRequest): boole
   const payment = value.payment;
   if (!record(payment) || typeof payment.id !== "string" || !uuid.test(payment.id) ||
     payment.order_id !== value.order_id ||
-    !record(payment.provider) || typeof payment.provider.payment_provider_id !== "string" || !uuid.test(payment.provider.payment_provider_id) ||
-    (request.payment_provider_id !== undefined && request.payment_provider_id !== payment.provider.payment_provider_id) ||
-    !["cash_on_delivery", "stripe_checkout", "monri_checkout"].includes(String(payment.provider.type)) ||
+    !record(payment.route) || typeof payment.route.payment_option_id !== "string" || !uuid.test(payment.route.payment_option_id) ||
+    (request.payment_option_id !== undefined && request.payment_option_id !== payment.route.payment_option_id) ||
+    !["cash_on_delivery", "stripe_checkout", "monri_checkout"].includes(String(payment.route.type)) ||
     !record(payment.status) || !["pending", "requires_action", "processing", "authorized", "completed", "cancelled", "expired", "failed", "unknown"].includes(String(payment.status.type)) ||
     !record(payment.reconciliation) || !["clear", "hold"].includes(String(payment.reconciliation.type)) ||
     (payment.reconciliation.type === "hold" && (!Number.isSafeInteger(payment.reconciliation.opened_at) || Number(payment.reconciliation.opened_at) < 0)) ||
@@ -53,22 +53,22 @@ function validPaymentResult(value: unknown, request: CartCheckoutRequest): boole
   if (action.type === "none") return true;
   if (action.type === "monri_components") {
     return isMonriComponentsAction(action) && action.payment_id === payment.id &&
-      payment.provider.type === "monri_checkout" && payment.provider.environment === action.environment &&
-      payment.provider.transaction_type === "purchase" && payment.provider.transaction_id === null &&
-      payment.provider.authorization_void === null && payment.status.type === "requires_action" &&
+      payment.route.type === "monri_checkout" && payment.route.environment === action.environment &&
+      payment.route.transaction_type === "purchase" && payment.route.transaction_id === null &&
+      payment.route.authorization_void === null && payment.status.type === "requires_action" &&
       payment.reconciliation.type === "clear" && payment.checkout_expiration === null &&
       payment.amounts.authorized === 0 && payment.amounts.captured === 0 &&
       payment.amounts.capture_pending === payment.amounts.total &&
       payment.amounts.refunded === 0 && payment.amounts.refund_pending === 0;
   }
-  return payment.provider.type === "stripe_checkout" && payment.status.type === "requires_action" &&
+  return payment.route.type === "stripe_checkout" && payment.status.type === "requires_action" &&
     payment.reconciliation.type === "clear" && payment.checkout_expiration === null &&
     payment.amounts.captured === 0 && payment.amounts.capture_pending === 0 &&
     typeof action.publishable_key === "string" && action.publishable_key.length > 0 && action.publishable_key.length <= 4096 &&
     typeof action.client_secret === "string" && action.client_secret.length > 0 && action.client_secret.length <= 4096 &&
     typeof action.connected_account_id === "string" && /^acct_[A-Za-z0-9_]+$/.test(action.connected_account_id) &&
     Number.isSafeInteger(action.expires_at) && Number(action.expires_at) > Date.now() &&
-    action.expires_at === payment.provider.checkout_expires_at;
+    action.expires_at === payment.route.checkout_expires_at;
 }
 
 function finish<Result>(submission: CartCheckoutSubmission<Result>, options?: RequestOptions): Result {
@@ -88,7 +88,7 @@ function isCheckoutQuote(value: unknown): value is CheckoutQuote {
   return (order.locale === null || (typeof order.locale === "string" && order.locale.length > 0)) &&
     typeof order.presentation_digest === "string" && /^[0-9a-f]{64}$/.test(order.presentation_digest) &&
     record(order.context) && (order.money === null || record(order.money)) &&
-    [order.product_lines, order.booking_lines, order.digital_lines, order.subscription_lines, order.delivery_groups, order.payment_provider_ids].every(Array.isArray);
+    [order.product_lines, order.booking_lines, order.digital_lines, order.subscription_lines, order.delivery_groups, order.payment_option_ids].every(Array.isArray);
 }
 
 function presentationChanged(error: unknown): unknown {
@@ -114,13 +114,13 @@ export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
     (input.request_id !== undefined && (typeof input.request_id !== "string" || !uuid.test(input.request_id))) ||
     typeof input.locale !== "string" || !input.locale.length || input.locale.length > 64 || input.locale !== input.locale.trim() ||
     typeof input.presentation_digest !== "string" || !/^[0-9a-f]{64}$/.test(input.presentation_digest) ||
-    (input.payment_provider_id !== undefined && (typeof input.payment_provider_id !== "string" || !uuid.test(input.payment_provider_id))) ||
+    (input.payment_option_id !== undefined && (typeof input.payment_option_id !== "string" || !uuid.test(input.payment_option_id))) ||
     (input.return_url !== undefined && (typeof input.return_url !== "string" || input.return_url.length === 0 || input.return_url.length > 2048 || input.return_url !== input.return_url.trim())) ||
     (input.save_payment_method !== undefined && typeof input.save_payment_method !== "boolean") ||
     (input.payment_method_terms_version !== undefined && (typeof input.payment_method_terms_version !== "string" ||
       input.payment_method_terms_version.length === 0 || input.payment_method_terms_version.length > 256 ||
       input.payment_method_terms_version !== input.payment_method_terms_version.trim() || /[\u0000-\u001f\u007f-\u009f]/.test(input.payment_method_terms_version))) ||
-    (input.save_payment_method === true && (input.payment_provider_id === undefined || input.payment_method_terms_version === undefined))
+    (input.save_payment_method === true && (input.payment_option_id === undefined || input.payment_method_terms_version === undefined))
   ) {
     throw new DurableRequestStorageError("Cart Checkout requires an exact Cart UUID and reviewed locale, presentation digest, provider and return URL");
   }
@@ -134,7 +134,7 @@ export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
     locale: input.locale,
     presentation_digest: input.presentation_digest,
     sources,
-    ...(input.payment_provider_id !== undefined ? { payment_provider_id: input.payment_provider_id } : {}),
+    ...(input.payment_option_id !== undefined ? { payment_option_id: input.payment_option_id } : {}),
     ...(input.return_url !== undefined ? { return_url: input.return_url } : {}),
     ...(input.save_payment_method !== undefined ? { save_payment_method: input.save_payment_method } : {}),
     ...(input.payment_method_terms_version !== undefined ? { payment_method_terms_version: input.payment_method_terms_version } : {}),

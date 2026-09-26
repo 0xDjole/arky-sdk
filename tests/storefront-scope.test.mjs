@@ -225,7 +225,7 @@ test("setup is lazy and deduplicated without creating a visitor", async () => {
     languages: { default: "en", available: ["en", "bs"] },
     commerce: { type: "uninitialized" },
     default_market: null,
-    payment_providers: [],
+    payment_options: [],
     support: { email: null },
     readiness: { market: false, payment: false, commerce: false },
   };

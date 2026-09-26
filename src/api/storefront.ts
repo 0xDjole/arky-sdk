@@ -1,4 +1,17 @@
 import type { EpochMilliseconds } from "../types/time";
+import type {
+  FindPaymentMethodsParams,
+  GetPaymentMethodParams,
+  PaymentMethod,
+  PaymentMethodRevocation,
+  PaymentMethodSetupStart,
+  RequestPaymentMethodSetupParams,
+  RevokePaymentMethodParams,
+} from "../types/paymentMethod";
+import type {
+  SubscriptionCardUpdateResult,
+  UpdateSubscriptionCardParams,
+} from "../types/subscriptionRevision";
 import { createCartSelection } from "../services/cartSelection";
 import type { CartSelectionContext } from "../types/cartSelection";
 import { checkoutCart, pendingCartCheckout, recoverCartCheckout, withCartMutation } from "../services/cartCheckout";
@@ -138,7 +151,7 @@ export type CustomerSessionUpdater = (
   ) => CustomerSessionInternal | null,
 ) => void;
 
-export interface StorefrontPaymentProvider {
+export interface StorefrontPaymentOption {
   id: string;
   key: string;
   blocks: import("../types").Block[];
@@ -156,7 +169,7 @@ export interface StorefrontSetup {
     available: string[];
   };
   default_market: StorefrontMarket | null;
-  payment_providers: StorefrontPaymentProvider[];
+  payment_options: StorefrontPaymentOption[];
   support: {
     email: string | null;
   };
@@ -856,6 +869,86 @@ export const createStorefrontApi = (
           return apiConfig.httpClient.post<StorefrontDto<Order>>(
             `${base}/orders/${encodeURIComponent(params.order_id)}/booking-items/${encodeURIComponent(params.order_booking_item_id)}/cancel`,
             { command_id: params.command_id },
+            options,
+          );
+        },
+      },
+      paymentMethod: {
+        async find(
+          params: StorefrontParams<FindPaymentMethodsParams> = {},
+          options?: RequestOptions,
+        ): Promise<PaginatedResponse<PaymentMethod>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<PaginatedResponse<PaymentMethod>>(
+            `${base}/payment-methods`,
+            { ...options, params },
+          );
+        },
+        async get(
+          params: StorefrontParams<GetPaymentMethodParams>,
+          options?: RequestOptions,
+        ): Promise<PaymentMethod> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<PaymentMethod>(
+            `${base}/payment-methods/${encodeURIComponent(params.id)}`,
+            options,
+          );
+        },
+        async requestSetup(
+          params: StorefrontParams<RequestPaymentMethodSetupParams>,
+          options?: RequestOptions,
+        ): Promise<PaymentMethod> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.post<PaymentMethod>(
+            `${base}/payment-methods/setup`,
+            params,
+            options,
+          );
+        },
+        async startSetup(
+          params: StorefrontParams<GetPaymentMethodParams>,
+          options?: RequestOptions,
+        ): Promise<PaymentMethodSetupStart> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.post<PaymentMethodSetupStart>(
+            `${base}/payment-methods/${encodeURIComponent(params.id)}/setup/start`,
+            {},
+            options,
+          );
+        },
+        async completeSetup(
+          params: StorefrontParams<GetPaymentMethodParams>,
+          options?: RequestOptions,
+        ): Promise<PaymentMethod> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.post<PaymentMethod>(
+            `${base}/payment-methods/${encodeURIComponent(params.id)}/setup/complete`,
+            {},
+            options,
+          );
+        },
+        async revoke(
+          params: StorefrontParams<RevokePaymentMethodParams>,
+          options?: RequestOptions,
+        ): Promise<PaymentMethodRevocation> {
+          await lifecycle.ensureVisitorSession();
+          const { id, ...payload } = params;
+          return apiConfig.httpClient.post<PaymentMethodRevocation>(
+            `${base}/payment-methods/${encodeURIComponent(id)}/revoke`,
+            payload,
+            options,
+          );
+        },
+      },
+      subscription: {
+        async updateCard(
+          params: StorefrontParams<UpdateSubscriptionCardParams>,
+          options?: RequestOptions,
+        ): Promise<SubscriptionCardUpdateResult> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.post<SubscriptionCardUpdateResult>(
+            `${base}/subscriptions/card`,
+            params,
             options,
           );
         },

@@ -87,7 +87,7 @@ test("source-neutral physical work never routes through an Order path", async ()
   try {
     const api = eshop();
     const lines = [{ fulfillment_order_line_id: "rental-line", unit_spans: [{ first_unit: 0, quantity: 1 }],
-      unit_bindings: [{ fulfillment_unit_index: 0, inventory_unit_id: "unit" }] }];
+      selected_units: [{ fulfillment_unit_index: 0, inventory_unit_id: "unit" }] }];
     await api.shipment.create({
       shipment_id: "parcel", origin_store_location_id: "location", fulfillment_order_id: "work", lines,
       parcel: { length: 1, width: 1, height: 1, weight: 1, distance_unit: "cm", mass_unit: "kg" }, customs_declaration: null,

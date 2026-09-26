@@ -46,10 +46,10 @@ export type RefundRequester =
   | { type: "stripe" };
 
 export type RefundProvider =
-  | { type: "monri"; payment_provider_id: string; environment: MonriEnvironment; result: MonriRefundResult | null }
-  | { type: "cash_on_delivery"; payment_provider_id: string }
-  | { type: "manual"; payment_provider_id: string; reference: string | null }
-  | { type: "stripe"; payment_provider_id: string; refund_id: string | null };
+  | { type: "monri"; payment_option_id: string; environment: MonriEnvironment; result: MonriRefundResult | null }
+  | { type: "cash_on_delivery"; payment_option_id: string }
+  | { type: "manual"; payment_option_id: string; reference: string | null }
+  | { type: "stripe"; payment_option_id: string; refund_id: string | null };
 
 export interface MonriRefundResult {
   claim: ProviderOperationClaim;
@@ -66,8 +66,8 @@ export interface Refund {
   id: string;
   store_id: string;
   order_id: string;
-  order_payment_id: string;
-  order_payment_capture_id: string | null;
+  payment_id: string;
+  payment_capture_id: string | null;
   provider: RefundProvider;
   money: Money;
   application: RefundApplication;

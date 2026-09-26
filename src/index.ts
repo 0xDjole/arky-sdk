@@ -38,7 +38,7 @@ export type { Promotion, PromotionStatus, PromotionEditableStatus, PromotionActi
 export type { TaxCategory, TaxCategoryStatus, TaxCategoryEditableStatus, CreateTaxCategoryParams, UpdateTaxCategoryParams, GetTaxCategoryParams, FindTaxCategoriesParams, DeleteTaxCategoryParams, TaxRate, TaxCalculation, TaxComponent, TaxTreatment, TaxRule, TaxRuleStatus, TaxRuleEditableStatus, CreateTaxRuleParams, UpdateTaxRuleParams, GetTaxRuleParams, FindTaxRulesParams, DeleteTaxRuleParams } from "./types/tax";
 export type { PaymentTerms, PaymentTermsStatus, PaymentTermsEditableStatus, CreatePaymentTermsParams, UpdatePaymentTermsParams, GetPaymentTermsParams, FindPaymentTermsParams, DeletePaymentTermsParams } from "./types/paymentTerms";
 export type { OrderCredit, OrderCreditAllocation, OrderCreditSource, OrderCreditStatus, CreditTarget, CreditMoney, DiscountReversal, TaxComponentReversal, DutyComponentReversal, CreateOrderCreditParams, GetOrderCreditParams, FindOrderCreditsParams } from "./types/orderCredit";
-export type { CustomerPaymentMethod, CustomerPaymentMethodState, CustomerPaymentMethodCommand, CustomerPaymentMethodCommandType, CustomerPaymentMethodRevocation, CustomerPaymentMethodRevocationRecord, CustomerPaymentMethodRevocationRequest, NativeSetupOutcome, GetCustomerPaymentMethodParams, FindCustomerPaymentMethodsParams, FindCustomerPaymentMethodCommandsParams, RevokeCustomerPaymentMethodParams } from "./types/customerPaymentMethod";
+export type { PaymentMethod, PaymentMethodOwner, PaymentMethodDetails, PaymentMethodProviderName, PaymentMethodState, PaymentMethodCommand, PaymentMethodCommandType, PaymentMethodRevocation, PaymentMethodRevocationRecord, PaymentMethodRevocationRequest, NativeSetupOutcome, NativeCustomerSetupOutcome, GetPaymentMethodParams, FindPaymentMethodsParams, FindPaymentMethodCommandsParams, RevokePaymentMethodParams, PaymentMethodSetupRequest, RequestPaymentMethodSetupParams, PaymentMethodSetupStart } from "./types/paymentMethod";
 export type { CustomerGroupEmailConsent, CustomerGroupEmailConsentStatus, CustomerGroupEmailConfirmation, CustomerGroupConfirmationEmailStatus, CustomerGroupConfirmationHistoryEntry, CustomerGroupConsentEvent, CustomerGroupConsentEventType, CustomerGroupConsentSource, CustomerGroupUnsubscribeReason, RecordCustomerGroupEmailDecision, SubscribeCustomerGroupEmailsParams, RecordCustomerGroupEmailConsentParams, ImportCustomerGroupEmailConsentEntry, ImportCustomerGroupEmailConsentsParams, ImportCustomerGroupEmailConsentsResult, ConfirmCustomerGroupEmailsParams, UnsubscribeCustomerGroupEmailsParams, ResendCustomerGroupConfirmationParams, GetCustomerGroupEmailConsentParams, FindCustomerGroupEmailConsentsParams, FindCustomerGroupEmailConsentHistoryParams } from "./types/customerGroupEmailConsent";
 export type { CheckoutCartVersion, ConvertedCartLine, CartLineItemRef, OrderLineItemRef, CheckoutQuote, CheckoutQuoteSources } from "./types/checkout";
 export type { FulfillmentRoutingPolicy, FulfillmentRoutingStrategy, FulfillmentRoutingLocation, FulfillmentRoutingPolicyStatus, FulfillmentRoutingPolicyEditableStatus, CreateFulfillmentRoutingPolicyParams, UpdateFulfillmentRoutingPolicyParams, GetFulfillmentRoutingPolicyParams, GetFulfillmentRoutingPolicyByKeyParams, FindFulfillmentRoutingPoliciesParams, DeleteFulfillmentRoutingPolicyParams } from "./types/fulfillmentRouting";
@@ -54,7 +54,7 @@ export type { Subscription, SubscriptionSubject, SubscriptionStatus, Subscriptio
 export type * from "./types/subscriptionRevision";
 export type * from "./types/subscriptionOffering";
 export type * from "./types/rental";
-export type { CustomerGroupAdmission, CustomerGroupAdmissionSource, CustomerGroupAdministrativeAccess, CustomerGroupMember, CustomerGroupMemberSelf, CustomerGroupSelfAdmission, CustomerGroupJoinResult, CustomerGroupMemberCommandResponse, CustomerGroupMemberCommandReceipt, CustomerGroupMemberCommandResultType, GetCustomerGroupMemberByBindingParams, CustomerGroupJoinScope, CustomerGroupJoinRequest, JoinCustomerGroupParams, GetCustomerGroupMemberParams, FindCustomerGroupMembersParams, GetCurrentCustomerGroupMemberParams, FindCustomerGroupMemberCommandsParams, CustomerGroupMemberCommand, ExecuteCustomerGroupMemberCommandParams } from "./types/customerGroupMember";
+export type { CustomerGroupAdmission, CustomerGroupAdmissionSource, CustomerGroupAdministrativeAccess, CustomerGroupMember, CustomerGroupMemberSelf, CustomerGroupSelfAdmission, CustomerGroupJoinResult, CustomerGroupMemberCommandResponse, CustomerGroupMemberCommandReceipt, CustomerGroupMemberCommandResultType, LookupCustomerGroupMemberParams, CustomerGroupJoinScope, CustomerGroupJoinRequest, JoinCustomerGroupParams, GetCustomerGroupMemberParams, FindCustomerGroupMembersParams, GetCurrentCustomerGroupMemberParams, FindCustomerGroupMemberCommandsParams, CustomerGroupMemberCommand, ExecuteCustomerGroupMemberCommandParams } from "./types/customerGroupMember";
 export type { SalesChannelEditableStatus, SalesChannelStatus, SalesChannel, SalesChannelUsage, CreateSalesChannelParams, GetSalesChannelParams, UpdateSalesChannelParams, DeleteSalesChannelParams, FindSalesChannelsParams } from "./types/salesChannel";
 export type { SellableRef } from "./types/sellable";
 export type { OrderBooking, GetOrderBookingParams } from "./types/orderBooking";
@@ -218,7 +218,7 @@ export type {
   Payment,
   CommerceProviderObservation,
   PaymentReconciliation,
-  PaymentProviderBinding,
+  PaymentRoute,
   PaymentCheckoutExpiration,
   MonriAuthorizationVoid,
   MonriVoidStatus,
@@ -229,22 +229,22 @@ export type {
   MonriCaptureProof,
   CaptureFinancialEffect,
   PaymentCaptureStatus,
-  OrderPaymentCapture,
+  PaymentCapture,
   RecordedCollection,
   RecordCashOnDeliveryCollectionParams,
   RecordManualCollectionParams,
   CreateManualPaymentParams,
   OrderMoney,
   OrderPromotionSnapshot,
-  PaymentProvider,
-  PaymentProviderConfiguration,
+  PaymentOption,
+  PaymentOptionType,
   MonriEnvironment,
-  PaymentProviderConfigurationType,
-  PaymentProviderConnectResponse,
+  PaymentOptionTypeName,
+  PaymentOptionConnectResponse,
   StripeConnectionOperation,
   StripeConnectionEffectStatus,
   StripeProviderConnection,
-  PaymentProviderStatus,
+  PaymentOptionStatus,
   TaxMode,
   AccountActor,
   AccountActorSnapshot,
@@ -382,7 +382,7 @@ export type {
   FulfillmentWindow,
   FulfillmentExecution,
   ShipmentLine,
-  ShipmentUnitBinding,
+  SelectedUnit,
   Shipment,
   CreateShipmentResponse,
   Tracking,
@@ -590,7 +590,7 @@ export type {
   UpdateBookingOfferingParams,
   DeleteBookingOfferingParams,
   FindBookingOfferingsParams,
-  GetBookingOfferingByBindingParams,
+  LookupBookingOfferingParams,
   CreateProductParams,
   UpdateProductParams,
   DeleteProductParams,
@@ -728,7 +728,7 @@ export type {
   RetryLeadResearchMessageParams,
   CancelLeadResearchMessageParams,
   CancelSocialPostParams,
-  ConnectStripePaymentProviderParams,
+  ConnectStripePaymentOptionParams,
   GetStripeConnectionOperationParams,
   ConnectSocialConnectionParams,
   CreateSocialMessageParams,
@@ -740,20 +740,20 @@ export type {
   FindSocialPostsParams,
   OpenStripeDashboardParams,
   GetSocialPostParams,
-  CreateLocalPaymentProviderParams,
-  CreateMonriPaymentProviderParams,
-  UpdatePaymentProviderParams,
-  ListPaymentProvidersParams,
+  CreateLocalPaymentOptionParams,
+  CreateMonriPaymentOptionParams,
+  UpdatePaymentOptionParams,
+  ListPaymentOptionsParams,
   ConfigurationPageParams,
   GetStoreConfigurationByKeyParams,
   GetStoreConfigurationParams,
-  GetPaymentProviderParams,
-  GetPaymentProviderByConfigurationParams,
+  GetPaymentOptionParams,
+  GetPaymentOptionByTypeParams,
   FindMarketsParams,
   FindStoreLocationsParams,
   FindStorefrontMarketsParams,
   FindStorefrontLocationsParams,
-  RefreshStripePaymentProviderParams,
+  RefreshStripePaymentOptionParams,
   SyncSocialMessagesParams,
   AuthToken,
   PendingAccountSession,
@@ -846,7 +846,7 @@ export type {
   StorefrontCheckoutQuote,
   StorefrontLocation,
   StorefrontMarket,
-  StorefrontPaymentProvider,
+  StorefrontPaymentOption,
   StorefrontSetup,
   StorefrontVisitorSessionRecord,
   UseExperimentParams,
@@ -1014,12 +1014,12 @@ import { createOrderCreditApi } from "./api/orderCredit";
 import { createPickupApi } from "./api/pickup";
 import { createFulfillmentOrderApi } from "./api/fulfillmentOrder";
 import { createRentalApi } from "./api/rental";
-import { createCustomerPaymentMethodApi } from "./api/customerPaymentMethod";
+import { createPaymentMethodApi } from "./api/paymentMethod";
 import { createCustomerGroupEmailConsentApi } from "./api/customerGroupEmailConsent";
 import { createCheckoutApi } from "./api/checkout";
 import { createFulfillmentRoutingPolicyApi } from "./api/fulfillmentRoutingPolicy";
 import { createMarketSalesChannelApi } from "./api/marketSalesChannel";
-import { createMarketPaymentProviderApi } from "./api/marketPaymentProvider";
+import { createMarketPaymentOptionApi } from "./api/marketPaymentOption";
 import { createStorefrontClientApi } from "./api/storefrontClient";
 import { createStoreAdminDomainApi } from "./api/storeAdminDomain";
 export type * from "./types/storeAdminDomain";
@@ -1057,7 +1057,7 @@ import { createSocialApi } from "./api/social";
 import { createWorkflowApi } from "./api/workflow";
 import { createPlatformApi } from "./api/platform";
 import { createShippingApi } from "./api/shipping";
-import { createPaymentProviderApi } from "./api/paymentProvider";
+import { createPaymentOptionApi } from "./api/paymentOption";
 import { createPaymentApi } from "./api/payment";
 import { createRefundApi } from "./api/refund";
 import { createPaymentDisputeApi } from "./api/paymentDispute";
@@ -1324,7 +1324,7 @@ export function createAdmin(config: CreateAdminConfig) {
   const supportApi = createAdminSupportApi(apiConfig);
   const leadResearchApi = createLeadResearchApi(apiConfig);
   const socialApi = createSocialApi(apiConfig);
-  const paymentProviderApi = createPaymentProviderApi(apiConfig);
+  const paymentOptionApi = createPaymentOptionApi(apiConfig);
   const paymentApi = createPaymentApi(apiConfig);
   const refundApi = createRefundApi(apiConfig);
   const paymentDisputeApi = createPaymentDisputeApi(apiConfig);
@@ -1332,19 +1332,19 @@ export function createAdmin(config: CreateAdminConfig) {
   const locationApi = createLocationApi(apiConfig);
   const marketApi = createMarketApi(apiConfig);
   const workflowApi = createWorkflowApi(apiConfig);
-  const storePaymentProviderApi = {
-    monri: { create: paymentProviderApi.createMonri },
-    list: paymentProviderApi.list,
-    get: paymentProviderApi.get,
-    getByKey: paymentProviderApi.getByKey,
-    getByConfiguration: paymentProviderApi.getByConfiguration,
-    create: paymentProviderApi.create,
-    update: paymentProviderApi.update,
+  const storePaymentOptionApi = {
+    monri: { create: paymentOptionApi.createMonri },
+    list: paymentOptionApi.list,
+    get: paymentOptionApi.get,
+    getByKey: paymentOptionApi.getByKey,
+    getByType: paymentOptionApi.getByType,
+    create: paymentOptionApi.create,
+    update: paymentOptionApi.update,
     stripe: {
-      connect: paymentProviderApi.connectStripe,
-      getConnection: paymentProviderApi.getStripeConnection,
-      refresh: paymentProviderApi.refreshStripe,
-      openDashboard: paymentProviderApi.openDashboard,
+      connect: paymentOptionApi.connectStripe,
+      getConnection: paymentOptionApi.getStripeConnection,
+      refresh: paymentOptionApi.refreshStripe,
+      openDashboard: paymentOptionApi.openDashboard,
     },
   };
   const workflowPublicApi = {
@@ -1398,7 +1398,7 @@ export function createAdmin(config: CreateAdminConfig) {
       shippingProfile: createShippingProfileApi(apiConfig),
       paymentTerms: createPaymentTermsApi(apiConfig),
       marketSalesChannel: createMarketSalesChannelApi(apiConfig),
-      marketPaymentProvider: createMarketPaymentProviderApi(apiConfig),
+      marketPaymentOption: createMarketPaymentOptionApi(apiConfig),
       storefrontClient: createStorefrontClientApi(apiConfig),
       adminDomain: createStoreAdminDomainApi(apiConfig),
       create: storeApi.createStore,
@@ -1448,7 +1448,7 @@ export function createAdmin(config: CreateAdminConfig) {
       location: locationApi,
       market: marketApi,
       salesChannel: createSalesChannelApi(apiConfig),
-      paymentProvider: storePaymentProviderApi,
+      paymentOption: storePaymentOptionApi,
     },
     media: createMediaApi(apiConfig),
     companies: {
@@ -1517,7 +1517,7 @@ export function createAdmin(config: CreateAdminConfig) {
       subscriptionPlanEntitlement: createSubscriptionPlanEntitlementApi(apiConfig),
       customerGroupMember: createCustomerGroupMemberApi(apiConfig),
       subscription: createSubscriptionApi(apiConfig),
-      customerPaymentMethod: createCustomerPaymentMethodApi(apiConfig),
+      paymentMethod: createPaymentMethodApi(apiConfig),
       customerGroupEmailConsent: createCustomerGroupEmailConsentApi(apiConfig),
       assortment: createAssortmentApi(apiConfig),
       assortmentItem: createAssortmentItemApi(apiConfig),
@@ -1620,7 +1620,7 @@ export function createAdmin(config: CreateAdminConfig) {
         find: eshopApi.findBookingResources,
       },
       bookingOffering: {
-        getByBinding: eshopApi.getBookingOfferingByBinding,
+        lookup: eshopApi.lookupBookingOffering,
         create: eshopApi.createBookingOffering,
         update: eshopApi.updateBookingOffering,
         delete: eshopApi.deleteBookingOffering,
@@ -2346,9 +2346,9 @@ export type { GetPriceListByKeyParams } from "./types/priceList";
 export type { GetZoneByKeyParams } from "./types/zone";
 export type { GetTaxCategoryByKeyParams } from "./types/tax";
 export type { GetSalesChannelByKeyParams } from "./types/salesChannel";
-export type { GetMarketZoneByBindingParams } from "./types/zone";
-export type { GetMarketSalesChannelByBindingParams } from "./types/marketSalesChannel";
-export type { MarketPaymentProvider, MarketPaymentProviderStatus, CreateMarketPaymentProviderParams, GetMarketPaymentProviderParams, GetMarketPaymentProviderByBindingParams, FindMarketPaymentProvidersParams, RemoveMarketPaymentProviderParams } from "./types/marketPaymentProvider";
+export type { LookupMarketZoneParams } from "./types/zone";
+export type { LookupMarketSalesChannelParams } from "./types/marketSalesChannel";
+export type { MarketPaymentOption, MarketPaymentOptionStatus, CreateMarketPaymentOptionParams, GetMarketPaymentOptionParams, LookupMarketPaymentOptionParams, FindMarketPaymentOptionsParams, RemoveMarketPaymentOptionParams } from "./types/marketPaymentOption";
 export type { GetShippingMethodByKeyParams } from "./types/shipping";
 export type { SubscriptionSelf, SubscriptionSelfStatus } from "./types/subscription";
 export type { JoinStorefrontCustomerGroupParams, GetStorefrontCustomerGroupMemberParams } from "./types/customerGroupMember";

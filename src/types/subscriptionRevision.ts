@@ -1,6 +1,7 @@
 import type { SubscriptionAcceptedTerms } from "./commerce";
 import type { SubscriptionSelf } from "./subscription";
 import type { EpochMilliseconds } from "./time";
+import type { Money } from "./index";
 
 export type SubscriptionSchedule =
   | { type: "one_time"; timezone: string }
@@ -13,7 +14,7 @@ export type SubscriptionSchedule =
 
 export type SubscriptionCollection =
   | { type: "free" }
-  | { type: "saved_method"; customer_payment_method_id: string };
+  | { type: "saved_method"; payment_method_id: string };
 
 export interface SubscriptionRevisionBoundary {
   effective_from_occurrence: number;
@@ -98,7 +99,7 @@ export interface SubscriptionFundingChange {
   expected_next_occurrence_index: number;
   first_occurrence: number;
   end: SubscriptionRevisionChangeEnd;
-  customer_payment_method_id: string;
+  payment_method_id: string;
   reason: string;
 }
 
@@ -125,6 +126,26 @@ export interface SubscriptionFundingChangeResult {
   command_id: string;
   accepted_at: EpochMilliseconds;
   result: SubscriptionRevisionChangeResult;
+}
+
+export interface SubscriptionCardUpdateRequest {
+  subscription_id: string;
+  order_id: string;
+  payment_method_id: string;
+}
+
+export interface UpdateSubscriptionCardParams {
+  store_id?: string;
+  command_id: string;
+  request: SubscriptionCardUpdateRequest;
+}
+
+export interface SubscriptionCardUpdateResult {
+  command_id: string;
+  accepted_at: EpochMilliseconds;
+  closed_payment_id: string;
+  payment_id: string;
+  amount: Money;
 }
 
 export type SubscriptionRentalChange =

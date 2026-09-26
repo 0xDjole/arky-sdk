@@ -590,7 +590,7 @@ test("admin Market and Payment Provider APIs use provider roots and UUID allowli
     currency: "bam",
     tax_mode: "inclusive",
     status: { type: "active" },
-    payment_provider_ids: [cashProvider.id, stripeProvider.id],
+    payment_option_ids: [cashProvider.id, stripeProvider.id],
     created_at: 1,
     updated_at: 1,
   };
@@ -602,13 +602,13 @@ test("admin Market and Payment Provider APIs use provider roots and UUID allowli
       method: init.method || "GET",
       body: init.body ? JSON.parse(String(init.body)) : null,
     });
-    return String(url).endsWith("/payment-providers")
+    return String(url).endsWith("/payment-options")
       ? jsonResponse([cashProvider, stripeProvider])
       : jsonResponse(market);
   };
 
   try {
-    const providers = await admin.store.paymentProvider.list();
+    const providers = await admin.store.paymentOption.list();
     assert.equal(providers[0].configuration.type, "cash_on_delivery");
     assert.equal(
       providers[1].configuration.platform_debit_consent.terms_version,
@@ -619,7 +619,7 @@ test("admin Market and Payment Provider APIs use provider roots and UUID allowli
         key: "bih",
         currency: "bam",
         tax_mode: "inclusive",
-        payment_provider_ids: [cashProvider.id, stripeProvider.id],
+        payment_option_ids: [cashProvider.id, stripeProvider.id],
       }),
       market,
     );
@@ -629,7 +629,7 @@ test("admin Market and Payment Provider APIs use provider roots and UUID allowli
 
   assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/stores/${storeId}/payment-providers`,
+      url: `${baseUrl}/v1/stores/${storeId}/payment-options`,
       method: "GET",
       body: null,
     },
@@ -640,7 +640,7 @@ test("admin Market and Payment Provider APIs use provider roots and UUID allowli
         key: "bih",
         currency: "bam",
         tax_mode: "inclusive",
-        payment_provider_ids: [cashProvider.id, stripeProvider.id],
+        payment_option_ids: [cashProvider.id, stripeProvider.id],
       },
     },
   ]);
@@ -653,7 +653,7 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
     market: "bih",
     apiToken: "arky_api_admin_contract",
   });
-  const paymentProviderId = "5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31";
+  const paymentOptionId = "5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31";
   const cartId = "c4f2a9e1-6b83-4d57-9e02-1a7c5d8f3b46";
   const orderId = "8a3e6f21-47bd-4c90-b5e3-0d7f19c4a8b2";
   const checkoutRequestId = "c4a8e1d2-7b93-4f6a-8c05-19d7f3b2e8a1";
@@ -702,8 +702,8 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
     digital_lines: [],
     subscription_lines: [],
     delivery_groups: [],
-    payment_provider_id: paymentProviderId,
-    payment_provider_ids: [paymentProviderId],
+    payment_option_id: paymentOptionId,
+    payment_option_ids: [paymentOptionId],
     money: null,
     },
   };
@@ -718,7 +718,7 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
       payer_customer_id: "customer-contract",
       provider: {
         type: "stripe_checkout",
-        payment_provider_id: paymentProviderId,
+        payment_option_id: paymentOptionId,
         checkout_expires_at: 10,
         checkout_session_id: "checkout-provider-contract",
         payment_intent_id: null,
@@ -763,16 +763,16 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
       orderId,
     );
     assert.equal(
-      (await admin.eshop.cart.quote({ id: cart.id })).order.payment_provider_id,
-      paymentProviderId,
+      (await admin.eshop.cart.quote({ id: cart.id })).order.payment_option_id,
+      paymentOptionId,
     );
     assert.equal(
       (
         await admin.eshop.order.getQuote({
           market: "bih",
         })
-      ).order.payment_provider_ids[0],
-      paymentProviderId,
+      ).order.payment_option_ids[0],
+      paymentOptionId,
     );
     assert.equal(
       (
@@ -782,11 +782,11 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
           locale: "en",
           presentation_digest: presentationDigest,
           sources: quote.sources,
-          payment_provider_id: paymentProviderId,
+          payment_option_id: paymentOptionId,
           return_url: "https://admin.example.test/checkout/return",
         })
-      ).payment.provider.payment_provider_id,
-      paymentProviderId,
+      ).payment.provider.payment_option_id,
+      paymentOptionId,
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -826,7 +826,7 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
           sources: quote.sources,
           locale: "en",
           presentation_digest: presentationDigest,
-          payment_provider_id: paymentProviderId,
+          payment_option_id: paymentOptionId,
           return_url: "https://admin.example.test/checkout/return",
         },
       },

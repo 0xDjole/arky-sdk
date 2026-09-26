@@ -121,8 +121,8 @@ export interface OrderQuote {
   digital_lines: DigitalProductQuoteLine[];
   subscription_lines: SubscriptionOrderQuoteLine[];
   delivery_groups: QuotedDeliveryGroup[];
-  payment_provider_id: string | null;
-  payment_provider_ids: string[];
+  payment_option_id: string | null;
+  payment_option_ids: string[];
   money: OrderMoney | null;
 }
 

@@ -12,8 +12,8 @@ test('Market mutations honor explicit Store scope without sending routing fields
   };
   try {
     const api = createAdmin({ baseUrl: 'https://api.example.test', storeId: 'default', market: 'configured', apiToken: 'arky_api_test' }).store.market;
-    const create = { key: 'europe', currency: 'eur', tax_mode: 'inclusive', payment_provider_ids: [] };
-    const update = { expected_updated_at: 123, tax_mode: 'exclusive', payment_provider_ids: [] };
+    const create = { key: 'europe', currency: 'eur', tax_mode: 'inclusive', payment_option_ids: [] };
+    const update = { expected_updated_at: 123, tax_mode: 'exclusive', payment_option_ids: [] };
     for (const store_id of ['selected', undefined]) {
       const scope = store_id ?? 'default';
       await api.create({ store_id, ...create });
@@ -52,7 +52,7 @@ test('Market mutations honor explicit Store scope without sending routing fields
 for (const [owner,path,filter] of [
   ['market','markets',{currency:'eur'}],
   ['location','locations',{is_pickup_location:true}],
-  ['paymentProvider','payment-providers',{configuration_type:'stripe'}],
+  ['paymentOption','payment-options',{type_name:'stripe'}],
 ]) {
   test(`${owner} forwards one bounded page and preserves empty continuation`, async () => {
     const original=globalThis.fetch, calls=[];
@@ -87,22 +87,22 @@ test('exact configuration lookup never falls back to search or creation',async()
     await api.location.getByKey({store_id:'selected',key:'warehouse'});
     await api.market.get({store_id:'selected',id:'market-id'});
     await api.location.get({store_id:'selected',id:'location-id'});
-    await api.paymentProvider.getByConfiguration({store_id:'selected',configuration_type:'stripe'});
-    await api.paymentProvider.getByKey({store_id:'selected',key:'processor'});
-    await api.paymentProvider.get({store_id:'selected',id:'exact'});
+    await api.paymentOption.getByConfiguration({store_id:'selected',type_name:'stripe'});
+    await api.paymentOption.getByKey({store_id:'selected',key:'processor'});
+    await api.paymentOption.get({store_id:'selected',id:'exact'});
     assert.deepEqual(calls.map(call=>call.url.pathname),[
       '/v1/stores/selected/markets/by-key/trade',
       '/v1/stores/selected/locations/by-key/warehouse',
       '/v1/stores/selected/markets/market-id',
       '/v1/stores/selected/locations/location-id',
-      '/v1/stores/selected/payment-providers/by-configuration/stripe',
-      '/v1/stores/selected/payment-providers/key/processor',
-      '/v1/stores/selected/payment-providers/exact',
+      '/v1/stores/selected/payment-options/by-configuration/stripe',
+      '/v1/stores/selected/payment-options/key/processor',
+      '/v1/stores/selected/payment-options/exact',
     ]);
     for(const status of [404,409,503]){
       let count=0;
       globalThis.fetch=async()=>{count++;return new Response(JSON.stringify({message:'failed'}),{status})};
-      await assert.rejects(api.paymentProvider.getByConfiguration({configuration_type:'stripe'}),error=>error.statusCode===status);
+      await assert.rejects(api.paymentOption.getByConfiguration({type_name:'stripe'}),error=>error.statusCode===status);
       assert.equal(count,1);
     }
   }finally{globalThis.fetch=original}

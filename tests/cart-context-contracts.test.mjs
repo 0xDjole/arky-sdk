@@ -80,7 +80,7 @@ function quote() {
       entitlement_lines: [],
       money: { unit_price: 0, subtotal: 0, discount_allocations: [], discount_total: 0, tax_lines: [], tax_total: 0, duty_lines: [], duty_total: 0, total: 0, tax_assessment: { type: "not_required", reason: { type: "noncommercial_subscription_grant" }, policy_version: "v1", decided_at: 1 } },
     }],
-    delivery_groups: [], payment_provider_id: null, payment_provider_ids: [],
+    delivery_groups: [], payment_option_id: null, payment_option_ids: [],
     money: { currency: "bam", subtotal: 0, delivery: 0, discount: 0, tax_total: 0, duty_total: 0, total: 0, promotions: [] },
     },
   };
@@ -198,7 +198,7 @@ test("Checkout forwards only the reviewed locale/digest and does not replace a r
     calls.push({ path: new URL(url).pathname, body: JSON.parse(init.body) });
     return Response.json({ message: "Review the changed quote", error: "COMMERCE.PRESENTATION_CHANGED", status_code: 409, validation_errors: [], quote: quote() }, { status: 409 });
   };
-  const request = { id: cartId, request_id: "5d2f1c8b-6a4e-4c39-9b71-2f8e0d47a3c6", locale: "bs", presentation_digest: "b".repeat(64), sources: quote().sources, payment_provider_id: providerId, return_url: "https://merchant.example/return" };
+  const request = { id: cartId, request_id: "5d2f1c8b-6a4e-4c39-9b71-2f8e0d47a3c6", locale: "bs", presentation_digest: "b".repeat(64), sources: quote().sources, payment_option_id: providerId, return_url: "https://merchant.example/return" };
   const admin = createAdmin({ baseUrl: apiUrl, storeId: "store", apiToken: "arky_api_cart" });
   const storefront = createStorefront(publishableKey, { apiUrl, locale: "bs", sessionStorage: sessionStorage() });
   for (const client of [admin, storefront]) {

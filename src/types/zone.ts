@@ -117,7 +117,7 @@ export interface FindMarketZonesParams {
   cursor?:string;
 }
 
-export interface GetMarketZoneByBindingParams {
+export interface LookupMarketZoneParams {
   store_id?:string;
   market_id:string;
   zone_id:string;

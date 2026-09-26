@@ -88,7 +88,7 @@ export interface FindCustomerGroupMembersParams {
   cursor?: string;
 }
 
-export type GetCustomerGroupMemberByBindingParams = {
+export type LookupCustomerGroupMemberParams = {
   store_id?: string;
   customer_group_id: string;
 } & (

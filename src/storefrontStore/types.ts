@@ -104,7 +104,7 @@ export interface ArkyLastOrder {
   billing_address?: Address | null;
   total?: number;
   currency?: string | null;
-  payment_provider_id?: string | null;
+  payment_option_id?: string | null;
   created_at: EpochMilliseconds;
 }
 
@@ -123,7 +123,7 @@ export interface ArkyCartInput {
 }
 
 export interface ArkyCartCheckoutInput {
-  payment_provider_id?: string;
+  payment_option_id?: string;
   return_url?: string;
   clear_after_checkout?: boolean;
   save_payment_method?: boolean;
@@ -138,7 +138,7 @@ export interface CheckoutContext {
   subscription_plan_items: CartSubscriptionPlanItem[];
   shipping_address: Address | null;
   billing_address: Address | null;
-  payment_provider_id: string | null;
+  payment_option_id: string | null;
   clear_after_checkout: boolean;
   created_at: EpochMilliseconds;
 }
@@ -225,7 +225,7 @@ export interface ArkyBookingServiceState {
   quoteError: string | null;
   currency: Currency | null;
   dateTimeConfirmed: boolean;
-  availablePaymentProviderIds: string[];
+  availablePaymentOptionIds: string[];
   cartId: string | null;
   promotionCodes: string[];
 }

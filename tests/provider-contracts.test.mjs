@@ -331,8 +331,8 @@ test("Checkout quote preserves per-unit promotion/manual provenance and delivery
         money: shippingMoney,
       },
     ],
-    payment_provider_id: "payment-provider-contract",
-    payment_provider_ids: ["payment-provider-contract"],
+    payment_option_id: "payment-option-contract",
+    payment_option_ids: ["payment-option-contract"],
     money: {
       currency: "usd",
       subtotal: 2_000,
@@ -484,15 +484,15 @@ test("subscription reads return no payment action", async () => {
   assert.deepEqual(result, subscription);
 });
 
-test("the permanent payment-provider binding has no delete operation", () => {
-  assert.equal("delete" in admin().store.paymentProvider, false);
+test("the permanent payment-option binding has no delete operation", () => {
+  assert.equal("delete" in admin().store.paymentOption, false);
 });
 
 test("Stripe Express Dashboard uses one authenticated provider link request", async () => {
   const { calls, result } = await captureFetch(
     { dashboard_url: "https://connect.stripe.test/express/link" },
     () =>
-      admin().store.paymentProvider.stripe.openDashboard({
+      admin().store.paymentOption.stripe.openDashboard({
         store_id: "store-dashboard",
         id: "provider-contract",
       }),
@@ -503,7 +503,7 @@ test("Stripe Express Dashboard uses one authenticated provider link request", as
   });
   assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/stores/store-dashboard/payment-providers/stripe/provider-contract/dashboard`,
+      url: `${baseUrl}/v1/stores/store-dashboard/payment-options/stripe/provider-contract/dashboard`,
       method: "POST",
       body: {},
     },
@@ -1162,7 +1162,7 @@ test("payment, refund, dispute, and shipment lifecycles are read through explici
         payer_customer_id: "customer-contract",
         provider: {
           type: "cash_on_delivery",
-          payment_provider_id: "provider-cash-contract",
+          payment_option_id: "provider-cash-contract",
           marked_paid_by_account_id: "account-operator-contract",
         },
         status: { type: "completed" },
@@ -1192,11 +1192,11 @@ test("payment, refund, dispute, and shipment lifecycles are read through explici
         id: resourceId,
         store_id: defaultStoreId,
         order_id: "order-contract",
-        order_payment_id: "payment-contract",
-        order_payment_capture_id: null,
+        payment_id: "payment-contract",
+        payment_capture_id: null,
         provider: {
           type: "stripe",
-          payment_provider_id: "provider-stripe-contract",
+          payment_option_id: "provider-stripe-contract",
           refund_id: "stripe-refund-contract",
         },
         money: { amount: 500, currency: "usd" },

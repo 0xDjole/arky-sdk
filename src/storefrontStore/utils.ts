@@ -438,7 +438,7 @@ export function createBookingServiceInitialState(): ArkyBookingServiceState {
     quoteError: null,
     currency: null,
     dateTimeConfirmed: false,
-    availablePaymentProviderIds: [],
+    availablePaymentOptionIds: [],
     cartId: null,
     promotionCodes: [],
   };

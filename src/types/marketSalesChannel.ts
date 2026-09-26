@@ -36,7 +36,7 @@ export interface FindMarketSalesChannelsParams {
   cursor?:string;
 }
 
-export interface GetMarketSalesChannelByBindingParams {
+export interface LookupMarketSalesChannelParams {
   store_id?:string;
   market_id:string;
   sales_channel_id:string;

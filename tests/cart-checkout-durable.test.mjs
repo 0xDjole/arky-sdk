@@ -14,7 +14,7 @@ const otherId = "6ef796c1-e503-4679-b0d7-79966c193ca2";
 const providerId = "4a2c7c0d-4389-4aae-b3d7-02ff834a024d";
 const storageKey = `arky:commerce-cart-checkout:v1:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}`;
 const requestId = "8c1d4f5a-3f0b-4a7d-8f52-5c0f2b7a91d4";
-const request = { id: cartId, request_id: requestId, locale: "en", presentation_digest: "a".repeat(64), sources: checkoutSources(cartId), payment_provider_id: providerId, return_url: "https://merchant.example.test/checkout-return" };
+const request = { id: cartId, request_id: requestId, locale: "en", presentation_digest: "a".repeat(64), sources: checkoutSources(cartId), payment_option_id: providerId, return_url: "https://merchant.example.test/checkout-return" };
 const originals = new Map(["fetch", "localStorage", "navigator", "window"].map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
 
 function install(name, value) {
@@ -55,7 +55,7 @@ function stripeResult() {
     ...result(),
     payment: {
       id: otherId, order_id: orderId,
-      provider: { type: "stripe_checkout", payment_provider_id: providerId, checkout_expires_at: 1900000000000, checkout_session_id: "cs_test_exact", payment_intent_id: null },
+      provider: { type: "stripe_checkout", payment_option_id: providerId, checkout_expires_at: 1900000000000, checkout_session_id: "cs_test_exact", payment_intent_id: null },
       status: { type: "requires_action" }, amounts: { currency: "eur", total: 1000, authorized: 0, captured: 0, capture_pending: 0, refunded: 0, refund_pending: 0 },
       reconciliation: { type: "clear" }, checkout_expiration: null,
     },
@@ -69,7 +69,7 @@ function monriResult() {
     ...result(),
     payment: {
       ...payment,
-      provider: { type: 'monri_checkout', payment_provider_id: providerId, environment: 'test', transaction_type: 'purchase', transaction_id: null, authorization_void: null },
+      provider: { type: 'monri_checkout', payment_option_id: providerId, environment: 'test', transaction_type: 'purchase', transaction_id: null, authorization_void: null },
       amounts: { ...payment.amounts, capture_pending: payment.amounts.total },
     },
     payment_action: { type: 'monri_components', payment_id: otherId, environment: 'test', authenticity_token: 'test-token', client_secret: 'test-session-secret' },
@@ -201,7 +201,7 @@ test("every changed checkout field stays blocked after ambiguity without another
     { id: otherId, sources: checkoutSources(otherId) }, { locale: "bs" }, { presentation_digest: "b".repeat(64) },
     { sources: { ...request.sources, cart: { cart_id: cartId, version: "another-version" } } },
     { sources: checkoutSources(cartId, "product", otherId) },
-    { payment_provider_id: otherId }, { payment_provider_id: undefined },
+    { payment_option_id: otherId }, { payment_option_id: undefined },
     { return_url: "https://merchant.example.test/another" }, { return_url: undefined },
   ]) {
     await assert.rejects(storefront().eshop.cart.checkout({ ...request, ...change }), /different unresolved payload/);
@@ -307,7 +307,7 @@ test("malformed purchase or Stripe capability evidence never clears checkout", a
     { ...stripeResult(), payment: { ...stripeResult().payment, reconciliation: undefined } },
     { ...stripeResult(), payment: { ...stripeResult().payment, checkout_expiration: { status: { type: "requested" } } } },
     ...["captured", "capture_pending"].map((field) => ({ ...stripeResult(), payment: { ...stripeResult().payment, amounts: { ...stripeResult().payment.amounts, [field]: 1 } } })),
-    { ...stripeResult(), payment: { ...stripeResult().payment, provider: { ...stripeResult().payment.provider, payment_provider_id: otherId } } },
+    { ...stripeResult(), payment: { ...stripeResult().payment, provider: { ...stripeResult().payment.provider, payment_option_id: otherId } } },
     { ...stripeResult(), payment_action: { ...stripeResult().payment_action, client_secret: "" } },
     { ...stripeResult(), payment_action: { ...stripeResult().payment_action, expires_at: 1 } },
     { ...stripeResult(), payment_action: { ...stripeResult().payment_action, expires_at: 1900000000001 } },
@@ -445,7 +445,7 @@ test("presentation conflicts expose the quote without silently replacing the loc
   const { storage } = browser();
   const quote = {
     sources: { cart: { cart_id: cartId, version: "reviewed-version" }, converted_lines: [] },
-    order: { locale: "en", presentation_digest: "c".repeat(64), context: {}, money: {}, product_lines: [], booking_lines: [], digital_lines: [], subscription_lines: [], delivery_groups: [], payment_provider_ids: [] },
+    order: { locale: "en", presentation_digest: "c".repeat(64), context: {}, money: {}, product_lines: [], booking_lines: [], digital_lines: [], subscription_lines: [], delivery_groups: [], payment_option_ids: [] },
     presentation_digest: "b".repeat(64),
   };
   const calls = capture(() => Response.json({ message: "Review the changed quote", error: "COMMERCE.PRESENTATION_CHANGED", quote }, { status: 409 }));
@@ -479,7 +479,7 @@ test("saving a payment method requires explicit well-formed consent before trans
   for (const input of [
     { ...request, save_payment_method: "true" },
     { ...request, save_payment_method: true },
-    { ...request, save_payment_method: true, payment_method_terms_version: "terms", payment_provider_id: undefined },
+    { ...request, save_payment_method: true, payment_method_terms_version: "terms", payment_option_id: undefined },
     ...["", " terms", "terms\n", "a".repeat(257)].map((terms) => ({ ...request, save_payment_method: true, payment_method_terms_version: terms })),
   ]) {
     const { storage } = browser();
@@ -491,7 +491,7 @@ test("saving a payment method requires explicit well-formed consent before trans
 });
 
 test("flat or incomplete presentation conflicts are not treated as reviewed Checkout quotes", async () => {
-  const order = { locale: "en", presentation_digest: "c".repeat(64), context: {}, money: null, product_lines: [], booking_lines: [], digital_lines: [], subscription_lines: [], delivery_groups: [], payment_provider_ids: [] };
+  const order = { locale: "en", presentation_digest: "c".repeat(64), context: {}, money: null, product_lines: [], booking_lines: [], digital_lines: [], subscription_lines: [], delivery_groups: [], payment_option_ids: [] };
   for (const quote of [order, { order, presentation_digest: "b".repeat(64) }, { sources: null, order, presentation_digest: "invalid" }]) {
     const { storage } = browser();
     capture(() => Response.json({ message: "Review", error: "COMMERCE.PRESENTATION_CHANGED", quote }, { status: 409 }));

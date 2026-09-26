@@ -53,9 +53,9 @@ function setup() {
       key: "ita",
       currency: "eur",
       tax_mode: "inclusive",
-      payment_provider_ids: [cashOnDeliveryProviderId, stripeProviderId],
+      payment_option_ids: [cashOnDeliveryProviderId, stripeProviderId],
     },
-    payment_providers: [
+    payment_options: [
       { id: cashOnDeliveryProviderId, key: "cash", type: "cash_on_delivery", blocks: [] },
       { id: stripeProviderId, key: "card", type: "stripe", blocks: [] },
     ],
@@ -103,7 +103,7 @@ function acceptedOrder(requestId, orderId = orderContractId) {
   };
 }
 
-function quoteSnapshot(paymentProviderId = cashOnDeliveryProviderId) {
+function quoteSnapshot(paymentOptionId = cashOnDeliveryProviderId) {
   return {
     sources: checkoutSources(contractCartId),
     presentation_digest: "e".repeat(64),
@@ -122,8 +122,8 @@ function quoteSnapshot(paymentProviderId = cashOnDeliveryProviderId) {
     digital_lines: [],
     subscription_lines: [],
     delivery_groups: [],
-    payment_provider_id: paymentProviderId,
-    payment_provider_ids: [cashOnDeliveryProviderId, stripeProviderId],
+    payment_option_id: paymentOptionId,
+    payment_option_ids: [cashOnDeliveryProviderId, stripeProviderId],
     money: null,
     },
   };
@@ -133,7 +133,7 @@ const orderContractId = "8a3e6f21-47bd-4c90-b5e3-0d7f19c4a8b2";
 const paymentContractId = "f17c0b95-2e4d-4a83-9b6c-31d5e8a70f24";
 
 function payment(status, providerType = "cash_on_delivery", total = 1250, orderId = orderContractId) {
-  const paymentProviderId =
+  const paymentOptionId =
     providerType === "stripe" ? stripeProviderId : cashOnDeliveryProviderId;
   return {
     id: paymentContractId,
@@ -144,14 +144,14 @@ function payment(status, providerType = "cash_on_delivery", total = 1250, orderI
       providerType === "stripe"
         ? {
             type: "stripe_checkout",
-            payment_provider_id: paymentProviderId,
+            payment_option_id: paymentOptionId,
             checkout_expires_at: 1_800_000_000_000,
             checkout_session_id: "checkout-contract",
             payment_intent_id: "payment-intent-contract",
           }
         : {
             type: "cash_on_delivery",
-            payment_provider_id: paymentProviderId,
+            payment_option_id: paymentOptionId,
             marked_paid_by_account_id:
               status === "completed" ? "account-operator" : null,
           },
@@ -378,7 +378,7 @@ test("high-level checkout uses keyless routes, visitor authorization, and Store-
   try {
     assert.deepEqual(
       await store.eshop.cart.checkout({
-        payment_provider_id: cashOnDeliveryProviderId,
+        payment_option_id: cashOnDeliveryProviderId,
       }),
       order,
     );
@@ -399,7 +399,7 @@ test("high-level checkout uses keyless routes, visitor authorization, and Store-
     assert.equal(JSON.stringify(call.body).includes("store_id"), false);
     assert.equal(call.body !== null && "market" in call.body, false);
   }
-  assert.equal(calls[0].body.payment_provider_id, cashOnDeliveryProviderId);
+  assert.equal(calls[0].body.payment_option_id, cashOnDeliveryProviderId);
   assert.equal(calls[0].body.presentation_digest, quoteSnapshot().presentation_digest);
   assert.equal(calls[1].body, null);
 });
@@ -447,7 +447,7 @@ test("zero-total checkout accepts a null payment and clears stale cart state", a
     billing_address: null,
     total: 0,
     currency: null,
-    payment_provider_id: cashOnDeliveryProviderId,
+    payment_option_id: cashOnDeliveryProviderId,
     created_at: store.eshop.cart.last_order.get().created_at,
   });
 });
@@ -455,7 +455,7 @@ test("zero-total checkout accepts a null payment and clears stale cart state", a
 test("checkout failures do not create client-side recovery state", async () => {
   const { store, cart } = checkoutStore();
   const completed = completedCheckout();
-  const checkoutInput = { payment_provider_id: cashOnDeliveryProviderId };
+  const checkoutInput = { payment_option_id: cashOnDeliveryProviderId };
   const calls = [];
   let checkoutCalls = 0;
   let requestId;
@@ -532,7 +532,7 @@ test("checkout returns the synchronous POST response without polling", async () 
 
   try {
     const result = await store.eshop.cart.checkout({
-      payment_provider_id: stripeProviderId,
+      payment_option_id: stripeProviderId,
     });
     assert.equal(result.payment.status.type, "processing");
     assert.equal(checkoutCalls, 1);
@@ -630,7 +630,7 @@ test("card checkout returns an embedded Stripe action without navigating", async
   });
   const cart = {
     ...cartSnapshot(1),
-    payment_provider_id: stripeProviderId,
+    payment_option_id: stripeProviderId,
   };
   store.eshop.cart.cart.set(cart);
   store.eshop.cart.product_items.set([
@@ -667,7 +667,7 @@ test("card checkout returns an embedded Stripe action without navigating", async
 
   try {
     const result = await store.eshop.cart.checkout({
-      payment_provider_id: stripeProviderId,
+      payment_option_id: stripeProviderId,
       return_url: "https://shop.example.test/checkout/complete",
     });
     assert.equal(result.payment_action.type, "stripe_embedded_checkout");
@@ -682,7 +682,7 @@ test("card checkout returns an embedded Stripe action without navigating", async
   assert.deepEqual(reviewed, {
     sources: quoteSnapshot().sources,
     presentation_digest: quoteSnapshot().presentation_digest,
-    payment_provider_id: stripeProviderId,
+    payment_option_id: stripeProviderId,
     return_url: "https://shop.example.test/checkout/complete",
   });
   assert.equal(store.eshop.cart.cart.get(), null);

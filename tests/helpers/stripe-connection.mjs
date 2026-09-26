@@ -13,9 +13,9 @@ export function stripeConnectionFixture(storeId, providerId, operationId) {
       } }, created_at: 1, updated_at: 2
     },
     operation: {
-      id: operationId, store_id: storeId, payment_provider_id: providerId,
+      id: operationId, store_id: storeId, payment_option_id: providerId,
       requested_connected_account_id: null, email: null, country: 'BA', debit_consent_account_id: null,
-      account_creation_status: stage, metadata_binding_status: stage, created_at: 1, updated_at: 2
+      account_creation_status: stage, metadata_setup_status: stage, created_at: 1, updated_at: 2
     },
     onboarding_url: 'https://connect.test/onboarding'
   };

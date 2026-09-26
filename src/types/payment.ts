@@ -1,4 +1,5 @@
 import type { Currency, MonriEnvironment, ProviderEffectError, ProviderOperationClaim } from "./index";
+import type { PaymentMethodOwner } from "./paymentMethod";
 import type { EpochMilliseconds } from "./time";
 
 export type PaymentStatus = {
@@ -38,10 +39,10 @@ export interface MonriAuthorizationVoid {
   status: MonriVoidStatus;
 }
 
-export type PaymentProviderBinding =
+export type PaymentRoute =
   | {
       type: "monri_checkout";
-      payment_provider_id: string;
+      payment_option_id: string;
       environment: MonriEnvironment;
       transaction_type: "authorize" | "purchase";
       transaction_id: string | null;
@@ -49,24 +50,31 @@ export type PaymentProviderBinding =
     }
   | {
       type: "stripe_saved_method";
-      payment_provider_id: string;
-      customer_payment_method_id: string;
+      payment_option_id: string;
+      payment_method_id: string;
       payment_intent_id: string | null;
     }
   | {
+      type: "monri_saved_method";
+      payment_option_id: string;
+      environment: MonriEnvironment;
+      payment_method_id: string;
+      transaction_id: string | null;
+    }
+  | {
       type: "cash_on_delivery";
-      payment_provider_id: string;
+      payment_option_id: string;
       marked_paid_by_account_id: string | null;
     }
   | {
       type: "manual";
-      payment_provider_id: string;
+      payment_option_id: string;
       reference: string | null;
       marked_paid_by_account_id: string | null;
     }
   | {
       type: "stripe_checkout";
-      payment_provider_id: string;
+      payment_option_id: string;
       checkout_expires_at: EpochMilliseconds;
       checkout_session_id: string | null;
       payment_intent_id: string | null;
@@ -98,8 +106,8 @@ export interface Payment {
   id: string;
   store_id: string;
   order_id: string;
-  payer_customer_id: string;
-  provider: PaymentProviderBinding;
+  payer: PaymentMethodOwner;
+  route: PaymentRoute;
   status: PaymentStatus;
   checkout_expiration: PaymentCheckoutExpiration | null;
   amounts: PaymentAmounts;

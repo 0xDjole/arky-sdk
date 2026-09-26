@@ -742,9 +742,9 @@ test("high-level booking flow creates one Cart item per appointment", async () =
               key: "bih",
               currency: "eur",
               tax_mode: "inclusive",
-              payment_provider_ids: [],
+              payment_option_ids: [],
         },
-        payment_providers: [],
+        payment_options: [],
         support: { email: "support@example.test" },
         readiness: { market: true, payment: false, commerce: true },
       });

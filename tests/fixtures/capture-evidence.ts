@@ -24,7 +24,7 @@ export type CaptureEvidenceContract = typeof evidence;
 
 export const monriEvidence = {
   type: "monri",
-  payment_provider_id: "550e8400-e29b-41d4-a716-446655440000",
+  payment_option_id: "550e8400-e29b-41d4-a716-446655440000",
   environment: "test",
   transaction_id: "18446744073709551615",
   proof: { type: "notification", receipt_id: "550e8400-e29b-41d4-a716-446655440001" },

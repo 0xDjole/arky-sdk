@@ -6,7 +6,7 @@ import type {
   CustomerGroupMemberSelf,
   CustomerGroupJoinResult,
   CustomerGroupMemberCommandResponse,
-  GetCustomerGroupMemberByBindingParams,
+  LookupCustomerGroupMemberParams,
   ExecuteCustomerGroupMemberCommandParams,
   FindCustomerGroupMemberCommandsParams,
   FindCustomerGroupMembersParams,
@@ -40,9 +40,9 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
         options,
       );
     },
-    getByBinding(params: GetCustomerGroupMemberByBindingParams, options?: RequestOptions): Promise<CustomerGroupMember> {
+    lookup(params: LookupCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMember> {
       const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<CustomerGroupMember>(`${basePath(store_id)}/by-binding`, { ...options, params: query });
+      return apiConfig.httpClient.get<CustomerGroupMember>(`${basePath(store_id)}/lookup`, { ...options, params: query });
     },
     find(
       params: FindCustomerGroupMembersParams = {},

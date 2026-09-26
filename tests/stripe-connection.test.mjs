@@ -15,16 +15,16 @@ test('Stripe commands bind an existing provider and expose independent exact ope
   try {
     const client = createAdmin({ baseUrl: 'https://api.example.test', storeId: 'default-store' });
     const request = {
-      store_id: 'explicit-store', payment_provider_id: 'provider', operation_id: operationId,
+      store_id: 'explicit-store', payment_option_id: 'provider', operation_id: operationId,
       return_url: 'https://admin.test/return', refresh_url: 'https://admin.test/refresh',
       authorize_account_debits: false, country: 'BA'
     };
-    assert.deepEqual(await client.store.paymentProvider.stripe.connect(request), result);
+    assert.deepEqual(await client.store.paymentOption.stripe.connect(request), result);
     client.setStoreId('another-store');
-    assert.deepEqual(await client.store.paymentProvider.stripe.getConnection({ store_id: 'explicit-store', operation_id: operationId }), result.operation);
+    assert.deepEqual(await client.store.paymentOption.stripe.getConnection({ store_id: 'explicit-store', operation_id: operationId }), result.operation);
     assert.deepEqual(calls, [
-      { url: 'https://api.example.test/v1/stores/explicit-store/payment-providers/stripe/connect', method: 'POST', body: request },
-      { url: `https://api.example.test/v1/stores/explicit-store/payment-providers/stripe/connections/${operationId}`, method: 'GET', body: null }
+      { url: 'https://api.example.test/v1/stores/explicit-store/payment-options/stripe/connect', method: 'POST', body: request },
+      { url: `https://api.example.test/v1/stores/explicit-store/payment-options/stripe/connections/${operationId}`, method: 'GET', body: null }
     ]);
   } finally { globalThis.fetch = originalFetch; }
 });
@@ -38,7 +38,7 @@ test('failed operation reads do not dispatch a connection command or fall back t
   };
   try {
     const client = createAdmin({ baseUrl: 'https://api.example.test', storeId: 'default' });
-    await assert.rejects(client.store.paymentProvider.stripe.getConnection({ store_id: 'store/other', operation_id: 'operation/other' }), { statusCode: 404 });
-    assert.deepEqual(calls, [['https://api.example.test/v1/stores/store%2Fother/payment-providers/stripe/connections/operation%2Fother', 'GET']]);
+    await assert.rejects(client.store.paymentOption.stripe.getConnection({ store_id: 'store/other', operation_id: 'operation/other' }), { statusCode: 404 });
+    assert.deepEqual(calls, [['https://api.example.test/v1/stores/store%2Fother/payment-options/stripe/connections/operation%2Fother', 'GET']]);
   } finally { globalThis.fetch = originalFetch; }
 });

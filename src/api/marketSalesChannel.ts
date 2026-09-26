@@ -5,7 +5,7 @@ import type {
   MarketSalesChannel,
   CreateMarketSalesChannelParams,
   GetMarketSalesChannelParams,
-  GetMarketSalesChannelByBindingParams,
+  LookupMarketSalesChannelParams,
   FindMarketSalesChannelsParams,
   RemoveMarketSalesChannelParams,
 } from "../types/marketSalesChannel";
@@ -29,9 +29,9 @@ export const createMarketSalesChannelApi = (apiConfig: ApiConfig) => {
         options,
       );
     },
-    getByBinding(params:GetMarketSalesChannelByBindingParams, options?:RequestOptions):Promise<MarketSalesChannel> {
+    lookup(params:LookupMarketSalesChannelParams, options?:RequestOptions):Promise<MarketSalesChannel> {
       const {store_id,...query}=params;
-      return apiConfig.httpClient.get<MarketSalesChannel>(`${basePath(store_id)}/by-binding`,{...options,params:query});
+      return apiConfig.httpClient.get<MarketSalesChannel>(`${basePath(store_id)}/lookup`,{...options,params:query});
     },
     find(
       params: FindMarketSalesChannelsParams = {},

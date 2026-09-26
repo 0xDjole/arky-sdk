@@ -32,13 +32,13 @@ test("known commerce definitions use exact key/binding reads without discovery o
     for (const owner of [api.product, api.bookingService, api.bookingResource, api.fulfillmentRoutingPolicy]) {
       assert.equal((await owner.getByKey({ store_id: "selected", key: "demo-key" })).id, "retained");
     }
-    await api.bookingOffering.getByBinding({ store_id: "selected", booking_service_id: "service", booking_resource_id: "resource" });
+    await api.bookingOffering.lookup({ store_id: "selected", booking_service_id: "service", booking_resource_id: "resource" });
     assert.deepEqual(calls.map(({ url }) => url.pathname), [
       "/v1/stores/selected/products/by-key/demo-key",
       "/v1/stores/selected/booking-services/by-key/demo-key",
       "/v1/stores/selected/booking-resources/by-key/demo-key",
       "/v1/stores/selected/fulfillment-routing-policies/by-key/demo-key",
-      "/v1/stores/selected/booking-offerings/by-binding",
+      "/v1/stores/selected/booking-offerings/lookup",
     ]);
     assert.ok(calls.every(({ method }) => method === "GET"));
     assert.deepEqual(Object.fromEntries(calls[4].url.searchParams), { booking_service_id: "service", booking_resource_id: "resource" });
@@ -51,7 +51,7 @@ test("known commerce definitions use exact key/binding reads without discovery o
       for (const owner of [api.product, api.bookingService, api.bookingResource, api.fulfillmentRoutingPolicy]) {
         await assert.rejects(owner.getByKey({ key: "demo-key" }), (error) => error.statusCode === status);
       }
-      await assert.rejects(api.bookingOffering.getByBinding({ booking_service_id: "service", booking_resource_id: "resource" }), (error) => error.statusCode === status);
+      await assert.rejects(api.bookingOffering.lookup({ booking_service_id: "service", booking_resource_id: "resource" }), (error) => error.statusCode === status);
       assert.equal(count, 5);
     }
   } finally {

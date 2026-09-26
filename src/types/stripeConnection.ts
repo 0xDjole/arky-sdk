@@ -17,12 +17,12 @@ export type StripeConnectionEffectStatus =
 export interface StripeConnectionOperation {
   id: string;
   store_id: string;
-  payment_provider_id: string;
+  payment_option_id: string;
   requested_connected_account_id: string | null;
   email: string | null;
   country: string | null;
   account_creation_status: StripeConnectionEffectStatus;
-  metadata_binding_status: StripeConnectionEffectStatus | null;
+  metadata_setup_status: StripeConnectionEffectStatus | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }

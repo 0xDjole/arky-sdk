@@ -133,7 +133,7 @@ import type {
   RefundAllocation,
   RefundStatus,
   Payment,
-  PaymentProviderBinding,
+  PaymentRoute,
   PaymentAmounts,
   PaymentDispute,
   PaymentDisputeProvider,
@@ -199,7 +199,7 @@ import type {
   StorefrontDto,
   StorefrontLocation,
   StorefrontMarket,
-  StorefrontPaymentProvider,
+  StorefrontPaymentOption,
   StorefrontSetup,
   StorefrontGetSupportConversationParams,
   StorefrontSendSupportMessageParams,
@@ -227,7 +227,7 @@ import type {
   Media,
   Money,
   OrderQuote,
-  PaymentProvider,
+  PaymentOption,
   WorkflowHttpNode,
   WorkflowSendEmailNode,
   WorkflowExternalOperation,
@@ -292,7 +292,7 @@ import type { Condition } from "../../dist/index.js";
 import type { DigitalPrice } from "../../dist/index.js";
 // @ts-expect-error Digital Product status has its own canonical name.
 import type { DigitalCatalogStatus } from "../../dist/index.js";
-// @ts-expect-error payment method identity is represented by OrderPaymentProvider.
+// @ts-expect-error payment method identity is represented by PaymentRoute.
 import type { OrderPaymentType } from "../../dist/index.js";
 // @ts-expect-error the loose legacy provider record is no longer public.
 import type { ProviderOrderPayment } from "../../dist/index.js";
@@ -566,7 +566,7 @@ const invalidMonthlyStoreUsage: StoreUsage = {
   period: { type: "monthly" },
 };
 
-const cashOnDeliveryProvider: PaymentProvider = {
+const cashOnDeliveryProvider: PaymentOption = {
   id: "provider-cash-on-delivery",
   store_id: "store-contract",
   key: "cash",
@@ -576,7 +576,7 @@ const cashOnDeliveryProvider: PaymentProvider = {
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(1),
 };
-const stripeProvider: PaymentProvider = {
+const stripeProvider: PaymentOption = {
   id: "provider-stripe",
   store_id: "store-contract",
   key: "card",
@@ -617,9 +617,9 @@ const storefrontMarketContract: StorefrontMarket = {
   key: marketContract.key,
   currency: marketContract.currency,
   tax_mode: marketContract.tax_mode,
-  payment_provider_ids: [cashOnDeliveryProvider.id, stripeProvider.id],
+  payment_option_ids: [cashOnDeliveryProvider.id, stripeProvider.id],
 };
-const storefrontPaymentProviders: StorefrontPaymentProvider[] = [
+const storefrontPaymentOptions: StorefrontPaymentOption[] = [
   { id: cashOnDeliveryProvider.id, key: cashOnDeliveryProvider.key, blocks: cashOnDeliveryProvider.blocks, type: "cash_on_delivery" },
   { id: stripeProvider.id, key: stripeProvider.key, blocks: stripeProvider.blocks, type: "stripe" },
 ];
@@ -628,12 +628,12 @@ const storefrontSetupContract: StorefrontSetup = {
   timezone: "Europe/Sarajevo",
   languages: { default: "en", available: ["en"] },
   default_market: storefrontMarketContract,
-  payment_providers: storefrontPaymentProviders,
+  payment_options: storefrontPaymentOptions,
   support: { email: "store@example.test" },
   readiness: { market: true, payment: true, commerce: true },
 };
 const storefrontProviderType: "cash_on_delivery" | "manual" | "stripe" | "monri" =
-  storefrontSetupContract.payment_providers[1].type;
+  storefrontSetupContract.payment_options[1].type;
 const createMarketContract: CreateMarketParams = {
   key: "bih",
   currency: "bam",
@@ -644,18 +644,18 @@ const checkoutContract: CheckoutCartParams = {
   locale: "en",
   presentation_digest: "a".repeat(64),
   sources: { cart: { cart_id: "cart-contract", version: "reviewed-version" }, converted_lines: [] },
-  payment_provider_id: stripeProvider.id,
+  payment_option_id: stripeProvider.id,
   return_url: "https://storefront.example.test/checkout/return",
 };
 declare const quoteContract: OrderQuote;
-const quotedProviderId: string | null = quoteContract.payment_provider_id;
-const quotedProviderIds: string[] = quoteContract.payment_provider_ids;
+const quotedProviderId: string | null = quoteContract.payment_option_id;
+const quotedProviderIds: string[] = quoteContract.payment_option_ids;
 // @ts-expect-error Market no longer embeds Payment Methods.
 marketContract.payment_methods;
 // @ts-expect-error Market creation does not embed Payment Methods.
 createMarketContract.payment_methods;
-// @ts-expect-error Market payment assignments are MarketPaymentProvider records.
-createMarketContract.payment_provider_ids;
+// @ts-expect-error Market payment assignments are MarketPaymentOption records.
+createMarketContract.payment_option_ids;
 // @ts-expect-error Cart checkout selects a Payment Provider UUID.
 checkoutContract.payment_method_key;
 // @ts-expect-error Provider configuration is a tagged value, not a flat provider type.
@@ -695,7 +695,7 @@ const refundAllocation: RefundAllocation = {
 };
 const stripeRefundProvider: RefundProvider = {
   type: "stripe",
-  payment_provider_id: "payment-provider-contract",
+  payment_option_id: "payment-option-contract",
   refund_id: "stripe-refund-contract",
 };
 const orderRefundStatus: RefundStatus = { type: "succeeded" };
@@ -703,8 +703,8 @@ const orderRefund: Refund = {
   id: "order-refund-contract",
   store_id: "store-contract",
   order_id: "order-contract",
-  order_payment_id: "order-payment-contract",
-  order_payment_capture_id: null,
+  payment_id: "order-payment-contract",
+  payment_capture_id: null,
   provider: stripeRefundProvider,
   money: refundMoney,
   application: { type: "commercial_credit", allocations: [refundAllocation] },
@@ -751,8 +751,8 @@ const paymentDisputeProvider: PaymentDisputeProvider = {
 const paymentDispute: PaymentDispute = {
   id: "payment-dispute-contract",
   store_id: "store-contract",
-  order_payment_id: "order-payment-contract",
-  order_payment_capture_id: null,
+  payment_id: "order-payment-contract",
+  payment_capture_id: null,
   livemode: false,
   financial_effects: [{ type: "principal_withdrawn", effect_id: "effect-contract", money: { amount: 1_250, currency: "usd" }, observed_at: epochMilliseconds(2) }],
   money: { amount: 1_250, currency: "usd" },
@@ -1703,16 +1703,16 @@ const paymentAmounts: PaymentAmounts = {
   refund_pending: 0,
   refunded: 0,
 };
-const stripeOrderPaymentProvider: PaymentProviderBinding = {
+const stripePaymentRoute: PaymentRoute = {
   type: "stripe_checkout",
-  payment_provider_id: "payment-provider-contract",
+  payment_option_id: "payment-option-contract",
   checkout_expires_at: epochMilliseconds(1_800_000_000_000),
   checkout_session_id: "checkout-session-contract",
   payment_intent_id: null,
 };
-const cashOrderPaymentProvider: PaymentProviderBinding = {
+const cashPaymentRoute: PaymentRoute = {
   type: "cash_on_delivery",
-  payment_provider_id: "payment-provider-cash-contract",
+  payment_option_id: "payment-option-cash-contract",
   marked_paid_by_account_id: null,
 };
 const orderPayment: Payment = {
@@ -1720,7 +1720,7 @@ const orderPayment: Payment = {
   store_id: "store-contract",
   order_id: "order-contract",
   payer_customer_id: "customer-contract",
-  provider: stripeOrderPaymentProvider,
+  provider: stripePaymentRoute,
   status: { type: "requires_action" },
   checkout_expiration: null,
   amounts: paymentAmounts,
@@ -1733,18 +1733,18 @@ const orderPayment: Payment = {
 };
 const savedMethodPayment: Payment = {
   ...orderPayment,
-  provider: { type: "stripe_saved_method", payment_provider_id: "provider", customer_payment_method_id: "method", payment_intent_id: null },
+  provider: { type: "stripe_saved_method", payment_option_id: "provider", payment_method_id: "method", payment_intent_id: null },
   status: { type: "authorized" },
 };
 const invoicePayment: Payment = {
   ...orderPayment,
-  provider: { type: "stripe_invoice", payment_provider_id: "provider", stripe_invoice_id: "invoice", stripe_invoice_payment_id: "invoice-payment", payment_object: { type: "charge", charge_id: "charge" } },
+  provider: { type: "stripe_invoice", payment_option_id: "provider", stripe_invoice_id: "invoice", stripe_invoice_payment_id: "invoice-payment", payment_object: { type: "charge", charge_id: "charge" } },
   status: { type: "completed" },
   reconciliation: { type: "hold", opened_at: epochMilliseconds(2) },
 };
 const manualPayment: Payment = {
   ...orderPayment,
-  provider: { type: "manual", payment_provider_id: "provider", reference: null, marked_paid_by_account_id: null },
+  provider: { type: "manual", payment_option_id: "provider", reference: null, marked_paid_by_account_id: null },
 };
 const paymentOwners: string[] = [savedMethodPayment.order_id, invoicePayment.payer_customer_id, manualPayment.request_id];
 // @ts-expect-error every collection belongs directly to its Order, not a polymorphic source.
@@ -1771,7 +1771,7 @@ orderPayment.amount;
 // @ts-expect-error payment records do not expose persistence versions.
 orderPayment.version;
 // @ts-expect-error provider checkout identity uses checkout_session_id.
-stripeOrderPaymentProvider.checkout_id;
+stripePaymentRoute.checkout_id;
 const missingConnectedAccountCheckout: OrderCheckoutResult = {
   order_id: "order-stripe-contract",
   number: "1002",
@@ -2425,7 +2425,7 @@ const merchantDebit: MerchantDebit = {
   id: "6ba7b815-9dad-41d1-80b4-00c04fd430c8",
   store_id: "6ba7b819-9dad-41d1-80b4-00c04fd430c8",
   shipping_label_id: "6ba7b811-9dad-41d1-80b4-00c04fd430c8",
-  payment_provider_id: "6ba7b81c-9dad-41d1-80b4-00c04fd430c8",
+  payment_option_id: "6ba7b81c-9dad-41d1-80b4-00c04fd430c8",
   connected_account_id: "acct_contract",
   authorization: {
     accepted_by_account_id: "6ba7b81d-9dad-41d1-80b4-00c04fd430c8",
@@ -2548,7 +2548,7 @@ const shipment: Shipment = {
     {
       fulfillment_order_line_id: fulfillmentOrder.lines[0].id,
       unit_spans: [{ first_unit: 0, quantity: 1 }],
-      unit_bindings: [],
+      selected_units: [],
     },
   ],
   status: { type: "label_created" },
@@ -2602,7 +2602,7 @@ const createShipmentRequest: CreateShipmentParams = {
     {
       fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
       unit_spans: [{ first_unit: 1, quantity: 1 }],
-      unit_bindings: [],
+      selected_units: [],
     },
   ],
   parcel: labelParcel,
@@ -2852,8 +2852,8 @@ void [
   storefrontEntryIdentify,
   orderMoney,
   paymentAmounts,
-  stripeOrderPaymentProvider,
-  cashOrderPaymentProvider,
+  stripePaymentRoute,
+  cashPaymentRoute,
   orderPayment,
   refundMoney,
   refundAllocation,

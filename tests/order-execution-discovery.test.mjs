@@ -58,7 +58,7 @@ test("pickup preparation and commands preserve explicit ownership, immutable sel
   try {
     const api = createAdmin({ storeId: "default", baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop;
     const lines = [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 3, quantity: 1 }],
-      unit_bindings: [{ fulfillment_unit_index: 3, inventory_unit_id: "physical-unit" }] }];
+      selected_units: [{ fulfillment_unit_index: 3, inventory_unit_id: "physical-unit" }] }];
     const selection = { pickup_id: "pickup", fulfillment_order_id: "work", store_location_id: "location", lines };
     const scope = { store_id: "selected" };
     const before = structuredClone(selection);
@@ -92,10 +92,10 @@ test("pickup selection excludes prepared and collected positions, but frees canc
   const { dispatch, ...manifest } = dispatched();
   const collected = { ...manifest, id: "collected", collection: dispatch, status: { type: "collected" } };
   const prepared = { ...manifest, id: "prepared", collection: null, status: { type: "preparing" },
-    lines: [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 4, quantity: 1 }], unit_bindings: [] }] };
+    lines: [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 4, quantity: 1 }], selected_units: [] }] };
   const before = structuredClone({ work, collected, prepared });
   assert.deepEqual(selectPickupUnits(work, "line", 3, [collected, prepared]), {
-    fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 5, quantity: 1 }, { first_unit: 7, quantity: 2 }], unit_bindings: [],
+    fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 5, quantity: 1 }, { first_unit: 7, quantity: 2 }], selected_units: [],
   });
   assert.deepEqual({ work, collected, prepared }, before);
   assert.throws(() => selectPickupUnits(work, "line", 1, []), /Load or refresh pickup history/);
@@ -153,7 +153,7 @@ test("shipment selection rejects mixed source ownership instead of trusting remo
   work.order_id = "untrusted-legacy-field";
   assert.deepEqual(selectShipmentUnits(work, "line", 1, [dispatched()]), {
     fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 4, quantity: 1 }],
-    unit_bindings: [],
+    selected_units: [],
   });
 });
 
@@ -170,10 +170,10 @@ test("shipment selection issues Rental lines by local work position beside one O
   mixed.lines.push(rentalLine());
   const before = structuredClone(mixed);
   assert.deepEqual(selectShipmentUnits(mixed, "line", 1, [dispatched()]), {
-    fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 4, quantity: 1 }], unit_bindings: [],
+    fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 4, quantity: 1 }], selected_units: [],
   });
   assert.deepEqual(selectShipmentUnits(mixed, "rental-line", 2, [dispatched()]), {
-    fulfillment_order_line_id: "rental-line", unit_spans: [{ first_unit: 0, quantity: 2 }], unit_bindings: [],
+    fulfillment_order_line_id: "rental-line", unit_spans: [{ first_unit: 0, quantity: 2 }], selected_units: [],
   });
   assert.deepEqual(mixed, before);
   const rentalOnly = { ...structuredClone(mixed), lines: [rentalLine()] };
@@ -204,7 +204,7 @@ test("shipment selection uses exact assigned ranges without expanding individual
   assert.deepEqual(selectShipmentUnits(work, "line", 4, history), {
     fulfillment_order_line_id: "line",
     unit_spans: [{ first_unit: 4, quantity: 2 }, { first_unit: 7, quantity: 2 }],
-    unit_bindings: [],
+    selected_units: [],
   });
   assert.deepEqual({ work, history }, before);
   const large = assignment();
@@ -219,11 +219,11 @@ test("prepared parcels exclude their positions until explicitly cancelled withou
   const work = assignment();
   const prepared = {
     ...dispatched(), id: "prepared", dispatch: null, status: { type: "pending" },
-    lines: [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 4, quantity: 1 }], unit_bindings: [] }],
+    lines: [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 4, quantity: 1 }], selected_units: [] }],
   };
   const before = structuredClone(prepared);
   assert.deepEqual(selectShipmentUnits(work, "line", 1, [dispatched(), prepared]), {
-    fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 5, quantity: 1 }], unit_bindings: [],
+    fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 5, quantity: 1 }], selected_units: [],
   });
   assert.deepEqual(prepared, before);
   assert.throws(() => selectShipmentUnits(work, "line", 5, [dispatched(), prepared]), /exceeds/);

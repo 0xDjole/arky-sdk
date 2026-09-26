@@ -58,7 +58,7 @@ import type {
   ProductVariantEditableStatus,
   ProductVariantStatus,
   MonriEnvironment,
-  PaymentProviderConfigurationType,
+  PaymentOptionTypeName,
 } from "./index";
 
 export type {
@@ -88,10 +88,10 @@ export type FindStorefrontLocationsParams = Omit<FindStoreLocationsParams, "stat
 
 export interface GetStoreConfigurationByKeyParams { store_id?: string; key: string }
 export interface GetStoreConfigurationParams { store_id?: string; id: string }
-export interface GetPaymentProviderParams { store_id?: string; id: string }
-export interface GetPaymentProviderByConfigurationParams {
+export interface GetPaymentOptionParams { store_id?: string; id: string }
+export interface GetPaymentOptionByTypeParams {
   store_id?: string;
-  configuration_type: PaymentProviderConfigurationType;
+  type_name: PaymentOptionTypeName;
 }
 export interface CreateStoreLocationParams {
   key: string;
@@ -385,7 +385,7 @@ export interface CheckoutCartParams {
   locale: string;
   presentation_digest: string;
   sources: CheckoutQuoteSources;
-  payment_provider_id?: string;
+  payment_option_id?: string;
   return_url?: string;
   save_payment_method?: boolean;
   payment_method_terms_version?: string;
@@ -958,7 +958,7 @@ export interface DeleteBookingOfferingParams {
   id: string;
 }
 
-export interface GetBookingOfferingByBindingParams {
+export interface LookupBookingOfferingParams {
   store_id?: string;
   booking_service_id: string;
   booking_resource_id: string;
@@ -1947,26 +1947,26 @@ export interface DisconnectSocialConnectionParams {
   store_id?: string;
 }
 
-export interface ListPaymentProvidersParams extends ConfigurationPageParams {
+export interface ListPaymentOptionsParams extends ConfigurationPageParams {
   store_id?: string;
-  configuration_type?: PaymentProviderConfigurationType;
+  type_name?: PaymentOptionTypeName;
   status?: "active" | "disabled" | "deleting";
 }
 
-export interface CreateLocalPaymentProviderParams {
+export interface CreateLocalPaymentOptionParams {
   store_id?: string;
   id: string;
   key: string;
   blocks: Block[];
-  configuration: { type: "manual" | "cash_on_delivery" | "stripe" };
+  type: { type: "manual" | "cash_on_delivery" | "stripe" };
   status: { type: "active" | "disabled" };
 }
 
-export interface RefreshStripePaymentProviderParams {
+export interface RefreshStripePaymentOptionParams {
   store_id?: string;
 }
 
-export interface CreateMonriPaymentProviderParams {
+export interface CreateMonriPaymentOptionParams {
   store_id?: string;
   id: string;
   key: string;
@@ -1977,7 +1977,7 @@ export interface CreateMonriPaymentProviderParams {
   status: { type: "active" | "disabled" };
 }
 
-export interface UpdatePaymentProviderParams {
+export interface UpdatePaymentOptionParams {
   store_id?: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
@@ -1985,9 +1985,9 @@ export interface UpdatePaymentProviderParams {
   status: { type: "active" | "disabled" };
 }
 
-export interface ConnectStripePaymentProviderParams {
+export interface ConnectStripePaymentOptionParams {
   store_id?: string;
-  payment_provider_id: string;
+  payment_option_id: string;
   operation_id: string;
   return_url: string;
   refresh_url: string;

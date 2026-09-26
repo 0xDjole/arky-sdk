@@ -37,8 +37,8 @@ disputes.status = "settled";
 disputes.sort_field = "money";
 
 declare const dispute: PaymentDispute;
-const paymentId: string = dispute.order_payment_id;
-const captureId: string | null = dispute.order_payment_capture_id;
+const paymentId: string = dispute.payment_id;
+const captureId: string | null = dispute.payment_capture_id;
 const effects: DisputeFinancialEffect[] = dispute.financial_effects;
 void [paymentId, captureId, effects];
 // @ts-expect-error The DTO uses its explicit financial owner, not a legacy Payment backlink.

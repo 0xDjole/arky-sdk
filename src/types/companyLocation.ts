@@ -33,7 +33,7 @@ export interface CompanyLocationTaxSettings {
 
 export interface CompanyLocationCommercePolicy {
   payment_terms_id: string | null;
-  allowed_payment_provider_ids: string[] | null;
+  allowed_payment_option_ids: string[] | null;
   purchase_order_number_required: boolean;
 }
 

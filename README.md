@@ -148,7 +148,7 @@ consent. A Granted membership only satisfies group conditions on catalogs, promo
 
 Use `admin.eshop.product.getByKey({ store_id, key })`, `bookingService.getByKey(...)` and
 `bookingResource.getByKey(...)` for a known definition key. Fulfillment routing has the same
-`admin.eshop.fulfillmentRoutingPolicy.getByKey({ store_id, key })` lookup. `bookingOffering.getByBinding({
+`admin.eshop.fulfillmentRoutingPolicy.getByKey({ store_id, key })` lookup. `bookingOffering.lookup({
 store_id, booking_service_id, booking_resource_id })` resolves the exact parent pair. These reads
 return the current authorized definition without searching pages. A failed lookup is not permission
 to create a replacement; only an explicit not-found denotes absence. Storefront catalog access
@@ -261,7 +261,7 @@ console.log(product.slugs.en, product.price?.unit_price);
 await arky.eshop.cart.addProduct(product, variants.items[0], 2);
 await arky.eshop.cart.quote();
 const checkout = await arky.eshop.cart.checkout({
-  payment_provider_id: "payment-provider-id",
+  payment_option_id: "payment-option-id",
 });
 ```
 
@@ -329,7 +329,7 @@ an unresolved acceptance request: recovery still uses that exact retained reques
 
 Quote methods return `CheckoutQuote`: `{ sources, order, presentation_digest }`. The nested
 `order` includes the resolved buyer/context snapshots, all four line families, `locale`, the
-selected nullable `payment_provider_id` and the permitted `payment_provider_ids`. Low-level
+selected nullable `payment_option_id` and the permitted `payment_option_ids`. Low-level
 acceptance requires `quote.order.locale` and
 the outer `quote.presentation_digest`, which also binds the source Carts; the nested Order digest
 is not the acceptance digest. `initialize` forwards its retained reviewed quote. A presentation
@@ -340,7 +340,7 @@ Quote methods use the configured locale unless one is explicitly supplied. Stand
 Acceptance does not synchronize items or accept new buyer, address or pricing selections.
 Prepare those through Cart mutations and quote first. The `initialize` facade's `checkout` accepts
 only a
-provider from the reviewed `order.payment_provider_ids`, `return_url`, `clear_after_checkout`, `save_payment_method` and
+provider from the reviewed `order.payment_option_ids`, `return_url`, `clear_after_checkout`, `save_payment_method` and
 `payment_method_terms_version`. Saving a method requires a selected provider and explicit
 versioned consent. Recovery retains that exact consent with the original request.
 Omitting the provider selects the quote's suggested provider; choosing another permitted provider
@@ -351,7 +351,7 @@ its own ID, destination, items, selected `shipping_rate_id`, optional quote acce
 Omitting the field preserves existing groups; `[]` explicitly clears them. Do not supply both
 `delivery_groups` and the simple `shipping_address` convenience input. Shipping methods are not
 prices: select a quoted ShippingRate on its delivery group, then quote again and review the total.
-Payment-provider choice belongs to `checkout`, not `quote`.
+Payment-option choice belongs to `checkout`, not `quote`.
 
 Hydrated `product_items` expose `shipping_profile_id` from the same Variant read used to hydrate
 the item; nonphysical variants have `null`. Use it when assigning physical items to delivery groups.
@@ -391,7 +391,7 @@ const purchase = await admin.eshop.cart.checkout({
   locale: reviewed.order.locale,
   sources: reviewed.sources,
   presentation_digest: reviewed.presentation_digest,
-  payment_provider_id: reviewed.order.payment_provider_id ?? undefined,
+  payment_option_id: reviewed.order.payment_option_id ?? undefined,
 });
 ```
 
@@ -490,7 +490,7 @@ import { orderBookingItems } from "arky-sdk";
 
 await arky.eshop.cart.quote();
 const bookingCheckout = await arky.eshop.cart.checkout({
-  payment_provider_id: "payment-provider-id",
+  payment_option_id: "payment-option-id",
 });
 const customerOrder = await arky.eshop.order.get({
   id: bookingCheckout.order_id,
@@ -580,7 +580,7 @@ Store setup is fetched lazily and deduplicated:
 ```typescript
 const setup = await arky.store.load();
 console.log(setup.languages.default, setup.default_market?.key);
-console.log(setup.payment_providers); // [{ id, key, blocks, type: "cash_on_delivery" | "manual" | "stripe" }]
+console.log(setup.payment_options); // [{ id, key, blocks, type: "cash_on_delivery" | "manual" | "stripe" }]
 ```
 
 Setup contains only the exact default Market (`null` before commerce is ready), not a list of
@@ -605,7 +605,7 @@ import { mountCheckoutAction } from "arky-sdk";
 
 await arky.eshop.cart.quote();
 const result = await arky.eshop.cart.checkout({
-  payment_provider_id: "stripe-payment-provider-id",
+  payment_option_id: "stripe-payment-option-id",
   return_url: window.location.href,
 });
 
@@ -653,9 +653,19 @@ proof. Stripe uses its supported signed-event/exact-observation policy; Monri in
 uses signed backend notifications. An approved or declined browser result never settles money in
 the SDK. A delayed notification can leave the same Order awaiting payment.
 
-Store Admin configures Monri with `store.paymentProvider.monri.create`. Merchant key and
+Saved cards are `admin.eshop.paymentMethod` records (and `storefront.eshop.paymentMethod` for the
+signed-in customer). A card belongs to a Customer or a Company (`owner`), keeps the PaymentOption it
+was saved with and shows its `details` (brand, last 4 digits, expiry) once Ready. A card is saved at
+checkout with `save_payment_method`, or added with `requestSetup`, then `startSetup` (which returns
+the Stripe SetupIntent `client_secret` for Stripe.js) and `completeSetup` after confirmation. Monri
+cards are saved at checkout. `subscription.updateCard({ command_id, request: { subscription_id,
+order_id, payment_method_id } })` pays a declined renewal Order with another ready card of the same
+payer and makes later renewals use it; switching between Stripe and Monri is refused with
+`PAYMENT_METHOD.PROVIDER_SWITCH`.
+
+Store Admin configures Monri with `store.paymentOption.monri.create`. Merchant key and
 authenticity token are write-only; configuration reads return only its environment. Use
-`store.paymentProvider.update` with the current `expected_updated_at`, unchanged content Blocks
+`store.paymentOption.update` with the current `expected_updated_at`, unchanged content Blocks
 and explicit Active/Disabled status to change availability. That update cannot replace merchant
 credentials, provider identity or environment. Saving configuration performs no provider call;
 selecting one card provider on the Market remains a separate step.
@@ -831,7 +841,7 @@ an empty page with a cursor still has a continuation. Cursors belong to their or
 sort and operator. Neither helper automatically fetches later pages. Permission panels use
 `admin.store.member.getOwn({ store_id })`, not an assumed-complete membership discovery page.
 
-`admin.store.market.list`, `admin.store.location.list` and `admin.store.paymentProvider.list`
+`admin.store.market.list`, `admin.store.location.list` and `admin.store.paymentOption.list`
 return `{ items, cursor }`, not complete arrays. Each accepts an explicit `store_id`, exact `key`,
 owner-specific filters, `created_at`/`updated_at` ordering and bounded `limit`/`cursor` paging.
 Market filters include currency and active/deleting status; Location filters include
@@ -842,7 +852,7 @@ and active-only visibility, so neither `store_id` nor status belongs in their qu
 
 Use `market.get({ store_id, id })` or `location.get({ store_id, id })` for a saved selection,
 and `getByKey({ store_id, key })` for exact configuration lookup. Provider configuration has
-`paymentProvider.getByConfiguration({ store_id, configuration_type })` in addition to exact ID/key
+`paymentOption.getByConfiguration({ store_id, configuration_type })` in addition to exact ID/key
 reads. A missing discovery candidate is not proof that configuration is absent and never
 authorizes repeated creation, connection or payment. Only exact reads confirm a saved identity.
 
@@ -857,13 +867,13 @@ and the SDK does not select a replacement for the operator.
 
 ### Stripe connection setup
 
-Create a local Stripe PaymentProvider before calling `store.paymentProvider.stripe.connect`.
-The connection request requires its `payment_provider_id`, a canonical UUID-v4 `operation_id`,
+Create a local Stripe PaymentOption before calling `store.paymentOption.stripe.connect`.
+The connection request requires its `payment_option_id`, a canonical UUID-v4 `operation_id`,
 explicit `authorize_account_debits`, and return/refresh URLs. An unconnected account also needs
 its two-letter country. The response contains `provider`, the retained eleven-field `operation`,
 and a response-only `onboarding_url`.
 
-Inspect an uncertain result with `store.paymentProvider.stripe.getConnection({ store_id,
+Inspect an uncertain result with `store.paymentOption.stripe.getConnection({ store_id,
 operation_id })`. This exact authorized read makes no Stripe call. Account creation and metadata
 binding have independent tagged statuses; `unknown` is not a failed request or permission to
 create another account. Browser integrations must persist the exact request with the shared
@@ -931,7 +941,7 @@ from creating Subscriptions and own history from Company history.
 A Customer group is an audience. `admin.eshop.customerGroupMember` holds its one relationship per
 Customer or Company member: `execute` runs a journaled `grant_admission`, `revoke_admission`,
 `grant_administrative_access` or `clear_administrative_access` command under a caller-retained
-`command_id` (retry the same command after a lost response), `getByBinding` reads the exact member
+`command_id` (retry the same command after a lost response), `lookup` reads the exact member
 and `find`/`findCommands` page members and command history. Membership buys nothing and subscribes
 no one to email; group email consent is `admin.eshop.customerGroupEmailConsent`. Company membership
 queries select at most one of Company, Customer or role. Server validates supported filter
@@ -1085,7 +1095,7 @@ console.log(recorded.financial_summary.outstanding);
 `money: { amount, currency }`, and optionally `store_id`. Each amount is a positive integer in minor
 units. `recordManualCollection` additionally requires `reference: string | null`.
 `createManual` creates the separate manual collection intent with its own stable `id`, `order_id`,
-`payment_provider_id`, `money` and required nullable `reference`; intent creation is not money received.
+`payment_option_id`, `money` and required nullable `reference`; intent creation is not money received.
 Unexpected receipts remain recorded and may open a reconciliation hold.
 
 Refunds use the collected Payment ID and one stable UUID-v4 for the concrete refund. Persist that ID
@@ -1173,7 +1183,7 @@ const result = await admin.eshop.shipment.create({
     {
       fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
       unit_spans: [{ first_unit: 0, quantity: 1 }],
-      unit_bindings: [],
+      selected_units: [],
     },
   ],
   parcel: {
@@ -1193,7 +1203,7 @@ const rates = await admin.eshop.shippingLabel.quote({
 console.log(rates.map((rate) => ({ service: rate.display_name, total: rate.total })));
 ```
 
-`unit_bindings` is required on Shipment and Pickup lines. Quantity-tracked goods use an empty array;
+`selected_units` is required on Shipment and Pickup lines. Quantity-tracked goods use an empty array;
 individually tracked components require explicit `{ fulfillment_unit_index, inventory_unit_id }`
 bindings for the complete accepted component recipe, at most 100 distinct Units per manifest.
 The Unit must already be allocated to the corresponding reservation slot. Work positions are not
@@ -1206,7 +1216,7 @@ reservation/slot, Item/key and nullable current Unit for each component; it does
 Discover available objects with `inventoryUnit.find` filtered by that Item, the returned Location
 and `status: "available"`. Pass the chosen Unit's loaded revision and the returned reservation/slot
 to `inventoryUnit.allocate`, then resolve again to display saved assignments after reload or an
-uncertain response. Build the manifest's `unit_bindings` from those confirmed assignments. At most
+uncertain response. Build the manifest's `selected_units` from those confirmed assignments. At most
 100 physical component slots are resolved per request; quantity-only goods return an empty list.
 
 `selectShipmentUnits` and `selectPickupUnits` from `arky-sdk/utils` build a quantity selection from

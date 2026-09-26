@@ -102,7 +102,7 @@ export type CompanyContracts = [
   True<RequiredField<CompanyLocation, "commerce">>,
   True<Equal<CompanyLocation["tax"], CompanyLocationTaxSettings>>,
   True<Equal<CompanyLocation["commerce"], CompanyLocationCommercePolicy>>,
-  True<Equal<CompanyLocationCommercePolicy["allowed_payment_provider_ids"], string[] | null>>,
+  True<Equal<CompanyLocationCommercePolicy["allowed_payment_option_ids"], string[] | null>>,
   False<"tax" extends keyof UpdateCompanyLocationParams ? true : false>,
   False<"commerce" extends keyof UpdateCompanyLocationParams ? true : false>,
   True<"access_digital_products" extends CompanyPermission ? true : false>,
@@ -329,7 +329,7 @@ export type CompanyContracts = [
   True<Equal<Awaited<ReturnType<MarketApi["delete"]>>, Market>>,
   True<Equal<Awaited<ReturnType<MarketApi["usage"]>>, MarketUsage>>,
   True<Equal<PublicTypes.MarketUsage, MarketUsage>>,
-  True<Equal<keyof MarketUsage, "market_payment_provider_ids" | "more_market_payment_providers" | "market_sales_channel_ids" | "more_market_sales_channels" | "fulfillment_routing_policy_ids" | "more_fulfillment_routing_policies" | "market_zone_ids" | "more_market_zones" | "catalog_entitlement_ids" | "more_catalog_entitlements" | "cart_ids" | "more_carts" | "is_default">>,
+  True<Equal<keyof MarketUsage, "market_payment_option_ids" | "more_market_payment_options" | "market_sales_channel_ids" | "more_market_sales_channels" | "fulfillment_routing_policy_ids" | "more_fulfillment_routing_policies" | "market_zone_ids" | "more_market_zones" | "catalog_entitlement_ids" | "more_catalog_entitlements" | "cart_ids" | "more_carts" | "is_default">>,
   True<RequiredField<UpdateMarketParams, "expected_updated_at">>,
   True<RequiredField<DeleteMarketParams, "expected_updated_at">>,
   False<

@@ -46,7 +46,6 @@ const removedIdentifiers = [
   "googleComplete",
   "googleStart",
   "updateAccount",
-  "PaymentMethod",
   "PaymentMethodType",
   "PaymentProviderType",
   "StoreSubscriptionPayment",
@@ -207,6 +206,8 @@ const removedCommercePaymentVocabularyPattern = new RegExp(
   "\\b(?:payment_method_key|payment_methods|setup_status|platform_debits_authorized)\\b",
   "g",
 );
+const removedPaymentNamingPattern =
+  /\b(?:PaymentProvider\w*|MarketPaymentProvider\w*|CustomerPaymentMethod\w*|OrderPaymentCapture|ShipmentUnitBinding|getByBinding|\w+ByBindingParams|payment_provider\w*|market_payment_provider\w*|customer_payment_method\w*|order_payment_id|order_payment_capture_id|order_refund_id|payer_customer_id|unit_bindings|metadata_binding_status)\b|payment-providers|customer-payment-methods|\/by-binding|by-configuration/g;
 const removedProductContractPatterns = [
   /export interface ProductInventory\s*\{[^}]*\b(?:location_id|available)\??:/g,
   /export interface ProductVariant\s*\{[^}]*\bweight\??:/g,
@@ -374,6 +375,11 @@ for (const file of listTypeScriptFiles(sourceDir)) {
       match.index,
       `removed Commerce payment field ${match[0]}`,
     );
+    failures++;
+  }
+
+  for (const match of source.matchAll(removedPaymentNamingPattern)) {
+    report(file, source, match.index, `removed payment or binding name ${match[0]}`);
     failures++;
   }
 
@@ -676,7 +682,7 @@ const requiredCartFields = [
   /\bpromotion_code_ids:\s*string\[\];/,
 ];
 if (!cartContract || requiredCartFields.some((field) => !field.test(cartContract[1])) ||
-  /\b(?:market|customer_session_id|created_by_account_id|token|promo_code|converted_order_id|shipping_address|payment_provider_id|shipping_method_id|product_items|booking_items|digital_items|customer_group_plan_items|company_id|company_location_id)\??:/.test(cartContract[1])) {
+  /\b(?:market|customer_session_id|created_by_account_id|token|promo_code|converted_order_id|shipping_address|payment_option_id|shipping_method_id|product_items|booking_items|digital_items|customer_group_plan_items|company_id|company_location_id)\??:/.test(cartContract[1])) {
   report(cartTypesFile, cartTypesSource, cartContract?.index ?? 0,
     "Cart must expose its buyer/context IDs, tagged status/provenance and one typed line item array without legacy aliases");
   failures++;
@@ -692,7 +698,7 @@ if (!quoteContract || [
   /\bsubscription_lines:\s*SubscriptionOrderQuoteLine\[\];/,
   /\bdelivery_groups:\s*QuotedDeliveryGroup\[\];/,
   /\bseller:\s*SellerSnapshot;/,
-  /\bpayment_provider_id:\s*string\s*\|\s*null;/,
+  /\bpayment_option_id:\s*string\s*\|\s*null;/,
 ].some((field) => !field.test(quoteContract[1])) || /invoice/i.test(quoteContract[1])) {
   report(quoteTypesFile, quoteTypesSource, quoteContract?.index ?? 0,
     "OrderQuote must expose reviewed presentation, resolved buyer/context and every typed line family");
@@ -888,7 +894,7 @@ if (
   !/createSubscriptionPlanEntitlementApi\s*\}\s*from\s*["']\.\/api\/subscriptionPlanEntitlement["']/.test(
     indexSource,
   ) ||
-  !/createMarketPaymentProviderApi\s*\}\s*from\s*["']\.\/api\/marketPaymentProvider["']/.test(
+  !/createMarketPaymentOptionApi\s*\}\s*from\s*["']\.\/api\/marketPaymentOption["']/.test(
     indexSource,
   ) ||
   !/createFulfillmentOrderApi\s*\}\s*from\s*["']\.\/api\/fulfillmentOrder["']/.test(

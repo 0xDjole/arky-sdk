@@ -18,7 +18,7 @@ export const authorizationVoid: MonriAuthorizationVoid = {
 };
 export const binding: Payment['provider'] = {
   type: 'monri_checkout',
-  payment_provider_id: 'provider',
+  payment_option_id: 'provider',
   environment: 'test',
   transaction_type: 'authorize',
   transaction_id: '901',

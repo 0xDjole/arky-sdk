@@ -143,9 +143,9 @@ function initializeStoreCore(
     return value?.key === resolvedKey ? value : null;
   });
   const currency = computed(market, (value) => value?.currency || null);
-  const allowed_payment_provider_ids = computed(
+  const allowed_payment_option_ids = computed(
     market,
-    (value) => value?.payment_provider_ids || [],
+    (value) => value?.payment_option_ids || [],
   );
   const cart = atom<StorefrontCart | null>(null);
   const product_items = atom<EshopCartItem[]>([]);
@@ -279,8 +279,8 @@ function initializeStoreCore(
   client.onAuthStateChanged(synchronizeSession);
   currency.subscribe((value) => booking_service_state.setKey("currency", value));
   market.subscribe((value) => {
-    const providerIds = value?.payment_provider_ids || [];
-    booking_service_state.setKey("availablePaymentProviderIds", providerIds);
+    const providerIds = value?.payment_option_ids || [];
+    booking_service_state.setKey("availablePaymentOptionIds", providerIds);
   });
 
   function currentMarketKey(): string {
@@ -916,7 +916,7 @@ function initializeStoreCore(
       billing_address: context.billing_address,
       total: response.payment?.amounts.total ?? 0,
       currency: response.payment?.amounts.currency ?? null,
-      payment_provider_id: context.payment_provider_id,
+      payment_option_id: context.payment_option_id,
       created_at: context.created_at,
     });
 
@@ -959,7 +959,7 @@ function initializeStoreCore(
   async function checkout(
     input: ArkyCartCheckoutInput = {},
   ): Promise<StorefrontOrderCheckoutResult> {
-    if (Object.keys(input).some((key) => !["payment_provider_id", "return_url", "clear_after_checkout", "save_payment_method", "payment_method_terms_version"].includes(key)))
+    if (Object.keys(input).some((key) => !["payment_option_id", "return_url", "clear_after_checkout", "save_payment_method", "payment_method_terms_version"].includes(key)))
       throw new Error("Update and review Cart selections before checkout");
     return runCheckout(async (scope) => {
       const pending = await client.eshop.cart.pendingCheckout();
@@ -970,8 +970,8 @@ function initializeStoreCore(
       const current = cart.get();
       if (!current || current.status.type === "converted") throw new Error("Review an active Cart before checkout");
       if (!quoteValue.sources) throw new Error("Review a saved Cart quote with its converted lines before checkout");
-      const paymentProviderId = input.payment_provider_id ?? quoteValue.order.payment_provider_id ?? undefined;
-      if (paymentProviderId !== undefined && !quoteValue.order.payment_provider_ids.includes(paymentProviderId))
+      const paymentOptionId = input.payment_option_id ?? quoteValue.order.payment_option_id ?? undefined;
+      if (paymentOptionId !== undefined && !quoteValue.order.payment_option_ids.includes(paymentOptionId))
         throw new Error("The selected payment provider is not available in the reviewed Cart quote");
       if (!quoteValue.order.locale) throw new Error("Review a Cart quote with a presentation language before checkout");
       const returnUrl =
@@ -984,7 +984,7 @@ function initializeStoreCore(
           locale: quoteValue.order.locale,
           presentation_digest: quoteValue.presentation_digest,
           sources: quoteValue.sources,
-          payment_provider_id: paymentProviderId,
+          payment_option_id: paymentOptionId,
           return_url: returnUrl,
           save_payment_method: input.save_payment_method,
           payment_method_terms_version: input.payment_method_terms_version,
@@ -995,7 +995,7 @@ function initializeStoreCore(
         subscription_plan_items: cartSubscriptionPlanItems(current),
         shipping_address: null,
         billing_address: current.billing_address,
-        payment_provider_id: paymentProviderId || null,
+        payment_option_id: paymentOptionId || null,
         clear_after_checkout: input.clear_after_checkout !== false,
         created_at: epochMillisecondsNow(),
       };
@@ -1017,7 +1017,7 @@ function initializeStoreCore(
         request: pending,
         product_items: [], booking_items: [], digital_items: [], subscription_plan_items: [],
         shipping_address: null, billing_address: null,
-        payment_provider_id: pending.payment_provider_id ?? null,
+        payment_option_id: pending.payment_option_id ?? null,
         clear_after_checkout: false,
         created_at: epochMillisecondsNow(),
       }, response);
@@ -1259,9 +1259,9 @@ function initializeStoreCore(
         normalizeTimezoneGroups(client.utils.tzGroups),
       );
       await ensureCart();
-      const providerIds = market.get()?.payment_provider_ids || [];
+      const providerIds = market.get()?.payment_option_ids || [];
       if (providerIds.length)
-        booking_service_state.setKey("availablePaymentProviderIds", providerIds);
+        booking_service_state.setKey("availablePaymentOptionIds", providerIds);
     },
 
     setTimezone(tz: string): void {
@@ -1619,7 +1619,7 @@ function initializeStoreCore(
     },
 
     async checkout(
-      paymentProviderId?: string,
+      paymentOptionId?: string,
     ): Promise<StorefrontOrderCheckoutResult> {
       const state = booking_service_state.get();
       const items = booking_items.get();
@@ -1627,7 +1627,7 @@ function initializeStoreCore(
       booking_service_state.setKey("loading", true);
       try {
         const result = await checkout({
-          payment_provider_id: paymentProviderId,
+          payment_option_id: paymentOptionId,
         });
         booking_service_state.setKey("cartId", cart.get()?.id || null);
         return result;
@@ -1652,11 +1652,11 @@ function initializeStoreCore(
         booking_service_state.setKey("cartId", cart.get()?.id || null);
         booking_service_state.setKey("quote", response);
         const providerIds =
-          response?.order.payment_provider_ids ||
-          market.get()?.payment_provider_ids ||
+          response?.order.payment_option_ids ||
+          market.get()?.payment_option_ids ||
           [];
         if (providerIds.length)
-          booking_service_state.setKey("availablePaymentProviderIds", providerIds);
+          booking_service_state.setKey("availablePaymentOptionIds", providerIds);
         return response;
       } catch (error) {
         booking_service_state.setKey(
@@ -2055,7 +2055,7 @@ function initializeStoreCore(
     market_key,
     locale,
     currency,
-    allowed_payment_provider_ids,
+    allowed_payment_option_ids,
     customer: {
       identify,
       captureEmail: client.customer.captureEmail,

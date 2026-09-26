@@ -11,7 +11,8 @@ export type CompanyPermission =
   | "create_subscriptions"
   | "view_own_subscriptions"
   | "view_company_subscriptions"
-  | "manage_company_subscriptions";
+  | "manage_company_subscriptions"
+  | "manage_payment_methods";
 export type CompanyRoleStatus = { type: "active" } | { type: "deleting" };
 
 export interface CompanyRole {

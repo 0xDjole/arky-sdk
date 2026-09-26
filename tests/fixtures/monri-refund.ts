@@ -11,7 +11,7 @@ export const result = {
   observed_at: epochMilliseconds(1300),
 } satisfies MonriRefundResult;
 
-export const provider = { type: "monri", payment_provider_id: "550e8400-e29b-41d4-a716-446655440001", environment: "test", result } satisfies RefundProvider;
+export const provider = { type: "monri", payment_option_id: "550e8400-e29b-41d4-a716-446655440001", environment: "test", result } satisfies RefundProvider;
 export const evidence = { type: "monri", transaction_id: result.transaction_id } satisfies CustomerMoneyEvidence;
 const { currency, ...missingCurrency } = result;
 // @ts-expect-error Observed currency is explicitly nullable, never omitted.

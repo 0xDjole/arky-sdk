@@ -284,9 +284,9 @@ test("direct provider calls keep their original store scope", async () => {
   };
 
   try {
-    await client.store.paymentProvider.stripe.connect({
+    await client.store.paymentOption.stripe.connect({
       operation_id: operationId,
-      payment_provider_id: providerId,
+      payment_option_id: providerId,
       authorize_account_debits: false,
       return_url: "https://admin.example.test/return",
       refresh_url: "https://admin.example.test/refresh",
@@ -300,7 +300,7 @@ test("direct provider calls keep their original store scope", async () => {
     calls.map(({ target, method }) => [target.replace(baseUrl, ""), method]),
     [
       [
-        `/v1/stores/${originalStoreId}/payment-providers/stripe/connect`,
+        `/v1/stores/${originalStoreId}/payment-options/stripe/connect`,
         "POST",
       ],
     ],

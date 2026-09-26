@@ -123,4 +123,4 @@ export type StorefrontPage<T> = StorefrontDto<PaginatedResponse<T>>;
 export type StorefrontMarket = Omit<
   Market,
   "store_id" | "status" | "created_at" | "updated_at"
-> & { payment_provider_ids: string[] };
+> & { payment_option_ids: string[] };

@@ -6,7 +6,7 @@ import type {
   CreateMarketZoneParams,
   UpdateMarketZoneParams,
   GetMarketZoneParams,
-  GetMarketZoneByBindingParams,
+  LookupMarketZoneParams,
   FindMarketZonesParams,
   DeleteMarketZoneParams,
 } from "../types/zone";
@@ -35,9 +35,9 @@ export const createMarketZoneApi = (apiConfig: ApiConfig) => {
         options,
       );
     },
-    getByBinding(params:GetMarketZoneByBindingParams, options?:RequestOptions):Promise<MarketZone> {
+    lookup(params:LookupMarketZoneParams, options?:RequestOptions):Promise<MarketZone> {
       const {store_id,...query}=params;
-      return apiConfig.httpClient.get<MarketZone>(`${basePath(store_id)}/by-binding`,{...options,params:query});
+      return apiConfig.httpClient.get<MarketZone>(`${basePath(store_id)}/lookup`,{...options,params:query});
     },
     find(
       params: FindMarketZonesParams = {},

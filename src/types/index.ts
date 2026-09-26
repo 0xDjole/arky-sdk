@@ -22,8 +22,8 @@ export type { AppliedPriceSnapshot, AppliedPriceSource, DisplayTextSnapshot, Ord
 export type { CompanySnapshot, PurchaseCustomerSnapshot, PurchaseOrigin, PurchaseQuoteContext, SalesChannelSnapshot } from "./commerce";
 export type { SubscriptionAcceptedTerms, SubscriptionPlanSnapshot, SubscriptionPlanEntitlementSnapshot, SubscriptionPlanEntitlementSnapshotType, SubscriptionProductSnapshot, SubscriptionDigitalSnapshot, SubscriptionDeliveryTerms, SubscriptionPurchaseOccurrence, OrderSubscriptionTerms, OrderAccessRevocation } from "./commerce";
 export type { BillingPeriod } from "./commerce";
-export type { MonriCaptureProof, PaymentCaptureEvidence, CaptureFinancialEffect, PaymentCaptureStatus, OrderPaymentCapture, RecordedCollection, RecordCashOnDeliveryCollectionParams, RecordManualCollectionParams, CreateManualPaymentParams } from "./paymentCapture";
-export type { CommerceProviderObservation, Payment, PaymentStatus, PaymentAmounts, PaymentProviderBinding, PaymentCheckoutExpiration, PaymentReconciliation, MonriAuthorizationVoid, MonriVoidStatus, MonriVoidResult } from "./payment";
+export type { MonriCaptureProof, PaymentCaptureEvidence, CaptureFinancialEffect, PaymentCaptureStatus, PaymentCapture, RecordedCollection, RecordCashOnDeliveryCollectionParams, RecordManualCollectionParams, CreateManualPaymentParams } from "./paymentCapture";
+export type { CommerceProviderObservation, Payment, PaymentStatus, PaymentAmounts, PaymentRoute, PaymentCheckoutExpiration, PaymentReconciliation, MonriAuthorizationVoid, MonriVoidStatus, MonriVoidResult } from "./payment";
 import type { EpochMilliseconds } from "./time";
 export type { Order, OrderSource, OrderSourceFilter, OrderRentalUseItem, OrderStatus, OrderLineItem, OrderCompanyContext, OrderFinancialSummary, OrderFinancialConcern, GetOrderFinancialSummaryParams } from "./order";
 export type {
@@ -136,8 +136,8 @@ export type PaymentDisputeProvider = {
 export interface PaymentDispute {
   id: string;
   store_id: string;
-  order_payment_id: string;
-  order_payment_capture_id: string | null;
+  payment_id: string;
+  payment_capture_id: string | null;
   livemode: boolean;
   financial_effects: DisputeFinancialEffect[];
   money: Money;
@@ -606,7 +606,7 @@ export interface BuildHook {
   updated_at: EpochMilliseconds;
 }
 
-export type PaymentProviderStatus = { type: "active" } | { type: "disabled" } | { type: "deleting" };
+export type PaymentOptionStatus = { type: "active" } | { type: "disabled" } | { type: "deleting" };
 
 export type StripeProviderConnection =
   | { type: "unconnected" }
@@ -619,7 +619,7 @@ export type StripeProviderConnection =
       state_observed_at: EpochMilliseconds;
     };
 
-export type PaymentProviderConfiguration =
+export type PaymentOptionType =
   | { type: "cash_on_delivery" }
   | { type: "manual" }
   | {
@@ -630,22 +630,22 @@ export type PaymentProviderConfiguration =
 
 export type MonriEnvironment = "test" | "live";
 
-export type PaymentProviderConfigurationType =
-  PaymentProviderConfiguration["type"];
+export type PaymentOptionTypeName =
+  PaymentOptionType["type"];
 
-export interface PaymentProvider {
+export interface PaymentOption {
   id: string;
   store_id: string;
   key: string;
   blocks: Block[];
-  status: PaymentProviderStatus;
-  configuration: PaymentProviderConfiguration;
+  status: PaymentOptionStatus;
+  type: PaymentOptionType;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export interface PaymentProviderConnectResponse {
-  provider: PaymentProvider;
+export interface PaymentOptionConnectResponse {
+  payment_option: PaymentOption;
   onboarding_url: string | null;
   operation: StripeConnectionOperation;
 }
@@ -1015,8 +1015,8 @@ export interface OrderCheckoutResult {
 export type MarketStatus = { type: "active" } | { type: "deleting" };
 
 export interface MarketUsage {
-  market_payment_provider_ids: string[];
-  more_market_payment_providers: boolean;
+  market_payment_option_ids: string[];
+  more_market_payment_options: boolean;
   market_sales_channel_ids: string[];
   more_market_sales_channels: boolean;
   fulfillment_routing_policy_ids: string[];
@@ -2497,7 +2497,7 @@ export type CustomerActionOrigin =
   | { type: "unsubscribe_capability"; membership_id: string }
   | {
       type: "stripe";
-      payment_provider_id: string;
+      payment_option_id: string;
       observation: CustomerActionProviderObservation;
     }
   | { type: "system" };
@@ -2917,10 +2917,10 @@ export interface ShippingRateLine {
 export interface ShipmentLine {
   fulfillment_order_line_id: string;
   unit_spans: FulfillmentUnitSpan[];
-  unit_bindings: ShipmentUnitBinding[];
+  selected_units: SelectedUnit[];
 }
 
-export interface ShipmentUnitBinding {
+export interface SelectedUnit {
   fulfillment_unit_index: number;
   inventory_unit_id: string;
 }

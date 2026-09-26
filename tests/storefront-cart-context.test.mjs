@@ -93,13 +93,13 @@ function setup(respond) {
         timezone: "UTC",
         languages: { default: "en", available: ["en", "de"] },
         commerce: { type: "ready", default_market_id: "market-a", default_sales_channel_id: "channel-a" },
-        default_market: { id: "market-a", key: "market-a", currency: "eur", tax_mode: "exclusive", payment_provider_ids: [] },
-        payment_providers: [],
+        default_market: { id: "market-a", key: "market-a", currency: "eur", tax_mode: "exclusive", payment_option_ids: [] },
+        payment_options: [],
         support: { email: null },
         readiness: { market: true, payment: false, commerce: true },
       });
     if (call.path === "/v1/storefront/markets/by-key/market-b")
-      return Response.json({ id: "market-b", key: "market-b", currency: "usd", tax_mode: "exclusive", payment_provider_ids: [] });
+      return Response.json({ id: "market-b", key: "market-b", currency: "usd", tax_mode: "exclusive", payment_option_ids: [] });
     return respond(call);
   };
   const store = initialize(publishableKey, {
@@ -225,17 +225,17 @@ for (const permitted of [true, false]) {
     store.eshop.cart.quote_result.set({
       sources: checkoutSources(cartId),
       presentation_digest: "a".repeat(64),
-      order: { locale: "en", payment_provider_id: suggested, payment_provider_ids: permitted ? [suggested, selected] : [suggested] },
+      order: { locale: "en", payment_option_id: suggested, payment_option_ids: permitted ? [suggested, selected] : [suggested] },
     });
     await assert.rejects(
-      store.eshop.cart.checkout({ payment_provider_id: selected }),
+      store.eshop.cart.checkout({ payment_option_id: selected }),
       permitted ? /response lost/ : /not available in the reviewed Cart quote/,
     );
     const posts = calls.filter((call) => call.path.endsWith("/carts/accept"));
     assert.equal(posts.length, permitted ? 1 : 0);
     if (permitted) {
-      assert.equal(posts[0].body.payment_provider_id, selected);
-      assert.equal((await store.eshop.cart.pendingCheckout()).payment_provider_id, selected);
+      assert.equal(posts[0].body.payment_option_id, selected);
+      assert.equal((await store.eshop.cart.pendingCheckout()).payment_option_id, selected);
     } else assert.equal(await store.eshop.cart.pendingCheckout(), null);
   });
 }
