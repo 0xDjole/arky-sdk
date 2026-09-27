@@ -111,7 +111,6 @@ import type {
   CreateProductParams,
   CreateProductVariantParams,
   CreateDigitalProductParams,
-  CreateShipmentParams,
   DigitalAsset,
   DigitalLibraryItem,
   DigitalLibraryProduct,
@@ -122,7 +121,6 @@ import type {
   GetCollectionParams,
   GetDigitalLibraryProductParams,
   GetStorefrontDigitalProductParams,
-  QuoteShippingLabelParams,
   GetPaymentDisputeParams,
   OrderMoney,
   NodeResult,
@@ -144,13 +142,9 @@ import type {
   TaxLine,
   OrderDeliveryGroup,
   AppliedPriceSnapshot,
-  ShippingLabel,
-  MerchantDebit,
-  MerchantDebitReversal,
-  ShippingLabelRefund,
-  ShippingLabelQuoteRate,
-  ShippingLabelPurchase,
   FulfillmentOrder,
+  Fulfillment,
+  CreateFulfillmentParams,
   FulfillmentOrderStatus,
   FormBlock,
   PaginatedResponse,
@@ -178,8 +172,6 @@ import type {
   TrustedCartProductInput,
   OrderBookingItem,
   TimeRange,
-  Shipment,
-  ShipmentStatus,
   SocialCredential,
   SocialConnection,
   SocialMessage,
@@ -363,7 +355,7 @@ import type {
 // @ts-expect-error storefront CustomerAction keys have no Action compatibility alias.
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.26.62" = SDK_VERSION;
+const sdkVersionLiteral: "0.26.70" = SDK_VERSION;
 const workflowExternalOperationContract: WorkflowExternalOperation = {
   id: "operation-contract",
   store_id: "store-contract",
@@ -433,7 +425,6 @@ const storeContract: Store = {
     default_sales_channel_id: "channel-contract",
     seller: { legal_name: "Synthetic seller", address: { country: "US" }, registration_number: null, tax_registrations: [] },
     tax: { version: "fixture", noncommercial_subscription_grants: false },
-    invoicing: { series_key: "sales", issue_trigger: { type: "acceptance" } },
   },
   timezone: "Europe/Sarajevo",
   default_language: "en",
@@ -473,6 +464,7 @@ const storeLocationContract: StoreLocation = {
   address: { city: "Sarajevo", country: "BA" },
   timezone: "Europe/Sarajevo",
   is_pickup_location: true,
+  operator: { type: "store" },
   blocks: [],
   status: { type: "active" },
   created_at: epochMilliseconds(1),
@@ -572,7 +564,7 @@ const cashOnDeliveryProvider: PaymentOption = {
   key: "cash",
   blocks: [],
   status: { type: "active" },
-  configuration: { type: "cash_on_delivery" },
+  type: { type: "cash_on_delivery" },
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(1),
 };
@@ -582,7 +574,7 @@ const stripeProvider: PaymentOption = {
   key: "card",
   blocks: [],
   status: { type: "active" },
-  configuration: {
+  type: {
     type: "stripe",
     connection: {
     type: "connected",
@@ -591,12 +583,6 @@ const stripeProvider: PaymentOption = {
     payments_enabled: true,
     payouts_enabled: true,
     state_observed_at: epochMilliseconds(2),
-    platform_debit_consent: {
-      accepted_by: { account_id: "account-contract", snapshot: { email: "owner@example.test", credential_type: "session" } },
-      accepted_at: epochMilliseconds(2),
-      terms_version: 1,
-      revoked_at: null,
-    },
     },
   },
   created_at: epochMilliseconds(1),
@@ -658,8 +644,7 @@ createMarketContract.payment_methods;
 createMarketContract.payment_option_ids;
 // @ts-expect-error Cart checkout selects a Payment Provider UUID.
 checkoutContract.payment_method_key;
-// @ts-expect-error Provider configuration is a tagged value, not a flat provider type.
-stripeProvider.type;
+
 // @ts-expect-error Provider setup observations live inside the Stripe configuration.
 stripeProvider.payments_enabled;
 // @ts-expect-error Quote returns provider UUID selection and allowlist fields.
@@ -1299,17 +1284,14 @@ storefrontClient.classification.get({ key: "topics" });
 // @ts-expect-error Classification is a top-level module, not a Content child.
 storefrontClient.content.classification;
 declare const adminClient: ReturnType<typeof createAdmin>;
-const ordinaryAdminInvitation: AddMemberParams = { email: "admin@example.test" };
+const ordinaryAdminInvitation: AddMemberParams = { email: "admin@example.test", access: { type: "staff", role: "admin" } };
 const ownershipTransferParams: TransferStoreOwnershipParams = {
   account_id: "a35bc883-e98c-4fa9-94a2-8cbb7c3ac755",
 };
 const ownershipTransferResult: Promise<StoreMembership> =
   adminClient.store.member.transferOwnership(ownershipTransferParams);
 adminClient.store.member.invite(ordinaryAdminInvitation);
-// @ts-expect-error Ordinary membership creation cannot choose Owner or any other role.
-adminClient.store.member.add({ email: "owner@example.test", role: "owner" });
-// @ts-expect-error Invitations never grant Owner authority.
-adminClient.store.member.invite({ email: "admin@example.test", role: "admin" });
+adminClient.store.member.invite({ email: "partner@example.test", access: { type: "partner", fulfillment_partner_id: "partner" } });
 void ownershipTransferResult;
 const mailboxIssueQuery: FindMailboxSyncIssuesParams = {
   id: "mailbox-contract",
@@ -1719,8 +1701,8 @@ const orderPayment: Payment = {
   id: "order-payment-contract",
   store_id: "store-contract",
   order_id: "order-contract",
-  payer_customer_id: "customer-contract",
-  provider: stripePaymentRoute,
+  payer: { type: "customer", customer_id: "customer-contract" },
+  route: stripePaymentRoute,
   status: { type: "requires_action" },
   checkout_expiration: null,
   amounts: paymentAmounts,
@@ -1733,20 +1715,14 @@ const orderPayment: Payment = {
 };
 const savedMethodPayment: Payment = {
   ...orderPayment,
-  provider: { type: "stripe_saved_method", payment_option_id: "provider", payment_method_id: "method", payment_intent_id: null },
+  route: { type: "stripe_saved_method", payment_option_id: "provider", payment_method_id: "method", payment_intent_id: null },
   status: { type: "authorized" },
-};
-const invoicePayment: Payment = {
-  ...orderPayment,
-  provider: { type: "stripe_invoice", payment_option_id: "provider", stripe_invoice_id: "invoice", stripe_invoice_payment_id: "invoice-payment", payment_object: { type: "charge", charge_id: "charge" } },
-  status: { type: "completed" },
-  reconciliation: { type: "hold", opened_at: epochMilliseconds(2) },
 };
 const manualPayment: Payment = {
   ...orderPayment,
-  provider: { type: "manual", payment_option_id: "provider", reference: null, marked_paid_by_account_id: null },
+  route: { type: "manual", payment_option_id: "provider", reference: null, marked_paid_by_account_id: null },
 };
-const paymentOwners: string[] = [savedMethodPayment.order_id, invoicePayment.payer_customer_id, manualPayment.request_id];
+const paymentOwners: string[] = [savedMethodPayment.order_id, manualPayment.request_id];
 // @ts-expect-error every collection belongs directly to its Order, not a polymorphic source.
 orderPayment.source;
 // @ts-expect-error captured money is independent of authorization and collection status.
@@ -1834,16 +1810,6 @@ const embeddedOrderProductItem: OrderProductItem = {
   variant_id: "variant-contract",
   quantity: 1,
   cancelled_quantity: 0,
-  backordered_quantity: 0,
-  location_allocations: [
-    {
-      store_location_id: "store-location-contract",
-      quantity: 1,
-      cancelled_quantity: 0,
-      fulfillment_order_id: "fulfillment-order", fulfillment_order_line_id: "fulfillment-line", order_delivery_group_id: shippingLine.id,
-      unit_spans: [{ first_unit: 0, quantity: 1 }],
-    },
-  ],
   form_submission_id: "form-submission-product-contract",
   form_submission: { source_submission_id: "form-submission-product-contract", source_form_id: "form", form_version: "v1", values: {}, accepted_at: epochMilliseconds(1) },
   snapshot: {
@@ -1952,7 +1918,6 @@ const orderContract: Order = {
     },
     configuration_digest: "a".repeat(64),
   },
-  invoice_policy: { type: "not_required", reason: "Contract fixture" },
   renewal_recovery: null,
   reconciliation: { type: "clear" },
   collection_policy: { type: "prepaid", due_at: epochMilliseconds(1) },
@@ -2386,15 +2351,7 @@ void productFulfillment;
 void inventoryStoreLocationId;
 void inventoryOnHand;
 void inventoryReserved;
-const labelParcel = {
-  length: 100,
-  width: 75,
-  height: 25,
-  weight: 500,
-  distance_unit: "mm",
-  mass_unit: "g",
-};
-const labelAddress = {
+const fulfillmentAddress = {
   name: "Warehouse",
   company: null,
   street1: "1 Main Street",
@@ -2406,107 +2363,14 @@ const labelAddress = {
   phone: null,
   email: null,
 };
-const shippingLabelRefund: ShippingLabelRefund = {
-  id: "6ba7b812-9dad-41d1-80b4-00c04fd430c8",
-  store_id: "6ba7b819-9dad-41d1-80b4-00c04fd430c8",
-  shipping_label_id: "6ba7b811-9dad-41d1-80b4-00c04fd430c8",
-  status: {
-    type: "succeeded",
-    carrier_refund_id: "carrier-refund-contract",
-    completed_at: epochMilliseconds(3),
-  },
-  idempotency_key: "label-refund-contract",
-  requested_money: { amount: 895, currency: "usd" },
-  financial_effects: [],
-  created_at: epochMilliseconds(2),
-  updated_at: epochMilliseconds(3),
-};
-const merchantDebit: MerchantDebit = {
-  id: "6ba7b815-9dad-41d1-80b4-00c04fd430c8",
-  store_id: "6ba7b819-9dad-41d1-80b4-00c04fd430c8",
-  shipping_label_id: "6ba7b811-9dad-41d1-80b4-00c04fd430c8",
-  payment_option_id: "6ba7b81c-9dad-41d1-80b4-00c04fd430c8",
-  connected_account_id: "acct_contract",
-  authorization: {
-    accepted_by_account_id: "6ba7b81d-9dad-41d1-80b4-00c04fd430c8",
-    accepted_at: epochMilliseconds(1),
-    terms_version: 1,
-  },
-  status: {
-    type: "succeeded",
-    account_debit_payment_id: "py_contract",
-    source_transfer_id: "tr_contract",
-    completed_at: epochMilliseconds(2),
-  },
-  money: { amount: 905, currency: "usd" },
-  idempotency_key: "merchant-debit-contract",
-  livemode: false,
-  financial_effects: [],
-  created_at: epochMilliseconds(1),
-  updated_at: epochMilliseconds(2),
-};
-const merchantDebitReversal: MerchantDebitReversal = {
-  id: "6ba7b816-9dad-41d1-80b4-00c04fd430c8",
-  store_id: "6ba7b819-9dad-41d1-80b4-00c04fd430c8",
-  reason: {
-    type: "unused_label_refund",
-    shipping_label_refund_id: shippingLabelRefund.id,
-  },
-  status: {
-    type: "succeeded",
-    transfer_reversal_id: "trr_contract",
-    destination_payment_refund_id: "re_contract",
-    completed_at: epochMilliseconds(4),
-  },
-  money: { amount: 905, currency: "usd" },
-  idempotency_key: "merchant-debit-reversal-contract",
-  merchant_debit_id: merchantDebit.id,
-  financial_effects: [],
-  created_at: epochMilliseconds(3),
-  updated_at: epochMilliseconds(4),
-};
-const shippingLabel: ShippingLabel = {
-  id: "6ba7b811-9dad-41d1-80b4-00c04fd430c8",
-  store_id: "6ba7b819-9dad-41d1-80b4-00c04fd430c8",
-  rate_id: "signed-rate-contract",
-  metadata: "{}",
-  postage: { amount: 895, currency: "usd" },
-  platform_label_fee: { amount: 10, currency: "usd" },
-  status: {
-    type: "succeeded",
-    transaction_id: "txn_contract",
-    label_url: "https://labels.example.test/label.pdf",
-    completed_at: epochMilliseconds(2),
-  },
-  owner: { type: "outbound_shipment", shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8" },
-  request: {
-    origin: labelAddress,
-    destination: labelAddress,
-    parcel: labelParcel,
-    customs: null,
-    accepted_at: epochMilliseconds(1),
-  },
-  operation_id: "6ba7b81e-9dad-41d1-80b4-00c04fd430c8",
-  idempotency_key: "shipping-label-contract",
-  fee_refundable_if_unused: true,
-  provider_scope: "shippo",
-  reconciliation: { type: "clear" },
-  created_at: epochMilliseconds(1),
-  updated_at: epochMilliseconds(2),
-};
-const shippingLabelPurchase: ShippingLabelPurchase = {
-  label: shippingLabel,
-  merchant_debit: merchantDebit,
-};
-void shippingLabelPurchase;
-void merchantDebitReversal;
 const fulfillmentOrder: FulfillmentOrder = {
   id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
   store_id: "6ba7b819-9dad-41d1-80b4-00c04fd430c8",
   store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
-  work_key: "original",
+  order: { order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8", order_delivery_group_id: "6ba7b812-9dad-41d1-80b4-00c04fd430c8" },
+  holds: [],
   status: { type: "in_progress" },
-  method: { type: "delivery", destination: labelAddress },
+  method: { type: "delivery", destination: fulfillmentAddress },
   recipient: {
     source_customer_id: "6ba7b815-9dad-41d1-80b4-00c04fd430c8",
     email: "recipient@example.com",
@@ -2523,105 +2387,40 @@ const fulfillmentOrder: FulfillmentOrder = {
       id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
       source: {
         type: "order_product",
-        order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
-        order_delivery_group_id: "6ba7b812-9dad-41d1-80b4-00c04fd430c8",
         order_product_line_item_id: "6ba7b817-9dad-41d1-80b4-00c04fd430c8",
         order_unit_spans: [{ first_unit: 0, quantity: 2 }],
       },
       quantity: 2,
-      allocated_quantity: 2,
+      inventory_requirements: [{ inventory_item_id: "milk", quantity: 1 }],
       fulfilled_quantity: 1,
-      released_units: [],
+      moved_units: [],
       cancelled_units: [],
     },
   ],
-  executor: { type: "internal" },
+  partner_request: null,
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(2),
 };
-const shipment: Shipment = {
+const fulfillment: Fulfillment = {
   id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-  store_id: "6ba7b819-9dad-41d1-80b4-00c04fd430c8",
+  store_id: fulfillmentOrder.store_id,
   fulfillment_order_id: fulfillmentOrder.id,
-  origin_store_location_id: fulfillmentOrder.store_location_id,
-  lines: [
-    {
-      fulfillment_order_line_id: fulfillmentOrder.lines[0].id,
-      unit_spans: [{ first_unit: 0, quantity: 1 }],
-      selected_units: [],
-    },
-  ],
-  status: { type: "label_created" },
-  parcel: {
-    length: 100,
-    width: 75,
-    height: 25,
-    weight: 500,
-    distance_unit: "mm",
-    mass_unit: "g",
-  },
-  customs_declaration: null,
-  carrier: "USPS",
-  service: "priority",
-  tracking_number: "9400000000000000000000",
-  tracking_url: "https://tracking.example.test/9400000000000000000000",
-  tracking_status_at: epochMilliseconds(2),
-  selected_label_id: shippingLabel.id,
+  lines: [{
+    fulfillment_order_line_id: fulfillmentOrder.lines[0].id,
+    unit_spans: [{ first_unit: 0, quantity: 1 }], selected_units: [], lot_reference: "milk-batch-42",
+  }],
+  status: { type: "ready", ready_at: epochMilliseconds(2) },
+  tracking: { carrier: "Courier", number: "TRACK-42", url: null },
+  delivered_at: null,
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(2),
-  dispatch: null,
-  origin_address: labelAddress,
-  destination_address: labelAddress,
 };
-const shippingLabelRate: ShippingLabelQuoteRate = {
-  quote: "signed-rate-contract",
-  carrier: "USPS",
-  service: "priority",
-  display_name: "USPS Priority",
-  postage: { amount: 895, currency: "usd" },
-  platform_label_fee: { amount: 10, currency: "usd" },
-  total: { amount: 905, currency: "usd" },
-  fee_refundable_if_unused: true,
-  estimated_days: 3,
-  expires_at: epochMilliseconds(5),
+const createFulfillmentRequest: CreateFulfillmentParams = {
+  fulfillment_id: fulfillment.id,
+  fulfillment_order_id: fulfillmentOrder.id,
+  lines: fulfillment.lines,
 };
-const shipmentStatus: ShipmentStatus = shipment.status;
-const shipmentTrackingStatusAt: number | null = shipment.tracking_status_at;
-const cancelledShippingStatus: ShipmentStatus = { type: "cancelled" };
-const shippingRateRequest: QuoteShippingLabelParams = {
-  owner: {
-    type: "outbound_shipment",
-    shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-  },
-};
-const createShipmentRequest: CreateShipmentParams = {
-  shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-  origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
-  fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
-  lines: [
-    {
-      fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
-      unit_spans: [{ first_unit: 1, quantity: 1 }],
-      selected_units: [],
-    },
-  ],
-  parcel: labelParcel,
-  customs_declaration: null,
-};
-// @ts-expect-error FulfillmentOrder roots do not expose persistence versions.
-fulfillmentOrder.version;
-// @ts-expect-error FulfillmentOrder points to the canonical StoreLocation field.
-fulfillmentOrder.location_id;
-// @ts-expect-error Shipment roots do not expose persistence versions.
-shipment.version;
-// @ts-expect-error Shipment labels are provider-neutral.
-shipment.shippo_label;
-// @ts-expect-error carrier labels are independent roots, not Shipment projections.
-shipment.label;
-// @ts-expect-error merchant debit retries are orchestration state, not Domain truth.
-merchantDebit.attempt_count;
-// @ts-expect-error public merchant debit DTOs do not expose provider identifiers.
-merchantDebit.provider;
+void createFulfillmentRequest;
 // @ts-expect-error verification challenges are never part of the public account contract.
 account.verification_codes;
 // @ts-expect-error verification challenges are never part of the public Customer contract.
@@ -2828,17 +2627,12 @@ const customerArchivedWebhook: WebhookEventSubscription = {
   type: "customer.archived",
 };
 const physicalWebhooks: WebhookEventSubscription[] = [
-  { type: "shipment.created" },
-  { type: "shipment.in_transit" },
-  { type: "shipment.out_for_delivery" },
-  { type: "shipment.delivered" },
-  { type: "shipment.failed" },
-  { type: "shipment.returned" },
-  { type: "shipment.status_changed" },
-  { type: "pickup.created" },
-  { type: "pickup.ready" },
-  { type: "pickup.collected" },
-  { type: "pickup.cancelled" },
+  { type: "fulfillment.created" },
+  { type: "fulfillment.ready" },
+  { type: "fulfillment.fulfilled" },
+  { type: "fulfillment.delivered" },
+  { type: "fulfillment.tracking_updated" },
+  { type: "fulfillment.cancelled" },
 ];
 const eventAction: EventAction = { action: "product_created" };
 const supportAction: SupportAction = {
@@ -2890,8 +2684,7 @@ void [
   tiktokConnectionType,
   tiktokContent,
   clearCartAddresses,
-  shipmentStatus,
-  shipmentTrackingStatusAt,
+  fulfillment,
   supportCapability,
   supportInputNode,
   supportEndNode,

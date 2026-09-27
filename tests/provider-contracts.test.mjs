@@ -205,7 +205,6 @@ test("Checkout quote preserves per-unit promotion/manual provenance and delivery
       profile: { legal_name: "Seller", registration_number: null, tax_registrations: [], address },
       configuration_digest: "a".repeat(64),
     },
-    invoice_policy: { type: "external" },
     timezone: "UTC",
     payment_terms: null,
     purchase_order_number: null,
@@ -647,67 +646,6 @@ test("storefront support keeps its capability token in one forced header on the 
   assert.equal(calls[1].headers["X-Test-Header"], "preserved");
 });
 
-test("shipping label quotation sends its exact owner and returns signed carrier rates", async () => {
-  const response = [
-    {
-      quote: "signed-rate-quote",
-      carrier: "USPS",
-      service: "usps_priority",
-      display_name: "USPS Priority",
-      postage: { amount: 895, currency: "usd" },
-      platform_label_fee: { amount: 10, currency: "usd" },
-      total: { amount: 905, currency: "usd" },
-      fee_refundable_if_unused: true,
-      estimated_days: 3,
-      expires_at: 1789000000000,
-    },
-  ];
-  const request = {
-    owner: {
-      type: "outbound_shipment",
-      shipment_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
-    },
-  };
-  const { calls, result } = await captureFetch(response, () =>
-    admin().eshop.shippingLabel.quote(request),
-  );
-
-  assert.deepEqual(calls, [
-    {
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/shipping-labels/quotes`,
-      method: "POST",
-      body: { owner: request.owner },
-    },
-  ]);
-  assert.deepEqual(result, response);
-});
-
-test("shipping label purchase cites one signed quote and never a raw carrier rate", async () => {
-  const response = {
-    label: { id: "6ba7b81b-9dad-41d1-80b4-00c04fd430c8" },
-    merchant_debit: null,
-  };
-  const request = {
-    shipping_label_id: "6ba7b81b-9dad-41d1-80b4-00c04fd430c8",
-    quote: "signed-rate-quote",
-  };
-  const { calls, result } = await captureFetch(response, () =>
-    admin().eshop.shippingLabel.request(request),
-  );
-
-  assert.deepEqual(calls, [
-    {
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/shipping-labels`,
-      method: "POST",
-      body: {
-        shipping_label_id: request.shipping_label_id,
-        quote: request.quote,
-      },
-    },
-  ]);
-  assert.deepEqual(result, response);
-});
-
 test("provider-effect APIs send one resource identity and return direct server evidence", async (t) => {
   const cases = [
     {
@@ -884,58 +822,16 @@ test("provider-effect APIs send one resource identity and return direct server e
       },
     },
     {
-      name: "shipment creation",
-      response: {
-        shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-        shipment: {
-          id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-          status: { type: "pending" },
-          selected_label_id: null,
-          dispatch: null,
-        },
-      },
-      request: (arky) =>
-        arky.eshop.shipment.create({
-          shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-          origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
-          fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
-          lines: [
-            {
-              fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
-              unit_spans: [{ first_unit: 0, quantity: 2 }],
-            },
-          ],
-          parcel: {
-            length: 150,
-            width: 100,
-            height: 50,
-            weight: 750,
-            distance_unit: "mm",
-            mass_unit: "g",
-          },
-        }),
+      name: "fulfillment creation",
+      response: { id: resourceId, store_id: defaultStoreId, fulfillment_order_id: "work", status: { type: "preparing" } },
+      request: (arky) => arky.eshop.fulfillment.create({
+        fulfillment_id: resourceId, fulfillment_order_id: "work",
+        lines: [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 0, quantity: 2 }], selected_units: [], lot_reference: null }],
+      }),
       expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/shipments`,
-        method: "POST",
-        body: {
-          shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-          origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
-          fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
-          lines: [
-            {
-              fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
-              unit_spans: [{ first_unit: 0, quantity: 2 }],
-            },
-          ],
-          parcel: {
-            length: 150,
-            width: 100,
-            height: 50,
-            weight: 750,
-            distance_unit: "mm",
-            mass_unit: "g",
-          },
-        },
+        url: `${baseUrl}/v1/stores/${defaultStoreId}/fulfillments`, method: "POST",
+        body: { fulfillment_id: resourceId, fulfillment_order_id: "work",
+          lines: [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 0, quantity: 2 }], selected_units: [], lot_reference: null }] },
       },
     },
   ];
@@ -951,7 +847,7 @@ test("provider-effect APIs send one resource identity and return direct server e
   }
 });
 
-test("money and shipping clients reject evidence for any other resource ID", async (t) => {
+test("money and Fulfillment clients reject evidence for any other resource ID", async (t) => {
   const otherResourceId = "018f477d-1cae-7c12-bf12-000000000000";
   const cases = [
     {
@@ -1025,32 +921,13 @@ test("money and shipping clients reject evidence for any other resource ID", asy
       error: /Refund response did not match the requested refund_id/,
     },
     {
-      name: "shipment creation",
-      response: {
-        shipment_id: otherResourceId,
-        shipment: { id: otherResourceId, status: { type: "label_created" } },
-      },
-      request: (arky) =>
-        arky.eshop.shipment.create({
-          shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-          origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
-          fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
-          lines: [
-            {
-              fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
-              unit_spans: [{ first_unit: 0, quantity: 1 }],
-            },
-          ],
-          parcel: {
-            length: 150,
-            width: 100,
-            height: 50,
-            weight: 750,
-            distance_unit: "mm",
-            mass_unit: "g",
-          },
-        }),
-      error: /Shipping response did not match the requested shipment_id/,
+      name: "fulfillment creation",
+      response: { id: otherResourceId, store_id: defaultStoreId, fulfillment_order_id: "work", status: { type: "preparing" } },
+      request: (arky) => arky.eshop.fulfillment.create({
+        fulfillment_id: resourceId, fulfillment_order_id: "work",
+        lines: [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 0, quantity: 1 }], selected_units: [], lot_reference: null }],
+      }),
+      error: /Fulfillment response did not match the requested fulfillment_id/,
     },
   ];
 
@@ -1151,7 +1028,7 @@ test("order refunds reject mismatched money and statuses outside the closed life
   });
 });
 
-test("payment, refund, dispute, and shipment lifecycles are read through explicit resources", async (t) => {
+test("Payment, Refund, Dispute and Fulfillment lifecycles are read through explicit resources", async (t) => {
   const cases = [
     {
       name: "payment",
@@ -1159,8 +1036,8 @@ test("payment, refund, dispute, and shipment lifecycles are read through explici
         id: "payment-contract",
         store_id: defaultStoreId,
         order_id: "order-contract",
-        payer_customer_id: "customer-contract",
-        provider: {
+        payer: { type: "customer", customer_id: "customer-contract" },
+      route: {
           type: "cash_on_delivery",
           payment_option_id: "provider-cash-contract",
           marked_paid_by_account_id: "account-operator-contract",
@@ -1266,17 +1143,10 @@ test("payment, refund, dispute, and shipment lifecycles are read through explici
       url: `${baseUrl}/v1/stores/${defaultStoreId}/disputes/payment-dispute-contract`,
     },
     {
-      name: "shipment",
-      response: {
-        id: "shipment-contract",
-        fulfillment_order_id: "work-contract",
-        label_status: "unknown",
-      },
-      request: (arky) =>
-        arky.eshop.shipment.get({
-          shipment_id: "shipment-contract",
-        }),
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/shipments/shipment-contract`,
+      name: "fulfillment",
+      response: { id: "fulfillment", fulfillment_order_id: "work", status: { type: "preparing" }, tracking: null, delivered_at: null },
+      request: (arky) => arky.eshop.fulfillment.get({ fulfillment_id: "fulfillment" }),
+      url: `${baseUrl}/v1/stores/${defaultStoreId}/fulfillments/fulfillment`,
     },
   ];
 

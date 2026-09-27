@@ -41,5 +41,3 @@ const paymentId: string = dispute.payment_id;
 const captureId: string | null = dispute.payment_capture_id;
 const effects: DisputeFinancialEffect[] = dispute.financial_effects;
 void [paymentId, captureId, effects];
-// @ts-expect-error The DTO uses its explicit financial owner, not a legacy Payment backlink.
-dispute.payment_id;

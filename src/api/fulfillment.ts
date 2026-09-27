@@ -16,16 +16,20 @@ export const createFulfillmentApi = (config: ApiConfig) => {
     `/v1/stores/${encodeURIComponent(storeId || config.storeId)}/fulfillments`;
 
   return {
-    create(
+    async create(
       params: CreateFulfillmentParams,
       options?: RequestOptions,
     ): Promise<Fulfillment> {
       const { store_id, ...payload } = params;
-      return config.httpClient.post<Fulfillment>(
+      const result = await config.httpClient.post<Fulfillment>(
         basePath(store_id),
         payload,
         options,
       );
+      if (result.id !== params.fulfillment_id) {
+        throw new Error("Fulfillment response did not match the requested fulfillment_id");
+      }
+      return result;
     },
     execute(
       params: ControlFulfillmentParams,

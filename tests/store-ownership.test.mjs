@@ -34,7 +34,7 @@ test("platform discovery keeps sorting and opaque continuation without hidden pa
 test("membership permissions use an exact Store read while own discovery preserves opaque pages", async (context) => {
   const calls = [];
   const cursor = "memberships:/+==";
-  const membership = { id: "member", store_id: storeId, account_id: accountId, role: "owner", status: { type: "active" },
+  const membership = { id: "member", store_id: storeId, account_id: accountId, access: { type: "staff", role: "owner" }, status: { type: "active" },
     invited_by_account_id: null, invited_at: null, invitation_email_status: null, joined_at: 1, created_at: 1, updated_at: 1 };
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const parsed = new URL(url);
@@ -60,7 +60,7 @@ test("membership permissions use an exact Store read while own discovery preserv
 test("ownership transfer uses one explicit Admin command and returns the new Owner", async (context) => {
   const membership = {
     id: "2e4ca7d0-bc54-4b2d-a595-9751bf3ff761",
-    store_id: storeId, account_id: accountId, role: "owner", status: { type: "active" },
+    store_id: storeId, account_id: accountId, access: { type: "staff", role: "owner" }, status: { type: "active" },
     invited_by_account_id: null, invited_at: null, invitation_email_status: null,
     joined_at: 1_800_000_000_000, created_at: 1_800_000_000_000, updated_at: 1_800_000_000_123,
   };

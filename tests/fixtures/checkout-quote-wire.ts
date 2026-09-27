@@ -97,7 +97,7 @@ export type CheckoutQuoteWireContracts = [
   False<"completed" extends OrderBookingItem["status"]["type"] ? true : false>,
   False<"reminders" extends keyof OrderBookingItem ? true : false>,
   False<"inventory_allocations" extends keyof OrderProductItem ? true : false>,
-  True<RequiredField<OrderProductItem, "location_allocations">>,
+  False<"location_allocations" extends keyof OrderProductItem ? true : false>,
   True<RequiredField<OrderProductItem, "money_runs">>,
   True<RequiredField<OrderDigitalItem, "access">>,
   True<RequiredField<LineMoneySnapshot, "tax_assessment">>,

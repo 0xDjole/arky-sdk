@@ -40,7 +40,7 @@ function fixture(returned = false) {
     refunded: money(refunded), refund_pending: money(pending), allocations: [{ order_credit_id: allocations(0)[0].order_credit_id,
       order_credit_allocation_id: allocations(0)[0].order_credit_allocation_id, effective_sent: refunded, pending }] },
     payment: { id: refund.payment_id, store_id: storeId, order_id: refund.order_id,
-      payer_customer_id: "customer-contract", provider: { ...refund.provider, marked_paid_by_account_id: actor.account_id },
+      payer: { type: "customer", customer_id: "customer-contract" }, route: { ...refund.provider, marked_paid_by_account_id: actor.account_id },
       status: { type: "completed" }, checkout_expiration: null,
       amounts: { currency: "eur", total: 100, authorized: 0, captured: 100, capture_pending: 0,
         refunded, refund_pending: pending }, request_id: "payment-request", reconciliation: { type: "clear" },

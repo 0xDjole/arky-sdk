@@ -14,14 +14,14 @@ export const input: CreateMonriPaymentOptionParams = {
   merchant_key: 'submitted-secret', authenticity_token: 'submitted-token', status: { type: 'disabled' },
 };
 export const environment: MonriEnvironment = 'live';
-export const config: PaymentOption['configuration'] = { type: 'monri', environment: 'test' };
+export const config: PaymentOption['type'] = { type: 'monri', environment: 'test' };
 export const filter: Parameters<Admin['store']['paymentOption']['list']>[0] = { type_name: 'monri', limit: 1 };
 declare const provider: PaymentOption;
-if (provider.configuration.type === 'monri') {
+if (provider.type.type === 'monri') {
   // @ts-expect-error Merchant credentials are write-only API input, never a response.
-  provider.configuration.merchant_key;
+  provider.type.merchant_key;
   // @ts-expect-error Ciphertext is not a public API field either.
-  provider.configuration.encrypted_merchant_key;
+  provider.type.encrypted_merchant_key;
 }
 // @ts-expect-error Environment selection is explicit and has no production default.
 export const missing: CreateMonriPaymentOptionParams = { id: 'p', key: 'cards', blocks: [], merchant_key: 's', authenticity_token: 't', status: { type: 'active' } };

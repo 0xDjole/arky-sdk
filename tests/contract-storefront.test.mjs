@@ -110,7 +110,6 @@ function quoteSnapshot(paymentOptionId = cashOnDeliveryProviderId) {
     order: {
     context: {},
     seller: {},
-    invoice_policy: { type: "native", series_key: "sales", issue_trigger: { type: "acceptance" } },
     timezone: "Europe/Rome",
     payment_terms: null,
     purchase_order_number: null,
@@ -139,8 +138,8 @@ function payment(status, providerType = "cash_on_delivery", total = 1250, orderI
     id: paymentContractId,
     store_id: "store-contract",
     order_id: orderId,
-    payer_customer_id: "customer-contract",
-    provider:
+    payer: { type: "customer", customer_id: "customer-contract" },
+      route:
       providerType === "stripe"
         ? {
             type: "stripe_checkout",

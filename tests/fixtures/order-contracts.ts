@@ -58,7 +58,7 @@ export type OrderContracts = [
   Assert<
     Equal<
       OrderSource["type"],
-      "cart_acceptance" | "direct" | "exchange" | "subscription"
+      "cart_acceptance" | "direct" | "subscription"
     >
   >,
   Assert<

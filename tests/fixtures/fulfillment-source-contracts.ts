@@ -23,6 +23,7 @@ export type RentalIssueContract = [
   True<Absent<RentalIssue, 'order_id'>>,
   True<Absent<RentalIssue, 'order_unit_spans'>>,
   True<Absent<OrderProduct, 'rental_id'>>,
+  True<Same<keyof OrderProduct, 'type' | 'order_product_line_item_id' | 'order_unit_spans'>>,
 ];
 
 const issue: FulfillmentOrderLineSource = {
@@ -42,6 +43,6 @@ function sourceIdentity(source: FulfillmentOrderLineSource): string {
   if (source.type === 'rental_issue') {
     return source.replacement?.predecessor_inventory_unit_id ?? source.rental_id;
   }
-  return source.order_id;
+  return source.order_product_line_item_id;
 }
 void [issue, replacement, sourceIdentity];

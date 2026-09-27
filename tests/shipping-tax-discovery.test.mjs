@@ -53,8 +53,8 @@ test('shipping-rate writes preserve explicit nulls, schedules, prices and revisi
 });
 
 const owners = [
-  ['marketZone','market-zones',{market_id:'market',zone_id:'zone'},'Binding'],
-  ['marketSalesChannel','market-sales-channels',{market_id:'market',sales_channel_id:'channel'},'Binding'],
+  ['marketZone','market-zones',{market_id:'market',zone_id:'zone'},'lookup'],
+  ['marketSalesChannel','market-sales-channels',{market_id:'market',sales_channel_id:'channel'},'lookup'],
   ['shippingMethod','shipping-methods',{key:'pickup',location_id:'location',tax_category_id:'category'},'Key'],
   ['shippingRate','shipping-rates',{market_zone_id:'assignment',shipping_method_id:'method',shipping_profile_id:'profile'},null],
   ['taxRule','tax-rules',{market_zone_id:'assignment',default_only:true},null],
@@ -77,9 +77,9 @@ for (const [owner,path,scope,exact] of owners) {
       }
       if(exact){
         const keyInput=exact==='Key'?{key:'pickup'}:scope;
-        await api[`getBy${exact}`]({store_id:'chosen',...keyInput});
-        assert.equal(calls[1].url.pathname,`/v1/stores/chosen/${path}/by-${exact==='Key'?'key/pickup':'binding'}`);
-        if(exact==='Binding'){
+        await api[exact === "Key" ? "getByKey" : "lookup"]({store_id:'chosen',...keyInput});
+        assert.equal(calls[1].url.pathname,`/v1/stores/chosen/${path}/${exact==='Key'?'by-key/pickup':'lookup'}`);
+        if(exact==='lookup'){
           for(const [key,value]of Object.entries(scope))assert.equal(calls[1].url.searchParams.get(key),value);
         }
       }

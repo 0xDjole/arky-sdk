@@ -11,7 +11,7 @@ test("inventory levels retain combined parent filters, ordering and empty-page c
   const calls = [];
   const responses = [
     { items: [], cursor: "next-projected-page" },
-    { items: [{ id: "level", on_hand: 10, reserved: 3 }], cursor: null },
+    { items: [{ id: "level", on_hand: 10, reserved: 12, unavailable: 2, available: -4 }], cursor: null },
   ];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
@@ -33,7 +33,7 @@ test("inventory levels retain combined parent filters, ordering and empty-page c
     assert.deepEqual(first, { items: [], cursor: "next-projected-page" });
     assert.equal(calls.length, 1, "the caller chooses whether to load another page");
     const second = await admin.eshop.inventoryLevel.find({ ...query, cursor: first.cursor });
-    assert.deepEqual(second, { items: [{ id: "level", on_hand: 10, reserved: 3 }], cursor: null });
+    assert.deepEqual(second, { items: [{ id: "level", on_hand: 10, reserved: 12, unavailable: 2, available: -4 }], cursor: null });
     for (const call of calls) {
       assert.equal(call.method, "GET");
       assert.equal(call.url.pathname, "/v1/stores/selected-store/inventory-levels");
@@ -68,11 +68,11 @@ test("inventory index failure remains an error rather than zero stock", async ()
   }
 });
 
-test("inventory history preserves combined filters, native continuations and exact unit progress", async () => {
+test("Inventory history preserves combined filters, empty continuations and exact quantity changes", async () => {
   const admin = createAdmin({ baseUrl: "https://api.example.test", storeId: "inventory-store", apiToken: "arky_api_inventory_contract" });
-  const progress = { consumed_units: [{ first_unit: 0, quantity: 2 }], released_units: [] };
-  const record = { id: "reservation", unit_progress: progress };
-  const responses = [{ items: [], cursor: "movement-next" }, { items: [record], cursor: "reservation-next" }];
+  const record = { id: "movement", inventory_unit_id: "unit", quantity: { type: "on_hand" }, delta: -1, after: 7,
+    reason: { type: "dispatched", fulfillment_order_id: "work", fulfillment_id: "fulfillment" } };
+  const responses = [{ items: [], cursor: "movement-next" }, { items: [record], cursor: null }];
   const calls = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
@@ -80,22 +80,91 @@ test("inventory history preserves combined filters, native continuations and exa
     return new Response(JSON.stringify(responses.shift()), { headers: { "content-type": "application/json" } });
   };
   try {
-    const common = { inventory_item_id: "item", store_location_id: "location", command_id: "command", limit: 10, sort_direction: "desc" };
-    assert.deepEqual(await admin.eshop.inventoryMovement.find({ ...common, sort_field: "created_at" }), { items: [], cursor: "movement-next" });
-    const page = await admin.eshop.inventoryReservation.find({ ...common, order_id: "order", active_only: true, sort_field: "updated_at", cursor: "reservation-before" });
-    assert.deepEqual(page, { items: [record], cursor: "reservation-next" });
-    assert.deepEqual(page.items[0].unit_progress, progress);
+    const query = { inventory_item_id: "item", store_location_id: "location", inventory_unit_id: "unit",
+      command_id: "command", limit: 10, sort_field: "created_at", sort_direction: "desc" };
+    assert.deepEqual(await admin.eshop.inventoryMovement.find(query), { items: [], cursor: "movement-next" });
+    assert.equal(calls.length, 1);
+    assert.deepEqual(await admin.eshop.inventoryMovement.find({ ...query, cursor: "movement-next" }), { items: [record], cursor: null });
     for (const url of calls) {
-      assert.equal(url.searchParams.get("inventory_item_id"), "item");
-      assert.equal(url.searchParams.get("store_location_id"), "location");
-      assert.equal(url.searchParams.get("command_id"), "command");
-      assert.equal(url.searchParams.get("sort_direction"), "desc");
+      assert.equal(url.pathname, "/v1/stores/inventory-store/inventory-movements");
+      for (const [key, value] of Object.entries(query)) assert.equal(url.searchParams.get(key), String(value));
     }
-    assert.equal(calls[0].pathname, "/v1/stores/inventory-store/inventory-movements");
-    assert.equal(calls[1].pathname, "/v1/stores/inventory-store/inventory-reservations");
-    assert.equal(calls[1].searchParams.get("active_only"), "true");
-    assert.equal(calls[1].searchParams.get("order_id"), "order");
-    assert.equal(calls[1].searchParams.get("cursor"), "reservation-before");
+    assert.equal(calls[1].searchParams.get("cursor"), "movement-next");
+    assert.equal("inventoryReservation" in admin.eshop, false);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("Stock reads retain unavailable and negative available quantities with resolved item identity", async () => {
+  const admin = createAdmin({ baseUrl: "https://api.example.test", storeId: "inventory-store", apiToken: "arky_api_inventory_contract" });
+  const record = { id: "level", inventory_item_id: "item", store_location_id: "location", on_hand: 2, reserved: 5,
+    unavailable: 1, available: -4, item: { key: "milk", sku: null, tracking: { type: "tracked" } } };
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    calls.push(new URL(url));
+    return new Response(JSON.stringify({ items: [record], cursor: null }), { headers: { "content-type": "application/json" } });
+  };
+  try {
+    const query = { store_id: "selected/store", inventory_item_id: "item", store_location_id: "location", limit: 5, cursor: "" };
+    assert.deepEqual(await admin.eshop.inventoryLevel.stock(query), { items: [record], cursor: null });
+    assert.equal(calls[0].pathname, "/v1/stores/selected%2Fstore/inventory-levels/stock");
+    assert.deepEqual(Object.fromEntries(calls[0].searchParams), { inventory_item_id: "item", store_location_id: "location", limit: "5", cursor: "" });
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("Inventory commands preserve replay identity, revision and exact incoming stock type", async () => {
+  const admin = createAdmin({ baseUrl: "https://api.example.test", storeId: "inventory-store", apiToken: "arky_api_inventory_contract" });
+  const record = { id: "level/id", on_hand: 10, reserved: 2, unavailable: 3, available: 5 };
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: String(url), method: init.method, body: JSON.parse(init.body) });
+    return new Response(JSON.stringify(record), { headers: { "content-type": "application/json" } });
+  };
+  try {
+    const api = admin.eshop.inventoryLevel;
+    const cases = [
+      ["setAside", "set-aside", { quantity: 3, reason: "Awaiting inspection" }],
+      ["makeAvailable", "make-available", { quantity: 2, reason: "Inspection passed" }],
+      ["move", "move", { to_store_location_id: "destination", quantity: 4 }],
+      ["receiveMove", "incoming", { type: { type: "counted", from_store_location_id: "origin", quantity: 4 } }],
+      ["receiveMove", "incoming", { type: { type: "unit", asset_tag: "MACHINE-42" } }],
+    ];
+    for (const [index, [method, path, payload]] of cases.entries()) {
+      const body = { command_id: `command-${index}`, expected_updated_at: 1700000000000, ...payload };
+      const request = { store_id: "selected/store", id: "level/id", ...body };
+      const before = structuredClone(request);
+      assert.deepEqual(await api[method](request), record);
+      assert.deepEqual(await api[method](request), record);
+      assert.deepEqual(request, before);
+      assert.deepEqual(calls.at(-1), calls.at(-2));
+      assert.deepEqual(calls.at(-1), {
+        url: `https://api.example.test/v1/stores/selected%2Fstore/inventory-levels/level%2Fid/${path}`, method: "POST", body,
+      });
+    }
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("Manual stock corrections retain their original level and source line on replay", async () => {
+  const admin = createAdmin({ baseUrl: "https://api.example.test", storeId: "inventory-store", apiToken: "arky_api_inventory_contract" });
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: String(url), method: init.method, body: JSON.parse(init.body) });
+    return new Response(JSON.stringify({ id: "movement" }), { headers: { "content-type": "application/json" } });
+  };
+  try {
+    const body = { inventory_item_id: "milk", store_location_id: "warehouse", command_id: "damage-report", source_line_id: "line",
+      expected_level_id: "level", expected_level_updated_at: 1700000000000, delta: -2, from_set_aside: true,
+      reason: { type: "damage", reference: "inspection-42" } };
+    const request = { store_id: "selected/store", ...body };
+    const before = structuredClone(request);
+    await admin.eshop.inventoryMovement.record(request);
+    await admin.eshop.inventoryMovement.record(request);
+    assert.deepEqual(request, before);
+    assert.deepEqual(calls, [0, 1].map(() => ({
+      url: "https://api.example.test/v1/stores/selected%2Fstore/inventory-movements", method: "POST", body,
+    })));
   } finally { globalThis.fetch = originalFetch; }
 });
 

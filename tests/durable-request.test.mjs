@@ -296,45 +296,38 @@ test("unavailable or contended Web Locks execute zero protected tasks", async (t
   );
 });
 
-test("the exact saved shipment request survives a changed parcel and can be resumed", async () => {
+test("the exact saved Fulfillment request survives a changed selection and can be resumed", async () => {
   const { storage } = installBrowserState();
   const operations = await importDurableRequests();
-  const storageKey = "arky:shipment:store-1:order-1";
+  const storageKey = "arky:fulfillment:store-1:order-1";
   const originalRequest = {
-    shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-    origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
+    fulfillment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
     fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
     lines: [
       {
         fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
         unit_spans: [{ first_unit: 0, quantity: 2 }],
+        selected_units: [],
+        lot_reference: "batch-42",
       },
     ],
-    parcel: {
-      length: 150,
-      width: 100,
-      height: 50,
-      weight: 750,
-      distance_unit: "mm",
-      mass_unit: "g",
-    },
   };
   const saved = operations.getOrCreateDurableRequest(
     storageKey,
     originalRequest,
-    "shipment creation",
+    "fulfillment creation",
   );
 
   let changedRequestCalls = 0;
   await assert.rejects(
     operations.withDurableRequestLock(
       storageKey,
-      "shipment creation",
+      "fulfillment creation",
       async () => {
         operations.getOrCreateDurableRequest(
           storageKey,
-          { ...originalRequest, parcel: { ...originalRequest.parcel, weight: 900 } },
-          "shipment creation",
+          { ...originalRequest, lines: [{ ...originalRequest.lines[0], unit_spans: [{ first_unit: 2, quantity: 2 }] }] },
+          "fulfillment creation",
         );
         changedRequestCalls += 1;
       },
@@ -344,7 +337,7 @@ test("the exact saved shipment request survives a changed parcel and can be resu
   assert.equal(changedRequestCalls, 0);
   const remounted = operations.readDurableRequest(
     storageKey,
-    "shipment creation",
+    "fulfillment creation",
   );
   assert.equal(remounted.requestJson, saved.requestJson);
   assert.deepEqual(

@@ -463,7 +463,7 @@ test("Store endpoint configurations and physical locations use their cleaned con
   };
 
   try {
-    await admin.store.location.create({ key: "main", address });
+    await admin.store.location.create({ key: "main", address, timezone: "Europe/Sarajevo", operator: { type: "store" } });
     await admin.store.location.update({
       id: "location-contract",
       is_pickup_location: true,
@@ -504,15 +504,13 @@ test("Store endpoint configurations and physical locations use their cleaned con
       {
         url: `/v1/stores/${storeId}/locations`,
         method: "POST",
-        body: { key: "main", address, store_id: storeId },
+        body: { key: "main", address, timezone: "Europe/Sarajevo", operator: { type: "store" } },
       },
       {
         url: `/v1/stores/${storeId}/locations/location-contract`,
         method: "PUT",
         body: {
-          id: "location-contract",
           is_pickup_location: true,
-          store_id: storeId,
         },
       },
       {
@@ -548,7 +546,7 @@ test("Store endpoint configurations and physical locations use their cleaned con
   );
 });
 
-test("admin Market and Payment Provider APIs use provider roots and UUID allowlists", async () => {
+test("Admin Market and Payment Option APIs retain configured connections and UUID allowlists", async () => {
   const admin = createAdmin({
     baseUrl,
     storeId,
@@ -558,7 +556,7 @@ test("admin Market and Payment Provider APIs use provider roots and UUID allowli
     id: "provider-cash-on-delivery",
     store_id: storeId,
     configuration: { type: "cash_on_delivery" },
-    disabled_at: null,
+    key: "payment", blocks: [], status: { type: "active" },
     created_at: 1,
     updated_at: 1,
   };
@@ -567,19 +565,12 @@ test("admin Market and Payment Provider APIs use provider roots and UUID allowli
     store_id: storeId,
     configuration: {
       type: "stripe",
-      connected_account_id: "acct_contract",
-      account_setup_submitted: true,
-      payments_enabled: true,
-      payouts_enabled: true,
-      state_observed_at: 2,
-      platform_debit_consent: {
-        connected_account_id: "acct_contract",
-        accepted_by_account_id: "account-contract",
-        accepted_at: 2,
-        terms_version: 1,
+      connection: {
+        type: "connected", connected_account_id: "acct_contract",
+        account_setup_submitted: true, payments_enabled: true, payouts_enabled: true, state_observed_at: 2,
       },
     },
-    disabled_at: null,
+    key: "payment", blocks: [], status: { type: "active" },
     created_at: 1,
     updated_at: 2,
   };
@@ -603,17 +594,14 @@ test("admin Market and Payment Provider APIs use provider roots and UUID allowli
       body: init.body ? JSON.parse(String(init.body)) : null,
     });
     return String(url).endsWith("/payment-options")
-      ? jsonResponse([cashProvider, stripeProvider])
+      ? jsonResponse({ items: [cashProvider, stripeProvider], cursor: null })
       : jsonResponse(market);
   };
 
   try {
     const providers = await admin.store.paymentOption.list();
-    assert.equal(providers[0].configuration.type, "cash_on_delivery");
-    assert.equal(
-      providers[1].configuration.platform_debit_consent.terms_version,
-      1,
-    );
+    assert.equal(providers.items[0].configuration.type, "cash_on_delivery");
+    assert.equal(providers.items[1].configuration.connection.payments_enabled, true);
     assert.deepEqual(
       await admin.store.market.create({
         key: "bih",
@@ -690,7 +678,6 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
     order: {
     context: {},
     seller: {},
-    invoice_policy: { type: "external" },
     timezone: "Europe/Sarajevo",
     payment_terms: null,
     purchase_order_number: null,
@@ -715,8 +702,8 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
       id: "f17c0b95-2e4d-4a83-9b6c-31d5e8a70f24",
       store_id: storeId,
       order_id: orderId,
-      payer_customer_id: "customer-contract",
-      provider: {
+      payer: { type: "customer", customer_id: "customer-contract" },
+      route: {
         type: "stripe_checkout",
         payment_option_id: paymentOptionId,
         checkout_expires_at: 10,
@@ -785,7 +772,7 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
           payment_option_id: paymentOptionId,
           return_url: "https://admin.example.test/checkout/return",
         })
-      ).payment.provider.payment_option_id,
+      ).payment.route.payment_option_id,
       paymentOptionId,
     );
   } finally {

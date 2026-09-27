@@ -214,7 +214,6 @@ function order() {
       profile: { legal_name: "Booking Seller", registration_number: null, tax_registrations: [], address: { country: "BA" } },
       configuration_digest: "a".repeat(64),
     },
-    invoice_policy: { type: "external" },
     renewal_recovery: null,
     reconciliation: { type: "clear" },
     collection_policy: { type: "prepaid", due_at: 1 },

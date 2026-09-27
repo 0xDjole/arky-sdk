@@ -55,7 +55,7 @@ function stripeResult() {
     ...result(),
     payment: {
       id: otherId, order_id: orderId,
-      provider: { type: "stripe_checkout", payment_option_id: providerId, checkout_expires_at: 1900000000000, checkout_session_id: "cs_test_exact", payment_intent_id: null },
+      route: { type: "stripe_checkout", payment_option_id: providerId, checkout_expires_at: 1900000000000, checkout_session_id: "cs_test_exact", payment_intent_id: null },
       status: { type: "requires_action" }, amounts: { currency: "eur", total: 1000, authorized: 0, captured: 0, capture_pending: 0, refunded: 0, refund_pending: 0 },
       reconciliation: { type: "clear" }, checkout_expiration: null,
     },
@@ -69,7 +69,7 @@ function monriResult() {
     ...result(),
     payment: {
       ...payment,
-      provider: { type: 'monri_checkout', payment_option_id: providerId, environment: 'test', transaction_type: 'purchase', transaction_id: null, authorization_void: null },
+      route: { type: 'monri_checkout', payment_option_id: providerId, environment: 'test', transaction_type: 'purchase', transaction_id: null, authorization_void: null },
       amounts: { ...payment.amounts, capture_pending: payment.amounts.total },
     },
     payment_action: { type: 'monri_components', payment_id: otherId, environment: 'test', authenticity_token: 'test-token', client_secret: 'test-session-secret' },
@@ -184,7 +184,7 @@ test("reviewed converted lines survive ambiguity and cannot change during recove
   const input = { ...request, sources };
   const first = capture(() => { throw new TypeError("response lost"); });
   await assert.rejects(storefront().eshop.cart.checkout(input), /response lost/);
-  const calls = capture(success);
+  const calls = capture(call => call.method === "GET" ? Response.json(acceptedOrder({ converted_lines: sources.converted_lines })) : success(call));
   const changed = checkoutSources(cartId, "product", lineId, 3);
   await assert.rejects(storefront().eshop.cart.checkout({ ...input, sources: changed }), /different unresolved payload/);
   assert.equal(calls.length, 0);
@@ -307,7 +307,7 @@ test("malformed purchase or Stripe capability evidence never clears checkout", a
     { ...stripeResult(), payment: { ...stripeResult().payment, reconciliation: undefined } },
     { ...stripeResult(), payment: { ...stripeResult().payment, checkout_expiration: { status: { type: "requested" } } } },
     ...["captured", "capture_pending"].map((field) => ({ ...stripeResult(), payment: { ...stripeResult().payment, amounts: { ...stripeResult().payment.amounts, [field]: 1 } } })),
-    { ...stripeResult(), payment: { ...stripeResult().payment, provider: { ...stripeResult().payment.provider, payment_option_id: otherId } } },
+    { ...stripeResult(), payment: { ...stripeResult().payment, route: { ...stripeResult().payment.route, payment_option_id: otherId } } },
     { ...stripeResult(), payment_action: { ...stripeResult().payment_action, client_secret: "" } },
     { ...stripeResult(), payment_action: { ...stripeResult().payment_action, expires_at: 1 } },
     { ...stripeResult(), payment_action: { ...stripeResult().payment_action, expires_at: 1900000000001 } },
@@ -367,7 +367,7 @@ test('invalid Monri capability bindings and reservations retain the original Che
     ...[
       { transaction_type: 'authorize' }, { transaction_id: '123' }, { environment: 'live' },
       { authorization_void: { status: { type: 'requested' } } },
-    ].map((provider) => ({ ...original, payment: { ...original.payment, provider: { ...original.payment.provider, ...provider } } })),
+    ].map((route) => ({ ...original, payment: { ...original.payment, route: { ...original.payment.route, ...route } } })),
     { ...original, payment: { ...original.payment, status: { type: 'unknown' } } },
     { ...original, payment: { ...original.payment, reconciliation: { type: 'hold', opened_at: 1 } } },
   ];

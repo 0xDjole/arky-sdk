@@ -16,8 +16,7 @@ test('Stripe commands bind an existing provider and expose independent exact ope
     const client = createAdmin({ baseUrl: 'https://api.example.test', storeId: 'default-store' });
     const request = {
       store_id: 'explicit-store', payment_option_id: 'provider', operation_id: operationId,
-      return_url: 'https://admin.test/return', refresh_url: 'https://admin.test/refresh',
-      authorize_account_debits: false, country: 'BA'
+      return_url: 'https://admin.test/return', refresh_url: 'https://admin.test/refresh', country: 'BA'
     };
     assert.deepEqual(await client.store.paymentOption.stripe.connect(request), result);
     client.setStoreId('another-store');

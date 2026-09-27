@@ -16,7 +16,7 @@ export const authorizationVoid: MonriAuthorizationVoid = {
   requested_at: at,
   status: { type: 'succeeded', result },
 };
-export const binding: Payment['provider'] = {
+export const binding: Payment['route'] = {
   type: 'monri_checkout',
   payment_option_id: 'provider',
   environment: 'test',

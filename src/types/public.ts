@@ -93,3 +93,5 @@ export type { SubscribeStorefrontCustomerGroupEmailsParams, GetStorefrontCustome
 
 export type * from "./fulfillment";
 export type * from "./fulfillmentPartner";
+
+export type * from "./paymentMethod";

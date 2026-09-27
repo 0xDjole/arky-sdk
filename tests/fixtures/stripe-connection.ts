@@ -11,9 +11,9 @@ export type ConnectionResponses = [
 ];
 export const request: ConnectStripePaymentOptionParams = {
   store_id: 'store', payment_option_id: 'provider', operation_id: 'operation',
-  return_url: 'https://admin.test/return', refresh_url: 'https://admin.test/refresh', authorize_account_debits: false
+  return_url: 'https://admin.test/return', refresh_url: 'https://admin.test/refresh'
 };
 // @ts-expect-error Connect requires an existing provider, not implicit configuration creation.
-export const noProvider: ConnectStripePaymentOptionParams = { operation_id: 'operation', return_url: 'https://admin.test', refresh_url: 'https://admin.test', authorize_account_debits: false };
+export const noProvider: ConnectStripePaymentOptionParams = { operation_id: 'operation', return_url: 'https://admin.test', refresh_url: 'https://admin.test' };
 // @ts-expect-error The retired attempt_id is not an operation or compatibility alias.
 export const retiredAttempt: ConnectStripePaymentOptionParams = { ...request, attempt_id: 'attempt' };

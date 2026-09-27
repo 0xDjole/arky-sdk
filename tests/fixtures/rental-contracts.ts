@@ -10,7 +10,6 @@ import type {
   FindRentalsParams,
   GetRentalParams,
   RentalIssueReplacement,
-  InventoryReservationSource,
   InventoryMovementReason,
   InventoryUnit,
   InventoryUnitExecution,
@@ -96,11 +95,8 @@ export type RentedUnitContract = [
 ];
 
 export type RentalIssueWorkContract = [
-  True<Same<keyof Extract<InventoryReservationSource, { type: "rental_issue" }>, "type" | "rental_id" | "fulfillment_order_id" | "fulfillment_order_line_id">>,
-  True<"unit_spans" extends keyof Extract<InventoryReservationSource, { type: "rental_issue" }> ? false : true>,
-  True<Same<keyof Extract<InventoryMovementReason, { type: "rental_issue" }>, "type" | "rental_id" | "fulfillment_order_id">>,
-  True<Same<keyof Extract<InventoryMovementReason, { type: "fulfillment" }>, "type" | "order_id" | "fulfillment_order_id">>,
-  True<"order_id" extends keyof Extract<InventoryMovementReason, { type: "rental_issue" }> ? false : true>,
+  True<Same<keyof Extract<InventoryMovementReason, { type: "dispatched" }>, "type" | "fulfillment_order_id" | "fulfillment_id">>,
+  True<Extract<InventoryMovementReason, { type: "rental_issue" | "fulfillment" }> extends never ? true : false>,
   True<Same<OrderDeliveryGroup["rental_items"], OrderDeliveryGroupRentalItem[]>>,
   True<RequiredField<OrderDeliveryGroup, "rental_items">>,
   True<Same<keyof OrderDeliveryGroupRentalItem, "rental_id" | "quantity">>,

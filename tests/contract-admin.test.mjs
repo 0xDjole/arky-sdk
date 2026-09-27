@@ -212,12 +212,6 @@ assert.deepEqual(
 
 const scheduledAdminCalls = [];
 const succeededConnection = stripeConnectionFixture('contract-store', 'provider-scheduled', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
-const succeededProvider = succeededConnection.provider;
-succeededProvider.configuration.connection.platform_debit_consent = {
-  accepted_by: { account_id: 'account-contract', snapshot: { email: 'owner@example.test', credential_type: 'session' } },
-  accepted_at: 2, terms_version: 1, revoked_at: null
-};
-succeededConnection.operation.debit_consent_account_id = 'account-contract';
 const selectedSubscription = {
   id: "d397ff50-690b-4da7-9fb9-17740e535d69",
   store_id: "contract-store",
@@ -272,17 +266,13 @@ try {
     store_id: "contract-store",
     operation_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     payment_option_id: "provider-scheduled",
-    authorize_account_debits: true,
     return_url: "https://admin.test/return",
     refresh_url: "https://admin.test/refresh",
     country: "BA",
   });
   assert.equal(connected.onboarding_url, "https://connect.test/onboarding");
   assert.equal(connected.provider.configuration.type, "stripe");
-  assert.equal(
-    connected.provider.configuration.connection.platform_debit_consent.terms_version,
-    1,
-  );
+  assert.equal(connected.provider.configuration.connection.payments_enabled, true);
   assert.equal(connected.operation.id, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
 
   const subscription = await arky.store.subscription.select({
@@ -672,38 +662,25 @@ assert.equal(typeof arky.eshop.dispute.find, "function");
 assert.equal(typeof arky.eshop.dispute.get, "function");
 assert.equal(arky.eshop.order.getDisputes, undefined);
 assert.equal(arky.eshop.order.getDispute, undefined);
-assert.equal(typeof arky.eshop.shipment.create, "function");
-assert.equal(typeof arky.eshop.shipment.dispatch, "function");
+for (const removed of ["shipment", "pickup", "shippingLabel", "shippingLabelRefund", "merchantDebit", "merchantDebitReversal"]) {
+  assert.equal(removed in arky.eshop, false);
+}
+assert.equal(typeof arky.eshop.fulfillment.create, "function");
+assert.equal(typeof arky.eshop.fulfillment.execute, "function");
 assert.equal(typeof arky.eshop.fulfillmentOrder.find, "function");
 assert.equal(typeof arky.eshop.fulfillmentOrder.get, "function");
 assert.equal(typeof arky.eshop.fulfillmentOrder.unitSlots, "function");
-assert.equal("fulfillment" in arky.eshop.shipment, false);
 assert.equal(typeof arky.eshop.rental.find, "function");
 assert.equal(typeof arky.eshop.rental.execute, "function");
 assert.equal("rentalPlacement" in arky.eshop, false);
 assert.equal(typeof arky.eshop.subscriptionPlanEntitlement.find, "function");
 assert.equal(typeof arky.eshop.subscription.control, "function");
-assert.equal("getRates" in arky.eshop.shipment, false);
-assert.equal("label" in arky.eshop.shipment, false);
-assert.equal(typeof arky.eshop.shippingLabel.quote, "function");
-assert.equal(typeof arky.eshop.shippingLabel.request, "function");
-assert.equal(typeof arky.eshop.shippingLabel.get, "function");
-assert.equal(typeof arky.eshop.shippingLabel.find, "function");
-assert.equal(typeof arky.eshop.shippingLabel.reconcile, "function");
-assert.equal(typeof arky.eshop.shippingLabelRefund.request, "function");
-assert.equal(typeof arky.eshop.shippingLabelRefund.retry, "function");
-assert.equal(typeof arky.eshop.shippingLabelRefund.reconcile, "function");
-assert.equal(typeof arky.eshop.merchantDebitReversal.request, "function");
-assert.equal(typeof arky.eshop.merchantDebitReversal.reconcile, "function");
 assert.equal(typeof arky.eshop.orderCredit.create, "function");
 assert.equal(typeof arky.eshop.orderCredit.find, "function");
 assert.equal(typeof arky.eshop.fulfillmentRoutingPolicy.create, "function");
 assert.equal(typeof arky.store.paymentTerms.create, "function");
 assert.equal(typeof arky.store.marketSalesChannel.create, "function");
 assert.equal(typeof arky.store.storefrontClient.create, "function");
-assert.equal("retry" in arky.eshop.shipment, false);
-assert.equal("refund" in arky.eshop.shipment, false);
-assert.equal("charge" in arky.eshop.shipment, false);
 
 const fulfillmentCalls = [];
 globalThis.fetch = async (url, init = {}) => {

@@ -80,33 +80,27 @@ test("Rental commands keep the caller's command identity, loaded revision and ty
   } finally { restore(); }
 });
 
-test("source-neutral physical work never routes through an Order path", async () => {
-  const { calls, restore } = capture((count) => (count === 1
-    ? { shipment_id: "parcel", shipment: { id: "parcel" } }
-    : { id: "parcel", status: { type: "pending" } }));
+test("Rental physical work uses Fulfillment and job routes with exact unit selections", async () => {
+  const { calls, restore } = capture({ id: "fulfillment", status: { type: "preparing" } });
   try {
     const api = eshop();
     const lines = [{ fulfillment_order_line_id: "rental-line", unit_spans: [{ first_unit: 0, quantity: 1 }],
-      selected_units: [{ fulfillment_unit_index: 0, inventory_unit_id: "unit" }] }];
-    await api.shipment.create({
-      shipment_id: "parcel", origin_store_location_id: "location", fulfillment_order_id: "work", lines,
-      parcel: { length: 1, width: 1, height: 1, weight: 1, distance_unit: "cm", mass_unit: "kg" }, customs_declaration: null,
-    });
-    await api.shipment.find({ fulfillment_order_id: "work", limit: 5 });
-    await api.shipment.find({ rental_id: "rental" });
-    await api.pickup.find({ fulfillment_order_id: "work" });
+      selected_units: [{ fulfillment_unit_index: 0, inventory_unit_id: "unit" }], lot_reference: null }];
+    const slots = lines.map(({ fulfillment_order_line_id, unit_spans }) => ({ fulfillment_order_line_id, unit_spans }));
+    await api.fulfillment.create({ fulfillment_id: "fulfillment", fulfillment_order_id: "work", lines });
+    await api.fulfillment.find({ fulfillment_order_id: "work", limit: 5 });
+    await api.fulfillment.find({ rental_id: "rental" });
     await api.fulfillmentOrder.find({ rental_id: "rental" });
-    await api.fulfillmentOrder.unitSlots({ fulfillment_order_id: "work", expected_updated_at: 1700000000000, lines: [lines[0]] });
+    await api.fulfillmentOrder.unitSlots({ fulfillment_order_id: "work", expected_updated_at: 1700000000000, lines: slots });
     assert.deepEqual(calls.map((call) => [call.method, call.url.pathname + call.url.search]), [
-      ["POST", "/v1/stores/default/shipments"],
-      ["GET", "/v1/stores/default/shipments?fulfillment_order_id=work&limit=5"],
-      ["GET", "/v1/stores/default/shipments?rental_id=rental"],
-      ["GET", "/v1/stores/default/pickups?fulfillment_order_id=work"],
+      ["POST", "/v1/stores/default/fulfillments"],
+      ["GET", "/v1/stores/default/fulfillments?fulfillment_order_id=work&limit=5"],
+      ["GET", "/v1/stores/default/fulfillments?rental_id=rental"],
       ["GET", "/v1/stores/default/fulfillment-orders?rental_id=rental"],
       ["POST", "/v1/stores/default/fulfillment-orders/work/unit-slots"],
     ]);
     assert.ok(calls.every((call) => !call.url.pathname.includes("/orders/")));
-    assert.equal("order_id" in calls[0].body, false);
-    assert.deepEqual(calls[5].body, { expected_updated_at: 1700000000000, lines: [lines[0]] });
+    assert.deepEqual(calls[0].body, { fulfillment_id: "fulfillment", fulfillment_order_id: "work", lines });
+    assert.deepEqual(calls[4].body, { expected_updated_at: 1700000000000, lines: slots });
   } finally { restore(); }
 });

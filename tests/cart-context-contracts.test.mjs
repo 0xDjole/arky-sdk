@@ -64,7 +64,6 @@ function quote() {
       origin: cart().origin,
     },
     seller: { profile: { legal_name: "Seller", registration_number: null, tax_registrations: [], address: { country: "BA" } }, configuration_digest: "a".repeat(64) },
-    invoice_policy: { type: "external" },
     timezone: "Europe/Sarajevo",
     payment_terms: null,
     purchase_order_number: null,

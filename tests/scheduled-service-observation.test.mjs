@@ -287,7 +287,6 @@ test("direct provider calls keep their original store scope", async () => {
     await client.store.paymentOption.stripe.connect({
       operation_id: operationId,
       payment_option_id: providerId,
-      authorize_account_debits: false,
       return_url: "https://admin.example.test/return",
       refresh_url: "https://admin.example.test/refresh",
       country: "BA",

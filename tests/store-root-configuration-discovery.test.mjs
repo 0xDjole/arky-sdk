@@ -87,7 +87,7 @@ test('exact configuration lookup never falls back to search or creation',async()
     await api.location.getByKey({store_id:'selected',key:'warehouse'});
     await api.market.get({store_id:'selected',id:'market-id'});
     await api.location.get({store_id:'selected',id:'location-id'});
-    await api.paymentOption.getByConfiguration({store_id:'selected',type_name:'stripe'});
+    await api.paymentOption.getByType({store_id:'selected',type_name:'stripe'});
     await api.paymentOption.getByKey({store_id:'selected',key:'processor'});
     await api.paymentOption.get({store_id:'selected',id:'exact'});
     assert.deepEqual(calls.map(call=>call.url.pathname),[
@@ -95,14 +95,14 @@ test('exact configuration lookup never falls back to search or creation',async()
       '/v1/stores/selected/locations/by-key/warehouse',
       '/v1/stores/selected/markets/market-id',
       '/v1/stores/selected/locations/location-id',
-      '/v1/stores/selected/payment-options/by-configuration/stripe',
+      '/v1/stores/selected/payment-options/by-type/stripe',
       '/v1/stores/selected/payment-options/key/processor',
       '/v1/stores/selected/payment-options/exact',
     ]);
     for(const status of [404,409,503]){
       let count=0;
       globalThis.fetch=async()=>{count++;return new Response(JSON.stringify({message:'failed'}),{status})};
-      await assert.rejects(api.paymentOption.getByConfiguration({type_name:'stripe'}),error=>error.statusCode===status);
+      await assert.rejects(api.paymentOption.getByType({type_name:'stripe'}),error=>error.statusCode===status);
       assert.equal(count,1);
     }
   }finally{globalThis.fetch=original}

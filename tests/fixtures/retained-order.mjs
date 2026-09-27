@@ -103,8 +103,6 @@ export const retainedOrder = {
       variant_id: null,
       quantity: 1,
       cancelled_quantity: 0,
-      backordered_quantity: 0,
-      location_allocations: [],
       form_submission_id: null,
       form_submission: null,
       snapshot: {
@@ -206,7 +204,6 @@ export const retainedOrder = {
     profile: { legal_name: "Synthetic Seller", address, registration_number: null, tax_registrations: [] },
     configuration_digest: "b".repeat(64),
   },
-  invoice_policy: { type: "native", series_key: "sales", issue_trigger: { type: "acceptance" } },
   renewal_recovery: null,
   reconciliation: { type: "clear" },
   collection_policy: { type: "prepaid", due_at: acceptedAt },
