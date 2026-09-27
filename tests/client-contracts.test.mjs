@@ -1067,7 +1067,7 @@ test("storefront collection lookup uses a keyless route and publishable-key head
   assert.equal(call.headers.get("authorization"), null);
 });
 
-test("admin Product writes and ProductInventory reads use the canonical wire fields", async () => {
+test("admin Product writes and InventoryLevel reads preserve backorders and set-aside stock", async () => {
   const admin = createAdmin({ baseUrl, storeId, market: "us" });
   const create = {
     key: "canonical-product",
@@ -1099,7 +1099,9 @@ test("admin Product writes and ProductInventory reads use the canonical wire fie
       inventory_item_id: "item-contract",
       store_location_id: "location-contract",
       on_hand: 12,
-      reserved: 3,
+      reserved: 13,
+      unavailable: 2,
+      available: -3,
       created_at: 1,
       updated_at: 2,
     },

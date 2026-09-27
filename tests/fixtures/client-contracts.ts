@@ -150,8 +150,8 @@ import type {
   PaginatedResponse,
   PendingAccountSession,
   Product,
-  ProductInventory,
-  ProductInventoryInput,
+  InventoryLevel,
+  CreateInventoryLevelParams,
   ProductFulfillment,
   ProductStatus,
   ProductVariant,
@@ -355,7 +355,7 @@ import type {
 // @ts-expect-error storefront CustomerAction keys have no Action compatibility alias.
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.26.71" = SDK_VERSION;
+const sdkVersionLiteral: "0.26.72" = SDK_VERSION;
 const workflowExternalOperationContract: WorkflowExternalOperation = {
   id: "operation-contract",
   store_id: "store-contract",
@@ -1052,9 +1052,9 @@ const clearCartAddresses: UpdateCartParams = {
   billing_address: null,
 };
 
-const inventoryInput: ProductInventoryInput = {
+const inventoryInput: CreateInventoryLevelParams = {
   store_location_id: "location-contract",
-  on_hand: 10,
+  inventory_item_id: "item-contract",
 };
 const createProductInput: CreateProductParams = {
   key: "canonical-product",
@@ -1562,6 +1562,9 @@ initialize(`arky_pk_${"a".repeat(42)}A`, {
 initialize({ baseUrl: "http://localhost:8000", storeId: "store-contract" });
 
 declare const initializedStorefront: ReturnType<typeof initialize>;
+initializedStorefront.eshop.return.find({ order_id: "order" });
+initializedStorefront.eshop.paymentMethod.find({ company_id: "company", company_location_id: "branch" });
+const initializedCardUpdate: typeof storefrontClient.eshop.subscription.updateCard = initializedStorefront.eshop.subscription.updateCard;
 initializedStorefront.eshop.bookingService.loadMoreAvailability();
 initializedStorefront.eshop.bookingService.select({
   ...bookingServiceContract,
@@ -1945,8 +1948,8 @@ adminClient.eshop.order.cancelPending({ order_id: orderContract.id });
 storefrontClient.eshop.order.cancelPending({ order_id: orderContract.id, command_id: "cancellation-command" });
 // @ts-expect-error cancellation needs stable command identity, an Order revision and exact units.
 const quantityOnlyProductCancellation: CancelOrderProductItemParams = { order_id: orderContract.id, order_product_item_id: embeddedOrderProductItem.id, quantity: 1 };
-// @ts-expect-error product cancellation is an Admin-only command.
-storefrontClient.eshop.order.cancelProductItem(cancelEmbeddedProductItem);
+const customerProductCancellation: Promise<import("arky-sdk").StorefrontDto<Order>> =
+  storefrontClient.eshop.order.cancelProductItem(cancelEmbeddedProductItem);
 const forbiddenBookingRewrite: UpdateOrderParams = {
   id: orderContract.id,
   // @ts-expect-error persisted booking items change only through dedicated lifecycle commands.
@@ -2335,16 +2338,16 @@ const untaggedApiTokenStatus: AccountApiTokenStatus = "active";
 const untaggedAccountSessionStatus: AccountSessionStatus = "active";
 declare const customer: Customer;
 declare const product: Product;
-declare const productInventory: ProductInventory;
+declare const inventoryLevel: InventoryLevel;
 declare const productVariant: ProductVariant;
 const productStatus: ProductStatus = product.status;
 // @ts-expect-error Product status is the canonical typed status union.
 const invalidProductStatus: ProductStatus = { type: "enabled" };
 const productSlugs: Record<string, string> = product.slugs;
 const productFulfillment: ProductFulfillment = productVariant.fulfillment;
-const inventoryStoreLocationId: string = productInventory.store_location_id;
-const inventoryOnHand: number = productInventory.on_hand;
-const inventoryReserved: number = productInventory.reserved;
+const inventoryStoreLocationId: string = inventoryLevel.store_location_id;
+const inventoryOnHand: number = inventoryLevel.on_hand;
+const inventoryReserved: number = inventoryLevel.reserved;
 void productStatus;
 void productSlugs;
 void productFulfillment;
@@ -2431,16 +2434,10 @@ productVariant.is_default;
 product.slug;
 // @ts-expect-error ProductVariant weight is expressed in unsigned grams.
 productVariant.weight;
-// @ts-expect-error ProductInventory has one on_hand stock truth.
-productInventory.available;
-// @ts-expect-error ProductInventory references its StoreLocation explicitly.
-productInventory.location_id;
+const inventoryAvailable: number = inventoryLevel.available;
+const inventoryUnavailable: number = inventoryLevel.unavailable;
 // @ts-expect-error Product create inputs use slugs, never the removed singular map field.
 type LegacyProductSlugInput = CreateProductParams["slug"];
-// @ts-expect-error Inventory inputs set on_hand, never a mutable available field.
-type LegacyInventoryAvailableInput = ProductInventoryInput["available"];
-// @ts-expect-error Inventory inputs name the StoreLocation relationship explicitly.
-type LegacyInventoryLocationInput = ProductInventoryInput["location_id"];
 
 const getNode: WorkflowHttpNode = {
   type: "http",

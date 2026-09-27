@@ -19,13 +19,6 @@ export {
   SUPPORTED_STORE_CURRENCIES,
 } from "./price";
 
-export {
-  getFreeToSellStock,
-  getReservedStock,
-  hasStock,
-  getInventoryAt,
-  getFirstAvailableStoreLocationId,
-} from "./inventory";
 
 export {
   DurableRequestStorageError,

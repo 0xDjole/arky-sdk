@@ -52,7 +52,6 @@ import type {
   SocialConnectionType,
   SocialMessageSync,
   SocialPostContent,
-  ProductInventory,
   ProductFulfillment,
   ProductVariantEditableStatus,
   ProductVariantStatus,
@@ -745,11 +744,6 @@ export interface TestWebhookResponse {
   response_status?: number | null;
   error?: string | null;
 }
-
-export type ProductInventoryInput = Pick<
-  ProductInventory,
-  "store_location_id" | "on_hand"
->;
 
 export interface CreateProductVariantParams {
   store_id?: string;

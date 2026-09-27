@@ -278,21 +278,25 @@ asset-tag and physical-status filters, with timestamp sorting and explicit conti
 are case-sensitive; follow the cursor even after an empty page. `get` reads one exact Unit.
 `receive` requires a caller-retained Unit UUID, asset tag, explicit nullable manufacturer serial and
 the loaded Level ID/update epoch. Reuse that same request after an uncertain result; never generate
-another receipt identity just to retry. `allocate` selects one existing reservation/component slot;
+another receipt identity just to retry. `allocate` selects one exact job line/component slot;
 `unassign` frees that selection without releasing the quantity hold. Both require the loaded Unit
 update epoch. These methods do not expose arbitrary status editing or physical-history deletion.
 
-Physical returns use the Store Admin API `admin.eshop.return.create/get/find/execute`. Create names
-an accepted Order with its exact product-unit spans and components, or a Rental with exact
-`rental_placement` lines (one component each, `unit_index: 0`, quantity one), a destination Location
-and retained request/Return UUIDs. `execute` keeps the caller's command UUID, source and loaded update epoch;
-retry the same request after an uncertain result. Authorize checks actual dispatch/collection and
-remaining returnable quantities. Receive records custody; Dispose explicitly selects restock,
-write-off or discard. Close requires all received goods to have a disposition; before transit, use
-Cancel. None of these commands refunds the customer or cancels a shipping-label charge.
+Physical returns use `admin.eshop.return.create/get/find/execute`. Customers request and read their
+own returns through `arky.eshop.return.create/get/find`; staff approve or decline them. Create names
+an accepted Order with exact product-unit spans and components, or a Rental with `rental_unit`
+lines that each name one `inventory_unit_id`. Retain the command and Return UUIDs before sending.
+Staff creation may name the destination warehouse; approval can set it for a Customer request.
+`execute` keeps the command UUID, source and loaded update epoch across retries. Receive records
+custody; Dispose records restocked or not-restocked quantities and explicit Individual Unit IDs.
+Missing records quantities that will not arrive. Each action addresses the exact line and Inventory
+Item. The Return closes automatically when every quantity is accounted for. Physical returns do
+not refund money; use the separate Refund flow when repayment is due.
 `find` combines an optional Order or Rental scope (never both), destination and physical-status
-filters with timestamp sorting and explicit continuation. Follow its cursor even after an empty page; use `get` for exact current state.
-This is operator control, not a Customer self-service Return API or a Rental agreement API.
+filters with timestamp sorting and explicit continuation. Follow its cursor even after an empty
+page; use `get` for exact current state. Rentals are separate agreements under
+`admin.eshop.rental`; ending an agreement requests returns for its units still out and cancels
+unsent issue work through the partner handshake where needed.
 
 Cart requests and responses use one tagged `line_items` array with `product`, `booking`,
 `digital_product` and `subscription_plan` items. The `cartProductItems`, `cartBookingItems`,
@@ -474,7 +478,7 @@ Use Cart for new selections, and the dedicated item/financial/fulfillment
 commands for ongoing obligations. Root and item statuses use `status.type`.
 
 Accepted buyer, company, Market and SalesChannel snapshots remain independent of current definitions.
-`Order.source` records what generated the purchase: `cart_acceptance`, `direct`, `exchange` or
+`Order.source` records what generated the purchase: `cart_acceptance`, `direct` or
 `subscription` (a renewal occurrence). `origin` retains the accepting actor; it is not live
 authorization. Render the saved snapshots and each line's saved `money.total` instead of repricing
 historical catalog definitions.
@@ -1158,100 +1162,77 @@ arbitrary remaining quantity. Retry an uncertain result with the same saved payl
 a replacement command or substitute a newer revision. A separately reviewed cancellation uses a
 fresh command and current Order state. The response is the updated Order.
 
-## Fulfillment and shipping labels
+Customers use `arky.eshop.order.cancelProductItem` with the same saved command shape. Only the
+Order's Customer may request it; Company purchases additionally require current branch purchase
+permission. The response can retain uncancelled units while a partner confirmation is pending.
+Only applied cancellation creates a commercial credit; accepted Order prices never change.
 
-Fulfillment work is scoped to a StoreLocation. An `order_product` line source maps stable local work
-positions to accepted Order units. Narrow on `source.type`: `rental_issue` instead names a Rental,
-accepted terms revision and a nullable `replacement` (`predecessor_placement_id`,
-`overlap_authorized`); its positions are local issue positions with no Order-unit mapping. One job
-may mix `order_product` lines of one exact Order delivery group with `rental_issue` lines.
-`admin.eshop.fulfillmentOrder.find({ order_id })` or `find({ rental_id })` reads work under
-`/v1/stores/{store_id}/fulfillment-orders`; `get({ fulfillment_order_id })` reads one job.
-Shipments and Pickups are Store-scoped (`/shipments`, `/pickups`) and resolve their Order or Rental
-authority from the work; their `find` takes exactly one `order_id`, `fulfillment_order_id` or
-`rental_id` scope. Recognizing a source type never borrows another line's paid status.
+## Fulfillment
 
-A Shipment selects those local positions and freezes its parcel and
-optional customs facts. Create the parcel first; carrier-label quoting/purchase is a separate flow:
+Inventory owns physical items, warehouse levels, Individual Units and the movement log. Available
+stock is `on_hand - reserved - unavailable` and may be negative for permitted backorders. A job
+holds its remaining quantities when its delivery opens; future Scheduled work holds none. Setting
+stock aside protects it from dispatch. Every stock change retains its movement source.
 
-```typescript
-const result = await admin.eshop.shipment.create({
-  shipment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-  origin_store_location_id: "6ba7b818-9dad-41d1-80b4-00c04fd430c8",
-  fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
-  lines: [
-    {
-      fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
-      unit_spans: [{ first_unit: 0, quantity: 1 }],
-      selected_units: [],
-    },
-  ],
-  parcel: {
-    length: 150,
-    width: 100,
-    height: 50,
-    weight: 750,
-    distance_unit: "mm",
-    mass_unit: "g",
-  },
-  customs_declaration: null,
-});
+FulfillmentOrder is a warehouse job. An `order_product` line maps stable local work positions to
+accepted Order units. A `rental_issue` line names the Rental and accepted terms revision; replacement
+also retains the predecessor Unit and its exact delivery line/index. One job may combine products
+from one Order delivery group with rental equipment. Work positions are distinct from Order unit
+positions and physical serial numbers. Use `admin.eshop.fulfillmentOrder.find({ order_id })` or
+`find({ rental_id })`, and `get({ fulfillment_order_id })` for one exact job.
 
-const rates = await admin.eshop.shippingLabel.quote({
-  owner: { type: "outbound_shipment", shipment_id: result.shipment.id },
-});
-console.log(rates.map((rate) => ({ service: rate.display_name, total: rate.total })));
-```
-
-`selected_units` is required on Shipment and Pickup lines. Quantity-tracked goods use an empty array;
-individually tracked components require explicit `{ fulfillment_unit_index, inventory_unit_id }`
-bindings for the complete accepted component recipe, at most 100 distinct Units per manifest.
-The Unit must already be allocated to the corresponding reservation slot. Work positions are not
-Order positions or physical serial numbers.
-
-Use `admin.eshop.fulfillmentOrder.unitSlots({ fulfillment_order_id,
-expected_updated_at: work.updated_at, lines })` to read the required Individual component slots
-for selected `{ fulfillment_order_line_id, unit_spans }` lines. It returns the exact existing
-reservation/slot, Item/key and nullable current Unit for each component; it does not reserve stock.
-Discover available objects with `inventoryUnit.find` filtered by that Item, the returned Location
-and `status: "available"`. Pass the chosen Unit's loaded revision and the returned reservation/slot
-to `inventoryUnit.allocate`, then resolve again to display saved assignments after reload or an
-uncertain response. Build the manifest's `selected_units` from those confirmed assignments. At most
-100 physical component slots are resolved per request; quantity-only goods return an empty list.
-
-`selectShipmentUnits` and `selectPickupUnits` from `arky-sdk/utils` build a quantity selection from
-loaded work and complete shipment or pickup history without expanding every unit. They exclude both
-executed positions and positions claimed by unexecuted, non-cancelled parcels or pickups. The empty
-bindings array supports quantity-tracked goods; supply explicit allocated Unit bindings for
-individually tracked goods, including every rented Unit, before creating the parcel or pickup.
-Server admission remains authoritative if work changes after the read.
-
-An unshipped parcel can be cancelled explicitly. Cancellation frees its prepared positions, not
-the underlying stock hold, and does not automatically refund postage:
+Fulfillment records the units prepared and sent from one job. Its method comes from the job:
+delivery goes Preparing → Fulfilled; pickup goes Preparing → Ready → Fulfilled. Ready notifies the
+customer but does not move stock. Fulfilled moves stock once. There is no separate parcel record,
+package-size/customs input or carrier-label API. Tracking is entered by staff or the partner.
 
 ```typescript
-await admin.eshop.shipment.cancel({
-  shipment_id: result.shipment.id,
-  expected_updated_at: result.shipment.updated_at,
+const prepared = await admin.eshop.fulfillment.create({
+  fulfillment_id: savedFulfillmentId,
+  fulfillment_order_id: work.id,
+  lines: [{
+    fulfillment_order_line_id: work.lines[0].id,
+    unit_spans: [{ first_unit: 0, quantity: 1 }],
+    selected_units: [],
+    lot_reference: "milk-batch-2026-09",
+  }],
+});
+
+const dispatched = await admin.eshop.fulfillment.execute({
+  fulfillment_id: prepared.id,
+  command_id: savedDispatchCommandId,
+  expected_updated_at: prepared.updated_at,
+  action: { type: "fulfill", late_reason: null },
+  tracking: { carrier: "Local courier", number: "DEL-1042", url: null },
 });
 ```
 
-For an active parcel, `shippingLabel.request` accepts the selected signed quote and a retained
-`shipping_label_id`; preserve the identity through an uncertain response. Inspect it with
-`shippingLabel.get` or use its supported `reconcile` command. Labels, carrier refund requests and
-merchant-debit reversals have separate APIs and lifecycle records. A successful label purchase is
-not dispatch, and a carrier refund is not customer repayment or proof that goods returned.
+Persist each caller-owned UUID and complete request before sending. Retry an uncertain response
+with that identical payload. A pickup needs a `ready` command before `fulfill`; its tracking remains
+null. Use `updateTracking` for delivery tracking and `markDelivered` for its actual delivery time.
+Collection sets `delivered_at` automatically. Neither tracking nor delivery-time changes move stock
+again. Cancelling a preparation uses `execute` with `action: { type: "cancel" }` and frees its
+prepared positions while leaving the job's quantity hold in place.
 
-If an uncertain saved quote expires, an explicit `shippingLabel.resolveRequest` call sends that
-same `shipping_label_id` and `quote`. Its `accepted` result returns the existing purchase without
-changing it. Its `not_accepted` result proves the original quote was invalidated under the physical
-owner's transaction fence, so a late copy cannot create that purchase. Correlate `store_id`,
-`shipping_label_id`, typed `owner` and `quote_digest` (SHA-256 of the exact UTF-8 signed quote) before
-clearing browser state. Hold the shared durable-request Web Lock throughout. A lost resolution
-response keeps the same request for resolution again. Review fresh rates explicitly; this command
-never purchases a new label, cancels an accepted one, refunds money or contacts a provider.
-It is not a backup-recovery tool: operations lost inside the database backup RPO still require
-the platform's provider-side/manual reconciliation before ordinary operation resumes.
+`fulfillment.find` takes exactly one `order_id`, `fulfillment_order_id` or `rental_id` scope and
+returns `{ items, cursor }`. `selectFulfillmentUnits` from `arky-sdk/utils` selects quantities from
+loaded work and its complete Fulfillment history, excluding executed units and active preparations.
+It returns empty `selected_units` for quantity-tracked goods. Individually tracked components need
+explicit `{ fulfillment_unit_index, inventory_unit_id }` bindings for the complete recipe.
+
+Use `fulfillmentOrder.unitSlots({ fulfillment_order_id, expected_updated_at: work.updated_at,
+lines })` for the exact Individual component slots. It returns the job line/index, Item/key and
+nullable allocated Unit without changing stock. Find Available Units at that warehouse, pass the
+chosen Unit's revision and exact job/line/index to `inventoryUnit.allocate`, and resolve again to
+show saved assignments after refresh. At most 100 physical component slots are resolved per request.
+Server admission rechecks the allocation and all current work before accepting a Fulfillment.
+
+A warehouse is run by staff or a FulfillmentPartner. Partner memberships and account API tokens
+see only their warehouses' operational work and stock. Partners accept, reject or hand back jobs
+through `fulfillmentOrder.controlPartner`, and use the same Fulfillment APIs to record goods leaving.
+A cancellation of accepted partner work stays pending until confirmation or dispatch. Pending
+Product lines retain `cancellation_command_id`, identifying the original Order request; rental-ending
+lines carry null. Confirmation applies only those still-pending units and preserves the requester.
 
 ## TypeScript
 
@@ -1277,7 +1258,7 @@ remain strings. Prices and `compare_at` are money, not timestamps.
 The clean browser-auth boundary uses `arky_admin_session:v2` with a version-2 envelope and
 `arky_customer_session:v2:...` with version-2 Customer records. Older auth namespaces are ignored;
 users sign in again rather than having seconds-shaped records reinterpreted. Existing durable
-payment, refund, shipment, and media request recovery records are not cleared, rewritten, or assigned
+payment, refund, fulfillment, and media request recovery records are not cleared, rewritten, or assigned
 new request identities by this auth cutover. Durable media uploads retain `File.lastModified` as native browser millisecond metadata, including
 its exact frozen JSON bytes and replay identity; it is not a seconds-valued Arky domain timestamp.
 

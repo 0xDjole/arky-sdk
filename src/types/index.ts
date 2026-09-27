@@ -670,17 +670,6 @@ export interface StoreLocation {
   updated_at: EpochMilliseconds;
 }
 
-export interface ProductInventory {
-  id: string;
-  store_id: string;
-  product_id: string;
-  variant_id: string;
-  store_location_id: string;
-  on_hand: number;
-  reserved: number;
-  updated_at: EpochMilliseconds;
-}
-
 export interface InventoryRequirement {
   inventory_item_id: string;
   quantity: number;
@@ -926,6 +915,7 @@ export interface FulfillmentJobItem {
 export interface PartnerLineUnits {
   fulfillment_order_line_id: string;
   unit_spans: FulfillmentUnitSpan[];
+  cancellation_command_id: string | null;
 }
 
 export type PartnerChange =

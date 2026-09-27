@@ -193,6 +193,9 @@ const removedIdentifiers = [
   "RetryEmailDeliveryParams",
   "createInventoryReservationApi",
   "InventoryReservation",
+  "ProductInventory",
+  "ProductInventoryInput",
+  "VariantWithInventory",
   "ReservationUnitProgress",
   "OrderProductLocationAllocation",
   "InventoryUnitItemSnapshot",
@@ -214,10 +217,8 @@ const removedCommercePaymentVocabularyPattern = new RegExp(
 const removedPaymentNamingPattern =
   /\b(?:PaymentProvider\w*|MarketPaymentProvider\w*|CustomerPaymentMethod\w*|OrderPaymentCapture|ShipmentUnitBinding|getByBinding|\w+ByBindingParams|payment_provider\w*|market_payment_provider\w*|customer_payment_method\w*|order_payment_id|order_payment_capture_id|order_refund_id|payer_customer_id|unit_bindings|metadata_binding_status)\b|payment-providers|customer-payment-methods|\/by-binding|by-configuration/g;
 const removedProductContractPatterns = [
-  /export interface ProductInventory\s*\{[^}]*\b(?:location_id|available)\??:/g,
   /export interface ProductVariant\s*\{[^}]*\bweight\??:/g,
   /export interface Product\s*\{[^}]*\bslug\??:/g,
-  /export type ProductInventoryInput\s*=\s*Pick<[^;]*"(?:location_id|available)"/g,
   /export interface (?:Create|Update)ProductVariantInput\s*\{[^}]*\bweight\??:/g,
   /export interface (?:Create|Update)ProductParams\s*\{[^}]*\bslug\??:/g,
 ];

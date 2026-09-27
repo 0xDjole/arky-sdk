@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
-import { createStorefront } from "../dist/storefront.js";
+import { createStorefront, initialize } from "../dist/storefront.js";
 import { storefrontSessionStorage } from "./helpers/storefront-session-storage.mjs";
 
 const baseUrl = "https://api.example.test";
@@ -14,13 +14,42 @@ const owners = [{ type: "customer", customer_id: "customer" },
 
 function client(surface) {
   if (surface === "admin") return createAdmin({ storeId: "selected/store", baseUrl, apiToken: "arky_api_contract" });
-  return createStorefront(publishableKey, { apiUrl: baseUrl, sessionStorage: storefrontSessionStorage(JSON.stringify({
+  return (surface === "initialized" ? initialize : createStorefront)(publishableKey, { apiUrl: baseUrl, sessionStorage: storefrontSessionStorage(JSON.stringify({
     version: 2, customer: { id: "customer", status: { type: "active" }, identities: [], classifications: [], created_at: 1, updated_at: 1 },
     session: { id: "session", customer_id: "customer", type: "visitor", token, status: { type: "active" }, expires_at: 1900000000000 },
   })) });
 }
 
-for (const surface of ["admin", "storefront"]) {
+for (const surface of ["admin", "storefront", "initialized"]) {
+  test(`${surface} card update keeps the same subscription, unpaid Order and command across retries`, async () => {
+    const original = globalThis.fetch;
+    const calls = [];
+    const request = { command_id: "replace-card", request: { subscription_id: "subscription", order_id: "unpaid-order", payment_method_id: "replacement-card" } };
+    const before = structuredClone(request);
+    const result = { command_id: request.command_id, accepted_at: revision, closed_payment_id: "declined-payment", payment_id: "collection", amount: { amount: 1200, currency: "usd" } };
+    globalThis.fetch = async (url, init = {}) => {
+      calls.push({ url: new URL(url), method: init.method, headers: new Headers(init.headers), body: JSON.parse(init.body) });
+      return Response.json(result);
+    };
+    try {
+      const api = client(surface).eshop.subscription;
+      assert.deepEqual(await api.updateCard(request), result);
+      assert.deepEqual(await api.updateCard(request), result);
+      assert.deepEqual(request, before);
+      assert.equal(calls.length, 2);
+      const path = surface === "admin" ? "/v1/stores/selected%2Fstore/subscriptions/card" : "/v1/storefront/subscriptions/card";
+      for (const call of calls) {
+        assert.equal(call.url.pathname, path);
+        assert.equal(call.method, "POST");
+        assert.deepEqual(call.body, request);
+        if (surface !== "admin") {
+          assert.equal(call.headers.get("authorization"), `Bearer ${token}`);
+          assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+        }
+      }
+    } finally { globalThis.fetch = original; }
+  });
+
   test(`${surface} saved-method setup retains Customer or Company ownership and explicit consent on replay`, async () => {
     const original = globalThis.fetch;
     const calls = [];
@@ -46,7 +75,7 @@ for (const surface of ["admin", "storefront"]) {
       const path = surface === "admin" ? "/v1/stores/selected%2Fstore/payment-methods/setup" : "/v1/storefront/payment-methods/setup";
       assert.equal(calls.length, owners.length * 2);
       assert.ok(calls.every(({ url, method }) => method === "POST" && url.pathname === path && !url.search));
-      if (surface === "storefront") {
+      if (surface !== "admin") {
         assert.ok(calls.every(({ headers }) => headers.get("authorization") === `Bearer ${token}` && headers.get("x-arky-publishable-key") === publishableKey));
       }
     } finally { globalThis.fetch = original; }

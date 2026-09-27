@@ -447,7 +447,6 @@ export type {
   ProductFulfillment,
   InventoryRequirement,
   BackorderPolicy,
-  ProductInventory,
   GalleryItem,
   EmailTemplate,
   EmailTemplateType,
@@ -830,7 +829,6 @@ export type {
   GetProductVariantParams,
   FindProductVariantsParams,
   DeleteProductVariantParams,
-  ProductInventoryInput,
 } from "./types/api";
 
 export type {
@@ -940,7 +938,7 @@ export function storeCommerceDefaults(
     : null;
 }
 
-export const SDK_VERSION = "0.26.71";
+export const SDK_VERSION = "0.26.72";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -1116,13 +1114,6 @@ import {
   toKey,
   nameToKey,
 } from "./utils/keyValidation";
-import {
-  getFreeToSellStock,
-  getReservedStock,
-  hasStock,
-  getInventoryAt,
-  getFirstAvailableStoreLocationId,
-} from "./utils/inventory";
 
 function createUtilitySurface(apiConfig: Pick<ApiConfig, "market">) {
   return {
@@ -1167,11 +1158,6 @@ function createUtilitySurface(apiConfig: Pick<ApiConfig, "market">) {
     toKey,
     nameToKey,
 
-    getFreeToSellStock,
-    getReservedStock,
-    hasStock,
-    getInventoryAt,
-    getFirstAvailableStoreLocationId,
   };
 }
 

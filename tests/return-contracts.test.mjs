@@ -1,6 +1,38 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
+import { initialize } from "../dist/storefront.js";
+import { storefrontSessionStorage } from "./helpers/storefront-session-storage.mjs";
+
+test("initialized Customer returns retain the request and use only storefront discovery and reads", async () => {
+  const original = globalThis.fetch;
+  const calls = [];
+  const publishableKey = `arky_pk_${"c".repeat(43)}`;
+  const token = `customer_visitor_${"d".repeat(64)}`;
+  const client = initialize(publishableKey, { apiUrl: "https://api.example.test", sessionStorage: storefrontSessionStorage(JSON.stringify({
+    version: 2, customer: { id: "customer", status: { type: "active" }, identities: [], classifications: [], created_at: 1, updated_at: 1 },
+    session: { id: "session", customer_id: "customer", type: "visitor", token, status: { type: "active" }, expires_at: 1900000000000 },
+  })) });
+  const request = { return_id: "return", command_id: "request", source: { type: "order", order_id: "order" }, lines: [{ id: "line", source: { type: "order_product", order_product_line_item_id: "product-line", unit_spans: [{ first_unit: 1, quantity: 1 }] }, reason: "damaged", items: [{ inventory_item_id: "item", quantity: 1 }] }] };
+  const before = structuredClone(request);
+  const retained = { id: "return", status: { type: "requested", requested_at: 1700000000000 } };
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: new URL(url), method: init.method, headers: new Headers(init.headers), body: init.body ? JSON.parse(init.body) : null });
+    return Response.json(init.method === "GET" && new URL(url).search ? { items: [], cursor: "next" } : retained);
+  };
+  try {
+    assert.deepEqual(await client.eshop.return.create(request), retained);
+    assert.deepEqual(await client.eshop.return.create(request), retained);
+    assert.deepEqual(await client.eshop.return.find({ order_id: "order", limit: 10, cursor: "prior" }), { items: [], cursor: "next" });
+    assert.deepEqual(await client.eshop.return.get({ return_id: "return/one" }), retained);
+    assert.deepEqual(request, before);
+    assert.deepEqual(calls.map(call => [call.method, call.url.pathname]), [["POST", "/v1/storefront/returns"], ["POST", "/v1/storefront/returns"], ["GET", "/v1/storefront/returns"], ["GET", "/v1/storefront/returns/return%2Fone"]]);
+    assert.deepEqual(calls[0].body, request);
+    assert.deepEqual(calls[1].body, request);
+    assert.deepEqual(Object.fromEntries(calls[2].url.searchParams), { order_id: "order", limit: "10", cursor: "prior" });
+    assert.ok(calls.every(call => call.headers.get("authorization") === `Bearer ${token}` && call.headers.get("x-arky-publishable-key") === publishableKey));
+  } finally { globalThis.fetch = original; }
+});
 
 test("Return discovery carries all filters and preserves empty continuation without refill", async () => {
   const original = globalThis.fetch;

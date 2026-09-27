@@ -55,6 +55,7 @@ import type {
   GetOrderPaymentParams,
   FindOrderPaymentsParams,
   CancelBookingItemParams,
+  CancelOrderProductItemParams,
   GetProductParams,
   GetProductsParams,
   GetBookingResourceParams,
@@ -875,6 +876,18 @@ export const createStorefrontApi = (
           return apiConfig.httpClient.get<
             StorefrontDto<{ items: Order[]; cursor: string | null }>
           >(`${base}/orders`, { ...options, params });
+        },
+        async cancelProductItem(
+          params: StorefrontParams<CancelOrderProductItemParams>,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<Order>> {
+          await lifecycle.ensureVisitorSession();
+          const { order_id, order_product_item_id, command_id, expected_updated_at, units } = params;
+          return apiConfig.httpClient.post<StorefrontDto<Order>>(
+            `${base}/orders/${encodeURIComponent(order_id)}/product-items/${encodeURIComponent(order_product_item_id)}/cancel`,
+            { command_id, expected_updated_at, units },
+            options,
+          );
         },
         async cancelBookingItem(
           params: StorefrontParams<CancelBookingItemParams>,
