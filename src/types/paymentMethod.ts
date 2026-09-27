@@ -109,6 +109,7 @@ export interface FindPaymentMethodsParams {
   store_id?: string;
   customer_id?: string;
   company_id?: string;
+  company_location_id?: string;
   payment_option_id?: string;
   limit?: number;
   cursor?: string;

@@ -3,7 +3,7 @@ import type { createStorefront } from "arky-sdk/storefront";
 import type {
   Payment, PaymentMethod, PaymentMethodOwner, PaymentMethodDetails, PaymentMethodState,
   PaymentMethodSetupRequest, RequestPaymentMethodSetupParams, PaymentMethodSetupStart,
-  PaymentMethodRevocation, RevokePaymentMethodParams,
+  PaymentMethodRevocation, RevokePaymentMethodParams, FindPaymentMethodsParams,
 } from "arky-sdk";
 import type { PaymentMethod as PublicMethod, PaymentMethodOwner as PublicOwner } from "arky-sdk/types";
 
@@ -15,6 +15,8 @@ type CompanyOwner = Extract<PaymentMethodOwner, { type: "company" }>;
 
 export type PaymentMethodContracts = [
   True<Same<PaymentMethod, PublicMethod>>,
+  True<Same<FindPaymentMethodsParams["company_location_id"], string | undefined>>,
+  True<Same<NonNullable<Parameters<Front["find"]>[0]>["company_location_id"], string | undefined>>,
   True<Same<PaymentMethodOwner, PublicOwner>>,
   True<Same<PaymentMethod["owner"], PaymentMethodOwner>>,
   True<Same<Payment["payer"], PaymentMethodOwner>>,

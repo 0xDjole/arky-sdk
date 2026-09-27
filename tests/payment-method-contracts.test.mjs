@@ -67,7 +67,7 @@ for (const surface of ["admin", "storefront"]) {
     };
     try {
       const api = client(surface).eshop.paymentMethod;
-      const query = { company_id: "company", limit: 10, cursor: "" };
+      const query = { company_id: "company", company_location_id: "branch", limit: 10, cursor: "" };
       assert.deepEqual(await api.find(query), { items: [], cursor: "next:/+=" });
       assert.equal(calls.length, 1);
       assert.deepEqual(await api.get({ id: method.id }), method);
@@ -84,7 +84,7 @@ for (const surface of ["admin", "storefront"]) {
         ["GET", base], ["GET", `${base}/method%2Fid`], ["POST", `${base}/method%2Fid/setup/start`],
         ["POST", `${base}/method%2Fid/setup/complete`], ["POST", `${base}/method%2Fid/revoke`], ["POST", `${base}/method%2Fid/revoke`],
       ]);
-      assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), { company_id: "company", limit: "10", cursor: "" });
+      assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), { company_id: "company", company_location_id: "branch", limit: "10", cursor: "" });
       assert.deepEqual(calls[2].body, {});
       assert.deepEqual(calls[3].body, {});
       assert.deepEqual(calls[4].body, { command_id: "revoke-card", expected_updated_at: revision, reason: "Card replaced" });
