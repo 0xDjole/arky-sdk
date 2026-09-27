@@ -1,5 +1,6 @@
 import type { CreateReturnParams, GetReturnParams, FindReturnsParams, Return } from "../types/return";
 import type { EpochMilliseconds } from "../types/time";
+import type { AcceptCartFutureDeliveriesParams, CartFutureDeliveryQuote, QuoteCartFutureDeliveriesParams } from "../types/cartDelivery";
 import type {
   FindPaymentMethodsParams,
   GetPaymentMethodParams,
@@ -808,6 +809,28 @@ export const createStorefrontApi = (
             {},
             options,
           );
+        },
+        async quoteFutureDeliveries(
+          params: Omit<StorefrontParams<QuoteCartFutureDeliveriesParams>, "locale">,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<CartFutureDeliveryQuote>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.post<StorefrontDto<CartFutureDeliveryQuote>>(
+            `${base}/carts/${encodeURIComponent(params.id)}/future-delivery-quote`,
+            { plans: params.plans },
+            options,
+          );
+        },
+        async acceptFutureDeliveries(
+          params: Omit<StorefrontParams<AcceptCartFutureDeliveriesParams>, "locale">,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<Cart>> {
+          await lifecycle.ensureVisitorSession();
+          return withCartMutation(checkoutScope, () => apiConfig.httpClient.put<StorefrontDto<Cart>>(
+            `${base}/carts/${encodeURIComponent(params.id)}/future-deliveries`,
+            { plans: params.plans },
+            options,
+          ));
         },
         async checkout(
           params: StorefrontParams<CheckoutCartParams>,

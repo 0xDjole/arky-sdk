@@ -318,6 +318,34 @@ The quote's corresponding `delivery_groups[].scheduled_window` contains the reso
 dates for display. Acceptance freezes exact dates in the Order; retain the Cart's relative
 selection when requesting another quote.
 
+For physical subscription entitlements, call `store.eshop.cart.quoteFutureDeliveries({ plans })`
+after adding the plan to the loaded Cart. Each plan choice has `cart_line_item_id` and `deliveries`
+with `{ id, entitlement_ids, destination, shipping_rate_id }`. A null rate previews available
+offers; select a rate and review again. The response includes the server-expanded windows,
+per-entitlement unit spans, offers and either `selection_required` or `ready` with signed
+`quote_acceptance`. Display these terms before accepting them:
+
+```ts
+const preview = await store.eshop.cart.quoteFutureDeliveries({ plans: deliveryChoices });
+await store.eshop.cart.acceptFutureDeliveries({
+  plans: preview.plans.map((plan) => ({
+    cart_line_item_id: plan.cart_line_item_id,
+    deliveries: plan.deliveries.map((proposal) => {
+      if (proposal.status.type !== "ready") throw new Error("Select a delivery rate first");
+      return {
+        ...proposal.quote.basis.choice,
+        quote_acceptance: proposal.status.quote_acceptance,
+      };
+    }),
+  })),
+});
+```
+
+Use each entitlement's previewed quantities and drop order to select the initial Cart delivery
+groups, then review the complete Cart and check out. Future-promise acceptance updates the loaded
+Cart and invalidates its purchase review. Low-level storefront and Admin `cart` APIs expose the
+same two methods with an explicit Cart `id`; Admin also accepts `store_id` and `locale`.
+
 Cart has tagged `status.type` and `origin.type`, required `market_id`/`sales_channel_id`, and
 required `customer_id`, and nullable nested `company: { company_id, company_location_id }`.
 Provenance is in `origin`, not a second top-level Session field. Admin creation requires a Customer;

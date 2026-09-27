@@ -128,3 +128,4 @@ export type {
   FormSchema,
 } from "./index";
 export type { ScheduledMutationOptions } from "./services/createHttpClient";
+export type * from "./types/cartDelivery";

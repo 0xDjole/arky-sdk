@@ -19,6 +19,7 @@ export {
 } from "./types/order";
 export type { CartCheckoutRequest, CartAcceptanceProof, RecoverCartCheckoutParams } from "./types/cartCheckout";
 export type { InitialMarketInput, CartDeliveryGroup, CartDeliveryGroupItem, CartDeliveryWindow } from "./types/api";
+export type * from "./types/cartDelivery";
 export type { CaptureCustomerEmailParams } from "./types/api";
 export type { StorefrontCart, StorefrontOrderCheckoutResult } from "./types/storefront";
 export type { GetEmailTemplatesParams, GetEmailTemplateParams, CreateEmailTemplateParams, UpdateEmailTemplateParams, DeleteEmailTemplateParams, PreviewEmailTemplateParams, PreviewEmailTemplateResponse } from "./types/api";
@@ -938,7 +939,7 @@ export function storeCommerceDefaults(
     : null;
 }
 
-export const SDK_VERSION = "0.26.73";
+export const SDK_VERSION = "0.26.74";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -1579,6 +1580,8 @@ export function createAdmin(config: CreateAdminConfig) {
         removeItem: eshopApi.removeCartItem,
         clear: eshopApi.clearCart,
         quote: eshopApi.quoteCart,
+        quoteFutureDeliveries: eshopApi.quoteCartFutureDeliveries,
+        acceptFutureDeliveries: eshopApi.acceptCartFutureDeliveries,
         checkout: eshopApi.checkoutCart,
         pendingCheckout: eshopApi.pendingCartCheckout,
         recoverCheckout: eshopApi.recoverCartCheckout,

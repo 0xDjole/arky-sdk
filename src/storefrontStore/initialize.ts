@@ -1,4 +1,6 @@
 import type { EpochMilliseconds } from "../types/time";
+import type { AcceptCartFutureDeliveriesParams, CartFutureDeliveryQuote, QuoteCartFutureDeliveriesParams } from "../types/cartDelivery";
+import type { StorefrontDto } from "../types/storefront";
 import type { CatalogReadOptions } from "../types/catalog";
 import type { CartViewScope } from "../types/cartView";
 import { CartSelectionError } from "../types/cartSelection";
@@ -802,6 +804,37 @@ function initializeStoreCore(
       id: current.id,
       subscription_plan: sanitizePublicCartSubscriptionPlans([item])[0],
     });
+    await applyCartResponse(response, { ifRevision: writeRevision, scope });
+    return response;
+  }
+
+  async function quoteFutureDeliveries(
+    input: Pick<QuoteCartFutureDeliveriesParams, "plans">,
+    options?: RequestOptions,
+  ): Promise<StorefrontDto<CartFutureDeliveryQuote>> {
+    const scope = await beginCartOperation();
+    const current = cart.get() || (await ensureCart());
+    scope.assertCurrent();
+    const revision = cartWriteRevision;
+    const locale = currentLocale();
+    const response = await client.eshop.cart.quoteFutureDeliveries({ id: current.id, plans: input.plans }, options);
+    scope.assertCurrent();
+    if (revision !== cartWriteRevision || locale !== currentLocale() || response.cart.cart_id !== current.id) {
+      throw new CartSelectionError("Cart selections or language changed while reviewing future deliveries; review the current Cart");
+    }
+    return response;
+  }
+
+  async function acceptFutureDeliveries(
+    input: Pick<AcceptCartFutureDeliveriesParams, "plans">,
+    options?: RequestOptions,
+  ): Promise<StorefrontCart> {
+    const scope = await beginCartOperation();
+    const writeRevision = nextCartWriteRevision();
+    const current = cart.get() || (await ensureCart());
+    scope.assertCurrent();
+    const response = await client.eshop.cart.acceptFutureDeliveries({ id: current.id, plans: input.plans }, options);
+    if (response.id !== current.id) throw new CartSelectionError("Future delivery acceptance returned a different Cart");
     await applyCartResponse(response, { ifRevision: writeRevision, scope });
     return response;
   }
@@ -1965,6 +1998,8 @@ function initializeStoreCore(
     clear: clearCart,
     clearLocal: clearLocalCart,
     quote: fetchQuote,
+    quoteFutureDeliveries,
+    acceptFutureDeliveries,
     checkout,
     pendingCheckout: () => client.eshop.cart.pendingCheckout(),
     recoverCheckout,

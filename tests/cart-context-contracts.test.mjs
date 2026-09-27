@@ -272,6 +272,61 @@ test("initialize handles a SubscriptionPlan-only Cart through quote and exact re
   );
 });
 
+test("Admin and storefront future delivery review preserve choices and accepted quote evidence", async () => {
+  const choice = { id: "delivery", entitlement_ids: ["milk"], destination: { type: "pickup", store_location_id: "warehouse" }, shipping_rate_id: "rate" };
+  const plans = [{ cart_line_item_id: planLineId, deliveries: [choice] }];
+  const acceptance = { quote_digest: "signed", customer_subtotal: { amount: 500, currency: "bam" }, expires_at: 1900000000000, cart_version: "version" };
+  const acceptedPlans = [{ cart_line_item_id: planLineId, deliveries: [{ ...choice, quote_acceptance: acceptance }] }];
+  const reviewed = { cart: { cart_id: cartId, version: "revision" }, cart_version: "version", quoted_at: 1800000000000, plans: [] };
+  const calls = capture((call) => call.method === "POST" ? reviewed : cart());
+  const admin = createAdmin({ baseUrl: apiUrl, storeId: "store", apiToken: "arky_api_cart", locale: "bs" });
+  const client = createStorefront(publishableKey, { apiUrl, locale: "bs", market: "bih", sessionStorage: sessionStorage() });
+  assert.deepEqual(await admin.eshop.cart.quoteFutureDeliveries({ id: "cart/one", plans }), reviewed);
+  await admin.eshop.cart.acceptFutureDeliveries({ id: "cart/one", locale: "en", plans: acceptedPlans });
+  assert.deepEqual(await client.eshop.cart.quoteFutureDeliveries({ id: "cart/one", store_id: "spoof", locale: "spoof", plans }), reviewed);
+  await client.eshop.cart.acceptFutureDeliveries({ id: "cart/one", store_id: "spoof", locale: "spoof", plans: acceptedPlans });
+  assert.deepEqual(calls.map((call) => [call.method, call.url.pathname]), [
+    ["POST", "/v1/stores/store/carts/cart%2Fone/future-delivery-quote"],
+    ["PUT", "/v1/stores/store/carts/cart%2Fone/future-deliveries"],
+    ["POST", "/v1/storefront/carts/cart%2Fone/future-delivery-quote"],
+    ["PUT", "/v1/storefront/carts/cart%2Fone/future-deliveries"],
+  ]);
+  assert.deepEqual(calls.map((call) => call.body), [{ locale: "bs", plans }, { locale: "en", plans: acceptedPlans }, { plans }, { plans: acceptedPlans }]);
+  assert.equal(calls[2].headers.get("x-arky-locale"), "bs");
+});
+
+test("initialize accepts future promises into the loaded Cart and clears its purchase review", async () => {
+  const store = initialize(publishableKey, { apiUrl, locale: "bs", market: "bih", sessionStorage: sessionStorage() });
+  store.eshop.cart.cart.set(cart());
+  store.eshop.cart.quote_result.set(quote());
+  const plans = [{ cart_line_item_id: planLineId, deliveries: [] }];
+  const reviewed = { cart: { cart_id: cartId, version: "revision" }, cart_version: "version", quoted_at: 1800000000000, plans: [] };
+  const updated = { ...cart(), updated_at: 2 };
+  const calls = capture((call) => call.method === "POST" ? reviewed : updated);
+  assert.deepEqual(await store.eshop.cart.quoteFutureDeliveries({ plans }), reviewed);
+  assert.notEqual(store.eshop.cart.quote_result.get(), null);
+  assert.deepEqual(await store.eshop.cart.acceptFutureDeliveries({ plans }), updated);
+  assert.deepEqual(store.eshop.cart.cart.get(), updated);
+  assert.equal(store.eshop.cart.quote_result.get(), null);
+  assert.deepEqual(calls.map((call) => call.body), [{ plans }, { plans }]);
+});
+
+test("initialize rejects a late future delivery preview after Cart edits", async () => {
+  const store = initialize(publishableKey, { apiUrl, locale: "bs", market: "bih", sessionStorage: sessionStorage() });
+  store.eshop.cart.cart.set(cart());
+  let release;
+  let started;
+  const pending = new Promise((resolve) => { release = resolve; });
+  const entered = new Promise((resolve) => { started = resolve; });
+  globalThis.fetch = async () => { started(); return pending; };
+  const review = store.eshop.cart.quoteFutureDeliveries({ plans: [] });
+  await entered;
+  store.eshop.cart.clearLocal();
+  release(Response.json({ cart: { cart_id: cartId, version: "revision" }, cart_version: "version", quoted_at: 1, plans: [] }));
+  await assert.rejects(review, /Cart selections or language changed/);
+  assert.equal(store.eshop.cart.cart.get(), null);
+});
+
 test("Cart controller forwards SubscriptionPlan selection and caller-reviewed checkout without implicit quoting", async () => {
   const calls = [];
   const controller = createCartController({

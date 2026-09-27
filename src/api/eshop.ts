@@ -1,4 +1,5 @@
 import type { ApiConfig } from "../services/clientTypes";
+import type { AcceptCartFutureDeliveriesParams, CartFutureDeliveryQuote, QuoteCartFutureDeliveriesParams } from "../types/cartDelivery";
 import type { OrderBooking, GetOrderBookingParams } from "../types/orderBooking";
 import type { CancelPendingOrderParams, OrderCancellationReceipt } from "../types/orderCancellation";
 import { checkoutCart, pendingCartCheckout, recoverCartCheckout, withCartMutation } from "../services/cartCheckout";
@@ -700,6 +701,30 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
         { locale: params.locale ?? apiConfig.locale },
         options,
       );
+    },
+
+    async quoteCartFutureDeliveries(
+      params: QuoteCartFutureDeliveriesParams,
+      options?: RequestOptions,
+    ): Promise<CartFutureDeliveryQuote> {
+      const storeId = params.store_id || apiConfig.storeId;
+      return apiConfig.httpClient.post<CartFutureDeliveryQuote>(
+        `/v1/stores/${encodeURIComponent(storeId)}/carts/${encodeURIComponent(params.id)}/future-delivery-quote`,
+        { locale: params.locale ?? apiConfig.locale, plans: params.plans },
+        options,
+      );
+    },
+
+    async acceptCartFutureDeliveries(
+      params: AcceptCartFutureDeliveriesParams,
+      options?: RequestOptions,
+    ): Promise<Cart> {
+      const storeId = params.store_id || apiConfig.storeId;
+      return withCartMutation(checkoutScope(storeId), () => apiConfig.httpClient.put<Cart>(
+        `/v1/stores/${encodeURIComponent(storeId)}/carts/${encodeURIComponent(params.id)}/future-deliveries`,
+        { locale: params.locale ?? apiConfig.locale, plans: params.plans },
+        options,
+      ));
     },
 
     async checkoutCart(
