@@ -1,6 +1,8 @@
 import type {
   AcceptCartFutureDeliveriesParams,
   CartFutureDeliveryQuote,
+  CartDeliveryDestination,
+  CartSubscriptionDelivery,
   FutureDeliveryProposalStatus,
   FutureDeliveryWindowBasis,
   QuoteCartFutureDeliveriesParams,
@@ -8,8 +10,8 @@ import type {
   UnitSpan,
   createAdmin,
 } from "arky-sdk";
-import type { CartFutureDeliveryQuote as PublicQuote } from "arky-sdk/types";
-import type { CartFutureDeliveryQuote as StorefrontQuote, createStorefront, initialize } from "arky-sdk/storefront";
+import type { CartFutureDeliveryQuote as PublicQuote, CartDeliveryDestination as PublicDestination, CartSubscriptionDelivery as PublicDelivery } from "arky-sdk/types";
+import type { CartFutureDeliveryQuote as StorefrontQuote, CartDeliveryDestination as StorefrontDestination, CartSubscriptionDelivery as StorefrontDelivery, createStorefront, initialize } from "arky-sdk/storefront";
 
 type Same<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false;
 type True<T extends true> = T;
@@ -18,6 +20,10 @@ type StorefrontCart = ReturnType<typeof createStorefront>["eshop"]["cart"];
 type InitializedCart = ReturnType<typeof initialize>["eshop"]["cart"];
 
 export type DeliveryContracts = [
+  True<Same<CartDeliveryDestination, PublicDestination>>,
+  True<Same<CartDeliveryDestination, StorefrontDestination>>,
+  True<Same<CartSubscriptionDelivery, PublicDelivery>>,
+  True<Same<CartSubscriptionDelivery, StorefrontDelivery>>,
   True<Same<CartFutureDeliveryQuote, PublicQuote>>,
   True<Same<CartFutureDeliveryQuote, StorefrontQuote>>,
   True<Same<Parameters<AdminCart["quoteFutureDeliveries"]>[0], QuoteCartFutureDeliveriesParams>>,
