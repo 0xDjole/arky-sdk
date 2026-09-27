@@ -308,6 +308,16 @@ count). A Form submission
 belongs to the applicable individual item through `form_submission_id`, not a Cart-wide Forms array.
 Public inputs never authorize prices; supported Admin inputs can carry explicit manual overrides.
 
+Each Cart delivery group has a nullable `scheduled_window`. Choose a fixed date with
+`{ type: "absolute", from, to }`, or a purchased subscription drop with
+`{ type: "subscription", delivery_index: 0 }` (zero-based, below 100). Relative selections follow
+the plan's calendar and support `start: { type: "on_acceptance" }`. Assign each physical
+entitlement's exact quantity to every purchased drop. Entitlements sharing a relative group must
+resolve to the same window; rental equipment or extra products may accompany that drop.
+The quote's corresponding `delivery_groups[].scheduled_window` contains the resolved `{ from, to }`
+dates for display. Acceptance freezes exact dates in the Order; retain the Cart's relative
+selection when requesting another quote.
+
 Cart has tagged `status.type` and `origin.type`, required `market_id`/`sales_channel_id`, and
 required `customer_id`, and nullable nested `company: { company_id, company_location_id }`.
 Provenance is in `origin`, not a second top-level Session field. Admin creation requires a Customer;

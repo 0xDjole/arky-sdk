@@ -145,6 +145,7 @@ export interface QuotedShippingOffer {
 
 export interface QuotedDeliveryGroup {
   cart_delivery_group_id: string;
+  scheduled_window: TimeRange | null;
   shipping_profile_id: string;
   shipping_profile_key: string;
   selected_market_zone_id: string;

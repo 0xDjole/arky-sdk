@@ -155,6 +155,29 @@ test("Admin quotes send configured or explicit locale and retain resolved quote 
   assert.deepEqual(calls[2].body, { locale: "bs", company_id: "company", company_location_id: "location", sales_channel_id: "channel", market: "bih", currency: "bam", line_items: [{ type: "subscription_plan", ...planSelection }], delivery_groups: [] });
 });
 
+test("Storefront quotes preserve relative subscription selections and resolved delivery dates separately", async () => {
+  const group = {
+    id: "weekly-drop",
+    items: [{ line_item: { type: "subscription_entitlement", line_item_id: planLineId, entitlement_id: "milk" }, quantity: 15 }],
+    destination: { type: "pickup", store_location_id: "warehouse" },
+    shipping_rate_id: null,
+    quote_acceptance: null,
+    scheduled_window: { type: "subscription", delivery_index: 0 },
+  };
+  const window = { from: 1800000000000, to: 1800086400000 };
+  const expected = quote();
+  expected.order.delivery_groups = [{ cart_delivery_group_id: group.id, scheduled_window: window }];
+  const calls = capture((call) => call.method === "PUT"
+    ? { ...cart(), delivery_groups: call.body.delivery_groups } : expected);
+  const client = createStorefront(publishableKey, { apiUrl, locale: "bs", market: "bih", sessionStorage: sessionStorage() });
+  const saved = await client.eshop.cart.update({ id: cartId, delivery_groups: [group] });
+  const reviewed = await client.eshop.cart.quote({ id: cartId });
+  assert.deepEqual(calls[0].body, { delivery_groups: [group] });
+  assert.deepEqual(saved.delivery_groups[0].scheduled_window, { type: "subscription", delivery_index: 0 });
+  assert.deepEqual(reviewed.order.delivery_groups[0].scheduled_window, window);
+  assert.deepEqual(group.scheduled_window, { type: "subscription", delivery_index: 0 });
+});
+
 test("Storefront Cart permits explicit Company selection but strips browser authority and overrides", async () => {
   const calls = capture((call) => call.method === "POST" && call.url.pathname.endsWith("/carts")
     ? { cart: cart(), recovery_token: "cart-recovery-token" } : cart());

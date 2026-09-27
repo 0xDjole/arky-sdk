@@ -110,6 +110,7 @@ export type {
   StorefrontCart,
   StorefrontOrderCheckoutResult,
   CartDeliveryGroup,
+  CartDeliveryWindow,
   CartDeliveryGroupItem,
   StorefrontCheckoutQuote,
   CheckoutQuote,

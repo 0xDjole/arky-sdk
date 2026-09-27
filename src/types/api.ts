@@ -229,13 +229,17 @@ export interface CartDeliveryRentalAssignment {
   quantity: number;
 }
 
+export type CartDeliveryWindow =
+  | { type: "absolute"; from: EpochMilliseconds; to: EpochMilliseconds }
+  | { type: "subscription"; delivery_index: number };
+
 export interface CartDeliveryGroup {
   id: string;
   items: CartDeliveryGroupItem[];
   destination: CartDeliveryDestination;
   shipping_rate_id: string | null;
   quote_acceptance: DeliveryQuoteAcceptance | null;
-  scheduled_window: TimeRange | null;
+  scheduled_window: CartDeliveryWindow | null;
 }
 
 export interface CartSubscriptionDelivery {

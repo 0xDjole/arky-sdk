@@ -130,7 +130,7 @@ test("Cart helper saves explicit delivery identities, rates and schedules withou
     destination: { type: "pickup", store_location_id: "location-a" },
     shipping_rate_id: "rate-a",
     quote_acceptance: null,
-    scheduled_window: { from: 1800000000000, to: 1800003600000 },
+    scheduled_window: { type: "absolute", from: 1800000000000, to: 1800003600000 },
   };
   let saved = cart({ line_items: [productLine], item_count: 1 });
   const { store, calls } = setup((call) => {

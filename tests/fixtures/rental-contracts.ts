@@ -23,6 +23,9 @@ import type {
   FulfillmentOrder,
   FulfillmentOrderMethod,
   QuotedDeliveryGroup,
+  CartDeliveryGroup,
+  CartDeliveryWindow,
+  TimeRange,
   SubscriptionEntitlementOrderQuoteLine,
 } from "arky-sdk";
 import type {
@@ -31,7 +34,9 @@ import type {
   PaginatedResponse,
   CartDeliveryRentalAssignment,
   CartPhysicalLineRef,
+  CartDeliveryWindow as PublicDeliveryWindow,
 } from "arky-sdk/types";
+import type { CartDeliveryWindow as StorefrontDeliveryWindow } from "arky-sdk/storefront";
 
 type Same<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false;
 type True<T extends true> = T;
@@ -95,6 +100,15 @@ export type RentedUnitContract = [
 ];
 
 export type RentalIssueWorkContract = [
+  True<Same<CartDeliveryWindow, PublicDeliveryWindow>>,
+  True<Same<CartDeliveryWindow, StorefrontDeliveryWindow>>,
+  True<Same<CartDeliveryWindow["type"], "absolute" | "subscription">>,
+  True<Same<Extract<CartDeliveryWindow, { type: "absolute" }>, { type: "absolute"; from: EpochMilliseconds; to: EpochMilliseconds }>>,
+  True<Same<Extract<CartDeliveryWindow, { type: "subscription" }>, { type: "subscription"; delivery_index: number }>>,
+  True<Same<CartDeliveryGroup["scheduled_window"], CartDeliveryWindow | null>>,
+  True<RequiredField<CartDeliveryGroup, "scheduled_window">>,
+  True<Same<QuotedDeliveryGroup["scheduled_window"], TimeRange | null>>,
+  True<RequiredField<QuotedDeliveryGroup, "scheduled_window">>,
   True<Same<keyof Extract<InventoryMovementReason, { type: "dispatched" }>, "type" | "fulfillment_order_id" | "fulfillment_id">>,
   True<Extract<InventoryMovementReason, { type: "rental_issue" | "fulfillment" }> extends never ? true : false>,
   True<Same<OrderDeliveryGroup["rental_items"], OrderDeliveryGroupRentalItem[]>>,
