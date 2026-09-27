@@ -353,16 +353,19 @@ ordinary updates cannot change it. Company update omission preserves the selecti
 both Company fields. Storefront identity comes from its authenticated Session.
 
 `client.eshop.cart.current({ company: { company_id, company_location_id } })` creates an empty Cart
-when none is selected, or exact-reads the selected Cart. Its ID is retained per Customer and Market
-in the configured session storage; there is no server-wide unique current Cart or search lookup.
-Market and channel at creation come from the server's storefront context. A Company mismatch fails
-instead of silently editing the selected Cart. Use `cart.update` explicitly to change context.
+when none is selected, or exact-reads the selected Cart. Its ID is retained per client namespace,
+Customer, Market, Company and branch in the configured session storage. Switching Company or branch
+keeps each context’s selection. Omitted or null Company selects the personal Cart. There is no
+server-wide unique current Cart or search lookup. Market and channel at creation come from the
+server’s storefront context. A response with a different Company or branch is refused without
+changing the retained selection. An unresolved checkout must be recovered in its original context
+before another Cart can be mutated.
 `cart.create()` explicitly creates and selects another empty Cart and returns `{ cart, recovery_token }`,
 as does Admin creation. The selection helper never stores the recovery token, Cart contents or prices.
 Read errors do not discard a selection. A known converted, merged or expired Cart starts a new empty
 selection on the next `current()` call, unless an unresolved acceptance request still pins the old
 Cart.
-An active, abandoned or checking-out Cart is retained. Signing in does not transfer guest ownership.
+An active or abandoned Cart is retained. Signing in does not transfer guest ownership.
 
 The high-level Cart view clears when its Customer session or Market changes. Load the current
 Cart again after switching; late reads, item hydration and writes cannot repopulate the old view.
@@ -1338,3 +1341,35 @@ When adding SDK methods:
 3. Use `/v1/storefront/...` keyless routes and let the shared client attach publishable-key, locale, market, and visitor headers.
 4. Mark customer mutations as stateful so they call the deduplicated visitor-session lifecycle.
 5. Add explicit response generics to every HTTP call and re-export consumer-facing types.
+
+## Shared company and customer area
+
+A Store owner can enable the branded customer area in the Admin app. The public
+`store.customerWorkspace.get({ id: storeId })` returns branding and a publishable StorefrontClient
+binding. It grants no Account or Company authority. Store owners configure it with
+`store.customerWorkspace.update({ id, expected_revision, customer_workspace })`; preserve the
+returned revision even when its binding is disabled.
+
+Company users sign in with normal Customer email proof. Use `companies.memberships` to page their
+memberships, `companies.access({ id })` for current permissions and branch scope, and
+`companies.locations({ company_id, limit, cursor })` for permitted branches. Orders and subscriptions
+accept `company_id` plus `company_location_id`; access is rechecked on primary records for every read.
+The `view_own_*` permissions retain the original purchaser restriction. `view_company_*` permissions
+allow the current authorized branch’s records. Customer groups determine catalog visibility without
+replacing Company membership or role checks.
+
+Purchases use the normal catalog, Cart review and acceptance flow. Each Company purchase names the
+chosen branch. Starting a package also needs `create_subscriptions`; saving its Company card needs
+`manage_payment_methods`. Fulfillment partners use Account sessions restricted to their assigned
+warehouses and operational work.
+
+`eshop.rental.find({ subscription_id, limit, cursor })` lists the authenticated customer’s permitted
+rental agreements. `eshop.return.orderOptions({ order_id })` and
+`eshop.return.rentalOptions({ rental_id, limit, cursor })` supply current returnable selections.
+Submit the explicit selected goods or machine through the normal return request command. Staff or
+an authorized fulfillment partner approves, receives and inspects returned stock.
+
+Dedicated card setup can be mounted using `mountPaymentMethodSetup(start, element)` from
+`arky-sdk/storefront`; call the returned `confirm(returnUrl)` after consent and destroy it on unmount.
+A refresh calls `startSetup` for the retained method to recover the same actionable SetupIntent.
+`completeSetup` observes the provider outcome; a browser completion is never payment-method proof.

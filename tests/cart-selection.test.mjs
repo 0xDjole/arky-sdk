@@ -75,13 +75,45 @@ for (const status of [403, 404, 503]) {
   });
 }
 
-test("Company is one nested context; selecting another does not silently change an existing Cart", async () => {
-  const company = { company_id: "company-a", company_location_id: null };
-  const { client, calls } = setup((call) => call.method === "POST" ? receipt(cart({ company })) : Response.json(cart({ company })));
+test("each Company branch and the personal context retain separate Carts through reload", async () => {
+  const carts = new Map();
+  let next = 0;
+  const { client, calls, storage } = setup((call) => {
+    if (call.method === "POST") {
+      const value = cart({ id: `cart-${++next}`, company: call.body.company ?? null });
+      carts.set(value.id, value);
+      return receipt(value);
+    }
+    return Response.json(carts.get(call.path.split("/").at(-1)));
+  });
+  const contexts = [
+    { company_id: "company-a", company_location_id: "branch-a" },
+    { company_id: "company-a", company_location_id: "branch-b" },
+    { company_id: "company-b", company_location_id: "branch-c" },
+    null,
+  ];
+  const selected = [];
+  for (const company of contexts) selected.push(await client().eshop.cart.current({ company }));
+  assert.equal(new Set(selected.map((value) => value.id)).size, 4);
+  for (const [index, company] of contexts.entries()) assert.deepEqual(await client().eshop.cart.current({ company }), selected[index]);
+  assert.deepEqual(await client().eshop.cart.current(), selected[3]);
+  assert.equal(calls.filter((call) => call.method === "POST").length, 4);
+  assert.equal([...storage.values.keys()].filter((key) => key.startsWith("arky:selected-cart:")).length, 4);
+});
+
+test("an exact Cart whose Company context changed cannot be silently reused", async () => {
+  const company = { company_id: "company-a", company_location_id: "branch-a" };
+  const { client, calls } = setup((call) => call.method === "POST" ? receipt(cart({ company })) : Response.json(cart({ company: { ...company, company_location_id: "branch-b" } })));
   await client().eshop.cart.current({ company });
-  assert.deepEqual(calls[0].body, { company });
-  await assert.rejects(client().eshop.cart.current({ company: null }), /different Company/);
+  await assert.rejects(client().eshop.cart.current({ company }), /different Company/);
   assert.equal(calls.filter((call) => call.method !== "GET").length, 1);
+});
+
+test("the default personal Cart refuses a Company response", async () => {
+  const { client, calls, storage } = setup(() => receipt(cart({ company: { company_id: "company-a", company_location_id: "branch-a" } })));
+  await assert.rejects(client().eshop.cart.current(), /different Company/);
+  assert.equal(calls.length, 1);
+  assert.equal([...storage.values.keys()].filter((key) => key.startsWith("arky:selected-cart:")).length, 0);
 });
 
 for (const type of ["active", "abandoned", "converted", "merged", "expired"]) {

@@ -1,3 +1,4 @@
+import type { StoreCustomerWorkspacePresentation, UpdateStoreCustomerWorkspaceParams } from "../types/storeCustomerWorkspace";
 import type { ApiConfig, AdminSessionUpdater } from "../services/clientTypes";
 import type {
   CreateStoreParams,
@@ -215,6 +216,27 @@ export const createStoreApi = (
         `/v1/stores/${encodeURIComponent(store_id)}/deletion`,
         { confirmation: params.confirmation },
         options,
+      );
+    },
+
+    async getCustomerWorkspace(
+      params: GetStoreParams = {},
+      options?: RequestOptions,
+    ): Promise<StoreCustomerWorkspacePresentation> {
+      const storeId = params.id ?? apiConfig.storeId;
+      return apiConfig.httpClient.get<StoreCustomerWorkspacePresentation>(
+        `/v1/stores/${encodeURIComponent(storeId)}/customer-workspace`, options,
+      );
+    },
+
+    async updateCustomerWorkspace(
+      params: UpdateStoreCustomerWorkspaceParams,
+      options?: RequestOptions,
+    ): Promise<Store> {
+      const storeId = params.id ?? apiConfig.storeId;
+      return apiConfig.httpClient.put<Store>(
+        `/v1/stores/${encodeURIComponent(storeId)}/customer-workspace`,
+        { expected_revision: params.expected_revision, customer_workspace: params.customer_workspace }, options,
       );
     },
 

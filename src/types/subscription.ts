@@ -109,3 +109,11 @@ export interface GetCurrentSubscriptionParams {
   store_id?: string;
   id: string;
 }
+
+export interface FindCustomerSubscriptionsParams {
+  company_id?: string;
+  company_location_id?: string;
+  status?: "awaiting_activation" | "active" | "blocked" | "paused" | "cancelled";
+  limit?: number;
+  cursor?: string;
+}

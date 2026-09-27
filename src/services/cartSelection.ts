@@ -18,14 +18,13 @@ function selectedCart(value: string | null): SelectedCart | null {
 }
 
 function assertCompany(cart: StorefrontCart, params: StorefrontCurrentCartParams): void {
-  if (params.company === undefined) return;
   if ((params.company?.company_id ?? null) !== (cart.company?.company_id ?? null) ||
     (params.company?.company_location_id ?? null) !== (cart.company?.company_location_id ?? null)) {
     throw new CartSelectionError("The selected Cart has a different Company context; update that Cart explicitly");
   }
 }
 
-function selectionScope(context: CartSelectionContext): CartSelectionScope {
+function selectionScope(context: CartSelectionContext, params: StorefrontCurrentCartParams): CartSelectionScope {
   const customerId = context.customerId();
   const market = context.market();
   if (!customerId || !context.storage) {
@@ -37,7 +36,7 @@ function selectionScope(context: CartSelectionContext): CartSelectionScope {
     }
   };
   return {
-    key: `arky:selected-cart:v1:${context.namespace}:${encodeURIComponent(customerId)}:${encodeURIComponent(market)}`,
+    key: `arky:selected-cart:v1:${context.namespace}:${encodeURIComponent(customerId)}:${encodeURIComponent(market)}:${encodeURIComponent(params.company?.company_id ?? "")}:${encodeURIComponent(params.company?.company_location_id ?? "")}`,
     assertContext,
     assertCart(cart, selected) {
       assertContext();
@@ -47,6 +46,7 @@ function selectionScope(context: CartSelectionContext): CartSelectionScope {
         (selected && (cart.id !== selected.id || cart.market_id !== selected.market_id))) {
         throw new CartSelectionError("The response does not match the selected Cart and Customer context");
       }
+      assertCompany(cart, params);
     },
   };
 }
@@ -93,7 +93,8 @@ export function createCartSelection(
     params: StorefrontCurrentCartParams = {},
     options?: RequestOptions,
   ): Promise<StorefrontCart> {
-    const scope = selectionScope(context);
+    params = { ...params, ...(params.company ? { company: { ...params.company } } : {}) };
+    const scope = selectionScope(context, params);
     const { key, assertContext, assertCart } = scope;
     let pending = loading.get(key);
     if (!pending) {
@@ -134,7 +135,8 @@ export function createCartSelection(
   }
 
   async function create(params: StorefrontCurrentCartParams = {}, options?: RequestOptions) {
-    const scope = selectionScope(context);
+    params = { ...params, ...(params.company ? { company: { ...params.company } } : {}) };
+    const scope = selectionScope(context, params);
     if (loading.has(scope.key) || unpersisted.has(scope.key)) {
       throw new CartSelectionError("Finish loading or saving the selected Cart before explicitly creating another");
     }

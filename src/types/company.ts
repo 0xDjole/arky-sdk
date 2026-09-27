@@ -84,3 +84,9 @@ export interface FindCompaniesParams {
   limit?: number;
   cursor?: string;
 }
+
+export interface CompanyCustomerAccess {
+  company: Company;
+  scope: import("./companyMembership").CompanyMembershipScope;
+  permissions: import("./companyRole").CompanyPermission[];
+}

@@ -1303,6 +1303,7 @@ export interface Store {
   billing_email: string;
   contact_email: string | null;
   branding: import("./storeBranding").StoreBranding;
+  customer_workspace: import("./storeCustomerWorkspace").StoreCustomerWorkspace | null;
   commerce: StoreCommerceState;
   timezone: string;
   default_language: string | null;
@@ -2962,3 +2963,5 @@ export interface FulfillmentExecution {
   executed_at: EpochMilliseconds;
   actor: AccountActor;
 }
+
+export type * from "./storeCustomerWorkspace";

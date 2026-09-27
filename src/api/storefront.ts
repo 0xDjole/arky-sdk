@@ -1,4 +1,10 @@
-import type { CreateReturnParams, GetReturnParams, FindReturnsParams, Return } from "../types/return";
+import type { CompanyCustomerAccess } from "../types/company";
+import type { CustomerRental, FindCustomerRentalsParams } from "../types/rental";
+import type { RentalReturnUnitOption, FindRentalReturnOptionsParams } from "../types/return";
+import type { CompanyMembership } from "../types/companyMembership";
+import type { CompanyLocation, FindCompanyLocationsParams } from "../types/companyLocation";
+import type { FindCustomerSubscriptionsParams, FindSubscriptionOrdersParams } from "../types/subscription";
+import type { CreateReturnParams, GetReturnParams, FindReturnsParams, Return, OrderReturnOptions, GetOrderReturnOptionsParams } from "../types/return";
 import type { EpochMilliseconds } from "../types/time";
 import type { ControlSubscriptionParams, GetCurrentSubscriptionParams, SubscriptionControlResult, SubscriptionSelf } from "../types/subscription";
 import type { AcceptCartFutureDeliveriesParams, CartFutureDeliveryQuote, QuoteCartFutureDeliveriesParams } from "../types/cartDelivery";
@@ -340,6 +346,35 @@ export const createStorefrontApi = (
   }
 
   return {
+    companies: {
+      async memberships(
+        params: { limit?: number; cursor?: string } = {},
+        options?: RequestOptions,
+      ): Promise<StorefrontDto<PaginatedResponse<CompanyMembership>>> {
+        await lifecycle.ensureVisitorSession();
+        return apiConfig.httpClient.get<StorefrontDto<PaginatedResponse<CompanyMembership>>>(
+          `${base}/company-memberships`, { ...options, params },
+        );
+      },
+      async access(
+        params: { id: string },
+        options?: RequestOptions,
+      ): Promise<StorefrontDto<CompanyCustomerAccess>> {
+        await lifecycle.ensureVisitorSession();
+        return apiConfig.httpClient.get<StorefrontDto<CompanyCustomerAccess>>(
+          `${base}/companies/${encodeURIComponent(params.id)}/access`, options,
+        );
+      },
+      async locations(
+        params: StorefrontParams<FindCompanyLocationsParams>,
+        options?: RequestOptions,
+      ): Promise<StorefrontDto<PaginatedResponse<CompanyLocation>>> {
+        await lifecycle.ensureVisitorSession();
+        return apiConfig.httpClient.get<StorefrontDto<PaginatedResponse<CompanyLocation>>>(
+          `${base}/company-locations`, { ...options, params },
+        );
+      },
+    },
     customer: {
       identify(
         params?: { email?: string },
@@ -846,7 +881,26 @@ export const createStorefrontApi = (
           return recoverCartCheckout(checkoutScope, checkoutTransport, options);
         },
       },
+      rental: {
+        async find(params: FindCustomerRentalsParams, options?: RequestOptions): Promise<PaginatedResponse<CustomerRental>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<PaginatedResponse<CustomerRental>>(`${base}/rentals`, { ...options, params });
+        },
+        async get(params: { rental_id: string }, options?: RequestOptions): Promise<CustomerRental> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<CustomerRental>(`${base}/rentals/${encodeURIComponent(params.rental_id)}`, options);
+        },
+      },
       return: {
+        async rentalOptions(params: FindRentalReturnOptionsParams, options?: RequestOptions): Promise<PaginatedResponse<RentalReturnUnitOption>> {
+          await lifecycle.ensureVisitorSession();
+          const { rental_id, ...query } = params;
+          return apiConfig.httpClient.get<PaginatedResponse<RentalReturnUnitOption>>(`${base}/returns/rentals/${encodeURIComponent(rental_id)}/options`, { ...options, params: query });
+        },
+        async orderOptions(params: StorefrontParams<GetOrderReturnOptionsParams>, options?: RequestOptions): Promise<StorefrontDto<OrderReturnOptions>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<StorefrontDto<OrderReturnOptions>>(`${base}/returns/orders/${encodeURIComponent(params.order_id)}/options`, options);
+        },
         async create(params: StorefrontParams<CreateReturnParams>, options?: RequestOptions): Promise<StorefrontDto<Return>> {
           await lifecycle.ensureVisitorSession();
           return apiConfig.httpClient.post<StorefrontDto<Return>>(`${base}/returns`, params, options);
@@ -993,6 +1047,25 @@ export const createStorefrontApi = (
         },
       },
       subscription: {
+        async find(
+          params: FindCustomerSubscriptionsParams = {},
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<PaginatedResponse<SubscriptionSelf>>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<StorefrontDto<PaginatedResponse<SubscriptionSelf>>>(
+            `${base}/subscriptions`, { ...options, params },
+          );
+        },
+        async findOrders(
+          params: StorefrontParams<FindSubscriptionOrdersParams>,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<PaginatedResponse<Order>>> {
+          await lifecycle.ensureVisitorSession();
+          const { id, ...query } = params;
+          return apiConfig.httpClient.get<StorefrontDto<PaginatedResponse<Order>>>(
+            `${base}/subscriptions/${encodeURIComponent(id)}/orders`, { ...options, params: query },
+          );
+        },
         async current(
           params: StorefrontParams<GetCurrentSubscriptionParams>,
           options?: RequestOptions,

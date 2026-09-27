@@ -85,3 +85,24 @@ export interface ExecuteRentalParams extends GetRentalParams {
   expected_updated_at: EpochMilliseconds;
   type: RentalCommand;
 }
+export type CustomerRentalStatus =
+  | { type: "active" }
+  | { type: "ending"; requested_at: EpochMilliseconds; return_due_at: EpochMilliseconds | null }
+  | { type: "closed"; closed_at: EpochMilliseconds };
+
+export interface CustomerRental {
+  id: string;
+  subscription_id: string;
+  product_key: string;
+  variant_sku: string | null;
+  quantity: number;
+  status: CustomerRentalStatus;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export interface FindCustomerRentalsParams {
+  subscription_id: string;
+  limit?: number;
+  cursor?: string;
+}

@@ -23,7 +23,8 @@ export {
   initialize,
 } from "./storefrontStore";
 
-export { createStripeEmbeddedCheckout, mountCheckoutAction } from "./checkout";
+export { createStripeEmbeddedCheckout, mountCheckoutAction, mountPaymentMethodSetup } from "./checkout";
+export type { PaymentMethodSetupMount } from "./checkout";
 export { MonriCheckoutError } from "./types/monriCheckout";
 export type { CaptureCustomerEmailParams } from "./types/api";
 export type { JoinStorefrontCustomerGroupParams, GetStorefrontCustomerGroupMemberParams } from "./types/customerGroupMember";
@@ -131,3 +132,9 @@ export type {
 } from "./index";
 export type { ScheduledMutationOptions } from "./services/createHttpClient";
 export type * from "./types/cartDelivery";
+
+export type { FindCustomerSubscriptionsParams } from "./types/subscription";
+export type { CompanyCustomerAccess } from "./types/company";
+export type { OrderReturnOptions, OrderReturnLineOption, OrderReturnItemOption, GetOrderReturnOptionsParams } from "./types/return";
+export type { CustomerRental, CustomerRentalStatus, FindCustomerRentalsParams } from "./types/rental";
+export type { RentalReturnUnitOption, FindRentalReturnOptionsParams } from "./types/return";

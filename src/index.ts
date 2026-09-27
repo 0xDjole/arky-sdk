@@ -1,3 +1,4 @@
+export type * from "./types/storeCustomerWorkspace";
 export { ScheduledResultTimeoutError } from "./utils/scheduledResult";
 export { MonriCheckoutError } from "./types/monriCheckout";
 export type { MonriComponentsAction, MonriBuyerDetails } from "./types/monriCheckout";
@@ -135,7 +136,8 @@ export type {
   GetEmailSuppressionParams,
   ReleaseEmailSuppressionParams,
 } from "./types/emailSuppression";
-export { createStripeEmbeddedCheckout, mountCheckoutAction } from "./checkout";
+export { createStripeEmbeddedCheckout, mountCheckoutAction, mountPaymentMethodSetup } from "./checkout";
+export type { PaymentMethodSetupMount } from "./checkout";
 export { selectLocalizedObjectText, selectLocalizedText } from "./utils/blocks";
 export type {
   EmbeddedCheckoutCallbacks,
@@ -939,7 +941,7 @@ export function storeCommerceDefaults(
     : null;
 }
 
-export const SDK_VERSION = "0.26.76";
+export const SDK_VERSION = "0.26.77";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
@@ -1393,6 +1395,10 @@ export function createAdmin(config: CreateAdminConfig) {
       create: storeApi.createStore,
       update: storeApi.updateStore,
       get: storeApi.getStore,
+      customerWorkspace: {
+        get: storeApi.getCustomerWorkspace,
+        update: storeApi.updateCustomerWorkspace,
+      },
       branding: {
         get: storeApi.getBranding,
         update: storeApi.updateBranding,
@@ -2244,6 +2250,7 @@ function createStorefrontClientCore(
     content: storefrontApi.content,
     forms: storefrontApi.forms,
     eshop: storefrontApi.eshop,
+    companies: storefrontApi.companies,
     customer: {
       identify,
       captureEmail: customerApi.captureEmail,
@@ -2340,3 +2347,6 @@ export type { SubscribeStorefrontCustomerGroupEmailsParams, GetStorefrontCustome
 
 export type * from "./types/fulfillment";
 export type * from "./types/fulfillmentPartner";
+
+export type { FindCustomerSubscriptionsParams } from "./types/subscription";
+export type { CompanyCustomerAccess } from "./types/company";

@@ -832,6 +832,8 @@ export interface GetOrderParams {
 }
 
 export interface GetOrdersParams {
+  company_id?: string;
+  company_location_id?: string;
   store_id?: string;
   customer_id?: string;
   statuses?: ("pending" | "confirmed" | "partially_cancelled" | "cancelled")[];

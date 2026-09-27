@@ -30,6 +30,39 @@ export interface ReturnItemRequest {
   quantity: number;
 }
 
+export interface OrderReturnItemOption extends ReturnItemRequest {
+  inventory_item_key: string;
+  sku: string | null;
+}
+
+export interface OrderReturnLineOption {
+  order_product_line_item_id: string;
+  unit_spans: UnitSpan[];
+  items: OrderReturnItemOption[];
+}
+
+export interface OrderReturnOptions {
+  order_id: string;
+  lines: OrderReturnLineOption[];
+}
+
+export interface GetOrderReturnOptionsParams {
+  store_id?: string;
+  order_id: string;
+}
+
+export interface RentalReturnUnitOption {
+  inventory_unit_id: string;
+  inventory_item_id: string;
+  asset_tag: string;
+}
+
+export interface FindRentalReturnOptionsParams {
+  rental_id: string;
+  limit?: number;
+  cursor?: string;
+}
+
 export interface ReturnItem extends ReturnItemRequest {
   received: number;
   restocked: number;
