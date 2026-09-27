@@ -39,6 +39,14 @@ export interface MonriAuthorizationVoid {
   status: MonriVoidStatus;
 }
 
+export interface StripeSavedMethodCancellation {
+  command_id: string;
+  subscription_id: string;
+  replacement_payment_method_id: string;
+  requested_at: EpochMilliseconds;
+  status: "requested" | "processing" | "succeeded" | "failed" | "unknown";
+}
+
 export type PaymentRoute =
   | {
       type: "monri_checkout";
@@ -53,6 +61,7 @@ export type PaymentRoute =
       payment_option_id: string;
       payment_method_id: string;
       payment_intent_id: string | null;
+      cancellation: StripeSavedMethodCancellation | null;
     }
   | {
       type: "monri_saved_method";

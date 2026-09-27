@@ -1,5 +1,6 @@
 import type { CreateReturnParams, GetReturnParams, FindReturnsParams, Return } from "../types/return";
 import type { EpochMilliseconds } from "../types/time";
+import type { ControlSubscriptionParams, GetCurrentSubscriptionParams, SubscriptionControlResult, SubscriptionSelf } from "../types/subscription";
 import type { AcceptCartFutureDeliveriesParams, CartFutureDeliveryQuote, QuoteCartFutureDeliveriesParams } from "../types/cartDelivery";
 import type {
   FindPaymentMethodsParams,
@@ -928,9 +929,9 @@ export const createStorefrontApi = (
         async find(
           params: StorefrontParams<FindPaymentMethodsParams> = {},
           options?: RequestOptions,
-        ): Promise<PaginatedResponse<PaymentMethod>> {
+        ): Promise<StorefrontDto<PaginatedResponse<PaymentMethod>>> {
           await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.get<PaginatedResponse<PaymentMethod>>(
+          return apiConfig.httpClient.get<StorefrontDto<PaginatedResponse<PaymentMethod>>>(
             `${base}/payment-methods`,
             { ...options, params },
           );
@@ -938,9 +939,9 @@ export const createStorefrontApi = (
         async get(
           params: StorefrontParams<GetPaymentMethodParams>,
           options?: RequestOptions,
-        ): Promise<PaymentMethod> {
+        ): Promise<StorefrontDto<PaymentMethod>> {
           await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.get<PaymentMethod>(
+          return apiConfig.httpClient.get<StorefrontDto<PaymentMethod>>(
             `${base}/payment-methods/${encodeURIComponent(params.id)}`,
             options,
           );
@@ -948,9 +949,9 @@ export const createStorefrontApi = (
         async requestSetup(
           params: StorefrontParams<RequestPaymentMethodSetupParams>,
           options?: RequestOptions,
-        ): Promise<PaymentMethod> {
+        ): Promise<StorefrontDto<PaymentMethod>> {
           await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.post<PaymentMethod>(
+          return apiConfig.httpClient.post<StorefrontDto<PaymentMethod>>(
             `${base}/payment-methods/setup`,
             params,
             options,
@@ -959,9 +960,9 @@ export const createStorefrontApi = (
         async startSetup(
           params: StorefrontParams<GetPaymentMethodParams>,
           options?: RequestOptions,
-        ): Promise<PaymentMethodSetupStart> {
+        ): Promise<StorefrontDto<PaymentMethodSetupStart>> {
           await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.post<PaymentMethodSetupStart>(
+          return apiConfig.httpClient.post<StorefrontDto<PaymentMethodSetupStart>>(
             `${base}/payment-methods/${encodeURIComponent(params.id)}/setup/start`,
             {},
             options,
@@ -970,9 +971,9 @@ export const createStorefrontApi = (
         async completeSetup(
           params: StorefrontParams<GetPaymentMethodParams>,
           options?: RequestOptions,
-        ): Promise<PaymentMethod> {
+        ): Promise<StorefrontDto<PaymentMethod>> {
           await lifecycle.ensureVisitorSession();
-          return apiConfig.httpClient.post<PaymentMethod>(
+          return apiConfig.httpClient.post<StorefrontDto<PaymentMethod>>(
             `${base}/payment-methods/${encodeURIComponent(params.id)}/setup/complete`,
             {},
             options,
@@ -981,10 +982,10 @@ export const createStorefrontApi = (
         async revoke(
           params: StorefrontParams<RevokePaymentMethodParams>,
           options?: RequestOptions,
-        ): Promise<PaymentMethodRevocation> {
+        ): Promise<StorefrontDto<PaymentMethodRevocation>> {
           await lifecycle.ensureVisitorSession();
           const { id, ...payload } = params;
-          return apiConfig.httpClient.post<PaymentMethodRevocation>(
+          return apiConfig.httpClient.post<StorefrontDto<PaymentMethodRevocation>>(
             `${base}/payment-methods/${encodeURIComponent(id)}/revoke`,
             payload,
             options,
@@ -992,6 +993,27 @@ export const createStorefrontApi = (
         },
       },
       subscription: {
+        async current(
+          params: StorefrontParams<GetCurrentSubscriptionParams>,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<SubscriptionSelf>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<StorefrontDto<SubscriptionSelf>>(
+            `${base}/subscriptions/${encodeURIComponent(params.id)}`,
+            options,
+          );
+        },
+        async control(
+          params: StorefrontParams<ControlSubscriptionParams>,
+          options?: RequestOptions,
+        ): Promise<StorefrontDto<SubscriptionControlResult>> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.post<StorefrontDto<SubscriptionControlResult>>(
+            `${base}/subscriptions/commands`,
+            { command_id: params.command_id, request: params.request },
+            options,
+          );
+        },
         async updateCard(
           params: StorefrontParams<UpdateSubscriptionCardParams>,
           options?: RequestOptions,

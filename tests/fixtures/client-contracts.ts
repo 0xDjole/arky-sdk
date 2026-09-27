@@ -355,7 +355,7 @@ import type {
 // @ts-expect-error storefront CustomerAction keys have no Action compatibility alias.
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.26.75" = SDK_VERSION;
+const sdkVersionLiteral: "0.26.76" = SDK_VERSION;
 const workflowExternalOperationContract: WorkflowExternalOperation = {
   id: "operation-contract",
   store_id: "store-contract",
@@ -1718,7 +1718,7 @@ const orderPayment: Payment = {
 };
 const savedMethodPayment: Payment = {
   ...orderPayment,
-  route: { type: "stripe_saved_method", payment_option_id: "provider", payment_method_id: "method", payment_intent_id: null },
+  route: { type: "stripe_saved_method", payment_option_id: "provider", payment_method_id: "method", payment_intent_id: null, cancellation: null },
   status: { type: "authorized" },
 };
 const manualPayment: Payment = {

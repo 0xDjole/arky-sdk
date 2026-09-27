@@ -4,6 +4,7 @@ import type {
   Payment, PaymentMethod, PaymentMethodOwner, PaymentMethodDetails, PaymentMethodState,
   PaymentMethodSetupRequest, RequestPaymentMethodSetupParams, PaymentMethodSetupStart,
   PaymentMethodRevocation, RevokePaymentMethodParams, FindPaymentMethodsParams,
+  StorefrontDto, SubscriptionSelf, SubscriptionControlResult,
 } from "arky-sdk";
 import type { PaymentMethod as PublicMethod, PaymentMethodOwner as PublicOwner } from "arky-sdk/types";
 
@@ -11,6 +12,7 @@ type True<T extends true> = T;
 type Same<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false;
 type Admin = ReturnType<typeof createAdmin>["eshop"]["paymentMethod"];
 type Front = ReturnType<typeof createStorefront>["eshop"]["paymentMethod"];
+type SubscriptionFront = ReturnType<typeof createStorefront>["eshop"]["subscription"];
 type CompanyOwner = Extract<PaymentMethodOwner, { type: "company" }>;
 
 export type PaymentMethodContracts = [
@@ -33,12 +35,19 @@ export type PaymentMethodContracts = [
   True<Same<Parameters<Admin["requestSetup"]>[0], RequestPaymentMethodSetupParams>>,
   True<Same<Awaited<ReturnType<Admin["requestSetup"]>>, PaymentMethod>>,
   True<Same<Awaited<ReturnType<Admin["startSetup"]>>, PaymentMethodSetupStart>>,
-  True<Same<Awaited<ReturnType<Front["requestSetup"]>>, PaymentMethod>>,
-  True<Same<Awaited<ReturnType<Front["startSetup"]>>, PaymentMethodSetupStart>>,
-  True<Same<Awaited<ReturnType<Front["completeSetup"]>>, PaymentMethod>>,
+  True<Same<Awaited<ReturnType<Front["requestSetup"]>>, StorefrontDto<PaymentMethod>>>,
+  True<Same<Awaited<ReturnType<Front["startSetup"]>>, StorefrontDto<PaymentMethodSetupStart>>>,
+  True<Same<Awaited<ReturnType<Front["completeSetup"]>>, StorefrontDto<PaymentMethod>>>,
   True<Same<Parameters<Admin["revoke"]>[0], RevokePaymentMethodParams>>,
   True<Same<Awaited<ReturnType<Admin["revoke"]>>, PaymentMethodRevocation>>,
-  True<Same<Awaited<ReturnType<Front["revoke"]>>, PaymentMethodRevocation>>,
+  True<Same<Awaited<ReturnType<Front["revoke"]>>, StorefrontDto<PaymentMethodRevocation>>>,
   True<"store_id" extends keyof Parameters<Front["requestSetup"]>[0] ? false : true>,
   True<"store_id" extends keyof Parameters<Front["revoke"]>[0] ? false : true>,
+  True<Same<Awaited<ReturnType<SubscriptionFront["current"]>>, StorefrontDto<SubscriptionSelf>>>,
+  True<Same<Awaited<ReturnType<SubscriptionFront["control"]>>, StorefrontDto<SubscriptionControlResult>>>,
+  True<"store_id" extends keyof Parameters<SubscriptionFront["current"]>[0] ? false : true>,
+  True<"store_id" extends keyof Parameters<SubscriptionFront["control"]>[0] ? false : true>,
+  True<"store_id" extends keyof Awaited<ReturnType<Front["get"]>> ? false : true>,
+  True<"store_id" extends keyof Awaited<ReturnType<Front["revoke"]>>["method"] ? false : true>,
+  True<"store_id" extends keyof Awaited<ReturnType<SubscriptionFront["control"]>>["subscription"] ? false : true>,
 ];

@@ -120,3 +120,34 @@ for (const surface of ["admin", "storefront", "initialized"]) {
     } finally { globalThis.fetch = original; }
   });
 }
+
+
+for (const surface of ["storefront", "initialized"]) {
+  test(`${surface} subscription self-service keeps customer authentication and exact cancellation replay`, async () => {
+    const original = globalThis.fetch;
+    const calls = [];
+    const subscription = { id: "subscription/id", status: { type: "active" }, updated_at: revision };
+    const request = { command_id: "cancel-request", request: { subscription_id: subscription.id, expected_updated_at: revision, type: { type: "cancel", reason: "No more milk deliveries" } } };
+    const before = structuredClone(request);
+    const result = { command_id: request.command_id, accepted_at: revision, subscription: { ...subscription, status: { type: "cancelled", ended_at: revision } } };
+    globalThis.fetch = async (url, init = {}) => {
+      calls.push({ url: new URL(url), method: init.method, headers: new Headers(init.headers), body: init.body ? JSON.parse(init.body) : null });
+      return Response.json(init.method === "POST" ? result : subscription);
+    };
+    try {
+      const api = client(surface).eshop.subscription;
+      assert.deepEqual(await api.current({ id: subscription.id }), subscription);
+      assert.deepEqual(await api.control(request), result);
+      assert.deepEqual(await api.control(request), result);
+      assert.deepEqual(request, before);
+      assert.deepEqual(calls.map(({ url, method }) => [method, url.pathname]), [
+        ["GET", "/v1/storefront/subscriptions/subscription%2Fid"],
+        ["POST", "/v1/storefront/subscriptions/commands"],
+        ["POST", "/v1/storefront/subscriptions/commands"],
+      ]);
+      assert.deepEqual(calls[1].body, before);
+      assert.deepEqual(calls[2].body, before);
+      assert.ok(calls.every(({ headers }) => headers.get("authorization") === `Bearer ${token}` && headers.get("x-arky-publishable-key") === publishableKey));
+    } finally { globalThis.fetch = original; }
+  });
+}
