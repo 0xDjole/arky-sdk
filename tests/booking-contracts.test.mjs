@@ -219,7 +219,7 @@ function order() {
     collection_policy: { type: "prepaid", due_at: 1 },
     promotion_redemptions: [],
     payment_authorization: {
-      allowed_provider_ids: [],
+      allowed_payment_option_ids: [],
       actor: {
         type: "storefront",
         customer_id: "customer-booking",

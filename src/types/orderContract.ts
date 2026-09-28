@@ -86,7 +86,7 @@ export interface PromotionRedemption {
 }
 
 export interface CheckoutPaymentAuthorization {
-  allowed_provider_ids: string[];
+  allowed_payment_option_ids: string[];
   actor: PurchaseOriginSnapshot;
   accepted_at: EpochMilliseconds;
 }

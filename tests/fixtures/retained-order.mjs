@@ -208,5 +208,5 @@ export const retainedOrder = {
   reconciliation: { type: "clear" },
   collection_policy: { type: "prepaid", due_at: acceptedAt },
   promotion_redemptions: [],
-  payment_authorization: { allowed_provider_ids: ["accepted-provider"], actor: origin, accepted_at: acceptedAt },
+  payment_authorization: { allowed_payment_option_ids: ["accepted-provider"], actor: origin, accepted_at: acceptedAt },
 };

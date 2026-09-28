@@ -941,7 +941,7 @@ export function storeCommerceDefaults(
     : null;
 }
 
-export const SDK_VERSION = "0.26.79";
+export const SDK_VERSION = "0.26.80";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",
