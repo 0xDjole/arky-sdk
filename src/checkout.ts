@@ -1,7 +1,5 @@
-import {
-  loadStripe,
-  type StripeEmbeddedCheckout,
-} from "@stripe/stripe-js";
+import { loadStripe } from "@stripe/stripe-js/pure/index.js";
+import type { StripeEmbeddedCheckout } from "@stripe/stripe-js";
 import type { EmbeddedCheckoutAction, EmbeddedCheckoutCallbacks, EmbeddedCheckoutMount, StripeEmbeddedCheckoutAction } from "./types/embeddedCheckout";
 import { mountMonriCheckoutAction } from "./services/monriCheckout";
 export type { EmbeddedCheckoutAction, EmbeddedCheckoutCallbacks, EmbeddedCheckoutMount, StripeEmbeddedCheckoutAction } from "./types/embeddedCheckout";

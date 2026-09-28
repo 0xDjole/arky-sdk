@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { execFileSync } from "node:child_process";
 import * as sdk from "../dist/index.js";
 import * as storefront from "../dist/storefront.js";
 
@@ -16,4 +17,47 @@ test("mounting a no-op payment action performs no provider or DOM work", async (
     await storefront.mountCheckoutAction({ type: "none" }, "#checkout"),
     null,
   );
+});
+
+test("browser entrypoints load provider scripts only when a checkout is explicitly mounted", () => {
+  for (const entry of ["index", "storefront"]) {
+    execFileSync(process.execPath, ["--input-type=module", "-e", `
+      import assert from "node:assert/strict";
+      let scripts = 0;
+      globalThis.window = {};
+      globalThis.document = {
+        querySelectorAll: () => [],
+        createElement: () => ({ addEventListener() {}, removeEventListener() {} }),
+        head: { appendChild() { scripts += 1; } },
+      };
+      const sdk = await import(process.argv[1]);
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.equal(scripts, 0);
+      let initialized = 0;
+      let mounted;
+      const target = {};
+      window.Stripe = (key, options) => {
+        initialized += 1;
+        assert.equal(key, "pk_test_explicit_mount");
+        assert.equal(options.stripeAccount, "acct_explicit_mount");
+        return {
+          createEmbeddedCheckoutPage: async (input) => {
+            assert.equal(input.clientSecret, "cs_explicit_secret");
+            return { mount(value) { mounted = value; }, unmount() {}, destroy() {} };
+          },
+        };
+      };
+      const result = await sdk.mountCheckoutAction({
+        type: "stripe_embedded_checkout", publishable_key: "pk_test_explicit_mount",
+        connected_account_id: "acct_explicit_mount", client_secret: "cs_explicit_secret",
+      }, target);
+      assert.equal(result.type, "stripe_embedded_checkout");
+      assert.equal(initialized, 1);
+      assert.equal(mounted, target);
+      assert.equal(scripts, 0);
+    `, new URL(`../dist/${entry}.js`, import.meta.url).href], {
+      timeout: 10_000,
+      stdio: "pipe",
+    });
+  }
 });
