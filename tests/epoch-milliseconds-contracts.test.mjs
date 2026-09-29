@@ -48,7 +48,7 @@ function customerSession(instant) {
       id: "customer-time",
       status: { type: "active" },
       identities: [],
-      classifications: [],
+      categories: [],
       created_at: instant,
       updated_at: instant,
     },

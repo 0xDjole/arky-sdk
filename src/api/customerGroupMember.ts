@@ -1,8 +1,11 @@
+import { requireRequestId } from "../utils/requestId";
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
 import type {
   CustomerGroupMember,
+  CustomerGroupMemberChange,
   CustomerGroupMemberSelf,
   CustomerGroupJoinResult,
   CustomerGroupMemberCommandResponse,
@@ -16,13 +19,14 @@ import type {
 } from "../types/customerGroupMember";
 
 export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/customer-group-members`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/customer-group-members`;
   return {
     join(
       params: JoinCustomerGroupParams,
       options?: RequestOptions,
     ): Promise<CustomerGroupJoinResult> {
+      requireRequestId(params.request_id);
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<CustomerGroupJoinResult>(
         `${basePath(store_id)}/join`,
@@ -45,7 +49,7 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<CustomerGroupMember>(`${basePath(store_id)}/lookup`, { ...options, params: query });
     },
     find(
-      params: FindCustomerGroupMembersParams = {},
+      params: FindCustomerGroupMembersParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<CustomerGroupMember>> {
       const { store_id, ...query } = params;
@@ -68,6 +72,7 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       params: ExecuteCustomerGroupMemberCommandParams,
       options?: RequestOptions,
     ): Promise<CustomerGroupMemberCommandResponse> {
+      requireRequestId(params.request_id);
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<CustomerGroupMemberCommandResponse>(
         `${basePath(store_id)}/commands`,
@@ -78,9 +83,9 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
     findCommands(
       params: FindCustomerGroupMemberCommandsParams,
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<unknown>> {
+    ): Promise<PaginatedResponse<CustomerGroupMemberChange>> {
       const { store_id, id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<unknown>>(
+      return apiConfig.httpClient.get<PaginatedResponse<CustomerGroupMemberChange>>(
         `${basePath(store_id)}/${encodeURIComponent(id)}/commands`,
         { ...options, params: query },
       );

@@ -25,7 +25,7 @@ export interface ShippingMethod {
 }
 
 export interface CreateShippingMethodParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   blocks: Block[];
   type: ShippingMethodType;
@@ -34,7 +34,7 @@ export interface CreateShippingMethodParams {
 }
 
 export interface UpdateShippingMethodParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   blocks: Block[];
@@ -44,7 +44,7 @@ export interface UpdateShippingMethodParams {
 }
 
 export interface GetShippingMethodParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
@@ -66,7 +66,7 @@ export interface GetShippingMethodByKeyParams {
 }
 
 export interface DeleteShippingMethodParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
@@ -118,7 +118,7 @@ export interface ShippingRate {
 }
 
 export interface CreateShippingRateParams {
-  store_id?: string;
+  store_id: string;
   market_zone_id: string;
   shipping_method_id: string;
   shipping_profile_id: string;
@@ -131,7 +131,7 @@ export interface CreateShippingRateParams {
 }
 
 export interface UpdateShippingRateParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   conditions: ShippingRateCondition[];
@@ -143,7 +143,7 @@ export interface UpdateShippingRateParams {
 }
 
 export interface GetShippingRateParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
@@ -160,7 +160,7 @@ export interface FindShippingRatesParams {
 }
 
 export interface DeleteShippingRateParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }

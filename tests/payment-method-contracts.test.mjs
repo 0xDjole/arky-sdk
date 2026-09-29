@@ -15,7 +15,7 @@ const owners = [{ type: "customer", customer_id: "customer" },
 function client(surface) {
   if (surface === "admin") return createAdmin({ storeId: "selected/store", baseUrl, apiToken: "arky_api_contract" });
   return (surface === "initialized" ? initialize : createStorefront)(publishableKey, { apiUrl: baseUrl, sessionStorage: storefrontSessionStorage(JSON.stringify({
-    version: 2, customer: { id: "customer", status: { type: "active" }, identities: [], classifications: [], created_at: 1, updated_at: 1 },
+    version: 2, customer: { id: "customer", status: { type: "active" }, identities: [], categories: [], created_at: 1, updated_at: 1 },
     session: { id: "session", customer_id: "customer", type: "visitor", token, status: { type: "active" }, expires_at: 1900000000000 },
   })) });
 }

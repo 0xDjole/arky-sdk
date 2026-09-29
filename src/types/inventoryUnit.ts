@@ -15,13 +15,18 @@ export interface InventoryUnitExecution {
   executed_at: EpochMilliseconds;
 }
 
+export type InventoryUnitWriteOffSource =
+  | { type: "warehouse_request"; request_id: string; expected_updated_at: EpochMilliseconds; store_location_id: string }
+  | { type: "rental_request"; request_id: string; expected_updated_at: EpochMilliseconds; execution: InventoryUnitExecution }
+  | { type: "return_disposition"; return_id: string; store_location_id: string };
+
 export type InventoryUnitStatus =
   | { type: "available"; store_location_id: string }
   | { type: "allocated"; store_location_id: string; allocation: InventoryUnitAllocation }
   | { type: "issued"; execution: InventoryUnitExecution }
   | { type: "rented"; rental_id: string; execution: InventoryUnitExecution; return_id: string | null }
   | { type: "inspection"; store_location_id: string; return_id: string; received_at: EpochMilliseconds }
-  | { type: "written_off"; actor: AccountActor; reason: string; written_off_at: EpochMilliseconds; rental_id: string | null };
+  | { type: "written_off"; source: InventoryUnitWriteOffSource; actor: AccountActor; reason: string; written_off_at: EpochMilliseconds; rental_id: string | null };
 
 export interface InventoryUnit {
   id: string;
@@ -35,12 +40,12 @@ export interface InventoryUnit {
 }
 
 export interface GetInventoryUnitParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface FindInventoryUnitsParams {
-  store_id?: string;
+  store_id: string;
   inventory_item_id?: string;
   store_location_id?: string;
   rental_id?: string;
@@ -53,7 +58,7 @@ export interface FindInventoryUnitsParams {
 }
 
 export interface ReceiveInventoryUnitParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   inventory_item_id: string;
   store_location_id: string;
@@ -71,13 +76,13 @@ export interface AllocateInventoryUnitParams extends GetInventoryUnitParams {
 }
 
 export interface MoveInventoryUnitParams extends GetInventoryUnitParams {
-  command_id: string;
+  request_id: string;
   to_store_location_id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface WriteOffInventoryUnitParams extends GetInventoryUnitParams {
-  command_id: string;
+  request_id: string;
   reason: string;
   expected_updated_at: EpochMilliseconds;
 }

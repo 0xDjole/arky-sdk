@@ -18,14 +18,14 @@ export interface TaxCategory {
 }
 
 export interface CreateTaxCategoryParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   name: string;
   status: TaxCategoryEditableStatus;
 }
 
 export interface UpdateTaxCategoryParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   name: string;
@@ -33,12 +33,12 @@ export interface UpdateTaxCategoryParams {
 }
 
 export interface GetTaxCategoryParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface FindTaxCategoriesParams {
-  store_id?: string;
+  store_id: string;
   key?: string;
   status?: TaxCategoryStatus["type"];
   sort_field?: "created_at" | "updated_at";
@@ -48,12 +48,12 @@ export interface FindTaxCategoriesParams {
 }
 
 export interface GetTaxCategoryByKeyParams {
-  store_id?: string;
+  store_id: string;
   key: string;
 }
 
 export interface DeleteTaxCategoryParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
@@ -99,7 +99,7 @@ export interface TaxRule {
 }
 
 export interface CreateTaxRuleParams {
-  store_id?: string;
+  store_id: string;
   market_zone_id: string;
   tax_category_id: string | null;
   treatment: TaxTreatment;
@@ -109,7 +109,7 @@ export interface CreateTaxRuleParams {
 }
 
 export interface UpdateTaxRuleParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   treatment: TaxTreatment;
@@ -119,7 +119,7 @@ export interface UpdateTaxRuleParams {
 }
 
 export interface GetTaxRuleParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
@@ -136,7 +136,7 @@ export interface FindTaxRulesParams {
 }
 
 export interface DeleteTaxRuleParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }

@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -11,8 +12,8 @@ import type {
 } from "../types/shipping";
 
 export const createShippingRateApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/shipping-rates`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/shipping-rates`;
 
   return {
     create(params: CreateShippingRateParams, options?: RequestOptions): Promise<ShippingRate> {
@@ -35,7 +36,7 @@ export const createShippingRateApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindShippingRatesParams = {},
+      params: FindShippingRatesParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<ShippingRate>> {
       const { store_id, ...query } = params;

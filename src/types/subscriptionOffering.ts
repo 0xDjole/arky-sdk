@@ -27,14 +27,14 @@ export interface SubscriptionOffering {
 }
 
 export interface CreateSubscriptionOfferingParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   blocks: Block[];
   status: SubscriptionOfferingStatus;
 }
 
 export interface UpdateSubscriptionOfferingParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   blocks: Block[];
@@ -43,17 +43,17 @@ export interface UpdateSubscriptionOfferingParams {
 }
 
 export interface GetSubscriptionOfferingParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface GetSubscriptionOfferingByKeyParams {
-  store_id?: string;
+  store_id: string;
   key: string;
 }
 
 export interface FindSubscriptionOfferingsParams {
-  store_id?: string;
+  store_id: string;
   key?: string;
   status?: SubscriptionOfferingStatus["type"];
   sort_field?: "created_at" | "updated_at";

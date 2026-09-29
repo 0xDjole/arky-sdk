@@ -16,7 +16,7 @@ export interface OrderBooking {
 }
 
 export interface GetOrderBookingParams {
-  store_id?: string;
+  store_id: string;
   order_id: string;
   order_booking_item_id: string;
 }

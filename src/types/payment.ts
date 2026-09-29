@@ -1,4 +1,4 @@
-import type { Currency, MonriEnvironment, ProviderEffectError, ProviderOperationClaim } from "./index";
+import type { Currency, MonriEnvironment } from "./index";
 import type { PaymentMethodOwner } from "./paymentMethod";
 import type { EpochMilliseconds } from "./time";
 
@@ -16,7 +16,6 @@ export type PaymentStatus = {
 };
 
 export interface MonriVoidResult {
-  claim: ProviderOperationClaim;
   transaction_id: string;
   amount: number;
   currency: Currency | null;
@@ -27,11 +26,11 @@ export interface MonriVoidResult {
 
 export type MonriVoidStatus =
   | { type: "requested" }
-  | { type: "processing"; claim: ProviderOperationClaim }
+  | { type: "processing"; started_at: EpochMilliseconds; deadline_at: EpochMilliseconds }
   | { type: "succeeded"; result: MonriVoidResult }
   | { type: "rejected"; result: MonriVoidResult }
-  | { type: "failed"; error: ProviderEffectError; completed_at: EpochMilliseconds }
-  | { type: "unknown"; claim: ProviderOperationClaim | null; error: ProviderEffectError; observed_at: EpochMilliseconds };
+  | { type: "failed"; safe_error: string; completed_at: EpochMilliseconds }
+  | { type: "unknown"; safe_error: string; observed_at: EpochMilliseconds };
 
 export interface MonriAuthorizationVoid {
   amount: number;
@@ -40,7 +39,7 @@ export interface MonriAuthorizationVoid {
 }
 
 export interface StripeSavedMethodCancellation {
-  command_id: string;
+  request_id: string;
   subscription_id: string;
   replacement_payment_method_id: string;
   requested_at: EpochMilliseconds;

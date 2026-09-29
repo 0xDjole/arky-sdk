@@ -1,6 +1,16 @@
 import type { OrderAccessRevocation } from "./commerce";
 import type { UnitSpan } from "./orderContract";
 import type { EpochMilliseconds } from "./time";
+import type { OrderLineItemRef } from "./checkout";
+
+export interface RevokeOrderAccessParams {
+  store_id: string;
+  order_id: string;
+  request_id: string;
+  line: Extract<OrderLineItemRef, { type: "digital_product" | "subscription_plan" | "purchase_access" }>;
+  effective_at: EpochMilliseconds;
+  reason: string;
+}
 
 export type OrderLineItemOrigin =
   | { type: "direct" }

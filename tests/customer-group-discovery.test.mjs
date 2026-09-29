@@ -35,7 +35,7 @@ test("storefront Group membership uses one Visitor and preserves caller-owned co
     if (call.path === "/v1/storefront/customer/identify") {
       assert.equal(headers.has("Authorization"), false);
       response = {
-        customer: { id: customerId, status: { type: "active" }, primary_email_identity_id: null, default_shipping_address_id: null, default_billing_address_id: null, classifications: [], created_at: 1, updated_at: 1 },
+        customer: { id: customerId, status: { type: "active" }, primary_email_identity_id: null, default_shipping_address_id: null, default_billing_address_id: null, categories: [], created_at: 1, updated_at: 1 },
         session: { id: "group-session", customer_id: customerId, type: "visitor", status: { type: "active" }, token, expires_at: Date.now() + 60_000 },
       };
     } else {
@@ -103,7 +103,7 @@ test("storefront Company membership keeps the explicitly selected branch", async
     const parsed = new URL(url);
     calls.push({ path: parsed.pathname, query: Object.fromEntries(parsed.searchParams), body: init.body ? JSON.parse(init.body) : null });
     const response = parsed.pathname.endsWith("/identify") ? {
-      customer: { id: "customer", status: { type: "active" }, primary_email_identity_id: null, default_shipping_address_id: null, default_billing_address_id: null, classifications: [], created_at: 1, updated_at: 1 },
+      customer: { id: "customer", status: { type: "active" }, primary_email_identity_id: null, default_shipping_address_id: null, default_billing_address_id: null, categories: [], created_at: 1, updated_at: 1 },
       session: { id: "company-session", customer_id: "customer", type: "visitor", status: { type: "active" }, token: `customer_visitor_${"c".repeat(64)}`, expires_at: Date.now() + 60_000 },
     } : parsed.pathname.endsWith("/join") ? joined : null;
     return new Response(JSON.stringify(response), { status: 200, headers: { "content-type": "application/json" } });

@@ -8,6 +8,7 @@ export type CreditTarget =
   | { type: "digital"; line_item_id: string }
   | { type: "subscription_plan"; line_item_id: string }
   | { type: "rental_use"; line_item_id: string }
+  | { type: "purchase_access"; line_item_id: string }
   | { type: "delivery"; delivery_group_id: string };
 
 export type OrderCreditSource =
@@ -54,7 +55,7 @@ export interface OrderCredit {
   id: string;
   store_id: string;
   order_id: string;
-  command_id: string;
+  request_id: string;
   source: OrderCreditSource;
   allocations: OrderCreditAllocation[];
   money: Money;
@@ -64,23 +65,23 @@ export interface OrderCredit {
 }
 
 export interface CreateOrderCreditParams {
-  store_id?: string;
+  store_id: string;
   order_id: string;
   credit_id: string;
-  command_id: string;
+  request_id: string;
   targets: CreditTarget[];
   reason: string;
   private_note: string | null;
 }
 
 export interface GetOrderCreditParams {
-  store_id?: string;
+  store_id: string;
   order_id: string;
   credit_id: string;
 }
 
 export interface FindOrderCreditsParams {
-  store_id?: string;
+  store_id: string;
   order_id?: string;
   updated_at_from?: EpochMilliseconds;
   sort_field?: "created_at" | "updated_at";

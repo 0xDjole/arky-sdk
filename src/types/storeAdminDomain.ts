@@ -48,8 +48,8 @@ export interface StoreAdminDomainConnection {
   removal: AdminDomainOperation | null;
   readiness: AdminDomainReadiness;
 }
-export interface GetStoreAdminDomainParams { store_id?: string; id: string }
-export interface FindStoreAdminDomainsParams { store_id?: string; limit?: number; cursor?: string }
+export interface GetStoreAdminDomainParams { store_id: string; id: string }
+export interface FindStoreAdminDomainsParams { store_id: string; limit?: number; cursor?: string }
 export interface CreateStoreAdminDomainParams extends GetStoreAdminDomainParams { hostname: string }
 export interface ChangeStoreAdminDomainParams extends GetStoreAdminDomainParams { expected_updated_at: EpochMilliseconds }
 export interface RequestAdminDomainHostingParams extends GetStoreAdminDomainParams { operation_id: string }

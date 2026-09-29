@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -12,8 +13,8 @@ import type {
 } from "../types/zone";
 
 export const createZoneApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/zones`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/zones`;
 
   return {
     create(params: CreateZoneParams, options?: RequestOptions): Promise<Zone> {
@@ -40,7 +41,7 @@ export const createZoneApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<Zone>(`${basePath(store_id)}/by-key/${encodeURIComponent(key)}`, options);
     },
     find(
-      params: FindZonesParams = {},
+      params: FindZonesParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<Zone>> {
       const { store_id, ...query } = params;

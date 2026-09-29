@@ -58,7 +58,7 @@ export interface SellerSnapshot {
 
 export type RenewalRecoveryStatus =
   | { type: "recovering" }
-  | { type: "exhausted"; exhausted_at: EpochMilliseconds; command_id: string }
+  | { type: "exhausted"; exhausted_at: EpochMilliseconds; request_id: string }
   | { type: "resolved"; resolved_at: EpochMilliseconds };
 
 export interface RenewalRecovery {

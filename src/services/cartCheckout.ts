@@ -66,7 +66,7 @@ function validPaymentResult(value: unknown, request: CartCheckoutRequest): boole
     payment.amounts.captured === 0 && payment.amounts.capture_pending === 0 &&
     typeof action.publishable_key === "string" && action.publishable_key.length > 0 && action.publishable_key.length <= 4096 &&
     typeof action.client_secret === "string" && action.client_secret.length > 0 && action.client_secret.length <= 4096 &&
-    typeof action.connected_account_id === "string" && /^acct_[A-Za-z0-9_]+$/.test(action.connected_account_id) &&
+    typeof action.account_id === "string" && /^acct_[A-Za-z0-9_]+$/.test(action.account_id) &&
     Number.isSafeInteger(action.expires_at) && Number(action.expires_at) > Date.now() &&
     action.expires_at === payment.route.checkout_expires_at;
 }
@@ -98,20 +98,10 @@ function presentationChanged(error: unknown): unknown {
   return isCheckoutQuote(quote) ? new CartPresentationChangedError(quote) : error;
 }
 
-function newCheckoutRequestId(): string {
-  const id = globalThis.crypto?.randomUUID?.();
-  if (!id || !uuid.test(id)) {
-    throw new DurableRequestStorageError(
-      `Cannot safely start ${label} because UUID-v4 generation is unavailable`,
-    );
-  }
-  return id;
-}
-
 export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
   if (!record(input) || Object.keys(input).some((key) => !requestKeys.has(key)) ||
     typeof input.id !== "string" || !uuid.test(input.id) ||
-    (input.request_id !== undefined && (typeof input.request_id !== "string" || !uuid.test(input.request_id))) ||
+    (typeof input.request_id !== "string" || !uuid.test(input.request_id)) ||
     typeof input.locale !== "string" || !input.locale.length || input.locale.length > 64 || input.locale !== input.locale.trim() ||
     typeof input.presentation_digest !== "string" || !/^[0-9a-f]{64}$/.test(input.presentation_digest) ||
     (input.payment_option_id !== undefined && (typeof input.payment_option_id !== "string" || !uuid.test(input.payment_option_id))) ||
@@ -122,7 +112,7 @@ export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
       input.payment_method_terms_version !== input.payment_method_terms_version.trim() || /[\u0000-\u001f\u007f-\u009f]/.test(input.payment_method_terms_version))) ||
     (input.save_payment_method === true && (input.payment_option_id === undefined || input.payment_method_terms_version === undefined))
   ) {
-    throw new DurableRequestStorageError("Cart Checkout requires an exact Cart UUID and reviewed locale, presentation digest, provider and return URL");
+    throw new DurableRequestStorageError("Cart Checkout requires exact Cart and caller request UUIDs and reviewed locale, presentation digest, provider and return URL");
   }
   const sources = checkoutQuoteSources(input.sources);
   if (sources.cart.cart_id !== input.id) {
@@ -130,7 +120,7 @@ export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
   }
   return {
     id: input.id,
-    request_id: typeof input.request_id === "string" ? input.request_id : newCheckoutRequestId(),
+    request_id: input.request_id,
     locale: input.locale,
     presentation_digest: input.presentation_digest,
     sources,
@@ -145,14 +135,12 @@ async function submit<Result extends Pick<OrderCheckoutResult, "order_id" | "num
   request: CartCheckoutRequest,
   transport: CartCheckoutTransport<Result>,
   options?: RequestOptions,
-  onDefiniteRejection?: () => void,
 ): Promise<CartCheckoutSubmission<Result>> {
   let result: Result;
   let success: RequestSuccessContext | undefined;
   try {
     result = await transport.post(request, { ...options, onSuccess: (context) => { success = context; } });
   } catch (error) {
-    if (record(error) && error.statusCode === 400) onDefiniteRejection?.();
     throw presentationChanged(error);
   }
   if (!validPaymentResult(result, request)) {
@@ -165,7 +153,9 @@ async function submit<Result extends Pick<OrderCheckoutResult, "order_id" | "num
     order.id !== result.order_id ||
     source === null ||
     source.type !== "cart_acceptance" ||
-    source.command_id !== request.request_id ||
+    source.request_id !== request.request_id ||
+    typeof source.submission_fingerprint !== "string" || !/^[0-9a-f]{64}$/.test(source.submission_fingerprint) ||
+    source.initial_payment_id !== (record(result) && record(result.payment) ? result.payment.id : null) ||
     !record(source.cart) || source.cart.cart_id !== request.id ||
     source.cart.version !== request.sources.cart.version ||
     !Array.isArray(source.converted_lines) ||
@@ -212,21 +202,22 @@ export async function withCartMutation<T>(scope: string, operation: () => Promis
   });
 }
 
+export async function retainCartCheckout(scope: string, input: CartCheckoutInput): Promise<CartCheckoutRequest> {
+  const request = cartCheckoutRequest(input);
+  const key = storageKey(scope);
+  return withDurableRequestLock(key, label, async () => {
+    getOrCreateDurableRequest(key, request, label);
+    return request;
+  });
+}
+
 export async function checkoutCart<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action">>(
-  scope: string,
   input: CartCheckoutInput,
   transport: CartCheckoutTransport<Result>,
   options?: RequestOptions,
 ): Promise<Result> {
   const request = cartCheckoutRequest(input);
-  if (typeof globalThis.window === "undefined") return finish(await submit(request, transport, options), options);
-  const key = storageKey(scope);
-  return withDurableRequestLock(key, label, async () => {
-    const pending = getOrCreateDurableRequest(key, request, label);
-    const result = await submit(request, transport, options, () => clearDurableRequest(pending, label));
-    clearDurableRequest(pending, label);
-    return finish(result, options);
-  });
+  return finish(await submit(request, transport, options), options);
 }
 
 export async function recoverCartCheckout<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action">>(
@@ -240,7 +231,7 @@ export async function recoverCartCheckout<Result extends Pick<OrderCheckoutResul
     const pending = readDurableRequest(key, label);
     if (!pending) return null;
     const request = cartCheckoutRequest(durableRequestPayload(pending));
-    const result = await submit(request, transport, options, () => clearDurableRequest(pending, label));
+    const result = await submit(request, transport, options);
     clearDurableRequest(pending, label);
     return finish(result, options);
   });

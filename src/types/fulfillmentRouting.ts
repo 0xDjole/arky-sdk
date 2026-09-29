@@ -34,7 +34,7 @@ export interface FulfillmentRoutingPolicy {
 }
 
 export interface CreateFulfillmentRoutingPolicyParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   market_id: string;
   sales_channel_id: string;
@@ -47,7 +47,7 @@ export interface CreateFulfillmentRoutingPolicyParams {
 }
 
 export interface UpdateFulfillmentRoutingPolicyParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   market_id: string;
@@ -61,17 +61,17 @@ export interface UpdateFulfillmentRoutingPolicyParams {
 }
 
 export interface GetFulfillmentRoutingPolicyParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface GetFulfillmentRoutingPolicyByKeyParams {
-  store_id?: string;
+  store_id: string;
   key: string;
 }
 
 export interface FindFulfillmentRoutingPoliciesParams {
-  store_id?: string;
+  store_id: string;
   market_id?: string;
   sales_channel_id?: string;
   limit?: number;
@@ -79,7 +79,7 @@ export interface FindFulfillmentRoutingPoliciesParams {
 }
 
 export interface DeleteFulfillmentRoutingPolicyParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }

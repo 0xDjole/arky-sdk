@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type {
   ApiConfig,
   AdminSessionInternal,
@@ -15,12 +16,17 @@ import type {
 export const createAuthApi = (
   apiConfig: ApiConfig,
   updateSession: AdminSessionUpdater,
+  refreshSession: (refreshToken: string) => Promise<AuthToken>,
 ) => {
   const pendingEmails = new Map<string, string>();
 
-  function applyAuthToken(result: AuthToken, email?: string) {
+  function applyAuthToken(result: AuthToken, expectedSessionId: string | undefined, email?: string) {
     updateSession((previous) => {
+      if (previous?.id !== expectedSessionId) {
+        throw Object.assign(new Error('The Account session changed during sign-in'), { name: 'SessionChangedError' });
+      }
       const next: AdminSessionInternal = {
+        id: result.id,
         scope: result.scope,
         access_token: result.access_token,
         refresh_token: result.refresh_token,
@@ -49,13 +55,14 @@ export const createAuthApi = (
       params: VerifyPendingAccountSessionParams,
       options?: RequestOptions,
     ): Promise<AuthToken> {
+      const expectedSessionId = apiConfig.authStorage.getTokens()?.id;
       const result = await apiConfig.httpClient.post<AuthToken>(
         "/v1/auth/verify",
         params,
         options,
       );
       if (result?.access_token) {
-        applyAuthToken(result, pendingEmails.get(params.session_id));
+        applyAuthToken(result, expectedSessionId, pendingEmails.get(params.session_id));
         pendingEmails.delete(params.session_id);
       }
       return result;
@@ -65,13 +72,7 @@ export const createAuthApi = (
       params: RefreshAccountSessionParams,
       options?: RequestOptions,
     ): Promise<AuthToken> {
-      const result = await apiConfig.httpClient.post<AuthToken>(
-        "/v1/auth/refresh",
-        params,
-        options,
-      );
-      if (result?.access_token) applyAuthToken(result);
-      return result;
+      return refreshSession(params.refresh_token);
     },
 
     async storeCode(
@@ -80,7 +81,7 @@ export const createAuthApi = (
       options?: RequestOptions,
     ): Promise<PendingAccountSession> {
       const result = await apiConfig.httpClient.post<PendingAccountSession>(
-        `/v1/stores/${storeId}/auth/code`,
+        `/v1/stores/${requireStoreId(storeId)}/auth/code`,
         params,
         options,
       );
@@ -93,13 +94,14 @@ export const createAuthApi = (
       params: VerifyPendingAccountSessionParams,
       options?: RequestOptions,
     ): Promise<AuthToken> {
+      const expectedSessionId = apiConfig.authStorage.getTokens()?.id;
       const result = await apiConfig.httpClient.post<AuthToken>(
-        `/v1/stores/${storeId}/auth/verify`,
+        `/v1/stores/${requireStoreId(storeId)}/auth/verify`,
         params,
         options,
       );
       if (result?.access_token) {
-        applyAuthToken(result, pendingEmails.get(params.session_id));
+        applyAuthToken(result, expectedSessionId, pendingEmails.get(params.session_id));
         pendingEmails.delete(params.session_id);
       }
       return result;

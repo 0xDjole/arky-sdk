@@ -18,7 +18,7 @@ function storedVisitorSession(token, customerId = "customer-scheduled-contract")
       id: customerId,
       status: { type: "active" },
       identities: [],
-      classifications: [],
+      categories: [],
       created_at: 1,
       updated_at: 1,
     },

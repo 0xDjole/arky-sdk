@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -11,8 +12,8 @@ import type {
 } from "../types/companyLocation";
 
 export const createCompanyLocationApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/company-locations`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/company-locations`;
   return {
     create(
       params: CreateCompanyLocationParams,
@@ -36,7 +37,7 @@ export const createCompanyLocationApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindCompanyLocationsParams = {},
+      params: FindCompanyLocationsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<CompanyLocation>> {
       const { store_id, ...query } = params;

@@ -1,3 +1,4 @@
+import type { CartProductPurchase } from "./purchaseAccess";
 import type { Address, TimeRange } from "./index";
 import type { PurchaseOrigin } from "./commerce";
 import type { ManualPrice } from "./price";
@@ -12,8 +13,8 @@ import type { EpochMilliseconds } from "./time";
 export type CartStatus =
   | { type: "active" }
   | { type: "abandoned" }
-  | { type: "converted"; order_id: string; command_id: string }
-  | { type: "merged"; target_cart_id: string; command_id: string }
+  | { type: "converted"; order_id: string; request_id: string }
+  | { type: "merged"; target_cart_id: string; request_id: string }
   | { type: "expired" };
 
 export interface CartCompanyContext {
@@ -61,6 +62,7 @@ export interface CartProductItem {
   quantity: number;
   form_submission_id: string | null;
   price_override: ManualPrice | null;
+  purchase: CartProductPurchase;
 }
 
 export interface CartBookingItem {

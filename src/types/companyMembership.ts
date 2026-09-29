@@ -22,7 +22,7 @@ export interface CompanyMembership {
 }
 
 export interface CreateCompanyMembershipParams {
-  store_id?: string;
+  store_id: string;
   company_id: string;
   customer_id: string;
   role_ids: string[];
@@ -30,12 +30,12 @@ export interface CreateCompanyMembershipParams {
 }
 
 export interface GetCompanyMembershipParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface UpdateCompanyMembershipParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   role_ids: string[];
@@ -44,13 +44,13 @@ export interface UpdateCompanyMembershipParams {
 }
 
 export interface DeleteCompanyMembershipParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindCompanyMembershipsParams {
-  store_id?: string;
+  store_id: string;
   limit?: number;
   cursor?: string;
   company_id?: string;

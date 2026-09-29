@@ -45,7 +45,7 @@ export interface DutyLine {
 }
 
 export type TaxNotRequiredReason = {
-  type: "noncommercial_subscription_grant";
+  type: "noncommercial_subscription_grant" | "subscription_allocation_header";
 };
 
 export type TaxAssessmentSnapshot =
@@ -119,6 +119,7 @@ export interface AssessedTaxSnapshot {
   assessed_at: EpochMilliseconds;
   tax_date: EpochMilliseconds;
   buyer_evidence: BuyerTaxEvidence | null;
+  subscription_tax_group_id: string | null;
 }
 
 export interface LineMoneySnapshot {

@@ -32,20 +32,20 @@ export interface CompanyRoleUsage {
 }
 
 export interface CreateCompanyRoleParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   name: string;
   permissions: CompanyPermission[];
 }
 
 export interface GetCompanyRoleParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   company_id?: string;
 }
 
 export interface UpdateCompanyRoleParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   name: string;
@@ -53,13 +53,13 @@ export interface UpdateCompanyRoleParams {
 }
 
 export interface DeleteCompanyRoleParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindCompanyRolesParams {
-  store_id?: string;
+  store_id: string;
   limit?: number;
   cursor?: string;
   company_id?: string;

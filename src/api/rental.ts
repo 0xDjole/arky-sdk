@@ -1,3 +1,5 @@
+import { requireRequestId } from "../utils/requestId";
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -10,12 +12,12 @@ import type {
 } from "../types/rental";
 
 export const createRentalApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/rentals`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/rentals`;
 
   return {
     find(
-      params: FindRentalsParams = {},
+      params: FindRentalsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<Rental>> {
       const { store_id, ...query } = params;
@@ -32,7 +34,8 @@ export const createRentalApi = (apiConfig: ApiConfig) => {
       );
     },
     execute(params: ExecuteRentalParams, options?: RequestOptions): Promise<Rental> {
-      const { store_id, id, ...payload } = params;
+      requireRequestId(params.request_id);
+      const { store_id, id, rental_id, ...payload } = params;
       return apiConfig.httpClient.post<Rental>(
         `${basePath(store_id)}/${encodeURIComponent(id)}/commands`,
         payload,

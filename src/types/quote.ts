@@ -27,6 +27,7 @@ import type { EpochMilliseconds } from "./time";
 import type { AppliedPriceSnapshot } from "./commerce";
 import type { ProductMoneyTotals } from "./orderMoney";
 import type { PaymentTerms } from "./paymentTerms";
+import type { CartProductPurchase, PurchaseAccessGoodsQuote } from "./purchaseAccess";
 
 export interface CheckoutProductSnapshot extends Omit<
   OrderProductSnapshot,
@@ -59,6 +60,8 @@ export interface ProductQuoteLine {
   product_id: string;
   variant_id: string;
   quantity: number;
+  purchase: CartProductPurchase;
+  purchase_access: PurchaseAccessGoodsQuote | null;
   money: ProductMoneyTotals;
   money_runs: QuotedProductMoneyRun[];
   snapshot: CheckoutProductSnapshot;
@@ -95,6 +98,7 @@ export type SubscriptionEntitlementOrderQuoteLine =
       money_runs: QuotedProductMoneyRun[];
     }
   | { type: "digital_product"; entitlement_id: string; money: LineMoneySnapshot }
+  | { type: "purchase_access"; entitlement_id: string; money: LineMoneySnapshot }
   | { type: "rental"; entitlement_id: string; quantity: number; money: LineMoneySnapshot };
 
 export interface SubscriptionOrderQuoteLine {
@@ -105,6 +109,8 @@ export interface SubscriptionOrderQuoteLine {
   occurrence: SubscriptionPurchaseOccurrence;
   money: LineMoneySnapshot;
   entitlement_lines: SubscriptionEntitlementOrderQuoteLine[];
+  tax_policies: import("./subscriptionTax").SubscriptionTaxPolicyQuote[];
+  tax_groups: import("./subscriptionTax").SubscriptionTaxGroupQuote[];
 }
 
 export interface OrderQuote {

@@ -43,7 +43,7 @@ export interface InventoryItem {
 }
 
 export interface CreateInventoryItemParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   sku: string | null;
   barcode: string | null;
@@ -54,7 +54,7 @@ export interface CreateInventoryItemParams {
 }
 
 export interface UpdateInventoryItemParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   sku: string | null;
@@ -66,17 +66,17 @@ export interface UpdateInventoryItemParams {
 }
 
 export interface GetInventoryItemParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface GetInventoryItemByKeyParams {
-  store_id?: string;
+  store_id: string;
   key: string;
 }
 
 export interface FindInventoryItemsParams {
-  store_id?: string;
+  store_id: string;
   query?: string;
   status?: InventoryItemStatus["type"];
   tracking?: InventoryTracking["type"];
@@ -87,7 +87,7 @@ export interface FindInventoryItemsParams {
 }
 
 export interface DeleteInventoryItemParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }

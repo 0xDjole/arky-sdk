@@ -24,13 +24,13 @@ export interface InventoryStockLevel extends InventoryLevel {
 }
 
 export interface CreateInventoryLevelParams {
-  store_id?: string;
+  store_id: string;
   inventory_item_id: string;
   store_location_id: string;
 }
 
 export interface GetInventoryLevelParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
@@ -39,18 +39,18 @@ export interface RemoveInventoryLevelParams extends GetInventoryLevelParams {
 }
 
 export interface ChangeSetAsideParams {
-  store_id?: string;
+  store_id: string;
   id: string;
-  command_id: string;
+  request_id: string;
   quantity: number;
   reason: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface MoveInventoryParams {
-  store_id?: string;
+  store_id: string;
   id: string;
-  command_id: string;
+  request_id: string;
   to_store_location_id: string;
   quantity: number;
   expected_updated_at: EpochMilliseconds;
@@ -61,15 +61,15 @@ export type IncomingStock =
   | { type: "unit"; asset_tag: string };
 
 export interface ReceiveStockMoveParams {
-  store_id?: string;
+  store_id: string;
   id: string;
-  command_id: string;
+  request_id: string;
   expected_updated_at: EpochMilliseconds;
   type: IncomingStock;
 }
 
 export interface FindInventoryLevelsParams {
-  store_id?: string;
+  store_id: string;
   inventory_item_id?: string;
   store_location_id?: string;
   limit?: number;
@@ -111,15 +111,15 @@ export interface InventoryMovement {
   after: number;
   reason: InventoryMovementReason;
   created_at: EpochMilliseconds;
-  command_id: string;
+  request_id: string;
   source_line_id: string;
 }
 
 export interface RecordInventoryMovementParams {
-  store_id?: string;
+  store_id: string;
   inventory_item_id: string;
   store_location_id: string;
-  command_id: string;
+  request_id: string;
   source_line_id: string;
   expected_level_id: string;
   expected_level_updated_at: EpochMilliseconds;
@@ -129,16 +129,16 @@ export interface RecordInventoryMovementParams {
 }
 
 export interface GetInventoryMovementParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface FindInventoryMovementsParams {
-  store_id?: string;
+  store_id: string;
   inventory_item_id?: string;
   store_location_id?: string;
   inventory_unit_id?: string;
-  command_id?: string;
+  request_id?: string;
   limit?: number;
   cursor?: string;
   sort_field?: "created_at";

@@ -1,3 +1,7 @@
+import type { SubscriptionChange } from "../types/subscription";
+import type { FindSubscriptionPurchaseAccessParams, SubscriptionPurchaseAccessPage, FindPurchaseLimitUsageParams, PurchaseLimitUsagePage } from "../types/purchaseAccess";
+import { requireRequestId } from "../utils/requestId";
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -28,14 +32,62 @@ import type {
   ReviewSubscriptionPlanChangeParams,
   SubscriptionPlanChangeResult,
   SubscriptionPlanChangeReview,
+  ReviewSubscriptionTaxCorrectionParams,
+  AcceptSubscriptionTaxCorrectionParams,
+  SubscriptionTaxCorrectionReview,
+  SubscriptionTaxCorrectionResult,
   SubscriptionCardUpdateResult,
   UpdateSubscriptionCardParams,
 } from "../types/subscriptionRevision";
 
 export const createSubscriptionApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/subscriptions`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/subscriptions`;
   return {
+    taxCorrectionReview(
+      params: ReviewSubscriptionTaxCorrectionParams,
+      options?: RequestOptions,
+    ): Promise<SubscriptionTaxCorrectionReview> {
+      requireRequestId(params.request_id);
+      const { store_id, request_id, request } = params;
+      return apiConfig.httpClient.post<SubscriptionTaxCorrectionReview>(
+        `${basePath(store_id)}/tax-correction/review`,
+        { request_id, request },
+        options,
+      );
+    },
+    taxCorrectionAccept(
+      params: AcceptSubscriptionTaxCorrectionParams,
+      options?: RequestOptions,
+    ): Promise<SubscriptionTaxCorrectionResult> {
+      requireRequestId(params.request_id);
+      const { store_id, request_id, request, timeline_digest } = params;
+      return apiConfig.httpClient.post<SubscriptionTaxCorrectionResult>(
+        `${basePath(store_id)}/tax-correction/accept`,
+        { request_id, request, timeline_digest },
+        options,
+      );
+    },
+    purchaseLimitUsage(
+      params: FindPurchaseLimitUsageParams,
+      options?: RequestOptions,
+    ): Promise<PurchaseLimitUsagePage> {
+      const { store_id, id, counter_id, ...query } = params;
+      return apiConfig.httpClient.get<PurchaseLimitUsagePage>(
+        `${basePath(store_id)}/${encodeURIComponent(id)}/purchase-limits/${encodeURIComponent(counter_id)}/usage`,
+        { ...options, params: query },
+      );
+    },
+    purchaseAccess(
+      params: FindSubscriptionPurchaseAccessParams,
+      options?: RequestOptions,
+    ): Promise<SubscriptionPurchaseAccessPage> {
+      const { store_id, id, ...query } = params;
+      return apiConfig.httpClient.get<SubscriptionPurchaseAccessPage>(
+        `${basePath(store_id)}/${encodeURIComponent(id)}/purchase-access`,
+        { ...options, params: query },
+      );
+    },
     get(
       params: GetSubscriptionParams,
       options?: RequestOptions,
@@ -47,7 +99,7 @@ export const createSubscriptionApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindSubscriptionsParams = {},
+      params: FindSubscriptionsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<Subscription>> {
       const { store_id, ...query } = params;
@@ -79,9 +131,9 @@ export const createSubscriptionApi = (apiConfig: ApiConfig) => {
     findCommands(
       params: FindSubscriptionCommandsParams,
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<unknown>> {
+    ): Promise<PaginatedResponse<SubscriptionChange>> {
       const { store_id, id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<unknown>>(
+      return apiConfig.httpClient.get<PaginatedResponse<SubscriptionChange>>(
         `${basePath(store_id)}/${encodeURIComponent(id)}/commands`,
         { ...options, params: query },
       );
@@ -90,10 +142,11 @@ export const createSubscriptionApi = (apiConfig: ApiConfig) => {
       params: ControlSubscriptionParams,
       options?: RequestOptions,
     ): Promise<SubscriptionControlResult> {
-      const { store_id, command_id, request } = params;
+      requireRequestId(params.request_id);
+      const { store_id, request_id, request } = params;
       return apiConfig.httpClient.post<SubscriptionControlResult>(
         `${basePath(store_id)}/commands`,
-        { command_id, request },
+        { request_id, request },
         options,
       );
     },
@@ -101,10 +154,11 @@ export const createSubscriptionApi = (apiConfig: ApiConfig) => {
       params: GetSubscriptionCalendarOptionsParams,
       options?: RequestOptions,
     ): Promise<SubscriptionCalendarOptions> {
-      const { store_id, command_id, subscription_id } = params;
+      requireRequestId(params.request_id);
+      const { store_id, request_id, subscription_id } = params;
       return apiConfig.httpClient.post<SubscriptionCalendarOptions>(
         `${basePath(store_id)}/calendar/options`,
-        { command_id, subscription_id },
+        { request_id, subscription_id },
         options,
       );
     },
@@ -112,10 +166,11 @@ export const createSubscriptionApi = (apiConfig: ApiConfig) => {
       params: ReviewSubscriptionCalendarChangeParams,
       options?: RequestOptions,
     ): Promise<SubscriptionCalendarReview> {
-      const { store_id, command_id, request } = params;
+      requireRequestId(params.request_id);
+      const { store_id, request_id, request } = params;
       return apiConfig.httpClient.post<SubscriptionCalendarReview>(
         `${basePath(store_id)}/calendar/review`,
-        { command_id, request },
+        { request_id, request },
         options,
       );
     },
@@ -123,10 +178,11 @@ export const createSubscriptionApi = (apiConfig: ApiConfig) => {
       params: AcceptSubscriptionCalendarChangeParams,
       options?: RequestOptions,
     ): Promise<SubscriptionCalendarChangeResult> {
-      const { store_id, command_id, request, timeline_digest } = params;
+      requireRequestId(params.request_id);
+      const { store_id, request_id, request, timeline_digest } = params;
       return apiConfig.httpClient.post<SubscriptionCalendarChangeResult>(
         `${basePath(store_id)}/calendar/accept`,
-        { command_id, request, timeline_digest },
+        { request_id, request, timeline_digest },
         options,
       );
     },
@@ -134,10 +190,11 @@ export const createSubscriptionApi = (apiConfig: ApiConfig) => {
       params: ReviewSubscriptionFundingChangeParams,
       options?: RequestOptions,
     ): Promise<SubscriptionFundingReview> {
-      const { store_id, command_id, request } = params;
+      requireRequestId(params.request_id);
+      const { store_id, request_id, request } = params;
       return apiConfig.httpClient.post<SubscriptionFundingReview>(
         `${basePath(store_id)}/funding/review`,
-        { command_id, request },
+        { request_id, request },
         options,
       );
     },
@@ -145,10 +202,11 @@ export const createSubscriptionApi = (apiConfig: ApiConfig) => {
       params: ReviewSubscriptionPlanChangeParams,
       options?: RequestOptions,
     ): Promise<SubscriptionPlanChangeReview> {
-      const { store_id, command_id, request } = params;
+      requireRequestId(params.request_id);
+      const { store_id, request_id, request } = params;
       return apiConfig.httpClient.post<SubscriptionPlanChangeReview>(
         `${basePath(store_id)}/plan/review`,
-        { command_id, request },
+        { request_id, request },
         options,
       );
     },
@@ -156,10 +214,11 @@ export const createSubscriptionApi = (apiConfig: ApiConfig) => {
       params: AcceptSubscriptionPlanChangeParams,
       options?: RequestOptions,
     ): Promise<SubscriptionPlanChangeResult> {
-      const { store_id, command_id, request, timeline_digest } = params;
+      requireRequestId(params.request_id);
+      const { store_id, request_id, request, timeline_digest } = params;
       return apiConfig.httpClient.post<SubscriptionPlanChangeResult>(
         `${basePath(store_id)}/plan/accept`,
-        { command_id, request, timeline_digest },
+        { request_id, request, timeline_digest },
         options,
       );
     },
@@ -167,10 +226,11 @@ export const createSubscriptionApi = (apiConfig: ApiConfig) => {
       params: AcceptSubscriptionFundingChangeParams,
       options?: RequestOptions,
     ): Promise<SubscriptionFundingChangeResult> {
-      const { store_id, command_id, request, timeline_digest } = params;
+      requireRequestId(params.request_id);
+      const { store_id, request_id, request, timeline_digest } = params;
       return apiConfig.httpClient.post<SubscriptionFundingChangeResult>(
         `${basePath(store_id)}/funding/accept`,
-        { command_id, request, timeline_digest },
+        { request_id, request, timeline_digest },
         options,
       );
     },
@@ -178,10 +238,11 @@ export const createSubscriptionApi = (apiConfig: ApiConfig) => {
       params: UpdateSubscriptionCardParams,
       options?: RequestOptions,
     ): Promise<SubscriptionCardUpdateResult> {
-      const { store_id, command_id, request } = params;
+      requireRequestId(params.request_id);
+      const { store_id, request_id, request } = params;
       return apiConfig.httpClient.post<SubscriptionCardUpdateResult>(
         `${basePath(store_id)}/card`,
-        { command_id, request },
+        { request_id, request },
         options,
       );
     },

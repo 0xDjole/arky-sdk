@@ -1,3 +1,5 @@
+import { requireRequestId } from "../utils/requestId";
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -14,8 +16,8 @@ import type {
 } from "../types/inventoryUnit";
 
 export const createInventoryUnitApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/inventory-units`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/inventory-units`;
 
   return {
     receive(params: ReceiveInventoryUnitParams, options?: RequestOptions): Promise<InventoryUnit> {
@@ -36,7 +38,7 @@ export const createInventoryUnitApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindInventoryUnitsParams = {},
+      params: FindInventoryUnitsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<InventoryUnit>> {
       const { store_id, ...query } = params;
@@ -54,6 +56,7 @@ export const createInventoryUnitApi = (apiConfig: ApiConfig) => {
       );
     },
     move(params: MoveInventoryUnitParams, options?: RequestOptions): Promise<InventoryUnit> {
+      requireRequestId(params.request_id);
       const { store_id, id, ...payload } = params;
       return apiConfig.httpClient.post<InventoryUnit>(
         `${basePath(store_id)}/${encodeURIComponent(id)}/move`,
@@ -62,6 +65,7 @@ export const createInventoryUnitApi = (apiConfig: ApiConfig) => {
       );
     },
     writeOff(params: WriteOffInventoryUnitParams, options?: RequestOptions): Promise<InventoryUnit> {
+      requireRequestId(params.request_id);
       const { store_id, id, ...payload } = params;
       return apiConfig.httpClient.post<InventoryUnit>(
         `${basePath(store_id)}/${encodeURIComponent(id)}/write-off`,

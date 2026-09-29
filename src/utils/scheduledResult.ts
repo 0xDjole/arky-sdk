@@ -37,11 +37,11 @@ export function scheduledObservationOptions<T>(
   return observation;
 }
 
-export function prepareScheduledMutation<T = unknown>(
-  body: unknown,
+export function prepareScheduledMutation<T = unknown, Payload = unknown>(
+  body: Payload,
   options?: ScheduledMutationOptions<T>,
 ): {
-  body: unknown;
+  body: Payload;
   options: RequestOptions<T> | undefined;
   afterResponse(response: T): Promise<void>;
 } {

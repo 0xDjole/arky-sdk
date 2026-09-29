@@ -90,7 +90,7 @@ export type RecordCustomerGroupEmailDecision =
   | { type: "unsubscribed" };
 
 export interface SubscribeCustomerGroupEmailsParams {
-  store_id?: string;
+  store_id: string;
   customer_group_id: string;
   email_identity_id: string;
   expected_updated_at: EpochMilliseconds | null;
@@ -101,7 +101,7 @@ export type GetStorefrontCustomerGroupEmailConsentParams = Omit<GetCustomerGroup
 export type ResendStorefrontCustomerGroupConfirmationParams = Omit<ResendCustomerGroupConfirmationParams, "store_id">;
 
 export interface RecordCustomerGroupEmailConsentParams {
-  store_id?: string;
+  store_id: string;
   customer_group_id: string;
   customer_id: string;
   email_identity_id: string;
@@ -117,7 +117,7 @@ export interface ImportCustomerGroupEmailConsentEntry {
 }
 
 export interface ImportCustomerGroupEmailConsentsParams {
-  store_id?: string;
+  store_id: string;
   customer_group_id: string;
   recipients: ImportCustomerGroupEmailConsentEntry[];
 }
@@ -127,29 +127,29 @@ export interface ImportCustomerGroupEmailConsentsResult {
 }
 
 export interface ConfirmCustomerGroupEmailsParams {
-  store_id?: string;
+  store_id: string;
   token: string;
 }
 
 export interface UnsubscribeCustomerGroupEmailsParams {
-  store_id?: string;
+  store_id: string;
   token: string;
 }
 
 export interface ResendCustomerGroupConfirmationParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   confirmation_id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface GetCustomerGroupEmailConsentParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface FindCustomerGroupEmailConsentsParams {
-  store_id?: string;
+  store_id: string;
   customer_group_id?: string;
   customer_id?: string;
   email_identity_id?: string;
@@ -159,7 +159,7 @@ export interface FindCustomerGroupEmailConsentsParams {
 }
 
 export interface FindCustomerGroupEmailConsentHistoryParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   limit?: number;
   cursor?: string;

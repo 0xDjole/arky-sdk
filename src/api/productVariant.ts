@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse, ProductVariant } from "../types";
 import type {
@@ -10,8 +11,8 @@ import type {
 } from "../types/api";
 
 export const createProductVariantApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/product-variants`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/product-variants`;
 
   return {
     create(
@@ -47,7 +48,7 @@ export const createProductVariantApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindProductVariantsParams = {},
+      params: FindProductVariantsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<ProductVariant>> {
       const { store_id, ...query } = params;

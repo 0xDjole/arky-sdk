@@ -15,13 +15,13 @@ export interface MarketSalesChannel {
 }
 
 export interface CreateMarketSalesChannelParams {
-  store_id?: string;
+  store_id: string;
   market_id: string;
   sales_channel_id: string;
 }
 
 export interface GetMarketSalesChannelParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
@@ -43,7 +43,7 @@ export interface LookupMarketSalesChannelParams {
 }
 
 export interface RemoveMarketSalesChannelParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }

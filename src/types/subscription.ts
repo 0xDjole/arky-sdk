@@ -1,8 +1,10 @@
+import type { Money } from "./index";
+import type { SubscriptionCalendarChange, SubscriptionFundingChange, SubscriptionPlanChange, SubscriptionTaxCorrection, SubscriptionRevisionChangeResult, SubscriptionCardUpdateRequest } from "./subscriptionRevision";
 import type { PurchaseOriginSnapshot } from "./orderContract";
 import type { EpochMilliseconds } from "./time";
 
 export interface SubscriptionCollectionBlock {
-  command_id: string;
+  request_id: string;
   reason: string;
   blocked_at: EpochMilliseconds;
 }
@@ -43,7 +45,7 @@ export interface Subscription {
 }
 
 export interface GetSubscriptionParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
@@ -70,19 +72,19 @@ export interface SubscriptionControl {
 }
 
 export interface ControlSubscriptionParams {
-  store_id?: string;
-  command_id: string;
+  store_id: string;
+  request_id: string;
   request: SubscriptionControl;
 }
 
 export interface SubscriptionControlResult {
-  command_id: string;
+  request_id: string;
   accepted_at: EpochMilliseconds;
   subscription: SubscriptionSelf;
 }
 
 export interface FindSubscriptionsParams {
-  store_id?: string;
+  store_id: string;
   customer_id?: string;
   company_id?: string;
   order_id?: string;
@@ -92,21 +94,21 @@ export interface FindSubscriptionsParams {
 }
 
 export interface FindSubscriptionOrdersParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   limit?: number;
   cursor?: string;
 }
 
 export interface FindSubscriptionCommandsParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   limit?: number;
   cursor?: string;
 }
 
 export interface GetCurrentSubscriptionParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
@@ -116,4 +118,20 @@ export interface FindCustomerSubscriptionsParams {
   status?: "awaiting_activation" | "active" | "blocked" | "paused" | "cancelled";
   limit?: number;
   cursor?: string;
+}
+
+export type SubscriptionChangeType =
+  | { type: "calendar"; change: { request: SubscriptionCalendarChange; actor: PurchaseOriginSnapshot; result: SubscriptionRevisionChangeResult } }
+  | { type: "funding"; change: { request: SubscriptionFundingChange; actor: PurchaseOriginSnapshot; result: SubscriptionRevisionChangeResult } }
+  | { type: "plan"; change: { request: SubscriptionPlanChange; actor: PurchaseOriginSnapshot; result: SubscriptionRevisionChangeResult } }
+  | { type: "tax_correction"; change: { request: SubscriptionTaxCorrection; actor: PurchaseOriginSnapshot; assessment_digest: string; result: SubscriptionRevisionChangeResult } }
+  | { type: "control"; request: SubscriptionControl; actor: PurchaseOriginSnapshot }
+  | { type: "card"; update: { request: SubscriptionCardUpdateRequest; actor: PurchaseOriginSnapshot; closed_payment_id: string; payment_id: string; capture_id: string; amount: Money; funding_request_id: string | null } };
+
+export interface SubscriptionChange {
+  request_id: string;
+  store_id: string;
+  subscription_id: string;
+  change: SubscriptionChangeType;
+  accepted_at: EpochMilliseconds;
 }

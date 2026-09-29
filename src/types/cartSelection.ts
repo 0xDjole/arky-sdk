@@ -1,6 +1,6 @@
 import type { RequestOptions } from "./api";
 import type { CreatedCart } from "./cart";
-import type { StorefrontCart, StorefrontCurrentCartParams, StorefrontDto } from "./storefront";
+import type { StorefrontCart, StorefrontCurrentCartParams, StorefrontMarket } from "./storefront";
 
 export interface CartSelectionContext {
   namespace: string;
@@ -25,8 +25,9 @@ export interface CartSelectionScope {
 }
 
 export interface CartSelectionTransport {
+  market(key: string, options?: RequestOptions): Promise<StorefrontMarket>;
   get(id: string, options?: RequestOptions): Promise<StorefrontCart>;
-  create(params: StorefrontCurrentCartParams, options?: RequestOptions): Promise<StorefrontDto<CreatedCart>>;
+  create(params: StorefrontCurrentCartParams, options?: RequestOptions): Promise<CreatedCart>;
 }
 
 export class CartSelectionError extends Error {

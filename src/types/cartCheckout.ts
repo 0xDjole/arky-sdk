@@ -36,5 +36,5 @@ export class CartPresentationChangedError extends Error {
 }
 
 export interface RecoverCartCheckoutParams {
-  store_id?: string;
+  store_id: string;
 }

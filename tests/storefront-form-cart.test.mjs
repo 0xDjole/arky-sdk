@@ -42,7 +42,7 @@ function customer(email = null) {
           },
         ]
       : [],
-    classifications: [],
+    categories: [],
     created_at: 1,
     updated_at: 1,
   };
@@ -162,7 +162,7 @@ test("a fresh cart load resolves Store defaults before loading persisted product
         },
       },
     ],
-    classifications: [],
+    categories: [],
     variants: [
       {
         id: "variant-hydration-contract",

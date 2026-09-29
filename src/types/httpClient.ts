@@ -2,6 +2,7 @@ import type { EpochMilliseconds } from "./time";
 import type { QueryParams } from "../utils/queryParams";
 
 export interface TokenSet {
+  id?: string;
   access_token: string;
   refresh_token?: string;
   access_expires_at?: EpochMilliseconds;
@@ -60,7 +61,6 @@ export interface HttpClient {
 
 export interface HttpClientConfig {
   baseUrl: string;
-  storeId?: string;
   authStorage: AuthStorage;
   storefrontMode?: boolean;
   forcedHeaders?: Record<string, string> | (() => Record<string, string>);
@@ -70,6 +70,7 @@ export interface HttpClientConfig {
     path: string;
   }) => boolean | Promise<boolean>;
   refreshPath?: string | (() => string);
+  refreshCredentials?: (expected: TokenSet | null) => Promise<void>;
   navigate?: (path: string) => void;
   loginFallbackPath?: string;
 }

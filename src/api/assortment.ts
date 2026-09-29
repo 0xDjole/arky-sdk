@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -13,8 +14,8 @@ import type {
 } from "../types/assortment";
 
 export const createAssortmentApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/assortments`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/assortments`;
 
   return {
     getByKey(params: GetAssortmentByKeyParams, options?: RequestOptions): Promise<Assortment> {
@@ -58,7 +59,7 @@ export const createAssortmentApi = (apiConfig: ApiConfig) => {
     },
 
     find(
-      params: FindAssortmentsParams = {},
+      params: FindAssortmentsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<Assortment>> {
       const { store_id, ...query } = params;

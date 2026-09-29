@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { StoreCustomerWorkspacePresentation, UpdateStoreCustomerWorkspaceParams } from "../types/storeCustomerWorkspace";
 import type { ApiConfig, AdminSessionUpdater } from "../services/clientTypes";
 import type {
@@ -66,45 +67,11 @@ const storeSubscriptionCheckoutLabel = "Store subscription Checkout";
 const canonicalUuidV4 =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-function browserHasDurableStorage(): boolean {
-  return typeof globalThis.window !== "undefined";
-}
-
-function responseStatusCode(value: unknown): number | null {
-  if (typeof value !== "object" || value === null || !("statusCode" in value)) {
-    return null;
+function storeSubscriptionCheckoutRequest(params: SelectStoreSubscriptionParams): StoreSubscriptionCheckoutRequest {
+  if (typeof params.checkout_id !== "string" || !canonicalUuidV4.test(params.checkout_id)) {
+    throw new TypeError("Store plan selection requires the caller's canonical UUID-v4 checkout_id");
   }
-  return typeof value.statusCode === "number" ? value.statusCode : null;
-}
-
-function newStoreSubscriptionCheckoutId(): string {
-  const id = globalThis.crypto?.randomUUID?.();
-  if (!id || !canonicalUuidV4.test(id)) {
-    throw new DurableRequestStorageError(
-      `Cannot safely start ${storeSubscriptionCheckoutLabel} because UUID-v4 generation is unavailable`,
-    );
-  }
-  return id;
-}
-
-function storeSubscriptionCheckoutRequest(
-  params: SelectStoreSubscriptionParams,
-  retainedCheckoutId?: string,
-): StoreSubscriptionCheckoutRequest {
-  const checkout_id =
-    params.checkout_id ||
-    retainedCheckoutId ||
-    newStoreSubscriptionCheckoutId();
-  if (!canonicalUuidV4.test(checkout_id)) {
-    throw new DurableRequestStorageError(
-      `Cannot safely start ${storeSubscriptionCheckoutLabel} because checkout_id is not a canonical UUID-v4`,
-    );
-  }
-  return {
-    checkout_id,
-    plan_id: params.plan_id,
-    return_url: params.return_url,
-  };
+  return { checkout_id: params.checkout_id, plan_id: params.plan_id, return_url: params.return_url };
 }
 
 function persistedStoreSubscriptionCheckoutRequest(
@@ -128,19 +95,6 @@ function persistedStoreSubscriptionCheckoutRequest(
   return value as StoreSubscriptionCheckoutRequest;
 }
 
-function storeSubscriptionCheckoutIsTerminal(
-  subscription: StoreSubscription,
-  checkoutId: string,
-): boolean {
-  if (!subscription.checkout) return true;
-  return (
-    subscription.checkout.id === checkoutId &&
-    ["completed", "expired", "failed"].includes(
-      subscription.checkout.status.type,
-    )
-  );
-}
-
 export const createStoreApi = (
   apiConfig: ApiConfig,
   _updateSession: AdminSessionUpdater,
@@ -150,9 +104,9 @@ export const createStoreApi = (
       params: InitializeStoreCommerceParams,
       options?: RequestOptions,
     ): Promise<StoreCommerceInitialization> {
-      const storeId = params.store_id ?? apiConfig.storeId;
+      const storeId = requireStoreId(params.store_id);
       return apiConfig.httpClient.post<StoreCommerceInitialization>(
-        `/v1/stores/${encodeURIComponent(storeId)}/commerce/initializations`,
+        `/v1/stores/${requireStoreId(storeId)}/commerce/initializations`,
         { operation_id: params.operation_id, request: params.request },
         options,
       );
@@ -162,9 +116,9 @@ export const createStoreApi = (
       params: GetStoreCommerceInitializationParams,
       options?: RequestOptions,
     ): Promise<StoreCommerceInitialization> {
-      const storeId = params.store_id ?? apiConfig.storeId;
+      const storeId = requireStoreId(params.store_id);
       return apiConfig.httpClient.get<StoreCommerceInitialization>(
-        `/v1/stores/${encodeURIComponent(storeId)}/commerce/initializations/${encodeURIComponent(params.operation_id)}`,
+        `/v1/stores/${requireStoreId(storeId)}/commerce/initializations/${encodeURIComponent(params.operation_id)}`,
         options,
       );
     },
@@ -173,10 +127,10 @@ export const createStoreApi = (
       params: AbortStoreCommerceInitializationParams,
       options?: RequestOptions,
     ): Promise<StoreCommerceInitialization> {
-      const storeId = params.store_id ?? apiConfig.storeId;
+      const storeId = requireStoreId(params.store_id);
       return apiConfig.httpClient.post<StoreCommerceInitialization>(
-        `/v1/stores/${encodeURIComponent(storeId)}/commerce/initializations/${encodeURIComponent(params.operation_id)}/abort`,
-        {},
+        `/v1/stores/${requireStoreId(storeId)}/commerce/initializations/${encodeURIComponent(params.operation_id)}/abort`,
+        undefined,
         options,
       );
     },
@@ -193,39 +147,47 @@ export const createStoreApi = (
       options?: RequestOptions,
     ): Promise<Store> {
       return apiConfig.httpClient.put<Store>(
-        `/v1/stores/${encodeURIComponent(params.id)}`,
-        params,
+        `/v1/stores/${requireStoreId(params.id)}`,
+        {
+          name: params.name,
+          default_sales_channel_id: params.default_sales_channel_id,
+          timezone: params.timezone,
+          default_language: params.default_language,
+          supported_languages: params.supported_languages,
+          billing_email: params.billing_email,
+          contact_email: params.contact_email,
+        },
         options,
       );
     },
 
     async getStore(
-      params: GetStoreParams = {},
+      params: GetStoreParams,
       options?: RequestOptions,
     ): Promise<Store> {
-      const store_id = params.id || apiConfig.storeId;
-      return apiConfig.httpClient.get<Store>(`/v1/stores/${encodeURIComponent(store_id)}`, options);
+      const store_id = requireStoreId(params.id);
+      return apiConfig.httpClient.get<Store>(`/v1/stores/${requireStoreId(store_id)}`, options);
     },
 
     async requestDeletion(
       params: RequestStoreDeletionParams,
       options?: RequestOptions,
     ): Promise<StoreDeletionResult> {
-      const store_id = params.id || apiConfig.storeId;
+      const store_id = requireStoreId(params.id);
       return apiConfig.httpClient.post<StoreDeletionResult>(
-        `/v1/stores/${encodeURIComponent(store_id)}/deletion`,
+        `/v1/stores/${requireStoreId(store_id)}/deletion`,
         { confirmation: params.confirmation },
         options,
       );
     },
 
     async getCustomerWorkspace(
-      params: GetStoreParams = {},
+      params: GetStoreParams,
       options?: RequestOptions,
     ): Promise<StoreCustomerWorkspacePresentation> {
-      const storeId = params.id ?? apiConfig.storeId;
+      const storeId = requireStoreId(params.id);
       return apiConfig.httpClient.get<StoreCustomerWorkspacePresentation>(
-        `/v1/stores/${encodeURIComponent(storeId)}/customer-workspace`, options,
+        `/v1/stores/${requireStoreId(storeId)}/customer-workspace`, options,
       );
     },
 
@@ -233,20 +195,20 @@ export const createStoreApi = (
       params: UpdateStoreCustomerWorkspaceParams,
       options?: RequestOptions,
     ): Promise<Store> {
-      const storeId = params.id ?? apiConfig.storeId;
+      const storeId = requireStoreId(params.id);
       return apiConfig.httpClient.put<Store>(
-        `/v1/stores/${encodeURIComponent(storeId)}/customer-workspace`,
+        `/v1/stores/${requireStoreId(storeId)}/customer-workspace`,
         { expected_revision: params.expected_revision, customer_workspace: params.customer_workspace }, options,
       );
     },
 
     async getBranding(
-      params: GetStoreParams = {},
+      params: GetStoreParams,
       options?: RequestOptions,
     ): Promise<StoreBrandingPresentation> {
-      const storeId = params.id ?? apiConfig.storeId;
+      const storeId = requireStoreId(params.id);
       return apiConfig.httpClient.get<StoreBrandingPresentation>(
-        `/v1/stores/${encodeURIComponent(storeId)}/branding`, options,
+        `/v1/stores/${requireStoreId(storeId)}/branding`, options,
       );
     },
 
@@ -254,9 +216,9 @@ export const createStoreApi = (
       params: UpdateStoreBrandingParams,
       options?: RequestOptions,
     ): Promise<Store> {
-      const storeId = params.id ?? apiConfig.storeId;
+      const storeId = requireStoreId(params.id);
       return apiConfig.httpClient.put<Store>(
-        `/v1/stores/${encodeURIComponent(storeId)}/branding`,
+        `/v1/stores/${requireStoreId(storeId)}/branding`,
         { branding: params.branding }, options,
       );
     },
@@ -280,109 +242,56 @@ export const createStoreApi = (
       );
     },
 
-    async selectSubscription(
-      params: SelectStoreSubscriptionParams,
-      options?: RequestOptions,
-    ): Promise<StoreSubscription> {
-      const target_store_id = params.store_id || apiConfig.storeId;
-      const endpoint = `/v1/stores/${target_store_id}/subscription`;
-      const post = (payload: StoreSubscriptionCheckoutRequest) =>
-        apiConfig.httpClient.post<StoreSubscription>(
-          endpoint,
-          payload,
-          options,
-        );
-
-      if (!browserHasDurableStorage()) {
-        return post(storeSubscriptionCheckoutRequest(params));
+    async selectSubscription(params: SelectStoreSubscriptionParams, options?: RequestOptions): Promise<StoreSubscription> {
+      const storeId = requireStoreId(params.store_id);
+      const payload = storeSubscriptionCheckoutRequest(params);
+      const result = await apiConfig.httpClient.post<StoreSubscription>(`/v1/stores/${storeId}/subscription`, payload, options);
+      if ((result.checkout && result.checkout.id !== payload.checkout_id) || (!result.checkout && result.plan_access?.plan_id !== payload.plan_id)) {
+        throw new DurableRequestStorageError("Store plan selection returned neither its Checkout nor the requested plan access");
       }
+      return result;
+    },
 
-      const storageKey = `arky:store-subscription-checkout:${target_store_id}`;
-      return withDurableRequestLock(
-        storageKey,
-        storeSubscriptionCheckoutLabel,
-        async () => {
-          const retained = readDurableRequest(
-            storageKey,
-            storeSubscriptionCheckoutLabel,
-          );
-          const retainedPayload = retained
-            ? persistedStoreSubscriptionCheckoutRequest(
-                durableRequestPayload(retained),
-              )
-            : undefined;
-          let payload = storeSubscriptionCheckoutRequest(
-            params,
-            retainedPayload?.checkout_id,
-          );
+    async retainSubscriptionSelection(params: SelectStoreSubscriptionParams): Promise<void> {
+      const storeId = requireStoreId(params.store_id);
+      const payload = storeSubscriptionCheckoutRequest(params);
+      const key = `arky:store-subscription-checkout:${storeId}`;
+      await withDurableRequestLock(key, storeSubscriptionCheckoutLabel, async () => {
+        getOrCreateDurableRequest(key, payload, storeSubscriptionCheckoutLabel);
+      });
+    },
 
-          if (retained && retained.requestJson !== JSON.stringify(payload)) {
-            const current = await apiConfig.httpClient.get<StoreSubscription>(
-              endpoint,
-              options,
-            );
-            if (
-              !storeSubscriptionCheckoutIsTerminal(
-                current,
-                retainedPayload!.checkout_id,
-              )
-            ) {
-              getOrCreateDurableRequest(
-                storageKey,
-                payload,
-                storeSubscriptionCheckoutLabel,
-              );
-            }
-            clearDurableRequest(retained, storeSubscriptionCheckoutLabel);
-            payload = storeSubscriptionCheckoutRequest(params);
-          }
+    async pendingSubscriptionSelection(params: GetStoreSubscriptionParams): Promise<StoreSubscriptionCheckoutRequest | null> {
+      const key = `arky:store-subscription-checkout:${requireStoreId(params.store_id)}`;
+      return withDurableRequestLock(key, storeSubscriptionCheckoutLabel, async () => {
+        const retained = readDurableRequest(key, storeSubscriptionCheckoutLabel);
+        return retained ? persistedStoreSubscriptionCheckoutRequest(durableRequestPayload(retained)) : null;
+      });
+    },
 
-          const durable = getOrCreateDurableRequest(
-            storageKey,
-            payload,
-            storeSubscriptionCheckoutLabel,
-          );
-          const exactPayload = persistedStoreSubscriptionCheckoutRequest(
-            durableRequestPayload(durable),
-          );
-          let subscription: StoreSubscription;
-          try {
-            subscription = await post(exactPayload);
-          } catch (error) {
-            if (responseStatusCode(error) === 400) {
-              clearDurableRequest(durable, storeSubscriptionCheckoutLabel);
-            }
-            throw error;
-          }
-          if (
-            subscription.checkout &&
-            subscription.checkout.id !== exactPayload.checkout_id
-          ) {
-            throw new DurableRequestStorageError(
-              `Cannot safely continue ${storeSubscriptionCheckoutLabel} because Server returned a different Checkout`,
-            );
-          }
-          if (
-            !subscription.checkout &&
-            subscription.plan_access?.plan_id !== exactPayload.plan_id
-          ) {
-            throw new DurableRequestStorageError(
-              `Cannot safely continue ${storeSubscriptionCheckoutLabel} because Server returned neither its Checkout nor the requested plan access`,
-            );
-          }
-          clearDurableRequest(durable, storeSubscriptionCheckoutLabel);
-          return subscription;
-        },
-      );
+    async recoverSubscriptionSelection(params: GetStoreSubscriptionParams, options?: RequestOptions): Promise<StoreSubscription | null> {
+      const storeId = requireStoreId(params.store_id);
+      const key = `arky:store-subscription-checkout:${storeId}`;
+      return withDurableRequestLock(key, storeSubscriptionCheckoutLabel, async () => {
+        const retained = readDurableRequest(key, storeSubscriptionCheckoutLabel);
+        if (!retained) return null;
+        const payload = persistedStoreSubscriptionCheckoutRequest(durableRequestPayload(retained));
+        const result = await apiConfig.httpClient.post<StoreSubscription>(`/v1/stores/${storeId}/subscription`, payload, options);
+        if ((result.checkout && result.checkout.id !== payload.checkout_id) || (!result.checkout && result.plan_access?.plan_id !== payload.plan_id)) {
+          throw new DurableRequestStorageError("Recovered plan selection returned neither its Checkout nor the requested plan access");
+        }
+        clearDurableRequest(retained, storeSubscriptionCheckoutLabel);
+        return result;
+      });
     },
 
     async getSubscription(
-      params: GetStoreSubscriptionParams = {},
+      params: GetStoreSubscriptionParams,
       options?: RequestOptions,
     ): Promise<StoreSubscription> {
-      const store_id = params.store_id || apiConfig.storeId;
+      const store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.get<StoreSubscription>(
-        `/v1/stores/${store_id}/subscription`,
+        `/v1/stores/${requireStoreId(store_id)}/subscription`,
         options,
       );
     },
@@ -391,22 +300,22 @@ export const createStoreApi = (
       params: CancelStoreSubscriptionParams,
       options?: RequestOptions,
     ): Promise<StoreSubscription> {
-      const store_id = params.store_id || apiConfig.storeId;
+      const store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.post<StoreSubscription>(
-        `/v1/stores/${store_id}/subscription/cancel`,
+        `/v1/stores/${requireStoreId(store_id)}/subscription/cancel`,
         { mode: params.mode },
         options,
       );
     },
 
     async reactivateSubscription(
-      params: ReactivateStoreSubscriptionParams = {},
+      params: ReactivateStoreSubscriptionParams,
       options?: RequestOptions,
     ): Promise<StoreSubscription> {
-      const store_id = params.store_id || apiConfig.storeId;
+      const store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.post<StoreSubscription>(
-        `/v1/stores/${store_id}/subscription/reactivate`,
-        {},
+        `/v1/stores/${requireStoreId(store_id)}/subscription/reactivate`,
+        undefined,
         options,
       );
     },
@@ -415,9 +324,9 @@ export const createStoreApi = (
       params: CreatePortalSessionParams,
       options?: RequestOptions,
     ): Promise<{ portal_url: string }> {
-      const store_id = params.store_id || apiConfig.storeId;
+      const store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.post<{ portal_url: string }>(
-        `/v1/stores/${store_id}/subscription/portal`,
+        `/v1/stores/${requireStoreId(store_id)}/subscription/portal`,
         { return_url: params.return_url },
         options,
       );
@@ -429,7 +338,7 @@ export const createStoreApi = (
     ): Promise<boolean> {
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<boolean>(
-        `/v1/stores/${store_id || apiConfig.storeId}/members`,
+        `/v1/stores/${requireStoreId(store_id)}/members`,
         payload,
         options,
       );
@@ -441,7 +350,7 @@ export const createStoreApi = (
     ): Promise<boolean> {
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<boolean>(
-        `/v1/stores/${store_id || apiConfig.storeId}/invitation`,
+        `/v1/stores/${requireStoreId(store_id)}/invitation`,
         payload,
         options,
       );
@@ -451,24 +360,24 @@ export const createStoreApi = (
       params: TransferStoreOwnershipParams,
       options?: RequestOptions,
     ): Promise<StoreMembership> {
-      const store_id = params.store_id || apiConfig.storeId;
+      const store_id = requireStoreId(params.store_id);
       if (!canonicalUuidV4.test(store_id) || !canonicalUuidV4.test(params.account_id)) {
         throw new TypeError("Ownership transfer requires canonical Store and Account UUIDs");
       }
       return apiConfig.httpClient.post<StoreMembership>(
-        `/v1/stores/${store_id}/ownership/transfer`,
+        `/v1/stores/${requireStoreId(store_id)}/ownership/transfer`,
         { account_id: params.account_id },
         options,
       );
     },
 
     async findMembers(
-      params: FindStoreMembersParams = {},
+      params: FindStoreMembersParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<StoreMember>> {
       const { store_id, ...query } = params;
       return apiConfig.httpClient.get<PaginatedResponse<StoreMember>>(
-        `/v1/stores/${store_id || apiConfig.storeId}/members`,
+        `/v1/stores/${requireStoreId(store_id)}/members`,
         {
           ...options,
           params: query,
@@ -487,12 +396,12 @@ export const createStoreApi = (
     },
 
     async getOwnMembership(
-      params: GetOwnStoreMembershipParams = {},
+      params: GetOwnStoreMembershipParams,
       options?: RequestOptions,
     ): Promise<StoreMembership | null> {
-      const storeId = params.store_id || apiConfig.storeId;
+      const storeId = requireStoreId(params.store_id);
       if (!canonicalUuidV4.test(storeId)) throw new TypeError("Membership lookup requires a canonical Store UUID");
-      return apiConfig.httpClient.get<StoreMembership | null>(`/v1/stores/${storeId}/membership`, options);
+      return apiConfig.httpClient.get<StoreMembership | null>(`/v1/stores/${requireStoreId(storeId)}/membership`, options);
     },
 
     async removeMember(
@@ -500,7 +409,7 @@ export const createStoreApi = (
       options?: RequestOptions,
     ): Promise<boolean> {
       return apiConfig.httpClient.delete<boolean>(
-        `/v1/stores/${params.store_id || apiConfig.storeId}/members/${params.account_id}`,
+        `/v1/stores/${requireStoreId(params.store_id)}/members/${params.account_id}`,
         options,
       );
     },
@@ -510,8 +419,8 @@ export const createStoreApi = (
       options?: RequestOptions,
     ): Promise<TestWebhookResponse> {
       return apiConfig.httpClient.post<TestWebhookResponse>(
-        `/v1/stores/${apiConfig.storeId}/webhooks/test`,
-        params,
+        `/v1/stores/${requireStoreId(params.store_id)}/webhooks/test`,
+        { delivery_id: params.delivery_id, webhook_id: params.webhook_id },
         options,
       );
     },
@@ -522,7 +431,7 @@ export const createStoreApi = (
     ): Promise<PaginatedResponse<BuildHook>> {
       const { store_id, ...query } = params;
       return apiConfig.httpClient.get<PaginatedResponse<BuildHook>>(
-        `/v1/stores/${store_id}/build-hooks`,
+        `/v1/stores/${requireStoreId(store_id)}/build-hooks`,
         { ...options, params: query },
       );
     },
@@ -533,7 +442,7 @@ export const createStoreApi = (
     ): Promise<BuildHook> {
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<BuildHook>(
-        `/v1/stores/${store_id}/build-hooks`,
+        `/v1/stores/${requireStoreId(store_id)}/build-hooks`,
         payload,
         options,
       );
@@ -545,7 +454,7 @@ export const createStoreApi = (
     ): Promise<BuildHook> {
       const { store_id, id, ...payload } = params;
       return apiConfig.httpClient.put<BuildHook>(
-        `/v1/stores/${store_id}/build-hooks/${id}`,
+        `/v1/stores/${requireStoreId(store_id)}/build-hooks/${id}`,
         payload,
         options,
       );
@@ -556,7 +465,7 @@ export const createStoreApi = (
       options?: RequestOptions,
     ): Promise<{ deleted: boolean }> {
       return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${params.store_id}/build-hooks/${params.id}`,
+        `/v1/stores/${requireStoreId(params.store_id)}/build-hooks/${params.id}`,
         options,
       );
     },
@@ -567,7 +476,7 @@ export const createStoreApi = (
     ): Promise<PaginatedResponse<Webhook>> {
       const { store_id, ...query } = params;
       return apiConfig.httpClient.get<PaginatedResponse<Webhook>>(
-        `/v1/stores/${store_id}/webhooks`,
+        `/v1/stores/${requireStoreId(store_id)}/webhooks`,
         { ...options, params: query },
       );
     },
@@ -578,7 +487,7 @@ export const createStoreApi = (
     ): Promise<Webhook> {
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<Webhook>(
-        `/v1/stores/${store_id}/webhooks`,
+        `/v1/stores/${requireStoreId(store_id)}/webhooks`,
         payload,
         options,
       );
@@ -590,7 +499,7 @@ export const createStoreApi = (
     ): Promise<Webhook> {
       const { store_id, id, ...payload } = params;
       return apiConfig.httpClient.put<Webhook>(
-        `/v1/stores/${store_id}/webhooks/${id}`,
+        `/v1/stores/${requireStoreId(store_id)}/webhooks/${id}`,
         payload,
         options,
       );
@@ -601,7 +510,7 @@ export const createStoreApi = (
       options?: RequestOptions,
     ): Promise<{ deleted: boolean }> {
       return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${params.store_id}/webhooks/${params.id}`,
+        `/v1/stores/${requireStoreId(params.store_id)}/webhooks/${params.id}`,
         options,
       );
     },

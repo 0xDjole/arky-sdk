@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type {
   CancelSocialPostParams,
@@ -23,16 +24,16 @@ import type {
 } from "../types";
 
 export const createSocialApi = (apiConfig: ApiConfig) => {
-  const storeId = (store_id?: string) => store_id || apiConfig.storeId;
+  const storeId = (store_id: string) => requireStoreId(store_id);
 
   const connections = {
     async find(
-      params?: FindSocialConnectionsParams,
+      params: FindSocialConnectionsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<SocialConnection>> {
-      const { store_id, ...queryParams } = params ?? {};
+      const { store_id, ...queryParams } = params;
       return apiConfig.httpClient.get<PaginatedResponse<SocialConnection>>(
-        `/v1/stores/${storeId(store_id)}/social/connections`,
+        `/v1/stores/${requireStoreId(storeId(store_id))}/social/connections`,
         { ...options, params: queryParams },
       );
     },
@@ -42,7 +43,7 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<SocialConnection> {
       return apiConfig.httpClient.get<SocialConnection>(
-        `/v1/stores/${storeId(params.store_id)}/social/connections/${params.connection_id}`,
+        `/v1/stores/${requireStoreId(storeId(params.store_id))}/social/connections/${params.connection_id}`,
         options,
       );
     },
@@ -53,7 +54,7 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     ): Promise<SocialConnectResult> {
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<SocialConnectResult>(
-        `/v1/stores/${storeId(store_id)}/social/connections/connect`,
+        `/v1/stores/${requireStoreId(storeId(store_id))}/social/connections/connect`,
         payload,
         options,
       );
@@ -65,8 +66,8 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     ): Promise<SocialConnection> {
       const { store_id, connection_id } = params;
       return apiConfig.httpClient.post<SocialConnection>(
-        `/v1/stores/${storeId(store_id)}/social/connections/${connection_id}/disconnect`,
-        {},
+        `/v1/stores/${requireStoreId(storeId(store_id))}/social/connections/${connection_id}/disconnect`,
+        undefined,
         options,
       );
     },
@@ -79,7 +80,7 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     ): Promise<PaginatedResponse<SocialMessage>> {
       const { store_id, post_id, ...queryParams } = params;
       return apiConfig.httpClient.get<PaginatedResponse<SocialMessage>>(
-        `/v1/stores/${storeId(store_id)}/social/posts/${post_id}/messages`,
+        `/v1/stores/${requireStoreId(storeId(store_id))}/social/posts/${post_id}/messages`,
         { ...options, params: queryParams },
       );
     },
@@ -90,7 +91,7 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     ): Promise<SocialMessage> {
       const { store_id, post_id, ...payload } = params;
       return apiConfig.httpClient.post<SocialMessage>(
-        `/v1/stores/${storeId(store_id)}/social/posts/${post_id}/messages`,
+        `/v1/stores/${requireStoreId(storeId(store_id))}/social/posts/${post_id}/messages`,
         payload,
         options,
       );
@@ -102,7 +103,7 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     ): Promise<SocialMessageSyncResult> {
       const { store_id, post_id, ...payload } = params;
       return apiConfig.httpClient.post<SocialMessageSyncResult>(
-        `/v1/stores/${storeId(store_id)}/social/posts/${post_id}/messages/sync`,
+        `/v1/stores/${requireStoreId(storeId(store_id))}/social/posts/${post_id}/messages/sync`,
         payload,
         options,
       );
@@ -111,12 +112,12 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
 
   const posts = {
     async find(
-      params?: FindSocialPostsParams,
+      params: FindSocialPostsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<SocialPost>> {
       const { store_id, ...queryParams } = params || {};
       return apiConfig.httpClient.get<PaginatedResponse<SocialPost>>(
-        `/v1/stores/${storeId(store_id)}/social/posts`,
+        `/v1/stores/${requireStoreId(storeId(store_id))}/social/posts`,
         { ...options, params: queryParams },
       );
     },
@@ -127,7 +128,7 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
     ): Promise<SocialPost> {
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<SocialPost>(
-        `/v1/stores/${storeId(store_id)}/social/posts`,
+        `/v1/stores/${requireStoreId(storeId(store_id))}/social/posts`,
         payload,
         options,
       );
@@ -138,7 +139,7 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<SocialPost> {
       return apiConfig.httpClient.get<SocialPost>(
-        `/v1/stores/${storeId(params.store_id)}/social/posts/${params.post_id}`,
+        `/v1/stores/${requireStoreId(storeId(params.store_id))}/social/posts/${params.post_id}`,
         options,
       );
     },
@@ -148,8 +149,8 @@ export const createSocialApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<SocialPost> {
       return apiConfig.httpClient.post<SocialPost>(
-        `/v1/stores/${storeId(params.store_id)}/social/posts/${params.post_id}/cancel`,
-        {},
+        `/v1/stores/${requireStoreId(storeId(params.store_id))}/social/posts/${params.post_id}/cancel`,
+        undefined,
         options,
       );
     },

@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type {
   CreateWorkflowParams,
@@ -37,10 +38,10 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Workflow> {
       const { store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.post<Workflow>(
-        `/v1/stores/${target_store_id}/workflows`,
-        { ...payload, store_id: target_store_id },
+        `/v1/stores/${requireStoreId(target_store_id)}/workflows`,
+        payload,
         options,
       );
     },
@@ -50,9 +51,9 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Workflow> {
       const { store_id, id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.put<Workflow>(
-        `/v1/stores/${target_store_id}/workflows/${id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/workflows/${id}`,
         payload,
         options,
       );
@@ -62,9 +63,9 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       params: DeleteWorkflowParams,
       options?: RequestOptions,
     ): Promise<boolean> {
-      const store_id = params.store_id || apiConfig.storeId;
+      const store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.delete<boolean>(
-        `/v1/stores/${store_id}/workflows/${params.id}`,
+        `/v1/stores/${requireStoreId(store_id)}/workflows/${params.id}`,
         options,
       );
     },
@@ -73,9 +74,9 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       params: GetWorkflowParams,
       options?: RequestOptions,
     ): Promise<Workflow> {
-      const store_id = params.store_id || apiConfig.storeId;
+      const store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.get<Workflow>(
-        `/v1/stores/${store_id}/workflows/${params.id}`,
+        `/v1/stores/${requireStoreId(store_id)}/workflows/${params.id}`,
         options,
       );
     },
@@ -84,23 +85,23 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       params: RegenerateWorkflowWebhookUrlParams,
       options?: RequestOptions,
     ): Promise<WorkflowWebhookUrl> {
-      const store_id = params.store_id || apiConfig.storeId;
+      const store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.post<WorkflowWebhookUrl>(
-        `/v1/stores/${store_id}/workflows/${params.workflow_id}/regenerate-webhook-url`,
-        {},
+        `/v1/stores/${requireStoreId(store_id)}/workflows/${params.workflow_id}/regenerate-webhook-url`,
+        undefined,
         options,
       );
     },
 
     async getWorkflows(
-      params?: GetWorkflowsParams,
+      params: GetWorkflowsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<WorkflowListItem>> {
-      const store_id = params?.store_id || apiConfig.storeId;
+      const store_id = requireStoreId(params.store_id);
 
       const { store_id: _, ...queryParams } = params || {};
       return apiConfig.httpClient.get<PaginatedResponse<WorkflowListItem>>(
-        `/v1/stores/${store_id}/workflows`,
+        `/v1/stores/${requireStoreId(store_id)}/workflows`,
         {
           ...options,
           params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
@@ -132,12 +133,12 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       params: GetWorkflowExecutionsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<WorkflowExecutionListItem>> {
-      const store_id = params.store_id || apiConfig.storeId;
+      const store_id = requireStoreId(params.store_id);
       const { store_id: _, workflow_id, ...queryParams } = params;
       return apiConfig.httpClient.get<
         PaginatedResponse<WorkflowExecutionListItem>
       >(
-        `/v1/stores/${store_id}/workflows/${workflow_id}/executions`,
+        `/v1/stores/${requireStoreId(store_id)}/workflows/${workflow_id}/executions`,
         {
           ...options,
           params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
@@ -149,9 +150,9 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       params: GetWorkflowExecutionParams,
       options?: RequestOptions,
     ): Promise<WorkflowExecution> {
-      const store_id = params.store_id || apiConfig.storeId;
+      const store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.get<WorkflowExecution>(
-        `/v1/stores/${store_id}/workflows/${params.workflow_id}/executions/${params.execution_id}`,
+        `/v1/stores/${requireStoreId(store_id)}/workflows/${params.workflow_id}/executions/${params.execution_id}`,
         options,
       );
     },
@@ -160,12 +161,12 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       params: GetWorkflowExternalOperationsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<WorkflowExternalOperation>> {
-      const store_id = params.store_id || apiConfig.storeId;
+      const store_id = requireStoreId(params.store_id);
       const { store_id: _, workflow_id, execution_id, ...queryParams } = params;
       return apiConfig.httpClient.get<
         PaginatedResponse<WorkflowExternalOperation>
       >(
-        `/v1/stores/${store_id}/workflows/${workflow_id}/executions/${execution_id}/external-operations`,
+        `/v1/stores/${requireStoreId(store_id)}/workflows/${workflow_id}/executions/${execution_id}/external-operations`,
         {
           ...options,
           params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
@@ -177,28 +178,28 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       params: GetWorkflowExternalOperationParams,
       options?: RequestOptions,
     ): Promise<WorkflowExternalOperation> {
-      const store_id = params.store_id || apiConfig.storeId;
+      const store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.get<WorkflowExternalOperation>(
-        `/v1/stores/${store_id}/workflows/${params.workflow_id}/executions/${params.execution_id}/external-operations/${params.operation_id}`,
+        `/v1/stores/${requireStoreId(store_id)}/workflows/${params.workflow_id}/executions/${params.execution_id}/external-operations/${params.operation_id}`,
         options,
       );
     },
 
     async getWorkflowConnections(
-      params?: GetWorkflowConnectionsParams,
+      params: GetWorkflowConnectionsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<WorkflowConnection>> {
-      const store_id = params?.store_id || apiConfig.storeId;
+      const store_id = requireStoreId(params.store_id);
       const { store_id: _storeId, ...query } = params || {};
       return apiConfig.httpClient.get<PaginatedResponse<WorkflowConnection>>(
-        `/v1/stores/${store_id}/workflow-connections`,
+        `/v1/stores/${requireStoreId(store_id)}/workflow-connections`,
         { ...options, params: query },
       );
     },
 
     getWorkflowConnection(params: GetWorkflowConnectionParams, options?: RequestOptions): Promise<WorkflowConnection> {
-      const storeId = params.store_id || apiConfig.storeId;
-      return apiConfig.httpClient.get<WorkflowConnection>(`/v1/stores/${encodeURIComponent(storeId)}/workflow-connections/${encodeURIComponent(params.id)}`, options);
+      const storeId = requireStoreId(params.store_id);
+      return apiConfig.httpClient.get<WorkflowConnection>(`/v1/stores/${requireStoreId(storeId)}/workflow-connections/${encodeURIComponent(params.id)}`, options);
     },
 
     async getWorkflowConnectionConnectUrl(
@@ -206,10 +207,10 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<WorkflowConnectionConnectUrl> {
       const { store_id, type, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.post<WorkflowConnectionConnectUrl>(
-        `/v1/stores/${target_store_id}/workflow-connections/connect-url`,
-        { ...payload, type, store_id: target_store_id },
+        `/v1/stores/${requireStoreId(target_store_id)}/workflow-connections/connect-url`,
+        { ...payload, type },
         options,
       );
     },
@@ -218,9 +219,9 @@ export const createWorkflowApi = (apiConfig: ApiConfig) => {
       params: DeleteWorkflowConnectionParams,
       options?: RequestOptions,
     ): Promise<boolean> {
-      const store_id = params.store_id || apiConfig.storeId;
+      const store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.delete<boolean>(
-        `/v1/stores/${store_id}/workflow-connections/${params.id}`,
+        `/v1/stores/${requireStoreId(store_id)}/workflow-connections/${params.id}`,
         options,
       );
     },

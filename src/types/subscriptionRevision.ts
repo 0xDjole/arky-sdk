@@ -1,7 +1,10 @@
-import type { SubscriptionAcceptedTerms } from "./commerce";
+import type { SubscriptionAcceptedTerms, SubscriptionPurchaseOccurrence } from "./commerce";
 import type { SubscriptionSelf } from "./subscription";
 import type { EpochMilliseconds } from "./time";
-import type { Money } from "./index";
+import type { Money, Currency, TaxMode } from "./index";
+import type { ProductMoneyTotals } from "./orderMoney";
+import type { QuotedProductMoneyRun } from "./quote";
+import type { SubscriptionTaxPolicyQuote, SubscriptionTaxGroupQuote } from "./subscriptionTax";
 
 export type SubscriptionSchedule =
   | { type: "one_time"; timezone: string }
@@ -54,8 +57,8 @@ export interface SubscriptionCalendarChange {
 }
 
 export interface GetSubscriptionCalendarOptionsParams {
-  store_id?: string;
-  command_id: string;
+  store_id: string;
+  request_id: string;
   subscription_id: string;
 }
 
@@ -68,8 +71,8 @@ export interface SubscriptionCalendarOptions {
 }
 
 export interface ReviewSubscriptionCalendarChangeParams {
-  store_id?: string;
-  command_id: string;
+  store_id: string;
+  request_id: string;
   request: SubscriptionCalendarChange;
 }
 
@@ -79,7 +82,7 @@ export interface AcceptSubscriptionCalendarChangeParams
 }
 
 export interface SubscriptionCalendarReview {
-  command_id: string;
+  request_id: string;
   request: SubscriptionCalendarChange;
   timeline_digest: string;
   timeline: SubscriptionRevisionBoundary[];
@@ -87,7 +90,7 @@ export interface SubscriptionCalendarReview {
 }
 
 export interface SubscriptionCalendarChangeResult {
-  command_id: string;
+  request_id: string;
   accepted_at: EpochMilliseconds;
   result: SubscriptionRevisionChangeResult;
 }
@@ -104,8 +107,8 @@ export interface SubscriptionFundingChange {
 }
 
 export interface ReviewSubscriptionFundingChangeParams {
-  store_id?: string;
-  command_id: string;
+  store_id: string;
+  request_id: string;
   request: SubscriptionFundingChange;
 }
 
@@ -115,7 +118,7 @@ export interface AcceptSubscriptionFundingChangeParams
 }
 
 export interface SubscriptionFundingReview {
-  command_id: string;
+  request_id: string;
   request: SubscriptionFundingChange;
   timeline_digest: string;
   timeline: SubscriptionRevisionBoundary[];
@@ -123,7 +126,7 @@ export interface SubscriptionFundingReview {
 }
 
 export interface SubscriptionFundingChangeResult {
-  command_id: string;
+  request_id: string;
   accepted_at: EpochMilliseconds;
   result: SubscriptionRevisionChangeResult;
 }
@@ -135,13 +138,13 @@ export interface SubscriptionCardUpdateRequest {
 }
 
 export interface UpdateSubscriptionCardParams {
-  store_id?: string;
-  command_id: string;
+  store_id: string;
+  request_id: string;
   request: SubscriptionCardUpdateRequest;
 }
 
 export interface SubscriptionCardUpdateResult {
-  command_id: string;
+  request_id: string;
   accepted_at: EpochMilliseconds;
   closed_payment_id: string;
   payment_id: string;
@@ -163,8 +166,8 @@ export interface SubscriptionPlanChange {
 }
 
 export interface ReviewSubscriptionPlanChangeParams {
-  store_id?: string;
-  command_id: string;
+  store_id: string;
+  request_id: string;
   request: SubscriptionPlanChange;
 }
 
@@ -174,14 +177,78 @@ export interface AcceptSubscriptionPlanChangeParams
 }
 
 export interface SubscriptionPlanChangeReview {
-  command_id: string;
+  request_id: string;
   request: SubscriptionPlanChange;
   timeline_digest: string;
   timeline: SubscriptionRevisionBoundary[];
 }
 
 export interface SubscriptionPlanChangeResult {
-  command_id: string;
+  request_id: string;
+  accepted_at: EpochMilliseconds;
+  result: SubscriptionRevisionChangeResult;
+}
+
+export interface SubscriptionTaxClassificationChange {
+  entitlement_id: string;
+  tax_category_id: string | null;
+}
+
+export interface SubscriptionTaxCorrection {
+  subscription_id: string;
+  expected_updated_at: EpochMilliseconds;
+  expected_previous_revision_id: string;
+  expected_next_occurrence_index: number;
+  changes: SubscriptionTaxClassificationChange[];
+  reason: string;
+}
+
+export interface SubscriptionTaxBenefitReview {
+  entitlement_id: string;
+  tax_category_id: string | null;
+  money_quantity: number;
+  net: number;
+  money: ProductMoneyTotals;
+  money_runs: QuotedProductMoneyRun[];
+}
+
+export interface SubscriptionTaxAssessmentReview {
+  entitlement_lines: SubscriptionTaxBenefitReview[];
+  net: number;
+  money: ProductMoneyTotals;
+  tax_policies: SubscriptionTaxPolicyQuote[];
+  tax_groups: SubscriptionTaxGroupQuote[];
+}
+
+export interface SubscriptionTaxCorrectionAssessment {
+  occurrence: SubscriptionPurchaseOccurrence;
+  currency: Currency;
+  tax_mode: TaxMode;
+  assessed_at: EpochMilliseconds;
+  before: SubscriptionTaxAssessmentReview;
+  after: SubscriptionTaxAssessmentReview;
+}
+
+export interface ReviewSubscriptionTaxCorrectionParams {
+  store_id: string;
+  request_id: string;
+  request: SubscriptionTaxCorrection;
+}
+
+export interface AcceptSubscriptionTaxCorrectionParams extends ReviewSubscriptionTaxCorrectionParams {
+  timeline_digest: string;
+}
+
+export interface SubscriptionTaxCorrectionReview {
+  request_id: string;
+  request: SubscriptionTaxCorrection;
+  timeline_digest: string;
+  timeline: SubscriptionRevisionBoundary[];
+  assessment: SubscriptionTaxCorrectionAssessment;
+}
+
+export interface SubscriptionTaxCorrectionResult {
+  request_id: string;
   accepted_at: EpochMilliseconds;
   result: SubscriptionRevisionChangeResult;
 }

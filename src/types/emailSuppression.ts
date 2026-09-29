@@ -24,12 +24,12 @@ export interface EmailSuppressionRecord {
 }
 
 export interface GetEmailSuppressionParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 type EmailSuppressionFilters = {
-  store_id?: string;
+  store_id: string;
   type?: EmailSuppressionType;
   status?: EmailSuppressionStatus["type"];
 };
@@ -41,18 +41,18 @@ export type FindEmailSuppressionsParams = EmailSuppressionFilters &
   );
 
 export interface ActivateEmailSuppressionParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   email: string;
-  command_id: string;
+  request_id: string;
   expected_version: string | null;
   note: string;
 }
 
 export interface ReleaseEmailSuppressionParams {
-  store_id?: string;
+  store_id: string;
   id: string;
-  command_id: string;
+  request_id: string;
   expected_version: string;
   note: string;
 }

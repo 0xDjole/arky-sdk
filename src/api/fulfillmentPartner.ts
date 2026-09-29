@@ -1,10 +1,11 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from '../services/clientTypes';
 import type { RequestOptions } from '../types/api';
 import type { PaginatedResponse } from '../types';
 import type { FulfillmentPartner, CreateFulfillmentPartnerParams, UpdateFulfillmentPartnerParams, GetFulfillmentPartnerParams, FindFulfillmentPartnersParams } from '../types/fulfillmentPartner';
 
 export const createFulfillmentPartnerApi = (config: ApiConfig) => {
-  const path = (storeId?: string) => `/v1/stores/${encodeURIComponent(storeId || config.storeId)}/fulfillment-partners`;
+  const path = (storeId: string) => `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/fulfillment-partners`;
   return {
     create(params: CreateFulfillmentPartnerParams, options?: RequestOptions): Promise<FulfillmentPartner> {
       const { store_id, ...body } = params;
@@ -17,7 +18,7 @@ export const createFulfillmentPartnerApi = (config: ApiConfig) => {
     get(params: GetFulfillmentPartnerParams, options?: RequestOptions): Promise<FulfillmentPartner> {
       return config.httpClient.get<FulfillmentPartner>(`${path(params.store_id)}/${encodeURIComponent(params.fulfillment_partner_id)}`, options);
     },
-    find(params: FindFulfillmentPartnersParams = {}, options?: RequestOptions): Promise<PaginatedResponse<FulfillmentPartner>> {
+    find(params: FindFulfillmentPartnersParams, options?: RequestOptions): Promise<PaginatedResponse<FulfillmentPartner>> {
       const { store_id, ...query } = params;
       return config.httpClient.get<PaginatedResponse<FulfillmentPartner>>(path(store_id), { ...options, params: query });
     },

@@ -17,7 +17,7 @@ function storedVisitorSession(token, customerId = "customer-digital-contract") {
       id: customerId,
       status: { type: "active" },
       identities: [],
-      classifications: [],
+      categories: [],
       created_at: 1,
       updated_at: 1,
     },
@@ -89,7 +89,7 @@ test("Admin Digital Product and Digital Asset methods use the canonical contract
     key: "digital-product-key",
     slugs: { en: "digital-product" },
     blocks: [],
-    classifications: [],
+    categories: [],
     asset_ids: [],
     tax_category_id: null,
     status: { type: "draft" },
@@ -159,9 +159,9 @@ test("Admin Digital Product and Digital Asset methods use the canonical contract
     updated = await admin.eshop.digital.product.update(update);
     found = await admin.eshop.digital.product.find({
       ids: [product.id],
-      classification_query: [
+      category_query: [
         {
-          classification_id: "classification-digital",
+          category_id: "category-digital",
           query: [{ type: "boolean", key: "featured", value: true }],
         },
       ],
@@ -224,9 +224,9 @@ test("Admin Digital Product and Digital Asset methods use the canonical contract
 
   const productQuery = new URL(calls[2].url).searchParams;
   assert.deepEqual(JSON.parse(productQuery.get("ids")), [product.id]);
-  assert.deepEqual(JSON.parse(productQuery.get("classification_query")), [
+  assert.deepEqual(JSON.parse(productQuery.get("category_query")), [
     {
-      classification_id: "classification-digital",
+      category_id: "category-digital",
       query: [{ type: "boolean", key: "featured", value: true }],
     },
   ]);
@@ -321,7 +321,7 @@ test("Storefront Digital Product lookup and library routes keep distinct selecto
     key: "digital-product-key",
     slugs: { en: "digital-product" },
     blocks: [],
-    classifications: [],
+    categories: [],
     price: null,
     purchase_allowed: true,
   };

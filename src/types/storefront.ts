@@ -35,32 +35,7 @@ export type StorefrontParams<T> = T extends unknown
   ? Omit<T, "store_id" | "market" | "customer_id" | "customer_session_id">
   : never;
 
-type StorefrontOpaqueKey =
-  | "attributes"
-  | "blocks"
-  | "context"
-  | "data"
-  | "fields"
-  | "metadata"
-  | "payload"
-  | "properties"
-  | "schema"
-  | "value";
-
-/** Storefront wire shape after routing ownership fields are removed. */
-export type StorefrontDto<T> = T extends number
-  ? T
-  : T extends readonly (infer Item)[]
-    ? StorefrontDto<Item>[]
-    : T extends object
-      ? {
-          [
-            Key in keyof T as Key extends "store_id" ? never : Key
-          ]: Key extends StorefrontOpaqueKey ? T[Key] : StorefrontDto<T[Key]>;
-        }
-      : T;
-
-export type StorefrontCart = StorefrontDto<Cart>;
+export type StorefrontCart = Cart;
 export type StorefrontCurrentCartParams = Pick<GetCurrentCartParams, "company">;
 export type CartPublicLineItemInput =
   | ({ type: "product" } & CartProductInput)
@@ -79,19 +54,30 @@ export type StorefrontAddCartBookingParams = Omit<StorefrontParams<AddCartBookin
 export type StorefrontAddCartDigitalParams = Omit<StorefrontParams<AddCartDigitalProductParams>, "digital"> & {
   digital: CartDigitalInput;
 };
-export type StorefrontCollectionEntry = StorefrontDto<CollectionEntry>;
-export type StorefrontCustomer = StorefrontDto<Customer>;
-export type StorefrontForm = StorefrontDto<FormPresentation>;
-export type StorefrontFormSubmission = StorefrontDto<FormSubmission>;
-export type StorefrontLocation = Omit<
-  StorefrontDto<StoreLocation>,
-  "created_at" | "updated_at"
->;
-export type StorefrontOrderCheckoutResult = StorefrontDto<OrderCheckoutResult>;
-export type StorefrontOrderQuote = StorefrontDto<OrderQuote>;
-export type StorefrontCheckoutQuote = StorefrontDto<CheckoutQuote>;
+export type StorefrontCollectionEntry = CollectionEntry;
+export interface StorefrontCustomer {
+  id: string;
+  status: Customer["status"];
+  primary_email_identity_id: string | null;
+  default_shipping_address_id: string | null;
+  default_billing_address_id: string | null;
+  categories: Customer["categories"];
+  created_at: Customer["created_at"];
+  updated_at: Customer["updated_at"];
+}
+export type StorefrontForm = FormPresentation;
+export type StorefrontFormSubmission = FormSubmission;
+export interface StorefrontLocation {
+  id: string;
+  key: string;
+  address: StoreLocation["address"];
+  is_pickup_location: boolean;
+}
+export type StorefrontOrderCheckoutResult = OrderCheckoutResult;
+export type StorefrontOrderQuote = OrderQuote;
+export type StorefrontCheckoutQuote = CheckoutQuote;
 export type StorefrontProduct = Pick<Product,
-  "id" | "key" | "slugs" | "blocks" | "classifications"
+  "id" | "key" | "slugs" | "blocks" | "categories"
 > & { price: StorefrontPrice | null; purchase_allowed: boolean };
 export interface GetStorefrontProductVariantParams extends CatalogReadOptions {
   product_id: string;
@@ -103,24 +89,32 @@ export interface FindStorefrontProductVariantsParams extends CatalogReadOptions 
   limit?: number;
   cursor?: string;
 }
-export type StorefrontProductVariant = Omit<
-  ProductVariant,
-  "store_id" | "created_at" | "updated_at"
-> & {
+export interface StorefrontProductVariant {
+  id: string;
+  product_id: string;
+  sku: string | null;
+  attributes: ProductVariant["attributes"];
+  reference_labels: ProductVariant["reference_labels"];
+  fulfillment: ProductVariant["fulfillment"];
+  tax_category_id: string | null;
+  status: ProductVariant["status"];
+  price: StorefrontPrice | null;
+  purchase_allowed: boolean;
+}
+export type StorefrontBookingResource = BookingResource;
+export type StorefrontBookingService = BookingService & {
   price: StorefrontPrice | null;
   purchase_allowed: boolean;
 };
-export type StorefrontBookingResource = StorefrontDto<BookingResource>;
-export type StorefrontBookingService = StorefrontDto<BookingService> & {
+export type StorefrontBookingOffering = BookingOffering & {
   price: StorefrontPrice | null;
   purchase_allowed: boolean;
 };
-export type StorefrontBookingOffering = StorefrontDto<BookingOffering> & {
-  price: StorefrontPrice | null;
-  purchase_allowed: boolean;
-};
-export type StorefrontPage<T> = StorefrontDto<PaginatedResponse<T>>;
-export type StorefrontMarket = Omit<
-  Market,
-  "store_id" | "status" | "created_at" | "updated_at"
-> & { payment_option_ids: string[] };
+export type StorefrontPage<T> = PaginatedResponse<T>;
+export interface StorefrontMarket {
+  id: string;
+  key: string;
+  currency: Market["currency"];
+  tax_mode: Market["tax_mode"];
+  payment_option_ids: string[];
+}

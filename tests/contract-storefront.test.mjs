@@ -28,7 +28,7 @@ function sessionStorage(token = visitorToken) {
       id: "customer-contract",
       status: { type: "active" },
       identities: [],
-      classifications: [],
+      categories: [],
       created_at: 1,
       updated_at: 1,
     },
@@ -215,8 +215,8 @@ test("initialize is the production root API and exposes the module facade withou
   assert.equal(typeof rootStore.forms.get, "function");
   assert.equal(typeof rootStore.forms.submitByKey, "function");
   assert.equal(typeof rootStore.actions.track, "function");
-  assert.equal(typeof rootStore.classification.get, "function");
-  assert.equal("classification" in rootStore.content, false);
+  assert.equal(typeof rootStore.category.get, "function");
+  assert.equal("category" in rootStore.content, false);
   assert.equal("cms" in rootStore, false);
   assert.equal("crm" in rootStore, false);
   assert.equal(typeof store.eshop.cart.load, "function");

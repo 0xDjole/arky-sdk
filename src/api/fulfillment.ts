@@ -1,3 +1,5 @@
+import { requireRequestId } from "../utils/requestId";
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types";
@@ -12,21 +14,22 @@ import type {
 } from "../types/fulfillment";
 
 export const createFulfillmentApi = (config: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId || config.storeId)}/fulfillments`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/fulfillments`;
 
   return {
     async create(
       params: CreateFulfillmentParams,
       options?: RequestOptions,
     ): Promise<Fulfillment> {
+      requireRequestId(params.request_id);
       const { store_id, ...payload } = params;
       const result = await config.httpClient.post<Fulfillment>(
         basePath(store_id),
         payload,
         options,
       );
-      if (result.id !== params.fulfillment_id) {
+      if (result.id !== params.fulfillment_id || result.request_id !== params.request_id) {
         throw new Error("Fulfillment response did not match the requested fulfillment_id");
       }
       return result;
@@ -35,6 +38,7 @@ export const createFulfillmentApi = (config: ApiConfig) => {
       params: ControlFulfillmentParams,
       options?: RequestOptions,
     ): Promise<Fulfillment> {
+      requireRequestId(params.request_id);
       const { store_id, fulfillment_id, ...payload } = params;
       return config.httpClient.post<Fulfillment>(
         `${basePath(store_id)}/${encodeURIComponent(fulfillment_id)}/commands`,

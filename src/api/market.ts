@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type {
   CreateMarketParams,
@@ -11,10 +12,10 @@ import type {
 import type { Market, MarketUsage, PaginatedResponse } from "../types";
 
 export const createMarketApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId = apiConfig.storeId) =>
-    `/v1/stores/${encodeURIComponent(storeId)}/markets`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${requireStoreId(storeId)}/markets`;
   return {
-    async list(params: FindMarketsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Market>> {
+    async list(params: FindMarketsParams, options?: RequestOptions): Promise<PaginatedResponse<Market>> {
       const { store_id, ...query } = params;
       return apiConfig.httpClient.get<PaginatedResponse<Market>>(basePath(store_id), { ...options, params: query });
     },
@@ -29,9 +30,9 @@ export const createMarketApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async usage(id: string, options?: RequestOptions): Promise<MarketUsage> {
+    async usage(params: GetStoreConfigurationParams, options?: RequestOptions): Promise<MarketUsage> {
       return apiConfig.httpClient.get<MarketUsage>(
-        `${basePath()}/${encodeURIComponent(id)}/usage`,
+        `${basePath(params.store_id)}/${encodeURIComponent(params.id)}/usage`,
         options,
       );
     },

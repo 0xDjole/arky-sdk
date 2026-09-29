@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from '../services/clientTypes';
 import type { PaginatedResponse } from '../types';
 import type { RequestOptions } from '../types/api';
@@ -9,7 +10,7 @@ import type {
 } from '../types/storeAdminDomain';
 
 export const createStoreAdminDomainApi = (config: ApiConfig) => {
-  const base = (storeId?: string) => `/v1/stores/${encodeURIComponent(storeId ?? config.storeId)}/admin-domains`;
+  const base = (storeId: string) => `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/admin-domains`;
   const change = (action: 'verify' | 'restart' | 'disable', params: ChangeStoreAdminDomainParams, options?: RequestOptions): Promise<StoreAdminDomain> => {
     const { store_id, id, ...body } = params;
     return config.httpClient.post<StoreAdminDomain>(`${base(store_id)}/${encodeURIComponent(id)}/${action}`, body, options);
@@ -22,7 +23,7 @@ export const createStoreAdminDomainApi = (config: ApiConfig) => {
     resolve(hostname: string, options?: RequestOptions): Promise<StoreBrandingPresentation> {
       return config.httpClient.get<StoreBrandingPresentation>(`/v1/admin-domains/${encodeURIComponent(hostname)}`, options);
     },
-    find(params: FindStoreAdminDomainsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<StoreAdminDomain>> {
+    find(params: FindStoreAdminDomainsParams, options?: RequestOptions): Promise<PaginatedResponse<StoreAdminDomain>> {
       const { store_id, ...query } = params;
       return config.httpClient.get<PaginatedResponse<StoreAdminDomain>>(base(store_id), { ...options, params: query });
     },

@@ -31,7 +31,7 @@ function session(customerId = "customer-a") {
       id: customerId,
       status: { type: "active" },
       identities: [],
-      classifications: [],
+      categories: [],
       created_at: 1,
       updated_at: 1,
     },
@@ -255,7 +255,7 @@ function product() {
     key: "product-a",
     blocks: [],
     slugs: {},
-    classifications: [],
+    categories: [],
     variants: [
       {
         id: "variant-a",

@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -13,8 +14,8 @@ import type {
 } from "../types/priceList";
 
 export const createPriceListApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/price-lists`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/price-lists`;
 
   return {
     getByKey(params: GetPriceListByKeyParams, options?: RequestOptions): Promise<PriceList> {
@@ -65,7 +66,7 @@ export const createPriceListApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindPriceListsParams = {},
+      params: FindPriceListsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<PriceList>> {
       const { store_id, ...query } = params;

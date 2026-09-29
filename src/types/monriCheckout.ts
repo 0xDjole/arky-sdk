@@ -6,6 +6,7 @@ export interface MonriComponentsAction {
   environment: MonriEnvironment;
   authenticity_token: string;
   client_secret: string;
+  save_card: boolean;
 }
 
 export interface MonriBuyerDetails {
@@ -26,7 +27,7 @@ export interface MonriCardComponent {
 export interface MonriBrowserClient {
   components(options: { clientSecret: string }): {
     create(type: "card", options: {
-      tokenizePan: false;
+      tokenizePan: boolean;
       tokenizePanOffered: false;
       showInstallmentsSelection: false;
     }): MonriCardComponent;

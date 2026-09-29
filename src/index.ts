@@ -1,3 +1,5 @@
+import { createAdminSessionState } from "./services/adminSession";
+export type { AdminLogoutResult } from "./services/adminSession";
 export type * from "./types/storeCustomerWorkspace";
 export { ScheduledResultTimeoutError } from "./utils/scheduledResult";
 export { MonriCheckoutError } from "./types/monriCheckout";
@@ -17,6 +19,7 @@ export {
   orderDigitalItems,
   orderSubscriptionPlanItems,
   orderRentalUseItems,
+  orderPurchaseAccessItems,
 } from "./types/order";
 export type { CartCheckoutRequest, CartAcceptanceProof, RecoverCartCheckoutParams } from "./types/cartCheckout";
 export type { InitialMarketInput, CartDeliveryGroup, CartDeliveryGroupItem, CartDeliveryWindow, CartDeliveryDestination, CartSubscriptionDelivery } from "./types/api";
@@ -40,7 +43,7 @@ export type { Promotion, PromotionStatus, PromotionEditableStatus, PromotionActi
 export type { TaxCategory, TaxCategoryStatus, TaxCategoryEditableStatus, CreateTaxCategoryParams, UpdateTaxCategoryParams, GetTaxCategoryParams, FindTaxCategoriesParams, DeleteTaxCategoryParams, TaxRate, TaxCalculation, TaxComponent, TaxTreatment, TaxRule, TaxRuleStatus, TaxRuleEditableStatus, CreateTaxRuleParams, UpdateTaxRuleParams, GetTaxRuleParams, FindTaxRulesParams, DeleteTaxRuleParams } from "./types/tax";
 export type { PaymentTerms, PaymentTermsStatus, PaymentTermsEditableStatus, CreatePaymentTermsParams, UpdatePaymentTermsParams, GetPaymentTermsParams, FindPaymentTermsParams, DeletePaymentTermsParams } from "./types/paymentTerms";
 export type { OrderCredit, OrderCreditAllocation, OrderCreditSource, OrderCreditStatus, CreditTarget, CreditMoney, DiscountReversal, TaxComponentReversal, DutyComponentReversal, CreateOrderCreditParams, GetOrderCreditParams, FindOrderCreditsParams } from "./types/orderCredit";
-export type { PaymentMethod, PaymentMethodOwner, PaymentMethodDetails, PaymentMethodProviderName, PaymentMethodState, PaymentMethodCommand, PaymentMethodCommandType, PaymentMethodRevocation, PaymentMethodRevocationRecord, PaymentMethodRevocationRequest, NativeSetupOutcome, NativeCustomerSetupOutcome, GetPaymentMethodParams, FindPaymentMethodsParams, FindPaymentMethodCommandsParams, RevokePaymentMethodParams, PaymentMethodSetupRequest, RequestPaymentMethodSetupParams, PaymentMethodSetupStart } from "./types/paymentMethod";
+export type { PaymentMethod, PaymentMethodOwner, PaymentMethodDetails, PaymentMethodProviderName, PaymentMethodState, PaymentMethodCheckoutCardFailure, PaymentMethodCheckoutCardOutcome, PaymentMethodOperation, PaymentMethodOperationType, PaymentMethodRevocation, PaymentMethodRevocationRecord, PaymentMethodRevocationRequest, NativeSetupOutcome, NativeCustomerSetupOutcome, GetPaymentMethodParams, FindPaymentMethodsParams, FindPaymentMethodOperationsParams, RevokePaymentMethodParams, PaymentMethodSetupRequest, RequestPaymentMethodSetupParams, PaymentMethodSetupStart } from "./types/paymentMethod";
 export type { CustomerGroupEmailConsent, CustomerGroupEmailConsentStatus, CustomerGroupEmailConfirmation, CustomerGroupConfirmationEmailStatus, CustomerGroupConfirmationHistoryEntry, CustomerGroupConsentEvent, CustomerGroupConsentEventType, CustomerGroupConsentSource, CustomerGroupUnsubscribeReason, RecordCustomerGroupEmailDecision, SubscribeCustomerGroupEmailsParams, RecordCustomerGroupEmailConsentParams, ImportCustomerGroupEmailConsentEntry, ImportCustomerGroupEmailConsentsParams, ImportCustomerGroupEmailConsentsResult, ConfirmCustomerGroupEmailsParams, UnsubscribeCustomerGroupEmailsParams, ResendCustomerGroupConfirmationParams, GetCustomerGroupEmailConsentParams, FindCustomerGroupEmailConsentsParams, FindCustomerGroupEmailConsentHistoryParams } from "./types/customerGroupEmailConsent";
 export type { CheckoutCartVersion, ConvertedCartLine, CartLineItemRef, OrderLineItemRef, CheckoutQuote, CheckoutQuoteSources } from "./types/checkout";
 export type { FulfillmentRoutingPolicy, FulfillmentRoutingStrategy, FulfillmentRoutingLocation, FulfillmentRoutingPolicyStatus, FulfillmentRoutingPolicyEditableStatus, CreateFulfillmentRoutingPolicyParams, UpdateFulfillmentRoutingPolicyParams, GetFulfillmentRoutingPolicyParams, GetFulfillmentRoutingPolicyByKeyParams, FindFulfillmentRoutingPoliciesParams, DeleteFulfillmentRoutingPolicyParams } from "./types/fulfillmentRouting";
@@ -52,15 +55,15 @@ export type { ShippingProfile, ShippingProfileStatus, ShippingProfileEditableSta
 export type { CustomerGroupEditableStatus, CustomerGroupStatus, CustomerGroupJoinPolicy, CustomerGroupConsentPolicy, CustomerGroupCommunication, CustomerGroup, CustomerGroupUsage, CreateCustomerGroupParams, GetCustomerGroupParams, GetCustomerGroupByKeyParams, UpdateCustomerGroupParams, DeleteCustomerGroupParams, FindCustomerGroupsParams, StorefrontCustomerGroup, GetStorefrontCustomerGroupParams } from "./types/customerGroup";
 export type { SubscriptionPlan, SubscriptionPlanTerm, SubscriptionPlanStatus, SubscriptionCommitment, SubscriptionCommitmentEndAction, SubscriptionProductQuantity, SubscriptionDeliverySchedule, SubscriptionDigitalContent, RecurringCadence, RenewalRecoveryPolicy, BillingInterval, CreateSubscriptionPlanParams, UpdateSubscriptionPlanParams, GetSubscriptionPlanParams, FindSubscriptionPlansParams, StorefrontSubscriptionPlan, StorefrontSubscriptionPlanEntitlement, FindStorefrontSubscriptionPlansParams, GetStorefrontSubscriptionPlanParams } from "./types/subscriptionPlan";
 export type { SubscriptionPlanEntitlement, SubscriptionPlanEntitlementType, FindSubscriptionPlanEntitlementsParams, CreateSubscriptionPlanEntitlementParams, UpdateSubscriptionPlanEntitlementParams, DeleteSubscriptionPlanEntitlementParams } from "./types/subscriptionPlanEntitlement";
-export type { Subscription, SubscriptionSubject, SubscriptionStatus, SubscriptionPurchaseState, SubscriptionCollectionBlock, GetSubscriptionParams, FindSubscriptionsParams, FindSubscriptionOrdersParams, FindSubscriptionCommandsParams, GetCurrentSubscriptionParams, SubscriptionControlType, SubscriptionControl, ControlSubscriptionParams, SubscriptionControlResult } from "./types/subscription";
+export type { SubscriptionChange, SubscriptionChangeType, Subscription, SubscriptionSubject, SubscriptionStatus, SubscriptionPurchaseState, SubscriptionCollectionBlock, GetSubscriptionParams, FindSubscriptionsParams, FindSubscriptionOrdersParams, FindSubscriptionCommandsParams, GetCurrentSubscriptionParams, SubscriptionControlType, SubscriptionControl, ControlSubscriptionParams, SubscriptionControlResult } from "./types/subscription";
 export type * from "./types/subscriptionRevision";
 export type * from "./types/subscriptionOffering";
 export type * from "./types/rental";
-export type { CustomerGroupAdmission, CustomerGroupAdmissionSource, CustomerGroupAdministrativeAccess, CustomerGroupMember, CustomerGroupMemberSelf, CustomerGroupSelfAdmission, CustomerGroupJoinResult, CustomerGroupMemberCommandResponse, CustomerGroupMemberCommandReceipt, CustomerGroupMemberCommandResultType, LookupCustomerGroupMemberParams, CustomerGroupJoinScope, CustomerGroupJoinRequest, JoinCustomerGroupParams, GetCustomerGroupMemberParams, FindCustomerGroupMembersParams, GetCurrentCustomerGroupMemberParams, FindCustomerGroupMemberCommandsParams, CustomerGroupMemberCommand, ExecuteCustomerGroupMemberCommandParams } from "./types/customerGroupMember";
+export type { CustomerGroupAdmission, CustomerGroupAdmissionSource, CustomerGroupAdministrativeAccess, CustomerGroupMember, CustomerGroupMemberSelf, CustomerGroupSelfAdmission, CustomerGroupJoinResult, CustomerGroupMemberCommandResponse, CustomerGroupMemberChange, CustomerGroupMemberCommandResult, CustomerGroupMemberCommandResultType, LookupCustomerGroupMemberParams, CustomerGroupJoinScope, CustomerGroupJoinRequest, JoinCustomerGroupParams, GetCustomerGroupMemberParams, FindCustomerGroupMembersParams, GetCurrentCustomerGroupMemberParams, FindCustomerGroupMemberCommandsParams, CustomerGroupMemberCommand, ExecuteCustomerGroupMemberCommandParams } from "./types/customerGroupMember";
 export type { SalesChannelEditableStatus, SalesChannelStatus, SalesChannel, SalesChannelUsage, CreateSalesChannelParams, GetSalesChannelParams, UpdateSalesChannelParams, DeleteSalesChannelParams, FindSalesChannelsParams } from "./types/salesChannel";
 export type { SellableRef } from "./types/sellable";
 export type { OrderBooking, GetOrderBookingParams } from "./types/orderBooking";
-export type { CancelPendingOrderParams, OrderCancellationReceipt } from "./types/orderCancellation";
+export type { CancelPendingOrderParams, OrderCancellationAcceptance } from "./types/orderCancellation";
 export type * from "./types/storeCommerce";
 export type { SellerProfile, SellerTaxRegistration } from "./types/orderContract";
 
@@ -243,10 +246,13 @@ export type {
   PaymentOptionType,
   MonriEnvironment,
   PaymentOptionTypeName,
-  PaymentOptionConnectResponse,
-  StripeConnectionOperation,
-  StripeConnectionEffectStatus,
   StripeProviderConnection,
+  StripeMerchantConfiguration,
+  StripeMerchantWebhook,
+  StripeWebhookDelivery,
+  StripeConfigurationChange,
+  StripeConfigurationResolution,
+  StripeMerchantSetup,
   PaymentOptionStatus,
   TaxMode,
   AccountActor,
@@ -255,9 +261,18 @@ export type {
   RefundApplication,
   RefundRequester,
   SystemRefundReason,
-  Refund,
+  PaymentRefund,
   RefundProvider,
   MonriRefundResult,
+  MonriRefundAssociation,
+  MonriRefundEvidence,
+  ReviewMonriRefundParams,
+  ProviderNotificationOwner,
+  ProviderNotificationReviewReason,
+  ProviderNotificationState,
+  MonriRefundReviewEvidence,
+  MonriRefundReviewEvidencePage,
+  FindMonriRefundReviewEvidenceParams,
   RefundAllocation,
   CustomerMoneyEvidence,
   RefundFinancialEffect,
@@ -467,21 +482,22 @@ export type {
   FormValue,
   FormValues,
   FormEntry,
-  Classification,
-  ClassificationEntry,
-  ClassificationQuery,
-  ClassificationSchema,
-  ClassificationSchemaType,
-  ClassificationField,
-  ClassificationFieldQuery,
-  ClassificationCoordinates,
-  ClassificationGeoLocation,
-  ClassificationNumberOperation,
+  Category,
+  CategoryEntry,
+  CategoryQuery,
+  CategorySchema,
+  CategorySchemaType,
+  CategoryField,
+  CategoryFieldQuery,
+  CategoryCoordinates,
+  CategoryGeoLocation,
+  CategoryNumberOperation,
   Customer,
   CustomerListItem,
   CustomerIdentity,
   CustomerEmailVerification,
   CustomerSessionRecord,
+  StorefrontCustomerSessionRecord,
   CustomerSessionIssued,
   CustomerSessionStatus,
   CustomerAction,
@@ -556,7 +572,7 @@ export type {
   FormPresentedSchema,
   FormSubmissionSnapshot,
   FormQuestionSnapshot,
-  ClassificationStatus,
+  CategoryStatus,
 } from "./types";
 export type {
   CreateMediaParams,
@@ -672,13 +688,13 @@ export type {
   UpdateCollectionParams,
   GetCollectionParams,
   DeleteCollectionParams,
-  GetClassificationsParams,
-  CreateClassificationParams,
-  UpdateClassificationParams,
-  GetClassificationParams,
-  GetStorefrontClassificationParams,
-  DeleteClassificationParams,
-  GetClassificationChildrenParams,
+  GetCategoriesParams,
+  CreateCategoryParams,
+  UpdateCategoryParams,
+  GetCategoryParams,
+  GetStorefrontCategoryParams,
+  DeleteCategoryParams,
+  GetCategoryChildrenParams,
   GetEntriesParams,
   CreateEntryParams,
   UpdateEntryParams,
@@ -734,8 +750,6 @@ export type {
   RetryLeadResearchMessageParams,
   CancelLeadResearchMessageParams,
   CancelSocialPostParams,
-  ConnectStripePaymentOptionParams,
-  GetStripeConnectionOperationParams,
   ConnectSocialConnectionParams,
   CreateSocialMessageParams,
   CreateSocialPostParams,
@@ -744,8 +758,11 @@ export type {
   GetSocialConnectionParams,
   FindSocialMessagesParams,
   FindSocialPostsParams,
-  OpenStripeDashboardParams,
   GetSocialPostParams,
+  StripeConfigurationInput,
+  ConfigureStripePaymentOptionParams,
+  CancelStripeConfigurationParams,
+  GetStripeConfigurationChangeParams,
   CreateLocalPaymentOptionParams,
   CreateMonriPaymentOptionParams,
   UpdatePaymentOptionParams,
@@ -754,7 +771,6 @@ export type {
   GetStoreConfigurationByKeyParams,
   GetStoreConfigurationParams,
   GetPaymentOptionParams,
-  GetPaymentOptionByTypeParams,
   FindMarketsParams,
   FindStoreLocationsParams,
   FindStorefrontMarketsParams,
@@ -839,23 +855,7 @@ export type {
   InvokeWorkflowWebhookParams,
 } from "./types/api";
 
-export type {
-  TrackCustomerActionParams,
-  CommonCustomerActionKey,
-  ExperimentUseResponse,
-  StorefrontCustomer,
-  StorefrontBookingOffering,
-  StorefrontBookingResource,
-  StorefrontBookingService,
-  StorefrontDto,
-  StorefrontCheckoutQuote,
-  StorefrontLocation,
-  StorefrontMarket,
-  StorefrontPaymentOption,
-  StorefrontSetup,
-  StorefrontVisitorSessionRecord,
-  UseExperimentParams,
-} from "./api/storefront";
+export type { TrackCustomerActionParams, CommonCustomerActionKey, ExperimentUseResponse, StorefrontCustomer, StorefrontBookingOffering, StorefrontBookingResource, StorefrontBookingService, StorefrontCheckoutQuote, StorefrontLocation, StorefrontMarket, StorefrontPaymentOption, StorefrontSetup, StorefrontVisitorSessionRecord, UseExperimentParams } from "./api/storefront";
 export { COMMON_CUSTOMER_ACTION_KEYS } from "./api/storefront";
 export type {
   CreateExperimentParams,
@@ -906,6 +906,8 @@ export type {
   SupportMessage,
   SupportConversationResponse,
   SupportConversationStartResponse,
+  StorefrontSupportConversation,
+  StorefrontSupportMessage,
   StorefrontSupportConversationResponse,
   StorefrontSupportConversationStartResponse,
   SendSupportMessageParams,
@@ -930,15 +932,10 @@ export type {
 } from "./api/support";
 export type { EventMetadata, EventScopeField } from "./api/platform";
 
-export function storeCommerceDefaults(
+export function storeDefaultSalesChannel(
   store: Pick<Store, "commerce">,
-): { default_market_id: string; default_sales_channel_id: string } | null {
-  return store.commerce.type === "ready"
-    ? {
-        default_market_id: store.commerce.default_market_id,
-        default_sales_channel_id: store.commerce.default_sales_channel_id,
-      }
-    : null;
+): string | null {
+  return store.commerce.type === "ready" ? store.commerce.default_sales_channel_id : null;
 }
 
 export const SDK_VERSION = "0.26.80";
@@ -952,6 +949,7 @@ export const SUPPORTED_FRAMEWORKS = [
 
 
 export interface AdminSession {
+  id: string;
   scope: import('./types').AccountSessionScope;
   email?: string;
 }
@@ -1067,7 +1065,7 @@ import { createRefundApi } from "./api/refund";
 import { createPaymentDisputeApi } from "./api/paymentDispute";
 import { createEmailTemplateApi } from "./api/emailTemplate";
 import { createFormsApi } from "./api/forms";
-import { createClassificationApi } from "./api/classification";
+import { createCategoryApi } from "./api/category";
 import { createAnalyticsApi } from "./api/analytics";
 import { createExperimentsApi } from "./api/experiments";
 import {
@@ -1164,71 +1162,25 @@ function createUtilitySurface(apiConfig: Pick<ApiConfig, "market">) {
   };
 }
 
-const ADMIN_STORAGE_KEY = "arky_admin_session:v2";
-
-function readAdminSession(): AdminSessionInternal | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(ADMIN_STORAGE_KEY);
-    if (!raw) return null;
-    const stored: unknown = JSON.parse(raw);
-    if (!isRecord(stored) || stored.version !== 2 || !isRecord(stored.session)) {
-      return null;
-    }
-    const session = stored.session;
-    if (
-      typeof session.access_token !== "string" ||
-      typeof session.refresh_token !== "string" ||
-      !isRecord(session.scope) ||
-      !(session.scope.type === 'account' || (session.scope.type === 'store' && typeof session.scope.store_id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(session.scope.store_id))) ||
-      (session.access_expires_at !== undefined &&
-        !isEpochMilliseconds(session.access_expires_at)) ||
-      (session.email !== undefined && typeof session.email !== "string")
-    ) {
-      return null;
-    }
-    return session as unknown as AdminSessionInternal;
-  } catch {
-    return null;
-  }
-}
-
-function writeAdminSession(s: AdminSessionInternal | null): void {
-  if (typeof window === "undefined") return;
-  if (s) {
-    if (
-      s.access_expires_at !== undefined &&
-      !isEpochMilliseconds(s.access_expires_at)
-    ) {
-      throw new RangeError(
-        "Account access expiry must be signed safe-integer epoch milliseconds",
-      );
-    }
-    localStorage.setItem(
-      ADMIN_STORAGE_KEY,
-      JSON.stringify({ version: 2, session: s }),
-    );
-  } else {
-    localStorage.removeItem(ADMIN_STORAGE_KEY);
-  }
-}
-
 export type CreateAdminConfig = Omit<
   HttpClientConfig,
-  "authStorage" | "storeId"
+  "authStorage" | "refreshCredentials"
 > & {
-  storeId: string;
   market?: string;
   locale?: string;
   apiToken?: string;
 };
 
 export function createAdmin(config: CreateAdminConfig) {
+  const sessionState = createAdminSessionState(config.baseUrl, config.refreshPath);
+  const readAdminSession = sessionState.read;
+  const writeAdminSession = sessionState.write;
+  let unsubscribeStorage: (() => void) | null = null;
   const locale = config.locale || "en";
   const listeners = new Set<AuthStateListener<AdminSession>>();
 
   function toPublic(s: AdminSessionInternal | null): AdminSession | null {
-    return s ? { email: s.email, scope: s.scope } : null;
+    return s ? { id: s.id, email: s.email, scope: s.scope } : null;
   }
 
   function emit(): void {
@@ -1259,33 +1211,20 @@ export function createAdmin(config: CreateAdminConfig) {
           const s = readAdminSession();
           if (!s) return null;
           return {
+            id: s.id,
             access_token: s.access_token,
             refresh_token: s.refresh_token,
             access_expires_at: s.access_expires_at,
           };
         },
-        onTokensRefreshed(tokens) {
-          updateSession((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  access_token: tokens.access_token,
-                  refresh_token: tokens.refresh_token ?? prev.refresh_token,
-                  access_expires_at:
-                    tokens.access_expires_at ?? prev.access_expires_at,
-                }
-              : null,
-          );
-        },
-        onForcedLogout() {
-          updateSession(() => null);
-        },
+        onTokensRefreshed() {},
+        onForcedLogout() {},
       };
 
   const httpClient = createHttpClient({
     baseUrl: config.baseUrl,
-    storeId: config.storeId,
     refreshPath: config.refreshPath,
+    refreshCredentials: config.apiToken ? undefined : sessionState.refresh,
     navigate: config.navigate,
     loginFallbackPath: config.loginFallbackPath,
     authStorage,
@@ -1293,7 +1232,6 @@ export function createAdmin(config: CreateAdminConfig) {
 
   const apiConfig: ApiConfig = {
     httpClient,
-    storeId: config.storeId,
     baseUrl: config.baseUrl,
     market: config.market,
     locale,
@@ -1301,7 +1239,12 @@ export function createAdmin(config: CreateAdminConfig) {
   };
 
   const accountApi = createAccountApi(apiConfig);
-  const authApi = createAuthApi(apiConfig, updateSession);
+  const authHttpClient = createHttpClient({
+    baseUrl: config.baseUrl,
+    authStorage: { getTokens: () => null, onTokensRefreshed() {}, onForcedLogout() {} },
+    onUnauthorized: () => false,
+  });
+  const authApi = createAuthApi({ ...apiConfig, httpClient: authHttpClient }, updateSession, sessionState.refreshExplicit);
   const storeApi = createStoreApi(apiConfig, updateSession);
   const platformApi = createPlatformApi(apiConfig);
 
@@ -1328,14 +1271,14 @@ export function createAdmin(config: CreateAdminConfig) {
     list: paymentOptionApi.list,
     get: paymentOptionApi.get,
     getByKey: paymentOptionApi.getByKey,
-    getByType: paymentOptionApi.getByType,
     create: paymentOptionApi.create,
     update: paymentOptionApi.update,
     stripe: {
-      connect: paymentOptionApi.connectStripe,
-      getConnection: paymentOptionApi.getStripeConnection,
+      setup: paymentOptionApi.stripeSetup,
+      configure: paymentOptionApi.configureStripe,
+      cancelConfiguration: paymentOptionApi.cancelStripeConfiguration,
+      getConfigurationChange: paymentOptionApi.getStripeConfigurationChange,
       refresh: paymentOptionApi.refreshStripe,
-      openDashboard: paymentOptionApi.openDashboard,
     },
   };
   const workflowPublicApi = {
@@ -1356,7 +1299,7 @@ export function createAdmin(config: CreateAdminConfig) {
     deleteConnection: workflowApi.deleteWorkflowConnection,
   };
   const formsApi = createFormsApi(apiConfig);
-  const classificationApi = createClassificationApi(apiConfig);
+  const categoryApi = createCategoryApi(apiConfig);
   const emailTemplateApi = createEmailTemplateApi(apiConfig);
   const analyticsApi = createAnalyticsApi(apiConfig);
   const experimentsApi = createExperimentsApi(apiConfig);
@@ -1414,6 +1357,9 @@ export function createAdmin(config: CreateAdminConfig) {
         get: storeApi.getSubscription,
         getPlans: storeApi.getStorePlans,
         select: storeApi.selectSubscription,
+        retainSelection: storeApi.retainSubscriptionSelection,
+        pendingSelection: storeApi.pendingSubscriptionSelection,
+        recoverSelection: storeApi.recoverSubscriptionSelection,
         cancel: storeApi.cancelSubscription,
         reactivate: storeApi.reactivateSubscription,
         createPortalSession: storeApi.createPortalSession,
@@ -1465,13 +1411,13 @@ export function createAdmin(config: CreateAdminConfig) {
     },
     platform: platformApi,
     social: socialApi,
-    classification: {
-      create: classificationApi.createClassification,
-      update: classificationApi.updateClassification,
-      delete: classificationApi.deleteClassification,
-      get: classificationApi.getClassification,
-      find: classificationApi.getClassifications,
-      getChildren: classificationApi.getClassificationChildren,
+    category: {
+      create: categoryApi.createCategory,
+      update: categoryApi.updateCategory,
+      delete: categoryApi.deleteCategory,
+      get: categoryApi.getCategory,
+      find: categoryApi.getCategories,
+      getChildren: categoryApi.getCategoryChildren,
     },
     content: {
       collection: {
@@ -1561,6 +1507,7 @@ export function createAdmin(config: CreateAdminConfig) {
       fulfillmentRoutingPolicy: createFulfillmentRoutingPolicyApi(apiConfig),
       order: {
         update: eshopApi.updateOrder,
+        revokeAccess: eshopApi.revokeOrderAccess,
         getFinancialSummary: eshopApi.getOrderFinancialSummary,
         cancelProductItem: eshopApi.cancelOrderProductItem,
         cancelPending: eshopApi.cancelPendingOrder,
@@ -1586,9 +1533,11 @@ export function createAdmin(config: CreateAdminConfig) {
         removeItem: eshopApi.removeCartItem,
         clear: eshopApi.clearCart,
         quote: eshopApi.quoteCart,
+        previewAccessProduct: eshopApi.previewCartAccessProduct,
         quoteFutureDeliveries: eshopApi.quoteCartFutureDeliveries,
         acceptFutureDeliveries: eshopApi.acceptCartFutureDeliveries,
         checkout: eshopApi.checkoutCart,
+        retainCheckout: eshopApi.retainCartCheckout,
         pendingCheckout: eshopApi.pendingCartCheckout,
         recoverCheckout: eshopApi.recoverCartCheckout,
       },
@@ -1665,12 +1614,6 @@ export function createAdmin(config: CreateAdminConfig) {
     analytics: analyticsApi,
     experiments: experimentsApi,
 
-    setStoreId: (storeId: string) => {
-      apiConfig.storeId = storeId;
-    },
-
-    getStoreId: () => apiConfig.storeId,
-
     setMarket: (market: string) => {
       apiConfig.market = market;
     },
@@ -1695,6 +1638,7 @@ export function createAdmin(config: CreateAdminConfig) {
 
     onAuthStateChanged(listener: AuthStateListener<AdminSession>): () => void {
       listeners.add(listener);
+      if (!unsubscribeStorage) unsubscribeStorage = sessionState.subscribe(emit);
       const current = toPublic(readAdminSession());
       if (current) {
         Promise.resolve()
@@ -1703,12 +1647,18 @@ export function createAdmin(config: CreateAdminConfig) {
       }
       return () => {
         listeners.delete(listener);
+        if (listeners.size === 0) {
+          unsubscribeStorage?.();
+          unsubscribeStorage = null;
+        }
       };
     },
 
-    async logout(): Promise<void> {
-      if (config.apiToken) return;
-      updateSession(() => null);
+    async logout(): Promise<import('./services/adminSession').AdminLogoutResult> {
+      if (config.apiToken) return { type: 'api_token' };
+      const result = await sessionState.logout();
+      emit();
+      return result;
     },
 
     utils: createUtilitySurface(apiConfig),
@@ -1875,7 +1825,8 @@ function createStorefrontClientCore(
   const publishableKey = validatePublishableKey(publishableKeyInput);
   const apiUrl = normalizeStorefrontApiUrl(options.apiUrl);
   let locale = options.locale?.trim() || "";
-  let market = options.market?.trim() || "";
+  let market = options.market ?? "";
+  if (market && !isValidKey(market)) throw new Error("Market must be a valid exact key");
   const listeners = new Set<AuthStateListener<StorefrontCustomerSession>>();
   let identifyPromise: Promise<StorefrontIdentifyResult> | null = null;
   let identityTail: Promise<void> = Promise.resolve();
@@ -2160,7 +2111,8 @@ function createStorefrontClientCore(
   }
 
   function setMarket(value: string): void {
-    market = value.trim();
+    if (value && !isValidKey(value)) throw new Error("Market must be a valid exact key");
+    market = value;
     apiConfig.market = market;
     identifyPromise = null;
   }
@@ -2245,7 +2197,7 @@ function createStorefrontClientCore(
     },
 
     store: storefrontApi.store,
-    classification: storefrontApi.classification,
+    category: storefrontApi.category,
     media: storefrontApi.media,
     content: storefrontApi.content,
     forms: storefrontApi.forms,
@@ -2350,3 +2302,5 @@ export type * from "./types/fulfillmentPartner";
 
 export type { FindCustomerSubscriptionsParams } from "./types/subscription";
 export type { CompanyCustomerAccess } from "./types/company";
+
+export type { AnalyticsStatus, AnalyticsStatusEntity, AnalyticsStatusCount, AnalyticsStatusBreakdownData, AnalyticsDimensionCount, AnalyticsDimensionBreakdownData, AnalyticsCustomValue, AnalyticsFeedFactData } from "./api/analytics";

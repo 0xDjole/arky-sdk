@@ -20,6 +20,7 @@ export interface FulfillmentLine {
 }
 
 export interface Fulfillment {
+  request_id: string;
   id: string;
   store_id: string;
   fulfillment_order_id: string;
@@ -32,7 +33,7 @@ export interface Fulfillment {
 }
 
 export type FindFulfillmentsParams = {
-  store_id?: string;
+  store_id: string;
   limit?: number;
   cursor?: string | null;
 } & (
@@ -42,11 +43,12 @@ export type FindFulfillmentsParams = {
 );
 
 export interface GetFulfillmentParams {
-  store_id?: string;
+  store_id: string;
   fulfillment_id: string;
 }
 
 export interface CreateFulfillmentParams extends GetFulfillmentParams {
+  request_id: string;
   fulfillment_order_id: string;
   lines: FulfillmentLine[];
 }
@@ -62,7 +64,7 @@ export interface FulfillmentLotReference {
 }
 
 export interface ControlFulfillmentParams extends GetFulfillmentParams {
-  command_id: string;
+  request_id: string;
   expected_updated_at: EpochMilliseconds;
   action: FulfillmentAction;
   tracking?: Tracking | null;

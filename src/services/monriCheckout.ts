@@ -11,10 +11,11 @@ const visible = (value: unknown, maximum: number): value is string =>
 export function isMonriComponentsAction(value: unknown): value is MonriComponentsAction {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const action = value as Record<string, unknown>;
-  return Object.keys(action).length === 5 && action.type === "monri_components" &&
+  return Object.keys(action).length === 6 && action.type === "monri_components" &&
     typeof action.payment_id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(action.payment_id) &&
     (action.environment === "test" || action.environment === "live") &&
-    visible(action.authenticity_token, 512) && visible(action.client_secret, 128);
+    visible(action.authenticity_token, 512) && visible(action.client_secret, 128) &&
+    typeof action.save_card === "boolean";
 }
 
 function loadMonri(environment: MonriEnvironment): Promise<MonriBrowserFactory> {
@@ -92,7 +93,8 @@ export async function mountMonriCheckoutAction(
   callbacks: EmbeddedCheckoutCallbacks,
 ): Promise<Extract<EmbeddedCheckoutMount, { type: "monri_components" }>> {
   if (!isMonriComponentsAction(action)) throw new MonriCheckoutError("invalid_action", "The Monri payment action is invalid.");
-  const factory = await loadMonri(action.environment);
+  const accepted = { ...action };
+  const factory = await loadMonri(accepted.environment);
   const target = typeof location === "string" ? document.querySelector<HTMLElement>(location) : location;
   if (!target || !target.isConnected) throw new MonriCheckoutError("unavailable", "The payment form container is unavailable.");
   const host = document.createElement("div");
@@ -102,9 +104,9 @@ export async function mountMonriCheckoutAction(
   let submitted = false;
   const destroy = () => { disposed = true; host.remove(); };
   try {
-    const monri = factory(action.authenticity_token);
-    const card = monri.components({ clientSecret: action.client_secret }).create("card", {
-      tokenizePan: false, tokenizePanOffered: false, showInstallmentsSelection: false,
+    const monri = factory(accepted.authenticity_token);
+    const card = monri.components({ clientSecret: accepted.client_secret }).create("card", {
+      tokenizePan: accepted.save_card, tokenizePanOffered: false, showInstallmentsSelection: false,
     });
     card.onChange((event) => {
       if (!disposed) callbacks.onValidationError?.(event.error ? "Check the card details before submitting payment." : null);
@@ -119,12 +121,12 @@ export async function mountMonriCheckoutAction(
         submitted = true;
         let observed: unknown;
         try {
-          observed = await monri.confirmPayment(card, { ...input, orderInfo: `ARKY payment ${action.payment_id}` });
+          observed = await monri.confirmPayment(card, { ...input, orderInfo: `ARKY payment ${accepted.payment_id}` });
         } catch {
           throw new MonriCheckoutError("unknown_result", "The payment result could not be confirmed. Check the same ARKY payment; do not start another checkout.");
         }
         if (!record(observed) || observed.error != null || !record(observed.result) ||
-          observed.result.order_number !== action.payment_id || !["approved", "declined"].includes(String(observed.result.status))) {
+          observed.result.order_number !== accepted.payment_id || !["approved", "declined"].includes(String(observed.result.status))) {
           throw new MonriCheckoutError("unknown_result", "The payment result needs checking on the same ARKY payment.");
         }
         if (!disposed) await callbacks.onComplete?.();

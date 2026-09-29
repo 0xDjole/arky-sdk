@@ -20,7 +20,7 @@ export interface CatalogEntitlement {
 }
 
 export interface CreateCatalogEntitlementParams {
-  store_id?: string;
+  store_id: string;
   catalog_id: string;
   conditions: CatalogCondition[];
   access: CatalogAccess;
@@ -30,7 +30,7 @@ export interface CreateCatalogEntitlementParams {
 }
 
 export interface GetCatalogEntitlementParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
@@ -51,7 +51,7 @@ export interface FindCatalogEntitlementsParams {
   status?: CatalogEntitlementStatus["type"];
   sort_field?: "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
-  store_id?: string;
+  store_id: string;
   catalog_id: string;
   limit?: number;
   cursor?: string;

@@ -4,14 +4,15 @@ import type { CommerceProviderObservation, Payment } from "./payment";
 import type { EpochMilliseconds } from "./time";
 
 export type MonriCaptureProof =
-  | { type: "notification"; receipt_id: string }
+  | { type: "notification"; notification_id: string }
+  | { type: "purchase_response"; receipt_id: string }
   | { type: "original_response"; claim: ProviderOperationClaim; response_code: string; transaction_created_at: EpochMilliseconds; currency: Currency | null };
 
 export type PaymentCaptureEvidence =
   | { type: "monri"; payment_option_id: string; environment: MonriEnvironment; transaction_id: string; proof: MonriCaptureProof }
   | { type: "cash_on_delivery"; marked_paid_by_account_id: string }
   | { type: "manual"; marked_paid_by_account_id: string; reference: string | null }
-  | { type: "stripe"; connected_account_id: string; livemode: boolean; charge_id: string; payment_intent_id: string | null; last_observation: CommerceProviderObservation };
+  | { type: "stripe"; account_id: string; livemode: boolean; charge_id: string; payment_intent_id: string | null; last_observation: CommerceProviderObservation };
 
 export interface CaptureFinancialEffect {
   effect_id: string;
@@ -48,7 +49,7 @@ export interface RecordedCollection {
 }
 
 export interface RecordCashOnDeliveryCollectionParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   payment_capture_id: string;
   money: Money;
@@ -59,7 +60,7 @@ export interface RecordManualCollectionParams extends RecordCashOnDeliveryCollec
 }
 
 export interface CreateManualPaymentParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   order_id: string;
   payment_option_id: string;

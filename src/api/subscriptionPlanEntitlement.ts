@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type {
@@ -9,8 +10,8 @@ import type {
 } from "../types/subscriptionPlanEntitlement";
 
 export const createSubscriptionPlanEntitlementApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId: string | undefined, planId: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/subscription-plans/${encodeURIComponent(planId)}/entitlements`;
+  const basePath = (storeId: string, planId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/subscription-plans/${encodeURIComponent(planId)}/entitlements`;
   return {
     find(
       params: FindSubscriptionPlanEntitlementsParams,

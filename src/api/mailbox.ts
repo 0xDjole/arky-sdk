@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type {
   RequestOptions,
@@ -36,9 +37,9 @@ export const createMailboxApi = (apiConfig: ApiConfig) => ({
         "Mailbox sync issue cursor must contain 1 to 2048 bytes",
       );
     }
-    const target_store_id = store_id || apiConfig.storeId;
+    const target_store_id = requireStoreId(store_id);
     return apiConfig.httpClient.get<PaginatedResponse<MailboxSyncIssue>>(
-      `/v1/stores/${target_store_id}/mailboxes/${id}/sync-issues`,
+      `/v1/stores/${requireStoreId(target_store_id)}/mailboxes/${id}/sync-issues`,
       { ...options, params: { limit, cursor } },
     );
   },
@@ -47,10 +48,10 @@ export const createMailboxApi = (apiConfig: ApiConfig) => ({
     params: DisconnectMailboxParams,
     options?: RequestOptions,
   ): Promise<Mailbox> {
-    const target_store_id = params.store_id || apiConfig.storeId;
+    const target_store_id = requireStoreId(params.store_id);
     return apiConfig.httpClient.post<Mailbox>(
-      `/v1/stores/${target_store_id}/mailboxes/${params.id}/disconnect`,
-      {},
+      `/v1/stores/${requireStoreId(target_store_id)}/mailboxes/${params.id}/disconnect`,
+      undefined,
       options,
     );
   },
@@ -60,9 +61,9 @@ export const createMailboxApi = (apiConfig: ApiConfig) => ({
     options?: RequestOptions,
   ): Promise<GoogleMailboxConnectUrl> {
     const { store_id, ...payload } = params;
-    const target_store_id = store_id || apiConfig.storeId;
+    const target_store_id = requireStoreId(store_id);
     return apiConfig.httpClient.post<GoogleMailboxConnectUrl>(
-      `/v1/stores/${target_store_id}/mailboxes/google/connect-url`,
+      `/v1/stores/${requireStoreId(target_store_id)}/mailboxes/google/connect-url`,
       payload,
       options,
     );
@@ -73,9 +74,9 @@ export const createMailboxApi = (apiConfig: ApiConfig) => ({
     options?: RequestOptions,
   ): Promise<Mailbox> {
     const { store_id, ...payload } = params;
-    const target_store_id = store_id || apiConfig.storeId;
+    const target_store_id = requireStoreId(store_id);
     return apiConfig.httpClient.post<Mailbox>(
-      `/v1/stores/${target_store_id}/mailboxes`,
+      `/v1/stores/${requireStoreId(target_store_id)}/mailboxes`,
       payload,
       options,
     );
@@ -86,9 +87,9 @@ export const createMailboxApi = (apiConfig: ApiConfig) => ({
     options?: RequestOptions,
   ): Promise<Mailbox> {
     const { id, store_id, ...payload } = params;
-    const target_store_id = store_id || apiConfig.storeId;
+    const target_store_id = requireStoreId(store_id);
     return apiConfig.httpClient.put<Mailbox>(
-      `/v1/stores/${target_store_id}/mailboxes/${id}`,
+      `/v1/stores/${requireStoreId(target_store_id)}/mailboxes/${id}`,
       payload,
       options,
     );
@@ -98,9 +99,9 @@ export const createMailboxApi = (apiConfig: ApiConfig) => ({
     params: GetMailboxParams,
     options?: RequestOptions,
   ): Promise<Mailbox> {
-    const target_store_id = params.store_id || apiConfig.storeId;
+    const target_store_id = requireStoreId(params.store_id);
     return apiConfig.httpClient.get<Mailbox>(
-      `/v1/stores/${target_store_id}/mailboxes/${params.id}`,
+      `/v1/stores/${requireStoreId(target_store_id)}/mailboxes/${params.id}`,
       options,
     );
   },
@@ -109,10 +110,10 @@ export const createMailboxApi = (apiConfig: ApiConfig) => ({
     params: TestMailboxParams,
     options?: RequestOptions,
   ): Promise<TestMailboxResult> {
-    const target_store_id = params.store_id || apiConfig.storeId;
+    const target_store_id = requireStoreId(params.store_id);
     return apiConfig.httpClient.post<TestMailboxResult>(
-      `/v1/stores/${target_store_id}/mailboxes/${params.id}/test`,
-      {},
+      `/v1/stores/${requireStoreId(target_store_id)}/mailboxes/${params.id}/test`,
+      undefined,
       options,
     );
   },
@@ -121,22 +122,22 @@ export const createMailboxApi = (apiConfig: ApiConfig) => ({
     params: PrepareMailboxParams,
     options?: RequestOptions,
   ): Promise<Mailbox> {
-    const target_store_id = params.store_id || apiConfig.storeId;
+    const target_store_id = requireStoreId(params.store_id);
     return apiConfig.httpClient.post<Mailbox>(
-      `/v1/stores/${target_store_id}/mailboxes/${params.id}/prepare`,
-      {},
+      `/v1/stores/${requireStoreId(target_store_id)}/mailboxes/${params.id}/prepare`,
+      undefined,
       options,
     );
   },
 
   async find(
-    params?: FindMailboxesParams,
+    params: FindMailboxesParams,
     options?: RequestOptions,
   ): Promise<{ items: Mailbox[]; cursor: string | null }> {
     const { store_id, ...queryParams } = params || {};
-    const target_store_id = store_id || apiConfig.storeId;
+    const target_store_id = requireStoreId(store_id);
     return apiConfig.httpClient.get<{ items: Mailbox[]; cursor: string | null }>(
-      `/v1/stores/${target_store_id}/mailboxes`,
+      `/v1/stores/${requireStoreId(target_store_id)}/mailboxes`,
       { ...options, params: queryParams },
     );
   },

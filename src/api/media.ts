@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type {
   CreateMediaParams,
@@ -21,7 +22,7 @@ import {
 const mediaCreateLabel = "Media create";
 
 function storeId(apiConfig: ApiConfig, explicit?: string): string | undefined {
-  return explicit || apiConfig.storeId;
+  return requireStoreId(explicit);
 }
 
 function mediaPath(
@@ -29,7 +30,7 @@ function mediaPath(
   explicitStoreId?: string,
   mediaId?: string,
 ): string {
-  const base = `/v1/stores/${storeId(apiConfig, explicitStoreId)}/media`;
+  const base = `/v1/stores/${requireStoreId(storeId(apiConfig, explicitStoreId))}/media`;
   return mediaId ? `${base}/${mediaId}` : base;
 }
 
@@ -149,7 +150,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => ({
   },
 
   async find(
-    params: FindMediaParams = {},
+    params: FindMediaParams,
     options?: RequestOptions,
   ): Promise<{ items: Media[]; cursor: string | null }> {
     const { store_id, ...query } = params;

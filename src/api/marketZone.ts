@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -12,8 +13,8 @@ import type {
 } from "../types/zone";
 
 export const createMarketZoneApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/market-zones`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/market-zones`;
 
   return {
     create(params: CreateMarketZoneParams, options?: RequestOptions): Promise<MarketZone> {
@@ -40,7 +41,7 @@ export const createMarketZoneApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<MarketZone>(`${basePath(store_id)}/lookup`,{...options,params:query});
     },
     find(
-      params: FindMarketZonesParams = {},
+      params: FindMarketZonesParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<MarketZone>> {
       const { store_id, ...query } = params;

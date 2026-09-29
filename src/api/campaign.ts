@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type {
   RequestOptions,
@@ -22,8 +23,6 @@ import type {
   PaginatedResponse,
 } from "../types";
 
-const storeId = (configured: string | undefined, explicit?: string) =>
-  explicit || configured;
 
 export const createCampaignApi = (apiConfig: ApiConfig) => ({
   campaign: {
@@ -33,19 +32,19 @@ export const createCampaignApi = (apiConfig: ApiConfig) => ({
     ): Promise<Campaign> {
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<Campaign>(
-        `/v1/stores/${storeId(apiConfig.storeId, store_id)}/campaigns`,
+        `/v1/stores/${requireStoreId(store_id)}/campaigns`,
         payload,
         options,
       );
     },
 
     async find(
-      params?: FindCampaignsParams,
+      params: FindCampaignsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<Campaign>> {
       const { store_id, ...query } = params || {};
       return apiConfig.httpClient.get<PaginatedResponse<Campaign>>(
-        `/v1/stores/${storeId(apiConfig.storeId, store_id)}/campaigns`,
+        `/v1/stores/${requireStoreId(store_id)}/campaigns`,
         { ...options, params: query },
       );
     },
@@ -55,7 +54,7 @@ export const createCampaignApi = (apiConfig: ApiConfig) => ({
       options?: RequestOptions,
     ): Promise<Campaign> {
       return apiConfig.httpClient.get<Campaign>(
-        `/v1/stores/${storeId(apiConfig.storeId, params.store_id)}/campaigns/${params.id}`,
+        `/v1/stores/${requireStoreId(params.store_id)}/campaigns/${params.id}`,
         options,
       );
     },
@@ -66,7 +65,7 @@ export const createCampaignApi = (apiConfig: ApiConfig) => ({
     ): Promise<Campaign> {
       const { id, store_id, ...payload } = params;
       return apiConfig.httpClient.put<Campaign>(
-        `/v1/stores/${storeId(apiConfig.storeId, store_id)}/campaigns/${id}`,
+        `/v1/stores/${requireStoreId(store_id)}/campaigns/${id}`,
         payload,
         options,
       );
@@ -77,7 +76,7 @@ export const createCampaignApi = (apiConfig: ApiConfig) => ({
       options?: RequestOptions,
     ): Promise<boolean> {
       return apiConfig.httpClient.delete<boolean>(
-        `/v1/stores/${storeId(apiConfig.storeId, params.store_id)}/campaigns/${params.id}`,
+        `/v1/stores/${requireStoreId(params.store_id)}/campaigns/${params.id}`,
         options,
       );
     },
@@ -87,8 +86,8 @@ export const createCampaignApi = (apiConfig: ApiConfig) => ({
       options?: RequestOptions,
     ): Promise<Campaign> {
       return apiConfig.httpClient.post<Campaign>(
-        `/v1/stores/${storeId(apiConfig.storeId, params.store_id)}/campaigns/${params.id}/launch`,
-        {},
+        `/v1/stores/${requireStoreId(params.store_id)}/campaigns/${params.id}/launch`,
+        undefined,
         options,
       );
     },
@@ -98,8 +97,8 @@ export const createCampaignApi = (apiConfig: ApiConfig) => ({
       options?: RequestOptions,
     ): Promise<Campaign> {
       return apiConfig.httpClient.post<Campaign>(
-        `/v1/stores/${storeId(apiConfig.storeId, params.store_id)}/campaigns/${params.id}/pause`,
-        {},
+        `/v1/stores/${requireStoreId(params.store_id)}/campaigns/${params.id}/pause`,
+        undefined,
         options,
       );
     },
@@ -109,8 +108,8 @@ export const createCampaignApi = (apiConfig: ApiConfig) => ({
       options?: RequestOptions,
     ): Promise<Campaign> {
       return apiConfig.httpClient.post<Campaign>(
-        `/v1/stores/${storeId(apiConfig.storeId, params.store_id)}/campaigns/${params.id}/resume`,
-        {},
+        `/v1/stores/${requireStoreId(params.store_id)}/campaigns/${params.id}/resume`,
+        undefined,
         options,
       );
     },
@@ -121,7 +120,7 @@ export const createCampaignApi = (apiConfig: ApiConfig) => ({
     ): Promise<EnrollCampaignResult> {
       const { store_id, campaign_id, ...payload } = params;
       return apiConfig.httpClient.post<EnrollCampaignResult>(
-        `/v1/stores/${storeId(apiConfig.storeId, store_id)}/campaigns/${campaign_id}/enrollments`,
+        `/v1/stores/${requireStoreId(store_id)}/campaigns/${campaign_id}/enrollments`,
         payload,
         options,
       );
@@ -132,7 +131,7 @@ export const createCampaignApi = (apiConfig: ApiConfig) => ({
       options?: RequestOptions,
     ): Promise<PaginatedResponse<CampaignEnrollment>> {
       const { store_id, campaign_id, ...query } = params;
-      const scope = `/v1/stores/${storeId(apiConfig.storeId, store_id)}`;
+      const scope = `/v1/stores/${requireStoreId(store_id)}`;
       const path = campaign_id === undefined
         ? `${scope}/campaign-enrollments`
         : `${scope}/campaigns/${encodeURIComponent(campaign_id)}/enrollments`;
@@ -150,7 +149,7 @@ export const createCampaignApi = (apiConfig: ApiConfig) => ({
     ): Promise<boolean> {
       const { store_id, campaign_id, id } = params;
       return apiConfig.httpClient.delete<boolean>(
-        `/v1/stores/${storeId(apiConfig.storeId, store_id)}/campaigns/${campaign_id}/enrollments/${id}`,
+        `/v1/stores/${requireStoreId(store_id)}/campaigns/${campaign_id}/enrollments/${id}`,
         options,
       );
     },
@@ -161,8 +160,8 @@ export const createCampaignApi = (apiConfig: ApiConfig) => ({
     ): Promise<CampaignEnrollment> {
       const { store_id, campaign_id, id } = params;
       return apiConfig.httpClient.post<CampaignEnrollment>(
-        `/v1/stores/${storeId(apiConfig.storeId, store_id)}/campaigns/${campaign_id}/enrollments/${id}/stop`,
-        {},
+        `/v1/stores/${requireStoreId(store_id)}/campaigns/${campaign_id}/enrollments/${id}/stop`,
+        undefined,
         options,
       );
     },
@@ -173,7 +172,7 @@ export const createCampaignApi = (apiConfig: ApiConfig) => ({
     ): Promise<CampaignEnrollmentConversationResponse> {
       const { store_id, campaign_id, id, ...query } = params;
       return apiConfig.httpClient.get<CampaignEnrollmentConversationResponse>(
-        `/v1/stores/${storeId(apiConfig.storeId, store_id)}/campaigns/${campaign_id}/enrollments/${id}/conversation`,
+        `/v1/stores/${requireStoreId(store_id)}/campaigns/${campaign_id}/enrollments/${id}/conversation`,
         { ...options, params: query },
       );
     },
@@ -184,7 +183,7 @@ export const createCampaignApi = (apiConfig: ApiConfig) => ({
     ): Promise<CampaignConversationMessage> {
       const { store_id, campaign_id, id, ...payload } = params;
       return apiConfig.httpClient.post<CampaignConversationMessage>(
-        `/v1/stores/${storeId(apiConfig.storeId, store_id)}/campaigns/${campaign_id}/enrollments/${id}/replies`,
+        `/v1/stores/${requireStoreId(store_id)}/campaigns/${campaign_id}/enrollments/${id}/replies`,
         payload,
         options,
       );
@@ -198,7 +197,7 @@ export const createCampaignApi = (apiConfig: ApiConfig) => ({
     ): Promise<CampaignConversationMessage> {
       const { store_id, campaign_id, campaign_enrollment_id, id, ...payload } = params;
       return apiConfig.httpClient.put<CampaignConversationMessage>(
-        `/v1/stores/${storeId(apiConfig.storeId, store_id)}/campaigns/${campaign_id}/enrollments/${campaign_enrollment_id}/messages/${id}`,
+        `/v1/stores/${requireStoreId(store_id)}/campaigns/${campaign_id}/enrollments/${campaign_enrollment_id}/messages/${id}`,
         payload,
         options,
       );

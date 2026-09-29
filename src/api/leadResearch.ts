@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type {
   CancelLeadResearchMessageParams,
@@ -19,7 +20,7 @@ import type {
 } from "../types";
 
 export const createLeadResearchApi = (apiConfig: ApiConfig) => {
-  const storeId = (store_id?: string) => store_id || apiConfig.storeId;
+  const storeId = (store_id: string) => requireStoreId(store_id);
 
   return {
     async create(
@@ -28,19 +29,19 @@ export const createLeadResearchApi = (apiConfig: ApiConfig) => {
     ): Promise<LeadResearchCreated> {
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<LeadResearchCreated>(
-        `/v1/stores/${storeId(store_id)}/lead-research`,
+        `/v1/stores/${requireStoreId(storeId(store_id))}/lead-research`,
         payload,
         options,
       );
     },
 
     async find(
-      params?: FindLeadResearchesParams,
+      params: FindLeadResearchesParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<LeadResearch>> {
       const { store_id, ...queryParams } = params || {};
       return apiConfig.httpClient.get<PaginatedResponse<LeadResearch>>(
-        `/v1/stores/${storeId(store_id)}/lead-research`,
+        `/v1/stores/${requireStoreId(storeId(store_id))}/lead-research`,
         { ...options, params: queryParams },
       );
     },
@@ -50,7 +51,7 @@ export const createLeadResearchApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<LeadResearch> {
       return apiConfig.httpClient.get<LeadResearch>(
-        `/v1/stores/${storeId(params.store_id)}/lead-research/${params.lead_research_id}`,
+        `/v1/stores/${requireStoreId(storeId(params.store_id))}/lead-research/${params.lead_research_id}`,
         options,
       );
     },
@@ -61,7 +62,7 @@ export const createLeadResearchApi = (apiConfig: ApiConfig) => {
     ): Promise<LeadResearchMessagePair> {
       const { store_id, lead_research_id, ...payload } = params;
       return apiConfig.httpClient.post<LeadResearchMessagePair>(
-        `/v1/stores/${storeId(store_id)}/lead-research/${lead_research_id}/messages`,
+        `/v1/stores/${requireStoreId(storeId(store_id))}/lead-research/${lead_research_id}/messages`,
         payload,
         options,
       );
@@ -73,7 +74,7 @@ export const createLeadResearchApi = (apiConfig: ApiConfig) => {
     ): Promise<PaginatedResponse<LeadResearchMessage>> {
       const { store_id, lead_research_id, ...queryParams } = params;
       return apiConfig.httpClient.get<PaginatedResponse<LeadResearchMessage>>(
-        `/v1/stores/${storeId(store_id)}/lead-research/${lead_research_id}/messages`,
+        `/v1/stores/${requireStoreId(storeId(store_id))}/lead-research/${lead_research_id}/messages`,
         { ...options, params: queryParams },
       );
     },
@@ -83,7 +84,7 @@ export const createLeadResearchApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<LeadResearchMessage> {
       return apiConfig.httpClient.get<LeadResearchMessage>(
-        `/v1/stores/${storeId(params.store_id)}/lead-research/${params.lead_research_id}/messages/${params.message_id}`,
+        `/v1/stores/${requireStoreId(storeId(params.store_id))}/lead-research/${params.lead_research_id}/messages/${params.message_id}`,
         options,
       );
     },
@@ -94,7 +95,7 @@ export const createLeadResearchApi = (apiConfig: ApiConfig) => {
     ): Promise<LeadResearchMessage> {
       const { store_id, lead_research_id, account_message_id, ...payload } = params;
       return apiConfig.httpClient.post<LeadResearchMessage>(
-        `/v1/stores/${storeId(store_id)}/lead-research/${lead_research_id}/messages/${account_message_id}/retry`,
+        `/v1/stores/${requireStoreId(storeId(store_id))}/lead-research/${lead_research_id}/messages/${account_message_id}/retry`,
         payload,
         options,
       );
@@ -106,8 +107,8 @@ export const createLeadResearchApi = (apiConfig: ApiConfig) => {
     ): Promise<LeadResearchMessage> {
       const { store_id, lead_research_id, assistant_message_id } = params;
       return apiConfig.httpClient.post<LeadResearchMessage>(
-        `/v1/stores/${storeId(store_id)}/lead-research/${lead_research_id}/messages/${assistant_message_id}/cancel`,
-        {},
+        `/v1/stores/${requireStoreId(storeId(store_id))}/lead-research/${lead_research_id}/messages/${assistant_message_id}/cancel`,
+        undefined,
         options,
       );
     },

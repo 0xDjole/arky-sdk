@@ -6,6 +6,20 @@ import type {
   RequestOptions,
 } from "../types/api";
 import type { CartPublicLineItemInput, StorefrontUpdateCartParams } from "../types/storefront";
+import type { CartProductPurchase } from "../types/purchaseAccess";
+
+export function copyCartProductPurchase(purchase: CartProductPurchase): CartProductPurchase {
+  switch (purchase.type) {
+    case "catalog": return { type: "catalog" };
+    case "existing_purchase_access": return { type: "existing_purchase_access", grant: {
+      order_id: purchase.grant.order_id,
+      order_purchase_access_line_item_id: purchase.grant.order_purchase_access_line_item_id,
+    } };
+    case "same_cart_purchase_access": return { type: "same_cart_purchase_access",
+      cart_subscription_line_item_id: purchase.cart_subscription_line_item_id, entitlement_id: purchase.entitlement_id };
+    default: throw new Error("Cart product requires an explicit supported purchase route");
+  }
+}
 
 export function publicCartReadOptions(options?: RequestOptions, token?: string): RequestOptions {
   const params = Object.fromEntries(Object.entries(options?.params ?? {})
@@ -76,6 +90,7 @@ export function sanitizePublicCartProducts(
     product_id: item.product_id,
     variant_id: item.variant_id,
     quantity: item.quantity,
+    purchase: copyCartProductPurchase(item.purchase),
     ...(item.form_submission_id !== undefined
       ? { form_submission_id: item.form_submission_id }
       : {}),

@@ -17,7 +17,7 @@ function storedVisitorSession(token, customerId = "customer-client-contract") {
       id: customerId,
       status: { type: "active" },
       identities: [],
-      classifications: [],
+      categories: [],
       created_at: 1,
       updated_at: 1,
     },
@@ -947,7 +947,7 @@ test("admin market deletion preserves the version, replacement and accepted Dele
   });
 });
 
-test("Classification is top-level and uses the renamed Admin and storefront routes", async () => {
+test("Category is top-level and uses the renamed Admin and storefront routes", async () => {
   const admin = createAdmin({ baseUrl, storeId, market: "us" });
   const storefront = createStorefront(publishableKey, { apiUrl: baseUrl });
   const calls = [];
@@ -965,7 +965,7 @@ test("Classification is top-level and uses the renamed Admin and storefront rout
       return jsonResponse({ items: [], cursor: null });
     }
     return jsonResponse({
-      id: "classification-contract",
+      id: "category-contract",
       store_id: storeId,
       key: "topics",
       parent_id: null,
@@ -977,21 +977,21 @@ test("Classification is top-level and uses the renamed Admin and storefront rout
   };
 
   try {
-    assert.equal("classification" in admin.content, false);
-    assert.equal("classification" in storefront.content, false);
-    await admin.classification.create({ key: "topics", schema: [] });
-    await admin.classification.update({
-      id: "classification-contract",
+    assert.equal("category" in admin.content, false);
+    assert.equal("category" in storefront.content, false);
+    await admin.category.create({ key: "topics", schema: [] });
+    await admin.category.update({
+      id: "category-contract",
       key: "subjects",
     });
-    await admin.classification.get({ id: "classification-contract" });
-    await admin.classification.find({ status: "active" });
-    await storefront.classification.get({ key: "topics" });
-    await storefront.classification.getChildren({
-      id: "classification-contract",
+    await admin.category.get({ id: "category-contract" });
+    await admin.category.find({ status: "active" });
+    await storefront.category.get({ key: "topics" });
+    await storefront.category.getChildren({
+      id: "category-contract",
     });
     assert.equal(
-      await admin.classification.delete({ id: "classification-contract" }),
+      await admin.category.delete({ id: "category-contract" }),
       true,
     );
   } finally {
@@ -1005,37 +1005,37 @@ test("Classification is top-level and uses the renamed Admin and storefront rout
     })),
     [
       {
-        url: `/v1/stores/${storeId}/classifications`,
+        url: `/v1/stores/${storeId}/categories`,
         method: "POST",
         body: { key: "topics", schema: [] },
       },
       {
-        url: `/v1/stores/${storeId}/classifications/classification-contract`,
+        url: `/v1/stores/${storeId}/categories/category-contract`,
         method: "PUT",
         body: { key: "subjects" },
       },
       {
-        url: `/v1/stores/${storeId}/classifications/classification-contract`,
+        url: `/v1/stores/${storeId}/categories/category-contract`,
         method: "GET",
         body: null,
       },
       {
-        url: `/v1/stores/${storeId}/classifications?status=active`,
+        url: `/v1/stores/${storeId}/categories?status=active`,
         method: "GET",
         body: null,
       },
       {
-        url: "/v1/storefront/classifications/topics",
+        url: "/v1/storefront/categories/topics",
         method: "GET",
         body: null,
       },
       {
-        url: "/v1/storefront/classifications/classification-contract/children",
+        url: "/v1/storefront/categories/category-contract/children",
         method: "GET",
         body: null,
       },
       {
-        url: `/v1/stores/${storeId}/classifications/classification-contract`,
+        url: `/v1/stores/${storeId}/categories/category-contract`,
         method: "DELETE",
         body: null,
       },
@@ -1073,7 +1073,7 @@ test("admin Product writes and InventoryLevel reads preserve backorders and set-
     key: "canonical-product",
     slugs: { en: "canonical-product" },
     blocks: [{ id: "name-contract", key: "name", type: "text", value: "Product" }],
-    classifications: [],
+    categories: [],
   };
   const product = {
     id: "product-contract",
@@ -1081,7 +1081,7 @@ test("admin Product writes and InventoryLevel reads preserve backorders and set-
     key: create.key,
     slugs: create.slugs,
     blocks: create.blocks,
-    classifications: [],
+    categories: [],
     status: { type: "active" },
     created_at: 1,
     updated_at: 1,

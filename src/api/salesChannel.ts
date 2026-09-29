@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -13,8 +14,8 @@ import type {
 } from "../types/salesChannel";
 
 export const createSalesChannelApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/sales-channels`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/sales-channels`;
   return {
     create(
       params: CreateSalesChannelParams,
@@ -42,7 +43,7 @@ export const createSalesChannelApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<SalesChannel>(`${basePath(store_id)}/by-key/${encodeURIComponent(key)}`, options);
     },
     find(
-      params: FindSalesChannelsParams = {},
+      params: FindSalesChannelsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<SalesChannel>> {
       const { store_id, ...query } = params;

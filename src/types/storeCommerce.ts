@@ -38,13 +38,13 @@ export interface StoreCommerceInitialization {
 }
 
 export interface InitializeStoreCommerceParams {
-  store_id?: string;
+  store_id: string;
   operation_id: string;
   request: CommerceInitializationRequest;
 }
 
 export interface GetStoreCommerceInitializationParams {
-  store_id?: string;
+  store_id: string;
   operation_id: string;
 }
 

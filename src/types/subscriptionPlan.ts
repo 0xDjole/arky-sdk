@@ -1,3 +1,4 @@
+import type { SubscriptionPlanTaxPolicy } from "./subscriptionTax";
 import type { Block } from "./index";
 import type { StorefrontPrice } from "./commerce";
 import type { EpochMilliseconds } from "./time";
@@ -76,6 +77,7 @@ export interface SubscriptionPlan {
   key: string;
   blocks: Block[];
   term: SubscriptionPlanTerm;
+  tax_policies: SubscriptionPlanTaxPolicy[];
   status: SubscriptionPlanStatus;
   starts_at: EpochMilliseconds | null;
   ends_at: EpochMilliseconds | null;
@@ -84,11 +86,12 @@ export interface SubscriptionPlan {
 }
 
 export interface CreateSubscriptionPlanParams {
-  store_id?: string;
+  store_id: string;
   subscription_offering_id: string;
   key: string;
   blocks: Block[];
   term: SubscriptionPlanTerm;
+  tax_policies: SubscriptionPlanTaxPolicy[];
   status: SubscriptionPlanStatus;
   starts_at: EpochMilliseconds | null;
   ends_at: EpochMilliseconds | null;
@@ -101,12 +104,12 @@ export interface UpdateSubscriptionPlanParams
 }
 
 export interface GetSubscriptionPlanParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface FindSubscriptionPlansParams {
-  store_id?: string;
+  store_id: string;
   subscription_offering_id?: string;
   limit?: number;
   cursor?: string;

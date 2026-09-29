@@ -12,7 +12,7 @@ test('Customer discovery retains combined predicates, native ordering and empty-
   const api = createAdmin({ baseUrl: 'https://customers.test', storeId: 'store' }).customers;
   const filters = { query: 'buyer', status: 'active', has_cart: false, has_customer_action: true,
     has_verified_email: true, limit: 1, sort_field: 'email', sort_direction: 'asc',
-    classification_query: [{ classification_id: 'classification', query: [] }] };
+    category_query: [{ category_id: 'category', query: [] }] };
   const first = await api.find(filters);
   assert.deepEqual(first, { items: [], cursor: 'customer:+/=' });
   assert.deepEqual(await api.find({ ...filters, cursor: first.cursor }), { items: [], cursor: null });

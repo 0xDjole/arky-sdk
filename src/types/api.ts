@@ -1,3 +1,4 @@
+import type { CartProductPurchase } from "./purchaseAccess";
 import type { EpochMilliseconds } from "./time";
 import type { ManualPriceInput } from "./price";
 import type { CatalogReadOptions } from "./catalog";
@@ -16,8 +17,8 @@ import type {
   WebhookStatus,
   ShippingRateLine,
   Tracking,
-  ClassificationEntry,
-  ClassificationQuery,
+  CategoryEntry,
+  CategoryQuery,
   BookingServiceStatus,
   BookingResourceStatus,
   BookingOfferingStatus,
@@ -32,10 +33,10 @@ import type {
   EmailTemplateType,
   EmailTemplateVariable,
   FormStatus,
-  ClassificationStatus,
+  CategoryStatus,
   FormSchema,
   FormField,
-  ClassificationSchema,
+  CategorySchema,
   ServiceDuration,
   WeeklyAvailability,
   DateOverride,
@@ -72,25 +73,21 @@ export interface ConfigurationPageParams {
   cursor?: string;
 }
 export interface FindMarketsParams extends ConfigurationPageParams {
-  store_id?: string;
+  store_id: string;
   currency?: Currency;
   status?: "active" | "deleting";
 }
 export interface FindStoreLocationsParams extends ConfigurationPageParams {
-  store_id?: string;
+  store_id: string;
   is_pickup_location?: boolean;
   status?: "active" | "archived" | "deleting";
 }
 export type FindStorefrontMarketsParams = Omit<FindMarketsParams, "status" | "store_id">;
 export type FindStorefrontLocationsParams = Omit<FindStoreLocationsParams, "status" | "store_id">;
 
-export interface GetStoreConfigurationByKeyParams { store_id?: string; key: string }
-export interface GetStoreConfigurationParams { store_id?: string; id: string }
-export interface GetPaymentOptionParams { store_id?: string; id: string }
-export interface GetPaymentOptionByTypeParams {
-  store_id?: string;
-  type_name: PaymentOptionTypeName;
-}
+export interface GetStoreConfigurationByKeyParams { store_id: string; key: string }
+export interface GetStoreConfigurationParams { store_id: string; id: string }
+export interface GetPaymentOptionParams { store_id: string; id: string }
 export interface CreateStoreLocationParams {
   key: string;
   address: PostalAddress;
@@ -99,7 +96,7 @@ export interface CreateStoreLocationParams {
   operator?: import("./index").LocationOperator;
   blocks?: Block[];
   status?: StoreLocationStatus;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface UpdateStoreLocationParams {
@@ -111,33 +108,32 @@ export interface UpdateStoreLocationParams {
   operator?: import("./index").LocationOperator;
   blocks?: Block[];
   status?: StoreLocationStatus;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface DeleteStoreLocationParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface CreateMarketParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   currency: Currency;
   tax_mode: "inclusive" | "exclusive";
 }
 
 export interface UpdateMarketParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   tax_mode?: "inclusive" | "exclusive";
 }
 
 export interface DeleteMarketParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  replacement_default_market_id?: string;
 }
 
 export interface CartProductInput {
@@ -146,6 +142,7 @@ export interface CartProductInput {
   variant_id: string;
   quantity: number;
   form_submission_id?: string | null;
+  purchase: CartProductPurchase;
 }
 
 export interface ProductQuoteInput {
@@ -154,6 +151,7 @@ export interface ProductQuoteInput {
   quantity: number;
   form_submission_id?: string | null;
   price_override?: ManualPriceInput | null;
+  purchase: CartProductPurchase;
 }
 
 export interface BookingQuoteInput {
@@ -278,9 +276,9 @@ export type CartLineItemInput =
   | ({ type: "subscription_plan" } & CartSubscriptionPlanInput);
 
 export interface GetQuoteParams {
-  store_id?: string;
+  store_id: string;
   locale?: string;
-  market?: string;
+  market: string;
   currency?: Currency;
   sales_channel_id?: string;
   company_id?: string | null;
@@ -294,20 +292,18 @@ export interface GetQuoteParams {
 }
 
 export interface GetCurrentCartParams {
-  store_id?: string;
+  store_id: string;
   company?: import("./cart").CartCompanyContext | null;
-  market_id?: string;
-  sales_channel_id?: string;
 }
 
 export interface GetCartParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   token?: string;
 }
 
 export interface FindCartsParams {
-  store_id?: string;
+  store_id: string;
   customer_id?: string;
   statuses?: import("./cart").CartStatus["type"][];
   origins?: import("./commerce").PurchaseOrigin["type"][];
@@ -319,10 +315,10 @@ export interface FindCartsParams {
 }
 
 export interface CreateCartParams {
-  store_id?: string;
+  store_id: string;
   customer_id: string;
   company?: import("./cart").CartCompanyContext | null;
-  market_id?: string;
+  market_id: string;
   sales_channel_id?: string;
   line_items?: CartLineItemInput[];
   delivery_groups?: CartDeliveryGroup[];
@@ -333,7 +329,7 @@ export interface CreateCartParams {
 
 export interface UpdateCartParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   company?: import("./cart").CartCompanyContext | null;
   market_id?: string;
   sales_channel_id?: string;
@@ -346,49 +342,49 @@ export interface UpdateCartParams {
 
 export interface AddCartProductParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   product: TrustedCartProductInput;
 }
 
 export interface AddCartBookingParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   booking: TrustedCartBookingInput;
 }
 
 export interface AddCartDigitalProductParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   digital: TrustedCartDigitalItemInput;
 }
 
 export interface AddCartSubscriptionPlanParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   subscription_plan: CartSubscriptionPlanInput;
 }
 
 export interface RemoveCartItemParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   line_item: CartLineItemRef;
 }
 
 export interface ClearCartParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface QuoteCartParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   locale?: string;
 }
 
 export interface CheckoutCartParams {
   id: string;
-  store_id?: string;
-  request_id?: string;
+  store_id: string;
+  request_id: string;
   locale: string;
   presentation_digest: string;
   sources: CheckoutQuoteSources;
@@ -405,9 +401,9 @@ export interface CatalogPriceFilter {
 }
 
 export interface GetProductsParams {
-  store_id?: string;
+  store_id: string;
   ids?: string[];
-  classification_query?: ClassificationQuery[];
+  category_query?: CategoryQuery[];
   filters?: EntryBlockQuery[];
   variant_filters?: EntryBlockQuery[];
   status?: ProductStatus["type"];
@@ -423,7 +419,7 @@ export interface GetProductsParams {
 }
 
 export interface GetCollectionsParams {
-  store_id?: string;
+  store_id: string;
   ids?: string[];
   key?: string;
   limit?: number;
@@ -437,7 +433,7 @@ export interface GetCollectionsParams {
 }
 
 export interface CreateCollectionParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   schema: BlockSchema[];
   blocks: Block[];
@@ -445,7 +441,7 @@ export interface CreateCollectionParams {
 
 export interface UpdateCollectionParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   key?: string;
   schema?: BlockSchema[];
   blocks?: Block[];
@@ -453,16 +449,16 @@ export interface UpdateCollectionParams {
 }
 
 export type GetCollectionParams = {
-  store_id?: string;
+  store_id: string;
 } & ({ id: string; key?: never } | { id?: never; key: string });
 
 export interface DeleteCollectionParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface GetEntriesParams {
-  store_id?: string;
+  store_id: string;
   collection_id: string;
   key?: string;
   status?: EntryStatus["type"];
@@ -477,17 +473,17 @@ export interface GetEntriesParams {
 }
 
 export interface GetEntriesByIdsParams {
-  store_id?: string;
+  store_id: string;
   ids: string[];
 }
 
 export interface GetMediaByIdsParams {
-  store_id?: string;
+  store_id: string;
   ids: string[];
 }
 
 export interface CreateEntryParams {
-  store_id?: string;
+  store_id: string;
   collection_id: string;
   key: string;
   slug: Record<string, string>;
@@ -496,7 +492,7 @@ export interface CreateEntryParams {
 
 export interface UpdateEntryParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   key?: string;
   slug?: Record<string, string>;
   blocks?: Block[];
@@ -505,46 +501,46 @@ export interface UpdateEntryParams {
 
 export interface GetEntryParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface DeleteEntryParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export type CreateMediaParams =
   | {
-      store_id?: string;
+      store_id: string;
       media_id: string;
       file: File;
       source_url?: never;
     }
   | {
-      store_id?: string;
+      store_id: string;
       media_id: string;
       source_url: string;
       file?: never;
     };
 
 export interface DeleteMediaParams {
-  store_id?: string;
+  store_id: string;
   media_id: string;
 }
 
 export interface GetMediaParams {
   media_id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface ReplaceMediaContentParams {
   media_id: string;
-  store_id?: string;
+  store_id: string;
   file: File;
 }
 
 export interface FindMediaParams {
-  store_id?: string;
+  store_id: string;
   cursor?: string | null;
   limit?: number;
   ids?: string[];
@@ -585,7 +581,7 @@ export interface AuthToken {
 }
 
 export interface FindBookingServicesParams {
-  store_id?: string;
+  store_id: string;
   ids?: string[];
   booking_resource_id?: string;
   limit?: number;
@@ -597,7 +593,7 @@ export interface FindBookingServicesParams {
   sort_direction?: "asc" | "desc";
   created_at_from?: EpochMilliseconds;
   created_at_to?: EpochMilliseconds;
-  classification_query?: ClassificationQuery[];
+  category_query?: CategoryQuery[];
   match_all?: boolean;
   from?: EpochMilliseconds;
   to?: EpochMilliseconds;
@@ -606,7 +602,7 @@ export interface FindBookingServicesParams {
 export interface FindStorefrontBookingServicesParams extends CatalogReadOptions {
   ids?: string[];
   booking_resource_id?: string;
-  classification_query?: ClassificationQuery[];
+  category_query?: CategoryQuery[];
   price_filter?: CatalogPriceFilter;
   query?: string | number;
   sort_field?: "key" | "created_at" | "price";
@@ -655,7 +651,6 @@ export interface CreateStoreParams {
 export interface UpdateStoreParams {
   id: string;
   name?: string;
-  default_market_id?: string;
   default_sales_channel_id?: string;
   timezone?: string;
   default_language?: string | null;
@@ -665,59 +660,59 @@ export interface UpdateStoreParams {
 }
 
 export interface GetStoreParams {
-  id?: string;
+  id: string;
 }
 
 export interface RequestStoreDeletionParams {
-  id?: string;
+  id: string;
   confirmation: string;
 }
 
 export interface SelectStoreSubscriptionParams {
-  store_id?: string;
-  checkout_id?: string;
+  store_id: string;
+  checkout_id: string;
   plan_id: string;
   return_url: string;
 }
 
 export interface GetStoreSubscriptionParams {
-  store_id?: string;
+  store_id: string;
 }
 
 export interface CancelStoreSubscriptionParams {
-  store_id?: string;
+  store_id: string;
   mode: "at_period_end" | "immediate";
 }
 
 export interface ReactivateStoreSubscriptionParams {
-  store_id?: string;
+  store_id: string;
 }
 
 export interface CreatePortalSessionParams {
-  store_id?: string;
+  store_id: string;
   return_url: string;
 }
 
 export interface AddMemberParams {
   email: string;
-  store_id?: string;
+  store_id: string;
   access: import("./index").StoreAccess;
 }
 
 export interface TransferStoreOwnershipParams {
   account_id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface RemoveMemberParams {
   account_id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export type AccountSortField = "email";
 
 export interface FindStoreMembersParams {
-  store_id?: string;
+  store_id: string;
   query?: string | number;
   limit?: number;
   cursor?: string | null;
@@ -731,10 +726,11 @@ export interface FindOwnStoreMembershipsParams {
 }
 
 export interface GetOwnStoreMembershipParams {
-  store_id?: string;
+  store_id: string;
 }
 
 export interface TestWebhookParams {
+  store_id: string;
   delivery_id: string;
   webhook_id: string;
 }
@@ -750,7 +746,7 @@ export interface TestWebhookResponse {
 }
 
 export interface CreateProductVariantParams {
-  store_id?: string;
+  store_id: string;
   product_id: string;
   sku: string | null;
   attributes: Block[];
@@ -760,7 +756,7 @@ export interface CreateProductVariantParams {
 }
 
 export interface UpdateProductVariantParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   sku: string | null;
@@ -772,12 +768,12 @@ export interface UpdateProductVariantParams {
 }
 
 export interface GetProductVariantParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface FindProductVariantsParams {
-  store_id?: string;
+  store_id: string;
   product_id?: string;
   sku?: string;
   status?: ProductVariantStatus["type"];
@@ -788,53 +784,53 @@ export interface FindProductVariantsParams {
 }
 
 export interface DeleteProductVariantParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface CreateProductParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   slugs?: Record<string, string>;
   blocks?: Block[];
-  classifications?: ClassificationEntry[];
+  categories?: CategoryEntry[];
 }
 
 export interface UpdateProductParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   expected_updated_at: EpochMilliseconds;
   key?: string;
   slugs?: Record<string, string>;
   blocks?: Block[];
-  classifications?: ClassificationEntry[];
+  categories?: CategoryEntry[];
   status?: ProductStatus;
 }
 
 export interface DeleteProductParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export type GetProductParams = {
-  store_id?: string;
+  store_id: string;
 } & ({ id: string; slug?: never } | { id?: never; slug: string });
 
 export interface GetProductByKeyParams {
-  store_id?: string;
+  store_id: string;
   key: string;
 }
 
 export interface GetOrderParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface GetOrdersParams {
   company_id?: string;
   company_location_id?: string;
-  store_id?: string;
+  store_id: string;
   customer_id?: string;
   statuses?: ("pending" | "confirmed" | "partially_cancelled" | "cancelled")[];
   sources?: ("cart_acceptance" | "direct" | "subscription")[];
@@ -859,78 +855,78 @@ export interface GetOrdersParams {
 
 export interface UpdateOrderParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   confirm?: boolean;
 }
 
 export interface CancelOrderProductItemParams {
-  store_id?: string;
+  store_id: string;
   order_id: string;
   order_product_item_id: string;
-  command_id: string;
+  request_id: string;
   expected_updated_at: EpochMilliseconds;
   units: import("./orderContract").UnitSpan[];
 }
 
 export interface BookingItemLifecycleParams {
-  store_id?: string;
+  store_id: string;
   order_id: string;
   order_booking_item_id: string;
 }
 
 export interface CancelBookingItemParams extends BookingItemLifecycleParams {
-  command_id: string;
+  request_id: string;
 }
 
 export interface CreateBookingResourceParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   slugs?: Record<string, string>;
   status?: BookingResourceStatus;
   blocks?: Block[];
-  classifications?: ClassificationEntry[];
+  categories?: CategoryEntry[];
   timezone: string;
   capacity: number;
 }
 
 export interface UpdateBookingResourceParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   key?: string;
   slugs?: Record<string, string>;
   status?: BookingResourceStatus;
   blocks?: Block[];
-  classifications?: ClassificationEntry[];
+  categories?: CategoryEntry[];
   timezone?: string;
   capacity?: number;
 }
 
 export interface DeleteBookingResourceParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface CreateBookingServiceParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   slugs?: Record<string, string>;
   blocks?: Block[];
-  classifications?: ClassificationEntry[];
+  categories?: CategoryEntry[];
   status?: BookingServiceStatus;
 }
 
 export interface UpdateBookingServiceParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   key?: string;
   slugs?: Record<string, string>;
   blocks?: Block[];
-  classifications?: ClassificationEntry[];
+  categories?: CategoryEntry[];
   status?: BookingServiceStatus;
 }
 
 export interface CreateBookingOfferingParams {
-  store_id?: string;
+  store_id: string;
   booking_service_id: string;
   booking_resource_id: string;
   weekly_availability: WeeklyAvailability[];
@@ -945,7 +941,7 @@ export interface CreateBookingOfferingParams {
 }
 
 export interface UpdateBookingOfferingParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   weekly_availability?: WeeklyAvailability[];
   date_overrides?: DateOverride[];
@@ -959,18 +955,18 @@ export interface UpdateBookingOfferingParams {
 }
 
 export interface DeleteBookingOfferingParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface LookupBookingOfferingParams {
-  store_id?: string;
+  store_id: string;
   booking_service_id: string;
   booking_resource_id: string;
 }
 
 export type FindBookingOfferingsParams = {
-  store_id?: string;
+  store_id: string;
   limit?: number;
   cursor?: string;
   status?: "draft" | "active" | "archived" | "deleting";
@@ -983,23 +979,23 @@ export type FindBookingOfferingsParams = {
 
 export interface DeleteBookingServiceParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export type GetBookingServiceParams = {
-  store_id?: string;
+  store_id: string;
 } & ({ id: string; slug?: never } | { id?: never; slug: string });
 
 export interface GetBookingServiceByKeyParams {
-  store_id?: string;
+  store_id: string;
   key: string;
 }
 
 export interface FindBookingResourcesParams {
-  store_id?: string;
+  store_id: string;
   booking_service_id?: string;
   ids?: string[];
-  classification_query?: ClassificationQuery[];
+  category_query?: CategoryQuery[];
 
   query?: string | number | null;
   status?: BookingResourceStatus["type"];
@@ -1013,11 +1009,11 @@ export interface FindBookingResourcesParams {
 
 export interface GetBookingResourceParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface GetBookingResourceByKeyParams {
-  store_id?: string;
+  store_id: string;
   key: string;
 }
 
@@ -1053,7 +1049,7 @@ export interface SearchAccountsParams {
 export interface DeleteAccountParams {}
 
 export interface GetEmailTemplatesParams {
-  store_id?: string;
+  store_id: string;
   ids?: string[];
   key?: string;
   limit?: number;
@@ -1068,7 +1064,7 @@ export interface GetEmailTemplatesParams {
 }
 
 export interface CreateEmailTemplateParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   type: EmailTemplateType;
   subject: Record<string, string>;
@@ -1080,7 +1076,7 @@ export interface CreateEmailTemplateParams {
 
 export interface UpdateEmailTemplateParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   key?: string;
   type?: EmailTemplateType;
   subject?: Record<string, string>;
@@ -1093,7 +1089,7 @@ export interface UpdateEmailTemplateParams {
 
 export interface PreviewEmailTemplateParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   subject?: Record<string, string>;
   body?: string;
   preheader?: string | null;
@@ -1115,16 +1111,16 @@ export interface PreviewEmailTemplateResponse {
 export interface GetEmailTemplateParams {
   id?: string;
   key?: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface DeleteEmailTemplateParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface GetFormsParams {
-  store_id?: string;
+  store_id: string;
   key?: string;
   limit?: number;
   cursor?: string | null;
@@ -1137,19 +1133,19 @@ export interface GetFormsParams {
 }
 
 export interface GetFormsByIdsParams {
-  store_id?: string;
+  store_id: string;
   ids: string[];
 }
 
 export interface CreateFormParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   schema: FormSchema[];
 }
 
 export interface UpdateFormParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   key?: string;
   schema?: FormSchema[];
   status?: FormStatus;
@@ -1158,17 +1154,17 @@ export interface UpdateFormParams {
 export interface GetFormParams {
   id?: string;
   key?: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface DeleteFormParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface PermanentlyDeleteFormParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface SubmitFormParams {
@@ -1176,14 +1172,14 @@ export interface SubmitFormParams {
   locale: string;
   presentation_digest: string;
   form_id: string;
-  store_id?: string;
+  store_id: string;
   fields: FormField[];
 }
 
 export interface GetFormSubmissionsParams {
   form_id?: string;
   form_ids?: string[];
-  store_id?: string;
+  store_id: string;
   customer_id?: string;
 
   query?: string;
@@ -1196,7 +1192,7 @@ export interface GetFormSubmissionsParams {
 }
 
 export interface FindCustomerActionsParams {
-  store_id?: string;
+  store_id: string;
   customer_id?: string;
   limit?: number;
   cursor?: string | null;
@@ -1205,17 +1201,17 @@ export interface FindCustomerActionsParams {
 export interface GetFormSubmissionParams {
   id: string;
   form_id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface DeleteFormSubmissionParams {
   id: string;
   form_id: string;
-  store_id?: string;
+  store_id: string;
 }
 
-export interface GetClassificationsParams {
-  store_id?: string;
+export interface GetCategoriesParams {
+  store_id: string;
   parent_id?: string;
   ids?: string[];
   key?: string;
@@ -1223,46 +1219,46 @@ export interface GetClassificationsParams {
   cursor?: string | null;
 
   query?: string;
-  status?: ClassificationStatus["type"];
+  status?: CategoryStatus["type"];
   sort_field?: "key" | "status" | "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
   created_at_from?: EpochMilliseconds;
   created_at_to?: EpochMilliseconds;
 }
 
-export interface CreateClassificationParams {
-  store_id?: string;
+export interface CreateCategoryParams {
+  store_id: string;
   key: string;
   parent_id?: string | null;
-  schema: ClassificationSchema[];
+  schema: CategorySchema[];
 }
 
-export interface UpdateClassificationParams {
+export interface UpdateCategoryParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   key?: string;
   parent_id?: string | null;
-  schema?: ClassificationSchema[];
-  status?: ClassificationStatus;
+  schema?: CategorySchema[];
+  status?: CategoryStatus;
 }
 
-export interface GetClassificationParams {
+export interface GetCategoryParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
-export type GetStorefrontClassificationParams = {
-  store_id?: string;
+export type GetStorefrontCategoryParams = {
+  store_id: string;
 } & ({ id: string; key?: never } | { id?: never; key: string });
 
-export interface DeleteClassificationParams {
+export interface DeleteCategoryParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
-export interface GetClassificationChildrenParams {
+export interface GetCategoryChildrenParams {
     id: string;
-    store_id?: string;
+    store_id: string;
     limit?: number;
     cursor?: string | null;
 }
@@ -1280,7 +1276,7 @@ export interface GetStoresParams {
 }
 
 export interface SetupAnalyticsParams {
-  store_id?: string;
+  store_id: string;
 }
 
 export interface CreateRefundParams {
@@ -1292,11 +1288,11 @@ export interface CreateRefundParams {
   reason: import("./index").RefundReason;
   private_note: string | null;
   reference: string | null;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface FindPaymentsParams {
-  store_id?: string;
+  store_id: string;
   order_id?: string;
   status?: import("./payment").PaymentStatus["type"];
   updated_at_from?: EpochMilliseconds;
@@ -1308,11 +1304,11 @@ export interface FindPaymentsParams {
 
 export interface GetPaymentParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface GetOrderPaymentParams {
-  store_id?: string;
+  store_id: string;
   order_id: string;
   payment_id: string;
 }
@@ -1323,7 +1319,7 @@ export interface FindOrderPaymentsParams extends Omit<FindPaymentsParams, "order
 
 export interface FindPaymentDisputesParams {
   payment_id?: string;
-  store_id?: string;
+  store_id: string;
   status?: import("./index").PaymentDisputeStatus["type"];
   sort_field?: "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
@@ -1333,13 +1329,13 @@ export interface FindPaymentDisputesParams {
 
 export interface GetPaymentDisputeParams {
   dispute_id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface FindRefundsParams {
   payment_id?: string;
   order_id?: string;
-  store_id?: string;
+  store_id: string;
   status?: import("./refund").RefundStatus["type"];
   updated_at_from?: EpochMilliseconds;
   sort_field?: "created_at" | "updated_at";
@@ -1350,7 +1346,7 @@ export interface FindRefundsParams {
 
 export interface GetRefundParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface CreateRefundResponse {
@@ -1360,42 +1356,42 @@ export interface CreateRefundResponse {
 }
 
 export interface CreateDigitalProductParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   slugs?: Record<string, string>;
   blocks?: import("./index").Block[];
-  classifications?: import("./index").ClassificationEntry[];
+  categories?: import("./index").CategoryEntry[];
   asset_ids?: string[];
   tax_category_id?: string | null;
   status?: import("./index").DigitalProductStatus;
 }
 
 export interface UpdateDigitalProductParams {
-  store_id?: string;
+  store_id: string;
   digital_product_id: string;
   key?: string;
   slugs?: Record<string, string>;
   blocks?: import("./index").Block[];
-  classifications?: import("./index").ClassificationEntry[];
+  categories?: import("./index").CategoryEntry[];
   asset_ids?: string[];
   tax_category_id?: string | null;
   status?: import("./index").DigitalProductStatus;
 }
 
 export interface GetDigitalProductParams {
-  store_id?: string;
+  store_id: string;
   digital_product_id: string;
 }
 
 export interface GetDigitalProductByKeyParams {
-  store_id?: string;
+  store_id: string;
   key: string;
 }
 
 export interface FindDigitalProductsParams {
-  store_id?: string;
+  store_id: string;
   ids?: string[];
-  classification_query?: ClassificationQuery[];
+  category_query?: CategoryQuery[];
   status?: import("./index").DigitalProductStatus["type"];
   query?: string | number;
   limit?: number;
@@ -1407,24 +1403,24 @@ export interface FindDigitalProductsParams {
 }
 
 export interface UploadDigitalAssetParams {
-  store_id?: string;
+  store_id: string;
   file: File;
 }
 
 export interface FindDigitalAssetsParams {
-  store_id?: string;
+  store_id: string;
   status?: import("./index").DigitalAssetStatus["type"];
   limit?: number;
   cursor?: string;
 }
 
 export interface GetDigitalAssetParams {
-  store_id?: string;
+  store_id: string;
   asset_id: string;
 }
 
 export interface ArchiveDigitalAssetParams {
-  store_id?: string;
+  store_id: string;
   asset_id: string;
 }
 
@@ -1438,7 +1434,7 @@ export interface DownloadDigitalAssetParams {
 
 export interface FindStorefrontDigitalProductsParams extends CatalogReadOptions {
   ids?: string[];
-  classification_query?: ClassificationQuery[];
+  category_query?: CategoryQuery[];
   price_filter?: CatalogPriceFilter;
   query?: string | number;
   sort_field?: "key" | "created_at" | "price";
@@ -1470,7 +1466,7 @@ export type SystemTemplateKey =
   | "system:forgot-password";
 
 export interface GetAvailabilityParams {
-  store_id?: string;
+  store_id: string;
   booking_service_id: string;
   from: EpochMilliseconds;
   to: EpochMilliseconds;
@@ -1506,7 +1502,7 @@ export interface AvailabilityResponse {
 }
 
 export interface CreateWorkflowParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   status?: MutableWorkflowStatus;
   schedule?: string | null;
@@ -1515,7 +1511,7 @@ export interface CreateWorkflowParams {
 
 export interface UpdateWorkflowParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   key?: string;
   status?: MutableWorkflowStatus;
   schedule?: string | null;
@@ -1524,16 +1520,16 @@ export interface UpdateWorkflowParams {
 
 export interface DeleteWorkflowParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface GetWorkflowParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface GetWorkflowsParams {
-  store_id?: string;
+  store_id: string;
   ids?: string[];
 
   query?: string | number;
@@ -1548,7 +1544,7 @@ export interface GetWorkflowsParams {
 
 export interface RegenerateWorkflowWebhookUrlParams {
   workflow_id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface InvokeWorkflowWebhookParams {
@@ -1558,7 +1554,7 @@ export interface InvokeWorkflowWebhookParams {
 
 export interface GetWorkflowExecutionsParams {
   workflow_id: string;
-  store_id?: string;
+  store_id: string;
   status?: import("./index").WorkflowExecutionStatus["type"];
   limit?: number;
   cursor?: string;
@@ -1570,13 +1566,13 @@ export interface GetWorkflowExecutionsParams {
 export interface GetWorkflowExecutionParams {
   workflow_id: string;
   execution_id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface GetWorkflowExternalOperationsParams {
   workflow_id: string;
   execution_id: string;
-  store_id?: string;
+  store_id: string;
   limit?: number;
   cursor?: string;
 }
@@ -1585,16 +1581,16 @@ export interface GetWorkflowExternalOperationParams {
   workflow_id: string;
   execution_id: string;
   operation_id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface GetWorkflowConnectionConnectUrlParams {
-  store_id?: string;
+  store_id: string;
   type: import("./index").WorkflowConnectionType;
 }
 
 export interface GetWorkflowConnectionsParams {
-  store_id?: string;
+  store_id: string;
   query?: string;
   type?: import("./index").WorkflowConnectionType;
   status?: import("./index").WorkflowConnectionAuthorizationStatus["type"];
@@ -1605,28 +1601,28 @@ export interface GetWorkflowConnectionsParams {
 }
 
 export interface GetWorkflowConnectionParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface DeleteWorkflowConnectionParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface ImportCustomerRowInput {
   email: string;
   customer_id?: string;
-  classifications: ClassificationEntry[];
+  categories: CategoryEntry[];
 }
 
 export interface ImportCustomersParams {
-  store_id?: string;
+  store_id: string;
   rows: ImportCustomerRowInput[];
 }
 
 export interface ImportCustomersPreviewParams {
-  store_id?: string;
+  store_id: string;
   rows: ImportCustomerRowInput[];
 }
 
@@ -1668,7 +1664,7 @@ export interface ImportCustomersResult {
 }
 
 export interface CreateMailboxParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   email: string;
   from_name?: string;
@@ -1680,7 +1676,7 @@ export interface CreateMailboxParams {
 
 export interface UpdateMailboxParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   key?: string;
   email?: string;
   from_name?: string;
@@ -1694,7 +1690,7 @@ export interface UpdateMailboxParams {
 }
 
 export interface FindMailboxesParams {
-  store_id?: string;
+  store_id: string;
   ids?: string[];
   status?: MailboxStatus["type"];
   provider_type?: "smtp_imap" | "google";
@@ -1707,34 +1703,34 @@ export interface FindMailboxesParams {
 
 export interface GetMailboxParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface FindMailboxSyncIssuesParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   limit?: number;
   cursor?: string;
 }
 
 export interface DisconnectMailboxParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface TestMailboxParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface PrepareMailboxParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface ConnectGoogleMailboxParams {
   id?: string | null;
-  store_id?: string;
+  store_id: string;
   key: string;
   from_name?: string | null;
   reply_to_email?: string | null;
@@ -1767,7 +1763,7 @@ export type TestMailboxResult =
 
 export interface CreateCampaignParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   name: string;
   mailbox_ids: string[];
   steps: CampaignStep[];
@@ -1775,14 +1771,14 @@ export interface CreateCampaignParams {
 
 export interface ReplaceDraftCampaignParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   name: string;
   mailbox_ids: string[];
   steps: CampaignStep[];
 }
 
 export interface FindCampaignsParams {
-  store_id?: string;
+  store_id: string;
   status?: CampaignStatusFilter;
   query?: string;
   sort_field?: "created_at" | "updated_at";
@@ -1793,18 +1789,18 @@ export interface FindCampaignsParams {
 
 export interface GetCampaignParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface EnrollCampaignParams {
-  store_id?: string;
+  store_id: string;
   campaign_id: string;
   customer_ids: string[];
   group_recipients: CampaignGroupRecipient[];
 }
 
 export interface FindCampaignEnrollmentsParams {
-  store_id?: string;
+  store_id: string;
   campaign_id?: string;
   customer_id?: string;
   status?: CampaignEnrollmentStatusFilter;
@@ -1813,13 +1809,13 @@ export interface FindCampaignEnrollmentsParams {
 }
 
 export interface RemovePendingCampaignEnrollmentParams {
-  store_id?: string;
+  store_id: string;
   campaign_id: string;
   id: string;
 }
 
 export interface GetCampaignEnrollmentConversationParams {
-  store_id?: string;
+  store_id: string;
   campaign_id: string;
   id: string;
   limit?: number;
@@ -1828,7 +1824,7 @@ export interface GetCampaignEnrollmentConversationParams {
 
 export interface ReplyCampaignEnrollmentParams {
   message_id: string;
-  store_id?: string;
+  store_id: string;
   campaign_id: string;
   id: string;
   parent_message_id: string;
@@ -1837,14 +1833,14 @@ export interface ReplyCampaignEnrollmentParams {
 }
 
 export interface StopCampaignEnrollmentParams {
-  store_id?: string;
+  store_id: string;
   campaign_id: string;
   id: string;
 }
 
 export interface ReplaceCampaignMessageDraftParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   campaign_id: string;
   campaign_enrollment_id: string;
   content: CampaignEmailContent;
@@ -1855,52 +1851,52 @@ export interface CreateLeadResearchParams {
   customer_group_id?: string;
   account_message_id: string;
   content: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface FindLeadResearchesParams {
   customer_group_id?: string;
   limit?: number;
   cursor?: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface GetLeadResearchParams {
   lead_research_id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface SendLeadResearchMessageParams {
   lead_research_id: string;
   account_message_id: string;
   content: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface FindLeadResearchMessagesParams {
   lead_research_id: string;
   limit?: number;
   cursor?: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface RetryLeadResearchMessageParams {
   lead_research_id: string;
   account_message_id: string;
   assistant_message_id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface GetLeadResearchMessageParams {
   lead_research_id: string;
   message_id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface CancelLeadResearchMessageParams {
   lead_research_id: string;
   assistant_message_id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface ListBuildHooksParams {
@@ -1934,7 +1930,7 @@ export interface DeleteBuildHookParams {
 }
 
 export interface FindSocialConnectionsParams {
-  store_id?: string;
+  store_id: string;
   limit?: number;
   cursor?: string;
   query?: string;
@@ -1943,23 +1939,23 @@ export interface FindSocialConnectionsParams {
 }
 
 export interface GetSocialConnectionParams {
-  store_id?: string;
+  store_id: string;
   connection_id: string;
 }
 
 export interface DisconnectSocialConnectionParams {
   connection_id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface ListPaymentOptionsParams extends ConfigurationPageParams {
-  store_id?: string;
+  store_id: string;
   type_name?: PaymentOptionTypeName;
   status?: "active" | "disabled" | "deleting";
 }
 
 export interface CreateLocalPaymentOptionParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   key: string;
   blocks: Block[];
@@ -1968,11 +1964,12 @@ export interface CreateLocalPaymentOptionParams {
 }
 
 export interface RefreshStripePaymentOptionParams {
-  store_id?: string;
+  store_id: string;
+  id: string;
 }
 
 export interface CreateMonriPaymentOptionParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   key: string;
   blocks: Block[];
@@ -1983,36 +1980,45 @@ export interface CreateMonriPaymentOptionParams {
 }
 
 export interface UpdatePaymentOptionParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   blocks: Block[];
   status: { type: "active" | "disabled" };
 }
 
-export interface ConnectStripePaymentOptionParams {
-  store_id?: string;
-  payment_option_id: string;
-  operation_id: string;
-  return_url: string;
-  refresh_url: string;
-  email?: string | null;
-  country?: string | null;
-  connected_account_id?: string | null;
-}
+export type StripeConfigurationInput =
+  | { type: "access"; restricted_key: string; publishable_key: string }
+  | {
+      type: "webhook";
+      endpoint_id: string;
+      signing_secret: string;
+      previous_secret_expires_at: EpochMilliseconds | null;
+    };
 
-export interface GetStripeConnectionOperationParams {
-  store_id?: string;
-  operation_id: string;
-}
-
-export interface OpenStripeDashboardParams {
+export interface ConfigureStripePaymentOptionParams {
   store_id: string;
   id: string;
+  request_id: string;
+  expected_updated_at: EpochMilliseconds;
+  configuration: StripeConfigurationInput;
+}
+
+export interface CancelStripeConfigurationParams {
+  store_id: string;
+  id: string;
+  request_id: string;
+  expected_updated_at: EpochMilliseconds;
+}
+
+export interface GetStripeConfigurationChangeParams {
+  store_id: string;
+  id: string;
+  request_id: string;
 }
 
 export interface ConnectSocialConnectionParams {
-  store_id?: string;
+  store_id: string;
   type: SocialConnectionType;
 }
 
@@ -2020,19 +2026,19 @@ export interface FindSocialPostsParams {
   social_connection_id?: string;
   limit?: number;
   cursor?: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface CreateSocialPostParams {
   social_connection_id: string;
   content: SocialPostContent;
   publish_at: EpochMilliseconds;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface GetSocialPostParams {
   post_id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export type CancelSocialPostParams = GetSocialPostParams;
@@ -2042,7 +2048,7 @@ export interface FindSocialMessagesParams {
   parent_message_id?: string;
   limit?: number;
   cursor?: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface CreateSocialMessageParams {
@@ -2050,13 +2056,13 @@ export interface CreateSocialMessageParams {
   id: string;
   parent_message_id: string;
   text: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface SyncSocialMessagesParams {
   post_id: string;
   sync: SocialMessageSync;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface ListWebhooksParams {
@@ -2094,7 +2100,7 @@ export interface DeleteWebhookParams {
 }
 
 export type FindFulfillmentOrdersParams = {
-  store_id?: string;
+  store_id: string;
   store_location_id?: string;
   inventory_item_id?: string;
   status?: import("./index").FulfillmentOrderStatus["type"];
@@ -2111,7 +2117,7 @@ export type FindFulfillmentOrdersParams = {
 );
 
 export interface AddFulfillmentHoldParams {
-  store_id?: string;
+  store_id: string;
   fulfillment_order_id: string;
   hold_id: string;
   expected_updated_at: EpochMilliseconds;
@@ -2119,20 +2125,20 @@ export interface AddFulfillmentHoldParams {
 }
 
 export interface ReleaseFulfillmentHoldParams {
-  store_id?: string;
+  store_id: string;
   fulfillment_order_id: string;
   hold_id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface GetFulfillmentOrderParams {
-  store_id?: string;
+  store_id: string;
   fulfillment_order_id: string;
 }
 
 export interface FindCustomerSessionsParams {
   customer_id: string;
-  store_id?: string;
+  store_id: string;
   limit?: number;
   cursor?: string;
 }
@@ -2140,12 +2146,12 @@ export interface FindCustomerSessionsParams {
 export interface RevokeCustomerSessionParams {
   customer_id: string;
   session_id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface RevokeAllCustomerSessionsParams {
   customer_id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export interface CaptureCustomerEmailParams {
@@ -2153,28 +2159,28 @@ export interface CaptureCustomerEmailParams {
 }
 
 export interface CreateCustomerParams {
-  store_id?: string;
+  store_id: string;
   email?: string;
-  classifications?: ClassificationEntry[];
+  categories?: CategoryEntry[];
 }
 
 export interface UpdateCustomerParams {
   id: string;
-  store_id?: string;
+  store_id: string;
   email?: string;
-  classifications?: ClassificationEntry[];
+  categories?: CategoryEntry[];
   status?: CustomerStatus;
 }
 
 export interface GetCustomerParams {
   id: string;
-  store_id?: string;
+  store_id: string;
 }
 
 export type ArchiveCustomerParams = GetCustomerParams;
 
 export interface FindCustomerIdentitiesParams {
-  store_id?: string;
+  store_id: string;
   customer_id: string;
   status?: "active" | "revoked";
   verified?: boolean;
@@ -2183,17 +2189,17 @@ export interface FindCustomerIdentitiesParams {
 }
 
 export interface CustomerIdentityCommandParams {
-  store_id?: string;
+  store_id: string;
   customer_id: string;
   identity_id: string;
 }
 
 export interface FindCustomersParams {
-  store_id?: string;
+  store_id: string;
   ids?: string[];
 
   query?: string;
-  classification_query?: ClassificationQuery[];
+  category_query?: CategoryQuery[];
   status?: CustomerStatus["type"];
   has_verified_email?: boolean;
   has_customer_action?: boolean;

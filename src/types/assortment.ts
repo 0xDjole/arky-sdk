@@ -23,14 +23,14 @@ export interface AssortmentUsage {
 }
 
 export interface CreateAssortmentParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   name: string;
   status: AssortmentEditableStatus;
 }
 
 export interface GetAssortmentParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
@@ -48,12 +48,12 @@ export interface FindAssortmentsParams {
   status?: AssortmentStatus["type"];
   sort_field?: "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
-  store_id?: string;
+  store_id: string;
   key?: string;
   limit?: number;
   cursor?: string;
 }
 export interface GetAssortmentByKeyParams {
-  store_id?: string;
+  store_id: string;
   key: string;
 }

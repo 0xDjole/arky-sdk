@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { EpochMilliseconds } from "../types/time";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
@@ -29,7 +30,7 @@ export interface Experiment {
 }
 
 export interface CreateExperimentParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   goal_action_key: string;
   attribution_window_days: number;
@@ -37,7 +38,7 @@ export interface CreateExperimentParams {
 }
 
 export interface ReplaceDraftExperimentParams {
-  store_id?: string;
+  store_id: string;
   experiment_id: string;
   key: string;
   goal_action_key: string;
@@ -46,14 +47,14 @@ export interface ReplaceDraftExperimentParams {
 }
 
 export interface ExperimentLifecycleParams {
-  store_id?: string;
+  store_id: string;
   experiment_id: string;
 }
 
 export type GetExperimentParams = ExperimentLifecycleParams;
 
 export interface FindExperimentsParams {
-  store_id?: string;
+  store_id: string;
   status?: ExperimentStatusFilter;
   limit?: number;
   cursor?: string;
@@ -77,8 +78,8 @@ export interface ExperimentResults {
 }
 
 export const createExperimentsApi = (apiConfig: ApiConfig) => {
-  const base = (storeId = apiConfig.storeId) =>
-    `/v1/stores/${storeId}/experiments`;
+  const base = (storeId: string) =>
+    `/v1/stores/${requireStoreId(storeId)}/experiments`;
 
   const lifecycle = (
     action: "start" | "pause" | "resume" | "complete",
@@ -146,7 +147,7 @@ export const createExperimentsApi = (apiConfig: ApiConfig) => {
     },
 
     find(
-      params: FindExperimentsParams = {},
+      params: FindExperimentsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<Experiment>> {
       const { store_id, ...queryParams } = params;

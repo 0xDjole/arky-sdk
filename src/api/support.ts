@@ -1,6 +1,6 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { EpochMilliseconds } from "../types/time";
 import type { ApiConfig, StorefrontApiConfig } from "../services/clientTypes";
-import type { StorefrontDto } from "./storefront";
 import type { RequestOptions, ScheduledMutationOptions } from "../types/api";
 import type { EmailAttachmentReference } from "../types";
 import {
@@ -184,10 +184,38 @@ export interface SupportConversationStartResponse extends SupportConversationRes
   support_token: string;
 }
 
-export type StorefrontSupportConversationResponse =
-  StorefrontDto<SupportConversationResponse>;
-export type StorefrontSupportConversationStartResponse =
-  StorefrontDto<SupportConversationStartResponse>;
+export interface StorefrontSupportConversation {
+  id: string;
+  store_id: string;
+  status: SupportConversationStatus;
+  channel_metadata: Record<string, unknown>;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export interface StorefrontSupportMessage {
+  id: string;
+  store_id: string;
+  conversation_id: string;
+  role: SupportMessage["role"];
+  content: string;
+  buttons: string[] | null;
+  attachments: EmailAttachmentReference[];
+  metadata: Record<string, unknown>;
+  ai_response_status: SupportAiResponseStatus | null;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export interface StorefrontSupportConversationResponse {
+  conversation: StorefrontSupportConversation;
+  messages: StorefrontSupportMessage[];
+  messages_cursor: string | null;
+}
+
+export interface StorefrontSupportConversationStartResponse extends StorefrontSupportConversationResponse {
+  support_token: string;
+}
 
 export interface StartSupportConversationParams {
   store_id: string;
@@ -279,7 +307,7 @@ export interface FindSupportConversationsParams {
 function supportConversationQuery(
   params: GetSupportConversationParams,
 ): string {
-  const qs = new URLSearchParams({ store_id: params.store_id });
+  const qs = new URLSearchParams();
   if (params.message_limit !== undefined)
     qs.set("message_limit", String(params.message_limit));
   if (params.message_cursor) qs.set("message_cursor", params.message_cursor);
@@ -329,7 +357,13 @@ export function createStorefrontSupportApi(
       await ensureVisitorSession();
       return httpClient.post<StorefrontSupportConversationStartResponse>(
         "/v1/storefront/support/conversations",
-        params,
+        {
+          agent_key: params.agent_key,
+          channel_id: params.channel_id,
+          visitor_id: params.visitor_id,
+          session_id: params.session_id,
+          channel_metadata: params.channel_metadata,
+        },
         opts,
       );
     },
@@ -348,7 +382,10 @@ export function createStorefrontSupportApi(
       const requested =
         await httpClient.post<StorefrontSupportConversationResponse>(
           `${path}/messages`,
-          mutation.body,
+          {
+          message_id: mutation.body.message_id,
+          input: mutation.body.input,
+        },
           mutation.options,
         );
       await mutation.afterResponse(requested);
@@ -356,7 +393,7 @@ export function createStorefrontSupportApi(
         requested.messages.find(
           (message) => message.id === request.message_id,
         ) ??
-        (await httpClient.get<StorefrontDto<SupportMessage>>(
+        (await httpClient.get<StorefrontSupportMessage>(
           `${path}/messages/${request.message_id}`,
           scheduledObservationOptions(mutation.options, opts?.signal),
         ));
@@ -364,7 +401,7 @@ export function createStorefrontSupportApi(
       await pollScheduledResult(
         requestedMessage,
         (observationSignal) =>
-          httpClient.get<StorefrontDto<SupportMessage>>(
+          httpClient.get<StorefrontSupportMessage>(
             `${path}/messages/${request.message_id}`,
             scheduledObservationOptions(mutation.options, observationSignal),
           ),
@@ -397,10 +434,10 @@ export function createStorefrontSupportApi(
     async getMessage(
       params: StorefrontGetSupportMessageParams,
       opts?: RequestOptions,
-    ): Promise<StorefrontDto<SupportMessage>> {
+    ): Promise<StorefrontSupportMessage> {
       await ensureVisitorSession();
       const { support_token, ...request } = params;
-      return httpClient.get<StorefrontDto<SupportMessage>>(
+      return httpClient.get<StorefrontSupportMessage>(
         `/v1/storefront/support/conversations/${request.conversation_id}/messages/${request.message_id}`,
         storefrontSupportOptions(support_token, opts),
       );
@@ -477,8 +514,13 @@ export function createAdminSupportApi(config: ApiConfig) {
         opts?: RequestOptions,
       ): Promise<SupportChannel> {
         return httpClient.post<SupportChannel>(
-          `/v1/stores/${params.store_id}/support/channels`,
-          params,
+          `/v1/stores/${requireStoreId(params.store_id)}/support/channels`,
+          {
+          key: params.key,
+          name: params.name,
+          status: params.status,
+          config: params.config,
+        },
           opts,
         );
       },
@@ -488,7 +530,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         opts?: RequestOptions,
       ): Promise<SupportChannel> {
         return httpClient.get<SupportChannel>(
-          `/v1/stores/${params.store_id}/support/channels/${params.id}?store_id=${params.store_id}`,
+          `/v1/stores/${requireStoreId(params.store_id)}/support/channels/${params.id}`,
           opts,
         );
       },
@@ -497,7 +539,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: FindSupportChannelsParams,
         opts?: RequestOptions,
       ): Promise<{ items: SupportChannel[]; cursor?: string }> {
-        const qs = new URLSearchParams({ store_id: params.store_id });
+        const qs = new URLSearchParams();
         if (params.status) qs.set("status", params.status);
         if (params.channel_type) qs.set("channel_type", params.channel_type);
         if (params.query) qs.set("query", params.query);
@@ -506,7 +548,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         if (params.limit) qs.set("limit", String(params.limit));
         if (params.cursor) qs.set("cursor", params.cursor);
         return httpClient.get<{ items: SupportChannel[]; cursor?: string }>(
-          `/v1/stores/${params.store_id}/support/channels?${qs}`,
+          `/v1/stores/${requireStoreId(params.store_id)}/support/channels?${qs}`,
           opts,
         );
       },
@@ -516,8 +558,13 @@ export function createAdminSupportApi(config: ApiConfig) {
         opts?: RequestOptions,
       ): Promise<SupportChannel> {
         return httpClient.put<SupportChannel>(
-          `/v1/stores/${params.store_id}/support/channels/${params.id}`,
-          params,
+          `/v1/stores/${requireStoreId(params.store_id)}/support/channels/${params.id}`,
+          {
+          key: params.key,
+          name: params.name,
+          status: params.status,
+          config: params.config,
+        },
           opts,
         );
       },
@@ -527,7 +574,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         opts?: RequestOptions,
       ): Promise<void> {
         return httpClient.delete<void>(
-          `/v1/stores/${params.store_id}/support/channels/${params.id}?store_id=${params.store_id}`,
+          `/v1/stores/${requireStoreId(params.store_id)}/support/channels/${params.id}`,
           opts,
         );
       },
@@ -537,8 +584,16 @@ export function createAdminSupportApi(config: ApiConfig) {
         opts?: RequestOptions,
       ): Promise<SupportConversationResponse> {
         return httpClient.post<SupportConversationResponse>(
-          `/v1/stores/${params.store_id}/support/channels/${params.channel_id}/messages`,
-          params,
+          `/v1/stores/${requireStoreId(params.store_id)}/support/channels/${params.channel_id}/messages`,
+          {
+          customer_id: params.customer_id,
+          channel_context: params.channel_context,
+          external_message_id: params.external_message_id,
+          content: params.content,
+          attachments: params.attachments,
+          metadata: params.metadata,
+          received_at: params.received_at,
+        },
           opts,
         );
       },
@@ -550,8 +605,18 @@ export function createAdminSupportApi(config: ApiConfig) {
         opts?: RequestOptions,
       ): Promise<SupportAgent> {
         return httpClient.post<SupportAgent>(
-          `/v1/stores/${params.store_id}/support/agents`,
-          params,
+          `/v1/stores/${requireStoreId(params.store_id)}/support/agents`,
+          {
+          key: params.key,
+          name: params.name,
+          status: params.status,
+          entry_node_id: params.entry_node_id,
+          nodes: params.nodes,
+          edges: params.edges,
+          ai_config: params.ai_config,
+          channel_ids: params.channel_ids,
+          notes: params.notes,
+        },
           opts,
         );
       },
@@ -561,7 +626,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         opts?: RequestOptions,
       ): Promise<SupportAgent> {
         return httpClient.get<SupportAgent>(
-          `/v1/stores/${params.store_id}/support/agents/${params.id}?store_id=${params.store_id}`,
+          `/v1/stores/${requireStoreId(params.store_id)}/support/agents/${params.id}`,
           opts,
         );
       },
@@ -571,7 +636,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         opts?: RequestOptions,
       ): Promise<SupportAgentDefinition> {
         return httpClient.get<SupportAgentDefinition>(
-          `/v1/stores/${params.store_id}/support/agents/${params.support_agent_id}/definition`,
+          `/v1/stores/${requireStoreId(params.store_id)}/support/agents/${params.support_agent_id}/definition`,
           opts,
         );
       },
@@ -582,7 +647,7 @@ export function createAdminSupportApi(config: ApiConfig) {
       ): Promise<SupportAgentDefinition> {
         const { store_id, support_agent_id, ...definition } = params;
         return httpClient.put<SupportAgentDefinition>(
-          `/v1/stores/${store_id}/support/agents/${support_agent_id}/definition`,
+          `/v1/stores/${requireStoreId(store_id)}/support/agents/${support_agent_id}/definition`,
           definition,
           opts,
         );
@@ -600,7 +665,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         },
         opts?: RequestOptions,
       ): Promise<{ items: SupportAgent[]; cursor?: string }> {
-        const qs = new URLSearchParams({ store_id: params.store_id });
+        const qs = new URLSearchParams();
         if (params.status) qs.set("status", params.status);
         if (params.query) qs.set("query", params.query);
         if (params.sort_field) qs.set("sort_field", params.sort_field);
@@ -608,7 +673,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         if (params.limit) qs.set("limit", String(params.limit));
         if (params.cursor) qs.set("cursor", params.cursor);
         return httpClient.get<{ items: SupportAgent[]; cursor?: string }>(
-          `/v1/stores/${params.store_id}/support/agents?${qs}`,
+          `/v1/stores/${requireStoreId(params.store_id)}/support/agents?${qs}`,
           opts,
         );
       },
@@ -618,8 +683,13 @@ export function createAdminSupportApi(config: ApiConfig) {
         opts?: RequestOptions,
       ): Promise<SupportAgent> {
         return httpClient.put<SupportAgent>(
-          `/v1/stores/${params.store_id}/support/agents/${params.id}`,
-          params,
+          `/v1/stores/${requireStoreId(params.store_id)}/support/agents/${params.id}`,
+          {
+          name: params.name,
+          status: params.status,
+          channel_ids: params.channel_ids,
+          notes: params.notes,
+        },
           opts,
         );
       },
@@ -629,7 +699,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         opts?: RequestOptions,
       ): Promise<void> {
         return httpClient.delete<void>(
-          `/v1/stores/${params.store_id}/support/agents/${params.id}?store_id=${params.store_id}`,
+          `/v1/stores/${requireStoreId(params.store_id)}/support/agents/${params.id}`,
           opts,
         );
       },
@@ -640,7 +710,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: FindSupportConversationsParams,
         opts?: RequestOptions,
       ): Promise<{ items: SupportConversation[]; cursor: string | null }> {
-        const qs = new URLSearchParams({ store_id: params.store_id });
+        const qs = new URLSearchParams();
         if (params.statuses) qs.set("statuses", JSON.stringify(params.statuses));
         if (params.agent_id) qs.set("agent_id", params.agent_id);
         if (params.channel_id) qs.set("channel_id", params.channel_id);
@@ -655,7 +725,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         return httpClient.get<{
           items: SupportConversation[];
           cursor: string | null;
-        }>(`/v1/stores/${params.store_id}/support/conversations?${qs}`, opts);
+        }>(`/v1/stores/${requireStoreId(params.store_id)}/support/conversations?${qs}`, opts);
       },
 
       async get(
@@ -664,7 +734,7 @@ export function createAdminSupportApi(config: ApiConfig) {
       ): Promise<SupportConversationResponse> {
         const qs = supportConversationQuery(params);
         return httpClient.get<SupportConversationResponse>(
-          `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}?${qs}`,
+          `/v1/stores/${requireStoreId(params.store_id)}/support/conversations/${params.conversation_id}?${qs}`,
           opts,
         );
       },
@@ -673,11 +743,14 @@ export function createAdminSupportApi(config: ApiConfig) {
         params: SendSupportMessageParams,
         opts?: ScheduledMutationOptions<SupportConversationResponse>,
       ): Promise<SupportConversationResponse> {
-        const path = `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}`;
+        const path = `/v1/stores/${requireStoreId(params.store_id)}/support/conversations/${params.conversation_id}`;
         const mutation = prepareScheduledMutation(params, opts);
         const requested = await httpClient.post<SupportConversationResponse>(
           `${path}/messages`,
-          mutation.body,
+          {
+          message_id: mutation.body.message_id,
+          input: mutation.body.input,
+        },
           mutation.options,
         );
         await mutation.afterResponse(requested);
@@ -715,7 +788,7 @@ export function createAdminSupportApi(config: ApiConfig) {
         opts?: RequestOptions,
       ): Promise<SupportMessage> {
         return httpClient.get<SupportMessage>(
-          `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}/messages/${params.message_id}`,
+          `/v1/stores/${requireStoreId(params.store_id)}/support/conversations/${params.conversation_id}/messages/${params.message_id}`,
           opts,
         );
       },
@@ -725,8 +798,12 @@ export function createAdminSupportApi(config: ApiConfig) {
         opts?: RequestOptions,
       ): Promise<SupportConversationResponse> {
         return httpClient.post<SupportConversationResponse>(
-          `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}/reply`,
-          params,
+          `/v1/stores/${requireStoreId(params.store_id)}/support/conversations/${params.conversation_id}/reply`,
+          {
+          message_id: params.message_id,
+          content: params.content,
+          resolve: params.resolve,
+        },
           opts,
         );
       },
@@ -736,8 +813,8 @@ export function createAdminSupportApi(config: ApiConfig) {
         opts?: RequestOptions,
       ): Promise<SupportConversation> {
         return httpClient.post<SupportConversation>(
-          `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}/resolve`,
-          params,
+          `/v1/stores/${requireStoreId(params.store_id)}/support/conversations/${params.conversation_id}/resolve`,
+          undefined,
           opts,
         );
       },
@@ -747,8 +824,10 @@ export function createAdminSupportApi(config: ApiConfig) {
         opts?: RequestOptions,
       ): Promise<SupportConversation> {
         return httpClient.post<SupportConversation>(
-          `/v1/stores/${params.store_id}/support/conversations/${params.conversation_id}/assign`,
-          params,
+          `/v1/stores/${requireStoreId(params.store_id)}/support/conversations/${params.conversation_id}/assign`,
+          {
+          account_id: params.account_id,
+        },
           opts,
         );
       },

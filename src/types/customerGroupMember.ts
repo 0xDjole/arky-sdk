@@ -12,21 +12,21 @@ export type CustomerGroupAdmission =
   | { type: "requested" }
   | {
       type: "granted";
-      command_id: string;
+      request_id: string;
       source: CustomerGroupAdmissionSource;
       policy_at_grant: CustomerGroupJoinPolicy;
       granted_at: EpochMilliseconds;
     }
   | {
       type: "revoked";
-      command_id: string;
+      request_id: string;
       actor: AccountActor;
       reason: string;
       revoked_at: EpochMilliseconds;
     };
 
 export interface CustomerGroupAdministrativeAccess {
-  command_id: string;
+  request_id: string;
   actor: AccountActor;
   granted_at: EpochMilliseconds;
   expires_at: EpochMilliseconds | null;
@@ -59,8 +59,8 @@ export interface CustomerGroupJoinRequest {
 }
 
 export interface JoinCustomerGroupParams {
-  store_id?: string;
-  command_id: string;
+  store_id: string;
+  request_id: string;
   request: CustomerGroupJoinRequest;
 }
 
@@ -74,12 +74,12 @@ export type GetStorefrontCustomerGroupMemberParams = {
 );
 
 export interface GetCustomerGroupMemberParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface FindCustomerGroupMembersParams {
-  store_id?: string;
+  store_id: string;
   customer_group_id?: string;
   customer_id?: string;
   company_id?: string;
@@ -89,7 +89,7 @@ export interface FindCustomerGroupMembersParams {
 }
 
 export type LookupCustomerGroupMemberParams = {
-  store_id?: string;
+  store_id: string;
   customer_group_id: string;
 } & (
   | { customer_id: string; company_id?: never }
@@ -106,7 +106,7 @@ export type CustomerGroupMemberSelf = Omit<CustomerGroupMember, "admission" | "a
 };
 
 export interface CustomerGroupJoinResult {
-  command_id: string;
+  request_id: string;
   accepted_at: EpochMilliseconds;
   member: CustomerGroupMemberSelf;
 }
@@ -117,36 +117,35 @@ export type CustomerGroupMemberCommandResultType =
   | { type: "administrative_access_granted" }
   | { type: "administrative_access_cleared" };
 
-export interface CustomerGroupMemberCommandReceipt {
-  id: string;
+export interface CustomerGroupMemberCommandResult {
+  customer_group_member_id: string;
+  member_updated_at: EpochMilliseconds;
+  type: CustomerGroupMemberCommandResultType;
+}
+
+export interface CustomerGroupMemberChange {
+  request_id: string;
   store_id: string;
   accepted_at: EpochMilliseconds;
-  command: {
-    type: "customer_group_member";
-    actor: AccountActor;
-    request: CustomerGroupMemberCommand;
-    result: {
-      customer_group_member_id: string;
-      member_updated_at: EpochMilliseconds;
-      type: CustomerGroupMemberCommandResultType;
-    };
-  };
+  change:
+    | { type: "administrative"; actor: AccountActor; request: CustomerGroupMemberCommand; result: CustomerGroupMemberCommandResult }
+    | { type: "self_enrollment"; customer_id: string; customer_session_id: string; request: CustomerGroupJoinRequest; source: CustomerGroupAdmissionSource; result: CustomerGroupMemberCommandResult };
 }
 
 export interface CustomerGroupMemberCommandResponse {
-  receipt: CustomerGroupMemberCommandReceipt;
+  change: CustomerGroupMemberChange;
   member: CustomerGroupMember;
 }
 
 export interface GetCurrentCustomerGroupMemberParams {
-  store_id?: string;
+  store_id: string;
   customer_group_id: string;
   company_id?: string;
   company_location_id?: string;
 }
 
 export interface FindCustomerGroupMemberCommandsParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   limit?: number;
   cursor?: string;
@@ -180,7 +179,7 @@ export type CustomerGroupMemberCommand =
     };
 
 export interface ExecuteCustomerGroupMemberCommandParams {
-  store_id?: string;
-  command_id: string;
+  store_id: string;
+  request_id: string;
   command: CustomerGroupMemberCommand;
 }

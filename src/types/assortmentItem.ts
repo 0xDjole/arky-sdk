@@ -12,14 +12,14 @@ export interface AssortmentItem {
 }
 
 export interface CreateAssortmentItemParams {
-  store_id?: string;
+  store_id: string;
   assortment_id: string;
   sellable: SellableRef;
   position?: number | null;
 }
 
 export interface GetAssortmentItemParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
@@ -34,7 +34,7 @@ export interface DeleteAssortmentItemParams extends GetAssortmentItemParams {
 
 export interface FindAssortmentItemsParams {
   sellable?: SellableRef;
-  store_id?: string;
+  store_id: string;
   assortment_id: string;
   limit?: number;
   cursor?: string;

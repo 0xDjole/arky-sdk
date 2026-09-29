@@ -13,7 +13,7 @@ export interface FulfillmentPartner {
 }
 
 export interface GetFulfillmentPartnerParams {
-  store_id?: string;
+  store_id: string;
   fulfillment_partner_id: string;
 }
 
@@ -28,7 +28,7 @@ export interface UpdateFulfillmentPartnerParams extends CreateFulfillmentPartner
 }
 
 export interface FindFulfillmentPartnersParams {
-  store_id?: string;
+  store_id: string;
   status?: FulfillmentPartnerStatus['type'];
   limit?: number;
   cursor?: string | null;

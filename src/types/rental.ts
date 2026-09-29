@@ -66,12 +66,12 @@ export type RentalCommand =
     };
 
 export interface GetRentalParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface FindRentalsParams {
-  store_id?: string;
+  store_id: string;
   subscription_id?: string;
   status?: RentalStatus["type"];
   limit?: number;
@@ -81,7 +81,7 @@ export interface FindRentalsParams {
 }
 
 export interface ExecuteRentalParams extends GetRentalParams {
-  command_id: string;
+  request_id: string;
   expected_updated_at: EpochMilliseconds;
   type: RentalCommand;
 }

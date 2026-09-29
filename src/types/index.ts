@@ -1,3 +1,6 @@
+import type { OrderProductLineItemOrigin } from "./purchaseAccess";
+export type * from "./purchaseAccess";
+export type * from "./subscriptionTax";
 import type { Payment } from "./payment";
 import type { MonriComponentsAction } from "./monriCheckout";
 export type { MonriComponentsAction, MonriBuyerDetails } from "./monriCheckout";
@@ -5,8 +8,6 @@ export type * from "./fulfillmentUnitSelection";
 import type { SellerProfile } from "./orderContract";
 import type { StoreTaxPolicy } from "./storeCommerce";
 export type * from "./storeCommerce";
-import type { StripeConnectionOperation } from "./stripeConnection";
-export type { StripeConnectionOperation, StripeConnectionEffectStatus } from "./stripeConnection";
 import type { AppliedPriceSnapshot, DisplayTextSnapshot, StorefrontPrice } from "./commerce";
 import type { OrderBookingSnapshot, OrderDigitalSnapshot, OrderProductSnapshot } from "./orderSnapshot";
 import type { AcceptedProductMoneyRun, LineMoneySnapshot, ProductMoneyTotals } from "./orderMoney";
@@ -157,8 +158,9 @@ export interface DisputeFinancialEffect {
 
 import type { AccountActor } from "./accountActor";
 export type { AccountActor, AccountActorSnapshot, AccountCredentialType } from "./accountActor";
-export type { Refund, RefundProvider, MonriRefundResult, RefundAllocation, RefundApplication, RefundRequester, SystemRefundReason, RefundReason, RefundRequestReason, RefundStatus } from "./refund";
+export type { PaymentRefund, RefundProvider, MonriRefundResult, RefundAllocation, RefundApplication, RefundRequester, SystemRefundReason, RefundReason, RefundRequestReason, RefundStatus } from "./refund";
 export type { CustomerMoneyEvidence, RefundFinancialEffect, RefundAllocationBalance, RefundMoneySummary, RecordedRefundMoney, LocalRefundMovement, RecordRefundMoneyParams, CancelLocalRefundParams } from "./refund";
+export type { MonriRefundAssociation, MonriRefundEvidence, ReviewMonriRefundParams, ProviderNotificationOwner, ProviderNotificationReviewReason, ProviderNotificationState, MonriRefundReviewEvidence, MonriRefundReviewEvidencePage, FindMonriRefundReviewEvidenceParams } from "./refund";
 
 export interface OrderMoney {
   currency: Currency;
@@ -215,6 +217,7 @@ export interface ZoneLocation {
 
 export interface EshopCartItem {
   id: string;
+  purchase: import("./purchaseAccess").CartProductPurchase;
   product_id: string;
   variant_id: string;
   product_name: string;
@@ -608,16 +611,68 @@ export interface BuildHook {
 
 export type PaymentOptionStatus = { type: "active" } | { type: "disabled" } | { type: "deleting" };
 
-export type StripeProviderConnection =
-  | { type: "unconnected" }
+export interface StripeWebhookDelivery {
+  event_id: string;
+  received_at: EpochMilliseconds;
+  verified_at: EpochMilliseconds;
+}
+
+export type StripeMerchantWebhook =
+  | { type: "unconfigured" }
   | {
-      type: "connected";
-      connected_account_id: string;
-      account_setup_submitted: boolean;
-      payments_enabled: boolean;
-      payouts_enabled: boolean;
-      state_observed_at: EpochMilliseconds;
+      type: "configured";
+      endpoint_id: string;
+      endpoint_url: string;
+      api_version: string;
+      enabled_events: string[];
+      configured_at: EpochMilliseconds;
+      endpoint_checked_at: EpochMilliseconds;
+      previous_signing_secret_expires_at: EpochMilliseconds | null;
+      verified_delivery: StripeWebhookDelivery | null;
     };
+
+export interface StripeMerchantConfiguration {
+  account_id: string;
+  livemode: boolean;
+  publishable_key: string;
+  account_observed_at: EpochMilliseconds;
+  charges_enabled: boolean;
+  webhook: StripeMerchantWebhook;
+}
+
+export type StripeProviderConnection =
+  | { type: "unconfigured" }
+  | { type: "configured"; configuration: StripeMerchantConfiguration };
+
+export interface StripeConfigurationChange {
+  store_id: string;
+  payment_option_id: string;
+  request_id: string;
+  type: "access" | "webhook";
+  expected_updated_at: EpochMilliseconds;
+  accepted_updated_at: EpochMilliseconds;
+  accepted_at: EpochMilliseconds;
+  account_id: string;
+  livemode: boolean;
+}
+
+export type StripeConfigurationResolution =
+  | { type: "accepted"; change: StripeConfigurationChange }
+  | {
+      type: "closed";
+      store_id: string;
+      payment_option_id: string;
+      request_id: string;
+      expected_updated_at: EpochMilliseconds;
+      updated_at: EpochMilliseconds;
+    };
+
+export interface StripeMerchantSetup {
+  payment_option: PaymentOption;
+  callback_url: string;
+  api_version: string;
+  enabled_events: string[];
+}
 
 export type PaymentOptionType =
   | { type: "cash_on_delivery" }
@@ -642,12 +697,6 @@ export interface PaymentOption {
   type: PaymentOptionType;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
-}
-
-export interface PaymentOptionConnectResponse {
-  payment_option: PaymentOption;
-  onboarding_url: string | null;
-  operation: StripeConnectionOperation;
 }
 
 export interface StoreLocationStatus {
@@ -713,7 +762,7 @@ export interface Product {
   key: string;
   slugs: Record<string, string>;
   blocks: Block[];
-  classifications: ClassificationEntry[];
+  categories: CategoryEntry[];
   status: ProductStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -747,7 +796,7 @@ export interface BookingReminderScheduleItem {
 
 export interface OrderProductItem {
   id: string;
-  origin: OrderLineItemOrigin;
+  origin: OrderProductLineItemOrigin;
   product_id: string | null;
   variant_id: string | null;
   quantity: number;
@@ -804,9 +853,9 @@ export interface FulfillmentOrderMoveLine {
 }
 
 export interface MoveFulfillmentOrderParams {
-  store_id?: string;
+  store_id: string;
   fulfillment_order_id: string;
-  command_id: string;
+  request_id: string;
   expected_updated_at: EpochMilliseconds;
   to_store_location_id: string;
   lines: FulfillmentOrderMoveLine[];
@@ -915,7 +964,7 @@ export interface FulfillmentJobItem {
 export interface PartnerLineUnits {
   fulfillment_order_line_id: string;
   unit_spans: FulfillmentUnitSpan[];
-  cancellation_command_id: string | null;
+  cancellation_request_id: string | null;
 }
 
 export type PartnerChange =
@@ -947,9 +996,9 @@ export type PartnerAction =
   | { type: "confirm_change" };
 
 export interface ControlPartnerRequestParams {
-  store_id?: string;
+  store_id: string;
   fulfillment_order_id: string;
-  command_id: string;
+  request_id: string;
   expected_updated_at: EpochMilliseconds;
   action: PartnerAction;
 }
@@ -963,7 +1012,7 @@ export interface DigitalProduct {
   key: string;
   slugs: Record<string, string>;
   blocks: Block[];
-  classifications: ClassificationEntry[];
+  categories: CategoryEntry[];
   asset_ids: string[];
   tax_category_id: string | null;
   status: DigitalProductStatus;
@@ -976,7 +1025,7 @@ export interface StorefrontDigitalProduct {
   key: string;
   slugs: Record<string, string>;
   blocks: Block[];
-  classifications: ClassificationEntry[];
+  categories: CategoryEntry[];
   price: StorefrontPrice | null;
   purchase_allowed: boolean;
 }
@@ -1023,7 +1072,7 @@ export type CheckoutPaymentAction =
       type: "stripe_embedded_checkout";
       publishable_key: string;
       client_secret: string;
-      connected_account_id: string;
+      account_id: string;
       expires_at: EpochMilliseconds;
     };
 
@@ -1033,7 +1082,6 @@ export type StoreSubscriptionCheckoutAction =
       type: "stripe_embedded_checkout";
       publishable_key: string;
       client_secret: string;
-      stripe_account_id: string | null;
       expires_at: EpochMilliseconds;
     };
 
@@ -1059,7 +1107,6 @@ export interface MarketUsage {
   more_catalog_entitlements: boolean;
   cart_ids: string[];
   more_carts: boolean;
-  is_default: boolean;
 }
 
 export interface Market {
@@ -1291,7 +1338,6 @@ export type StoreCommerceState =
   | { type: "initializing"; operation_id: string }
   | {
       type: "ready";
-      default_market_id: string;
       default_sales_channel_id: string;
       seller: SellerProfile;
       tax: StoreTaxPolicy;
@@ -1384,81 +1430,81 @@ export interface ObjectBlock extends BlockBase {
   value: Record<string, Block>;
 }
 
-interface ClassificationSchemaBase {
+interface CategorySchemaBase {
   id: string;
   key: string;
 }
 
-export type ClassificationSchema =
-  | (ClassificationSchemaBase & {
+export type CategorySchema =
+  | (CategorySchemaBase & {
       type: "text";
       options: string[];
       min: number | null;
     })
-  | (ClassificationSchemaBase & {
+  | (CategorySchemaBase & {
       type: "number";
       min: number | null;
       max: number | null;
     })
-  | (ClassificationSchemaBase & { type: "boolean" })
-  | (ClassificationSchemaBase & { type: "geo_location" });
+  | (CategorySchemaBase & { type: "boolean" })
+  | (CategorySchemaBase & { type: "geo_location" });
 
-export type ClassificationSchemaType = ClassificationSchema["type"];
+export type CategorySchemaType = CategorySchema["type"];
 
-export interface ClassificationCoordinates {
+export interface CategoryCoordinates {
   lat: number;
   lon: number;
 }
 
-export interface ClassificationGeoLocation {
-  coordinates: ClassificationCoordinates;
+export interface CategoryGeoLocation {
+  coordinates: CategoryCoordinates;
 }
 
-export type ClassificationNumberOperation =
+export type CategoryNumberOperation =
   | "less_than"
   | "less_than_or_equal"
   | "equals"
   | "greater_than_or_equal"
   | "greater_than";
 
-interface ClassificationFieldBase {
+interface CategoryFieldBase {
   id: string;
   key: string;
 }
 
-export type ClassificationField =
-  | (ClassificationFieldBase & { type: "text"; value: string[] })
-  | (ClassificationFieldBase & { type: "number"; value: number })
-  | (ClassificationFieldBase & { type: "boolean"; value: boolean })
-  | (ClassificationFieldBase & {
+export type CategoryField =
+  | (CategoryFieldBase & { type: "text"; value: string[] })
+  | (CategoryFieldBase & { type: "number"; value: number })
+  | (CategoryFieldBase & { type: "boolean"; value: boolean })
+  | (CategoryFieldBase & {
       type: "geo_location";
-      value: ClassificationGeoLocation;
+      value: CategoryGeoLocation;
     });
 
-export type ClassificationFieldQuery =
+export type CategoryFieldQuery =
   | { type: "text"; key: string; value: string[] }
   | {
       type: "number";
       key: string;
-      operation: ClassificationNumberOperation;
+      operation: CategoryNumberOperation;
       value: number;
     }
   | { type: "boolean"; key: string; value: boolean }
   | {
       type: "geo_location";
       key: string;
-      center: ClassificationCoordinates;
+      center: CategoryCoordinates;
       radius_meters: number;
     };
 
-export interface ClassificationEntry {
-  classification_id: string;
-  fields: ClassificationField[];
+export interface CategoryEntry {
+  category_id: string;
+  fields: CategoryField[];
 }
 
-export interface ClassificationQuery {
-  classification_id: string;
-  query: ClassificationFieldQuery[];
+export interface CategoryQuery {
+  category_id: string;
+  query: CategoryFieldQuery[];
 }
 
 export type FormSchemaType =
@@ -1594,7 +1640,7 @@ export type StorePlanFeatureType =
   | "customers"
   | "media"
   | "members"
-  | "classifications"
+  | "categories"
   | "email_templates"
   | "forms"
   | "mailboxes"
@@ -1886,7 +1932,7 @@ export type FormStatus =
   | { type: "active" }
   | { type: "draft" }
   | { type: "archived" };
-export type ClassificationStatus =
+export type CategoryStatus =
   | { type: "active" }
   | { type: "draft" }
   | { type: "archived" };
@@ -2042,13 +2088,13 @@ export interface FormQuestionSnapshot {
   question: DisplayTextSnapshot;
 }
 
-export interface Classification {
+export interface Category {
   id: string;
   key: string;
   store_id: string;
   parent_id: string | null;
-  schema: ClassificationSchema[];
-  status: ClassificationStatus;
+  schema: CategorySchema[];
+  status: CategoryStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -2111,7 +2157,7 @@ export interface BookingService {
   slugs: Record<string, string>;
   store_id: string;
   blocks: Block[];
-  classifications: ClassificationEntry[];
+  categories: CategoryEntry[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
   status: BookingServiceStatus;
@@ -2124,7 +2170,7 @@ export interface BookingResource {
   store_id: string;
   status: BookingResourceStatus;
   blocks: Block[];
-  classifications: ClassificationEntry[];
+  categories: CategoryEntry[];
   timezone: string;
   capacity: number;
   created_at: EpochMilliseconds;
@@ -2480,6 +2526,14 @@ export type CustomerSessionRecord = CustomerSessionRecordBase &
   CustomerSessionLifecycle &
   CustomerSessionSafeType;
 
+export type StorefrontCustomerSessionRecord = {
+  id: string;
+  customer_id: string;
+  last_seen_at: EpochMilliseconds | null;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+} & CustomerSessionLifecycle & CustomerSessionSafeType;
+
 export type CustomerSessionIssued =
   | {
       id: string;
@@ -2520,7 +2574,7 @@ export interface Customer {
   primary_email_identity_id: string | null;
   default_shipping_address_id: string | null;
   default_billing_address_id: string | null;
-  classifications: ClassificationEntry[];
+  categories: CategoryEntry[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -2959,7 +3013,7 @@ export interface SelectedUnit {
 }
 
 export interface FulfillmentExecution {
-  command_id: string;
+  request_id: string;
   executed_at: EpochMilliseconds;
   actor: AccountActor;
 }

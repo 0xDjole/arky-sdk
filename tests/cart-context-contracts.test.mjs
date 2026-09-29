@@ -17,7 +17,7 @@ afterEach(() => { globalThis.fetch = savedFetch; });
 function sessionStorage() {
   const value = JSON.stringify({
     version: 2,
-    customer: { id: "customer", status: { type: "active" }, identities: [], classifications: [], created_at: 1, updated_at: 1 },
+    customer: { id: "customer", status: { type: "active" }, identities: [], categories: [], created_at: 1, updated_at: 1 },
     session: { id: "session", customer_id: "customer", type: "visitor", token: visitorToken, status: { type: "active" }, expires_at: 1900000000000 },
   });
   return storefrontSessionStorage(value);

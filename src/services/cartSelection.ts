@@ -24,9 +24,10 @@ function assertCompany(cart: StorefrontCart, params: StorefrontCurrentCartParams
   }
 }
 
-function selectionScope(context: CartSelectionContext, params: StorefrontCurrentCartParams): CartSelectionScope {
+async function selectionScope(context: CartSelectionContext, params: StorefrontCurrentCartParams, transport: CartSelectionTransport, options?: RequestOptions): Promise<CartSelectionScope> {
   const customerId = context.customerId();
   const market = context.market();
+  if (!market) throw new CartSelectionError("Select a Market before selecting or creating a Cart");
   if (!customerId || !context.storage) {
     throw new CartSelectionError("Selecting a Cart requires a Customer session and working session storage");
   }
@@ -35,13 +36,17 @@ function selectionScope(context: CartSelectionContext, params: StorefrontCurrent
       throw new CartSelectionError("The Customer or Market changed while loading the Cart; reload the current context");
     }
   };
+  const selectedMarket = await transport.market(market, options);
+  assertContext();
+  if (!selectedMarket.id || selectedMarket.key !== market)
+    throw new CartSelectionError("The Market read did not confirm the selected key");
   return {
     key: `arky:selected-cart:v1:${context.namespace}:${encodeURIComponent(customerId)}:${encodeURIComponent(market)}:${encodeURIComponent(params.company?.company_id ?? "")}:${encodeURIComponent(params.company?.company_location_id ?? "")}`,
     assertContext,
     assertCart(cart, selected) {
       assertContext();
       if (!cart || typeof cart.id !== "string" || !cart.id.length ||
-        cart.customer_id !== customerId || typeof cart.market_id !== "string" || !cart.market_id.length ||
+        cart.customer_id !== customerId || cart.market_id !== selectedMarket.id ||
         !cart.status || !["active", "abandoned", "converted", "merged", "expired"].includes(cart.status.type) ||
         (selected && (cart.id !== selected.id || cart.market_id !== selected.market_id))) {
         throw new CartSelectionError("The response does not match the selected Cart and Customer context");
@@ -94,7 +99,7 @@ export function createCartSelection(
     options?: RequestOptions,
   ): Promise<StorefrontCart> {
     params = { ...params, ...(params.company ? { company: { ...params.company } } : {}) };
-    const scope = selectionScope(context, params);
+    const scope = await selectionScope(context, params, transport, options);
     const { key, assertContext, assertCart } = scope;
     let pending = loading.get(key);
     if (!pending) {
@@ -136,7 +141,7 @@ export function createCartSelection(
 
   async function create(params: StorefrontCurrentCartParams = {}, options?: RequestOptions) {
     params = { ...params, ...(params.company ? { company: { ...params.company } } : {}) };
-    const scope = selectionScope(context, params);
+    const scope = await selectionScope(context, params, transport, options);
     if (loading.has(scope.key) || unpersisted.has(scope.key)) {
       throw new CartSelectionError("Finish loading or saving the selected Cart before explicitly creating another");
     }

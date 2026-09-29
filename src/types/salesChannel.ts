@@ -32,19 +32,19 @@ export interface SalesChannelUsage {
 }
 
 export interface CreateSalesChannelParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   name: string;
   status: SalesChannelEditableStatus;
 }
 
 export interface GetSalesChannelParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface UpdateSalesChannelParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   name: string;
@@ -53,14 +53,14 @@ export interface UpdateSalesChannelParams {
 }
 
 export interface DeleteSalesChannelParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   replacement_default_sales_channel_id?: string;
 }
 
 export interface FindSalesChannelsParams {
-  store_id?: string;
+  store_id: string;
   key?: string;
   status?: SalesChannelStatus["type"];
   sort_field?: "created_at" | "updated_at";
@@ -70,6 +70,6 @@ export interface FindSalesChannelsParams {
 }
 
 export interface GetSalesChannelByKeyParams {
-  store_id?: string;
+  store_id: string;
   key: string;
 }

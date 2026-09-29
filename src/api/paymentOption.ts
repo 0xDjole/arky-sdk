@@ -1,53 +1,50 @@
+import { requireRequestId } from "../utils/requestId";
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type {
-  ConnectStripePaymentOptionParams,
+  ConfigureStripePaymentOptionParams,
+  CancelStripeConfigurationParams,
+  GetStripeConfigurationChangeParams,
   CreateLocalPaymentOptionParams,
   CreateMonriPaymentOptionParams,
   UpdatePaymentOptionParams,
-  OpenStripeDashboardParams,
   ListPaymentOptionsParams,
   GetStoreConfigurationByKeyParams,
   GetPaymentOptionParams,
-  GetPaymentOptionByTypeParams,
-  GetStripeConnectionOperationParams,
   RefreshStripePaymentOptionParams,
   RequestOptions,
 } from "../types/api";
 import type {
+  StripeConfigurationChange,
+  StripeConfigurationResolution,
+  StripeMerchantSetup,
   PaymentOption,
   PaginatedResponse,
-  PaymentOptionConnectResponse,
-  StripeConnectionOperation,
 } from "../types";
 
 export const createPaymentOptionApi = (apiConfig: ApiConfig) => {
-  const storeId = (store_id?: string) => store_id || apiConfig.storeId;
+  const storeId = (store_id: string) => requireStoreId(store_id);
 
   return {
     async list(
-      params?: ListPaymentOptionsParams,
+      params: ListPaymentOptionsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<PaymentOption>> {
-      const { store_id, ...query } = params ?? {};
+      const { store_id, ...query } = params;
       return apiConfig.httpClient.get<PaginatedResponse<PaymentOption>>(
-        `/v1/stores/${storeId(store_id)}/payment-options`,
+        `/v1/stores/${requireStoreId(storeId(store_id))}/payment-options`,
         { ...options, params: query },
       );
     },
 
     async get(params: GetPaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
       return apiConfig.httpClient.get<PaymentOption>(
-        `/v1/stores/${encodeURIComponent(storeId(params.store_id))}/payment-options/${encodeURIComponent(params.id)}`, options,
+        `/v1/stores/${requireStoreId(encodeURIComponent(storeId(params.store_id)))}/payment-options/${encodeURIComponent(params.id)}`, options,
       );
     },
     async getByKey(params: GetStoreConfigurationByKeyParams, options?: RequestOptions): Promise<PaymentOption> {
       return apiConfig.httpClient.get<PaymentOption>(
-        `/v1/stores/${encodeURIComponent(storeId(params.store_id))}/payment-options/key/${encodeURIComponent(params.key)}`, options,
-      );
-    },
-    async getByType(params: GetPaymentOptionByTypeParams, options?: RequestOptions): Promise<PaymentOption> {
-      return apiConfig.httpClient.get<PaymentOption>(
-        `/v1/stores/${encodeURIComponent(storeId(params.store_id))}/payment-options/by-type/${params.type_name}`, options,
+        `/v1/stores/${requireStoreId(encodeURIComponent(storeId(params.store_id)))}/payment-options/key/${encodeURIComponent(params.key)}`, options,
       );
     },
     async create(
@@ -57,8 +54,8 @@ export const createPaymentOptionApi = (apiConfig: ApiConfig) => {
       const targetStoreId = storeId(params.store_id);
       const { store_id: _store_id, ...rest } = params;
       return apiConfig.httpClient.post<PaymentOption>(
-        `/v1/stores/${targetStoreId}/payment-options`,
-        { store_id: targetStoreId, ...rest },
+        `/v1/stores/${requireStoreId(targetStoreId)}/payment-options`,
+        rest,
         options,
       );
     },
@@ -70,65 +67,77 @@ export const createPaymentOptionApi = (apiConfig: ApiConfig) => {
       const targetStoreId = storeId(params.store_id);
       const { store_id: _store_id, ...input } = params;
       return apiConfig.httpClient.post<PaymentOption>(
-        `/v1/stores/${encodeURIComponent(targetStoreId)}/payment-options/monri`,
-        { store_id: targetStoreId, ...input },
+        `/v1/stores/${requireStoreId(targetStoreId)}/payment-options/monri`,
+        input,
         options,
       );
     },
 
     async update(params: UpdatePaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
       const targetStoreId = storeId(params.store_id);
-      const { store_id: _store_id, ...input } = params;
+      const { store_id: _store_id, id, ...input } = params;
       return apiConfig.httpClient.put<PaymentOption>(
-        `/v1/stores/${encodeURIComponent(targetStoreId)}/payment-options/${encodeURIComponent(params.id)}`,
-        { store_id: targetStoreId, ...input }, options,
+        `/v1/stores/${requireStoreId(targetStoreId)}/payment-options/${encodeURIComponent(params.id)}`,
+        input, options,
       );
     },
 
     async refreshStripe(
-      params?: RefreshStripePaymentOptionParams,
+      params: RefreshStripePaymentOptionParams,
       options?: RequestOptions,
     ): Promise<PaymentOption> {
-      const targetStoreId = storeId(params?.store_id);
-      return apiConfig.httpClient.post<PaymentOption>(
-        `/v1/stores/${targetStoreId}/payment-options/stripe/refresh`,
-        { store_id: targetStoreId },
-        options,
-      );
-    },
-
-    async connectStripe(
-      params: ConnectStripePaymentOptionParams,
-      options?: RequestOptions,
-    ): Promise<PaymentOptionConnectResponse> {
       const targetStoreId = storeId(params.store_id);
-      return apiConfig.httpClient.post<PaymentOptionConnectResponse>(
-        `/v1/stores/${encodeURIComponent(targetStoreId)}/payment-options/stripe/connect`,
-        { ...params, store_id: targetStoreId },
+      return apiConfig.httpClient.post<PaymentOption>(
+        `/v1/stores/${requireStoreId(targetStoreId)}/payment-options/stripe/${encodeURIComponent(params.id)}/refresh`,
+        undefined,
         options,
       );
     },
 
-    async getStripeConnection(
-      params: GetStripeConnectionOperationParams,
+    async stripeSetup(
+      params: GetPaymentOptionParams,
       options?: RequestOptions,
-    ): Promise<StripeConnectionOperation> {
-      return apiConfig.httpClient.get<StripeConnectionOperation>(
-        `/v1/stores/${encodeURIComponent(storeId(params.store_id))}/payment-options/stripe/connections/${encodeURIComponent(params.operation_id)}`,
+    ): Promise<StripeMerchantSetup> {
+      return apiConfig.httpClient.get<StripeMerchantSetup>(
+        `/v1/stores/${storeId(params.store_id)}/payment-options/stripe/${encodeURIComponent(params.id)}/setup`,
         options,
       );
     },
 
-    async openDashboard(
-      params: OpenStripeDashboardParams,
+    async configureStripe(
+      params: ConfigureStripePaymentOptionParams,
       options?: RequestOptions,
-    ): Promise<{ dashboard_url: string }> {
-      return apiConfig.httpClient.post<{ dashboard_url: string }>(
-        `/v1/stores/${storeId(params.store_id)}/payment-options/stripe/${params.id}/dashboard`,
-        {},
+    ): Promise<StripeConfigurationChange> {
+      requireRequestId(params.request_id);
+      const { store_id, id, ...input } = params;
+      return apiConfig.httpClient.post<StripeConfigurationChange>(
+        `/v1/stores/${storeId(store_id)}/payment-options/stripe/${encodeURIComponent(id)}/configuration`,
+        input,
         options,
       );
     },
 
+    async cancelStripeConfiguration(
+      params: CancelStripeConfigurationParams,
+      options?: RequestOptions,
+    ): Promise<StripeConfigurationResolution> {
+      requireRequestId(params.request_id);
+      return apiConfig.httpClient.post<StripeConfigurationResolution>(
+        `/v1/stores/${storeId(params.store_id)}/payment-options/stripe/${encodeURIComponent(params.id)}/configuration/requests/${encodeURIComponent(params.request_id)}/cancel`,
+        { expected_updated_at: params.expected_updated_at },
+        options,
+      );
+    },
+
+    async getStripeConfigurationChange(
+      params: GetStripeConfigurationChangeParams,
+      options?: RequestOptions,
+    ): Promise<StripeConfigurationChange> {
+      requireRequestId(params.request_id);
+      return apiConfig.httpClient.get<StripeConfigurationChange>(
+        `/v1/stores/${storeId(params.store_id)}/payment-options/stripe/${encodeURIComponent(params.id)}/configuration/requests/${encodeURIComponent(params.request_id)}`,
+        options,
+      );
+    },
   };
 };

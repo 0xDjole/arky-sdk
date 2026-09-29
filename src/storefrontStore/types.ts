@@ -123,6 +123,7 @@ export interface ArkyCartInput {
 }
 
 export interface ArkyCartCheckoutInput {
+  request_id: string;
   payment_option_id?: string;
   return_url?: string;
   clear_after_checkout?: boolean;

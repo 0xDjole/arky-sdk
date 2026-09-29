@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -10,8 +11,8 @@ import type {
 } from "../types/subscriptionPlan";
 
 export const createSubscriptionPlanApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/subscription-plans`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/subscription-plans`;
   return {
     create(
       params: CreateSubscriptionPlanParams,
@@ -35,7 +36,7 @@ export const createSubscriptionPlanApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindSubscriptionPlansParams = {},
+      params: FindSubscriptionPlansParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<SubscriptionPlan>> {
       const { store_id, ...query } = params;
@@ -45,7 +46,7 @@ export const createSubscriptionPlanApi = (apiConfig: ApiConfig) => {
       );
     },
     update(
-      params: UpdateSubscriptionPlanParams & { store_id?: string },
+      params: UpdateSubscriptionPlanParams & { store_id: string },
       options?: RequestOptions,
     ): Promise<SubscriptionPlan> {
       const { store_id, id, ...payload } = params;

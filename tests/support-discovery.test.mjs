@@ -99,7 +99,7 @@ test("Storefront history sends its capability only in the header and does not de
     apiUrl: "https://support-contract.test",
     sessionStorage: storefrontSessionStorage(JSON.stringify({
       version: 2,
-      customer: { id: "customer", status: { type: "active" }, primary_email_identity_id: null, classifications: [], created_at: 0, updated_at: 0 },
+      customer: { id: "customer", status: { type: "active" }, primary_email_identity_id: null, categories: [], created_at: 0, updated_at: 0 },
       session: { id: "session", customer_id: "customer", type: "visitor", status: { type: "active" }, token: visitorToken, expires_at: 4_102_444_800_000 },
     })),
   });

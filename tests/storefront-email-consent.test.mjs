@@ -31,7 +31,7 @@ test("storefront consent reuses its Visitor, exact binding and generation withou
     if (call.path === "/v1/storefront/customer/identify") {
       assert.equal(headers.has("Authorization"), false);
       result = {
-        customer: { id: customerId, status: { type: "active" }, primary_email_identity_id: null, default_shipping_address_id: null, default_billing_address_id: null, classifications: [], created_at: 1, updated_at: 1 },
+        customer: { id: customerId, status: { type: "active" }, primary_email_identity_id: null, default_shipping_address_id: null, default_billing_address_id: null, categories: [], created_at: 1, updated_at: 1 },
         session: { id: "consent-session", customer_id: customerId, type: "visitor", status: { type: "active" }, token, expires_at: Date.now() + 60_000 },
       };
     } else {

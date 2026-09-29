@@ -32,7 +32,7 @@ export interface CatalogUsage {
 }
 
 export interface CreateCatalogParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   name: string;
   assortment_id: string;
@@ -44,7 +44,7 @@ export interface CreateCatalogParams {
 }
 
 export interface GetCatalogParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
@@ -69,12 +69,12 @@ export interface FindCatalogsParams {
   sort_direction?: "asc" | "desc";
   assortment_id?: string;
   price_list_id?: string;
-  store_id?: string;
+  store_id: string;
   key?: string;
   limit?: number;
   cursor?: string;
 }
 export interface GetCatalogByKeyParams {
-  store_id?: string;
+  store_id: string;
   key: string;
 }

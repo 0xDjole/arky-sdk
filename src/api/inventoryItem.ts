@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -12,8 +13,8 @@ import type {
 } from "../types/inventoryItem";
 
 export const createInventoryItemApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/inventory-items`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/inventory-items`;
 
   return {
     create(
@@ -42,7 +43,7 @@ export const createInventoryItemApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindInventoryItemsParams = {},
+      params: FindInventoryItemsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<InventoryItem>> {
       const { store_id, ...query } = params;

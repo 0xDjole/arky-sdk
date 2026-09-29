@@ -3,7 +3,7 @@ export * from "./api";
 export type * from "./cartDelivery";
 export type * from './storeAdminDomain';
 export type { OrderBooking, GetOrderBookingParams } from "./orderBooking";
-export type { CancelPendingOrderParams, OrderCancellationReceipt } from "./orderCancellation";
+export type { CancelPendingOrderParams, OrderCancellationAcceptance } from "./orderCancellation";
 export type * from "./inventory";
 export type * from "./inventoryUnit";
 export type * from "./return";
@@ -83,7 +83,7 @@ export type {
 } from "./emailSuppression";
 export type { PriceEditableStatus, PriceStatus, ManualPriceInput, ManualPrice, CreatePriceParams, UpdatePriceParams, GetPriceParams, DeletePriceParams, FindPricesParams } from "./price";
 export type { PriceList, PriceListEditableStatus, PriceListStatus, CreatePriceListParams, UpdatePriceListParams, GetPriceListParams, DeletePriceListParams, FindPriceListsParams } from "./priceList";
-export type { CustomerGroupAdmission, CustomerGroupAdmissionSource, CustomerGroupAdministrativeAccess, CustomerGroupMember, CustomerGroupMemberSelf, CustomerGroupSelfAdmission, CustomerGroupJoinResult, CustomerGroupMemberCommandResponse, CustomerGroupMemberCommandReceipt, CustomerGroupMemberCommandResultType, LookupCustomerGroupMemberParams, CustomerGroupJoinScope, CustomerGroupJoinRequest, JoinCustomerGroupParams, GetCustomerGroupMemberParams, FindCustomerGroupMembersParams, GetCurrentCustomerGroupMemberParams, FindCustomerGroupMemberCommandsParams, JoinStorefrontCustomerGroupParams, GetStorefrontCustomerGroupMemberParams } from "./customerGroupMember";
+export type { CustomerGroupAdmission, CustomerGroupAdmissionSource, CustomerGroupAdministrativeAccess, CustomerGroupMember, CustomerGroupMemberSelf, CustomerGroupSelfAdmission, CustomerGroupJoinResult, CustomerGroupMemberCommandResponse, CustomerGroupMemberChange, CustomerGroupMemberCommandResult, CustomerGroupMemberCommandResultType, LookupCustomerGroupMemberParams, CustomerGroupJoinScope, CustomerGroupJoinRequest, JoinCustomerGroupParams, GetCustomerGroupMemberParams, FindCustomerGroupMembersParams, GetCurrentCustomerGroupMemberParams, FindCustomerGroupMemberCommandsParams, JoinStorefrontCustomerGroupParams, GetStorefrontCustomerGroupMemberParams } from "./customerGroupMember";
 export type { GetPriceListByKeyParams } from "./priceList";
 export type { SubscriptionSelf, SubscriptionSelfStatus } from "./subscription";
 export type { Subscription, SubscriptionStatus, SubscriptionPurchaseState, SubscriptionCollectionBlock, GetSubscriptionParams, FindSubscriptionsParams, FindSubscriptionOrdersParams, FindSubscriptionCommandsParams, GetCurrentSubscriptionParams, SubscriptionControlType, SubscriptionControl, ControlSubscriptionParams, SubscriptionControlResult } from "./subscription";

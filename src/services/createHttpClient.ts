@@ -86,7 +86,8 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
     return `${cfg.baseUrl}${refreshPath}`;
   }
 
-  async function ensureFreshToken() {
+  async function ensureFreshToken(expected: TokenSet | null) {
+    if (cfg.refreshCredentials) return cfg.refreshCredentials(expected);
     if (refreshPromise) {
       return refreshPromise;
     }
@@ -176,8 +177,12 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       tokens?.access_expires_at !== undefined &&
       epochMillisecondsNow() >= epochMilliseconds(tokens.access_expires_at)
     ) {
-      await ensureFreshToken();
-      tokens = authStorage.getTokens();
+      await ensureFreshToken(tokens);
+      const refreshed = authStorage.getTokens();
+      if (tokens?.id && refreshed?.id !== tokens.id) {
+        throw requestError("ApiError", "The Account session changed", { statusCode: 401 });
+      }
+      tokens = refreshed;
     }
 
     if (tokens?.access_token) {
@@ -238,7 +243,10 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
           return request<T>(method, path, body, options, true);
         }
       } else {
-        await ensureFreshToken();
+        await ensureFreshToken(tokens);
+        if (tokens?.id && authStorage.getTokens()?.id !== tokens.id) {
+          throw requestError("ApiError", "The Account session changed", { statusCode: 401 });
+        }
         return request<T>(method, path, body, options, true);
       }
     }

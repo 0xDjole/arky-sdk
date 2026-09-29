@@ -31,7 +31,7 @@ export interface Zone {
 }
 
 export interface CreateZoneParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   includes: ZoneMatch[];
   excludes: ZoneMatch[];
@@ -39,7 +39,7 @@ export interface CreateZoneParams {
 }
 
 export interface UpdateZoneParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   includes: ZoneMatch[];
@@ -48,12 +48,12 @@ export interface UpdateZoneParams {
 }
 
 export interface GetZoneParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface FindZonesParams {
-  store_id?: string;
+  store_id: string;
   key?: string;
   status?: ZoneStatus["type"];
   sort_field?: "created_at" | "updated_at";
@@ -63,12 +63,12 @@ export interface FindZonesParams {
 }
 
 export interface GetZoneByKeyParams {
-  store_id?: string;
+  store_id: string;
   key: string;
 }
 
 export interface DeleteZoneParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
@@ -88,26 +88,26 @@ export interface MarketZone {
 }
 
 export interface CreateMarketZoneParams {
-  store_id?: string;
+  store_id: string;
   market_id: string;
   zone_id: string;
   priority: number;
 }
 
 export interface UpdateMarketZoneParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   priority: number;
 }
 
 export interface GetMarketZoneParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface FindMarketZonesParams {
-  store_id?:string;
+  store_id:string;
   market_id?:string;
   zone_id?:string;
   status?: "active"|"deleting";
@@ -118,13 +118,13 @@ export interface FindMarketZonesParams {
 }
 
 export interface LookupMarketZoneParams {
-  store_id?:string;
+  store_id:string;
   market_id:string;
   zone_id:string;
 }
 
 export interface DeleteMarketZoneParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }

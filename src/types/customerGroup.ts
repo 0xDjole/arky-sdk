@@ -42,7 +42,7 @@ export interface CustomerGroupUsage {
 }
 
 export interface CreateCustomerGroupParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   name: string;
   status: CustomerGroupEditableStatus;
@@ -51,17 +51,17 @@ export interface CreateCustomerGroupParams {
 }
 
 export interface GetCustomerGroupParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface GetCustomerGroupByKeyParams {
-  store_id?: string;
+  store_id: string;
   key: string;
 }
 
 export interface UpdateCustomerGroupParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   name: string;
@@ -71,13 +71,13 @@ export interface UpdateCustomerGroupParams {
 }
 
 export interface DeleteCustomerGroupParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindCustomerGroupsParams {
-  store_id?: string;
+  store_id: string;
   limit?: number;
   cursor?: string;
   key?: string;

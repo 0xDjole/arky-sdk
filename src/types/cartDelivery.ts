@@ -23,14 +23,14 @@ export interface AcceptedFutureDeliveryPlanChoices {
 }
 
 export interface QuoteCartFutureDeliveriesParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   locale?: string;
   plans: FutureDeliveryPlanChoices[];
 }
 
 export interface AcceptCartFutureDeliveriesParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   locale?: string;
   plans: AcceptedFutureDeliveryPlanChoices[];

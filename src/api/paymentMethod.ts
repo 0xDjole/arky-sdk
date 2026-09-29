@@ -1,11 +1,13 @@
+import { requireRequestId } from "../utils/requestId";
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
 import type {
   PaymentMethod,
-  PaymentMethodCommand,
+  PaymentMethodOperation,
   PaymentMethodRevocation,
-  FindPaymentMethodCommandsParams,
+  FindPaymentMethodOperationsParams,
   FindPaymentMethodsParams,
   GetPaymentMethodParams,
   PaymentMethodSetupStart,
@@ -14,8 +16,8 @@ import type {
 } from "../types/paymentMethod";
 
 export const createPaymentMethodApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/payment-methods`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/payment-methods`;
 
   return {
     get(
@@ -29,7 +31,7 @@ export const createPaymentMethodApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindPaymentMethodsParams = {},
+      params: FindPaymentMethodsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<PaymentMethod>> {
       const { store_id, ...query } = params;
@@ -38,13 +40,13 @@ export const createPaymentMethodApi = (apiConfig: ApiConfig) => {
         { ...options, params: query },
       );
     },
-    commands(
-      params: FindPaymentMethodCommandsParams,
+    operations(
+      params: FindPaymentMethodOperationsParams,
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<PaymentMethodCommand>> {
+    ): Promise<PaginatedResponse<PaymentMethodOperation>> {
       const { store_id, id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<PaymentMethodCommand>>(
-        `${basePath(store_id)}/${encodeURIComponent(id)}/commands`,
+      return apiConfig.httpClient.get<PaginatedResponse<PaymentMethodOperation>>(
+        `${basePath(store_id)}/${encodeURIComponent(id)}/operations`,
         { ...options, params: query },
       );
     },
@@ -52,6 +54,7 @@ export const createPaymentMethodApi = (apiConfig: ApiConfig) => {
       params: RevokePaymentMethodParams,
       options?: RequestOptions,
     ): Promise<PaymentMethodRevocation> {
+      requireRequestId(params.request_id);
       const { store_id, id, ...payload } = params;
       return apiConfig.httpClient.post<PaymentMethodRevocation>(
         `${basePath(store_id)}/${encodeURIComponent(id)}/revoke`,
@@ -63,6 +66,7 @@ export const createPaymentMethodApi = (apiConfig: ApiConfig) => {
       params: RequestPaymentMethodSetupParams,
       options?: RequestOptions,
     ): Promise<PaymentMethod> {
+      requireRequestId(params.request_id);
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<PaymentMethod>(
         `${basePath(store_id)}/setup`,
@@ -77,7 +81,7 @@ export const createPaymentMethodApi = (apiConfig: ApiConfig) => {
       const { store_id, id } = params;
       return apiConfig.httpClient.post<PaymentMethodSetupStart>(
         `${basePath(store_id)}/${encodeURIComponent(id)}/setup/start`,
-        {},
+        undefined,
         options,
       );
     },
@@ -88,7 +92,7 @@ export const createPaymentMethodApi = (apiConfig: ApiConfig) => {
       const { store_id, id } = params;
       return apiConfig.httpClient.post<PaymentMethod>(
         `${basePath(store_id)}/${encodeURIComponent(id)}/setup/complete`,
-        {},
+        undefined,
         options,
       );
     },

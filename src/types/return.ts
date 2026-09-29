@@ -47,7 +47,7 @@ export interface OrderReturnOptions {
 }
 
 export interface GetOrderReturnOptionsParams {
-  store_id?: string;
+  store_id: string;
   order_id: string;
 }
 
@@ -92,7 +92,7 @@ export interface Return {
   status: ReturnStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
-  command_id: string;
+  request_id: string;
 }
 
 export interface MissingReturnItem {
@@ -111,6 +111,25 @@ export type ReturnDisposition =
 
 export interface DisposeReturnItem extends ReceiveReturnItem {
   disposition: ReturnDisposition;
+  order_units: ReturnOrderUnitQuantity[];
+}
+
+export interface ReturnOrderUnitQuantity {
+  span: UnitSpan;
+  quantity_per_unit: number;
+}
+
+export interface ReturnInspectionUnit {
+  store_id: string;
+  return_id: string;
+  line_id: string;
+  inventory_item_id: string;
+  inventory_unit_id: string;
+  order_units: UnitSpan[];
+}
+
+export interface GetReturnInspectionUnitParams extends GetReturnParams {
+  inventory_unit_id: string;
 }
 
 export type ReturnCommand =
@@ -123,26 +142,26 @@ export type ReturnCommand =
   | { type: "tracking"; tracking: Tracking };
 
 export interface GetReturnParams {
-  store_id?: string;
+  store_id: string;
   return_id: string;
 }
 
 export interface CreateReturnParams extends GetReturnParams {
   source: ReturnSource;
   destination_store_location_id?: string | null;
-  command_id: string;
+  request_id: string;
   lines: ReturnLineRequest[];
 }
 
 export interface ExecuteReturnParams extends GetReturnParams {
   source: ReturnSource;
-  command_id: string;
+  request_id: string;
   expected_updated_at: EpochMilliseconds;
   command: ReturnCommand;
 }
 
 export type FindReturnsParams = {
-  store_id?: string;
+  store_id: string;
   destination_store_location_id?: string;
   status?: ReturnStatus["type"];
   limit?: number;

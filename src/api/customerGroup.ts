@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -13,8 +14,8 @@ import type {
 } from "../types/customerGroup";
 
 export const createCustomerGroupApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/customer-groups`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/customer-groups`;
   return {
     create(
       params: CreateCustomerGroupParams,
@@ -42,7 +43,7 @@ export const createCustomerGroupApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<CustomerGroup>(`${basePath(store_id)}/by-key/${encodeURIComponent(key)}`, options);
     },
     find(
-      params: FindCustomerGroupsParams = {},
+      params: FindCustomerGroupsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<CustomerGroup>> {
       const { store_id, ...query } = params;

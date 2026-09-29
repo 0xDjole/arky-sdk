@@ -52,7 +52,7 @@ export interface CompanyLocation {
 }
 
 export interface CreateCompanyLocationParams {
-  store_id?: string;
+  store_id: string;
   company_id: string;
   name: string;
   shipping_address?: CompanyAddress | null;
@@ -61,12 +61,12 @@ export interface CreateCompanyLocationParams {
 }
 
 export interface GetCompanyLocationParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface UpdateCompanyLocationParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   name: string;
@@ -76,13 +76,13 @@ export interface UpdateCompanyLocationParams {
 }
 
 export interface DeleteCompanyLocationParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindCompanyLocationsParams {
-  store_id?: string;
+  store_id: string;
   limit?: number;
   cursor?: string;
   company_id?: string;

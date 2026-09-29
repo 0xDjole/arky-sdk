@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -11,8 +12,8 @@ import type {
 } from "../types/marketSalesChannel";
 
 export const createMarketSalesChannelApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/market-sales-channels`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/market-sales-channels`;
 
   return {
     create(
@@ -34,7 +35,7 @@ export const createMarketSalesChannelApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<MarketSalesChannel>(`${basePath(store_id)}/lookup`,{...options,params:query});
     },
     find(
-      params: FindMarketSalesChannelsParams = {},
+      params: FindMarketSalesChannelsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<MarketSalesChannel>> {
       const { store_id, ...query } = params;

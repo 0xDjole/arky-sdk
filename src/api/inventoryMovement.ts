@@ -1,3 +1,5 @@
+import { requireRequestId } from "../utils/requestId";
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -9,14 +11,15 @@ import type {
 } from "../types/inventory";
 
 export const createInventoryMovementApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/inventory-movements`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/inventory-movements`;
 
   return {
     record(
       params: RecordInventoryMovementParams,
       options?: RequestOptions,
     ): Promise<InventoryMovement> {
+      requireRequestId(params.request_id);
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<InventoryMovement>(basePath(store_id), payload, options);
     },
@@ -28,7 +31,7 @@ export const createInventoryMovementApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindInventoryMovementsParams = {},
+      params: FindInventoryMovementsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<InventoryMovement>> {
       const { store_id, ...query } = params;

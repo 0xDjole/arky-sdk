@@ -84,7 +84,7 @@ export interface Promotion {
 }
 
 export interface CreatePromotionParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   activation: PromotionActivation;
   conditions: PromotionEligibility[];
@@ -99,7 +99,7 @@ export interface CreatePromotionParams {
 }
 
 export interface UpdatePromotionParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key: string;
@@ -116,12 +116,12 @@ export interface UpdatePromotionParams {
 }
 
 export interface GetPromotionParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface FindPromotionsParams {
-  store_id?: string;
+  store_id: string;
   key?: string;
   status?: PromotionStatus["type"];
   limit?: number;
@@ -129,13 +129,13 @@ export interface FindPromotionsParams {
 }
 
 export interface DeletePromotionParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface GetPromotionByKeyParams {
-  store_id?: string;
+  store_id: string;
   key: string;
 }
 
@@ -158,7 +158,7 @@ export interface PromotionCode {
 }
 
 export interface CreatePromotionCodeParams {
-  store_id?: string;
+  store_id: string;
   promotion_id: string;
   code: string;
   max_uses: number | null;
@@ -166,7 +166,7 @@ export interface CreatePromotionCodeParams {
 }
 
 export interface UpdatePromotionCodeParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   code: string;
@@ -175,12 +175,12 @@ export interface UpdatePromotionCodeParams {
 }
 
 export interface GetPromotionCodeParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface FindPromotionCodesParams {
-  store_id?: string;
+  store_id: string;
   promotion_id?: string;
   code?: string;
   status?: PromotionCodeStatus["type"];
@@ -189,12 +189,12 @@ export interface FindPromotionCodesParams {
 }
 
 export interface DeletePromotionCodeParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface GetPromotionCodeByCodeParams {
-  store_id?: string;
+  store_id: string;
   code: string;
 }

@@ -289,6 +289,14 @@ lines that each name one `inventory_unit_id`. Retain the command and Return UUID
 Staff creation may name the destination warehouse; approval can set it for a Customer request.
 `execute` keeps the command UUID, source and loaded update epoch across retries. Receive records
 custody; Dispose records restocked or not-restocked quantities and explicit Individual Unit IDs.
+Each Dispose item requires `order_units`: sorted, disjoint, coalesced `{ span, quantity_per_unit }`
+entries identify inspected components per original purchased unit. Their component total must equal
+the disposed quantity; Rental items send an empty array. For individually tracked goods,
+`admin.eshop.return.inspectionUnit({ store_id, return_id, inventory_unit_id })` reads the retained
+receiving proof for an asset currently awaiting inspection. Aggregate its original positions and
+submit the corresponding Unit IDs; the server rechecks both together. Partial inspections across
+separate Returns restore eligible purchase allowance only when every required component of an
+original unit has been accepted. This does not change payment or refund state.
 Missing records quantities that will not arrive. Each action addresses the exact line and Inventory
 Item. The Return closes automatically when every quantity is accounted for. Physical returns do
 not refund money; use the separate Refund flow when repayment is due.
@@ -624,18 +632,20 @@ Store setup is fetched lazily and deduplicated:
 
 ```typescript
 const setup = await arky.store.load();
-console.log(setup.languages.default, setup.default_market?.key);
+console.log(setup.languages.default, setup.commerce);
 console.log(setup.payment_options); // [{ id, key, blocks, type: "cash_on_delivery" | "manual" | "stripe" }]
 ```
 
-Setup contains only the exact default Market (`null` before commerce is ready), not a list of
-Markets. An explicit non-default selection resolves through `client.store.market.getByKey(key)`;
+Setup has no default Market. Configure a Market with `initialize(key, { market: "retail" })`
+or select it with `setMarket(key)` before browsing prices or creating a Cart. The configured key
+resolves through `client.store.market.getByKey(key)`;
 ordinary Market browsing uses `client.store.market.list({ limit, cursor })`. Neither configuration
 read creates a visitor or grants purchase permission. `setMarket(key)` changes context synchronously;
 call `await arky.store.load()` to resolve that selection before reading `arky.market` or currency.
 During resolution, a mismatched previous Market is unavailable; failed or stale reads never select
-the default instead. The public `commerce` tag supplies readiness and exact default IDs, not private
-seller or invoicing configuration. `languages.default` may be null.
+a default or the first discovery result. CMS, forms, Market discovery and Customer login work
+without a selected Market. The public `commerce` tag supplies readiness and the default SalesChannel
+ID, without private seller or invoicing configuration. `languages.default` may be null.
 
 The Storefront setup exposes each provider UUID, key, content Blocks and safe provider type. Stripe account,
 capability, consent, and disablement evidence remain private Admin data.
@@ -746,7 +756,7 @@ await arky.client.content.entry.find({
   key: "homepage",
   limit: 1,
 });
-await arky.client.classification.get({ key: "topics" });
+await arky.client.category.get({ key: "topics" });
 ```
 
 Low-level requests use Store-ID-free `/v1/storefront` routes and send connection context as headers:
@@ -840,7 +850,6 @@ await admin.store.update({
   name: "Arky Sarajevo",
   billing_email: "billing@example.com",
   contact_email: "team@example.com",
-  default_market_id: "market-id",
   default_sales_channel_id: "sales-channel-id",
   default_language: "en",
   supported_languages: ["en", "bs"],
@@ -851,7 +860,7 @@ const storefrontClients = await admin.store.storefrontClient.find({
   limit: 20,
 });
 
-const classifications = await admin.classification.find({ limit: 20 });
+const categories = await admin.category.find({ limit: 20 });
 ```
 
 Publishable credentials belong to individual StorefrontClient registrations and their allowed
@@ -904,11 +913,13 @@ authorizes repeated creation, connection or payment. Only exact reads confirm a 
 Store creation leaves Commerce uninitialized. Content, Forms, and Support work without a Market;
 a non-commerce StorefrontClient can have an empty `sales_channel_ids` list. An Owner explicitly
 starts commerce with `store.commerce.initialize({ operation_id, request })` and inspects the same
-operation with `store.commerce.getInitialization({ operation_id })`. Ready Store reads expose `default_market_id` and
+operation with `store.commerce.getInitialization({ operation_id })`. Ready Store reads expose
 `default_sales_channel_id` inside `commerce` when `commerce.type === "ready"`.
-Use `storeCommerceDefaults(store)` to read that pair; uninitialized/initializing Stores have no
-implicit defaults. An update may select other current same-Store defaults; neither accepts `null`,
-and the SDK does not select a replacement for the operator.
+Use `storeDefaultSalesChannel(store)` to read that channel ID; uninitialized/initializing Stores
+return null. Updates can select another current active same-Store channel and reject null.
+Markets are always explicit: Admin Cart creation requires `market_id`, Admin order quotes require
+`market`, and storefront commercial requests send the SDK-selected Market key. Existing Carts,
+Orders and Subscriptions keep their recorded Market. The SDK never chooses a replacement.
 
 ### Stripe connection setup
 
@@ -1002,9 +1013,9 @@ and `delete`. Market key/currency and SalesChannel key are immutable. Market rea
 Company, membership, role, location, group, channel and Market edits/deletes require the
 current `updated_at` as `expected_updated_at` where those commands exist. Inspect each available
 `usage` response before deletion: it names bounded actual dependencies, including CatalogEntitlements,
-with `more_*` flags. Default Market deletion needs `replacement_default_market_id`; default channel
-archival/deletion needs `replacement_default_sales_channel_id`. An unused non-default definition
-needs no replacement. Server checks live dependencies and validates any replacement in the same
+with `more_*` flags. Markets have no default designation or replacement input. Default channel
+archival/deletion needs `replacement_default_sales_channel_id`. An unused Market or non-default
+channel needs no replacement. Server checks live dependencies and validates any replacement in the same
 transaction; the SDK neither clears a grant nor silently reassigns a buyer's context.
 
 A successful asynchronous delete returns the exact record with `status.type === "deleting"`

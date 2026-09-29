@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -12,8 +13,8 @@ import type {
 } from "../types/promotion";
 
 export const createPromotionApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/promotions`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/promotions`;
 
   return {
     create(params: CreatePromotionParams, options?: RequestOptions): Promise<Promotion> {
@@ -43,7 +44,7 @@ export const createPromotionApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindPromotionsParams = {},
+      params: FindPromotionsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<Promotion>> {
       const { store_id, ...query } = params;

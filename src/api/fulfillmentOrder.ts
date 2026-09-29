@@ -1,3 +1,5 @@
+import { requireRequestId } from "../utils/requestId";
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { FulfillmentUnitSlots, ResolveFulfillmentUnitSlotsParams } from "../types/fulfillmentUnitSelection";
 import type {
@@ -17,8 +19,8 @@ import type {
 } from "../types";
 
 export const createFulfillmentOrderApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId || apiConfig.storeId)}/fulfillment-orders`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/fulfillment-orders`;
 
   return {
     find(
@@ -77,6 +79,7 @@ export const createFulfillmentOrderApi = (apiConfig: ApiConfig) => {
       );
     },
     move(params: MoveFulfillmentOrderParams, options?: RequestOptions): Promise<MoveFulfillmentOrderResult> {
+      requireRequestId(params.request_id);
       const { store_id, fulfillment_order_id, ...payload } = params;
       return apiConfig.httpClient.post<MoveFulfillmentOrderResult>(`${basePath(store_id)}/${encodeURIComponent(fulfillment_order_id)}/move`, payload, options);
     },
@@ -84,6 +87,7 @@ export const createFulfillmentOrderApi = (apiConfig: ApiConfig) => {
       params: ControlPartnerRequestParams,
       options?: RequestOptions,
     ): Promise<FulfillmentOrder> {
+      requireRequestId(params.request_id);
       const { store_id, fulfillment_order_id, ...payload } = params;
       return apiConfig.httpClient.post<FulfillmentOrder>(
         `${basePath(store_id)}/${encodeURIComponent(fulfillment_order_id)}/partner`,

@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -11,8 +12,8 @@ import type {
 } from "../types/paymentTerms";
 
 export const createPaymentTermsApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/payment-terms`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/payment-terms`;
 
   return {
     create(params: CreatePaymentTermsParams, options?: RequestOptions): Promise<PaymentTerms> {
@@ -35,7 +36,7 @@ export const createPaymentTermsApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindPaymentTermsParams = {},
+      params: FindPaymentTermsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<PaymentTerms>> {
       const { store_id, ...query } = params;

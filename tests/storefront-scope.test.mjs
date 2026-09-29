@@ -43,7 +43,7 @@ function identifyResponse(token = visitorTokenA, id = "customer-a") {
       id,
       status: { type: "active" },
       identities: [],
-      classifications: [],
+      categories: [],
       created_at: 1,
       updated_at: 1,
     },
@@ -633,7 +633,7 @@ test("code-only verification and refresh atomically rotate the discriminated Cus
         created_at: 1,
       },
     ],
-    classifications: [],
+    categories: [],
     created_at: 1,
     updated_at: 3,
   };
@@ -795,7 +795,7 @@ test("refresh 401 keeps the previous authenticated Session and never retries wit
     id: "customer-refresh-failure",
     status: { type: "active" },
     identities: [],
-    classifications: [],
+    categories: [],
     created_at: 1,
     updated_at: 1,
   };

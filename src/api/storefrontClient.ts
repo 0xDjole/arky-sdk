@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -11,8 +12,8 @@ import type {
 } from "../types/storefrontClient";
 
 export const createStorefrontClientApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/storefront-clients`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/storefront-clients`;
 
   return {
     create(
@@ -52,7 +53,7 @@ export const createStorefrontClientApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindStorefrontClientsParams = {},
+      params: FindStorefrontClientsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<StorefrontClientRegistration>> {
       const { store_id, ...query } = params;

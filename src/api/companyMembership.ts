@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -11,8 +12,8 @@ import type {
 } from "../types/companyMembership";
 
 export const createCompanyMembershipApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/company-memberships`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/company-memberships`;
   return {
     create(
       params: CreateCompanyMembershipParams,
@@ -36,7 +37,7 @@ export const createCompanyMembershipApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindCompanyMembershipsParams = {},
+      params: FindCompanyMembershipsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<CompanyMembership>> {
       const { store_id, ...query } = params;

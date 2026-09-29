@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type {
   CreateEmailTemplateParams,
@@ -15,34 +16,34 @@ export const createEmailTemplateApi = (apiConfig: ApiConfig) => {
   return {
     async createEmailTemplate(params: CreateEmailTemplateParams, options?: RequestOptions): Promise<EmailTemplate> {
       const { store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.post<EmailTemplate>(
-        `/v1/stores/${target_store_id}/email-templates`,
+        `/v1/stores/${requireStoreId(target_store_id)}/email-templates`,
         payload,
         options
       );
     },
 
     async updateEmailTemplate(params: UpdateEmailTemplateParams, options?: RequestOptions): Promise<EmailTemplate> {
-      const { store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const { store_id, id, ...payload } = params;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.put<EmailTemplate>(
-        `/v1/stores/${target_store_id}/email-templates/${params.id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/email-templates/${params.id}`,
         payload,
         options
       );
     },
 
     async deleteEmailTemplate(params: DeleteEmailTemplateParams, options?: RequestOptions): Promise<boolean> {
-      const target_store_id = params.store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.delete<boolean>(
-        `/v1/stores/${target_store_id}/email-templates/${params.id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/email-templates/${params.id}`,
         options
       );
     },
 
     async getEmailTemplate(params: GetEmailTemplateParams, options?: RequestOptions): Promise<EmailTemplate> {
-      const target_store_id = params.store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(params.store_id);
       let identifier: string;
       if (params.id) {
         identifier = params.id;
@@ -53,16 +54,16 @@ export const createEmailTemplateApi = (apiConfig: ApiConfig) => {
       }
 
       return apiConfig.httpClient.get<EmailTemplate>(
-        `/v1/stores/${target_store_id}/email-templates/${encodeURIComponent(identifier)}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/email-templates/${encodeURIComponent(identifier)}`,
         options
       );
     },
 
     async getEmailTemplates(params: GetEmailTemplatesParams, options?: RequestOptions): Promise<{ items: EmailTemplate[]; cursor: string | null }> {
       const { store_id, ...queryParams } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.get<{ items: EmailTemplate[]; cursor: string | null }>(
-        `/v1/stores/${target_store_id}/email-templates`,
+        `/v1/stores/${requireStoreId(target_store_id)}/email-templates`,
         {
           ...options,
           params: queryParams,
@@ -72,9 +73,9 @@ export const createEmailTemplateApi = (apiConfig: ApiConfig) => {
 
     async previewEmailTemplate(params: PreviewEmailTemplateParams, options?: RequestOptions): Promise<PreviewEmailTemplateResponse> {
       const { store_id, id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.post<PreviewEmailTemplateResponse>(
-        `/v1/stores/${target_store_id}/email-templates/${id}/preview`,
+        `/v1/stores/${requireStoreId(target_store_id)}/email-templates/${id}/preview`,
         payload,
         options
       );

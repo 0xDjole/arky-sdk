@@ -1,10 +1,14 @@
+import { requireRequestId } from "../utils/requestId";
+import type { CartAccessProductPreview, PreviewCartAccessProductParams } from "../types/purchaseAccess";
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { AcceptCartFutureDeliveriesParams, CartFutureDeliveryQuote, QuoteCartFutureDeliveriesParams } from "../types/cartDelivery";
 import type { OrderBooking, GetOrderBookingParams } from "../types/orderBooking";
-import type { CancelPendingOrderParams, OrderCancellationReceipt } from "../types/orderCancellation";
-import { checkoutCart, pendingCartCheckout, recoverCartCheckout, withCartMutation } from "../services/cartCheckout";
+import type { CancelPendingOrderParams, OrderCancellationAcceptance } from "../types/orderCancellation";
+import { checkoutCart, retainCartCheckout, pendingCartCheckout, recoverCartCheckout, withCartMutation } from "../services/cartCheckout";
 import type { CartCheckoutTransport, CartCheckoutRequest, RecoverCartCheckoutParams } from "../types/cartCheckout";
 import type { OrderCheckoutResult } from "../types/index";
+import type { RevokeOrderAccessParams } from "../types/orderLineItem";
 import type {
   CreateBookingResourceParams,
   CreateProductParams,
@@ -69,8 +73,6 @@ import type {
   Payment,
 } from "../types";
 
-import type { Order } from "../types/order";
-
 export const createEshopApi = (apiConfig: ApiConfig) => {
   function checkoutScope(storeId: string): string {
     return `admin:${apiConfig.baseUrl}:${storeId}`;
@@ -78,13 +80,13 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
 
   function checkoutTransport(storeId: string): CartCheckoutTransport<OrderCheckoutResult> {
     return {
-      post: ({ id, request_id, ...request }, options) => apiConfig.httpClient.post<OrderCheckoutResult>(
-        `/v1/stores/${encodeURIComponent(storeId)}/carts/accept`,
+      post: ({ id, request_id, ...request }, options) => { requireRequestId(request_id); return apiConfig.httpClient.post<OrderCheckoutResult>(
+        `/v1/stores/${requireStoreId(storeId)}/carts/accept`,
         { ...request, request_id },
         options,
-      ),
+      ); },
       getOrder: (id, options) => apiConfig.httpClient.get<Order>(
-        `/v1/stores/${encodeURIComponent(storeId)}/orders/${encodeURIComponent(id)}`, options,
+        `/v1/stores/${requireStoreId(storeId)}/orders/${encodeURIComponent(id)}`, options,
       ),
     };
   }
@@ -95,9 +97,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Product> {
       const { store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.post<Product>(
-        `/v1/stores/${target_store_id}/products`,
+        `/v1/stores/${requireStoreId(target_store_id)}/products`,
         payload,
         options,
       );
@@ -107,10 +109,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: UpdateProductParams,
       options?: RequestOptions,
     ): Promise<Product> {
-      const { store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const { store_id, id, ...payload } = params;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.put<Product>(
-        `/v1/stores/${target_store_id}/products/${params.id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/products/${params.id}`,
         payload,
         options,
       );
@@ -120,9 +122,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: DeleteProductParams,
       options?: RequestOptions,
     ): Promise<{ deleted: boolean }> {
-      const target_store_id = params.store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${target_store_id}/products/${params.id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/products/${params.id}`,
         options,
       );
     },
@@ -131,7 +133,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: GetProductParams,
       options?: RequestOptions,
     ): Promise<Product> {
-      const target_store_id = params.store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(params.store_id);
       let identifier: string;
       if (params.id) {
         identifier = params.id;
@@ -142,7 +144,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       }
 
       return apiConfig.httpClient.get<Product>(
-        `/v1/stores/${target_store_id}/products/${identifier}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/products/${identifier}`,
         options,
       );
     },
@@ -151,9 +153,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: GetProductByKeyParams,
       options?: RequestOptions,
     ): Promise<Product> {
-      const storeId = params.store_id || apiConfig.storeId;
+      const storeId = requireStoreId(params.store_id);
       return apiConfig.httpClient.get<Product>(
-        `/v1/stores/${encodeURIComponent(storeId)}/products/by-key/${encodeURIComponent(params.key)}`,
+        `/v1/stores/${requireStoreId(storeId)}/products/by-key/${encodeURIComponent(params.key)}`,
         options,
       );
     },
@@ -163,9 +165,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PaginatedResponse<Product>> {
       const { store_id, ...queryParams } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.get<PaginatedResponse<Product>>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/products`,
+        `/v1/stores/${requireStoreId(target_store_id)}/products`,
         {
           ...options,
           params: queryParams,
@@ -178,9 +180,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<BookingService> {
       const { store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.post<BookingService>(
-        `/v1/stores/${target_store_id}/booking-services`,
+        `/v1/stores/${requireStoreId(target_store_id)}/booking-services`,
         payload,
         options,
       );
@@ -190,10 +192,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: UpdateBookingServiceParams,
       options?: RequestOptions,
     ): Promise<BookingService> {
-      const { store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const { store_id, id, ...payload } = params;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.put<BookingService>(
-        `/v1/stores/${target_store_id}/booking-services/${params.id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/booking-services/${params.id}`,
         payload,
         options,
       );
@@ -203,9 +205,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: DeleteBookingServiceParams,
       options?: RequestOptions,
     ): Promise<boolean> {
-      const target_store_id = params.store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.delete<boolean>(
-        `/v1/stores/${target_store_id}/booking-services/${params.id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/booking-services/${params.id}`,
         options,
       );
     },
@@ -214,7 +216,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: GetBookingServiceParams,
       options?: RequestOptions,
     ): Promise<BookingService> {
-      const store_id = params.store_id || apiConfig.storeId;
+      const store_id = requireStoreId(params.store_id);
       let identifier: string;
       if (params.id) {
         identifier = params.id;
@@ -225,7 +227,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       }
 
       return apiConfig.httpClient.get<BookingService>(
-        `/v1/stores/${store_id}/booking-services/${identifier}`,
+        `/v1/stores/${requireStoreId(store_id)}/booking-services/${identifier}`,
         options,
       );
     },
@@ -234,9 +236,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: GetBookingServiceByKeyParams,
       options?: RequestOptions,
     ): Promise<BookingService> {
-      const storeId = params.store_id || apiConfig.storeId;
+      const storeId = requireStoreId(params.store_id);
       return apiConfig.httpClient.get<BookingService>(
-        `/v1/stores/${encodeURIComponent(storeId)}/booking-services/by-key/${encodeURIComponent(params.key)}`,
+        `/v1/stores/${requireStoreId(storeId)}/booking-services/by-key/${encodeURIComponent(params.key)}`,
         options,
       );
     },
@@ -246,9 +248,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PaginatedResponse<BookingService>> {
       const { store_id, ...queryParams } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.get<PaginatedResponse<BookingService>>(
-        `/v1/stores/${target_store_id}/booking-services`,
+        `/v1/stores/${requireStoreId(target_store_id)}/booking-services`,
         {
           ...options,
           params: queryParams,
@@ -261,9 +263,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<AvailabilityResponse> {
       const { store_id, ...queryParams } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.get<AvailabilityResponse>(
-        `/v1/stores/${target_store_id}/booking-services/availability`,
+        `/v1/stores/${requireStoreId(target_store_id)}/booking-services/availability`,
         { ...options, params: queryParams },
       );
     },
@@ -273,9 +275,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<BookingResource> {
       const { store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.post<BookingResource>(
-        `/v1/stores/${target_store_id}/booking-resources`,
+        `/v1/stores/${requireStoreId(target_store_id)}/booking-resources`,
         payload,
         options,
       );
@@ -285,10 +287,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: UpdateBookingResourceParams,
       options?: RequestOptions,
     ): Promise<BookingResource> {
-      const { store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const { store_id, id, ...payload } = params;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.put<BookingResource>(
-        `/v1/stores/${target_store_id}/booking-resources/${params.id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/booking-resources/${params.id}`,
         payload,
         options,
       );
@@ -298,9 +300,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: DeleteBookingResourceParams,
       options?: RequestOptions,
     ): Promise<boolean> {
-      const target_store_id = params.store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.delete<boolean>(
-        `/v1/stores/${target_store_id}/booking-resources/${params.id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/booking-resources/${params.id}`,
         options,
       );
     },
@@ -309,9 +311,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: GetBookingResourceParams,
       options?: RequestOptions,
     ): Promise<BookingResource> {
-      const store_id = params.store_id || apiConfig.storeId;
+      const store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.get<BookingResource>(
-        `/v1/stores/${store_id}/booking-resources/${params.id}`,
+        `/v1/stores/${requireStoreId(store_id)}/booking-resources/${params.id}`,
         options,
       );
     },
@@ -320,9 +322,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: GetBookingResourceByKeyParams,
       options?: RequestOptions,
     ): Promise<BookingResource> {
-      const storeId = params.store_id || apiConfig.storeId;
+      const storeId = requireStoreId(params.store_id);
       return apiConfig.httpClient.get<BookingResource>(
-        `/v1/stores/${encodeURIComponent(storeId)}/booking-resources/by-key/${encodeURIComponent(params.key)}`,
+        `/v1/stores/${requireStoreId(storeId)}/booking-resources/by-key/${encodeURIComponent(params.key)}`,
         options,
       );
     },
@@ -332,9 +334,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PaginatedResponse<BookingResource>> {
       const { store_id, ...queryParams } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.get<PaginatedResponse<BookingResource>>(
-        `/v1/stores/${target_store_id}/booking-resources`,
+        `/v1/stores/${requireStoreId(target_store_id)}/booking-resources`,
         {
           ...options,
           params: queryParams,
@@ -348,7 +350,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     ): Promise<BookingOffering> {
       const { store_id, ...query } = params;
       return apiConfig.httpClient.get<BookingOffering>(
-        `/v1/stores/${encodeURIComponent(store_id || apiConfig.storeId)}/booking-offerings/lookup`,
+        `/v1/stores/${encodeURIComponent(requireStoreId(store_id))}/booking-offerings/lookup`,
         { ...options, params: query },
       );
     },
@@ -358,9 +360,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PaginatedResponse<BookingOffering>> {
       const { store_id, ...queryParams } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.get<PaginatedResponse<BookingOffering>>(
-        `/v1/stores/${target_store_id}/booking-offerings`,
+        `/v1/stores/${requireStoreId(target_store_id)}/booking-offerings`,
         { ...options, params: queryParams },
       );
     },
@@ -370,9 +372,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<BookingOffering> {
       const { store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.post<BookingOffering>(
-        `/v1/stores/${target_store_id}/booking-offerings`,
+        `/v1/stores/${requireStoreId(target_store_id)}/booking-offerings`,
         payload,
         options,
       );
@@ -383,9 +385,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<BookingOffering> {
       const { store_id, id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.put<BookingOffering>(
-        `/v1/stores/${target_store_id}/booking-offerings/${id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/booking-offerings/${id}`,
         payload,
         options,
       );
@@ -395,9 +397,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: DeleteBookingOfferingParams,
       options?: RequestOptions,
     ): Promise<boolean> {
-      const target_store_id = params.store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.delete<boolean>(
-        `/v1/stores/${target_store_id}/booking-offerings/${params.id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/booking-offerings/${params.id}`,
         options,
       );
     },
@@ -407,9 +409,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<OrderFinancialSummary> {
       const { id, store_id } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.get<OrderFinancialSummary>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/orders/${encodeURIComponent(id)}/financial-summary`,
+        `/v1/stores/${requireStoreId(target_store_id)}/orders/${encodeURIComponent(id)}/financial-summary`,
         options,
       );
     },
@@ -419,10 +421,23 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Order> {
       const { id, store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.put<Order>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/orders/${encodeURIComponent(id)}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/orders/${encodeURIComponent(id)}`,
         payload,
+        options,
+      );
+    },
+
+    async revokeOrderAccess(
+      params: RevokeOrderAccessParams,
+      options?: RequestOptions,
+    ): Promise<Order> {
+      requireRequestId(params.request_id);
+      const { store_id, order_id, request_id, line, effective_at, reason } = params;
+      return apiConfig.httpClient.post<Order>(
+        `/v1/stores/${requireStoreId(store_id)}/orders/${encodeURIComponent(order_id)}/access/revoke`,
+        { request_id, line, effective_at, reason },
         options,
       );
     },
@@ -430,12 +445,13 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     async cancelPendingOrder(
       params: CancelPendingOrderParams,
       options?: RequestOptions,
-    ): Promise<OrderCancellationReceipt> {
-      const { store_id, order_id, command_id } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-      return apiConfig.httpClient.post<OrderCancellationReceipt>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/orders/${encodeURIComponent(order_id)}/cancel`,
-        { command_id },
+    ): Promise<OrderCancellationAcceptance> {
+      requireRequestId(params.request_id);
+      const { store_id, order_id, request_id } = params;
+      const target_store_id = requireStoreId(store_id);
+      return apiConfig.httpClient.post<OrderCancellationAcceptance>(
+        `/v1/stores/${requireStoreId(target_store_id)}/orders/${encodeURIComponent(order_id)}/cancel`,
+        { request_id },
         options,
       );
     },
@@ -444,11 +460,12 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: CancelOrderProductItemParams,
       options?: RequestOptions,
     ): Promise<Order> {
-      const { store_id, order_id, order_product_item_id, command_id, expected_updated_at, units } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      requireRequestId(params.request_id);
+      const { store_id, order_id, order_product_item_id, request_id, expected_updated_at, units } = params;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.post<Order>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/orders/${encodeURIComponent(order_id)}/product-items/${encodeURIComponent(order_product_item_id)}/cancel`,
-        { command_id, expected_updated_at, units },
+        `/v1/stores/${requireStoreId(target_store_id)}/orders/${encodeURIComponent(order_id)}/product-items/${encodeURIComponent(order_product_item_id)}/cancel`,
+        { request_id, expected_updated_at, units },
         options,
       );
     },
@@ -458,9 +475,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<OrderBooking> {
       const { store_id, order_id, order_booking_item_id } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.get<OrderBooking>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/orders/${encodeURIComponent(order_id)}/booking-items/${encodeURIComponent(order_booking_item_id)}/appointment`,
+        `/v1/stores/${requireStoreId(target_store_id)}/orders/${encodeURIComponent(order_id)}/booking-items/${encodeURIComponent(order_booking_item_id)}/appointment`,
         options,
       );
     },
@@ -469,11 +486,12 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: CancelBookingItemParams,
       options?: RequestOptions,
     ): Promise<Order> {
-      const { store_id, order_id, order_booking_item_id, command_id } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      requireRequestId(params.request_id);
+      const { store_id, order_id, order_booking_item_id, request_id } = params;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.post<Order>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/orders/${encodeURIComponent(order_id)}/booking-items/${encodeURIComponent(order_booking_item_id)}/cancel`,
-        { command_id },
+        `/v1/stores/${requireStoreId(target_store_id)}/orders/${encodeURIComponent(order_id)}/booking-items/${encodeURIComponent(order_booking_item_id)}/cancel`,
+        { request_id },
         options,
       );
     },
@@ -483,10 +501,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Order> {
       const { store_id, order_id, order_booking_item_id } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.post<Order>(
-        `/v1/stores/${target_store_id}/orders/${order_id}/booking-items/${order_booking_item_id}/complete`,
-        {},
+        `/v1/stores/${requireStoreId(target_store_id)}/orders/${order_id}/booking-items/${order_booking_item_id}/complete`,
+        undefined,
         options,
       );
     },
@@ -496,10 +514,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Order> {
       const { store_id, order_id, order_booking_item_id } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.post<Order>(
-        `/v1/stores/${target_store_id}/orders/${order_id}/booking-items/${order_booking_item_id}/no-show`,
-        {},
+        `/v1/stores/${requireStoreId(target_store_id)}/orders/${order_id}/booking-items/${order_booking_item_id}/no-show`,
+        undefined,
         options,
       );
     },
@@ -508,10 +526,10 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: GetOrderParams,
       options?: RequestOptions,
     ): Promise<Order> {
-      const target_store_id = params.store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(params.store_id);
 
       return apiConfig.httpClient.get<Order>(
-        `/v1/stores/${target_store_id}/orders/${params.id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/orders/${params.id}`,
         options,
       );
     },
@@ -520,9 +538,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: GetOrderPaymentParams,
       options?: RequestOptions,
     ): Promise<Payment> {
-      const storeId = params.store_id || apiConfig.storeId;
+      const storeId = requireStoreId(params.store_id);
       return apiConfig.httpClient.get<Payment>(
-        `/v1/stores/${encodeURIComponent(storeId)}/orders/${encodeURIComponent(params.order_id)}/payments/${encodeURIComponent(params.payment_id)}`,
+        `/v1/stores/${requireStoreId(storeId)}/orders/${encodeURIComponent(params.order_id)}/payments/${encodeURIComponent(params.payment_id)}`,
         options,
       );
     },
@@ -532,9 +550,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PaginatedResponse<Payment>> {
       const { store_id, order_id, ...query } = params;
-      const storeId = store_id || apiConfig.storeId;
+      const storeId = requireStoreId(store_id);
       return apiConfig.httpClient.get<PaginatedResponse<Payment>>(
-        `/v1/stores/${encodeURIComponent(storeId)}/orders/${encodeURIComponent(order_id)}/payments`,
+        `/v1/stores/${requireStoreId(storeId)}/orders/${encodeURIComponent(order_id)}/payments`,
         { ...options, params: query },
       );
     },
@@ -544,9 +562,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<{ items: Order[]; cursor: string | null }> {
       const { store_id, ...queryParams } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.get<{ items: Order[]; cursor: string | null }>(
-        `/v1/stores/${target_store_id}/orders`,
+        `/v1/stores/${requireStoreId(target_store_id)}/orders`,
         {
           ...options,
           params: queryParams,
@@ -555,13 +573,13 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     },
 
     async getCarts(
-      params: FindCartsParams = {},
+      params: FindCartsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<Cart>> {
       const { store_id, ...queryParams } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.get<PaginatedResponse<Cart>>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/carts`,
+        `/v1/stores/${requireStoreId(target_store_id)}/carts`,
         {
           ...options,
           params: queryParams,
@@ -573,9 +591,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: GetCartParams,
       options?: RequestOptions,
     ): Promise<Cart> {
-      const target_store_id = params.store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.get<Cart>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(params.id)}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/carts/${encodeURIComponent(params.id)}`,
         options,
       );
     },
@@ -585,9 +603,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<CreatedCart> {
       const { store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<CreatedCart>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/carts`,
+        `/v1/stores/${requireStoreId(target_store_id)}/carts`,
         {
           ...payload,
           line_items: payload.line_items || [],
@@ -602,9 +620,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Cart> {
       const { id, store_id, line_items, delivery_groups, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.put<Cart>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(id)}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/carts/${encodeURIComponent(id)}`,
         {
           ...payload,
           ...(line_items ? { line_items } : {}),
@@ -619,9 +637,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Cart> {
       const { id, store_id, product } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(id)}/product-items`,
+        `/v1/stores/${requireStoreId(target_store_id)}/carts/${encodeURIComponent(id)}/product-items`,
         { product },
         options,
       ));
@@ -632,9 +650,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Cart> {
       const { id, store_id, booking } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(id)}/booking-items`,
+        `/v1/stores/${requireStoreId(target_store_id)}/carts/${encodeURIComponent(id)}/booking-items`,
         { booking },
         options,
       ));
@@ -645,9 +663,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Cart> {
       const { id, store_id, digital } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(id)}/digital-items`,
+        `/v1/stores/${requireStoreId(target_store_id)}/carts/${encodeURIComponent(id)}/digital-items`,
         { digital },
         options,
       ));
@@ -658,9 +676,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Cart> {
       const { id, store_id, subscription_plan } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(id)}/subscription-plan-items`,
+        `/v1/stores/${requireStoreId(target_store_id)}/carts/${encodeURIComponent(id)}/subscription-plan-items`,
         { subscription_plan },
         options,
       ));
@@ -671,9 +689,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Cart> {
       const { id, store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(id)}/items/remove`,
+        `/v1/stores/${requireStoreId(target_store_id)}/carts/${encodeURIComponent(id)}/items/remove`,
         payload,
         options,
       ));
@@ -683,21 +701,33 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: ClearCartParams,
       options?: RequestOptions,
     ): Promise<Cart> {
-      const target_store_id = params.store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(params.store_id);
       return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(params.id)}/clear`,
-        {},
+        `/v1/stores/${requireStoreId(target_store_id)}/carts/${encodeURIComponent(params.id)}/clear`,
+        undefined,
         options,
       ));
+    },
+
+    async previewCartAccessProduct(
+      params: PreviewCartAccessProductParams,
+      options?: RequestOptions,
+    ): Promise<CartAccessProductPreview> {
+      const { store_id, id, line_item_id, variant_id, quantity, purchase, locale } = params;
+      return apiConfig.httpClient.post<CartAccessProductPreview>(
+        `/v1/stores/${requireStoreId(store_id)}/carts/${encodeURIComponent(id)}/access-product-preview`,
+        { line_item_id, variant_id, quantity, purchase, locale: locale ?? apiConfig.locale },
+        options,
+      );
     },
 
     async quoteCart(
       params: QuoteCartParams,
       options?: RequestOptions,
     ): Promise<CheckoutQuote> {
-      const target_store_id = params.store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.post<CheckoutQuote>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/carts/${encodeURIComponent(params.id)}/quote`,
+        `/v1/stores/${requireStoreId(target_store_id)}/carts/${encodeURIComponent(params.id)}/quote`,
         { locale: params.locale ?? apiConfig.locale },
         options,
       );
@@ -707,9 +737,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: QuoteCartFutureDeliveriesParams,
       options?: RequestOptions,
     ): Promise<CartFutureDeliveryQuote> {
-      const storeId = params.store_id || apiConfig.storeId;
+      const storeId = requireStoreId(params.store_id);
       return apiConfig.httpClient.post<CartFutureDeliveryQuote>(
-        `/v1/stores/${encodeURIComponent(storeId)}/carts/${encodeURIComponent(params.id)}/future-delivery-quote`,
+        `/v1/stores/${requireStoreId(storeId)}/carts/${encodeURIComponent(params.id)}/future-delivery-quote`,
         { locale: params.locale ?? apiConfig.locale, plans: params.plans },
         options,
       );
@@ -719,9 +749,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: AcceptCartFutureDeliveriesParams,
       options?: RequestOptions,
     ): Promise<Cart> {
-      const storeId = params.store_id || apiConfig.storeId;
+      const storeId = requireStoreId(params.store_id);
       return withCartMutation(checkoutScope(storeId), () => apiConfig.httpClient.put<Cart>(
-        `/v1/stores/${encodeURIComponent(storeId)}/carts/${encodeURIComponent(params.id)}/future-deliveries`,
+        `/v1/stores/${requireStoreId(storeId)}/carts/${encodeURIComponent(params.id)}/future-deliveries`,
         { locale: params.locale ?? apiConfig.locale, plans: params.plans },
         options,
       ));
@@ -731,17 +761,24 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       params: CheckoutCartParams,
       options?: RequestOptions,
     ): Promise<import("../types").OrderCheckoutResult> {
+      requireRequestId(params.request_id);
       const { store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
-      return checkoutCart(checkoutScope(target_store_id), payload, checkoutTransport(target_store_id), options);
+      const target_store_id = requireStoreId(store_id);
+      return checkoutCart(payload, checkoutTransport(target_store_id), options);
     },
 
-    async pendingCartCheckout(params: RecoverCartCheckoutParams = {}): Promise<CartCheckoutRequest | null> {
-      return pendingCartCheckout(checkoutScope(params.store_id || apiConfig.storeId));
+    async retainCartCheckout(params: CheckoutCartParams): Promise<CartCheckoutRequest> {
+      requireRequestId(params.request_id);
+      const { store_id, ...payload } = params;
+      return retainCartCheckout(checkoutScope(requireStoreId(store_id)), payload);
     },
 
-    async recoverCartCheckout(params: RecoverCartCheckoutParams = {}, options?: RequestOptions): Promise<OrderCheckoutResult | null> {
-      const storeId = params.store_id || apiConfig.storeId;
+    async pendingCartCheckout(params: RecoverCartCheckoutParams): Promise<CartCheckoutRequest | null> {
+      return pendingCartCheckout(checkoutScope(requireStoreId(params.store_id)));
+    },
+
+    async recoverCartCheckout(params: RecoverCartCheckoutParams, options?: RequestOptions): Promise<OrderCheckoutResult | null> {
+      const storeId = requireStoreId(params.store_id);
       return recoverCartCheckout(checkoutScope(storeId), checkoutTransport(storeId), options);
     },
 
@@ -750,9 +787,9 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<CheckoutQuote> {
       const { store_id, line_items, delivery_groups, ...rest } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.post<CheckoutQuote>(
-        `/v1/stores/${encodeURIComponent(target_store_id)}/orders/quote`,
+        `/v1/stores/${requireStoreId(target_store_id)}/orders/quote`,
         {
           ...rest,
           locale: rest.locale ?? apiConfig.locale,

@@ -1,10 +1,10 @@
 import type { EpochMilliseconds } from "../types/time";
 import type { AcceptCartFutureDeliveriesParams, CartFutureDeliveryQuote, QuoteCartFutureDeliveriesParams } from "../types/cartDelivery";
-import type { StorefrontDto } from "../types/storefront";
+
 import type { CatalogReadOptions } from "../types/catalog";
 import type { CartViewScope } from "../types/cartView";
 import { CartSelectionError } from "../types/cartSelection";
-import { sanitizePublicCartSubscriptionPlans, sanitizePublicCartDigitalProducts } from "../utils/cartInputs";
+import { copyCartProductPurchase, sanitizePublicCartSubscriptionPlans, sanitizePublicCartDigitalProducts } from "../utils/cartInputs";
 function newDeliveryGroupId(): string {
   const generated = globalThis.crypto?.randomUUID?.();
   if (generated) return generated;
@@ -140,10 +140,9 @@ function initializeStoreCore(
   const locale = atom(config.locale || client.getLocale());
   const market_key = atom(config.market || client.getMarket());
   const resolvedMarket = atom<StorefrontMarket | null>(null);
-  const market = computed([setup, market_key, resolvedMarket], (setupValue, marketKey, value) => {
-    const resolvedKey = marketKey || setupValue?.default_market?.key;
-    return value?.key === resolvedKey ? value : null;
-  });
+  const market = computed([market_key, resolvedMarket], (marketKey, value) =>
+    marketKey && value?.key === marketKey ? value : null,
+  );
   const currency = computed(market, (value) => value?.currency || null);
   const allowed_payment_option_ids = computed(
     market,
@@ -289,7 +288,6 @@ function initializeStoreCore(
     return (
       market_key.get() ||
       client.getMarket() ||
-      setup.get()?.default_market?.key ||
       ""
     );
   }
@@ -319,20 +317,12 @@ function initializeStoreCore(
     const request = (async () => {
       const result = setup.get() ?? await client.getSetup();
       assertCurrent();
-      const defaultMarket = result.default_market;
-      if (result.commerce.type === "ready" && defaultMarket?.id !== result.commerce.default_market_id)
-        throw new CartSelectionError("Store configuration did not confirm its default Market");
-      if (result.commerce.type !== "ready" && defaultMarket !== null)
-        throw new CartSelectionError("An unready Store cannot expose a default Market");
-      const selectedKey = key || defaultMarket?.key || "";
-      const value = !selectedKey ? null : defaultMarket?.key === selectedKey ? defaultMarket :
-        await client.store.market.getByKey(selectedKey);
+      const value = key ? await client.store.market.getByKey(key) : null;
       assertCurrent();
-      if (value && (!value.id || value.key !== selectedKey))
+      if (value && (!value.id || value.key !== key))
         throw new CartSelectionError("The Market read did not confirm the selected key");
       setup.set(result);
       resolvedMarket.set(value);
-      if (!market_key.get() && defaultMarket) market_key.set(defaultMarket.key);
       if (!locale.get() && result.languages.default) locale.set(result.languages.default);
       return result;
     })();
@@ -369,7 +359,7 @@ function initializeStoreCore(
 
   function setMarket(key: string): void {
     synchronizeSession();
-    const next = key.trim();
+    const next = key;
     const current = currentMarketKey();
     if (
       next !== current &&
@@ -380,8 +370,8 @@ function initializeStoreCore(
         { code: "CART_MARKET_LOCKED" },
       );
     }
-    market_key.set(next);
     client.setMarket(next);
+    market_key.set(next);
     if (next !== current || next !== cartContextMarket) invalidateCartContext();
   }
 
@@ -414,6 +404,7 @@ function initializeStoreCore(
   async function beginCartOperation(): Promise<CartViewScope> {
     synchronizeSession();
     const requestedMarket = currentMarketKey();
+    if (!requestedMarket) throw new CartSelectionError("Select a Market before working with a Cart");
     const requestedSession = client.session;
     const requestedRevision = cartContextRevision;
     await ensureSession();
@@ -482,7 +473,19 @@ function initializeStoreCore(
     isCurrent: () => boolean,
   ): Promise<EshopCartItem | null> {
     try {
-      const [product, variant] = await Promise.all([
+      const access = item.purchase.type === "catalog" ? null : await client.eshop.cart.previewAccessProduct({
+        id: source.id, line_item_id: item.id!, variant_id: item.variant_id,
+        quantity: item.quantity, purchase: item.purchase,
+      });
+      if (access && (access.cart_id !== source.id || access.store_id !== source.store_id
+        || access.customer_id !== source.customer_id || access.market_id !== source.market_id
+        || access.sales_channel_id !== source.sales_channel_id || access.line_item_id !== item.id
+        || access.quantity !== item.quantity
+        || (access.company?.company_id ?? null) !== (source.company?.company_id ?? null)
+        || (access.company?.company_location_id ?? null) !== (source.company?.company_location_id ?? null))) {
+        throw new Error("Access product preview changed its Cart or buyer scope");
+      }
+      const [product, variant] = access ? [access.product, access.variant] : await Promise.all([
         client.eshop.product.get({
           id: item.product_id,
           company_id: source.company?.company_id ?? undefined,
@@ -517,6 +520,7 @@ function initializeStoreCore(
         price: variant.price,
         quantity: item.quantity,
         form_submission_id: item.form_submission_id ?? null,
+        purchase: copyCartProductPurchase(item.purchase),
         added_at: epochMilliseconds(source.created_at),
       };
     } catch (error) {
@@ -702,6 +706,7 @@ function initializeStoreCore(
         product: {
           product_id: product.id,
           variant_id: variant.id,
+          purchase: { type: "catalog" },
           quantity,
         },
       });
@@ -811,7 +816,7 @@ function initializeStoreCore(
   async function quoteFutureDeliveries(
     input: Pick<QuoteCartFutureDeliveriesParams, "plans">,
     options?: RequestOptions,
-  ): Promise<StorefrontDto<CartFutureDeliveryQuote>> {
+  ): Promise<CartFutureDeliveryQuote> {
     const scope = await beginCartOperation();
     const current = cart.get() || (await ensureCart());
     scope.assertCurrent();
@@ -989,49 +994,59 @@ function initializeStoreCore(
     }
   }
 
-  async function checkout(
-    input: ArkyCartCheckoutInput = {},
-  ): Promise<StorefrontOrderCheckoutResult> {
-    if (Object.keys(input).some((key) => !["payment_option_id", "return_url", "clear_after_checkout", "save_payment_method", "payment_method_terms_version"].includes(key)))
+  function reviewedCheckoutContext(input: ArkyCartCheckoutInput): CheckoutContext {
+    if (Object.keys(input).some((key) => !["request_id", "payment_option_id", "return_url", "clear_after_checkout", "save_payment_method", "payment_method_terms_version"].includes(key)))
       throw new Error("Update and review Cart selections before checkout");
-    return runCheckout(async (scope) => {
-      const pending = await client.eshop.cart.pendingCheckout();
-      scope.assertCurrent();
-      if (pending) throw new Error("Recover the unresolved Cart Checkout before submitting another request");
-      const quoteValue = quote.get();
-      if (!quoteValue) throw new Error("Review a Cart quote before checkout");
-      const current = cart.get();
-      if (!current || current.status.type === "converted") throw new Error("Review an active Cart before checkout");
-      if (!quoteValue.sources) throw new Error("Review a saved Cart quote with its converted lines before checkout");
-      const paymentOptionId = input.payment_option_id ?? quoteValue.order.payment_option_id ?? undefined;
-      if (paymentOptionId !== undefined && !quoteValue.order.payment_option_ids.includes(paymentOptionId))
-        throw new Error("The selected payment provider is not available in the reviewed Cart quote");
-      if (!quoteValue.order.locale) throw new Error("Review a Cart quote with a presentation language before checkout");
-      const returnUrl =
-        input.return_url ||
-        (typeof window !== "undefined" ? window.location.href : undefined);
+  const quoteValue = quote.get();
+  if (!quoteValue) throw new Error("Review a Cart quote before checkout");
+  const current = cart.get();
+  if (!current || current.status.type === "converted") throw new Error("Review an active Cart before checkout");
+  if (!quoteValue.sources) throw new Error("Review a saved Cart quote with its converted lines before checkout");
+  const paymentOptionId = input.payment_option_id ?? quoteValue.order.payment_option_id ?? undefined;
+  if (paymentOptionId !== undefined && !quoteValue.order.payment_option_ids.includes(paymentOptionId))
+    throw new Error("The selected payment provider is not available in the reviewed Cart quote");
+  if (!quoteValue.order.locale) throw new Error("Review a Cart quote with a presentation language before checkout");
+  const returnUrl =
+    input.return_url ||
+    (typeof window !== "undefined" ? window.location.href : undefined);
 
-      const context: CheckoutContext = {
-        request: {
-          id: current.id,
-          locale: quoteValue.order.locale,
-          presentation_digest: quoteValue.presentation_digest,
-          sources: quoteValue.sources,
-          payment_option_id: paymentOptionId,
-          return_url: returnUrl,
-          save_payment_method: input.save_payment_method,
-          payment_method_terms_version: input.payment_method_terms_version,
-        },
-        product_items: product_items.get(),
-        booking_items: booking_items.get(),
-        digital_items: digital_items.get(),
-        subscription_plan_items: cartSubscriptionPlanItems(current),
-        shipping_address: null,
-        billing_address: current.billing_address,
-        payment_option_id: paymentOptionId || null,
-        clear_after_checkout: input.clear_after_checkout !== false,
-        created_at: epochMillisecondsNow(),
-      };
+  const context: CheckoutContext = {
+    request: {
+      id: current.id,
+      request_id: input.request_id,
+      locale: quoteValue.order.locale,
+      presentation_digest: quoteValue.presentation_digest,
+      sources: quoteValue.sources,
+      payment_option_id: paymentOptionId,
+      return_url: returnUrl,
+      save_payment_method: input.save_payment_method,
+      payment_method_terms_version: input.payment_method_terms_version,
+    },
+    product_items: product_items.get(),
+    booking_items: booking_items.get(),
+    digital_items: digital_items.get(),
+    subscription_plan_items: cartSubscriptionPlanItems(current),
+    shipping_address: null,
+    billing_address: current.billing_address,
+    payment_option_id: paymentOptionId || null,
+    clear_after_checkout: input.clear_after_checkout !== false,
+    created_at: epochMillisecondsNow(),
+  };
+    return context;
+  }
+
+  async function retainCheckout(input: ArkyCartCheckoutInput) {
+    return runCheckout(async (scope) => {
+      const context = reviewedCheckoutContext(input);
+      const request = await client.eshop.cart.retainCheckout(context.request);
+      scope.assertCurrent();
+      return request;
+    });
+  }
+
+  async function checkout(input: ArkyCartCheckoutInput): Promise<StorefrontOrderCheckoutResult> {
+    return runCheckout(async (scope) => {
+      const context = reviewedCheckoutContext(input);
       const response = await client.eshop.cart.checkout(context.request);
       scope.assertCurrent();
       return finalizeCheckout(context, response);
@@ -1652,6 +1667,7 @@ function initializeStoreCore(
     },
 
     async checkout(
+      requestId: string,
       paymentOptionId?: string,
     ): Promise<StorefrontOrderCheckoutResult> {
       const state = booking_service_state.get();
@@ -1660,6 +1676,7 @@ function initializeStoreCore(
       booking_service_state.setKey("loading", true);
       try {
         const result = await checkout({
+          request_id: requestId,
           payment_option_id: paymentOptionId,
         });
         booking_service_state.setKey("cartId", cart.get()?.id || null);
@@ -2001,6 +2018,7 @@ function initializeStoreCore(
     quoteFutureDeliveries,
     acceptFutureDeliveries,
     checkout,
+    retainCheckout,
     pendingCheckout: () => client.eshop.cart.pendingCheckout(),
     recoverCheckout,
     applyPromoCode(
@@ -2139,7 +2157,7 @@ function initializeStoreCore(
       submit: submitForm,
       submitByKey: submitFormByKey,
     },
-    classification: client.classification,
+    category: client.category,
     eshop: {
       state: eshop_state,
       digital: client.eshop.digital,

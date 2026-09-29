@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -11,8 +12,8 @@ import type {
 } from "../types/tax";
 
 export const createTaxRuleApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/tax-rules`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/tax-rules`;
 
   return {
     create(params: CreateTaxRuleParams, options?: RequestOptions): Promise<TaxRule> {
@@ -35,7 +36,7 @@ export const createTaxRuleApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindTaxRulesParams = {},
+      params: FindTaxRulesParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<TaxRule>> {
       const { store_id, ...query } = params;

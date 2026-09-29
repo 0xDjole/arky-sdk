@@ -208,7 +208,7 @@ const removedIdentifierPattern = new RegExp(
 const forbiddenProviderOperationPattern = /\bprovider(?:_|-)?operations?\b/gi;
 const removedGenericEmailRoutePattern =
   /\/v1\/notifications\/email(?:-deliveries)?\b/g;
-const removedClassificationVocabularyPattern =
+const removedCategoryVocabularyPattern =
   /Taxonom|taxonom/g;
 const removedCommercePaymentVocabularyPattern = new RegExp(
   "\\b(?:payment_method_key|payment_methods|setup_status|platform_debits_authorized)\\b",
@@ -362,12 +362,12 @@ for (const file of listTypeScriptFiles(sourceDir)) {
     failures++;
   }
 
-  for (const match of source.matchAll(removedClassificationVocabularyPattern)) {
+  for (const match of source.matchAll(removedCategoryVocabularyPattern)) {
     report(
       file,
       source,
       match.index,
-      `removed Classification/Block vocabulary ${match[0]}`,
+      `removed Category/Block vocabulary ${match[0]}`,
     );
     failures++;
   }
@@ -967,7 +967,7 @@ const importCustomerRowContract = apiTypesSource.match(
 );
 if (
   !importCustomerRowContract ||
-  !/\n\s*classifications:\s*ClassificationEntry\[\];/.test(
+  !/\n\s*categories:\s*CategoryEntry\[\];/.test(
     importCustomerRowContract[1],
   ) ||
   /\b(?:fields|lead_description)\b/.test(importCustomerRowContract[1])
@@ -976,7 +976,7 @@ if (
     apiTypesFile,
     apiTypesSource,
     importCustomerRowContract?.index ?? 0,
-    "ImportCustomerRowInput must contain Customer-owned classifications only",
+    "ImportCustomerRowInput must contain Customer-owned categories only",
   );
   failures++;
 }

@@ -7,7 +7,7 @@ import type {
 } from "./inventoryItem";
 
 export type OrderLinePrice =
-  | { type: "direct"; price: AppliedPriceSnapshot }
+  | { type: "unit_price"; price: AppliedPriceSnapshot }
   | { type: "subscription_allocation" };
 
 export interface OrderInventoryRequirementSnapshot {

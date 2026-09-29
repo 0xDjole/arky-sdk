@@ -49,19 +49,19 @@ export interface CompanyUsage {
 }
 
 export interface CreateCompanyParams {
-  store_id?: string;
+  store_id: string;
   name: string;
   profile: CompanyProfile;
   status: CompanyEditableStatus;
 }
 
 export interface GetCompanyParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface UpdateCompanyParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   name: string;
@@ -70,13 +70,13 @@ export interface UpdateCompanyParams {
 }
 
 export interface DeleteCompanyParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindCompaniesParams {
-  store_id?: string;
+  store_id: string;
   query?: string;
   status?: CompanyStatus["type"];
   sort_field?: "created_at" | "updated_at";

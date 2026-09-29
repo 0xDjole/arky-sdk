@@ -11,6 +11,13 @@ export type PaymentMethodDetails =
 
 export type PaymentMethodProviderName = "stripe" | "monri";
 
+export type PaymentMethodCheckoutCardFailure = "not_returned" | "invalid_card" | "conflicting_card" | "already_saved";
+
+export type PaymentMethodCheckoutCardOutcome =
+  | { type: "saved"; details: Extract<PaymentMethodDetails, { type: "card" }> }
+  | { type: "failed"; reason: PaymentMethodCheckoutCardFailure }
+  | { type: "revoked" };
+
 export type PaymentMethodState =
   | { type: "setup_requested" }
   | {
@@ -19,6 +26,7 @@ export type PaymentMethodState =
       deadline_at: EpochMilliseconds;
     }
   | { type: "setup_unknown"; retry_at: EpochMilliseconds }
+  | { type: "setup_failed"; reason: PaymentMethodCheckoutCardFailure; failed_at: EpochMilliseconds }
   | { type: "requires_action" }
   | { type: "ready" }
   | { type: "unavailable"; reason: string; ended_at: EpochMilliseconds };
@@ -53,7 +61,7 @@ export interface PaymentMethodRevocationRecord {
 }
 
 export interface PaymentMethodRevocation {
-  command_id: string;
+  request_id: string;
   accepted_at: EpochMilliseconds;
   method: PaymentMethod;
 }
@@ -62,7 +70,14 @@ export type NativeSetupOutcome = "created" | "not_started" | "unknown";
 
 export type NativeCustomerSetupOutcome = "created" | "existing" | "not_started" | "unknown";
 
-export type PaymentMethodCommandType =
+export type PaymentMethodOperationType =
+  | {
+      type: "monri_checkout_card_observed";
+      method_id: string;
+      payment_id: string;
+      notification_id: string;
+      outcome: PaymentMethodCheckoutCardOutcome;
+    }
   | {
       type: "native_setup_intent_started";
       method_id: string;
@@ -93,20 +108,20 @@ export type PaymentMethodCommandType =
       outcome: NativeCustomerSetupOutcome;
     };
 
-export interface PaymentMethodCommand {
-  id: string;
+export interface PaymentMethodOperation {
+  request_id: string;
   store_id: string;
   accepted_at: EpochMilliseconds;
-  command: PaymentMethodCommandType;
+  operation: PaymentMethodOperationType;
 }
 
 export interface GetPaymentMethodParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface FindPaymentMethodsParams {
-  store_id?: string;
+  store_id: string;
   customer_id?: string;
   company_id?: string;
   company_location_id?: string;
@@ -115,17 +130,17 @@ export interface FindPaymentMethodsParams {
   cursor?: string;
 }
 
-export interface FindPaymentMethodCommandsParams {
-  store_id?: string;
+export interface FindPaymentMethodOperationsParams {
+  store_id: string;
   id: string;
   limit?: number;
   cursor?: string;
 }
 
 export interface RevokePaymentMethodParams {
-  store_id?: string;
+  store_id: string;
   id: string;
-  command_id: string;
+  request_id: string;
   expected_updated_at: EpochMilliseconds;
   reason: string;
 }
@@ -139,7 +154,7 @@ export interface PaymentMethodSetupRequest {
 }
 
 export interface RequestPaymentMethodSetupParams {
-  store_id?: string;
+  store_id: string;
   request_id: string;
   request: PaymentMethodSetupRequest;
   accept_storage_and_off_session_use: true;
@@ -149,6 +164,6 @@ export interface PaymentMethodSetupStart {
   method: PaymentMethod;
   setup_intent_id: string | null;
   client_secret: string | null;
-  connected_account_id: string | null;
+  account_id: string | null;
   publishable_key: string | null;
 }

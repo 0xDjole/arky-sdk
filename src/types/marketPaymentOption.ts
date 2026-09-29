@@ -15,18 +15,18 @@ export interface MarketPaymentOption {
 }
 
 export interface CreateMarketPaymentOptionParams {
-  store_id?: string;
+  store_id: string;
   market_id: string;
   payment_option_id: string;
 }
 
 export interface GetMarketPaymentOptionParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface FindMarketPaymentOptionsParams {
-  store_id?: string;
+  store_id: string;
   market_id?: string;
   payment_option_id?: string;
   status?: "active" | "deleting";
@@ -37,13 +37,13 @@ export interface FindMarketPaymentOptionsParams {
 }
 
 export interface LookupMarketPaymentOptionParams {
-  store_id?: string;
+  store_id: string;
   market_id: string;
   payment_option_id: string;
 }
 
 export interface RemoveMarketPaymentOptionParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }

@@ -23,7 +23,7 @@ const customer = {
   primary_email_identity_id: "identity-contract",
   default_shipping_address_id: null,
   default_billing_address_id: null,
-  classifications: [],
+  categories: [],
   created_at: 1,
   updated_at: 2,
 };
@@ -187,7 +187,7 @@ test("Admin Customer namespace uses canonical routes, tagged status and independ
   try {
     const created = await admin.customers.create({
       email: "person@example.com",
-      classifications: [],
+      categories: [],
     });
     assert.equal(created.primary_email_identity_id, "identity-contract");
     assert.equal("identities" in created, false);
@@ -198,7 +198,7 @@ test("Admin Customer namespace uses canonical routes, tagged status and independ
     await admin.customers.update({ id: customerId, status: { type: "archived" } });
     await admin.customers.update({ id: customerId, status: { type: "active" } });
     await admin.customers.archive({ id: customerId });
-    const importRows = [{ email: "person@example.com", classifications: [] }];
+    const importRows = [{ email: "person@example.com", categories: [] }];
     await admin.customers.previewImport({ rows: importRows });
     await admin.customers.import({ rows: importRows });
     const sessions = await admin.customers.findSessions({
@@ -245,10 +245,10 @@ test("Admin Customer namespace uses canonical routes, tagged status and independ
   );
   assert.deepEqual(
     calls.find(({ path }) => path.endsWith("/import/preview"))?.body,
-    { rows: [{ email: "person@example.com", classifications: [] }] },
+    { rows: [{ email: "person@example.com", categories: [] }] },
   );
   assert.deepEqual(calls.find(({ path }) => path.endsWith("/import"))?.body, {
-    rows: [{ email: "person@example.com", classifications: [] }],
+    rows: [{ email: "person@example.com", categories: [] }],
   });
   assert.deepEqual(
     calls

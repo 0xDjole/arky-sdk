@@ -40,7 +40,7 @@ export interface ManualPrice {
 }
 
 export interface CreatePriceParams {
-  store_id?: string;
+  store_id: string;
   sellable: SellableRef;
   scope: PriceScope;
   currency: Currency;
@@ -52,7 +52,7 @@ export interface CreatePriceParams {
 }
 
 export interface GetPriceParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
@@ -75,7 +75,7 @@ export interface FindPricesParams {
   base_only?: boolean;
   sort_field?: "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
-  store_id?: string;
+  store_id: string;
   limit?: number;
   cursor?: string;
   price_list_id?: string;

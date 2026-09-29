@@ -18,14 +18,14 @@ export interface PaymentTerms {
 }
 
 export interface CreatePaymentTermsParams {
-  store_id?: string;
+  store_id: string;
   key: string;
   type: PaymentTermsType;
   status: PaymentTermsEditableStatus;
 }
 
 export interface UpdatePaymentTermsParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   type: PaymentTermsType;
@@ -33,19 +33,19 @@ export interface UpdatePaymentTermsParams {
 }
 
 export interface GetPaymentTermsParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }
 
 export interface FindPaymentTermsParams {
-  store_id?: string;
+  store_id: string;
   status?: PaymentTermsStatus["type"];
   limit?: number;
   cursor?: string;
 }
 
 export interface DeletePaymentTermsParams {
-  store_id?: string;
+  store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }

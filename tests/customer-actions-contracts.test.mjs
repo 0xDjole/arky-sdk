@@ -76,7 +76,7 @@ test("initialized storefront tracks Customer Actions", async () => {
           store_id: storeId,
           status: { type: "active" },
           identities: [],
-          classifications: [],
+          categories: [],
           created_at: 1,
           updated_at: 1,
         },

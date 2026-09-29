@@ -92,13 +92,13 @@ import type {
   Block,
   BlockSchema,
   BuildHook,
-  Classification,
-  ClassificationCoordinates,
-  ClassificationEntry,
-  ClassificationFieldQuery,
-  ClassificationGeoLocation,
-  ClassificationNumberOperation,
-  ClassificationSchema,
+  Category,
+  CategoryCoordinates,
+  CategoryEntry,
+  CategoryFieldQuery,
+  CategoryGeoLocation,
+  CategoryNumberOperation,
+  CategorySchema,
   Customer,
   Cart,
   CartBookingItem,
@@ -126,7 +126,7 @@ import type {
   NodeResult,
   Order,
   OrderCheckoutResult,
-  Refund,
+  PaymentRefund,
   RefundProvider,
   RefundAllocation,
   RefundStatus,
@@ -499,13 +499,13 @@ const createBuildHookContract: CreateBuildHookParams = {
 };
 // @ts-expect-error Build Hooks are addressed by UUID, not a mutable key.
 buildHookContract.key;
-// @ts-expect-error Build Hooks no longer store a provider classification.
+// @ts-expect-error Build Hooks no longer store a provider category.
 buildHookContract.type;
 // @ts-expect-error Build Hook state is represented by status.
 buildHookContract.active;
 // @ts-expect-error Build Hook creation has no mutable key.
 createBuildHookContract.key;
-// @ts-expect-error Build Hook creation has no provider classification.
+// @ts-expect-error Build Hook creation has no provider category.
 createBuildHookContract.type;
 // @ts-expect-error Build Hook creation uses typed status.
 createBuildHookContract.active;
@@ -685,7 +685,7 @@ const stripeRefundProvider: RefundProvider = {
   refund_id: "stripe-refund-contract",
 };
 const orderRefundStatus: RefundStatus = { type: "succeeded" };
-const orderRefund: Refund = {
+const orderRefund: PaymentRefund = {
   id: "order-refund-contract",
   store_id: "store-contract",
   order_id: "order-contract",
@@ -853,7 +853,7 @@ const digitalProductContract: DigitalProduct = {
   key: "digital-product-key",
   slugs: { en: "digital-product" },
   blocks: [],
-  classifications: [],
+  categories: [],
   asset_ids: ["0198f8f7-2f25-4a14-86bb-64efc56e1a11"],
   tax_category_id: null,
   status: { type: "active" },
@@ -865,7 +865,7 @@ const storefrontDigitalProductContract: StorefrontDigitalProduct = {
   key: digitalProductContract.key,
   slugs: digitalProductContract.slugs,
   blocks: [],
-  classifications: [],
+  categories: [],
   price: null,
   purchase_allowed: true,
 };
@@ -882,7 +882,7 @@ const createDigitalProductContract: CreateDigitalProductParams = {
   key: digitalProductContract.key,
   slugs: digitalProductContract.slugs,
   blocks: [],
-  classifications: [],
+  categories: [],
   asset_ids: digitalProductContract.asset_ids,
   status: { type: "draft" },
 };
@@ -893,9 +893,9 @@ const updateDigitalProductContract: UpdateDigitalProductParams = {
 };
 const findDigitalProductsContract: FindDigitalProductsParams = {
   ids: [digitalProductContract.id],
-  classification_query: [
+  category_query: [
     {
-      classification_id: "classification-contract",
+      category_id: "category-contract",
       query: [{ type: "boolean", key: "featured", value: true }],
     },
   ],
@@ -1196,33 +1196,33 @@ const blockWithValueProperties: Block = {
   properties: {},
   value: "Legacy",
 };
-const classificationSchema: ClassificationSchema = {
-  id: "classification-schema-industry",
+const categorySchema: CategorySchema = {
+  id: "category-schema-industry",
   key: "industry",
   type: "text",
   options: ["software", "services"],
   min: null,
 };
-const classificationCoordinates: ClassificationCoordinates = {
+const categoryCoordinates: CategoryCoordinates = {
   lat: 43.8563,
   lon: 18.4131,
 };
-const classificationGeoLocation: ClassificationGeoLocation = {
-  coordinates: classificationCoordinates,
+const categoryGeoLocation: CategoryGeoLocation = {
+  coordinates: categoryCoordinates,
 };
-const classificationNumberOperation: ClassificationNumberOperation =
+const categoryNumberOperation: CategoryNumberOperation =
   "greater_than_or_equal";
-const classificationFieldQuery: ClassificationFieldQuery = {
+const categoryFieldQuery: CategoryFieldQuery = {
   type: "number",
   key: "team_size",
   operation: "greater_than_or_equal",
   value: 10,
 };
-const classificationEntry: ClassificationEntry = {
-  classification_id: "classification-contract",
+const categoryEntry: CategoryEntry = {
+  category_id: "category-contract",
   fields: [
     {
-      id: "classification-field-industry",
+      id: "category-field-industry",
       key: "industry",
       type: "text",
       value: ["software"],
@@ -1236,29 +1236,29 @@ void formBlockSchema;
 void unsupportedReferencePropertySchema;
 void legacyMarkdownMap;
 void blockWithValueProperties;
-void classificationSchema;
-void classificationCoordinates;
-void classificationGeoLocation;
-void classificationNumberOperation;
-void classificationFieldQuery;
-void classificationEntry;
+void categorySchema;
+void categoryCoordinates;
+void categoryGeoLocation;
+void categoryNumberOperation;
+void categoryFieldQuery;
+void categoryEntry;
 
-const legacyClassificationOperation: ClassificationFieldQuery = {
+const legacyCategoryOperation: CategoryFieldQuery = {
   type: "number",
   key: "team_size",
-  // @ts-expect-error Classification exposes only the five sealed comparison operations.
+  // @ts-expect-error Category exposes only the five sealed comparison operations.
   operation: "contains",
   value: 10,
 };
-const legacyClassificationRadius: ClassificationFieldQuery = {
+const legacyCategoryRadius: CategoryFieldQuery = {
   type: "geo_location",
   key: "office",
-  center: classificationCoordinates,
-  // @ts-expect-error Classification geo queries use radius_meters, never radius.
+  center: categoryCoordinates,
+  // @ts-expect-error Category geo queries use radius_meters, never radius.
   radius: 1_000,
 };
-void legacyClassificationOperation;
-void legacyClassificationRadius;
+void legacyCategoryOperation;
+void legacyCategoryRadius;
 
 const typedRequestOptions: RequestOptions<{ ok: true }> = {
   params: { filters: [{ type: "text", key: "title", values: ["Arky"] }] },
@@ -1281,9 +1281,9 @@ inventoryInput.product_id = "product-contract";
 zoneInput.store_id_assigned = "store-contract";
 
 declare const storefrontClient: ReturnType<typeof createStorefront>;
-storefrontClient.classification.get({ key: "topics" });
-// @ts-expect-error Classification is a top-level module, not a Content child.
-storefrontClient.content.classification;
+storefrontClient.category.get({ key: "topics" });
+// @ts-expect-error Category is a top-level module, not a Content child.
+storefrontClient.content.category;
 declare const adminClient: ReturnType<typeof createAdmin>;
 const ordinaryAdminInvitation: AddMemberParams = { email: "admin@example.test", access: { type: "staff", role: "admin" } };
 const ownershipTransferParams: TransferStoreOwnershipParams = {
@@ -1358,14 +1358,14 @@ storefrontClient.eshop.order.cancelBookingItem(bookingItemLifecycleParams);
 storefrontClient.eshop.order.completeBookingItem(bookingItemLifecycleParams);
 // @ts-expect-error A verified owning Customer cannot mark a booking item as a no-show.
 storefrontClient.eshop.order.markBookingItemNoShow(bookingItemLifecycleParams);
-const classificationChildren: Promise<{ items: Classification[]; cursor: string | null }> =
-  adminClient.classification.getChildren({ id: "classification-contract" });
-adminClient.classification.get({ id: "classification-contract" });
-// @ts-expect-error Admin Classification lookup uses its UUID, not a derived key.
-adminClient.classification.get({ key: "topics" });
-// @ts-expect-error Classification is a top-level module, not a Content child.
-adminClient.content.classification;
-void classificationChildren;
+const categoryChildren: Promise<{ items: Category[]; cursor: string | null }> =
+  adminClient.category.getChildren({ id: "category-contract" });
+adminClient.category.get({ id: "category-contract" });
+// @ts-expect-error Admin Category lookup uses its UUID, not a derived key.
+adminClient.category.get({ key: "topics" });
+// @ts-expect-error Category is a top-level module, not a Content child.
+adminClient.content.category;
+void categoryChildren;
 const storefrontBookingOfferings: Promise<PaginatedResponse<StorefrontDto<BookingOffering>>> =
   storefrontClient.eshop.bookingOffering.find({
     booking_service_id: "booking-service-contract",
@@ -1384,7 +1384,7 @@ storefrontClient.eshop.bookingResource.find({ sort_field: "price" });
 storefrontClient.eshop.bookingResource.find({ from: epochMilliseconds(0) });
 // @ts-expect-error Availability windows belong to Service availability, not Resource discovery.
 storefrontClient.eshop.bookingResource.find({ to: epochMilliseconds(1) });
-// @ts-expect-error Resource classification predicates have no match_all switch.
+// @ts-expect-error Resource category predicates have no match_all switch.
 adminClient.eshop.bookingResource.find({ match_all: true });
 const bookingServices: Promise<
   StorefrontDto<PaginatedResponse<BookingService>>
@@ -1572,9 +1572,9 @@ initializedStorefront.eshop.bookingService.select({
   price: null,
   purchase_allowed: true,
 }, { company_id: "company-contract", company_location_id: "branch-contract" });
-initializedStorefront.classification.get({ key: "topics" });
-// @ts-expect-error Classification is a top-level module, not a Content child.
-initializedStorefront.content.classification;
+initializedStorefront.category.get({ key: "topics" });
+// @ts-expect-error Category is a top-level module, not a Content child.
+initializedStorefront.content.category;
 const typedFormValues: FormValues = {
   name: "Jane",
   guests: 2,

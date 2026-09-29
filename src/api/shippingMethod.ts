@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -12,8 +13,8 @@ import type {
 } from "../types/shipping";
 
 export const createShippingMethodApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/shipping-methods`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/shipping-methods`;
 
   return {
     create(params: CreateShippingMethodParams, options?: RequestOptions): Promise<ShippingMethod> {
@@ -40,7 +41,7 @@ export const createShippingMethodApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<ShippingMethod>(`${basePath(store_id)}/by-key/${encodeURIComponent(key)}`,options);
     },
     find(
-      params: FindShippingMethodsParams = {},
+      params: FindShippingMethodsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<ShippingMethod>> {
       const { store_id, ...query } = params;

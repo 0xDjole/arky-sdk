@@ -1,3 +1,5 @@
+import { requireRequestId } from "../utils/requestId";
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -9,11 +11,12 @@ import type {
 } from "../types/orderCredit";
 
 export const createOrderCreditApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId: string | undefined, orderId: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/orders/${encodeURIComponent(orderId)}/credits`;
+  const basePath = (storeId: string, orderId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/orders/${encodeURIComponent(orderId)}/credits`;
 
   return {
     create(params: CreateOrderCreditParams, options?: RequestOptions): Promise<OrderCredit> {
+      requireRequestId(params.request_id);
       const { store_id, order_id, ...payload } = params;
       return apiConfig.httpClient.post<OrderCredit>(
         basePath(store_id, order_id),
@@ -35,7 +38,7 @@ export const createOrderCreditApi = (apiConfig: ApiConfig) => {
       const { store_id, order_id, ...query } = params;
       return apiConfig.httpClient.get<PaginatedResponse<OrderCredit>>(
         order_id === undefined
-          ? `/v1/stores/${encodeURIComponent(store_id ?? apiConfig.storeId)}/credits`
+          ? `/v1/stores/${encodeURIComponent(requireStoreId(store_id))}/credits`
           : basePath(store_id, order_id),
         { ...options, params: query },
       );

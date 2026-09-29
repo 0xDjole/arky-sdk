@@ -139,9 +139,9 @@ assert.equal(
 );
 assert.equal("delete" in arky.store.paymentOption, false);
 assert.equal(typeof arky.media.replaceContent, "function");
-assert.equal(typeof arky.classification.create, "function");
-assert.equal(typeof arky.classification.find, "function");
-assert.equal("classification" in arky.content, false);
+assert.equal(typeof arky.category.create, "function");
+assert.equal(typeof arky.category.find, "function");
+assert.equal("category" in arky.content, false);
 assert.equal(typeof arky.content.collection.find, "function");
 assert.equal(typeof arky.content.entry.find, "function");
 assert.equal(typeof arky.forms.find, "function");

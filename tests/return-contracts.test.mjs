@@ -10,7 +10,7 @@ test("initialized Customer returns retain the request and use only storefront di
   const publishableKey = `arky_pk_${"c".repeat(43)}`;
   const token = `customer_visitor_${"d".repeat(64)}`;
   const client = initialize(publishableKey, { apiUrl: "https://api.example.test", sessionStorage: storefrontSessionStorage(JSON.stringify({
-    version: 2, customer: { id: "customer", status: { type: "active" }, identities: [], classifications: [], created_at: 1, updated_at: 1 },
+    version: 2, customer: { id: "customer", status: { type: "active" }, identities: [], categories: [], created_at: 1, updated_at: 1 },
     session: { id: "session", customer_id: "customer", type: "visitor", token, status: { type: "active" }, expires_at: 1900000000000 },
   })) });
   const request = { return_id: "return", command_id: "request", source: { type: "order", order_id: "order" }, lines: [{ id: "line", source: { type: "order_product", order_product_line_item_id: "product-line", unit_spans: [{ first_unit: 1, quantity: 1 }] }, reason: "damaged", items: [{ inventory_item_id: "item", quantity: 1 }] }] };

@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -12,8 +13,8 @@ import type {
 } from "../types/companyRole";
 
 export const createCompanyRoleApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/company-roles`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/company-roles`;
   return {
     create(
       params: CreateCompanyRoleParams,
@@ -37,7 +38,7 @@ export const createCompanyRoleApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindCompanyRolesParams = {},
+      params: FindCompanyRolesParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<CompanyRole>> {
       const { store_id, ...query } = params;

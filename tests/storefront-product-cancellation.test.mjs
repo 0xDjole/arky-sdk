@@ -17,7 +17,7 @@ test("Customer product cancellation preserves exact units and command identity a
           id: "customer",
           status: { type: "active" },
           identities: [],
-          classifications: [],
+          categories: [],
           created_at: 1,
           updated_at: 1,
         },

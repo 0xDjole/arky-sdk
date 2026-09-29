@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { Payment } from "../types/payment";
@@ -9,21 +10,21 @@ import type {
 } from "../types/api";
 
 export const createPaymentApi = (apiConfig: ApiConfig) => {
-  const storeId = (store_id?: string) => store_id || apiConfig.storeId;
+  const storeId = (store_id: string) => requireStoreId(store_id);
   return {
     async find(
-      params: FindPaymentsParams = {},
+      params: FindPaymentsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<Payment>> {
       const { store_id, ...query } = params;
       return apiConfig.httpClient.get<PaginatedResponse<Payment>>(
-        `/v1/stores/${storeId(store_id)}/payments`,
+        `/v1/stores/${requireStoreId(storeId(store_id))}/payments`,
         { ...options, params: query },
       );
     },
     async get(params: GetPaymentParams, options?: RequestOptions): Promise<Payment> {
       return apiConfig.httpClient.get<Payment>(
-        `/v1/stores/${storeId(params.store_id)}/payments/${params.id}`,
+        `/v1/stores/${requireStoreId(storeId(params.store_id))}/payments/${params.id}`,
         options,
       );
     },
@@ -33,7 +34,7 @@ export const createPaymentApi = (apiConfig: ApiConfig) => {
     ): Promise<RecordedCollection> {
       const { store_id, id, ...payload } = params;
       return apiConfig.httpClient.post<RecordedCollection>(
-        `/v1/stores/${storeId(store_id)}/payments/${id}/cash-on-delivery/collections`,
+        `/v1/stores/${requireStoreId(storeId(store_id))}/payments/${id}/cash-on-delivery/collections`,
         payload,
         options,
       );
@@ -44,7 +45,7 @@ export const createPaymentApi = (apiConfig: ApiConfig) => {
     ): Promise<RecordedCollection> {
       const { store_id, id, ...payload } = params;
       return apiConfig.httpClient.post<RecordedCollection>(
-        `/v1/stores/${storeId(store_id)}/payments/${id}/manual/collections`,
+        `/v1/stores/${requireStoreId(storeId(store_id))}/payments/${id}/manual/collections`,
         payload,
         options,
       );
@@ -55,7 +56,7 @@ export const createPaymentApi = (apiConfig: ApiConfig) => {
     ): Promise<Payment> {
       const { store_id, ...payload } = params;
       return apiConfig.httpClient.post<Payment>(
-        `/v1/stores/${storeId(store_id)}/payments/manual`,
+        `/v1/stores/${requireStoreId(storeId(store_id))}/payments/manual`,
         payload,
         options,
       );

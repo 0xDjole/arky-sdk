@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type {
   CreateCollectionParams,
@@ -19,49 +20,49 @@ export const createContentApi = (apiConfig: ApiConfig) => {
   return {
     async createCollection(params: CreateCollectionParams, options?: RequestOptions): Promise<Collection> {
       const { store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.post<Collection>(
-        `/v1/stores/${target_store_id}/collections`,
+        `/v1/stores/${requireStoreId(target_store_id)}/collections`,
         payload,
         options
       );
     },
 
     async updateCollection(params: UpdateCollectionParams, options?: RequestOptions): Promise<Collection> {
-      const { store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const { store_id, id, ...payload } = params;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.put<Collection>(
-        `/v1/stores/${target_store_id}/collections/${params.id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/collections/${params.id}`,
         payload,
         options
       );
     },
 
     async deleteCollection(params: DeleteCollectionParams, options?: RequestOptions): Promise<boolean> {
-      const target_store_id = params.store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.delete<boolean>(
-        `/v1/stores/${target_store_id}/collections/${params.id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/collections/${params.id}`,
         options
       );
     },
 
     async getCollection(params: GetCollectionParams, options?: RequestOptions): Promise<Collection> {
-      const target_store_id = params.store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(params.store_id);
       const identifier = params.id !== undefined
         ? encodeURIComponent(params.id)
         : `by-key/${encodeURIComponent(params.key)}`;
 
       return apiConfig.httpClient.get<Collection>(
-        `/v1/stores/${target_store_id}/collections/${identifier}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/collections/${identifier}`,
         options
       );
     },
 
-    async getCollections(params: GetCollectionsParams = {}, options?: RequestOptions): Promise<{ items: Collection[]; cursor: string | null }> {
+    async getCollections(params: GetCollectionsParams, options?: RequestOptions): Promise<{ items: Collection[]; cursor: string | null }> {
       const { store_id, ...queryParams } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.get<{ items: Collection[]; cursor: string | null }>(
-        `/v1/stores/${target_store_id}/collections`,
+        `/v1/stores/${requireStoreId(target_store_id)}/collections`,
         {
           ...options,
           params: queryParams,
@@ -71,48 +72,48 @@ export const createContentApi = (apiConfig: ApiConfig) => {
 
     async createEntry(params: CreateEntryParams, options?: RequestOptions): Promise<CollectionEntry> {
       const { store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.post<CollectionEntry>(
-        `/v1/stores/${target_store_id}/entries`,
+        `/v1/stores/${requireStoreId(target_store_id)}/entries`,
         payload,
         options
       );
     },
 
     async updateEntry(params: UpdateEntryParams, options?: RequestOptions): Promise<CollectionEntry> {
-      const { store_id, ...payload } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const { store_id, id, ...payload } = params;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.put<CollectionEntry>(
-        `/v1/stores/${target_store_id}/entries/${params.id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/entries/${params.id}`,
         payload,
         options
       );
     },
 
     async deleteEntry(params: DeleteEntryParams, options?: RequestOptions): Promise<boolean> {
-      const target_store_id = params.store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(params.store_id);
       return apiConfig.httpClient.delete<boolean>(
-        `/v1/stores/${target_store_id}/entries/${params.id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/entries/${params.id}`,
         options
       );
     },
 
     async getEntry(params: GetEntryParams, options?: RequestOptions): Promise<CollectionEntry> {
-      const target_store_id = params.store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(params.store_id);
       if (!params.id) {
         throw new Error("GetEntryParams requires id");
       }
       return apiConfig.httpClient.get<CollectionEntry>(
-        `/v1/stores/${target_store_id}/entries/${params.id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/entries/${params.id}`,
         options
       );
     },
 
     async getEntries(params: GetEntriesParams, options?: RequestOptions): Promise<{ items: CollectionEntry[]; cursor: string | null }> {
       const { store_id, ...queryParams } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.get<{ items: CollectionEntry[]; cursor: string | null }>(
-        `/v1/stores/${target_store_id}/entries`,
+        `/v1/stores/${requireStoreId(target_store_id)}/entries`,
         {
           ...options,
           params: queryParams,
@@ -122,9 +123,9 @@ export const createContentApi = (apiConfig: ApiConfig) => {
 
     async getEntriesByIds(params: GetEntriesByIdsParams, options?: RequestOptions): Promise<PaginatedResponse<CollectionEntry>> {
       const { store_id, ...queryParams } = params;
-      const target_store_id = store_id || apiConfig.storeId;
+      const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.get<PaginatedResponse<CollectionEntry>>(
-        `/v1/stores/${target_store_id}/entries`,
+        `/v1/stores/${requireStoreId(target_store_id)}/entries`,
         { ...options, params: queryParams },
       );
     },

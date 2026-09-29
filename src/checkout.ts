@@ -10,11 +10,11 @@ export interface PaymentMethodSetupMount {
 }
 
 export async function mountPaymentMethodSetup(
-  action: Pick<import("./types/paymentMethod").PaymentMethodSetupStart, "client_secret" | "setup_intent_id" | "publishable_key" | "connected_account_id">,
+  action: Pick<import("./types/paymentMethod").PaymentMethodSetupStart, "client_secret" | "setup_intent_id" | "publishable_key" | "account_id">,
   location: string | HTMLElement,
 ): Promise<PaymentMethodSetupMount> {
-  if (!action.client_secret || !action.setup_intent_id || !action.publishable_key || !action.connected_account_id || !action.client_secret.startsWith(`${action.setup_intent_id}_secret_`)) throw new Error("Card setup requires its exact confirmation capability");
-  const stripe = await loadStripe(action.publishable_key, { stripeAccount: action.connected_account_id });
+  if (!action.client_secret || !action.setup_intent_id || !action.publishable_key || !action.account_id || !action.client_secret.startsWith(`${action.setup_intent_id}_secret_`)) throw new Error("Card setup requires its exact confirmation capability");
+  const stripe = await loadStripe(action.publishable_key);
   if (!stripe) throw new Error("Stripe.js could not be loaded");
   const elements = stripe.elements({ clientSecret: action.client_secret });
   const payment = elements.create("payment");
@@ -36,14 +36,7 @@ export async function createStripeEmbeddedCheckout(
   action: StripeEmbeddedCheckoutAction,
   callbacks: EmbeddedCheckoutCallbacks = {},
 ): Promise<StripeEmbeddedCheckout> {
-  const stripeAccount =
-    "connected_account_id" in action
-      ? action.connected_account_id
-      : action.stripe_account_id;
-  const stripe = await loadStripe(
-    action.publishable_key,
-    stripeAccount ? { stripeAccount } : undefined,
-  );
+  const stripe = await loadStripe(action.publishable_key);
   if (!stripe) {
     throw new Error("Stripe.js could not be loaded");
   }

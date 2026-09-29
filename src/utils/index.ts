@@ -57,3 +57,4 @@ export {
 } from "./scheduledResult";
 export { selectFulfillmentUnits, selectFulfillmentMoveUnits } from "./fulfillmentSelection";
 export { FulfillmentSelectionError } from "../types/fulfillmentSelection";
+export { copyCartProductPurchase } from "./cartInputs";

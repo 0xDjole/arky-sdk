@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -13,8 +14,8 @@ import type {
 } from "../types/catalog";
 
 export const createCatalogApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/catalogs`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/catalogs`;
 
   return {
     getByKey(params: GetCatalogByKeyParams, options?: RequestOptions): Promise<Catalog> {
@@ -55,7 +56,7 @@ export const createCatalogApi = (apiConfig: ApiConfig) => {
     },
 
     find(
-      params: FindCatalogsParams = {},
+      params: FindCatalogsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<Catalog>> {
       const { store_id, ...query } = params;

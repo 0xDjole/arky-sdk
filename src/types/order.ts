@@ -1,3 +1,5 @@
+import type { OrderPurchaseAccessItem } from "./purchaseAccess";
+import type { OrderSubscriptionTaxPolicy, OrderSubscriptionTaxGroup } from "./subscriptionTax";
 import type {
   CompanySnapshot,
   OrderSubscriptionPlanItem,
@@ -36,7 +38,9 @@ import type {
 export type OrderSource =
   | {
       type: "cart_acceptance";
-      command_id: string;
+      request_id: string;
+      submission_fingerprint: string;
+      initial_payment_id: string | null;
       cart: CheckoutCartVersion;
       converted_lines: ConvertedCartLine[];
     }
@@ -69,7 +73,8 @@ export type OrderLineItem =
   | { type: "booking" } & OrderBookingItem
   | { type: "digital_product" } & OrderDigitalItem
   | { type: "subscription_plan" } & OrderSubscriptionPlanItem
-  | { type: "rental_use" } & OrderRentalUseItem;
+  | { type: "rental_use" } & OrderRentalUseItem
+  | { type: "purchase_access" } & OrderPurchaseAccessItem;
 
 export type OrderStatus = {
   type: "pending" | "confirmed" | "partially_cancelled" | "cancelled";
@@ -92,6 +97,8 @@ export interface Order {
   origin: PurchaseOriginSnapshot;
   status: OrderStatus;
   line_items: OrderLineItem[];
+  subscription_tax_policies: OrderSubscriptionTaxPolicy[];
+  subscription_tax_groups: OrderSubscriptionTaxGroup[];
   money: OrderMoney;
   delivery_groups: OrderDeliveryGroup[];
   billing_address: Address | null;
@@ -147,6 +154,14 @@ export function orderRentalUseItems(
     .map(({ type: _type, ...item }) => item);
 }
 
+export function orderPurchaseAccessItems(
+  order: Pick<Order, "line_items"> | null,
+): OrderPurchaseAccessItem[] {
+  return (order?.line_items ?? [])
+    .filter((item): item is OrderLineItem & { type: "purchase_access" } => item.type === "purchase_access")
+    .map(({ type: _type, ...item }) => item);
+}
+
 export type OrderFinancialConcern =
   | { type: "unapplied_monri_evidence"; receipt_id: string }
   | { type: "monri_review"; receipt_id: string }
@@ -184,6 +199,6 @@ export interface OrderFinancialSummary {
 }
 
 export interface GetOrderFinancialSummaryParams {
-  store_id?: string;
+  store_id: string;
   id: string;
 }

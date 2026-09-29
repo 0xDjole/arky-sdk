@@ -9,7 +9,8 @@ export type CartLineItemRef =
 
 export type OrderLineItemRef =
   | CartLineItemRef
-  | { type: "rental_use"; line_item_id: string };
+  | { type: "rental_use"; line_item_id: string }
+  | { type: "purchase_access"; line_item_id: string };
 
 export interface CheckoutCartVersion {
   cart_id: string;

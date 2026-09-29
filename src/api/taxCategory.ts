@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -12,8 +13,8 @@ import type {
 } from "../types/tax";
 
 export const createTaxCategoryApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/tax-categories`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/tax-categories`;
 
   return {
     create(params: CreateTaxCategoryParams, options?: RequestOptions): Promise<TaxCategory> {
@@ -40,7 +41,7 @@ export const createTaxCategoryApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<TaxCategory>(`${basePath(store_id)}/by-key/${encodeURIComponent(key)}`, options);
     },
     find(
-      params: FindTaxCategoriesParams = {},
+      params: FindTaxCategoriesParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<TaxCategory>> {
       const { store_id, ...query } = params;

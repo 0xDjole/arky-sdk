@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -11,8 +12,8 @@ import type {
 } from "../types/subscriptionOffering";
 
 export const createSubscriptionOfferingApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/subscription-offerings`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/subscription-offerings`;
   return {
     create(
       params: CreateSubscriptionOfferingParams,
@@ -42,7 +43,7 @@ export const createSubscriptionOfferingApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindSubscriptionOfferingsParams = {},
+      params: FindSubscriptionOfferingsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<SubscriptionOffering>> {
       const { store_id, ...query } = params;

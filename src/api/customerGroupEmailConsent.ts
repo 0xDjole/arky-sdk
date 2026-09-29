@@ -1,3 +1,4 @@
+import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -18,8 +19,8 @@ import type {
 } from "../types/customerGroupEmailConsent";
 
 export const createCustomerGroupEmailConsentApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId?: string) =>
-    `/v1/stores/${encodeURIComponent(storeId ?? apiConfig.storeId)}/customer-group-email-consents`;
+  const basePath = (storeId: string) =>
+    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/customer-group-email-consents`;
 
   return {
     subscribe(
@@ -99,7 +100,7 @@ export const createCustomerGroupEmailConsentApi = (apiConfig: ApiConfig) => {
       );
     },
     find(
-      params: FindCustomerGroupEmailConsentsParams = {},
+      params: FindCustomerGroupEmailConsentsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<CustomerGroupEmailConsent>> {
       const { store_id, ...query } = params;

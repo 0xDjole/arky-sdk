@@ -1,3 +1,4 @@
+import type { PurchaseAccessTerms } from "./purchaseAccess";
 import type {
   MarketSnapshot,
   CompanyLocationSnapshot,
@@ -52,7 +53,7 @@ export interface AppliedPriceSnapshot {
 }
 
 export interface OrderAccessRevocation {
-  command_id: string;
+  request_id: string;
   actor: AccountActor;
   effective_at: EpochMilliseconds;
   reason: string;
@@ -102,7 +103,8 @@ export type SubscriptionPlanEntitlementSnapshotType =
       snapshot: SubscriptionProductSnapshot;
       quantity: number;
       inventory_item_id: string;
-    };
+    }
+  | ({ type: "purchase_access" } & PurchaseAccessTerms);
 
 export interface SubscriptionPlanEntitlementSnapshot {
   id: string;
