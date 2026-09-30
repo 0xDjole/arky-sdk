@@ -106,11 +106,11 @@ export interface CartController {
   subscribe(listener: CartControllerListener): () => void;
   getState(): CartControllerState;
   init(
-    params?: CartControllerInitParams,
+    params: CartControllerInitParams,
     options?: RequestOptions,
   ): Promise<Cart>;
   refresh(
-    params?: CartControllerRefreshParams,
+    params: CartControllerRefreshParams,
     options?: RequestOptions,
   ): Promise<Cart>;
   addProduct(
@@ -135,11 +135,11 @@ export interface CartController {
     options?: RequestOptions,
   ): Promise<Cart>;
   clear(
-    params?: CartControllerClearParams,
+    params: CartControllerClearParams,
     options?: RequestOptions,
   ): Promise<Cart>;
   quote(
-    params?: CartControllerQuoteParams,
+    params: CartControllerQuoteParams,
     options?: RequestOptions,
   ): Promise<CheckoutQuote>;
   checkout(

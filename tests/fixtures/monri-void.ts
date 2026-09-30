@@ -3,7 +3,6 @@ import type { EpochMilliseconds, MonriAuthorizationVoid, MonriVoidResult, MonriV
 declare const at: EpochMilliseconds;
 declare const claim: ProviderOperationClaim;
 export const result: MonriVoidResult = {
-  claim,
   transaction_id: '18446744073709551615',
   amount: 100,
   currency: null,
@@ -26,15 +25,19 @@ export const binding: Payment['route'] = {
 };
 export const states: MonriVoidStatus[] = [
   { type: 'requested' },
-  { type: 'processing', claim },
+  { type: 'processing', started_at: at, deadline_at: at },
   { type: 'succeeded', result },
   { type: 'rejected', result },
-  { type: 'failed', error: { type: 'provider_call_not_started', message: 'not sent', at }, completed_at: at },
-  { type: 'unknown', claim, error: { type: 'unknown_outcome', message: 'unknown', provider_code: null, provider_http_status: null, at }, observed_at: at },
+  { type: 'failed', safe_error: 'The void request was not sent', completed_at: at },
+  { type: 'unknown', safe_error: 'The void outcome is unknown', observed_at: at },
 ];
 // @ts-expect-error Native transaction identities are decimal strings, never JavaScript numbers.
 export const unsafeIdentity: MonriVoidResult = { ...result, transaction_id: 992 };
 // @ts-expect-error Success must carry its actual original response.
 export const emptySuccess: MonriVoidStatus = { type: 'succeeded' };
 // @ts-expect-error A missing response currency is explicit null, not an omitted field.
-export const missingCurrency: MonriVoidResult = { claim, transaction_id: '992', amount: 100, response_code: '0000', transaction_created_at: at, observed_at: at };
+export const missingCurrency: MonriVoidResult = { transaction_id: '992', amount: 100, response_code: '0000', transaction_created_at: at, observed_at: at };
+// @ts-expect-error
+export const privateClaim: MonriVoidResult = { ...result, claim };
+// @ts-expect-error
+export const privateProcessingClaim: MonriVoidStatus = { type: 'processing', claim };

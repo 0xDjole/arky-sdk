@@ -1,12 +1,12 @@
 import { epochMilliseconds } from 'arky-sdk';
 import type { CustomerSessionIssued, CustomerSessionRecord, CustomerSessionStatus } from 'arky-sdk';
 import { createStorefront, initialize } from 'arky-sdk/storefront';
-import type { CaptureCustomerEmailParams, CustomerIdentity, StorefrontDto } from 'arky-sdk';
+import type { CaptureCustomerEmailParams, StorefrontCustomerIdentity } from 'arky-sdk';
 
 const capture: CaptureCustomerEmailParams = { email: 'reader@example.test' };
 const storefront = createStorefront('arky_pk_contract');
-const identity: Promise<StorefrontDto<CustomerIdentity>> = storefront.customer.captureEmail(capture);
-const initializedIdentity: Promise<StorefrontDto<CustomerIdentity>> = initialize('arky_pk_contract').customer.captureEmail(capture);
+const identity: Promise<StorefrontCustomerIdentity> = storefront.customer.captureEmail(capture);
+const initializedIdentity: Promise<StorefrontCustomerIdentity> = initialize('arky_pk_contract').customer.captureEmail(capture);
 void [identity, initializedIdentity];
 // @ts-expect-error Capture ownership comes from the current Customer Session.
 storefront.customer.captureEmail({ email: 'reader@example.test', customer_id: 'someone-else' });

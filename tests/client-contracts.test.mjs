@@ -7,7 +7,9 @@ import { createAdmin, SDK_VERSION } from "../dist/index.js";
 import { createStorefront } from "../dist/storefront.js";
 
 const baseUrl = "https://api.example.test";
-const storeId = "store-client-contract";
+const storeId = "b1e6d4a9-2c75-4f38-9a0e-5d7c3b8f1e62";
+const otherStoreId = "4a9c2e71-8d36-4b05-a1f7-3e6b0d9c5f28";
+const sessionId = "7f2a5c90-1d64-4e38-b9a7-0c3e8f6d2b15";
 const publishableKey = `arky_pk_${"k".repeat(43)}`;
 
 function storedVisitorSession(token, customerId = "customer-client-contract") {
@@ -40,7 +42,7 @@ function jsonResponse(body, status = 200) {
 }
 
 test("Admin non-commerce reads do not need or invent a Market", async (t) => {
-  const admin = createAdmin({ baseUrl, storeId, apiToken: "arky_api_admin_contract" });
+  const admin = createAdmin({ baseUrl, apiToken: "arky_api_admin_contract" });
   const calls = [];
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
@@ -49,6 +51,7 @@ test("Admin non-commerce reads do not need or invent a Market", async (t) => {
     return jsonResponse({ id: storeId });
   };
   assert.equal(admin.getMarket(), undefined);
+  assert.equal("getStoreId" in admin, false);
   await admin.store.get({ id: storeId });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, `${baseUrl}/v1/stores/${storeId}`);
@@ -60,7 +63,6 @@ test("Admin non-commerce reads do not need or invent a Market", async (t) => {
 test("workflow external-operation audit routes preserve execution scope", async () => {
   const admin = createAdmin({
     baseUrl,
-    storeId,
     apiToken: "arky_api_workflow_operation_contract",
   });
   const operation = {
@@ -89,6 +91,7 @@ test("workflow external-operation audit routes preserve execution scope", async 
 
   try {
     const page = await admin.workflow.listExternalOperations({
+      store_id: storeId,
       workflow_id: operation.workflow_id,
       execution_id: operation.execution_id,
       limit: 25,
@@ -96,6 +99,7 @@ test("workflow external-operation audit routes preserve execution scope", async 
     assert.deepEqual(page.items, [operation]);
     assert.deepEqual(
       await admin.workflow.getExternalOperation({
+        store_id: storeId,
         workflow_id: operation.workflow_id,
         execution_id: operation.execution_id,
         operation_id: operation.id,
@@ -119,7 +123,7 @@ test("workflow external-operation audit routes preserve execution scope", async 
 });
 
 test("admin code login activates the same pending Account Session", async () => {
-  const admin = createAdmin({ baseUrl, storeId, market: "us" });
+  const admin = createAdmin({ baseUrl, market: "us" });
   const calls = [];
   const responses = [
     {
@@ -127,7 +131,7 @@ test("admin code login activates the same pending Account Session", async () => 
       verification_expires_at: 900,
     },
     {
-      id: "session-client-contract",
+      id: sessionId,
       scope: { type: "account" },
       access_token: "access-client-contract",
       refresh_token: "refresh-client-contract",
@@ -157,6 +161,7 @@ test("admin code login activates the same pending Account Session", async () => 
       code: "123456",
     });
     assert.deepEqual(verified.scope, { type: "account" });
+    assert.deepEqual(admin.session, { id: sessionId, email: "operator@example.test", scope: { type: "account" } });
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -179,8 +184,8 @@ test("admin code login activates the same pending Account Session", async () => 
 });
 
 test("Store invitation login wraps the platform-global pending Account Session", async () => {
-  const admin = createAdmin({ baseUrl, storeId, market: "us" });
-  const invitationStoreId = "store-invitation-contract";
+  const admin = createAdmin({ baseUrl, market: "us" });
+  const invitationStoreId = otherStoreId;
   const calls = [];
   const responses = [
     {
@@ -188,7 +193,7 @@ test("Store invitation login wraps the platform-global pending Account Session",
       verification_expires_at: 900,
     },
     {
-      id: "session-invitation-contract",
+      id: "0b8e4d27-5f13-4a69-9c2e-7d1a6f3b8e40",
       scope: { type: "account" },
       access_token: "access-invitation-contract",
       refresh_token: "refresh-invitation-contract",
@@ -219,6 +224,7 @@ test("Store invitation login wraps the platform-global pending Account Session",
       code: "123456",
     });
     assert.deepEqual(verified.scope, { type: "account" });
+    await assert.rejects(async () => admin.account.auth.storeCode("store-invitation-contract", { email: "invitee@example.test" }), TypeError);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -241,19 +247,31 @@ test("Store invitation login wraps the platform-global pending Account Session",
 });
 
 test("admin refresh returns the rotated Account Session contract", async () => {
-  const admin = createAdmin({ baseUrl, storeId, market: "us" });
+  const admin = createAdmin({ baseUrl, market: "us" });
   const calls = [];
+  const issued = {
+    id: sessionId,
+    scope: { type: "store", store_id: storeId },
+    access_token: "access-previous",
+    refresh_token: "refresh-previous",
+    access_expires_at: 1_000,
+    refresh_expires_at: 3_000,
+    authenticated_at: 500,
+    created_at: 500,
+    updated_at: 500,
+  };
   const response = {
-    id: "session-rotated",
+    id: sessionId,
     scope: { type: "store", store_id: storeId },
     access_token: "access-rotated",
     refresh_token: "refresh-rotated",
     access_expires_at: 2_000,
     refresh_expires_at: 3_000,
     authenticated_at: 500,
-    created_at: 1_000,
+    created_at: 500,
     updated_at: 1_000,
   };
+  const responses = [issued, response];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     calls.push({
@@ -261,11 +279,14 @@ test("admin refresh returns the rotated Account Session contract", async () => {
       method: init.method,
       body: JSON.parse(String(init.body)),
     });
-    return jsonResponse(response);
+    return jsonResponse(responses.shift());
   };
 
   let result;
   try {
+    await admin.account.auth.storeVerify(storeId, { session_id: "pending-session", code: "123456" });
+    await assert.rejects(admin.account.auth.refresh({ refresh_token: "refresh-unknown" }), /Account session changed/);
+    assert.equal(calls.length, 1);
     result = await admin.account.auth.refresh({
       refresh_token: "refresh-previous",
     });
@@ -276,7 +297,13 @@ test("admin refresh returns the rotated Account Session contract", async () => {
   assert.deepEqual(result, response);
   assert.equal(result.authenticated_at, 500);
   assert.deepEqual(result.scope, { type: "store", store_id: storeId });
+  assert.deepEqual(admin.session, { id: sessionId, email: undefined, scope: { type: "store", store_id: storeId } });
   assert.deepEqual(calls, [
+    {
+      url: `${baseUrl}/v1/stores/${storeId}/auth/verify`,
+      method: "POST",
+      body: { session_id: "pending-session", code: "123456" },
+    },
     {
       url: `${baseUrl}/v1/auth/refresh`,
       method: "POST",
@@ -286,7 +313,7 @@ test("admin refresh returns the rotated Account Session contract", async () => {
 });
 
 test("request errors preserve the server response while normalizing validation details", async () => {
-  const admin = createAdmin({ baseUrl, storeId, market: "us" });
+  const admin = createAdmin({ baseUrl, market: "us" });
   const response = {
     message: "Email is invalid",
     error: "GENERAL.VALIDATION_ERROR",
@@ -328,7 +355,6 @@ test("request errors preserve the server response while normalizing validation d
 test("admin Store methods keep billing and optional contact email independent", async () => {
   const admin = createAdmin({
     baseUrl,
-    storeId,
     apiToken: "arky_api_admin_contract",
   });
   const store = {
@@ -337,7 +363,6 @@ test("admin Store methods keep billing and optional contact email independent", 
     billing_email: "owner@example.test",
     contact_email: null,
     publishable_key: publishableKey,
-    default_market_id: "market-bih",
     default_sales_channel_id: "channel-storefront",
     timezone: "Europe/Sarajevo",
     default_language: "en",
@@ -395,7 +420,6 @@ test("admin Store methods keep billing and optional contact email independent", 
       url: `${baseUrl}/v1/stores/${storeId}`,
       method: "PUT",
       body: {
-        id: storeId,
         name: "Client Contract",
         billing_email: "owner@example.test",
         contact_email: null,
@@ -409,7 +433,6 @@ test("admin Store methods keep billing and optional contact email independent", 
 test("admin Store deletion returns the exact physical-deletion result", async () => {
   const admin = createAdmin({
     baseUrl,
-    storeId,
     market: "us",
   });
   const deletionResult = {
@@ -429,7 +452,7 @@ test("admin Store deletion returns the exact physical-deletion result", async ()
 
   try {
     assert.deepEqual(
-      await admin.store.requestDeletion({ confirmation: "Client Contract" }),
+      await admin.store.requestDeletion({ id: storeId, confirmation: "Client Contract" }),
       deletionResult,
     );
   } finally {
@@ -444,7 +467,7 @@ test("admin Store deletion returns the exact physical-deletion result", async ()
 });
 
 test("Store endpoint configurations and physical locations use their cleaned contracts", async () => {
-  const admin = createAdmin({ baseUrl, storeId, market: "bih" });
+  const admin = createAdmin({ baseUrl, market: "bih" });
   const address = {
     street1: "1 Contract Way",
     city: "Sarajevo",
@@ -463,8 +486,9 @@ test("Store endpoint configurations and physical locations use their cleaned con
   };
 
   try {
-    await admin.store.location.create({ key: "main", address, timezone: "Europe/Sarajevo", operator: { type: "store" } });
+    await admin.store.location.create({ store_id: storeId, key: "main", address, timezone: "Europe/Sarajevo", operator: { type: "store" } });
     await admin.store.location.update({
+      store_id: storeId,
       id: "location-contract",
       is_pickup_location: true,
     });
@@ -546,28 +570,30 @@ test("Store endpoint configurations and physical locations use their cleaned con
   );
 });
 
-test("Admin Market and Payment Option APIs retain configured connections and UUID allowlists", async () => {
+test("Admin Market and Payment Option APIs retain merchant configurations and explicit Market allowlists", async () => {
   const admin = createAdmin({
     baseUrl,
-    storeId,
     apiToken: "arky_api_admin_contract",
   });
   const cashProvider = {
-    id: "provider-cash-on-delivery",
+    id: "2f0a5d3c-9a1e-4b7e-8f4c-6c2a1b3d5e70",
     store_id: storeId,
-    configuration: { type: "cash_on_delivery" },
+    type: { type: "cash_on_delivery" },
     key: "payment", blocks: [], status: { type: "active" },
     created_at: 1,
     updated_at: 1,
   };
   const stripeProvider = {
-    id: "provider-stripe",
+    id: "5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31",
     store_id: storeId,
-    configuration: {
+    type: {
       type: "stripe",
       connection: {
-        type: "connected", connected_account_id: "acct_contract",
-        account_setup_submitted: true, payments_enabled: true, payouts_enabled: true, state_observed_at: 2,
+        type: "configured",
+        configuration: {
+          account_id: "acct_merchant", livemode: false, publishable_key: "pk_test_merchant",
+          account_observed_at: 2, charges_enabled: true, webhook: { type: "unconfigured" },
+        },
       },
     },
     key: "payment", blocks: [], status: { type: "active" },
@@ -575,13 +601,21 @@ test("Admin Market and Payment Option APIs retain configured connections and UUI
     updated_at: 2,
   };
   const market = {
-    id: "market-contract",
+    id: "9c1d5e83-4a27-4f60-b8e2-6d3a0f7c1b94",
     store_id: storeId,
     key: "bih",
     currency: "bam",
     tax_mode: "inclusive",
     status: { type: "active" },
-    payment_option_ids: [cashProvider.id, stripeProvider.id],
+    created_at: 1,
+    updated_at: 1,
+  };
+  const allowed = {
+    id: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28",
+    store_id: storeId,
+    market_id: market.id,
+    payment_option_id: stripeProvider.id,
+    status: { type: "active" },
     created_at: 1,
     updated_at: 1,
   };
@@ -593,23 +627,33 @@ test("Admin Market and Payment Option APIs retain configured connections and UUI
       method: init.method || "GET",
       body: init.body ? JSON.parse(String(init.body)) : null,
     });
-    return String(url).endsWith("/payment-options")
-      ? jsonResponse({ items: [cashProvider, stripeProvider], cursor: null })
-      : jsonResponse(market);
+    if (String(url).endsWith("/payment-options")) return jsonResponse({ items: [cashProvider, stripeProvider], cursor: null });
+    if (String(url).includes("/market-payment-options")) return jsonResponse(allowed);
+    return jsonResponse(market);
   };
 
   try {
-    const providers = await admin.store.paymentOption.list();
-    assert.equal(providers.items[0].configuration.type, "cash_on_delivery");
-    assert.equal(providers.items[1].configuration.connection.payments_enabled, true);
+    const providers = await admin.store.paymentOption.list({ store_id: storeId });
+    assert.equal(providers.items[0].type.type, "cash_on_delivery");
+    assert.equal(providers.items[1].type.connection.configuration.charges_enabled, true);
+    assert.equal(providers.items[1].type.connection.configuration.account_id, "acct_merchant");
+    assert.equal("connected_account_id" in providers.items[1].type.connection.configuration, false);
     assert.deepEqual(
       await admin.store.market.create({
+        store_id: storeId,
         key: "bih",
         currency: "bam",
         tax_mode: "inclusive",
-        payment_option_ids: [cashProvider.id, stripeProvider.id],
       }),
       market,
+    );
+    assert.deepEqual(
+      await admin.store.marketPaymentOption.create({ store_id: storeId, market_id: market.id, payment_option_id: stripeProvider.id }),
+      allowed,
+    );
+    assert.deepEqual(
+      await admin.store.marketPaymentOption.lookup({ store_id: storeId, market_id: market.id, payment_option_id: stripeProvider.id }),
+      allowed,
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -628,8 +672,17 @@ test("Admin Market and Payment Option APIs retain configured connections and UUI
         key: "bih",
         currency: "bam",
         tax_mode: "inclusive",
-        payment_option_ids: [cashProvider.id, stripeProvider.id],
       },
+    },
+    {
+      url: `${baseUrl}/v1/stores/${storeId}/market-payment-options`,
+      method: "POST",
+      body: { market_id: market.id, payment_option_id: stripeProvider.id },
+    },
+    {
+      url: `${baseUrl}/v1/stores/${storeId}/market-payment-options/lookup?market_id=${market.id}&payment_option_id=${stripeProvider.id}`,
+      method: "GET",
+      body: null,
     },
   ]);
 });
@@ -637,7 +690,6 @@ test("Admin Market and Payment Option APIs retain configured connections and UUI
 test("admin cart update, quote, and checkout preserve one Payment Provider UUID", async () => {
   const admin = createAdmin({
     baseUrl,
-    storeId,
     market: "bih",
     apiToken: "arky_api_admin_contract",
   });
@@ -652,7 +704,7 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
     customer_id: "customer-contract",
     company: null,
     sales_channel_id: "channel-contract",
-    status: { type: "converted", order_id: orderId, command_id: checkoutRequestId },
+    status: { type: "converted", order_id: orderId, request_id: checkoutRequestId },
     origin: {
       type: "admin",
       actor: {
@@ -739,23 +791,24 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
     };
     calls.push(call);
     if (call.url.endsWith("/carts/accept")) return jsonResponse(checkout);
-    if (call.url.endsWith(`/orders/${orderId}`)) return jsonResponse({ id: orderId, source: { type: "cart_acceptance", command_id: checkoutRequestId, cart: quote.sources.cart, converted_lines: quote.sources.converted_lines } });
+    if (call.url.endsWith(`/orders/${orderId}`)) return jsonResponse({ id: orderId, source: { type: "cart_acceptance", request_id: checkoutRequestId, submission_fingerprint: "a".repeat(64), initial_payment_id: checkout.payment.id, cart: quote.sources.cart, converted_lines: quote.sources.converted_lines } });
     if (call.url.endsWith("/quote")) return jsonResponse(quote);
     return jsonResponse(cart);
   };
 
   try {
     assert.equal(
-      (await admin.eshop.cart.update({ id: cart.id })).status.order_id,
+      (await admin.eshop.cart.update({ store_id: storeId, id: cart.id })).status.order_id,
       orderId,
     );
     assert.equal(
-      (await admin.eshop.cart.quote({ id: cart.id })).order.payment_option_id,
+      (await admin.eshop.cart.quote({ store_id: storeId, id: cart.id })).order.payment_option_id,
       paymentOptionId,
     );
     assert.equal(
       (
         await admin.eshop.order.getQuote({
+          store_id: storeId,
           market: "bih",
         })
       ).order.payment_option_ids[0],
@@ -764,6 +817,7 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
     assert.equal(
       (
         await admin.eshop.cart.checkout({
+          store_id: storeId,
           id: cart.id,
           request_id: checkoutRequestId,
           locale: "en",
@@ -829,7 +883,6 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
 test("admin Order uses the embedded product-item route and canonical Customer filter", async () => {
   const admin = createAdmin({
     baseUrl,
-    storeId,
     apiToken: "arky_api_admin_contract",
   });
   const calls = [];
@@ -845,11 +898,12 @@ test("admin Order uses the embedded product-item route and canonical Customer fi
   };
 
   try {
-    await admin.eshop.order.find({ customer_id: "customer-contract" });
+    await admin.eshop.order.find({ store_id: storeId, customer_id: "customer-contract" });
     await admin.eshop.order.cancelProductItem({
+      store_id: storeId,
       order_id: "order-contract",
       order_product_item_id: "order-product-item-contract",
-      command_id: "cancellation-command",
+      request_id: "3e8b1f64-9c27-4d50-a6e3-7b2d0c9f4a18",
       expected_updated_at: 1789990000000,
       units: [{ first_unit: 0, quantity: 1 }],
     });
@@ -870,7 +924,7 @@ test("admin Order uses the embedded product-item route and canonical Customer fi
       url: `${baseUrl}/v1/stores/${storeId}/orders/order-contract/product-items/order-product-item-contract/cancel`,
       method: "POST",
       body: {
-        command_id: "cancellation-command",
+        request_id: "3e8b1f64-9c27-4d50-a6e3-7b2d0c9f4a18",
         expected_updated_at: 1789990000000,
         units: [{ first_unit: 0, quantity: 1 }],
       },
@@ -879,12 +933,12 @@ test("admin Order uses the embedded product-item route and canonical Customer fi
 });
 
 test("product cancellation preserves exact units and revision through explicit retry and encodes owner IDs", async () => {
-  const admin = createAdmin({ baseUrl, storeId, apiToken: "arky_api_admin_contract" });
+  const admin = createAdmin({ baseUrl, apiToken: "arky_api_admin_contract" });
   const request = {
-    store_id: "store/one",
+    store_id: otherStoreId,
     order_id: "order/one",
     order_product_item_id: "line/one",
-    command_id: "cancellation-command",
+    request_id: "5c7a2e91-4f38-4b06-8d1c-9e3b6a0f2d47",
     expected_updated_at: 1789990000000,
     units: [{ first_unit: 1, quantity: 2 }, { first_unit: 5, quantity: 1 }],
   };
@@ -901,19 +955,21 @@ test("product cancellation preserves exact units and revision through explicit r
     assert.equal(calls.length, 2);
     assert.deepEqual(calls[1], calls[0]);
     assert.deepEqual(calls[0], {
-      url: `${baseUrl}/v1/stores/store%2Fone/orders/order%2Fone/product-items/line%2Fone/cancel`,
+      url: `${baseUrl}/v1/stores/${otherStoreId}/orders/order%2Fone/product-items/line%2Fone/cancel`,
       method: "POST",
-      body: { command_id: request.command_id, expected_updated_at: request.expected_updated_at, units: request.units },
+      body: { request_id: request.request_id, expected_updated_at: request.expected_updated_at, units: request.units },
     });
+    await assert.rejects(admin.eshop.order.cancelProductItem({ ...request, request_id: "cancellation-command" }), TypeError);
+    await assert.rejects(admin.eshop.order.cancelProductItem({ ...request, store_id: "store/one" }), TypeError);
+    assert.equal(calls.length, 2);
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
 
-test("admin market deletion preserves the version, replacement and accepted Deleting response", async () => {
+test("admin market deletion preserves the version and accepted Deleting response without a default replacement", async () => {
   const admin = createAdmin({
     baseUrl,
-    storeId,
     apiToken: "arky_api_admin_contract",
   });
   let call;
@@ -931,9 +987,9 @@ test("admin market deletion preserves the version, replacement and accepted Dele
   try {
     assert.deepEqual(
       await admin.store.market.delete({
+        store_id: storeId,
         id: "market-old",
         expected_updated_at: 1788862721000,
-        replacement_default_market_id: "market-next",
       }),
       deleting,
     );
@@ -942,13 +998,13 @@ test("admin market deletion preserves the version, replacement and accepted Dele
   }
 
   assert.deepEqual(call, {
-    url: `${baseUrl}/v1/stores/${storeId}/markets/market-old?expected_updated_at=1788862721000&replacement_default_market_id=market-next`,
+    url: `${baseUrl}/v1/stores/${storeId}/markets/market-old?expected_updated_at=1788862721000`,
     method: "DELETE",
   });
 });
 
 test("Category is top-level and uses the renamed Admin and storefront routes", async () => {
-  const admin = createAdmin({ baseUrl, storeId, market: "us" });
+  const admin = createAdmin({ baseUrl, market: "us" });
   const storefront = createStorefront(publishableKey, { apiUrl: baseUrl });
   const calls = [];
   const originalFetch = globalThis.fetch;
@@ -979,19 +1035,20 @@ test("Category is top-level and uses the renamed Admin and storefront routes", a
   try {
     assert.equal("category" in admin.content, false);
     assert.equal("category" in storefront.content, false);
-    await admin.category.create({ key: "topics", schema: [] });
+    await admin.category.create({ store_id: storeId, key: "topics", schema: [] });
     await admin.category.update({
+      store_id: storeId,
       id: "category-contract",
       key: "subjects",
     });
-    await admin.category.get({ id: "category-contract" });
-    await admin.category.find({ status: "active" });
+    await admin.category.get({ store_id: storeId, id: "category-contract" });
+    await admin.category.find({ store_id: storeId, status: "active" });
     await storefront.category.get({ key: "topics" });
     await storefront.category.getChildren({
       id: "category-contract",
     });
     assert.equal(
-      await admin.category.delete({ id: "category-contract" }),
+      await admin.category.delete({ store_id: storeId, id: "category-contract" }),
       true,
     );
   } finally {
@@ -1068,7 +1125,7 @@ test("storefront collection lookup uses a keyless route and publishable-key head
 });
 
 test("admin Product writes and InventoryLevel reads preserve backorders and set-aside stock", async () => {
-  const admin = createAdmin({ baseUrl, storeId, market: "us" });
+  const admin = createAdmin({ baseUrl, market: "us" });
   const create = {
     key: "canonical-product",
     slugs: { en: "canonical-product" },
@@ -1128,9 +1185,9 @@ test("admin Product writes and InventoryLevel reads preserve backorders and set-
   let updated;
   let loadedInventory;
   try {
-    created = await admin.eshop.product.create(create);
-    updated = await admin.eshop.product.update(update);
-    loadedInventory = await admin.eshop.inventoryLevel.find({ inventory_item_id: "item-contract", store_location_id: "location-contract" });
+    created = await admin.eshop.product.create({ store_id: storeId, ...create });
+    updated = await admin.eshop.product.update({ store_id: storeId, ...update });
+    loadedInventory = await admin.eshop.inventoryLevel.find({ store_id: storeId, inventory_item_id: "item-contract", store_location_id: "location-contract" });
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1147,7 +1204,7 @@ test("admin Product writes and InventoryLevel reads preserve backorders and set-
     {
       url: `${baseUrl}/v1/stores/${storeId}/products/${product.id}`,
       method: "PUT",
-      body: update,
+      body: (({ id: _id, ...body }) => body)(update),
     },
     {
       url: `${baseUrl}/v1/stores/${storeId}/inventory-levels?inventory_item_id=item-contract&store_location_id=location-contract`,

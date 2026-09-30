@@ -1,27 +1,28 @@
 import { epochMilliseconds } from "arky-sdk";
+const contractStoreId = "c3d8f1a2-6b47-4e95-8a0c-2f7d5e9b1a63";
 import type { WorkflowExecutionStatus, GetWorkflowExecutionsParams, GetWorkflowExecutionParams } from "arky-sdk";
 const executionStatus: WorkflowExecutionStatus = { type: "completed" };
-const executionQuery: GetWorkflowExecutionsParams = { workflow_id: "workflow", status: "completed", query: "execution", limit: 1, cursor: "opaque", sort_field: "created_at", sort_direction: "desc" };
-const exactExecution: GetWorkflowExecutionParams = { workflow_id: "workflow", execution_id: "execution" };
+const executionQuery: GetWorkflowExecutionsParams = { store_id: contractStoreId, workflow_id: "workflow", status: "completed", query: "execution", limit: 1, cursor: "opaque", sort_field: "created_at", sort_direction: "desc" };
+const exactExecution: GetWorkflowExecutionParams = { store_id: contractStoreId, workflow_id: "workflow", execution_id: "execution" };
 // @ts-expect-error Execution responses carry tagged lifecycle status.
 const oldExecutionStatus: WorkflowExecutionStatus = "completed";
 // @ts-expect-error Execution list filters carry a flat status value.
-const invalidExecutionStatusFilter: GetWorkflowExecutionsParams = { workflow_id: "workflow", status: { type: "running" } };
+const invalidExecutionStatusFilter: GetWorkflowExecutionsParams = { store_id: contractStoreId, workflow_id: "workflow", status: { type: "running" } };
 // @ts-expect-error Execution errors are private detail, not a supported sort key.
-const invalidExecutionSort: GetWorkflowExecutionsParams = { workflow_id: "workflow", sort_field: "error" };
+const invalidExecutionSort: GetWorkflowExecutionsParams = { store_id: contractStoreId, workflow_id: "workflow", sort_field: "error" };
 export type WorkflowExecutionContracts = [typeof executionStatus, typeof executionQuery, typeof exactExecution];
 import type { WorkflowConnectionAuthorizationStatus, GetWorkflowConnectionsParams, GetWorkflowConnectionParams } from "arky-sdk";
 const workflowConnectionStatus: WorkflowConnectionAuthorizationStatus = { type: "reauthorization_required", detected_at: epochMilliseconds(0) };
-const workflowConnectionsQuery: GetWorkflowConnectionsParams = { query: "Drive", type: "google_drive", status: "active", limit: 20, cursor: "opaque", sort_field: "updated_at", sort_direction: "asc" };
-const exactWorkflowConnection: GetWorkflowConnectionParams = { id: "connection" };
+const workflowConnectionsQuery: GetWorkflowConnectionsParams = { store_id: contractStoreId, query: "Drive", type: "google_drive", status: "active", limit: 20, cursor: "opaque", sort_field: "updated_at", sort_direction: "asc" };
+const exactWorkflowConnection: GetWorkflowConnectionParams = { store_id: contractStoreId, id: "connection" };
 // @ts-expect-error Connection response status is a tagged object, not a string.
 const oldWorkflowConnectionStatus: WorkflowConnectionAuthorizationStatus = "active";
 // @ts-expect-error Reauthorization retains its detection timestamp.
 const incompleteWorkflowConnectionStatus: WorkflowConnectionAuthorizationStatus = { type: "reauthorization_required" };
 // @ts-expect-error Connection search status is a flat filter.
-const oldWorkflowConnectionFilter: GetWorkflowConnectionsParams = { status: { type: "active" } };
+const oldWorkflowConnectionFilter: GetWorkflowConnectionsParams = { store_id: contractStoreId, status: { type: "active" } };
 // @ts-expect-error Connection names are text predicates, not a supported ordering field.
-const invalidWorkflowConnectionSort: GetWorkflowConnectionsParams = { sort_field: "name" };
+const invalidWorkflowConnectionSort: GetWorkflowConnectionsParams = { store_id: contractStoreId, sort_field: "name" };
 export type WorkflowConnectionContracts = [typeof workflowConnectionStatus, typeof workflowConnectionsQuery, typeof exactWorkflowConnection];
 import type { WorkflowStatus, GetWorkflowsParams, CreateWorkflowParams, WorkflowTransformNode, WorkflowLoopNode, WorkflowSwitchNode } from "arky-sdk";
 const workflowLocalNodes: [WorkflowTransformNode, WorkflowLoopNode, WorkflowSwitchNode] = [
@@ -30,12 +31,12 @@ const workflowLocalNodes: [WorkflowTransformNode, WorkflowLoopNode, WorkflowSwit
   { type: "switch", rules: [], delay_ms: null },
 ];
 const workflowStatusContract: WorkflowStatus = { type: "draft" };
-const workflowListContract: GetWorkflowsParams = { status: "active", created_at_from: epochMilliseconds(-1) };
-const workflowCreateContract: CreateWorkflowParams = { key: "demo_workflow", status: { type: "active" }, graph: { nodes: {}, edges: [] } };
+const workflowListContract: GetWorkflowsParams = { store_id: contractStoreId, status: "active", created_at_from: epochMilliseconds(-1) };
+const workflowCreateContract: CreateWorkflowParams = { store_id: contractStoreId, key: "demo_workflow", status: { type: "active" }, graph: { nodes: {}, edges: [] } };
 // @ts-expect-error Workflow responses and writes use tagged status objects.
 const legacyWorkflowStatusContract: WorkflowStatus = "active";
 // @ts-expect-error Workflow search filters use a flat status value.
-const legacyWorkflowFilterContract: GetWorkflowsParams = { status: { type: "active" } };
+const legacyWorkflowFilterContract: GetWorkflowsParams = { store_id: contractStoreId, status: { type: "active" } };
 export type WorkflowStatusContracts = [typeof workflowStatusContract, typeof workflowListContract, typeof workflowCreateContract, typeof workflowLocalNodes];
 import type { AccountActor, LeadResearchAssistantMessageStatus, LeadResearchMessageType, GetLeadResearchMessageParams } from "arky-sdk";
 
@@ -56,7 +57,7 @@ const legacyLeadResearchStatus: LeadResearchAssistantMessageStatus = { status: "
 const legacyLeadResearchAccount: LeadResearchMessageType = { type: "account", account_session_id: "session", content: "Research" };
 // @ts-expect-error Assistant authorship retains an actor snapshot, not a Session navigation ID.
 const legacyLeadResearchAssistant: LeadResearchMessageType = { type: "assistant", responds_to_message_id: "account-message", requested_by_account_session_id: "session", status: { type: "requested" } };
-const exactResearchMessage: GetLeadResearchMessageParams = { lead_research_id: "research", message_id: "message" };
+const exactResearchMessage: GetLeadResearchMessageParams = { store_id: contractStoreId, lead_research_id: "research", message_id: "message" };
 export type LeadResearchContracts = [typeof leadResearchAccount, typeof leadResearchAssistant, typeof leadResearchCancelled, typeof exactResearchMessage];
 export type { BlockContracts } from "./block-contracts.js";
 import type { MembershipContracts } from "./membership-contracts.js";
@@ -188,7 +189,8 @@ import type {
   TiktokPrivacy,
   StorefrontIdentifyResult,
   StorefrontDigitalProduct,
-  StorefrontDto,
+  StorefrontBookingOffering,
+  StorefrontBookingService,
   StorefrontLocation,
   StorefrontMarket,
   StorefrontPaymentOption,
@@ -422,7 +424,6 @@ const storeContract: Store = {
   contact_email: null,
   commerce: {
     type: "ready",
-    default_market_id: "market-contract",
     default_sales_channel_id: "channel-contract",
     seller: { legal_name: "Synthetic seller", address: { country: "US" }, registration_number: null, tax_registrations: [] },
     tax: { version: "fixture", noncommercial_subscription_grants: false },
@@ -441,6 +442,10 @@ const createStoreContract: CreateStoreParams = {
 };
 // @ts-expect-error Store routing identity is no longer a mutable key.
 storeContract.key;
+if (storeContract.commerce.type === "ready") {
+  // @ts-expect-error
+  storeContract.commerce.default_market_id;
+}
 // @ts-expect-error Store lifecycle is represented by the typed status field.
 storeContract.lifecycle;
 // @ts-expect-error Store language defaults are explicit rather than positional.
@@ -472,6 +477,7 @@ const storeLocationContract: StoreLocation = {
   updated_at: epochMilliseconds(1),
 };
 const createStoreLocationContract: CreateStoreLocationParams = {
+  store_id: contractStoreId,
   key: "main",
   address: storeLocationContract.address,
   timezone: storeLocationContract.timezone,
@@ -578,12 +584,15 @@ const stripeProvider: PaymentOption = {
   type: {
     type: "stripe",
     connection: {
-    type: "connected",
-    connected_account_id: "acct_contract",
-    account_setup_submitted: true,
-    payments_enabled: true,
-    payouts_enabled: true,
-    state_observed_at: epochMilliseconds(2),
+      type: "configured",
+      configuration: {
+        account_id: "acct_contract",
+        livemode: false,
+        publishable_key: "pk_test_contract",
+        account_observed_at: epochMilliseconds(2),
+        charges_enabled: true,
+        webhook: { type: "unconfigured" },
+      },
     },
   },
   created_at: epochMilliseconds(1),
@@ -611,23 +620,35 @@ const storefrontPaymentOptions: StorefrontPaymentOption[] = [
   { id: stripeProvider.id, key: stripeProvider.key, blocks: stripeProvider.blocks, type: "stripe" },
 ];
 const storefrontSetupContract: StorefrontSetup = {
-  commerce: { type: "ready", default_market_id: marketContract.id, default_sales_channel_id: "channel" },
+  commerce: { type: "ready", default_sales_channel_id: "channel" },
   timezone: "Europe/Sarajevo",
   languages: { default: "en", available: ["en"] },
-  default_market: storefrontMarketContract,
   payment_options: storefrontPaymentOptions,
   support: { email: "store@example.test" },
-  readiness: { market: true, payment: true, commerce: true },
+  readiness: { commerce: true },
 };
+// @ts-expect-error
+storefrontSetupContract.default_market;
+// @ts-expect-error
+storefrontSetupContract.readiness.market;
+const storefrontSetupWithInferredMarket: StorefrontSetup = {
+  ...storefrontSetupContract,
+  // @ts-expect-error
+  default_market: storefrontMarketContract,
+};
+void storefrontSetupWithInferredMarket;
 const storefrontProviderType: "cash_on_delivery" | "manual" | "stripe" | "monri" =
   storefrontSetupContract.payment_options[1].type;
 const createMarketContract: CreateMarketParams = {
+  store_id: contractStoreId,
   key: "bih",
   currency: "bam",
   tax_mode: "inclusive",
 };
 const checkoutContract: CheckoutCartParams = {
+  store_id: contractStoreId,
   id: "cart-contract",
+  request_id: "6d2f8a14-3c97-4e05-b1a8-5f0c7e9d2b36",
   locale: "en",
   presentation_digest: "a".repeat(64),
   sources: { cart: { cart_id: "cart-contract", version: "reviewed-version" }, converted_lines: [] },
@@ -648,6 +669,12 @@ checkoutContract.payment_method_key;
 
 // @ts-expect-error Provider setup observations live inside the Stripe configuration.
 stripeProvider.payments_enabled;
+if (stripeProvider.type.type === "stripe" && stripeProvider.type.connection.type === "configured") {
+  const merchantStripeAccount: string = stripeProvider.type.connection.configuration.account_id;
+  void merchantStripeAccount;
+  // @ts-expect-error
+  stripeProvider.type.connection.configuration.connected_account_id;
+}
 // @ts-expect-error Quote returns provider UUID selection and allowlist fields.
 quoteContract.payment_methods;
 
@@ -711,6 +738,7 @@ const orderRefund: PaymentRefund = {
   updated_at: epochMilliseconds(4),
 };
 const createOrderRefund: CreateRefundParams = {
+  store_id: contractStoreId,
   payment_id: "payment-contract",
   refund_id: "order-refund-contract",
   payment_capture_id: null,
@@ -721,6 +749,7 @@ const createOrderRefund: CreateRefundParams = {
   reference: null,
 };
 const recordRefundMoney: RecordRefundMoneyParams = {
+  store_id: contractStoreId,
   id: "cash-refund-contract",
   effect_id: "cash-receipt-contract",
   movement: { type: "sent" },
@@ -749,10 +778,12 @@ const paymentDispute: PaymentDispute = {
   updated_at: epochMilliseconds(2),
 };
 const findPaymentDisputes: FindPaymentDisputesParams = {
+  store_id: contractStoreId,
   payment_id: "payment-contract",
   limit: 20,
 };
 const getPaymentDispute: GetPaymentDisputeParams = {
+  store_id: contractStoreId,
   dispute_id: paymentDispute.id,
 };
 // @ts-expect-error refunds expose Money instead of flat amount fields.
@@ -824,9 +855,9 @@ void smtpImapMailboxProviderWithoutType;
 
 declare const digitalAsset: DigitalAsset;
 const digitalAssetStatus: "active" | "archived" = digitalAsset.status.type;
-const digitalAssetPage = adminClient.eshop.digital.asset.find({ status: digitalAssetStatus, limit: 20 });
-const exactDigitalAsset = adminClient.eshop.digital.asset.get({ asset_id: digitalAsset.id });
-const exactDigitalProduct = adminClient.eshop.digital.product.getByKey({ key: "guide" });
+const digitalAssetPage = adminClient.eshop.digital.asset.find({ store_id: contractStoreId, status: digitalAssetStatus, limit: 20 });
+const exactDigitalAsset = adminClient.eshop.digital.asset.get({ store_id: contractStoreId, asset_id: digitalAsset.id });
+const exactDigitalProduct = adminClient.eshop.digital.product.getByKey({ store_id: contractStoreId, key: "guide" });
 void [digitalAssetPage, exactDigitalAsset, exactDigitalProduct];
 // @ts-expect-error object storage keys are internal and never exposed by Admin responses.
 digitalAsset.object_key;
@@ -879,6 +910,7 @@ const digitalLibraryProductContract: DigitalLibraryProduct = {
   assets: { items: [{ id: digitalProductContract.asset_ids[0], file_name: "guide.txt", mime_type: "text/plain", download_reference: "protected-reference" }], cursor: null },
 };
 const createDigitalProductContract: CreateDigitalProductParams = {
+  store_id: contractStoreId,
   key: digitalProductContract.key,
   slugs: digitalProductContract.slugs,
   blocks: [],
@@ -887,11 +919,13 @@ const createDigitalProductContract: CreateDigitalProductParams = {
   status: { type: "draft" },
 };
 const updateDigitalProductContract: UpdateDigitalProductParams = {
+  store_id: contractStoreId,
   digital_product_id: digitalProductContract.id,
   slugs: { en: "digital-product-updated" },
   status: { type: "archived" },
 };
 const findDigitalProductsContract: FindDigitalProductsParams = {
+  store_id: contractStoreId,
   ids: [digitalProductContract.id],
   category_query: [
     {
@@ -947,7 +981,7 @@ const appliedPrice: AppliedPriceSnapshot = {
   source: { type: 'base', price_id: 'price-contract' },
   priced_at: epochMilliseconds(1),
 };
-const acceptedOrderPrice: OrderDigitalSnapshot['price'] = { type: 'direct', price: appliedPrice };
+const acceptedOrderPrice: OrderDigitalSnapshot['price'] = { type: 'unit_price', price: appliedPrice };
 const orderDigitalSnapshotContract: OrderDigitalSnapshot = {
   product_key: digitalProductContract.key,
   price: acceptedOrderPrice,
@@ -958,6 +992,7 @@ const productQuoteInputContract: ProductQuoteInput = {
   product_id: "product-contract",
   variant_id: "variant-contract",
   quantity: 1,
+  purchase: { type: "catalog" },
   form_submission_id: "form-submission-product-contract",
   price_override: manualPriceInput,
 };
@@ -977,6 +1012,7 @@ const cartProductInputContract: CartProductInput = {
   product_id: "product-contract",
   variant_id: "variant-contract",
   quantity: 1,
+  purchase: { type: "catalog" },
   form_submission_id: "form-submission-product-contract",
 };
 const cartDigitalInputContract: CartDigitalItemInput = {
@@ -997,6 +1033,7 @@ const trustedCartDigitalInputContract: TrustedCartDigitalItemInput = {
   price_override: manualPriceInput,
 };
 const quoteInputContract: GetQuoteParams = {
+  store_id: contractStoreId,
   market: "us",
   customer_id: "customer-contract",
   line_items: [
@@ -1049,27 +1086,32 @@ if (mailbox.provider.type === "smtp_imap") {
 }
 
 const clearCartAddresses: UpdateCartParams = {
+  store_id: contractStoreId,
   id: "cart-contract",
   billing_address: null,
 };
 
 const inventoryInput: CreateInventoryLevelParams = {
+  store_id: contractStoreId,
   store_location_id: "location-contract",
   inventory_item_id: "item-contract",
 };
 const createProductInput: CreateProductParams = {
+  store_id: contractStoreId,
   key: "canonical-product",
   slugs: { en: "canonical-product" },
 };
 const updateProductInput: UpdateProductParams = {
+  store_id: contractStoreId,
   id: "product-contract",
   expected_updated_at: epochMilliseconds(1),
   slugs: { en: "updated-product" },
   status: { type: "archived" },
 };
 // @ts-expect-error Product replacement requires the revision loaded by the editor.
-const unversionedProductInput: UpdateProductParams = { id: "product-contract", key: "changed" };
+const unversionedProductInput: UpdateProductParams = { store_id: contractStoreId, id: "product-contract", key: "changed" };
 const createProductVariantInput: CreateProductVariantParams = {
+  store_id: contractStoreId,
   product_id: "product-contract",
   sku: "SKU-CONTRACT",
   attributes: [],
@@ -1085,6 +1127,7 @@ const createProductVariantInput: CreateProductVariantParams = {
   tax_category_id: null,
 };
 const updateProductVariantInput: UpdateProductVariantParams = {
+  store_id: contractStoreId,
   id: "variant-contract",
   expected_updated_at: 1 as import("arky-sdk").EpochMilliseconds,
   sku: null,
@@ -1099,40 +1142,43 @@ void updateProductInput;
 void createProductVariantInput;
 void updateProductVariantInput;
 const deleteProductVariantResult: Promise<ProductVariant | void> = adminClient.eshop.productVariant.delete({
-  id: "variant-id", expected_updated_at: updateProductVariantInput.expected_updated_at,
+  store_id: contractStoreId, id: "variant-id", expected_updated_at: updateProductVariantInput.expected_updated_at,
 });
 // @ts-expect-error An already-absent variant returns no record, not a guaranteed Deleting root.
 const requiredDeletedVariant: Promise<ProductVariant> = deleteProductVariantResult;
 void requiredDeletedVariant;
 const variantListInput: import("arky-sdk").FindProductVariantsParams = {
-  product_id: "product", sku: "full-exact-sku", status: "deleting", sort_field: "updated_at", sort_direction: "asc", limit: 200,
+  store_id: contractStoreId, product_id: "product", sku: "full-exact-sku", status: "deleting", sort_field: "updated_at", sort_direction: "asc", limit: 200,
 };
 // @ts-expect-error Variant discovery does not imply quantity/context-dependent price ordering.
-const variantPriceOrder: import("arky-sdk").FindProductVariantsParams = { sort_field: "price" };
+const variantPriceOrder: import("arky-sdk").FindProductVariantsParams = { store_id: contractStoreId, sort_field: "price" };
 // @ts-expect-error Variant status uses the current lifecycle, not a removed published label.
-const variantPublishedFilter: import("arky-sdk").FindProductVariantsParams = { status: "published" };
+const variantPublishedFilter: import("arky-sdk").FindProductVariantsParams = { store_id: contractStoreId, status: "published" };
 void [variantListInput, variantPriceOrder, variantPublishedFilter];
 const zoneInput: CreateZoneParams = {
+  store_id: contractStoreId,
   key: "us-zone",
   includes: [{ type: "country", country: "US" }],
   excludes: [],
   status: { type: "active" },
 };
 const marketZoneInput: CreateMarketZoneParams = {
+  store_id: contractStoreId,
   market_id: marketContract.id,
   zone_id: "zone-contract",
   priority: 0,
 };
 void marketZoneInput;
-const collectionById: GetCollectionParams = { id: "collection-contract" };
+const collectionById: GetCollectionParams = { store_id: contractStoreId, id: "collection-contract" };
 const collectionByKey: GetCollectionParams = {
   key: "articles",
-  store_id: "store-contract",
+  store_id: contractStoreId,
 };
 // @ts-expect-error collection lookup requires exactly one identifier.
-const collectionWithoutIdentifier: GetCollectionParams = {};
+const collectionWithoutIdentifier: GetCollectionParams = { store_id: contractStoreId };
 // @ts-expect-error collection lookup cannot mix an ID and key.
 const ambiguousCollection: GetCollectionParams = {
+  store_id: contractStoreId,
   id: "collection-contract",
   key: "articles",
 };
@@ -1285,14 +1331,15 @@ storefrontClient.category.get({ key: "topics" });
 // @ts-expect-error Category is a top-level module, not a Content child.
 storefrontClient.content.category;
 declare const adminClient: ReturnType<typeof createAdmin>;
-const ordinaryAdminInvitation: AddMemberParams = { email: "admin@example.test", access: { type: "staff", role: "admin" } };
+const ordinaryAdminInvitation: AddMemberParams = { store_id: contractStoreId, email: "admin@example.test", access: { type: "staff", role: "admin" } };
 const ownershipTransferParams: TransferStoreOwnershipParams = {
+  store_id: contractStoreId,
   account_id: "a35bc883-e98c-4fa9-94a2-8cbb7c3ac755",
 };
 const ownershipTransferResult: Promise<StoreMembership> =
   adminClient.store.member.transferOwnership(ownershipTransferParams);
 adminClient.store.member.invite(ordinaryAdminInvitation);
-adminClient.store.member.invite({ email: "partner@example.test", access: { type: "partner", fulfillment_partner_id: "partner" } });
+adminClient.store.member.invite({ store_id: contractStoreId, email: "partner@example.test", access: { type: "partner", fulfillment_partner_id: "partner" } });
 void ownershipTransferResult;
 const mailboxIssueQuery: FindMailboxSyncIssuesParams = {
   id: "mailbox-contract",
@@ -1330,6 +1377,7 @@ adminClient.notification.mailbox.retrySyncIssue({ id: mailboxIssue.id });
 adminClient.notification.mailbox.purgeSyncIssues({ id: "mailbox-contract" });
 void [mailboxIssues, mailboxIssueInstant, nativeImapUid, googleIssueSource, legacyIssueSource, unsafeIssueReason];
 const bookingItemLifecycleParams: BookingItemLifecycleParams = {
+  store_id: contractStoreId,
   order_id: "order-contract",
   order_booking_item_id: "order-booking-item-contract",
 };
@@ -1340,7 +1388,11 @@ storefrontClient.eshop.order.getBookingAppointment(getAppointment);
 void appointment;
 const cancelBookingItemParams: CancelBookingItemParams = {
   ...bookingItemLifecycleParams,
-  command_id: "bef10d85-72e3-4853-9c12-8e419dc2d8dc",
+  request_id: "bef10d85-72e3-4853-9c12-8e419dc2d8dc",
+};
+const storefrontBookingItem = {
+  order_id: bookingItemLifecycleParams.order_id,
+  order_booking_item_id: bookingItemLifecycleParams.order_booking_item_id,
 };
 const adminBookingCancellation: Promise<Order> =
   adminClient.eshop.order.cancelBookingItem(cancelBookingItemParams);
@@ -1348,30 +1400,36 @@ const adminBookingCompletion: Promise<Order> =
   adminClient.eshop.order.completeBookingItem(bookingItemLifecycleParams);
 const adminBookingNoShow: Promise<Order> =
   adminClient.eshop.order.markBookingItemNoShow(bookingItemLifecycleParams);
-const storefrontBookingCancellation: Promise<StorefrontDto<Order>> =
-  storefrontClient.eshop.order.cancelBookingItem(cancelBookingItemParams);
+const storefrontBookingCancellation: Promise<Order> =
+  storefrontClient.eshop.order.cancelBookingItem({ ...storefrontBookingItem, request_id: cancelBookingItemParams.request_id });
+storefrontClient.eshop.order.cancelBookingItem({
+  ...storefrontBookingItem,
+  request_id: cancelBookingItemParams.request_id,
+  // @ts-expect-error
+  store_id: contractStoreId,
+});
 // @ts-expect-error Cancellation requires a caller-retained command identity.
 adminClient.eshop.order.cancelBookingItem(bookingItemLifecycleParams);
 // @ts-expect-error Storefront cancellation requires the same stable command identity.
-storefrontClient.eshop.order.cancelBookingItem(bookingItemLifecycleParams);
+storefrontClient.eshop.order.cancelBookingItem(storefrontBookingItem);
 // @ts-expect-error A verified owning Customer cannot complete a booking item.
 storefrontClient.eshop.order.completeBookingItem(bookingItemLifecycleParams);
 // @ts-expect-error A verified owning Customer cannot mark a booking item as a no-show.
 storefrontClient.eshop.order.markBookingItemNoShow(bookingItemLifecycleParams);
 const categoryChildren: Promise<{ items: Category[]; cursor: string | null }> =
-  adminClient.category.getChildren({ id: "category-contract" });
-adminClient.category.get({ id: "category-contract" });
+  adminClient.category.getChildren({ store_id: contractStoreId, id: "category-contract" });
+adminClient.category.get({ store_id: contractStoreId, id: "category-contract" });
 // @ts-expect-error Admin Category lookup uses its UUID, not a derived key.
-adminClient.category.get({ key: "topics" });
+adminClient.category.get({ store_id: contractStoreId, key: "topics" });
 // @ts-expect-error Category is a top-level module, not a Content child.
 adminClient.content.category;
 void categoryChildren;
-const storefrontBookingOfferings: Promise<PaginatedResponse<StorefrontDto<BookingOffering>>> =
+const storefrontBookingOfferings: Promise<PaginatedResponse<StorefrontBookingOffering>> =
   storefrontClient.eshop.bookingOffering.find({
     booking_service_id: "booking-service-contract",
   });
 const bookingResources: Promise<
-  StorefrontDto<PaginatedResponse<BookingResource>>
+  PaginatedResponse<BookingResource>
 > = storefrontClient.eshop.bookingResource.find({
   booking_service_id: "booking-service-contract",
   sort_field: "key",
@@ -1387,7 +1445,7 @@ storefrontClient.eshop.bookingResource.find({ to: epochMilliseconds(1) });
 // @ts-expect-error Resource category predicates have no match_all switch.
 adminClient.eshop.bookingResource.find({ match_all: true });
 const bookingServices: Promise<
-  StorefrontDto<PaginatedResponse<BookingService>>
+  PaginatedResponse<StorefrontBookingService>
 > = storefrontClient.eshop.bookingService.find({ sort_field: "price", include_price: true });
 const bookingAvailability: Promise<AvailabilityResponse> = storefrontClient.eshop.bookingService.getAvailability({
   booking_service_id: "booking-service-contract",
@@ -1421,6 +1479,7 @@ const cartProductItemContract: CartProductItem = {
   product_id: "product-contract",
   variant_id: "variant-contract",
   quantity: 1,
+  purchase: { type: "catalog" },
   form_submission_id: "form-submission-product-contract",
   price_override: manualPrice,
 };
@@ -1501,10 +1560,9 @@ declare const storefrontVariant: Awaited<ReturnType<typeof storefrontClient.esho
 storefrontVariant.store_id;
 // @ts-expect-error Public variants do not expose location stock balances.
 storefrontVariant.inventory;
-// @ts-expect-error Store ownership is not exposed by public cart DTOs.
-storefrontCart.store_id;
-// @ts-expect-error Store ownership is not exposed by public support DTOs.
-storefrontSupport.conversation.store_id;
+const storefrontCartStoreId: string = storefrontCart.store_id;
+const storefrontConversationStoreId: string = storefrontSupport.conversation.store_id;
+void [storefrontCartStoreId, storefrontConversationStoreId];
 // @ts-expect-error issued credentials are nested under the immutable Session variant.
 storefrontVerification.token;
 // @ts-expect-error issued credentials are nested under the immutable Session variant.
@@ -1514,45 +1572,10 @@ const userAuthoredStoreId: unknown =
 // @ts-expect-error Market context is sent in X-Arky-Market, not cart bodies.
 storefrontClient.eshop.cart.current({ market: "ita" });
 
-type StorefrontOpaqueContract = StorefrontDto<{
-  store_id: string;
-  outside: {
-    store_id: string;
-    child: { store_id: string };
-    payload: { store_id: string };
-  };
-  attributes: { store_id: string };
-  blocks: Array<{ store_id: string }>;
-  context: { store_id: string };
-  data: { store_id: string };
-  fields: { store_id: string };
-  metadata: { store_id: string };
-  payload: { store_id: string };
-  properties: { store_id: string };
-  schema: { store_id: string };
-  value: { store_id: string };
-}>;
-declare const storefrontOpaqueContract: StorefrontOpaqueContract;
-// @ts-expect-error Top-level routing Store IDs are stripped.
-storefrontOpaqueContract.store_id;
-// @ts-expect-error Routing Store IDs outside opaque user JSON are stripped.
-storefrontOpaqueContract.outside.store_id;
-// @ts-expect-error Routing Store IDs remain stripped recursively outside opaque user JSON.
-storefrontOpaqueContract.outside.child.store_id;
-const preservedOpaqueStoreIds: string[] = [
-  storefrontOpaqueContract.attributes.store_id,
-  storefrontOpaqueContract.blocks[0].store_id,
-  storefrontOpaqueContract.context.store_id,
-  storefrontOpaqueContract.data.store_id,
-  storefrontOpaqueContract.fields.store_id,
-  storefrontOpaqueContract.metadata.store_id,
-  storefrontOpaqueContract.payload.store_id,
-  storefrontOpaqueContract.properties.store_id,
-  storefrontOpaqueContract.schema.store_id,
-  storefrontOpaqueContract.value.store_id,
-  storefrontOpaqueContract.outside.payload.store_id,
-];
-void preservedOpaqueStoreIds;
+// @ts-expect-error
+import type { StorefrontDto } from "../../dist/index.js";
+const storefrontCartResponse: Cart = storefrontCart;
+void storefrontCartResponse;
 
 initialize(`arky_pk_${"a".repeat(42)}A`, {
   apiUrl: "http://localhost:8000",
@@ -1740,6 +1763,7 @@ const zeroTotalCheckout: OrderCheckoutResult = {
   payment: null,
 };
 const recordCashOnDeliveryCollection: RecordCashOnDeliveryCollectionParams = {
+  store_id: contractStoreId,
   id: "order-payment-contract",
   payment_capture_id: "capture-contract",
   money: { currency: "usd", amount: 1250 },
@@ -1802,6 +1826,7 @@ const shippingLine: OrderDeliveryGroup = {
       address: { country: "US", street1: "1 Main Street", city: "Boston", postal_code: "02108" }, location_evidence: [],
       source: { type: "arky_rule", market_zone_id: "zone-contract", tax_rule_id: "tax-rule", tax_category_id: null, tax_category_key: null },
       policy_version: "policy", rounding_version: "rounding", assessed_at: epochMilliseconds(1), tax_date: epochMilliseconds(1), buyer_evidence: null,
+      subscription_tax_group_id: null,
     } },
   },
 };
@@ -1907,6 +1932,8 @@ const orderContract: Order = {
     { type: "booking", ...embeddedOrderBookingItem },
     { type: "digital_product", ...embeddedOrderDigitalItem },
   ],
+  subscription_tax_policies: [],
+  subscription_tax_groups: [],
   money: orderMoney,
   delivery_groups: [],
   billing_address: null,
@@ -1933,25 +1960,33 @@ const orderContract: Order = {
   },
 };
 const cancelEmbeddedProductItem: CancelOrderProductItemParams = {
+  store_id: contractStoreId,
   order_id: orderContract.id,
   order_product_item_id: embeddedOrderProductItem.id,
-  command_id: "product-cancellation-command",
+  request_id: "8a4e2c19-7d53-4f60-9b1e-3c6a0d8f5e27",
   expected_updated_at: orderContract.updated_at,
   units: [{ first_unit: 0, quantity: 1 }],
 };
-const pendingOrderCancellation: Promise<import("arky-sdk").OrderCancellationReceipt> =
-  adminClient.eshop.order.cancelPending({ order_id: orderContract.id, command_id: "cancellation-command" });
+const pendingOrderCancellation: Promise<import("arky-sdk").OrderCancellationAcceptance> =
+  adminClient.eshop.order.cancelPending({ store_id: contractStoreId, order_id: orderContract.id, request_id: "1f7b3d95-2c48-4a06-8e1d-9b5c7a3f0e62" });
 // @ts-expect-error general Order updates cannot cancel an accepted purchase.
-adminClient.eshop.order.update({ id: orderContract.id, cancel: true });
+adminClient.eshop.order.update({ store_id: contractStoreId, id: orderContract.id, cancel: true });
 // @ts-expect-error asynchronous pending cancellation requires a caller-owned command ID.
-adminClient.eshop.order.cancelPending({ order_id: orderContract.id });
+adminClient.eshop.order.cancelPending({ store_id: contractStoreId, order_id: orderContract.id });
 // @ts-expect-error pending whole-Order cancellation is Admin-only.
-storefrontClient.eshop.order.cancelPending({ order_id: orderContract.id, command_id: "cancellation-command" });
+storefrontClient.eshop.order.cancelPending({ order_id: orderContract.id, request_id: "1f7b3d95-2c48-4a06-8e1d-9b5c7a3f0e62" });
 // @ts-expect-error cancellation needs stable command identity, an Order revision and exact units.
-const quantityOnlyProductCancellation: CancelOrderProductItemParams = { order_id: orderContract.id, order_product_item_id: embeddedOrderProductItem.id, quantity: 1 };
-const customerProductCancellation: Promise<import("arky-sdk").StorefrontDto<Order>> =
-  storefrontClient.eshop.order.cancelProductItem(cancelEmbeddedProductItem);
+const quantityOnlyProductCancellation: CancelOrderProductItemParams = { store_id: contractStoreId, order_id: orderContract.id, order_product_item_id: embeddedOrderProductItem.id, quantity: 1 };
+const customerProductCancellation: Promise<Order> =
+  storefrontClient.eshop.order.cancelProductItem({
+    order_id: cancelEmbeddedProductItem.order_id,
+    order_product_item_id: cancelEmbeddedProductItem.order_product_item_id,
+    request_id: cancelEmbeddedProductItem.request_id,
+    expected_updated_at: cancelEmbeddedProductItem.expected_updated_at,
+    units: cancelEmbeddedProductItem.units,
+  });
 const forbiddenBookingRewrite: UpdateOrderParams = {
+  store_id: contractStoreId,
   id: orderContract.id,
   // @ts-expect-error persisted booking items change only through dedicated lifecycle commands.
   booking_items: [embeddedOrderBookingItem],
@@ -1990,8 +2025,8 @@ const alwaysKnownReplyCount: number = socialMessage.reply_count;
 // @ts-expect-error projection summary may be unavailable.
 const alwaysKnownReplied: boolean = socialMessage.replied;
 const socialConnectionPage: Promise<{ items: SocialConnection[]; cursor: string | null }> =
-  adminClient.social.connections.find({ query: "Facebook Garden", status: "connected", limit: 20 });
-const exactSocialConnection: Promise<SocialConnection> = adminClient.social.connections.get({ connection_id: "connection-contract" });
+  adminClient.social.connections.find({ store_id: contractStoreId, query: "Facebook Garden", status: "connected", limit: 20 });
+const exactSocialConnection: Promise<SocialConnection> = adminClient.social.connections.get({ store_id: contractStoreId, connection_id: "connection-contract" });
 // @ts-expect-error connection credentials are embedded and never publicly exposed.
 socialConnection.credential;
 const tiktokConnectionType: SocialConnectionType = "tiktok_account";
@@ -2198,10 +2233,21 @@ const selectedStoreSubscription: StoreSubscription = {
     type: "stripe_embedded_checkout",
     publishable_key: "pk_test_contract",
     client_secret: "cs_contract_secret_exact",
-    stripe_account_id: null,
     expires_at: epochMilliseconds(2),
   },
 };
+const storeBillingActionWithAccount: StoreSubscription = {
+  ...storeSubscriptionRead,
+  payment_action: {
+    type: "stripe_embedded_checkout",
+    publishable_key: "pk_test_contract",
+    client_secret: "cs_contract_secret_exact",
+    // @ts-expect-error
+    account_id: "acct_contract",
+    expires_at: epochMilliseconds(2),
+  },
+};
+void storeBillingActionWithAccount;
 const storefrontSubscriptionCheckoutAction: StorefrontEmbeddedCheckoutAction =
   selectedStoreSubscription.payment_action;
 // @ts-expect-error durable provider identity is not part of the public wire DTO.
@@ -2406,6 +2452,7 @@ const fulfillmentOrder: FulfillmentOrder = {
   updated_at: epochMilliseconds(2),
 };
 const fulfillment: Fulfillment = {
+  request_id: "2d9c6e41-8b35-4f07-a1e8-7c3f5b0d9a64",
   id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
   store_id: fulfillmentOrder.store_id,
   fulfillment_order_id: fulfillmentOrder.id,
@@ -2420,6 +2467,8 @@ const fulfillment: Fulfillment = {
   updated_at: epochMilliseconds(2),
 };
 const createFulfillmentRequest: CreateFulfillmentParams = {
+  store_id: contractStoreId,
+  request_id: fulfillment.request_id,
   fulfillment_id: fulfillment.id,
   fulfillment_order_id: fulfillmentOrder.id,
   lines: fulfillment.lines,
@@ -2537,7 +2586,7 @@ const trackCustomerAction: TrackCustomerActionParams = {
 };
 const commonCustomerActionKey: CommonCustomerActionKey =
   COMMON_CUSTOMER_ACTION_KEYS[0];
-const customerActionFilter: FindCustomersParams = { has_customer_action: true };
+const customerActionFilter: FindCustomersParams = { store_id: contractStoreId, has_customer_action: true };
 const experiment: Experiment = {
   id: "experiment-contract",
   store_id: "store-contract",
@@ -2553,6 +2602,7 @@ const experiment: Experiment = {
   updated_at: epochMilliseconds(1),
 };
 const createExperiment: CreateExperimentParams = {
+  store_id: contractStoreId,
   key: "homepage-hero",
   goal_action_key: "checkout.started",
   attribution_window_days: 7,
@@ -2575,14 +2625,24 @@ const customerActionFeed: CustomerActionFeedData = {
       id: "analytics-fact-contract",
       entity: "customer_action",
       entity_id: customerAction.id,
-      action: "tracked",
+      action: "recorded",
       event_type: "page.view",
-      status: "",
+      status: null,
       customer_id: customerAction.customer_id,
       category: "customer_actions",
       title: "Page viewed",
       description: "A customer viewed a product.",
-      data: {},
+      href: null,
+      data: {
+        store_id: contractStoreId,
+        entity_id: customerAction.id,
+        customer_id: customerAction.customer_id,
+        customer_session_id: null,
+        key: "page.view",
+        data: { path: "/products/example" },
+        country_code: "",
+        device_type: "",
+      },
       created_at: epochMilliseconds(1),
     },
   ],
@@ -2609,7 +2669,7 @@ const checkoutAction: CheckoutPaymentAction = {
   type: "stripe_embedded_checkout",
   publishable_key: "pk_test_contract",
   client_secret: "cs_contract_secret_exact",
-  connected_account_id: "acct_contract",
+  account_id: "acct_contract",
   expires_at: epochMilliseconds(2),
 };
 const mediaUpdatedWebhook: WebhookEventSubscription = {
@@ -2739,21 +2799,21 @@ void [
 void sdkVersionLiteral;
 
 const emailRestrictionPage: Promise<import("arky-sdk").PaginatedResponse<EmailSuppressionRecord>> =
-  adminClient.customers.emailSuppression.find({ status: "active", limit: 20 });
-const emailRestrictionSearch: FindEmailSuppressionsParams = { query: "person@example.com", type: "unsubscribe" };
+  adminClient.customers.emailSuppression.find({ store_id: contractStoreId, status: "active", limit: 20 });
+const emailRestrictionSearch: FindEmailSuppressionsParams = { store_id: contractStoreId, query: "person@example.com", type: "unsubscribe" };
 const emailRestrictionCommand: ActivateEmailSuppressionParams = {
-  id: "restriction-id", email: "person@example.com", command_id: "command-id", expected_version: null, note: "Recipient request",
+  store_id: contractStoreId, id: "restriction-id", email: "person@example.com", request_id: "4c8e1a73-5b29-4d06-9f3a-2e7d0b6c8f15", expected_version: null, note: "Recipient request",
 };
 const emailRestrictionRelease: ReleaseEmailSuppressionParams = {
-  id: "restriction-id", command_id: "command-id", expected_version: "opaque-version", note: "Recipient requested resubscription",
+  store_id: contractStoreId, id: "restriction-id", request_id: "9e3b7d21-6a48-4c05-8b1f-5d2c0a7e9f36", expected_version: "opaque-version", note: "Recipient requested resubscription",
 };
 const emailRestrictionSource: EmailSuppressionSource = { type: "admin", account_session_id: null };
 // @ts-expect-error A restriction lifecycle uses status.type, not a bare string.
 const bareEmailRestrictionStatus: EmailSuppressionStatus = "active";
 // @ts-expect-error Exact email lookup cannot silently combine bounded Store pagination.
-const paginatedEmailRestrictionSearch: FindEmailSuppressionsParams = { query: "person@example.com", limit: 20 };
+const paginatedEmailRestrictionSearch: FindEmailSuppressionsParams = { store_id: contractStoreId, query: "person@example.com", limit: 20 };
 // @ts-expect-error A command must explicitly provide a known version or null for new activation.
-const missingEmailRestrictionVersion: ActivateEmailSuppressionParams = { id: "id", email: "person@example.com", command_id: "command", note: "reason" };
+const missingEmailRestrictionVersion: ActivateEmailSuppressionParams = { store_id: contractStoreId, id: "id", email: "person@example.com", request_id: "4c8e1a73-5b29-4d06-9f3a-2e7d0b6c8f15", note: "reason" };
 // @ts-expect-error Recipient evidence is CampaignMessage-owned, never invented Customer-session proof.
 const inventedEmailRestrictionSource: EmailSuppressionSource = { type: "customer", customer_id: "customer-id" };
 // @ts-expect-error No arbitrary deletion or release-both bypass is exposed.

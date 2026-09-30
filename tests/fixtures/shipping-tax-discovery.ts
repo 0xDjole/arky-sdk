@@ -8,7 +8,7 @@ import type {
 type True<T extends true> = T;
 type Same<A,B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 type Api=ReturnType<typeof createAdmin>['store'];
-type Page={store_id?:string;status?:'active'|'archived'|'deleting';sort_field?:'created_at'|'updated_at';sort_direction?:'asc'|'desc';limit?:number;cursor?:string};
+type Page={store_id:string;status?:'active'|'archived'|'deleting';sort_field?:'created_at'|'updated_at';sort_direction?:'asc'|'desc';limit?:number;cursor?:string};
 type PairPage=Omit<Page,'status'>&{status?:'active'|'deleting'};
 export type ShippingDiscoveryContract=[
  True<Same<FindMarketZonesParams,PairPage&{market_id?:string;zone_id?:string}>>,

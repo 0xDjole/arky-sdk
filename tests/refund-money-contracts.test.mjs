@@ -18,7 +18,7 @@ const actor = { account_id: "2254288f-9778-4e51-8354-20b3d78d2dd4", snapshot: {
 function fixture(returned = false) {
   const sent = { type: "sent", effect_id: sentId, money: money(100), allocations: allocations(100),
     evidence: { type: "manual", actor, reference: "cash receipt" }, observed_at: 2 };
-  const request = { id: refundId, effect_id: returned ? returnedId : sentId,
+  const request = { store_id: storeId, id: refundId, effect_id: returned ? returnedId : sentId,
     movement: returned ? { type: "returned", sent_effect_id: sentId } : { type: "sent" },
     money: money(returned ? 25 : 100), allocations: allocations(returned ? 25 : 100),
     reference: returned ? "returned receipt" : "cash receipt" };
@@ -59,7 +59,7 @@ async function transport(response, operation) {
     return new Response(JSON.stringify(response), { status: 200, headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ baseUrl: "https://api.example.test", storeId, apiToken: "contract" });
+    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "contract" });
     return { result: await operation(api.eshop.refund), requests };
   } finally { globalThis.fetch = original; }
 }
@@ -68,7 +68,7 @@ for (const returned of [false, true]) {
   test(`local refund ${returned ? "Returned" : "Sent"} receipt preserves identity, exact allocations and actual money`, async () => {
     const { request, response } = fixture(returned);
     const { result, requests } = await transport(response, (api) => api.recordMoney(request));
-    const { id, ...body } = request;
+    const { store_id: _store, id, ...body } = request;
     assert.deepEqual(requests, [{ url: `https://api.example.test/v1/stores/${storeId}/refunds/${id}/money`, method: "POST", body }]);
     assert.deepEqual(result, response);
     assert.equal(result.refund.financial_effects[0].effect_id, sentId);
@@ -115,7 +115,7 @@ test("local cancellation retains exact expected version and already-recorded mon
   response.money.allocations[0].pending = 0;
   response.payment.amounts.refund_pending = 0;
   response.financial_summary.refund_pending = 0;
-  const { requests, result } = await transport(response, (api) => api.cancelLocal({ id: refundId, expected_updated_at: 3 }));
+  const { requests, result } = await transport(response, (api) => api.cancelLocal({ store_id: storeId, id: refundId, expected_updated_at: 3 }));
   assert.deepEqual(requests, [{ url: `https://api.example.test/v1/stores/${storeId}/refunds/${refundId}/cancel-local`, method: "POST", body: { expected_updated_at: 3 } }]);
   assert.equal(result.money.refunded.amount, 75);
   assert.deepEqual(result.refund.financial_effects, response.refund.financial_effects);
@@ -124,7 +124,7 @@ test("local cancellation retains exact expected version and already-recorded mon
 for (const status of ["requested", "processing", "requires_action", "pending", "succeeded", "rejected", "failed", "cancelled", "unknown"]) {
   test(`refund intent recovery retains the ${status} lifecycle`, async () => {
     const response = { refund_id: refundId, money: money(100), status: { type: status } };
-    const { result } = await transport(response, (api) => api.create({ payment_id: "payment-contract", refund_id: refundId,
+    const { result } = await transport(response, (api) => api.create({ store_id: storeId, payment_id: "payment-contract", refund_id: refundId,
       payment_capture_id: null, money: money(100), application: { type: "commercial_credit", allocations: allocations(100) },
       reason: "customer_request", private_note: null, reference: null }));
     assert.deepEqual(result, response);
@@ -133,7 +133,25 @@ for (const status of ["requested", "processing", "requires_action", "pending", "
 
 test("local cancellation does not report an unresolved remainder as cancelled", async () => {
   const { response } = fixture(true);
-  await assert.rejects(() => transport(response, (api) => api.cancelLocal({ id: refundId, expected_updated_at: 3 })), /did not confirm a cancelled remainder/);
+  await assert.rejects(() => transport(response, (api) => api.cancelLocal({ store_id: storeId, id: refundId, expected_updated_at: 3 })), /did not confirm a cancelled remainder/);
   response.refund.status = { type: "cancelled" };
-  await assert.rejects(() => transport(response, (api) => api.cancelLocal({ id: refundId, expected_updated_at: 3 })), /did not confirm a cancelled remainder/);
+  await assert.rejects(() => transport(response, (api) => api.cancelLocal({ store_id: storeId, id: refundId, expected_updated_at: 3 })), /did not confirm a cancelled remainder/);
+});
+
+test("refund commands require an explicit canonical Store target before any request", async () => {
+  const { request } = fixture(true);
+  const original = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls += 1; throw new Error("unexpected request"); };
+  try {
+    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "contract" }).eshop.refund;
+    for (const store_id of [undefined, "store-slug", storeId.toUpperCase()]) {
+      await assert.rejects(async () => api.recordMoney({ ...request, store_id }), { name: "TypeError", message: "A Store target must be an explicit canonical UUID-v4" });
+      await assert.rejects(async () => api.cancelLocal({ store_id, id: refundId, expected_updated_at: 3 }), { name: "TypeError", message: "A Store target must be an explicit canonical UUID-v4" });
+      await assert.rejects(async () => api.create({ store_id, payment_id: "payment-contract", refund_id: refundId, payment_capture_id: null,
+        money: money(100), application: { type: "commercial_credit", allocations: allocations(100) }, reason: "customer_request",
+        private_note: null, reference: null }), { name: "TypeError", message: "A Store target must be an explicit canonical UUID-v4" });
+    }
+  } finally { globalThis.fetch = original; }
+  assert.equal(calls, 0);
 });

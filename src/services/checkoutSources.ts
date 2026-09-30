@@ -6,7 +6,7 @@ const families = new Set(["product", "booking", "digital_product", "subscription
 
 function fields(value: unknown, keys: string[]): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value) &&
-    Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+    Object.keys(value).length === keys.length && keys.every((key) => Object.prototype.hasOwnProperty.call(value, key));
 }
 
 function identity(value: unknown): value is string {

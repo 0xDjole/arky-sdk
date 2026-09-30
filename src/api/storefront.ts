@@ -96,7 +96,7 @@ import type {
   Collection,
   CollectionEntry,
   CustomerSessionIssued,
-  CustomerIdentity,
+  StorefrontCustomerIdentity,
   CustomerEmailVerification,
   StorefrontCustomerSessionRecord,
   FormPresentation,
@@ -360,9 +360,9 @@ export const createStorefrontApi = (
       async captureEmail(
         params: CaptureCustomerEmailParams,
         options?: RequestOptions,
-      ): Promise<CustomerIdentity> {
+      ): Promise<StorefrontCustomerIdentity> {
         await lifecycle.ensureVisitorSession();
-        return apiConfig.httpClient.post<CustomerIdentity>(
+        return apiConfig.httpClient.post<StorefrontCustomerIdentity>(
           `${base}/customer/email-identities`,
           { email: params.email },
           options,
@@ -740,7 +740,7 @@ export const createStorefrontApi = (
           options?: RequestOptions,
         ): Promise<Cart> {
           await lifecycle.ensureVisitorSession();
-          const { id, store_id, ...payload } = sanitizePublicCartUpdate(params);
+          const { id, ...payload } = sanitizePublicCartUpdate(params);
           return withCartMutation(checkoutScope, () => apiConfig.httpClient.put<Cart>(
             `${base}/carts/${encodeURIComponent(id)}`,
             payload,
@@ -1047,7 +1047,7 @@ export const createStorefrontApi = (
         ): Promise<PaymentMethodRevocation> {
       requireRequestId(params.request_id);
           await lifecycle.ensureVisitorSession();
-          const { id, store_id, ...payload } = params;
+          const { id, ...payload } = params;
           return apiConfig.httpClient.post<PaymentMethodRevocation>(
             `${base}/payment-methods/${encodeURIComponent(id)}/revoke`,
             payload,

@@ -55,7 +55,7 @@ export function prepareScheduledMutation<T = unknown, Payload = unknown>(
 
   const { transformRequest, onScheduledResponse, ...initialOptions } = options;
   return {
-    body: transformRequest ? transformRequest(body) : body,
+    body: transformRequest ? (transformRequest(body) as Payload) : body,
     options: initialOptions,
     async afterResponse(response) {
       await onScheduledResponse?.(response);

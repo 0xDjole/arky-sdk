@@ -9,7 +9,7 @@ const storeId = "a5817952-9f4f-48ad-bb58-25845cf7b470";
 const mailboxId = "57979b10-9935-42e6-9e1d-ddd61b6b6b46";
 
 function admin() {
-  return createAdmin({ baseUrl, storeId, apiToken: "arky_api_mailbox_contract" });
+  return createAdmin({ baseUrl, apiToken: "arky_api_mailbox_contract" });
 }
 
 function jsonResponse(body) {
@@ -50,7 +50,7 @@ test("Mailbox diagnostics read exact native identities and millisecond observati
   });
   const client = admin();
   const first = await client.notification.mailbox.findSyncIssues(
-    { id: mailboxId },
+    { store_id: storeId, id: mailboxId },
     { signal: controller.signal, headers: { "X-Trace-Id": "mailbox-contract" } },
   );
   assert.deepEqual(first, { items: issues, cursor: "opaque:+/=" });
@@ -84,17 +84,19 @@ test("Mailbox diagnostics reject unbounded pages and invalid opaque cursors with
   const client = admin();
   for (const limit of [0, -1, 1.5, 101, Infinity, NaN, null, "50"]) {
     await assert.rejects(
-      client.notification.mailbox.findSyncIssues({ id: mailboxId, limit }),
+      client.notification.mailbox.findSyncIssues({ store_id: storeId, id: mailboxId, limit }),
       /integer from 1 to 100/,
     );
   }
   for (const cursor of ["", "a".repeat(2049), "é".repeat(1025), null, 5]) {
     await assert.rejects(
-      client.notification.mailbox.findSyncIssues({ id: mailboxId, cursor }),
+      client.notification.mailbox.findSyncIssues({ store_id: storeId, id: mailboxId, cursor }),
       /1 to 2048 bytes/,
     );
   }
   assert.equal(calls, 0);
-  await client.notification.mailbox.findSyncIssues({ id: mailboxId, limit: 1, cursor: "é".repeat(1024) });
+  await assert.rejects(async () => client.notification.mailbox.findSyncIssues({ id: mailboxId }), TypeError);
+  assert.equal(calls, 0);
+  await client.notification.mailbox.findSyncIssues({ store_id: storeId, id: mailboxId, limit: 1, cursor: "é".repeat(1024) });
   assert.equal(calls, 1);
 });

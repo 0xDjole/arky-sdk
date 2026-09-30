@@ -8,7 +8,7 @@ export type CartCheckoutInput = Omit<CheckoutCartParams, "store_id">;
 export type CartCheckoutRequest = CartCheckoutInput & { request_id: string };
 export type CartAcceptanceProof = Pick<Order, "id" | "source">;
 
-export interface CartCheckoutTransport<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action">> {
+export interface CartCheckoutTransport<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action" | "payment">> {
   post(request: CartCheckoutRequest, options?: RequestOptions): Promise<Result>;
   getOrder(id: string, options?: RequestOptions): Promise<CartAcceptanceProof>;
 }

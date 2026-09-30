@@ -32,7 +32,6 @@ import type {
   StoreSubscriptionCheckout,
   TimeRange,
 } from "arky-sdk";
-import type { StorefrontDto } from "arky-sdk/storefront";
 
 const instant: EpochMilliseconds = epochMilliseconds(1_704_164_645_678);
 const publicInstant: PublicEpochMilliseconds = instant;
@@ -84,8 +83,8 @@ type ContractChecks = [
   Assert<Checked<DateBlock["value"]>>,
   Assert<Checked<Extract<FormField, { type: "date" }>["value"]>>,
   Assert<Checked<NodeResult["started_at"]>>,
-  Assert<Checked<StorefrontDto<Order>["created_at"]>>,
-  Assert<Checked<Extract<StorefrontDto<Order>["line_items"][number], { type: "booking" }>["interval"]["from"]>>,
+  Assert<Checked<Order["created_at"]>>,
+  Assert<Checked<Extract<Order["line_items"][number], { type: "booking" }>["interval"]["from"]>>,
   Assert<Unchecked<Price["compare_at"]>>,
   Assert<Unchecked<Money["amount"]>>,
   Assert<Unchecked<NodeResult["duration_ms"]>>,

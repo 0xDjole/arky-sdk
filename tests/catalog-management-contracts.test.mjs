@@ -168,7 +168,6 @@ for (const definition of definitions) {
     try {
       const client = createAdmin({
         baseUrl: "https://api.example.test",
-        storeId,
         market: "bih",
         apiToken: "arky_api_test",
       });
@@ -241,7 +240,8 @@ for (const definition of definitions) {
           await api.usage({ store_id: otherStoreId, id }),
           definition.usage,
         );
-      await api.get({ id: "invalid/segment?still-one-component" });
+      await assert.rejects(async () => api.get({ id: "invalid/segment?still-one-component" }), TypeError);
+      await api.get({ store_id: storeId, id: "invalid/segment?still-one-component" });
       assert.equal(
         calls.at(-1).url.pathname,
         `/v1/stores/${storeId}/${definition.route}/invalid%2Fsegment%3Fstill-one-component`,

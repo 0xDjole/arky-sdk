@@ -12,6 +12,7 @@ const cartId = "9f1b6e23-e2ea-4ab9-a1b7-eaaf550ddf41";
 const orderId = "2b815d21-78be-431a-b49c-0d5d62c87823";
 const otherId = "6ef796c1-e503-4679-b0d7-79966c193ca2";
 const providerId = "4a2c7c0d-4389-4aae-b3d7-02ff834a024d";
+const STORE_ID = "d3f8b2a6-5c19-4e47-9a0d-7b6e1c4f2a85";
 const storageKey = `arky:commerce-cart-checkout:v1:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}`;
 const requestId = "8c1d4f5a-3f0b-4a7d-8f52-5c0f2b7a91d4";
 const request = { id: cartId, request_id: requestId, locale: "en", presentation_digest: "a".repeat(64), sources: checkoutSources(cartId), payment_option_id: providerId, return_url: "https://merchant.example.test/checkout-return" };
@@ -35,15 +36,22 @@ function storefront() {
     customer: { id: "customer", status: { type: "active" }, identities: [], categories: [], created_at: 1, updated_at: 1 },
     session: { id: "session", customer_id: "customer", type: "visitor", token: `customer_visitor_${"d".repeat(64)}`, status: { type: "active" }, expires_at: 1900000000000 },
   });
-  return createStorefront(publishableKey, { apiUrl, locale: "en", sessionStorage: storefrontSessionStorage(session) });
+  return createStorefront(publishableKey, { apiUrl, locale: "en", market: "bih", sessionStorage: storefrontSessionStorage(session) });
 }
 
 function acceptedOrder(source = {}, overrides = {}) {
   return {
     id: orderId,
-    source: { type: "cart_acceptance", command_id: requestId, cart: request.sources.cart, converted_lines: request.sources.converted_lines, ...source },
+    source: {
+      type: "cart_acceptance", request_id: requestId, submission_fingerprint: "f".repeat(64), initial_payment_id: null,
+      cart: request.sources.cart, converted_lines: request.sources.converted_lines, ...source,
+    },
     ...overrides,
   };
+}
+
+function paidOrder(source = {}) {
+  return acceptedOrder({ initial_payment_id: otherId, ...source });
 }
 
 function result() {
@@ -59,7 +67,7 @@ function stripeResult() {
       status: { type: "requires_action" }, amounts: { currency: "eur", total: 1000, authorized: 0, captured: 0, capture_pending: 0, refunded: 0, refund_pending: 0 },
       reconciliation: { type: "clear" }, checkout_expiration: null,
     },
-    payment_action: { type: "stripe_embedded_checkout", publishable_key: "pk_test_exact", connected_account_id: "acct_exact", client_secret: "cs_test_exact_secret_value", expires_at: 1900000000000 },
+    payment_action: { type: "stripe_embedded_checkout", publishable_key: "pk_test_exact", account_id: "acct_exact", client_secret: "cs_test_exact_secret_value", expires_at: 1900000000000 },
   };
 }
 
@@ -72,18 +80,28 @@ function monriResult() {
       route: { type: 'monri_checkout', payment_option_id: providerId, environment: 'test', transaction_type: 'purchase', transaction_id: null, authorization_void: null },
       amounts: { ...payment.amounts, capture_pending: payment.amounts.total },
     },
-    payment_action: { type: 'monri_components', payment_id: otherId, environment: 'test', authenticity_token: 'test-token', client_secret: 'test-session-secret' },
+    payment_action: { type: 'monri_components', payment_id: otherId, environment: 'test', authenticity_token: 'test-token', client_secret: 'test-session-secret', save_card: false },
   };
 }
 
 function capture(respond) {
   const calls = [];
   install("fetch", async (url, init = {}) => {
-    const call = { path: new URL(url).pathname, method: init.method, body: init.body ? JSON.parse(init.body) : null };
+    const path = new URL(url).pathname;
+    if (path === "/v1/storefront/markets/by-key/bih") {
+      return Response.json({ id: "market", key: "bih", currency: "bam", tax_mode: "exclusive", payment_option_ids: [] });
+    }
+    const call = { path, method: init.method, body: init.body ? JSON.parse(init.body) : null };
     calls.push(call);
     return respond(call, calls.length);
   });
   return calls;
+}
+
+async function retainAndRecover(input = request, options) {
+  const client = storefront();
+  await client.eshop.cart.retainCheckout(input);
+  return client.eshop.cart.recoverCheckout(options);
 }
 
 function success(call) {
@@ -92,10 +110,11 @@ function success(call) {
   throw new Error(`Recovery must not depend on a live Cart: ${call.path}`);
 }
 
-async function loseResponse() {
+async function loseResponse(input = request) {
   const calls = capture(() => { throw new TypeError("response lost"); });
-  await assert.rejects(storefront().eshop.cart.checkout(request), /response lost/);
+  await assert.rejects(retainAndRecover(input), /response lost/);
   assert.equal(calls.length, 1);
+  return calls;
 }
 
 test("an unresolved Checkout pins selected Cart reads and blocks explicit replacement", async () => {
@@ -104,7 +123,7 @@ test("an unresolved Checkout pins selected Cart reads and blocks explicit replac
   const calls = capture((call) => {
     assert.equal(call.method, "GET");
     assert.equal(call.path, `/v1/storefront/carts/${cartId}`);
-    return Response.json({ id: cartId, customer_id: "customer", company: null, market_id: "market", status: { type: "converted", order_id: orderId, command_id: requestId } });
+    return Response.json({ id: cartId, customer_id: "customer", company: null, market_id: "market", status: { type: "converted", order_id: orderId, request_id: requestId } });
   });
   const client = storefront();
   assert.equal((await client.eshop.cart.current()).id, cartId);
@@ -132,13 +151,15 @@ afterEach(() => {
   }
 });
 
-test("Cart checkout persists before POST and explicitly recovers the exact request after reload", async () => {
+test("Cart checkout retention persists before POST and explicitly recovers the exact request after reload", async () => {
   const { storage } = browser();
   const first = capture(() => {
     assert.deepEqual(JSON.parse(JSON.parse(storage.getItem(storageKey)).requestJson), request);
     throw new TypeError("response lost");
   });
-  await assert.rejects(storefront().eshop.cart.checkout(request));
+  assert.deepEqual(await storefront().eshop.cart.retainCheckout(request), request);
+  assert.equal(first.length, 0);
+  await assert.rejects(storefront().eshop.cart.recoverCheckout(), /response lost/);
   const retained = storage.getItem(storageKey);
   const fresh = storefront();
   assert.deepEqual(await fresh.eshop.cart.pendingCheckout(), request);
@@ -151,6 +172,23 @@ test("Cart checkout persists before POST and explicitly recovers the exact reque
   assert.equal(storage.getItem(storageKey), null);
   assert.equal(await fresh.eshop.cart.recoverCheckout(), null);
   assert.equal(calls.length, 2);
+});
+
+test("direct Cart checkout submits the caller's exact request without creating browser recovery state", async () => {
+  const { storage } = browser();
+  const calls = capture(success);
+  assert.deepEqual(await storefront().eshop.cart.checkout(request), result());
+  const { id: _id, locale: _locale, ...body } = request;
+  assert.deepEqual(calls.map((call) => [call.method, call.path]), [["POST", "/v1/storefront/carts/accept"], ["GET", `/v1/storefront/orders/${orderId}`]]);
+  assert.deepEqual(calls[0].body, body);
+  assert.equal(storage.getItem(storageKey), null);
+  assert.equal(await storefront().eshop.cart.pendingCheckout(), null);
+  for (const request_id of [undefined, "", "checkout-request", requestId.toUpperCase()]) {
+    await assert.rejects(storefront().eshop.cart.checkout({ ...request, request_id }), TypeError);
+    await assert.rejects(storefront().eshop.cart.retainCheckout({ ...request, request_id }), TypeError);
+  }
+  assert.equal(calls.length, 2);
+  assert.equal(storage.getItem(storageKey), null);
 });
 
 test("missing, malformed or foreign quote sources fail before persisting or posting acceptance", async () => {
@@ -172,6 +210,7 @@ test("missing, malformed or foreign quote sources fail before persisting or post
     const { storage } = browser();
     const calls = capture(success);
     await assert.rejects(storefront().eshop.cart.checkout({ ...request, sources }));
+    await assert.rejects(storefront().eshop.cart.retainCheckout({ ...request, sources }));
     assert.equal(calls.length, 0);
     assert.equal(storage.getItem(storageKey), null);
   }
@@ -182,11 +221,10 @@ test("reviewed converted lines survive ambiguity and cannot change during recove
   const lineId = request.sources.converted_lines[0].cart_line_item.line_item_id;
   const sources = checkoutSources(cartId, "product", lineId, 2);
   const input = { ...request, sources };
-  const first = capture(() => { throw new TypeError("response lost"); });
-  await assert.rejects(storefront().eshop.cart.checkout(input), /response lost/);
+  const first = await loseResponse(input);
   const calls = capture(call => call.method === "GET" ? Response.json(acceptedOrder({ converted_lines: sources.converted_lines })) : success(call));
   const changed = checkoutSources(cartId, "product", lineId, 3);
-  await assert.rejects(storefront().eshop.cart.checkout({ ...input, sources: changed }), /different unresolved payload/);
+  await assert.rejects(storefront().eshop.cart.retainCheckout({ ...input, sources: changed }), /different unresolved payload/);
   assert.equal(calls.length, 0);
   assert.deepEqual(await storefront().eshop.cart.recoverCheckout(), result());
   assert.deepEqual(calls[0].body, first[0].body);
@@ -204,9 +242,10 @@ test("every changed checkout field stays blocked after ambiguity without another
     { payment_option_id: otherId }, { payment_option_id: undefined },
     { return_url: "https://merchant.example.test/another" }, { return_url: undefined },
   ]) {
-    await assert.rejects(storefront().eshop.cart.checkout({ ...request, ...change }), /different unresolved payload/);
+    await assert.rejects(storefront().eshop.cart.retainCheckout({ ...request, ...change }), /different unresolved payload/);
   }
   assert.equal(calls.length, 0);
+  assert.deepEqual(await storefront().eshop.cart.pendingCheckout(), request);
 });
 
 test("unavailable or corrupt durable storage and unavailable locks fail before checkout POST", async () => {
@@ -214,7 +253,7 @@ test("unavailable or corrupt durable storage and unavailable locks fail before c
     browser(storage);
     install("localStorage", storage);
     const calls = capture(success);
-    await assert.rejects(storefront().eshop.cart.checkout(request));
+    await assert.rejects(retainAndRecover());
     assert.equal(calls.length, 0);
   }
   for (const value of ["invalid", JSON.stringify({ requestJson: "invalid" }), JSON.stringify({ requestJson: JSON.stringify({ id: cartId }) })]) {
@@ -227,7 +266,8 @@ test("unavailable or corrupt durable storage and unavailable locks fail before c
   browser();
   install("navigator", {});
   const calls = capture(success);
-  await assert.rejects(storefront().eshop.cart.checkout(request), /cross-tab lock/);
+  await assert.rejects(storefront().eshop.cart.retainCheckout(request), /cross-tab lock/);
+  await assert.rejects(storefront().eshop.cart.recoverCheckout(), /cross-tab lock/);
   assert.equal(calls.length, 0);
 });
 
@@ -235,7 +275,8 @@ test("a concurrent tab cannot queue a duplicate checkout or read pending state t
   const { locks } = browser();
   locks.held.add(`arky:durable-request:${storageKey}`);
   const calls = capture(success);
-  await assert.rejects(storefront().eshop.cart.checkout(request), /already active in another tab/);
+  await assert.rejects(storefront().eshop.cart.retainCheckout(request), /already active in another tab/);
+  await assert.rejects(storefront().eshop.cart.recoverCheckout(), /already active in another tab/);
   await assert.rejects(storefront().eshop.cart.pendingCheckout(), /already active in another tab/);
   assert.equal(calls.length, 0);
 });
@@ -244,7 +285,7 @@ test("only a definite checkout POST 400 clears the saved request", async () => {
   for (const status of [400, 401, 403, 409, 422, 429, 500, 503]) {
     const { storage } = browser();
     const calls = capture(() => Response.json({ message: "Rejected", error: "COMMERCE.REJECTED", statusCode: status }, { status }));
-    await assert.rejects(storefront().eshop.cart.checkout(request));
+    await assert.rejects(retainAndRecover(), (error) => error.statusCode === status);
     assert.equal(calls.filter((call) => call.path.endsWith('/carts/accept')).length, 1);
     assert.equal(storage.getItem(storageKey) === null, status === 400);
   }
@@ -257,7 +298,7 @@ test("malformed or aborted checkout responses retain the same request", async ()
   ]) {
     const { storage } = browser();
     const calls = capture(response);
-    await assert.rejects(storefront().eshop.cart.checkout(request));
+    await assert.rejects(retainAndRecover());
     assert.notEqual(storage.getItem(storageKey), null);
     assert.equal(calls.length, 1);
   }
@@ -268,7 +309,11 @@ test("success followed by failed or mismatched accepted Order evidence stays pen
     () => Response.json({ message: "Bad read" }, { status: 400 }),
     () => { throw new TypeError("read lost"); },
     () => Response.json(acceptedOrder({}, { id: otherId })),
-    () => Response.json(acceptedOrder({ command_id: otherId })),
+    () => Response.json(acceptedOrder({ request_id: otherId })),
+    () => Response.json(acceptedOrder({ command_id: requestId, request_id: undefined })),
+    () => Response.json(acceptedOrder({ submission_fingerprint: "not-a-fingerprint" })),
+    () => Response.json(acceptedOrder({ submission_fingerprint: undefined })),
+    () => Response.json(acceptedOrder({ initial_payment_id: otherId })),
     () => Response.json(acceptedOrder({ cart: { cart_id: otherId, version: "reviewed-version" } })),
     () => Response.json(acceptedOrder({ cart: null })),
     () => Response.json(acceptedOrder({ cart: { cart_id: cartId, version: "" } })),
@@ -282,7 +327,7 @@ test("success followed by failed or mismatched accepted Order evidence stays pen
     const { storage } = browser();
     let notified = 0;
     const calls = capture((call) => call.method === "GET" ? getResponse() : Response.json(result()));
-    await assert.rejects(storefront().eshop.cart.checkout(request, { onSuccess: () => { notified += 1; } }));
+    await assert.rejects(retainAndRecover(request, { onSuccess: () => { notified += 1; } }));
     await Promise.resolve();
     assert.equal(notified, 0);
     assert.notEqual(storage.getItem(storageKey), null);
@@ -311,11 +356,13 @@ test("malformed purchase or Stripe capability evidence never clears checkout", a
     { ...stripeResult(), payment_action: { ...stripeResult().payment_action, client_secret: "" } },
     { ...stripeResult(), payment_action: { ...stripeResult().payment_action, expires_at: 1 } },
     { ...stripeResult(), payment_action: { ...stripeResult().payment_action, expires_at: 1900000000001 } },
+    { ...stripeResult(), payment_action: { ...stripeResult().payment_action, account_id: undefined, connected_account_id: "acct_exact" } },
+    { ...stripeResult(), payment_action: { ...stripeResult().payment_action, account_id: "platform-account" } },
   ];
   for (const body of invalid) {
     const { storage } = browser();
     const calls = capture(() => Response.json(body));
-    await assert.rejects(storefront().eshop.cart.checkout(request), /invalid purchase evidence/);
+    await assert.rejects(retainAndRecover(), /invalid purchase evidence/);
     assert.notEqual(storage.getItem(storageKey), null);
     assert.equal(calls.length, 1);
   }
@@ -327,9 +374,9 @@ test("validated Stripe checkout exposes capabilities only after exact proof and 
   let storageAtSuccess = "not notified";
   const calls = capture((call) => {
     assert.equal(storage.getItem(storageKey).includes("client_secret"), false);
-    return Response.json(call.method === "GET" ? acceptedOrder() : stripeResult());
+    return Response.json(call.method === "GET" ? paidOrder() : stripeResult());
   });
-  const accepted = await storefront().eshop.cart.checkout(request, { onSuccess: () => { storageAtSuccess = storage.getItem(storageKey); notified += 1; } });
+  const accepted = await retainAndRecover(request, { onSuccess: () => { storageAtSuccess = storage.getItem(storageKey); notified += 1; } });
   await Promise.resolve();
   assert.deepEqual(accepted, stripeResult());
   assert.equal(notified, 1);
@@ -344,9 +391,9 @@ test('Monri checkout keeps one accepted Order and exposes its capability without
     const retained = storage.getItem(storageKey);
     assert.equal(retained.includes('client_secret'), false);
     assert.equal(retained.includes('authenticity_token'), false);
-    return Response.json(call.method === 'GET' ? acceptedOrder() : monriResult());
+    return Response.json(call.method === 'GET' ? paidOrder() : monriResult());
   });
-  assert.deepEqual(await storefront().eshop.cart.checkout(request), monriResult());
+  assert.deepEqual(await retainAndRecover(), monriResult());
   assert.equal(storage.getItem(storageKey), null);
   assert.equal(calls.length, 2);
   assert.equal(calls.filter((call) => call.method === 'POST').length, 1);
@@ -359,6 +406,7 @@ test('invalid Monri capability bindings and reservations retain the original Che
     ...[
       { payment_id: orderId }, { environment: 'live' }, { authenticity_token: '' },
       { client_secret: '' }, { expires_at: 1900000000000 }, { merchant_key: 'not-public' },
+      { save_card: 'false' }, { save_card: undefined },
     ].map((fields) => ({ ...original, payment_action: { ...original.payment_action, ...fields } })),
     ...[
       { capture_pending: 0 }, { capture_pending: 999 }, { authorized: 1 }, { captured: 1 },
@@ -374,7 +422,7 @@ test('invalid Monri capability bindings and reservations retain the original Che
   for (const body of mutations) {
     const { storage } = browser();
     const calls = capture(() => Response.json(body));
-    await assert.rejects(storefront().eshop.cart.checkout(request), /invalid purchase evidence/);
+    await assert.rejects(retainAndRecover(), /invalid purchase evidence/);
     assert.notEqual(storage.getItem(storageKey), null);
     assert.equal(calls.length, 1);
   }
@@ -394,8 +442,8 @@ test("collection status, partial refunds and held evidence remain readable witho
       payment: { ...stripeResult().payment, status: { type: status }, reconciliation,
         amounts: { ...stripeResult().payment.amounts, authorized: 1000, captured, refunded } },
     };
-    const calls = capture((call) => Response.json(call.method === "GET" ? acceptedOrder() : response));
-    assert.deepEqual(await storefront().eshop.cart.checkout(request), response);
+    const calls = capture((call) => Response.json(call.method === "GET" ? paidOrder() : response));
+    assert.deepEqual(await retainAndRecover(), response);
     assert.equal(calls.length, 2);
     assert.equal(storage.getItem(storageKey), null);
   }
@@ -405,7 +453,7 @@ test("failed terminal storage clear does not notify success and retains recovery
   const { storage } = browser(new MemoryStorage({ removeError: new Error("denied") }));
   let notified = 0;
   capture(success);
-  await assert.rejects(storefront().eshop.cart.checkout(request, { onSuccess: () => { notified += 1; } }), /could not be cleared/);
+  await assert.rejects(retainAndRecover(request, { onSuccess: () => { notified += 1; } }), /could not be cleared/);
   await Promise.resolve();
   assert.equal(notified, 0);
   assert.notEqual(storage.getItem(storageKey), null);
@@ -451,7 +499,7 @@ test("presentation conflicts expose the quote without silently replacing the loc
     presentation_digest: "b".repeat(64),
   };
   const calls = capture(() => Response.json({ message: "Review the changed quote", error: "COMMERCE.PRESENTATION_CHANGED", quote }, { status: 409 }));
-  await assert.rejects(storefront().eshop.cart.checkout(request), (error) => {
+  await assert.rejects(retainAndRecover(), (error) => {
     assert.ok(error instanceof CartPresentationChangedError);
     assert.equal(error.code, "COMMERCE.PRESENTATION_CHANGED");
     assert.deepEqual(error.quote, quote);
@@ -465,11 +513,10 @@ test("presentation conflicts expose the quote without silently replacing the loc
 test("saved-method consent survives lost responses and exact recovery", async () => {
   const { storage } = browser();
   const consentRequest = { ...request, save_payment_method: true, payment_method_terms_version: "checkout-2026-09" };
-  capture(() => { throw new TypeError("response lost"); });
-  await assert.rejects(storefront().eshop.cart.checkout(consentRequest), /response lost/);
+  await loseResponse(consentRequest);
   assert.deepEqual(await storefront().eshop.cart.pendingCheckout(), consentRequest);
   const calls = capture(success);
-  await assert.rejects(storefront().eshop.cart.checkout({ ...consentRequest, payment_method_terms_version: "new-terms" }));
+  await assert.rejects(storefront().eshop.cart.retainCheckout({ ...consentRequest, payment_method_terms_version: "new-terms" }), /different unresolved payload/);
   assert.equal(calls.length, 0);
   assert.deepEqual(await storefront().eshop.cart.recoverCheckout(), result());
   assert.equal(calls[0].body.save_payment_method, true);
@@ -487,6 +534,7 @@ test("saving a payment method requires explicit well-formed consent before trans
     const { storage } = browser();
     const calls = capture(success);
     await assert.rejects(storefront().eshop.cart.checkout(input));
+    await assert.rejects(storefront().eshop.cart.retainCheckout(input));
     assert.equal(calls.length, 0);
     assert.equal(storage.getItem(storageKey), null);
   }
@@ -497,22 +545,29 @@ test("flat or incomplete presentation conflicts are not treated as reviewed Chec
   for (const quote of [order, { order, presentation_digest: "b".repeat(64) }, { sources: null, order, presentation_digest: "invalid" }]) {
     const { storage } = browser();
     capture(() => Response.json({ message: "Review", error: "COMMERCE.PRESENTATION_CHANGED", quote }, { status: 409 }));
-    await assert.rejects(storefront().eshop.cart.checkout(request), (error) => !(error instanceof CartPresentationChangedError) && error.statusCode === 409);
+    await assert.rejects(retainAndRecover(), (error) => !(error instanceof CartPresentationChangedError) && error.statusCode === 409);
     assert.deepEqual(JSON.parse(JSON.parse(storage.getItem(storageKey)).requestJson), request);
   }
 });
 
 test("Admin checkout uses the same exact-request recovery and blocks a competing Cart", async () => {
   browser();
-  const admin = () => createAdmin({ baseUrl: apiUrl, storeId: "store", apiToken: "arky_api_cart" });
+  const admin = () => createAdmin({ baseUrl: apiUrl, apiToken: "arky_api_cart" });
+  const target = { store_id: STORE_ID };
   capture(() => { throw new TypeError("lost"); });
-  await assert.rejects(admin().eshop.cart.checkout(request));
-  assert.deepEqual(await admin().eshop.cart.pendingCheckout(), request);
+  assert.deepEqual(await admin().eshop.cart.retainCheckout({ ...target, ...request }), request);
+  await assert.rejects(admin().eshop.cart.recoverCheckout(target), /lost/);
+  assert.deepEqual(await admin().eshop.cart.pendingCheckout(target), request);
   const calls = capture(success);
-  await assert.rejects(admin().eshop.cart.create({}), /Recover the unresolved Cart Checkout/);
+  await assert.rejects(admin().eshop.cart.create({ ...target, customer_id: "customer", market_id: "market", sales_channel_id: "channel" }), /Recover the unresolved Cart Checkout/);
+  await assert.rejects(admin().eshop.cart.retainCheckout({ ...target, ...request, locale: "bs" }), /different unresolved payload/);
   assert.equal(calls.length, 0);
-  assert.deepEqual(await admin().eshop.cart.recoverCheckout(), result());
-  assert.deepEqual(calls.map((call) => [call.method, call.path]), [["POST", "/v1/stores/store/carts/accept"], ["GET", `/v1/stores/store/orders/${orderId}`]]);
+  assert.deepEqual(await admin().eshop.cart.recoverCheckout(target), result());
+  assert.deepEqual(calls.map((call) => [call.method, call.path]), [["POST", `/v1/stores/${STORE_ID}/carts/accept`], ["GET", `/v1/stores/${STORE_ID}/orders/${orderId}`]]);
+  const { id: _id, request_id: _request, ...reviewed } = request;
+  assert.deepEqual(calls[0].body, { ...reviewed, request_id: requestId });
+  assert.equal(await admin().eshop.cart.pendingCheckout(target), null);
+  await assert.rejects(async () => admin().eshop.cart.pendingCheckout({}), TypeError);
 });
 
 test("server-side checkout uses the caller's exact request without browser storage or an implicit retry", async () => {

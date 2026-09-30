@@ -3,7 +3,7 @@ import type {
   CheckoutCartParams, CreateCartParams, UpdateCartParams, FindCartsParams,
   StorefrontUpdateCartParams, StorefrontAddCartProductParams, StorefrontCurrentCartParams,
   CartCheckoutRequest, CartPresentationChangedError,
-  StorefrontClient, StorefrontDto,
+  StorefrontClient,
 } from "arky-sdk";
 import type { ArkyCartCheckoutInput, ArkyCartInput } from "arky-sdk/storefront";
 import type * as Public from "arky-sdk/types";
@@ -34,7 +34,7 @@ export type CartContracts = [
   Assert<Equal<CreatedCart, Public.CreatedCart>>,
   Assert<Equal<CreatedCart["cart"], Cart>>,
   Assert<Equal<CreatedCart["recovery_token"], string>>,
-  Assert<Equal<Awaited<ReturnType<StorefrontClient["eshop"]["cart"]["create"]>>, StorefrontDto<CreatedCart>>>,
+  Assert<Equal<Awaited<ReturnType<StorefrontClient["eshop"]["cart"]["create"]>>, CreatedCart>>,
   Assert<RequiredField<CreateCartParams, "customer_id">>,
   Assert<Equal<CreateCartParams["customer_id"], string>>,
   Assert<Missing<CreateCartParams, "company_id">>,
@@ -69,7 +69,8 @@ export type CartContracts = [
   Assert<Missing<StorefrontAddCartProductParams["product"], "price_override">>,
   Assert<Equal<CartCheckoutRequest, Public.CartCheckoutRequest>>,
   Assert<Missing<CartCheckoutRequest, "store_id">>,
-  Assert<Equal<keyof ArkyCartCheckoutInput, "payment_option_id" | "return_url" | "clear_after_checkout" | "save_payment_method" | "payment_method_terms_version">>,
+  Assert<Equal<keyof ArkyCartCheckoutInput, "request_id" | "payment_option_id" | "return_url" | "clear_after_checkout" | "save_payment_method" | "payment_method_terms_version">>,
+  Assert<RequiredField<ArkyCartCheckoutInput, "request_id">>,
   Assert<Equal<CheckoutCartParams["save_payment_method"], boolean | undefined>>,
   Assert<Equal<CheckoutCartParams["payment_method_terms_version"], string | undefined>>,
   Assert<Missing<ArkyCartInput, "return_url">>,

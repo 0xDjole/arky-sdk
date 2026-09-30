@@ -7,6 +7,8 @@ const apiUrl = "https://api.example.test";
 const groupId = "350082ac-9c53-497a-a7b2-4ecb36e1b53c";
 const offeringId = "8d1c2f4e-5b6a-4c7d-8e9f-0a1b2c3d4e5f";
 const planId = "6b7f3f38-2a8b-4a1e-9f02-7a1d9a2f0f21";
+const STORE_ID = "d7b1f4e9-2a63-4c58-8e0d-5b9c3a6f1e24";
+const OTHER_STORE_ID = "0a6e3c9f-5d21-4b87-9f4a-8c2e1b7d5a03";
 
 function capture(response) {
   const calls = [];
@@ -28,7 +30,6 @@ function admin() {
   return createAdmin({
     apiToken: "test-token",
     baseUrl: apiUrl,
-    storeId: "configured-store",
     market: "us",
     locale: "en",
   });
@@ -68,7 +69,7 @@ test("plan discovery forwards catalog pricing, offering, ordering and protected 
 test("a CustomerGroup definition carries admission and communication, never commercial terms", async () => {
   const group = {
     id: groupId,
-    store_id: "selected-store",
+    store_id: STORE_ID,
     key: "membership",
     name: "Membership",
     status: { type: "draft" },
@@ -80,7 +81,7 @@ test("a CustomerGroup definition carries admission and communication, never comm
   const { calls, restore } = capture(group);
   try {
     const saved = await admin().eshop.customerGroup.create({
-      store_id: "selected-store",
+      store_id: STORE_ID,
       key: "membership",
       name: "Membership",
       status: { type: "draft" },
@@ -89,7 +90,7 @@ test("a CustomerGroup definition carries admission and communication, never comm
     });
     assert.deepEqual(saved.join_policy, { type: "private" });
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].url.pathname, "/v1/stores/selected-store/customer-groups");
+    assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/customer-groups`);
     assert.equal(calls[0].method, "POST");
     for (const commercial of ["price", "currency", "amount", "type", "term", "entitlements"]) {
       assert.equal(commercial in calls[0].body, false, commercial);
@@ -103,7 +104,7 @@ test("a CustomerGroup definition carries admission and communication, never comm
 test("a SubscriptionPlan owns the commercial term while entitlements stay separate roots", async () => {
   const plan = {
     id: planId,
-    store_id: "selected-store",
+    store_id: STORE_ID,
     subscription_offering_id: offeringId,
     key: "monthly",
     blocks: [],
@@ -117,7 +118,7 @@ test("a SubscriptionPlan owns the commercial term while entitlements stay separa
   const { calls, restore } = capture(plan);
   try {
     const saved = await admin().eshop.subscriptionPlan.create({
-      store_id: "selected-store",
+      store_id: STORE_ID,
       subscription_offering_id: offeringId,
       key: "monthly",
       blocks: [],
@@ -132,7 +133,7 @@ test("a SubscriptionPlan owns the commercial term while entitlements stay separa
     assert.equal(calls.length, 1);
     assert.equal(
       calls[0].url.pathname,
-      "/v1/stores/selected-store/subscription-plans",
+      `/v1/stores/${STORE_ID}/subscription-plans`,
     );
     assert.equal(calls[0].method, "POST");
     assert.equal(calls[0].body.subscription_offering_id, offeringId);
@@ -146,9 +147,9 @@ test("plan entitlements are separate replay-safe roots under their exact plan", 
   const entitlementId = "0b9a4b7e-51a1-4d5f-9d9f-7a0e3f9ce0a1";
   const entitlement = {
     id: entitlementId,
-    store_id: "selected-store",
+    store_id: STORE_ID,
     subscription_plan_id: planId,
-    type: { type: "rental", product_id: "product", variant_id: "variant", quantity: 1 },
+    type: { type: "rental", variant_id: "variant", quantity: 1, tax_category_id: null },
     allocation_weight: 0,
     created_at: 1788862721000,
     updated_at: 1788862721001,
@@ -157,7 +158,7 @@ test("plan entitlements are separate replay-safe roots under their exact plan", 
   try {
     const api = admin().eshop.subscriptionPlanEntitlement;
     const create = {
-      store_id: "selected-store",
+      store_id: STORE_ID,
       subscription_plan_id: planId,
       entitlement_id: entitlementId,
       type: entitlement.type,
@@ -167,15 +168,15 @@ test("plan entitlements are separate replay-safe roots under their exact plan", 
     assert.deepEqual(await api.create(create), entitlement);
     await api.create(create);
     assert.deepEqual(create, before);
-    await api.find({ store_id: "selected-store", subscription_plan_id: planId });
+    await api.find({ store_id: STORE_ID, subscription_plan_id: planId });
     await api.update({
-      subscription_plan_id: planId, id: entitlementId, expected_updated_at: 1788862721001,
+      store_id: OTHER_STORE_ID, subscription_plan_id: planId, id: entitlementId, expected_updated_at: 1788862721001,
       type: { type: "digital_product", digital_product_id: "digital", content: { type: "current_bundle" } },
       allocation_weight: 3,
     });
-    await api.delete({ subscription_plan_id: planId, id: entitlementId, expected_updated_at: 1788862721002 });
-    const base = `/v1/stores/selected-store/subscription-plans/${planId}/entitlements`;
-    const fallback = `/v1/stores/configured-store/subscription-plans/${planId}/entitlements`;
+    await api.delete({ store_id: OTHER_STORE_ID, subscription_plan_id: planId, id: entitlementId, expected_updated_at: 1788862721002 });
+    const base = `/v1/stores/${STORE_ID}/subscription-plans/${planId}/entitlements`;
+    const fallback = `/v1/stores/${OTHER_STORE_ID}/subscription-plans/${planId}/entitlements`;
     assert.deepEqual(calls.map((call) => [call.method, call.url.pathname]), [
       ["POST", base],
       ["POST", base],
@@ -203,12 +204,13 @@ test("CustomerGroup reads stay explicit and never retain a previous selection", 
   const { calls, restore } = capture({ items: [], cursor: null });
   try {
     const client = admin();
-    await client.eshop.customerGroup.find({ store_id: "first-store", key: "wholesale" });
-    await client.eshop.customerGroup.find({ store_id: "second-store" });
+    await client.eshop.customerGroup.find({ store_id: STORE_ID, key: "wholesale" });
+    await client.eshop.customerGroup.find({ store_id: OTHER_STORE_ID });
+    await assert.rejects(async () => client.eshop.customerGroup.find({ key: "wholesale" }), TypeError);
     assert.equal(calls.length, 2);
-    assert.equal(calls[0].url.pathname, "/v1/stores/first-store/customer-groups");
+    assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/customer-groups`);
     assert.equal(calls[0].url.searchParams.get("key"), "wholesale");
-    assert.equal(calls[1].url.pathname, "/v1/stores/second-store/customer-groups");
+    assert.equal(calls[1].url.pathname, `/v1/stores/${OTHER_STORE_ID}/customer-groups`);
     assert.equal(calls[1].url.searchParams.has("key"), false);
     for (const call of calls) {
       assert.equal(call.method ?? "GET", "GET");

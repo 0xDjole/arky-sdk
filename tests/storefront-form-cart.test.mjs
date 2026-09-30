@@ -88,10 +88,11 @@ function form() {
   };
 }
 
-test("a fresh cart load resolves Store defaults before loading persisted product references", async () => {
+test("a fresh cart load confirms the selected Market and Store setup before loading persisted product references", async () => {
   const calls = [];
   const store = initialize(publishableKey, {
     apiUrl,
+    market: "ita",
     sessionStorage: storefrontSessionStorage(storedVisitorSession()),
   });
   const cart = {
@@ -116,6 +117,7 @@ test("a fresh cart load resolves Store defaults before loading persisted product
         quantity: 1,
         form_submission_id: "form-submission-hydration-contract",
         price_override: null,
+        purchase: { type: "catalog" },
       },
     ],
     delivery_groups: [],
@@ -131,17 +133,17 @@ test("a fresh cart load resolves Store defaults before loading persisted product
   const setup = {
     timezone: "Europe/Rome",
     languages: { default: "it", available: ["it"] },
-    commerce: { type: "ready", default_market_id: "market-ita", default_sales_channel_id: "channel-form-contract" },
-    default_market: {
-      id: "market-ita",
-      key: "ita",
-      currency: "eur",
-      tax_mode: "exclusive",
-      payment_option_ids: [],
-    },
+    commerce: { type: "ready", default_sales_channel_id: "channel-form-contract" },
     payment_options: [],
     support: { email: "support@example.test" },
-    readiness: { market: true, payment: false, commerce: true },
+    readiness: { commerce: true },
+  };
+  const market = {
+    id: "market-ita",
+    key: "ita",
+    currency: "eur",
+    tax_mode: "exclusive",
+    payment_option_ids: [],
   };
   const product = {
     id: "product-hydration-contract",
@@ -194,10 +196,12 @@ test("a fresh cart load resolves Store defaults before loading persisted product
       url: String(url),
       method: init.method,
       authorization: new Headers(init.headers).get("authorization"),
+      market: new Headers(init.headers).get("x-arky-market"),
     };
     calls.push(call);
     if (call.url.endsWith("/carts")) return jsonResponse({ cart, recovery_token: "cart-recovery-token" });
     if (call.url === `${apiUrl}/v1/storefront`) return jsonResponse(setup);
+    if (call.url === `${apiUrl}/v1/storefront/markets/by-key/ita`) return jsonResponse(market);
     if (new URL(call.url).pathname.endsWith("/products/product-hydration-contract")) {
       const { variants, status, created_at, updated_at, ...card } = product;
       return jsonResponse({ ...card, price: variants[0].price, purchase_allowed: true });
@@ -219,16 +223,20 @@ test("a fresh cart load resolves Store defaults before loading persisted product
   assert.deepEqual(
     calls.map((call) => call.url),
     [
+      `${apiUrl}/v1/storefront/markets/by-key/ita`,
       `${apiUrl}/v1/storefront/carts`,
       `${apiUrl}/v1/storefront`,
+      `${apiUrl}/v1/storefront/markets/by-key/ita`,
       `${apiUrl}/v1/storefront/products/product-hydration-contract?include_price=true`,
       `${apiUrl}/v1/storefront/products/product-hydration-contract/variants/variant-hydration-contract?include_price=true`,
     ],
   );
   assert.equal(
-    calls.every((call) => call.authorization === `Bearer ${visitorToken}`),
+    calls.every((call) => call.authorization === `Bearer ${visitorToken}` && call.market === "ita"),
     true,
   );
+  assert.deepEqual(store.market.get(), market);
+  assert.equal(store.currency.get(), "eur");
   assert.deepEqual(store.eshop.cart.product_items.get(), [
     {
       id: "line-hydration-contract",
@@ -248,6 +256,7 @@ test("a fresh cart load resolves Store defaults before loading persisted product
         priced_at: 1,
       },
       quantity: 1,
+      purchase: { type: "catalog" },
       form_submission_id: "form-submission-hydration-contract",
       added_at: 0,
     },
@@ -324,7 +333,6 @@ test("submitByKey reads anonymously, identifies lazily, and submits no Store rou
   assert.deepEqual(calls[2].body, {
     id: "submission-contact",
     presentation_digest: "a".repeat(64),
-    form_id: "form-contact",
     fields: [
       { id: "field-name", key: "name", type: "text", value: "Jane" },
       { id: "field-age", key: "age", type: "number", value: 32 },
@@ -435,6 +443,9 @@ test("a page reload reuses the stored Visitor without identifying again", async 
     if (request.url.endsWith("/customer/identify") && !request.authorization) {
       return jsonResponse(identifyResponse());
     }
+    if (request.url.endsWith("/markets/by-key/ita")) {
+      return jsonResponse({ id: "market-ita", key: "ita", currency: "eur", tax_mode: "exclusive", payment_option_ids: [] });
+    }
     if (request.url.endsWith("/carts") || request.url.endsWith("/carts/cart-reload-contract")) {
       const cart = {
         id: "cart-reload-contract",
@@ -491,7 +502,9 @@ test("a page reload reuses the stored Visitor without identifying again", async 
     ]),
     [
       ["/v1/storefront/customer/identify", null, {}],
+      ["/v1/storefront/markets/by-key/ita", `Bearer ${visitorToken}`, null],
       ["/v1/storefront/carts", `Bearer ${visitorToken}`, {}],
+      ["/v1/storefront/markets/by-key/ita", `Bearer ${visitorToken}`, null],
       ["/v1/storefront/carts/cart-reload-contract", `Bearer ${visitorToken}`, null],
     ],
   );
@@ -541,7 +554,6 @@ test("raw form submission remains stateful and keeps only caller form fields", a
   );
   assert.deepEqual(calls[1].body, {
     id: "submission-raw", presentation_digest: "b".repeat(64),
-    form_id: "form-raw",
     fields: [{ id: "field-raw", key: "message", type: "text", value: "Hello" }],
   });
 });

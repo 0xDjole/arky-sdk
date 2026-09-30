@@ -35,7 +35,7 @@ export const createRentalApi = (apiConfig: ApiConfig) => {
     },
     execute(params: ExecuteRentalParams, options?: RequestOptions): Promise<Rental> {
       requireRequestId(params.request_id);
-      const { store_id, id, rental_id, ...payload } = params;
+      const { store_id, id, ...payload } = params;
       return apiConfig.httpClient.post<Rental>(
         `${basePath(store_id)}/${encodeURIComponent(id)}/commands`,
         payload,

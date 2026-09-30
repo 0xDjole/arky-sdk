@@ -5,7 +5,6 @@ import { createAdmin } from '../dist/admin.js';
 
 const arky = createAdmin({
 	baseUrl: 'https://api.example.com',
-	storeId: 'store',
 	market: 'us',
 });
 

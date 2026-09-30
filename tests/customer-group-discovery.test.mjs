@@ -4,7 +4,7 @@ import { createAdmin } from "../dist/admin.js";
 import { createStorefront, initialize } from "../dist/storefront.js";
 import { MemoryStorage } from "./helpers/durable-request-fixtures.mjs";
 
-test("storefront Group membership uses one Visitor and preserves caller-owned command identity", async (t) => {
+test("storefront Group membership uses one Visitor and preserves caller-owned request identity", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
   const publishableKey = `arky_pk_${"g".repeat(43)}`;
@@ -13,7 +13,7 @@ test("storefront Group membership uses one Visitor and preserves caller-owned co
   const customerId = "70b5f662-f3d8-48c9-8c16-c60dd4ff1703";
   const groupId = "cf8a15f4-1489-40a1-a850-a98b7e311699";
   const command = {
-    command_id: "6b9d9e19-3d13-4f30-a1a0-442a3c92f212",
+    request_id: "6b9d9e19-3d13-4f30-a1a0-442a3c92f212",
     request: { customer_group_id: groupId, scope: { type: "customer" }, expected_updated_at: null },
   };
   const member = {
@@ -21,7 +21,7 @@ test("storefront Group membership uses one Visitor and preserves caller-owned co
     member: { type: "customer", customer_id: customerId },
     admission: { type: "granted", granted_at: 2 }, created_at: 2, updated_at: 2,
   };
-  const joined = { command_id: command.command_id, accepted_at: 2, member };
+  const joined = { request_id: command.request_id, accepted_at: 2, member };
   const calls = [];
   let membership = null;
   globalThis.fetch = async (url, init = {}) => {
@@ -76,6 +76,10 @@ test("storefront Group membership uses one Visitor and preserves caller-owned co
   await assert.rejects(storefront.customer_group_members.join(command), error => error.statusCode === 409);
   assert.equal(rejected, 1);
   assert.deepEqual([...storage.values.entries()], savedSession);
+  for (const request_id of [undefined, "", "6B9D9E19-3D13-4F30-A1A0-442A3C92F212", "6b9d9e19-3d13-1f30-a1a0-442a3c92f212"]) {
+    await assert.rejects(storefront.customer_group_members.join({ ...command, request_id }), { name: "TypeError", message: "A business request requires the caller's canonical UUID-v4 request_id" });
+  }
+  assert.equal(rejected, 1);
 });
 
 test("storefront Company membership keeps the explicitly selected branch", async (t) => {
@@ -84,7 +88,7 @@ test("storefront Company membership keeps the explicitly selected branch", async
   const calls = [];
   const client = createStorefront(`arky_pk_${"h".repeat(42)}A`, { apiUrl: "https://api.example.test", sessionStorage: new MemoryStorage() });
   const command = {
-    command_id: "6b9d9e19-3d13-4f30-a1a0-442a3c92f212",
+    request_id: "6b9d9e19-3d13-4f30-a1a0-442a3c92f212",
     request: {
       customer_group_id: "cf8a15f4-1489-40a1-a850-a98b7e311699",
       scope: { type: "company", company_id: "company", company_location_id: "branch" },
@@ -92,7 +96,7 @@ test("storefront Company membership keeps the explicitly selected branch", async
     },
   };
   const joined = {
-    command_id: command.command_id, accepted_at: 2,
+    request_id: command.request_id, accepted_at: 2,
     member: {
       id: "company-member", customer_group_id: command.request.customer_group_id,
       member: { type: "company", company_id: "company" },
@@ -124,10 +128,13 @@ test("group and member transport preserves combined predicates, empty continuati
   const cursor = "opaque:/+==next";
   const group = { id: groupId, store_id: store, key: "members", status: { type: "active" } };
   const member = { id: memberId, store_id: store, customer_group_id: groupId, member: { type: "customer", customer_id: customerId }, admission: { type: "requested" }, administrative_access: null, created_at: 1, updated_at: 1 };
-  const command = { store_id: store, command_id: "6b9d9e19-3d13-4f30-a1a0-442a3c92f212", command: { type: "revoke_admission", customer_group_member_id: memberId, expected_updated_at: 1, reason: "Operator request" } };
-  const accepted = { receipt: { id: command.command_id, store_id: store, accepted_at: 2 }, member: { ...member, admission: { type: "revoked", revoked_at: 2 }, updated_at: 2 } };
+  const command = { store_id: store, request_id: "6b9d9e19-3d13-4f30-a1a0-442a3c92f212", command: { type: "revoke_admission", customer_group_member_id: memberId, expected_updated_at: 1, reason: "Operator request" } };
+  const accepted = {
+    change: { request_id: command.request_id, store_id: store, accepted_at: 2, change: { type: "administrative", actor: { account_id: "account", snapshot: { email: "operator@example.test", credential_type: "api_token" } }, request: command.command, result: { customer_group_member_id: memberId, member_updated_at: 2, type: { type: "admission_revoked" } } } },
+    member: { ...member, admission: { type: "revoked", request_id: command.request_id, actor: { account_id: "account", snapshot: { email: "operator@example.test", credential_type: "api_token" } }, reason: "Operator request", revoked_at: 2 }, updated_at: 2 },
+  };
   const self = { id: memberId, store_id: store, customer_group_id: groupId, member: member.member, admission: { type: "granted", granted_at: 2 }, created_at: 1, updated_at: 2 };
-  const joined = { command_id: command.command_id, accepted_at: 2, member: self };
+  const joined = { request_id: "3c7f2e10-b854-4d69-a0e7-59f1b6c4d823", accepted_at: 2, member: self };
   const replies = [{ items: [], cursor }, { items: [group], cursor: null }, group, { items: [], cursor }, { items: [member], cursor: null }, member, accepted, self, joined];
   const calls = [];
   globalThis.fetch = async (input, init = {}) => {
@@ -135,7 +142,7 @@ test("group and member transport preserves combined predicates, empty continuati
     return new Response(JSON.stringify(replies.shift()), { status: 200, headers: { "content-type": "application/json" } });
   };
   try {
-    const admin = createAdmin({ storeId: "wrong-default", market: "configured-market", baseUrl: "https://api.example.test", apiToken: "arky_api_test" });
+    const admin = createAdmin({ market: "configured-market", baseUrl: "https://api.example.test", apiToken: "arky_api_test" });
     const filter = { store_id: store, key: group.key, status: "active", limit: 20 };
     const page = await admin.eshop.customerGroup.find(filter);
     assert.deepEqual(page, { items: [], cursor });
@@ -148,7 +155,7 @@ test("group and member transport preserves combined predicates, empty continuati
     assert.deepEqual(await admin.eshop.customerGroupMember.lookup({ store_id: store, customer_group_id: groupId, customer_id: customerId }), member);
     assert.deepEqual(await admin.eshop.customerGroupMember.execute(command), accepted);
     assert.deepEqual(await admin.eshop.customerGroupMember.current({ store_id: store, customer_group_id: groupId }), self);
-    assert.deepEqual(await admin.eshop.customerGroupMember.join({ store_id: store, command_id: command.command_id, request: { customer_group_id: groupId, scope: { type: "customer" }, expected_updated_at: null } }), joined);
+    assert.deepEqual(await admin.eshop.customerGroupMember.join({ store_id: store, request_id: joined.request_id, request: { customer_group_id: groupId, scope: { type: "customer" }, expected_updated_at: null } }), joined);
     assert.ok(calls.every(call => call.url.pathname.startsWith(`/v1/stores/${store}/`) && call.headers.get("authorization") === "Bearer arky_api_test"));
     assert.deepEqual(Object.fromEntries(calls[1].url.searchParams), { key: group.key, status: "active", limit: "20", cursor });
     assert.deepEqual(Object.fromEntries(calls[4].url.searchParams), { customer_group_id: groupId, customer_id: customerId, admission: "requested", limit: "20", cursor });
@@ -156,8 +163,12 @@ test("group and member transport preserves combined predicates, empty continuati
     assert.equal(calls[5].url.pathname, `/v1/stores/${store}/customer-group-members/lookup`);
     assert.deepEqual(Object.fromEntries(calls[5].url.searchParams), { customer_group_id: groupId, customer_id: customerId });
     assert.equal(calls[6].method, "POST");
-    assert.deepEqual(calls[6].body, { command_id: command.command_id, command: command.command });
-    assert.equal(calls[8].body.request.expected_updated_at, null);
+    assert.deepEqual(calls[6].body, { request_id: command.request_id, command: command.command });
+    assert.equal(calls[6].url.pathname, `/v1/stores/${store}/customer-group-members/commands`);
+    assert.deepEqual(calls[8].body, { request_id: joined.request_id, request: { customer_group_id: groupId, scope: { type: "customer" }, expected_updated_at: null } });
+    assert.equal(calls.length, 9);
+    await assert.rejects(async () => admin.eshop.customerGroupMember.execute({ ...command, request_id: "operator-request" }), TypeError);
+    await assert.rejects(async () => admin.eshop.customerGroupMember.find({ ...members, store_id: undefined }), TypeError);
     assert.equal(calls.length, 9);
   } finally { globalThis.fetch = originalFetch; }
 });

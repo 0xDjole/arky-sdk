@@ -15,6 +15,6 @@ export interface StoreBrandingPresentation {
 }
 
 export interface UpdateStoreBrandingParams {
-  id?: string;
+  id: string;
   branding: StoreBranding;
 }

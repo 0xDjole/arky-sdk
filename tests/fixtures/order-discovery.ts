@@ -1,12 +1,12 @@
 import { createAdmin, createStorefront } from '../../dist/index.js';
-import type { GetOrdersParams, Order, StorefrontDto } from '../../dist/index.js';
+import type { GetOrdersParams, Order } from '../../dist/index.js';
 
-const filters: GetOrdersParams = { query: 'ORD-2026', statuses: ['confirmed'], product_statuses: ['cancelled'],
+const filters: GetOrdersParams = { store_id: '9d3e7b50-1a26-4f8c-b74e-0c5a2d9f6e13', query: 'ORD-2026', statuses: ['confirmed'], product_statuses: ['cancelled'],
   booking_statuses: ['no_show'], sort_field: 'price', sort_direction: 'asc', cursor: null, limit: 1 };
 declare const admin: ReturnType<typeof createAdmin>;
 declare const storefront: ReturnType<typeof createStorefront>;
 const adminPage: Promise<{ items: Order[]; cursor: string | null }> = admin.eshop.order.find(filters);
-const buyerPage: Promise<StorefrontDto<{ items: Order[]; cursor: string | null }>> = storefront.eshop.order.find({ query: 'ORD-2026', sort_field: 'number' });
+const buyerPage: Promise<{ items: Order[]; cursor: string | null }> = storefront.eshop.order.find({ query: 'ORD-2026', sort_field: 'number' });
 // @ts-expect-error Ordering is the backend's closed set.
 filters.sort_field = 'payment_method';
 // @ts-expect-error Search text is not numeric.

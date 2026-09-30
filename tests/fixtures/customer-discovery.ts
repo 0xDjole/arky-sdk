@@ -3,7 +3,7 @@ import type { CustomerListItem, FindCustomersParams } from '../../dist/index.js'
 
 declare const admin: ReturnType<typeof createAdmin>;
 const filters: FindCustomersParams = {
-  query: 'buyer', has_cart: false, has_customer_action: true, has_verified_email: true,
+  store_id: '9c2e5b74-1f38-4a6d-8b05-3e7f0a9d6c12', query: 'buyer', has_cart: false, has_customer_action: true, has_verified_email: true,
   sort_field: 'email', sort_direction: 'asc', cursor: null, limit: 1,
 };
 const page: Promise<{ items: CustomerListItem[]; cursor: string | null }> = admin.customers.find(filters);

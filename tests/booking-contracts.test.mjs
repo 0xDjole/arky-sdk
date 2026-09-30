@@ -7,10 +7,11 @@ import { createStorefront, initialize } from "../dist/storefront.js";
 import { storefrontSessionStorage } from "./helpers/storefront-session-storage.mjs";
 
 const apiUrl = "https://api.booking-contract.test";
-const storeId = "store-booking-contract";
+const storeId = "1c6f9a24-7e53-4b08-9d2a-5f8c3b1e7d40";
+const otherStoreId = "e9a2d5c7-3f18-4b64-8a0e-6d1c4b9f2e53";
 const publishableKey = `arky_pk_${"b".repeat(42)}A`;
 const visitorToken = `customer_visitor_${"b".repeat(64)}`;
-const cancellationCommandId = "bef10d85-72e3-4853-9c12-8e419dc2d8dc";
+const cancellationRequestId = "bef10d85-72e3-4853-9c12-8e419dc2d8dc";
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -275,16 +276,16 @@ test("Resource discovery preserves bounded opaque continuation and ordered filte
       ? { items: [], cursor }
       : { items: [bookingResource()], cursor: null });
   });
-  const admin = createAdmin({ baseUrl: apiUrl, storeId, apiToken: "token" });
+  const admin = createAdmin({ baseUrl: apiUrl, apiToken: "token" });
   const storefront = createStorefront(publishableKey, { apiUrl, sessionStorage: sessionStorage() });
   const filters = {
     booking_service_id: "booking-service", query: "room", status: "active", limit: 1,
     sort_field: "key", sort_direction: "desc", created_at_from: 0, created_at_to: 10,
   };
-  for (const client of [admin, storefront]) {
-    const first = await client.eshop.bookingResource.find(filters);
+  for (const [client, target] of [[admin, { store_id: storeId }], [storefront, {}]]) {
+    const first = await client.eshop.bookingResource.find({ ...target, ...filters });
     assert.deepEqual(first, { items: [], cursor });
-    const second = await client.eshop.bookingResource.find({ ...filters, cursor: first.cursor });
+    const second = await client.eshop.bookingResource.find({ ...target, ...filters, cursor: first.cursor });
     assert.deepEqual(second, { items: [bookingResource()], cursor: null });
   }
   assert.equal(calls.length, 4);
@@ -294,14 +295,14 @@ test("Resource discovery preserves bounded opaque continuation and ordered filte
     assert.equal(call.method, "GET");
     assert.equal(call.body, undefined);
     for (const [key, value] of Object.entries(filters)) assert.equal(call.url.searchParams.get(key), String(value));
-    for (const removed of ["from", "to", "match_all"]) assert.equal(call.url.searchParams.has(removed), false);
+    for (const removed of ["from", "to", "match_all", "store_id"]) assert.equal(call.url.searchParams.has(removed), false);
   }
   assert.equal(calls[1].url.searchParams.get("cursor"), cursor);
   assert.equal(calls[3].url.searchParams.get("cursor"), cursor);
 });
 
 test("Admin booking runtime uses booking service, resource, and offering roots", async () => {
-  const admin = createAdmin({ baseUrl: apiUrl, storeId, apiToken: "token" });
+  const admin = createAdmin({ baseUrl: apiUrl, apiToken: "token" });
   const calls = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
@@ -328,11 +329,13 @@ test("Admin booking runtime uses booking service, resource, and offering roots",
 
   try {
     await admin.eshop.bookingService.create({
+      store_id: storeId,
       key: "consultation",
       slugs: { en: "consultation" },
       status: { type: "active" },
     });
     await admin.eshop.bookingResource.create({
+      store_id: storeId,
       key: "room-one",
       slugs: { en: "room-one" },
       timezone: "Europe/Sarajevo",
@@ -340,6 +343,7 @@ test("Admin booking runtime uses booking service, resource, and offering roots",
       status: { type: "active" },
     });
     await admin.eshop.bookingOffering.create({
+      store_id: storeId,
       booking_service_id: "booking-service",
       booking_resource_id: "booking-resource",
       weekly_availability: bookingOffering().weekly_availability,
@@ -352,25 +356,29 @@ test("Admin booking runtime uses booking service, resource, and offering roots",
       tax_category_id: null,
       status: { type: "active" },
     });
-    const loadedOrder = await admin.eshop.order.get({ id: "order-booking" });
+    const loadedOrder = await admin.eshop.order.get({ store_id: storeId, id: "order-booking" });
     assert.equal(orderBookingItems(loadedOrder)[0].id, "order-booking-item");
     await assert.rejects(
       admin.eshop.order.update({
+        store_id: storeId,
         id: loadedOrder.id,
         booking_items: [{ id: "legacy-booking-rewrite" }],
       }),
       (error) => error.statusCode === 422,
     );
     await admin.eshop.order.cancelBookingItem({
-      command_id: cancellationCommandId,
+      store_id: storeId,
+      request_id: cancellationRequestId,
       order_id: loadedOrder.id,
       order_booking_item_id: orderBookingItems(loadedOrder)[0].id,
     });
     await admin.eshop.order.completeBookingItem({
+      store_id: storeId,
       order_id: loadedOrder.id,
       order_booking_item_id: orderBookingItems(loadedOrder)[0].id,
     });
     await admin.eshop.order.markBookingItemNoShow({
+      store_id: storeId,
       order_id: loadedOrder.id,
       order_booking_item_id: orderBookingItems(loadedOrder)[0].id,
     });
@@ -424,9 +432,10 @@ test("Admin booking runtime uses booking service, resource, and offering roots",
   assert.deepEqual(calls[4].body, {
     booking_items: [{ id: "legacy-booking-rewrite" }],
   });
-  assert.deepEqual(calls[5].body, { command_id: cancellationCommandId });
-  assert.deepEqual(calls[6].body, {});
-  assert.deepEqual(calls[7].body, {});
+  assert.deepEqual(calls[5].body, { request_id: cancellationRequestId });
+  assert.equal(calls[6].body, null);
+  assert.equal(calls[7].body, null);
+  assert.ok(calls.every((call) => call.body === null || !("store_id" in call.body)));
 });
 
 test("storefront booking runtime sends one offering interval and reads embedded Order items", async () => {
@@ -507,7 +516,7 @@ test("storefront booking runtime sends one offering interval and reads embedded 
       "booking-resource",
     );
     await storefront.eshop.order.cancelBookingItem({
-      command_id: cancellationCommandId,
+      request_id: cancellationRequestId,
       order_id: loadedOrder.id,
       order_booking_item_id: orderBookingItems(loadedOrder)[0].id,
     });
@@ -531,7 +540,7 @@ test("storefront booking runtime sends one offering interval and reads embedded 
     "/v1/storefront/carts/cart-booking/booking-items",
   );
   assert.equal("price_override" in calls[4].body.booking, false);
-  assert.deepEqual(calls[6].body, { command_id: cancellationCommandId });
+  assert.deepEqual(calls[6].body, { request_id: cancellationRequestId });
   assert.equal(
     new URL(calls[6].url).pathname,
     "/v1/storefront/orders/order-booking/booking-items/order-booking-item/cancel",
@@ -539,12 +548,12 @@ test("storefront booking runtime sends one offering interval and reads embedded 
 });
 
 test("Admin reads the independent appointment by its exact Order line without discovery", async () => {
-  const admin = createAdmin({ baseUrl: apiUrl, storeId, apiToken: "token" });
+  const admin = createAdmin({ baseUrl: apiUrl, apiToken: "token" });
   const originalFetch = globalThis.fetch;
   const calls = [];
   const appointment = {
     id: "appointment",
-    store_id: "store/selected",
+    store_id: otherStoreId,
     order_id: "order/accepted",
     order_booking_line_item_id: "line/accepted",
     booking_resource_id: null,
@@ -572,11 +581,11 @@ test("Admin reads the independent appointment by its exact Order line without di
   assert.equal(calls[0].method, "GET");
   assert.equal(calls[0].body, undefined);
   assert.equal(calls[0].url.search, "");
-  assert.equal(calls[0].url.pathname, "/v1/stores/store%2Fselected/orders/order%2Faccepted/booking-items/line%2Faccepted/appointment");
+  assert.equal(calls[0].url.pathname, `/v1/stores/${otherStoreId}/orders/order%2Faccepted/booking-items/line%2Faccepted/appointment`);
 });
 
-test("booking cancellation preserves the caller command after an uncertain response", async () => {
-  const admin = createAdmin({ baseUrl: apiUrl, storeId, apiToken: "token" });
+test("booking cancellation preserves the caller request after an uncertain response", async () => {
+  const admin = createAdmin({ baseUrl: apiUrl, apiToken: "token" });
   const storefront = createStorefront(publishableKey, {
     apiUrl,
     market: "bih",
@@ -594,14 +603,16 @@ test("booking cancellation preserves the caller command after an uncertain respo
     return jsonResponse(order());
   };
   try {
-    for (const client of [admin, storefront]) {
+    for (const [client, target] of [[admin, { store_id: storeId }], [storefront, {}]]) {
       const request = {
-        command_id: cancellationCommandId,
+        ...target,
+        request_id: cancellationRequestId,
         order_id: "order/booking",
         order_booking_item_id: "item/booking",
       };
       await assert.rejects(client.eshop.order.cancelBookingItem(request), (error) => error.statusCode === 503);
       assert.equal((await client.eshop.order.cancelBookingItem(request)).id, order().id);
+      await assert.rejects(async () => client.eshop.order.cancelBookingItem({ ...request, request_id: "booking-cancel" }), TypeError);
     }
   } finally {
     globalThis.fetch = originalFetch;
@@ -609,11 +620,13 @@ test("booking cancellation preserves the caller command after an uncertain respo
   assert.equal(calls.length, 4);
   for (const call of calls) {
     assert.equal(call.method, "POST");
-    assert.deepEqual(call.body, { command_id: cancellationCommandId });
+    assert.deepEqual(call.body, { request_id: cancellationRequestId });
     assert.ok(call.url.pathname.endsWith("/orders/order%2Fbooking/booking-items/item%2Fbooking/cancel"));
   }
   assert.equal(calls[0].url.href, calls[1].url.href);
   assert.equal(calls[2].url.href, calls[3].url.href);
+  assert.equal(calls[0].url.pathname, `/v1/stores/${storeId}/orders/order%2Fbooking/booking-items/item%2Fbooking/cancel`);
+  assert.equal(calls[2].url.pathname, "/v1/storefront/orders/order%2Fbooking/booking-items/item%2Fbooking/cancel");
 });
 
 test("Booking Service slug lookup stays singular while records expose slugs", async () => {
@@ -731,21 +744,22 @@ test("high-level booking flow creates one Cart item per appointment", async () =
             .map(({ type, ...item }) => item),
         ),
       );
+    if (pathname === "/v1/storefront/markets/by-key/bih")
+      return jsonResponse({
+        id: "market-bih",
+        key: "bih",
+        currency: "eur",
+        tax_mode: "inclusive",
+        payment_option_ids: [],
+      });
     if (pathname === "/v1/storefront")
       return jsonResponse({
         timezone: "Europe/Sarajevo",
         languages: { default: "en", available: ["en"] },
-        commerce: { type: "ready", default_market_id: "market-bih", default_sales_channel_id: "channel-bih" },
-        default_market: {
-              id: "market-bih",
-              key: "bih",
-              currency: "eur",
-              tax_mode: "inclusive",
-              payment_option_ids: [],
-        },
+        commerce: { type: "ready", default_sales_channel_id: "channel-bih" },
         payment_options: [],
         support: { email: "support@example.test" },
-        readiness: { market: true, payment: false, commerce: true },
+        readiness: { commerce: true },
       });
     throw new Error(`Unexpected request ${call.method} ${call.url}`);
   };

@@ -41,7 +41,7 @@ function restoreGlobals() {
 }
 
 function admin() {
-  return createAdmin({ baseUrl, storeId, apiToken: "contract-token" });
+  return createAdmin({ baseUrl, apiToken: "contract-token" });
 }
 
 function media(id = mediaId) {
@@ -98,7 +98,7 @@ test("Media create persists and replays the exact File after a lost response and
     return notFound();
   });
 
-  await assert.rejects(admin().media.create({ media_id: mediaId, file }));
+  await assert.rejects(admin().media.create({ store_id: storeId, media_id: mediaId, file }), /connection was lost/);
   assert.equal(calls.filter((call) => call.method === "PUT").length, 1);
   assert.equal(calls.filter((call) => call.method === "GET").length, 1);
   const raw = indexedDB.peek("arky-durable-requests-v1", "media-create", storageKey);
@@ -108,6 +108,7 @@ test("Media create persists and replays the exact File after a lost response and
   assert.equal(raw.requestJson.includes("source_url"), false);
 
   const recovered = await readPendingMediaCreate(storeId);
+  assert.equal(recovered.store_id, storeId);
   assert.equal(recovered.media_id, mediaId);
   assert.equal(recovered.file.name, "asset.png");
   assert.equal(recovered.file.lastModified, 1234);
@@ -117,11 +118,14 @@ test("Media create persists and replays the exact File after a lost response and
   );
 
   let replayedFile;
-  installGlobal("fetch", async (_url, init = {}) => {
+  let replayedUrl;
+  installGlobal("fetch", async (url, init = {}) => {
+    replayedUrl = String(url);
     replayedFile = init.body.get("file");
     return jsonResponse(media());
   });
   assert.deepEqual(await admin().media.create(recovered), media());
+  assert.equal(replayedUrl, `${baseUrl}/v1/stores/${storeId}/media/${mediaId}`);
   assert.equal(replayedFile.name, "asset.png");
   assert.deepEqual(
     [...new Uint8Array(await replayedFile.arrayBuffer())],
@@ -141,7 +145,7 @@ test("Media URL import persists source_url only in IndexedDB and clears after ex
   });
 
   assert.deepEqual(
-    await admin().media.create({ media_id: mediaId, source_url: sourceUrl }),
+    await admin().media.create({ store_id: storeId, media_id: mediaId, source_url: sourceUrl }),
     media(),
   );
   const put = calls.find((call) => call.method === "PUT");
@@ -170,9 +174,9 @@ test("Media create rejects changed Blob input while an ambiguous request is reta
     type: "image/png",
   });
 
-  await assert.rejects(admin().media.create({ media_id: mediaId, file: first }));
+  await assert.rejects(admin().media.create({ store_id: storeId, media_id: mediaId, file: first }), /connection was lost/);
   await assert.rejects(
-    admin().media.create({ media_id: mediaId, file: changed }),
+    admin().media.create({ store_id: storeId, media_id: mediaId, file: changed }),
     /different unresolved payload/,
   );
 
@@ -202,10 +206,10 @@ test("concurrent tabs issue at most one Media create PUT", async () => {
     return jsonResponse(media());
   });
 
-  const first = admin().media.create({ media_id: mediaId, file });
+  const first = admin().media.create({ store_id: storeId, media_id: mediaId, file });
   await uploadEntered;
   await assert.rejects(
-    admin().media.create({ media_id: mediaId, file }),
+    admin().media.create({ store_id: storeId, media_id: mediaId, file }),
     /already active in another tab/,
   );
   releaseUpload();
@@ -226,10 +230,16 @@ test("Media create fails closed before sending when IndexedDB is unavailable", a
 
   await assert.rejects(
     admin().media.create({
+      store_id: storeId,
       media_id: mediaId,
       source_url: "https://source.example.test/photo.png",
     }),
     /IndexedDB request storage is unavailable/,
+  );
+  assert.equal(calls, 0);
+  await assert.rejects(
+    admin().media.create({ media_id: mediaId, source_url: "https://source.example.test/photo.png" }),
+    { name: "TypeError", message: "A Store target must be an explicit canonical UUID-v4" },
   );
   assert.equal(calls, 0);
 });

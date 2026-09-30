@@ -12,6 +12,7 @@ const apiUrl = "https://api.example.test";
 const publishableKey = `arky_pk_${"a".repeat(42)}A`;
 const cartId = "9f1b6e23-e2ea-4ab9-a1b7-eaaf550ddf41";
 const secondId = "2b815d21-78be-431a-b49c-0d5d62c87823";
+const checkoutRequestId = "6c3a9e17-2f58-4d04-b1e6-8a7d0c5f3b92";
 const originals = new Map(
   ["fetch", "window", "localStorage", "navigator"].map((name) => [
     name,
@@ -92,12 +93,13 @@ function setup(respond) {
       return Response.json({
         timezone: "UTC",
         languages: { default: "en", available: ["en", "de"] },
-        commerce: { type: "ready", default_market_id: "market-a", default_sales_channel_id: "channel-a" },
-        default_market: { id: "market-a", key: "market-a", currency: "eur", tax_mode: "exclusive", payment_option_ids: [] },
+        commerce: { type: "ready", default_sales_channel_id: "channel-a" },
         payment_options: [],
         support: { email: null },
-        readiness: { market: true, payment: false, commerce: true },
+        readiness: { commerce: true },
       });
+    if (call.path === "/v1/storefront/markets/by-key/market-a")
+      return Response.json({ id: "market-a", key: "market-a", currency: "eur", tax_mode: "exclusive", payment_option_ids: [] });
     if (call.path === "/v1/storefront/markets/by-key/market-b")
       return Response.json({ id: "market-b", key: "market-b", currency: "usd", tax_mode: "exclusive", payment_option_ids: [] });
     return respond(call);
@@ -227,16 +229,28 @@ for (const permitted of [true, false]) {
       presentation_digest: "a".repeat(64),
       order: { locale: "en", payment_option_id: suggested, payment_option_ids: permitted ? [suggested, selected] : [suggested] },
     });
+    const input = { request_id: checkoutRequestId, payment_option_id: selected };
     await assert.rejects(
-      store.eshop.cart.checkout({ payment_option_id: selected }),
+      store.eshop.cart.checkout(input),
       permitted ? /response lost/ : /not available in the reviewed Cart quote/,
     );
-    const posts = calls.filter((call) => call.path.endsWith("/carts/accept"));
-    assert.equal(posts.length, permitted ? 1 : 0);
+    const posts = () => calls.filter((call) => call.path.endsWith("/carts/accept"));
+    assert.equal(posts().length, permitted ? 1 : 0);
+    assert.equal(await store.eshop.cart.pendingCheckout(), null);
     if (permitted) {
-      assert.equal(posts[0].body.payment_option_id, selected);
+      assert.equal(posts()[0].body.payment_option_id, selected);
+      assert.equal(posts()[0].body.request_id, checkoutRequestId);
+      assert.equal((await store.eshop.cart.retainCheckout(input)).payment_option_id, selected);
       assert.equal((await store.eshop.cart.pendingCheckout()).payment_option_id, selected);
-    } else assert.equal(await store.eshop.cart.pendingCheckout(), null);
+      await assert.rejects(store.eshop.cart.recoverCheckout(), /response lost/);
+      assert.equal(posts().length, 2);
+      assert.deepEqual(posts()[1].body, posts()[0].body);
+      assert.equal((await store.eshop.cart.pendingCheckout()).request_id, checkoutRequestId);
+    } else {
+      await assert.rejects(store.eshop.cart.retainCheckout(input), /not available in the reviewed Cart quote/);
+      assert.equal(await store.eshop.cart.pendingCheckout(), null);
+      assert.equal(posts().length, 0);
+    }
   });
 }
 
@@ -248,6 +262,7 @@ const productLine = {
   quantity: 1,
   form_submission_id: null,
   price_override: null,
+  purchase: { type: "catalog" },
 };
 function product() {
   return {
@@ -306,7 +321,12 @@ test("Market changes clear the selected empty Cart view and a late old load cann
   assert.equal((await second).id, secondId);
   assert.equal(store.eshop.cart.cart.get().id, secondId);
   assert.equal(store.eshop.cart.status.get().loading, false);
-  assert.equal(calls.length, 2);
+  assert.deepEqual(calls.map((call) => [call.path, call.headers.get("x-arky-market")]), [
+    ["/v1/storefront/markets/by-key/market-a", "market-a"],
+    ["/v1/storefront/carts", "market-a"],
+    ["/v1/storefront/markets/by-key/market-b", "market-b"],
+    ["/v1/storefront/carts", "market-b"],
+  ]);
 });
 
 test("late product hydration cannot repopulate a different buyer's Cart or report an old read failure", async () => {
@@ -453,11 +473,13 @@ test("identity and Market invalidation leave the unresolved Checkout request byt
     presentation_digest: "a".repeat(64),
     sources: checkoutSources(cartId),
   };
+  await store.client.eshop.cart.retainCheckout(request);
   await assert.rejects(
-    store.client.eshop.cart.checkout(request),
+    store.client.eshop.cart.recoverCheckout(),
     /response lost/,
   );
   const pending = await store.eshop.cart.pendingCheckout();
+  assert.equal(pending.request_id, request.request_id);
   const key = `arky:commerce-cart-checkout:v1:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}`;
   const retained = durable.getItem(key);
   assert.ok(retained);

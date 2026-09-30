@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/index.js";
 
+const STORE_ID = "0e5c9a37-d241-4b86-a7f3-8c1b6d4e2f90";
+
 test("Subscription history forwards its own cursor and exposes no retired financial owners", async () => {
   const originalFetch = globalThis.fetch;
   const requests = [];
@@ -16,7 +18,6 @@ test("Subscription history forwards its own cursor and exposes no retired financ
     const client = createAdmin({
       apiToken: "test-token",
       baseUrl: "https://api.example.test",
-      storeId: "configured-store",
       market: "us",
       locale: "en",
     });
@@ -27,7 +28,7 @@ test("Subscription history forwards its own cursor and exposes no retired financ
     for (const cursors of [{}, { cursor: "orders-page" }]) {
       assert.deepEqual(
         await subscriptions.findOrders({
-          store_id: "exact-store",
+          store_id: STORE_ID,
           id: "subscription",
           limit: 25,
           ...cursors,
@@ -41,12 +42,13 @@ test("Subscription history forwards its own cursor and exposes no retired financ
       assert.equal(request.body, undefined);
       assert.equal(
         request.url.pathname,
-        "/v1/stores/exact-store/subscriptions/subscription/orders",
+        `/v1/stores/${STORE_ID}/subscriptions/subscription/orders`,
       );
       assert.equal(request.url.searchParams.get("limit"), "25");
     }
     assert.equal(requests[0].url.searchParams.has("cursor"), false);
     assert.equal(requests[1].url.searchParams.get("cursor"), "orders-page");
+    assert.ok(requests.every((request) => !request.url.searchParams.has("store_id") && !request.url.searchParams.has("id")));
   } finally {
     globalThis.fetch = originalFetch;
   }

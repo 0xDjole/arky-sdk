@@ -4,6 +4,8 @@ import { createAdmin } from "../dist/admin.js";
 import { initialize } from "../dist/storefront.js";
 import { storefrontSessionStorage } from "./helpers/storefront-session-storage.mjs";
 
+const STORE_ID = "a8c41e2f-6d95-4b07-83f1-0e5d7a9c2b36";
+
 test("Form discovery preserves native filters, nullable continuations and separate exact batches", async (context) => {
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
@@ -11,15 +13,17 @@ test("Form discovery preserves native filters, nullable continuations and separa
     return new Response(JSON.stringify({ items: [], cursor: calls.length === 1 ? "form:+/=" : null }),
       { headers: { "content-type": "application/json" } });
   });
-  const api = createAdmin({ baseUrl: "https://forms.test", storeId: "store" }).forms;
+  const api = createAdmin({ baseUrl: "https://forms.test" }).forms;
   const filters = { key: "intake", query: "intake", status: "archived", limit: 0, sort_field: "key",
     sort_direction: "asc", created_at_from: 0, created_at_to: 3 };
-  const page = await api.find(filters);
+  const page = await api.find({ store_id: STORE_ID, ...filters });
   assert.equal(page.cursor, "form:+/=");
-  await api.find({ ...filters, cursor: page.cursor });
-  await api.findByIds({ ids: ["form"] });
+  await api.find({ store_id: STORE_ID, ...filters, cursor: page.cursor });
+  await api.findByIds({ store_id: STORE_ID, ids: ["form"] });
+  assert.equal(calls[2].url.pathname, `/v1/stores/${STORE_ID}/forms`);
   for (const call of calls.slice(0, 2)) {
-    assert.equal(call.url.pathname, "/v1/stores/store/forms"); assert.equal(call.method, "GET");
+    assert.equal(call.url.pathname, `/v1/stores/${STORE_ID}/forms`); assert.equal(call.method, "GET");
+    assert.equal(call.url.searchParams.has("store_id"), false);
     assert.equal(call.body, undefined);
     for (const [key, value] of Object.entries(filters)) assert.equal(call.url.searchParams.get(key), String(value));
   }
@@ -30,7 +34,7 @@ test("Form discovery preserves native filters, nullable continuations and separa
 
 test("Form writes and Submission discovery match retained backend contracts", async (context) => {
   const calls = [];
-  const submission = { id: "submission", store_id: "store", form_id: "form", customer_id: "customer",
+  const submission = { id: "submission", store_id: STORE_ID, form_id: "form", customer_id: "customer",
     customer_session_id: "original-session", authentication: { type: "visitor" },
     snapshot: { form_key: "original_name", questions: [] }, fields: [], created_at: 1 };
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
@@ -38,19 +42,24 @@ test("Form writes and Submission discovery match retained backend contracts", as
     const response = init.method === "DELETE" ? true : init.method === "PUT" ? { status: { type: "archived" } } : { items: [submission], cursor: null };
     return new Response(JSON.stringify(response), { headers: { "content-type": "application/json" } });
   });
-  const api = createAdmin({ baseUrl: "https://forms.test", storeId: "store" }).forms;
+  const api = createAdmin({ baseUrl: "https://forms.test" }).forms;
   assert.equal("submit" in api, false);
   assert.equal("updateSubmission" in api, false);
-  const result = await api.getSubmissions({ form_ids: ["form"], customer_id: "customer", query: "answer",
+  const result = await api.getSubmissions({ store_id: STORE_ID, form_ids: ["form"], customer_id: "customer", query: "answer",
     sort_field: "created_at", sort_direction: "asc", limit: 1, created_at_from: 0, cursor: "sub:+/=" });
   assert.deepEqual(result, { items: [submission], cursor: null });
+  assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/forms/submissions`);
+  assert.equal(calls[0].url.searchParams.has("store_id"), false);
   assert.deepEqual(JSON.parse(calls[0].url.searchParams.get("form_ids")), ["form"]);
   assert.equal(calls[0].url.searchParams.get("customer_id"), "customer");
   assert.equal(calls[0].url.searchParams.get("cursor"), "sub:+/=");
   assert.equal(calls[0].url.searchParams.get("created_at_from"), "0");
-  assert.deepEqual((await api.update({ id: "form", status: { type: "archived" } })).status, { type: "archived" });
-  assert.deepEqual(calls[1].body, { id: "form", status: { type: "archived" } });
-  assert.equal(await api.delete({ id: "form" }), true);
+  assert.deepEqual((await api.update({ store_id: STORE_ID, id: "form", status: { type: "archived" } })).status, { type: "archived" });
+  assert.equal(calls[1].url.pathname, `/v1/stores/${STORE_ID}/forms/form`);
+  assert.deepEqual(calls[1].body, { status: { type: "archived" } });
+  assert.equal(await api.delete({ store_id: STORE_ID, id: "form" }), true);
+  assert.equal(calls[2].method, "DELETE");
+  assert.equal(calls[2].url.pathname, `/v1/stores/${STORE_ID}/forms/form`);
 });
 
 test("Form submitByKey retains the displayed presentation and caller request identity across response loss", async (context) => {
@@ -86,7 +95,8 @@ test("Form submitByKey retains the displayed presentation and caller request ide
   assert.equal(calls.filter((call) => call.method === "GET").length, 2);
   assert.equal(calls.length, 4);
   assert.deepEqual(calls[1].body, calls[3].body);
-  assert.deepEqual(calls[3].body, { id: "request", form_id: "form", presentation_digest: presentation.presentation_digest,
+  assert.equal(calls[3].url.pathname, "/v1/storefront/forms/form/submissions");
+  assert.deepEqual(calls[3].body, { id: "request", presentation_digest: presentation.presentation_digest,
     fields: [{ id: "field", key: "answer", type: "text", value: "kept" }] });
   assert.equal(calls[3].headers.get("x-arky-locale"), "en");
   store.setContext({ locale: "bs" });
@@ -112,7 +122,7 @@ test("Form submitByKey can replay a retained presentation after reinitialization
   assert.equal(calls.length, 1);
   assert.equal(calls[0].method, "POST");
   assert.equal(calls[0].url.pathname, "/v1/storefront/forms/form/submissions");
-  assert.deepEqual(calls[0].body, { id: request.id, form_id: "form", presentation_digest: "a".repeat(64),
+  assert.deepEqual(calls[0].body, { id: request.id, presentation_digest: "a".repeat(64),
     fields: [{ id: "field", key: "answer", type: "text", value: "Original answer" }] });
 });
 

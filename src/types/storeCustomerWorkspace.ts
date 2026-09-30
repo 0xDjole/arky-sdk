@@ -17,7 +17,7 @@ export interface StoreCustomerWorkspace {
 }
 
 export interface UpdateStoreCustomerWorkspaceParams {
-  id?: string;
+  id: string;
   expected_revision: string | null;
   customer_workspace: StoreCustomerWorkspace;
 }

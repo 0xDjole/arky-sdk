@@ -74,6 +74,11 @@ function storeSubscriptionCheckoutRequest(params: SelectStoreSubscriptionParams)
   return { checkout_id: params.checkout_id, plan_id: params.plan_id, return_url: params.return_url };
 }
 
+function responseStatusCode(value: unknown): number | null {
+  if (typeof value !== "object" || value === null || !("statusCode" in value)) return null;
+  return typeof value.statusCode === "number" ? value.statusCode : null;
+}
+
 function persistedStoreSubscriptionCheckoutRequest(
   value: unknown,
 ): StoreSubscriptionCheckoutRequest {
@@ -276,7 +281,13 @@ export const createStoreApi = (
         const retained = readDurableRequest(key, storeSubscriptionCheckoutLabel);
         if (!retained) return null;
         const payload = persistedStoreSubscriptionCheckoutRequest(durableRequestPayload(retained));
-        const result = await apiConfig.httpClient.post<StoreSubscription>(`/v1/stores/${storeId}/subscription`, payload, options);
+        let result: StoreSubscription;
+        try {
+          result = await apiConfig.httpClient.post<StoreSubscription>(`/v1/stores/${storeId}/subscription`, payload, options);
+        } catch (error) {
+          if (responseStatusCode(error) === 400) clearDurableRequest(retained, storeSubscriptionCheckoutLabel);
+          throw error;
+        }
         if ((result.checkout && result.checkout.id !== payload.checkout_id) || (!result.checkout && result.plan_access?.plan_id !== payload.plan_id)) {
           throw new DurableRequestStorageError("Recovered plan selection returned neither its Checkout nor the requested plan access");
         }

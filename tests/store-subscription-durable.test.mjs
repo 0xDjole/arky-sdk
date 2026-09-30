@@ -8,13 +8,20 @@ import {
 } from "./helpers/durable-request-fixtures.mjs";
 
 const baseUrl = "https://api.example.test";
-const storeId = "store-durable-subscription";
+const storeId = "7b2d9e40-1c63-4f85-a9e7-3d0c5b8f2a16";
 const storageKey = `arky:store-subscription-checkout:${storeId}`;
+const checkoutIds = [
+  "018f477d-1cae-4c12-bf12-123456789abc",
+  "2c7e9a51-4b08-4d36-8f1e-6a3d0c9b5e72",
+  "9e4b1d73-0f26-4a58-b3c9-7d2e5f8a1c04",
+];
 const request = {
   store_id: storeId,
+  checkout_id: checkoutIds[0],
   plan_id: "plan_basic_monthly_v1",
   return_url: "https://merchant.test/settings/billing",
 };
+const { store_id: _requestStore, ...requestBody } = request;
 const originalDescriptors = new Map(
   ["fetch", "localStorage", "navigator", "window"].map((name) => [
     name,
@@ -49,7 +56,6 @@ function restoreGlobals() {
 function admin() {
   return createAdmin({
     baseUrl,
-    storeId,
     apiToken: "contract-token",
   });
 }
@@ -79,7 +85,6 @@ function openSubscription(checkoutId) {
       type: "stripe_embedded_checkout",
       publishable_key: "pk_test_subscription",
       client_secret: "cs_store_durable_subscription_secret_exact",
-      stripe_account_id: null,
       expires_at: 1_800_000_000_000,
     },
     trial_started_at: null,
@@ -92,80 +97,132 @@ afterEach(() => {
   restoreGlobals();
 });
 
+function definiteFailure() {
+  return new Response(
+    JSON.stringify({
+      message:
+        "Store subscription Checkout failed definitively; retry with a new checkout_id",
+      error: "BAD_REQUEST",
+      statusCode: 400,
+      validationErrors: [],
+    }),
+    {
+      status: 400,
+      headers: { "content-type": "application/json" },
+    },
+  );
+}
+
 test("Store subscription Checkout survives a lost response and SDK reload without persisting its secret", async () => {
   const { storage } = installBrowserState();
   const calls = [];
-  installGlobal("fetch", async (_url, init = {}) => {
-    calls.push(JSON.parse(init.body));
+  installGlobal("fetch", async (url, init = {}) => {
+    calls.push({ path: new URL(url).pathname, body: JSON.parse(init.body) });
     throw new TypeError("response connection was lost");
   });
 
-  await assert.rejects(admin().store.subscription.select(request));
-  assert.equal(calls.length, 1);
-  const firstCheckoutId = calls[0].checkout_id;
-  assert.match(
-    firstCheckoutId,
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
-  );
+  const target = { store_id: storeId };
+  assert.equal(await admin().store.subscription.pendingSelection(target), null);
+  await admin().store.subscription.retainSelection(request);
   const retainedBeforeReload = storage.getItem(storageKey);
   assert.notEqual(retainedBeforeReload, null);
-  assert.equal(
-    JSON.parse(JSON.parse(retainedBeforeReload).requestJson).checkout_id,
-    firstCheckoutId,
-  );
+  assert.deepEqual(JSON.parse(JSON.parse(retainedBeforeReload).requestJson), requestBody);
+  await assert.rejects(admin().store.subscription.recoverSelection(target), /connection was lost/);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0], { path: `/v1/stores/${storeId}/subscription`, body: requestBody });
+  assert.equal(storage.getItem(storageKey), retainedBeforeReload);
 
-  installGlobal("fetch", async (_url, init = {}) => {
+  installGlobal("fetch", async (url, init = {}) => {
     const payload = JSON.parse(init.body);
-    calls.push(payload);
+    calls.push({ path: new URL(url).pathname, body: payload });
     return new Response(JSON.stringify(openSubscription(payload.checkout_id)), {
       status: 200,
       headers: { "content-type": "application/json" },
     });
   });
   const reloaded = admin();
-  const subscription = await reloaded.store.subscription.select(request);
+  assert.deepEqual(await reloaded.store.subscription.pendingSelection(target), requestBody);
+  const subscription = await reloaded.store.subscription.recoverSelection(target);
 
   assert.equal(calls.length, 2);
   assert.deepEqual(calls[1], calls[0]);
-  assert.equal(subscription.checkout.id, firstCheckoutId);
+  assert.equal(subscription.checkout.id, checkoutIds[0]);
   assert.equal(
     subscription.payment_action.client_secret,
     "cs_store_durable_subscription_secret_exact",
   );
   assert.equal(storage.getItem(storageKey), null);
+  assert.equal(await reloaded.store.subscription.recoverSelection(target), null);
+  assert.equal(await reloaded.store.subscription.pendingSelection(target), null);
+  assert.equal(calls.length, 2);
 });
 
-test("a definite Checkout failure clears the exact request and the next action gets a new ID", async () => {
+test("a definite Checkout failure clears the exact request and the next action retains a new caller ID", async () => {
   const { storage } = installBrowserState();
   const calls = [];
+  let reply = definiteFailure;
   installGlobal("fetch", async (_url, init = {}) => {
     calls.push(JSON.parse(init.body));
-    return new Response(
-      JSON.stringify({
-        message:
-          "Store subscription Checkout failed definitively; retry with a new checkout_id",
-        error: "BAD_REQUEST",
-        statusCode: 400,
-        validationErrors: [],
-      }),
-      {
-        status: 400,
-        headers: { "content-type": "application/json" },
-      },
-    );
+    return reply();
   });
+  const target = { store_id: storeId };
 
+  await admin().store.subscription.retainSelection(request);
   await assert.rejects(
-    admin().store.subscription.select(request),
+    admin().store.subscription.recoverSelection(target),
     /failed definitively/,
   );
   assert.equal(storage.getItem(storageKey), null);
+  await admin().store.subscription.retainSelection({ ...request, checkout_id: checkoutIds[1] });
   await assert.rejects(
-    admin().store.subscription.select(request),
+    admin().store.subscription.recoverSelection(target),
     /failed definitively/,
   );
   assert.equal(calls.length, 2);
-  assert.notEqual(calls[1].checkout_id, calls[0].checkout_id);
+  assert.equal(calls[0].checkout_id, checkoutIds[0]);
+  assert.equal(calls[1].checkout_id, checkoutIds[1]);
+  assert.equal(storage.getItem(storageKey), null);
+
+  reply = () => new Response(JSON.stringify({ message: "Checkout is still processing", statusCode: 409 }), {
+    status: 409,
+    headers: { "content-type": "application/json" },
+  });
+  await admin().store.subscription.retainSelection({ ...request, checkout_id: checkoutIds[2] });
+  await assert.rejects(admin().store.subscription.recoverSelection(target), (error) => error.statusCode === 409);
+  assert.deepEqual(await admin().store.subscription.pendingSelection(target), { ...requestBody, checkout_id: checkoutIds[2] });
+  await assert.rejects(
+    admin().store.subscription.retainSelection({ ...request, checkout_id: checkoutIds[0] }),
+    /different unresolved payload/,
+  );
+  assert.equal(calls.length, 3);
+});
+
+test("plan selection requires the caller's canonical checkout identity before any request", async () => {
+  const { storage } = installBrowserState();
+  let calls = 0;
+  installGlobal("fetch", async () => {
+    calls += 1;
+    return new Response(JSON.stringify(openSubscription(checkoutIds[0])), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  });
+  for (const checkout_id of [undefined, "", "checkout", checkoutIds[0].toUpperCase()]) {
+    await assert.rejects(
+      admin().store.subscription.select({ ...request, checkout_id }),
+      /caller's canonical UUID-v4 checkout_id/,
+    );
+    await assert.rejects(
+      admin().store.subscription.retainSelection({ ...request, checkout_id }),
+      /caller's canonical UUID-v4 checkout_id/,
+    );
+  }
+  await assert.rejects(admin().store.subscription.select({ ...request, store_id: "store-durable-subscription" }), TypeError);
+  assert.equal(calls, 0);
+  assert.equal(storage.getItem(storageKey), null);
+  const selected = await admin().store.subscription.select(request);
+  assert.equal(selected.checkout.id, checkoutIds[0]);
+  assert.equal(calls, 1);
   assert.equal(storage.getItem(storageKey), null);
 });
 
@@ -191,14 +248,20 @@ test("concurrent tabs issue at most one Store subscription Checkout POST", async
     });
   });
 
-  const first = admin().store.subscription.select(request);
+  const target = { store_id: storeId };
+  await admin().store.subscription.retainSelection(request);
+  const first = admin().store.subscription.recoverSelection(target);
   await providerEntered;
   await assert.rejects(
-    admin().store.subscription.select(request),
+    admin().store.subscription.recoverSelection(target),
+    /already active in another tab/,
+  );
+  await assert.rejects(
+    admin().store.subscription.pendingSelection(target),
     /already active in another tab/,
   );
   releaseProvider();
-  await first;
+  assert.equal((await first).checkout.id, checkoutIds[0]);
 
   assert.equal(calls.length, 1);
 });

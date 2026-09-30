@@ -131,16 +131,18 @@ export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
   };
 }
 
-async function submit<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action">>(
+async function submit<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action" | "payment">>(
   request: CartCheckoutRequest,
   transport: CartCheckoutTransport<Result>,
   options?: RequestOptions,
+  onDefiniteRejection?: () => void,
 ): Promise<CartCheckoutSubmission<Result>> {
   let result: Result;
   let success: RequestSuccessContext | undefined;
   try {
     result = await transport.post(request, { ...options, onSuccess: (context) => { success = context; } });
   } catch (error) {
+    if (record(error) && error.statusCode === 400) onDefiniteRejection?.();
     throw presentationChanged(error);
   }
   if (!validPaymentResult(result, request)) {
@@ -155,7 +157,7 @@ async function submit<Result extends Pick<OrderCheckoutResult, "order_id" | "num
     source.type !== "cart_acceptance" ||
     source.request_id !== request.request_id ||
     typeof source.submission_fingerprint !== "string" || !/^[0-9a-f]{64}$/.test(source.submission_fingerprint) ||
-    source.initial_payment_id !== (record(result) && record(result.payment) ? result.payment.id : null) ||
+    source.initial_payment_id !== (result.payment ? result.payment.id : null) ||
     !record(source.cart) || source.cart.cart_id !== request.id ||
     source.cart.version !== request.sources.cart.version ||
     !Array.isArray(source.converted_lines) ||
@@ -211,7 +213,7 @@ export async function retainCartCheckout(scope: string, input: CartCheckoutInput
   });
 }
 
-export async function checkoutCart<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action">>(
+export async function checkoutCart<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action" | "payment">>(
   input: CartCheckoutInput,
   transport: CartCheckoutTransport<Result>,
   options?: RequestOptions,
@@ -220,7 +222,7 @@ export async function checkoutCart<Result extends Pick<OrderCheckoutResult, "ord
   return finish(await submit(request, transport, options), options);
 }
 
-export async function recoverCartCheckout<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action">>(
+export async function recoverCartCheckout<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action" | "payment">>(
   scope: string,
   transport: CartCheckoutTransport<Result>,
   options?: RequestOptions,
@@ -231,7 +233,7 @@ export async function recoverCartCheckout<Result extends Pick<OrderCheckoutResul
     const pending = readDurableRequest(key, label);
     if (!pending) return null;
     const request = cartCheckoutRequest(durableRequestPayload(pending));
-    const result = await submit(request, transport, options);
+    const result = await submit(request, transport, options, () => clearDurableRequest(pending, label));
     clearDurableRequest(pending, label);
     return finish(result, options);
   });

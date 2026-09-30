@@ -221,6 +221,8 @@ export interface StartSupportConversationParams {
   store_id: string;
   agent_key?: string;
   channel_id?: string;
+  visitor_id?: string;
+  session_id?: string;
   channel_metadata?: Record<string, unknown>;
 }
 
@@ -238,6 +240,7 @@ export interface ReceiveSupportChannelMessageParams {
   channel_context: SupportConversationChannelContext;
   external_message_id?: string;
   content: string;
+  attachments?: EmailAttachmentReference[];
   metadata?: Record<string, unknown>;
   received_at?: EpochMilliseconds;
 }

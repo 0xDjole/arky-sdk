@@ -156,7 +156,6 @@ const getApi = (client, path) =>
 const createClient = () =>
   createAdmin({
     baseUrl: "https://api.example.test",
-    storeId,
     apiToken: "arky_api_test",
   });
 const response = (body, status = 200) =>
@@ -186,9 +185,10 @@ test("Company-wide membership scope is sent explicitly and survives exact reads"
   };
   try {
     const api = createClient().companies.membership;
-    assert.deepEqual(await api.create({ company_id: selectedStoreId, customer_id: id, role_ids: [], scope }), record);
+    assert.deepEqual(await api.create({ store_id: storeId, company_id: selectedStoreId, customer_id: id, role_ids: [], scope }), record);
     assert.deepEqual(calls[0].body.scope, scope);
-    assert.deepEqual(await api.get({ id }), record);
+    assert.equal(calls[0].path, `/v1/stores/${storeId}/company-memberships`);
+    assert.deepEqual(await api.get({ store_id: storeId, id }), record);
     assert.equal(calls[1].path, `/v1/stores/${storeId}/company-memberships/${id}`);
     assert.equal(calls.length, 2);
   } finally {
@@ -320,8 +320,9 @@ for (const definition of definitions) {
         assert.equal(call.target.searchParams.has("store_id"), false);
       }
       const signal = new AbortController().signal;
+      await assert.rejects(async () => api.get({ id: "one/segment?only" }), TypeError);
       await api.get(
-        { id: "one/segment?only" },
+        { store_id: storeId, id: "one/segment?only" },
         { signal, headers: { "x-client-trace": "company-contract" } },
       );
       assert.equal(
@@ -349,16 +350,22 @@ test("Market management preserves explicit creation, immutable route identity an
     currency: "bam",
     tax_mode: "inclusive",
     status: { type: "active" },
-    payment_option_ids: [],
     created_at: now,
     updated_at: now,
   };
   const usage = {
+    market_payment_option_ids: [id],
+    more_market_payment_options: false,
+    market_sales_channel_ids: [id],
+    more_market_sales_channels: false,
+    fulfillment_routing_policy_ids: [],
+    more_fulfillment_routing_policies: false,
+    market_zone_ids: [],
+    more_market_zones: false,
     catalog_entitlement_ids: [selectedStoreId],
     more_catalog_entitlements: true,
     cart_ids: [],
     more_carts: false,
-    is_default: true,
   };
   const updated = { ...record, tax_mode: "exclusive", updated_at: now + 1 };
   const deleting = {
@@ -387,26 +394,26 @@ test("Market management preserves explicit creation, immutable route identity an
     const client = createClient();
     const api = client.store.market;
     const create = { key: "bih", currency: "bam", tax_mode: "inclusive" };
-    assert.deepEqual(await api.create(create), record);
+    assert.deepEqual(await api.create({ store_id: storeId, ...create }), record);
     assert.equal(calls.at(-1).method, "POST");
     assert.deepEqual(calls.at(-1).body, create);
-    assert.deepEqual(await api.list(), { items: [record], cursor: null });
-    assert.deepEqual(await api.get({ id }), record);
-    assert.deepEqual(await api.usage(id), usage);
+    assert.deepEqual(await api.list({ store_id: storeId }), { items: [record], cursor: null });
+    assert.deepEqual(await api.get({ store_id: storeId, id }), record);
+    assert.deepEqual(await api.usage({ store_id: storeId, id }), usage);
     assert.equal(
       calls.at(-1).target.pathname,
       `/v1/stores/${storeId}/markets/${id}/usage`,
     );
+    assert.equal("is_default" in usage, false);
     const update = {
       expected_updated_at: now,
       tax_mode: "exclusive",
-      payment_option_ids: [],
     };
-    assert.deepEqual(await api.update({ id, ...update }), updated);
+    assert.deepEqual(await api.update({ store_id: storeId, id, ...update }), updated);
     assert.deepEqual(calls.at(-1).body, update);
     assert.equal(calls.at(-1).method, "PUT");
     assert.deepEqual(
-      await api.delete({ id, expected_updated_at: now + 1 }),
+      await api.delete({ store_id: storeId, id, expected_updated_at: now + 1 }),
       deleting,
     );
     assert.equal(calls.at(-1).method, "DELETE");
@@ -415,18 +422,6 @@ test("Market management preserves explicit creation, immutable route identity an
       [...calls.at(-1).target.searchParams],
       [["expected_updated_at", String(now + 1)]],
     );
-    assert.deepEqual(
-      await api.delete({
-        id,
-        expected_updated_at: now + 1,
-        replacement_default_market_id: selectedStoreId,
-      }),
-      deleting,
-    );
-    assert.equal(
-      calls.at(-1).target.searchParams.get("replacement_default_market_id"),
-      selectedStoreId,
-    );
     for (const call of calls) {
       assert.equal(call.headers.get("authorization"), "Bearer arky_api_test");
       assert.equal(call.body?.store_id, undefined);
@@ -434,7 +429,7 @@ test("Market management preserves explicit creation, immutable route identity an
       assert.equal(call.target.searchParams.has("store_id"), false);
     }
     const signal = new AbortController().signal;
-    await api.get({ id: "one/segment?only" }, {
+    await api.get({ store_id: storeId, id: "one/segment?only" }, {
       signal,
       headers: { "x-client-trace": "market-contract" },
     });
@@ -445,12 +440,16 @@ test("Market management preserves explicit creation, immutable route identity an
     assert.equal(calls.at(-1).target.search, "");
     assert.equal(calls.at(-1).signal, signal);
     assert.equal(calls.at(-1).headers.get("x-client-trace"), "market-contract");
-    client.setStoreId(selectedStoreId);
-    await api.list();
+    assert.equal("setStoreId" in client, false);
+    await api.list({ store_id: selectedStoreId });
     assert.equal(
       calls.at(-1).target.pathname,
       `/v1/stores/${selectedStoreId}/markets`,
     );
+    const before = calls.length;
+    await assert.rejects(async () => api.list({}), TypeError);
+    await assert.rejects(async () => api.usage(id), TypeError);
+    assert.equal(calls.length, before);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -471,7 +470,7 @@ test("B2B management preserves server denials and conflicts without replacing th
         };
         const api = getApi(createClient(), definition.path);
         await assert.rejects(
-          api.delete({ id, expected_updated_at: now }),
+          api.delete({ store_id: storeId, id, expected_updated_at: now }),
           (error) =>
             error.name === "ApiError" &&
             error.statusCode === status &&

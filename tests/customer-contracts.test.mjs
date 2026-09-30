@@ -6,7 +6,7 @@ import { createStorefront, initialize } from "../dist/storefront.js";
 import { MemoryStorage } from "./helpers/durable-request-fixtures.mjs";
 
 const baseUrl = "https://api.example.test";
-const storeId = "store-customer-contract";
+const storeId = "8f3d6b21-9a47-4c05-b1e8-2d7f0c5a9e63";
 const customerId = "customer-contract";
 
 function jsonResponse(body) {
@@ -95,7 +95,7 @@ test("storefront email capture reuses its Visitor without changing primary selec
 });
 
 test("Admin Customer namespace uses canonical routes, tagged status and independent identity selection", async () => {
-  const admin = createAdmin({ baseUrl, storeId, market: "bih" });
+  const admin = createAdmin({ baseUrl, market: "bih" });
   const calls = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
@@ -186,22 +186,24 @@ test("Admin Customer namespace uses canonical routes, tagged status and independ
 
   try {
     const created = await admin.customers.create({
+      store_id: storeId,
       email: "person@example.com",
       categories: [],
     });
     assert.equal(created.primary_email_identity_id, "identity-contract");
     assert.equal("identities" in created, false);
     assert.equal("email" in created, false);
-    await admin.customers.find({ status: "active", has_verified_email: true });
-    await admin.customers.get({ id: customerId });
-    await admin.customers.update({ id: customerId, email: "new@example.com" });
-    await admin.customers.update({ id: customerId, status: { type: "archived" } });
-    await admin.customers.update({ id: customerId, status: { type: "active" } });
-    await admin.customers.archive({ id: customerId });
+    await admin.customers.find({ store_id: storeId, status: "active", has_verified_email: true });
+    await admin.customers.get({ store_id: storeId, id: customerId });
+    await admin.customers.update({ store_id: storeId, id: customerId, email: "new@example.com" });
+    await admin.customers.update({ store_id: storeId, id: customerId, status: { type: "archived" } });
+    await admin.customers.update({ store_id: storeId, id: customerId, status: { type: "active" } });
+    await admin.customers.archive({ store_id: storeId, id: customerId });
     const importRows = [{ email: "person@example.com", categories: [] }];
-    await admin.customers.previewImport({ rows: importRows });
-    await admin.customers.import({ rows: importRows });
+    await admin.customers.previewImport({ store_id: storeId, rows: importRows });
+    await admin.customers.import({ store_id: storeId, rows: importRows });
     const sessions = await admin.customers.findSessions({
+      store_id: storeId,
       customer_id: customerId,
     });
     assert.deepEqual(
@@ -212,10 +214,11 @@ test("Admin Customer namespace uses canonical routes, tagged status and independ
       ],
     );
     await admin.customers.revokeSession({
+      store_id: storeId,
       customer_id: customerId,
       session_id: "session-visitor",
     });
-    await admin.customers.revokeAllSessions({ customer_id: customerId });
+    await admin.customers.revokeAllSessions({ store_id: storeId, customer_id: customerId });
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -243,6 +246,8 @@ test("Admin Customer namespace uses canonical routes, tagged status and independ
       ["POST", `/v1/stores/${storeId}/customers/${customerId}/sessions/revoke`],
     ],
   );
+  assert.deepEqual(calls[0].body, { email: "person@example.com", categories: [] });
+  assert.ok(calls.every(({ body }) => body === null || !("store_id" in body)));
   assert.deepEqual(
     calls.find(({ path }) => path.endsWith("/import/preview"))?.body,
     { rows: [{ email: "person@example.com", categories: [] }] },

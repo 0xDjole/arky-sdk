@@ -4,6 +4,10 @@ import { createAdmin } from "../dist/admin.js";
 import { initialize } from "../dist/storefront.js";
 import { storefrontSessionStorage } from "./helpers/storefront-session-storage.mjs";
 
+const STORE_ID = "2f7b4d91-8c36-4a05-b1e9-6d3a0c8f5e27";
+const OTHER_STORE_ID = "a6c1e8f4-3b92-4d57-9e0a-5f2d7b1c8e46";
+const requestId = (index) => `4d7e1b39-${String(index).padStart(4, "0")}-4c62-8a15-9e3f6b0d2c74`;
+
 test("initialized Customer returns retain the request and use only storefront discovery and reads", async () => {
   const original = globalThis.fetch;
   const calls = [];
@@ -13,7 +17,7 @@ test("initialized Customer returns retain the request and use only storefront di
     version: 2, customer: { id: "customer", status: { type: "active" }, identities: [], categories: [], created_at: 1, updated_at: 1 },
     session: { id: "session", customer_id: "customer", type: "visitor", token, status: { type: "active" }, expires_at: 1900000000000 },
   })) });
-  const request = { return_id: "return", command_id: "request", source: { type: "order", order_id: "order" }, lines: [{ id: "line", source: { type: "order_product", order_product_line_item_id: "product-line", unit_spans: [{ first_unit: 1, quantity: 1 }] }, reason: "damaged", items: [{ inventory_item_id: "item", quantity: 1 }] }] };
+  const request = { return_id: "return", request_id: requestId(100), source: { type: "order", order_id: "order" }, lines: [{ id: "line", source: { type: "order_product", order_product_line_item_id: "product-line", unit_spans: [{ first_unit: 1, quantity: 1 }] }, reason: "damaged", items: [{ inventory_item_id: "item", quantity: 1 }] }] };
   const before = structuredClone(request);
   const retained = { id: "return", status: { type: "requested", requested_at: 1700000000000 } };
   globalThis.fetch = async (url, init = {}) => {
@@ -30,6 +34,8 @@ test("initialized Customer returns retain the request and use only storefront di
     assert.deepEqual(calls[0].body, request);
     assert.deepEqual(calls[1].body, request);
     assert.deepEqual(Object.fromEntries(calls[2].url.searchParams), { order_id: "order", limit: "10", cursor: "prior" });
+    await assert.rejects(client.eshop.return.create({ ...request, request_id: "request" }), TypeError);
+    assert.equal(calls.length, 4);
     assert.ok(calls.every(call => call.headers.get("authorization") === `Bearer ${token}` && call.headers.get("x-arky-publishable-key") === publishableKey));
   } finally { globalThis.fetch = original; }
 });
@@ -42,15 +48,15 @@ test("Return discovery carries all filters and preserves empty continuation with
     return new Response(JSON.stringify({ items: [], cursor: "next" }), { headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ storeId: "default", baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop.return;
-    const query = { store_id: "selected", order_id: "order", destination_store_location_id: "warehouse", status: "open", limit: 20, sort_field: "updated_at", sort_direction: "desc" };
+    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop.return;
+    const query = { store_id: STORE_ID, order_id: "order", destination_store_location_id: "warehouse", status: "open", limit: 20, sort_field: "updated_at", sort_direction: "desc" };
     assert.deepEqual(await api.find(query), { items: [], cursor: "next" });
     assert.equal(calls.length, 1);
     await api.find({ ...query, cursor: "next" });
-    assert.equal(calls[0].pathname, "/v1/stores/selected/returns");
+    assert.equal(calls[0].pathname, `/v1/stores/${STORE_ID}/returns`);
     assert.deepEqual(Object.fromEntries(calls[0].searchParams), { order_id: "order", destination_store_location_id: "warehouse", status: "open", limit: "20", sort_field: "updated_at", sort_direction: "desc" });
     assert.equal(calls[1].searchParams.get("cursor"), "next");
-    assert.deepEqual(Object.keys(api).sort(), ["create", "execute", "find", "get"]);
+    assert.deepEqual(Object.keys(api).sort(), ["create", "execute", "find", "get", "inspectionUnit"]);
   } finally { globalThis.fetch = original; }
 });
 
@@ -63,15 +69,15 @@ test("Return commands retain exact caller identities and distinguish custody fro
     return new Response(JSON.stringify(retained), { headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ storeId: "default", baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop.return;
+    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop.return;
     const request = {
-      return_id: "return", source: { type: "order", order_id: "order" }, destination_store_location_id: "warehouse", command_id: "request",
+      store_id: STORE_ID, return_id: "return", source: { type: "order", order_id: "order" }, destination_store_location_id: "warehouse", request_id: requestId(200),
       lines: [{ id: "line", source: { type: "order_product", order_product_line_item_id: "product-line", unit_spans: [{ first_unit: 1, quantity: 1 }] }, reason: "damaged", items: [{ inventory_item_id: "item", quantity: 1 }] }],
     };
     assert.deepEqual(await api.create(request), retained);
     await api.create(request);
-    await api.get({ store_id: "selected", return_id: "return/id" });
-    const base = { return_id: "return", source: request.source, expected_updated_at: 1700000000000 };
+    await api.get({ store_id: OTHER_STORE_ID, return_id: "return/id" });
+    const base = { store_id: STORE_ID, return_id: "return", source: request.source, expected_updated_at: 1700000000000 };
     const commands = [
       { type: "approve", destination_store_location_id: "warehouse" },
       { type: "decline", reason: "Return window expired" },
@@ -84,7 +90,7 @@ test("Return commands retain exact caller identities and distinguish custody fro
       { type: "cancel" },
     ];
     for (const [index, command] of commands.entries()) {
-      const request = { ...base, command_id: `command-${index}`, command };
+      const request = { ...base, request_id: requestId(index), command };
       const before = structuredClone(request);
       await api.execute(request);
       await api.execute(request);
@@ -92,16 +98,21 @@ test("Return commands retain exact caller identities and distinguish custody fro
       assert.deepEqual(calls.at(-1), calls.at(-2));
     }
     assert.equal(calls.length, 3 + commands.length * 2);
-    assert.deepEqual(calls[0].body, request);
-    assert.deepEqual(calls[1].body, request);
-    assert.equal(calls[2].url.pathname, "/v1/stores/selected/returns/return%2Fid");
+    const { store_id: _createStore, ...created } = request;
+    assert.deepEqual(calls[0].body, created);
+    assert.deepEqual(calls[1].body, created);
+    assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/returns`);
+    assert.equal(calls[2].url.pathname, `/v1/stores/${OTHER_STORE_ID}/returns/return%2Fid`);
     assert.equal(calls[2].method, "GET");
     for (const [index, command] of commands.entries()) {
       const call = calls[index * 2 + 3];
-      assert.equal(call.url.pathname, "/v1/stores/default/returns/return/execute");
+      assert.equal(call.url.pathname, `/v1/stores/${STORE_ID}/returns/return/execute`);
       assert.equal(call.method, "POST");
-      assert.deepEqual(call.body, { source: base.source, expected_updated_at: base.expected_updated_at, command_id: `command-${index}`, command });
+      assert.deepEqual(call.body, { source: base.source, expected_updated_at: base.expected_updated_at, request_id: requestId(index), command });
     }
+    await assert.rejects(async () => api.execute({ ...base, request_id: "command-0", command: { type: "cancel" } }), TypeError);
+    await assert.rejects(async () => api.create({ ...request, request_id: "request" }), TypeError);
+    assert.equal(calls.length, 3 + commands.length * 2);
   } finally { globalThis.fetch = original; }
 });
 
@@ -114,10 +125,10 @@ test("Rental Returns name the exact unit and keep the Rental source on every com
     return new Response(JSON.stringify(retained), { headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ storeId: "default", baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop.return;
+    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop.return;
     const source = { type: "rental", rental_id: "rental" };
     const request = {
-      store_id: "selected", return_id: "rental-return", source, destination_store_location_id: "warehouse", command_id: "request",
+      store_id: STORE_ID, return_id: "rental-return", source, destination_store_location_id: "warehouse", request_id: requestId(300),
       lines: [{ id: "line", source: { type: "rental_unit", inventory_unit_id: "unit" }, reason: "customer_request",
         items: [{ inventory_item_id: "machine", quantity: 1 }] }],
     };
@@ -125,21 +136,21 @@ test("Rental Returns name the exact unit and keep the Rental source on every com
     assert.deepEqual(await api.create(request), retained);
     await api.create(request);
     assert.deepEqual(request, before);
-    const receipt = { store_id: "selected", return_id: "rental-return", source, command_id: "receive", expected_updated_at: 1700000000000,
+    const receipt = { store_id: STORE_ID, return_id: "rental-return", source, request_id: requestId(301), expected_updated_at: 1700000000000,
       command: { type: "receive", items: [{ line_id: "line", inventory_item_id: "machine", quantity: 1, inventory_unit_ids: ["unit"] }] } };
     await api.execute(receipt);
     await api.execute(receipt);
     const { store_id, ...created } = request;
     assert.deepEqual(calls.map((call) => [call.method, call.url.pathname]), [
-      ["POST", "/v1/stores/selected/returns"],
-      ["POST", "/v1/stores/selected/returns"],
-      ["POST", "/v1/stores/selected/returns/rental-return/execute"],
-      ["POST", "/v1/stores/selected/returns/rental-return/execute"],
+      ["POST", `/v1/stores/${STORE_ID}/returns`],
+      ["POST", `/v1/stores/${STORE_ID}/returns`],
+      ["POST", `/v1/stores/${STORE_ID}/returns/rental-return/execute`],
+      ["POST", `/v1/stores/${STORE_ID}/returns/rental-return/execute`],
     ]);
-    assert.equal(store_id, "selected");
+    assert.equal(store_id, STORE_ID);
     assert.deepEqual(calls[0].body, created);
     assert.deepEqual(calls[1].body, created);
-    assert.deepEqual(calls[2].body, { source, command_id: "receive", expected_updated_at: 1700000000000, command: receipt.command });
+    assert.deepEqual(calls[2].body, { source, request_id: requestId(301), expected_updated_at: 1700000000000, command: receipt.command });
     assert.deepEqual(calls[3].body, calls[2].body);
   } finally { globalThis.fetch = original; }
 });
@@ -152,9 +163,29 @@ test("Return discovery scopes an exact Rental without an Order filter", async ()
     return new Response(JSON.stringify({ items: [], cursor: null }), { headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ storeId: "default", baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop.return;
-    assert.deepEqual(await api.find({ rental_id: "rental", status: "open" }), { items: [], cursor: null });
-    assert.equal(calls[0].pathname, "/v1/stores/default/returns");
+    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop.return;
+    assert.deepEqual(await api.find({ store_id: STORE_ID, rental_id: "rental", status: "open" }), { items: [], cursor: null });
+    assert.equal(calls[0].pathname, `/v1/stores/${STORE_ID}/returns`);
     assert.deepEqual(Object.fromEntries(calls[0].searchParams), { rental_id: "rental", status: "open" });
+  } finally { globalThis.fetch = original; }
+});
+
+test("Return inspection reads one exact returned unit under its Return", async () => {
+  const original = globalThis.fetch;
+  const calls = [];
+  const unit = { store_id: STORE_ID, return_id: "return/id", line_id: "line", inventory_item_id: "item",
+    inventory_unit_id: "unit/one", order_units: [{ first_unit: 2, quantity: 1 }] };
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: new URL(url), method: init.method ?? "GET", body: init.body });
+    return new Response(JSON.stringify(unit), { headers: { "content-type": "application/json" } });
+  };
+  try {
+    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop.return;
+    assert.deepEqual(await api.inspectionUnit({ store_id: STORE_ID, return_id: "return/id", inventory_unit_id: "unit/one" }), unit);
+    assert.deepEqual(calls.map((call) => [call.method, call.url.pathname, call.url.search, call.body]), [
+      ["GET", `/v1/stores/${STORE_ID}/returns/return%2Fid/inspection-units/unit%2Fone`, "", undefined],
+    ]);
+    await assert.rejects(async () => api.inspectionUnit({ return_id: "return/id", inventory_unit_id: "unit/one" }), TypeError);
+    assert.equal(calls.length, 1);
   } finally { globalThis.fetch = original; }
 });

@@ -3,7 +3,8 @@ import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 
 const baseUrl = "https://api.example.test";
-const storeId = "selected/store";
+const storeId = "6b0e4a28-9d73-4c15-a8f2-3e7c1d5b9a64";
+const requestId = (index) => `8a3d5f17-${String(index).padStart(4, "0")}-4b29-9e61-0c4f7a2d8b35`;
 const fulfillmentId = "fulfillment/id";
 const revision = 1700000000000;
 
@@ -15,7 +16,7 @@ async function capture(response, request) {
     return new Response(JSON.stringify(response), { headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ baseUrl, storeId: "default", apiToken: "contract-token" });
+    const api = createAdmin({ baseUrl, apiToken: "contract-token" });
     return { calls, result: await request(api) };
   } finally { globalThis.fetch = originalFetch; }
 }
@@ -33,7 +34,7 @@ test("Warehouse slot resolution carries exact work positions and selected physic
   }));
   assert.deepEqual(result.result, slots);
   assert.deepEqual(result.calls, [{
-    url: `${baseUrl}/v1/stores/selected%2Fstore/fulfillment-orders/work%2Fid/unit-slots`,
+    url: `${baseUrl}/v1/stores/${storeId}/fulfillment-orders/work%2Fid/unit-slots`,
     method: "POST", body: { expected_updated_at: revision, lines },
   }]);
 });
@@ -41,22 +42,21 @@ test("Warehouse slot resolution carries exact work positions and selected physic
 test("Fulfillment preparation preserves exact selections, lot references and creation identity", async () => {
   const lines = [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 3, quantity: 1 }],
     selected_units: [{ fulfillment_unit_index: 3, inventory_unit_id: "physical-unit" }], lot_reference: "milk-batch-42" }];
-  const request = { fulfillment_id: fulfillmentId, fulfillment_order_id: "work", lines };
+  const request = { request_id: requestId(1), fulfillment_id: fulfillmentId, fulfillment_order_id: "work", lines };
   const before = structuredClone(request);
-  const reply = { id: fulfillmentId, status: { type: "preparing" }, lines, tracking: null, delivered_at: null };
+  const reply = { request_id: request.request_id, id: fulfillmentId, status: { type: "preparing" }, lines, tracking: null, delivered_at: null };
   const { calls, result } = await capture(reply, async (api) => {
     await api.eshop.fulfillment.create({ ...request, store_id: storeId });
-    await api.eshop.fulfillment.create({ ...request, store_id: storeId });
-    return api.eshop.fulfillment.create(request);
+    await assert.rejects(async () => api.eshop.fulfillment.create(request), TypeError);
+    await assert.rejects(async () => api.eshop.fulfillment.create({ ...request, store_id: storeId, request_id: "fulfillment-request" }), TypeError);
+    await assert.rejects(api.eshop.fulfillment.create({ ...request, store_id: storeId, fulfillment_id: "another-fulfillment" }), /did not match/);
+    return api.eshop.fulfillment.create({ ...request, store_id: storeId });
   });
   assert.deepEqual(result, reply);
   assert.deepEqual(request, before);
-  assert.deepEqual(calls[0], calls[1]);
-  assert.deepEqual(calls.map((call) => call.body), [request, request, request]);
-  assert.deepEqual(calls.map((call) => call.url), [
-    `${baseUrl}/v1/stores/selected%2Fstore/fulfillments`, `${baseUrl}/v1/stores/selected%2Fstore/fulfillments`,
-    `${baseUrl}/v1/stores/default/fulfillments`,
-  ]);
+  assert.deepEqual(calls[0], calls[2]);
+  assert.deepEqual(calls.map((call) => call.body), [request, { ...request, fulfillment_id: "another-fulfillment" }, request]);
+  assert.deepEqual(calls.map((call) => call.url), Array(3).fill(`${baseUrl}/v1/stores/${storeId}/fulfillments`));
   assert.ok(calls.every((call) => call.method === "POST"));
 });
 
@@ -71,12 +71,12 @@ test("Fulfillment control replays the same command, revision, tracking and lot e
     }
   });
   for (const [index, action] of actions.entries()) {
-    const body = { command_id: `command-${index}`, expected_updated_at: revision, action,
+    const body = { request_id: requestId(10 + index), expected_updated_at: revision, action,
       ...(action.type === "fulfill" ? { tracking, lot_references: [{ fulfillment_order_line_id: "line", lot_reference: "batch-42" }] } : {}) };
     const request = { store_id: storeId, fulfillment_id: fulfillmentId, ...body };
     const before = structuredClone(request);
     const reply = { id: fulfillmentId, status: action.type === "fulfill"
-      ? { type: "fulfilled", execution: { command_id: body.command_id } } : { type: action.type === "cancel" ? "cancelled" : "ready" } };
+      ? { type: "fulfilled", execution: { request_id: body.request_id } } : { type: action.type === "cancel" ? "cancelled" : "ready" } };
     const { calls, result } = await capture(reply, async (api) => {
       const first = await api.eshop.fulfillment.execute(request);
       const replayed = await api.eshop.fulfillment.execute(request);
@@ -86,7 +86,7 @@ test("Fulfillment control replays the same command, revision, tracking and lot e
     assert.deepEqual(request, before);
     assert.deepEqual(result, reply);
     assert.deepEqual(calls, [0, 1].map(() => ({
-      url: `${baseUrl}/v1/stores/selected%2Fstore/fulfillments/fulfillment%2Fid/commands`, method: "POST", body,
+      url: `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment%2Fid/commands`, method: "POST", body,
     })));
   }
 });
@@ -101,8 +101,8 @@ test("Fulfillment tracking and delivery confirmation carry the loaded revision",
   });
   assert.deepEqual(result, reply);
   assert.deepEqual(calls, [
-    { url: `${baseUrl}/v1/stores/selected%2Fstore/fulfillments/fulfillment%2Fid/tracking`, method: "POST", body: { expected_updated_at: revision, tracking } },
-    { url: `${baseUrl}/v1/stores/selected%2Fstore/fulfillments/fulfillment%2Fid/delivered`, method: "POST", body: { expected_updated_at: revision + 1, delivered_at } },
+    { url: `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment%2Fid/tracking`, method: "POST", body: { expected_updated_at: revision, tracking } },
+    { url: `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment%2Fid/delivered`, method: "POST", body: { expected_updated_at: revision + 1, delivered_at } },
   ]);
 });
 
@@ -112,10 +112,10 @@ test("Warehouse job controls retain exact hold, movement and partner command ide
   const cases = [
     ["addHold", "holds", { hold_id: "hold/id", note: "Awaiting customer confirmation" }, { hold_id: "hold/id", note: "Awaiting customer confirmation" }],
     ["releaseHold", "holds/hold%2Fid/release", { hold_id: "hold/id" }, {}],
-    ["move", "move", { command_id: "move-work", to_store_location_id: "destination", lines }, { command_id: "move-work", to_store_location_id: "destination", lines }],
+    ["move", "move", { request_id: requestId(20), to_store_location_id: "destination", lines }, { request_id: requestId(20), to_store_location_id: "destination", lines }],
     ...[{ type: "accept" }, { type: "reject", note: "No capacity" }, { type: "hand_back", note: "Staff will fulfill" },
-      { type: "resend" }, { type: "confirm_change" }].map((action) => [
-      "controlPartner", "partner", { command_id: `partner-${action.type}`, action }, { command_id: `partner-${action.type}`, action },
+      { type: "resend" }, { type: "confirm_change" }].map((action, index) => [
+      "controlPartner", "partner", { request_id: requestId(30 + index), action }, { request_id: requestId(30 + index), action },
     ]),
   ];
   for (const [method, path, input, payload] of cases) {
@@ -127,9 +127,15 @@ test("Warehouse job controls retain exact hold, movement and partner command ide
     });
     assert.deepEqual(request, before);
     assert.deepEqual(calls, [0, 1].map(() => ({
-      url: `${baseUrl}/v1/stores/selected%2Fstore/fulfillment-orders/work%2Fid/${path}`,
+      url: `${baseUrl}/v1/stores/${storeId}/fulfillment-orders/work%2Fid/${path}`,
       method: "POST", body: { expected_updated_at: revision, ...payload },
     })));
+    if ("request_id" in input) {
+      const rejected = await capture({ id: "work/id" }, async (api) => {
+        await assert.rejects(async () => api.eshop.fulfillmentOrder[method]({ ...request, request_id: "partner-command" }), TypeError);
+      });
+      assert.equal(rejected.calls.length, 0);
+    }
   }
 });
 
@@ -142,7 +148,7 @@ test("Warehouse discovery sends the complete job filter and leaves continuation 
   assert.equal(calls.length, 1);
   const url = new URL(calls[0].url);
   assert.equal(calls[0].method, "GET");
-  assert.equal(url.pathname, "/v1/stores/selected%2Fstore/fulfillment-orders");
+  assert.equal(url.pathname, `/v1/stores/${storeId}/fulfillment-orders`);
   const { store_id, ...filters } = query;
   assert.equal(store_id, storeId);
   assert.deepEqual(Object.fromEntries(url.searchParams), Object.fromEntries(Object.entries(filters).map(([key, value]) => [key, String(value)])));

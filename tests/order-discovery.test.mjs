@@ -4,6 +4,8 @@ import { createAdmin } from '../dist/admin.js';
 import { createStorefront } from '../dist/storefront.js';
 import { storefrontSessionStorage } from './helpers/storefront-session-storage.mjs';
 
+const STORE_ID = '9d3e7b50-1a26-4f8c-b74e-0c5a2d9f6e13';
+
 for (const scope of ['admin', 'storefront']) {
   test(`${scope} Order discovery preserves combined filters, chosen ordering and empty-page continuation`, async context => {
     const calls = [];
@@ -14,7 +16,7 @@ for (const scope of ['admin', 'storefront']) {
     });
     const token = `customer_visitor_${'c'.repeat(64)}`;
     const api = scope === 'admin'
-      ? createAdmin({ baseUrl: 'https://orders.test', storeId: 'store' }).eshop.order
+      ? createAdmin({ baseUrl: 'https://orders.test' }).eshop.order
       : createStorefront(`arky_pk_${'c'.repeat(43)}`, { apiUrl: 'https://orders.test',
         sessionStorage: storefrontSessionStorage(JSON.stringify({ version: 2,
           customer: { id: 'customer', status: { type: 'active' }, created_at: 1, updated_at: 1 },
@@ -23,12 +25,14 @@ for (const scope of ['admin', 'storefront']) {
       statuses: ['confirmed'], product_statuses: ['confirmed'], booking_statuses: ['completed'],
       product_ids: ['product'], booking_service_ids: ['service'], booking_resource_ids: ['resource'],
       from: 0, to: 20, created_at_from: 0, created_at_to: 30, limit: 1, sort_field: 'price', sort_direction: 'asc' };
-    const first = await api.find(filters);
+    const target = scope === 'admin' ? { store_id: STORE_ID } : {};
+    const first = await api.find({ ...target, ...filters });
     assert.deepEqual(first, { items: [], cursor: 'order:+/=' });
-    assert.deepEqual(await api.find({ ...filters, cursor: first.cursor }), { items: [], cursor: null });
+    assert.deepEqual(await api.find({ ...target, ...filters, cursor: first.cursor }), { items: [], cursor: null });
     assert.equal(calls[1].url.searchParams.get('cursor'), first.cursor);
     for (const call of calls) {
-      assert.equal(call.url.pathname, scope === 'admin' ? '/v1/stores/store/orders' : '/v1/storefront/orders');
+      assert.equal(call.url.pathname, scope === 'admin' ? `/v1/stores/${STORE_ID}/orders` : '/v1/storefront/orders');
+      assert.equal(call.url.searchParams.has('store_id'), false);
       assert.equal(call.method, 'GET');
       assert.equal(call.body, undefined);
       for (const [key, value] of Object.entries(filters)) {

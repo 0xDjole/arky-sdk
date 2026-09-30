@@ -124,7 +124,7 @@ export interface GetTaxRuleParams {
 }
 
 export interface FindTaxRulesParams {
-  store_id?:string;
+  store_id: string;
   market_zone_id?:string;
   tax_category_id?:string;
   default_only?:boolean;

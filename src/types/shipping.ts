@@ -49,7 +49,7 @@ export interface GetShippingMethodParams {
 }
 
 export interface FindShippingMethodsParams {
-  store_id?:string;
+  store_id: string;
   key?:string;
   location_id?:string;
   tax_category_id?:string;
@@ -61,7 +61,7 @@ export interface FindShippingMethodsParams {
 }
 
 export interface GetShippingMethodByKeyParams {
-  store_id?:string;
+  store_id: string;
   key:string;
 }
 
@@ -148,7 +148,7 @@ export interface GetShippingRateParams {
 }
 
 export interface FindShippingRatesParams {
-  store_id?:string;
+  store_id: string;
   market_zone_id?:string;
   shipping_method_id?:string;
   shipping_profile_id?:string;

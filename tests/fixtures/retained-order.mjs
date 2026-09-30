@@ -42,6 +42,7 @@ const money = {
       assessed_at: acceptedAt,
       tax_date: acceptedAt,
       buyer_evidence: null,
+      subscription_tax_group_id: null,
     },
   },
 };
@@ -66,10 +67,12 @@ const origin = {
 export const retainedOrder = {
   id: "order-history-contract",
   number: "1001",
-  store_id: "store-history-contract",
+  store_id: "e4c8a2f6-1b73-4d95-a0e7-5f2c9b6d3a18",
   source: {
     type: "cart_acceptance",
-    command_id: "accepted-command",
+    request_id: "9b2e4d71-6a35-4c08-8f1e-3d7a5c9b2e46",
+    submission_fingerprint: "c".repeat(64),
+    initial_payment_id: null,
     cart: { cart_id: "accepted-cart", version: "accepted-cart-version" },
     converted_lines: [{
       cart_line_item: { type: "product", line_item_id: "cart-product-line" },
@@ -109,7 +112,7 @@ export const retainedOrder = {
         product_key: "consultation-credit",
         variant_sku: "CREDIT-1",
         variant_attributes: [],
-        price: { type: "direct", price },
+        price: { type: "unit_price", price },
         fulfillment: { type: "none" },
         source_product_id: "accepted-product",
         source_variant_id: "accepted-variant",
@@ -156,7 +159,7 @@ export const retainedOrder = {
       form_submission: null,
       snapshot: {
         product_key: "guide",
-        price: { type: "direct", price },
+        price: { type: "unit_price", price },
         source_digital_product_id: "accepted-digital",
         content: { type: "accepted_assets", assets: [{
           source_asset_id: "accepted-asset", object_key: "retained/guide.pdf", version_id: "accepted-version",
@@ -194,6 +197,8 @@ export const retainedOrder = {
       updated_at: acceptedAt,
     },
   ],
+  subscription_tax_policies: [],
+  subscription_tax_groups: [],
   money: { currency: "usd", subtotal: 3000, delivery: 0, discount: 0, tax_total: 0, duty_total: 0, total: 3000, promotions: [] },
   delivery_groups: [],
   billing_address: address,

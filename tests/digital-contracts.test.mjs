@@ -6,7 +6,7 @@ import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
 
 const baseUrl = "https://api.example.test";
-const storeId = "store-digital-contract";
+const storeId = "c7a1e5d3-9b24-4f60-8e13-4a6d2b9f0c75";
 const publishableKey = `arky_pk_${"d".repeat(42)}A`;
 const visitorToken = `customer_visitor_${"d".repeat(64)}`;
 
@@ -81,7 +81,6 @@ function visitorStorage() {
 test("Admin Digital Product and Digital Asset methods use the canonical contracts", async () => {
   const admin = createAdmin({
     baseUrl,
-    storeId,
     market: "us",
     apiToken: "arky_api_digital_contract",
   });
@@ -102,6 +101,7 @@ test("Admin Digital Product and Digital Asset methods use the canonical contract
     updated_at: 1,
   };
   const update = {
+    store_id: storeId,
     digital_product_id: product.id,
     slugs: { en: "digital-product-updated" },
     status: { type: "active" },
@@ -155,9 +155,10 @@ test("Admin Digital Product and Digital Asset methods use the canonical contract
   let assets;
   let archived;
   try {
-    created = await admin.eshop.digital.product.create(create);
+    created = await admin.eshop.digital.product.create({ store_id: storeId, ...create });
     updated = await admin.eshop.digital.product.update(update);
     found = await admin.eshop.digital.product.find({
+      store_id: storeId,
       ids: [product.id],
       category_query: [
         {
@@ -175,15 +176,18 @@ test("Admin Digital Product and Digital Asset methods use the canonical contract
       created_at_to: 20,
     });
     uploaded = await admin.eshop.digital.asset.upload({
+      store_id: storeId,
       file: new File(["protected"], "guide.pdf", {
         type: "application/pdf",
       }),
     });
     assets = await admin.eshop.digital.asset.find({
+      store_id: storeId,
       limit: 25,
       cursor: "asset-cursor",
     });
     archived = await admin.eshop.digital.asset.archive({
+      store_id: storeId,
       asset_id: asset.id,
     });
   } finally {
@@ -231,6 +235,7 @@ test("Admin Digital Product and Digital Asset methods use the canonical contract
     },
   ]);
   assert.equal(productQuery.has("match_all"), false);
+  assert.equal(productQuery.has("store_id"), false);
   assert.equal(productQuery.get("status"), "active");
   assert.equal(productQuery.get("query"), "25");
   assert.equal(productQuery.get("limit"), "10");

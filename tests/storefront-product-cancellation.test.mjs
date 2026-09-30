@@ -3,7 +3,7 @@ import test from "node:test";
 import { initialize } from "../dist/storefront.js";
 import { storefrontSessionStorage } from "./helpers/storefront-session-storage.mjs";
 
-test("Customer product cancellation preserves exact units and command identity across a lost response", async () => {
+test("Customer product cancellation preserves exact units and request identity across a lost response", async () => {
   const original = globalThis.fetch;
   const calls = [];
   const publishableKey = `arky_pk_${"c".repeat(43)}`;
@@ -35,7 +35,7 @@ test("Customer product cancellation preserves exact units and command identity a
   const request = {
     order_id: "order/one",
     order_product_item_id: "line/one",
-    command_id: "customer-cancellation",
+    request_id: "5a8e2c17-3f94-4b60-9d1a-7e2c5b8f0d34",
     expected_updated_at: 1700000000000,
     units: [{ first_unit: 2, quantity: 4 }],
   };
@@ -73,11 +73,18 @@ test("Customer product cancellation preserves exact units and command identity a
       assert.equal(call.headers.get("authorization"), `Bearer ${token}`);
       assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
       assert.deepEqual(call.body, {
-        command_id: request.command_id,
+        request_id: request.request_id,
         expected_updated_at: request.expected_updated_at,
         units: request.units,
       });
     }
+    for (const request_id of [undefined, "customer-cancellation", request.request_id.toUpperCase()]) {
+      await assert.rejects(
+        client.eshop.order.cancelProductItem({ ...request, request_id }),
+        { name: "TypeError", message: "A business request requires the caller's canonical UUID-v4 request_id" },
+      );
+    }
+    assert.equal(calls.length, 2);
   } finally {
     globalThis.fetch = original;
   }

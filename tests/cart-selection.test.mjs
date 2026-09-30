@@ -28,16 +28,27 @@ function cart(overrides = {}) {
   };
 }
 
-function setup(respond) {
+function market(key, id = key) {
+  return { id, key, currency: "eur", tax_mode: "exclusive", payment_option_ids: [] };
+}
+
+function setup(respond, confirmMarket = (key) => market(key)) {
   const storage = storefrontSessionStorage(JSON.stringify({ version: 2, ...session() }));
   const calls = [];
+  const marketReads = [];
   globalThis.fetch = async (url, init) => {
-    const call = { path: new URL(url).pathname, query: new URL(url).search, method: init.method, body: init.body ? JSON.parse(init.body) : null, headers: new Headers(init.headers) };
+    const parsed = new URL(url);
+    const selected = parsed.pathname.match(/^\/v1\/storefront\/markets\/by-key\/([^/]+)$/);
+    if (selected) {
+      marketReads.push({ key: decodeURIComponent(selected[1]), method: init.method, headers: new Headers(init.headers) });
+      return Response.json(confirmMarket(decodeURIComponent(selected[1])));
+    }
+    const call = { path: parsed.pathname, query: parsed.search, method: init.method, body: init.body ? JSON.parse(init.body) : null, headers: new Headers(init.headers) };
     calls.push(call);
     return respond(call, calls.length);
   };
-  const client = () => createStorefront(publishableKey, { apiUrl, market: "market-a", sessionStorage: storage });
-  return { storage, calls, client };
+  const client = (options = { market: "market-a" }) => createStorefront(publishableKey, { apiUrl, ...options, sessionStorage: storage });
+  return { storage, calls, client, marketReads };
 }
 
 function receipt(value = cart()) {
@@ -45,7 +56,7 @@ function receipt(value = cart()) {
 }
 
 test("selected Cart creation coalesces and reload exact-reads the same Cart without storing its data or token", async () => {
-  const { client, calls, storage } = setup((call) => {
+  const { client, calls, storage, marketReads } = setup((call) => {
     if (call.method === "POST" && call.path === "/v1/storefront/carts") return receipt();
     assert.equal(call.path, `/v1/storefront/carts/${cartId}`);
     assert.equal(call.method, "GET");
@@ -57,6 +68,8 @@ test("selected Cart creation coalesces and reload exact-reads the same Cart with
   assert.equal(calls.length, 1);
   assert.deepEqual(await client().eshop.cart.current(), cart());
   assert.equal(calls.length, 2);
+  assert.deepEqual(marketReads.map(({ key, method }) => [key, method]), [["market-a", "GET"], ["market-a", "GET"], ["market-a", "GET"]]);
+  assert.ok(marketReads.every(({ headers }) => headers.get("x-arky-market") === "market-a"));
   const [[key, value]] = storage.values;
   assert.ok(key.startsWith("arky:selected-cart:v1:"));
   assert.ok(!key.includes(publishableKey));
@@ -188,6 +201,21 @@ test("a late Market or Customer change cannot install an old Cart in the new con
   await assert.rejects(pending, /Customer or Market changed/);
   assert.equal([...storage.values.keys()].filter((key) => key.startsWith("arky:selected-cart:")).length, 0);
   assert.equal(calls.filter((call) => call.path.endsWith("/carts")).length, 1);
+});
+
+test("the selected Market must be explicit and confirmed before any Cart read or creation", async () => {
+  const unselected = setup(() => receipt());
+  await assert.rejects(unselected.client({}).eshop.cart.current(), /Select a Market before selecting or creating a Cart/);
+  await assert.rejects(unselected.client({}).eshop.cart.create(), /Select a Market before selecting or creating a Cart/);
+  assert.equal(unselected.calls.length, 0);
+  assert.equal(unselected.marketReads.length, 0);
+  const wrongKey = setup(() => receipt(), () => market("market-b"));
+  await assert.rejects(wrongKey.client().eshop.cart.current(), /did not confirm the selected key/);
+  assert.equal(wrongKey.calls.length, 0);
+  const wrongIdentity = setup(() => receipt(), (key) => market(key, "market-other"));
+  await assert.rejects(wrongIdentity.client().eshop.cart.current(), /does not match the selected Cart/);
+  assert.equal(wrongIdentity.calls.filter((call) => call.method === "POST").length, 1);
+  assert.equal([...wrongIdentity.storage.values.keys()].filter((key) => key.startsWith("arky:selected-cart:")).length, 0);
 });
 
 test("a failed selection save retries persistence and exact reading without reposting creation", async () => {

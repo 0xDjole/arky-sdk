@@ -2,6 +2,7 @@ import { epochMilliseconds, type CustomerMoneyEvidence, type MonriRefundResult, 
 
 export const result = {
   claim: { id: "550e8400-e29b-41d4-a716-446655440000", fence: 1, started_at: epochMilliseconds(1000), deadline_at: epochMilliseconds(211000) },
+  evidence: { type: "original_response" },
   transaction_id: "18446744073709551615",
   amount: 4000,
   currency: null,

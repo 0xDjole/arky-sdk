@@ -3,6 +3,8 @@ import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { selectFulfillmentUnits, selectFulfillmentMoveUnits, FulfillmentSelectionError } from "../dist/utils.js";
 
+const STORE_ID = "4e6a0c8d-2f19-4b37-a5e8-1d7c9b3f0a62";
+
 test("Order execution readers preserve empty continuations, ownership and exact read routes", async () => {
   const previous = globalThis.fetch;
   const calls = [];
@@ -18,8 +20,8 @@ test("Order execution readers preserve empty continuations, ownership and exact 
     return new Response(JSON.stringify(replies.shift()), { headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ storeId: "default", market: "configured", baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop;
-    const scope = { store_id: "selected/store", order_id: "accepted", limit: 20 };
+    const api = createAdmin({ market: "configured", baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop;
+    const scope = { store_id: STORE_ID, order_id: "accepted", limit: 20 };
     assert.deepEqual(await api.fulfillment.find(scope), { items: [], cursor });
     assert.equal(calls.length, 1);
     assert.deepEqual(await api.fulfillment.find({ ...scope, cursor }), { items: [], cursor: null });
@@ -31,15 +33,18 @@ test("Order execution readers preserve empty continuations, ownership and exact 
     assert.deepEqual(Object.fromEntries(calls[1].url.searchParams), { order_id: "accepted", limit: "20", cursor });
     assert.deepEqual(Object.fromEntries(calls[3].url.searchParams), { order_id: "accepted", limit: "20" });
     assert.deepEqual(calls.map(({ url }) => url.pathname), [
-      "/v1/stores/selected%2Fstore/fulfillments",
-      "/v1/stores/selected%2Fstore/fulfillments",
-      "/v1/stores/selected%2Fstore/fulfillments/fulfillment%2Fid",
-      "/v1/stores/selected%2Fstore/fulfillment-orders",
-      "/v1/stores/selected%2Fstore/fulfillment-orders/work%2Fid",
-      "/v1/stores/selected%2Fstore/fulfillment-orders/work%2Fid/items",
+      `/v1/stores/${STORE_ID}/fulfillments`,
+      `/v1/stores/${STORE_ID}/fulfillments`,
+      `/v1/stores/${STORE_ID}/fulfillments/fulfillment%2Fid`,
+      `/v1/stores/${STORE_ID}/fulfillment-orders`,
+      `/v1/stores/${STORE_ID}/fulfillment-orders/work%2Fid`,
+      `/v1/stores/${STORE_ID}/fulfillment-orders/work%2Fid/items`,
     ]);
     assert.ok([2, 4, 5].every((index) => calls[index].url.search === ""));
     assert.ok(calls.every(({ method }) => method === "GET"));
+    await assert.rejects(async () => api.fulfillment.find({ ...scope, store_id: "selected/store" }), TypeError);
+    await assert.rejects(async () => api.fulfillmentOrder.get({ fulfillment_order_id: "work/id" }), TypeError);
+    assert.equal(calls.length, 6);
   } finally { globalThis.fetch = previous; }
 });
 
@@ -64,7 +69,7 @@ function selection(first_unit, quantity, line = "line") {
 function fulfilled() {
   return {
     id: "fulfillment", store_id: "store", fulfillment_order_id: "work",
-    status: { type: "fulfilled", execution: { command_id: "handover" } },
+    status: { type: "fulfilled", execution: { request_id: "handover" } },
     lines: [selection(0, 2)], tracking: null, delivered_at: null,
   };
 }

@@ -80,14 +80,14 @@ export function createCartController(cartApi: CartApi): CartController {
       return state;
     },
 
-    init(params = {}, options) {
+    init(params, options) {
       if (state.initialized && state.cart) {
         return Promise.resolve(state.cart);
       }
       return this.refresh(params, options);
     },
 
-    refresh(params = {}, options) {
+    refresh(params, options) {
       return runCartMutation(() =>
         hasCartId(params)
           ? cartApi.get(params, options)
@@ -143,13 +143,13 @@ export function createCartController(cartApi: CartApi): CartController {
       );
     },
 
-    clear(params = {}, options) {
+    clear(params, options) {
       return runCartMutation(() =>
         cartApi.clear({ ...params, id: currentCartId(params.id) }, options),
       );
     },
 
-    async quote(params = {}, options) {
+    async quote(params, options) {
       setState({ loading: true, error: null });
       try {
         const quote = await cartApi.quote(

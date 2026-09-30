@@ -2567,6 +2567,8 @@ export interface CustomerIdentity {
   updated_at: EpochMilliseconds;
 }
 
+export type StorefrontCustomerIdentity = Omit<CustomerIdentity, "store_id">;
+
 export interface Customer {
   id: string;
   store_id: string;

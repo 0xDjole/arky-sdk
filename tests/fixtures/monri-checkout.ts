@@ -7,7 +7,8 @@ type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 export type MonriCheckoutContracts = [
   True<Same<Extract<CheckoutPaymentAction, { type: 'monri_components' }>, MonriComponentsAction>>,
   True<Same<Parameters<Extract<EmbeddedCheckoutMount, { type: 'monri_components' }>['confirm']>[0], MonriBuyerDetails>>,
-  True<Same<typeof mountCheckoutAction, typeof mountStorefront>>
+  True<Same<typeof mountCheckoutAction, typeof mountStorefront>>,
+  True<Same<MonriComponentsAction['save_card'], boolean>>
 ];
 
 export function inspectMount(mount: EmbeddedCheckoutMount): void {

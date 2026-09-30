@@ -2,7 +2,7 @@ import { epochMilliseconds, type MonriCaptureProof, type PaymentCaptureEvidence 
 
 const evidence = {
   type: "stripe",
-  connected_account_id: "acct_capture",
+  account_id: "acct_capture",
   livemode: false,
   charge_id: "ch_capture",
   payment_intent_id: null,
@@ -13,7 +13,7 @@ const evidence = {
   },
 } satisfies PaymentCaptureEvidence;
 
-const { connected_account_id, ...missingAccount } = evidence;
+const { account_id, ...missingAccount } = evidence;
 const { livemode, ...missingMode } = evidence;
 // @ts-expect-error Capture evidence must retain its original Stripe account.
 const invalidAccount: PaymentCaptureEvidence = missingAccount;
@@ -27,8 +27,14 @@ export const monriEvidence = {
   payment_option_id: "550e8400-e29b-41d4-a716-446655440000",
   environment: "test",
   transaction_id: "18446744073709551615",
-  proof: { type: "notification", receipt_id: "550e8400-e29b-41d4-a716-446655440001" },
+  proof: { type: "notification", notification_id: "550e8400-e29b-41d4-a716-446655440001" },
 } satisfies PaymentCaptureEvidence;
+export const purchaseResponseEvidence = {
+  ...monriEvidence,
+  proof: { type: "purchase_response", receipt_id: "550e8400-e29b-41d4-a716-446655440003" },
+} satisfies PaymentCaptureEvidence;
+// @ts-expect-error
+export const connectedAccountEvidence: PaymentCaptureEvidence = { ...evidence, connected_account_id: "acct_capture" };
 
 const { proof, ...missingReceipt } = monriEvidence;
 // @ts-expect-error Monri collection evidence must identify its retained authenticated receipt.

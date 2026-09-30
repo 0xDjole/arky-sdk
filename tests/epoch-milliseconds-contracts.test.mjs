@@ -8,7 +8,9 @@ import { MemoryStorage } from "./helpers/durable-request-fixtures.mjs";
 const knownInstant = 1_704_164_645_678;
 const apiUrl = "https://api.time-contract.test";
 const publishableKey = `arky_pk_${"e".repeat(42)}A`;
-const adminKey = "arky_admin_session:v2";
+const adminKey = `arky_admin_session:${apiUrl}`;
+const storeId = "8e2c6a14-3f97-4b05-9d1e-7a4c0b8f2e63";
+const sessionId = "2a9d4f71-6c3b-4e85-b0f7-1d8e5c3a9b26";
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -18,7 +20,8 @@ function jsonResponse(body, status = 200) {
 }
 
 function browserStorage(context, storage) {
-  for (const [key, value] of [["window", {}], ["localStorage", storage]]) {
+  const browser = Object.assign(new EventTarget(), { localStorage: storage });
+  for (const [key, value] of [["window", browser], ["localStorage", storage]]) {
     const previous = Object.getOwnPropertyDescriptor(globalThis, key);
     Object.defineProperty(globalThis, key, { configurable: true, value });
     context.after(() => {
@@ -30,14 +33,24 @@ function browserStorage(context, storage) {
 
 function adminSession(expiresAt) {
   return {
-    version: 2,
-    session: {
-      scope: { type: 'account' },
-      access_token: "account-access",
-      refresh_token: "account-refresh",
-      access_expires_at: expiresAt,
-      email: "operator@example.test",
-    },
+    id: sessionId,
+    scope: { type: "account" },
+    access_token: "account-access",
+    refresh_token: "account-refresh",
+    access_expires_at: expiresAt,
+    email: "operator@example.test",
+  };
+}
+
+function refreshedSession(now) {
+  return {
+    ...adminSession(now + 60_001),
+    access_token: "refreshed-access",
+    refresh_token: "refreshed-refresh",
+    refresh_expires_at: now + 120_000,
+    authenticated_at: now,
+    created_at: now,
+    updated_at: now,
   };
 }
 
@@ -80,13 +93,14 @@ function customerKey() {
 test("auth cutover ignores old-unit namespaces without changing durable effect requests", (context) => {
   const storage = new MemoryStorage();
   browserStorage(context, storage);
-  storage.seed("arky_admin_session", JSON.stringify(adminSession(knownInstant).session));
+  storage.seed("arky_admin_session", JSON.stringify(adminSession(knownInstant)));
+  storage.seed("arky_admin_session:v2", JSON.stringify({ version: 2, session: adminSession(knownInstant) }));
   storage.seed(customerKey().replace(":v2:", ":v1:"), JSON.stringify({ ...customerSession(1_700_000_000), version: 1 }));
   const durableKey = "arky:audience-checkout:v1:pending-request";
   storage.seed(durableKey, JSON.stringify({ requestId: "frozen-id", payload: { amount: 200 } }));
   const before = [...storage.values];
   context.mock.method(globalThis, "fetch", () => { throw new Error("No network during initialization"); });
-  const admin = createAdmin({ baseUrl: apiUrl, storeId: "store", market: "us" });
+  const admin = createAdmin({ baseUrl: apiUrl, market: "us" });
   const customer = createStorefront(publishableKey, { apiUrl, sessionStorage: storage });
   assert.equal(admin.session, null);
   assert.equal(customer.session, null);
@@ -101,7 +115,10 @@ test("new auth storage preserves signed and early-epoch milliseconds without gue
     storage.seed(adminKey, JSON.stringify(adminSession(instant)));
     const record = customerSession(instant);
     storage.seed(key, JSON.stringify(record));
-    assert.equal(createAdmin({ baseUrl: apiUrl, storeId: "store", market: "us" }).isAuthenticated, true);
+    const admin = createAdmin({ baseUrl: apiUrl, market: "us" });
+    assert.equal(admin.isAuthenticated, true);
+    assert.deepEqual(admin.session, { id: sessionId, email: "operator@example.test", scope: { type: "account" } });
+    assert.equal(JSON.parse(storage.getItem(adminKey)).access_expires_at, instant);
     const storefront = createStorefront(publishableKey, { apiUrl, sessionStorage: storage });
     assert.equal(storefront.session.customer.created_at, instant);
     assert.equal(JSON.parse(storage.getItem(key)).session.expires_at, instant);
@@ -115,14 +132,18 @@ test("new auth storage rejects wrong envelopes and non-integer or unsafe instant
   for (const instant of [0.5, -0.5, Number.MAX_SAFE_INTEGER + 1, "1704164645678", null]) {
     storage.seed(adminKey, JSON.stringify(adminSession(instant)));
     storage.seed(key, JSON.stringify(customerSession(instant)));
-    assert.equal(createAdmin({ baseUrl: apiUrl, storeId: "store", market: "us" }).session, null);
+    assert.equal(createAdmin({ baseUrl: apiUrl, market: "us" }).session, null);
     assert.equal(createStorefront(publishableKey, { apiUrl, sessionStorage: storage }).session, null);
   }
   for (const version of [undefined, 1, 3]) {
-    storage.seed(adminKey, JSON.stringify({ ...adminSession(knownInstant), version }));
+    storage.seed(adminKey, JSON.stringify({ version, session: adminSession(knownInstant) }));
     storage.seed(key, JSON.stringify({ ...customerSession(knownInstant), version }));
-    assert.equal(createAdmin({ baseUrl: apiUrl, storeId: "store", market: "us" }).session, null);
+    assert.equal(createAdmin({ baseUrl: apiUrl, market: "us" }).session, null);
     assert.equal(createStorefront(publishableKey, { apiUrl, sessionStorage: storage }).session, null);
+  }
+  for (const id of [undefined, "", "session-time", sessionId.toUpperCase()]) {
+    storage.seed(adminKey, JSON.stringify({ ...adminSession(knownInstant), id }));
+    assert.equal(createAdmin({ baseUrl: apiUrl, market: "us" }).session, null);
   }
 });
 
@@ -135,9 +156,10 @@ test("Account expiry compares exact milliseconds including zero and the deadline
   context.mock.method(globalThis, "fetch", async (url, init) => {
     calls.push({ path: new URL(url).pathname, authorization: new Headers(init.headers).get("authorization") });
     if (String(url).endsWith("/v1/auth/refresh")) {
-      return jsonResponse({ access_token: "refreshed-access", refresh_token: "refreshed-refresh", access_expires_at: now + 60_001 });
+      assert.deepEqual(JSON.parse(init.body), { refresh_token: "account-refresh" });
+      return jsonResponse(refreshedSession(now));
     }
-    return jsonResponse({ id: "store" });
+    return jsonResponse({ id: storeId });
   });
   for (const [clock, expiry, shouldRefresh] of [
     [knownInstant, knownInstant + 1, false],
@@ -150,11 +172,14 @@ test("Account expiry compares exact milliseconds including zero and the deadline
     now = clock;
     calls.length = 0;
     storage.seed(adminKey, JSON.stringify(adminSession(expiry)));
-    const admin = createAdmin({ baseUrl: apiUrl, storeId: "store", market: "us" });
-    await admin.store.get({ id: "store" });
+    const admin = createAdmin({ baseUrl: apiUrl, market: "us" });
+    await admin.store.get({ id: storeId });
     assert.equal(calls.length, shouldRefresh ? 2 : 1);
+    assert.equal(calls.at(-1).path, `/v1/stores/${storeId}`);
     assert.equal(calls.at(-1).authorization, `Bearer ${shouldRefresh ? "refreshed-access" : "account-access"}`);
-    assert.equal(JSON.parse(storage.getItem(adminKey)).session.access_expires_at, shouldRefresh ? clock + 60_001 : expiry);
+    const stored = JSON.parse(storage.getItem(adminKey));
+    assert.equal(stored.access_expires_at, shouldRefresh ? clock + 60_001 : expiry);
+    assert.equal(stored.id, sessionId);
     if (shouldRefresh) assert.equal(calls[0].authorization, null);
   }
 });
@@ -163,16 +188,26 @@ test("invalid refreshed expiry fails closed before the protected request", async
   const storage = new MemoryStorage();
   browserStorage(context, storage);
   context.mock.method(Date, "now", () => knownInstant);
-  storage.seed(adminKey, JSON.stringify(adminSession(knownInstant)));
+  const retained = JSON.stringify(adminSession(knownInstant));
+  storage.seed(adminKey, retained);
   const calls = [];
+  let reply = () => jsonResponse({ ...refreshedSession(knownInstant), access_expires_at: knownInstant + 0.5 });
   context.mock.method(globalThis, "fetch", async (url) => {
     calls.push(String(url));
-    return jsonResponse({ access_token: "invalid", access_expires_at: knownInstant + 0.5 });
+    return reply();
   });
-  const admin = createAdmin({ baseUrl: apiUrl, storeId: "store", market: "us" });
-  await assert.rejects(admin.store.get({ id: "store" }), /invalid response/);
+  const admin = createAdmin({ baseUrl: apiUrl, market: "us" });
+  await assert.rejects(admin.store.get({ id: storeId }), /invalid credentials/);
   assert.deepEqual(calls, [`${apiUrl}/v1/auth/refresh`]);
+  assert.equal(storage.getItem(adminKey), retained);
+  reply = () => jsonResponse({ ...refreshedSession(knownInstant), id: "5f0c3e82-9a14-4d76-b2e8-6c1a7d9f4b30" });
+  await assert.rejects(admin.store.get({ id: storeId }), /invalid credentials/);
+  assert.equal(storage.getItem(adminKey), retained);
+  reply = () => jsonResponse({ message: "Session revoked", statusCode: 401 }, 401);
+  await assert.rejects(admin.store.get({ id: storeId }), (error) => error.statusCode === 401);
+  assert.deepEqual(calls, Array(3).fill(`${apiUrl}/v1/auth/refresh`));
   assert.equal(storage.getItem(adminKey), null);
+  assert.equal(admin.isAuthenticated, false);
 });
 
 test("request duration uses monotonic milliseconds independently of wall-clock movement", async (context) => {
@@ -186,9 +221,9 @@ test("request duration uses monotonic milliseconds independently of wall-clock m
     wallClock -= 60_000;
     return jsonResponse({ id: "store" });
   });
-  const admin = createAdmin({ baseUrl: apiUrl, storeId: "store", market: "us", apiToken: "token" });
+  const admin = createAdmin({ baseUrl: apiUrl, market: "us", apiToken: "token" });
   let duration;
-  await admin.store.update({ id: "store", name: "Time contract" }, { onSuccess(result) { duration = result.duration_ms; } });
+  await admin.store.update({ id: storeId, name: "Time contract" }, { onSuccess(result) { duration = result.duration_ms; } });
   assert.equal(duration, 7.25);
 });
 

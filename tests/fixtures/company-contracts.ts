@@ -245,7 +245,8 @@ export type CompanyContracts = [
   True<Equal<Awaited<ReturnType<CustomerGroupMemberApi["execute"]>>, PublicTypes.CustomerGroupMemberCommandResponse>>,
   True<Equal<CustomerGroupMember["admission"], CustomerGroupAdmission>>,
   True<RequiredField<JoinCustomerGroupParams, "request">>,
-  True<RequiredField<JoinCustomerGroupParams, "command_id">>,
+  True<RequiredField<JoinCustomerGroupParams, "request_id">>,
+  False<"command_id" extends keyof JoinCustomerGroupParams ? true : false>,
   True<RequiredField<GetCustomerGroupMemberParams, "id">>,
   True<RequiredField<GetCurrentCustomerGroupMemberParams, "customer_group_id">>,
   False<"store_id" extends keyof FindCustomerGroupMembersParams ? false : true>,
@@ -318,7 +319,7 @@ export type CompanyContracts = [
   True<RequiredField<InitialMarketInput, "key">>,
   True<RequiredField<InitialMarketInput, "currency">>,
   True<RequiredField<InitialMarketInput, "tax_mode">>,
-  False<null extends UpdateStoreParams["default_market_id"] ? true : false>,
+  False<"default_market_id" extends keyof UpdateStoreParams ? true : false>,
   False<
     null extends UpdateStoreParams["default_sales_channel_id"] ? true : false
   >,
@@ -329,14 +330,11 @@ export type CompanyContracts = [
   True<Equal<Awaited<ReturnType<MarketApi["delete"]>>, Market>>,
   True<Equal<Awaited<ReturnType<MarketApi["usage"]>>, MarketUsage>>,
   True<Equal<PublicTypes.MarketUsage, MarketUsage>>,
-  True<Equal<keyof MarketUsage, "market_payment_option_ids" | "more_market_payment_options" | "market_sales_channel_ids" | "more_market_sales_channels" | "fulfillment_routing_policy_ids" | "more_fulfillment_routing_policies" | "market_zone_ids" | "more_market_zones" | "catalog_entitlement_ids" | "more_catalog_entitlements" | "cart_ids" | "more_carts" | "is_default">>,
+  True<Equal<keyof MarketUsage, "market_payment_option_ids" | "more_market_payment_options" | "market_sales_channel_ids" | "more_market_sales_channels" | "fulfillment_routing_policy_ids" | "more_fulfillment_routing_policies" | "market_zone_ids" | "more_market_zones" | "catalog_entitlement_ids" | "more_catalog_entitlements" | "cart_ids" | "more_carts">>,
+  False<"is_default" extends keyof MarketUsage ? true : false>,
   True<RequiredField<UpdateMarketParams, "expected_updated_at">>,
   True<RequiredField<DeleteMarketParams, "expected_updated_at">>,
-  False<
-    null extends DeleteMarketParams["replacement_default_market_id"]
-      ? true
-      : false
-  >,
+  False<"replacement_default_market_id" extends keyof DeleteMarketParams ? true : false>,
   False<"key" extends keyof UpdateMarketParams ? true : false>,
   False<"currency" extends keyof UpdateMarketParams ? true : false>,
   False<"rule_ids" extends keyof MarketUsage ? true : false>,

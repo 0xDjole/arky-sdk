@@ -25,7 +25,7 @@ export type InventoryContracts = [
   True<Same<keyof InventoryStockLevel["item"], "key" | "sku" | "tracking">>,
   True<Same<InventoryStockLevel["item"]["tracking"], InventoryTracking>>,
   True<Same<InventoryQuantity["type"], "on_hand" | "unavailable">>,
-  True<Same<keyof InventoryMovement, "id" | "store_id" | "inventory_item_id" | "inventory_unit_id" | "store_location_id" | "quantity" | "delta" | "after" | "reason" | "created_at" | "command_id" | "source_line_id">>,
+  True<Same<keyof InventoryMovement, "id" | "store_id" | "inventory_item_id" | "inventory_unit_id" | "store_location_id" | "quantity" | "delta" | "after" | "reason" | "created_at" | "request_id" | "source_line_id">>,
   True<Same<InventoryMovement["quantity"], InventoryQuantity>>,
   True<Same<InventoryMovement["inventory_unit_id"], string | null>>,
   True<Same<keyof Extract<InventoryMovementReason, { type: "dispatched" }>, "type" | "fulfillment_order_id" | "fulfillment_id">>,
@@ -44,15 +44,17 @@ export type InventoryContracts = [
   True<Same<keyof Extract<IncomingStock, { type: "counted" }>, "type" | "from_store_location_id" | "quantity">>,
   True<Same<Parameters<Api["inventoryMovement"]["record"]>[0], RecordInventoryMovementParams>>,
   True<Same<RecordInventoryMovementParams["reason"]["type"], "receiving" | "adjustment" | "damage">>,
+  True<RequiredField<RecordInventoryMovementParams, "request_id">>,
+  True<RequiredField<FindInventoryMovementsParams, "store_id">>,
   True<"inventoryReservation" extends keyof Api ? false : true>,
 ];
 
 export const combinedMovementQuery: FindInventoryMovementsParams = {
-  inventory_item_id: "item", store_location_id: "location", inventory_unit_id: "unit",
-  command_id: "command", sort_field: "created_at", sort_direction: "desc", cursor: "next",
+  store_id: "store", inventory_item_id: "item", store_location_id: "location", inventory_unit_id: "unit",
+  request_id: "7c4e1a93-2d58-4b06-9f3e-5a8c0d2b6e19", sort_field: "created_at", sort_direction: "desc", cursor: "next",
 };
 
 export const inventoryItemQuery: FindInventoryItemsParams = {
-  query: "cobalt", status: "archived", tracking: "untracked",
+  store_id: "store", query: "cobalt", status: "archived", tracking: "untracked",
   sort_field: "updated_at", sort_direction: "asc", cursor: "next", limit: 20,
 };

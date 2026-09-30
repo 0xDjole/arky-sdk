@@ -7,15 +7,16 @@ const monriConcerns: OrderFinancialConcern[] = [
 ];
 void monriConcerns;
 
-const payments: FindPaymentsParams = { order_id: "order", status: "unknown", sort_field: "updated_at", sort_direction: "asc", limit: 25 };
-const refunds: FindRefundsParams = { order_id: "order", payment_id: "payment", status: "requested", sort_field: "created_at", sort_direction: "desc", cursor: "opaque" };
-const disputes: FindPaymentDisputesParams = { payment_id: "payment", status: "warning_needs_response", sort_field: "updated_at", sort_direction: "asc", limit: 25, cursor: "opaque" };
-const client = createAdmin({ baseUrl: "https://example.test", apiToken: "arky_api_fixture", storeId: "store", market: "market" });
+const store_id = "d2a64f1b-8c37-4e59-b0a1-6f3e9c7d2b84";
+const payments: FindPaymentsParams = { store_id, order_id: "order", status: "unknown", sort_field: "updated_at", sort_direction: "asc", limit: 25 };
+const refunds: FindRefundsParams = { store_id, order_id: "order", payment_id: "payment", status: "requested", sort_field: "created_at", sort_direction: "desc", cursor: "opaque" };
+const disputes: FindPaymentDisputesParams = { store_id, payment_id: "payment", status: "warning_needs_response", sort_field: "updated_at", sort_direction: "asc", limit: 25, cursor: "opaque" };
+const client = createAdmin({ baseUrl: "https://example.test", apiToken: "arky_api_fixture", market: "market" });
 void client.eshop.payment.find(payments);
 void client.eshop.refund.find(refunds);
 void client.eshop.dispute.find(disputes);
 void client.eshop.order.findPayments({ ...payments, order_id: "order" });
-void client.eshop.order.getPayment({ order_id: "order", payment_id: "payment" });
+void client.eshop.order.getPayment({ store_id, order_id: "order", payment_id: "payment" });
 declare const storefront: ReturnType<typeof createStorefront>;
 void storefront.eshop.order.findPayments({ order_id: "order", status: "unknown", limit: 25, cursor: "next" });
 void storefront.eshop.order.getPayment({ order_id: "order", payment_id: "payment" });

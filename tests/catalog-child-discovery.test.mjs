@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createAdmin } from '../dist/admin.js';
 
+const STORE_ID = '8e5d1f60-3a2c-4b7e-9f18-6c4a2d0b7e95';
+
 const sellable = { type: 'product_variant', product_id: 'product', variant_id: 'variant' };
 for (const [owner, path, filters] of [
   ['price', 'prices', { sellable, price_list_id: 'list', currency: 'eur', status: 'active', sort_field: 'updated_at', sort_direction: 'asc' }],
@@ -16,17 +18,18 @@ for (const [owner, path, filters] of [
       return new Response(JSON.stringify({ items: [], cursor: 'after-stale' }), { headers: { 'content-type': 'application/json' } });
     };
     try {
-      const api = createAdmin({ baseUrl: 'https://api.example.test', storeId: 'default', apiToken: 'arky_api_test' }).eshop[owner];
-      const input = { store_id: 'selected', ...filters, limit: 50, cursor: 'previous' };
+      const api = createAdmin({ baseUrl: 'https://api.example.test', apiToken: 'arky_api_test' }).eshop[owner];
+      const input = { store_id: STORE_ID, ...filters, limit: 50, cursor: 'previous' };
       assert.deepEqual(await api.find(input), { items: [], cursor: 'after-stale' });
-      assert.equal(calls[0].url.pathname, `/v1/stores/selected/${path}`);
+      assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/${path}`);
       assert.equal(calls[0].url.searchParams.has('store_id'), false);
       for (const [key, value] of Object.entries(input)) {
         if (key === 'store_id') continue;
         assert.equal(calls[0].url.searchParams.get(key), typeof value === 'object' ? JSON.stringify(value) : String(value));
       }
       if (owner === 'price') {
-        await api.find({ base_only: true, currency: 'usd' });
+        await api.find({ store_id: STORE_ID, base_only: true, currency: 'usd' });
+        assert.equal(calls[1].url.pathname, `/v1/stores/${STORE_ID}/prices`);
         assert.equal(calls[1].url.searchParams.get('base_only'), 'true');
         assert.equal(calls[1].url.searchParams.has('price_list_id'), false);
       }

@@ -5,7 +5,9 @@ import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
 
 const baseUrl = "https://api.example.test";
-const defaultStoreId = "store-contract";
+const storeId = "5d1e8b24-9c63-4a07-b2f5-8e3a6c0d9f41";
+const otherStoreId = "a7c3e915-2d48-4b6f-8e01-3f9b5d7c2a64";
+const fulfillmentRequestId = "6e2a9d47-1b85-4c30-9f7e-2d4c8a1b5e93";
 const resourceId = "018f477d-1cae-7c12-bf12-123456789abc";
 const itemPercentageDiscountId = "86b7bf60-67e8-4c92-b14c-e98f4b2f4101";
 const itemFixedDiscountId = "fca5ba8e-86af-4dd8-a1cd-6d19bca62e12";
@@ -50,7 +52,6 @@ function jsonResponse(body) {
 function admin() {
   return createAdmin({
     baseUrl,
-    storeId: defaultStoreId,
     apiToken: "contract-token",
   });
 }
@@ -101,6 +102,7 @@ test("Checkout quote preserves per-unit promotion/manual provenance and delivery
       assessed_at: 1,
       tax_date: 1,
       buyer_evidence: null,
+      subscription_tax_group_id: null,
     },
   };
   const lineMoney = {
@@ -217,6 +219,8 @@ test("Checkout quote preserves per-unit promotion/manual provenance and delivery
         product_id: "product-contract",
         variant_id: "variant-contract",
         quantity: 1,
+        purchase: { type: "catalog" },
+        purchase_access: null,
         money: {
           subtotal: 2000,
           discount_total: 250,
@@ -348,8 +352,9 @@ test("Checkout quote preserves per-unit promotion/manual provenance and delivery
     order: quote,
     presentation_digest: "c".repeat(64),
   };
-  const { result } = await captureFetch(response, () =>
+  const { calls, result } = await captureFetch(response, () =>
     admin().eshop.order.getQuote({
+      store_id: storeId,
       market: "us",
       locale: "en",
       line_items: [
@@ -358,10 +363,31 @@ test("Checkout quote preserves per-unit promotion/manual provenance and delivery
           product_id: "product-contract",
           variant_id: "variant-contract",
           quantity: 1,
+          purchase: { type: "catalog" },
         },
       ],
     }),
   );
+  assert.deepEqual(calls, [
+    {
+      url: `${baseUrl}/v1/stores/${storeId}/orders/quote`,
+      method: "POST",
+      body: {
+        market: "us",
+        locale: "en",
+        line_items: [
+          {
+            type: "product",
+            product_id: "product-contract",
+            variant_id: "variant-contract",
+            quantity: 1,
+            purchase: { type: "catalog" },
+          },
+        ],
+        delivery_groups: [],
+      },
+    },
+  ]);
   assert.deepEqual(result, response);
   const product = result.order.product_lines[0];
   const allocations = product.money_runs[0].per_unit.discount_allocations;
@@ -386,14 +412,15 @@ test("Checkout quote preserves per-unit promotion/manual provenance and delivery
 });
 
 test("subscription selection returns its ephemeral Stripe action in one POST", async () => {
+  const checkoutId = "3b7e1c95-6d24-4f08-a9e3-1c5f7b2d8e60";
   const subscription = {
     id: "d397ff50-690b-4da7-9fb9-17740e535d69",
-    store_id: "store-subscription",
+    store_id: storeId,
     plan_access: null,
     status: { type: "pending" },
     operation: null,
     checkout: {
-      id: "018f477d-1cae-4c12-bf12-123456789abc",
+      id: checkoutId,
       plan_id: "pro",
       stripe_price_id: "price_pro",
       stripe_customer_id: null,
@@ -407,7 +434,6 @@ test("subscription selection returns its ephemeral Stripe action in one POST", a
       type: "stripe_embedded_checkout",
       publishable_key: "pk_test_subscription",
       client_secret: "cs_subscription_secret_exact",
-      stripe_account_id: null,
       expires_at: 1_800_000_000_000,
     },
     trial_started_at: null,
@@ -427,7 +453,8 @@ test("subscription selection returns its ephemeral Stripe action in one POST", a
   let result;
   try {
     result = await admin().store.subscription.select({
-      store_id: "store-subscription",
+      store_id: storeId,
+      checkout_id: checkoutId,
       plan_id: "pro",
       return_url: "https://merchant.test/return",
     });
@@ -438,24 +465,28 @@ test("subscription selection returns its ephemeral Stripe action in one POST", a
   assert.equal(calls.length, 1);
   assert.equal(
     calls[0].url,
-    `${baseUrl}/v1/stores/store-subscription/subscription`,
+    `${baseUrl}/v1/stores/${storeId}/subscription`,
   );
   assert.equal(calls[0].method, "POST");
   assert.match(calls[0].body.checkout_id, uuidV4Pattern);
-  assert.equal(calls[0].body.plan_id, "pro");
-  assert.equal(calls[0].body.return_url, "https://merchant.test/return");
+  assert.deepEqual(calls[0].body, {
+    checkout_id: checkoutId,
+    plan_id: "pro",
+    return_url: "https://merchant.test/return",
+  });
   assert.deepEqual(result, subscription);
   assert.deepEqual(result.status, { type: "pending" });
   assert.equal(result.operation, null);
   assert.equal("provider" in result, false);
   assert.equal("checkout_id" in result, false);
   assert.equal("payment" in result, false);
+  assert.deepEqual(Object.keys(result.payment_action).sort(), ["client_secret", "expires_at", "publishable_key", "type"]);
 });
 
 test("subscription reads return no payment action", async () => {
   const subscription = {
     id: "d397ff50-690b-4da7-9fb9-17740e535d69",
-    store_id: "store-subscription",
+    store_id: storeId,
     plan_access: {
       plan_id: "pro",
       started_at: 1,
@@ -470,12 +501,12 @@ test("subscription reads return no payment action", async () => {
     updated_at: 2,
   };
   const { calls, result } = await captureFetch(subscription, () =>
-    admin().store.subscription.get({ store_id: "store-subscription" }),
+    admin().store.subscription.get({ store_id: storeId }),
   );
 
   assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/stores/store-subscription/subscription`,
+      url: `${baseUrl}/v1/stores/${storeId}/subscription`,
       method: "GET",
       body: undefined,
     },
@@ -487,26 +518,50 @@ test("the permanent payment-option binding has no delete operation", () => {
   assert.equal("delete" in admin().store.paymentOption, false);
 });
 
-test("Stripe Express Dashboard uses one authenticated provider link request", async () => {
-  const { calls, result } = await captureFetch(
-    { dashboard_url: "https://connect.stripe.test/express/link" },
-    () =>
-      admin().store.paymentOption.stripe.openDashboard({
-        store_id: "store-dashboard",
-        id: "provider-contract",
-      }),
+test("merchant-owned Stripe has no Express Dashboard link and observes the account through one bodyless refresh", async () => {
+  const stripe = admin().store.paymentOption.stripe;
+  for (const removed of ["openDashboard", "connect", "getConnection"]) {
+    assert.equal(removed in stripe, false);
+  }
+  const option = {
+    id: "provider-contract",
+    store_id: storeId,
+    key: "card",
+    blocks: [],
+    status: { type: "active" },
+    type: {
+      type: "stripe",
+      connection: {
+        type: "configured",
+        configuration: {
+          account_id: "acct_merchant",
+          livemode: false,
+          publishable_key: "pk_test_merchant",
+          account_observed_at: 2,
+          charges_enabled: true,
+          webhook: { type: "unconfigured" },
+        },
+      },
+    },
+    created_at: 1,
+    updated_at: 2,
+  };
+  const { calls, result } = await captureFetch(option, () =>
+    stripe.refresh({
+      store_id: storeId,
+      id: "provider-contract",
+    }),
   );
 
-  assert.deepEqual(result, {
-    dashboard_url: "https://connect.stripe.test/express/link",
-  });
+  assert.deepEqual(result, option);
   assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/stores/store-dashboard/payment-options/stripe/provider-contract/dashboard`,
+      url: `${baseUrl}/v1/stores/${storeId}/payment-options/stripe/provider-contract/refresh`,
       method: "POST",
-      body: {},
+      body: undefined,
     },
   ]);
+  await assert.rejects(async () => stripe.refresh({ store_id: "store-dashboard", id: "provider-contract" }), TypeError);
 });
 
 test("storefront support keeps its capability token in one forced header on the connected Store", async () => {
@@ -623,8 +678,8 @@ test("storefront support keeps its capability token in one forced header on the 
     false,
   );
   assert.equal("support_token" in calls[1].body, false);
+  assert.equal(calls[1].url, `${baseUrl}/v1/storefront/support/conversations/conversation-contract/messages`);
   assert.deepEqual(calls[1].body, {
-    conversation_id: "conversation-contract",
     message_id: resourceId,
     input: { type: "text", content: "Help" },
   });
@@ -658,11 +713,12 @@ test("provider-effect APIs send one resource identity and return direct server e
       },
       request: (arky) =>
         arky.store.webhook.test({
+          store_id: storeId,
           delivery_id: resourceId,
           webhook_id: "webhook-contract",
         }),
       expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/webhooks/test`,
+        url: `${baseUrl}/v1/stores/${storeId}/webhooks/test`,
         method: "POST",
         body: { delivery_id: resourceId, webhook_id: "webhook-contract" },
       },
@@ -676,6 +732,7 @@ test("provider-effect APIs send one resource identity and return direct server e
       },
       request: (arky) =>
         arky.eshop.refund.create({
+          store_id: storeId,
           payment_id: "payment-refund-contract",
           refund_id: resourceId,
           payment_capture_id: null,
@@ -695,7 +752,7 @@ test("provider-effect APIs send one resource identity and return direct server e
           private_note: "Duplicate checkout",
         }),
       expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/refunds`,
+        url: `${baseUrl}/v1/stores/${storeId}/refunds`,
         method: "POST",
         body: {
           payment_id: "payment-refund-contract",
@@ -727,6 +784,7 @@ test("provider-effect APIs send one resource identity and return direct server e
       },
       request: (arky) =>
         arky.eshop.refund.create({
+          store_id: storeId,
           payment_id: "payment-cash-refund-contract",
           refund_id: resourceId,
           payment_capture_id: null,
@@ -746,7 +804,7 @@ test("provider-effect APIs send one resource identity and return direct server e
           private_note: "Cash returned by operator",
         }),
       expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/refunds`,
+        url: `${baseUrl}/v1/stores/${storeId}/refunds`,
         method: "POST",
         body: {
           payment_id: "payment-cash-refund-contract",
@@ -778,7 +836,7 @@ test("provider-effect APIs send one resource identity and return direct server e
       },
       request: (arky) =>
         arky.eshop.refund.create({
-          store_id: defaultStoreId,
+          store_id: storeId,
           payment_id: "audience-payment-contract",
           refund_id: resourceId,
           payment_capture_id: null,
@@ -798,7 +856,7 @@ test("provider-effect APIs send one resource identity and return direct server e
           private_note: "Risk review",
         }),
       expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/refunds`,
+        url: `${baseUrl}/v1/stores/${storeId}/refunds`,
         method: "POST",
         body: {
           payment_id: "audience-payment-contract",
@@ -823,14 +881,15 @@ test("provider-effect APIs send one resource identity and return direct server e
     },
     {
       name: "fulfillment creation",
-      response: { id: resourceId, store_id: defaultStoreId, fulfillment_order_id: "work", status: { type: "preparing" } },
+      response: { request_id: fulfillmentRequestId, id: resourceId, store_id: storeId, fulfillment_order_id: "work", status: { type: "preparing" } },
       request: (arky) => arky.eshop.fulfillment.create({
+        store_id: storeId, request_id: fulfillmentRequestId,
         fulfillment_id: resourceId, fulfillment_order_id: "work",
         lines: [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 0, quantity: 2 }], selected_units: [], lot_reference: null }],
       }),
       expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/fulfillments`, method: "POST",
-        body: { fulfillment_id: resourceId, fulfillment_order_id: "work",
+        url: `${baseUrl}/v1/stores/${storeId}/fulfillments`, method: "POST",
+        body: { request_id: fulfillmentRequestId, fulfillment_id: resourceId, fulfillment_order_id: "work",
           lines: [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 0, quantity: 2 }], selected_units: [], lot_reference: null }] },
       },
     },
@@ -859,6 +918,7 @@ test("money and Fulfillment clients reject evidence for any other resource ID", 
       },
       request: (arky) =>
         arky.eshop.refund.create({
+          store_id: storeId,
           payment_id: "payment-refund-contract",
           refund_id: resourceId,
           payment_capture_id: null,
@@ -879,6 +939,7 @@ test("money and Fulfillment clients reject evidence for any other resource ID", 
       },
       request: (arky) =>
         arky.eshop.refund.create({
+          store_id: storeId,
           payment_id: "payment-refund-contract",
           refund_id: resourceId,
           payment_capture_id: null,
@@ -899,7 +960,7 @@ test("money and Fulfillment clients reject evidence for any other resource ID", 
       },
       request: (arky) =>
         arky.eshop.refund.create({
-          store_id: defaultStoreId,
+          store_id: storeId,
           payment_id: "audience-payment-contract",
           refund_id: resourceId,
           payment_capture_id: null,
@@ -922,8 +983,19 @@ test("money and Fulfillment clients reject evidence for any other resource ID", 
     },
     {
       name: "fulfillment creation",
-      response: { id: otherResourceId, store_id: defaultStoreId, fulfillment_order_id: "work", status: { type: "preparing" } },
+      response: { request_id: fulfillmentRequestId, id: otherResourceId, store_id: storeId, fulfillment_order_id: "work", status: { type: "preparing" } },
       request: (arky) => arky.eshop.fulfillment.create({
+        store_id: storeId, request_id: fulfillmentRequestId,
+        fulfillment_id: resourceId, fulfillment_order_id: "work",
+        lines: [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 0, quantity: 1 }], selected_units: [], lot_reference: null }],
+      }),
+      error: /Fulfillment response did not match the requested fulfillment_id/,
+    },
+    {
+      name: "fulfillment creation under another request identity",
+      response: { request_id: "9f4c2b67-3e18-4d05-8a9b-7c1e5d3f0a26", id: resourceId, store_id: storeId, fulfillment_order_id: "work", status: { type: "preparing" } },
+      request: (arky) => arky.eshop.fulfillment.create({
+        store_id: storeId, request_id: fulfillmentRequestId,
         fulfillment_id: resourceId, fulfillment_order_id: "work",
         lines: [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 0, quantity: 1 }], selected_units: [], lot_reference: null }],
       }),
@@ -947,6 +1019,7 @@ test("money and Fulfillment clients reject evidence for any other resource ID", 
 test("order refunds reject mismatched money and statuses outside the closed lifecycle", async (t) => {
   const request = () =>
     admin().eshop.refund.create({
+      store_id: storeId,
       payment_id: "payment-refund-contract",
       refund_id: resourceId,
       payment_capture_id: null,
@@ -1034,7 +1107,7 @@ test("Payment, Refund, Dispute and Fulfillment lifecycles are read through expli
       name: "payment",
       response: {
         id: "payment-contract",
-        store_id: defaultStoreId,
+        store_id: storeId,
         order_id: "order-contract",
         payer: { type: "customer", customer_id: "customer-contract" },
       route: {
@@ -1060,14 +1133,14 @@ test("Payment, Refund, Dispute and Fulfillment lifecycles are read through expli
         updated_at: 2,
         safe_error: null,
       },
-      request: (arky) => arky.eshop.payment.get({ id: "payment-contract" }),
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/payments/payment-contract`,
+      request: (arky) => arky.eshop.payment.get({ store_id: storeId, id: "payment-contract" }),
+      url: `${baseUrl}/v1/stores/${storeId}/payments/payment-contract`,
     },
     {
       name: "refund",
       response: {
         id: resourceId,
-        store_id: defaultStoreId,
+        store_id: storeId,
         order_id: "order-contract",
         payment_id: "payment-contract",
         payment_capture_id: null,
@@ -1112,15 +1185,16 @@ test("Payment, Refund, Dispute and Fulfillment lifecycles are read through expli
       },
       request: (arky) =>
         arky.eshop.refund.get({
+          store_id: storeId,
           id: resourceId,
         }),
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/refunds/${resourceId}`,
+      url: `${baseUrl}/v1/stores/${storeId}/refunds/${resourceId}`,
     },
     {
       name: "payment dispute",
       response: {
         id: "payment-dispute-contract",
-        store_id: defaultStoreId,
+        store_id: storeId,
         payment_id: "payment-contract",
         money: { amount: 1250, currency: "usd" },
         status: {
@@ -1138,15 +1212,16 @@ test("Payment, Refund, Dispute and Fulfillment lifecycles are read through expli
       },
       request: (arky) =>
         arky.eshop.dispute.get({
+          store_id: storeId,
           dispute_id: "payment-dispute-contract",
         }),
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/disputes/payment-dispute-contract`,
+      url: `${baseUrl}/v1/stores/${storeId}/disputes/payment-dispute-contract`,
     },
     {
       name: "fulfillment",
       response: { id: "fulfillment", fulfillment_order_id: "work", status: { type: "preparing" }, tracking: null, delivered_at: null },
-      request: (arky) => arky.eshop.fulfillment.get({ fulfillment_id: "fulfillment" }),
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/fulfillments/fulfillment`,
+      request: (arky) => arky.eshop.fulfillment.get({ store_id: storeId, fulfillment_id: "fulfillment" }),
+      url: `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment`,
     },
   ];
 
@@ -1168,7 +1243,7 @@ test("payment dispute history filters the common Payment owner", async () => {
     items: [
       {
         id: "payment-dispute-contract",
-        store_id: defaultStoreId,
+        store_id: storeId,
         payment_id: "payment-contract",
         money: { amount: 1250, currency: "usd" },
         status: { type: "under_review" },
@@ -1186,6 +1261,7 @@ test("payment dispute history filters the common Payment owner", async () => {
   };
   const { calls, result } = await captureFetch(response, () =>
     admin().eshop.dispute.find({
+      store_id: storeId,
       payment_id: "payment-contract",
       limit: 20,
       cursor: "cursor-contract",
@@ -1194,7 +1270,7 @@ test("payment dispute history filters the common Payment owner", async () => {
 
   assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/disputes?payment_id=payment-contract&limit=20&cursor=cursor-contract`,
+      url: `${baseUrl}/v1/stores/${storeId}/disputes?payment_id=payment-contract&limit=20&cursor=cursor-contract`,
       method: "GET",
       body: undefined,
     },
@@ -1205,11 +1281,11 @@ test("payment dispute history filters the common Payment owner", async () => {
 test("common dispute history can list the Store without an Order or Payment selector", async () => {
   const response = { items: [], cursor: null };
   const { calls, result } = await captureFetch(response, () =>
-    admin().eshop.dispute.find(),
+    admin().eshop.dispute.find({ store_id: storeId }),
   );
   assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/disputes`,
+      url: `${baseUrl}/v1/stores/${storeId}/disputes`,
       method: "GET",
       body: undefined,
     },
@@ -1246,7 +1322,7 @@ test("common Refund history is Store-scoped and can filter by exact Payment with
   const response = { items: [], cursor: null };
   const filtered = await captureFetch(response, () =>
     admin().eshop.refund.find({
-      store_id: "selected-store",
+      store_id: otherStoreId,
       payment_id: "payment-history-contract",
       limit: 20,
       cursor: "next-page",
@@ -1254,7 +1330,7 @@ test("common Refund history is Store-scoped and can filter by exact Payment with
   );
   assert.equal(filtered.calls.length, 1);
   const url = new URL(filtered.calls[0].url);
-  assert.equal(url.pathname, "/v1/stores/selected-store/refunds");
+  assert.equal(url.pathname, `/v1/stores/${otherStoreId}/refunds`);
   assert.equal(url.searchParams.get("payment_id"), "payment-history-contract");
   assert.equal(url.searchParams.get("limit"), "20");
   assert.equal(url.searchParams.get("cursor"), "next-page");
@@ -1263,10 +1339,10 @@ test("common Refund history is Store-scoped and can filter by exact Payment with
   assert.equal(filtered.calls[0].method, "GET");
   assert.equal(filtered.calls[0].body, undefined);
   assert.deepEqual(filtered.result, response);
-  const all = await captureFetch(response, () => admin().eshop.refund.find());
+  const all = await captureFetch(response, () => admin().eshop.refund.find({ store_id: storeId }));
   assert.equal(
     new URL(all.calls[0].url).pathname,
-    `/v1/stores/${defaultStoreId}/refunds`,
+    `/v1/stores/${storeId}/refunds`,
   );
   assert.equal(new URL(all.calls[0].url).search, "");
   assert.equal(all.calls[0].method, "GET");
@@ -1296,6 +1372,7 @@ test("common Refund commands preserve exact commercial-credit allocations for al
     },
   ];
   const request = {
+    store_id: storeId,
     payment_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45915",
     refund_id: "c1e80a5f-9cc3-43e7-8e2f-a424fbb45916",
     payment_capture_id: null,
@@ -1320,9 +1397,9 @@ test("common Refund commands preserve exact commercial-credit allocations for al
       );
       assert.deepEqual(calls, [
         {
-          url: `${baseUrl}/v1/stores/${defaultStoreId}/refunds${suffix}`,
+          url: `${baseUrl}/v1/stores/${storeId}/refunds${suffix}`,
           method: "POST",
-          body: request,
+          body: (({ store_id: _store, ...body }) => body)(request),
         },
       ]);
       assert.deepEqual(result, response);

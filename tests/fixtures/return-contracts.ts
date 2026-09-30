@@ -1,5 +1,5 @@
 import type { createAdmin } from "arky-sdk/admin";
-import type { Return, ReturnCommand, ReturnItem, ReturnLine, ReturnLineSource, ReturnSource, CreateReturnParams, ExecuteReturnParams, FindReturnsParams } from "arky-sdk";
+import type { Return, ReturnCommand, ReturnItem, ReturnLine, ReturnLineSource, ReturnSource, CreateReturnParams, ExecuteReturnParams, FindReturnsParams, GetReturnInspectionUnitParams, ReturnInspectionUnit } from "arky-sdk";
 import type { Return as PublicReturn, PaginatedResponse } from "arky-sdk/types";
 
 type Same<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false;
@@ -8,7 +8,7 @@ type Api = ReturnType<typeof createAdmin>["eshop"]["return"];
 
 export type ReturnContract = [
   True<Same<Return, PublicReturn>>,
-  True<Same<keyof Return, "id" | "store_id" | "source" | "destination_store_location_id" | "requested_by" | "lines" | "tracking" | "status" | "created_at" | "updated_at" | "command_id">>,
+  True<Same<keyof Return, "id" | "store_id" | "source" | "destination_store_location_id" | "requested_by" | "lines" | "tracking" | "status" | "created_at" | "updated_at" | "request_id">>,
   True<Same<keyof ReturnLine, "id" | "source" | "reason" | "items">>,
   True<Same<keyof ReturnItem, "inventory_item_id" | "quantity" | "received" | "restocked" | "not_restocked" | "missing">>,
   True<Same<Return["status"]["type"], "requested" | "declined" | "open" | "closed" | "cancelled">>,
@@ -22,12 +22,17 @@ export type ReturnContract = [
   True<Same<CreateReturnParams["source"], ReturnSource>>,
   True<Same<ExecuteReturnParams["source"], ReturnSource>>,
   True<Same<keyof FindReturnsParams, "store_id" | "order_id" | "rental_id" | "destination_store_location_id" | "status" | "limit" | "cursor" | "sort_field" | "sort_direction">>,
-  True<{} extends FindReturnsParams ? true : false>,
-  True<{ rental_id: string } extends FindReturnsParams ? true : false>,
-  True<{ order_id: string; rental_id: string } extends FindReturnsParams ? false : true>,
-  True<Same<Parameters<Api["find"]>[0], FindReturnsParams | undefined>>,
+  True<{ store_id: string } extends FindReturnsParams ? true : false>,
+  True<{} extends FindReturnsParams ? false : true>,
+  True<{ store_id: string; rental_id: string } extends FindReturnsParams ? true : false>,
+  True<{ store_id: string; order_id: string; rental_id: string } extends FindReturnsParams ? false : true>,
+  True<Same<Parameters<Api["find"]>[0], FindReturnsParams>>,
+  True<"request_id" extends keyof CreateReturnParams ? true : false>,
+  True<"request_id" extends keyof ExecuteReturnParams ? true : false>,
   True<Same<ReturnCommand["type"], "approve" | "decline" | "cancel" | "receive" | "dispose" | "missing" | "tracking">>,
-  True<Same<keyof Api, "create" | "get" | "find" | "execute">>,
+  True<Same<keyof Api, "create" | "get" | "find" | "execute" | "inspectionUnit">>,
+  True<Same<Parameters<Api["inspectionUnit"]>[0], GetReturnInspectionUnitParams>>,
+  True<Same<Awaited<ReturnType<Api["inspectionUnit"]>>, ReturnInspectionUnit>>,
   True<Same<Awaited<ReturnType<Api["find"]>>, PaginatedResponse<Return>>>,
   True<Same<Awaited<ReturnType<Api["get"]>>, Return>>,
   True<Same<Awaited<ReturnType<Api["create"]>>, Return>>,

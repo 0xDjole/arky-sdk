@@ -109,14 +109,18 @@ test("issued Customer sessions preserve tagged status and reject malformed lifec
   } finally { globalThis.fetch = originalFetch; }
 });
 
-function cart(id = "cart-a", customerId = "customer-a") {
+function storefrontMarket(key, id = "market-a") {
+  return { id, key, currency: "bam", tax_mode: "exclusive", payment_option_ids: [] };
+}
+
+function cart(id = "cart-a", customerId = "customer-a", marketId = "market-a") {
   return {
     id,
     customer_id: customerId,
     company: null,
     status: { type: "active" },
     origin: { type: "storefront", customer_id: customerId, customer_session_id: `session-${customerId}` },
-    market_id: "market-a",
+    market_id: marketId,
     sales_channel_id: "channel-a",
     line_items: [],
     delivery_groups: [],
@@ -301,6 +305,7 @@ test("anonymous reads do not identify and concurrent first stateful calls share 
       await identifyGate;
       return jsonResponse(identifyResponse());
     }
+    if (request.url.endsWith("/markets/by-key/bih")) return jsonResponse(storefrontMarket("bih"));
     if (request.url.endsWith("/carts")) return jsonResponse({ cart: cart(), recovery_token: "cart-recovery-token" });
     throw new Error(`Unexpected visitor request: ${request.url}`);
   };
@@ -329,6 +334,9 @@ test("anonymous reads do not identify and concurrent first stateful calls share 
     const carts = calls.filter((call) => call.url.endsWith("/carts"));
     assert.equal(carts.length, 1);
     assert.equal(carts.every((call) => call.authorization === `Bearer ${visitorTokenA}`), true);
+    const marketReads = calls.filter((call) => call.url.endsWith("/markets/by-key/bih"));
+    assert.equal(marketReads.length, 2);
+    assert.ok(calls.indexOf(marketReads[0]) < calls.indexOf(carts[0]));
     assert.equal(storage.values.size, 2);
     const [[key, value]] = storage.values;
     assert.equal(key.includes(publishableKeyA), false);
@@ -562,6 +570,7 @@ test("withContext creates an isolated visitor session while reusing explicit SSR
     const request = {
       url: String(url),
       authorization: new Headers(init.headers).get("authorization"),
+      market: new Headers(init.headers).get("x-arky-market"),
     };
     calls.push(request);
     if (request.url.endsWith("/customer/identify")) {
@@ -572,9 +581,12 @@ test("withContext creates an isolated visitor session while reusing explicit SSR
           : identifyResponse(visitorTokenB, "customer-b"),
       );
     }
+    if (request.url.endsWith("/markets/by-key/bih")) return jsonResponse(storefrontMarket("bih", "market-bih"));
+    if (request.url.endsWith("/markets/by-key/ita")) return jsonResponse(storefrontMarket("ita", "market-ita"));
     if (request.url.endsWith("/carts")) return jsonResponse({
       cart: cart(request.authorization === `Bearer ${visitorTokenA}` ? "cart-a" : "cart-b",
-        request.authorization === `Bearer ${visitorTokenA}` ? "customer-a" : "customer-b"),
+        request.authorization === `Bearer ${visitorTokenA}` ? "customer-a" : "customer-b",
+        request.market === "ita" ? "market-ita" : "market-bih"),
       recovery_token: "cart-recovery-token",
     });
     throw new Error(`Unexpected scoped request: ${request.url}`);
@@ -583,9 +595,12 @@ test("withContext creates an isolated visitor session while reusing explicit SSR
   try {
     const root = createStorefront(publishableKeyA, {
       apiUrl,
+      market: "bih",
       sessionStorage: storage.adapter,
     });
     const scoped = root.withContext({ locale: "it", market: "ita" });
+    assert.equal(root.getMarket(), "bih");
+    assert.equal(scoped.getMarket(), "ita");
 
     const rootIdentity = await root.customer.identify();
     assert.equal("token" in rootIdentity, false);
@@ -596,13 +611,21 @@ test("withContext creates an isolated visitor session while reusing explicit SSR
     assert.equal(scoped.session.customer.id, "customer-b");
     assert.equal(root.session.customer.id, "customer-a");
 
-    await root.eshop.cart.current();
-    await scoped.eshop.cart.current();
+    assert.equal((await root.eshop.cart.current()).market_id, "market-bih");
+    assert.equal((await scoped.eshop.cart.current()).market_id, "market-ita");
+    const unselected = createStorefront(publishableKeyA, { apiUrl, sessionStorage: memoryStorage(storedVisitorSession()).adapter });
+    const before = calls.length;
+    await assert.rejects(unselected.eshop.cart.current(), { name: "CartSelectionError", message: "Select a Market before selecting or creating a Cart" });
+    assert.equal(calls.length, before);
   } finally {
     globalThis.fetch = originalFetch;
   }
 
   assert.equal(storage.values.size, 4);
+  assert.deepEqual(
+    calls.filter((call) => call.url.endsWith("/carts")).map((call) => call.market),
+    ["bih", "ita"],
+  );
   assert.deepEqual(
     calls
       .filter((call) => call.url.endsWith("/carts"))
@@ -780,7 +803,7 @@ test("code-only verification and refresh atomically rotate the discriminated Cus
       ["/v1/storefront/customer/verify", `Bearer ${visitorTokenA}`, { code: "123456" }],
       ["/v1/storefront/customer/refresh", null, { refresh_token: "customer_refresh_1" }],
       ["/v1/storefront/customer/me", "Bearer customer_access_2", null],
-      ["/v1/storefront/customer/logout", "Bearer customer_access_2", {}],
+      ["/v1/storefront/customer/logout", "Bearer customer_access_2", null],
     ],
   );
   assert.equal(storedBeforeLogout.version, 2);

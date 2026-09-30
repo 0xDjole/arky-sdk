@@ -16,7 +16,7 @@ test("platform discovery keeps sorting and opaque continuation without hidden pa
       status: 200, headers: { "content-type": "application/json" },
     });
   });
-  const admin = createAdmin({ baseUrl, storeId, apiToken: "arky_account_access_contract" });
+  const admin = createAdmin({ baseUrl, apiToken: "arky_account_access_contract" });
   const stores = { query: "Workspace", limit: 1, sort_field: "name", sort_direction: "desc" };
   assert.deepEqual(await admin.store.find(stores), { items: [], cursor });
   assert.equal(calls.length, 1);
@@ -42,8 +42,8 @@ test("membership permissions use an exact Store read while own discovery preserv
     const body = parsed.pathname.endsWith("/membership") ? membership : { items: [], cursor: parsed.searchParams.has("cursor") ? null : cursor };
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl, storeId, apiToken: "arky_account_access_contract" });
-  assert.deepEqual(await admin.store.member.getOwn({}, { headers: { "X-Trace-Id": "permission" } }), membership);
+  const admin = createAdmin({ baseUrl, apiToken: "arky_account_access_contract" });
+  assert.deepEqual(await admin.store.member.getOwn({ store_id: storeId }, { headers: { "X-Trace-Id": "permission" } }), membership);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url.pathname, `/v1/stores/${storeId}/membership`);
   assert.equal(calls[0].headers.get("X-Trace-Id"), "permission");
@@ -53,7 +53,9 @@ test("membership permissions use an exact Store read while own discovery preserv
   assert.deepEqual(Object.fromEntries(calls[2].url.searchParams), { limit: "20", cursor });
   assert.equal(calls[2].url.pathname, "/v1/stores/memberships");
   assert.ok(calls.every(({ method }) => method === "GET"));
-  await assert.rejects(admin.store.member.getOwn({ store_id: "slug" }), /canonical Store UUID/);
+  for (const store_id of [undefined, "slug", storeId.toUpperCase()]) {
+    await assert.rejects(admin.store.member.getOwn({ store_id }), { name: "TypeError", message: "A Store target must be an explicit canonical UUID-v4" });
+  }
   assert.equal(calls.length, 3);
 });
 
@@ -69,9 +71,9 @@ test("ownership transfer uses one explicit Admin command and returns the new Own
     calls.push({ url: new URL(url), ...init });
     return new Response(JSON.stringify(membership), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl, storeId, apiToken: "arky_account_access_contract" });
+  const admin = createAdmin({ baseUrl, apiToken: "arky_account_access_contract" });
   const controller = new AbortController();
-  assert.deepEqual(await admin.store.member.transferOwnership({ account_id: accountId }, {
+  assert.deepEqual(await admin.store.member.transferOwnership({ store_id: storeId, account_id: accountId }, {
     signal: controller.signal, headers: { "X-Trace-Id": "owner-transfer" },
   }), membership);
   assert.equal(calls.length, 1);
@@ -88,10 +90,12 @@ test("ownership transfer uses one explicit Admin command and returns the new Own
 test("invalid transfer identities fail before sending a command", async (context) => {
   let calls = 0;
   context.mock.method(globalThis, "fetch", async () => { calls += 1; throw new Error("unexpected request"); });
-  const admin = createAdmin({ baseUrl, storeId, apiToken: "arky_account_access_contract" });
+  const admin = createAdmin({ baseUrl, apiToken: "arky_account_access_contract" });
   for (const account_id of ["", "slug", accountId.toUpperCase()]) {
-    await assert.rejects(admin.store.member.transferOwnership({ account_id }), /canonical Store and Account UUIDs/);
+    await assert.rejects(admin.store.member.transferOwnership({ store_id: storeId, account_id }), /canonical Store and Account UUIDs/);
   }
-  await assert.rejects(admin.store.member.transferOwnership({ store_id: "store-slug", account_id: accountId }), /canonical Store and Account UUIDs/);
+  for (const store_id of [undefined, "store-slug"]) {
+    await assert.rejects(admin.store.member.transferOwnership({ store_id, account_id: accountId }), { name: "TypeError", message: "A Store target must be an explicit canonical UUID-v4" });
+  }
   assert.equal(calls, 0);
 });

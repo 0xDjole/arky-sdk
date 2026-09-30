@@ -4,14 +4,16 @@ import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
 import { storefrontSessionStorage } from "./helpers/storefront-session-storage.mjs";
 
+const STORE_ID = "7d4b2e90-5c16-4a83-bf07-3e9a1c6d8f25";
+
 test("Support conversation filters retain a single native multi-status continuation", async (context) => {
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     calls.push({ url: new URL(url), method: init.method, body: init.body });
     return new Response(JSON.stringify({ items: [], cursor: "next:+/=" }), { headers: { "content-type": "application/json" } });
   });
-  const support = createAdmin({ baseUrl: "https://support-contract.test", storeId: "store" }).support;
-  const filters = { store_id: "store", statuses: ["active", "ai_mode", "escalated"], agent_id: "agent", channel_id: "channel",
+  const support = createAdmin({ baseUrl: "https://support-contract.test" }).support;
+  const filters = { store_id: STORE_ID, statuses: ["active", "ai_mode", "escalated"], agent_id: "agent", channel_id: "channel",
     customer_id: "customer", assigned_account_id: "account", channel_type: "web", query: "web",
     sort_field: "created_at", sort_direction: "asc", limit: 0 };
   const first = await support.findConversations(filters);
@@ -21,10 +23,11 @@ test("Support conversation filters retain a single native multi-status continuat
   for (const call of calls) {
     assert.equal(call.method, "GET");
     assert.equal(call.body, undefined);
-    assert.equal(call.url.pathname, "/v1/stores/store/support/conversations");
+    assert.equal(call.url.pathname, `/v1/stores/${STORE_ID}/support/conversations`);
     assert.equal(call.url.searchParams.has("status"), false);
+    assert.equal(call.url.searchParams.has("store_id"), false);
     assert.deepEqual(JSON.parse(call.url.searchParams.get("statuses")), filters.statuses);
-    for (const [key, value] of Object.entries(filters).filter(([key]) => key !== "statuses")) {
+    for (const [key, value] of Object.entries(filters).filter(([key]) => key !== "statuses" && key !== "store_id")) {
       assert.equal(call.url.searchParams.get(key), String(value));
     }
   }
@@ -37,15 +40,16 @@ test("Support definition discovery sends text and ordering before paging", async
     calls.push({ url: new URL(url), method: init.method, body: init.body });
     return new Response(JSON.stringify({ items: [], cursor: "next:+/=" }), { headers: { "content-type": "application/json" } });
   });
-  const support = createAdmin({ baseUrl: "https://support-contract.test", storeId: "store" }).support;
-  const filters = { store_id: "store", query: "Bravo", status: "active", sort_field: "updated_at", sort_direction: "asc", limit: 1 };
+  const support = createAdmin({ baseUrl: "https://support-contract.test" }).support;
+  const filters = { store_id: STORE_ID, query: "Bravo", status: "active", sort_field: "updated_at", sort_direction: "asc", limit: 1 };
   for (const [method, owner] of [[support.findAgents, "agents"], [support.findChannels, "channels"]]) {
     const params = owner === "channels" ? { ...filters, channel_type: "web" } : filters;
     const first = await method(params);
     await method({ ...params, cursor: first.cursor });
     const [initial, continued] = calls.slice(-2);
-    assert.equal(initial.url.pathname, `/v1/stores/store/support/${owner}`);
-    for (const [key, value] of Object.entries(params)) {
+    assert.equal(initial.url.pathname, `/v1/stores/${STORE_ID}/support/${owner}`);
+    assert.equal(initial.url.searchParams.has("store_id"), false);
+    for (const [key, value] of Object.entries(params).filter(([key]) => key !== "store_id")) {
       assert.equal(initial.url.searchParams.get(key), String(value));
       assert.equal(continued.url.searchParams.get(key), String(value));
     }
@@ -57,9 +61,9 @@ test("Support definition discovery sends text and ordering before paging", async
 
 test("Support history retains empty-page continuation and exact tagged message state", async (context) => {
   const calls = [];
-  const conversation = { id: "conversation", store_id: "store", status: { type: "escalated" } };
+  const conversation = { id: "conversation", store_id: STORE_ID, status: { type: "escalated" } };
   const message = {
-    id: "message", store_id: "store", conversation_id: "conversation", role: "user",
+    id: "message", store_id: STORE_ID, conversation_id: "conversation", role: "user",
     content: "Help", buttons: null, attachments: [], metadata: {},
     ai_response_status: { type: "unknown", completed_at: 2, error: "Outcome unknown" },
     email_status: null, created_at: 0, updated_at: 2,
@@ -70,20 +74,21 @@ test("Support history retains empty-page continuation and exact tagged message s
       : calls.length === 2 ? { conversation, messages: [message], messages_cursor: null } : message;
     return new Response(JSON.stringify(value), { headers: { "content-type": "application/json" } });
   });
-  const support = createAdmin({ baseUrl: "https://support-contract.test", storeId: "store" }).support;
-  const first = await support.getConversation({ store_id: "store", conversation_id: "conversation", message_limit: 1 });
+  const support = createAdmin({ baseUrl: "https://support-contract.test" }).support;
+  const first = await support.getConversation({ store_id: STORE_ID, conversation_id: "conversation", message_limit: 1 });
   assert.deepEqual(first.messages, []);
   assert.equal(first.messages_cursor, "older:+/=");
-  const second = await support.getConversation({ store_id: "store", conversation_id: "conversation", message_limit: 1, message_cursor: first.messages_cursor });
+  const second = await support.getConversation({ store_id: STORE_ID, conversation_id: "conversation", message_limit: 1, message_cursor: first.messages_cursor });
   assert.deepEqual(second, { conversation, messages: [message], messages_cursor: null });
-  assert.deepEqual(await support.getConversationMessage({ store_id: "store", conversation_id: "conversation", message_id: "message" }), message);
+  assert.deepEqual(await support.getConversationMessage({ store_id: STORE_ID, conversation_id: "conversation", message_id: "message" }), message);
   assert.equal(calls.length, 3);
   assert.ok(calls.every((call) => call.method === "GET" && call.body === undefined));
   assert.equal(calls[1].url.searchParams.get("message_cursor"), first.messages_cursor);
   assert.equal(calls[1].url.searchParams.get("message_limit"), "1");
   assert.equal(calls[1].url.searchParams.has("after_created_at"), false);
   assert.equal(calls[1].url.searchParams.has("after_id"), false);
-  assert.equal(calls[2].url.pathname, "/v1/stores/store/support/conversations/conversation/messages/message");
+  assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/support/conversations/conversation`);
+  assert.equal(calls[2].url.pathname, `/v1/stores/${STORE_ID}/support/conversations/conversation/messages/message`);
   assert.equal(calls[2].url.search, "");
 });
 

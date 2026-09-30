@@ -11,21 +11,21 @@ export type ConfigurationPages = [
   True<Same<Awaited<ReturnType<Admin['store']['paymentOption']['list']>>,PaginatedResponse<PaymentOption>>>
 ];
 export const market: FindMarketsParams = {store_id:'store',currency:'eur',status:'deleting',limit:1,cursor:'opaque'};
-export const location: FindStoreLocationsParams = {is_pickup_location:false,status:'archived',sort_field:'updated_at'};
-export const provider: ListPaymentOptionsParams = {type_name:'stripe',status:'disabled',cursor:'opaque'};
+export const location: FindStoreLocationsParams = {store_id:'store',is_pickup_location:false,status:'archived',sort_field:'updated_at'};
+export const provider: ListPaymentOptionsParams = {store_id:'store',type_name:'stripe',status:'disabled',cursor:'opaque'};
 export const exactMarket: Parameters<Admin['store']['market']['get']>[0] = {store_id:'store',id:'market'};
 export const exactLocation: Parameters<Admin['store']['location']['get']>[0] = {store_id:'store',id:'location'};
 // @ts-expect-error Exact reads use the explicit scope/id parameter object
 export const unscopedLocationArgument: Parameters<Admin['store']['location']['get']>[0] = 'location';
 // @ts-expect-error Market has no archived status
-export const invalidMarket: FindMarketsParams = {status:'archived'};
+export const invalidMarket: FindMarketsParams = {store_id:'store',status:'archived'};
 // @ts-expect-error Public context supplies Store identity, not the query
 export const publicStore: Parameters<Front['store']['market']['list']>[0] = {store_id:'foreign'};
 // @ts-expect-error Public browsing only exposes active locations
 export const publicStatus: Parameters<Front['store']['location']['list']>[0] = {status:'deleting'};
 type Setup = Awaited<ReturnType<Front['getSetup']>>;
 export type PublicMarketSelection = [
-  True<Same<Setup['default_market'], Awaited<ReturnType<Front['store']['market']['getByKey']>> | null>>,
+  True<'default_market' extends keyof Setup ? false : true>,
   True<Same<Setup['languages']['default'], string | null>>
 ];
 declare const setup: Setup;

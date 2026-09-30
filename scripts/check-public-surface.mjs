@@ -1027,13 +1027,14 @@ const checkoutPaymentActionContract = activityTypesSource.match(
 );
 if (
   !checkoutPaymentActionContract ||
-  !/\n\s*connected_account_id:\s*string;/.test(checkoutPaymentActionContract[1])
+  !/\n\s*account_id:\s*string;/.test(checkoutPaymentActionContract[1]) ||
+  /connected_account_id/.test(checkoutPaymentActionContract[1])
 ) {
   report(
     activityTypesFile,
     activityTypesSource,
     checkoutPaymentActionContract?.index ?? 0,
-    "Stripe CheckoutPaymentAction must require connected_account_id",
+    "Stripe CheckoutPaymentAction must require the merchant account_id",
   );
   failures++;
 }
@@ -1043,15 +1044,13 @@ const storeSubscriptionCheckoutActionContract = activityTypesSource.match(
 );
 if (
   !storeSubscriptionCheckoutActionContract ||
-  !/\n\s*stripe_account_id:\s*string\s*\|\s*null;/.test(
-    storeSubscriptionCheckoutActionContract[1],
-  )
+  /account_id/.test(storeSubscriptionCheckoutActionContract[1])
 ) {
   report(
     activityTypesFile,
     activityTypesSource,
     storeSubscriptionCheckoutActionContract?.index ?? 0,
-    "Store subscription Checkout action must retain nullable stripe_account_id",
+    "Store subscription Checkout action pays Arky's own account and carries no merchant account",
   );
   failures++;
 }

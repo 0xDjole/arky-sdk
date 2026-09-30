@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { createAdmin } from "../dist/admin.js";
-import { stripeConnectionFixture } from "./helpers/stripe-connection.mjs";
 import {
   SUPPORTED_STORE_CURRENCIES,
   convertToMajor,
@@ -9,6 +8,10 @@ import {
   formatMinor,
   getCurrencyMinorUnits,
 } from "../dist/utils.js";
+
+const STORE_ID = "4f2a9c61-7e3b-4d85-a0c9-1b6e8d3f5a27";
+const OTHER_STORE_ID = "b8e1d4a7-2c95-4f36-9d08-6a3c7e1f0b52";
+const API = "http://127.0.0.1:1";
 
 const expectedStoreCurrencies = [
   "USD",
@@ -85,10 +88,11 @@ assert.equal(formatMinor(100, " jpy "), formatMinor(100, "JPY"));
 assert.throws(() => convertToMinor(1, "ZZZ"), /Unsupported currency/);
 
 const arky = createAdmin({
-  baseUrl: "http://127.0.0.1:1",
-  storeId: "contract-store",
+  baseUrl: API,
   apiToken: "contract-token",
 });
+assert.equal("setStoreId" in arky, false);
+assert.equal("getStoreId" in arky, false);
 
 assert.equal(typeof arky.account.auth.code, "function");
 assert.equal(typeof arky.account.auth.verify, "function");
@@ -131,12 +135,13 @@ assert.equal(typeof arky.store.member.remove, "function");
 assert.equal(typeof arky.store.buildHook.list, "function");
 assert.equal(typeof arky.store.webhook.list, "function");
 assert.equal(typeof arky.store.paymentOption.list, "function");
-assert.equal(typeof arky.store.paymentOption.stripe.connect, "function");
-assert.equal(typeof arky.store.paymentOption.stripe.refresh, "function");
-assert.equal(
-  typeof arky.store.paymentOption.stripe.openDashboard,
-  "function",
-);
+for (const method of ["setup", "configure", "cancelConfiguration", "getConfigurationChange", "refresh"]) {
+  assert.equal(typeof arky.store.paymentOption.stripe[method], "function");
+}
+for (const removed of ["connect", "getConnection", "openDashboard"]) {
+  assert.equal(removed in arky.store.paymentOption.stripe, false);
+}
+assert.equal("getByType" in arky.store.paymentOption, false);
 assert.equal("delete" in arky.store.paymentOption, false);
 assert.equal(typeof arky.media.replaceContent, "function");
 assert.equal(typeof arky.category.create, "function");
@@ -162,16 +167,19 @@ globalThis.fetch = async (url, init = {}) => {
   });
 };
 try {
-  await arky.content.collection.get({ key: "articles" });
-  await arky.forms.get({ key: "intake", store_id: "selected-store" });
-  await arky.content.collection.get({ id: "collection-uuid" });
-  await arky.forms.get({ id: "form-uuid" });
+  await arky.content.collection.get({ store_id: STORE_ID, key: "articles" });
+  await arky.forms.get({ key: "intake", store_id: OTHER_STORE_ID });
+  await arky.content.collection.get({ store_id: STORE_ID, id: "collection-uuid" });
+  await arky.forms.get({ store_id: STORE_ID, id: "form-uuid" });
   assert.deepEqual(contentKeyCalls, [
-    ["http://127.0.0.1:1/v1/stores/contract-store/collections/by-key/articles", "GET"],
-    ["http://127.0.0.1:1/v1/stores/selected-store/forms/by-key/intake", "GET"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/collections/collection-uuid", "GET"],
-    ["http://127.0.0.1:1/v1/stores/contract-store/forms/form-uuid", "GET"],
+    [`${API}/v1/stores/${STORE_ID}/collections/by-key/articles`, "GET"],
+    [`${API}/v1/stores/${OTHER_STORE_ID}/forms/by-key/intake`, "GET"],
+    [`${API}/v1/stores/${STORE_ID}/collections/collection-uuid`, "GET"],
+    [`${API}/v1/stores/${STORE_ID}/forms/form-uuid`, "GET"],
   ]);
+  await assert.rejects(async () => arky.content.collection.get({ key: "articles" }), TypeError);
+  await assert.rejects(async () => arky.forms.get({ store_id: "contract-store", id: "form-uuid" }), TypeError);
+  assert.equal(contentKeyCalls.length, 4);
 } finally {
   globalThis.fetch = contentKeyOriginalFetch;
 }
@@ -211,10 +219,21 @@ assert.deepEqual(
 );
 
 const scheduledAdminCalls = [];
-const succeededConnection = stripeConnectionFixture('contract-store', 'provider-scheduled', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+const configurationRequestId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const configurationChange = {
+  store_id: STORE_ID,
+  payment_option_id: "provider-scheduled",
+  request_id: configurationRequestId,
+  type: "access",
+  expected_updated_at: 5,
+  accepted_updated_at: 6,
+  accepted_at: 6,
+  account_id: "acct_merchant",
+  livemode: false,
+};
 const selectedSubscription = {
   id: "d397ff50-690b-4da7-9fb9-17740e535d69",
-  store_id: "contract-store",
+  store_id: STORE_ID,
   plan_access: null,
   status: { type: "pending" },
   operation: null,
@@ -236,7 +255,6 @@ const selectedSubscription = {
     type: "stripe_embedded_checkout",
     publishable_key: "pk_test_subscription",
     client_secret: "cs_subscription_secret_contract",
-    stripe_account_id: null,
     expires_at: 10,
   },
   trial_started_at: null,
@@ -247,10 +265,12 @@ const scheduledOriginalFetch = globalThis.fetch;
 globalThis.fetch = async (url, init = {}) => {
   const target = String(url);
   const method = init.method || "GET";
-  scheduledAdminCalls.push([target, method]);
+  scheduledAdminCalls.push([target, method, init.body ? JSON.parse(String(init.body)) : null]);
   let body;
-  if (target.endsWith("/payment-options/stripe/connect")) {
-    body = succeededConnection;
+  if (target.endsWith("/payment-options/stripe/provider-scheduled/configuration") && method === "POST") {
+    body = configurationChange;
+  } else if (target.endsWith(`/payment-options/stripe/provider-scheduled/configuration/requests/${configurationRequestId}`) && method === "GET") {
+    body = configurationChange;
   } else if (target.endsWith("/subscription") && method === "POST") {
     body = selectedSubscription;
   } else {
@@ -262,21 +282,29 @@ globalThis.fetch = async (url, init = {}) => {
   });
 };
 try {
-  const connected = await arky.store.paymentOption.stripe.connect({
-    store_id: "contract-store",
-    operation_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-    payment_option_id: "provider-scheduled",
-    return_url: "https://admin.test/return",
-    refresh_url: "https://admin.test/refresh",
-    country: "BA",
+  const configured = await arky.store.paymentOption.stripe.configure({
+    store_id: STORE_ID,
+    id: "provider-scheduled",
+    request_id: configurationRequestId,
+    expected_updated_at: 5,
+    configuration: { type: "access", restricted_key: "rk_test_contract", publishable_key: "pk_test_contract" },
   });
-  assert.equal(connected.onboarding_url, "https://connect.test/onboarding");
-  assert.equal(connected.provider.configuration.type, "stripe");
-  assert.equal(connected.provider.configuration.connection.payments_enabled, true);
-  assert.equal(connected.operation.id, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+  assert.deepEqual(configured, configurationChange);
+  assert.deepEqual(await arky.store.paymentOption.stripe.getConfigurationChange({
+    store_id: STORE_ID,
+    id: "provider-scheduled",
+    request_id: configurationRequestId,
+  }), configurationChange);
+  await assert.rejects(async () => arky.store.paymentOption.stripe.configure({
+    store_id: STORE_ID,
+    id: "provider-scheduled",
+    request_id: "operation-one",
+    expected_updated_at: 5,
+    configuration: { type: "access", restricted_key: "rk_test_contract", publishable_key: "pk_test_contract" },
+  }), { name: "TypeError", message: "A business request requires the caller's canonical UUID-v4 request_id" });
 
   const subscription = await arky.store.subscription.select({
-    store_id: "contract-store",
+    store_id: STORE_ID,
     checkout_id: "018f477d-1cae-4c12-bf12-123456789abc",
     plan_id: "basic",
     return_url: "https://admin.test/return",
@@ -294,17 +322,29 @@ try {
     subscription.payment_action.client_secret,
     "cs_subscription_secret_contract",
   );
+  assert.equal("account_id" in subscription.payment_action, false);
+  assert.equal("stripe_account_id" in subscription.payment_action, false);
 } finally {
   globalThis.fetch = scheduledOriginalFetch;
 }
 assert.deepEqual(
-  scheduledAdminCalls.map(([url, method]) => [
-    url.replace("http://127.0.0.1:1", ""),
+  scheduledAdminCalls.map(([url, method, body]) => [
+    url.replace(API, ""),
     method,
+    body,
   ]),
   [
-    ["/v1/stores/contract-store/payment-options/stripe/connect", "POST"],
-    ["/v1/stores/contract-store/subscription", "POST"],
+    [`/v1/stores/${STORE_ID}/payment-options/stripe/provider-scheduled/configuration`, "POST", {
+      request_id: configurationRequestId,
+      expected_updated_at: 5,
+      configuration: { type: "access", restricted_key: "rk_test_contract", publishable_key: "pk_test_contract" },
+    }],
+    [`/v1/stores/${STORE_ID}/payment-options/stripe/provider-scheduled/configuration/requests/${configurationRequestId}`, "GET", null],
+    [`/v1/stores/${STORE_ID}/subscription`, "POST", {
+      checkout_id: "018f477d-1cae-4c12-bf12-123456789abc",
+      plan_id: "basic",
+      return_url: "https://admin.test/return",
+    }],
   ],
 );
 
@@ -319,6 +359,7 @@ globalThis.fetch = async (url, init = {}) => {
 };
 try {
   const replacement = await arky.media.replaceContent({
+    store_id: STORE_ID,
     media_id: "media-contract",
     file: new Blob(["replacement"], { type: "text/plain" }),
   });
@@ -328,7 +369,7 @@ try {
 }
 assert.equal(
   mediaReplacementRequest.url,
-  "http://127.0.0.1:1/v1/stores/contract-store/media/media-contract/content",
+  `${API}/v1/stores/${STORE_ID}/media/media-contract/content`,
 );
 assert.equal(mediaReplacementRequest.init.method, "PUT");
 assert.equal(
@@ -362,15 +403,17 @@ globalThis.fetch = async (url, init = {}) => {
   });
 };
 try {
-  await arky.social.connections.find();
-  await arky.social.connections.connect({ type: "facebook_page" });
-  await arky.social.connections.disconnect({ connection_id: "connection-1" });
+  await arky.social.connections.find({ store_id: STORE_ID });
+  await arky.social.connections.connect({ store_id: STORE_ID, type: "facebook_page" });
+  await arky.social.connections.disconnect({ store_id: STORE_ID, connection_id: "connection-1" });
   await arky.social.posts.find({
+    store_id: STORE_ID,
     social_connection_id: "connection-1",
     limit: 25,
     cursor: "post-cursor",
   });
   await arky.social.posts.create({
+    store_id: STORE_ID,
     social_connection_id: "connection-1",
     content: {
       type: "facebook_page",
@@ -380,21 +423,24 @@ try {
     },
     publish_at: 123,
   });
-  await arky.social.posts.get({ post_id: "post-1" });
-  await arky.social.posts.cancel({ post_id: "post-1" });
+  await arky.social.posts.get({ store_id: STORE_ID, post_id: "post-1" });
+  await arky.social.posts.cancel({ store_id: STORE_ID, post_id: "post-1" });
   await arky.social.posts.messages.find({
+    store_id: STORE_ID,
     post_id: "post-1",
     parent_message_id: "parent-1",
     limit: 20,
     cursor: "message-cursor",
   });
   await arky.social.posts.messages.create({
+    store_id: STORE_ID,
     post_id: "post-1",
     id: "message-1",
     parent_message_id: "parent-1",
     text: "Exact Social reply",
   });
   await arky.social.posts.messages.sync({
+    store_id: STORE_ID,
     post_id: "post-1",
     sync: {
       type: {
@@ -411,25 +457,26 @@ try {
 assert.deepEqual(
   socialFetchCalls.map(({ method, url }) => [method, new URL(url).pathname]),
   [
-    ["GET", "/v1/stores/contract-store/social/connections"],
-    ["POST", "/v1/stores/contract-store/social/connections/connect"],
+    ["GET", `/v1/stores/${STORE_ID}/social/connections`],
+    ["POST", `/v1/stores/${STORE_ID}/social/connections/connect`],
     [
       "POST",
-      "/v1/stores/contract-store/social/connections/connection-1/disconnect",
+      `/v1/stores/${STORE_ID}/social/connections/connection-1/disconnect`,
     ],
-    ["GET", "/v1/stores/contract-store/social/posts"],
-    ["POST", "/v1/stores/contract-store/social/posts"],
-    ["GET", "/v1/stores/contract-store/social/posts/post-1"],
-    ["POST", "/v1/stores/contract-store/social/posts/post-1/cancel"],
-    ["GET", "/v1/stores/contract-store/social/posts/post-1/messages"],
-    ["POST", "/v1/stores/contract-store/social/posts/post-1/messages"],
-    ["POST", "/v1/stores/contract-store/social/posts/post-1/messages/sync"],
+    ["GET", `/v1/stores/${STORE_ID}/social/posts`],
+    ["POST", `/v1/stores/${STORE_ID}/social/posts`],
+    ["GET", `/v1/stores/${STORE_ID}/social/posts/post-1`],
+    ["POST", `/v1/stores/${STORE_ID}/social/posts/post-1/cancel`],
+    ["GET", `/v1/stores/${STORE_ID}/social/posts/post-1/messages`],
+    ["POST", `/v1/stores/${STORE_ID}/social/posts/post-1/messages`],
+    ["POST", `/v1/stores/${STORE_ID}/social/posts/post-1/messages/sync`],
   ],
 );
 assert.deepEqual(JSON.parse(socialFetchCalls[1].body), {
   type: "facebook_page",
 });
-assert.deepEqual(JSON.parse(socialFetchCalls[2].body), {});
+assert.equal(socialFetchCalls[2].body, undefined);
+assert.equal(new URL(socialFetchCalls[0].url).search, "");
 const socialPostsQuery = new URL(socialFetchCalls[3].url).searchParams;
 assert.equal(socialPostsQuery.get("social_connection_id"), "connection-1");
 assert.equal(socialPostsQuery.get("limit"), "25");
@@ -444,7 +491,7 @@ assert.deepEqual(JSON.parse(socialFetchCalls[4].body), {
   },
   publish_at: 123,
 });
-assert.deepEqual(JSON.parse(socialFetchCalls[6].body), {});
+assert.equal(socialFetchCalls[6].body, undefined);
 const socialMessagesQuery = new URL(socialFetchCalls[7].url).searchParams;
 assert.equal(socialMessagesQuery.get("parent_message_id"), "parent-1");
 assert.equal(socialMessagesQuery.get("limit"), "20");
@@ -488,6 +535,7 @@ globalThis.fetch = async (url, init = {}) => {
 
 try {
   await arky.workflow.getConnectionConnectUrl({
+    store_id: STORE_ID,
     type: "google_drive",
   });
 } finally {
@@ -497,11 +545,10 @@ try {
 assert.equal(workflowFetchCalls[0].method, "POST");
 assert.equal(
   workflowFetchCalls[0].url,
-  "http://127.0.0.1:1/v1/stores/contract-store/workflow-connections/connect-url",
+  `${API}/v1/stores/${STORE_ID}/workflow-connections/connect-url`,
 );
 assert.deepEqual(JSON.parse(workflowFetchCalls[0].body), {
   type: "google_drive",
-  store_id: "contract-store",
 });
 assert.equal(workflowFetchCalls.length, 1);
 
@@ -536,12 +583,13 @@ globalThis.fetch = async (url, init = {}) => {
 
 try {
   await arky.notification.mailbox.connectGoogle({
+    store_id: STORE_ID,
     key: "founder",
     from_name: "Founder",
     sync_enabled: true,
     sync_interval_seconds: 300,
   });
-  await arky.notification.mailbox.disconnect({ id: "mailbox-id" });
+  await arky.notification.mailbox.disconnect({ store_id: STORE_ID, id: "mailbox-id" });
 } finally {
   globalThis.fetch = originalFetch;
 }
@@ -549,7 +597,7 @@ try {
 assert.equal(mailboxFetchCalls[0].method, "POST");
 assert.equal(
   mailboxFetchCalls[0].url,
-  "http://127.0.0.1:1/v1/stores/contract-store/mailboxes/google/connect-url",
+  `${API}/v1/stores/${STORE_ID}/mailboxes/google/connect-url`,
 );
 assert.deepEqual(JSON.parse(mailboxFetchCalls[0].body), {
   key: "founder",
@@ -560,9 +608,9 @@ assert.deepEqual(JSON.parse(mailboxFetchCalls[0].body), {
 assert.equal(mailboxFetchCalls[1].method, "POST");
 assert.equal(
   mailboxFetchCalls[1].url,
-  "http://127.0.0.1:1/v1/stores/contract-store/mailboxes/mailbox-id/disconnect",
+  `${API}/v1/stores/${STORE_ID}/mailboxes/mailbox-id/disconnect`,
 );
-assert.deepEqual(JSON.parse(mailboxFetchCalls[1].body), {});
+assert.equal(mailboxFetchCalls[1].body, undefined);
 assert.equal(typeof arky.campaign.find, "function");
 assert.equal(typeof arky.campaign.findEnrollments, "function");
 assert.equal(typeof arky.campaignEnrollment.getConversation, "function");
@@ -587,28 +635,29 @@ globalThis.fetch = async (url, init = {}) => {
 };
 try {
   await arky.support.getAgentDefinition({
-    store_id: "contract-store",
+    store_id: STORE_ID,
     support_agent_id: "agent-contract",
   });
   await arky.eshop.customerGroupMember.find({
+    store_id: STORE_ID,
     customer_group_id: "audience-contract",
   });
-  await arky.eshop.inventoryLevel.find({ inventory_item_id: "item-contract", store_location_id: "location-contract" });
+  await arky.eshop.inventoryLevel.find({ store_id: STORE_ID, inventory_item_id: "item-contract", store_location_id: "location-contract" });
 } finally {
   globalThis.fetch = originalFetch;
 }
 assert.deepEqual(separateResourceCalls, [
   {
     method: "GET",
-    url: "http://127.0.0.1:1/v1/stores/contract-store/support/agents/agent-contract/definition",
+    url: `${API}/v1/stores/${STORE_ID}/support/agents/agent-contract/definition`,
   },
   {
     method: "GET",
-    url: "http://127.0.0.1:1/v1/stores/contract-store/customer-group-members?customer_group_id=audience-contract",
+    url: `${API}/v1/stores/${STORE_ID}/customer-group-members?customer_group_id=audience-contract`,
   },
   {
     method: "GET",
-    url: "http://127.0.0.1:1/v1/stores/contract-store/inventory-levels?inventory_item_id=item-contract&store_location_id=location-contract",
+    url: `${API}/v1/stores/${STORE_ID}/inventory-levels?inventory_item_id=item-contract&store_location_id=location-contract`,
   },
 ]);
 
@@ -624,6 +673,7 @@ globalThis.fetch = async (url, init = {}) => {
 };
 try {
   assert.deepEqual(await arky.eshop.subscription.findOrders({
+    store_id: STORE_ID,
     id: "history-subscription",
     limit: 10,
     cursor: "prior-order-page",
@@ -634,7 +684,7 @@ try {
 assert.equal(subscriptionOrderCalls.length, 1);
 const subscriptionOrderUrl = new URL(subscriptionOrderCalls[0].url);
 assert.equal(subscriptionOrderCalls[0].method, "GET");
-assert.equal(subscriptionOrderUrl.pathname, "/v1/stores/contract-store/subscriptions/history-subscription/orders");
+assert.equal(subscriptionOrderUrl.pathname, `/v1/stores/${STORE_ID}/subscriptions/history-subscription/orders`);
 assert.deepEqual(Object.fromEntries(subscriptionOrderUrl.searchParams), {
   limit: "10",
   cursor: "prior-order-page",
@@ -695,13 +745,16 @@ globalThis.fetch = async (url, init = {}) => {
 };
 try {
   await arky.eshop.fulfillmentOrder.find({
+    store_id: STORE_ID,
     order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
     limit: 20,
   });
   await arky.eshop.fulfillmentOrder.find({
+    store_id: STORE_ID,
     rental_id: "6ba7b816-9dad-41d1-80b4-00c04fd430c8",
   });
   await arky.eshop.fulfillmentOrder.get({
+    store_id: STORE_ID,
     fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
   });
 } finally {
@@ -711,15 +764,15 @@ assert.deepEqual(
   fulfillmentCalls.map(({ url, method }) => [url, method]),
   [
     [
-      "http://127.0.0.1:1/v1/stores/contract-store/fulfillment-orders?order_id=6ba7b81a-9dad-41d1-80b4-00c04fd430c8&limit=20",
+      `${API}/v1/stores/${STORE_ID}/fulfillment-orders?order_id=6ba7b81a-9dad-41d1-80b4-00c04fd430c8&limit=20`,
       "GET",
     ],
     [
-      "http://127.0.0.1:1/v1/stores/contract-store/fulfillment-orders?rental_id=6ba7b816-9dad-41d1-80b4-00c04fd430c8",
+      `${API}/v1/stores/${STORE_ID}/fulfillment-orders?rental_id=6ba7b816-9dad-41d1-80b4-00c04fd430c8`,
       "GET",
     ],
     [
-      "http://127.0.0.1:1/v1/stores/contract-store/fulfillment-orders/6ba7b813-9dad-41d1-80b4-00c04fd430c8",
+      `${API}/v1/stores/${STORE_ID}/fulfillment-orders/6ba7b813-9dad-41d1-80b4-00c04fd430c8`,
       "GET",
     ],
   ],
@@ -738,11 +791,11 @@ globalThis.fetch = async (url, init = {}) => {
   });
 };
 try {
-  await arky.eshop.payment.get({ id: "payment-1" });
-  await arky.eshop.payment.find({ store_id: "another-store", limit: 25, cursor: "next" });
-  await arky.eshop.payment.recordCashOnDeliveryCollection({ id: "payment-1", payment_capture_id: "capture-1", money: { amount: 1250, currency: "usd" } });
-  await arky.eshop.payment.recordManualCollection({ store_id: "another-store", id: "payment-2", payment_capture_id: "capture-2", money: { amount: 900, currency: "eur" }, reference: "bank-receipt" });
-  await arky.eshop.payment.createManual({ id: "payment-3", order_id: "order-3", payment_option_id: "provider-3", money: { amount: 500, currency: "usd" }, reference: null });
+  await arky.eshop.payment.get({ store_id: STORE_ID, id: "payment-1" });
+  await arky.eshop.payment.find({ store_id: OTHER_STORE_ID, limit: 25, cursor: "next" });
+  await arky.eshop.payment.recordCashOnDeliveryCollection({ store_id: STORE_ID, id: "payment-1", payment_capture_id: "capture-1", money: { amount: 1250, currency: "usd" } });
+  await arky.eshop.payment.recordManualCollection({ store_id: OTHER_STORE_ID, id: "payment-2", payment_capture_id: "capture-2", money: { amount: 900, currency: "eur" }, reference: "bank-receipt" });
+  await arky.eshop.payment.createManual({ store_id: STORE_ID, id: "payment-3", order_id: "order-3", payment_option_id: "provider-3", money: { amount: 500, currency: "usd" }, reference: null });
 } finally {
   globalThis.fetch = originalFetch;
 }
@@ -750,26 +803,26 @@ assert.deepEqual(
   paymentCalls.map(({ url, method, body }) => [url, method, body]),
   [
     [
-      "http://127.0.0.1:1/v1/stores/contract-store/payments/payment-1",
+      `${API}/v1/stores/${STORE_ID}/payments/payment-1`,
       "GET",
       null,
     ],
     [
-      "http://127.0.0.1:1/v1/stores/another-store/payments?limit=25&cursor=next",
+      `${API}/v1/stores/${OTHER_STORE_ID}/payments?limit=25&cursor=next`,
       "GET",
       null,
     ],
     [
-      "http://127.0.0.1:1/v1/stores/contract-store/payments/payment-1/cash-on-delivery/collections",
+      `${API}/v1/stores/${STORE_ID}/payments/payment-1/cash-on-delivery/collections`,
       "POST",
       { payment_capture_id: "capture-1", money: { amount: 1250, currency: "usd" } },
     ],
     [
-      "http://127.0.0.1:1/v1/stores/another-store/payments/payment-2/manual/collections", "POST",
+      `${API}/v1/stores/${OTHER_STORE_ID}/payments/payment-2/manual/collections`, "POST",
       { payment_capture_id: "capture-2", money: { amount: 900, currency: "eur" }, reference: "bank-receipt" },
     ],
     [
-      "http://127.0.0.1:1/v1/stores/contract-store/payments/manual", "POST",
+      `${API}/v1/stores/${STORE_ID}/payments/manual`, "POST",
       { id: "payment-3", order_id: "order-3", payment_option_id: "provider-3", money: { amount: 500, currency: "usd" }, reference: null },
     ],
   ],
@@ -777,6 +830,37 @@ assert.deepEqual(
 
 assert.equal(typeof arky.analytics.get, "function");
 const analyticsCalls = [];
+const analyticsRequest = {
+  time: { from: 86_400_000, to: 172_800_000 },
+  reports: [
+    {
+      key: "recent_customer_action",
+      limit: 100,
+      category: "customer_actions",
+      cursor_created_at: 86_400_000,
+      cursor_id: "fact next",
+    },
+  ],
+};
+const analyticsResponse = {
+  time: { from: 86_400_000, to: 172_800_000 },
+  reports: [
+    {
+      key: "recent_customer_action",
+      scope: "period",
+      data: {
+        items: [],
+        summary: {
+          total: 0, orders: 0, submissions: 0, customers: 0, customer_groups: 0,
+          abandoned_carts: 0, carts: 0, products: 0, services: 0, providers: 0,
+          content: 0, workflows: 0, customer_actions: 0, window_start: 86_400_000,
+        },
+        next_cursor: null,
+        meta: { row_count: 0, execution_ms: 3 },
+      },
+    },
+  ],
+};
 globalThis.fetch = async (url, init = {}) => {
   analyticsCalls.push({
     url: String(url),
@@ -784,7 +868,7 @@ globalThis.fetch = async (url, init = {}) => {
     body: init.body ? JSON.parse(String(init.body)) : null,
   });
   return new Response(
-    JSON.stringify({ time: { from: 0, to: 1 }, reports: [] }),
+    JSON.stringify(analyticsResponse),
     {
       status: 200,
       headers: { "content-type": "application/json" },
@@ -792,27 +876,14 @@ globalThis.fetch = async (url, init = {}) => {
   );
 };
 try {
-  await arky.analytics.get(
-    {
-      time: { from: 86_400_000, to: 172_800_000 },
-      reports: [
-        {
-          key: "recent_customer_action",
-          limit: 100,
-          category: "customer_actions",
-          cursor_created_at: 86_400_000,
-          cursor_id: "fact next",
-        },
-      ],
-    },
-    { store_id: "override-store" },
-  );
+  assert.deepEqual(await arky.analytics.get(analyticsRequest, { store_id: OTHER_STORE_ID }), analyticsResponse);
+  await assert.rejects(async () => arky.analytics.get(analyticsRequest, {}), TypeError);
 } finally {
   globalThis.fetch = originalFetch;
 }
 assert.deepEqual(analyticsCalls, [
   {
-    url: "http://127.0.0.1:1/v1/stores/override-store/analytics",
+    url: `${API}/v1/stores/${OTHER_STORE_ID}/analytics`,
     method: "POST",
     body: {
       time: { from: 86_400_000, to: 172_800_000 },
@@ -916,36 +987,41 @@ try {
     edges: [],
   };
   await arky.workflow.create({
+    store_id: STORE_ID,
     key: "customer_welcome",
     status: "active",
     schedule: null,
     graph,
   });
   await arky.workflow.update({
-    store_id: "override-store",
+    store_id: OTHER_STORE_ID,
     id: "workflow-contract",
     key: "customer_welcome_v2",
     status: "draft",
     schedule: null,
     graph,
   });
-  await arky.workflow.delete({ id: "workflow-contract" });
-  await arky.workflow.get({ id: "workflow-contract" });
+  await arky.workflow.delete({ store_id: STORE_ID, id: "workflow-contract" });
+  await arky.workflow.get({ store_id: STORE_ID, id: "workflow-contract" });
   await arky.workflow.regenerateWebhookUrl({
+    store_id: STORE_ID,
     workflow_id: "workflow-contract",
   });
   await arky.workflow.find({
+    store_id: STORE_ID,
     status: "active",
     limit: 20,
     cursor: "next page",
   });
   await arky.workflow.getExecutions({
+    store_id: STORE_ID,
     workflow_id: "workflow-contract",
     status: "running",
     limit: 10,
     cursor: "execution page",
   });
   await arky.workflow.getExecution({
+    store_id: STORE_ID,
     workflow_id: "workflow-contract",
     execution_id: "execution-contract",
   });
@@ -954,7 +1030,7 @@ try {
 }
 assert.deepEqual(workflowCoreCalls, [
   {
-    url: "http://127.0.0.1:1/v1/stores/contract-store/workflows",
+    url: `${API}/v1/stores/${STORE_ID}/workflows`,
     method: "POST",
     body: {
       key: "customer_welcome",
@@ -966,11 +1042,10 @@ assert.deepEqual(workflowCoreCalls, [
         },
         edges: [],
       },
-      store_id: "contract-store",
     },
   },
   {
-    url: "http://127.0.0.1:1/v1/stores/override-store/workflows/workflow-contract",
+    url: `${API}/v1/stores/${OTHER_STORE_ID}/workflows/workflow-contract`,
     method: "PUT",
     body: {
       key: "customer_welcome_v2",
@@ -985,32 +1060,32 @@ assert.deepEqual(workflowCoreCalls, [
     },
   },
   {
-    url: "http://127.0.0.1:1/v1/stores/contract-store/workflows/workflow-contract",
+    url: `${API}/v1/stores/${STORE_ID}/workflows/workflow-contract`,
     method: "DELETE",
     body: null,
   },
   {
-    url: "http://127.0.0.1:1/v1/stores/contract-store/workflows/workflow-contract",
+    url: `${API}/v1/stores/${STORE_ID}/workflows/workflow-contract`,
     method: "GET",
     body: null,
   },
   {
-    url: "http://127.0.0.1:1/v1/stores/contract-store/workflows/workflow-contract/regenerate-webhook-url",
+    url: `${API}/v1/stores/${STORE_ID}/workflows/workflow-contract/regenerate-webhook-url`,
     method: "POST",
-    body: {},
+    body: null,
   },
   {
-    url: "http://127.0.0.1:1/v1/stores/contract-store/workflows?status=active&limit=20&cursor=next%20page",
+    url: `${API}/v1/stores/${STORE_ID}/workflows?status=active&limit=20&cursor=next%20page`,
     method: "GET",
     body: null,
   },
   {
-    url: "http://127.0.0.1:1/v1/stores/contract-store/workflows/workflow-contract/executions?status=running&limit=10&cursor=execution%20page",
+    url: `${API}/v1/stores/${STORE_ID}/workflows/workflow-contract/executions?status=running&limit=10&cursor=execution%20page`,
     method: "GET",
     body: null,
   },
   {
-    url: "http://127.0.0.1:1/v1/stores/contract-store/workflows/workflow-contract/executions/execution-contract",
+    url: `${API}/v1/stores/${STORE_ID}/workflows/workflow-contract/executions/execution-contract`,
     method: "GET",
     body: null,
   },
@@ -1063,9 +1138,9 @@ try {
       { key: "guided", allocation_bps: 5000 },
     ],
   };
-  await arky.experiments.create(definition);
+  await arky.experiments.create({ store_id: STORE_ID, ...definition });
   await arky.experiments.replaceDraft({
-    store_id: "override-store",
+    store_id: OTHER_STORE_ID,
     experiment_id: "experiment-contract",
     ...definition,
     key: "homepage_hero_v2",
@@ -1079,9 +1154,10 @@ try {
     "get",
     "results",
   ]) {
-    await arky.experiments[method]({ experiment_id: "experiment-contract" });
+    await arky.experiments[method]({ store_id: STORE_ID, experiment_id: "experiment-contract" });
   }
   await arky.experiments.find({
+    store_id: STORE_ID,
     status: "running",
     limit: 25,
     cursor: "next page",
@@ -1091,7 +1167,7 @@ try {
 }
 assert.deepEqual(experimentCalls, [
   {
-    url: "http://127.0.0.1:1/v1/stores/contract-store/experiments",
+    url: `${API}/v1/stores/${STORE_ID}/experiments`,
     method: "POST",
     body: {
       key: "homepage_hero",
@@ -1104,7 +1180,7 @@ assert.deepEqual(experimentCalls, [
     },
   },
   {
-    url: "http://127.0.0.1:1/v1/stores/override-store/experiments/experiment-contract",
+    url: `${API}/v1/stores/${OTHER_STORE_ID}/experiments/experiment-contract`,
     method: "PUT",
     body: {
       key: "homepage_hero_v2",
@@ -1125,12 +1201,12 @@ assert.deepEqual(experimentCalls, [
     ["GET", ""],
     ["GET", "/results"],
   ].map(([method, suffix]) => ({
-    url: `http://127.0.0.1:1/v1/stores/contract-store/experiments/experiment-contract${suffix}`,
+    url: `${API}/v1/stores/${STORE_ID}/experiments/experiment-contract${suffix}`,
     method,
     body: null,
   })),
   {
-    url: "http://127.0.0.1:1/v1/stores/contract-store/experiments?status=running&limit=25&cursor=next%20page",
+    url: `${API}/v1/stores/${STORE_ID}/experiments?status=running&limit=25&cursor=next%20page`,
     method: "GET",
     body: null,
   },

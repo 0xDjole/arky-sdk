@@ -4,7 +4,7 @@ import { mountCheckoutAction, MonriCheckoutError } from '../dist/index.js';
 
 const action = {
   type: 'monri_components', payment_id: '3e6b7f70-4d2f-4f0e-9b7b-5d3b6c0a51d2',
-  environment: 'test', authenticity_token: 'test-token', client_secret: 'test-session-secret',
+  environment: 'test', authenticity_token: 'test-token', client_secret: 'test-session-secret', save_card: false,
 };
 const billing = {
   fullName: 'Test Buyer', address: 'Test Street 1', city: 'Sarajevo', zip: '71000',
@@ -34,7 +34,7 @@ test('Monri Components uses hosted card entry and one deliberate submit, never b
           assert.deepEqual(options, { clientSecret: action.client_secret });
           return { create(type, options) {
             assert.equal(type, 'card');
-            assert.deepEqual(options, { tokenizePan: false, tokenizePanOffered: false, showInstallmentsSelection: false });
+            assert.deepEqual(options, { tokenizePan: native.tokenizePan, tokenizePanOffered: false, showInstallmentsSelection: false });
             return native.card;
           } };
         },
@@ -56,7 +56,7 @@ test('Monri Components uses hosted card entry and one deliberate submit, never b
   const hasCode = (code) => (error) => error instanceof MonriCheckoutError && error.code === code;
   const setup = (respond = () => ({ result: { status: 'approved', order_number: action.payment_id } })) => {
     native = {
-      calls: [], respond, changed: null,
+      calls: [], respond, changed: null, tokenizePan: false,
       card: {
         mount(id) { assert.equal(id, target.children.at(-1).id); assert.match(id, /^arky-monri-/); },
         onChange(listener) { native.changed = listener; },
@@ -66,6 +66,9 @@ test('Monri Components uses hosted card entry and one deliberate submit, never b
 
   await t.test('invalid actions and insecure origins cannot initialize card entry', async () => {
     await assert.rejects(mountCheckoutAction({ ...action, merchant_key: 'private' }, target), hasCode('invalid_action'));
+    const { save_card: _saveCard, ...withoutSaveCard } = action;
+    await assert.rejects(mountCheckoutAction(withoutSaveCard, target), hasCode('invalid_action'));
+    await assert.rejects(mountCheckoutAction({ ...action, save_card: 'true' }, target), hasCode('invalid_action'));
     window.location.protocol = 'http:';
     await assert.rejects(mountCheckoutAction(action, target), hasCode('unavailable'));
     window.location.protocol = 'https:';
@@ -140,6 +143,18 @@ test('Monri Components uses hosted card entry and one deliberate submit, never b
     await pending;
     assert.equal(completed, 0);
     assert.equal(native.calls.length, 1);
+    assert.equal(target.children.length, 0);
+  });
+
+  await t.test('an accepted save-card request tokenizes the card for the same payment only', async () => {
+    setup();
+    native.tokenizePan = true;
+    let completed = 0;
+    const mounted = await mountCheckoutAction({ ...action, save_card: true }, target, { onComplete: () => { completed += 1; } });
+    assert.equal(await mounted.confirm(billing), undefined);
+    assert.deepEqual(native.calls, [{ ...billing, orderInfo: `ARKY payment ${action.payment_id}` }]);
+    assert.equal(completed, 1);
+    mounted.destroy();
     assert.equal(target.children.length, 0);
   });
 

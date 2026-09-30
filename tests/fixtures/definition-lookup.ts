@@ -19,6 +19,6 @@ export type ExactDefinitions = [
   True<Same<Awaited<ReturnType<Admin['eshop']['bookingOffering']['lookup']>>, BookingOffering>>
 ];
 // @ts-expect-error An exact key read does not accept a discovery cursor.
-export const paginatedKey: Parameters<Admin['eshop']['product']['getByKey']>[0] = { key: 'demo', cursor: 'wrong' };
+export const paginatedKey: Parameters<Admin['eshop']['product']['getByKey']>[0] = { store_id: '0f6c2a94-7e13-4b58-9d21-6a8e3c5f0b47', key: 'demo', cursor: 'wrong' };
 // @ts-expect-error An exact Offering binding requires both owners.
-export const incompleteBinding: Parameters<Admin['eshop']['bookingOffering']['lookup']>[0] = { booking_service_id: 'service' };
+export const incompleteBinding: Parameters<Admin['eshop']['bookingOffering']['lookup']>[0] = { store_id: '0f6c2a94-7e13-4b58-9d21-6a8e3c5f0b47', booking_service_id: 'service' };

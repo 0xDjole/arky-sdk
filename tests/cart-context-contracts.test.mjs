@@ -11,6 +11,10 @@ const visitorToken = `customer_visitor_${"c".repeat(64)}`;
 const cartId = "9f1b6e23-e2ea-4ab9-a1b7-eaaf550ddf41";
 const orderId = "2b815d21-78be-431a-b49c-0d5d62c87823";
 const providerId = "4a2c7c0d-4389-4aae-b3d7-02ff834a024d";
+const STORE_ID = "5e8a1c93-7d24-4f06-b9e3-2a6f0d8c4b71";
+const OTHER_STORE_ID = "c2d7f490-1b36-4e58-a0c9-7e3b5d1f8a26";
+const checkoutRequestId = "5d2f1c8b-6a4e-4c39-9b71-2f8e0d47a3c6";
+const bihMarket = { id: "market", key: "bih", currency: "bam", tax_mode: "exclusive", payment_option_ids: [] };
 const savedFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = savedFetch; });
 
@@ -34,7 +38,7 @@ const planSelection = {
 
 function cart() {
   return {
-    id: cartId, store_id: "store", customer_id: "customer",
+    id: cartId, store_id: STORE_ID, customer_id: "customer",
     company: { company_id: "company", company_location_id: "location" },
     market_id: "market", sales_channel_id: "channel",
     status: { type: "active" },
@@ -98,37 +102,38 @@ function capture(respond = () => cart()) {
 test("Admin Cart commands preserve explicit context, null clears, empty families and typed filter values", async () => {
   const calls = capture((call) => call.method === "POST" && call.url.pathname.endsWith("/carts")
     ? { cart: cart(), recovery_token: "cart-recovery-token" } : cart());
-  const admin = createAdmin({ baseUrl: apiUrl, storeId: "store/one", apiToken: "arky_api_cart", locale: "bs" });
+  const admin = createAdmin({ baseUrl: apiUrl, apiToken: "arky_api_cart", locale: "bs" });
   const selection = { customer_id: "customer", company: { company_id: "company", company_location_id: "location" }, market_id: "market", sales_channel_id: "channel" };
-  assert.deepEqual(await admin.eshop.cart.create(selection), { cart: cart(), recovery_token: "cart-recovery-token" });
+  assert.deepEqual(await admin.eshop.cart.create({ store_id: STORE_ID, ...selection }), { cart: cart(), recovery_token: "cart-recovery-token" });
   assert.deepEqual(calls[0].body, { ...selection, line_items: [], delivery_groups: [] });
-  assert.equal(calls[0].url.pathname, "/v1/stores/store%2Fone/carts");
+  assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/carts`);
   const patch = { company: null, billing_address: null };
-  await admin.eshop.cart.update({ id: "cart/one", ...patch });
+  await admin.eshop.cart.update({ store_id: STORE_ID, id: "cart/one", ...patch });
   assert.deepEqual(calls[1].body, patch);
-  assert.equal(calls[1].url.pathname, "/v1/stores/store%2Fone/carts/cart%2Fone");
-  await admin.eshop.cart.addSubscriptionPlan({ id: "cart", subscription_plan: planSelection });
+  assert.equal(calls[1].url.pathname, `/v1/stores/${STORE_ID}/carts/cart%2Fone`);
+  await admin.eshop.cart.addSubscriptionPlan({ store_id: STORE_ID, id: "cart", subscription_plan: planSelection });
   assert.deepEqual(calls[2].body, { subscription_plan: planSelection });
-  assert.equal(calls[2].url.pathname, "/v1/stores/store%2Fone/carts/cart/subscription-plan-items");
-  admin.setStoreId("store/two");
-  await admin.eshop.cart.find({ statuses: ["active"], origins: ["admin"] });
-  assert.equal(calls[3].url.pathname, "/v1/stores/store%2Ftwo/carts");
+  assert.equal(calls[2].url.pathname, `/v1/stores/${STORE_ID}/carts/cart/subscription-plan-items`);
+  assert.equal("setStoreId" in admin, false);
+  await admin.eshop.cart.find({ store_id: OTHER_STORE_ID, statuses: ["active"], origins: ["admin"] });
+  assert.equal(calls[3].url.pathname, `/v1/stores/${OTHER_STORE_ID}/carts`);
   assert.deepEqual(JSON.parse(calls[3].url.searchParams.get("statuses")), ["active"]);
   assert.deepEqual(JSON.parse(calls[3].url.searchParams.get("origins")), ["admin"]);
 });
 
 test("Cart discovery preserves combined predicates, ordering and empty-page continuation", async () => {
   const calls = capture(() => ({ items: [], cursor: "next-cart-page" }));
-  const admin = createAdmin({ baseUrl: apiUrl, storeId: "store", apiToken: "arky_api_cart" });
+  const admin = createAdmin({ baseUrl: apiUrl, apiToken: "arky_api_cart" });
   const filters = {
-    customer_id: "customer", statuses: ["active", "abandoned"], origins: ["admin", "storefront"],
+    store_id: STORE_ID, customer_id: "customer", statuses: ["active", "abandoned"], origins: ["admin", "storefront"],
     has_items: false, sort_field: "updated_at", sort_direction: "asc", limit: 20,
   };
   const first = await admin.eshop.cart.find(filters);
   assert.deepEqual(first, { items: [], cursor: "next-cart-page" });
   await admin.eshop.cart.find({ ...filters, cursor: first.cursor });
   for (const call of calls) {
-    assert.equal(call.url.pathname, "/v1/stores/store/carts");
+    assert.equal(call.url.pathname, `/v1/stores/${STORE_ID}/carts`);
+    assert.equal(call.url.searchParams.has("store_id"), false);
     assert.equal(call.method, "GET");
     assert.equal(call.url.searchParams.get("customer_id"), "customer");
     assert.equal(call.url.searchParams.get("has_items"), "false");
@@ -140,19 +145,21 @@ test("Cart discovery preserves combined predicates, ordering and empty-page cont
   }
   assert.equal(calls[1].url.searchParams.get("cursor"), first.cursor);
   globalThis.fetch = async () => Response.json({ message: "Search unavailable" }, { status: 503 });
-  await assert.rejects(admin.eshop.cart.find(filters));
+  await assert.rejects(admin.eshop.cart.find(filters), (error) => error.statusCode === 503);
 });
 
 test("Admin quotes send configured or explicit locale and retain resolved quote context", async () => {
   const expected = quote();
   const calls = capture(() => expected);
-  const admin = createAdmin({ baseUrl: apiUrl, storeId: "store", apiToken: "arky_api_cart", locale: "bs" });
-  assert.deepEqual(await admin.eshop.cart.quote({ id: "cart" }), expected);
+  const admin = createAdmin({ baseUrl: apiUrl, apiToken: "arky_api_cart", locale: "bs" });
+  assert.deepEqual(await admin.eshop.cart.quote({ store_id: STORE_ID, id: "cart" }), expected);
   assert.deepEqual(calls[0].body, { locale: "bs" });
-  await admin.eshop.cart.quote({ id: "cart", locale: "en" });
+  assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/carts/cart/quote`);
+  await admin.eshop.cart.quote({ store_id: STORE_ID, id: "cart", locale: "en" });
   assert.deepEqual(calls[1].body, { locale: "en" });
-  await admin.eshop.order.getQuote({ company_id: "company", company_location_id: "location", sales_channel_id: "channel", market: "bih", currency: "bam", line_items: [{ type: "subscription_plan", ...planSelection }] });
+  await admin.eshop.order.getQuote({ store_id: STORE_ID, company_id: "company", company_location_id: "location", sales_channel_id: "channel", market: "bih", currency: "bam", line_items: [{ type: "subscription_plan", ...planSelection }] });
   assert.deepEqual(calls[2].body, { locale: "bs", company_id: "company", company_location_id: "location", sales_channel_id: "channel", market: "bih", currency: "bam", line_items: [{ type: "subscription_plan", ...planSelection }], delivery_groups: [] });
+  assert.equal(calls[2].url.pathname, `/v1/stores/${STORE_ID}/orders/quote`);
 });
 
 test("Storefront quotes preserve relative subscription selections and resolved delivery dates separately", async () => {
@@ -179,17 +186,23 @@ test("Storefront quotes preserve relative subscription selections and resolved d
 });
 
 test("Storefront Cart permits explicit Company selection but strips browser authority and overrides", async () => {
-  const calls = capture((call) => call.method === "POST" && call.url.pathname.endsWith("/carts")
-    ? { cart: cart(), recovery_token: "cart-recovery-token" } : cart());
+  const calls = capture((call) => call.url.pathname.endsWith("/markets/by-key/bih") ? bihMarket
+    : call.method === "POST" && call.url.pathname.endsWith("/carts")
+      ? { cart: cart(), recovery_token: "cart-recovery-token" } : cart());
   const client = createStorefront(publishableKey, { apiUrl, locale: "bs", market: "bih", sessionStorage: sessionStorage() });
   await client.eshop.cart.current({ company: { company_id: "company", company_location_id: "location", extra: "spoof" }, customer_id: "spoof", market_id: "spoof" });
+  assert.equal(calls[0].url.pathname, "/v1/storefront/markets/by-key/bih");
+  assert.equal(calls[0].method, "GET");
+  calls.shift();
   assert.equal(calls[0].url.pathname, "/v1/storefront/carts");
   assert.deepEqual(calls[0].body, { company: { company_id: "company", company_location_id: "location" } });
   const override = { money: { amount: 1, currency: "bam" }, reason: "browser" };
   await client.eshop.cart.update({
     id: "cart", customer_id: "spoof", store_id: "spoof", origin: { type: "admin" }, company: null,
     line_items: [
-      { type: "product", product_id: "product", variant_id: "variant", quantity: 0, price_override: override },
+      { type: "product", product_id: "product", variant_id: "variant", quantity: 0, price_override: override, purchase: { type: "catalog", spoof: true } },
+      { type: "product", product_id: "product", variant_id: "access-variant", quantity: 1, price_override: override,
+        purchase: { type: "existing_purchase_access", grant: { order_id: "order", order_purchase_access_line_item_id: "access-line", price: 0 } } },
       { type: "booking", booking_offering_id: "offering", requested_interval: { from: 0, to: 60000 }, capacity_units: 1, price_override: override },
       { type: "digital_product", digital_product_id: "digital", beneficiary_customer_id: "customer", form_submission_id: null, price_override: override },
       { type: "subscription_plan", ...planSelection, price_override: override },
@@ -198,12 +211,18 @@ test("Storefront Cart permits explicit Company selection but strips browser auth
   assert.deepEqual(calls[1].body, {
     company: null,
     line_items: [
-      { type: "product", product_id: "product", variant_id: "variant", quantity: 0 },
+      { type: "product", product_id: "product", variant_id: "variant", quantity: 0, purchase: { type: "catalog" } },
+      { type: "product", product_id: "product", variant_id: "access-variant", quantity: 1,
+        purchase: { type: "existing_purchase_access", grant: { order_id: "order", order_purchase_access_line_item_id: "access-line" } } },
       { type: "booking", booking_offering_id: "offering", requested_interval: { from: 0, to: 60000 }, capacity_units: 1 },
       { type: "digital_product", digital_product_id: "digital", beneficiary_customer_id: "customer", form_submission_id: null },
       { type: "subscription_plan", ...planSelection },
     ],
   });
+  const beforeUnroutedProduct = calls.length;
+  await assert.rejects(client.eshop.cart.update({ id: "cart", line_items: [{ type: "product", product_id: "product", variant_id: "variant", quantity: 1 }] }));
+  await assert.rejects(client.eshop.cart.update({ id: "cart", line_items: [{ type: "product", product_id: "product", variant_id: "variant", quantity: 1, purchase: { type: "browser_grant" } }] }), /explicit supported purchase route/);
+  assert.equal(calls.length, beforeUnroutedProduct);
   await client.eshop.cart.addSubscriptionPlan({ id: "cart/one", subscription_plan: { ...planSelection, price_override: override } });
   assert.equal(calls[2].url.pathname, "/v1/storefront/carts/cart%2Fone/subscription-plan-items");
   assert.deepEqual(calls[2].body, { subscription_plan: planSelection });
@@ -220,13 +239,15 @@ test("Checkout forwards only the reviewed locale/digest and does not replace a r
     calls.push({ path: new URL(url).pathname, body: JSON.parse(init.body) });
     return Response.json({ message: "Review the changed quote", error: "COMMERCE.PRESENTATION_CHANGED", status_code: 409, validation_errors: [], quote: quote() }, { status: 409 });
   };
-  const request = { id: cartId, request_id: "5d2f1c8b-6a4e-4c39-9b71-2f8e0d47a3c6", locale: "bs", presentation_digest: "b".repeat(64), sources: quote().sources, payment_option_id: providerId, return_url: "https://merchant.example/return" };
-  const admin = createAdmin({ baseUrl: apiUrl, storeId: "store", apiToken: "arky_api_cart" });
+  const request = { id: cartId, request_id: checkoutRequestId, locale: "bs", presentation_digest: "b".repeat(64), sources: quote().sources, payment_option_id: providerId, return_url: "https://merchant.example/return" };
+  const admin = createAdmin({ baseUrl: apiUrl, apiToken: "arky_api_cart" });
   const storefront = createStorefront(publishableKey, { apiUrl, locale: "bs", sessionStorage: sessionStorage() });
-  for (const client of [admin, storefront]) {
-    await assert.rejects(client.eshop.cart.checkout(request), (error) => error.statusCode === 409);
+  for (const [client, target] of [[admin, { store_id: STORE_ID }], [storefront, {}]]) {
+    await assert.rejects(client.eshop.cart.checkout({ ...target, ...request }), (error) => error.statusCode === 409 && error.name === "CartPresentationChangedError");
   }
   assert.equal(calls.length, 2);
+  assert.equal(calls[0].path, `/v1/stores/${STORE_ID}/carts/accept`);
+  assert.equal(calls[1].path, "/v1/storefront/carts/accept");
   const { id, locale, ...payload } = request;
   const adminBody = { ...payload, locale };
   const storefrontBody = payload;
@@ -248,17 +269,19 @@ test("initialize handles a SubscriptionPlan-only Cart through quote and exact re
       checkoutRequestId = call.body.request_id;
       return result;
     }
-    if (call.method === "GET") return { id: orderId, source: { type: "cart_acceptance", command_id: checkoutRequestId, cart: quote().sources.cart, converted_lines: quote().sources.converted_lines } };
+    if (call.method === "GET") return { id: orderId, source: { type: "cart_acceptance", request_id: checkoutRequestId, submission_fingerprint: "e".repeat(64), initial_payment_id: null, cart: quote().sources.cart, converted_lines: quote().sources.converted_lines } };
     return current;
   });
-  await assert.rejects(store.eshop.cart.checkout(), /Review a Cart quote/);
+  await assert.rejects(store.eshop.cart.checkout({ request_id: "7a1e5c39-4b82-4d60-9f17-3c8e2a6d0b54" }), /Review a Cart quote/);
   assert.equal(calls.length, 0);
   assert.deepEqual(await store.eshop.cart.quote(), quote());
-  assert.deepEqual(await store.eshop.cart.checkout({ clear_after_checkout: false }), result);
+  assert.deepEqual(await store.eshop.cart.checkout({ request_id: "7a1e5c39-4b82-4d60-9f17-3c8e2a6d0b54", clear_after_checkout: false }), result);
+  assert.equal(checkoutRequestId, "7a1e5c39-4b82-4d60-9f17-3c8e2a6d0b54");
   assert.deepEqual(calls[0].body.line_items, [
     { type: "subscription_plan", id: planLineId, ...planSelection },
   ]);
-  assert.deepEqual(calls[1].body, {});
+  assert.equal(calls[1].body, null);
+  assert.equal(calls[1].headers.get("x-arky-locale"), "bs");
   assert.deepEqual(
     { ...calls[2].body, request_id: undefined },
     { presentation_digest: "a".repeat(64), sources: quote().sources, request_id: undefined },
@@ -279,15 +302,15 @@ test("Admin and storefront future delivery review preserve choices and accepted 
   const acceptedPlans = [{ cart_line_item_id: planLineId, deliveries: [{ ...choice, quote_acceptance: acceptance }] }];
   const reviewed = { cart: { cart_id: cartId, version: "revision" }, cart_version: "version", quoted_at: 1800000000000, plans: [] };
   const calls = capture((call) => call.method === "POST" ? reviewed : cart());
-  const admin = createAdmin({ baseUrl: apiUrl, storeId: "store", apiToken: "arky_api_cart", locale: "bs" });
+  const admin = createAdmin({ baseUrl: apiUrl, apiToken: "arky_api_cart", locale: "bs" });
   const client = createStorefront(publishableKey, { apiUrl, locale: "bs", market: "bih", sessionStorage: sessionStorage() });
-  assert.deepEqual(await admin.eshop.cart.quoteFutureDeliveries({ id: "cart/one", plans }), reviewed);
-  await admin.eshop.cart.acceptFutureDeliveries({ id: "cart/one", locale: "en", plans: acceptedPlans });
+  assert.deepEqual(await admin.eshop.cart.quoteFutureDeliveries({ store_id: STORE_ID, id: "cart/one", plans }), reviewed);
+  await admin.eshop.cart.acceptFutureDeliveries({ store_id: STORE_ID, id: "cart/one", locale: "en", plans: acceptedPlans });
   assert.deepEqual(await client.eshop.cart.quoteFutureDeliveries({ id: "cart/one", store_id: "spoof", locale: "spoof", plans }), reviewed);
   await client.eshop.cart.acceptFutureDeliveries({ id: "cart/one", store_id: "spoof", locale: "spoof", plans: acceptedPlans });
   assert.deepEqual(calls.map((call) => [call.method, call.url.pathname]), [
-    ["POST", "/v1/stores/store/carts/cart%2Fone/future-delivery-quote"],
-    ["PUT", "/v1/stores/store/carts/cart%2Fone/future-deliveries"],
+    ["POST", `/v1/stores/${STORE_ID}/carts/cart%2Fone/future-delivery-quote`],
+    ["PUT", `/v1/stores/${STORE_ID}/carts/cart%2Fone/future-deliveries`],
     ["POST", "/v1/storefront/carts/cart%2Fone/future-delivery-quote"],
     ["PUT", "/v1/storefront/carts/cart%2Fone/future-deliveries"],
   ]);
@@ -335,11 +358,12 @@ test("Cart controller forwards SubscriptionPlan selection and caller-reviewed ch
     quote: async () => { throw new Error("Must not quote implicitly"); },
     checkout: async (input) => { calls.push(input); return { order_id: "order", number: "1001", payment: null, payment_action: { type: "none" } }; },
   });
-  await controller.init();
-  await controller.addSubscriptionPlan({ subscription_plan: planSelection });
-  await controller.checkout({ locale: "bs", presentation_digest: "a".repeat(64) });
+  await controller.init({ store_id: STORE_ID });
+  await controller.addSubscriptionPlan({ store_id: STORE_ID, subscription_plan: planSelection });
+  const reviewed = { store_id: STORE_ID, request_id: checkoutRequestId, locale: "bs", presentation_digest: "a".repeat(64), sources: quote().sources };
+  await controller.checkout(reviewed);
   assert.deepEqual(calls, [
-    { id: cartId, subscription_plan: planSelection },
-    { id: cartId, locale: "bs", presentation_digest: "a".repeat(64) },
+    { id: cartId, store_id: STORE_ID, subscription_plan: planSelection },
+    { id: cartId, ...reviewed },
   ]);
 });

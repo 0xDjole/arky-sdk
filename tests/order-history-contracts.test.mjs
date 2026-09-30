@@ -10,12 +10,12 @@ import {
 import { retainedOrder as retained } from "./fixtures/retained-order.mjs";
 
 const baseUrl = "https://api.example.test";
-const storeId = "store-history-contract";
+const storeId = retained.store_id;
+const otherStoreId = "7d3b9f15-c2a6-4e80-9b4d-1a6e8c2f5d73";
 
 function client() {
   return createAdmin({
     baseUrl,
-    storeId,
     apiToken: "arky_api_history_contract",
   });
 }
@@ -38,10 +38,13 @@ test("Order reads retain detached navigation, immutable provenance, accepted nam
       return Response.json(retained);
     },
     async () => {
-      const order = await client().eshop.order.get({ id: retained.id });
+      const order = await client().eshop.order.get({ store_id: storeId, id: retained.id });
       assert.deepEqual(order, retained);
       assert.equal(order.source.type, "cart_acceptance");
-      assert.equal(order.source.command_id, "accepted-command");
+      assert.equal(order.source.request_id, "9b2e4d71-6a35-4c08-8f1e-3d7a5c9b2e46");
+      assert.equal(order.source.submission_fingerprint, "c".repeat(64));
+      assert.equal(order.source.initial_payment_id, null);
+      assert.equal("command_id" in order.source, false);
       assert.equal(order.customer_id, "retained-customer");
       assert.equal(order.market_id, null);
       assert.equal(order.market_snapshot.source_market_id, "accepted-market");
@@ -82,15 +85,13 @@ test("Order reads retain detached navigation, immutable provenance, accepted nam
 test("Order confirmation and pending cancellation keep their separate request and response contracts", async () => {
   const calls = [];
   const signal = new AbortController().signal;
+  const cancellationRequestId = "1f5c8e27-4b9a-4d36-a0c2-6e9d3b7f1a54";
   const cancellation = {
-    id: "cancellation-command",
-    store_id: "store-next",
+    request_id: cancellationRequestId,
+    store_id: otherStoreId,
+    order_id: retained.id,
     accepted_at: 1789990000000,
-    command: {
-      type: "order_cancellation_requested",
-      order_id: retained.id,
-      source: { type: "expiration", expires_at: 1789989999999 },
-    },
+    source: { type: "expiration", expires_at: 1789989999999 },
   };
   await withFetch(
     async (url, init = {}) => {
@@ -106,41 +107,38 @@ test("Order confirmation and pending cancellation keep their separate request an
       const api = client();
       assert.deepEqual(
         await api.eshop.order.update(
-          { id: "order/a?b", store_id: "store/override", confirm: true },
+          { id: "order/a?b", store_id: storeId, confirm: true },
           { signal },
         ),
         retained,
       );
-      api.setStoreId("store-next");
-      assert.deepEqual(await api.eshop.order.cancelPending({ order_id: retained.id, command_id: "cancellation-command" }), cancellation);
+      assert.equal("setStoreId" in api, false);
+      assert.deepEqual(await api.eshop.order.cancelPending({ store_id: otherStoreId, order_id: retained.id, request_id: cancellationRequestId }), cancellation);
     },
   );
   assert.equal(
     calls[0].url,
-    `${baseUrl}/v1/stores/store%2Foverride/orders/order%2Fa%3Fb`,
+    `${baseUrl}/v1/stores/${storeId}/orders/order%2Fa%3Fb`,
   );
   assert.equal(calls[0].method, "PUT");
   assert.deepEqual(calls[0].body, { confirm: true });
   assert.equal(calls[0].signal, signal);
   assert.equal(
     calls[1].url,
-    `${baseUrl}/v1/stores/store-next/orders/${retained.id}/cancel`,
+    `${baseUrl}/v1/stores/${otherStoreId}/orders/${retained.id}/cancel`,
   );
   assert.equal(calls[1].method, "POST");
-  assert.deepEqual(calls[1].body, { command_id: "cancellation-command" });
+  assert.deepEqual(calls[1].body, { request_id: cancellationRequestId });
 });
 
-test("pending cancellation retry preserves its command and returns acceptance, not an Order", async () => {
-  const request = { store_id: "store/one", order_id: "order/one", command_id: "cancel-command" };
+test("pending cancellation retry preserves its request and returns acceptance, not an Order", async () => {
+  const request = { store_id: otherStoreId, order_id: "order/one", request_id: "5b1d7f39-8e24-4a60-9c3b-2f6a0d8e4c17" };
   const receipt = {
-    id: "already-accepted-request",
+    request_id: request.request_id,
     store_id: request.store_id,
+    order_id: request.order_id,
     accepted_at: 1789990000000,
-    command: {
-      type: "order_cancellation_requested",
-      order_id: request.order_id,
-      source: { type: "admin", actor: { account_id: "admin-one", snapshot: { email: "operator@example.test", credential_type: "api_token" } } },
-    },
+    source: { type: "admin", actor: { account_id: "admin-one", snapshot: { email: "operator@example.test", credential_type: "api_token" } } },
   };
   const calls = [];
   await withFetch(async (url, init = {}) => {
@@ -156,10 +154,15 @@ test("pending cancellation retry preserves its command and returns acceptance, n
     assert.equal(calls.length, 2);
     assert.deepEqual(calls[1], calls[0]);
     assert.deepEqual(calls[0], {
-      url: `${baseUrl}/v1/stores/store%2Fone/orders/order%2Fone/cancel`,
+      url: `${baseUrl}/v1/stores/${otherStoreId}/orders/order%2Fone/cancel`,
       method: "POST",
-      body: { command_id: request.command_id },
+      body: { request_id: request.request_id },
     });
+    for (const request_id of [undefined, "cancel-command", request.request_id.toUpperCase()]) {
+      await assert.rejects(api.eshop.order.cancelPending({ ...request, request_id }), TypeError);
+    }
+    await assert.rejects(api.eshop.order.cancelPending({ ...request, store_id: "store/one" }), TypeError);
+    assert.equal(calls.length, 2);
   });
 });
 
@@ -175,7 +178,7 @@ test("Unsupported accepted-line edits are not silently discarded into successful
     },
     async () => {
       await assert.rejects(
-        client().eshop.order.update({ id: retained.id, booking_items: [] }),
+        client().eshop.order.update({ store_id: storeId, id: retained.id, booking_items: [] }),
         (error) => error.statusCode === 422,
       );
     },
@@ -193,7 +196,7 @@ test("Order lifecycle denial is propagated without retry or a replacement comman
       },
       async () => {
         await assert.rejects(
-          client().eshop.order.update({ id: retained.id, confirm: true }),
+          client().eshop.order.update({ store_id: storeId, id: retained.id, confirm: true }),
           (error) => error.statusCode === status,
         );
       },

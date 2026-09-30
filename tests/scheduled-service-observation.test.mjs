@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createAdmin } from "../dist/admin.js";
-import { stripeConnectionFixture } from "./helpers/stripe-connection.mjs";
 import { createStorefront } from "../dist/storefront.js";
 import {
   admin,
@@ -260,37 +259,41 @@ test("admin support exact-reads a requested message omitted from the write respo
   assert.equal(calls[0].body.message_id, messageId);
 });
 
-test("direct provider calls keep their original store scope", async () => {
-  const originalStoreId = "store-original";
-  const replacementStoreId = "store-replacement";
+test("direct provider calls keep their explicit Store scope", async () => {
+  const replacementStoreId = "a7c3e1f5-6b28-4d90-9e4a-2f8d0b6c1e73";
   const client = createAdmin({
     baseUrl,
-    storeId: originalStoreId,
     apiToken: "scheduled-contract-token",
   });
+  assert.equal("setStoreId" in client, false);
   const providerId = "provider-store-scope";
-  const operationId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
-  const response = stripeConnectionFixture(originalStoreId, providerId, operationId);
+  const requestId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const params = {
+    store_id: storeId,
+    id: providerId,
+    request_id: requestId,
+    expected_updated_at: 7,
+    configuration: { type: "access", restricted_key: "rk_test_scope", publishable_key: "pk_test_scope" },
+  };
+  const change = {
+    store_id: storeId, payment_option_id: providerId, request_id: requestId, type: "access",
+    expected_updated_at: 7, accepted_updated_at: 8, accepted_at: 8, account_id: "acct_scope", livemode: false,
+  };
   const calls = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     const target = String(url);
-    calls.push({ target, method: init.method || "GET" });
+    calls.push({ target, method: init.method || "GET", body: init.body ? JSON.parse(String(init.body)) : null });
     if (init.method === "POST") {
-      client.setStoreId(replacementStoreId);
-      return jsonResponse(response);
+      params.store_id = replacementStoreId;
+      return jsonResponse(change);
     }
     throw new Error(`Unexpected provider observation: ${target}`);
   };
 
   try {
-    await client.store.paymentOption.stripe.connect({
-      operation_id: operationId,
-      payment_option_id: providerId,
-      return_url: "https://admin.example.test/return",
-      refresh_url: "https://admin.example.test/refresh",
-      country: "BA",
-    });
+    assert.deepEqual(await client.store.paymentOption.stripe.configure(params), change);
+    await assert.rejects(async () => client.store.paymentOption.stripe.configure({ ...params, store_id: undefined }), TypeError);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -299,9 +302,14 @@ test("direct provider calls keep their original store scope", async () => {
     calls.map(({ target, method }) => [target.replace(baseUrl, ""), method]),
     [
       [
-        `/v1/stores/${originalStoreId}/payment-options/stripe/connect`,
+        `/v1/stores/${storeId}/payment-options/stripe/${providerId}/configuration`,
         "POST",
       ],
     ],
   );
+  assert.deepEqual(calls[0].body, {
+    request_id: requestId,
+    expected_updated_at: 7,
+    configuration: { type: "access", restricted_key: "rk_test_scope", publishable_key: "pk_test_scope" },
+  });
 });

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 
+const STORE_ID = "3d8f1b62-7c49-4e05-a2b6-9f0d4c7e1a83";
+
 test("Admin payment resume targets the accepted Order without creating a new request", async () => {
   const original = globalThis.fetch;
   const calls = [];
@@ -11,12 +13,15 @@ test("Admin payment resume targets the accepted Order without creating a new req
     return new Response(JSON.stringify(result), { headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ baseUrl: "https://api.example.test", storeId: "default", apiToken: "arky_api_test" }).eshop;
-    assert.deepEqual(await api.checkout.resumePayment({ store_id: "selected", order_id: "order" }), result);
+    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop;
+    assert.deepEqual(await api.checkout.resumePayment({ store_id: STORE_ID, order_id: "order" }), result);
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].url.pathname, "/v1/stores/selected/orders/order/payment-action");
+    assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/orders/order/payment-action`);
+    assert.equal(calls[0].url.search, "");
     assert.equal(calls[0].method, "POST");
-    assert.deepEqual(JSON.parse(calls[0].body), {});
+    assert.equal(calls[0].body, undefined);
+    await assert.rejects(async () => api.checkout.resumePayment({ order_id: "order" }), TypeError);
+    assert.equal(calls.length, 1);
   } finally { globalThis.fetch = original; }
 });
 
@@ -28,17 +33,17 @@ test("known commerce definitions use exact key/binding reads without discovery o
     return new Response(JSON.stringify({ id: "retained", key: "selected" }), { headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ baseUrl: "https://api.example.test", storeId: "default", apiToken: "arky_api_test" }).eshop;
+    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop;
     for (const owner of [api.product, api.bookingService, api.bookingResource, api.fulfillmentRoutingPolicy]) {
-      assert.equal((await owner.getByKey({ store_id: "selected", key: "demo-key" })).id, "retained");
+      assert.equal((await owner.getByKey({ store_id: STORE_ID, key: "demo-key" })).id, "retained");
     }
-    await api.bookingOffering.lookup({ store_id: "selected", booking_service_id: "service", booking_resource_id: "resource" });
+    await api.bookingOffering.lookup({ store_id: STORE_ID, booking_service_id: "service", booking_resource_id: "resource" });
     assert.deepEqual(calls.map(({ url }) => url.pathname), [
-      "/v1/stores/selected/products/by-key/demo-key",
-      "/v1/stores/selected/booking-services/by-key/demo-key",
-      "/v1/stores/selected/booking-resources/by-key/demo-key",
-      "/v1/stores/selected/fulfillment-routing-policies/by-key/demo-key",
-      "/v1/stores/selected/booking-offerings/lookup",
+      `/v1/stores/${STORE_ID}/products/by-key/demo-key`,
+      `/v1/stores/${STORE_ID}/booking-services/by-key/demo-key`,
+      `/v1/stores/${STORE_ID}/booking-resources/by-key/demo-key`,
+      `/v1/stores/${STORE_ID}/fulfillment-routing-policies/by-key/demo-key`,
+      `/v1/stores/${STORE_ID}/booking-offerings/lookup`,
     ]);
     assert.ok(calls.every(({ method }) => method === "GET"));
     assert.deepEqual(Object.fromEntries(calls[4].url.searchParams), { booking_service_id: "service", booking_resource_id: "resource" });
@@ -49,9 +54,9 @@ test("known commerce definitions use exact key/binding reads without discovery o
         return new Response(JSON.stringify({ message: "lookup failed" }), { status, headers: { "content-type": "application/json" } });
       };
       for (const owner of [api.product, api.bookingService, api.bookingResource, api.fulfillmentRoutingPolicy]) {
-        await assert.rejects(owner.getByKey({ key: "demo-key" }), (error) => error.statusCode === status);
+        await assert.rejects(owner.getByKey({ store_id: STORE_ID, key: "demo-key" }), (error) => error.statusCode === status);
       }
-      await assert.rejects(api.bookingOffering.lookup({ booking_service_id: "service", booking_resource_id: "resource" }), (error) => error.statusCode === status);
+      await assert.rejects(api.bookingOffering.lookup({ store_id: STORE_ID, booking_service_id: "service", booking_resource_id: "resource" }), (error) => error.statusCode === status);
       assert.equal(count, 5);
     }
   } finally {

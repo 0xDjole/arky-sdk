@@ -13,9 +13,11 @@ const request = {
   },
   tax: { version: "synthetic-fixture", noncommercial_subscription_grants: false },
 };
+const STORE_ID = "8f1d5b37-2c94-4e60-a7b8-0d3e6c9f2a15";
+const OTHER_STORE_ID = "3b7e0a92-6d15-4f48-8c2a-9e1f4d7b5c30";
 const operation = {
   id: "operation/a?b",
-  store_id: "store/a?b",
+  store_id: STORE_ID,
   account_id: "owner",
   request,
   request_fingerprint: "sha256-v1:fixture",
@@ -36,7 +38,7 @@ async function withFetch(handler, run) {
 }
 
 function client() {
-  return createAdmin({ baseUrl: "https://api.example.test", storeId: operation.store_id, apiToken: "contract-token" });
+  return createAdmin({ baseUrl: "https://api.example.test", apiToken: "contract-token" });
 }
 
 test("Store settings preserve explicit null language without sending unchanged commerce defaults", async () => {
@@ -47,10 +49,12 @@ test("Store settings preserve explicit null language without sending unchanged c
   }, async () => {
     await client().store.update({ id: operation.store_id, contact_email: null, default_language: null });
     assert.deepEqual(calls, [{
-      url: "https://api.example.test/v1/stores/store%2Fa%3Fb",
+      url: `https://api.example.test/v1/stores/${STORE_ID}`,
       method: "PUT",
-      body: { id: operation.store_id, contact_email: null, default_language: null },
+      body: { contact_email: null, default_language: null },
     }]);
+    await assert.rejects(async () => client().store.update({ id: "store/a?b", contact_email: null }), TypeError);
+    assert.equal(calls.length, 1);
   });
 });
 
@@ -58,7 +62,7 @@ test("Store branding uses the exact Store path and keeps clearing explicit witho
   const calls = [];
   const signal = new AbortController().signal;
   const branding = { logo_media_id: null, icon_media_id: null, accent_color: "#345678" };
-  const presentation = { id: "store/selected", name: "Selected Store", logo: null, icon: null, accent_color: "#345678" };
+  const presentation = { id: OTHER_STORE_ID, name: "Selected Store", logo: null, icon: null, accent_color: "#345678" };
   await withFetch(async (url, init) => {
     calls.push({ url: String(url), method: init.method, body: init.body === undefined ? undefined : JSON.parse(init.body), signal: init.signal });
     return Response.json(init.method === "GET" ? presentation : { id: presentation.id, branding });
@@ -67,22 +71,23 @@ test("Store branding uses the exact Store path and keeps clearing explicit witho
     assert.deepEqual(await api.get({ id: presentation.id }, { signal }), presentation);
     await api.update({ id: presentation.id, branding }, { signal });
     assert.deepEqual(calls, [
-      { url: "https://api.example.test/v1/stores/store%2Fselected/branding", method: "GET", body: undefined, signal },
-      { url: "https://api.example.test/v1/stores/store%2Fselected/branding", method: "PUT", body: { branding }, signal },
+      { url: `https://api.example.test/v1/stores/${OTHER_STORE_ID}/branding`, method: "GET", body: undefined, signal },
+      { url: `https://api.example.test/v1/stores/${OTHER_STORE_ID}/branding`, method: "PUT", body: { branding }, signal },
     ]);
   });
 });
 
-test("Store branding defaults to the configured Store and never replays a failed save", async () => {
+test("Store branding requires its explicit Store and never replays a failed save", async () => {
   const calls = [];
+  const branding = { logo_media_id: null, icon_media_id: null, accent_color: null };
   await withFetch(async (url, init) => {
     calls.push({ url: String(url), method: init.method });
     return Response.json({ message: "Response lost" }, { status: 503 });
   }, async () => {
-    await assert.rejects(client().store.branding.update({ branding: {
-      logo_media_id: null, icon_media_id: null, accent_color: null,
-    } }), error => error.statusCode === 503);
-    assert.deepEqual(calls, [{ url: "https://api.example.test/v1/stores/store%2Fa%3Fb/branding", method: "PUT" }]);
+    await assert.rejects(async () => client().store.branding.update({ branding }), TypeError);
+    assert.deepEqual(calls, []);
+    await assert.rejects(client().store.branding.update({ id: STORE_ID, branding }), error => error.statusCode === 503);
+    assert.deepEqual(calls, [{ url: `https://api.example.test/v1/stores/${STORE_ID}/branding`, method: "PUT" }]);
   });
 });
 
@@ -94,15 +99,17 @@ test("commerce initialization keeps the caller's request and operation on explic
     return calls.length === 1 ? Response.json({ message: "response lost" }, { status: 503 }) : Response.json(operation, { status: 202 });
   }, async () => {
     const api = client().store.commerce;
-    const params = { operation_id: operation.id, request };
+    const params = { store_id: STORE_ID, operation_id: operation.id, request };
     await assert.rejects(api.initialize(params, { signal }), error => error.statusCode === 503);
     assert.equal(calls.length, 1);
     assert.deepEqual(await api.initialize(params, { signal }), operation);
     assert.deepEqual(calls[1], calls[0]);
     assert.deepEqual(calls[0], {
-      url: "https://api.example.test/v1/stores/store%2Fa%3Fb/commerce/initializations",
-      method: "POST", body: params, signal,
+      url: `https://api.example.test/v1/stores/${STORE_ID}/commerce/initializations`,
+      method: "POST", body: { operation_id: operation.id, request }, signal,
     });
+    await assert.rejects(async () => api.initialize({ operation_id: operation.id, request }), TypeError);
+    assert.equal(calls.length, 2);
   });
 });
 
@@ -114,13 +121,33 @@ test("commerce initialization inspection is exact and read-only; abort is a sepa
     return Response.json(init.method === "POST" ? aborted : operation);
   }, async () => {
     const api = client().store.commerce;
-    const params = { store_id: "store/override", operation_id: operation.id };
+    const params = { store_id: OTHER_STORE_ID, operation_id: operation.id };
     assert.deepEqual(await api.getInitialization(params), operation);
     assert.deepEqual(await api.abortInitialization(params), aborted);
-    const path = "https://api.example.test/v1/stores/store%2Foverride/commerce/initializations/operation%2Fa%3Fb";
+    const path = `https://api.example.test/v1/stores/${OTHER_STORE_ID}/commerce/initializations/operation%2Fa%3Fb`;
     assert.deepEqual(calls, [
       { url: path, method: "GET", body: undefined },
-      { url: `${path}/abort`, method: "POST", body: {} },
+      { url: `${path}/abort`, method: "POST", body: undefined },
+    ]);
+  });
+});
+
+test("customer workspace reads and replacements target the explicit Store with the observed revision", async () => {
+  const calls = [];
+  const workspace = { revision: "workspace-revision-2", client: { storefront_client_id: "client", publishable_key: `arky_pk_${"w".repeat(42)}A` } };
+  await withFetch(async (url, init) => {
+    calls.push({ url: String(url), method: init.method, body: init.body === undefined ? undefined : JSON.parse(init.body) });
+    return Response.json(init.method === "PUT" ? { id: STORE_ID } : { ...workspace.client, branding: null, default_language: null, supported_languages: [] });
+  }, async () => {
+    const api = client().store.customerWorkspace;
+    await api.get({ id: STORE_ID });
+    await api.update({ id: STORE_ID, expected_revision: "workspace-revision-1", customer_workspace: workspace });
+    await assert.rejects(async () => api.update({ expected_revision: null, customer_workspace: workspace }), TypeError);
+    await assert.rejects(async () => api.get({ id: "store/a?b" }), TypeError);
+    assert.deepEqual(calls, [
+      { url: `https://api.example.test/v1/stores/${STORE_ID}/customer-workspace`, method: "GET", body: undefined },
+      { url: `https://api.example.test/v1/stores/${STORE_ID}/customer-workspace`, method: "PUT",
+        body: { expected_revision: "workspace-revision-1", customer_workspace: workspace } },
     ]);
   });
 });

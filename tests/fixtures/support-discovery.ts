@@ -7,7 +7,7 @@ const filters: FindSupportConversationsParams = {
   sort_field: "updated_at", sort_direction: "desc", limit: 1, cursor: "next",
 };
 const page: Promise<{ items: SupportConversation[]; cursor: string | null }> =
-  createAdmin({ baseUrl: "https://support.test", storeId: "store", market: "market-contract" }).support.findConversations(filters);
+  createAdmin({ baseUrl: "https://support.test", market: "market-contract" }).support.findConversations(filters);
 // @ts-expect-error The inbox takes plain status alternatives, not lifecycle objects.
 const objectStatus: FindSupportConversationsParams = { store_id: "store", statuses: [{ type: "active" }] };
 // @ts-expect-error The singular status filter was replaced by native alternatives.

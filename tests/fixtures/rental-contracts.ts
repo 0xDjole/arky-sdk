@@ -78,13 +78,15 @@ export type RentalContract = [
   True<Same<keyof Command<"close">, "type">>,
   True<Same<keyof Command<"cancel_issue">, "type" | "fulfillment_order_id" | "fulfillment_order_line_id">>,
   True<Same<keyof RentalApi, "find" | "get" | "execute">>,
-  True<Same<Parameters<RentalApi["find"]>[0], FindRentalsParams | undefined>>,
+  True<Same<Parameters<RentalApi["find"]>[0], FindRentalsParams>>,
+  True<RequiredField<FindRentalsParams, "store_id">>,
   True<Same<keyof FindRentalsParams, "store_id" | "subscription_id" | "status" | "limit" | "cursor" | "sort_field" | "sort_direction">>,
   True<Same<Awaited<ReturnType<RentalApi["find"]>>, PaginatedResponse<Rental>>>,
   True<Same<Parameters<RentalApi["get"]>[0], GetRentalParams>>,
   True<Same<Awaited<ReturnType<RentalApi["get"]>>, RentalDetail>>,
   True<Same<Parameters<RentalApi["execute"]>[0], ExecuteRentalParams>>,
-  True<Same<keyof ExecuteRentalParams, "store_id" | "id" | "command_id" | "expected_updated_at" | "type">>,
+  True<Same<keyof ExecuteRentalParams, "store_id" | "id" | "request_id" | "expected_updated_at" | "type">>,
+  True<RequiredField<ExecuteRentalParams, "request_id">>,
   True<Same<ExecuteRentalParams["type"], RentalCommand>>,
   True<Same<Awaited<ReturnType<RentalApi["execute"]>>, Rental>>,
   True<"rentalPlacement" extends keyof Admin ? false : true>,
@@ -118,7 +120,7 @@ export type RentalIssueWorkContract = [
   True<RequiredField<QuotedDeliveryGroup, "rental_items">>,
   True<Same<keyof CartDeliveryRentalAssignment, "cart_delivery_group_id" | "line_item" | "quantity">>,
   True<Same<CartDeliveryRentalAssignment["line_item"], CartPhysicalLineRef>>,
-  True<Same<SubscriptionEntitlementOrderQuoteLine["type"], "product" | "digital_product" | "rental">>,
+  True<Same<SubscriptionEntitlementOrderQuoteLine["type"], "product" | "digital_product" | "purchase_access" | "rental">>,
 ];
 
 const ending: RentalCommand = { type: "end", reason: "Customer ended the agreement", return_due_at: null };

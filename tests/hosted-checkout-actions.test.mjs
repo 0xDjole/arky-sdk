@@ -39,7 +39,7 @@ test("browser entrypoints load provider scripts only when a checkout is explicit
       window.Stripe = (key, options) => {
         initialized += 1;
         assert.equal(key, "pk_test_explicit_mount");
-        assert.equal(options.stripeAccount, "acct_explicit_mount");
+        assert.equal(options?.stripeAccount, undefined);
         return {
           createEmbeddedCheckoutPage: async (input) => {
             assert.equal(input.clientSecret, "cs_explicit_secret");
@@ -49,11 +49,18 @@ test("browser entrypoints load provider scripts only when a checkout is explicit
       };
       const result = await sdk.mountCheckoutAction({
         type: "stripe_embedded_checkout", publishable_key: "pk_test_explicit_mount",
-        connected_account_id: "acct_explicit_mount", client_secret: "cs_explicit_secret",
+        account_id: "acct_explicit_mount", client_secret: "cs_explicit_secret", expires_at: 10,
       }, target);
       assert.equal(result.type, "stripe_embedded_checkout");
       assert.equal(initialized, 1);
       assert.equal(mounted, target);
+      assert.equal(scripts, 0);
+      const billing = await sdk.mountCheckoutAction({
+        type: "stripe_embedded_checkout", publishable_key: "pk_test_explicit_mount",
+        client_secret: "cs_explicit_secret", expires_at: 10,
+      }, target);
+      assert.equal(billing.type, "stripe_embedded_checkout");
+      assert.equal(initialized, 2);
       assert.equal(scripts, 0);
     `, new URL(`../dist/${entry}.js`, import.meta.url).href], {
       timeout: 10_000,

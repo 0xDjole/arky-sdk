@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 
+const STORE_ID = "c31a0e57-94d2-4f1b-8e6a-7d25b0c9f413";
+
 test("Campaign conversation preserves empty pages, scoped cursors and backend message order without hidden reads", async () => {
   const previous = globalThis.fetch;
   const calls = [];
   const cursor = "position:/+==";
-  const enrollment = { id: "enrollment", store_id: "chosen", campaign_id: "campaign" };
+  const enrollment = { id: "enrollment", store_id: STORE_ID, campaign_id: "campaign" };
   const messages = [
     { message: { id: "first", position: 2, created_at: 2000 }, email_status: null },
     { message: { id: "second", position: 3, created_at: 1000 }, email_status: null },
@@ -18,14 +20,14 @@ test("Campaign conversation preserves empty pages, scoped cursors and backend me
     });
   };
   try {
-    const api = createAdmin({ storeId: "default", market: "configured", baseUrl: "https://api.example.test", apiToken: "arky_api_test" });
-    const scope = { store_id: "chosen", campaign_id: "campaign", id: "enrollment", limit: 20 };
+    const api = createAdmin({ market: "configured", baseUrl: "https://api.example.test", apiToken: "arky_api_test" });
+    const scope = { store_id: STORE_ID, campaign_id: "campaign", id: "enrollment", limit: 20 };
     assert.deepEqual(await api.campaignEnrollment.getConversation(scope), { enrollment, messages: { items: [], cursor } });
     assert.equal(calls.length, 1);
     assert.deepEqual(await api.campaignEnrollment.getConversation({ ...scope, cursor }), { enrollment, messages: { items: messages, cursor: null } });
     assert.equal(calls.length, 2);
     assert.deepEqual(Object.fromEntries(calls[1].url.searchParams), { limit: "20", cursor });
-    assert.ok(calls.every(({ url, method }) => url.pathname === "/v1/stores/chosen/campaigns/campaign/enrollments/enrollment/conversation" && method === "GET"));
+    assert.ok(calls.every(({ url, method }) => url.pathname === `/v1/stores/${STORE_ID}/campaigns/campaign/enrollments/enrollment/conversation` && method === "GET"));
   } finally { globalThis.fetch = previous; }
 });
 
@@ -40,15 +42,15 @@ test("Campaign discovery sends native name/status/order predicates and preserves
     });
   };
   try {
-    const api = createAdmin({ storeId: "default", market: "configured", baseUrl: "https://api.example.test", apiToken: "arky_api_test" });
-    const scope = { store_id: "chosen", query: "Život", status: "paused", sort_field: "updated_at", sort_direction: "asc", limit: 20 };
+    const api = createAdmin({ market: "configured", baseUrl: "https://api.example.test", apiToken: "arky_api_test" });
+    const scope = { store_id: STORE_ID, query: "Život", status: "paused", sort_field: "updated_at", sort_direction: "asc", limit: 20 };
     assert.deepEqual(await api.campaign.find(scope), { items: [], cursor });
     assert.equal(calls.length, 1);
     assert.deepEqual(await api.campaign.find({ ...scope, cursor }), { items: [], cursor: null });
     assert.deepEqual(Object.fromEntries(calls[1].url.searchParams), {
       query: "Život", status: "paused", sort_field: "updated_at", sort_direction: "asc", limit: "20", cursor,
     });
-    assert.ok(calls.every(({ url, method }) => url.pathname === "/v1/stores/chosen/campaigns" && method === "GET"));
+    assert.ok(calls.every(({ url, method }) => url.pathname === `/v1/stores/${STORE_ID}/campaigns` && method === "GET"));
   } finally { globalThis.fetch = previous; }
 });
 
@@ -63,14 +65,14 @@ test("Campaign enrollment discovery preserves combined filters and continuations
     return new Response(JSON.stringify(replies.shift()), { status: 200, headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ storeId: "default", market: "configured", baseUrl: "https://api.example.test", apiToken: "arky_api_test" });
-    const scope = { store_id: "chosen", customer_id: "customer", status: "stopped", limit: 20 };
+    const api = createAdmin({ market: "configured", baseUrl: "https://api.example.test", apiToken: "arky_api_test" });
+    const scope = { store_id: STORE_ID, customer_id: "customer", status: "stopped", limit: 20 };
     assert.deepEqual(await api.campaign.findEnrollments(scope), { items: [], cursor });
     assert.equal(calls.length, 1);
     assert.deepEqual(await api.campaign.findEnrollments({ ...scope, cursor }), { items: [root], cursor: null });
     await api.campaign.findEnrollments({ ...scope, campaign_id: "campaign" });
     assert.deepEqual(calls.map(({ url }) => url.pathname), [
-      "/v1/stores/chosen/campaign-enrollments", "/v1/stores/chosen/campaign-enrollments", "/v1/stores/chosen/campaigns/campaign/enrollments"
+      `/v1/stores/${STORE_ID}/campaign-enrollments`, `/v1/stores/${STORE_ID}/campaign-enrollments`, `/v1/stores/${STORE_ID}/campaigns/campaign/enrollments`
     ]);
     assert.deepEqual(Object.fromEntries(calls[1].url.searchParams), { customer_id: "customer", status: "stopped", limit: "20", cursor });
     assert.deepEqual(Object.fromEntries(calls[2].url.searchParams), { customer_id: "customer", status: "stopped", limit: "20" });

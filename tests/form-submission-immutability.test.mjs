@@ -4,10 +4,11 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 
+const STORE_ID = "6d2e8a14-b0c7-4f93-a5d1-3c9e7b0f2a48";
+
 test("FormSubmission is read-only and exposes only explicit deletion", async () => {
   const arky = createAdmin({
     baseUrl: "https://api.test",
-    storeId: "store-contract",
     apiToken: "token-contract",
   });
   assert.equal("updateSubmission" in arky.forms, false);
@@ -31,13 +32,14 @@ test("FormSubmission is read-only and exposes only explicit deletion", async () 
   try {
     assert.equal(
       await arky.forms.deleteSubmission({
+        store_id: STORE_ID,
         id: "submission-contract",
         form_id: "form-contract",
       }),
       true,
     );
     assert.equal(
-      await arky.forms.permanentlyDelete({ id: "form-contract" }),
+      await arky.forms.permanentlyDelete({ store_id: STORE_ID, id: "form-contract" }),
       true,
     );
   } finally {
@@ -46,12 +48,12 @@ test("FormSubmission is read-only and exposes only explicit deletion", async () 
 
   assert.deepEqual(calls, [
     {
-      url: "https://api.test/v1/stores/store-contract/forms/form-contract/submissions/submission-contract",
+      url: `https://api.test/v1/stores/${STORE_ID}/forms/form-contract/submissions/submission-contract`,
       method: "DELETE",
       body: null,
     },
     {
-      url: "https://api.test/v1/stores/store-contract/forms/form-contract/permanent",
+      url: `https://api.test/v1/stores/${STORE_ID}/forms/form-contract/permanent`,
       method: "DELETE",
       body: null,
     },

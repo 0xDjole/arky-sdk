@@ -5,7 +5,7 @@ import { createAdmin } from "../dist/admin.js";
 import { initialize } from "../dist/storefront.js";
 
 const baseUrl = "https://api.example.test";
-const storeId = "store-actions-contract";
+const storeId = "e2b7c940-3d15-4a68-8f2e-5c0a9d7b1e36";
 const publishableKey = `arky_pk_${"k".repeat(43)}`;
 const visitorToken = `customer_visitor_${"a".repeat(64)}`;
 
@@ -17,7 +17,7 @@ function jsonResponse(body) {
 }
 
 test("Admin exposes Actions and sends only canonical Customer Action routes and filters", async () => {
-  const admin = createAdmin({ baseUrl, storeId, market: "bih" });
+  const admin = createAdmin({ baseUrl, market: "bih" });
   const calls = [];
   const customerAction = {
     id: "customer-action-contract",
@@ -39,10 +39,11 @@ test("Admin exposes Actions and sends only canonical Customer Action routes and 
   let found;
   try {
     found = await admin.actions.find({
+      store_id: storeId,
       customer_id: "customer-actions-contract",
       limit: 20,
     });
-    await admin.customers.find({ has_customer_action: true });
+    await admin.customers.find({ store_id: storeId, has_customer_action: true });
   } finally {
     globalThis.fetch = originalFetch;
   }

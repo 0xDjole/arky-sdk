@@ -1,11 +1,11 @@
 import { createAdmin, createStorefront } from '../../dist/index.js';
-import type { FindMediaParams, Media, StorefrontDto } from '../../dist/index.js';
+import type { FindMediaParams, Media } from '../../dist/index.js';
 
-const filters: FindMediaParams = { query: 'invoice', mime_type: 'application', sort_field: 'original_file_name', sort_direction: 'asc', cursor: null, limit: 1 };
+const filters: FindMediaParams = { store_id: '3f8b6d21-c7a4-4e09-9d15-7b2e0a4c6f18', query: 'invoice', mime_type: 'application', sort_field: 'original_file_name', sort_direction: 'asc', cursor: null, limit: 1 };
 declare const admin: ReturnType<typeof createAdmin>;
 declare const storefront: ReturnType<typeof createStorefront>;
 const page: Promise<{ items: Media[]; cursor: string | null }> = admin.media.find(filters);
-const references: Promise<StorefrontDto<Media[]>> = storefront.media.findByIds({ ids: ['second', 'first'] });
+const references: Promise<Media[]> = storefront.media.findByIds({ ids: ['second', 'first'] });
 // @ts-expect-error Media has no title ordering.
 filters.sort_field = 'title';
 // @ts-expect-error Unsupported MIME values are not search filters.

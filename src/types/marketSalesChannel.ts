@@ -26,7 +26,7 @@ export interface GetMarketSalesChannelParams {
 }
 
 export interface FindMarketSalesChannelsParams {
-  store_id?:string;
+  store_id: string;
   market_id?:string;
   sales_channel_id?:string;
   status?: "active"|"deleting";
@@ -37,7 +37,7 @@ export interface FindMarketSalesChannelsParams {
 }
 
 export interface LookupMarketSalesChannelParams {
-  store_id?:string;
+  store_id: string;
   market_id:string;
   sales_channel_id:string;
 }

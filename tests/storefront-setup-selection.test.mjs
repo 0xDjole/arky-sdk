@@ -8,13 +8,13 @@ const key = `arky_pk_${'a'.repeat(42)}A`;
 const apiUrl = 'https://api.example.test';
 const market = (key, currency = 'eur') => ({ id: `id-${key}`, key, currency, tax_mode: 'exclusive', payment_option_ids: [`provider-${key}`] });
 const setup = () => ({
-  commerce: { type: 'ready', default_market_id: 'id-retail', default_sales_channel_id: 'channel' },
-  timezone: 'UTC', languages: { default: null, available: [] }, default_market: market('retail'),
+  commerce: { type: 'ready', default_sales_channel_id: 'channel' },
+  timezone: 'UTC', languages: { default: null, available: [] },
   payment_options: [{ id: 'provider-retail', key: 'manual', type: 'manual', blocks: [] }],
-  support: { email: null }, readiness: { commerce: true, market: true, payment: true }
+  support: { email: null }, readiness: { commerce: true }
 });
 
-test('setup returns only its exact default, while explicit selected configuration is one exact read', async () => {
+test('setup carries no Market, while explicit selected configuration is one exact read', async () => {
   const calls = [];
   globalThis.fetch = async (url, init) => {
     calls.push({ path: new URL(url).pathname, method: init.method });
@@ -27,20 +27,30 @@ test('setup returns only its exact default, while explicit selected configuratio
   assert.deepEqual(first, setup());
   assert.equal(first, second);
   assert.equal('markets' in first, false);
+  assert.equal('default_market' in first, false);
+  assert.equal(store.getMarket(), 'trade');
+  assert.deepEqual(store.market.get(), market('trade', 'usd'));
   assert.equal(store.currency.get(), 'usd');
   assert.deepEqual(store.allowed_payment_option_ids.get(), ['provider-trade']);
   assert.deepEqual(calls.map(call => call.path), ['/v1/storefront', '/v1/storefront/markets/by-key/trade']);
   assert.ok(calls.every(call => call.method === 'GET'));
 });
 
-test('the default Market is usable without any Market discovery or exact-key request', async () => {
+test('without an explicit Market, setup loads without inventing one and Cart work requires a selection', async () => {
   const calls = [];
   globalThis.fetch = async (url) => { calls.push(new URL(url).pathname); return Response.json(setup()); };
-  const store = initialize(key, { apiUrl });
-  await store.store.load();
-  assert.deepEqual(store.market.get(), market('retail'));
-  assert.equal(store.getMarket(), 'retail');
+  const store = initialize(key, { apiUrl, sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} } });
+  assert.deepEqual(await store.store.load(), setup());
+  assert.equal(store.market.get(), null);
+  assert.equal(store.currency.get(), null);
+  assert.deepEqual(store.allowed_payment_option_ids.get(), []);
+  assert.equal(store.getMarket(), '');
+  await assert.rejects(store.eshop.cart.load(), { name: 'CartSelectionError', message: 'Select a Market before working with a Cart' });
   assert.deepEqual(calls, ['/v1/storefront']);
+  for (const selected of ['Retail', ' retail', 'retail market']) {
+    assert.throws(() => initialize(key, { apiUrl, market: selected }), /Market must be a valid exact key/);
+    assert.throws(() => createStorefront(key, { apiUrl, market: selected }), /Market must be a valid exact key/);
+  }
 });
 
 test('late exact Market selection cannot replace a newer context or its currency/providers', async () => {
@@ -90,7 +100,7 @@ test('failed or mismatched exact selection never falls back to default or a disc
 
 test('uninitialized Store setup remains available without inventing a Market', async () => {
   let calls = 0;
-  globalThis.fetch = async () => { calls++; return Response.json({ ...setup(), commerce: { type: 'uninitialized' }, default_market: null, readiness: { commerce: false, market: false, payment: false } }); };
+  globalThis.fetch = async () => { calls++; return Response.json({ ...setup(), commerce: { type: 'uninitialized' }, readiness: { commerce: false } }); };
   const store = initialize(key, { apiUrl });
   await store.store.load();
   assert.equal(store.market.get(), null);

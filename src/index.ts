@@ -495,6 +495,7 @@ export type {
   Customer,
   CustomerListItem,
   CustomerIdentity,
+  StorefrontCustomerIdentity,
   CustomerEmailVerification,
   CustomerSessionRecord,
   StorefrontCustomerSessionRecord,

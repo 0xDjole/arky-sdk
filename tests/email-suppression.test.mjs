@@ -5,7 +5,7 @@ import { createStorefront } from "../dist/storefront.js";
 
 const storeId = "c8b7fcf9-d026-483a-a549-c6c9bab678e2";
 const id = "78e6daf8-0253-47ac-956a-75b998f838f0";
-const commandId = "c99c70e6-1e6a-4c54-b4a0-75786cf4f168";
+const requestId = "c99c70e6-1e6a-4c54-b4a0-75786cf4f168";
 const version = "577b07c2-7bb3-4c4c-96f7-2531ebccca68";
 const baseUrl = "https://email-restriction-contract.test";
 const record = {
@@ -24,7 +24,7 @@ const record = {
 };
 
 function client() {
-  return createAdmin({ baseUrl, storeId }).customers.emailSuppression;
+  return createAdmin({ baseUrl }).customers.emailSuppression;
 }
 
 function response(value) {
@@ -47,9 +47,10 @@ test("Email restrictions use explicit independent commands and retain exact repl
   });
   const restrictions = client();
   const activation = {
+    store_id: storeId,
     id,
     email: "person@example.com",
-    command_id: commandId,
+    request_id: requestId,
     expected_version: null,
     note: "Operator explanation",
   };
@@ -65,8 +66,9 @@ test("Email restrictions use explicit independent commands and retain exact repl
     expected_version: version,
   });
   const release = {
+    store_id: storeId,
     id,
-    command_id: commandId,
+    request_id: requestId,
     expected_version: version,
     note: "Recipient requested this change",
   };
@@ -88,11 +90,12 @@ test("Email restrictions use explicit independent commands and retain exact repl
       `/v1/stores/${override}/email-suppressions/${id}/record-resubscribe`,
     ],
   );
-  assert.deepEqual(calls[0].body, activation);
-  assert.deepEqual(calls[1].body, activation);
+  const { store_id: _activationStore, ...activationBody } = activation;
+  assert.deepEqual(calls[0].body, activationBody);
+  assert.deepEqual(calls[1].body, activationBody);
   assert.equal(calls[2].body.expected_version, version);
   assert.deepEqual(calls[3].body, {
-    command_id: commandId,
+    request_id: requestId,
     expected_version: version,
     note: release.note,
   });
@@ -104,10 +107,17 @@ test("Email restrictions use explicit independent commands and retain exact repl
       "changed_by",
       "store_id",
       "customer_id",
+      "command_id",
     ]) {
       assert.equal(field in call.body, false);
     }
   }
+  for (const request_id of [undefined, "operator-request", requestId.toUpperCase()]) {
+    await assert.rejects(restrictions.block({ ...activation, request_id }), { name: "TypeError", message: "A business request requires the caller's canonical UUID-v4 request_id" });
+    await assert.rejects(restrictions.unblock({ ...release, request_id }), TypeError);
+  }
+  await assert.rejects(restrictions.block({ ...activation, store_id: undefined }), TypeError);
+  assert.equal(calls.length, 5);
   for (const method of [
     "delete",
     "update",
@@ -139,7 +149,7 @@ test("Email restriction reads preserve independent types, empty filtered-page cu
             ...record,
             restriction: {
               ...record.restriction,
-              id: commandId,
+              id: requestId,
               type: "unsubscribe",
               status: { type: "released" },
             },
@@ -151,17 +161,18 @@ test("Email restriction reads preserve independent types, empty filtered-page cu
   });
   const restrictions = client();
   const first = await restrictions.find({
+    store_id: storeId,
     type: "admin_block",
     status: "active",
   });
   assert.deepEqual(first, { items: [], cursor: "filtered:+/=" });
-  const second = await restrictions.find({ limit: 100, cursor: first.cursor });
+  const second = await restrictions.find({ store_id: storeId, limit: 100, cursor: first.cursor });
   assert.deepEqual(second.items, [record]);
   assert.equal(second.items[0].restriction.created_at, 0);
   assert.equal(second.items[0].restriction.updated_at, 1_800_000_000_123);
-  const exact = await restrictions.find({ query: "person@example.com" });
+  const exact = await restrictions.find({ store_id: storeId, query: "person@example.com" });
   assert.equal(exact.items.length, 2);
-  assert.deepEqual(await restrictions.get({ id }), record);
+  assert.deepEqual(await restrictions.get({ store_id: storeId, id }), record);
   assert.equal(calls.length, 4);
   assert.deepEqual(
     [...calls[0].url.searchParams],
@@ -200,9 +211,10 @@ test("Email restrictions reject ambiguous versions and unbounded reads before ma
   const restrictions = client();
   await assert.rejects(
     restrictions.block({
+      store_id: storeId,
       id,
       email: "person@example.com",
-      command_id: commandId,
+      request_id: requestId,
       note: "Reason",
     }),
     /explicit expected_version/,
@@ -210,8 +222,9 @@ test("Email restrictions reject ambiguous versions and unbounded reads before ma
   for (const expected_version of [undefined, null, ""]) {
     await assert.rejects(
       restrictions.unblock({
+        store_id: storeId,
         id,
-        command_id: commandId,
+        request_id: requestId,
         expected_version,
         note: "Reason",
       }),
@@ -219,17 +232,17 @@ test("Email restrictions reject ambiguous versions and unbounded reads before ma
     );
   }
   for (const limit of [0, -1, 101, 1.5, null, "50", Infinity, NaN]) {
-    await assert.rejects(restrictions.find({ limit }), /integer from 1 to 100/);
+    await assert.rejects(restrictions.find({ store_id: storeId, limit }), /integer from 1 to 100/);
   }
   for (const cursor of ["", null, 5, "é".repeat(1025)]) {
-    await assert.rejects(restrictions.find({ cursor }), /1 to 2048 bytes/);
+    await assert.rejects(restrictions.find({ store_id: storeId, cursor }), /1 to 2048 bytes/);
   }
   await assert.rejects(
-    restrictions.find({ query: "person@example.com", limit: 1 }),
+    restrictions.find({ store_id: storeId, query: "person@example.com", limit: 1 }),
     /does not accept pagination/,
   );
   await assert.rejects(
-    restrictions.find({ query: "person@example.com", cursor: "opaque" }),
+    restrictions.find({ store_id: storeId, query: "person@example.com", cursor: "opaque" }),
     /does not accept pagination/,
   );
   assert.equal(calls, 0);

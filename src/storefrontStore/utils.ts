@@ -152,6 +152,7 @@ export function toCartProducts(items: EshopCartItem[]): CartProductInput[] {
     product_id: item.product_id,
     variant_id: item.variant_id,
     quantity: item.quantity,
+    purchase: { type: "catalog" },
     ...(item.form_submission_id
       ? { form_submission_id: item.form_submission_id }
       : {}),

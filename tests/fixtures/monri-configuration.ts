@@ -10,12 +10,12 @@ declare const update: UpdatePaymentOptionParams;
 // @ts-expect-error Availability updates cannot replace merchant credentials.
 update.merchant_key;
 export const input: CreateMonriPaymentOptionParams = {
-  id: 'provider', key: 'cards', blocks: [], environment: 'test',
+  store_id: 'store', id: 'provider', key: 'cards', blocks: [], environment: 'test',
   merchant_key: 'submitted-secret', authenticity_token: 'submitted-token', status: { type: 'disabled' },
 };
 export const environment: MonriEnvironment = 'live';
 export const config: PaymentOption['type'] = { type: 'monri', environment: 'test' };
-export const filter: Parameters<Admin['store']['paymentOption']['list']>[0] = { type_name: 'monri', limit: 1 };
+export const filter: Parameters<Admin['store']['paymentOption']['list']>[0] = { store_id: 'store', type_name: 'monri', limit: 1 };
 declare const provider: PaymentOption;
 if (provider.type.type === 'monri') {
   // @ts-expect-error Merchant credentials are write-only API input, never a response.
@@ -24,4 +24,4 @@ if (provider.type.type === 'monri') {
   provider.type.encrypted_merchant_key;
 }
 // @ts-expect-error Environment selection is explicit and has no production default.
-export const missing: CreateMonriPaymentOptionParams = { id: 'p', key: 'cards', blocks: [], merchant_key: 's', authenticity_token: 't', status: { type: 'active' } };
+export const missing: CreateMonriPaymentOptionParams = { store_id: 'store', id: 'p', key: 'cards', blocks: [], merchant_key: 's', authenticity_token: 't', status: { type: 'active' } };

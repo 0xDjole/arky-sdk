@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 
+const SELECTED_STORE_ID = "1b9f4c7e-5a28-4d36-9e0b-7f3c2a8d6e51";
+
 test("variant discovery forwards combined parent, exact SKU, lifecycle and ordering with empty-page continuation", async () => {
   const original = globalThis.fetch;
   const calls = [];
@@ -10,11 +12,11 @@ test("variant discovery forwards combined parent, exact SKU, lifecycle and order
     return new Response(JSON.stringify({ items: [], cursor: "continue-after-stale" }), { headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ baseUrl: "https://api.example.test", storeId: "default", apiToken: "arky_api_test" }).eshop.productVariant;
+    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop.productVariant;
     const input = { product_id: "product", sku: "a".repeat(255), status: "archived", sort_field: "updated_at", sort_direction: "asc", limit: 200, cursor: "previous" };
-    assert.deepEqual(await api.find({ store_id: "selected", ...input }), { items: [], cursor: "continue-after-stale" });
+    assert.deepEqual(await api.find({ store_id: SELECTED_STORE_ID, ...input }), { items: [], cursor: "continue-after-stale" });
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].url.pathname, "/v1/stores/selected/product-variants");
+    assert.equal(calls[0].url.pathname, `/v1/stores/${SELECTED_STORE_ID}/product-variants`);
     assert.equal(calls[0].url.searchParams.has("store_id"), false);
     for (const [key, value] of Object.entries(input)) assert.equal(calls[0].url.searchParams.get(key), String(value));
   } finally { globalThis.fetch = original; }
@@ -35,7 +37,7 @@ test("variant deletion preserves the version and distinguishes accepted deletion
     return status === 204 ? new Response(null, { status }) : new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ baseUrl: "https://api.example.test", storeId: "other", apiToken: "arky_api_test" }).eshop.productVariant;
+    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop.productVariant;
     const params = { store_id: storeId, id, expected_updated_at: expected };
     assert.deepEqual(await api.delete(params), value);
     status = 204;
