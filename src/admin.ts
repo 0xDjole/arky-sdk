@@ -1,4 +1,5 @@
 export { createAdmin, ScheduledResultTimeoutError } from "./index";
+export type * from "./types/firstOrderTerms";
 export {
   cartProductItems,
   cartBookingItems,

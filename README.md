@@ -830,13 +830,17 @@ Token and Session responses also expose `scope: { type: "account" }` or
 `{ type: "store", store_id: string }`. A Store restriction never grants permission and cannot be
 widened by changing the client's `storeId` or refreshing credentials. Restricted credentials
 cannot create Personal API Tokens, list other Stores or perform Account-wide administration;
-they can revoke their own Session. Ordinary platform-origin and Store-branded login remain
-Account-wide; login on a Store's verified Admin domain (`admin.store.adminDomain`) issues a
-Store-scoped Session. Scope is server-selected from the login origin, not a request option.
+they can revoke their own Session. Code login on the supported Admin origin, including
+Store-specific code and invitation flows, issues Account-wide Sessions. Retained restricted
+Sessions keep their issued scope through refresh. Credential scope is not a request option.
 
 The SDK keeps the wire/domain name `AccountApiToken`, while documentation and product copy call
 these credentials Personal API Tokens. Expiry is determined from `expires_at`; token status is
 only `active` or `revoked`.
+
+`store.member.getOwn` and `store.member.findOwn` return the existing membership fields plus
+`store_name` for the exact Store. This display name grants no additional permission and is not
+a membership mutation input.
 
 Store settings and storefront-client registrations are separate Admin surfaces:
 
@@ -1355,9 +1359,9 @@ When adding SDK methods:
 
 ## Shared company and customer area
 
-A Store owner can enable the branded customer area in the Admin app. The public
-`store.customerWorkspace.get({ id: storeId })` returns branding and a publishable StorefrontClient
-binding. It grants no Account or Company authority. Store owners configure it with
+A Store owner can enable the customer area in the Admin app. The public
+`store.customerWorkspace.get({ id: storeId })` returns `store_id`, `store_name` and a publishable
+StorefrontClient binding for `/customer/{storeId}`. It grants no Account or Company authority. Store owners configure it with
 `store.customerWorkspace.update({ id, expected_revision, customer_workspace })`; preserve the
 returned revision even when its binding is disabled.
 

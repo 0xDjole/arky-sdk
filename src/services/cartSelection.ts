@@ -47,7 +47,7 @@ async function selectionScope(context: CartSelectionContext, params: StorefrontC
       assertContext();
       if (!cart || typeof cart.id !== "string" || !cart.id.length ||
         cart.customer_id !== customerId || cart.market_id !== selectedMarket.id ||
-        !cart.status || !["active", "abandoned", "converted", "merged", "expired"].includes(cart.status.type) ||
+        !cart.status || !["active", "abandoned", "converted", "merged", "superseded", "expired"].includes(cart.status.type) ||
         (selected && (cart.id !== selected.id || cart.market_id !== selected.market_id))) {
         throw new CartSelectionError("The response does not match the selected Cart and Customer context");
       }
@@ -126,7 +126,7 @@ export function createCartSelection(
           if (selection) {
             const cart = await transport.get(selection.id, options);
             assertCart(cart, selection);
-            if (!["converted", "merged", "expired"].includes(cart.status.type)) return cart;
+            if (!["converted", "merged", "superseded", "expired"].includes(cart.status.type)) return cart;
           }
           return (await createSelected(scope, params, options)).cart;
         });

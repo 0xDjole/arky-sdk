@@ -1,4 +1,5 @@
 import type { PurchaseAccessTerms } from "./purchaseAccess";
+import type { PurchaseRequirement } from "./purchaseRequirement";
 import type {
   MarketSnapshot,
   CompanyLocationSnapshot,
@@ -72,6 +73,7 @@ export interface SubscriptionPlanSnapshot {
   offering_key: string;
   plan_key: string;
   term: SubscriptionPlanTerm;
+  purchase_requirement: PurchaseRequirement | null;
   price: AppliedPriceSnapshot;
   entitlements: SubscriptionPlanEntitlementSnapshot[];
 }

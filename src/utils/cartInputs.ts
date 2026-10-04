@@ -5,7 +5,7 @@ import type {
   CartProductInput,
   RequestOptions,
 } from "../types/api";
-import type { CartPublicLineItemInput, StorefrontUpdateCartParams } from "../types/storefront";
+import type { CartPublicLineItemInput, FindStorefrontPreparedCartsParams, StorefrontUpdateCartParams } from "../types/storefront";
 import type { CartProductPurchase } from "../types/purchaseAccess";
 
 export function copyCartProductPurchase(purchase: CartProductPurchase): CartProductPurchase {
@@ -30,6 +30,26 @@ export function publicCartReadOptions(options?: RequestOptions, token?: string):
     ...options,
     headers: { ...headers, ...(token ? { "X-Arky-Cart-Token": token } : {}) },
     params: Object.keys(params).length ? params : undefined,
+  };
+}
+
+export function preparedCartQuery(input: FindStorefrontPreparedCartsParams): FindStorefrontPreparedCartsParams {
+  const canonicalId = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+  if (typeof input?.company_id !== "string" || !canonicalId.test(input.company_id) ||
+    typeof input.company_location_id !== "string" || !canonicalId.test(input.company_location_id)) {
+    throw new TypeError("Prepared Cart discovery requires explicit canonical Company and CompanyLocation UUID-v4 identities");
+  }
+  if (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 100)) {
+    throw new TypeError("Prepared Cart discovery limit must be an integer from 1 to 100");
+  }
+  if (input.cursor !== undefined && (typeof input.cursor !== "string" || input.cursor.length === 0 || new TextEncoder().encode(input.cursor).length > 2048)) {
+    throw new TypeError("Prepared Cart discovery cursor must be a nonempty opaque string of at most 2048 bytes");
+  }
+  return {
+    company_id: input.company_id,
+    company_location_id: input.company_location_id,
+    ...(input.limit !== undefined ? { limit: input.limit } : {}),
+    ...(input.cursor !== undefined ? { cursor: input.cursor } : {}),
   };
 }
 

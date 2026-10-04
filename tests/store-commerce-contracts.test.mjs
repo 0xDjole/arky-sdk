@@ -58,36 +58,27 @@ test("Store settings preserve explicit null language without sending unchanged c
   });
 });
 
-test("Store branding uses the exact Store path and keeps clearing explicit without extra reads", async () => {
+test("customer workspace reads retain explicit Store identity and client binding without retired presentation fields", async () => {
   const calls = [];
   const signal = new AbortController().signal;
-  const branding = { logo_media_id: null, icon_media_id: null, accent_color: "#345678" };
-  const presentation = { id: OTHER_STORE_ID, name: "Selected Store", logo: null, icon: null, accent_color: "#345678" };
+  const presentation = {
+    store_id: OTHER_STORE_ID, store_name: "Selected Store", storefront_client_id: "client", publishable_key: "pk_contract",
+    default_language: null, supported_languages: [],
+  };
   await withFetch(async (url, init) => {
-    calls.push({ url: String(url), method: init.method, body: init.body === undefined ? undefined : JSON.parse(init.body), signal: init.signal });
-    return Response.json(init.method === "GET" ? presentation : { id: presentation.id, branding });
+    calls.push({ url: String(url), method: init.method, signal: init.signal });
+    return Response.json(presentation);
   }, async () => {
-    const api = client().store.branding;
-    assert.deepEqual(await api.get({ id: presentation.id }, { signal }), presentation);
-    await api.update({ id: presentation.id, branding }, { signal });
-    assert.deepEqual(calls, [
-      { url: `https://api.example.test/v1/stores/${OTHER_STORE_ID}/branding`, method: "GET", body: undefined, signal },
-      { url: `https://api.example.test/v1/stores/${OTHER_STORE_ID}/branding`, method: "PUT", body: { branding }, signal },
-    ]);
-  });
-});
-
-test("Store branding requires its explicit Store and never replays a failed save", async () => {
-  const calls = [];
-  const branding = { logo_media_id: null, icon_media_id: null, accent_color: null };
-  await withFetch(async (url, init) => {
-    calls.push({ url: String(url), method: init.method });
-    return Response.json({ message: "Response lost" }, { status: 503 });
-  }, async () => {
-    await assert.rejects(async () => client().store.branding.update({ branding }), TypeError);
-    assert.deepEqual(calls, []);
-    await assert.rejects(client().store.branding.update({ id: STORE_ID, branding }), error => error.statusCode === 503);
-    assert.deepEqual(calls, [{ url: `https://api.example.test/v1/stores/${STORE_ID}/branding`, method: "PUT" }]);
+    const admin = client();
+    assert.equal("branding" in admin.store, false);
+    assert.equal("adminDomain" in admin.store, false);
+    assert.deepEqual(await admin.store.customerWorkspace.get({ id: OTHER_STORE_ID }, { signal }), presentation);
+    assert.deepEqual(calls, [{
+      url: `https://api.example.test/v1/stores/${OTHER_STORE_ID}/customer-workspace`, method: "GET", signal,
+    }]);
+    await assert.rejects(() => admin.store.customerWorkspace.get({ id: "store/a?b" }), TypeError);
+    assert.equal(calls.length, 1);
+    assert.equal("branding" in presentation, false);
   });
 });
 

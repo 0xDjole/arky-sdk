@@ -34,8 +34,8 @@ test("platform discovery keeps sorting and opaque continuation without hidden pa
 test("membership permissions use an exact Store read while own discovery preserves opaque pages", async (context) => {
   const calls = [];
   const cursor = "memberships:/+==";
-  const membership = { id: "member", store_id: storeId, account_id: accountId, access: { type: "staff", role: "owner" }, status: { type: "active" },
-    invited_by_account_id: null, invited_at: null, invitation_email_status: null, joined_at: 1, created_at: 1, updated_at: 1 };
+  const membership = { id: "member", store_id: storeId, store_name: "Contract Store", account_id: accountId, access: { type: "staff", role: "owner" }, status: { type: "active" },
+    invited_by_account_id: null, invited_at: null, invitation_delivery_id: null, joined_at: 1, created_at: 1, updated_at: 1 };
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const parsed = new URL(url);
     calls.push({ url: parsed, method: init.method ?? "GET", headers: new Headers(init.headers) });
@@ -63,7 +63,7 @@ test("ownership transfer uses one explicit Admin command and returns the new Own
   const membership = {
     id: "2e4ca7d0-bc54-4b2d-a595-9751bf3ff761",
     store_id: storeId, account_id: accountId, access: { type: "staff", role: "owner" }, status: { type: "active" },
-    invited_by_account_id: null, invited_at: null, invitation_email_status: null,
+    invited_by_account_id: null, invited_at: null, invitation_delivery_id: null,
     joined_at: 1_800_000_000_000, created_at: 1_800_000_000_000, updated_at: 1_800_000_000_123,
   };
   const calls = [];
@@ -98,4 +98,23 @@ test("invalid transfer identities fail before sending a command", async (context
     await assert.rejects(admin.store.member.transferOwnership({ store_id, account_id: accountId }), { name: "TypeError", message: "A Store target must be an explicit canonical UUID-v4" });
   }
   assert.equal(calls, 0);
+});
+
+
+test("own partner workspace discovery retains each Store name without public presentation reads", async (context) => {
+  const calls = [];
+  const memberships = ["First Store", "Second Store"].map((store_name, index) => ({
+    id: `membership-${index}`, store_id: index === 0 ? storeId : accountId, store_name, account_id: accountId,
+    access: { type: "partner", fulfillment_partner_id: `partner-${index}` }, status: { type: "active" },
+    invited_by_account_id: null, invited_at: null, invitation_delivery_id: null,
+    joined_at: 1, created_at: 1, updated_at: 1,
+  }));
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    calls.push({ path: new URL(url).pathname, method: init.method ?? "GET" });
+    return Response.json({ items: memberships, cursor: null });
+  });
+  const admin = createAdmin({ baseUrl, apiToken: "arky_account_access_contract" });
+  const page = await admin.store.member.findOwn({ limit: 20 });
+  assert.deepEqual(page.items.map(({ store_name }) => store_name), ["First Store", "Second Store"]);
+  assert.deepEqual(calls, [{ path: "/v1/stores/memberships", method: "GET" }]);
 });

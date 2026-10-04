@@ -9,12 +9,14 @@ import type {
 } from "./api";
 import type { SubscriptionSubject } from "./subscription";
 import type { EpochMilliseconds } from "./time";
+import type { FirstOrderTerms, RepeatOrderSource } from "./firstOrderTerms";
 
 export type CartStatus =
   | { type: "active" }
   | { type: "abandoned" }
   | { type: "converted"; order_id: string; request_id: string }
   | { type: "merged"; target_cart_id: string; request_id: string }
+  | { type: "superseded"; target_cart_id: string; request_id: string }
   | { type: "expired" };
 
 export interface CartCompanyContext {
@@ -47,6 +49,8 @@ export interface Cart {
   billing_address: Address | null;
   promotion_code_ids: string[];
   purchase_order_number: string | null;
+  first_order_terms: FirstOrderTerms | null;
+  repeat_order_source: RepeatOrderSource | null;
   item_count: number;
   last_action_at: EpochMilliseconds;
   abandoned_at: EpochMilliseconds | null;

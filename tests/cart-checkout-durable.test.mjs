@@ -13,6 +13,7 @@ const orderId = "2b815d21-78be-431a-b49c-0d5d62c87823";
 const otherId = "6ef796c1-e503-4679-b0d7-79966c193ca2";
 const providerId = "4a2c7c0d-4389-4aae-b3d7-02ff834a024d";
 const STORE_ID = "d3f8b2a6-5c19-4e47-9a0d-7b6e1c4f2a85";
+const accountId = "ca60db1c-68d1-42d5-8b55-8a1e04f2cb2f";
 const storageKey = `arky:commerce-cart-checkout:v1:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}`;
 const requestId = "8c1d4f5a-3f0b-4a7d-8f52-5c0f2b7a91d4";
 const request = { id: cartId, request_id: requestId, locale: "en", presentation_digest: "a".repeat(64), sources: checkoutSources(cartId), payment_option_id: providerId, return_url: "https://merchant.example.test/checkout-return" };
@@ -91,6 +92,9 @@ function capture(respond) {
     if (path === "/v1/storefront/markets/by-key/bih") {
       return Response.json({ id: "market", key: "bih", currency: "bam", tax_mode: "exclusive", payment_option_ids: [] });
     }
+    if (path === "/v1/accounts/me") {
+      return Response.json({ id: accountId, status: { type: "active" } });
+    }
     const call = { path, method: init.method, body: init.body ? JSON.parse(init.body) : null };
     calls.push(call);
     return respond(call, calls.length);
@@ -106,7 +110,9 @@ async function retainAndRecover(input = request, options) {
 
 function success(call) {
   if (call.method === "POST" && call.path.endsWith("/carts/accept")) return Response.json(result());
-  if (call.method === "GET" && call.path.endsWith(`/orders/${orderId}`)) return Response.json(acceptedOrder());
+  if (call.method === "GET" && call.path.endsWith(`/orders/${orderId}`)) return Response.json(acceptedOrder({}, call.path.startsWith("/v1/stores/")
+    ? { store_id: STORE_ID, origin: { type: "admin", actor: { account_id: accountId } } }
+    : {}));
   throw new Error(`Recovery must not depend on a live Cart: ${call.path}`);
 }
 

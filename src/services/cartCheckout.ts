@@ -71,7 +71,7 @@ function validPaymentResult(value: unknown, request: CartCheckoutRequest): boole
     action.expires_at === payment.route.checkout_expires_at;
 }
 
-function finish<Result>(submission: CartCheckoutSubmission<Result>, options?: RequestOptions): Result {
+export function finishCartCheckoutSubmission<Result>(submission: CartCheckoutSubmission<Result>, options?: RequestOptions): Result {
   if (options?.onSuccess && submission.success) {
     const context = submission.success;
     Promise.resolve().then(() => options.onSuccess?.(context)).catch(() => {});
@@ -91,7 +91,7 @@ function isCheckoutQuote(value: unknown): value is CheckoutQuote {
     [order.product_lines, order.booking_lines, order.digital_lines, order.subscription_lines, order.delivery_groups, order.payment_option_ids].every(Array.isArray);
 }
 
-function presentationChanged(error: unknown): unknown {
+export function cartCheckoutPresentationChanged(error: unknown): unknown {
   if (!record(error) || error.statusCode !== 409 || error.code !== "COMMERCE.PRESENTATION_CHANGED" ||
     !record(error.response) || !record(error.response.quote)) return error;
   const quote = error.response.quote;
@@ -143,7 +143,7 @@ async function submit<Result extends Pick<OrderCheckoutResult, "order_id" | "num
     result = await transport.post(request, { ...options, onSuccess: (context) => { success = context; } });
   } catch (error) {
     if (record(error) && error.statusCode === 400) onDefiniteRejection?.();
-    throw presentationChanged(error);
+    throw cartCheckoutPresentationChanged(error);
   }
   if (!validPaymentResult(result, request)) {
     throw new DurableRequestStorageError("Cart Checkout returned invalid purchase evidence");
@@ -168,7 +168,7 @@ async function submit<Result extends Pick<OrderCheckoutResult, "order_id" | "num
   return { result, success };
 }
 
-function sameConvertedLines(convertedLines: unknown[], request: CartCheckoutRequest): boolean {
+export function sameConvertedLines(convertedLines: unknown[], request: CartCheckoutRequest): boolean {
   try {
     const actual = checkoutQuoteSources({ ...request.sources, converted_lines: convertedLines }).converted_lines;
     if (actual.length !== request.sources.converted_lines.length) return false;
@@ -219,7 +219,7 @@ export async function checkoutCart<Result extends Pick<OrderCheckoutResult, "ord
   options?: RequestOptions,
 ): Promise<Result> {
   const request = cartCheckoutRequest(input);
-  return finish(await submit(request, transport, options), options);
+  return finishCartCheckoutSubmission(await submit(request, transport, options), options);
 }
 
 export async function recoverCartCheckout<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action" | "payment">>(
@@ -235,6 +235,76 @@ export async function recoverCartCheckout<Result extends Pick<OrderCheckoutResul
     const request = cartCheckoutRequest(durableRequestPayload(pending));
     const result = await submit(request, transport, options, () => clearDurableRequest(pending, label));
     clearDurableRequest(pending, label);
-    return finish(result, options);
+    return finishCartCheckoutSubmission(result, options);
   });
+}
+
+export type CartCheckoutCommand = "checkout" | "on_account";
+
+function checkoutCommand(value: unknown): { type: CartCheckoutCommand; request: unknown } {
+  if (!record(value) || Object.keys(value).length !== 2 ||
+    (value.type !== "checkout" && value.type !== "on_account") || !record(value.request)) {
+    throw new DurableRequestStorageError("Cart Checkout has an invalid retained command");
+  }
+  return { type: value.type, request: value.request };
+}
+
+export async function pendingCartCheckoutCommand(scope: string, type: CartCheckoutCommand): Promise<unknown | null> {
+  if (typeof globalThis.window === "undefined") return null;
+  const key = storageKey(scope);
+  return withDurableRequestLock(key, label, async () => {
+    const pending = readDurableRequest(key, label);
+    if (!pending) return null;
+    const command = checkoutCommand(durableRequestPayload(pending));
+    return command.type === type ? command.request : null;
+  });
+}
+
+export async function retainCartCheckoutCommand(scope: string, type: CartCheckoutCommand, request: unknown): Promise<void> {
+  const key = storageKey(scope);
+  return withDurableRequestLock(key, label, async () => {
+    getOrCreateDurableRequest(key, { type, request }, label);
+  });
+}
+
+export async function recoverCartCheckoutCommand<Result>(
+  scope: string,
+  type: CartCheckoutCommand,
+  operation: (request: unknown, onDefiniteRejection: () => void) => Promise<CartCheckoutSubmission<Result>>,
+  options?: RequestOptions,
+): Promise<Result | null> {
+  if (typeof globalThis.window === "undefined") return null;
+  const key = storageKey(scope);
+  return withDurableRequestLock(key, label, async () => {
+    const pending = readDurableRequest(key, label);
+    if (!pending) return null;
+    const command = checkoutCommand(durableRequestPayload(pending));
+    if (command.type !== type) {
+      throw new DurableRequestStorageError("Recover the unresolved Cart Checkout with its retained command before starting another purchase");
+    }
+    const submitted = await operation(command.request, () => clearDurableRequest(pending, label));
+    clearDurableRequest(pending, label);
+    return finishCartCheckoutSubmission(submitted, options);
+  });
+}
+
+export async function retainAdminCartCheckout(scope: string, input: CartCheckoutInput): Promise<CartCheckoutRequest> {
+  const request = cartCheckoutRequest(input);
+  await retainCartCheckoutCommand(scope, "checkout", request);
+  return request;
+}
+
+export async function pendingAdminCartCheckout(scope: string): Promise<CartCheckoutRequest | null> {
+  const request = await pendingCartCheckoutCommand(scope, "checkout");
+  return request === null ? null : cartCheckoutRequest(request);
+}
+
+export async function recoverAdminCartCheckout<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action" | "payment">>(
+  scope: string,
+  transport: CartCheckoutTransport<Result>,
+  options?: RequestOptions,
+): Promise<Result | null> {
+  return recoverCartCheckoutCommand(scope, "checkout", (input, onDefiniteRejection) => {
+    return submit(cartCheckoutRequest(input), transport, options, onDefiniteRejection);
+  }, options);
 }

@@ -6,47 +6,38 @@ import { MemoryStorage } from './helpers/durable-request-fixtures.mjs';
 const STORE_ID = 'a4219f3b-50b1-4a78-902b-d7264ae027a9';
 const SESSION_ID = '5d0c8a3e-7b21-4f64-9a1e-3c2b8d7e6f50';
 
-test('Admin domain commands use exact ownership and operation identities without provider requests', async (t) => {
+test('removed Store feature APIs are absent and canonical Store code login stays Account-wide', async (t) => {
   const calls = [];
   const original = globalThis.fetch;
   t.after(() => { globalThis.fetch = original; });
+  const now = Date.now();
   globalThis.fetch = async (url, init) => {
-    calls.push({ url: new URL(url), method: init.method, body: init.body ? JSON.parse(init.body) : null });
-    return init.method === 'DELETE' ? new Response(null, { status: 204 }) : Response.json({ id: 'domain' });
+    const path = new URL(url).pathname;
+    calls.push({ path, method: init.method, body: JSON.parse(init.body) });
+    if (path.endsWith('/code')) return Response.json({ session_id: SESSION_ID, verification_expires_at: now + 60000 });
+    return Response.json({
+      id: SESSION_ID, scope: { type: 'account' }, access_token: 'access', refresh_token: 'refresh',
+      access_expires_at: now + 60000, refresh_expires_at: now + 120000, authenticated_at: now,
+      created_at: now, updated_at: now,
+    });
   };
-  const api = createAdmin({ baseUrl: 'https://api.example.test', market: 'us', apiToken: 'test' }).store.adminDomain;
-  const change = { store_id: STORE_ID, id: 'domain/one', expected_updated_at: 1790000000000 };
-  await api.create({ store_id: STORE_ID, id: change.id, hostname: 'admin.example.com' });
-  await api.get({ store_id: STORE_ID, id: change.id });
-  await api.verify(change);
-  await api.restart(change);
-  await api.disable(change);
-  await api.registerHosting({ store_id: STORE_ID, id: change.id, operation_id: 'register-one' });
-  await api.removeHosting({ store_id: STORE_ID, id: change.id, operation_id: 'remove-one' });
-  await api.retryHosting({ store_id: STORE_ID, id: change.id, operation_id: 'retry-one', failed_operation_id: 'remove-one' });
-  await api.remove(change);
-  await api.resolve('admin.example.com');
-  assert.deepEqual(calls.map((call) => [call.method, call.url.pathname]), [
-    ['POST', `/v1/stores/${STORE_ID}/admin-domains`],
-    ['GET', `/v1/stores/${STORE_ID}/admin-domains/domain%2Fone`],
-    ...['verify', 'restart', 'disable', 'hosting/register', 'hosting/remove', 'hosting/retry'].map((action) => ['POST', `/v1/stores/${STORE_ID}/admin-domains/domain%2Fone/${action}`]),
-    ['DELETE', `/v1/stores/${STORE_ID}/admin-domains/domain%2Fone`],
-    ['GET', '/v1/admin-domains/admin.example.com'],
+  const admin = createAdmin({ baseUrl: 'https://api.example.test' });
+  assert.equal('adminDomain' in admin.store, false);
+  assert.equal('branding' in admin.store, false);
+  const pending = await admin.account.auth.storeCode(STORE_ID, { email: 'invited@example.test' });
+  const session = await admin.account.auth.storeVerify(STORE_ID, { session_id: pending.session_id, code: '123456' });
+  assert.deepEqual(session.scope, { type: 'account' });
+  assert.deepEqual(calls, [
+    { path: `/v1/stores/${STORE_ID}/auth/code`, method: 'POST', body: { email: 'invited@example.test' } },
+    { path: `/v1/stores/${STORE_ID}/auth/verify`, method: 'POST', body: { session_id: SESSION_ID, code: '123456' } },
   ]);
-  assert.deepEqual(calls[0].body, { id: change.id, hostname: 'admin.example.com' });
-  assert.deepEqual(calls[2].body, { expected_updated_at: change.expected_updated_at });
-  assert.deepEqual(calls[5].body, { operation_id: 'register-one' });
-  assert.deepEqual(calls[7].body, { operation_id: 'retry-one', failed_operation_id: 'remove-one' });
-  assert.equal(calls[8].url.searchParams.get('expected_updated_at'), String(change.expected_updated_at));
-  assert.equal(calls[8].url.searchParams.has('store_id'), false);
-  for (const store_id of [undefined, 'store/one', STORE_ID.toUpperCase()]) {
-    await assert.rejects(async () => api.get({ store_id, id: change.id }), { name: 'TypeError', message: 'A Store target must be an explicit canonical UUID-v4' });
-    await assert.rejects(async () => api.verify({ ...change, store_id }), TypeError);
+  for (const storeId of [undefined, 'store/one', STORE_ID.toUpperCase()]) {
+    await assert.rejects(() => admin.account.auth.storeCode(storeId, { email: 'invited@example.test' }), TypeError);
   }
-  assert.equal(calls.length, 10);
+  assert.equal(calls.length, 2);
 });
 
-test('the browser retains and exposes the exact issued Store scope through refresh and rejects missing scope', async (t) => {
+test('retained restricted Sessions keep their exact issued scope through refresh and reject missing scope', async (t) => {
   const storage = new MemoryStorage();
   for (const [key, value] of [['window', new EventTarget()], ['localStorage', storage]]) {
     const descriptor = Object.getOwnPropertyDescriptor(globalThis, key);
@@ -87,4 +78,53 @@ test('the browser retains and exposes the exact issued Store scope through refre
   storage.setItem(storageKey, JSON.stringify(stored));
   assert.equal(admin.isAuthenticated, false);
   assert.equal(admin.session, null);
+});
+
+
+test('API-token rejection preserves the native failure without refresh or mutation replay', async (t) => {
+  const requests = [];
+  const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  const response = {
+    message: 'Account API token is revoked',
+    error: 'INVALID_TOKEN',
+    statusCode: 401,
+    validationErrors: [],
+  };
+  globalThis.fetch = async (url, init) => {
+    requests.push({
+      path: new URL(url).pathname,
+      method: init.method,
+      authorization: init.headers.Authorization,
+      body: init.body === undefined ? null : JSON.parse(init.body),
+    });
+    return Response.json(response, { status: 401, headers: { 'x-request-id': 'native-auth-rejection' } });
+  };
+  const token = 'arky_api_native-revoked-credential';
+  const admin = createAdmin({ baseUrl: 'https://api.example.test', apiToken: token });
+  const payload = {
+    name: 'Account-authorized Store',
+    billing_email: 'owner@example.test',
+    contact_email: null,
+    timezone: 'Europe/Sarajevo',
+    default_language: 'bs',
+    supported_languages: ['bs'],
+  };
+  for (const operation of [
+    () => admin.account.getMe({}),
+    () => admin.store.create(payload),
+  ]) {
+    await assert.rejects(operation, (error) => {
+      assert.equal(error.message, response.message);
+      assert.equal(error.statusCode, 401);
+      assert.equal(error.code, 'INVALID_TOKEN');
+      assert.equal(error.requestId, 'native-auth-rejection');
+      assert.deepEqual(error.response, response);
+      return true;
+    });
+  }
+  assert.deepEqual(requests, [
+    { path: '/v1/accounts/me', method: 'GET', authorization: `Bearer ${token}`, body: null },
+    { path: '/v1/stores', method: 'POST', authorization: `Bearer ${token}`, body: payload },
+  ]);
 });

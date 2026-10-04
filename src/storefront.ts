@@ -6,6 +6,8 @@ export {
   createStorefront,
 } from "./index";
 export { createCartController } from "./index";
+export type { FindStorefrontPreparedCartsParams } from "./types/storefront";
+export type { FirstOrderTerms, FirstOrderLineTerms, FirstOrderVersionRef, FirstOrderSeal, FirstOrderSupersession, FirstOrderTaxBasis, RepeatBranchCartParams, RepeatOrderSource } from "./types/firstOrderTerms";
 export {
   cartProductItems,
   cartBookingItems,
@@ -72,5 +74,7 @@ export type * from "./types/cartDelivery";
 export type { FindCustomerSubscriptionsParams } from "./types/subscription";
 export type { CompanyCustomerAccess } from "./types/company";
 export type { OrderReturnOptions, OrderReturnLineOption, OrderReturnItemOption, GetOrderReturnOptionsParams } from "./types/return";
-export type { CustomerRental, CustomerRentalStatus, FindCustomerRentalsParams } from "./types/rental";
+export type { CustomerRental, CustomerRentalStatus, CustomerRentalUnit, CustomerRentalUnitDelivery, CustomerRentalUnitReturn, RentalReturnState, RentalReturnDisposition, FindCustomerRentalsParams } from "./types/rental";
+export type * from "./types/purchaseRequirement";
+export type * from "./types/minimumProgress";
 export type { RentalReturnUnitOption, FindRentalReturnOptionsParams } from "./types/return";

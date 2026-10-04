@@ -1,12 +1,11 @@
-import type { StoreBrandingPresentation } from "./storeBranding";
-
 export interface StoreCustomerWorkspaceClient {
   storefront_client_id: string;
   publishable_key: string;
 }
 
 export interface StoreCustomerWorkspacePresentation extends StoreCustomerWorkspaceClient {
-  branding: StoreBrandingPresentation;
+  store_id: string;
+  store_name: string;
   default_language: string | null;
   supported_languages: string[];
 }

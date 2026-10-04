@@ -6,31 +6,9 @@ export type CustomerGroupUnsubscribeReason =
   | { type: "admin_ended" }
   | { type: "store_closure" };
 
-export type CustomerGroupConfirmationEmailStatus =
-  | { type: "requested"; requested_at: EpochMilliseconds }
-  | {
-      type: "processing";
-      started_at: EpochMilliseconds;
-      deadline_at: EpochMilliseconds;
-    }
-  | {
-      type: "sent";
-      provider_message_id: string;
-      provider_status: number | null;
-      sent_at: EpochMilliseconds;
-    }
-  | {
-      type: "rejected";
-      provider_status: number | null;
-      rejected_at: EpochMilliseconds;
-    }
-  | { type: "failed"; failed_at: EpochMilliseconds }
-  | { type: "unknown"; unknown_at: EpochMilliseconds }
-  | { type: "cancelled"; cancelled_at: EpochMilliseconds };
-
 export interface CustomerGroupEmailConfirmation {
   confirmation_id: string;
-  email_status: CustomerGroupConfirmationEmailStatus;
+  delivery_id: string;
   issued_at: EpochMilliseconds;
   expires_at: EpochMilliseconds;
 }

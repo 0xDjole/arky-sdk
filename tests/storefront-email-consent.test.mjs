@@ -17,7 +17,7 @@ test("storefront consent reuses its Visitor, exact binding and generation withou
     id: "e245588f-0542-4bb3-97c8-23de326627d1", customer_group_id: groupId,
     customer_id: customerId, email_identity_id: identityId, normalized_email: "reader@example.test",
     status: { type: "pending" }, created_at: 2, updated_at: 3,
-    confirmation: { confirmation_id: "6b9d9e19-3d13-4f30-a1a0-442a3c92f212", email_status: { type: "requested", requested_at: 3 }, issued_at: 3, expires_at: 86_400_003 },
+    confirmation: { confirmation_id: "6b9d9e19-3d13-4f30-a1a0-442a3c92f212", delivery_id: "ca0fa2ce-9b44-414a-b4a2-de2568bcf330", issued_at: 3, expires_at: 86_400_003 },
   };
   const calls = [];
   globalThis.fetch = async (url, init = {}) => {

@@ -16,6 +16,8 @@ import type {
   FindCustomerSessionsParams,
   RevokeCustomerSessionParams,
   RevokeAllCustomerSessionsParams,
+  ResolveOrReserveCustomerEmailParams,
+  ResolveOrReserveCustomerEmailResult,
 } from "../types/api";
 import type {
   Customer,
@@ -26,6 +28,18 @@ import type {
 } from "../types";
 
 export const createCustomersApi = (apiConfig: ApiConfig) => ({
+  async resolveOrReserveEmail(
+    params: ResolveOrReserveCustomerEmailParams,
+    options?: RequestOptions,
+  ): Promise<ResolveOrReserveCustomerEmailResult> {
+    const { store_id, ...payload } = params;
+    return apiConfig.httpClient.post<ResolveOrReserveCustomerEmailResult>(
+      `/v1/stores/${requireStoreId(store_id)}/customers/resolve-or-reserve`,
+      payload,
+      options,
+    );
+  },
+
   async create(
     params: CreateCustomerParams,
     options?: RequestOptions,

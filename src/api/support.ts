@@ -143,29 +143,10 @@ export interface SupportMessage {
   attachments: EmailAttachmentReference[];
   metadata: Record<string, unknown>;
   ai_response_status: SupportAiResponseStatus | null;
-  email_status: SupportEmailStatus | null;
+  delivery_id: string | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
-
-export type SupportEmailStatus =
-  | { type: "requested"; requested_at: EpochMilliseconds }
-  | { type: "processing"; started_at: EpochMilliseconds; deadline_at: EpochMilliseconds }
-  | {
-      type: "sent";
-      provider_message_id: string;
-      provider_thread_id?: string | null;
-      provider_status?: number | null;
-      sent_at: EpochMilliseconds;
-    }
-  | {
-      type: "rejected";
-      provider_status?: number | null;
-      rejected_at: EpochMilliseconds;
-    }
-  | { type: "failed"; failed_at: EpochMilliseconds }
-  | { type: "unknown"; unknown_at: EpochMilliseconds }
-  | { type: "cancelled"; cancelled_at: EpochMilliseconds };
 
 export type SupportAiResponseStatus =
   | { type: "requested"; requested_at: EpochMilliseconds }

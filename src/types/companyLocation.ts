@@ -75,6 +75,13 @@ export interface UpdateCompanyLocationParams {
   status: CompanyLocationEditableStatus;
 }
 
+export interface SetCompanyLocationCommercePolicyParams {
+  store_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  commerce: CompanyLocationCommercePolicy;
+}
+
 export interface DeleteCompanyLocationParams {
   store_id: string;
   id: string;

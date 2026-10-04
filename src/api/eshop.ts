@@ -1,11 +1,15 @@
 import { requireRequestId } from "../utils/requestId";
+import type { ReviewFirstOrderTermsParams, SealFirstOrderTermsParams } from "../types/firstOrderTerms";
 import type { CartAccessProductPreview, PreviewCartAccessProductParams } from "../types/purchaseAccess";
 import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { AcceptCartFutureDeliveriesParams, CartFutureDeliveryQuote, QuoteCartFutureDeliveriesParams } from "../types/cartDelivery";
 import type { OrderBooking, GetOrderBookingParams } from "../types/orderBooking";
 import type { CancelPendingOrderParams, OrderCancellationAcceptance } from "../types/orderCancellation";
-import { checkoutCart, retainCartCheckout, pendingCartCheckout, recoverCartCheckout, withCartMutation } from "../services/cartCheckout";
+import { checkoutCart, cartCheckoutRequest, retainAdminCartCheckout, pendingAdminCartCheckout, recoverAdminCartCheckout, withCartMutation } from "../services/cartCheckout";
+import { cartOnAccountCheckoutRequest, checkoutCartOnAccount, retainCartOnAccountCheckout, pendingCartOnAccountCheckout, recoverCartOnAccountCheckout } from "../services/cartOnAccountCheckout";
+import type { CheckoutCartOnAccountParams, CartOnAccountCheckoutRequest, CartOnAccountCheckoutTransport } from "../types/cartOnAccountCheckout";
+import { DurableRequestStorageError } from "../utils/durableRequest";
 import type { CartCheckoutTransport, CartCheckoutRequest, RecoverCartCheckoutParams } from "../types/cartCheckout";
 import type { OrderCheckoutResult } from "../types/index";
 import type { RevokeOrderAccessParams } from "../types/orderLineItem";
@@ -74,20 +78,78 @@ import type {
 } from "../types";
 
 export const createEshopApi = (apiConfig: ApiConfig) => {
-  function checkoutScope(storeId: string): string {
-    return `admin:${apiConfig.baseUrl}:${storeId}`;
+  type CheckoutContext = { scope: string; accountId: string; credentialId: string };
+
+  function assertCheckoutContext(context: CheckoutContext): void {
+    const current = apiConfig.authStorage.getTokens();
+    if ((current?.id ?? current?.access_token) !== context.credentialId) {
+      throw new DurableRequestStorageError("Cart Checkout Account changed before its retained request completed");
+    }
   }
 
-  function checkoutTransport(storeId: string): CartCheckoutTransport<OrderCheckoutResult> {
+  async function checkoutContext(storeId: string, options?: RequestOptions): Promise<CheckoutContext> {
+    const tokens = apiConfig.authStorage.getTokens();
+    if (!tokens?.access_token) throw new DurableRequestStorageError("Cart Checkout requires the current authenticated Account");
+    const identity = tokens.id ?? tokens.access_token;
+    const account = await apiConfig.httpClient.get<unknown>("/v1/accounts/me", { signal: options?.signal });
+    const current = apiConfig.authStorage.getTokens();
+    if ((current?.id ?? current?.access_token) !== identity || typeof account !== "object" || account === null ||
+      !("id" in account) || typeof account.id !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(account.id) ||
+      !("status" in account) || typeof account.status !== "object" || account.status === null ||
+      !("type" in account.status) || account.status.type !== "active") {
+      throw new DurableRequestStorageError("Cart Checkout could not confirm its unchanged current Account");
+    }
+    return { scope: `admin:${apiConfig.baseUrl}:${account.id}:${storeId}`, accountId: account.id, credentialId: identity };
+  }
+
+  async function withAdminCartMutation<T>(storeId: string, operation: () => Promise<T>): Promise<T> {
+    if (typeof globalThis.window === "undefined") return operation();
+    const context = await checkoutContext(storeId);
+    return withCartMutation(context.scope, () => {
+      assertCheckoutContext(context);
+      return operation();
+    });
+  }
+
+  function checkoutTransport(storeId: string, context?: CheckoutContext): CartCheckoutTransport<OrderCheckoutResult> {
     return {
-      post: ({ id, request_id, ...request }, options) => { requireRequestId(request_id); return apiConfig.httpClient.post<OrderCheckoutResult>(
+      post: ({ id, request_id, ...request }, options) => { requireRequestId(request_id); if (context) assertCheckoutContext(context); return apiConfig.httpClient.post<OrderCheckoutResult>(
         `/v1/stores/${requireStoreId(storeId)}/carts/accept`,
         { ...request, request_id },
         options,
       ); },
-      getOrder: (id, options) => apiConfig.httpClient.get<Order>(
-        `/v1/stores/${requireStoreId(storeId)}/orders/${encodeURIComponent(id)}`, options,
-      ),
+      getOrder: async (id, options) => {
+        const order = await apiConfig.httpClient.get<Order>(
+          `/v1/stores/${requireStoreId(storeId)}/orders/${encodeURIComponent(id)}`, options,
+        );
+        if (context) assertCheckoutContext(context);
+        if (context !== undefined && (order.store_id !== storeId || order.origin?.type !== "admin" ||
+          order.origin.actor.account_id !== context.accountId)) {
+          throw new DurableRequestStorageError("Cart Checkout did not confirm its exact accepting Account and Store");
+        }
+        return order;
+      },
+    };
+  }
+
+  function onAccountCheckoutTransport(storeId: string, context: CheckoutContext): CartOnAccountCheckoutTransport {
+    return {
+      post: ({ id, request_id, ...request }, options) => {
+        assertCheckoutContext(context);
+        return apiConfig.httpClient.post<OrderCheckoutResult>(
+          `/v1/stores/${requireStoreId(storeId)}/carts/accept-on-account`,
+          { ...request, request_id },
+          options,
+        );
+      },
+      getOrder: async (id, options) => {
+        const order = await apiConfig.httpClient.get<Order>(
+          `/v1/stores/${requireStoreId(storeId)}/orders/${encodeURIComponent(id)}`, options,
+        );
+        assertCheckoutContext(context);
+        return order;
+      },
     };
   }
 
@@ -604,7 +666,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     ): Promise<CreatedCart> {
       const { store_id, ...payload } = params;
       const target_store_id = requireStoreId(store_id);
-      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<CreatedCart>(
+      return withAdminCartMutation(target_store_id, () => apiConfig.httpClient.post<CreatedCart>(
         `/v1/stores/${requireStoreId(target_store_id)}/carts`,
         {
           ...payload,
@@ -621,7 +683,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     ): Promise<Cart> {
       const { id, store_id, line_items, delivery_groups, ...payload } = params;
       const target_store_id = requireStoreId(store_id);
-      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.put<Cart>(
+      return withAdminCartMutation(target_store_id, () => apiConfig.httpClient.put<Cart>(
         `/v1/stores/${requireStoreId(target_store_id)}/carts/${encodeURIComponent(id)}`,
         {
           ...payload,
@@ -632,13 +694,41 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       ));
     },
 
+    async reviewFirstOrderTerms(
+      params: ReviewFirstOrderTermsParams,
+      options?: RequestOptions,
+    ): Promise<Cart> {
+      const { id, store_id, ...payload } = params;
+      const targetStoreId = requireStoreId(store_id);
+      requireRequestId(payload.request_id);
+      return withAdminCartMutation(targetStoreId, () => apiConfig.httpClient.post<Cart>(
+        `/v1/stores/${targetStoreId}/carts/${encodeURIComponent(id)}/first-order-terms/review`,
+        payload,
+        options,
+      ));
+    },
+
+    async sealFirstOrderTerms(
+      params: SealFirstOrderTermsParams,
+      options?: RequestOptions,
+    ): Promise<Cart> {
+      const { id, store_id, ...payload } = params;
+      const targetStoreId = requireStoreId(store_id);
+      requireRequestId(payload.request_id);
+      return withAdminCartMutation(targetStoreId, () => apiConfig.httpClient.post<Cart>(
+        `/v1/stores/${targetStoreId}/carts/${encodeURIComponent(id)}/first-order-terms/seal`,
+        payload,
+        options,
+      ));
+    },
+
     async addCartProduct(
       params: AddCartProductParams,
       options?: RequestOptions,
     ): Promise<Cart> {
       const { id, store_id, product } = params;
       const target_store_id = requireStoreId(store_id);
-      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
+      return withAdminCartMutation(target_store_id, () => apiConfig.httpClient.post<Cart>(
         `/v1/stores/${requireStoreId(target_store_id)}/carts/${encodeURIComponent(id)}/product-items`,
         { product },
         options,
@@ -651,7 +741,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     ): Promise<Cart> {
       const { id, store_id, booking } = params;
       const target_store_id = requireStoreId(store_id);
-      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
+      return withAdminCartMutation(target_store_id, () => apiConfig.httpClient.post<Cart>(
         `/v1/stores/${requireStoreId(target_store_id)}/carts/${encodeURIComponent(id)}/booking-items`,
         { booking },
         options,
@@ -664,7 +754,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     ): Promise<Cart> {
       const { id, store_id, digital } = params;
       const target_store_id = requireStoreId(store_id);
-      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
+      return withAdminCartMutation(target_store_id, () => apiConfig.httpClient.post<Cart>(
         `/v1/stores/${requireStoreId(target_store_id)}/carts/${encodeURIComponent(id)}/digital-items`,
         { digital },
         options,
@@ -677,7 +767,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     ): Promise<Cart> {
       const { id, store_id, subscription_plan } = params;
       const target_store_id = requireStoreId(store_id);
-      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
+      return withAdminCartMutation(target_store_id, () => apiConfig.httpClient.post<Cart>(
         `/v1/stores/${requireStoreId(target_store_id)}/carts/${encodeURIComponent(id)}/subscription-plan-items`,
         { subscription_plan },
         options,
@@ -690,7 +780,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
     ): Promise<Cart> {
       const { id, store_id, ...payload } = params;
       const target_store_id = requireStoreId(store_id);
-      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
+      return withAdminCartMutation(target_store_id, () => apiConfig.httpClient.post<Cart>(
         `/v1/stores/${requireStoreId(target_store_id)}/carts/${encodeURIComponent(id)}/items/remove`,
         payload,
         options,
@@ -702,7 +792,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Cart> {
       const target_store_id = requireStoreId(params.store_id);
-      return withCartMutation(checkoutScope(target_store_id), () => apiConfig.httpClient.post<Cart>(
+      return withAdminCartMutation(target_store_id, () => apiConfig.httpClient.post<Cart>(
         `/v1/stores/${requireStoreId(target_store_id)}/carts/${encodeURIComponent(params.id)}/clear`,
         undefined,
         options,
@@ -750,7 +840,7 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<Cart> {
       const storeId = requireStoreId(params.store_id);
-      return withCartMutation(checkoutScope(storeId), () => apiConfig.httpClient.put<Cart>(
+      return withAdminCartMutation(storeId, () => apiConfig.httpClient.put<Cart>(
         `/v1/stores/${requireStoreId(storeId)}/carts/${encodeURIComponent(params.id)}/future-deliveries`,
         { locale: params.locale ?? apiConfig.locale, plans: params.plans },
         options,
@@ -764,22 +854,64 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       requireRequestId(params.request_id);
       const { store_id, ...payload } = params;
       const target_store_id = requireStoreId(store_id);
-      return checkoutCart(payload, checkoutTransport(target_store_id), options);
+      const request = cartCheckoutRequest(payload);
+      if (typeof globalThis.window === "undefined") {
+        return checkoutCart(request, checkoutTransport(target_store_id), options);
+      }
+      const context = await checkoutContext(target_store_id, options);
+      return withCartMutation(context.scope, () => checkoutCart(request, checkoutTransport(target_store_id, context), options));
     },
 
     async retainCartCheckout(params: CheckoutCartParams): Promise<CartCheckoutRequest> {
       requireRequestId(params.request_id);
       const { store_id, ...payload } = params;
-      return retainCartCheckout(checkoutScope(requireStoreId(store_id)), payload);
+      const request = cartCheckoutRequest(payload);
+      const context = await checkoutContext(requireStoreId(store_id));
+      return retainAdminCartCheckout(context.scope, request);
     },
 
     async pendingCartCheckout(params: RecoverCartCheckoutParams): Promise<CartCheckoutRequest | null> {
-      return pendingCartCheckout(checkoutScope(requireStoreId(params.store_id)));
+      const storeId = requireStoreId(params.store_id);
+      if (typeof globalThis.window === "undefined") return null;
+      const context = await checkoutContext(storeId);
+      return pendingAdminCartCheckout(context.scope);
     },
 
     async recoverCartCheckout(params: RecoverCartCheckoutParams, options?: RequestOptions): Promise<OrderCheckoutResult | null> {
       const storeId = requireStoreId(params.store_id);
-      return recoverCartCheckout(checkoutScope(storeId), checkoutTransport(storeId), options);
+      if (typeof globalThis.window === "undefined") return null;
+      const context = await checkoutContext(storeId, options);
+      return recoverAdminCartCheckout(context.scope, checkoutTransport(storeId, context), options);
+    },
+
+    async checkoutCartOnAccount(params: CheckoutCartOnAccountParams, options?: RequestOptions): Promise<OrderCheckoutResult> {
+      const { store_id, ...payload } = params;
+      const request = cartOnAccountCheckoutRequest(payload);
+      const storeId = requireStoreId(store_id);
+      const context = await checkoutContext(storeId, options);
+      const operation = () => checkoutCartOnAccount(request, storeId, context.accountId, onAccountCheckoutTransport(storeId, context), options);
+      return typeof globalThis.window === "undefined" ? operation() : withCartMutation(context.scope, operation);
+    },
+
+    async retainCartOnAccountCheckout(params: CheckoutCartOnAccountParams): Promise<CartOnAccountCheckoutRequest> {
+      const { store_id, ...payload } = params;
+      const request = cartOnAccountCheckoutRequest(payload);
+      const context = await checkoutContext(requireStoreId(store_id));
+      return retainCartOnAccountCheckout(context.scope, request);
+    },
+
+    async pendingCartOnAccountCheckout(params: RecoverCartCheckoutParams): Promise<CartOnAccountCheckoutRequest | null> {
+      const storeId = requireStoreId(params.store_id);
+      if (typeof globalThis.window === "undefined") return null;
+      const context = await checkoutContext(storeId);
+      return pendingCartOnAccountCheckout(context.scope);
+    },
+
+    async recoverCartOnAccountCheckout(params: RecoverCartCheckoutParams, options?: RequestOptions): Promise<OrderCheckoutResult | null> {
+      const storeId = requireStoreId(params.store_id);
+      if (typeof globalThis.window === "undefined") return null;
+      const context = await checkoutContext(storeId, options);
+      return recoverCartOnAccountCheckout(context.scope, storeId, context.accountId, onAccountCheckoutTransport(storeId, context), options);
     },
 
     async getQuote(

@@ -36,6 +36,8 @@ import type {
   CategoryStatus,
   FormSchema,
   FormField,
+  Customer,
+  CustomerIdentity,
   CategorySchema,
   ServiceDuration,
   WeeklyAvailability,
@@ -1210,6 +1212,12 @@ export interface DeleteFormSubmissionParams {
   store_id: string;
 }
 
+export type ProcessFormSubmissionParams = GetFormSubmissionParams &
+  (
+    | { type: "accepted"; note?: string | null; expected_processed_at: EpochMilliseconds | null }
+    | { type: "rejected"; reason: string; note?: string | null; expected_processed_at: EpochMilliseconds | null }
+  );
+
 export interface GetCategoriesParams {
   store_id: string;
   parent_id?: string;
@@ -2178,6 +2186,17 @@ export interface GetCustomerParams {
 }
 
 export type ArchiveCustomerParams = GetCustomerParams;
+
+export interface ResolveOrReserveCustomerEmailParams {
+  store_id: string;
+  email: string;
+  customer_id?: string | null;
+}
+
+export interface ResolveOrReserveCustomerEmailResult {
+  customer: Customer;
+  identity: CustomerIdentity;
+}
 
 export interface FindCustomerIdentitiesParams {
   store_id: string;

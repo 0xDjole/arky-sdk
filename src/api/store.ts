@@ -1,4 +1,5 @@
 import { requireStoreId } from "../utils/storeTarget";
+import { createStoreCommerceApi } from "./storeCommerce";
 import type { StoreCustomerWorkspacePresentation, UpdateStoreCustomerWorkspaceParams } from "../types/storeCustomerWorkspace";
 import type { ApiConfig, AdminSessionUpdater } from "../services/clientTypes";
 import type {
@@ -31,13 +32,6 @@ import type {
   RequestOptions,
 } from "../types/api";
 import type { StoreDeletionResult } from "../types";
-import type { StoreBrandingPresentation, UpdateStoreBrandingParams } from "../types/storeBranding";
-import type {
-  InitializeStoreCommerceParams,
-  GetStoreCommerceInitializationParams,
-  AbortStoreCommerceInitializationParams,
-  StoreCommerceInitialization,
-} from "../types/storeCommerce";
 import {
   DurableRequestStorageError,
   clearDurableRequest,
@@ -55,6 +49,7 @@ import type {
   StoreSubscription,
   StoreMember,
   StoreMembership,
+  StoreMembershipWithStoreName,
 } from "../types";
 
 type StoreSubscriptionCheckoutRequest = {
@@ -105,40 +100,7 @@ export const createStoreApi = (
   _updateSession: AdminSessionUpdater,
 ) => {
   return {
-    async initializeCommerce(
-      params: InitializeStoreCommerceParams,
-      options?: RequestOptions,
-    ): Promise<StoreCommerceInitialization> {
-      const storeId = requireStoreId(params.store_id);
-      return apiConfig.httpClient.post<StoreCommerceInitialization>(
-        `/v1/stores/${requireStoreId(storeId)}/commerce/initializations`,
-        { operation_id: params.operation_id, request: params.request },
-        options,
-      );
-    },
-
-    async getCommerceInitialization(
-      params: GetStoreCommerceInitializationParams,
-      options?: RequestOptions,
-    ): Promise<StoreCommerceInitialization> {
-      const storeId = requireStoreId(params.store_id);
-      return apiConfig.httpClient.get<StoreCommerceInitialization>(
-        `/v1/stores/${requireStoreId(storeId)}/commerce/initializations/${encodeURIComponent(params.operation_id)}`,
-        options,
-      );
-    },
-
-    async abortCommerceInitialization(
-      params: AbortStoreCommerceInitializationParams,
-      options?: RequestOptions,
-    ): Promise<StoreCommerceInitialization> {
-      const storeId = requireStoreId(params.store_id);
-      return apiConfig.httpClient.post<StoreCommerceInitialization>(
-        `/v1/stores/${requireStoreId(storeId)}/commerce/initializations/${encodeURIComponent(params.operation_id)}/abort`,
-        undefined,
-        options,
-      );
-    },
+    ...createStoreCommerceApi(apiConfig),
 
     async createStore(
       params: CreateStoreParams,
@@ -204,27 +166,6 @@ export const createStoreApi = (
       return apiConfig.httpClient.put<Store>(
         `/v1/stores/${requireStoreId(storeId)}/customer-workspace`,
         { expected_revision: params.expected_revision, customer_workspace: params.customer_workspace }, options,
-      );
-    },
-
-    async getBranding(
-      params: GetStoreParams,
-      options?: RequestOptions,
-    ): Promise<StoreBrandingPresentation> {
-      const storeId = requireStoreId(params.id);
-      return apiConfig.httpClient.get<StoreBrandingPresentation>(
-        `/v1/stores/${requireStoreId(storeId)}/branding`, options,
-      );
-    },
-
-    async updateBranding(
-      params: UpdateStoreBrandingParams,
-      options?: RequestOptions,
-    ): Promise<Store> {
-      const storeId = requireStoreId(params.id);
-      return apiConfig.httpClient.put<Store>(
-        `/v1/stores/${requireStoreId(storeId)}/branding`,
-        { branding: params.branding }, options,
       );
     },
 
@@ -399,8 +340,8 @@ export const createStoreApi = (
     async findOwnMemberships(
       params: FindOwnStoreMembershipsParams = {},
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<StoreMembership>> {
-      return apiConfig.httpClient.get<PaginatedResponse<StoreMembership>>(
+    ): Promise<PaginatedResponse<StoreMembershipWithStoreName>> {
+      return apiConfig.httpClient.get<PaginatedResponse<StoreMembershipWithStoreName>>(
         "/v1/stores/memberships",
         { ...options, params },
       );
@@ -409,10 +350,10 @@ export const createStoreApi = (
     async getOwnMembership(
       params: GetOwnStoreMembershipParams,
       options?: RequestOptions,
-    ): Promise<StoreMembership | null> {
+    ): Promise<StoreMembershipWithStoreName | null> {
       const storeId = requireStoreId(params.store_id);
       if (!canonicalUuidV4.test(storeId)) throw new TypeError("Membership lookup requires a canonical Store UUID");
-      return apiConfig.httpClient.get<StoreMembership | null>(`/v1/stores/${requireStoreId(storeId)}/membership`, options);
+      return apiConfig.httpClient.get<StoreMembershipWithStoreName | null>(`/v1/stores/${requireStoreId(storeId)}/membership`, options);
     },
 
     async removeMember(

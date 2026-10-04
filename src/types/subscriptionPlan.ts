@@ -5,6 +5,7 @@ import type { EpochMilliseconds } from "./time";
 import type { CatalogReadOptions } from "./catalog";
 import type { CatalogPriceFilter } from "./api";
 import type { SubscriptionPlanEntitlementType } from "./subscriptionPlanEntitlement";
+import type { PurchaseRequirement, PurchaseRequirementInput } from "./purchaseRequirement";
 
 export type BillingInterval = "day" | "week" | "month" | "year";
 
@@ -78,6 +79,7 @@ export interface SubscriptionPlan {
   blocks: Block[];
   term: SubscriptionPlanTerm;
   tax_policies: SubscriptionPlanTaxPolicy[];
+  purchase_requirement: PurchaseRequirement | null;
   status: SubscriptionPlanStatus;
   starts_at: EpochMilliseconds | null;
   ends_at: EpochMilliseconds | null;
@@ -92,6 +94,7 @@ export interface CreateSubscriptionPlanParams {
   blocks: Block[];
   term: SubscriptionPlanTerm;
   tax_policies: SubscriptionPlanTaxPolicy[];
+  purchase_requirement: PurchaseRequirementInput | null;
   status: SubscriptionPlanStatus;
   starts_at: EpochMilliseconds | null;
   ends_at: EpochMilliseconds | null;
@@ -133,6 +136,7 @@ export interface StorefrontSubscriptionPlan {
   key: string;
   blocks: Block[];
   term: SubscriptionPlanTerm;
+  purchase_requirement: PurchaseRequirement | null;
   entitlements: StorefrontSubscriptionPlanEntitlement[];
   price: StorefrontPrice | null;
   purchase_allowed: boolean;

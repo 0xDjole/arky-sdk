@@ -1348,7 +1348,6 @@ export interface Store {
   name: string;
   billing_email: string;
   contact_email: string | null;
-  branding: import("./storeBranding").StoreBranding;
   customer_workspace: import("./storeCustomerWorkspace").StoreCustomerWorkspace | null;
   commerce: StoreCommerceState;
   timezone: string;
@@ -1356,7 +1355,6 @@ export interface Store {
   supported_languages: string[];
 }
 
-export type { StoreBranding, StoreBrandingPresentation, UpdateStoreBrandingParams } from "./storeBranding";
 
 export interface BlockBase {
   id: string;
@@ -1684,9 +1682,6 @@ export interface StorePlan {
 
 export type AccountApiTokenStatus = { type: "active" | "revoked" };
 
-export type AccountVerificationEmailStatus =
-  { type: "requested" | "processing" | "sent" | "rejected" | "failed" | "unknown" | "cancelled" };
-
 export interface AccountApiToken {
   id: string;
   token_hint: string;
@@ -1711,10 +1706,14 @@ export interface StoreMembership {
   status: { type: "invited" | "active" };
   invited_by_account_id: string | null;
   invited_at: EpochMilliseconds | null;
-  invitation_email_status: AccountVerificationEmailStatus | null;
+  invitation_delivery_id: string | null;
   joined_at: EpochMilliseconds | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+}
+
+export interface StoreMembershipWithStoreName extends StoreMembership {
+  store_name: string;
 }
 
 export interface StoreMember {
@@ -1914,13 +1913,17 @@ export type CampaignMessageType =
     };
 export type CampaignOutgoingStatus =
   | { type: "draft"; media_ids: string[] }
-  | { type: "submitted"; delivery_status: CampaignEmailStatus };
+  | { type: "submitted" };
 export type WorkflowStatus = { type: "active" } | { type: "draft" };
 export type MutableWorkflowStatus = WorkflowStatus;
 export type CollectionStatus = { type: "active" } | { type: "draft" } | { type: "archived" };
 export type EntryStatus = { type: "active" } | { type: "draft" } | { type: "archived" };
 export type EmailTemplateStatus = { type: "active" } | { type: "draft" } | { type: "archived" };
 export type EmailTemplateType =
+  | "customer_login"
+  | "partner_access"
+  | "order_dispatched"
+  | "order_delivered"
   | "order_store_notification"
   | "order_contact_notification"
   | "order_booking_reminder_contact"
@@ -2076,6 +2079,25 @@ export interface FormSubmission {
   snapshot: FormSubmissionSnapshot;
   fields: FormField[];
   created_at: EpochMilliseconds;
+}
+
+export type FormSubmissionProcessing =
+  | {
+      type: "accepted";
+      note: string | null;
+      actor_account_id: string;
+      processed_at: EpochMilliseconds;
+    }
+  | {
+      type: "rejected";
+      reason: string;
+      note: string | null;
+      actor_account_id: string;
+      processed_at: EpochMilliseconds;
+    };
+
+export interface AdminFormSubmission extends FormSubmission {
+  processing: FormSubmissionProcessing | null;
 }
 
 export interface FormSubmissionSnapshot {
@@ -2382,6 +2404,7 @@ export type WorkflowExecutionStatus =
 
 export type NodeResultSource =
   | { type: "local" }
+  | { type: "notification_delivery"; delivery_id: string; iteration_key: string }
   | { type: "external_operation"; operation_id: string };
 
 export interface NodeResult {
@@ -2430,7 +2453,6 @@ export interface WorkflowExecutionStarted {
 
 export type WorkflowExternalOperationType =
   | "http_mutation"
-  | "send_email"
   | "deploy_webhook"
   | "google_drive_upload";
 
@@ -2446,13 +2468,7 @@ export type WorkflowExternalOperationErrorType =
   "provider_call_not_started" | "provider_rejected" | "unknown_outcome";
 
 export type WorkflowExternalOperationResult =
-  | { type: "provider"; provider_status?: number; provider_file_id?: string }
-  | {
-      type: "send_email";
-      provider_message_id: string;
-      provider_thread_id: string | null;
-      sent_at: EpochMilliseconds;
-    };
+  { type: "provider"; provider_status?: number; provider_file_id?: string };
 
 export interface WorkflowExternalOperationError {
   type: WorkflowExternalOperationErrorType;
@@ -2486,7 +2502,7 @@ export type CustomerSessionStatus =
 export interface CustomerEmailVerification {
   identity_id: string;
   failed_attempts: number;
-  sent_at: EpochMilliseconds;
+  issued_at: EpochMilliseconds;
   expires_at: EpochMilliseconds;
 }
 
@@ -2556,18 +2572,26 @@ export type CustomerSessionIssued =
       authenticated_at: EpochMilliseconds;
     };
 
+export type CustomerEmailClaim =
+  | { type: "contact" }
+  | { type: "reserved"; reserved_at: EpochMilliseconds }
+  | { type: "verified"; verified_at: EpochMilliseconds };
+
 export interface CustomerIdentity {
   id: string;
   store_id: string;
   customer_id: string;
   type: { type: "email"; email: string };
-  verified_at: EpochMilliseconds | null;
+  email_claim: CustomerEmailClaim;
   status: { type: "active" | "revoked" };
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export type StorefrontCustomerIdentity = Omit<CustomerIdentity, "store_id">;
+export interface StorefrontCustomerIdentity
+  extends Omit<CustomerIdentity, "store_id" | "email_claim"> {
+  verified_at: EpochMilliseconds | null;
+}
 
 export interface Customer {
   id: string;
@@ -2814,6 +2838,7 @@ export interface CampaignMessage {
   parent_message_id?: string | null;
   type: CampaignMessageType;
   content: CampaignEmailContent;
+  delivery_id: string | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -2826,29 +2851,9 @@ export interface CampaignEmailContent {
   body_html?: string | null;
 }
 
-export type CampaignEmailStatus =
-  | { type: "requested"; requested_at: EpochMilliseconds }
-  | { type: "processing"; started_at: EpochMilliseconds; deadline_at: EpochMilliseconds }
-  | {
-      type: "sent";
-      provider_message_id: string;
-      provider_thread_id?: string | null;
-      provider_status?: number | null;
-      delivery_failure?: string | null;
-      sent_at: EpochMilliseconds;
-    }
-  | {
-      type: "rejected";
-      provider_status?: number | null;
-      rejected_at: EpochMilliseconds;
-    }
-  | { type: "failed"; failed_at: EpochMilliseconds }
-  | { type: "unknown"; unknown_at: EpochMilliseconds }
-  | { type: "cancelled"; cancelled_at: EpochMilliseconds };
-
 export interface CampaignConversationMessage {
   message: CampaignMessage;
-  email_status?: CampaignEmailStatus | null;
+  email_status: import("./notification").NotificationDeliveryOutcome | null;
 }
 
 export interface CampaignEnrollmentConversationResponse {
@@ -3021,3 +3026,7 @@ export interface FulfillmentExecution {
 }
 
 export type * from "./storeCustomerWorkspace";
+export type * from "./purchaseRequirement";
+export type * from "./minimumProgress";
+export type * from "./notification";
+export type * from "./firstOrderTerms";

@@ -1,4 +1,4 @@
-import type { Currency } from "./index";
+import type { Currency, Store } from "./index";
 import type { SellerProfile, TaxMode } from "./orderContract";
 import type { EpochMilliseconds } from "./time";
 
@@ -49,3 +49,17 @@ export interface GetStoreCommerceInitializationParams {
 }
 
 export type AbortStoreCommerceInitializationParams = GetStoreCommerceInitializationParams;
+
+export interface InspectStoreCommerceSetupParams {
+  store_id: string;
+}
+
+export interface SubmitStoreCommerceSetupParams extends InspectStoreCommerceSetupParams {
+  request?: CommerceInitializationRequest;
+}
+
+export interface StoreCommerceSetupInspection {
+  store: Store;
+  request: InitializeStoreCommerceParams | null;
+  operation: StoreCommerceInitialization | null;
+}

@@ -1,7 +1,9 @@
 import type { SubscriptionChange } from "../types/subscription";
+import type { ChangePurchaseRequirementsParams, GetSubscriptionPurchaseRequirementParams, PurchaseRequirementChange, SubscriptionPurchaseRequirement } from "../types/purchaseRequirement";
 import type { FindSubscriptionPurchaseAccessParams, SubscriptionPurchaseAccessPage, FindPurchaseLimitUsageParams, PurchaseLimitUsagePage } from "../types/purchaseAccess";
 import { requireRequestId } from "../utils/requestId";
 import { requireStoreId } from "../utils/storeTarget";
+import { epochMilliseconds } from "../utils/time";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
@@ -44,6 +46,28 @@ export const createSubscriptionApi = (apiConfig: ApiConfig) => {
   const basePath = (storeId: string) =>
     `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/subscriptions`;
   return {
+    purchaseRequirement(
+      params: GetSubscriptionPurchaseRequirementParams,
+      options?: RequestOptions,
+    ): Promise<SubscriptionPurchaseRequirement> {
+      const { store_id, id, at } = params;
+      return apiConfig.httpClient.get<SubscriptionPurchaseRequirement>(
+        `${basePath(store_id)}/${encodeURIComponent(id)}/purchase-requirement`,
+        { ...options, params: at === undefined ? {} : { at: epochMilliseconds(at) } },
+      );
+    },
+    changePurchaseRequirements(
+      params: ChangePurchaseRequirementsParams,
+      options?: RequestOptions,
+    ): Promise<PurchaseRequirementChange[]> {
+      for (const change of params.changes) requireRequestId(change.request_id);
+      const { store_id, ...payload } = params;
+      return apiConfig.httpClient.post<PurchaseRequirementChange[]>(
+        `${basePath(store_id)}/purchase-requirements`,
+        payload,
+        options,
+      );
+    },
     taxCorrectionReview(
       params: ReviewSubscriptionTaxCorrectionParams,
       options?: RequestOptions,

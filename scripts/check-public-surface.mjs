@@ -3,6 +3,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { customerEmailClaimContactOffsets } from "./customer-email-claim-vocabulary.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
@@ -336,6 +337,7 @@ let failures = 0;
 
 for (const file of listTypeScriptFiles(sourceDir)) {
   const source = readFileSync(file, "utf8");
+  const emailClaimContactOffsets = customerEmailClaimContactOffsets(source);
 
   for (const match of source.matchAll(removedIdentifierPattern)) {
     report(file, source, match.index, `removed public name ${match[0]}`);
@@ -507,6 +509,7 @@ for (const file of listTypeScriptFiles(sourceDir)) {
 
   for (const pattern of removedCustomerVocabularyPatterns) {
     for (const match of source.matchAll(pattern)) {
+      if (emailClaimContactOffsets.has(match.index) && /^["']contact["']$/.test(match[0])) continue;
       report(
         file,
         source,

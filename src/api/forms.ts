@@ -11,9 +11,10 @@ import type {
   GetFormSubmissionsParams,
   GetFormSubmissionParams,
   DeleteFormSubmissionParams,
+  ProcessFormSubmissionParams,
   RequestOptions,
 } from "../types/api";
-import type { Form, FormSubmission } from "../types";
+import type { AdminFormSubmission, Form } from "../types";
 
 export const createFormsApi = (apiConfig: ApiConfig) => {
   return {
@@ -93,20 +94,32 @@ export const createFormsApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async getSubmissions(params: GetFormSubmissionsParams, options?: RequestOptions): Promise<{ items: FormSubmission[]; cursor: string | null }> {
+    async getSubmissions(params: GetFormSubmissionsParams, options?: RequestOptions): Promise<{ items: AdminFormSubmission[]; cursor: string | null }> {
       const { store_id, ...queryParams } = params;
       const target_store_id = requireStoreId(store_id);
-      return apiConfig.httpClient.get<{ items: FormSubmission[]; cursor: string | null }>(
+      return apiConfig.httpClient.get<{ items: AdminFormSubmission[]; cursor: string | null }>(
         `/v1/stores/${requireStoreId(target_store_id)}/forms/submissions`,
         { ...options, params: queryParams }
       );
     },
 
-    async getSubmission(params: GetFormSubmissionParams, options?: RequestOptions): Promise<FormSubmission> {
+    async getSubmission(params: GetFormSubmissionParams, options?: RequestOptions): Promise<AdminFormSubmission> {
       const target_store_id = requireStoreId(params.store_id);
-      return apiConfig.httpClient.get<FormSubmission>(
+      return apiConfig.httpClient.get<AdminFormSubmission>(
         `/v1/stores/${requireStoreId(target_store_id)}/forms/${params.form_id}/submissions/${params.id}`,
         options
+      );
+    },
+
+    async processSubmission(
+      params: ProcessFormSubmissionParams,
+      options?: RequestOptions,
+    ): Promise<AdminFormSubmission> {
+      const { store_id, form_id, id, ...payload } = params;
+      return apiConfig.httpClient.post<AdminFormSubmission>(
+        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions/${encodeURIComponent(id)}/process`,
+        payload,
+        options,
       );
     },
 

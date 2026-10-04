@@ -129,18 +129,30 @@ test("the default personal Cart refuses a Company response", async () => {
   assert.equal([...storage.values.keys()].filter((key) => key.startsWith("arky:selected-cart:")).length, 0);
 });
 
-for (const type of ["active", "abandoned", "converted", "merged", "expired"]) {
+for (const status of [
+  { type: "active" },
+  { type: "abandoned" },
+  { type: "converted", order_id: secondId, request_id: secondId },
+  { type: "merged", target_cart_id: secondId, request_id: secondId },
+  { type: "superseded", target_cart_id: secondId, request_id: secondId },
+  { type: "expired" },
+]) {
+  const { type } = status;
   test(`selected ${type} Cart has an explicit reuse or terminal replacement policy`, async () => {
     let creates = 0;
     const { client, calls } = setup((call) => {
       if (call.method === "POST") return receipt(cart({ id: ++creates === 1 ? cartId : secondId }));
-      return Response.json(cart({ status: { type, order_id: secondId, target_cart_id: secondId, command_id: secondId } }));
+      return Response.json(cart({ status }));
     });
     await client().eshop.cart.current();
-    const terminal = ["converted", "merged", "expired"].includes(type);
-    assert.equal((await client().eshop.cart.current()).id, terminal ? secondId : cartId);
+    const terminal = ["converted", "merged", "superseded", "expired"].includes(type);
+    const selected = await client().eshop.cart.current();
+    assert.equal(selected.id, terminal ? secondId : cartId);
+    assert.deepEqual(selected.status, terminal ? { type: "active" } : status);
     assert.equal(creates, terminal ? 2 : 1);
     assert.equal(calls.filter((call) => call.method === "GET").length, 1);
+    assert.ok(calls.filter((call) => call.method === "GET").every((call) => call.path.endsWith(`/${cartId}`)));
+    assert.ok(calls.every((call) => ["GET", "POST"].includes(call.method)));
   });
 }
 

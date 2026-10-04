@@ -126,7 +126,7 @@ test("Admin Customer namespace uses canonical routes, tagged status and independ
             email_verification: {
               identity_id: "identity-contract",
               failed_attempts: 0,
-              sent_at: 2,
+              issued_at: 2,
               expires_at: 62,
             },
           },
@@ -274,4 +274,34 @@ test("Admin Customer namespace uses canonical routes, tagged status and independ
     )?.search,
     "?status=active&has_verified_email=true",
   );
+});
+
+test("Customer code issuance exposes issued_at and keeps Visitor proof independent", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const publishableKey = "arky_pk_" + "c".repeat(43);
+  const token = "customer_visitor_" + "d".repeat(64);
+  const issuedAt = Date.now();
+  const visitor = { id: "code-visitor", customer_id: customerId, type: "visitor", status: { type: "active" }, token, expires_at: issuedAt + 600_000 };
+  const proof = { identity_id: "code-email-identity", failed_attempts: 0, issued_at: issuedAt, expires_at: issuedAt + 600_000 };
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    const path = new URL(url).pathname;
+    const headers = new Headers(init.headers);
+    calls.push({ path, body: JSON.parse(init.body), authorization: headers.get("Authorization") });
+    if (path.endsWith("/identify")) return jsonResponse({ customer, session: visitor });
+    assert.equal(path, "/v1/storefront/customer/request-code");
+    return jsonResponse({ customer, session: { ...visitor, token: undefined, email_verification: proof, superseded_at: null, revoked_at: null, last_seen_at: null, created_at: issuedAt, updated_at: issuedAt }, email_verification: { issued_at: issuedAt, expires_at: proof.expires_at } });
+  };
+  const client = createStorefront(publishableKey, { apiUrl: baseUrl, sessionStorage: new MemoryStorage() });
+  await client.customer.identify();
+  const result = await client.customer.requestCode({ email: "reader@example.test" });
+  assert.deepEqual(result.email_verification, { issued_at: issuedAt, expires_at: proof.expires_at });
+  assert.deepEqual(result.session.email_verification, proof);
+  assert.equal("sent_at" in result.email_verification, false);
+  assert.equal("sent_at" in result.session.email_verification, false);
+  assert.equal(client.isAuthenticated, false);
+  assert.equal(client.session.type, "visitor");
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[1], { path: "/v1/storefront/customer/request-code", body: { email: "reader@example.test" }, authorization: "Bearer " + token });
 });

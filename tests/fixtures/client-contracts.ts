@@ -85,7 +85,7 @@ import type {
   AvailabilityResponse,
   AccountApiToken,
   AccountApiTokenStatus,
-  AccountVerificationEmailStatus,
+  NotificationDeliveryOutcome,
   AccountSession,
   AccountSessionScope,
   AccountSessionStatus,
@@ -203,7 +203,6 @@ import type {
   SupportConversation,
   SupportConversationStartResponse,
   SupportMessage,
-  SupportEmailStatus,
   UpdateCartParams,
   UpdateDigitalProductParams,
   UpdateProductParams,
@@ -379,15 +378,15 @@ void workflowExternalOperationContract;
 const flatOperationStatus: WorkflowExternalOperation["status"] = "succeeded";
 // @ts-expect-error Private provider response bodies are not public operation results.
 const privateOperationOutput: WorkflowExternalOperation["result"] = { output: {} };
-const sentEmailOperationResult: WorkflowExternalOperation["result"] = {
-  type: "send_email",
+const sentEmailDeliveryOutcome: NotificationDeliveryOutcome = {
+  type: "sent",
   provider_message_id: "message-contract",
-  provider_thread_id: null,
+  provider_status: 202,
   sent_at: epochMilliseconds(3),
 };
 void flatOperationStatus;
 void privateOperationOutput;
-void sentEmailOperationResult;
+void sentEmailDeliveryOutcome;
 const bookingServiceFeature: StorePlanFeatureType = "booking_services";
 const bookingResourceFeature: StorePlanFeatureType = "booking_resources";
 const customerFeature: StorePlanFeatureType = "customers";
@@ -417,7 +416,6 @@ const mediaWithoutOriginal: Media = {
 };
 const storeContract: Store = {
   id: "store-contract",
-  branding: { logo_media_id: null, icon_media_id: null, accent_color: null },
   customer_workspace: null,
   name: "Contract Store",
   billing_email: "owner@example.com",
@@ -680,9 +678,9 @@ quoteContract.payment_methods;
 
 declare const membershipContract: StoreMembership;
 const serverGeneratedMembershipUuid: string = membershipContract.id;
-const membershipInvitationEmailStatus: AccountVerificationEmailStatus | null | undefined =
-  membershipContract.invitation_email_status;
-// @ts-expect-error invitation state is Account-owned rather than a generic Delivery link.
+const membershipInvitationDeliveryId: string | null =
+  membershipContract.invitation_delivery_id;
+// @ts-expect-error
 membershipContract.invitation_delivery_status;
 void createStoreContract;
 void createStoreLocationContract;
@@ -698,7 +696,7 @@ void checkoutContract;
 void quotedProviderId;
 void quotedProviderIds;
 void serverGeneratedMembershipUuid;
-void membershipInvitationEmailStatus;
+void membershipInvitationDeliveryId;
 const merchantRefundReason: RefundRequestReason = "fraudulent";
 const refundMoney: Money = { amount: 1_250, currency: "usd" };
 const refundAllocation: RefundAllocation = {
@@ -1492,6 +1490,8 @@ const cartBookingItemContract: CartBookingItem = {
   price_override: null,
 };
 const canonicalCartContract: Cart = {
+  first_order_terms: null,
+  repeat_order_source: null,
   id: "cart-contract",
   store_id: "store-contract",
   customer_id: "customer-contract",
@@ -2128,14 +2128,13 @@ const supportMessageWithNullState: SupportMessage = {
   attachments: [],
   metadata: {},
   ai_response_status: null,
-  email_status: null,
+  delivery_id: null,
   created_at: epochMilliseconds(1),
   updated_at: epochMilliseconds(1),
 };
-const supportEmailStatus: SupportEmailStatus = {
+const supportEmailStatus: NotificationDeliveryOutcome = {
   type: "sent",
   provider_message_id: "provider-support-message",
-  provider_thread_id: null,
   provider_status: 202,
   sent_at: epochMilliseconds(2),
 };
@@ -2145,6 +2144,7 @@ const campaignConversationMessage: CampaignConversationMessage = {
     id: "campaign-message-contract",
     store_id: "store-contract",
     campaign_id: "campaign-contract",
+    delivery_id: "campaign-delivery-contract",
     campaign_enrollment_id: "enrollment-contract",
     position: 1,
     parent_message_id: null,
@@ -2154,7 +2154,7 @@ const campaignConversationMessage: CampaignConversationMessage = {
         type: "account_session",
         account_session_id: "account-session-contract",
       },
-      status: { type: "submitted", delivery_status: { type: "requested", requested_at: epochMilliseconds(2) } },
+      status: { type: "submitted" },
     },
     content: {
       to_email: "recipient@example.test",
@@ -2166,7 +2166,7 @@ const campaignConversationMessage: CampaignConversationMessage = {
     created_at: epochMilliseconds(1),
     updated_at: epochMilliseconds(2),
   },
-  email_status: { type: "requested", requested_at: epochMilliseconds(2) },
+  email_status: { type: "pending" },
 };
 
 const workflowEmailNode: WorkflowSendEmailNode = {
@@ -2319,7 +2319,7 @@ const authToken: AuthToken = {
 // @ts-expect-error an Active Account Session is proof of verification.
 authToken.is_verified;
 
-const invitationEmailStatus: AccountVerificationEmailStatus = { type: "processing" };
+const invitationDeliveryId: string = "invitation-delivery-contract";
 const pendingAccountSession: AccountSession = {
   id: "pending-session-contract",
   scope: { type: "account" },
@@ -2767,7 +2767,7 @@ void [
   pendingAccountSessionResponse,
   verifyPendingAccountSession,
   authToken,
-  invitationEmailStatus,
+  invitationDeliveryId,
   pendingAccountSession,
   activeAccountSession,
   revokedAccountSession,

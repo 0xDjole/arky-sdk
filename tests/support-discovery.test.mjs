@@ -66,7 +66,7 @@ test("Support history retains empty-page continuation and exact tagged message s
     id: "message", store_id: STORE_ID, conversation_id: "conversation", role: "user",
     content: "Help", buttons: null, attachments: [], metadata: {},
     ai_response_status: { type: "unknown", completed_at: 2, error: "Outcome unknown" },
-    email_status: null, created_at: 0, updated_at: 2,
+    delivery_id: null, created_at: 0, updated_at: 2,
   };
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     calls.push({ url: new URL(url), method: init.method, body: init.body });

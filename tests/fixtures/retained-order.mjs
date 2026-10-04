@@ -70,6 +70,7 @@ export const retainedOrder = {
   store_id: "e4c8a2f6-1b73-4d95-a0e7-5f2c9b6d3a18",
   source: {
     type: "cart_acceptance",
+    first_order_terms: null,
     request_id: "9b2e4d71-6a35-4c08-8f1e-3d7a5c9b2e46",
     submission_fingerprint: "c".repeat(64),
     initial_payment_id: null,
@@ -185,6 +186,7 @@ export const retainedOrder = {
           term: { type: "permanent" },
           price: { ...price, unit_price: { currency: "usd", amount: 0 } },
           entitlements: [],
+          purchase_requirement: null,
         },
         deliveries: [],
         billing_address: address,

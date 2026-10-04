@@ -17,6 +17,7 @@ import type {
   OrderProductItem,
 } from "./index";
 import type { EpochMilliseconds } from "./time";
+import type { FirstOrderTerms } from "./firstOrderTerms";
 import type { CheckoutCartVersion, ConvertedCartLine } from "./checkout";
 import type { OrderLineItemOrigin } from "./orderLineItem";
 import type { LineMoneySnapshot } from "./orderMoney";
@@ -43,6 +44,7 @@ export type OrderSource =
       initial_payment_id: string | null;
       cart: CheckoutCartVersion;
       converted_lines: ConvertedCartLine[];
+      first_order_terms: FirstOrderTerms | null;
     }
   | { type: "direct"; request_id: string }
   | { type: "subscription"; order_subscription_line_item_id: string };

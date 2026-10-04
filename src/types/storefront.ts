@@ -37,6 +37,12 @@ export type StorefrontParams<T> = T extends unknown
 
 export type StorefrontCart = Cart;
 export type StorefrontCurrentCartParams = Pick<GetCurrentCartParams, "company">;
+export interface FindStorefrontPreparedCartsParams {
+  company_id: string;
+  company_location_id: string;
+  limit?: number;
+  cursor?: string;
+}
 export type CartPublicLineItemInput =
   | ({ type: "product" } & CartProductInput)
   | ({ type: "booking" } & CartBookingInput)

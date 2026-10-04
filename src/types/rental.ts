@@ -2,6 +2,7 @@ import type { AccountActor } from "./accountActor";
 import type { SubscriptionProductSnapshot } from "./commerce";
 import type { FulfillmentOrderMethod, RentalIssueReplacement } from "./index";
 import type { EpochMilliseconds } from "./time";
+import type { ReturnStatus } from "./return";
 
 export type RentalActor =
   | { type: "account"; actor: AccountActor }
@@ -97,8 +98,62 @@ export interface CustomerRental {
   variant_sku: string | null;
   quantity: number;
   status: CustomerRentalStatus;
+  units: CustomerRentalUnit[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+}
+
+export interface CustomerRentalUnit {
+  inventory_unit_id: string;
+  asset_tag: string;
+  manufacturer_serial: string | null;
+  deliveries: CustomerRentalUnitDelivery[];
+  returns: CustomerRentalUnitReturn[];
+}
+
+export type CustomerRentalUnitDelivery =
+  | {
+      type: "allocated";
+      fulfillment_order_id: string;
+      fulfillment_order_line_id: string;
+      fulfillment_unit_index: number;
+    }
+  | {
+      type: "dispatched";
+      fulfillment_order_id: string;
+      fulfillment_order_line_id: string;
+      fulfillment_unit_index: number;
+      fulfillment_id: string;
+      dispatched_at: EpochMilliseconds;
+    }
+  | {
+      type: "delivered";
+      fulfillment_order_id: string;
+      fulfillment_order_line_id: string;
+      fulfillment_unit_index: number;
+      fulfillment_id: string;
+      dispatched_at: EpochMilliseconds;
+      delivered_at: EpochMilliseconds;
+    };
+
+export type RentalReturnDisposition = "restocked" | "written_off";
+
+export type RentalReturnState =
+  | { type: "awaiting_receipt" }
+  | { type: "awaiting_inspection"; received_at: EpochMilliseconds }
+  | {
+      type: "inspected";
+      inspected_at: EpochMilliseconds;
+      disposition: RentalReturnDisposition;
+    }
+  | { type: "missing"; recorded_at: EpochMilliseconds }
+  | { type: "cancelled" }
+  | { type: "declined" };
+
+export interface CustomerRentalUnitReturn {
+  return_id: string;
+  status: ReturnStatus;
+  state: RentalReturnState;
 }
 
 export interface FindCustomerRentalsParams {

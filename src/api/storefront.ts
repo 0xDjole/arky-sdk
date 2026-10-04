@@ -1,4 +1,6 @@
 import { requireRequestId } from "../utils/requestId";
+import type { RepeatBranchCartParams } from "../types/firstOrderTerms";
+import type { BranchMinimumProgress, GetStorefrontBranchMinimumProgressParams } from "../types/minimumProgress";
 import type { CartAccessProductPreview, PreviewCartAccessProductParams } from "../types/purchaseAccess";
 import type { FindSubscriptionPurchaseAccessParams, SubscriptionPurchaseAccessPage } from "../types/purchaseAccess";
 import type { CompanyCustomerAccess } from "../types/company";
@@ -114,10 +116,11 @@ import type {
   BookingOffering,
   Category,
 } from "../types";
-import type { StorefrontCustomer, StorefrontCurrentCartParams, StorefrontUpdateCartParams, StorefrontAddCartProductParams, StorefrontAddCartBookingParams, StorefrontAddCartDigitalParams, StorefrontProduct, StorefrontProductVariant, GetStorefrontProductVariantParams, FindStorefrontProductVariantsParams, StorefrontBookingOffering, StorefrontBookingResource, StorefrontBookingService, StorefrontLocation, StorefrontMarket, StorefrontParams } from "../types/storefront";
+import type { StorefrontCustomer, StorefrontCurrentCartParams, FindStorefrontPreparedCartsParams, StorefrontUpdateCartParams, StorefrontAddCartProductParams, StorefrontAddCartBookingParams, StorefrontAddCartDigitalParams, StorefrontProduct, StorefrontProductVariant, GetStorefrontProductVariantParams, FindStorefrontProductVariantsParams, StorefrontBookingOffering, StorefrontBookingResource, StorefrontBookingService, StorefrontLocation, StorefrontMarket, StorefrontParams } from "../types/storefront";
 import type { CatalogReadOptions } from "../types/catalog";
 export type { StorefrontCheckoutQuote, StorefrontCustomer, StorefrontBookingOffering, StorefrontBookingResource, StorefrontBookingService, StorefrontLocation, StorefrontMarket } from "../types/storefront";
 import {
+  preparedCartQuery,
   publicCartReadOptions,
   sanitizePublicCartBookings,
   sanitizePublicCartSubscriptionPlans,
@@ -186,7 +189,7 @@ export type RequestCodeResponse = {
   customer: StorefrontCustomer;
   session: StorefrontVisitorSessionRecord;
   email_verification: {
-    sent_at: EpochMilliseconds;
+    issued_at: EpochMilliseconds;
     expires_at: EpochMilliseconds;
   };
 };
@@ -322,6 +325,16 @@ export const createStorefrontApi = (
 
   return {
     companies: {
+      async minimumProgress(
+        params: GetStorefrontBranchMinimumProgressParams,
+        options?: RequestOptions,
+      ): Promise<BranchMinimumProgress> {
+        await lifecycle.ensureVisitorSession();
+        return apiConfig.httpClient.get<BranchMinimumProgress>(
+          `${base}/companies/${encodeURIComponent(params.company_id)}/locations/${encodeURIComponent(params.company_location_id)}/minimum-progress`,
+          options,
+        );
+      },
       async memberships(
         params: { limit?: number; cursor?: string } = {},
         options?: RequestOptions,
@@ -699,6 +712,18 @@ export const createStorefrontApi = (
         },
       },
       cart: {
+        async repeat(
+          params: RepeatBranchCartParams,
+          options?: RequestOptions,
+        ): Promise<CreatedCart> {
+          await lifecycle.ensureVisitorSession();
+          requireRequestId(params.request_id);
+          return withCartMutation(checkoutScope, () => apiConfig.httpClient.post<CreatedCart>(
+            `${base}/carts/repeat`,
+            { request_id: params.request_id, recovery_token: params.recovery_token, company_id: params.company_id, company_location_id: params.company_location_id },
+            options,
+          ));
+        },
         async previewAccessProduct(
           params: StorefrontParams<PreviewCartAccessProductParams>,
           options?: RequestOptions,
@@ -724,6 +749,17 @@ export const createStorefrontApi = (
         ): Promise<Cart> {
           await lifecycle.ensureVisitorSession();
           return cartSelection.current(params, options);
+        },
+        async prepared(
+          params: FindStorefrontPreparedCartsParams,
+          options?: RequestOptions,
+        ): Promise<PaginatedResponse<Cart>> {
+          const query = preparedCartQuery(params);
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<PaginatedResponse<Cart>>(
+            `${base}/carts/prepared`,
+            { ...publicCartReadOptions(options), params: query },
+          );
         },
         async get(
           params: StorefrontParams<GetCartParams>,

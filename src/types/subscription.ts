@@ -2,6 +2,7 @@ import type { Money } from "./index";
 import type { SubscriptionCalendarChange, SubscriptionFundingChange, SubscriptionPlanChange, SubscriptionTaxCorrection, SubscriptionRevisionChangeResult, SubscriptionCardUpdateRequest } from "./subscriptionRevision";
 import type { PurchaseOriginSnapshot } from "./orderContract";
 import type { EpochMilliseconds } from "./time";
+import type { PurchaseRequirement, PurchaseRequirementInput } from "./purchaseRequirement";
 
 export interface SubscriptionCollectionBlock {
   request_id: string;
@@ -121,6 +122,7 @@ export interface FindCustomerSubscriptionsParams {
 }
 
 export type SubscriptionChangeType =
+  | { type: "purchase_requirement_changed"; subscription_id: string; actor_account_id: string; actor: PurchaseOriginSnapshot; expected_updated_at: EpochMilliseconds; effective_at: EpochMilliseconds; previous: PurchaseRequirement | null; current: PurchaseRequirement | null; selection: PurchaseRequirementInput | null }
   | { type: "calendar"; change: { request: SubscriptionCalendarChange; actor: PurchaseOriginSnapshot; result: SubscriptionRevisionChangeResult } }
   | { type: "funding"; change: { request: SubscriptionFundingChange; actor: PurchaseOriginSnapshot; result: SubscriptionRevisionChangeResult } }
   | { type: "plan"; change: { request: SubscriptionPlanChange; actor: PurchaseOriginSnapshot; result: SubscriptionRevisionChangeResult } }
