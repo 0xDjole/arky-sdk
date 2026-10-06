@@ -104,7 +104,6 @@ function bookingOffering() {
     tax_category_id: null,
     status: { type: "active" },
     price: { amount: 5000, currency: "eur", tax_mode: "exclusive" },
-    purchase_allowed: true,
     created_at: 1,
     updated_at: 1,
   };
@@ -246,6 +245,7 @@ function cart(bookingItems = []) {
       customer_session_id: "visitor-session-booking-contract",
     },
     market_id: "market-bih",
+    catalog_id: "catalog-bih",
     line_items: bookingItems.map((item) => ({
       type: "booking",
       id: item.id ?? "cart-booking-item",

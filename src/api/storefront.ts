@@ -9,7 +9,8 @@ import type { RentalReturnUnitOption, FindRentalReturnOptionsParams } from "../t
 import type { CompanyMembership } from "../types/companyMembership";
 import type { CompanyLocation, FindCompanyLocationsParams } from "../types/companyLocation";
 import type { FindCustomerSubscriptionsParams, FindSubscriptionOrdersParams } from "../types/subscription";
-import type { CreateReturnParams, GetReturnParams, FindReturnsParams, Return, OrderReturnOptions, GetOrderReturnOptionsParams } from "../types/return";
+import type { StorefrontCreateReturnParams, GetReturnParams, FindReturnsParams, Return, OrderReturnOptions, GetOrderReturnOptionsParams } from "../types/return";
+import type { CustomerOrderFulfillment, FindCustomerOrderFulfillmentsParams } from "../types/fulfillmentJob";
 import type { EpochMilliseconds } from "../types/time";
 import type { ControlSubscriptionParams, GetCurrentSubscriptionParams, SubscriptionControlResult, SubscriptionSelf } from "../types/subscription";
 import type { AcceptCartFutureDeliveriesParams, CartFutureDeliveryQuote, QuoteCartFutureDeliveriesParams } from "../types/cartDelivery";
@@ -86,10 +87,12 @@ import type {
   RemoveCartItemParams,
   RequestOptions,
   SubmitFormParams,
+  UpdateCustomerMeParams,
 } from "../types/api";
 import type {
   Cart,
   CreatedCart,
+  RepeatedCart,
   DigitalDownload,
   DigitalLibraryItem,
   DigitalLibraryProduct,
@@ -117,7 +120,7 @@ import type {
   Category,
 } from "../types";
 import type { StorefrontCustomer, StorefrontCurrentCartParams, FindStorefrontPreparedCartsParams, StorefrontUpdateCartParams, StorefrontAddCartProductParams, StorefrontAddCartBookingParams, StorefrontAddCartDigitalParams, StorefrontProduct, StorefrontProductVariant, GetStorefrontProductVariantParams, FindStorefrontProductVariantsParams, StorefrontBookingOffering, StorefrontBookingResource, StorefrontBookingService, StorefrontLocation, StorefrontMarket, StorefrontParams } from "../types/storefront";
-import type { CatalogReadOptions } from "../types/catalog";
+import type { CatalogReadOptions, FindStorefrontCatalogsParams, StorefrontCatalog } from "../types/catalog";
 export type { StorefrontCheckoutQuote, StorefrontCustomer, StorefrontBookingOffering, StorefrontBookingResource, StorefrontBookingService, StorefrontLocation, StorefrontMarket } from "../types/storefront";
 import {
   preparedCartQuery,
@@ -199,6 +202,7 @@ export type RefreshResponse = IdentifyResponse;
 
 export type CustomerMeResponse = {
   customer: StorefrontCustomer;
+  email: string | null;
   session: StorefrontCustomerSessionRecord;
 };
 
@@ -279,10 +283,13 @@ export const createStorefrontApi = (
     get: (id, options) => apiConfig.httpClient.get<Cart>(`${base}/carts/${encodeURIComponent(id)}`, publicCartReadOptions(options)),
     create: (params, options) => apiConfig.httpClient.post<CreatedCart>(
       `${base}/carts`,
-      { ...(params.company !== undefined ? { company: params.company === null ? null : {
-        company_id: params.company.company_id,
-        company_location_id: params.company.company_location_id,
-      } } : {}) },
+      {
+        ...(params.company !== undefined ? { company: params.company === null ? null : {
+          company_id: params.company.company_id,
+          company_location_id: params.company.company_location_id,
+        } } : {}),
+        ...(params.catalog_id !== undefined ? { catalog_id: params.catalog_id } : {}),
+      },
       publicCartReadOptions(options),
     ),
   });
@@ -442,6 +449,16 @@ export const createStorefrontApi = (
       getMe(options?: RequestOptions): Promise<CustomerMeResponse> {
         return apiConfig.httpClient.get<CustomerMeResponse>(
           `${base}/customer/me`,
+          options,
+        );
+      },
+      updateMe(
+        params: UpdateCustomerMeParams,
+        options?: RequestOptions,
+      ): Promise<CustomerMeResponse> {
+        return apiConfig.httpClient.patch<CustomerMeResponse>(
+          `${base}/customer/me`,
+          params,
           options,
         );
       },
@@ -605,6 +622,17 @@ export const createStorefrontApi = (
       },
     },
     eshop: {
+      catalog: {
+        find(
+          params: FindStorefrontCatalogsParams = {},
+          options?: RequestOptions,
+        ): Promise<StorefrontCatalog[]> {
+          return apiConfig.httpClient.get<StorefrontCatalog[]>(`${base}/catalogs`, {
+            ...options,
+            params: { company_id: params.company_id, company_location_id: params.company_location_id },
+          });
+        },
+      },
       digital: {
         async find(
           params: FindStorefrontDigitalProductsParams = {},
@@ -622,7 +650,7 @@ export const createStorefrontApi = (
             StorefrontDigitalProduct
           >(`${base}/digital-products/${encodeURIComponent(params.identifier)}`, {
             ...options,
-            params: { company_id: params.company_id, company_location_id: params.company_location_id, include_price: params.include_price },
+            params: { catalog_id: params.catalog_id, company_id: params.company_id, company_location_id: params.company_location_id, include_price: params.include_price },
           });
         },
         async library(
@@ -675,7 +703,7 @@ export const createStorefrontApi = (
             throw new Error("GetProductParams requires id or slug");
           return apiConfig.httpClient.get<StorefrontProduct>(
             `${base}/products/${encodeURIComponent(identifier)}`,
-            { ...options, params: { company_id: params.company_id, company_location_id: params.company_location_id, include_price: params.include_price } },
+            { ...options, params: { catalog_id: params.catalog_id, company_id: params.company_id, company_location_id: params.company_location_id, include_price: params.include_price } },
           );
         },
         find(
@@ -715,10 +743,10 @@ export const createStorefrontApi = (
         async repeat(
           params: RepeatBranchCartParams,
           options?: RequestOptions,
-        ): Promise<CreatedCart> {
+        ): Promise<RepeatedCart> {
           await lifecycle.ensureVisitorSession();
           requireRequestId(params.request_id);
-          return withCartMutation(checkoutScope, () => apiConfig.httpClient.post<CreatedCart>(
+          return withCartMutation(checkoutScope, () => apiConfig.httpClient.post<RepeatedCart>(
             `${base}/carts/repeat`,
             { request_id: params.request_id, recovery_token: params.recovery_token, company_id: params.company_id, company_location_id: params.company_location_id },
             options,
@@ -931,16 +959,18 @@ export const createStorefrontApi = (
           await lifecycle.ensureVisitorSession();
           return apiConfig.httpClient.get<OrderReturnOptions>(`${base}/returns/orders/${encodeURIComponent(params.order_id)}/options`, options);
         },
-        async create(params: StorefrontParams<CreateReturnParams>, options?: RequestOptions): Promise<Return> {
-      requireRequestId(params.request_id);
+        async create(params: StorefrontCreateReturnParams, options?: RequestOptions): Promise<Return> {
+          requireRequestId(params.request_id);
           await lifecycle.ensureVisitorSession();
           return apiConfig.httpClient.post<Return>(`${base}/returns`, {
-          return_id: params.return_id,
-          source: params.source,
-          destination_store_location_id: params.destination_store_location_id,
-          request_id: params.request_id,
-          lines: params.lines,
-        }, options);
+            return_id: params.return_id,
+            source: params.source,
+            ...(params.destination_store_location_id !== undefined
+              ? { destination_store_location_id: params.destination_store_location_id }
+              : {}),
+            request_id: params.request_id,
+            lines: params.lines,
+          }, options);
         },
         async get(params: StorefrontParams<GetReturnParams>, options?: RequestOptions): Promise<Return> {
           await lifecycle.ensureVisitorSession();
@@ -959,6 +989,16 @@ export const createStorefrontApi = (
           await lifecycle.ensureVisitorSession();
           return apiConfig.httpClient.get<Order>(
             `${base}/orders/${params.id}`,
+            options,
+          );
+        },
+        async fulfillments(
+          params: FindCustomerOrderFulfillmentsParams,
+          options?: RequestOptions,
+        ): Promise<CustomerOrderFulfillment[]> {
+          await lifecycle.ensureVisitorSession();
+          return apiConfig.httpClient.get<CustomerOrderFulfillment[]>(
+            `${base}/orders/${encodeURIComponent(params.order_id)}/fulfillments`,
             options,
           );
         },
@@ -1170,7 +1210,7 @@ export const createStorefrontApi = (
             throw new Error("GetBookingServiceParams requires id or slug");
           return apiConfig.httpClient.get<StorefrontBookingService>(
             `${base}/booking-services/${identifier}`,
-            { ...options, params: { company_id: params.company_id, company_location_id: params.company_location_id, include_price: params.include_price } },
+            { ...options, params: { catalog_id: params.catalog_id, company_id: params.company_id, company_location_id: params.company_location_id, include_price: params.include_price } },
           );
         },
         find(
@@ -1182,7 +1222,7 @@ export const createStorefrontApi = (
           >(`${base}/booking-services`, { ...options, params });
         },
         getAvailability(
-          params: StorefrontParams<GetAvailabilityParams> & Pick<CatalogReadOptions, "company_id" | "company_location_id">,
+          params: StorefrontParams<GetAvailabilityParams> & Pick<CatalogReadOptions, "catalog_id" | "company_id" | "company_location_id">,
           options?: RequestOptions,
         ): Promise<AvailabilityResponse> {
           return apiConfig.httpClient.get<AvailabilityResponse>(

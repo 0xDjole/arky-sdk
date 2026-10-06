@@ -1,6 +1,6 @@
 import type { AccountActor } from "./accountActor";
 import type { SubscriptionProductSnapshot } from "./commerce";
-import type { FulfillmentOrderMethod, RentalIssueReplacement } from "./index";
+import type { PostalAddress, RentalIssueReplacement } from "./index";
 import type { EpochMilliseconds } from "./time";
 import type { ReturnStatus } from "./return";
 
@@ -45,14 +45,18 @@ export interface RentalDetail {
   terms: RentalTerms;
 }
 
+export type RentalReplacementMethod =
+  | { type: "delivery"; destination: PostalAddress }
+  | { type: "pickup" };
+
 export type RentalCommand =
   | {
       type: "request_replacement";
-      fulfillment_order_id: string;
-      fulfillment_order_line_id: string;
+      fulfillment_job_id: string;
+      fulfillment_job_line_id: string;
       replacement: RentalIssueReplacement;
       store_location_id: string;
-      method: FulfillmentOrderMethod;
+      method: RentalReplacementMethod;
     }
   | {
       type: "end";
@@ -62,8 +66,8 @@ export type RentalCommand =
   | { type: "close" }
   | {
       type: "cancel_issue";
-      fulfillment_order_id: string;
-      fulfillment_order_line_id: string;
+      fulfillment_job_id: string;
+      fulfillment_job_line_id: string;
     };
 
 export interface GetRentalParams {
@@ -114,22 +118,22 @@ export interface CustomerRentalUnit {
 export type CustomerRentalUnitDelivery =
   | {
       type: "allocated";
-      fulfillment_order_id: string;
-      fulfillment_order_line_id: string;
+      fulfillment_job_id: string;
+      fulfillment_job_line_id: string;
       fulfillment_unit_index: number;
     }
   | {
       type: "dispatched";
-      fulfillment_order_id: string;
-      fulfillment_order_line_id: string;
+      fulfillment_job_id: string;
+      fulfillment_job_line_id: string;
       fulfillment_unit_index: number;
       fulfillment_id: string;
       dispatched_at: EpochMilliseconds;
     }
   | {
       type: "delivered";
-      fulfillment_order_id: string;
-      fulfillment_order_line_id: string;
+      fulfillment_job_id: string;
+      fulfillment_job_line_id: string;
       fulfillment_unit_index: number;
       fulfillment_id: string;
       dispatched_at: EpochMilliseconds;

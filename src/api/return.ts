@@ -3,7 +3,7 @@ import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
 import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
-import type { CreateReturnParams, ExecuteReturnParams, FindReturnsParams, GetReturnParams, GetReturnInspectionUnitParams, Return, ReturnInspectionUnit } from "../types/return";
+import type { CreateReturnParams, ExecuteReturnParams, FindReturnsParams, GetReturnParams, GetReturnInspectionUnitParams, Return, ReturnDestinationOptions, ReturnInspectionUnit } from "../types/return";
 
 export const createReturnApi = (apiConfig: ApiConfig) => {
   const basePath = (storeId: string) =>
@@ -18,6 +18,10 @@ export const createReturnApi = (apiConfig: ApiConfig) => {
     get(params: GetReturnParams, options?: RequestOptions): Promise<Return> {
       const { store_id, return_id } = params;
       return apiConfig.httpClient.get<Return>(`${basePath(store_id)}/${encodeURIComponent(return_id)}`, options);
+    },
+    destinationOptions(params: GetReturnParams, options?: RequestOptions): Promise<ReturnDestinationOptions> {
+      const { store_id, return_id } = params;
+      return apiConfig.httpClient.get<ReturnDestinationOptions>(`${basePath(store_id)}/${encodeURIComponent(return_id)}/destination-options`, options);
     },
     inspectionUnit(params: GetReturnInspectionUnitParams, options?: RequestOptions): Promise<ReturnInspectionUnit> {
       const { store_id, return_id, inventory_unit_id } = params;

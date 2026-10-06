@@ -15,7 +15,7 @@ export type * from "./orderSnapshot";
 export type * from "./orderMoney";
 export type * from "./orderLineItem";
 import type { AcceptedFormSubmission, OrderAccess, OrderLineItemOrigin } from "./orderLineItem";
-export type { Price, PriceScope } from "./price";
+export type { Price } from "./price";
 export type { Zone, ZoneMatch, ZoneStatus, ZoneEditableStatus } from "./zone";
 export type { ShippingMethod, ShippingRate } from "./shipping";
 export type { StorefrontPrice } from "./commerce";
@@ -232,7 +232,7 @@ export interface EshopCartItem {
   max_stock?: number;
 }
 
-export type { Cart, CreatedCart, CartStatus, CartLineItem, CartCompanyContext, CartProductItem, CartBookingItem, CartDigitalItem, CartSubscriptionPlanItem } from "./cart";
+export type { Cart, CreatedCart, RepeatedCart, RepeatLeftOutLine, CartStatus, CartLineItem, CartCompanyContext, CartProductItem, CartBookingItem, CartDigitalItem, CartSubscriptionPlanItem } from "./cart";
 export type { QuotedDeliveryGroup, QuotedShippingOffer, QuotedDeliveryPricing, ShippingDeliveryEstimate } from "./quote";
 
 export type SocialConnectionType =
@@ -597,18 +597,6 @@ export type SocialMessageSyncResult =
     }
   | { type: "deferred"; retry_after_at: EpochMilliseconds };
 
-export type BuildHookStatus = { type: "active" } | { type: "disabled" };
-
-export interface BuildHook {
-  id: string;
-  store_id: string;
-  url: string;
-  headers: Record<string, string>;
-  status: BuildHookStatus;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
 export type PaymentOptionStatus = { type: "active" } | { type: "disabled" } | { type: "deleting" };
 
 export interface StripeWebhookDelivery {
@@ -703,16 +691,13 @@ export interface StoreLocationStatus {
   type: "active" | "archived" | "deleting";
 }
 
-export type LocationOperator = { type: "store" } | { type: "partner"; fulfillment_partner_id: string };
-
 export interface StoreLocation {
   id: string;
   store_id: string;
   key: string;
   address: PostalAddress;
   timezone: string;
-  is_pickup_location: boolean;
-  operator: LocationOperator;
+  allows_pickup: boolean;
   blocks: Block[];
   status: StoreLocationStatus;
   created_at: EpochMilliseconds;
@@ -843,45 +828,6 @@ export interface OrderDigitalItem {
   updated_at: EpochMilliseconds;
 }
 
-export type FulfillmentOrderStatus = {
-  type: "scheduled" | "on_hold" | "open" | "in_progress" | "completed" | "cancelled";
-};
-
-export interface FulfillmentOrderMoveLine {
-  fulfillment_order_line_id: string;
-  unit_spans: FulfillmentUnitSpan[];
-}
-
-export interface MoveFulfillmentOrderParams {
-  store_id: string;
-  fulfillment_order_id: string;
-  request_id: string;
-  expected_updated_at: EpochMilliseconds;
-  to_store_location_id: string;
-  lines: FulfillmentOrderMoveLine[];
-}
-
-export interface MoveFulfillmentOrderResult {
-  fulfillment_order: FulfillmentOrder;
-  destination_fulfillment_order: FulfillmentOrder;
-}
-
-export interface FulfillmentOrderRef {
-  order_id: string;
-  order_delivery_group_id: string;
-}
-
-export type FulfillmentHoldReason =
-  | { type: "awaiting_release" }
-  | { type: "manual"; actor: import("./accountActor").AccountActor; note: string }
-  | { type: "partner_rejected"; fulfillment_partner_id: string; note: string };
-
-export interface FulfillmentHold {
-  id: string;
-  reason: FulfillmentHoldReason;
-  created_at: EpochMilliseconds;
-}
-
 export interface FulfillmentUnitSpan {
   first_unit: number;
   quantity: number;
@@ -889,30 +835,9 @@ export interface FulfillmentUnitSpan {
 
 export interface RentalIssueReplacement {
   predecessor_inventory_unit_id: string;
-  predecessor_fulfillment_order_line_id: string;
+  predecessor_fulfillment_job_line_id: string;
   predecessor_fulfillment_unit_index: number;
   overlap_authorized: boolean;
-}
-
-export type FulfillmentOrderLineSource = {
-  type: "order_product";
-  order_product_line_item_id: string;
-  order_unit_spans: import("./orderContract").UnitSpan[];
-} | {
-  type: "rental_issue";
-  rental_id: string;
-  terms_revision_id: string;
-  replacement: RentalIssueReplacement | null;
-};
-
-export interface FulfillmentOrderLine {
-  id: string;
-  source: FulfillmentOrderLineSource;
-  inventory_requirements: InventoryRequirement[];
-  quantity: number;
-  fulfilled_quantity: number;
-  cancelled_units: FulfillmentUnitSpan[];
-  moved_units: FulfillmentUnitSpan[];
 }
 
 export interface FulfillmentCompanyRecipient {
@@ -931,76 +856,6 @@ export interface FulfillmentRecipient {
 export interface FulfillmentWindow {
   from: EpochMilliseconds;
   to: EpochMilliseconds;
-}
-
-export type FulfillmentOrderMethod =
-  | { type: "pickup" }
-  | { type: "delivery"; destination: PostalAddress };
-
-export interface FulfillmentOrder {
-  id: string;
-  store_id: string;
-  store_location_id: string;
-  order: FulfillmentOrderRef | null;
-  status: FulfillmentOrderStatus;
-  holds: FulfillmentHold[];
-  method: FulfillmentOrderMethod;
-  recipient: FulfillmentRecipient;
-  scheduled_window: FulfillmentWindow | null;
-  lines: FulfillmentOrderLine[];
-  partner_request: PartnerRequest | null;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export interface FulfillmentJobItem {
-  fulfillment_order_line_id: string;
-  product_key: string;
-  variant_sku: string | null;
-  quantity: number;
-  source: FulfillmentOrderLineSource;
-}
-
-export interface PartnerLineUnits {
-  fulfillment_order_line_id: string;
-  unit_spans: FulfillmentUnitSpan[];
-  cancellation_request_id: string | null;
-}
-
-export type PartnerChange =
-  | { type: "cancel_units"; lines: PartnerLineUnits[] }
-  | { type: "hold"; actor: import("./accountActor").AccountActor; note: string };
-
-export interface PartnerChangeRequest {
-  requested_at: EpochMilliseconds;
-  change: PartnerChange;
-}
-
-export interface PartnerRequest {
-  fulfillment_partner_id: string;
-  status:
-    | { type: "sent"; webhook_delivery_id: string | null; sent_at: EpochMilliseconds }
-    | {
-        type: "accepted";
-        actor: import("./accountActor").AccountActor;
-        accepted_at: EpochMilliseconds;
-        change: PartnerChangeRequest | null;
-      };
-}
-
-export type PartnerAction =
-  | { type: "accept" }
-  | { type: "reject"; note: string }
-  | { type: "hand_back"; note: string }
-  | { type: "resend" }
-  | { type: "confirm_change" };
-
-export interface ControlPartnerRequestParams {
-  store_id: string;
-  fulfillment_order_id: string;
-  request_id: string;
-  expected_updated_at: EpochMilliseconds;
-  action: PartnerAction;
 }
 
 export type DigitalProductStatus = { type: "draft" } | { type: "active" } | { type: "archived" };
@@ -1027,7 +882,6 @@ export interface StorefrontDigitalProduct {
   blocks: Block[];
   categories: CategoryEntry[];
   price: StorefrontPrice | null;
-  purchase_allowed: boolean;
 }
 
 export interface DigitalAsset {
@@ -1097,14 +951,12 @@ export type MarketStatus = { type: "active" } | { type: "deleting" };
 export interface MarketUsage {
   market_payment_option_ids: string[];
   more_market_payment_options: boolean;
-  market_sales_channel_ids: string[];
-  more_market_sales_channels: boolean;
-  fulfillment_routing_policy_ids: string[];
-  more_fulfillment_routing_policies: boolean;
+  sales_channel_ids: string[];
+  more_sales_channels: boolean;
   market_zone_ids: string[];
   more_market_zones: boolean;
-  catalog_entitlement_ids: string[];
-  more_catalog_entitlements: boolean;
+  catalog_ids: string[];
+  more_catalogs: boolean;
   cart_ids: string[];
   more_carts: boolean;
 }
@@ -1157,13 +1009,14 @@ export type WebhookEventSubscription =
   | { type: "fulfillment.ready" }
   | { type: "fulfillment.fulfilled" }
   | { type: "fulfillment.cancelled" }
-  | { type: "fulfillment_order.created" }
-  | { type: "fulfillment_order.opened" }
-  | { type: "fulfillment_order.held" }
-  | { type: "fulfillment_order.released" }
-  | { type: "fulfillment_order.moved" }
-  | { type: "fulfillment_order.completed" }
-  | { type: "fulfillment_order.cancelled" }
+  | { type: "fulfillment_job.created" }
+  | { type: "fulfillment_job.opened" }
+  | { type: "fulfillment_job.held" }
+  | { type: "fulfillment_job.released" }
+  | { type: "fulfillment_job.assigned" }
+  | { type: "fulfillment_job.moved" }
+  | { type: "fulfillment_job.completed" }
+  | { type: "fulfillment_job.cancelled" }
   | { type: "cart.created" }
   | { type: "cart.updated" }
   | { type: "cart.abandoned" }
@@ -1189,12 +1042,43 @@ export type WebhookEventSubscription =
   | { type: "customer_group.member_pending" }
   | { type: "customer_group.member_confirmed" }
   | { type: "customer_group.member_access_cancelled" }
+  | { type: "customer_group.member_email_subscribed" }
+  | { type: "customer_group.member_email_confirmed" }
   | { type: "customer_group.member_email_unsubscribed" }
   | { type: "customer_group.member_email_resubscribed" }
   | { type: "customer.created" }
   | { type: "customer.updated" }
   | { type: "customer.archived" }
-  | { type: "account.updated" };
+  | { type: "account.updated" }
+  | { type: "subscription.activated" }
+  | { type: "subscription.paused" }
+  | { type: "subscription.resumed" }
+  | { type: "subscription.cancelled" }
+  | { type: "subscription.renewed" }
+  | { type: "subscription.payment_failed" }
+  | { type: "subscription.plan_changed" }
+  | { type: "subscription.next_purchase_skipped" }
+  | { type: "subscription.funding_changed" }
+  | { type: "subscription.tax_classification_corrected" }
+  | { type: "company.created" }
+  | { type: "company.updated" }
+  | { type: "company.deleted" }
+  | { type: "company_membership.created" }
+  | { type: "company_membership.updated" }
+  | { type: "company_membership.deleted" }
+  | { type: "return.requested" }
+  | { type: "return.opened" }
+  | { type: "return.approved" }
+  | { type: "return.destination_decided" }
+  | { type: "return.declined" }
+  | { type: "return.cancelled" }
+  | { type: "return.received" }
+  | { type: "return.disposed" }
+  | { type: "return.missing" }
+  | { type: "return.tracking_updated" }
+  | { type: "return.closed" }
+  | { type: "rental.created" }
+  | { type: "rental.updated" };
 
 export type WebhookStatus = { type: "active" } | { type: "disabled" };
 
@@ -1346,6 +1230,7 @@ export type StoreCommerceState =
 export interface Store {
   id: string;
   name: string;
+  owner_account_id: string;
   billing_email: string;
   contact_email: string | null;
   customer_workspace: import("./storeCustomerWorkspace").StoreCustomerWorkspace | null;
@@ -1506,7 +1391,7 @@ export interface CategoryQuery {
 }
 
 export type FormSchemaType =
-  "text" | "number" | "boolean" | "date" | "geo_location" | "select";
+  "text" | "number" | "boolean" | "date" | "geo_location" | "select" | "file";
 
 interface FormSchemaBase<Question> {
   id: string;
@@ -1525,7 +1410,8 @@ type FormSchemaDefinition<Question> =
   | (FormSchemaBase<Question> & { type: "boolean" })
   | (FormSchemaBase<Question> & { type: "date" })
   | (FormSchemaBase<Question> & { type: "geo_location" })
-  | (FormSchemaBase<Question> & { type: "select"; options: string[] });
+  | (FormSchemaBase<Question> & { type: "select"; options: string[] })
+  | (FormSchemaBase<Question> & { type: "file"; max_files: number });
 
 export type FormSchema = FormSchemaDefinition<LocalizedText>;
 export type FormPresentedSchema = FormSchemaDefinition<DisplayTextSnapshot>;
@@ -1540,7 +1426,7 @@ export interface FormPresentation {
 }
 
 export type FormFieldType =
-  "text" | "number" | "boolean" | "date" | "geo_location" | "select";
+  "text" | "number" | "boolean" | "date" | "geo_location" | "select" | "file";
 
 interface FormFieldBase {
   id: string;
@@ -1553,9 +1439,10 @@ export type FormField =
   | (FormFieldBase & { type: "boolean"; value: boolean })
   | (FormFieldBase & { type: "date"; value: EpochMilliseconds })
   | (FormFieldBase & { type: "geo_location"; value: GeoLocation })
-  | (FormFieldBase & { type: "select"; value: string[] });
+  | (FormFieldBase & { type: "select"; value: string[] })
+  | (FormFieldBase & { type: "file"; media_ids: string[] });
 
-export type FormValue = FormField["value"];
+export type FormValue = Exclude<FormField, { type: "file" }>["value"];
 export type FormValues = Record<string, FormValue | undefined>;
 
 export interface FormEntry {
@@ -1633,7 +1520,7 @@ export type StorePlanFeatureType =
   | "booking_services"
   | "products"
   | "booking_resources"
-  | "workflows"
+  | "automations"
   | "customer_groups"
   | "customers"
   | "media"
@@ -1646,11 +1533,13 @@ export type StorePlanFeatureType =
   | "webhooks"
   | "support_agents"
   | "lead_research_operations"
-  | "campaigns";
+  | "campaigns"
+  | "platform_emails";
 
-/** A Store's current total or one UTC calendar month's consumption. */
 export type UsagePeriod =
-  { type: "total" } | { type: "monthly"; year: number; month: number };
+  | { type: "total" }
+  | { type: "monthly"; year: number; month: number }
+  | { type: "daily"; year: number; month: number; day: number };
 
 export interface StoreUsage {
   id: string;
@@ -1664,7 +1553,7 @@ export interface StoreUsage {
 
 export interface StorePlanFeature {
   limit: number | null;
-  reset: "never" | "monthly";
+  reset: "never" | "monthly" | "daily";
 }
 
 export interface StorePlan {
@@ -1693,17 +1582,17 @@ export interface AccountApiToken {
   revoked_at: EpochMilliseconds | null;
 }
 
-export type StoreAccess =
-  | { type: "staff"; role: import("./api").StoreRole }
-  | { type: "partner"; fulfillment_partner_id: string };
+export type StoreMembershipStatus =
+  | { type: "invited" }
+  | { type: "active" }
+  | { type: "disabled" };
 
 export interface StoreMembership {
-  /** Opaque UUID-v4 generated by the Server. */
   id: string;
   store_id: string;
   account_id: string;
-  access: StoreAccess;
-  status: { type: "invited" | "active" };
+  role_ids: string[];
+  status: StoreMembershipStatus;
   invited_by_account_id: string | null;
   invited_at: EpochMilliseconds | null;
   invitation_delivery_id: string | null;
@@ -1714,6 +1603,7 @@ export interface StoreMembership {
 
 export interface StoreMembershipWithStoreName extends StoreMembership {
   store_name: string;
+  access: import("./storeRole").StoreAccess;
 }
 
 export interface StoreMember {
@@ -1914,22 +1804,27 @@ export type CampaignMessageType =
 export type CampaignOutgoingStatus =
   | { type: "draft"; media_ids: string[] }
   | { type: "submitted" };
-export type WorkflowStatus = { type: "active" } | { type: "draft" };
-export type MutableWorkflowStatus = WorkflowStatus;
 export type CollectionStatus = { type: "active" } | { type: "draft" } | { type: "archived" };
 export type EntryStatus = { type: "active" } | { type: "draft" } | { type: "archived" };
 export type EmailTemplateStatus = { type: "active" } | { type: "draft" } | { type: "archived" };
-export type EmailTemplateType =
-  | "customer_login"
-  | "partner_access"
-  | "order_dispatched"
-  | "order_delivered"
-  | "order_store_notification"
-  | "order_contact_notification"
-  | "order_booking_reminder_contact"
-  | "contact_store_notification"
-  | "subscription_confirmation"
-  | "campaign_email";
+export type EmailTemplateData =
+  | { type: "sign_in"; sender: EmailSender }
+  | { type: "group_email_consent" }
+  | { type: "customer" }
+  | { type: "company_access" }
+  | { type: "order" }
+  | { type: "fulfillment" }
+  | { type: "booking" }
+  | { type: "return" }
+  | { type: "cart" }
+  | { type: "subscription" }
+  | { type: "form_submission"; form_id: string }
+  | { type: "any_form_submission" }
+  | { type: "digest" };
+export type EmailTemplateDataType = EmailTemplateData["type"];
+export type EmailSender =
+  | { type: "platform" }
+  | { type: "mailbox"; mailbox_id: string };
 
 export type FormStatus =
   | { type: "active" }
@@ -2036,14 +1931,18 @@ export interface CollectionEntry {
   updated_at: EpochMilliseconds;
 }
 
+export interface EmailTemplateContent {
+  subject: string;
+  preheader: string | null;
+  body: string;
+}
+
 export interface EmailTemplate {
   id: string;
-  key: string;
   store_id: string;
-  type: EmailTemplateType;
-  subject: Record<string, string>;
-  body: string;
-  preheader: string | null;
+  key: string;
+  data: EmailTemplateData;
+  content: Record<string, EmailTemplateContent>;
   variables: EmailTemplateVariable[];
   sample_data: Record<string, unknown>;
   status: EmailTemplateStatus;
@@ -2059,49 +1958,71 @@ export interface EmailTemplateVariable {
   source: EmailTemplateVariableSource;
 }
 
+export interface FormStage {
+  id: string;
+  key: string;
+}
+
 export interface Form {
   id: string;
   key: string;
   store_id: string;
   schema: FormSchema[];
+  stages: FormStage[];
   status: FormStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
+
+export type FormSubmissionSource =
+  | {
+      type: "customer";
+      customer_session_id: string;
+      authentication: import("./orderContract").CustomerAuthenticationSnapshot;
+    }
+  | { type: "staff"; actor: AccountActor };
 
 export interface FormSubmission {
   id: string;
   form_id: string;
   store_id: string;
   customer_id: string;
-  customer_session_id: string;
-  authentication: import("./orderContract").CustomerAuthenticationSnapshot;
+  source: FormSubmissionSource;
+  locale: string;
   snapshot: FormSubmissionSnapshot;
   fields: FormField[];
   created_at: EpochMilliseconds;
 }
 
-export type FormSubmissionProcessing =
-  | {
-      type: "accepted";
-      note: string | null;
-      actor_account_id: string;
-      processed_at: EpochMilliseconds;
-    }
-  | {
-      type: "rejected";
-      reason: string;
-      note: string | null;
-      actor_account_id: string;
-      processed_at: EpochMilliseconds;
-    };
+export interface FormSubmissionStage {
+  stage_id: string;
+  changed_at: EpochMilliseconds;
+}
+
+export interface FormSubmissionStageChange {
+  from_stage_id: string;
+  to_stage_id: string;
+  actor: AccountActor;
+  changed_at: EpochMilliseconds;
+  note_id: string | null;
+}
 
 export interface AdminFormSubmission extends FormSubmission {
-  processing: FormSubmissionProcessing | null;
+  company_id: string | null;
+  stage: FormSubmissionStage;
+  stage_history: FormSubmissionStageChange[];
+  assignee_account_id: string | null;
+  updated_at: EpochMilliseconds;
+}
+
+export interface FormSubmissionSelectFilter {
+  field_id: string;
+  options: string[];
 }
 
 export interface FormSubmissionSnapshot {
   form_key: string;
+  presentation_digest: string;
   questions: FormQuestionSnapshot[];
 }
 
@@ -2217,281 +2138,12 @@ export interface BookingResourceCapacityDay {
   updated_at: EpochMilliseconds;
 }
 
-export interface WorkflowEdge {
-  source: string;
-  target: string;
-  output: string;
-  back_edge: boolean;
-}
-
-export interface Workflow {
-  id: string;
-  key: string;
-  store_id: string;
-  status: WorkflowStatus;
-  schedule?: string | null;
-  webhook_url: string;
-  graph: WorkflowGraph;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export interface WorkflowListItem {
-  id: string;
-  key: string;
-  store_id: string;
-  status: WorkflowStatus;
-  schedule?: string | null;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export interface WorkflowWebhookUrl {
-  workflow_id: string;
-  webhook_url: string;
-}
-
-export interface WorkflowGraph {
-  nodes: Record<string, WorkflowNode>;
-  edges: WorkflowEdge[];
-}
-
-export type WorkflowNode =
-  | WorkflowHttpNode
-  | WorkflowSendEmailNode
-  | WorkflowDeployWebhookNode
-  | WorkflowGoogleDriveUploadNode
-  | WorkflowSwitchNode
-  | WorkflowTransformNode
-  | WorkflowLoopNode;
-
-interface WorkflowHttpNodeBase {
-  type: "http";
-  url: string;
-  headers: Record<string, string>;
-  body?: unknown;
-  timeout_ms: number;
-  delay_ms: number;
-}
-
-export type WorkflowHttpNode = WorkflowHttpNodeBase &
-  (
-    | {
-        method: "get";
-        retries: number;
-        retry_delay_ms: number;
-      }
-    | {
-        method: Exclude<WorkflowHttpMethod, "get">;
-        retries: 0;
-        retry_delay_ms: 0;
-      }
-  );
-
-export interface WorkflowEmailSendTemplateData {
-  store_id: string;
-  mailbox_id: string;
-  template_id: string;
-  recipient: string;
-  vars?: Record<string, unknown>;
-}
-
-export type WorkflowEmailSend =
-  | { type: "order_store_notification"; data: WorkflowEmailSendTemplateData }
-  | { type: "order_contact_notification"; data: WorkflowEmailSendTemplateData }
-  | {
-      type: "order_booking_reminder_contact";
-      data: WorkflowEmailSendTemplateData;
-    }
-  | { type: "contact_store_notification"; data: WorkflowEmailSendTemplateData }
-  | { type: "subscription_confirmation"; data: WorkflowEmailSendTemplateData };
-
 export interface EmailAttachmentReference {
   filename: string;
   mime_type: string;
   blob_key: string;
   content_sha256: string;
   size_bytes: number;
-}
-
-export interface WorkflowSendEmailNode {
-  type: "send_email";
-  send: WorkflowEmailSend;
-  delay_ms?: number;
-}
-
-export interface WorkflowDeployWebhookNode {
-  type: "deploy_webhook";
-  build_hook_id: string;
-  timeout_ms?: number;
-  delay_ms?: number;
-}
-
-export type WorkflowConnectionType = "google_drive";
-
-export interface GoogleDriveWorkflowAccount {
-  external_account_id: string;
-  display_name?: string | null;
-  email?: string | null;
-}
-
-export type WorkflowConnectionAuthorizationStatus =
-  | { type: "active" }
-  | { type: "reauthorization_required"; detected_at: EpochMilliseconds };
-
-export interface GoogleDriveWorkflowConnectionData {
-  type: "google_drive";
-  account: GoogleDriveWorkflowAccount;
-  authorization_status: WorkflowConnectionAuthorizationStatus;
-}
-
-export type WorkflowConnectionData = GoogleDriveWorkflowConnectionData;
-
-export interface WorkflowConnection {
-  id: string;
-  store_id: string;
-  data: WorkflowConnectionData;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export interface WorkflowConnectionConnectUrl {
-  authorization_url: string;
-  state: string;
-}
-
-export interface WorkflowGoogleDriveUploadNode {
-  type: "google_drive_upload";
-  workflow_connection_id: string;
-  name: string;
-  mime_type?: string;
-  content?: unknown;
-  parent_folder_id?: string | null;
-  timeout_ms?: number;
-  delay_ms?: number;
-}
-
-export interface WorkflowSwitchRule {
-  condition: string;
-}
-
-export interface WorkflowSwitchNode {
-  type: "switch";
-  rules: WorkflowSwitchRule[];
-  delay_ms?: number | null;
-}
-
-export interface WorkflowTransformNode {
-  type: "transform";
-  code: string;
-  delay_ms?: number | null;
-}
-
-export interface WorkflowLoopNode {
-  type: "loop";
-  expression: string;
-  delay_ms?: number | null;
-}
-
-export type WorkflowHttpMethod = "get" | "post" | "put" | "patch" | "delete";
-
-export type WorkflowExecutionStatus =
-  | { type: "pending" }
-  | { type: "running" }
-  | { type: "completed" }
-  | { type: "failed" }
-  | { type: "cancelled" };
-
-export type NodeResultSource =
-  | { type: "local" }
-  | { type: "notification_delivery"; delivery_id: string; iteration_key: string }
-  | { type: "external_operation"; operation_id: string };
-
-export interface NodeResult {
-  source: NodeResultSource;
-  output: any;
-  route: string;
-  started_at: EpochMilliseconds;
-  completed_at: EpochMilliseconds;
-  duration_ms: number;
-  error?: string;
-}
-
-export type WorkflowExecutionInput =
-  { type: "webhook"; payload: unknown } | { type: "schedule" };
-
-export interface WorkflowExecution {
-  id: string;
-  workflow_id: string;
-  store_id: string;
-  graph: WorkflowGraph;
-  input: WorkflowExecutionInput;
-  results: Record<string, NodeResult>;
-  status: WorkflowExecutionStatus;
-  error?: string | null;
-  scheduled_at: EpochMilliseconds;
-  started_at?: EpochMilliseconds | null;
-  completed_at?: EpochMilliseconds | null;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export interface WorkflowExecutionListItem {
-  id: string;
-  workflow_id: string;
-  status: WorkflowExecutionStatus;
-  error?: string | null;
-  scheduled_at: EpochMilliseconds;
-  started_at?: EpochMilliseconds | null;
-  completed_at?: EpochMilliseconds | null;
-}
-
-export interface WorkflowExecutionStarted {
-  id: string;
-  status: WorkflowExecutionStatus;
-}
-
-export type WorkflowExternalOperationType =
-  | "http_mutation"
-  | "deploy_webhook"
-  | "google_drive_upload";
-
-export type WorkflowExternalOperationStatus =
-  | { type: "requested" }
-  | { type: "processing" }
-  | { type: "succeeded" }
-  | { type: "rejected" }
-  | { type: "failed" }
-  | { type: "unknown" };
-
-export type WorkflowExternalOperationErrorType =
-  "provider_call_not_started" | "provider_rejected" | "unknown_outcome";
-
-export type WorkflowExternalOperationResult =
-  { type: "provider"; provider_status?: number; provider_file_id?: string };
-
-export interface WorkflowExternalOperationError {
-  type: WorkflowExternalOperationErrorType;
-  message: string;
-  at: EpochMilliseconds;
-  provider_status?: number;
-}
-
-export interface WorkflowExternalOperation {
-  id: string;
-  store_id: string;
-  workflow_id: string;
-  execution_id: string;
-  node_id: string;
-  iteration_key: string;
-  type: WorkflowExternalOperationType;
-  status: WorkflowExternalOperationStatus;
-  requested_at: EpochMilliseconds;
-  processing_started_at: EpochMilliseconds | null;
-  completed_at: EpochMilliseconds | null;
-  result: WorkflowExternalOperationResult | null;
-  error: WorkflowExternalOperationError | null;
-  updated_at: EpochMilliseconds;
 }
 
 export type CustomerSessionStatus =
@@ -2596,6 +2248,10 @@ export interface StorefrontCustomerIdentity
 export interface Customer {
   id: string;
   store_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  locale: string | null;
   status: CustomerStatus;
   primary_email_identity_id: string | null;
   default_shipping_address_id: string | null;
@@ -2614,8 +2270,9 @@ export interface CustomerListItem extends Customer {
 export type CustomerActionOrigin =
   | { type: "customer_session"; customer_session_id: string }
   | { type: "account_session"; account_session_id: string }
+  | { type: "account"; actor: AccountActor }
   | { type: "import"; account_session_id: string }
-  | { type: "workflow"; workflow_execution_id: string }
+  | { type: "automation"; automation_id: string; run_id: string }
   | { type: "lead_research"; assistant_message_id: string }
   | { type: "confirmation_capability"; membership_id: string }
   | { type: "unsubscribe_capability"; membership_id: string }
@@ -2641,7 +2298,7 @@ export type CustomerActionProviderObservation =
 export type CustomerGroupMemberJoinSource =
   | "private_admin"
   | "import"
-  | "workflow"
+  | "automation"
   | "lead_research"
   | "open"
   | "confirmation";
@@ -2853,7 +2510,7 @@ export interface CampaignEmailContent {
 
 export interface CampaignConversationMessage {
   message: CampaignMessage;
-  email_status: import("./notification").NotificationDeliveryOutcome | null;
+  email_status: import("./messageDelivery").MessageDeliveryOutcome | null;
 }
 
 export interface CampaignEnrollmentConversationResponse {
@@ -3028,5 +2685,10 @@ export interface FulfillmentExecution {
 export type * from "./storeCustomerWorkspace";
 export type * from "./purchaseRequirement";
 export type * from "./minimumProgress";
-export type * from "./notification";
+export type * from "./messageDelivery";
+export type * from "./automation";
+export type * from "./fulfillmentJob";
+export type * from "./fulfillmentRouting";
+export type * from "./note";
+export type * from "./storeRole";
 export type * from "./firstOrderTerms";

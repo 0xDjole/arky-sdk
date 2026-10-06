@@ -53,6 +53,7 @@ function cart(overrides = {}) {
     customer_id: "customer-a",
     company: null,
     market_id: "market-a",
+    catalog_id: "catalog-a",
     sales_channel_id: "channel-a",
     status: { type: "active" },
     origin: {

@@ -881,16 +881,16 @@ test("provider-effect APIs send one resource identity and return direct server e
     },
     {
       name: "fulfillment creation",
-      response: { request_id: fulfillmentRequestId, id: resourceId, store_id: storeId, fulfillment_order_id: "work", status: { type: "preparing" } },
+      response: { request_id: fulfillmentRequestId, id: resourceId, store_id: storeId, fulfillment_job_id: "work", status: { type: "preparing" } },
       request: (arky) => arky.eshop.fulfillment.create({
         store_id: storeId, request_id: fulfillmentRequestId,
-        fulfillment_id: resourceId, fulfillment_order_id: "work",
-        lines: [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 0, quantity: 2 }], selected_units: [], lot_reference: null }],
+        fulfillment_id: resourceId, fulfillment_job_id: "work",
+        lines: [{ fulfillment_job_line_id: "line", unit_spans: [{ first_unit: 0, quantity: 2 }], selected_units: [], lot_reference: null }],
       }),
       expected: {
         url: `${baseUrl}/v1/stores/${storeId}/fulfillments`, method: "POST",
-        body: { request_id: fulfillmentRequestId, fulfillment_id: resourceId, fulfillment_order_id: "work",
-          lines: [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 0, quantity: 2 }], selected_units: [], lot_reference: null }] },
+        body: { request_id: fulfillmentRequestId, fulfillment_id: resourceId, fulfillment_job_id: "work",
+          lines: [{ fulfillment_job_line_id: "line", unit_spans: [{ first_unit: 0, quantity: 2 }], selected_units: [], lot_reference: null }] },
       },
     },
   ];
@@ -983,21 +983,21 @@ test("money and Fulfillment clients reject evidence for any other resource ID", 
     },
     {
       name: "fulfillment creation",
-      response: { request_id: fulfillmentRequestId, id: otherResourceId, store_id: storeId, fulfillment_order_id: "work", status: { type: "preparing" } },
+      response: { request_id: fulfillmentRequestId, id: otherResourceId, store_id: storeId, fulfillment_job_id: "work", status: { type: "preparing" } },
       request: (arky) => arky.eshop.fulfillment.create({
         store_id: storeId, request_id: fulfillmentRequestId,
-        fulfillment_id: resourceId, fulfillment_order_id: "work",
-        lines: [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 0, quantity: 1 }], selected_units: [], lot_reference: null }],
+        fulfillment_id: resourceId, fulfillment_job_id: "work",
+        lines: [{ fulfillment_job_line_id: "line", unit_spans: [{ first_unit: 0, quantity: 1 }], selected_units: [], lot_reference: null }],
       }),
       error: /Fulfillment response did not match the requested fulfillment_id/,
     },
     {
       name: "fulfillment creation under another request identity",
-      response: { request_id: "9f4c2b67-3e18-4d05-8a9b-7c1e5d3f0a26", id: resourceId, store_id: storeId, fulfillment_order_id: "work", status: { type: "preparing" } },
+      response: { request_id: "9f4c2b67-3e18-4d05-8a9b-7c1e5d3f0a26", id: resourceId, store_id: storeId, fulfillment_job_id: "work", status: { type: "preparing" } },
       request: (arky) => arky.eshop.fulfillment.create({
         store_id: storeId, request_id: fulfillmentRequestId,
-        fulfillment_id: resourceId, fulfillment_order_id: "work",
-        lines: [{ fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 0, quantity: 1 }], selected_units: [], lot_reference: null }],
+        fulfillment_id: resourceId, fulfillment_job_id: "work",
+        lines: [{ fulfillment_job_line_id: "line", unit_spans: [{ first_unit: 0, quantity: 1 }], selected_units: [], lot_reference: null }],
       }),
       error: /Fulfillment response did not match the requested fulfillment_id/,
     },
@@ -1219,7 +1219,7 @@ test("Payment, Refund, Dispute and Fulfillment lifecycles are read through expli
     },
     {
       name: "fulfillment",
-      response: { id: "fulfillment", fulfillment_order_id: "work", status: { type: "preparing" }, tracking: null, delivered_at: null },
+      response: { id: "fulfillment", fulfillment_job_id: "work", status: { type: "preparing" }, tracking: null, delivered_at: null },
       request: (arky) => arky.eshop.fulfillment.get({ store_id: storeId, fulfillment_id: "fulfillment" }),
       url: `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment`,
     },
@@ -1293,26 +1293,21 @@ test("common dispute history can list the Store without an Order or Payment sele
   assert.deepEqual(result, response);
 });
 
-test("workflow webhook keeps arbitrary object payload data", async () => {
-  const response = {
-    id: "execution-trigger-contract",
-    status: "pending",
-  };
+test("automation receipt resend posts the exact order and request", async () => {
+  const response = { id: "delivery-contract", recipient_key: "buyer@example.test" };
   const { calls, result } = await captureFetch(response, () =>
-    admin().workflow.invokeWebhook({
-      webhook_url: `${baseUrl}/v1/workflows/webhooks/path-secret-contract`,
-      payload: {
-        order: { id: "order-contract" },
-        tags: ["one", "two"],
-      },
+    admin().automation.resendReceipt({
+      store_id: otherStoreId,
+      order_id: "order-contract",
+      request_id: "6e2a9c14-7b35-4d80-9f61-2c8e5a7b3d09",
     }),
   );
 
   assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/workflows/webhooks/path-secret-contract`,
+      url: `${baseUrl}/v1/stores/${otherStoreId}/automations/receipt-resends`,
       method: "POST",
-      body: { order: { id: "order-contract" }, tags: ["one", "two"] },
+      body: { order_id: "order-contract", request_id: "6e2a9c14-7b35-4d80-9f61-2c8e5a7b3d09" },
     },
   ]);
   assert.deepEqual(result, response);

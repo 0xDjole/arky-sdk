@@ -1,19 +1,19 @@
-import type { FulfillmentOrderLineSource, RentalIssueReplacement } from 'arky-sdk';
+import type { FulfillmentJobLineSource, RentalIssueReplacement } from 'arky-sdk';
 import type { RentalIssueReplacement as PublicReplacement } from 'arky-sdk/types';
 
 type Same<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false;
 type True<T extends true> = T;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 type Absent<T, K extends string> = K extends keyof T ? false : true;
-type RentalIssue = Extract<FulfillmentOrderLineSource, { type: 'rental_issue' }>;
-type OrderProduct = Extract<FulfillmentOrderLineSource, { type: 'order_product' }>;
+type RentalIssue = Extract<FulfillmentJobLineSource, { type: 'rental_issue' }>;
+type OrderProduct = Extract<FulfillmentJobLineSource, { type: 'order_product' }>;
 
 export type RentalIssueContract = [
-  True<Same<FulfillmentOrderLineSource['type'], 'order_product' | 'rental_issue'>>,
+  True<Same<FulfillmentJobLineSource['type'], 'order_product' | 'rental_issue'>>,
   True<Same<keyof RentalIssue, 'type' | 'rental_id' | 'terms_revision_id' | 'replacement'>>,
   True<Same<RentalIssue['replacement'], RentalIssueReplacement | null>>,
   True<RequiredField<RentalIssue, 'replacement'>>,
-  True<Same<keyof RentalIssueReplacement, 'predecessor_inventory_unit_id' | 'predecessor_fulfillment_order_line_id' | 'predecessor_fulfillment_unit_index' | 'overlap_authorized'>>,
+  True<Same<keyof RentalIssueReplacement, 'predecessor_inventory_unit_id' | 'predecessor_fulfillment_job_line_id' | 'predecessor_fulfillment_unit_index' | 'overlap_authorized'>>,
   True<RequiredField<RentalIssueReplacement, 'overlap_authorized'>>,
   True<Same<RentalIssueReplacement['overlap_authorized'], boolean>>,
   True<Same<RentalIssueReplacement, PublicReplacement>>,
@@ -26,20 +26,20 @@ export type RentalIssueContract = [
   True<Same<keyof OrderProduct, 'type' | 'order_product_line_item_id' | 'order_unit_spans'>>,
 ];
 
-const issue: FulfillmentOrderLineSource = {
+const issue: FulfillmentJobLineSource = {
   type: 'rental_issue', rental_id: 'rental', terms_revision_id: 'revision', replacement: null,
 };
-const replacement: FulfillmentOrderLineSource = {
+const replacement: FulfillmentJobLineSource = {
   ...issue,
   replacement: {
     predecessor_inventory_unit_id: 'old-unit',
-    predecessor_fulfillment_order_line_id: 'delivered-line',
+    predecessor_fulfillment_job_line_id: 'delivered-line',
     predecessor_fulfillment_unit_index: 0,
     overlap_authorized: false,
   },
 };
 
-function sourceIdentity(source: FulfillmentOrderLineSource): string {
+function sourceIdentity(source: FulfillmentJobLineSource): string {
   if (source.type === 'rental_issue') {
     return source.replacement?.predecessor_inventory_unit_id ?? source.rental_id;
   }

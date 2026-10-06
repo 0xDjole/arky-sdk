@@ -13,7 +13,7 @@ test("Order execution readers preserve empty continuations, ownership and exact 
     { items: [], cursor }, { items: [], cursor: null },
     { id: "fulfillment/id", status: { type: "preparing" }, tracking: null },
     { items: [], cursor }, { id: "work/id", order: { order_id: "accepted", order_delivery_group_id: "group" } },
-    [{ fulfillment_order_line_id: "line", product_key: "milk", variant_sku: null, quantity: 2 }],
+    [{ fulfillment_job_line_id: "line", order_number: "1042", product_key: "milk", variant_sku: null, image_media_id: null, quantity: 2 }],
   ];
   globalThis.fetch = async (input, init = {}) => {
     calls.push({ url: new URL(input), method: init.method ?? "GET" });
@@ -26,9 +26,11 @@ test("Order execution readers preserve empty continuations, ownership and exact 
     assert.equal(calls.length, 1);
     assert.deepEqual(await api.fulfillment.find({ ...scope, cursor }), { items: [], cursor: null });
     assert.equal((await api.fulfillment.get({ store_id: scope.store_id, fulfillment_id: "fulfillment/id" })).tracking, null);
-    assert.deepEqual(await api.fulfillmentOrder.find(scope), { items: [], cursor });
-    assert.equal((await api.fulfillmentOrder.get({ store_id: scope.store_id, fulfillment_order_id: "work/id" })).order.order_id, "accepted");
-    assert.equal((await api.fulfillmentOrder.items({ store_id: scope.store_id, fulfillment_order_id: "work/id" }))[0].product_key, "milk");
+    assert.deepEqual(await api.fulfillmentJob.find(scope), { items: [], cursor });
+    assert.equal((await api.fulfillmentJob.get({ store_id: scope.store_id, fulfillment_job_id: "work/id" })).order.order_id, "accepted");
+    const items = await api.fulfillmentJob.items({ store_id: scope.store_id, fulfillment_job_id: "work/id" });
+    assert.equal(items[0].product_key, "milk");
+    assert.equal(items[0].order_number, "1042");
     assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), { order_id: "accepted", limit: "20" });
     assert.deepEqual(Object.fromEntries(calls[1].url.searchParams), { order_id: "accepted", limit: "20", cursor });
     assert.deepEqual(Object.fromEntries(calls[3].url.searchParams), { order_id: "accepted", limit: "20" });
@@ -36,24 +38,26 @@ test("Order execution readers preserve empty continuations, ownership and exact 
       `/v1/stores/${STORE_ID}/fulfillments`,
       `/v1/stores/${STORE_ID}/fulfillments`,
       `/v1/stores/${STORE_ID}/fulfillments/fulfillment%2Fid`,
-      `/v1/stores/${STORE_ID}/fulfillment-orders`,
-      `/v1/stores/${STORE_ID}/fulfillment-orders/work%2Fid`,
-      `/v1/stores/${STORE_ID}/fulfillment-orders/work%2Fid/items`,
+      `/v1/stores/${STORE_ID}/fulfillment-jobs`,
+      `/v1/stores/${STORE_ID}/fulfillment-jobs/work%2Fid`,
+      `/v1/stores/${STORE_ID}/fulfillment-jobs/work%2Fid/items`,
     ]);
     assert.ok([2, 4, 5].every((index) => calls[index].url.search === ""));
     assert.ok(calls.every(({ method }) => method === "GET"));
     await assert.rejects(async () => api.fulfillment.find({ ...scope, store_id: "selected/store" }), TypeError);
-    await assert.rejects(async () => api.fulfillmentOrder.get({ fulfillment_order_id: "work/id" }), TypeError);
+    await assert.rejects(async () => api.fulfillmentJob.get({ fulfillment_job_id: "work/id" }), TypeError);
     assert.equal(calls.length, 6);
   } finally { globalThis.fetch = previous; }
 });
 
 function assignment(method = "delivery") {
   return {
-    id: "work", store_id: "store", store_location_id: "location",
+    id: "work", store_id: "store",
     order: { order_id: "order", order_delivery_group_id: "group" },
-    method: method === "pickup" ? { type: "pickup" } : { type: "delivery", destination: {} },
-    status: { type: "open" }, holds: [], partner_request: null,
+    method: method === "pickup"
+      ? { type: "pickup", store_location_id: "location" }
+      : { type: "delivery", destination: {}, assignment: { type: "assigned", store_location_id: "location", source: { type: "otherwise" } } },
+    status: { type: "open" }, holds: [],
     lines: [{
       id: "line", quantity: 10, fulfilled_quantity: 2, inventory_requirements: [],
       source: { type: "order_product", order_product_line_item_id: "product", order_unit_spans: [{ first_unit: 10, quantity: 10 }] },
@@ -63,12 +67,12 @@ function assignment(method = "delivery") {
 }
 
 function selection(first_unit, quantity, line = "line") {
-  return { fulfillment_order_line_id: line, unit_spans: [{ first_unit, quantity }], selected_units: [], lot_reference: null };
+  return { fulfillment_job_line_id: line, unit_spans: [{ first_unit, quantity }], selected_units: [], lot_reference: null };
 }
 
 function fulfilled() {
   return {
-    id: "fulfillment", store_id: "store", fulfillment_order_id: "work",
+    id: "fulfillment", store_id: "store", fulfillment_job_id: "work",
     status: { type: "fulfilled", execution: { request_id: "handover" } },
     lines: [selection(0, 2)], tracking: null, delivered_at: null,
   };
@@ -89,7 +93,7 @@ for (const method of ["delivery", "pickup"]) {
     const prepared = { ...fulfilled(), id: "prepared", status: { type: "preparing" }, lines: [selection(4, 1)] };
     const before = structuredClone({ work, completed, prepared });
     assert.deepEqual(selectFulfillmentUnits(work, "line", 3, [completed, prepared]), {
-      fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 5, quantity: 1 }, { first_unit: 7, quantity: 2 }],
+      fulfillment_job_line_id: "line", unit_spans: [{ first_unit: 5, quantity: 1 }, { first_unit: 7, quantity: 2 }],
       selected_units: [], lot_reference: null,
     });
     assert.deepEqual({ work, completed, prepared }, before);
@@ -112,7 +116,7 @@ for (const method of ["delivery", "pickup"]) {
     const history = [fulfilled()];
     const before = structuredClone({ work, history });
     assert.deepEqual(selectFulfillmentUnits(work, "line", 4, history), {
-      fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 4, quantity: 2 }, { first_unit: 7, quantity: 2 }],
+      fulfillment_job_line_id: "line", unit_spans: [{ first_unit: 4, quantity: 2 }, { first_unit: 7, quantity: 2 }],
       selected_units: [], lot_reference: null,
     });
     assert.deepEqual({ work, history }, before);
@@ -162,7 +166,7 @@ test("Fulfillment selection refuses incomplete or foreign history, invalid quant
   assert.throws(() => selectFulfillmentUnits(work, "line", 6, [fulfilled()]), /exceeds/);
   assert.throws(() => selectFulfillmentUnits(work, "line", 1, [fulfilled(), fulfilled()]), /overlapping/);
   assert.throws(() => selectFulfillmentUnits(work, "line", 1, [{ ...fulfilled(), store_id: "foreign" }]), /another Store/);
-  assert.throws(() => selectFulfillmentUnits(work, "line", 1, [{ ...fulfilled(), fulfillment_order_id: "foreign" }]), /Load or refresh fulfillment history/);
+  assert.throws(() => selectFulfillmentUnits(work, "line", 1, [{ ...fulfilled(), fulfillment_job_id: "foreign" }]), /Load or refresh fulfillment history/);
   assert.throws(() => selectFulfillmentUnits(work, "unknown-line", 1, [fulfilled()]), FulfillmentSelectionError);
   assert.throws(() => selectFulfillmentUnits(work, "line", 1, [{ ...fulfilled(), lines: [{ ...selection(0, 2), unit_spans: [] }] }]), /nonempty/);
   for (const quantity of [0, -1, 1.5, Infinity, NaN, 4294967296]) {
@@ -190,18 +194,19 @@ test("Work mapping rejects invalid, noncanonical and over-fragmented ranges", ()
   assert.throws(() => selectFulfillmentUnits(work, "line", 1, []), /Mapped unit ranges exceed/);
 });
 
-test("Moving work selects only unfulfilled delivery units and refuses partner, pickup and finished jobs", () => {
+test("Moving work selects only unfulfilled delivery units and refuses unassigned, pickup and finished jobs", () => {
   const work = assignment();
   const prepared = { ...fulfilled(), id: "prepared", status: { type: "preparing" }, lines: [selection(4, 1)] };
   const before = structuredClone({ work, prepared });
   assert.deepEqual(selectFulfillmentMoveUnits(work, "line", 3, [fulfilled(), prepared]), {
-    fulfillment_order_line_id: "line", unit_spans: [{ first_unit: 5, quantity: 1 }, { first_unit: 7, quantity: 2 }],
+    fulfillment_job_line_id: "line", unit_spans: [{ first_unit: 5, quantity: 1 }, { first_unit: 7, quantity: 2 }],
   });
   assert.deepEqual({ work, prepared }, before);
   for (const type of ["scheduled", "on_hold"]) {
     assert.deepEqual(selectFulfillmentMoveUnits({ ...work, status: { type } }, "line", 1, [fulfilled()]).unit_spans, [{ first_unit: 4, quantity: 1 }]);
   }
-  assert.throws(() => selectFulfillmentMoveUnits({ ...work, partner_request: {} }, "line", 1, [fulfilled()]), /not with a partner/);
+  const unassigned = { ...work, method: { type: "delivery", destination: {}, assignment: { type: "unassigned" } } };
+  assert.throws(() => selectFulfillmentMoveUnits(unassigned, "line", 1, [fulfilled()]), /assigned delivery/);
   assert.throws(() => selectFulfillmentMoveUnits(assignment("pickup"), "line", 1, [fulfilled()]), /delivery/);
   for (const type of ["completed", "cancelled"]) {
     assert.throws(() => selectFulfillmentMoveUnits({ ...work, status: { type } }, "line", 1, [fulfilled()]), /Finished work/);

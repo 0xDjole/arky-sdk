@@ -31,14 +31,14 @@ export interface CustomerGroup {
 }
 
 export interface CustomerGroupUsage {
-  catalog_entitlement_ids: string[];
-  more_catalog_entitlements: boolean;
   member_ids: string[];
   more_members: boolean;
   email_consent_ids: string[];
   more_email_consents: boolean;
   shipping_rate_ids: string[];
   more_shipping_rates: boolean;
+  catalog_access_ids: string[];
+  more_catalog_accesses: boolean;
 }
 
 export interface CreateCustomerGroupParams {

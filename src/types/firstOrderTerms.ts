@@ -83,6 +83,13 @@ export interface SealFirstOrderTermsParams {
   expected_updated_at: EpochMilliseconds;
 }
 
+export interface WithdrawFirstOrderTermsParams {
+  store_id: string;
+  id: string;
+  version_id: string;
+  expected_updated_at: EpochMilliseconds;
+}
+
 export interface RepeatBranchCartParams {
   request_id: string;
   recovery_token: string;

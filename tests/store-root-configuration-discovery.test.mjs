@@ -57,7 +57,7 @@ test('Market mutations honor explicit Store scope without sending routing fields
 
 for (const [owner,path,filter] of [
   ['market','markets',{currency:'eur'}],
-  ['location','locations',{is_pickup_location:true}],
+  ['location','locations',{allows_pickup:true}],
   ['paymentOption','payment-options',{type_name:'stripe'}],
 ]) {
   test(`${owner} forwards one bounded page and preserves empty continuation`, async () => {

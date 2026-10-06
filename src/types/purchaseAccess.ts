@@ -1,4 +1,3 @@
-import type { PriceScope } from "./price";
 import type { BillingPeriod, OrderAccessRevocation } from "./commerce";
 import type { EpochMilliseconds } from "./time";
 import type { OrderItemStatus } from "./index";
@@ -27,9 +26,14 @@ export interface PurchaseAccessVariantSnapshot {
   source_variant_id: string;
 }
 
+export interface PurchaseAccessCatalog {
+  market_id: string;
+  catalog_id: string;
+}
+
 export interface PurchaseAccessTerms {
   variants: PurchaseAccessVariantSnapshot[];
-  price_scope: PriceScope;
+  catalogs: PurchaseAccessCatalog[];
   limits: PurchaseLimitDefinition[];
   tax_category_id: string | null;
 }
@@ -90,7 +94,7 @@ export interface PurchaseAccessGoodsQuote {
   source_entitlement_id: string;
   starts_at: EpochMilliseconds;
   ends_at: EpochMilliseconds | null;
-  price_scope: PriceScope;
+  catalog_id: string;
   limits: PurchaseAccessLimitQuote[];
 }
 
@@ -163,7 +167,7 @@ export interface SubscriptionPurchaseAccessGrant {
   starts_at: EpochMilliseconds;
   ends_at: EpochMilliseconds | null;
   variants: PurchaseAccessVariantSnapshot[];
-  price_scope: PriceScope;
+  catalog_id: string;
   limits: PurchaseAccessLimitAvailability[];
 }
 

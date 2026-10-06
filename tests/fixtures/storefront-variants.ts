@@ -4,7 +4,8 @@ import { createStorefront } from "arky-sdk/storefront";
 declare const client: ReturnType<typeof createStorefront>;
 declare const product: StorefrontProduct;
 const price: StorefrontPrice | null = product.price;
-const canPurchase: boolean = product.purchase_allowed;
+// @ts-expect-error Visible products are purchasable; there is no separate purchase flag.
+product.purchase_allowed;
 declare const find: FindStorefrontProductVariantsParams;
 declare const get: GetStorefrontProductVariantParams;
 const publicFind: PublicFind = find;
@@ -18,4 +19,3 @@ client.eshop.productVariant.find({ product_id: "product", store_id: "store" });
 // @ts-expect-error Public stock is not a per-Product aggregate resource.
 client.eshop.product.getInventory({ id: "product" });
 void price;
-void canPurchase;

@@ -38,8 +38,8 @@ const definitions = [
     },
     query: { query: "Buyer registration", status: "archived", sort_field: "updated_at", sort_direction: "asc" },
     usage: {
-      catalog_entitlement_ids: [id],
-      more_catalog_entitlements: true,
+      catalog_access_ids: [id],
+      more_catalog_accesses: true,
       cart_ids: [],
       more_carts: false,
       membership_ids: [id],
@@ -55,8 +55,8 @@ const definitions = [
   {
     path: ["companies", "membership"],
     route: "company-memberships",
-    create: { company_id: selectedStoreId, customer_id: id, role_ids: [id], scope: { type: "locations", company_location_ids: [id] } },
-    update: { role_ids: [selectedStoreId], scope: { type: "locations", company_location_ids: [] }, status: { type: "disabled" } },
+    create: { company_id: selectedStoreId, customer_id: id, role_ids: [id], locations: { type: "only", company_location_ids: [id] } },
+    update: { role_ids: [selectedStoreId], locations: { type: "only", company_location_ids: [] }, status: { type: "disabled" } },
     query: { company_id: selectedStoreId, customer_id: id, role_id: id },
   },
   {
@@ -64,18 +64,14 @@ const definitions = [
     route: "company-roles",
     create: {
       key: "purchaser",
-      name: "Purchaser",
       permissions: [
         "place_orders",
         "access_digital_products",
-        "view_own_orders",
         "create_subscriptions",
-        "view_own_subscriptions",
       ],
     },
     update: {
-      name: "Company reader",
-      permissions: ["view_company_orders", "view_company_subscriptions"],
+      permissions: ["admin", "view_company_orders", "view_company_subscriptions"],
     },
     query: { key: "purchaser", company_id: selectedStoreId },
     get: { company_id: selectedStoreId },
@@ -88,6 +84,7 @@ const definitions = [
     response: {
       tax: { registrations: [], exemptions: [] },
       commerce: { payment_terms_id: null, allowed_payment_option_ids: null, purchase_order_number_required: false },
+      fulfillment_store_location_id: null,
     },
     create: {
       company_id: selectedStoreId,
@@ -122,28 +119,35 @@ const definitions = [
     },
     query: { key: "wholesale" },
     usage: {
-      catalog_entitlement_ids: [id],
-      more_catalog_entitlements: false,
-      customer_edge_ids: [id],
-      more_customer_edges: true,
-      company_edge_ids: [],
-      more_company_edges: false,
+      member_ids: [id],
+      more_members: true,
+      email_consent_ids: [],
+      more_email_consents: false,
+      shipping_rate_ids: [],
+      more_shipping_rates: false,
+      catalog_access_ids: [id],
+      more_catalog_accesses: false,
     },
   },
   {
     path: ["store", "salesChannel"],
     route: "sales-channels",
-    create: { key: "trade", name: "Trade", status: { type: "active" } },
+    create: { key: "trade", name: "Trade", market_ids: [id], status: { type: "active" } },
     update: {
       name: "Trade 2",
+      market_ids: [],
       status: { type: "archived" },
       replacement_default_sales_channel_id: id,
     },
     query: { status: { type: "archived" } },
     deletion: { replacement_default_sales_channel_id: id },
     usage: {
-      catalog_entitlement_ids: [id],
-      more_catalog_entitlements: false,
+      storefront_client_ids: [],
+      more_storefront_clients: false,
+      catalog_access_ids: [id],
+      more_catalog_accesses: false,
+      shipping_rate_ids: [],
+      more_shipping_rates: false,
       cart_ids: [],
       more_carts: false,
       is_default: true,
@@ -164,16 +168,16 @@ const response = (body, status = 200) =>
     headers: { "content-type": "application/json" },
   });
 
-test("Company-wide membership scope is sent explicitly and survives exact reads", async () => {
+test("Everywhere membership reach is sent explicitly and survives exact reads", async () => {
   const originalFetch = globalThis.fetch;
-  const scope = { type: "company_wide" };
+  const locations = { type: "everywhere" };
   const record = {
     id,
     store_id: storeId,
     company_id: selectedStoreId,
     customer_id: id,
     role_ids: [],
-    scope,
+    locations,
     status: { type: "active" },
     created_at: now,
     updated_at: now,
@@ -185,12 +189,33 @@ test("Company-wide membership scope is sent explicitly and survives exact reads"
   };
   try {
     const api = createClient().companies.membership;
-    assert.deepEqual(await api.create({ store_id: storeId, company_id: selectedStoreId, customer_id: id, role_ids: [], scope }), record);
-    assert.deepEqual(calls[0].body.scope, scope);
+    assert.deepEqual(await api.create({ store_id: storeId, company_id: selectedStoreId, customer_id: id, role_ids: [], locations }), record);
+    assert.deepEqual(calls[0].body.locations, locations);
+    assert.equal("scope" in calls[0].body, false);
     assert.equal(calls[0].path, `/v1/stores/${storeId}/company-memberships`);
     assert.deepEqual(await api.get({ store_id: storeId, id }), record);
     assert.equal(calls[1].path, `/v1/stores/${storeId}/company-memberships/${id}`);
     assert.equal(calls.length, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Company location served-from is set or cleared with its revision", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ method: init.method, path: new URL(url).pathname, body: init.body ? JSON.parse(init.body) : null });
+    return response({ id, fulfillment_store_location_id: null });
+  };
+  try {
+    const api = createClient().companies.location;
+    await api.setServedFrom({ store_id: storeId, id, expected_updated_at: now, fulfillment_store_location_id: selectedStoreId });
+    await api.setServedFrom({ store_id: storeId, id, expected_updated_at: now + 1, fulfillment_store_location_id: null });
+    assert.deepEqual(calls, [
+      { method: "PUT", path: `/v1/stores/${storeId}/company-locations/${id}/served-from`, body: { expected_updated_at: now, fulfillment_store_location_id: selectedStoreId } },
+      { method: "PUT", path: `/v1/stores/${storeId}/company-locations/${id}/served-from`, body: { expected_updated_at: now + 1, fulfillment_store_location_id: null } },
+    ]);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -356,14 +381,12 @@ test("Market management preserves explicit creation, immutable route identity an
   const usage = {
     market_payment_option_ids: [id],
     more_market_payment_options: false,
-    market_sales_channel_ids: [id],
-    more_market_sales_channels: false,
-    fulfillment_routing_policy_ids: [],
-    more_fulfillment_routing_policies: false,
+    sales_channel_ids: [id],
+    more_sales_channels: false,
     market_zone_ids: [],
     more_market_zones: false,
-    catalog_entitlement_ids: [selectedStoreId],
-    more_catalog_entitlements: true,
+    catalog_ids: [selectedStoreId],
+    more_catalogs: true,
     cart_ids: [],
     more_carts: false,
   };

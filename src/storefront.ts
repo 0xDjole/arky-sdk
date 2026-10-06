@@ -7,6 +7,7 @@ export {
 } from "./index";
 export { createCartController } from "./index";
 export type { FindStorefrontPreparedCartsParams } from "./types/storefront";
+export type { FindStorefrontCatalogsParams, StorefrontCatalog } from "./types/catalog";
 export type { FirstOrderTerms, FirstOrderLineTerms, FirstOrderVersionRef, FirstOrderSeal, FirstOrderSupersession, FirstOrderTaxBasis, RepeatBranchCartParams, RepeatOrderSource } from "./types/firstOrderTerms";
 export {
   cartProductItems,
@@ -78,3 +79,8 @@ export type { CustomerRental, CustomerRentalStatus, CustomerRentalUnit, Customer
 export type * from "./types/purchaseRequirement";
 export type * from "./types/minimumProgress";
 export type { RentalReturnUnitOption, FindRentalReturnOptionsParams } from "./types/return";
+export type { Return, ReturnDestination, StorefrontCreateReturnParams } from "./types/return";
+export type { CustomerOrderFulfillment, CustomerOrderShipment, CustomerShipmentStatus, CustomerFulfillmentMethod, CustomerFulfillmentJobStatus, FindCustomerOrderFulfillmentsParams } from "./types/fulfillmentJob";
+export type { UpdateCustomerMeParams } from "./types/api";
+export type { CustomerMeResponse } from "./api/storefront";
+export type { FormPresentation, FormPresentedSchema, FormSubmission, FormSubmissionSource } from "./types";

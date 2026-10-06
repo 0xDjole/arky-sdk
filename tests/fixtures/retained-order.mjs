@@ -10,7 +10,7 @@ const price = {
   tax_mode: "exclusive",
   min_quantity: 1,
   max_quantity: null,
-  source: { type: "price_list", price_id: "accepted-price", price_list_id: "accepted-list" },
+  source: { type: "catalog", price_id: "accepted-price", catalog_id: "accepted-catalog" },
   priced_at: acceptedAt,
 };
 
@@ -85,10 +85,14 @@ export const retainedOrder = {
   customer_id: "retained-customer",
   customer_snapshot: {
     email: "buyer@example.test",
+    first_name: null,
+    last_name: null,
+    phone: null,
     authentication: { type: "visitor" },
     source_customer_id: "retained-customer",
     source_email_identity_id: null,
   },
+  locale: "en",
   company: null,
   payment_terms: null,
   purchase_order_number: null,

@@ -12,8 +12,8 @@ for (const definition of [
     pathname: `/v1/stores/${selectedStoreId}/orders/${orderId}/credits`, scope: {},
   },
   {
-    path: ["eshop", "fulfillmentOrder"], route: "fulfillment-orders", limit: 100,
-    pathname: `/v1/stores/${selectedStoreId}/fulfillment-orders`, scope: { order_id: orderId },
+    path: ["eshop", "fulfillmentJob"], route: "fulfillment-jobs", limit: 100,
+    pathname: `/v1/stores/${selectedStoreId}/fulfillment-jobs`, scope: { order_id: orderId },
   },
 ]) {
   test(`${definition.route} keeps exact Order scope and empty-page continuation`, async () => {

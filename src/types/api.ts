@@ -12,7 +12,6 @@ import type {
   ZoneLocation,
   Address,
   PostalAddress,
-  BuildHookStatus,
   WebhookEventSubscription,
   WebhookStatus,
   ShippingRateLine,
@@ -22,19 +21,22 @@ import type {
   BookingServiceStatus,
   BookingResourceStatus,
   BookingOfferingStatus,
-  MutableWorkflowStatus,
-  WorkflowStatus,
   ProductStatus,
   CollectionStatus,
   EntryStatus,
   BlockSchema,
   EntryBlockQuery,
   EmailTemplateStatus,
-  EmailTemplateType,
+  EmailTemplateData,
+  EmailTemplateDataType,
+  EmailSender,
+  EmailTemplateContent,
   EmailTemplateVariable,
   FormStatus,
   CategoryStatus,
   FormSchema,
+  FormStage,
+  FormSubmissionSelectFilter,
   FormField,
   Customer,
   CustomerIdentity,
@@ -81,7 +83,7 @@ export interface FindMarketsParams extends ConfigurationPageParams {
 }
 export interface FindStoreLocationsParams extends ConfigurationPageParams {
   store_id: string;
-  is_pickup_location?: boolean;
+  allows_pickup?: boolean;
   status?: "active" | "archived" | "deleting";
 }
 export type FindStorefrontMarketsParams = Omit<FindMarketsParams, "status" | "store_id">;
@@ -94,8 +96,7 @@ export interface CreateStoreLocationParams {
   key: string;
   address: PostalAddress;
   timezone: string;
-  is_pickup_location?: boolean;
-  operator?: import("./index").LocationOperator;
+  allows_pickup?: boolean;
   blocks?: Block[];
   status?: StoreLocationStatus;
   store_id: string;
@@ -106,8 +107,7 @@ export interface UpdateStoreLocationParams {
   key?: string;
   address?: PostalAddress;
   timezone?: string;
-  is_pickup_location?: boolean;
-  operator?: import("./index").LocationOperator;
+  allows_pickup?: boolean;
   blocks?: Block[];
   status?: StoreLocationStatus;
   store_id: string;
@@ -283,6 +283,7 @@ export interface GetQuoteParams {
   market: string;
   currency?: Currency;
   sales_channel_id?: string;
+  catalog_id?: string;
   company_id?: string | null;
   company_location_id?: string | null;
   line_items?: CartLineItemInput[];
@@ -296,6 +297,7 @@ export interface GetQuoteParams {
 export interface GetCurrentCartParams {
   store_id: string;
   company?: import("./cart").CartCompanyContext | null;
+  catalog_id?: string;
 }
 
 export interface GetCartParams {
@@ -322,6 +324,7 @@ export interface CreateCartParams {
   company?: import("./cart").CartCompanyContext | null;
   market_id: string;
   sales_channel_id?: string;
+  catalog_id?: string;
   line_items?: CartLineItemInput[];
   delivery_groups?: CartDeliveryGroup[];
   billing_address?: Address | null;
@@ -335,6 +338,7 @@ export interface UpdateCartParams {
   company?: import("./cart").CartCompanyContext | null;
   market_id?: string;
   sales_channel_id?: string;
+  catalog_id?: string;
   line_items?: CartLineItemInput[];
   delivery_groups?: CartDeliveryGroup[];
   billing_address?: Address | null;
@@ -607,7 +611,7 @@ export interface FindStorefrontBookingServicesParams extends CatalogReadOptions 
   category_query?: CategoryQuery[];
   price_filter?: CatalogPriceFilter;
   query?: string | number;
-  sort_field?: "key" | "created_at" | "price";
+  sort_field?: "key" | "created_at" | "price" | "catalog_order";
   sort_direction?: "asc" | "desc";
   created_at_from?: EpochMilliseconds;
   created_at_to?: EpochMilliseconds;
@@ -627,7 +631,6 @@ export interface GetAnalyticsHealthParams {}
 
 export interface GetDeliveryStatsParams {}
 
-export type StoreRole = "admin" | "owner";
 export type PlatformRole = "standard" | "administrator";
 
 export interface UpdatePlatformRoleParams {
@@ -698,17 +701,17 @@ export interface CreatePortalSessionParams {
 export interface AddMemberParams {
   email: string;
   store_id: string;
-  access: import("./index").StoreAccess;
-}
-
-export interface TransferStoreOwnershipParams {
-  account_id: string;
-  store_id: string;
+  role_ids: string[];
 }
 
 export interface RemoveMemberParams {
   account_id: string;
   store_id: string;
+}
+
+export interface TransferStoreOwnershipParams {
+  store_id: string;
+  account_id: string;
 }
 
 export type AccountSortField = "email";
@@ -956,6 +959,11 @@ export interface UpdateBookingOfferingParams {
   status?: BookingOfferingStatus;
 }
 
+export interface GetBookingOfferingParams {
+  store_id: string;
+  id: string;
+}
+
 export interface DeleteBookingOfferingParams {
   store_id: string;
   id: string;
@@ -1054,9 +1062,10 @@ export interface GetEmailTemplatesParams {
   store_id: string;
   ids?: string[];
   key?: string;
+  data_type?: EmailTemplateDataType;
+  form_id?: string;
   limit?: number;
   cursor?: string | null;
-
   query?: string;
   status?: EmailTemplateStatus["type"];
   sort_field?: "key" | "status" | "created_at" | "updated_at";
@@ -1068,10 +1077,8 @@ export interface GetEmailTemplatesParams {
 export interface CreateEmailTemplateParams {
   store_id: string;
   key: string;
-  type: EmailTemplateType;
-  subject: Record<string, string>;
-  body: string;
-  preheader?: string;
+  data: EmailTemplateData;
+  content: Record<string, EmailTemplateContent>;
   variables?: EmailTemplateVariable[];
   sample_data?: Record<string, unknown>;
 }
@@ -1080,21 +1087,26 @@ export interface UpdateEmailTemplateParams {
   id: string;
   store_id: string;
   key?: string;
-  type?: EmailTemplateType;
-  subject?: Record<string, string>;
-  body?: string;
-  preheader?: string | null;
+  data?: EmailTemplateData;
+  content?: Record<string, EmailTemplateContent>;
   variables?: EmailTemplateVariable[];
   sample_data?: Record<string, unknown>;
   status?: EmailTemplateStatus;
 }
 
+export interface SendEmailTemplateTestParams {
+  id: string;
+  store_id: string;
+  request_id: string;
+  language?: string | null;
+  sender: EmailSender;
+}
+
 export interface PreviewEmailTemplateParams {
   id: string;
   store_id: string;
-  subject?: Record<string, string>;
-  body?: string;
-  preheader?: string | null;
+  language?: string;
+  content?: EmailTemplateContent;
   vars?: Record<string, unknown>;
 }
 
@@ -1105,6 +1117,7 @@ export interface PreviewEmailTemplateWarning {
 }
 
 export interface PreviewEmailTemplateResponse {
+  language: string;
   subject: string;
   html: string;
   warnings: PreviewEmailTemplateWarning[];
@@ -1143,6 +1156,7 @@ export interface CreateFormParams {
   store_id: string;
   key: string;
   schema: FormSchema[];
+  stages?: FormStage[];
 }
 
 export interface UpdateFormParams {
@@ -1150,7 +1164,14 @@ export interface UpdateFormParams {
   store_id: string;
   key?: string;
   schema?: FormSchema[];
+  stages?: FormStage[];
   status?: FormStatus;
+}
+
+export interface GetFormPresentationParams {
+  id: string;
+  store_id: string;
+  locale: string;
 }
 
 export interface GetFormParams {
@@ -1183,7 +1204,10 @@ export interface GetFormSubmissionsParams {
   form_ids?: string[];
   store_id: string;
   customer_id?: string;
-
+  company_id?: string;
+  stage_id?: string;
+  assignee_account_id?: string;
+  select?: FormSubmissionSelectFilter[];
   query?: string;
   limit?: number;
   cursor?: string | null;
@@ -1212,11 +1236,68 @@ export interface DeleteFormSubmissionParams {
   store_id: string;
 }
 
-export type ProcessFormSubmissionParams = GetFormSubmissionParams &
-  (
-    | { type: "accepted"; note?: string | null; expected_processed_at: EpochMilliseconds | null }
-    | { type: "rejected"; reason: string; note?: string | null; expected_processed_at: EpochMilliseconds | null }
-  );
+export interface CreateStaffFormSubmissionParams {
+  store_id: string;
+  form_id: string;
+  id: string;
+  customer_id: string;
+  locale: string;
+  presentation_digest: string;
+  fields: FormField[];
+}
+
+export interface FormSubmissionStageNote {
+  id: string;
+  body: string;
+}
+
+export interface ChangeFormSubmissionStageParams extends GetFormSubmissionParams {
+  to_stage_id: string;
+  expected_stage_id: string;
+  expected_changed_at: EpochMilliseconds;
+  note?: FormSubmissionStageNote | null;
+}
+
+export interface SetFormSubmissionCompanyParams extends GetFormSubmissionParams {
+  company_id: string | null;
+}
+
+export interface AssignFormSubmissionParams extends GetFormSubmissionParams {
+  assignee_account_id: string | null;
+}
+
+export interface CreateFormSubmissionNoteParams {
+  store_id: string;
+  form_id: string;
+  form_submission_id: string;
+  id: string;
+  body: string;
+}
+
+export interface FindFormSubmissionNotesParams {
+  store_id: string;
+  form_id: string;
+  form_submission_id: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface UpdateFormSubmissionNoteParams {
+  store_id: string;
+  form_id: string;
+  form_submission_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  body: string;
+}
+
+export interface DeleteFormSubmissionNoteParams {
+  store_id: string;
+  form_id: string;
+  form_submission_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+}
 
 export interface GetCategoriesParams {
   store_id: string;
@@ -1445,7 +1526,7 @@ export interface FindStorefrontDigitalProductsParams extends CatalogReadOptions 
   category_query?: CategoryQuery[];
   price_filter?: CatalogPriceFilter;
   query?: string | number;
-  sort_field?: "key" | "created_at" | "price";
+  sort_field?: "key" | "created_at" | "price" | "catalog_order";
   sort_direction?: "asc" | "desc";
   created_at_from?: EpochMilliseconds;
   created_at_to?: EpochMilliseconds;
@@ -1467,11 +1548,6 @@ export interface GetStorefrontDigitalProductParams extends CatalogReadOptions {
 export interface GetDigitalLibraryProductParams extends FindDigitalLibraryParams {
   digital_product_id: string;
 }
-
-export type SystemTemplateKey =
-  | "system:order-status-update"
-  | "system:user-confirmation"
-  | "system:forgot-password";
 
 export interface GetAvailabilityParams {
   store_id: string;
@@ -1509,118 +1585,13 @@ export interface AvailabilityResponse {
   cursor: string | null;
 }
 
-export interface CreateWorkflowParams {
-  store_id: string;
-  key: string;
-  status?: MutableWorkflowStatus;
-  schedule?: string | null;
-  graph: import("./index").WorkflowGraph;
-}
-
-export interface UpdateWorkflowParams {
-  id: string;
-  store_id: string;
-  key?: string;
-  status?: MutableWorkflowStatus;
-  schedule?: string | null;
-  graph: import("./index").WorkflowGraph;
-}
-
-export interface DeleteWorkflowParams {
-  id: string;
-  store_id: string;
-}
-
-export interface GetWorkflowParams {
-  id: string;
-  store_id: string;
-}
-
-export interface GetWorkflowsParams {
-  store_id: string;
-  ids?: string[];
-
-  query?: string | number;
-  status?: WorkflowStatus["type"];
-  limit?: number;
-  cursor?: string;
-  sort_field?: string;
-  sort_direction?: "asc" | "desc";
-  created_at_from?: EpochMilliseconds;
-  created_at_to?: EpochMilliseconds;
-}
-
-export interface RegenerateWorkflowWebhookUrlParams {
-  workflow_id: string;
-  store_id: string;
-}
-
-export interface InvokeWorkflowWebhookParams {
-  webhook_url: string;
-  payload: Record<string, unknown>;
-}
-
-export interface GetWorkflowExecutionsParams {
-  workflow_id: string;
-  store_id: string;
-  status?: import("./index").WorkflowExecutionStatus["type"];
-  limit?: number;
-  cursor?: string;
-  query?: string;
-  sort_field?: "created_at" | "updated_at";
-  sort_direction?: "asc" | "desc";
-}
-
-export interface GetWorkflowExecutionParams {
-  workflow_id: string;
-  execution_id: string;
-  store_id: string;
-}
-
-export interface GetWorkflowExternalOperationsParams {
-  workflow_id: string;
-  execution_id: string;
-  store_id: string;
-  limit?: number;
-  cursor?: string;
-}
-
-export interface GetWorkflowExternalOperationParams {
-  workflow_id: string;
-  execution_id: string;
-  operation_id: string;
-  store_id: string;
-}
-
-export interface GetWorkflowConnectionConnectUrlParams {
-  store_id: string;
-  type: import("./index").WorkflowConnectionType;
-}
-
-export interface GetWorkflowConnectionsParams {
-  store_id: string;
-  query?: string;
-  type?: import("./index").WorkflowConnectionType;
-  status?: import("./index").WorkflowConnectionAuthorizationStatus["type"];
-  limit?: number;
-  cursor?: string;
-  sort_field?: "created_at" | "updated_at";
-  sort_direction?: "asc" | "desc";
-}
-
-export interface GetWorkflowConnectionParams {
-  store_id: string;
-  id: string;
-}
-
-export interface DeleteWorkflowConnectionParams {
-  id: string;
-  store_id: string;
-}
-
 export interface ImportCustomerRowInput {
   email: string;
   customer_id?: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
+  locale?: string | null;
   categories: CategoryEntry[];
 }
 
@@ -1907,36 +1878,6 @@ export interface CancelLeadResearchMessageParams {
   store_id: string;
 }
 
-export interface ListBuildHooksParams {
-  store_id: string;
-  query?: string;
-  status?: BuildHookStatus["type"];
-  sort_field?: "created_at" | "updated_at";
-  sort_direction?: "asc" | "desc";
-  limit?: number;
-  cursor?: string | null;
-}
-
-export interface CreateBuildHookParams {
-  store_id: string;
-  url: string;
-  headers?: Record<string, string>;
-  status?: BuildHookStatus;
-}
-
-export interface UpdateBuildHookParams {
-  store_id: string;
-  id: string;
-  url?: string;
-  headers?: Record<string, string>;
-  status?: BuildHookStatus;
-}
-
-export interface DeleteBuildHookParams {
-  store_id: string;
-  id: string;
-}
-
 export interface FindSocialConnectionsParams {
   store_id: string;
   limit?: number;
@@ -2107,43 +2048,6 @@ export interface DeleteWebhookParams {
   id: string;
 }
 
-export type FindFulfillmentOrdersParams = {
-  store_id: string;
-  store_location_id?: string;
-  inventory_item_id?: string;
-  status?: import("./index").FulfillmentOrderStatus["type"];
-  scheduled_from?: EpochMilliseconds;
-  scheduled_to?: EpochMilliseconds;
-  sort_field?: "created_at" | "updated_at" | "scheduled_at";
-  sort_direction?: "asc" | "desc";
-  limit?: number;
-  cursor?: string;
-} & (
-  | { order_id: string; rental_id?: never }
-  | { rental_id: string; order_id?: never }
-  | { order_id?: never; rental_id?: never }
-);
-
-export interface AddFulfillmentHoldParams {
-  store_id: string;
-  fulfillment_order_id: string;
-  hold_id: string;
-  expected_updated_at: EpochMilliseconds;
-  note: string;
-}
-
-export interface ReleaseFulfillmentHoldParams {
-  store_id: string;
-  fulfillment_order_id: string;
-  hold_id: string;
-  expected_updated_at: EpochMilliseconds;
-}
-
-export interface GetFulfillmentOrderParams {
-  store_id: string;
-  fulfillment_order_id: string;
-}
-
 export interface FindCustomerSessionsParams {
   customer_id: string;
   store_id: string;
@@ -2169,6 +2073,10 @@ export interface CaptureCustomerEmailParams {
 export interface CreateCustomerParams {
   store_id: string;
   email?: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
+  locale?: string | null;
   categories?: CategoryEntry[];
 }
 
@@ -2176,8 +2084,19 @@ export interface UpdateCustomerParams {
   id: string;
   store_id: string;
   email?: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
+  locale?: string | null;
   categories?: CategoryEntry[];
   status?: CustomerStatus;
+}
+
+export interface UpdateCustomerMeParams {
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
+  locale?: string | null;
 }
 
 export interface GetCustomerParams {

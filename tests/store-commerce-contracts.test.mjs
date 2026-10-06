@@ -23,8 +23,6 @@ const operation = {
   request_fingerprint: "sha256-v1:fixture",
   market_id: "reserved-market",
   sales_channel_id: "reserved-channel",
-  market_sales_channel_id: "reserved-pair",
-  assortment_id: "reserved-assortment",
   catalog_id: "reserved-catalog",
   status: { type: "pending", last_error: null },
   created_at: 1789970000000,

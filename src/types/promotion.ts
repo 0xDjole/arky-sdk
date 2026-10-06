@@ -13,7 +13,8 @@ export type PromotionTarget =
   | { type: "digital_products"; digital_product_ids: string[] }
   | { type: "subscription_offerings"; subscription_offering_ids: string[] }
   | { type: "subscription_plans"; subscription_plan_ids: string[] }
-  | { type: "assortments"; assortment_ids: string[] }
+  | { type: "catalogs"; catalog_ids: string[] }
+  | { type: "categories"; category_ids: string[] }
   | { type: "all_eligible_items" };
 
 export interface PromotionBuyRequirement {

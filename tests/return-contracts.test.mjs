@@ -56,7 +56,7 @@ test("Return discovery carries all filters and preserves empty continuation with
     assert.equal(calls[0].pathname, `/v1/stores/${STORE_ID}/returns`);
     assert.deepEqual(Object.fromEntries(calls[0].searchParams), { order_id: "order", destination_store_location_id: "warehouse", status: "open", limit: "20", sort_field: "updated_at", sort_direction: "desc" });
     assert.equal(calls[1].searchParams.get("cursor"), "next");
-    assert.deepEqual(Object.keys(api).sort(), ["create", "execute", "find", "get", "inspectionUnit"]);
+    assert.deepEqual(Object.keys(api).sort(), ["create", "destinationOptions", "execute", "find", "get", "inspectionUnit"]);
   } finally { globalThis.fetch = original; }
 });
 
@@ -80,6 +80,7 @@ test("Return commands retain exact caller identities and distinguish custody fro
     const base = { store_id: STORE_ID, return_id: "return", source: request.source, expected_updated_at: 1700000000000 };
     const commands = [
       { type: "approve", destination_store_location_id: "warehouse" },
+      { type: "decide", store_location_id: "warehouse" },
       { type: "decline", reason: "Return window expired" },
       { type: "receive", items: [{ line_id: "line", inventory_item_id: "item", quantity: 1, inventory_unit_ids: ["unit"] }] },
       { type: "dispose", items: [{ line_id: "line", inventory_item_id: "item", quantity: 1, inventory_unit_ids: ["unit"], disposition: { type: "not_restocked", reason: "Damaged beyond repair" } }] },
@@ -187,5 +188,22 @@ test("Return inspection reads one exact returned unit under its Return", async (
     ]);
     await assert.rejects(async () => api.inspectionUnit({ return_id: "return/id", inventory_unit_id: "unit/one" }), TypeError);
     assert.equal(calls.length, 1);
+  } finally { globalThis.fetch = original; }
+});
+
+test("Return destination options read the suggestion for one exact Return", async () => {
+  const original = globalThis.fetch;
+  const calls = [];
+  const options = { return_id: "return/id", suggested_store_location_id: "warehouse", store_location_ids: ["warehouse", "shop"] };
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: new URL(url), method: init.method });
+    return new Response(JSON.stringify(options), { headers: { "content-type": "application/json" } });
+  };
+  try {
+    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop.return;
+    assert.deepEqual(await api.destinationOptions({ store_id: STORE_ID, return_id: "return/id" }), options);
+    assert.deepEqual(calls.map((call) => [call.method, call.url.pathname]), [
+      ["GET", `/v1/stores/${STORE_ID}/returns/return%2Fid/destination-options`],
+    ]);
   } finally { globalThis.fetch = original; }
 });

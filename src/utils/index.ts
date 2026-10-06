@@ -56,5 +56,6 @@ export {
   pollScheduledResult,
 } from "./scheduledResult";
 export { selectFulfillmentUnits, selectFulfillmentMoveUnits } from "./fulfillmentSelection";
+export { hasStorePermission, storeLocationReadReach, storePermissionReach } from "./storeAccess";
 export { FulfillmentSelectionError } from "../types/fulfillmentSelection";
 export { copyCartProductPurchase } from "./cartInputs";

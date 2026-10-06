@@ -73,7 +73,7 @@ test("inventory index failure remains an error rather than zero stock", async ()
 test("Inventory history preserves combined filters, empty continuations and exact quantity changes", async () => {
   const admin = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_inventory_contract" });
   const record = { id: "movement", inventory_unit_id: "unit", quantity: { type: "on_hand" }, delta: -1, after: 7,
-    reason: { type: "dispatched", fulfillment_order_id: "work", fulfillment_id: "fulfillment" } };
+    reason: { type: "dispatched", fulfillment_job_id: "work", fulfillment_id: "fulfillment" } };
   const responses = [{ items: [], cursor: "movement-next" }, { items: [record], cursor: null }];
   const calls = [];
   const originalFetch = globalThis.fetch;

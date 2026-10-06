@@ -129,7 +129,7 @@ test("an unresolved Checkout pins selected Cart reads and blocks explicit replac
   const calls = capture((call) => {
     assert.equal(call.method, "GET");
     assert.equal(call.path, `/v1/storefront/carts/${cartId}`);
-    return Response.json({ id: cartId, customer_id: "customer", company: null, market_id: "market", status: { type: "converted", order_id: orderId, request_id: requestId } });
+    return Response.json({ id: cartId, customer_id: "customer", company: null, market_id: "market", catalog_id: "catalog", status: { type: "converted", order_id: orderId, request_id: requestId } });
   });
   const client = storefront();
   assert.equal((await client.eshop.cart.current()).id, cartId);
@@ -468,7 +468,7 @@ test("failed terminal storage clear does not notify success and retains recovery
 test("pending current Cart reads the original identity and blocks ordinary Cart mutations", async () => {
   browser();
   await loseResponse();
-  const calls = capture(() => Response.json({ id: cartId, customer_id: "customer", market_id: "market", status: { type: "active" }, company: { company_id: "company", company_location_id: "location" } }));
+  const calls = capture(() => Response.json({ id: cartId, customer_id: "customer", market_id: "market", catalog_id: "catalog", status: { type: "active" }, company: { company_id: "company", company_location_id: "location" } }));
   const client = storefront().eshop.cart;
   assert.equal((await client.current({ company: { company_id: "company", company_location_id: "location" } })).id, cartId);
   assert.deepEqual(calls.map((call) => [call.method, call.path]), [["GET", `/v1/storefront/carts/${cartId}`]]);

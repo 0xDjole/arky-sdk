@@ -99,6 +99,24 @@ does not substitute a later cached Form or fetch new questions during submission
 another user submission, with a new request ID. Keep the storefront locale equal to the retained
 presentation's locale when retrying.
 
+A `file` question (`{ type: "file", max_files }`) is answered with existing store media ids:
+pass `string[]` as its value and the submitted field is `{ type: "file", id, key, media_ids }`.
+
+Staff work submissions in the Admin client: `forms.getSubmissions` filters by `stage_id`,
+`assignee_account_id`, `company_id` and select answers (`select: [{ field_id, options }]`);
+`forms.changeSubmissionStage`, `forms.assignSubmission` and `forms.setSubmissionCompany` move a
+submission through the Form's `stages`, assign it and link it to a Company (`company_id: null`
+unlinks it). A stage change may carry a new note (`note: { id, body }`, for example a rejection
+reason); the change names it in `stage_history[].note_id`, and that note can be edited but not
+deleted. `forms.createSubmissionNote`, `findSubmissionNotes`, `updateSubmissionNote` and
+`deleteSubmissionNote` keep the submission's notes as `Note` records: only the author edits a note,
+the author or an Admin deletes it, and both send `expected_updated_at`.
+`forms.createSubmission` enters a submission for a customer (read the form with
+`forms.getPresentation({ id, locale })` first and send its `presentation_digest`).
+`AdminFormSubmission` adds `company_id`, `stage`, `stage_history`, `assignee_account_id` and
+`updated_at` to the `FormSubmission`, whose `source` is the customer session or the staff actor.
+A Form created without stages gets `new`, `accepted` and `rejected`.
+
 The browser persists one versioned, discriminated Customer-session record. A Visitor record contains
 its short-lived token; an email-authenticated record contains the current access and refresh
 credentials. Requesting a code returns only a safe Visitor view and retains the existing token in
@@ -142,13 +160,14 @@ Store and Customer come from the public key and Session, never caller-supplied I
 membership, select both `company_id` and `company_location_id`; the Server checks permission for
 that branch. Responses contain only self-visible membership, not private administrative grants.
 Joining buys nothing and grants no paid or digital access; it does not verify email or record email
-consent. A Granted membership only satisfies group conditions on catalogs, promotions and shipping.
+consent. A Granted membership only opens catalogs whose access names the group and satisfies group
+conditions on promotions and shipping.
 
 ## Exact Admin definition reads
 
 Use `admin.eshop.product.getByKey({ store_id, key })`, `bookingService.getByKey(...)` and
-`bookingResource.getByKey(...)` for a known definition key. Fulfillment routing has the same
-`admin.eshop.fulfillmentRoutingPolicy.getByKey({ store_id, key })` lookup. `bookingOffering.lookup({
+`bookingResource.getByKey(...)` for a known definition key. Catalogs have the same
+`admin.eshop.catalog.getByKey({ store_id, key })` lookup. `bookingOffering.lookup({
 store_id, booking_service_id, booking_resource_id })` resolves the exact parent pair. These reads
 return the current authorized definition without searching pages. A failed lookup is not permission
 to create a replacement; only an explicit not-found denotes absence. Storefront catalog access
@@ -185,43 +204,115 @@ This reference expires after 15 minutes and is bound to the Customer session and
 Refresh the purchased library after expiry or a session change. It selects the exact purchase; it
 does not grant access. The server rechecks access before and after issuing the short-lived URL.
 
-## Independent catalog pricing
+## Catalogs, items, accesses and prices
 
-`createAdmin().eshop` exposes `price`, `priceList`, `assortment`, `assortmentItem`, `catalog` and
-`catalogEntitlement`. Product variants, digital products and booking offerings do not embed
-Prices. Create the sellable first, then create its independent Price with a typed `sellable`,
-currency, quantity range and status. `scope: { type: "base" }` is a base Price;
-`{ type: "price_list", price_list_id }` belongs to a reusable, optionally scheduled PriceList.
-Prices are not selected in the SDK.
+`createAdmin().eshop` exposes `catalog`, `catalogItem`, `catalogAccess` and `price`. A Catalog
+belongs to one Market (`market_id`), which fixes its currency. Every Market gets a public
+Catalog whose key is `public-{market.key}`; keys starting `public-` are reserved.
 
-Storefront product, digital-product and booking-offering reads accept `include_price` and an
-optional explicitly selected `company_id` and `company_location_id`. The server checks the caller and current catalog
-grants; sending a Company ID does not grant membership or permission. Company selection is per
-request and is not remembered by the client. Normal catalog reads do not identify a visitor.
+- `catalogItem` lists a product, digital product, booking service or subscription offering in a
+  Catalog (`item: { type: "product", product_id }` and so on, optional `position`). Rows are
+  created, repositioned and deleted; deleting returns no body.
+- `catalogAccess` opens a Catalog to an audience: `everyone`, a `customer_group`, a `customer`,
+  `all_companies`, a `company` or a `company_location`. Each row names its `channels`
+  (`{ type: "all" }` or `{ type: "only", sales_channel_ids }`) and its `level`: `browse` shows the
+  items, `see_prices` also shows prices and `buy` also allows ordering. Access rows are create and
+  delete only.
+- `price` belongs to a Catalog and prices one sellable variant, offering or plan
+  (`{ store_id, catalog_id, sellable, amount, compare_at, min_quantity, max_quantity, starts_at,
+  ends_at, status }`). A Price with `starts_at`/`ends_at` applies only inside that window; send both
+  on create and update, `null` meaning open-ended. There is no currency, scope or price list on a Price.
+
+```typescript
+const catalog = await admin.eshop.catalog.create({
+  store_id, key: "wholesale", market_id, status: { type: "active" },
+});
+await admin.eshop.catalogItem.create({
+  store_id, catalog_id: catalog.id, item: { type: "product", product_id },
+});
+await admin.eshop.catalogAccess.create({
+  store_id, catalog_id: catalog.id, audience: { type: "company", company_id },
+  channels: { type: "all" }, level: { type: "buy" },
+});
+await admin.eshop.price.create({
+  store_id, catalog_id: catalog.id,
+  sellable: { type: "product_variant", product_id, variant_id },
+  amount: 1250, compare_at: null, min_quantity: 1, max_quantity: null,
+  starts_at: null, ends_at: null,
+  status: { type: "active" },
+});
+```
+
+`admin.eshop.catalog.copy({ store_id, id, source_catalog_id })` copies another Catalog's items and
+prices into this one (same Market currency) and returns `{ items_created, items_kept,
+prices_created, prices_kept }`; running it again keeps what is already there. `catalogItem.batch`
+and `price.batch` take 1 to 1,000 `operations` (`{ type: "create", ... }`,
+`{ type: "update", id, expected_updated_at, ... }` or `{ type: "delete", id, expected_updated_at }`),
+apply them all or none, and return the created and updated records in order.
+
+```typescript
+await admin.eshop.price.batch({
+  store_id,
+  operations: [
+    { type: "create", catalog_id: catalog.id, sellable, amount: 990, compare_at: null,
+      min_quantity: 1, max_quantity: null, starts_at: saleStart, ends_at: saleEnd,
+      status: { type: "active" } },
+    { type: "delete", id: oldPrice.id, expected_updated_at: oldPrice.updated_at },
+  ],
+});
+```
+
+`admin.eshop.catalog.usage({ store_id, id })` lists the Catalog's accesses, items and prices and
+names anything that blocks deletion (a subscription benefit, a promotion, an accepted order or a
+subscription revision). `catalog.delete` returns the Catalog with `status: { type: "deleting" }`;
+acceptance is not proof of completed erasure.
+
+Every storefront browse request reads exactly one Catalog. Product, product-variant,
+digital-product, booking-service, booking-offering, availability and subscription-plan reads accept
+`catalog_id`; leave it out to read the Market's public Catalog. They also accept `include_price` and
+an optional explicitly selected `company_id` and `company_location_id`. The server checks the caller
+against that Catalog's access rows; sending a Company ID does not grant membership or permission.
+Company and Catalog selection is per request and is not remembered by the client.
 
 ```typescript
 const variant = await arky.eshop.productVariant.get({
-  product_id: productId, id: variantId, include_price: true,
+  product_id: productId, id: variantId, catalog_id: partnerCatalogId, include_price: true,
 });
 const displayPrice = arky.utils.formatPrice(variant?.price);
 ```
 
-Public sellables contain one nullable `price` and an independent `purchase_allowed` flag.
-Subscription plans read through `subscription_plans.find/get` carry their own server-selected price.
-`formatPrice` and `getPriceAmount` consume one server-resolved `StorefrontPrice`, not arrays of
-Market prices. A null
-price is not zero. The public amount is a quantity-one display result; obtain a fresh Cart quote
-for actual quantities and accepted totals. Do not multiply that preview into a checkout authority
-or infer purchase permission merely because a price is visible.
+`admin.eshop.catalog.findPurchasable({ store_id, market_id, sales_channel_id, customer_id })`
+lists the Catalogs that buyer may order from (level `buy`) in that Market and sales channel; add
+`company_id` and `company_location_id` together for a Company buyer. Use it to offer staff only
+Catalogs the Server will accept on the Cart. `storefront.eshop.catalog.find()` returns the current
+shopper's Catalogs in the current Market as `{ id, key, level }`, at any level (a visitor without a
+Customer session gets the Catalogs open to everyone); pass
+`company_id` and `company_location_id` together to read a Company branch's Catalogs. Pick one at
+`buy` and send its `id` as `catalog_id` on the Cart and on the reads above.
 
-Price updates cannot move a Price to another sellable, list or currency. Update
-nullable fields explicitly and send `expected_updated_at`. Price and PriceList deletion return
-the accepted record, including `status: { type: "deleting" }`; acceptance is not proof of completed
-erasure. Manual price input contains money and a required reason, never a caller-supplied author.
-Accepted Order snapshots retain their separate immutable price provenance.
+```typescript
+const catalogs = await arky.eshop.catalog.find({ company_id, company_location_id });
+const partner = catalogs.find((catalog) => catalog.level.type === "buy");
+const cart = await arky.eshop.cart.current({
+  company: { company_id, company_location_id },
+  catalog_id: partner?.id,
+});
+```
 
-`admin.eshop.priceList.usage({ id })` reports retained Catalog blockers separately from owned Prices.
-Removing a list does not turn its Prices into base Prices.
+Public sellables contain one nullable `price`: the lowest quantity-one price in force in the read
+Catalog. A null price is not zero: it means "price on request" (the item is listed without a
+price), or that the shopper may browse but not see prices. A read below `browse` is refused with
+403, and below `see_prices` a `price_filter` or `sort_field: "price"` is refused with 403.
+Product, digital-product, booking-service and subscription-plan lists also sort by
+`sort_field: "catalog_order"`, the Catalog's item positions (ascending by default). The public
+amount is a display result; obtain a fresh Cart quote for actual quantities and accepted totals.
+
+Price updates cannot move a Price to another Catalog or sellable. Update nullable fields
+explicitly and send `expected_updated_at`. Price deletion returns the accepted record with
+`status: { type: "deleting" }`. Manual price input contains money and a required reason, never a
+caller-supplied author; an applied price names its source (`catalog`, `purchase_access` or
+`manual`). A `manual` source names the Cart's Catalog (`catalog_id`), the actor, the reason and
+whether promotions still apply.
 
 ## Actions and experiments
 
@@ -304,7 +395,7 @@ not refund money; use the separate Refund flow when repayment is due.
 filters with timestamp sorting and explicit continuation. Follow its cursor even after an empty
 page; use `get` for exact current state. Rentals are separate agreements under
 `admin.eshop.rental`; ending an agreement requests returns for its units still out and cancels
-unsent issue work through the partner handshake where needed.
+unsent issue work.
 
 Cart requests and responses use one tagged `line_items` array with `product`, `booking`,
 `digital_product` and `subscription_plan` items. The `cartProductItems`, `cartBookingItems`,
@@ -354,20 +445,30 @@ groups, then review the complete Cart and check out. Future-promise acceptance u
 Cart and invalidates its purchase review. Low-level storefront and Admin `cart` APIs expose the
 same two methods with an explicit Cart `id`; Admin also accepts `store_id` and `locale`.
 
-Cart has tagged `status.type` and `origin.type`, required `market_id`/`sales_channel_id`, and
+Cart has tagged `status.type` and `origin.type`, required `market_id`/`sales_channel_id`/`catalog_id`,
 required `customer_id`, and nullable nested `company: { company_id, company_location_id }`.
 Provenance is in `origin`, not a second top-level Session field. Admin creation requires a Customer;
 ordinary updates cannot change it. Company update omission preserves the selection; `null` clears
 both Company fields. Storefront identity comes from its authenticated Session.
 
-`client.eshop.cart.current({ company: { company_id, company_location_id } })` creates an empty Cart
-when none is selected, or exact-reads the selected Cart. Its ID is retained per client namespace,
-Customer, Market, Company and branch in the configured session storage. Switching Company or branch
-keeps each context’s selection. Omitted or null Company selects the personal Cart. There is no
+Every Cart buys from one Catalog. Creation takes an optional `catalog_id`; without one the Cart uses
+the Market's public Catalog, and a buyer without `buy` there is refused with a Conflict whose
+message starts "Name a catalog". A named Catalog needs `buy` for the buyer in the Cart's channel
+(403 otherwise). Updating `catalog_id` switches the Catalog and reprices every line; changing the
+Market without naming a Catalog moves the Cart to the new Market's public Catalog. Staff prices on
+lines must be cleared or re-entered in the same update as a Catalog, Market or channel change.
+Staff plan switches (`admin.eshop.subscription.planReview` and `planAccept`) may name
+`request.catalog_id`; without it the new plan is priced from the original order's Catalog.
+
+`client.eshop.cart.current({ company: { company_id, company_location_id }, catalog_id })` creates an
+empty Cart when none is selected, or exact-reads the selected Cart. Its ID is retained per client
+namespace, Customer, Market, Company, branch and named Catalog in the configured session storage.
+Switching Company, branch or Catalog keeps each context’s selection. Omitted or null Company selects
+the personal Cart; an omitted Catalog selects the Cart created without one. There is no
 server-wide unique current Cart or search lookup. Market and channel at creation come from the
-server’s storefront context. A response with a different Company or branch is refused without
-changing the retained selection. An unresolved checkout must be recovered in its original context
-before another Cart can be mutated.
+server’s storefront context. A response with a different Company, branch or named Catalog is refused
+without changing the retained selection. An unresolved checkout must be recovered in its original
+context before another Cart can be mutated.
 `cart.create()` explicitly creates and selects another empty Cart and returns `{ cart, recovery_token }`,
 as does Admin creation. The selection helper never stores the recovery token, Cart contents or prices.
 Read errors do not discard a selection. A known converted, merged or expired Cart starts a new empty
@@ -626,6 +727,11 @@ means no primary email; a failed exact read is not absence. The explicit `revoke
 retains historical proof while invalidating current use. Customer root statuses are tagged objects;
 the Customer/identity discovery `status` parameter is a scalar tag.
 
+Customers have optional `first_name`, `last_name`, `phone` and `locale` (any valid language tag).
+Staff set them through `admin.customers.create/update` (`null` clears a field) and the import rows.
+A signed-in shopper reads them with `arky.customer.getMe()`, which also returns their `email`, and
+edits them with `arky.customer.updateMe({ first_name, last_name, phone, locale })`.
+
 ## Embedded card checkout
 
 Store setup is fetched lazily and deduplicated:
@@ -839,8 +945,51 @@ these credentials Personal API Tokens. Expiry is determined from `expires_at`; t
 only `active` or `revoked`.
 
 `store.member.getOwn` and `store.member.findOwn` return the existing membership fields plus
-`store_name` for the exact Store. This display name grants no additional permission and is not
-a membership mutation input.
+`store_name` and `access` for the exact Store. `access.permissions` is the union of the member's
+active roles (a platform Administrator gets `[{ type: "admin" }]`). The display name grants no
+permission and is not a membership mutation input.
+
+### Store roles and permissions
+
+A membership holds `role_ids` and a `status` (`invited`, `active` or `disabled`); roles are Store
+records with a `key` and `permissions`, and `admin` implies every permission. The Store names one
+owner in `Store.owner_account_id`, an active member whose roles grant `admin`; there is no Owner role.
+Only the owner removes members, takes `admin` away from anyone, and changes store settings, Arky
+billing, the customer workspace, commerce setup and closure. The permissions are `admin`, `catalog`, `orders`, `customers`,
+`fulfillment` and `inventory` (each with `locations: { type: "everywhere" }` or
+`{ type: "only", store_location_ids }`), `marketing`, `content`, `support`, `automation` and
+`analytics`.
+
+```typescript
+import { hasStorePermission, storeLocationReadReach } from "arky-sdk/utils";
+
+const role = await admin.store.role.create({
+  store_id, key: "warehouse",
+  permissions: [{ type: "fulfillment", locations: { type: "only", store_location_ids: [locationId] } }],
+});
+await admin.store.member.invite({ store_id, email: "picker@example.com", role_ids: [role.id] });
+await admin.store.member.updateRoles({
+  store_id, account_id, expected_updated_at: membership.updated_at, role_ids: [role.id],
+});
+
+const own = await admin.store.member.getOwn({ store_id });
+const canPick = hasStorePermission(own?.access ?? null, "fulfillment", locationId);
+const visibleLocations = storeLocationReadReach(own?.access ?? null);
+```
+
+`admin.store.member.transferOwnership({ store_id, account_id })` makes another active member whose
+roles grant `admin` the owner and returns the Store. Only the owner may call it, signed in within the
+last 15 minutes; both memberships keep their roles.
+`admin.store.member.changeStatus({ store_id, account_id, expected_updated_at, status })` pauses a
+member with `{ type: "disabled" }` and brings them back with `{ type: "active" }`. A disabled member
+keeps their seat but has no access and receives no staff email. The owner can't be disabled, and
+disabling a member who holds `admin` needs the owner. These rules answer `STORE_MEMBERSHIP.OWNER`,
+`STORE_MEMBERSHIP.OWNER_ONLY` or `STORE_MEMBERSHIP.OWNER_KEEPS_ADMIN`.
+
+`hasStorePermission(access, permission)` without a location needs the permission everywhere;
+with a location it checks that location. `storeLocationReadReach` mirrors the Server: staff whose
+only permissions are `fulfillment`/`inventory` see the locations they reach, everyone else sees
+every location. Deleting a role returns it with `status: { type: "deleting" }`.
 
 Store settings and storefront-client registrations are separate Admin surfaces:
 
@@ -877,15 +1026,16 @@ email. Omit `contact_email` on update to preserve it or send `null` to clear it;
 email never changes the other. Public `support.email` comes only from `contact_email`, with no
 billing or Account fallback. Mailboxes own sender and reply-to identity, and staff notification
 recipients remain explicitly configured. A new Store creates no inferred Mailbox. Physical places are exposed as `StoreLocation`
-values with the shared `PostalAddress` shape. Webhooks and Build Hooks are addressed by UUID and
+values with the shared `PostalAddress` shape. Webhooks are addressed by UUID and
 use `{ type: "active" }` / `{ type: "disabled" }` statuses. Membership IDs are opaque, Server-generated UUID-v4 values;
 `StoreUsage` represents one feature and either its current total or one UTC calendar month.
 Booking quotas use the canonical `booking_services` and `booking_resources` feature keys.
 
-`admin.store.buildHook.list` and `admin.store.webhook.list` require `store_id` and return
-`{ items, cursor }`. Both support `query`, flat `status: "active" | "disabled"`, `limit` (1–200,
+`admin.store.webhook.list` requires `store_id` and returns
+`{ items, cursor }`. It supports `query`, flat `status: "active" | "disabled"`, `limit` (1–200,
 default 50), `cursor`, `sort_field: "created_at" | "updated_at"` and `sort_direction: "asc" | "desc"`.
-Search matches BuildHook IDs or Webhook IDs/subscribed event names, not private destination URLs.
+Search matches Webhook IDs and subscribed event names, not private destination URLs. A Webhook named
+by an automation's `send_webhook` step cannot be deleted until the step is removed.
 Keep following a returned cursor even when a page is empty. Returned URLs, header values and
 Webhook secrets are masked; omit those fields when updating to preserve their stored values.
 Webhook subscriptions use `{ type: "order.created" }` or a scoped value such as
@@ -903,7 +1053,7 @@ sort and operator. Neither helper automatically fetches later pages. Permission 
 return `{ items, cursor }`, not complete arrays. Each accepts an explicit `store_id`, exact `key`,
 owner-specific filters, `created_at`/`updated_at` ordering and bounded `limit`/`cursor` paging.
 Market filters include currency and active/deleting status; Location filters include
-`is_pickup_location` and active/archived/deleting status; configured providers filter by
+`allows_pickup` and active/archived/deleting status; configured providers filter by
 `configuration_type` and active/disabled/deleting status. No helper silently fetches all pages.
 Storefront Market/Location lists also return pages; their authenticated context supplies Store
 and active-only visibility, so neither `store_id` nor status belongs in their query.
@@ -915,14 +1065,19 @@ reads. A missing discovery candidate is not proof that configuration is absent a
 authorizes repeated creation, connection or payment. Only exact reads confirm a saved identity.
 
 Store creation leaves Commerce uninitialized. Content, Forms, and Support work without a Market;
-a non-commerce StorefrontClient can have an empty `sales_channel_ids` list. An Owner explicitly
-starts commerce with `store.commerce.initialize({ operation_id, request })` and inspects the same
-operation with `store.commerce.getInitialization({ operation_id })`. Ready Store reads expose
+a non-commerce StorefrontClient can have an empty `sales_channel_ids` list. The Store owner
+explicitly starts commerce with `store.commerce.initialize({ operation_id, request })` (starting and
+aborting are owner-only) and any Admin inspects the same operation with
+`store.commerce.getInitialization({ operation_id })`. Setup puts the default Market into the default
+channel's `market_ids`. Ready Store reads expose
 `default_sales_channel_id` inside `commerce` when `commerce.type === "ready"`.
 Use `storeDefaultSalesChannel(store)` to read that channel ID; uninitialized/initializing Stores
 return null. Updates can select another current active same-Store channel and reject null.
-Markets are always explicit: Admin Cart creation requires `market_id`, Admin order quotes require
-`market`, and storefront commercial requests send the SDK-selected Market key. Existing Carts,
+Markets are always explicit: Admin Cart creation requires `market_id` and Admin order quotes
+require `market`, and storefront commercial requests send the SDK-selected Market key. Admin Cart
+creation and quotes may leave out `sales_channel_id` (the Store's default channel) and `catalog_id`
+(the Market's public Catalog). A storefront key with exactly one SalesChannel that lists exactly one
+Market may leave the Market out; the Server then uses that Market. Existing Carts,
 Orders and Subscriptions keep their recorded Market. The SDK never chooses a replacement.
 
 ### Stripe connection setup
@@ -969,7 +1124,7 @@ await admin.companies.membership.create({
   company_id: company.id,
   customer_id: "customer-uuid-v4",
   role_ids: [buyerRole.id],
-  scope: { type: "company_wide" },
+  locations: { type: "everywhere" },
 });
 
 const group = await admin.eshop.customerGroup.create({
@@ -994,9 +1149,19 @@ await admin.eshop.customerGroupMember.execute({
 use `null` for an absent value. Address fields are `name`, `company`, `street1`, `street2`, `city`,
 `state`, `postal_code`, `country`, `phone` and `email`. CompanyLocation's shipping address must also
 satisfy Server shipping validation. A location update explicitly supplies `billing_address`,
-including `null` to clear it. A membership's `scope` is `company_wide` or explicit
-`locations`. A role's key cannot change. The closed permission set distinguishes placing Orders
-from creating Subscriptions and own history from Company history.
+including `null` to clear it. A membership's `locations` is `{ type: "everywhere" }` or
+`{ type: "only", company_location_ids }`. A role has a `key` (no name) that cannot change, and
+permissions from the closed set `admin`, `place_orders`, `create_subscriptions`,
+`access_digital_products`, `view_own_orders`, `view_company_orders`, `view_own_subscriptions`,
+`view_company_subscriptions`, `manage_company`, `manage_addresses`, `manage_members`,
+`manage_company_subscriptions` and `manage_payment_methods`. `admin` implies every other one. A
+customer sees their own orders at a branch only with `view_own_orders` there, and every order of the
+branch with `view_company_orders`. `CompanyCustomerAccess` returns the membership `locations` and the
+already-expanded permissions.
+
+Staff choose which store location serves a branch with
+`admin.companies.location.setServedFrom({ store_id, id, expected_updated_at, fulfillment_store_location_id })`
+(`null` clears it); delivery jobs for that branch are assigned there.
 
 A Customer group is an audience. `admin.eshop.customerGroupMember` holds its one relationship per
 Customer or Company member: `execute` runs a journaled `grant_admission`, `revoke_admission`,
@@ -1010,16 +1175,22 @@ combinations and current authority.
 ### Markets, SalesChannels and deletion
 
 `admin.store.salesChannel` exposes typed `create`, `get`, `find`, `update`, `usage` and `delete`.
-Market management uses `admin.store.market`: `list()`, `get(id)`, `usage(id)`, `create`, `update`
-and `delete`. Market key/currency and SalesChannel key are immutable. Market reads use tagged
-`active`/`deleting` status; SalesChannels can additionally be archived.
+A SalesChannel lists the Markets it sells in with `market_ids` (required on create and update, a
+full replace of at most 100 active Markets of the Store; an empty list is allowed). There is no
+separate Market–SalesChannel record or API. Market management uses `admin.store.market`: `list()`,
+`get(id)`, `usage(id)`, `create`, `update` and `delete`. Market key/currency and SalesChannel key
+are immutable. Market reads use tagged `active`/`deleting` status; SalesChannels can additionally be
+archived. A Market listed by a channel can't be deleted: its `usage` names those channels in
+`sales_channel_ids` (with `more_sales_channels`).
 
 Company, membership, role, location, group, channel and Market edits/deletes require the
 current `updated_at` as `expected_updated_at` where those commands exist. Inspect each available
-`usage` response before deletion: it names bounded actual dependencies, including CatalogEntitlements,
+`usage` response before deletion: it names bounded actual dependencies, including catalog accesses,
 with `more_*` flags. Markets have no default designation or replacement input. Default channel
 archival/deletion needs `replacement_default_sales_channel_id`. An unused Market or non-default
-channel needs no replacement. Server checks live dependencies and validates any replacement in the same
+channel needs no replacement. Deleting a location, zone, Market, channel or shipping profile, or
+archiving a location, that fulfillment routing still names is refused with
+`FULFILLMENT_ROUTING.NAMED`: take it out of routing first. Server checks live dependencies and validates any replacement in the same
 transaction; the SDK neither clears a grant nor silently reassigns a buyer's context.
 
 A successful asynchronous delete returns the exact record with `status.type === "deleting"`
@@ -1027,6 +1198,63 @@ from HTTP 202, not a boolean or proof of physical removal. Reload after changes 
 do not manufacture a newer version or replacement operation. Normal request options, cancellation
 signals and SDK errors are preserved. These operator APIs do not implement a storefront Company
 switcher or bypass backend permission checks.
+
+### Automations, email templates and message deliveries
+
+Workflows are gone. `admin.automation` holds trigger, steps and exits:
+
+```typescript
+const automation = await admin.automation.create({
+  store_id, id: crypto.randomUUID(), key: "welcome", active: false,
+  trigger: { type: "customer_created" },
+  steps: [
+    { id: crypto.randomUUID(), type: { type: "wait", minutes: 60 } },
+    {
+      id: crypto.randomUUID(),
+      type: {
+        type: "send_email",
+        to: { type: "subject" },
+        sender: { type: "platform" },
+        template_id,
+      },
+    },
+  ],
+  exits: [{ type: "order_placed" }],
+});
+await admin.automation.activate({ store_id, id: automation.id, expected_updated_at: automation.updated_at });
+const runs = await admin.automation.run.find({ store_id, automation_id: automation.id });
+```
+
+A step is `{ id, type: { type, ... } }`. Triggers include `order_placed`, `order_accepted` (every
+accepted order, renewals included), `return_requested`, `return_approved`, `return_declined`,
+`form_submitted` (one Form) and `any_form_submitted`. A `{ type: "send_webhook", webhook_id }` step
+posts the run's subject and data to one of the Store's Webhooks. Saving, activating, pausing or
+deleting an automation with such a step needs store `admin`, and an active automation needs every
+Webhook it names to be active. The step's outcome is `{ type: "webhook_requested",
+webhook_delivery_id }` or `{ type: "webhook_skipped", reason }`. Group steps record the customer's
+timeline with the origin `{ type: "automation", automation_id, run_id }`. Keys starting `default-`
+are reserved for the Store's default automations; `default-order-received` is the order receipt and
+runs on `order_accepted`. `pause` stops new runs, the receipt's included (the receipt can't be
+deleted), and `resendReceipt({ store_id, order_id, request_id })` sends an order's receipt again
+whatever its status and returns the new `MessageDelivery`. Runs record each executed step in
+`step_results`.
+
+Email templates belong to a data kind (`data: { type: "order" }`, `{ type: "form_submission", form_id }`,
+`{ type: "any_form_submission" }` and so on) that cannot change after creation, and hold
+per-language `content` (`{ subject, preheader, body }`). `notification.template.get` takes an `id`
+or a `key`, `find` filters by `data_type` and `form_id`, and `preview` takes an optional `language`
+and draft `content`. The sign-in template's data names its sender
+(`{ type: "sign_in", sender: { type: "platform" } }` or `{ type: "mailbox", mailbox_id }`); change it
+with `notification.template.update({ store_id, id, data })`. While the sign-in template is `draft`,
+customer sign-in codes are refused with `CUSTOMER_SIGN_IN.DISABLED`.
+`notification.template.test({ store_id, id, request_id, language, sender })` sends the template,
+rendered with its sample data, to your own email in any status and returns the `MessageDelivery`
+(source `{ type: "template_test", template_id, request_id }`). Retry a lost response with the same
+`request_id`.
+
+`notification.delivery.find({ store_id, recipient, order_id, automation_id, run_id })` pages the
+`MessageDelivery` history; `get` and `stop` act on one delivery. `recipient_key` is the normalized
+recipient address.
 
 ### Other operator commands
 
@@ -1056,8 +1284,10 @@ const current = await admin.customers.emailSuppression.find({
 Exact email search returns at most two independent restrictions. Store-wide pages default to
 50 rows, accept at most 100, and retain their cursor even when type/status filtering returns
 an empty page. Use `block`/`unblock` for AdminBlock and `recordUnsubscribe`/`recordResubscribe`
-for an actual recipient request. Mutations require a current same-Store Owner/Admin AccountSession
-and a nonempty explanation; API tokens do not authorize these commands.
+for an actual recipient request. Hard bounces and complaints are recorded by the Server from
+delivery results (`type: "hard_bounce" | "complaint"`, source `{ type: "delivery", message_delivery_id }`);
+staff lift them with `unblock` and a note. Mutations require a same-Store AccountSession with the
+`customers` permission and a nonempty explanation; API tokens do not authorize these commands.
 
 Activation takes a caller-generated UUID-v4 `id` and `command_id`, with explicit
 `expected_version: null` for a new restriction. For an existing restriction, retain its ID and
@@ -1220,8 +1450,7 @@ fresh command and current Order state. The response is the updated Order.
 
 Customers use `arky.eshop.order.cancelProductItem` with the same saved command shape. Only the
 Order's Customer may request it; Company purchases additionally require current branch purchase
-permission. The response can retain uncancelled units while a partner confirmation is pending.
-Only applied cancellation creates a commercial credit; accepted Order prices never change.
+permission. Only applied cancellation creates a commercial credit; accepted Order prices never change.
 
 ## Fulfillment
 
@@ -1230,24 +1459,71 @@ stock is `on_hand - reserved - unavailable` and may be negative for permitted ba
 holds its remaining quantities when its delivery opens; future Scheduled work holds none. Setting
 stock aside protects it from dispatch. Every stock change retains its movement source.
 
-FulfillmentOrder is a warehouse job. An `order_product` line maps stable local work positions to
+A FulfillmentJob is a warehouse job. An `order_product` line maps stable local work positions to
 accepted Order units. A `rental_issue` line names the Rental and accepted terms revision; replacement
 also retains the predecessor Unit and its exact delivery line/index. One job may combine products
-from one Order delivery group with rental equipment. Work positions are distinct from Order unit
-positions and physical serial numbers. Use `admin.eshop.fulfillmentOrder.find({ order_id })` or
-`find({ rental_id })`, and `get({ fulfillment_order_id })` for one exact job.
+from one Order delivery group with rental equipment. Use `admin.eshop.fulfillmentJob.find({ order_id })`,
+`find({ rental_id })`, `find({ store_location_id })` or `find({ assignment: "unassigned" })`, and
+`get({ fulfillment_job_id })` for one exact job. `items({ fulfillment_job_id })` returns the order
+number, product key, SKU and live image per line.
+
+Each Store has one fulfillment routing record. `admin.eshop.fulfillmentRouting.get({ store_id })`
+reads it (`admin`, or `fulfillment` everywhere) and
+`admin.eshop.fulfillmentRouting.update({ store_id, expected_updated_at, rules, otherwise })` replaces
+its rules (`admin` only). A rule is `{ id, key, conditions, target, status }`: `conditions` match
+`markets`, `sales_channels`, `zones` or `shipping_profiles` by id lists, `status` is `active` or
+`paused`, and `target` is `{ location_ids, assign }` where `assign` is `{ type: "staff" }` or
+`{ type: "automatic", pick: { type: "in_list_order" | "most_stock" }, split: { type: "never" |
+"when_needed" } }`. Rules apply top to bottom, the first active matching rule that can deliver wins,
+and `otherwise` takes the rest. A new Store routes everything to its default location. Stock checks
+at checkout count only active locations named in routing.
+
+```typescript
+const routing = await admin.eshop.fulfillmentRouting.get({ store_id });
+await admin.eshop.fulfillmentRouting.update({
+  store_id,
+  expected_updated_at: routing.updated_at,
+  rules: [{
+    id: crypto.randomUUID(),
+    key: "domestic",
+    conditions: [{ type: "markets", market_ids: [domesticMarketId] }],
+    target: {
+      location_ids: [warehouseA, warehouseB],
+      assign: { type: "automatic", pick: { type: "most_stock" }, split: { type: "when_needed" } },
+    },
+    status: { type: "active" },
+  }],
+  otherwise: routing.otherwise,
+});
+```
+
+A delivery job's `method.assignment` is `unassigned` or `assigned` to a store location. Its
+`source` says why: `served_from` (the branch's served-from location, when it carries every tracked
+item), `routing_rule` (with `rule_id`), `otherwise`, or `staff`. A split delivery gets one job per
+location. Staff decide with
+`fulfillmentJob.decide({ fulfillment_job_id, request_id, expected_updated_at, action })`:
+`assign` (unassigned delivery jobs only), `move` (units to another location; pickup jobs stay put),
+`hand_back` and `hold` (with a note) and `release_hold`. Each returns the updated job. Assign and move
+need an active location named in routing that has a country and a stock level for each tracked item
+(`FULFILLMENT_JOB.LOCATION_UNAVAILABLE`, `FULFILLMENT_JOB.ASSIGN_ITEM_NOT_STOCKED`,
+`FULFILLMENT_JOB.MOVE_ITEM_NOT_STOCKED`). Assigning, moving, holding and releasing need the
+`fulfillment` permission everywhere. Location staff see the same job view, recipient email and phone
+included.
+
+Customers follow their order with storefront `eshop.order.fulfillments({ order_id })`, which returns
+one `CustomerOrderFulfillment` per job with its shipments and their status.
 
 Fulfillment records the units prepared and sent from one job. Its method comes from the job:
 delivery goes Preparing → Fulfilled; pickup goes Preparing → Ready → Fulfilled. Ready notifies the
 customer but does not move stock. Fulfilled moves stock once. There is no separate parcel record,
-package-size/customs input or carrier-label API. Tracking is entered by staff or the partner.
+package-size/customs input or carrier-label API. Tracking is entered by staff.
 
 ```typescript
 const prepared = await admin.eshop.fulfillment.create({
   fulfillment_id: savedFulfillmentId,
-  fulfillment_order_id: work.id,
+  fulfillment_job_id: work.id,
   lines: [{
-    fulfillment_order_line_id: work.lines[0].id,
+    fulfillment_job_line_id: work.lines[0].id,
     unit_spans: [{ first_unit: 0, quantity: 1 }],
     selected_units: [],
     lot_reference: "milk-batch-2026-09",
@@ -1270,25 +1546,24 @@ Collection sets `delivered_at` automatically. Neither tracking nor delivery-time
 again. Cancelling a preparation uses `execute` with `action: { type: "cancel" }` and frees its
 prepared positions while leaving the job's quantity hold in place.
 
-`fulfillment.find` takes exactly one `order_id`, `fulfillment_order_id` or `rental_id` scope and
+`fulfillment.find` takes exactly one `order_id`, `fulfillment_job_id` or `rental_id` scope and
 returns `{ items, cursor }`. `selectFulfillmentUnits` from `arky-sdk/utils` selects quantities from
 loaded work and its complete Fulfillment history, excluding executed units and active preparations.
 It returns empty `selected_units` for quantity-tracked goods. Individually tracked components need
 explicit `{ fulfillment_unit_index, inventory_unit_id }` bindings for the complete recipe.
 
-Use `fulfillmentOrder.unitSlots({ fulfillment_order_id, expected_updated_at: work.updated_at,
+Use `fulfillmentJob.unitSlots({ fulfillment_job_id, expected_updated_at: work.updated_at,
 lines })` for the exact Individual component slots. It returns the job line/index, Item/key and
 nullable allocated Unit without changing stock. Find Available Units at that warehouse, pass the
 chosen Unit's revision and exact job/line/index to `inventoryUnit.allocate`, and resolve again to
 show saved assignments after refresh. At most 100 physical component slots are resolved per request.
 Server admission rechecks the allocation and all current work before accepting a Fulfillment.
 
-A warehouse is run by staff or a FulfillmentPartner. Partner memberships and account API tokens
-see only their warehouses' operational work and stock. Partners accept, reject or hand back jobs
-through `fulfillmentOrder.controlPartner`, and use the same Fulfillment APIs to record goods leaving.
-A cancellation of accepted partner work stays pending until confirmation or dispatch. Pending
-Product lines retain `cancellation_command_id`, identifying the original Order request; rental-ending
-lines carry null. Confirmation applies only those still-pending units and preserves the requester.
+Returns get a destination: `Return.destination` is `undecided` or `decided` with a store location.
+`return.destinationOptions({ store_id, return_id })` suggests one; staff decide with the `decide`
+command (`{ type: "decide", store_location_id }`). A customer may choose the drop-off when
+requesting: storefront `eshop.return.create({ ..., destination_store_location_id })` names an active
+location with an address and starts the return `decided`; without it the return starts `undecided`.
 
 ## TypeScript
 
@@ -1359,30 +1634,49 @@ When adding SDK methods:
 
 ## Shared company and customer area
 
-A Store owner can enable the customer area in the Admin app. The public
+The Store owner can enable the customer area in the Admin app. The public
 `store.customerWorkspace.get({ id: storeId })` returns `store_id`, `store_name` and a publishable
-StorefrontClient binding for `/customer/{storeId}`. It grants no Account or Company authority. Store owners configure it with
+StorefrontClient binding for `/customer/{storeId}`. It grants no Account or Company authority. The Store owner configures it with
 `store.customerWorkspace.update({ id, expected_revision, customer_workspace })`; preserve the
 returned revision even when its binding is disabled.
 
 Company users sign in with normal Customer email proof. Use `companies.memberships` to page their
-memberships, `companies.access({ id })` for current permissions and branch scope, and
+memberships, `companies.access({ id })` for current permissions and branch reach, and
 `companies.locations({ company_id, limit, cursor })` for permitted branches. Orders and subscriptions
 accept `company_id` plus `company_location_id`; access is rechecked on primary records for every read.
-The `view_own_*` permissions retain the original purchaser restriction. `view_company_*` permissions
-allow the current authorized branch’s records. Customer groups determine catalog visibility without
-replacing Company membership or role checks.
+A member sees their own orders and subscriptions at a branch with `view_own_orders` and
+`view_own_subscriptions` there; `view_company_*` permissions allow the branch's other records.
+Catalog accesses determine catalog visibility without replacing Company membership or role checks.
 
 Purchases use the normal catalog, Cart review and acceptance flow. Each Company purchase names the
 chosen branch. Starting a package also needs `create_subscriptions`; saving its Company card needs
-`manage_payment_methods`. Fulfillment partners use Account sessions restricted to their assigned
-warehouses and operational work.
+`manage_payment_methods`, and controlling a Company subscription needs
+`manage_company_subscriptions`. Warehouse staff use Account sessions whose store roles reach their
+locations.
+
+`eshop.cart.repeat({ request_id, recovery_token, company_id, company_location_id })` starts a new
+Cart from an earlier branch order in that order's Catalog. It returns `{ cart, recovery_token,
+left_out }`; `left_out` lists the order lines the Catalog no longer lists or prices, or whose product
+is gone (`{ order_line_item_id, product_id, variant_id, quantity }`), so show them to the buyer.
+
+A first order may carry staff-reviewed offer terms. Staff review them with
+`admin.eshop.cart.reviewFirstOrderTerms`, seal them with `sealFirstOrderTerms`, and withdraw an
+unsealed review with `withdrawFirstOrderTerms({ store_id, id, version_id, expected_updated_at })`,
+which makes the Cart editable again. Each reviewed line keeps its Catalog `base_price`, the
+per-unit promotion discount as `rebate_per_unit` and `net_unit_price` = base − rebate (never below
+zero). A sealed offer changes only through a new superseding review.
+
+Notes on orders, customers and companies are `Note` records like submission notes:
+`admin.eshop.order.notes`, `admin.customers.notes` and `admin.companies.notes` each expose `find`,
+`create({ id, body })`, `update({ id, expected_updated_at, body })` and
+`delete({ id, expected_updated_at })` with the record's `order_id`, `customer_id` or `company_id`.
+Customers never see notes.
 
 `eshop.rental.find({ subscription_id, limit, cursor })` lists the authenticated customer’s permitted
 rental agreements. `eshop.return.orderOptions({ order_id })` and
 `eshop.return.rentalOptions({ rental_id, limit, cursor })` supply current returnable selections.
-Submit the explicit selected goods or machine through the normal return request command. Staff or
-an authorized fulfillment partner approves, receives and inspects returned stock.
+Submit the explicit selected goods or machine through the normal return request command. Staff
+approve, choose the destination, receive and inspect returned stock.
 
 Dedicated card setup can be mounted using `mountPaymentMethodSetup(start, element)` from
 `arky-sdk/storefront`; call the returned `confirm(returnUrl)` after consent and destroy it on unmount.

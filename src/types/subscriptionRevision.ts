@@ -163,6 +163,7 @@ export interface SubscriptionPlanChange {
   to_subscription_plan_id: string;
   rentals: SubscriptionRentalChange[];
   reason: string;
+  catalog_id?: string | null;
 }
 
 export interface ReviewSubscriptionPlanChangeParams {

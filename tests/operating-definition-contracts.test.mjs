@@ -10,7 +10,7 @@ const cursor = "opaque:page/+=binding";
 
 for (const definition of [
   { path: ["store", "paymentTerms"], route: "payment-terms", filters: {} },
-  { path: ["eshop", "fulfillmentRoutingPolicy"], route: "fulfillment-routing-policies", filters: { market_id: marketId, sales_channel_id: id } },
+  { path: ["eshop", "catalog"], route: "catalogs", filters: { market_id: marketId } },
   { path: ["store", "storefrontClient"], route: "storefront-clients", filters: { sales_channel_id: id } },
 ]) {
   test(`${definition.route} retains empty-page continuation and exact Store/filter binding`, async () => {

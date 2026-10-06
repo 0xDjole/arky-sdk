@@ -1,85 +1,51 @@
 import type { EpochMilliseconds } from "./time";
 
-export type FulfillmentRoutingStrategy =
-  | { type: "single_location" }
-  | { type: "minimize_splits" }
-  | { type: "split_by_priority" };
+export type RoutingCondition =
+  | { type: "markets"; market_ids: string[] }
+  | { type: "sales_channels"; sales_channel_ids: string[] }
+  | { type: "zones"; zone_ids: string[] }
+  | { type: "shipping_profiles"; shipping_profile_ids: string[] };
 
-export type FulfillmentRoutingPolicyEditableStatus =
-  | { type: "active" }
-  | { type: "archived" };
+export type RoutingConditionType = RoutingCondition["type"];
 
-export type FulfillmentRoutingPolicyStatus =
-  FulfillmentRoutingPolicyEditableStatus | { type: "deleting" };
+export type LocationPick = { type: "in_list_order" } | { type: "most_stock" };
 
-export interface FulfillmentRoutingLocation {
-  store_location_id: string;
-  priority: number;
+export type RoutingSplit = { type: "never" } | { type: "when_needed" };
+
+export type RoutingAssign =
+  | { type: "staff" }
+  | { type: "automatic"; pick: LocationPick; split: RoutingSplit };
+
+export interface RoutingTarget {
+  location_ids: string[];
+  assign: RoutingAssign;
 }
 
-export interface FulfillmentRoutingPolicy {
+export type RoutingRuleStatus = { type: "active" } | { type: "paused" };
+
+export interface RoutingRule {
   id: string;
-  store_id: string;
   key: string;
-  market_id: string;
-  sales_channel_id: string;
-  market_zone_id: string | null;
-  shipping_profile_id: string | null;
-  company_location_ids: string[];
-  strategy: FulfillmentRoutingStrategy;
-  locations: FulfillmentRoutingLocation[];
-  status: FulfillmentRoutingPolicyStatus;
+  conditions: RoutingCondition[];
+  target: RoutingTarget;
+  status: RoutingRuleStatus;
+}
+
+export interface FulfillmentRouting {
+  store_id: string;
+  rules: RoutingRule[];
+  otherwise: RoutingTarget;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export interface CreateFulfillmentRoutingPolicyParams {
+export interface GetFulfillmentRoutingParams {
   store_id: string;
-  key: string;
-  market_id: string;
-  sales_channel_id: string;
-  market_zone_id: string | null;
-  shipping_profile_id: string | null;
-  company_location_ids: string[];
-  strategy: FulfillmentRoutingStrategy;
-  locations: FulfillmentRoutingLocation[];
-  status: FulfillmentRoutingPolicyEditableStatus;
 }
 
-export interface UpdateFulfillmentRoutingPolicyParams {
+export interface UpdateFulfillmentRoutingParams {
   store_id: string;
-  id: string;
   expected_updated_at: EpochMilliseconds;
-  market_id: string;
-  sales_channel_id: string;
-  market_zone_id: string | null;
-  shipping_profile_id: string | null;
-  company_location_ids: string[];
-  strategy: FulfillmentRoutingStrategy;
-  locations: FulfillmentRoutingLocation[];
-  status: FulfillmentRoutingPolicyEditableStatus;
-}
-
-export interface GetFulfillmentRoutingPolicyParams {
-  store_id: string;
-  id: string;
-}
-
-export interface GetFulfillmentRoutingPolicyByKeyParams {
-  store_id: string;
-  key: string;
-}
-
-export interface FindFulfillmentRoutingPoliciesParams {
-  store_id: string;
-  market_id?: string;
-  sales_channel_id?: string;
-  limit?: number;
-  cursor?: string;
-}
-
-export interface DeleteFulfillmentRoutingPolicyParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
+  rules: RoutingRule[];
+  otherwise: RoutingTarget;
 }

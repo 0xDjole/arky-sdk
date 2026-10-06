@@ -4,6 +4,7 @@ import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
 import type {
   Price,
+  BatchPricesParams,
   CreatePriceParams,
   UpdatePriceParams,
   GetPriceParams,
@@ -53,6 +54,17 @@ export const createPriceApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<PaginatedResponse<Price>>(
         basePath(store_id),
         { ...options, params: query },
+      );
+    },
+    batch(
+      params: BatchPricesParams,
+      options?: RequestOptions,
+    ): Promise<Price[]> {
+      const { store_id, operations } = params;
+      return apiConfig.httpClient.post<Price[]>(
+        `${basePath(store_id)}/batch`,
+        { operations },
+        options,
       );
     },
     delete(

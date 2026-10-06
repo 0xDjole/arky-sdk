@@ -40,7 +40,7 @@ function cart() {
   return {
     id: cartId, store_id: STORE_ID, customer_id: "customer",
     company: { company_id: "company", company_location_id: "location" },
-    market_id: "market", sales_channel_id: "channel",
+    market_id: "market", catalog_id: "catalog", sales_channel_id: "channel",
     status: { type: "active" },
     origin: { type: "storefront", customer_id: "customer", customer_session_id: "session" },
     line_items: [{ type: "subscription_plan", id: planLineId, ...planSelection, price_override: null }],
@@ -119,6 +119,31 @@ test("Admin Cart commands preserve explicit context, null clears, empty families
   assert.equal(calls[3].url.pathname, `/v1/stores/${OTHER_STORE_ID}/carts`);
   assert.deepEqual(JSON.parse(calls[3].url.searchParams.get("statuses")), ["active"]);
   assert.deepEqual(JSON.parse(calls[3].url.searchParams.get("origins")), ["admin"]);
+});
+
+test("Admin Carts name an optional Catalog and may leave the channel to the Store default", async () => {
+  const calls = capture((call) => call.method === "POST" && call.url.pathname.endsWith("/carts")
+    ? { cart: cart(), recovery_token: "cart-recovery-token" } : call.url.pathname.endsWith("/orders/quote") ? quote() : cart());
+  const admin = createAdmin({ baseUrl: apiUrl, apiToken: "arky_api_cart", locale: "bs" });
+  await admin.eshop.cart.create({ store_id: STORE_ID, customer_id: "customer", market_id: "market" });
+  assert.deepEqual(calls[0].body, { customer_id: "customer", market_id: "market", line_items: [], delivery_groups: [] });
+  await admin.eshop.cart.create({ store_id: STORE_ID, customer_id: "customer", market_id: "market", sales_channel_id: "channel", catalog_id: "partner-catalog" });
+  assert.deepEqual(calls[1].body, { customer_id: "customer", market_id: "market", sales_channel_id: "channel", catalog_id: "partner-catalog", line_items: [], delivery_groups: [] });
+  await admin.eshop.cart.update({ store_id: STORE_ID, id: cartId, catalog_id: "partner-catalog" });
+  assert.deepEqual(calls[2].body, { catalog_id: "partner-catalog" });
+  assert.equal(calls[2].method, "PUT");
+  await admin.eshop.order.getQuote({ store_id: STORE_ID, customer_id: "customer", market: "bih", catalog_id: "partner-catalog", line_items: [] });
+  assert.deepEqual(calls[3].body, { locale: "bs", customer_id: "customer", market: "bih", catalog_id: "partner-catalog", line_items: [], delivery_groups: [] });
+  assert.equal("sales_channel_id" in calls[3].body, false);
+  assert.equal(cart().catalog_id, "catalog");
+});
+
+test("Storefront Cart updates may switch the Catalog", async () => {
+  const calls = capture(() => cart());
+  const client = createStorefront(publishableKey, { apiUrl, locale: "bs", market: "bih", sessionStorage: sessionStorage() });
+  await client.eshop.cart.update({ id: cartId, catalog_id: "partner-catalog", customer_id: "spoof" });
+  assert.equal(calls[0].url.pathname, `/v1/storefront/carts/${cartId}`);
+  assert.deepEqual(calls[0].body, { catalog_id: "partner-catalog" });
 });
 
 test("Cart discovery preserves combined predicates, ordering and empty-page continuation", async () => {

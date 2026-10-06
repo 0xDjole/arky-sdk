@@ -139,7 +139,6 @@ export interface StorefrontSubscriptionPlan {
   purchase_requirement: PurchaseRequirement | null;
   entitlements: StorefrontSubscriptionPlanEntitlement[];
   price: StorefrontPrice | null;
-  purchase_allowed: boolean;
 }
 
 export interface FindStorefrontSubscriptionPlansParams extends CatalogReadOptions {
@@ -148,7 +147,7 @@ export interface FindStorefrontSubscriptionPlansParams extends CatalogReadOption
   cursor?: string;
   query?: string;
   price_filter?: CatalogPriceFilter;
-  sort_field?: "key" | "created_at" | "price";
+  sort_field?: "key" | "created_at" | "price" | "catalog_order";
   sort_direction?: "asc" | "desc";
   created_at_from?: EpochMilliseconds;
   created_at_to?: EpochMilliseconds;

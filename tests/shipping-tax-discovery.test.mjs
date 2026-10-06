@@ -58,7 +58,6 @@ test('shipping-rate writes preserve explicit nulls, schedules, prices and revisi
 
 const owners = [
   ['marketZone','market-zones',{market_id:'market',zone_id:'zone'},'lookup'],
-  ['marketSalesChannel','market-sales-channels',{market_id:'market',sales_channel_id:'channel'},'lookup'],
   ['shippingMethod','shipping-methods',{key:'pickup',location_id:'location',tax_category_id:'category'},'Key'],
   ['shippingRate','shipping-rates',{market_zone_id:'assignment',shipping_method_id:'method',shipping_profile_id:'profile'},null],
   ['taxRule','tax-rules',{market_zone_id:'assignment',default_only:true},null],
@@ -94,7 +93,7 @@ for (const [owner,path,scope,exact] of owners) {
         await assert.rejects(api.find(filters),error=>error.statusCode===status);
         assert.equal(count,1);
       }
-      const remove=api[owner==='marketSalesChannel'?'remove':'delete'];
+      const remove=api.delete;
       globalThis.fetch=async()=>new Response(null,{status:204});
       assert.equal(await remove({store_id:STORE_ID,id:'record',expected_updated_at:1}),undefined);
       globalThis.fetch=async()=>new Response(JSON.stringify({id:'record',status:{type:'deleting'}}),{status:202,headers:{'content-type':'application/json'}});

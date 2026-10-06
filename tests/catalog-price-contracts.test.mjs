@@ -18,7 +18,7 @@ for (const owner of ["product", "digital", "bookingOffering"]) {
   test(`${owner} forwards explicit catalog context and retains only the server-selected price`, async () => {
     const calls = [];
     const originalFetch = globalThis.fetch;
-    const record = { id: "sellable", price: selectedPrice, purchase_allowed: true };
+    const record = { id: "sellable", price: selectedPrice };
     globalThis.fetch = async (url, init = {}) => {
       const parsed = new URL(url);
       calls.push({

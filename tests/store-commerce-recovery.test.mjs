@@ -15,14 +15,14 @@ const request = {
 };
 
 function store(commerce = { type: "uninitialized" }) {
-  return { id: storeId, name: "Contract Store", commerce };
+  return { id: storeId, name: "Contract Store", owner_account_id: otherId, commerce };
 }
 
 function receipt(payload, status = { type: "pending", last_error: null }) {
   return {
     id: payload.operation_id, store_id: storeId, account_id: otherId, request: payload.request,
     request_fingerprint: "sha256-v1:contract", market_id: otherId, sales_channel_id: otherId,
-    market_sales_channel_id: otherId, assortment_id: otherId, catalog_id: otherId, status,
+    catalog_id: otherId, status,
     created_at: 1789970000000, updated_at: 1789970000000,
   };
 }

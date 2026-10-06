@@ -2,14 +2,14 @@ import type { AccountActor } from "./accountActor";
 import type { EpochMilliseconds } from "./time";
 
 export interface InventoryUnitAllocation {
-  fulfillment_order_id: string;
-  fulfillment_order_line_id: string;
+  fulfillment_job_id: string;
+  fulfillment_job_line_id: string;
   fulfillment_unit_index: number;
 }
 
 export interface InventoryUnitExecution {
-  fulfillment_order_id: string;
-  fulfillment_order_line_id: string;
+  fulfillment_job_id: string;
+  fulfillment_job_line_id: string;
   fulfillment_unit_index: number;
   fulfillment_id: string;
   executed_at: EpochMilliseconds;
@@ -69,8 +69,8 @@ export interface ReceiveInventoryUnitParams {
 }
 
 export interface AllocateInventoryUnitParams extends GetInventoryUnitParams {
-  fulfillment_order_id: string;
-  fulfillment_order_line_id: string;
+  fulfillment_job_id: string;
+  fulfillment_job_line_id: string;
   fulfillment_unit_index: number;
   expected_updated_at: EpochMilliseconds;
 }

@@ -10,22 +10,19 @@ export interface SalesChannel {
   store_id: string;
   key: string;
   name: string;
+  market_ids: string[];
   status: SalesChannelStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
 export interface SalesChannelUsage {
-  market_sales_channel_ids: string[];
-  more_market_sales_channels: boolean;
   storefront_client_ids: string[];
   more_storefront_clients: boolean;
-  fulfillment_routing_policy_ids: string[];
-  more_fulfillment_routing_policies: boolean;
+  catalog_access_ids: string[];
+  more_catalog_accesses: boolean;
   shipping_rate_ids: string[];
   more_shipping_rates: boolean;
-  catalog_entitlement_ids: string[];
-  more_catalog_entitlements: boolean;
   cart_ids: string[];
   more_carts: boolean;
   is_default: boolean;
@@ -35,6 +32,7 @@ export interface CreateSalesChannelParams {
   store_id: string;
   key: string;
   name: string;
+  market_ids: string[];
   status: SalesChannelEditableStatus;
 }
 
@@ -48,6 +46,7 @@ export interface UpdateSalesChannelParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   name: string;
+  market_ids: string[];
   status: SalesChannelEditableStatus;
   replacement_default_sales_channel_id?: string;
 }

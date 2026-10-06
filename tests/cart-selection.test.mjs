@@ -20,7 +20,7 @@ function session(customerId = "customer-a") {
 function cart(overrides = {}) {
   return {
     id: cartId, customer_id: "customer-a", company: null,
-    market_id: "market-a", sales_channel_id: "channel-a", status: { type: "active" },
+    market_id: "market-a", catalog_id: "catalog-a", sales_channel_id: "channel-a", status: { type: "active" },
     origin: { type: "storefront", customer_id: "customer-a", customer_session_id: "session-customer-a" },
     line_items: [], delivery_groups: [], billing_address: null, promotion_code_ids: [],
     purchase_order_number: null, item_count: 0, last_action_at: 1, abandoned_at: null, created_at: 1, updated_at: 1,
@@ -240,4 +240,58 @@ test("a failed selection save retries persistence and exact reading without repo
   assert.equal((await active.eshop.cart.current()).id, cartId);
   assert.equal(calls.filter((call) => call.method === "POST").length, 1);
   assert.equal(calls.filter((call) => call.method === "GET").length, 1);
+});
+
+test("a named Catalog creates and retains its own Cart next to the Cart created without one", async () => {
+  const carts = new Map();
+  let next = 0;
+  const { client, calls, storage } = setup((call) => {
+    if (call.method === "POST") {
+      const value = cart({ id: `cart-${++next}`, catalog_id: call.body.catalog_id ?? "public-catalog" });
+      carts.set(value.id, value);
+      return receipt(value);
+    }
+    return Response.json(carts.get(call.path.split("/").at(-1)));
+  });
+  const publicCart = await client().eshop.cart.current();
+  const partnerCart = await client().eshop.cart.current({ catalog_id: "partner-catalog" });
+  assert.equal(publicCart.catalog_id, "public-catalog");
+  assert.equal(partnerCart.catalog_id, "partner-catalog");
+  assert.notEqual(publicCart.id, partnerCart.id);
+  assert.deepEqual(calls.filter((call) => call.method === "POST").map((call) => call.body), [{}, { catalog_id: "partner-catalog" }]);
+  assert.deepEqual(await client().eshop.cart.current({ catalog_id: "partner-catalog" }), partnerCart);
+  assert.deepEqual(await client().eshop.cart.current(), publicCart);
+  assert.equal(calls.filter((call) => call.method === "POST").length, 2);
+  const keys = [...storage.values.keys()].filter((key) => key.startsWith("arky:selected-cart:"));
+  assert.equal(keys.length, 2);
+  assert.ok(keys.some((key) => key.endsWith(":partner-catalog")));
+  assert.ok(keys.some((key) => key.endsWith(":")));
+});
+
+test("explicit creation sends the named Catalog with the Company context", async () => {
+  const company = { company_id: "company-a", company_location_id: "branch-a" };
+  const { client, calls } = setup((call) => receipt(cart({ company, catalog_id: call.body.catalog_id })));
+  const created = await client().eshop.cart.create({ company, catalog_id: "partner-catalog" });
+  assert.equal(created.cart.catalog_id, "partner-catalog");
+  assert.deepEqual(calls[0].body, { company, catalog_id: "partner-catalog" });
+});
+
+test("a selected Cart in another Catalog than the one named is refused without replacing the selection", async () => {
+  const { client, calls, storage } = setup((call) => call.method === "POST"
+    ? receipt(cart({ catalog_id: "partner-catalog" }))
+    : Response.json(cart({ catalog_id: "other-catalog" })));
+  await client().eshop.cart.current({ catalog_id: "partner-catalog" });
+  const retained = [...storage.values];
+  await assert.rejects(client().eshop.cart.current({ catalog_id: "partner-catalog" }), /different Catalog/);
+  assert.deepEqual([...storage.values], retained);
+  assert.equal(calls.filter((call) => call.method === "POST").length, 1);
+});
+
+test("a created Cart in another Catalog, or without one, is never selected", async () => {
+  const wrong = setup(() => receipt(cart({ catalog_id: "other-catalog" })));
+  await assert.rejects(wrong.client().eshop.cart.current({ catalog_id: "partner-catalog" }), /different Catalog/);
+  assert.equal([...wrong.storage.values.keys()].filter((key) => key.startsWith("arky:selected-cart:")).length, 0);
+  const missing = setup(() => receipt(cart({ catalog_id: undefined })));
+  await assert.rejects(missing.client().eshop.cart.current(), /does not name the Cart's Catalog/);
+  assert.equal([...missing.storage.values.keys()].filter((key) => key.startsWith("arky:selected-cart:")).length, 0);
 });

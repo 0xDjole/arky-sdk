@@ -6,20 +6,17 @@ import type { EpochMilliseconds } from "./time";
 export type PriceEditableStatus = { type: "active" } | { type: "archived" };
 export type PriceStatus = PriceEditableStatus | { type: "deleting" };
 
-export type PriceScope =
-  | { type: "base" }
-  | { type: "price_list"; price_list_id: string };
-
 export interface Price {
   id: string;
   store_id: string;
+  catalog_id: string;
   sellable: SellableRef;
-  scope: PriceScope;
-  currency: Currency;
   amount: number;
   compare_at: number | null;
   min_quantity: number;
   max_quantity: number | null;
+  starts_at: EpochMilliseconds | null;
+  ends_at: EpochMilliseconds | null;
   status: PriceStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -41,13 +38,14 @@ export interface ManualPrice {
 
 export interface CreatePriceParams {
   store_id: string;
+  catalog_id: string;
   sellable: SellableRef;
-  scope: PriceScope;
-  currency: Currency;
   amount: number;
   compare_at: number | null;
   min_quantity: number;
   max_quantity: number | null;
+  starts_at: EpochMilliseconds | null;
+  ends_at: EpochMilliseconds | null;
   status: PriceEditableStatus;
 }
 
@@ -62,6 +60,8 @@ export interface UpdatePriceParams extends GetPriceParams {
   compare_at: number | null;
   min_quantity: number;
   max_quantity: number | null;
+  starts_at: EpochMilliseconds | null;
+  ends_at: EpochMilliseconds | null;
   status: PriceEditableStatus;
 }
 
@@ -70,14 +70,22 @@ export interface DeletePriceParams extends GetPriceParams {
 }
 
 export interface FindPricesParams {
+  store_id: string;
+  catalog_id?: string;
+  sellable?: SellableRef;
   status?: PriceStatus["type"];
-  currency?: Currency;
-  base_only?: boolean;
   sort_field?: "created_at" | "updated_at";
   sort_direction?: "asc" | "desc";
-  store_id: string;
   limit?: number;
   cursor?: string;
-  price_list_id?: string;
-  sellable?: SellableRef;
+}
+
+export type PriceBatchOperation =
+  | ({ type: "create" } & Omit<CreatePriceParams, "store_id">)
+  | ({ type: "update" } & Omit<UpdatePriceParams, "store_id">)
+  | { type: "delete"; id: string; expected_updated_at: EpochMilliseconds };
+
+export interface BatchPricesParams {
+  store_id: string;
+  operations: PriceBatchOperation[];
 }

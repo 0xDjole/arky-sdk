@@ -72,6 +72,7 @@ function cartSnapshot(itemCount = 0, lineItems = []) {
       customer_session_id: "customer-session-contract",
     },
     market_id: "market-ita",
+    catalog_id: "catalog-ita",
     line_items: lineItems,
     delivery_groups: [],
     billing_address: null,

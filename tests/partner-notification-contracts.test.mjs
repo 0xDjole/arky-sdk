@@ -8,9 +8,13 @@ const storeId = "3b21b61d-7162-414c-a73a-888ccbc57c3e";
 const id = "d65211c1-743f-45fb-ab24-07221b1e3a7c";
 const requestId = "41d550d0-387b-4f24-b17a-87992ebcb3f9";
 
-test("first-order review and sealing retain explicit terms while repeat uses current storefront scope", async (context) => {
+test("first-order review, sealing and withdrawal retain explicit terms while repeat uses current storefront scope", async (context) => {
   const calls = [];
-  const created = { cart: { id, first_order_terms: null, repeat_order_source: null }, recovery_token: requestId };
+  const created = {
+    cart: { id, catalog_id: requestId, first_order_terms: null, repeat_order_source: null },
+    recovery_token: requestId,
+    left_out: [{ order_line_item_id: id, product_id: requestId, variant_id: id, quantity: 2 }],
+  };
   context.mock.method(globalThis, "fetch", async (input, options) => {
     calls.push({ url: new URL(input.toString()), method: options.method, body: options.body && JSON.parse(options.body), headers: new Headers(options.headers) });
     return Response.json(created);
@@ -24,6 +28,11 @@ test("first-order review and sealing retain explicit terms while repeat uses cur
   await api.eshop.cart.sealFirstOrderTerms({ store_id: storeId, id, ...seal });
   assert.equal(calls[1].url.pathname, `/v1/stores/${storeId}/carts/${id}/first-order-terms/seal`);
   assert.deepEqual(calls[1].body, seal);
+  await api.eshop.cart.withdrawFirstOrderTerms({ store_id: storeId, id, version_id: id, expected_updated_at: 125 });
+  assert.equal(calls[2].url.pathname, `/v1/stores/${storeId}/carts/${id}/first-order-terms/withdraw`);
+  assert.equal(calls[2].method, "POST");
+  assert.deepEqual(calls[2].body, { version_id: id, expected_updated_at: 125 });
+  calls.splice(2, 1);
   const token = `customer_visitor_${"r".repeat(64)}`;
   const sessionStorage = storefrontSessionStorage(JSON.stringify({
     version: 2,
@@ -40,7 +49,7 @@ test("first-order review and sealing retain explicit terms while repeat uses cur
   assert.equal(calls[2].headers.get("authorization"), `Bearer ${token}`);
 });
 
-test("reservation and private Form processing preserve explicit scope and decision evidence", async (context) => {
+test("reservation and Form stage changes preserve explicit scope and revision evidence", async (context) => {
   const calls = [];
   const response = { customer: { id }, identity: { id, email_claim: { type: "reserved", reserved_at: 1 } } };
   context.mock.method(globalThis, "fetch", async (input, options) => {
@@ -52,38 +61,39 @@ test("reservation and private Form processing preserve explicit scope and decisi
   assert.equal(calls[0].url.pathname, `/v1/stores/${storeId}/customers/resolve-or-reserve`);
   assert.equal(calls[0].method, "POST");
   assert.deepEqual(calls[0].body, { email: "partner@example.test", customer_id: id });
-  const decision = { type: "rejected", reason: "Missing branch details", note: null, expected_processed_at: 123 };
-  await api.forms.processSubmission({ store_id: storeId, form_id: id, id: requestId, ...decision });
-  assert.equal(calls[1].url.pathname, `/v1/stores/${storeId}/forms/${id}/submissions/${requestId}/process`);
-  assert.deepEqual(calls[1].body, decision);
+  const change = { to_stage_id: "reviewed", expected_stage_id: "new", expected_changed_at: 123 };
+  await api.forms.changeSubmissionStage({ store_id: storeId, form_id: id, id: requestId, ...change });
+  assert.equal(calls[1].url.pathname, `/v1/stores/${storeId}/forms/${id}/submissions/${requestId}/stage`);
+  assert.deepEqual(calls[1].body, change);
+  assert.equal("processSubmission" in api.forms, false);
 });
 
-test("Notification configuration and delivery history transport only their public contracts", async (context) => {
+test("message delivery history and template preview transport only their public contracts", async (context) => {
   const calls = [];
   context.mock.method(globalThis, "fetch", async (input, options) => {
     calls.push({ url: new URL(input.toString()), method: options.method, body: options.body && JSON.parse(options.body), headers: new Headers(options.headers) });
     return Response.json(options.method === "GET" ? { items: [], cursor: "opaque:+/=" } : { id });
   });
   const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "contract" });
-  const config = { key: "partner-access", name: null, purpose: { type: "partner_access" }, recipient: { type: "prepared_customer" }, channel: { type: "email", sender: { type: "platform" }, template_id: requestId }, active: true, expected_updated_at: null };
-  await api.notification.save({ store_id: storeId, id, ...config });
-  assert.equal(calls[0].method, "PUT");
-  assert.equal(calls[0].url.pathname, `/v1/stores/${storeId}/notifications/${id}`);
-  assert.deepEqual(calls[0].body, config);
   const signal = new AbortController().signal;
-  await api.notification.delivery.find({ store_id: storeId, limit: 25, cursor: "opaque:+/=" }, { signal, headers: { "x-request-trace": "delivery-contract" } });
-  assert.equal(calls[1].url.pathname, `/v1/stores/${storeId}/notification-deliveries`);
-  assert.equal(calls[1].url.searchParams.get("cursor"), "opaque:+/=");
-  assert.equal(calls[1].url.searchParams.get("limit"), "25");
-  assert.equal(calls[1].url.searchParams.has("store_id"), false);
-  assert.equal(calls[1].body, undefined);
-  assert.equal(calls[1].headers.get("x-request-trace"), "delivery-contract");
-  await api.notification.preview({ store_id: storeId, id, data: { customer: { id } } });
-  assert.equal(calls[2].url.pathname, `/v1/stores/${storeId}/notifications/${id}/preview`);
-  assert.deepEqual(calls[2].body, { data: { customer: { id } } });
+  await api.notification.delivery.find({ store_id: storeId, automation_id: id, limit: 25, cursor: "opaque:+/=" }, { signal, headers: { "x-request-trace": "delivery-contract" } });
+  assert.equal(calls[0].url.pathname, `/v1/stores/${storeId}/message-deliveries`);
+  assert.equal(calls[0].url.searchParams.get("cursor"), "opaque:+/=");
+  assert.equal(calls[0].url.searchParams.get("limit"), "25");
+  assert.equal(calls[0].url.searchParams.get("automation_id"), id);
+  assert.equal(calls[0].url.searchParams.has("store_id"), false);
+  assert.equal(calls[0].body, undefined);
+  assert.equal(calls[0].headers.get("x-request-trace"), "delivery-contract");
+  const preview = { language: "bs", content: { subject: "Narudzba {{order.number}}", preheader: null, body: "<p>{{order.number}}</p>" }, vars: { order: { number: "1001" } } };
+  await api.notification.template.preview({ store_id: storeId, id, ...preview });
+  assert.equal(calls[1].url.pathname, `/v1/stores/${storeId}/email-templates/${id}/preview`);
+  assert.deepEqual(calls[1].body, preview);
   await api.notification.delivery.stop({ store_id: storeId, id, expected_updated_at: 123 });
-  assert.equal(calls[3].url.pathname, `/v1/stores/${storeId}/notification-deliveries/${id}/stop`);
-  assert.deepEqual(calls[3].body, { expected_updated_at: 123 });
+  assert.equal(calls[2].url.pathname, `/v1/stores/${storeId}/message-deliveries/${id}/stop`);
+  assert.deepEqual(calls[2].body, { expected_updated_at: 123 });
+  for (const removed of ["save", "get", "find", "preview"]) {
+    assert.equal(removed in api.notification, false);
+  }
 });
 
 test("requirement amendments and branch minimum reads use the owning routes", async (context) => {

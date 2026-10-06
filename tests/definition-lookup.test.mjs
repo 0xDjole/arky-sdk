@@ -34,7 +34,7 @@ test("known commerce definitions use exact key/binding reads without discovery o
   };
   try {
     const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop;
-    for (const owner of [api.product, api.bookingService, api.bookingResource, api.fulfillmentRoutingPolicy]) {
+    for (const owner of [api.product, api.bookingService, api.bookingResource, api.catalog]) {
       assert.equal((await owner.getByKey({ store_id: STORE_ID, key: "demo-key" })).id, "retained");
     }
     await api.bookingOffering.lookup({ store_id: STORE_ID, booking_service_id: "service", booking_resource_id: "resource" });
@@ -42,7 +42,7 @@ test("known commerce definitions use exact key/binding reads without discovery o
       `/v1/stores/${STORE_ID}/products/by-key/demo-key`,
       `/v1/stores/${STORE_ID}/booking-services/by-key/demo-key`,
       `/v1/stores/${STORE_ID}/booking-resources/by-key/demo-key`,
-      `/v1/stores/${STORE_ID}/fulfillment-routing-policies/by-key/demo-key`,
+      `/v1/stores/${STORE_ID}/catalogs/by-key/demo-key`,
       `/v1/stores/${STORE_ID}/booking-offerings/lookup`,
     ]);
     assert.ok(calls.every(({ method }) => method === "GET"));
@@ -53,12 +53,33 @@ test("known commerce definitions use exact key/binding reads without discovery o
         count += 1;
         return new Response(JSON.stringify({ message: "lookup failed" }), { status, headers: { "content-type": "application/json" } });
       };
-      for (const owner of [api.product, api.bookingService, api.bookingResource, api.fulfillmentRoutingPolicy]) {
+      for (const owner of [api.product, api.bookingService, api.bookingResource, api.catalog]) {
         await assert.rejects(owner.getByKey({ store_id: STORE_ID, key: "demo-key" }), (error) => error.statusCode === status);
       }
       await assert.rejects(api.bookingOffering.lookup({ store_id: STORE_ID, booking_service_id: "service", booking_resource_id: "resource" }), (error) => error.statusCode === status);
       assert.equal(count, 5);
     }
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("a known booking offering is read by its exact id for catalog price labels", async () => {
+  const original = globalThis.fetch;
+  const calls = [];
+  const offering = { id: "offering/one", booking_service_id: "service", booking_resource_id: "resource", status: { type: "active" } };
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: new URL(url), method: init.method });
+    return new Response(JSON.stringify(offering), { headers: { "content-type": "application/json" } });
+  };
+  try {
+    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop;
+    assert.deepEqual(await api.bookingOffering.get({ store_id: STORE_ID, id: "offering/one" }), offering);
+    assert.deepEqual(calls.map(({ url, method }) => [method, url.pathname, url.search]), [
+      ["GET", `/v1/stores/${STORE_ID}/booking-offerings/offering%2Fone`, ""],
+    ]);
+    await assert.rejects(async () => api.bookingOffering.get({ id: "offering/one" }), TypeError);
+    assert.equal(calls.length, 1);
   } finally {
     globalThis.fetch = original;
   }

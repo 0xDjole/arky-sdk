@@ -34,8 +34,8 @@ export interface Company {
 }
 
 export interface CompanyUsage {
-  catalog_entitlement_ids: string[];
-  more_catalog_entitlements: boolean;
+  catalog_access_ids: string[];
+  more_catalog_accesses: boolean;
   cart_ids: string[];
   more_carts: boolean;
   membership_ids: string[];
@@ -87,6 +87,6 @@ export interface FindCompaniesParams {
 
 export interface CompanyCustomerAccess {
   company: Company;
-  scope: import("./companyMembership").CompanyMembershipScope;
+  locations: import("./companyMembership").CompanyLocationReach;
   permissions: import("./companyRole").CompanyPermission[];
 }

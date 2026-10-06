@@ -1,4 +1,5 @@
 import { requireStoreId } from "../utils/storeTarget";
+import { requireRequestId } from "../utils/requestId";
 import type { ApiConfig } from "../services/clientTypes";
 import type {
   CreateEmailTemplateParams,
@@ -8,9 +9,11 @@ import type {
   GetEmailTemplatesParams,
   PreviewEmailTemplateParams,
   PreviewEmailTemplateResponse,
+  SendEmailTemplateTestParams,
   RequestOptions,
 } from "../types/api";
 import type { EmailTemplate } from "../types";
+import type { MessageDelivery } from "../types/messageDelivery";
 
 export const createEmailTemplateApi = (apiConfig: ApiConfig) => {
   return {
@@ -28,7 +31,7 @@ export const createEmailTemplateApi = (apiConfig: ApiConfig) => {
       const { store_id, id, ...payload } = params;
       const target_store_id = requireStoreId(store_id);
       return apiConfig.httpClient.put<EmailTemplate>(
-        `/v1/stores/${requireStoreId(target_store_id)}/email-templates/${params.id}`,
+        `/v1/stores/${requireStoreId(target_store_id)}/email-templates/${encodeURIComponent(id)}`,
         payload,
         options
       );
@@ -44,19 +47,20 @@ export const createEmailTemplateApi = (apiConfig: ApiConfig) => {
 
     async getEmailTemplate(params: GetEmailTemplateParams, options?: RequestOptions): Promise<EmailTemplate> {
       const target_store_id = requireStoreId(params.store_id);
-      let identifier: string;
       if (params.id) {
-        identifier = params.id;
-      } else if (params.key) {
-        identifier = `${target_store_id}:${params.key}`;
-      } else {
-        throw new Error("GetEmailTemplateParams requires id or key");
+        return apiConfig.httpClient.get<EmailTemplate>(
+          `/v1/stores/${target_store_id}/email-templates/${encodeURIComponent(params.id)}`,
+          options
+        );
       }
-
-      return apiConfig.httpClient.get<EmailTemplate>(
-        `/v1/stores/${requireStoreId(target_store_id)}/email-templates/${encodeURIComponent(identifier)}`,
-        options
+      if (!params.key) throw new Error("GetEmailTemplateParams requires id or key");
+      const page = await apiConfig.httpClient.get<{ items: EmailTemplate[]; cursor: string | null }>(
+        `/v1/stores/${target_store_id}/email-templates`,
+        { ...options, params: { key: params.key, limit: 1 } }
       );
+      const template = page.items.find((item) => item.key === params.key);
+      if (!template) throw new Error(`Email template '${params.key}' was not found`);
+      return template;
     },
 
     async getEmailTemplates(params: GetEmailTemplatesParams, options?: RequestOptions): Promise<{ items: EmailTemplate[]; cursor: string | null }> {
@@ -77,6 +81,17 @@ export const createEmailTemplateApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<PreviewEmailTemplateResponse>(
         `/v1/stores/${requireStoreId(target_store_id)}/email-templates/${id}/preview`,
         payload,
+        options
+      );
+    },
+
+    async sendEmailTemplateTest(params: SendEmailTemplateTestParams, options?: RequestOptions): Promise<MessageDelivery> {
+      const { store_id, id, request_id, language, sender } = params;
+      const target_store_id = requireStoreId(store_id);
+      requireRequestId(request_id);
+      return apiConfig.httpClient.post<MessageDelivery>(
+        `/v1/stores/${target_store_id}/email-templates/${encodeURIComponent(id)}/test`,
+        { request_id, language: language ?? null, sender },
         options
       );
     },

@@ -302,10 +302,10 @@ test("the exact saved Fulfillment request survives a changed selection and can b
   const storageKey = "arky:fulfillment:store-1:order-1";
   const originalRequest = {
     fulfillment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-    fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
+    fulfillment_job_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
     lines: [
       {
-        fulfillment_order_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
+        fulfillment_job_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
         unit_spans: [{ first_unit: 0, quantity: 2 }],
         selected_units: [],
         lot_reference: "batch-42",

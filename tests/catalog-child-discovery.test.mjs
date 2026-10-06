@@ -6,9 +6,9 @@ const STORE_ID = '8e5d1f60-3a2c-4b7e-9f18-6c4a2d0b7e95';
 
 const sellable = { type: 'product_variant', product_id: 'product', variant_id: 'variant' };
 for (const [owner, path, filters] of [
-  ['price', 'prices', { sellable, price_list_id: 'list', currency: 'eur', status: 'active', sort_field: 'updated_at', sort_direction: 'asc' }],
-  ['assortmentItem', 'assortment-items', { sellable, assortment_id: 'assortment' }],
-  ['catalogEntitlement', 'catalog-entitlements', { catalog_id: 'catalog', status: 'deleting', sort_field: 'created_at', sort_direction: 'desc' }],
+  ['price', 'prices', { catalog_id: 'catalog', sellable, status: 'active', sort_field: 'updated_at', sort_direction: 'asc' }],
+  ['catalogItem', 'catalog-items', { catalog_id: 'catalog', item: { type: 'product', product_id: 'product' } }],
+  ['catalogAccess', 'catalog-accesses', { catalog_id: 'catalog', sort_field: 'created_at', sort_direction: 'desc' }],
 ]) {
   test(`${owner} keeps native filters, empty continuation, and read failures`, async () => {
     const original = globalThis.fetch;
@@ -28,10 +28,10 @@ for (const [owner, path, filters] of [
         assert.equal(calls[0].url.searchParams.get(key), typeof value === 'object' ? JSON.stringify(value) : String(value));
       }
       if (owner === 'price') {
-        await api.find({ store_id: STORE_ID, base_only: true, currency: 'usd' });
+        await api.find({ store_id: STORE_ID, catalog_id: 'catalog' });
         assert.equal(calls[1].url.pathname, `/v1/stores/${STORE_ID}/prices`);
-        assert.equal(calls[1].url.searchParams.get('base_only'), 'true');
-        assert.equal(calls[1].url.searchParams.has('price_list_id'), false);
+        assert.equal(calls[1].url.searchParams.get('catalog_id'), 'catalog');
+        assert.equal(calls[1].url.searchParams.has('sellable'), false);
       }
       for (const status of [403, 409, 503]) {
         let count = 0;

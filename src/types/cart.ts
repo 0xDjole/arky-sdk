@@ -29,6 +29,19 @@ export interface CreatedCart {
   recovery_token: string;
 }
 
+export interface RepeatLeftOutLine {
+  order_line_item_id: string;
+  product_id: string;
+  variant_id: string;
+  quantity: number;
+}
+
+export interface RepeatedCart {
+  cart: Cart;
+  recovery_token: string;
+  left_out: RepeatLeftOutLine[];
+}
+
 export type CartLineItem =
   | { type: "product"; } & CartProductItem
   | { type: "booking"; } & CartBookingItem
@@ -44,6 +57,7 @@ export interface Cart {
   status: CartStatus;
   origin: PurchaseOrigin;
   market_id: string;
+  catalog_id: string;
   line_items: CartLineItem[];
   delivery_groups: CartDeliveryGroup[];
   billing_address: Address | null;

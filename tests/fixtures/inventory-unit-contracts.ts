@@ -6,7 +6,7 @@ import type { FulfillmentUnitSlots, ResolveFulfillmentUnitSlotsParams } from "ar
 type Same<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false;
 type True<T extends true> = T;
 type Api = ReturnType<typeof createAdmin>["eshop"]["inventoryUnit"];
-type WorkApi = ReturnType<typeof createAdmin>["eshop"]["fulfillmentOrder"];
+type WorkApi = ReturnType<typeof createAdmin>["eshop"]["fulfillmentJob"];
 
 export type UnitContract = [
   True<Same<Awaited<ReturnType<WorkApi["unitSlots"]>>, FulfillmentUnitSlots>>,
@@ -20,7 +20,7 @@ export type UnitContract = [
   True<Same<Awaited<ReturnType<Api["execution"]>>, InventoryUnitExecution | null>>,
   True<Same<InventoryUnitStatus["type"], "available" | "allocated" | "issued" | "rented" | "inspection" | "written_off">>,
   True<Same<keyof Extract<InventoryUnitStatus, { type: "inspection" }>, "type" | "store_location_id" | "return_id" | "received_at">>,
-  True<Same<keyof InventoryUnitExecution, "fulfillment_order_id" | "fulfillment_order_line_id" | "fulfillment_unit_index" | "fulfillment_id" | "executed_at">>,
+  True<Same<keyof InventoryUnitExecution, "fulfillment_job_id" | "fulfillment_job_line_id" | "fulfillment_unit_index" | "fulfillment_id" | "executed_at">>,
   True<Same<Parameters<Api["move"]>[0], MoveInventoryUnitParams>>,
   True<Same<Parameters<Api["writeOff"]>[0], WriteOffInventoryUnitParams>>,
   True<{} extends Pick<ReceiveInventoryUnitParams, "manufacturer_serial"> ? false : true>,

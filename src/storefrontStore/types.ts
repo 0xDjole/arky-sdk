@@ -116,6 +116,7 @@ export interface ArkyCartInput {
   company?: CartCompanyContext | null;
   market_id?: string;
   sales_channel_id?: string;
+  catalog_id?: string;
   delivery_groups?: CartDeliveryGroup[];
   shipping_address?: Address | null;
   billing_address?: Address | null;

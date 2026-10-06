@@ -250,13 +250,29 @@ function buildFormField(field: FormSchema | FormPresentedSchema, value: FormValu
       }
       return { ...common, type: "select", value: selected };
     }
+    case "file": {
+      if (
+        !Array.isArray(value) ||
+        value.some((item) => typeof item !== "string" || item.trim().length === 0)
+      ) {
+        throw formValueError(field, "expected a list of media ids");
+      }
+      const mediaIds = value as string[];
+      if (field.required && mediaIds.length === 0)
+        throw formValueError(field, "at least one file is required");
+      if (new Set(mediaIds).size !== mediaIds.length)
+        throw formValueError(field, "contains a duplicate file");
+      if (mediaIds.length > field.max_files)
+        throw formValueError(field, `allows at most ${field.max_files} files`);
+      return { ...common, type: "file", media_ids: mediaIds };
+    }
   }
 }
 
 function isEmptyOptionalValue(field: FormSchema | FormPresentedSchema, value: FormValue): boolean {
   if (field.required) return false;
   if (field.type === "text") return value === "";
-  if (field.type === "select")
+  if (field.type === "select" || field.type === "file")
     return Array.isArray(value) && value.length === 0;
   if (field.type === "geo_location") {
     return Boolean(
@@ -310,7 +326,7 @@ export function getFormBlockType(field: FormSchema | FormPresentedSchema): strin
 
 export function getFormBlockValue(field: FormSchema | FormPresentedSchema): FormValue | undefined {
   if (field.type === "boolean") return false;
-  if (field.type === "select") return [];
+  if (field.type === "select" || field.type === "file") return [];
   if (field.type === "geo_location") return {};
   if (field.type === "number" || field.type === "date") return undefined;
   return "";
@@ -320,6 +336,7 @@ export function formSchemaToBlock(field: FormSchema | FormPresentedSchema): Form
   const min = field.type === "number" ? field.min : undefined;
   const max = field.type === "number" ? field.max : undefined;
   const options = field.type === "select" ? field.options : undefined;
+  const maxFiles = field.type === "file" ? field.max_files : undefined;
   return {
     id: field.id,
     key: field.key,
@@ -330,6 +347,7 @@ export function formSchemaToBlock(field: FormSchema | FormPresentedSchema): Form
       min,
       max,
       options,
+      maxFiles,
       pattern:
         field.key === "email"
           ? "^.+@.+\\..+$"

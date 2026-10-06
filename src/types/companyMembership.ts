@@ -5,9 +5,9 @@ export type CompanyMembershipEditableStatus =
 export type CompanyMembershipStatus =
   CompanyMembershipEditableStatus | { type: "deleting" };
 
-export type CompanyMembershipScope =
-  | { type: "company_wide" }
-  | { type: "locations"; company_location_ids: string[] };
+export type CompanyLocationReach =
+  | { type: "everywhere" }
+  | { type: "only"; company_location_ids: string[] };
 
 export interface CompanyMembership {
   id: string;
@@ -15,7 +15,7 @@ export interface CompanyMembership {
   company_id: string;
   customer_id: string;
   role_ids: string[];
-  scope: CompanyMembershipScope;
+  locations: CompanyLocationReach;
   status: CompanyMembershipStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -26,7 +26,7 @@ export interface CreateCompanyMembershipParams {
   company_id: string;
   customer_id: string;
   role_ids: string[];
-  scope: CompanyMembershipScope;
+  locations: CompanyLocationReach;
 }
 
 export interface GetCompanyMembershipParams {
@@ -39,7 +39,7 @@ export interface UpdateCompanyMembershipParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   role_ids: string[];
-  scope: CompanyMembershipScope;
+  locations: CompanyLocationReach;
   status: CompanyMembershipEditableStatus;
 }
 

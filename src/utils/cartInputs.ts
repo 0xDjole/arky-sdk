@@ -94,6 +94,7 @@ export function sanitizePublicCartUpdate(input: StorefrontUpdateCartParams): Sto
     } } : {}),
     ...(input.market_id !== undefined ? { market_id: input.market_id } : {}),
     ...(input.sales_channel_id !== undefined ? { sales_channel_id: input.sales_channel_id } : {}),
+    ...(input.catalog_id !== undefined ? { catalog_id: input.catalog_id } : {}),
     ...(input.line_items !== undefined ? { line_items: sanitizePublicCartLineItems(input.line_items) } : {}),
     ...(input.delivery_groups !== undefined ? { delivery_groups: input.delivery_groups } : {}),
     ...(input.billing_address !== undefined ? { billing_address: input.billing_address } : {}),

@@ -108,6 +108,7 @@ test("a fresh cart load confirms the selected Market and Store setup before load
       customer_session_id: "visitor-session-form-contract",
     },
     market_id: "market-ita",
+    catalog_id: "catalog-ita",
     line_items: [
       {
         type: "product",
@@ -177,7 +178,6 @@ test("a fresh cart load confirms the selected Market and Store setup before load
           max_quantity: null,
           priced_at: 1,
         },
-        purchase_allowed: true,
         attributes: [],
         reference_labels: {},
         fulfillment: { type: "none" },
@@ -204,7 +204,7 @@ test("a fresh cart load confirms the selected Market and Store setup before load
     if (call.url === `${apiUrl}/v1/storefront/markets/by-key/ita`) return jsonResponse(market);
     if (new URL(call.url).pathname.endsWith("/products/product-hydration-contract")) {
       const { variants, status, created_at, updated_at, ...card } = product;
-      return jsonResponse({ ...card, price: variants[0].price, purchase_allowed: true });
+      return jsonResponse({ ...card, price: variants[0].price });
     }
     if (new URL(call.url).pathname.endsWith("/products/product-hydration-contract/variants/variant-hydration-contract")) {
       return jsonResponse(product.variants[0]);
@@ -227,8 +227,8 @@ test("a fresh cart load confirms the selected Market and Store setup before load
       `${apiUrl}/v1/storefront/carts`,
       `${apiUrl}/v1/storefront`,
       `${apiUrl}/v1/storefront/markets/by-key/ita`,
-      `${apiUrl}/v1/storefront/products/product-hydration-contract?include_price=true`,
-      `${apiUrl}/v1/storefront/products/product-hydration-contract/variants/variant-hydration-contract?include_price=true`,
+      `${apiUrl}/v1/storefront/products/product-hydration-contract?catalog_id=catalog-ita&include_price=true`,
+      `${apiUrl}/v1/storefront/products/product-hydration-contract/variants/variant-hydration-contract?catalog_id=catalog-ita&include_price=true`,
     ],
   );
   assert.equal(
@@ -460,6 +460,7 @@ test("a page reload reuses the stored Visitor without identifying again", async 
           customer_session_id: "visitor-session-form-contract",
         },
         market_id: "market-ita",
+        catalog_id: "catalog-ita",
         line_items: [],
         delivery_groups: [],
         billing_address: null,

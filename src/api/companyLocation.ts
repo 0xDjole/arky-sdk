@@ -11,6 +11,7 @@ import type {
   DeleteCompanyLocationParams,
   UpdateCompanyLocationParams,
   SetCompanyLocationCommercePolicyParams,
+  SetCompanyLocationServedFromParams,
 } from "../types/companyLocation";
 
 export const createCompanyLocationApi = (apiConfig: ApiConfig) => {
@@ -77,6 +78,17 @@ export const createCompanyLocationApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.put<CompanyLocation>(
         `${basePath(store_id)}/${encodeURIComponent(id)}/commerce`,
         { expected_updated_at, commerce },
+        options,
+      );
+    },
+    setServedFrom(
+      params: SetCompanyLocationServedFromParams,
+      options?: RequestOptions,
+    ): Promise<CompanyLocation> {
+      const { store_id, id, expected_updated_at, fulfillment_store_location_id } = params;
+      return apiConfig.httpClient.put<CompanyLocation>(
+        `${basePath(store_id)}/${encodeURIComponent(id)}/served-from`,
+        { expected_updated_at, fulfillment_store_location_id },
         options,
       );
     },

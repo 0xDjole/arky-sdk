@@ -36,7 +36,7 @@ export type StorefrontParams<T> = T extends unknown
   : never;
 
 export type StorefrontCart = Cart;
-export type StorefrontCurrentCartParams = Pick<GetCurrentCartParams, "company">;
+export type StorefrontCurrentCartParams = Pick<GetCurrentCartParams, "company" | "catalog_id">;
 export interface FindStorefrontPreparedCartsParams {
   company_id: string;
   company_location_id: string;
@@ -63,6 +63,10 @@ export type StorefrontAddCartDigitalParams = Omit<StorefrontParams<AddCartDigita
 export type StorefrontCollectionEntry = CollectionEntry;
 export interface StorefrontCustomer {
   id: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  locale: string | null;
   status: Customer["status"];
   primary_email_identity_id: string | null;
   default_shipping_address_id: string | null;
@@ -77,14 +81,14 @@ export interface StorefrontLocation {
   id: string;
   key: string;
   address: StoreLocation["address"];
-  is_pickup_location: boolean;
+  allows_pickup: boolean;
 }
 export type StorefrontOrderCheckoutResult = OrderCheckoutResult;
 export type StorefrontOrderQuote = OrderQuote;
 export type StorefrontCheckoutQuote = CheckoutQuote;
 export type StorefrontProduct = Pick<Product,
   "id" | "key" | "slugs" | "blocks" | "categories"
-> & { price: StorefrontPrice | null; purchase_allowed: boolean };
+> & { price: StorefrontPrice | null };
 export interface GetStorefrontProductVariantParams extends CatalogReadOptions {
   product_id: string;
   id: string;
@@ -105,16 +109,13 @@ export interface StorefrontProductVariant {
   tax_category_id: string | null;
   status: ProductVariant["status"];
   price: StorefrontPrice | null;
-  purchase_allowed: boolean;
 }
 export type StorefrontBookingResource = BookingResource;
 export type StorefrontBookingService = BookingService & {
   price: StorefrontPrice | null;
-  purchase_allowed: boolean;
 };
 export type StorefrontBookingOffering = BookingOffering & {
   price: StorefrontPrice | null;
-  purchase_allowed: boolean;
 };
 export type StorefrontPage<T> = PaginatedResponse<T>;
 export interface StorefrontMarket {

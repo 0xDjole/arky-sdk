@@ -89,6 +89,7 @@ export interface Order {
   source: OrderSource;
   customer_id: string;
   customer_snapshot: PurchaseCustomerSnapshot;
+  locale: string;
   company: OrderCompanyContext | null;
   payment_terms: PaymentTermsSnapshot | null;
   purchase_order_number: string | null;

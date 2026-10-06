@@ -58,9 +58,9 @@ test("Rental commands keep the caller's request identity, loaded revision and ty
     const api = eshop().rental;
     const commands = [
       {
-        type: "request_replacement", fulfillment_order_id: "work", fulfillment_order_line_id: "line",
+        type: "request_replacement", fulfillment_job_id: "work", fulfillment_job_line_id: "line",
         replacement: {
-          predecessor_inventory_unit_id: "unit", predecessor_fulfillment_order_line_id: "delivered-line",
+          predecessor_inventory_unit_id: "unit", predecessor_fulfillment_job_line_id: "delivered-line",
           predecessor_fulfillment_unit_index: 0, overlap_authorized: false,
         },
         store_location_id: "location",
@@ -69,7 +69,7 @@ test("Rental commands keep the caller's request identity, loaded revision and ty
       { type: "end", reason: "Customer ended the agreement", return_due_at: null },
       { type: "end", reason: "Agreed collection date", return_due_at: 1700000100000 },
       { type: "close" },
-      { type: "cancel_issue", fulfillment_order_id: "work", fulfillment_order_line_id: "line" },
+      { type: "cancel_issue", fulfillment_job_id: "work", fulfillment_job_line_id: "line" },
     ];
     for (const [index, type] of commands.entries()) {
       const request = { store_id: STORE_ID, id: "rental", request_id: requestId(index), expected_updated_at: 1700000000000, type };
@@ -95,25 +95,25 @@ test("Rental physical work uses Fulfillment and job routes with exact unit selec
   const { calls, restore } = capture({ id: "fulfillment", request_id: creation, status: { type: "preparing" } });
   try {
     const api = eshop();
-    const lines = [{ fulfillment_order_line_id: "rental-line", unit_spans: [{ first_unit: 0, quantity: 1 }],
+    const lines = [{ fulfillment_job_line_id: "rental-line", unit_spans: [{ first_unit: 0, quantity: 1 }],
       selected_units: [{ fulfillment_unit_index: 0, inventory_unit_id: "unit" }], lot_reference: null }];
-    const slots = lines.map(({ fulfillment_order_line_id, unit_spans }) => ({ fulfillment_order_line_id, unit_spans }));
-    await api.fulfillment.create({ store_id: STORE_ID, request_id: creation, fulfillment_id: "fulfillment", fulfillment_order_id: "work", lines });
-    await api.fulfillment.find({ store_id: STORE_ID, fulfillment_order_id: "work", limit: 5 });
+    const slots = lines.map(({ fulfillment_job_line_id, unit_spans }) => ({ fulfillment_job_line_id, unit_spans }));
+    await api.fulfillment.create({ store_id: STORE_ID, request_id: creation, fulfillment_id: "fulfillment", fulfillment_job_id: "work", lines });
+    await api.fulfillment.find({ store_id: STORE_ID, fulfillment_job_id: "work", limit: 5 });
     await api.fulfillment.find({ store_id: STORE_ID, rental_id: "rental" });
-    await api.fulfillmentOrder.find({ store_id: STORE_ID, rental_id: "rental" });
-    await api.fulfillmentOrder.unitSlots({ store_id: STORE_ID, fulfillment_order_id: "work", expected_updated_at: 1700000000000, lines: slots });
+    await api.fulfillmentJob.find({ store_id: STORE_ID, rental_id: "rental" });
+    await api.fulfillmentJob.unitSlots({ store_id: STORE_ID, fulfillment_job_id: "work", expected_updated_at: 1700000000000, lines: slots });
     assert.deepEqual(calls.map((call) => [call.method, call.url.pathname + call.url.search]), [
       ["POST", `/v1/stores/${STORE_ID}/fulfillments`],
-      ["GET", `/v1/stores/${STORE_ID}/fulfillments?fulfillment_order_id=work&limit=5`],
+      ["GET", `/v1/stores/${STORE_ID}/fulfillments?fulfillment_job_id=work&limit=5`],
       ["GET", `/v1/stores/${STORE_ID}/fulfillments?rental_id=rental`],
-      ["GET", `/v1/stores/${STORE_ID}/fulfillment-orders?rental_id=rental`],
-      ["POST", `/v1/stores/${STORE_ID}/fulfillment-orders/work/unit-slots`],
+      ["GET", `/v1/stores/${STORE_ID}/fulfillment-jobs?rental_id=rental`],
+      ["POST", `/v1/stores/${STORE_ID}/fulfillment-jobs/work/unit-slots`],
     ]);
     assert.ok(calls.every((call) => !call.url.pathname.includes("/orders/")));
-    assert.deepEqual(calls[0].body, { request_id: creation, fulfillment_id: "fulfillment", fulfillment_order_id: "work", lines });
+    assert.deepEqual(calls[0].body, { request_id: creation, fulfillment_id: "fulfillment", fulfillment_job_id: "work", lines });
     assert.deepEqual(calls[4].body, { expected_updated_at: 1700000000000, lines: slots });
-    await assert.rejects(api.fulfillment.create({ store_id: STORE_ID, request_id: requestId(8), fulfillment_id: "fulfillment", fulfillment_order_id: "work", lines }), /did not match/);
+    await assert.rejects(api.fulfillment.create({ store_id: STORE_ID, request_id: requestId(8), fulfillment_id: "fulfillment", fulfillment_job_id: "work", lines }), /did not match/);
     assert.equal(calls.length, 6);
   } finally { restore(); }
 });

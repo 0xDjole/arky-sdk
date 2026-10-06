@@ -46,6 +46,7 @@ export interface CompanyLocation {
   billing_address: CompanyAddress | null;
   tax: CompanyLocationTaxSettings;
   commerce: CompanyLocationCommercePolicy;
+  fulfillment_store_location_id: string | null;
   status: CompanyLocationStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -80,6 +81,13 @@ export interface SetCompanyLocationCommercePolicyParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   commerce: CompanyLocationCommercePolicy;
+}
+
+export interface SetCompanyLocationServedFromParams {
+  store_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  fulfillment_store_location_id: string | null;
 }
 
 export interface DeleteCompanyLocationParams {

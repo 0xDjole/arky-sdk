@@ -488,6 +488,7 @@ function initializeStoreCore(
       const [product, variant] = access ? [access.product, access.variant] : await Promise.all([
         client.eshop.product.get({
           id: item.product_id,
+          catalog_id: source.catalog_id,
           company_id: source.company?.company_id ?? undefined,
           company_location_id: source.company?.company_location_id ?? undefined,
           include_price: true,
@@ -495,6 +496,7 @@ function initializeStoreCore(
         client.eshop.productVariant.get({
           product_id: item.product_id,
           id: item.variant_id,
+          catalog_id: source.catalog_id,
           company_id: source.company?.company_id ?? undefined,
           company_location_id: source.company?.company_location_id ?? undefined,
           include_price: true,
@@ -671,6 +673,7 @@ function initializeStoreCore(
         company: input.company,
         market_id: input.market_id,
         sales_channel_id: input.sales_channel_id,
+        catalog_id: input.catalog_id,
         billing_address: input.billing_address,
         promotion_codes:
           input.promotion_codes === null
@@ -1333,7 +1336,7 @@ function initializeStoreCore(
       bookingAvailabilityReadRevision += 1;
       eshop_state.setKey("loading_availability", false);
       eshop_state.setKey("availability", null);
-      bookingCatalogOptions = { company_id: catalogOptions.company_id, company_location_id: catalogOptions.company_location_id, include_price: true };
+      bookingCatalogOptions = { catalog_id: catalogOptions.catalog_id, company_id: catalogOptions.company_id, company_location_id: catalogOptions.company_location_id, include_price: true };
       booking_service_state.set({
         ...booking_service_state.get(),
         bookingService: null,
@@ -1460,6 +1463,7 @@ function initializeStoreCore(
           );
         }
         const availability = await loadBookingAvailability({
+          catalog_id: bookingCatalogOptions.catalog_id,
           company_id: bookingCatalogOptions.company_id,
           company_location_id: bookingCatalogOptions.company_location_id,
           booking_service_id: state.bookingService.id,
@@ -1947,7 +1951,7 @@ function initializeStoreCore(
   }
 
   async function loadBookingAvailability(
-    params: StorefrontParams<GetAvailabilityParams> & Pick<CatalogReadOptions, "company_id" | "company_location_id">,
+    params: StorefrontParams<GetAvailabilityParams> & Pick<CatalogReadOptions, "catalog_id" | "company_id" | "company_location_id">,
     options?: RequestOptions,
   ) {
     const revision = ++bookingAvailabilityReadRevision;
@@ -2160,6 +2164,7 @@ function initializeStoreCore(
     category: client.category,
     eshop: {
       state: eshop_state,
+      catalog: client.eshop.catalog,
       digital: client.eshop.digital,
       product: product_store,
       productVariant: client.eshop.productVariant,

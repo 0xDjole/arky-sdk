@@ -28,7 +28,7 @@ export type InventoryContracts = [
   True<Same<keyof InventoryMovement, "id" | "store_id" | "inventory_item_id" | "inventory_unit_id" | "store_location_id" | "quantity" | "delta" | "after" | "reason" | "created_at" | "request_id" | "source_line_id">>,
   True<Same<InventoryMovement["quantity"], InventoryQuantity>>,
   True<Same<InventoryMovement["inventory_unit_id"], string | null>>,
-  True<Same<keyof Extract<InventoryMovementReason, { type: "dispatched" }>, "type" | "fulfillment_order_id" | "fulfillment_id">>,
+  True<Same<keyof Extract<InventoryMovementReason, { type: "dispatched" }>, "type" | "fulfillment_job_id" | "fulfillment_id">>,
   True<Same<NonNullable<FindInventoryMovementsParams["sort_field"]>, "created_at">>,
   True<RequiredField<GetInventoryItemByKeyParams, "key">>,
   True<Same<InventoryTracking["type"], "tracked" | "individual" | "untracked">>,

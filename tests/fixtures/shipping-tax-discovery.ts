@@ -1,8 +1,8 @@
 import type { createAdmin } from 'arky-sdk/admin';
 import type {
-    FindMarketZonesParams, FindMarketSalesChannelsParams, FindShippingMethodsParams, FindShippingRatesParams, FindTaxRulesParams,
-    LookupMarketZoneParams, LookupMarketSalesChannelParams, GetShippingMethodByKeyParams,
-    MarketZone, MarketSalesChannel, ShippingMethod, ShippingRate, TaxRule, UpdateShippingMethodParams, ShippingMethodType,
+    FindMarketZonesParams, FindShippingMethodsParams, FindShippingRatesParams, FindTaxRulesParams,
+    LookupMarketZoneParams, GetShippingMethodByKeyParams,
+    MarketZone, ShippingMethod, ShippingRate, TaxRule, UpdateShippingMethodParams, ShippingMethodType,
     CreateTaxRuleParams, UpdateTaxRuleParams, CreateShippingRateParams, UpdateShippingRateParams, EpochMilliseconds
 } from 'arky-sdk';
 type True<T extends true> = T;
@@ -12,15 +12,13 @@ type Page={store_id:string;status?:'active'|'archived'|'deleting';sort_field?:'c
 type PairPage=Omit<Page,'status'>&{status?:'active'|'deleting'};
 export type ShippingDiscoveryContract=[
  True<Same<FindMarketZonesParams,PairPage&{market_id?:string;zone_id?:string}>>,
- True<Same<FindMarketSalesChannelsParams,PairPage&{market_id?:string;sales_channel_id?:string}>>,
  True<Same<FindShippingMethodsParams,Page&{key?:string;location_id?:string;tax_category_id?:string}>>,
  True<Same<FindShippingRatesParams,Page&{market_zone_id?:string;shipping_method_id?:string;shipping_profile_id?:string}>>,
  True<Same<FindTaxRulesParams,Page&{market_zone_id?:string;tax_category_id?:string;default_only?:boolean}>>,
  True<Same<Parameters<Api['marketZone']['lookup']>[0],LookupMarketZoneParams>>,
- True<Same<Parameters<Api['marketSalesChannel']['lookup']>[0],LookupMarketSalesChannelParams>>,
+ True<'marketSalesChannel' extends keyof Api ? false : true>,
  True<Same<Parameters<Api['shippingMethod']['getByKey']>[0],GetShippingMethodByKeyParams>>,
  True<Same<Awaited<ReturnType<Api['marketZone']['delete']>>,MarketZone|void>>,
- True<Same<Awaited<ReturnType<Api['marketSalesChannel']['remove']>>,MarketSalesChannel|void>>,
  True<Same<Awaited<ReturnType<Api['shippingMethod']['delete']>>,ShippingMethod|void>>,
  True<Same<Awaited<ReturnType<Api['shippingRate']['delete']>>,ShippingRate|void>>,
  True<Same<Awaited<ReturnType<Api['taxRule']['delete']>>,TaxRule|void>>,

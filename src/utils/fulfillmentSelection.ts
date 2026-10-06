@@ -1,5 +1,4 @@
-import type { FulfillmentOrderMoveLine } from "../types";
-import type { FulfillmentOrder, FulfillmentOrderLine, FulfillmentUnitSpan } from "../types";
+import type { FulfillmentJob, FulfillmentJobLine, FulfillmentJobMoveLine, FulfillmentUnitSpan } from "../types";
 import type { UnitSpan } from "../types/orderContract";
 import type { Fulfillment, FulfillmentLine } from "../types/fulfillment";
 import { FulfillmentSelectionError } from "../types/fulfillmentSelection";
@@ -99,7 +98,7 @@ function combinedExclusions(first: UnitSpan[], second: UnitSpan[]): UnitSpan[] {
   return result;
 }
 
-function assignedUnits(line: FulfillmentOrderLine): UnitSpan[] {
+function assignedUnits(line: FulfillmentJobLine): UnitSpan[] {
   switch (line.source.type) {
     case "order_product":
       return canonical(line.source.order_unit_spans);
@@ -110,17 +109,19 @@ function assignedUnits(line: FulfillmentOrderLine): UnitSpan[] {
   }
 }
 
-export function selectFulfillmentUnits(work: FulfillmentOrder, lineId: string, quantity: number, history: Fulfillment[]): FulfillmentLine {
+export function selectFulfillmentUnits(work: FulfillmentJob, lineId: string, quantity: number, history: Fulfillment[]): FulfillmentLine {
   if (!["open", "in_progress"].includes(work.status.type)) throw new FulfillmentSelectionError("Select released fulfillment work.");
   return { ...selectUnits(work, lineId, quantity, history), selected_units: [], lot_reference: null };
 }
 
-export function selectFulfillmentMoveUnits(work: FulfillmentOrder, lineId: string, quantity: number, history: Fulfillment[]): FulfillmentOrderMoveLine {
-  if (work.partner_request || work.method.type === "pickup") throw new FulfillmentSelectionError("Only unsent delivery work that is not with a partner can move.");
+export function selectFulfillmentMoveUnits(work: FulfillmentJob, lineId: string, quantity: number, history: Fulfillment[]): FulfillmentJobMoveLine {
+  if (work.method.type !== "delivery" || work.method.assignment.type !== "assigned") {
+    throw new FulfillmentSelectionError("Only assigned delivery work can move.");
+  }
   return selectUnits(work, lineId, quantity, history);
 }
 
-function selectUnits(work: FulfillmentOrder, lineId: string, quantity: number, history: Fulfillment[]): FulfillmentOrderMoveLine {
+function selectUnits(work: FulfillmentJob, lineId: string, quantity: number, history: Fulfillment[]): FulfillmentJobMoveLine {
   if (["completed", "cancelled"].includes(work.status.type)) throw new FulfillmentSelectionError("Finished work has no units to select.");
   const line = work.lines.find((value) => value.id === lineId);
   if (!line || !Number.isInteger(quantity) || quantity < 1 || quantity > 4294967295) {
@@ -146,14 +147,14 @@ function selectUnits(work: FulfillmentOrder, lineId: string, quantity: number, h
     if (fulfillment.store_id !== work.store_id) {
       throw new FulfillmentSelectionError("Physical history belongs to another Store.");
     }
-    if (fulfillment.fulfillment_order_id !== work.id) continue;
+    if (fulfillment.fulfillment_job_id !== work.id) continue;
     if (!execution && fulfillment.status.type === "cancelled") continue;
     const preparing = ["preparing", "ready"];
     if (!execution && !preparing.includes(fulfillment.status.type)) {
       throw new FulfillmentSelectionError("Unexecuted fulfillment has inconsistent preparation status.");
     }
     for (const item of fulfillment.lines) {
-      if (item.fulfillment_order_line_id !== line.id) continue;
+      if (item.fulfillment_job_line_id !== line.id) continue;
       const units = canonical(item.unit_spans);
       if (count(units) === 0) {
         throw new FulfillmentSelectionError("Fulfillment history requires a nonempty work selection.");
@@ -180,5 +181,5 @@ function selectUnits(work: FulfillmentOrder, lineId: string, quantity: number, h
     if (!remaining) break;
   }
   orderUnits(assigned, selected);
-  return { fulfillment_order_line_id: line.id, unit_spans: selected };
+  return { fulfillment_job_line_id: line.id, unit_spans: selected };
 }

@@ -1,16 +1,17 @@
 import type { EpochMilliseconds } from "./time";
 
 export type CompanyPermission =
+  | "admin"
   | "place_orders"
+  | "create_subscriptions"
   | "access_digital_products"
   | "view_own_orders"
   | "view_company_orders"
+  | "view_own_subscriptions"
+  | "view_company_subscriptions"
   | "manage_company"
   | "manage_addresses"
   | "manage_members"
-  | "create_subscriptions"
-  | "view_own_subscriptions"
-  | "view_company_subscriptions"
   | "manage_company_subscriptions"
   | "manage_payment_methods";
 export type CompanyRoleStatus = { type: "active" } | { type: "deleting" };
@@ -19,7 +20,6 @@ export interface CompanyRole {
   id: string;
   store_id: string;
   key: string;
-  name: string;
   permissions: CompanyPermission[];
   status: CompanyRoleStatus;
   created_at: EpochMilliseconds;
@@ -34,7 +34,6 @@ export interface CompanyRoleUsage {
 export interface CreateCompanyRoleParams {
   store_id: string;
   key: string;
-  name: string;
   permissions: CompanyPermission[];
 }
 
@@ -48,7 +47,6 @@ export interface UpdateCompanyRoleParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  name: string;
   permissions: CompanyPermission[];
 }
 

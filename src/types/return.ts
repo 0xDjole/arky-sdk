@@ -81,11 +81,21 @@ export interface ReturnLine extends ReturnLineRequest {
   items: ReturnItem[];
 }
 
+export type ReturnDestination =
+  | { type: "undecided" }
+  | { type: "decided"; store_location_id: string };
+
+export interface ReturnDestinationOptions {
+  return_id: string;
+  suggested_store_location_id: string | null;
+  store_location_ids: string[];
+}
+
 export interface Return {
   id: string;
   store_id: string;
   source: ReturnSource;
-  destination_store_location_id: string;
+  destination: ReturnDestination;
   requested_by: ReturnRequester;
   lines: ReturnLine[];
   tracking: Tracking | null;
@@ -134,6 +144,7 @@ export interface GetReturnInspectionUnitParams extends GetReturnParams {
 
 export type ReturnCommand =
   | { type: "approve"; destination_store_location_id?: string | null }
+  | { type: "decide"; store_location_id: string }
   | { type: "decline"; reason: string }
   | { type: "cancel" }
   | { type: "receive"; items: ReceiveReturnItem[] }
@@ -152,6 +163,8 @@ export interface CreateReturnParams extends GetReturnParams {
   request_id: string;
   lines: ReturnLineRequest[];
 }
+
+export type StorefrontCreateReturnParams = Omit<CreateReturnParams, "store_id">;
 
 export interface ExecuteReturnParams extends GetReturnParams {
   source: ReturnSource;

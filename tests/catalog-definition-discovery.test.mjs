@@ -4,7 +4,7 @@ import { createAdmin } from '../dist/admin.js';
 
 const STORE_ID = '2d9b7c14-6e03-4f5a-a1b8-9c0e3f7d2a61';
 
-for (const [owner, path] of [['catalog', 'catalogs'], ['assortment', 'assortments'], ['priceList', 'price-lists']]) {
+for (const [owner, path] of [['catalog', 'catalogs']]) {
   test(`${owner} discovery preserves combined filters and empty-page continuation; exact identity is separate`, async () => {
     const original = globalThis.fetch;
     const calls = [];
@@ -14,7 +14,7 @@ for (const [owner, path] of [['catalog', 'catalogs'], ['assortment', 'assortment
     };
     try {
       const api = createAdmin({ baseUrl: 'https://api.example.test', apiToken: 'arky_api_test' }).eshop[owner];
-      const filters = { key: 'a'.repeat(255), status: 'archived', sort_field: 'updated_at', sort_direction: 'asc', limit: 200, cursor: 'previous', ...(owner === 'catalog' ? { assortment_id: 'assortment', price_list_id: 'list' } : {}) };
+      const filters = { key: 'a'.repeat(255), status: 'archived', sort_field: 'updated_at', sort_direction: 'asc', limit: 200, cursor: 'previous', market_id: 'market' };
       assert.deepEqual(await api.find({ store_id: STORE_ID, ...filters }), { items: [], cursor: 'after-stale' });
       assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/${path}`);
       assert.equal(calls[0].url.searchParams.has('store_id'), false);

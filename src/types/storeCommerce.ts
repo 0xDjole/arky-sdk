@@ -29,8 +29,6 @@ export interface StoreCommerceInitialization {
   request_fingerprint: string;
   market_id: string;
   sales_channel_id: string;
-  market_sales_channel_id: string;
-  assortment_id: string;
   catalog_id: string;
   status: CommerceInitializationStatus;
   created_at: EpochMilliseconds;

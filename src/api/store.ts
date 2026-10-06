@@ -21,10 +21,6 @@ import type {
   GetOwnStoreMembershipParams,
   TestWebhookParams,
   TestWebhookResponse,
-  ListBuildHooksParams,
-  CreateBuildHookParams,
-  UpdateBuildHookParams,
-  DeleteBuildHookParams,
   ListWebhooksParams,
   CreateWebhookParams,
   UpdateWebhookParams,
@@ -32,6 +28,7 @@ import type {
   RequestOptions,
 } from "../types/api";
 import type { StoreDeletionResult } from "../types";
+import type { ChangeStoreMemberStatusParams, UpdateStoreMemberRolesParams } from "../types/storeRole";
 import {
   DurableRequestStorageError,
   clearDurableRequest,
@@ -45,7 +42,6 @@ import type {
   Webhook,
   PaginatedResponse,
   StorePlan,
-  BuildHook,
   StoreSubscription,
   StoreMember,
   StoreMembership,
@@ -308,16 +304,46 @@ export const createStoreApi = (
       );
     },
 
-    async transferOwnership(
-      params: TransferStoreOwnershipParams,
+    async updateMemberRoles(
+      params: UpdateStoreMemberRolesParams,
       options?: RequestOptions,
     ): Promise<StoreMembership> {
       const store_id = requireStoreId(params.store_id);
       if (!canonicalUuidV4.test(store_id) || !canonicalUuidV4.test(params.account_id)) {
+        throw new TypeError("Member role changes require canonical Store and Account UUIDs");
+      }
+      return apiConfig.httpClient.put<StoreMembership>(
+        `/v1/stores/${store_id}/members/${params.account_id}/roles`,
+        { expected_updated_at: params.expected_updated_at, role_ids: params.role_ids },
+        options,
+      );
+    },
+
+    async changeMemberStatus(
+      params: ChangeStoreMemberStatusParams,
+      options?: RequestOptions,
+    ): Promise<StoreMembership> {
+      const store_id = requireStoreId(params.store_id);
+      if (!canonicalUuidV4.test(store_id) || !canonicalUuidV4.test(params.account_id)) {
+        throw new TypeError("Member status changes require canonical Store and Account UUIDs");
+      }
+      return apiConfig.httpClient.put<StoreMembership>(
+        `/v1/stores/${store_id}/members/${params.account_id}/status`,
+        { expected_updated_at: params.expected_updated_at, status: params.status },
+        options,
+      );
+    },
+
+    async transferOwnership(
+      params: TransferStoreOwnershipParams,
+      options?: RequestOptions,
+    ): Promise<Store> {
+      const store_id = requireStoreId(params.store_id);
+      if (!canonicalUuidV4.test(store_id) || !canonicalUuidV4.test(params.account_id)) {
         throw new TypeError("Ownership transfer requires canonical Store and Account UUIDs");
       }
-      return apiConfig.httpClient.post<StoreMembership>(
-        `/v1/stores/${requireStoreId(store_id)}/ownership/transfer`,
+      return apiConfig.httpClient.post<Store>(
+        `/v1/stores/${store_id}/ownership/transfer`,
         { account_id: params.account_id },
         options,
       );
@@ -373,51 +399,6 @@ export const createStoreApi = (
       return apiConfig.httpClient.post<TestWebhookResponse>(
         `/v1/stores/${requireStoreId(params.store_id)}/webhooks/test`,
         { delivery_id: params.delivery_id, webhook_id: params.webhook_id },
-        options,
-      );
-    },
-
-    async listBuildHooks(
-      params: ListBuildHooksParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<BuildHook>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<BuildHook>>(
-        `/v1/stores/${requireStoreId(store_id)}/build-hooks`,
-        { ...options, params: query },
-      );
-    },
-
-    async createBuildHook(
-      params: CreateBuildHookParams,
-      options?: RequestOptions,
-    ): Promise<BuildHook> {
-      const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<BuildHook>(
-        `/v1/stores/${requireStoreId(store_id)}/build-hooks`,
-        payload,
-        options,
-      );
-    },
-
-    async updateBuildHook(
-      params: UpdateBuildHookParams,
-      options?: RequestOptions,
-    ): Promise<BuildHook> {
-      const { store_id, id, ...payload } = params;
-      return apiConfig.httpClient.put<BuildHook>(
-        `/v1/stores/${requireStoreId(store_id)}/build-hooks/${id}`,
-        payload,
-        options,
-      );
-    },
-
-    async deleteBuildHook(
-      params: DeleteBuildHookParams,
-      options?: RequestOptions,
-    ): Promise<{ deleted: boolean }> {
-      return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${requireStoreId(params.store_id)}/build-hooks/${params.id}`,
         options,
       );
     },

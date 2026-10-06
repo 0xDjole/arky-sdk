@@ -11,7 +11,7 @@ export type ConfigurationPages = [
   True<Same<Awaited<ReturnType<Admin['store']['paymentOption']['list']>>,PaginatedResponse<PaymentOption>>>
 ];
 export const market: FindMarketsParams = {store_id:'store',currency:'eur',status:'deleting',limit:1,cursor:'opaque'};
-export const location: FindStoreLocationsParams = {store_id:'store',is_pickup_location:false,status:'archived',sort_field:'updated_at'};
+export const location: FindStoreLocationsParams = {store_id:'store',allows_pickup:false,status:'archived',sort_field:'updated_at'};
 export const provider: ListPaymentOptionsParams = {store_id:'store',type_name:'stripe',status:'disabled',cursor:'opaque'};
 export const exactMarket: Parameters<Admin['store']['market']['get']>[0] = {store_id:'store',id:'market'};
 export const exactLocation: Parameters<Admin['store']['location']['get']>[0] = {store_id:'store',id:'location'};

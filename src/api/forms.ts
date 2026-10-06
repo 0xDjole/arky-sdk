@@ -11,10 +11,24 @@ import type {
   GetFormSubmissionsParams,
   GetFormSubmissionParams,
   DeleteFormSubmissionParams,
-  ProcessFormSubmissionParams,
+  GetFormPresentationParams,
+  CreateStaffFormSubmissionParams,
+  ChangeFormSubmissionStageParams,
+  AssignFormSubmissionParams,
+  CreateFormSubmissionNoteParams,
+  FindFormSubmissionNotesParams,
+  UpdateFormSubmissionNoteParams,
+  DeleteFormSubmissionNoteParams,
+  SetFormSubmissionCompanyParams,
   RequestOptions,
 } from "../types/api";
-import type { AdminFormSubmission, Form } from "../types";
+import type {
+  AdminFormSubmission,
+  Form,
+  FormPresentation,
+  PaginatedResponse,
+} from "../types";
+import type { Note } from "../types/note";
 
 export const createFormsApi = (apiConfig: ApiConfig) => {
   return {
@@ -111,15 +125,107 @@ export const createFormsApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async processSubmission(
-      params: ProcessFormSubmissionParams,
+    async getPresentation(
+      params: GetFormPresentationParams,
+      options?: RequestOptions,
+    ): Promise<FormPresentation> {
+      return apiConfig.httpClient.get<FormPresentation>(
+        `/v1/stores/${requireStoreId(params.store_id)}/forms/${encodeURIComponent(params.id)}/presentation`,
+        { ...options, params: { locale: params.locale } },
+      );
+    },
+
+    async createSubmission(
+      params: CreateStaffFormSubmissionParams,
+      options?: RequestOptions,
+    ): Promise<AdminFormSubmission> {
+      const { store_id, form_id, ...payload } = params;
+      return apiConfig.httpClient.post<AdminFormSubmission>(
+        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions`,
+        payload,
+        options,
+      );
+    },
+
+    async changeSubmissionStage(
+      params: ChangeFormSubmissionStageParams,
       options?: RequestOptions,
     ): Promise<AdminFormSubmission> {
       const { store_id, form_id, id, ...payload } = params;
       return apiConfig.httpClient.post<AdminFormSubmission>(
-        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions/${encodeURIComponent(id)}/process`,
+        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions/${encodeURIComponent(id)}/stage`,
         payload,
         options,
+      );
+    },
+
+    async assignSubmission(
+      params: AssignFormSubmissionParams,
+      options?: RequestOptions,
+    ): Promise<AdminFormSubmission> {
+      const { store_id, form_id, id, assignee_account_id } = params;
+      return apiConfig.httpClient.put<AdminFormSubmission>(
+        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions/${encodeURIComponent(id)}/assignee`,
+        { assignee_account_id },
+        options,
+      );
+    },
+
+    async setSubmissionCompany(
+      params: SetFormSubmissionCompanyParams,
+      options?: RequestOptions,
+    ): Promise<AdminFormSubmission> {
+      const { store_id, form_id, id, company_id } = params;
+      return apiConfig.httpClient.put<AdminFormSubmission>(
+        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions/${encodeURIComponent(id)}/company`,
+        { company_id },
+        options,
+      );
+    },
+
+    async createSubmissionNote(
+      params: CreateFormSubmissionNoteParams,
+      options?: RequestOptions,
+    ): Promise<Note> {
+      const { store_id, form_id, form_submission_id, ...payload } = params;
+      return apiConfig.httpClient.post<Note>(
+        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions/${encodeURIComponent(form_submission_id)}/notes`,
+        payload,
+        options,
+      );
+    },
+
+    async findSubmissionNotes(
+      params: FindFormSubmissionNotesParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<Note>> {
+      const { store_id, form_id, form_submission_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<Note>>(
+        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions/${encodeURIComponent(form_submission_id)}/notes`,
+        { ...options, params: query },
+      );
+    },
+
+    async updateSubmissionNote(
+      params: UpdateFormSubmissionNoteParams,
+      options?: RequestOptions,
+    ): Promise<Note> {
+      const { store_id, form_id, form_submission_id, id, expected_updated_at, body } = params;
+      return apiConfig.httpClient.put<Note>(
+        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions/${encodeURIComponent(form_submission_id)}/notes/${encodeURIComponent(id)}`,
+        { expected_updated_at, body },
+        options,
+      );
+    },
+
+    async deleteSubmissionNote(
+      params: DeleteFormSubmissionNoteParams,
+      options?: RequestOptions,
+    ): Promise<Note> {
+      const { store_id, form_id, form_submission_id, id, expected_updated_at } = params;
+      return apiConfig.httpClient.delete<Note>(
+        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions/${encodeURIComponent(form_submission_id)}/notes/${encodeURIComponent(id)}`,
+        { ...options, params: { expected_updated_at } },
       );
     },
 

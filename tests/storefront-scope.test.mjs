@@ -121,6 +121,7 @@ function cart(id = "cart-a", customerId = "customer-a", marketId = "market-a") {
     status: { type: "active" },
     origin: { type: "storefront", customer_id: customerId, customer_session_id: `session-${customerId}` },
     market_id: marketId,
+    catalog_id: `catalog-${marketId}`,
     sales_channel_id: "channel-a",
     line_items: [],
     delivery_groups: [],
@@ -724,7 +725,8 @@ test("code-only verification and refresh atomically rotate the discriminated Cus
     }
     if (path.endsWith("/customer/me")) {
       return jsonResponse({
-        customer,
+        customer: init.method === "PATCH" ? { ...customer, first_name: "Ana", phone: null } : customer,
+        email: "person@example.com",
         session: {
           id: rotated.id,
           customer_id: customer.id,
@@ -786,8 +788,12 @@ test("code-only verification and refresh atomically rotate the discriminated Cus
     );
     const current = await client.customer.getMe();
     assert.equal(current.session.type, "email_authenticated");
+    assert.equal(current.email, "person@example.com");
     assert.equal("access_token" in current.session, false);
     assert.equal("refresh_token" in current.session, false);
+    const edited = await client.customer.updateMe({ first_name: "Ana", phone: null });
+    assert.equal(edited.customer.first_name, "Ana");
+    assert.equal(client.session.customer.first_name, "Ana");
     storedBeforeLogout = JSON.parse([...storage.values.values()][0]);
     await client.customer.logout();
     assert.equal(client.session, null);
@@ -803,6 +809,7 @@ test("code-only verification and refresh atomically rotate the discriminated Cus
       ["/v1/storefront/customer/verify", `Bearer ${visitorTokenA}`, { code: "123456" }],
       ["/v1/storefront/customer/refresh", null, { refresh_token: "customer_refresh_1" }],
       ["/v1/storefront/customer/me", "Bearer customer_access_2", null],
+      ["/v1/storefront/customer/me", "Bearer customer_access_2", { first_name: "Ana", phone: null }],
       ["/v1/storefront/customer/logout", "Bearer customer_access_2", null],
     ],
   );

@@ -4,8 +4,11 @@ import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
 import type {
   Catalog,
+  CatalogCopyResult,
   CatalogUsage,
+  CopyCatalogParams,
   CreateCatalogParams,
+  FindPurchasableCatalogsParams,
   UpdateCatalogParams,
   DeleteCatalogParams,
   GetCatalogParams,
@@ -66,6 +69,17 @@ export const createCatalogApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    findPurchasable(
+      params: FindPurchasableCatalogsParams,
+      options?: RequestOptions,
+    ): Promise<Catalog[]> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<Catalog[]>(
+        `${basePath(store_id)}/purchasable`,
+        { ...options, params: query },
+      );
+    },
+
     usage(
       params: GetCatalogParams,
       options?: RequestOptions,
@@ -73,6 +87,18 @@ export const createCatalogApi = (apiConfig: ApiConfig) => {
       const { store_id, id } = params;
       return apiConfig.httpClient.get<CatalogUsage>(
         `${basePath(store_id)}/${encodeURIComponent(id)}/usage`,
+        options,
+      );
+    },
+
+    copy(
+      params: CopyCatalogParams,
+      options?: RequestOptions,
+    ): Promise<CatalogCopyResult> {
+      const { store_id, id, source_catalog_id } = params;
+      return apiConfig.httpClient.post<CatalogCopyResult>(
+        `${basePath(store_id)}/${encodeURIComponent(id)}/copy`,
+        { source_catalog_id },
         options,
       );
     },

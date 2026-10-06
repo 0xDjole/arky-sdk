@@ -1,10 +1,15 @@
 import type { EpochMilliseconds } from "./time";
 
-export type EmailSuppressionType = "unsubscribe" | "admin_block";
+export type EmailSuppressionType =
+  | "unsubscribe"
+  | "admin_block"
+  | "hard_bounce"
+  | "complaint";
 export type EmailSuppressionStatus = { type: "active" } | { type: "released" };
 export type EmailSuppressionSource =
   | { type: "campaign_unsubscribe"; campaign_message_id: string | null }
-  | { type: "admin"; account_session_id: string | null };
+  | { type: "admin"; account_session_id: string | null }
+  | { type: "delivery"; message_delivery_id: string };
 
 export interface EmailSuppression {
   id: string;

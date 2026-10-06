@@ -56,3 +56,22 @@ test("Promotion discovery preserves scoped combined filters, opaque continuation
     assert.deepEqual(codeQuery, { store_id: store, promotion_id: id, code: code.code, status: "active", limit: 20 });
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test("a promotion may target whole categories", async (context) => {
+  const store = "75669224-5b13-4994-a4a7-98b0d3d90d89";
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    calls.push({ url: new URL(url), method: init.method, body: JSON.parse(String(init.body)) });
+    return new Response(JSON.stringify({ id: "promotion" }), { headers: { "content-type": "application/json" } });
+  });
+  const admin = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" });
+  const effect = { type: "item_percentage", id: "effect", target: { type: "categories", category_ids: ["coffee", "tea"] }, basis_points: 1000 };
+  await admin.eshop.promotion.create({
+    store_id: store, key: "warm-drinks", activation: { type: "automatic" }, conditions: [], effects: [effect],
+    stacking: { type: "combinable" }, priority: 0, max_uses: null, max_uses_per_customer: null,
+    status: { type: "active" }, starts_at: null, ends_at: null,
+  });
+  assert.equal(calls[0].url.pathname, `/v1/stores/${store}/promotions`);
+  assert.equal(calls[0].method, "POST");
+  assert.deepEqual(calls[0].body.effects, [effect]);
+});

@@ -37,7 +37,6 @@ export type AnalyticsReportKey =
   | "campaign_enrollments_by_status"
   | "campaign_messages_by_status"
   | "support_conversations_by_status"
-  | "workflows_by_status"
   | "email_templates_by_status"
   | "forms_by_status"
   | "categories_by_status"
@@ -56,7 +55,6 @@ export type CustomerActionFeedCategory =
   | "services"
   | "providers"
   | "content"
-  | "workflows"
   | "customer_actions";
 
 type AnalyticsReportWithoutOptions = Exclude<
@@ -244,7 +242,6 @@ export interface CustomerActionFeedSummary {
   services: number;
   providers: number;
   content: number;
-  workflows: number;
   customer_actions: number;
   window_start: EpochMilliseconds;
 }
@@ -288,7 +285,6 @@ export type AnalyticsBreakdownReportKey =
   | "campaign_enrollments_by_status"
   | "campaign_messages_by_status"
   | "support_conversations_by_status"
-  | "workflows_by_status"
   | "email_templates_by_status"
   | "forms_by_status"
   | "categories_by_status"
@@ -336,7 +332,6 @@ export type AnalyticsReport =
   | { key: "campaign_enrollments_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
   | { key: "campaign_messages_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
   | { key: "support_conversations_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
-  | { key: "workflows_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
   | { key: "email_templates_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
   | { key: "forms_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
   | { key: "categories_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
@@ -384,7 +379,7 @@ export const createAnalyticsApi = (apiConfig: ApiConfig) => {
 };
 
 export type AnalyticsStatus = "active" | "draft" | "archived" | "deleting" | "closed" | "pending" | "confirmed" | "partially_cancelled" | "cancelled" | "abandoned" | "converted" | "merged" | "expired" | "paused" | "completed" | "replied" | "stopped" | "sent" | "received" | "bounced" | "submitted" | "requested" | "processing" | "rejected" | "failed" | "unknown" | "ai_mode" | "escalated" | "resolved";
-export type AnalyticsStatusEntity = "product" | "booking_service" | "booking_resource" | "collection" | "entry" | "customer" | "customer_group" | "mailbox" | "campaign" | "campaign_enrollment" | "campaign_message" | "support_conversation" | "workflow" | "email_template" | "form" | "category" | "cart" | "order" | "order_product_item";
+export type AnalyticsStatusEntity = "product" | "booking_service" | "booking_resource" | "collection" | "entry" | "customer" | "customer_group" | "mailbox" | "campaign" | "campaign_enrollment" | "campaign_message" | "support_conversation" | "email_template" | "form" | "category" | "cart" | "order" | "order_product_item";
 export interface AnalyticsStatusCount extends AnalyticsBreakdownItem { key: AnalyticsStatus }
 export interface AnalyticsStatusBreakdownData { items: AnalyticsStatusCount[] }
 export interface AnalyticsDimensionCount extends AnalyticsBreakdownItem { unique_profiles: number; unique_visitors: number }

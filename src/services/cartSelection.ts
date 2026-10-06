@@ -24,6 +24,20 @@ function assertCompany(cart: StorefrontCart, params: StorefrontCurrentCartParams
   }
 }
 
+function assertCatalog(cart: StorefrontCart, params: StorefrontCurrentCartParams): void {
+  if (typeof cart.catalog_id !== "string" || !cart.catalog_id.length) {
+    throw new CartSelectionError("The response does not name the Cart's Catalog");
+  }
+  if (params.catalog_id !== undefined && cart.catalog_id !== params.catalog_id) {
+    throw new CartSelectionError("The selected Cart uses a different Catalog; update that Cart explicitly");
+  }
+}
+
+function assertSelection(cart: StorefrontCart, params: StorefrontCurrentCartParams): void {
+  assertCompany(cart, params);
+  assertCatalog(cart, params);
+}
+
 async function selectionScope(context: CartSelectionContext, params: StorefrontCurrentCartParams, transport: CartSelectionTransport, options?: RequestOptions): Promise<CartSelectionScope> {
   const customerId = context.customerId();
   const market = context.market();
@@ -41,7 +55,7 @@ async function selectionScope(context: CartSelectionContext, params: StorefrontC
   if (!selectedMarket.id || selectedMarket.key !== market)
     throw new CartSelectionError("The Market read did not confirm the selected key");
   return {
-    key: `arky:selected-cart:v1:${context.namespace}:${encodeURIComponent(customerId)}:${encodeURIComponent(market)}:${encodeURIComponent(params.company?.company_id ?? "")}:${encodeURIComponent(params.company?.company_location_id ?? "")}`,
+    key: `arky:selected-cart:v1:${context.namespace}:${encodeURIComponent(customerId)}:${encodeURIComponent(market)}:${encodeURIComponent(params.company?.company_id ?? "")}:${encodeURIComponent(params.company?.company_location_id ?? "")}:${encodeURIComponent(params.catalog_id ?? "")}`,
     assertContext,
     assertCart(cart, selected) {
       assertContext();
@@ -51,7 +65,7 @@ async function selectionScope(context: CartSelectionContext, params: StorefrontC
         (selected && (cart.id !== selected.id || cart.market_id !== selected.market_id))) {
         throw new CartSelectionError("The response does not match the selected Cart and Customer context");
       }
-      assertCompany(cart, params);
+      assertSelection(cart, params);
     },
   };
 }
@@ -82,7 +96,7 @@ export function createCartSelection(
     if (created.cart.status.type !== "active" || typeof created.recovery_token !== "string" || !created.recovery_token.length) {
       throw new CartSelectionError("Cart creation did not return a valid creation receipt");
     }
-    assertCompany(created.cart, params);
+    assertSelection(created.cart, params);
     persist(scope.key, { version: 1, id: created.cart.id, market_id: created.cart.market_id });
     return created;
   }
@@ -135,7 +149,7 @@ export function createCartSelection(
     }
     const cart = await pending;
     assertCart(cart);
-    assertCompany(cart, params);
+    assertSelection(cart, params);
     return cart;
   }
 

@@ -13,16 +13,16 @@ test('hook discovery carries native controls and preserves empty-page cursors', 
     });
   });
   const store = createAdmin({ baseUrl: 'https://hooks.test' }).store;
-  for (const owner of [store.buildHook, store.webhook]) {
-    const params = { store_id: STORE_ID, query: 'lookup', status: 'disabled', sort_field: 'updated_at', sort_direction: 'asc', limit: 1 };
-    const page = await owner.list(params);
-    assert.deepEqual(page, { items: [], cursor: 'opaque:+/=' });
-    assert.deepEqual(await owner.list({ ...params, cursor: page.cursor }), page);
-  }
+  assert.equal('buildHook' in store, false);
+  const params = { store_id: STORE_ID, query: 'lookup', status: 'disabled', sort_field: 'updated_at', sort_direction: 'asc', limit: 1 };
+  const page = await store.webhook.list(params);
+  assert.deepEqual(page, { items: [], cursor: 'opaque:+/=' });
+  assert.deepEqual(await store.webhook.list({ ...params, cursor: page.cursor }), page);
+  assert.equal(calls.length, 2);
   for (const [index, call] of calls.entries()) {
     assert.equal(call.init.method, 'GET');
     assert.equal(call.init.body, undefined);
-    assert.equal(call.url.pathname, `/v1/stores/${STORE_ID}/${index < 2 ? 'build-hooks' : 'webhooks'}`);
+    assert.equal(call.url.pathname, `/v1/stores/${STORE_ID}/webhooks`);
     assert.deepEqual(Object.fromEntries(call.url.searchParams), {
       query: 'lookup', status: 'disabled', sort_field: 'updated_at', sort_direction: 'asc', limit: '1',
       ...(index % 2 ? { cursor: 'opaque:+/=' } : {}),
@@ -43,8 +43,7 @@ test('hook writes preserve tagged statuses and type-tagged scoped subscriptions'
   assert.deepEqual(created.events, events);
   assert.deepEqual(created.status, { type: 'active' });
   await store.webhook.update({ store_id: STORE_ID, id: created.id, status: { type: 'disabled' } });
-  await store.buildHook.update({ store_id: STORE_ID, id: 'build', status: { type: 'disabled' } });
-  assert.deepEqual(calls.slice(1).map(call => call.body), [{ status: { type: 'disabled' } }, { status: { type: 'disabled' } }]);
-  assert.deepEqual(calls.map(call => call.url.pathname), [`/v1/stores/${STORE_ID}/webhooks`, `/v1/stores/${STORE_ID}/webhooks/hook`, `/v1/stores/${STORE_ID}/build-hooks/build`]);
+  assert.deepEqual(calls.slice(1).map(call => call.body), [{ status: { type: 'disabled' } }]);
+  assert.deepEqual(calls.map(call => call.url.pathname), [`/v1/stores/${STORE_ID}/webhooks`, `/v1/stores/${STORE_ID}/webhooks/hook`]);
   assert.equal('store_id' in calls[0].body, false);
 });

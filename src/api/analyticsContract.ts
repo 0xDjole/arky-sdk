@@ -29,7 +29,6 @@ const SCOPES = {
   "campaign_enrollments_by_status": "current_snapshot",
   "campaign_messages_by_status": "current_snapshot",
   "support_conversations_by_status": "current_snapshot",
-  "workflows_by_status": "current_snapshot",
   "email_templates_by_status": "current_snapshot",
   "forms_by_status": "current_snapshot",
   "categories_by_status": "current_snapshot",
@@ -51,7 +50,6 @@ const STATUS_ENTITIES = {
   "campaign_enrollments_by_status": "campaign_enrollment",
   "campaign_messages_by_status": "campaign_message",
   "support_conversations_by_status": "support_conversation",
-  "workflows_by_status": "workflow",
   "email_templates_by_status": "email_template",
   "forms_by_status": "form",
   "categories_by_status": "category",
@@ -136,10 +134,6 @@ const STATUSES: Record<string, readonly string[]> = {
     "escalated",
     "resolved"
   ],
-  "workflow": [
-    "draft",
-    "active"
-  ],
   "email_template": [
     "active",
     "draft",
@@ -174,14 +168,14 @@ const STATUSES: Record<string, readonly string[]> = {
     "cancelled"
   ]
 };
-const FEED_CATEGORIES = ["orders", "carts", "submissions", "customers", "customer_groups", "products", "services", "providers", "content", "workflows", "customer_actions"];
+const FEED_CATEGORIES = ["orders", "carts", "submissions", "customers", "customer_groups", "products", "services", "providers", "content", "customer_actions"];
 const CUSTOMER_STAGES = ["visitors", "new_email_known_customers", "new_verified_customers", "buyers"];
 const OUTREACH_STAGES = ["customer_groups", "campaigns", "campaign_enrollments", "campaign_messages_sent", "outreach_bounces", "campaign_messages_received"];
 const BUSINESS_COUNTS = ["visitors", "new_visitors", "new_email_known_customers", "new_verified_customers", "buyers", "orders", "carts", "abandoned_carts"];
 const BUSINESS_RATES = ["visitor_to_known_rate", "visitor_to_buyer_rate", "cart_abandonment_rate"];
 const OUTREACH_COUNTS = ["customer_groups", "active_customer_groups", "mailboxes", "active_mailboxes", "campaigns", "active_campaigns", "campaign_enrollments", "new_campaign_enrollments", "active_campaign_enrollments", "completed_campaign_enrollments", "replied_campaign_enrollments", "campaign_messages_sent", "outreach_bounces", "campaign_messages_received"];
 const HEALTH_COUNTS = ["anonymous_customers", "known_customers", "duplicate_emails", "unknown_country_events", "unknown_device_events"];
-const FEED_COUNTS = ["total", "orders", "submissions", "customers", "customer_groups", "abandoned_carts", "carts", "products", "services", "providers", "content", "workflows", "customer_actions"];
+const FEED_COUNTS = ["total", "orders", "submissions", "customers", "customer_groups", "abandoned_carts", "carts", "products", "services", "providers", "content", "customer_actions"];
 const DAY = 86_400_000;
 
 function fail(message: string): never { throw new Error(`Invalid analytics contract: ${message}`); }
@@ -268,7 +262,7 @@ function feedFact(value: unknown, row: Record<string, unknown>, storeId: string)
     order: "orders", cart: "carts", form_submission: "submissions", customer: "customers",
     customer_group: "customer_groups", product: "products", booking_service: "services",
     booking_resource: "providers", collection: "content", entry: "content", form: "content",
-    email_template: "content", category: "content", workflow: "workflows", customer_action: "customer_actions"
+    email_template: "content", category: "content", customer_action: "customer_actions"
   };
   if (!Object.prototype.hasOwnProperty.call(categories, entity) || row.category !== categories[entity]) fail("feed category mismatch");
   const actions = entity === "customer_action" ? ["recorded"] : entity === "order"
@@ -299,7 +293,7 @@ function feedFact(value: unknown, row: Record<string, unknown>, storeId: string)
   } else if (entity === "cart") expected.push("customer_id", "customer_session_id", "status");
   else if (entity === "form_submission") { expected.push("form_id", "customer_id", "customer_session_id"); identity(data.form_id); }
   else if (entity === "customer_group" && row.action === "deleted") {}
-  else if (["product", "booking_service", "booking_resource", "collection", "entry", "form", "email_template", "category", "workflow", "customer_group"].includes(entity)) {
+  else if (["product", "booking_service", "booking_resource", "collection", "entry", "form", "email_template", "category", "customer_group"].includes(entity)) {
     expected.push("key", "status"); text(data.key, 1024);
     if (entity === "entry") { expected.push("collection_id"); identity(data.collection_id); }
   } else fail("unknown feed fact owner");
@@ -391,7 +385,6 @@ function assertReport(value: unknown, storeId: string): asserts value is Analyti
     case "campaign_enrollments_by_status": { fields(data, ["items"]); statusItems(data.items, "campaign_enrollment"); break; }
     case "campaign_messages_by_status": { fields(data, ["items"]); statusItems(data.items, "campaign_message"); break; }
     case "support_conversations_by_status": { fields(data, ["items"]); statusItems(data.items, "support_conversation"); break; }
-    case "workflows_by_status": { fields(data, ["items"]); statusItems(data.items, "workflow"); break; }
     case "email_templates_by_status": { fields(data, ["items"]); statusItems(data.items, "email_template"); break; }
     case "forms_by_status": { fields(data, ["items"]); statusItems(data.items, "form"); break; }
     case "categories_by_status": { fields(data, ["items"]); statusItems(data.items, "category"); break; }

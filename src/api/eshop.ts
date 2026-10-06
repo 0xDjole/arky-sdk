@@ -1,5 +1,5 @@
 import { requireRequestId } from "../utils/requestId";
-import type { ReviewFirstOrderTermsParams, SealFirstOrderTermsParams } from "../types/firstOrderTerms";
+import type { ReviewFirstOrderTermsParams, SealFirstOrderTermsParams, WithdrawFirstOrderTermsParams } from "../types/firstOrderTerms";
 import type { CartAccessProductPreview, PreviewCartAccessProductParams } from "../types/purchaseAccess";
 import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
@@ -25,6 +25,7 @@ import type {
   DeleteBookingOfferingParams,
   FindBookingOfferingsParams,
   LookupBookingOfferingParams,
+  GetBookingOfferingParams,
   GetBookingResourceParams,
   GetBookingResourceByKeyParams,
   GetProductParams,
@@ -406,6 +407,16 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    getBookingOffering(
+      params: GetBookingOfferingParams,
+      options?: RequestOptions,
+    ): Promise<BookingOffering> {
+      return apiConfig.httpClient.get<BookingOffering>(
+        `/v1/stores/${encodeURIComponent(requireStoreId(params.store_id))}/booking-offerings/${encodeURIComponent(params.id)}`,
+        options,
+      );
+    },
+
     lookupBookingOffering(
       params: LookupBookingOfferingParams,
       options?: RequestOptions,
@@ -718,6 +729,19 @@ export const createEshopApi = (apiConfig: ApiConfig) => {
       return withAdminCartMutation(targetStoreId, () => apiConfig.httpClient.post<Cart>(
         `/v1/stores/${targetStoreId}/carts/${encodeURIComponent(id)}/first-order-terms/seal`,
         payload,
+        options,
+      ));
+    },
+
+    async withdrawFirstOrderTerms(
+      params: WithdrawFirstOrderTermsParams,
+      options?: RequestOptions,
+    ): Promise<Cart> {
+      const { id, store_id, version_id, expected_updated_at } = params;
+      const targetStoreId = requireStoreId(store_id);
+      return withAdminCartMutation(targetStoreId, () => apiConfig.httpClient.post<Cart>(
+        `/v1/stores/${targetStoreId}/carts/${encodeURIComponent(id)}/first-order-terms/withdraw`,
+        { version_id, expected_updated_at },
         options,
       ));
     },

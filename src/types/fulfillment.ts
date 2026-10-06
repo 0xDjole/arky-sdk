@@ -13,7 +13,7 @@ export type FulfillmentStatus =
   | { type: "cancelled"; cancelled_at: EpochMilliseconds };
 
 export interface FulfillmentLine {
-  fulfillment_order_line_id: string;
+  fulfillment_job_line_id: string;
   unit_spans: FulfillmentUnitSpan[];
   selected_units: SelectedUnit[];
   lot_reference: string | null;
@@ -23,7 +23,7 @@ export interface Fulfillment {
   request_id: string;
   id: string;
   store_id: string;
-  fulfillment_order_id: string;
+  fulfillment_job_id: string;
   lines: FulfillmentLine[];
   status: FulfillmentStatus;
   tracking: Tracking | null;
@@ -37,9 +37,9 @@ export type FindFulfillmentsParams = {
   limit?: number;
   cursor?: string | null;
 } & (
-  | { order_id: string; fulfillment_order_id?: never; rental_id?: never }
-  | { fulfillment_order_id: string; order_id?: never; rental_id?: never }
-  | { rental_id: string; order_id?: never; fulfillment_order_id?: never }
+  | { order_id: string; fulfillment_job_id?: never; rental_id?: never }
+  | { fulfillment_job_id: string; order_id?: never; rental_id?: never }
+  | { rental_id: string; order_id?: never; fulfillment_job_id?: never }
 );
 
 export interface GetFulfillmentParams {
@@ -49,7 +49,7 @@ export interface GetFulfillmentParams {
 
 export interface CreateFulfillmentParams extends GetFulfillmentParams {
   request_id: string;
-  fulfillment_order_id: string;
+  fulfillment_job_id: string;
   lines: FulfillmentLine[];
 }
 
@@ -59,7 +59,7 @@ export type FulfillmentAction =
   | { type: "fulfill"; late_reason: string | null };
 
 export interface FulfillmentLotReference {
-  fulfillment_order_line_id: string;
+  fulfillment_job_line_id: string;
   lot_reference: string;
 }
 

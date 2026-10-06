@@ -30,9 +30,20 @@ export interface DisplayTextSnapshot {
 }
 
 export type AppliedPriceSource =
-  | { type: "base"; price_id: string }
-  | { type: "price_list"; price_id: string; price_list_id: string }
-  | { type: "manual"; actor: AccountActor; reason: string };
+  | { type: "catalog"; price_id: string; catalog_id: string }
+  | {
+      type: "purchase_access";
+      price_id: string;
+      catalog_id: string;
+      subscription_id: string | null;
+    }
+  | {
+      type: "manual";
+      catalog_id: string;
+      actor: AccountActor;
+      reason: string;
+      allow_promotions: boolean;
+    };
 
 export interface StorefrontPrice {
   tax_mode: TaxMode;
@@ -157,6 +168,9 @@ export type PurchaseOrigin =
 
 export interface PurchaseCustomerSnapshot {
   email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
   authentication:
     | { type: "visitor" }
     | { type: "email_authenticated"; authenticated_at: EpochMilliseconds }

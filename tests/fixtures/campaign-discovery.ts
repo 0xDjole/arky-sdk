@@ -1,5 +1,5 @@
 import type { createAdmin } from "arky-sdk/admin";
-import type { Campaign, CampaignEnrollment, CampaignMessage, NotificationDeliveryOutcome, CampaignOutgoingStatus, FindCampaignsParams, FindCampaignEnrollmentsParams, PaginatedResponse } from "arky-sdk";
+import type { Campaign, CampaignEnrollment, CampaignMessage, MessageDeliveryOutcome, CampaignOutgoingStatus, FindCampaignsParams, FindCampaignEnrollmentsParams, PaginatedResponse } from "arky-sdk";
 import type { CampaignEnrollment as PublicEnrollment } from "arky-sdk/types";
 import type { CampaignEnrollmentConversationResponse, GetCampaignEnrollmentConversationParams } from "arky-sdk";
 type Same<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false;
@@ -16,7 +16,7 @@ export type CampaignContracts = [
   True<Same<Campaign["status"]["type"], "draft" | "active" | "paused" | "completed">>,
   True<Same<CampaignEnrollment["status"]["type"], "pending" | "active" | "replied" | "completed" | "stopped">>,
   True<Same<CampaignOutgoingStatus["type"], "draft" | "submitted">>,
-  True<"unknown" extends NotificationDeliveryOutcome["type"] ? true : false>,
+  True<"unknown" extends MessageDeliveryOutcome["type"] ? true : false>,
   True<Same<CampaignMessage["delivery_id"], string | null>>,
   True<"delivery_status" extends keyof Extract<CampaignOutgoingStatus, {type: "submitted"}> ? false : true>,
   True<"submitted" extends keyof Extract<CampaignMessage["type"], { type: "outgoing" }> ? false : true>,

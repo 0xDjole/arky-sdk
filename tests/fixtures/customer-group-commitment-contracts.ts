@@ -80,7 +80,7 @@ export type EntitlementContract = [
   True<Same<Entitlement<"rental">["quantity"], number>>,
   True<Same<Entitlement<"rental">["tax_category_id"], string | null>>,
   True<RequiredField<Entitlement<"rental">, "tax_category_id">>,
-  True<Same<keyof Entitlement<"purchase_access">, "type" | "variant_ids" | "price_scope" | "limits" | "tax_category_id">>,
+  True<Same<keyof Entitlement<"purchase_access">, "type" | "variant_ids" | "catalogs" | "limits" | "tax_category_id">>,
   True<"product_id" extends keyof Entitlement<"rental"> ? false : true>,
   True<"delivery" extends keyof Entitlement<"rental"> ? false : true>,
   True<"inventory_item_id" extends keyof Entitlement<"rental"> ? false : true>,

@@ -35,8 +35,9 @@ test("Form discovery preserves native filters, nullable continuations and separa
 test("Form writes and Submission discovery match retained backend contracts", async (context) => {
   const calls = [];
   const submission = { id: "submission", store_id: STORE_ID, form_id: "form", customer_id: "customer",
-    customer_session_id: "original-session", authentication: { type: "visitor" },
-    snapshot: { form_key: "original_name", questions: [] }, fields: [], created_at: 1 };
+    source: { type: "customer", customer_session_id: "original-session", authentication: { type: "visitor" } }, locale: "en",
+    snapshot: { form_key: "original_name", presentation_digest: "a".repeat(64), questions: [] }, fields: [], created_at: 1,
+    stage: { stage_id: "new", changed_at: 1 }, stage_history: [], assignee_account_id: null, updated_at: 1 };
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     calls.push({ url: new URL(url), method: init.method, body: init.body ? JSON.parse(init.body) : undefined });
     const response = init.method === "DELETE" ? true : init.method === "PUT" ? { status: { type: "archived" } } : { items: [submission], cursor: null };
@@ -151,4 +152,32 @@ test("Form presentation changes propagate without a hidden reload or resubmissio
   assert.equal(calls.length, 1);
   assert.equal(calls[0].method, "POST");
   assert.equal(calls[0].body.presentation_digest, presentation.presentation_digest);
+});
+
+test("staff submission work uses exact stage, assignee, note and presentation routes", async (context) => {
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    const parsed = new URL(url);
+    calls.push({ method: init.method, path: parsed.pathname, query: Object.fromEntries(parsed.searchParams), body: init.body ? JSON.parse(init.body) : undefined });
+    return new Response(JSON.stringify(init.method === "GET" && parsed.pathname.endsWith("/notes") ? { items: [], cursor: null } : { id: "submission" }),
+      { headers: { "content-type": "application/json" } });
+  });
+  const api = createAdmin({ baseUrl: "https://forms.test" }).forms;
+  assert.equal("processSubmission" in api, false);
+  const fields = [{ type: "file", id: "files", key: "files", media_ids: ["media"] }];
+  await api.createSubmission({ store_id: STORE_ID, form_id: "form", id: "submission", customer_id: "customer", locale: "en", presentation_digest: "d".repeat(64), fields });
+  await api.changeSubmissionStage({ store_id: STORE_ID, form_id: "form", id: "submission", to_stage_id: "won", expected_stage_id: "new", expected_changed_at: 5 });
+  await api.assignSubmission({ store_id: STORE_ID, form_id: "form", id: "submission", assignee_account_id: null });
+  await api.createSubmissionNote({ store_id: STORE_ID, form_id: "form", form_submission_id: "submission", id: "note", body: "Called back" });
+  await api.findSubmissionNotes({ store_id: STORE_ID, form_id: "form", form_submission_id: "submission", limit: 20 });
+  await api.getPresentation({ store_id: STORE_ID, id: "form", locale: "bs" });
+  const base = `/v1/stores/${STORE_ID}/forms/form`;
+  assert.deepEqual(calls, [
+    { method: "POST", path: `${base}/submissions`, query: {}, body: { id: "submission", customer_id: "customer", locale: "en", presentation_digest: "d".repeat(64), fields } },
+    { method: "POST", path: `${base}/submissions/submission/stage`, query: {}, body: { to_stage_id: "won", expected_stage_id: "new", expected_changed_at: 5 } },
+    { method: "PUT", path: `${base}/submissions/submission/assignee`, query: {}, body: { assignee_account_id: null } },
+    { method: "POST", path: `${base}/submissions/submission/notes`, query: {}, body: { id: "note", body: "Called back" } },
+    { method: "GET", path: `${base}/submissions/submission/notes`, query: { limit: "20" }, body: undefined },
+    { method: "GET", path: `${base}/presentation`, query: { locale: "bs" }, body: undefined },
+  ]);
 });

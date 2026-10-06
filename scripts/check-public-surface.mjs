@@ -306,6 +306,10 @@ const removedSocialContractPatterns = [
   /\bSocialOAuthAttempt\b/g,
   /\/publications(?:\/|`|"|')/g,
 ];
+const removedArkyMissingVocabularyPattern =
+  /\b(?:Workflow\w*|workflow\w*|FulfillmentOrder\w*|fulfillment_order\w*|FulfillmentPartner\w*|fulfillment_partner\w*|PriceList\w*|price_list\w*|Assortment\w*|assortment\w*|CatalogEntitlement\w*|catalog_entitlement\w*|LocationOperator|PriceScope|price_scope|CompanyMembershipScope|FormSubmissionProcessing|ProcessFormSubmissionParams|processSubmission|SystemTemplateKey|EmailTemplateType|NotificationDelivery\w*|createNotificationApi|purchase_allowed|is_pickup_location)\b|fulfillment-orders|fulfillment-partners|price-lists|catalog-entitlements|notification-deliveries|\/workflows\b/g;
+const removedFutureOneVocabularyPattern =
+  /\b(?:MarketSalesChannel\w*|marketSalesChannel\w*|market_sales_channel\w*|BuildHook\w*|buildHook\w*|build_hook\w*|only_location|FormSubmissionNote|priced)\b|market-sales-channels|build-hooks/g;
 const exportedDeclarationPattern =
   /\bexport\s+(?:declare\s+)?(?:type|interface|class|enum|function|const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\b/g;
 
@@ -539,6 +543,16 @@ for (const file of listTypeScriptFiles(sourceDir)) {
     }
   }
 
+  for (const match of source.matchAll(removedArkyMissingVocabularyPattern)) {
+    report(file, source, match.index, `removed workflow, fulfillment-order, price-list, assortment or entitlement vocabulary ${match[0]}`);
+    failures++;
+  }
+
+  for (const match of source.matchAll(removedFutureOneVocabularyPattern)) {
+    report(file, source, match.index, `removed market-channel pair, build hook, only-location, submission note or priced vocabulary ${match[0]}`);
+    failures++;
+  }
+
   for (const match of source.matchAll(exportedDeclarationPattern)) {
     const name = match[1];
     if (!/\d$/.test(name)) continue;
@@ -664,16 +678,120 @@ for (const typeName of ["FormSubmission"]) {
   );
   if (
     !contract ||
-    !/\n\s*customer_session_id:\s*string;/.test(contract[1])
+    !/\n\s*source:\s*FormSubmissionSource;/.test(contract[1]) ||
+    !/\n\s*locale:\s*string;/.test(contract[1]) ||
+    /\n\s*(?:customer_session_id|authentication|processing):/.test(contract[1])
   ) {
     report(
       activityTypesFile,
       activityTypesSource,
       contract?.index ?? 0,
-      `${typeName} must expose required immutable CustomerSession provenance`,
+      `${typeName} must expose its customer or staff source and locale, without top-level Session or processing fields`,
     );
     failures++;
   }
+}
+
+const formFieldContract = activityTypesSource.match(
+  /export type FormField\s*=([\s\S]*?);\n/,
+);
+if (
+  !formFieldContract ||
+  !/type:\s*"file";\s*media_ids:\s*string\[\]/.test(formFieldContract[1])
+) {
+  report(activityTypesFile, activityTypesSource, formFieldContract?.index ?? 0,
+    "File answers must carry media_ids, not value");
+  failures++;
+}
+
+const storeMembershipContract = activityTypesSource.match(
+  /export interface StoreMembership\s*\{([\s\S]*?)\n\}/,
+);
+if (
+  !storeMembershipContract ||
+  !/\n\s*role_ids:\s*string\[\];/.test(storeMembershipContract[1]) ||
+  !/\n\s*status:\s*StoreMembershipStatus;/.test(storeMembershipContract[1]) ||
+  /\n\s*(?:access|role):/.test(storeMembershipContract[1])
+) {
+  report(activityTypesFile, activityTypesSource, storeMembershipContract?.index ?? 0,
+    "StoreMembership must name its store roles by id and carry its status, not an inline access or owner role");
+  failures++;
+}
+
+const storeMembershipStatusContract = activityTypesSource.match(
+  /export type StoreMembershipStatus\s*=([\s\S]*?);/,
+);
+if (
+  !storeMembershipStatusContract ||
+  !["invited", "active", "disabled"].every((status) =>
+    new RegExp(`type:\\s*"${status}"`).test(storeMembershipStatusContract[1]))
+) {
+  report(activityTypesFile, activityTypesSource, storeMembershipStatusContract?.index ?? 0,
+    "StoreMembershipStatus must be invited, active or disabled");
+  failures++;
+}
+
+const storeContract = activityTypesSource.match(
+  /export interface Store\s*\{([\s\S]*?)\n\}/,
+);
+if (!storeContract || !/\n\s*owner_account_id:\s*string;/.test(storeContract[1])) {
+  report(activityTypesFile, activityTypesSource, storeContract?.index ?? 0,
+    "Store must name its owner account");
+  failures++;
+}
+
+const salesChannelTypesFile = resolve(sourceDir, "types/salesChannel.ts");
+const salesChannelTypesSource = readFileSync(salesChannelTypesFile, "utf8");
+for (const typeName of ["SalesChannel", "CreateSalesChannelParams", "UpdateSalesChannelParams"]) {
+  const contract = salesChannelTypesSource.match(
+    new RegExp(`export interface ${typeName}\\s*\\{([\\s\\S]*?)\\n\\}`),
+  );
+  if (!contract || !/\n\s*market_ids:\s*string\[\];/.test(contract[1])) {
+    report(salesChannelTypesFile, salesChannelTypesSource, contract?.index ?? 0,
+      `${typeName} must list its markets in a required market_ids`);
+    failures++;
+  }
+}
+
+const priceTypesFile = resolve(sourceDir, "types/price.ts");
+const priceTypesSource = readFileSync(priceTypesFile, "utf8");
+const priceContract = priceTypesSource.match(/export interface Price\s*\{([\s\S]*?)\n\}/);
+if (!priceContract || ![
+  /\n\s*sellable:\s*SellableRef;/,
+  /\n\s*starts_at:\s*EpochMilliseconds\s*\|\s*null;/,
+  /\n\s*ends_at:\s*EpochMilliseconds\s*\|\s*null;/,
+].every((field) => field.test(priceContract[1]))) {
+  report(priceTypesFile, priceTypesSource, priceContract?.index ?? 0,
+    "Price must name its sellable and its validity window");
+  failures++;
+}
+
+const catalogAccessTypesFile = resolve(sourceDir, "types/catalogAccess.ts");
+const catalogAccessTypesSource = readFileSync(catalogAccessTypesFile, "utf8");
+for (const typeName of ["CatalogAccess", "CreateCatalogAccessParams"]) {
+  const contract = catalogAccessTypesSource.match(
+    new RegExp(`export interface ${typeName}\\s*\\{([\\s\\S]*?)\\n\\}`),
+  );
+  if (!contract ||
+    !/\n\s*channels:\s*CatalogChannels;/.test(contract[1]) ||
+    !/\n\s*level:\s*CatalogAccessLevel;/.test(contract[1])) {
+    report(catalogAccessTypesFile, catalogAccessTypesSource, contract?.index ?? 0,
+      `${typeName} must carry its channels and access level`);
+    failures++;
+  }
+}
+
+const storeLocationContract = activityTypesSource.match(
+  /export interface StoreLocation\s*\{([\s\S]*?)\n\}/,
+);
+if (
+  !storeLocationContract ||
+  !/\n\s*allows_pickup:\s*boolean;/.test(storeLocationContract[1]) ||
+  /\n\s*operator\??:/.test(storeLocationContract[1])
+) {
+  report(activityTypesFile, activityTypesSource, storeLocationContract?.index ?? 0,
+    "StoreLocation must expose allows_pickup and no operator");
+  failures++;
 }
 
 const cartTypesFile = resolve(sourceDir, "types/cart.ts");
@@ -683,6 +801,7 @@ const requiredCartFields = [
   /\borigin:\s*PurchaseOrigin;/,
   /\bstatus:\s*CartStatus;/,
   /\bmarket_id:\s*string;/,
+  /\bcatalog_id:\s*string;/,
   /\bsales_channel_id:\s*string;/,
   /\bcustomer_id:\s*string;/,
   /\bcompany:\s*CartCompanyContext\s*\|\s*null;/,
@@ -725,6 +844,7 @@ const requiredOrderFields = [
   /\bstatus:\s*OrderStatus;/,
   /\bcustomer_id:\s*string;/,
   /\bcustomer_snapshot:\s*PurchaseCustomerSnapshot;/,
+  /\blocale:\s*string;/,
   /\bcompany:\s*OrderCompanyContext\s*\|\s*null;/,
   /\bmarket_snapshot:\s*MarketSnapshot;/,
   /\bsales_channel_snapshot:\s*SalesChannelSnapshot;/,
@@ -885,7 +1005,7 @@ if (
 }
 
 if (
-  /\bcrmApi\b|createCustomerApi|\bcms\s*:|\bcrm\s*:|\bautomation\s*:/.test(
+  /\bcrmApi\b|createCustomerApi|\bcms\s*:|\bcrm\s*:|\bworkflow\s*:/.test(
     indexSource,
   ) ||
   !/createCustomersApi\s*\}\s*from\s*["']\.\/api\/customers["']/.test(
@@ -906,7 +1026,22 @@ if (
   !/createMarketPaymentOptionApi\s*\}\s*from\s*["']\.\/api\/marketPaymentOption["']/.test(
     indexSource,
   ) ||
-  !/createFulfillmentOrderApi\s*\}\s*from\s*["']\.\/api\/fulfillmentOrder["']/.test(
+  !/createFulfillmentJobApi\s*\}\s*from\s*["']\.\/api\/fulfillmentJob["']/.test(
+    indexSource,
+  ) ||
+  !/createAutomationApi\s*\}\s*from\s*["']\.\/api\/automation["']/.test(
+    indexSource,
+  ) ||
+  !/createStoreRoleApi\s*\}\s*from\s*["']\.\/api\/storeRole["']/.test(
+    indexSource,
+  ) ||
+  !/createCatalogItemApi\s*\}\s*from\s*["']\.\/api\/catalogItem["']/.test(
+    indexSource,
+  ) ||
+  !/createCatalogAccessApi\s*\}\s*from\s*["']\.\/api\/catalogAccess["']/.test(
+    indexSource,
+  ) ||
+  !/createMessageDeliveryApi\s*\}\s*from\s*["']\.\/api\/messageDelivery["']/.test(
     indexSource,
   ) ||
   !/createRentalApi\s*\}\s*from\s*["']\.\/api\/rental["']/.test(indexSource) ||
@@ -915,14 +1050,14 @@ if (
   !/\bcontent\s*:\s*\{/.test(indexSource) ||
   !/\bforms\s*:\s*\{/.test(indexSource) ||
   !/\bactions\s*:/.test(indexSource) ||
-  !/\bworkflow\s*:/.test(indexSource) ||
+  !/\bautomation\s*:/.test(indexSource) ||
   !/\bsupport\s*:/.test(indexSource)
 ) {
   report(
     indexFile,
     indexSource,
     0,
-    "index wiring must expose direct owner APIs without CMS, CRM, or Automation bundles",
+    "index wiring must expose direct owner APIs, including automations, without CMS or CRM bundles",
   );
   failures++;
 }
@@ -1079,20 +1214,22 @@ if (
   failures++;
 }
 
-const rentalIssueContract = activityTypesSource.match(
-  /export type FulfillmentOrderLineSource\s*=([\s\S]*?)\n\};/,
+const fulfillmentJobTypesFile = resolve(sourceDir, "types/fulfillmentJob.ts");
+const fulfillmentJobTypesSource = readFileSync(fulfillmentJobTypesFile, "utf8");
+const rentalIssueContract = fulfillmentJobTypesSource.match(
+  /export type FulfillmentJobLineSource\s*=([\s\S]*?)\n\n/,
 );
 if (
   !rentalIssueContract ||
   !/type:\s*"rental_issue";[^}]*\breplacement:\s*RentalIssueReplacement\s*\|\s*null;/.test(
     rentalIssueContract[1],
   ) ||
-  !/export interface RentalIssueReplacement\s*\{[^}]*\bpredecessor_inventory_unit_id:\s*string;[^}]*\bpredecessor_fulfillment_order_line_id:\s*string;[^}]*\bpredecessor_fulfillment_unit_index:\s*number;[^}]*\boverlap_authorized:\s*boolean;/.test(
+  !/export interface RentalIssueReplacement\s*\{[^}]*\bpredecessor_inventory_unit_id:\s*string;[^}]*\bpredecessor_fulfillment_job_line_id:\s*string;[^}]*\bpredecessor_fulfillment_unit_index:\s*number;[^}]*\boverlap_authorized:\s*boolean;/.test(
     activityTypesSource,
   ) ||
   /predecessor_placement_id/.test(activityTypesSource)
 ) {
-  report(activityTypesFile, activityTypesSource, rentalIssueContract?.index ?? 0,
+  report(fulfillmentJobTypesFile, fulfillmentJobTypesSource, rentalIssueContract?.index ?? 0,
     "Rental issue work must name its nullable typed replacement, never a bare predecessor field");
   failures++;
 }
@@ -1130,7 +1267,7 @@ const movementReasonContract = inventoryTypesSource.match(
 );
 if (
   !movementReasonContract ||
-  !/\{\s*type:\s*"dispatched";\s*fulfillment_order_id:\s*string;\s*fulfillment_id:\s*string\s*\}/.test(movementReasonContract[1]) ||
+  !/\{\s*type:\s*"dispatched";\s*fulfillment_job_id:\s*string;\s*fulfillment_id:\s*string\s*\}/.test(movementReasonContract[1]) ||
   /"fulfillment"|"rental_issue"|"transfer_in"|"transfer_out"/.test(movementReasonContract[1])
 ) {
   report(inventoryTypesFile, inventoryTypesSource, movementReasonContract?.index ?? 0,
@@ -1161,6 +1298,47 @@ const planTypesSource = readFileSync(planTypesFile, "utf8");
 if (!/type:\s*"recurring";[^}]*\bcommitment:\s*SubscriptionCommitment\s*\|\s*null;/.test(planTypesSource)) {
   report(planTypesFile, planTypesSource, 0,
     "Recurring plan terms must carry a required nullable commitment");
+  failures++;
+}
+
+const catalogTypesFile = resolve(sourceDir, "types/catalog.ts");
+const catalogTypesSource = readFileSync(catalogTypesFile, "utf8");
+const purchasableContract = catalogTypesSource.match(
+  /export type FindPurchasableCatalogsParams\s*=\s*\{([\s\S]*?)\n\}\s*&/,
+);
+if (
+  !purchasableContract ||
+  !["store_id", "market_id", "sales_channel_id", "customer_id"].every((field) =>
+    new RegExp(`\\n\\s*${field}:\\s*string;`).test(purchasableContract[1]),
+  )
+) {
+  report(catalogTypesFile, catalogTypesSource, purchasableContract?.index ?? 0,
+    "FindPurchasableCatalogsParams must name the store, market, sales channel and customer");
+  failures++;
+}
+const storefrontCatalogContract = catalogTypesSource.match(
+  /export interface StorefrontCatalog\s*\{([\s\S]*?)\n\}/,
+);
+if (
+  !storefrontCatalogContract ||
+  !/\n\s*id:\s*string;/.test(storefrontCatalogContract[1]) ||
+  !/\n\s*key:\s*string;/.test(storefrontCatalogContract[1]) ||
+  !/\n\s*level:\s*CatalogAccessLevel;/.test(storefrontCatalogContract[1])
+) {
+  report(catalogTypesFile, catalogTypesSource, storefrontCatalogContract?.index ?? 0,
+    "StorefrontCatalog must carry the catalog id, key and the buyer's access level");
+  failures++;
+}
+const catalogApiFile = resolve(sourceDir, "api/catalog.ts");
+const catalogApiSource = readFileSync(catalogApiFile, "utf8");
+if (!/\bfindPurchasable\(/.test(catalogApiSource) || !/\/purchasable`/.test(catalogApiSource)) {
+  report(catalogApiFile, catalogApiSource, 0,
+    "The Admin catalog API must read a buyer's purchasable catalogs");
+  failures++;
+}
+if (!/\bcatalog:\s*\{\s*find\(/.test(storefrontApiSource) || !/\$\{base\}\/catalogs`/.test(storefrontApiSource)) {
+  report(storefrontApiFile, storefrontApiSource, 0,
+    "The storefront must read the buyer's catalogs through eshop.catalog.find");
   failures++;
 }
 

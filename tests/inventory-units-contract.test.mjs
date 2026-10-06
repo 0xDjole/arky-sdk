@@ -50,7 +50,7 @@ test("Unit commands preserve the caller's receipt identity and exact revisions w
     await api.receive(receipt);
     await api.receive(receipt);
     await api.get({ store_id: STORE_ID, id: "unit" });
-    await api.allocate({ store_id: STORE_ID, id: "unit", fulfillment_order_id: "work", fulfillment_order_line_id: "line", fulfillment_unit_index: 3, expected_updated_at: 1700000000001 });
+    await api.allocate({ store_id: STORE_ID, id: "unit", fulfillment_job_id: "work", fulfillment_job_line_id: "line", fulfillment_unit_index: 3, expected_updated_at: 1700000000001 });
     await api.unassign({ store_id: STORE_ID, id: "unit", expected_updated_at: 1700000000002 });
     assert.equal(calls.length, 5);
     const { store_id: _store, ...receiptBody } = receipt;
@@ -63,7 +63,7 @@ test("Unit commands preserve the caller's receipt identity and exact revisions w
       [`/v1/stores/${STORE_ID}/inventory-units/unit/allocate`, "POST"],
       [`/v1/stores/${STORE_ID}/inventory-units/unit/unassign`, "POST"],
     ]);
-    assert.deepEqual(calls[3].body, { fulfillment_order_id: "work", fulfillment_order_line_id: "line", fulfillment_unit_index: 3, expected_updated_at: 1700000000001 });
+    assert.deepEqual(calls[3].body, { fulfillment_job_id: "work", fulfillment_job_line_id: "line", fulfillment_unit_index: 3, expected_updated_at: 1700000000001 });
     assert.deepEqual(calls[4].body, { expected_updated_at: 1700000000002 });
   } finally { globalThis.fetch = original; }
 });
@@ -102,7 +102,7 @@ test("Unit movement and write-off preserve explicit request identities and loade
 test("Unit execution inspection returns exact Fulfillment evidence and preserves its absence", async () => {
   const original = globalThis.fetch;
   const calls = [];
-  const execution = { fulfillment_order_id: "work", fulfillment_order_line_id: "line", fulfillment_unit_index: 3,
+  const execution = { fulfillment_job_id: "work", fulfillment_job_line_id: "line", fulfillment_unit_index: 3,
     fulfillment_id: "fulfillment", executed_at: 1700000000000 };
   globalThis.fetch = async (url, init = {}) => {
     calls.push({ url: new URL(url), method: init.method });

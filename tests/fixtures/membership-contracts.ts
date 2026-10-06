@@ -31,7 +31,7 @@ type EmailCommunication = Extract<
 >;
 
 export type MembershipContracts = [
-  Expect<Equal<NonNullable<FindStorefrontSubscriptionPlansParams["sort_field"]>, "key" | "created_at" | "price">>,
+  Expect<Equal<NonNullable<FindStorefrontSubscriptionPlansParams["sort_field"]>, "key" | "created_at" | "price" | "catalog_order">>,
   Expect<Equal<FindStorefrontSubscriptionPlansParams["include_price"], boolean | undefined>>,
   Expect<Equal<GetStorefrontSubscriptionPlanParams["subscription_offering_id"], string | undefined>>,
   Expect<
@@ -73,7 +73,7 @@ export type MembershipContracts = [
       never
     >
   >,
-  Expect<Equal<StorefrontSubscriptionPlan["purchase_allowed"], boolean>>,
+  Expect<Equal<"purchase_allowed" extends keyof StorefrontSubscriptionPlan ? true : false, false>>,
   Expect<
     Equal<
       Extract<keyof StorefrontSubscriptionPlan, "status" | "store_id">,

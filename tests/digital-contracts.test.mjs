@@ -328,7 +328,6 @@ test("Storefront Digital Product lookup and library routes keep distinct selecto
     blocks: [],
     categories: [],
     price: null,
-    purchase_allowed: true,
   };
   const libraryProduct = {
     digital_product_id: product.id,

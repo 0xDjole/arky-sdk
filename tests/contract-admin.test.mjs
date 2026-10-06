@@ -132,7 +132,13 @@ assert.equal(typeof arky.eshop.subscription.findOrders, "function");
 assert.equal(typeof arky.store.member.add, "function");
 assert.equal(typeof arky.store.member.invite, "function");
 assert.equal(typeof arky.store.member.remove, "function");
-assert.equal(typeof arky.store.buildHook.list, "function");
+assert.equal(typeof arky.store.member.updateRoles, "function");
+assert.equal(typeof arky.store.member.changeStatus, "function");
+assert.equal(typeof arky.store.member.transferOwnership, "function");
+for (const method of ["create", "update", "get", "find", "delete"]) {
+  assert.equal(typeof arky.store.role[method], "function");
+}
+assert.equal("buildHook" in arky.store, false);
 assert.equal(typeof arky.store.webhook.list, "function");
 assert.equal(typeof arky.store.paymentOption.list, "function");
 for (const method of ["setup", "configure", "cancelConfiguration", "getConfigurationChange", "refresh"]) {
@@ -511,46 +517,62 @@ assert.deepEqual(JSON.parse(socialFetchCalls[9].body), {
   },
 });
 
-assert.equal(typeof arky.workflow.listConnections, "function");
-assert.equal(typeof arky.workflow.getConnectionConnectUrl, "function");
-assert.equal(typeof arky.workflow.deleteConnection, "function");
+for (const method of ["create", "update", "get", "find", "delete", "activate", "pause", "resendReceipt"]) {
+  assert.equal(typeof arky.automation[method], "function", `Admin automation must expose ${method}`);
+}
+assert.equal(typeof arky.automation.run.find, "function");
+assert.equal(typeof arky.automation.run.get, "function");
+assert.equal("workflow" in arky, false);
 
-const workflowFetchCalls = [];
+const automationFetchCalls = [];
 const originalFetch = globalThis.fetch;
 
 globalThis.fetch = async (url, init = {}) => {
-  workflowFetchCalls.push({
+  automationFetchCalls.push({
     url: String(url),
     method: init.method,
     body: init.body,
   });
-  return new Response(
-    JSON.stringify({ authorization_url: "https://oauth.test", state: "state" }),
-    {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    },
-  );
+  return new Response(JSON.stringify({}), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
 };
 
 try {
-  await arky.workflow.getConnectionConnectUrl({
+  await arky.automation.activate({
     store_id: STORE_ID,
-    type: "google_drive",
+    id: "automation-contract",
+    expected_updated_at: 5,
+  });
+  await arky.automation.resendReceipt({
+    store_id: STORE_ID,
+    order_id: "order-contract",
+    request_id: "4c8e1a73-5b29-4d06-9f3a-2e7d0b6c8f15",
+  });
+  await arky.automation.run.find({
+    store_id: STORE_ID,
+    automation_id: "automation-contract",
+    status: "waiting",
+    limit: 10,
   });
 } finally {
   globalThis.fetch = originalFetch;
 }
 
-assert.equal(workflowFetchCalls[0].method, "POST");
-assert.equal(
-  workflowFetchCalls[0].url,
-  `${API}/v1/stores/${STORE_ID}/workflow-connections/connect-url`,
+assert.deepEqual(
+  automationFetchCalls.map(({ url, method }) => [url, method]),
+  [
+    [`${API}/v1/stores/${STORE_ID}/automations/automation-contract/activate`, "POST"],
+    [`${API}/v1/stores/${STORE_ID}/automations/receipt-resends`, "POST"],
+    [`${API}/v1/stores/${STORE_ID}/automation-runs?automation_id=automation-contract&status=waiting&limit=10`, "GET"],
+  ],
 );
-assert.deepEqual(JSON.parse(workflowFetchCalls[0].body), {
-  type: "google_drive",
+assert.deepEqual(JSON.parse(automationFetchCalls[0].body), { expected_updated_at: 5 });
+assert.deepEqual(JSON.parse(automationFetchCalls[1].body), {
+  order_id: "order-contract",
+  request_id: "4c8e1a73-5b29-4d06-9f3a-2e7d0b6c8f15",
 });
-assert.equal(workflowFetchCalls.length, 1);
 
 assert.equal(typeof arky.support.createAgent, "function");
 assert.equal(typeof arky.support.getAgentDefinition, "function");
@@ -558,12 +580,17 @@ assert.equal(typeof arky.support.replaceAgentDefinition, "function");
 assert.equal(typeof arky.support.findAgents, "function");
 assert.equal(typeof arky.support.findConversations, "function");
 assert.equal(typeof arky.support.replyToConversation, "function");
-assert.equal("automation" in arky, false);
 
 assert.equal(typeof arky.notification.mailbox.find, "function");
 assert.equal(typeof arky.notification.mailbox.connectGoogle, "function");
 assert.equal(typeof arky.notification.mailbox.disconnect, "function");
 assert.equal("email" in arky.notification, false);
+assert.equal(typeof arky.notification.delivery.find, "function");
+assert.equal(typeof arky.notification.delivery.get, "function");
+assert.equal(typeof arky.notification.delivery.stop, "function");
+for (const removed of ["save", "get", "find", "preview"]) {
+  assert.equal(removed in arky.notification, false);
+}
 
 const mailboxFetchCalls = [];
 globalThis.fetch = async (url, init = {}) => {
@@ -717,9 +744,27 @@ for (const removed of ["shipment", "pickup", "shippingLabel", "shippingLabelRefu
 }
 assert.equal(typeof arky.eshop.fulfillment.create, "function");
 assert.equal(typeof arky.eshop.fulfillment.execute, "function");
-assert.equal(typeof arky.eshop.fulfillmentOrder.find, "function");
-assert.equal(typeof arky.eshop.fulfillmentOrder.get, "function");
-assert.equal(typeof arky.eshop.fulfillmentOrder.unitSlots, "function");
+assert.equal(typeof arky.eshop.fulfillmentJob.find, "function");
+assert.equal(typeof arky.eshop.fulfillmentJob.get, "function");
+assert.equal(typeof arky.eshop.fulfillmentJob.items, "function");
+assert.equal(typeof arky.eshop.fulfillmentJob.unitSlots, "function");
+assert.equal(typeof arky.eshop.fulfillmentJob.decide, "function");
+assert.equal(typeof arky.eshop.fulfillmentRouting.get, "function");
+assert.equal(typeof arky.eshop.fulfillmentRouting.update, "function");
+for (const removed of ["fulfillmentOrder", "fulfillmentPartner", "fulfillmentRoutingPolicy", "priceList", "assortment", "assortmentItem", "catalogEntitlement"]) {
+  assert.equal(removed in arky.eshop, false);
+}
+assert.equal(typeof arky.eshop.catalogItem.create, "function");
+assert.equal(typeof arky.eshop.catalogItem.batch, "function");
+assert.equal(typeof arky.eshop.catalog.copy, "function");
+assert.equal(typeof arky.eshop.catalog.findPurchasable, "function");
+assert.equal(typeof arky.eshop.price.batch, "function");
+assert.equal(typeof arky.eshop.catalogAccess.create, "function");
+assert.equal(typeof arky.eshop.cart.withdrawFirstOrderTerms, "function");
+for (const owner of [arky.eshop.order.notes, arky.customers.notes, arky.companies.notes]) {
+  for (const method of ["find", "create", "update", "delete"]) assert.equal(typeof owner[method], "function");
+}
+assert.equal(typeof arky.notification.template.test, "function");
 assert.equal(typeof arky.eshop.rental.find, "function");
 assert.equal(typeof arky.eshop.rental.execute, "function");
 assert.equal("rentalPlacement" in arky.eshop, false);
@@ -727,15 +772,14 @@ assert.equal(typeof arky.eshop.subscriptionPlanEntitlement.find, "function");
 assert.equal(typeof arky.eshop.subscription.control, "function");
 assert.equal(typeof arky.eshop.orderCredit.create, "function");
 assert.equal(typeof arky.eshop.orderCredit.find, "function");
-assert.equal(typeof arky.eshop.fulfillmentRoutingPolicy.create, "function");
 assert.equal(typeof arky.store.paymentTerms.create, "function");
-assert.equal(typeof arky.store.marketSalesChannel.create, "function");
+assert.equal("marketSalesChannel" in arky.store, false);
 assert.equal(typeof arky.store.storefrontClient.create, "function");
 
 const fulfillmentCalls = [];
 globalThis.fetch = async (url, init = {}) => {
   fulfillmentCalls.push({ url: String(url), method: init.method });
-  const body = String(url).includes("/fulfillment-orders?")
+  const body = String(url).includes("/fulfillment-jobs?")
     ? { items: [], cursor: null }
     : {};
   return new Response(JSON.stringify(body), {
@@ -744,18 +788,23 @@ globalThis.fetch = async (url, init = {}) => {
   });
 };
 try {
-  await arky.eshop.fulfillmentOrder.find({
+  await arky.eshop.fulfillmentJob.find({
     store_id: STORE_ID,
     order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
     limit: 20,
   });
-  await arky.eshop.fulfillmentOrder.find({
+  await arky.eshop.fulfillmentJob.find({
     store_id: STORE_ID,
     rental_id: "6ba7b816-9dad-41d1-80b4-00c04fd430c8",
   });
-  await arky.eshop.fulfillmentOrder.get({
+  await arky.eshop.fulfillmentJob.get({
     store_id: STORE_ID,
-    fulfillment_order_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
+    fulfillment_job_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
+  });
+  await arky.eshop.fulfillmentJob.find({
+    store_id: STORE_ID,
+    assignment: "unassigned",
+    limit: 20,
   });
 } finally {
   globalThis.fetch = originalFetch;
@@ -764,15 +813,19 @@ assert.deepEqual(
   fulfillmentCalls.map(({ url, method }) => [url, method]),
   [
     [
-      `${API}/v1/stores/${STORE_ID}/fulfillment-orders?order_id=6ba7b81a-9dad-41d1-80b4-00c04fd430c8&limit=20`,
+      `${API}/v1/stores/${STORE_ID}/fulfillment-jobs?order_id=6ba7b81a-9dad-41d1-80b4-00c04fd430c8&limit=20`,
       "GET",
     ],
     [
-      `${API}/v1/stores/${STORE_ID}/fulfillment-orders?rental_id=6ba7b816-9dad-41d1-80b4-00c04fd430c8`,
+      `${API}/v1/stores/${STORE_ID}/fulfillment-jobs?rental_id=6ba7b816-9dad-41d1-80b4-00c04fd430c8`,
       "GET",
     ],
     [
-      `${API}/v1/stores/${STORE_ID}/fulfillment-orders/6ba7b813-9dad-41d1-80b4-00c04fd430c8`,
+      `${API}/v1/stores/${STORE_ID}/fulfillment-jobs/6ba7b813-9dad-41d1-80b4-00c04fd430c8`,
+      "GET",
+    ],
+    [
+      `${API}/v1/stores/${STORE_ID}/fulfillment-jobs?assignment=unassigned&limit=20`,
       "GET",
     ],
   ],
@@ -853,7 +906,7 @@ const analyticsResponse = {
         summary: {
           total: 0, orders: 0, submissions: 0, customers: 0, customer_groups: 0,
           abandoned_carts: 0, carts: 0, products: 0, services: 0, providers: 0,
-          content: 0, workflows: 0, customer_actions: 0, window_start: 86_400_000,
+          content: 0, customer_actions: 0, window_start: 86_400_000,
         },
         next_cursor: null,
         meta: { row_count: 0, execution_ms: 3 },
@@ -934,158 +987,102 @@ assert.deepEqual(platformCalls, [
   },
 ]);
 
-for (const method of [
-  "create",
-  "update",
-  "delete",
-  "get",
-  "regenerateWebhookUrl",
-  "find",
-  "invokeWebhook",
-  "getExecutions",
-  "getExecution",
-]) {
-  assert.equal(
-    typeof arky.workflow[method],
-    "function",
-    `Admin Workflow must expose ${method}`,
-  );
-}
-for (const obsolete of [
-  "getDefinition",
-  "replaceDefinition",
-  "getTrigger",
-  "rotateTrigger",
-  "getExecutionDefinition",
-  "getExecutionInput",
-  "getExecutionResults",
-]) {
-  assert.equal(obsolete in arky.workflow, false);
-}
-
-const workflowCoreCalls = [];
+const automationCoreCalls = [];
 globalThis.fetch = async (url, init = {}) => {
-  workflowCoreCalls.push({
+  automationCoreCalls.push({
     url: String(url),
     method: init.method,
     body: init.body ? JSON.parse(String(init.body)) : null,
   });
-  if (init.method === "DELETE") {
-    return new Response(null, { status: 204 });
-  }
-  const body = String(url).includes("?") ? { items: [], cursor: null } : {};
+  const body = init.method === "DELETE"
+    ? true
+    : init.method === "GET" && String(url).includes("?")
+      ? { items: [], cursor: null }
+      : {};
   return new Response(JSON.stringify(body), {
     status: 200,
     headers: { "content-type": "application/json" },
   });
 };
+const automationSteps = [{ id: "step-wait", type: { type: "wait", minutes: 30 } }];
 try {
-  const graph = {
-    nodes: {
-      start: { type: "transform", code: "input", delay_ms: null },
-    },
-    edges: [],
-  };
-  await arky.workflow.create({
+  await arky.automation.create({
     store_id: STORE_ID,
+    id: "automation-contract",
     key: "customer_welcome",
-    status: "active",
-    schedule: null,
-    graph,
+    trigger: { type: "customer_created" },
+    steps: automationSteps,
+    exits: [],
+    active: true,
   });
-  await arky.workflow.update({
+  await arky.automation.update({
     store_id: OTHER_STORE_ID,
-    id: "workflow-contract",
+    id: "automation-contract",
+    expected_updated_at: 7,
     key: "customer_welcome_v2",
-    status: "draft",
-    schedule: null,
-    graph,
+    trigger: { type: "customer_created" },
+    steps: automationSteps,
+    exits: [{ type: "order_placed" }],
   });
-  await arky.workflow.delete({ store_id: STORE_ID, id: "workflow-contract" });
-  await arky.workflow.get({ store_id: STORE_ID, id: "workflow-contract" });
-  await arky.workflow.regenerateWebhookUrl({
-    store_id: STORE_ID,
-    workflow_id: "workflow-contract",
-  });
-  await arky.workflow.find({
+  await arky.automation.pause({ store_id: STORE_ID, id: "automation-contract", expected_updated_at: 8 });
+  await arky.automation.delete({ store_id: STORE_ID, id: "automation-contract", expected_updated_at: 9 });
+  await arky.automation.get({ store_id: STORE_ID, id: "automation-contract" });
+  await arky.automation.find({
     store_id: STORE_ID,
     status: "active",
     limit: 20,
     cursor: "next page",
   });
-  await arky.workflow.getExecutions({
-    store_id: STORE_ID,
-    workflow_id: "workflow-contract",
-    status: "running",
-    limit: 10,
-    cursor: "execution page",
-  });
-  await arky.workflow.getExecution({
-    store_id: STORE_ID,
-    workflow_id: "workflow-contract",
-    execution_id: "execution-contract",
-  });
+  await arky.automation.run.get({ store_id: STORE_ID, id: "run-contract" });
 } finally {
   globalThis.fetch = originalFetch;
 }
-assert.deepEqual(workflowCoreCalls, [
+assert.deepEqual(automationCoreCalls, [
   {
-    url: `${API}/v1/stores/${STORE_ID}/workflows`,
+    url: `${API}/v1/stores/${STORE_ID}/automations`,
     method: "POST",
     body: {
+      id: "automation-contract",
       key: "customer_welcome",
-      status: "active",
-      schedule: null,
-      graph: {
-        nodes: {
-          start: { type: "transform", code: "input", delay_ms: null },
-        },
-        edges: [],
-      },
+      trigger: { type: "customer_created" },
+      steps: [{ id: "step-wait", type: { type: "wait", minutes: 30 } }],
+      exits: [],
+      active: true,
     },
   },
   {
-    url: `${API}/v1/stores/${OTHER_STORE_ID}/workflows/workflow-contract`,
+    url: `${API}/v1/stores/${OTHER_STORE_ID}/automations/automation-contract`,
     method: "PUT",
     body: {
+      expected_updated_at: 7,
       key: "customer_welcome_v2",
-      status: "draft",
-      schedule: null,
-      graph: {
-        nodes: {
-          start: { type: "transform", code: "input", delay_ms: null },
-        },
-        edges: [],
-      },
+      trigger: { type: "customer_created" },
+      steps: [{ id: "step-wait", type: { type: "wait", minutes: 30 } }],
+      exits: [{ type: "order_placed" }],
     },
   },
   {
-    url: `${API}/v1/stores/${STORE_ID}/workflows/workflow-contract`,
+    url: `${API}/v1/stores/${STORE_ID}/automations/automation-contract/pause`,
+    method: "POST",
+    body: { expected_updated_at: 8 },
+  },
+  {
+    url: `${API}/v1/stores/${STORE_ID}/automations/automation-contract?expected_updated_at=9`,
     method: "DELETE",
     body: null,
   },
   {
-    url: `${API}/v1/stores/${STORE_ID}/workflows/workflow-contract`,
+    url: `${API}/v1/stores/${STORE_ID}/automations/automation-contract`,
     method: "GET",
     body: null,
   },
   {
-    url: `${API}/v1/stores/${STORE_ID}/workflows/workflow-contract/regenerate-webhook-url`,
-    method: "POST",
-    body: null,
-  },
-  {
-    url: `${API}/v1/stores/${STORE_ID}/workflows?status=active&limit=20&cursor=next%20page`,
+    url: `${API}/v1/stores/${STORE_ID}/automations?status=active&limit=20&cursor=next%20page`,
     method: "GET",
     body: null,
   },
   {
-    url: `${API}/v1/stores/${STORE_ID}/workflows/workflow-contract/executions?status=running&limit=10&cursor=execution%20page`,
-    method: "GET",
-    body: null,
-  },
-  {
-    url: `${API}/v1/stores/${STORE_ID}/workflows/workflow-contract/executions/execution-contract`,
+    url: `${API}/v1/stores/${STORE_ID}/automation-runs/run-contract`,
     method: "GET",
     body: null,
   },

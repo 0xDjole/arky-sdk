@@ -6,7 +6,12 @@ import type { EpochMilliseconds } from "./time";
 export type CustomerGroupAdmissionSource =
   | { type: "customer"; customer_id: string }
   | { type: "company"; company_membership_id: string }
-  | { type: "account"; actor: AccountActor };
+  | { type: "account"; actor: AccountActor }
+  | { type: "automation"; automation_id: string; run_id: string };
+
+export type CustomerGroupDecisionSource =
+  | { type: "account"; actor: AccountActor }
+  | { type: "automation"; automation_id: string; run_id: string };
 
 export type CustomerGroupAdmission =
   | { type: "requested" }
@@ -20,14 +25,14 @@ export type CustomerGroupAdmission =
   | {
       type: "revoked";
       request_id: string;
-      actor: AccountActor;
+      source: CustomerGroupDecisionSource;
       reason: string;
       revoked_at: EpochMilliseconds;
     };
 
 export interface CustomerGroupAdministrativeAccess {
   request_id: string;
-  actor: AccountActor;
+  source: CustomerGroupDecisionSource;
   granted_at: EpochMilliseconds;
   expires_at: EpochMilliseconds | null;
   reason: string;
@@ -129,7 +134,8 @@ export interface CustomerGroupMemberChange {
   accepted_at: EpochMilliseconds;
   change:
     | { type: "administrative"; actor: AccountActor; request: CustomerGroupMemberCommand; result: CustomerGroupMemberCommandResult }
-    | { type: "self_enrollment"; customer_id: string; customer_session_id: string; request: CustomerGroupJoinRequest; source: CustomerGroupAdmissionSource; result: CustomerGroupMemberCommandResult };
+    | { type: "self_enrollment"; customer_id: string; customer_session_id: string; request: CustomerGroupJoinRequest; source: CustomerGroupAdmissionSource; result: CustomerGroupMemberCommandResult }
+    | { type: "automation"; automation_id: string; run_id: string; customer_group_id: string; customer_id: string; result: CustomerGroupMemberCommandResult };
 }
 
 export interface CustomerGroupMemberCommandResponse {

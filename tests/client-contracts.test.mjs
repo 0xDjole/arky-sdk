@@ -60,29 +60,24 @@ test("Admin non-commerce reads do not need or invent a Market", async (t) => {
   assert.equal(admin.getMarket(), "bih");
 });
 
-test("workflow external-operation audit routes preserve execution scope", async () => {
+test("message delivery history routes preserve recipient and run filters", async () => {
   const admin = createAdmin({
     baseUrl,
-    apiToken: "arky_api_workflow_operation_contract",
+    apiToken: "arky_api_message_delivery_contract",
   });
-  const operation = {
-    id: "operation-contract",
-    store_id: storeId,
-    workflow_id: "workflow-contract",
-    execution_id: "execution-contract",
-    node_id: "http_1",
-    iteration_key: "root",
-    type: "http_mutation",
-    status: { type: "succeeded" },
-    requested_at: 1,
-    processing_started_at: 2,
-    completed_at: 3,
-    result: { type: "provider", provider_status: 200 },
-    error: null,
-    updated_at: 3,
+  const delivery = {
+    id: "delivery-contract",
+    scope: { type: "store", store_id: storeId },
+    source: { type: "receipt_resend", automation_id: "automation-contract", order_id: "order-contract", request_id: "request-contract" },
+    recipient_key: "buyer@example.test",
+    request_retention: "prepared",
+    claim: null,
+    outcome: { type: "pending" },
+    created_at: 1,
+    updated_at: 1,
   };
   const calls = [];
-  const responses = [{ items: [operation], cursor: null }, operation];
+  const responses = [{ items: [delivery], cursor: null }, delivery, delivery];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     calls.push({ url: String(url), method: init.method });
@@ -90,21 +85,17 @@ test("workflow external-operation audit routes preserve execution scope", async 
   };
 
   try {
-    const page = await admin.workflow.listExternalOperations({
+    const page = await admin.notification.delivery.find({
       store_id: storeId,
-      workflow_id: operation.workflow_id,
-      execution_id: operation.execution_id,
+      recipient: "buyer@example.test",
+      run_id: "run-contract",
       limit: 25,
     });
-    assert.deepEqual(page.items, [operation]);
+    assert.deepEqual(page.items, [delivery]);
+    assert.deepEqual(await admin.notification.delivery.get({ store_id: storeId, id: delivery.id }), delivery);
     assert.deepEqual(
-      await admin.workflow.getExternalOperation({
-        store_id: storeId,
-        workflow_id: operation.workflow_id,
-        execution_id: operation.execution_id,
-        operation_id: operation.id,
-      }),
-      operation,
+      await admin.notification.delivery.stop({ store_id: storeId, id: delivery.id, expected_updated_at: 1 }),
+      delivery,
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -112,12 +103,16 @@ test("workflow external-operation audit routes preserve execution scope", async 
 
   assert.deepEqual(calls, [
     {
-      url: `${baseUrl}/v1/stores/${storeId}/workflows/${operation.workflow_id}/executions/${operation.execution_id}/external-operations?limit=25`,
+      url: `${baseUrl}/v1/stores/${storeId}/message-deliveries?recipient=buyer%40example.test&run_id=run-contract&limit=25`,
       method: "GET",
     },
     {
-      url: `${baseUrl}/v1/stores/${storeId}/workflows/${operation.workflow_id}/executions/${operation.execution_id}/external-operations/${operation.id}`,
+      url: `${baseUrl}/v1/stores/${storeId}/message-deliveries/${delivery.id}`,
       method: "GET",
+    },
+    {
+      url: `${baseUrl}/v1/stores/${storeId}/message-deliveries/${delivery.id}/stop`,
+      method: "POST",
     },
   ]);
 });
@@ -486,21 +481,11 @@ test("Store endpoint configurations and physical locations use their cleaned con
   };
 
   try {
-    await admin.store.location.create({ store_id: storeId, key: "main", address, timezone: "Europe/Sarajevo", operator: { type: "store" } });
+    await admin.store.location.create({ store_id: storeId, key: "main", address, timezone: "Europe/Sarajevo", allows_pickup: false });
     await admin.store.location.update({
       store_id: storeId,
       id: "location-contract",
-      is_pickup_location: true,
-    });
-    await admin.store.buildHook.create({
-      store_id: storeId,
-      url: "https://deploy.example.test/hook",
-      status: { type: "disabled" },
-    });
-    await admin.store.buildHook.update({
-      store_id: storeId,
-      id: "build-hook-contract",
-      status: { type: "active" },
+      allows_pickup: true,
     });
     await admin.store.webhook.create({
       store_id: storeId,
@@ -528,27 +513,14 @@ test("Store endpoint configurations and physical locations use their cleaned con
       {
         url: `/v1/stores/${storeId}/locations`,
         method: "POST",
-        body: { key: "main", address, timezone: "Europe/Sarajevo", operator: { type: "store" } },
+        body: { key: "main", address, timezone: "Europe/Sarajevo", allows_pickup: false },
       },
       {
         url: `/v1/stores/${storeId}/locations/location-contract`,
         method: "PUT",
         body: {
-          is_pickup_location: true,
+          allows_pickup: true,
         },
-      },
-      {
-        url: `/v1/stores/${storeId}/build-hooks`,
-        method: "POST",
-        body: {
-          url: "https://deploy.example.test/hook",
-          status: { type: "disabled" },
-        },
-      },
-      {
-        url: `/v1/stores/${storeId}/build-hooks/build-hook-contract`,
-        method: "PUT",
-        body: { status: { type: "active" } },
       },
       {
         url: `/v1/stores/${storeId}/webhooks`,
@@ -713,6 +685,7 @@ test("admin cart update, quote, and checkout preserve one Payment Provider UUID"
       },
     },
     market_id: "market-bih",
+    catalog_id: "catalog-bih",
     line_items: [],
     delivery_groups: [],
     billing_address: null,

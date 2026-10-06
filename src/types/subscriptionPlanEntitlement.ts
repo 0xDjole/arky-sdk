@@ -1,5 +1,4 @@
-import type { PriceScope } from "./price";
-import type { PurchaseLimitDefinition } from "./purchaseAccess";
+import type { PurchaseAccessCatalog, PurchaseLimitDefinition } from "./purchaseAccess";
 import type {
   SubscriptionDeliverySchedule,
   SubscriptionDigitalContent,
@@ -28,7 +27,7 @@ export type SubscriptionPlanEntitlementType =
   | {
       type: "purchase_access";
       variant_ids: string[];
-      price_scope: PriceScope;
+      catalogs: PurchaseAccessCatalog[];
       limits: PurchaseLimitDefinition[];
       tax_category_id: string | null;
     };
