@@ -864,7 +864,7 @@ export function storeDefaultSalesChannel(
   return store.commerce.type === "ready" ? store.commerce.default_sales_channel_id : null;
 }
 
-export const SDK_VERSION = "0.26.81";
+export const SDK_VERSION = "0.26.83";
 export const SUPPORTED_FRAMEWORKS = [
   "astro",
   "react",

@@ -1654,8 +1654,12 @@ chosen branch. Starting a package also needs `create_subscriptions`; saving its 
 `manage_company_subscriptions`. Warehouse staff use Account sessions whose store roles reach their
 locations.
 
-`eshop.cart.repeat({ request_id, recovery_token, company_id, company_location_id })` starts a new
-Cart from an earlier branch order in that order's Catalog. It returns `{ cart, recovery_token,
+`eshop.cart.repeat({ request_id, recovery_token, company_id, company_location_id, source_order_id? })`
+starts a new Cart from a branch order in that order's Catalog: the order named by `source_order_id`,
+or else the branch's latest order that is not cancelled. A named order of another branch or company
+is refused with `CART.REPEAT_SOURCE_BRANCH`, a cancelled one with `CART.REPEAT_SOURCE_CANCELLED`, and
+another store's order is not found; a refused choice never falls back to another order. Reusing a
+`request_id` with a different `source_order_id` conflicts. It returns `{ cart, recovery_token,
 left_out }`; `left_out` lists the order lines the Catalog no longer lists or prices, or whose product
 is gone (`{ order_line_item_id, product_id, variant_id, quantity }`), so show them to the buyer.
 

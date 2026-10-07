@@ -95,6 +95,7 @@ export interface RepeatBranchCartParams {
   recovery_token: string;
   company_id: string;
   company_location_id: string;
+  source_order_id?: string;
 }
 
 export interface RepeatOrderSource {

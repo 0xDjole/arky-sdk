@@ -55,4 +55,7 @@ export type PartnerNotificationContracts = [
   True<Same<keyof RepeatLeftOutLine, "order_line_item_id" | "product_id" | "variant_id" | "quantity">>,
   True<"market_id" extends keyof RepeatBranchCartParams ? false : true>,
   True<{} extends Pick<RepeatBranchCartParams, "request_id" | "recovery_token"> ? false : true>,
+  True<Same<keyof RepeatBranchCartParams, "request_id" | "recovery_token" | "company_id" | "company_location_id" | "source_order_id">>,
+  True<{} extends Pick<RepeatBranchCartParams, "source_order_id"> ? true : false>,
+  True<Same<RepeatBranchCartParams["source_order_id"], string | undefined>>,
 ];

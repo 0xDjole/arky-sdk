@@ -314,7 +314,7 @@ import type {
 // @ts-expect-error storefront CustomerAction keys have no Action compatibility alias.
 import { COMMON_ACTION_KEYS } from "../../dist/storefront.js";
 
-const sdkVersionLiteral: "0.26.81" = SDK_VERSION;
+const sdkVersionLiteral: "0.26.83" = SDK_VERSION;
 const sentEmailDeliveryOutcome: MessageDeliveryOutcome = {
   type: "sent",
   provider_message_id: "message-contract",

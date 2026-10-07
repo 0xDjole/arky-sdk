@@ -107,7 +107,7 @@ export type FulfillmentJobContract = [
   True<Same<Awaited<ReturnType<Api["fulfillmentJob"]["get"]>>, FulfillmentJob>>,
   True<Same<Parameters<Api["fulfillmentJob"]["items"]>[0], GetFulfillmentJobParams>>,
   True<Same<Awaited<ReturnType<Api["fulfillmentJob"]["items"]>>, FulfillmentJobItem[]>>,
-  True<Same<keyof FulfillmentJobItem, "fulfillment_job_line_id" | "order_number" | "product_key" | "variant_sku" | "image_media_id" | "quantity" | "source">>,
+  True<Same<keyof FulfillmentJobItem, "fulfillment_job_line_id" | "order_number" | "product_key" | "product_blocks" | "variant_sku" | "image_media_id" | "quantity" | "source">>,
   True<Same<FulfillmentJobItem["order_number"], string | null>>,
   True<Same<Parameters<Api["fulfillmentJob"]["unitSlots"]>[0], ResolveFulfillmentUnitSlotsParams>>,
   True<Same<keyof ResolveFulfillmentUnitSlotsParams, "store_id" | "fulfillment_job_id" | "expected_updated_at" | "lines">>,

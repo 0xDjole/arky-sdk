@@ -1,5 +1,6 @@
 import type { AccountActor } from "./accountActor";
 import type {
+  Block,
   FulfillmentRecipient,
   FulfillmentUnitSpan,
   FulfillmentWindow,
@@ -100,6 +101,7 @@ export interface FulfillmentJobItem {
   fulfillment_job_line_id: string;
   order_number: string | null;
   product_key: string;
+  product_blocks: Block[];
   variant_sku: string | null;
   image_media_id: string | null;
   quantity: number;

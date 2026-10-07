@@ -748,7 +748,7 @@ export const createStorefrontApi = (
           requireRequestId(params.request_id);
           return withCartMutation(checkoutScope, () => apiConfig.httpClient.post<RepeatedCart>(
             `${base}/carts/repeat`,
-            { request_id: params.request_id, recovery_token: params.recovery_token, company_id: params.company_id, company_location_id: params.company_location_id },
+            { request_id: params.request_id, recovery_token: params.recovery_token, company_id: params.company_id, company_location_id: params.company_location_id, source_order_id: params.source_order_id },
             options,
           ));
         },

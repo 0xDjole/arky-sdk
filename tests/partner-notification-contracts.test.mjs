@@ -47,6 +47,10 @@ test("first-order review, sealing and withdrawal retain explicit terms while rep
   assert.deepEqual(calls[2].body, repeat);
   assert.equal(calls[2].headers.get("x-arky-publishable-key"), publishableKey);
   assert.equal(calls[2].headers.get("authorization"), `Bearer ${token}`);
+  const chosen = { ...repeat, request_id: requestId, source_order_id: id };
+  assert.deepEqual(await shop.eshop.cart.repeat({ ...chosen, store_id: "forged" }), created);
+  assert.equal(calls[3].url.pathname, "/v1/storefront/carts/repeat");
+  assert.deepEqual(calls[3].body, chosen);
 });
 
 test("reservation and Form stage changes preserve explicit scope and revision evidence", async (context) => {
