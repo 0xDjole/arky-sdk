@@ -3,728 +3,126 @@ import test from "node:test";
 
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
+import { apiUrl, errorResponse, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
-const baseUrl = "https://api.example.test";
-const defaultStoreId = "store-contract";
-const resourceId = "018f477d-1cae-7c12-bf12-123456789abc";
+const storeId = "5d1e8b24-9c63-4a07-b2f5-8e3a6c0d9f41";
+const otherStoreId = "a7c3e915-2d48-4b6f-8e01-3f9b5d7c2a64";
+const paymentId = ids.payment;
+const refundId = "6e2a9d47-1b85-4c30-9f7e-2d4c8a1b5e93";
+const receiptId = "86b7bf60-67e8-4c92-b14c-e98f4b2f4101";
+const collectionId = "fca5ba8e-86af-4dd8-a1cd-6d19bca62e12";
+const eventId = "d8b35cf1-6867-49b0-863d-fdc1a6a6e6dc";
+const money = { amount: 1200, currency: "eur" };
+const application = {
+  type: "commercial_credit",
+  allocations: [{ order_credit_id: ids.credit, order_credit_allocation_id: "allocation", amount: 1200 }],
+};
 
-function jsonResponse(body) {
-  return new Response(JSON.stringify(body), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
+function payments() {
+  return createAdmin({ baseUrl: apiUrl, apiToken: "contract-token" }).eshop.payment;
 }
 
-function admin() {
-  return createAdmin({
-    baseUrl,
-    storeId: defaultStoreId,
-    apiToken: "contract-token",
-  });
-}
-
-async function captureFetch(responseBody, request) {
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({
-      url: String(url),
-      method: init.method,
-      body: init.body === undefined ? undefined : JSON.parse(init.body),
-    });
-    return jsonResponse(responseBody);
-  };
-
-  try {
-    return { calls, result: await request() };
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-}
-
-test("digital-product promo conditions keep their tagged wire contract", async () => {
-  const promo = {
-    id: "promo-contract",
-    store_id: defaultStoreId,
-    code: "DIGITAL10",
-    discounts: [],
-    conditions: [
-      {
-        type: "digital_products",
-        digital_product_ids: ["digital-product-contract"],
-      },
-    ],
-    status: "active",
-    uses: 0,
-    created_at: 1,
-    updated_at: 1,
-  };
-  const { calls, result } = await captureFetch(promo, () =>
-    admin().eshop.promoCode.createPromoCode({
-      store_id: defaultStoreId,
-      code: promo.code,
-      discounts: [
-        { type: "items_percentage", market_key: "us", bps: 1_000 },
-      ],
-      conditions: promo.conditions,
-    }),
-  );
-
-  assert.deepEqual(calls, [
-    {
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/promo-codes`,
-      method: "POST",
-      body: {
-        code: "DIGITAL10",
-        discounts: [
-          { type: "items_percentage", market_key: "us", bps: 1_000 },
-        ],
-        conditions: [
-          {
-            type: "digital_products",
-            digital_product_ids: ["digital-product-contract"],
-          },
-        ],
-      },
-    },
+test("payment discovery keeps native filters and its continuation on the named store", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  const filters = { order_id: ids.order, status: "unknown", type: "monri_checkout", on_hold: true, updated_at_from: 5, sort_field: "updated_at", sort_direction: "asc", limit: 10, cursor: "next" };
+  await payments().find({ store_id: storeId, ...filters });
+  await payments().get({ store_id: otherStoreId, id: paymentId });
+  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [
+    ["GET", `/v1/stores/${storeId}/payments`],
+    ["GET", `/v1/stores/${otherStoreId}/payments/${paymentId}`],
   ]);
-  assert.deepEqual(result, promo);
+  assert.deepEqual(calls[0].query, Object.fromEntries(Object.entries(filters).map(([key, value]) => [key, String(value)])));
 });
 
-test("subscription checkout returns its embedded Stripe action in one POST", async () => {
-  const subscription = {
-    id: "subscription-contract",
-    store_id: "store-subscription",
-    plan_id: "free",
-    payment: { currency: "EUR", market: "ba" },
-    billing_status: "pending",
-    checkout: {
-      plan_id: "pro",
-      status: "requires_action",
-      expires_at: 1_800_000_000,
-    },
-    payment_action: {
-      type: "stripe_embedded_checkout",
-      publishable_key: "pk_test_subscription",
-      client_secret: "cs_subscription_secret_exact",
-      stripe_account_id: null,
-      expires_at: 1_800_000_000,
-    },
-    access_started_at: 1,
-    access_until: 2,
-    created_at: 1,
-    updated_at: 2,
-  };
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({
-      url: String(url),
-      method: init.method,
-      body: init.body === undefined ? undefined : JSON.parse(init.body),
-    });
-    return jsonResponse(subscription);
-  };
-  let result;
-  try {
-    result = await admin().store.subscription.select({
-      store_id: "store-subscription",
-      plan_id: "pro",
-      return_url: "https://merchant.test/return",
-    });
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.deepEqual(calls, [
-    {
-      url: `${baseUrl}/v1/stores/store-subscription/subscription`,
-      method: "POST",
-      body: {
-        plan_id: "pro",
-        return_url: "https://merchant.test/return",
-      },
-    },
-  ]);
-  assert.deepEqual(result, subscription);
-});
-
-test("payment-provider disable uses one request", async () => {
-  const { calls, result } = await captureFetch({ disabled: true }, () =>
-    admin().store.paymentProvider.delete({
-      store_id: "store-deletion",
-      id: "provider-contract",
-    }),
-  );
-
-  assert.deepEqual(result, { disabled: true });
-  assert.deepEqual(calls, [
-    {
-      url: `${baseUrl}/v1/stores/store-deletion/payment-providers/provider-contract`,
-      method: "DELETE",
-      body: undefined,
-    },
+test("manual payments and recorded collections carry the app-picked id and the exact money", async (context) => {
+  const calls = recordFetch(context, () => ({ id: paymentId }));
+  await payments().createManual({ store_id: storeId, id: paymentId, order_id: ids.order, payment_option_id: ids.paymentOption, money, reference: "Bank transfer 42" });
+  await payments().recordCollection({ store_id: storeId, payment_id: paymentId, id: collectionId, money, reference: null });
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", `/v1/stores/${storeId}/payments/manual`, { id: paymentId, order_id: ids.order, payment_option_id: ids.paymentOption, money, reference: "Bank transfer 42" }],
+    ["POST", `/v1/stores/${storeId}/payments/${paymentId}/collections`, { id: collectionId, money, reference: null }],
   ]);
 });
 
-test("Stripe Express Dashboard uses one authenticated provider link request", async () => {
-  const { calls, result } = await captureFetch(
-    { dashboard_url: "https://connect.stripe.test/express/link" },
-    () =>
-      admin().store.paymentProvider.stripe.openDashboard({
-        store_id: "store-dashboard",
-        id: "provider-contract",
-      }),
-  );
-
-  assert.deepEqual(result, {
-    dashboard_url: "https://connect.stripe.test/express/link",
-  });
-  assert.deepEqual(calls, [
-    {
-      url: `${baseUrl}/v1/stores/store-dashboard/payment-providers/stripe/provider-contract/dashboard`,
-      method: "POST",
-      body: {},
-    },
+test("refunds live inside their payment: create, record receipts, cancel and resolve an unclear Monri refund", async (context) => {
+  const calls = recordFetch(context, () => ({ id: paymentId }));
+  const api = payments();
+  for (const removed of ["refund", "capture", "dispute"]) {
+    assert.equal(removed in createAdmin({ baseUrl: apiUrl, apiToken: "contract-token" }).eshop, false, removed);
+  }
+  await api.createRefund({ store_id: storeId, payment_id: paymentId, id: refundId, money, reason: "customer_request", application });
+  await api.recordRefundReceipt({ store_id: storeId, payment_id: paymentId, refund_id: refundId, id: receiptId, receipt: { type: "sent", money, allocations: application.allocations, reference: "SEPA-1" } });
+  await api.cancelRefund({ store_id: storeId, payment_id: paymentId, refund_id: refundId, expected_updated_at: 3 });
+  await api.resolveRefund({ store_id: storeId, payment_id: paymentId, refund_id: refundId, expected_updated_at: 4, outcome: { type: "made", transaction_id: "18446744073709551615" } });
+  const base = `/v1/stores/${storeId}/payments/${paymentId}/refunds`;
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", base, { id: refundId, money, reason: "customer_request", application }],
+    ["POST", `${base}/${refundId}/receipts`, { id: receiptId, receipt: { type: "sent", money, allocations: application.allocations, reference: "SEPA-1" } }],
+    ["POST", `${base}/${refundId}/cancel`, { expected_updated_at: 3 }],
+    ["POST", `${base}/${refundId}/resolve`, { expected_updated_at: 4, outcome: { type: "made", transaction_id: "18446744073709551615" } }],
   ]);
 });
 
-test("storefront support keeps its capability token in one forced header on the connected Store", async () => {
-  const supportToken = "a".repeat(64);
-  const publishableKey = `arky_pk_${"s".repeat(43)}`;
-  const visitorToken = `arky_vst_${"a".repeat(64)}`;
-  const storefront = createStorefront(publishableKey, {
-    apiUrl: baseUrl,
-    sessionStorage: {
-      getItem: () => visitorToken,
-      setItem() {},
-      removeItem() {},
-    },
-  });
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({
-      url: String(url),
-      method: init.method,
-      headers: init.headers,
-      body: init.body === undefined ? undefined : JSON.parse(init.body),
-    });
-    if (calls.length === 1) {
-      return jsonResponse({
-        conversation: { id: "conversation-contract", status: "active" },
-        messages: [],
-        support_token: supportToken,
-      });
-    }
-    return jsonResponse({
-      conversation: { id: "conversation-contract", status: "active" },
-      messages: [
-        {
-          id: resourceId,
-          conversation_id: "conversation-contract",
-          role: "user",
-          content: "Help",
-          metadata: {},
-          ai_response: null,
-        },
-      ],
-    });
-  };
-
-  try {
-    const started = await storefront.support.startConversation({
-      agent_key: "default",
-      channel_metadata: { source: "provider-contract" },
-    });
-    assert.equal(started.support_token, supportToken);
-    await storefront.support.sendMessage(
-      {
-        conversation_id: "conversation-contract",
-        support_token: supportToken,
-        message_id: resourceId,
-        input: { type: "text", content: "Help" },
-      },
-      {
-        headers: {
-          "x-arky-support-token": "caller-must-not-override",
-          "X-Test-Header": "preserved",
-        },
-      },
-    );
-    await storefront.support.getConversation(
-      {
-        conversation_id: "conversation-contract",
-        support_token: supportToken,
-        message_limit: 25,
-      },
-      { headers: { "X-Arky-Support-Token": "caller-must-not-override" } },
-    );
-    await assert.rejects(
-      storefront.support.getConversation({
-        conversation_id: "conversation-contract",
-        support_token: supportToken.toUpperCase(),
-      }),
-      /lowercase hexadecimal token/,
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.equal(
-    calls.length,
-    3,
-    "invalid support credentials must execute no HTTP request",
-  );
-  assert.deepEqual(calls[0].body, {
-    agent_key: "default",
-    channel_metadata: { source: "provider-contract" },
-  });
-  assert.equal(calls[0].url, `${baseUrl}/v1/storefront/support/conversations`);
-  assert.equal(
-    Object.keys(calls[0].headers).some(
-      (name) => name.toLowerCase() === "x-arky-support-token",
-    ),
-    false,
-  );
-  assert.equal("support_token" in calls[1].body, false);
-  assert.deepEqual(calls[1].body, {
-    conversation_id: "conversation-contract",
-    message_id: resourceId,
-    input: { type: "text", content: "Help" },
-  });
-  assert.equal(calls[1].url.includes(supportToken), false);
-  assert.equal(calls[2].url.includes(supportToken), false);
-  assert.equal(calls[2].url.includes("store_id="), false);
-  assert.equal(calls[2].body, undefined);
-
-  for (const call of calls.slice(1)) {
-    const supportHeaders = Object.entries(call.headers).filter(
-      ([name]) => name.toLowerCase() === "x-arky-support-token",
-    );
-    assert.deepEqual(supportHeaders, [["X-Arky-Support-Token", supportToken]]);
-  }
-  for (const call of calls) {
-    assert.equal(call.headers["X-Arky-Publishable-Key"], publishableKey);
-    assert.equal(call.headers.Authorization, `Bearer ${visitorToken}`);
-  }
-  assert.equal(calls[1].headers["X-Test-Header"], "preserved");
-});
-
-test("shipping rate lookup sends only persisted context identifiers and package facts", async () => {
-  const response = [
-    {
-      id: "signed-rate-quote",
-      carrier: "USPS",
-      service: "usps_priority",
-      display_name: "USPS Priority",
-      amount: 895,
-      currency: "USD",
-      estimated_days: 3,
-    },
-  ];
-  const request = {
-    order_id: "order-shipping-contract",
-    location_id: "location-contract",
-    lines: [{ order_product_id: "product-contract", quantity: 2 }],
-    parcel: {
-      length: 150,
-      width: 100,
-      height: 50,
-      weight: 750,
-      distance_unit: "mm",
-      mass_unit: "g",
-    },
-    customs_declaration: {
-      contents_type: "MERCHANDISE",
-      contents_explanation: null,
-      non_delivery_option: "RETURN",
-      certify: true,
-      certify_signer: "Warehouse Operator",
-      eel_pfc: "NOEEI_30_37_a",
-      incoterm: "DDU",
-      items: [
-        {
-          description: "Printed guide",
-          quantity: 2,
-          net_weight: "375",
-          mass_unit: "g",
-          value_amount: "12.50",
-          value_currency: "USD",
-          origin_country: "US",
-          tariff_number: null,
-        },
-      ],
-    },
-  };
-  const { calls, result } = await captureFetch(response, () =>
-    admin().eshop.shipment.getRates(request),
-  );
-
-  assert.deepEqual(calls, [
-    {
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-shipping-contract/shipping/rates`,
-      method: "POST",
-      body: {
-        location_id: request.location_id,
-        lines: request.lines,
-        parcel: request.parcel,
-        customs_declaration: request.customs_declaration,
-      },
-    },
+test("an unclear charge, a hold and a cancellation each name the payment and its version", async (context) => {
+  const calls = recordFetch(context, () => ({ id: paymentId }));
+  const api = payments();
+  await api.resolveCharge({ store_id: storeId, payment_id: paymentId, expected_updated_at: 5, outcome: { type: "not_made" } });
+  await api.resolveHold({ store_id: storeId, payment_id: paymentId, expected_updated_at: 6, index: 0 });
+  await api.cancel({ store_id: storeId, payment_id: paymentId, expected_updated_at: 7 });
+  const base = `/v1/stores/${storeId}/payments/${paymentId}`;
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", `${base}/resolve-charge`, { expected_updated_at: 5, outcome: { type: "not_made" } }],
+    ["POST", `${base}/resolve-hold`, { expected_updated_at: 6, index: 0 }],
+    ["POST", `${base}/cancel`, { expected_updated_at: 7 }],
   ]);
-  assert.deepEqual(result, response);
 });
 
-test("provider-effect APIs send one resource identity and return direct server evidence", async (t) => {
-  const send = {
-    type: "contact_store_notification",
-    data: {
-      store_id: defaultStoreId,
-      mailbox_id: "mailbox-contract",
-      template_id: "template-contract",
-      recipients: ["owner@example.test"],
-    },
-  };
+test("money commands refuse an invented id or store before any request", async (context) => {
+  const calls = recordFetch(context, () => ({ id: paymentId }));
+  const api = payments();
   const cases = [
-    {
-      name: "webhook delivery",
-      response: {
-        delivery_id: resourceId,
-        status: "unknown",
-        response_status: null,
-        error: "Provider outcome is unknown",
-      },
-      request: (arky) =>
-        arky.store.webhook.test({
-          delivery_id: resourceId,
-          webhook_id: "webhook-contract",
-        }),
-      expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/webhooks/test`,
-        method: "POST",
-        body: { delivery_id: resourceId, webhook_id: "webhook-contract" },
-      },
-    },
-    {
-      name: "email delivery",
-      response: { sent: 1, deliveries: [] },
-      request: (arky) =>
-        arky.notification.email.send({ send_id: resourceId, send }),
-      expected: {
-        url: `${baseUrl}/v1/notifications/email`,
-        method: "POST",
-        body: { send_id: resourceId, send },
-      },
-    },
-    {
-      name: "order refund",
-      response: { refund_id: resourceId, amount: 1250, status: "requested" },
-      request: (arky) =>
-        arky.eshop.order.createRefund({
-          order_id: "order-refund-contract",
-          refund_id: resourceId,
-          amount: 1250,
-          allocations: [
-            { type: "adjustment", amount: 1250, reason: "contract" },
-          ],
-          reason: "duplicate",
-          private_note: "Duplicate checkout",
-        }),
-      expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-refund-contract/refunds`,
-        method: "POST",
-        body: {
-          amount: 1250,
-          refund_id: resourceId,
-          allocations: [
-            { type: "adjustment", amount: 1250, reason: "contract" },
-          ],
-          reason: "duplicate",
-          private_note: "Duplicate checkout",
-        },
-      },
-    },
-    {
-      name: "Audience payment refund",
-      response: { refund_id: resourceId, amount: 500, status: "requested" },
-      request: (arky) =>
-        arky.crm.audience.members.refund({
-          store_id: defaultStoreId,
-          audience_id: "audience-refund-contract",
-          member_id: "member-refund-contract",
-          payment_id: "payment-refund-contract",
-          amount: 500,
-          refund_id: resourceId,
-          reason: "fraudulent",
-          private_note: "Risk review",
-        }),
-      expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/audiences/audience-refund-contract/members/member-refund-contract/payments/payment-refund-contract/refunds`,
-        method: "POST",
-        body: {
-          amount: 500,
-          refund_id: resourceId,
-          reason: "fraudulent",
-          private_note: "Risk review",
-        },
-      },
-    },
-    {
-      name: "shipping-label purchase",
-      response: {
-        shipment_id: "shipment-contract",
-        shipment: { id: "shipment-contract", label_status: "requested" },
-      },
-      request: (arky) =>
-        arky.eshop.shipment.create({
-          order_id: "order-shipping-contract",
-          shipment_id: "shipment-contract",
-          rate_id: "signed-rate-quote",
-          location_id: "location-contract",
-          fulfillment_order_id: null,
-          lines: [
-            {
-              order_product_id: "product-contract",
-              fulfillment_order_line_id: null,
-              quantity: 2,
-            },
-          ],
-        }),
-      expected: {
-        url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-shipping-contract/shipments`,
-        method: "POST",
-        body: {
-          shipment_id: "shipment-contract",
-          rate_id: "signed-rate-quote",
-          location_id: "location-contract",
-          fulfillment_order_id: null,
-          lines: [
-            {
-              order_product_id: "product-contract",
-              fulfillment_order_line_id: null,
-              quantity: 2,
-            },
-          ],
-        },
-      },
-    },
+    [() => api.createManual({ store_id: storeId, id: "payment", order_id: ids.order, payment_option_id: ids.paymentOption, money, reference: null }), "The payment id must be a canonical UUID v4 picked by the app"],
+    [() => api.recordCollection({ store_id: storeId, payment_id: paymentId, id: "collection", money, reference: null }), "The collection id must be a canonical UUID v4 picked by the app"],
+    [() => api.createRefund({ store_id: storeId, payment_id: paymentId, id: refundId.toUpperCase(), money, reason: "other", application }), "The refund id must be a canonical UUID v4 picked by the app"],
+    [() => api.recordRefundReceipt({ store_id: storeId, payment_id: paymentId, refund_id: refundId, id: undefined, receipt: { type: "returned", sent_id: receiptId, money, reference: "R" } }), "The refund receipt id must be a canonical UUID v4 picked by the app"],
+    [() => api.cancel({ store_id: "store", payment_id: paymentId, expected_updated_at: 1 }), "A Store target must be an explicit canonical UUID-v4"],
   ];
+  for (const [call, message] of cases) await assert.rejects(async () => call(), { name: "TypeError", message });
+  assert.equal(calls.length, 0);
+});
 
-  for (const contract of cases) {
-    await t.test(contract.name, async () => {
-      const { calls, result } = await captureFetch(contract.response, () =>
-        contract.request(admin()),
-      );
-      assert.deepEqual(calls, [contract.expected]);
-      assert.deepEqual(result, contract.response);
-    });
+test("a refused money command is propagated once with its code and never retried", async (context) => {
+  for (const status of [403, 409, 422, 503]) {
+    const calls = recordFetch(context, () => errorResponse(status, "PAYMENT.REFUSED", "Refused"));
+    await assert.rejects(payments().createRefund({ store_id: storeId, payment_id: paymentId, id: refundId, money, reason: "duplicate", application }), (error) => error.statusCode === status && error.code === "PAYMENT.REFUSED");
+    assert.equal(calls.length, 1);
+    context.mock.restoreAll();
   }
 });
 
-test("money and shipping clients reject evidence for any other resource ID", async (t) => {
-  const otherResourceId = "018f477d-1cae-7c12-bf12-000000000000";
-  const cases = [
-    {
-      name: "order refund",
-      response: {
-        refund_id: otherResourceId,
-        amount: 1250,
-        status: "succeeded",
-      },
-      request: (arky) =>
-        arky.eshop.order.createRefund({
-          order_id: "order-refund-contract",
-          refund_id: resourceId,
-          amount: 1250,
-          allocations: [
-            { type: "adjustment", amount: 1250, reason: "contract" },
-          ],
-          reason: "customer_request",
-        }),
-      error: /Refund response did not match the requested refund_id/,
-    },
-    {
-      name: "Audience payment refund",
-      response: {
-        refund_id: otherResourceId,
-        amount: 500,
-        status: "succeeded",
-      },
-      request: (arky) =>
-        arky.crm.audience.members.refund({
-          store_id: defaultStoreId,
-          audience_id: "audience-refund-contract",
-          member_id: "member-refund-contract",
-          payment_id: "payment-refund-contract",
-          amount: 500,
-          refund_id: resourceId,
-          reason: "customer_request",
-        }),
-      error: /Audience refund response did not match the requested refund_id/,
-    },
-    {
-      name: "shipping-label purchase",
-      response: {
-        shipment_id: otherResourceId,
-        shipment: { id: otherResourceId, label_status: "succeeded" },
-      },
-      request: (arky) =>
-        arky.eshop.shipment.create({
-          order_id: "order-shipping-contract",
-          shipment_id: "shipment-contract",
-          rate_id: "signed-rate-quote",
-          location_id: "location-contract",
-          fulfillment_order_id: null,
-          lines: [
-            {
-              order_product_id: "product-contract",
-              fulfillment_order_line_id: null,
-              quantity: 1,
-            },
-          ],
-        }),
-      error: /Shipping response did not match the requested shipment_id/,
-    },
-  ];
-
-  for (const contract of cases) {
-    await t.test(contract.name, async () => {
-      const originalFetch = globalThis.fetch;
-      globalThis.fetch = async () => jsonResponse(contract.response);
-      try {
-        await assert.rejects(contract.request(admin()), contract.error);
-      } finally {
-        globalThis.fetch = originalFetch;
-      }
-    });
-  }
-});
-
-test("order refunds reject mismatched money and statuses outside the closed lifecycle", async (t) => {
-  const request = () =>
-    admin().eshop.order.createRefund({
-      order_id: "order-refund-contract",
-      refund_id: resourceId,
-      amount: 1250,
-      allocations: [{ type: "adjustment", amount: 1250, reason: "contract" }],
-      reason: "other",
-    });
-
-  await t.test("mismatched amount", async () => {
-    await assert.rejects(
-      captureFetch(
-        { refund_id: resourceId, amount: 1251, status: "succeeded" },
-        request,
-      ),
-      /Refund response did not match the requested amount/,
-    );
-  });
-
-  await t.test("unsafe amount", async () => {
-    await assert.rejects(
-      captureFetch(
-        {
-          refund_id: resourceId,
-          amount: Number.MAX_SAFE_INTEGER + 1,
-          status: "succeeded",
-        },
-        request,
-      ),
-      /Refund response did not match the requested amount/,
-    );
-  });
-
-  await t.test("unknown status value", async () => {
-    await assert.rejects(
-      captureFetch(
-        { refund_id: resourceId, amount: 1250, status: "pending" },
-        request,
-      ),
-      /Refund response contained an invalid status/,
-    );
-  });
-});
-
-test("payment, refund, and shipment lifecycles are read through explicit resources", async (t) => {
-  const cases = [
-    {
-      name: "payment",
-      response: {
-        id: "payment-contract",
-        order_id: "order-contract",
-        status: "paid",
-      },
-      request: (arky) =>
-        arky.eshop.order.getPayment({ order_id: "order-contract" }),
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-contract/payment`,
-    },
-    {
-      name: "refund",
-      response: {
-        id: resourceId,
-        order_id: "order-contract",
-        status: "unknown",
-      },
-      request: (arky) =>
-        arky.eshop.order.getRefund({
-          order_id: "order-contract",
-          refund_id: resourceId,
-        }),
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-contract/refunds/${resourceId}`,
-    },
-    {
-      name: "shipment",
-      response: {
-        id: "shipment-contract",
-        order_id: "order-contract",
-        label_status: "unknown",
-      },
-      request: (arky) =>
-        arky.eshop.shipment.get({
-          order_id: "order-contract",
-          shipment_id: "shipment-contract",
-        }),
-      url: `${baseUrl}/v1/stores/${defaultStoreId}/orders/order-contract/shipments/shipment-contract`,
-    },
-  ];
-
-  for (const contract of cases) {
-    await t.test(contract.name, async () => {
-      const { calls, result } = await captureFetch(contract.response, () =>
-        contract.request(admin()),
-      );
-      assert.deepEqual(calls, [
-        { url: contract.url, method: "GET", body: undefined },
-      ]);
-      assert.deepEqual(result, contract.response);
-    });
-  }
-});
-
-test("workflow trigger keeps arbitrary object data while the path secret wins", async () => {
-  const response = {
-    id: "execution-trigger-contract",
-    input: {
-      type: "webhook",
-      payload: { order: { id: "order-contract" }, tags: ["one", "two"] },
-    },
-  };
-  const { calls, result } = await captureFetch(response, () =>
-    admin().automation.workflow.trigger({
-      secret: "path-secret-contract",
-      order: { id: "order-contract" },
-      tags: ["one", "two"],
-    }),
-  );
-
-  assert.deepEqual(calls, [
-    {
-      url: `${baseUrl}/v1/workflows/trigger/path-secret-contract`,
-      method: "POST",
-      body: { order: { id: "order-contract" }, tags: ["one", "two"] },
-    },
+test("provider events are listed by status, read by id and resolved with their version", async (context) => {
+  const calls = recordFetch(context, (call) => call.path.endsWith("provider-events") ? { items: [], cursor: null } : { id: eventId });
+  const events = createAdmin({ baseUrl: apiUrl, apiToken: "contract-token" }).eshop.providerEvent;
+  await events.find({ store_id: storeId, status: "review", limit: 20, cursor: "next" });
+  await events.get({ store_id: storeId, id: eventId });
+  await events.resolve({ store_id: storeId, id: eventId, expected_updated_at: 9, resolution: "ignore" });
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["GET", `/v1/stores/${storeId}/provider-events`, { status: "review", limit: "20", cursor: "next" }, null],
+    ["GET", `/v1/stores/${storeId}/provider-events/${eventId}`, {}, null],
+    ["POST", `/v1/stores/${storeId}/provider-events/${eventId}/resolve`, {}, { expected_updated_at: 9, resolution: "ignore" }],
   ]);
-  assert.deepEqual(result, response);
-  assert.equal("secret" in calls[0].body, false);
+});
+
+test("a buyer reads their own order's payments through storefront routes", async (context) => {
+  const calls = recordFetch(context, (call) => call.path.endsWith("/payments") ? [] : { id: paymentId });
+  const orders = createStorefront(publishableKey, { apiUrl, sessionStorage: visitorStorage() }).eshop.order;
+  await orders.findPayments({ order_id: ids.order });
+  await orders.getPayment({ order_id: ids.order, payment_id: paymentId });
+  await orders.paymentAction({ order_id: ids.order });
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["GET", `/v1/storefront/orders/${ids.order}/payments`, null],
+    ["GET", `/v1/storefront/orders/${ids.order}/payments/${paymentId}`, null],
+    ["POST", `/v1/storefront/orders/${ids.order}/payment-action`, null],
+  ]);
+  for (const call of calls) assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
 });

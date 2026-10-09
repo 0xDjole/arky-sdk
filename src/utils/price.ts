@@ -1,94 +1,73 @@
-import type { OrderMoney, Price } from '../types';
+import type { Currency, Money } from "../types/common";
+import { CURRENCY_MINOR_UNITS } from "../types/common";
+import type { StorefrontPrice } from "../types/product";
 
-type OrderTotal = Pick<OrderMoney, 'total' | 'currency'>;
+export const SUPPORTED_STORE_CURRENCIES = Object.freeze(Object.keys(CURRENCY_MINOR_UNITS) as Currency[]);
 
-export const SUPPORTED_STORE_CURRENCIES = Object.freeze([
-    'USD', 'EUR', 'GBP', 'JPY', 'CNY', 'CHF', 'AUD', 'CAD', 'HKD', 'SGD',
-    'NZD', 'KRW', 'SEK', 'NOK', 'DKK', 'INR', 'MXN', 'BRL', 'ZAR', 'RUB',
-    'TRY', 'PLN', 'THB', 'IDR', 'MYR', 'PHP', 'CZK', 'ILS', 'AED', 'SAR',
-    'HUF', 'RON', 'BGN', 'HRK', 'BAM', 'RSD', 'MKD', 'ALL',
-] as const);
-
-const SUPPORTED_STORE_CURRENCY_SET: ReadonlySet<string> = Object.freeze(
-    new Set<string>(SUPPORTED_STORE_CURRENCIES),
-);
-
-const ZERO_MINOR_UNIT_STORE_CURRENCIES: ReadonlySet<string> = Object.freeze(
-    new Set<string>(['JPY', 'KRW']),
-);
-
-function formatCurrency(amount: number, currencyCode: string, locale: string = 'en'): string {
-    const normalized = currencyCode.trim().toUpperCase();
-    if (!normalized) return '';
-    const minorUnits = getCurrencyMinorUnits(normalized);
-    return new Intl.NumberFormat(locale, {
-        style: 'currency',
-        currency: normalized,
-        minimumFractionDigits: minorUnits,
-        maximumFractionDigits: minorUnits,
-    }).format(amount);
+export function isCurrency(value: unknown): value is Currency {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(CURRENCY_MINOR_UNITS, value);
 }
 
 export function getCurrencyMinorUnits(currency: string): number {
-    const normalized = currency.trim().toUpperCase();
-    if (!SUPPORTED_STORE_CURRENCY_SET.has(normalized)) {
-        throw new RangeError(`Unsupported currency '${currency}'`);
-    }
-    return ZERO_MINOR_UNIT_STORE_CURRENCIES.has(normalized) ? 0 : 2;
+  const normalized = currency.trim().toLowerCase();
+  if (!isCurrency(normalized)) throw new RangeError(`Unsupported currency '${currency}'`);
+  return CURRENCY_MINOR_UNITS[normalized];
 }
 
 export function convertToMajor(minorAmount: number, currency: string): number {
-    const units = getCurrencyMinorUnits(currency);
-    return minorAmount / Math.pow(10, units);
+  return minorAmount / Math.pow(10, getCurrencyMinorUnits(currency));
 }
 
 export function convertToMinor(majorAmount: number, currency: string): number {
-    const units = getCurrencyMinorUnits(currency);
-    return Math.round(majorAmount * Math.pow(10, units));
+  return Math.round(majorAmount * Math.pow(10, getCurrencyMinorUnits(currency)));
 }
 
-export function getCurrencySymbol(currency: string): string {
-    try {
-        return new Intl.NumberFormat('en', {
-            style: 'currency',
-            currency: currency.toUpperCase(),
-            currencyDisplay: 'narrowSymbol'
-        }).formatToParts(0).find(p => p.type === 'currency')?.value || currency.toUpperCase();
-    } catch {
-        return currency.toUpperCase();
-    }
+export function getCurrencySymbol(currency: string, locale: string): string {
+  try {
+    return (
+      new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: currency.toUpperCase(),
+        currencyDisplay: "narrowSymbol",
+      })
+        .formatToParts(0)
+        .find((part) => part.type === "currency")?.value || currency.toUpperCase()
+    );
+  } catch {
+    return currency.toUpperCase();
+  }
 }
 
-export function getCurrencyName(currency: string): string {
-    try {
-        return new Intl.DisplayNames(['en'], { type: 'currency' }).of(currency.toUpperCase()) || currency.toUpperCase();
-    } catch {
-        return currency.toUpperCase();
-    }
+export function getCurrencyName(currency: string, locale: string): string {
+  try {
+    return new Intl.DisplayNames([locale], { type: "currency" }).of(currency.toUpperCase()) || currency.toUpperCase();
+  } catch {
+    return currency.toUpperCase();
+  }
 }
 
-export function formatMinor(amountMinor: number, currency: string): string {
-    if (!Number.isSafeInteger(amountMinor)) {
-        throw new RangeError('Minor-unit amount must be a safe integer');
-    }
-    return formatCurrency(convertToMajor(amountMinor, currency), currency);
+export function formatMinor(amountMinor: number, currency: string, locale: string): string {
+  if (!Number.isSafeInteger(amountMinor)) throw new RangeError("Minor-unit amount must be a safe integer");
+  const minorUnits = getCurrencyMinorUnits(currency);
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: currency.toUpperCase(),
+    minimumFractionDigits: minorUnits,
+    maximumFractionDigits: minorUnits,
+  }).format(amountMinor / Math.pow(10, minorUnits));
 }
 
-export function formatPayment(payment: OrderTotal): string {
-    return formatMinor(payment.total, payment.currency);
+export function formatMoney(money: Money, locale: string): string {
+  return formatMinor(money.amount, money.currency, locale);
 }
 
-export function formatPrice(prices: Price[], marketId?: string): string {
-    if (!prices || prices.length === 0 || !marketId) return '';
-
-    const price = prices.find(p => p.market === marketId);
-    if (!price || !Number.isSafeInteger(price.amount) || price.amount < 0 || !price.currency) return '';
-
-    return formatMinor(price.amount, price.currency);
+export function getPriceAmount(price: StorefrontPrice | null | undefined): number | null {
+  if (!price || !Number.isSafeInteger(price.unit_price.amount) || price.unit_price.amount < 0) return null;
+  return price.unit_price.amount;
 }
 
-export function getPriceAmount(prices: Price[], marketId: string): number | null {
-    if (!prices || prices.length === 0 || !marketId) return null;
-    const price = prices.find(p => p.market === marketId);
-    return price && Number.isSafeInteger(price.amount) && price.amount >= 0 ? price.amount : null;
+export function formatPrice(price: StorefrontPrice | null | undefined, locale: string): string {
+  const amount = getPriceAmount(price);
+  if (amount === null || !price) return "";
+  return formatMinor(amount, price.unit_price.currency, locale);
 }

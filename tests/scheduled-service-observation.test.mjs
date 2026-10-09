@@ -3,519 +3,131 @@ import test from "node:test";
 
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
-import {
-  admin,
-  baseUrl,
-  jsonResponse,
-  storeId,
-} from "./helpers/scheduled-observation-fixtures.mjs";
+import { apiUrl, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
-test("aggregate email sends once and observes only its exact delivery resources", async () => {
-  const request = {
-    send_id: "send-scheduled",
-    send: {
-      type: "subscription_confirmation",
-      data: {
-        store_id: storeId,
-        mailbox_id: "mailbox-scheduled",
-        template_id: "template-scheduled",
-        recipients: ["one@example.test", "two@example.test"],
-      },
-    },
-  };
-  const pending = {
-    sent: 0,
-    deliveries: [
-      {
-        delivery_id: "delivery-one",
-        revision: 1,
-        recipient: "one@example.test",
-        mailbox_id: "mailbox-scheduled",
-        template_id: "template-scheduled",
-        status: "pending",
-      },
-      {
-        delivery_id: "delivery-two",
-        revision: 1,
-        recipient: "two@example.test",
-        mailbox_id: "mailbox-scheduled",
-        template_id: "template-scheduled",
-        status: "sending",
-      },
-    ],
-  };
-  const sent = {
-    sent: 2,
-    deliveries: pending.deliveries.map((delivery, index) => ({
-      ...delivery,
-      status: "sent",
-      provider_message_id: `provider-message-${index + 1}`,
-      provider_thread_id: `provider-thread-${index + 1}`,
-    })),
-  };
-  const calls = [];
-  let transforms = 0;
-  let successes = 0;
-  let errors = 0;
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({
-      url: String(url),
-      method: init.method || "GET",
-      headers: new Headers(init.headers),
-      body: init.body ? JSON.parse(String(init.body)) : undefined,
-    });
-    if (init.method === "POST") return jsonResponse(pending);
-    const delivery = sent.deliveries.find((candidate) =>
-      String(url).endsWith(candidate.delivery_id),
-    );
-    if (!delivery) throw new Error(`Unexpected email observation: ${url}`);
-    return jsonResponse({
-      id: delivery.delivery_id,
-      revision: delivery.revision,
-      status: delivery.status,
-      error: delivery.error,
-      provider_message_id: delivery.provider_message_id,
-      provider_thread_id: delivery.provider_thread_id,
-    });
-  };
+const conversationId = "7c2e9a41-5b3d-4f86-a1e0-3d4c2b9f6e18";
+const messageId = "2a6d8f13-9c47-4e05-b1a8-6f3e0c2d7b95";
+const supportToken = "s".repeat(64);
+const conversationPath = `/v1/storefront/support/conversations/${conversationId}`;
 
-  try {
-    const result = await admin().notification.email.send(request, {
-      headers: { "x-observation-contract": "preserved" },
-      transformRequest(body) {
-        transforms += 1;
-        return { ...body, transformed_once: true };
-      },
-      onSuccess() {
-        successes += 1;
-      },
-      onError() {
-        errors += 1;
-      },
-    });
+function conversation(status = { type: "ai", step_key: "assistant" }) {
+  return { id: conversationId, store_id: ids.store, channel_id: "channel", language: "en", status, created_at: 1, updated_at: 1 };
+}
 
-    assert.deepEqual(result, sent);
-    assert.equal(
-      result.deliveries[0].provider_message_id,
-      "provider-message-1",
-    );
-    assert.equal(result.deliveries[1].provider_thread_id, "provider-thread-2");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+function chatMessage(aiReply) {
+  return { id: messageId, store_id: ids.store, conversation_id: conversationId, type: { type: "customer_chat", text: "Help", ai_reply: aiReply }, created_at: 1, updated_at: 1 };
+}
 
-  assert.equal(calls.length, 3);
-  assert.equal(calls[0].body.transformed_once, true);
-  assert.deepEqual(
-    calls.map((call) => [call.url, call.method]),
-    [
-      [`${baseUrl}/v1/notifications/email`, "POST"],
-      [`${baseUrl}/v1/notifications/email-deliveries/delivery-one`, "GET"],
-      [`${baseUrl}/v1/notifications/email-deliveries/delivery-two`, "GET"],
-    ],
-  );
-  assert.ok(
-    calls.every(
-      (call) => call.headers.get("x-observation-contract") === "preserved",
-    ),
-  );
-  assert.equal(transforms, 1);
-  assert.equal(successes, 1);
-  assert.equal(errors, 0);
-});
+function storefront() {
+  return createStorefront(publishableKey, { apiUrl, sessionStorage: visitorStorage() });
+}
 
-test("support AI POSTs once, polls the exact message, then loads the conversation once", async () => {
-  const publishableKey = `arky_pk_${"s".repeat(43)}`;
-  const visitorToken = `arky_vst_${"a".repeat(64)}`;
-  const supportToken = "b".repeat(64);
-  const messageId = "support-message-scheduled";
-  const pending = {
-    conversation: { id: "conversation-scheduled", status: "ai_mode" },
+test("support sends once, follows the exact message while the AI reply is pending, then reads the conversation once", async (context) => {
+  const pending = { conversation: conversation(), messages_cursor: null, messages: [chatMessage({ type: "waiting" })] };
+  const answered = {
+    conversation: conversation(),
+    messages_cursor: null,
     messages: [
-      {
-        id: messageId,
-        role: "user",
-        content: "Help",
-        ai_response: { status: "requested" },
-      },
+      chatMessage({ type: "answered" }),
+      { id: "assistant", store_id: ids.store, conversation_id: conversationId, type: { type: "ai", text: "How can I help?" }, created_at: 2, updated_at: 2 },
     ],
   };
-  const succeeded = {
-    ...pending,
-    messages: [
-      {
-        ...pending.messages[0],
-        ai_response: { status: "succeeded", completed_at: 10 },
-      },
-      {
-        id: "support-assistant-scheduled",
-        role: "assistant",
-        content: "How can I help?",
-      },
-    ],
-  };
-  const calls = [];
-  let successes = 0;
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({
-      url: String(url),
-      method: init.method,
-      body: init.body ? JSON.parse(String(init.body)) : undefined,
-    });
-    if (init.method === "POST") return jsonResponse(pending);
-    if (String(url).endsWith(`/messages/${messageId}`)) {
-      return jsonResponse(succeeded.messages[0]);
+  let observations = 0;
+  const calls = recordFetch(context, (call) => {
+    if (call.method === "POST") return pending;
+    if (call.path === `${conversationPath}/messages/${messageId}`) {
+      observations += 1;
+      return chatMessage(observations === 1 ? { type: "answering", until: 5 } : { type: "answered" });
     }
-    return jsonResponse(succeeded);
-  };
-
-  try {
-    const storefront = createStorefront(publishableKey, {
-      apiUrl: baseUrl,
-      sessionStorage: {
-        getItem: () => visitorToken,
-        setItem() {},
-        removeItem() {},
-      },
-    });
-    const result = await storefront.support.sendMessage(
-      {
-        conversation_id: "conversation-scheduled",
-        support_token: supportToken,
-        message_id: messageId,
-        input: { type: "text", content: "Help" },
-      },
-      {
-        onSuccess() {
-          successes += 1;
-        },
-      },
-    );
-    assert.deepEqual(result, succeeded);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.equal(calls.length, 3);
-  assert.equal(calls[0].method, "POST");
-  assert.equal(calls[1].method, "GET");
-  assert.equal(
-    calls[1].url,
-    `${baseUrl}/v1/storefront/support/conversations/conversation-scheduled/messages/${messageId}`,
-  );
-  assert.equal(calls[2].method, "GET");
-  assert.equal(
-    calls[2].url,
-    `${baseUrl}/v1/storefront/support/conversations/conversation-scheduled`,
-  );
-  assert.equal(calls[0].body.message_id, messageId);
-  assert.equal(successes, 1);
-});
-
-test("storefront support exact-reads a requested message omitted from the write response", async () => {
-  const publishableKey = `arky_pk_${"s".repeat(43)}`;
-  const visitorToken = `arky_vst_${"a".repeat(64)}`;
-  const supportToken = "c".repeat(64);
-  const messageId = "support-message-exact-observation";
-  const response = {
-    conversation: { id: "conversation-escalated", status: "escalated" },
-    messages: [
-      {
-        id: "support-handoff-response",
-        role: "action",
-        content: "A team member will join shortly.",
-        metadata: {},
-        ai_response: null,
-      },
-    ],
-  };
-  const requestedMessage = {
-    id: messageId,
-    role: "user",
-    content: "Talk to human",
-    metadata: { input: { type: "button", label: "Talk to human" } },
-    ai_response: null,
-  };
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({
-      url: String(url),
-      method: init.method || "GET",
-      body: init.body ? JSON.parse(String(init.body)) : undefined,
-    });
-    if (init.method === "POST") return jsonResponse(response);
-    if (String(url).endsWith(`/messages/${messageId}`)) {
-      return jsonResponse(requestedMessage);
-    }
-    throw new Error(`Unexpected support observation: ${url}`);
-  };
-
-  let result;
-  try {
-    const storefront = createStorefront(publishableKey, {
-      apiUrl: baseUrl,
-      sessionStorage: {
-        getItem: () => visitorToken,
-        setItem() {},
-        removeItem() {},
-      },
-    });
-    result = await storefront.support.sendMessage({
-      conversation_id: "conversation-escalated",
-      support_token: supportToken,
-      message_id: messageId,
-      input: { type: "button", label: "Talk to human" },
-    });
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.deepEqual(result, response);
-  assert.deepEqual(
-    calls.map((call) => [call.url, call.method]),
-    [
-      [
-        `${baseUrl}/v1/storefront/support/conversations/conversation-escalated/messages`,
-        "POST",
-      ],
-      [
-        `${baseUrl}/v1/storefront/support/conversations/conversation-escalated/messages/${messageId}`,
-        "GET",
-      ],
-    ],
-  );
-  assert.equal(calls[0].body.message_id, messageId);
-});
-
-test("admin support exact-reads a requested message omitted from the write response", async () => {
-  const messageId = "support-staff-message-exact-observation";
-  const response = {
-    conversation: { id: "conversation-staff", status: "escalated" },
-    messages: [],
-  };
-  const requestedMessage = {
-    id: messageId,
-    store_id: storeId,
-    conversation_id: "conversation-staff",
-    role: "user",
-    content: "I can help from here.",
-    metadata: { input: { type: "text", content: "I can help from here." } },
-    ai_response: null,
-  };
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({
-      url: String(url),
-      method: init.method || "GET",
-      body: init.body ? JSON.parse(String(init.body)) : undefined,
-    });
-    if (init.method === "POST") return jsonResponse(response);
-    if (String(url).endsWith(`/messages/${messageId}`)) {
-      return jsonResponse(requestedMessage);
-    }
-    throw new Error(`Unexpected support observation: ${url}`);
-  };
-
-  let result;
-  try {
-    result = await admin().automation.support.sendConversationMessage({
-      store_id: storeId,
-      conversation_id: "conversation-staff",
-      message_id: messageId,
-      input: { type: "text", content: "I can help from here." },
-    });
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.deepEqual(result, response);
-  assert.deepEqual(
-    calls.map((call) => [call.url, call.method]),
-    [
-      [
-        `${baseUrl}/v1/stores/${storeId}/support/conversations/conversation-staff/messages`,
-        "POST",
-      ],
-      [
-        `${baseUrl}/v1/stores/${storeId}/support/conversations/conversation-staff/messages/${messageId}`,
-        "GET",
-      ],
-    ],
-  );
-  assert.equal(calls[0].body.message_id, messageId);
-});
-
-test("social classification POSTs once and observes the exact run with GET", async () => {
-  const runId = "classification-run-scheduled";
-  const pending = {
-    run_id: runId,
-    status: "requested",
-    comments_scanned: 2,
-    comments_classified: 0,
-    comments_skipped: 0,
-    comments: [],
-    skipped_comment_ids: [],
-    errors: [],
-  };
-  const succeeded = {
-    ...pending,
-    status: "succeeded",
-    comments_classified: 2,
-    completed_at: 20,
-    comments: [
-      { id: "comment-one", classification_intent: "lead" },
-      { id: "comment-two", classification_intent: "support" },
-    ],
-  };
-  const calls = [];
-  let transforms = 0;
-  let successes = 0;
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({
-      url: String(url),
-      method: init.method,
-      body: init.body ? JSON.parse(String(init.body)) : undefined,
-    });
-    return jsonResponse(calls.length === 1 ? pending : succeeded);
-  };
-
-  try {
-    const result = await admin().social.publication.classifyComments(
-      {
-        store_id: storeId,
-        run_id: runId,
-        publication_id: "publication-scheduled",
-        force: true,
-      },
-      {
-        transformRequest(body) {
-          transforms += 1;
-          return { ...body, transformed_once: true };
-        },
-        onSuccess() {
-          successes += 1;
-        },
-      },
-    );
-    assert.deepEqual(result, succeeded);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.equal(calls.length, 2);
-  assert.equal(calls[0].method, "POST");
-  assert.equal(calls[1].method, "GET");
-  assert.equal(
-    calls[0].url,
-    `${baseUrl}/v1/stores/${storeId}/social-publications/comments/classify`,
-  );
-  assert.equal(
-    calls[1].url,
-    `${baseUrl}/v1/stores/${storeId}/social-publications/comments/classifications/${runId}`,
-  );
-  assert.equal(calls[0].body.transformed_once, true);
-  assert.equal(transforms, 1);
-  assert.equal(successes, 1);
-});
-
-test("direct provider calls and scheduled observations keep their original store scope", async () => {
-  const originalStoreId = "store-original";
-  const replacementStoreId = "store-replacement";
-  const client = createAdmin({
-    baseUrl,
-    storeId: originalStoreId,
-    apiToken: "scheduled-contract-token",
+    if (call.path === conversationPath) return answered;
+    throw new Error(`Unexpected support request: ${call.method} ${call.path}`);
   });
-  const providerId = "provider-store-scope";
-  const runId = "classification-store-scope";
-  const requestedProvider = {
-    id: providerId,
-    store_id: originalStoreId,
-    type: "stripe",
-    setup_status: "pending",
-    payments_enabled: false,
-    payouts_enabled: false,
-    platform_debits_authorized: false,
-    state_observed_at: 1,
-    disabled_at: null,
-    created_at: 1,
-    updated_at: 1,
-  };
-  const requestedConnection = {
-    id: "connection-store-scope",
-    store_id: originalStoreId,
-    payment_provider_id: providerId,
-    type: "stripe",
-    status: "requested",
-    requested_at: 1,
-  };
-  const requestedRun = {
-    run_id: runId,
-    status: "requested",
-    comments_scanned: 0,
-    comments_classified: 0,
-    comments_skipped: 0,
-    comments: [],
-    skipped_comment_ids: [],
-    errors: [],
-  };
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    const target = String(url);
-    calls.push({ target, method: init.method || "GET" });
-    if (init.method === "POST") {
-      client.setStoreId(replacementStoreId);
-      if (target.endsWith("/payment-providers/stripe/connect")) {
-        return jsonResponse({
-          provider: requestedProvider,
-          connection: requestedConnection,
-          onboarding_url: null,
-        });
-      }
-      return jsonResponse(requestedRun);
-    }
-    return jsonResponse({
-      ...requestedRun,
-      status: "succeeded",
-      completed_at: 2,
-    });
-  };
-
-  try {
-    await client.store.paymentProvider.stripe.connect({
-      return_url: "https://admin.example.test/return",
-      refresh_url: "https://admin.example.test/refresh",
-      country: "BA",
-    });
-    client.setStoreId(originalStoreId);
-    await client.social.publication.classifyComments({
-      run_id: requestedRun.run_id,
-    });
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.deepEqual(
-    calls.map(({ target, method }) => [target.replace(baseUrl, ""), method]),
-    [
-      [
-        `/v1/stores/${originalStoreId}/payment-providers/stripe/connect`,
-        "POST",
-      ],
-      [
-        `/v1/stores/${originalStoreId}/social-publications/comments/classify`,
-        "POST",
-      ],
-      [
-        `/v1/stores/${originalStoreId}/social-publications/comments/classifications/${runId}`,
-        "GET",
-      ],
-    ],
+  let successes = 0;
+  const result = await storefront().support.sendMessage(
+    { conversation_id: conversationId, support_token: supportToken, message_id: messageId, input: { type: "text", text: "Help" } },
+    { onSuccess() { successes += 1; } },
   );
+  assert.deepEqual(result, answered);
+  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [
+    ["POST", `${conversationPath}/messages`],
+    ["GET", `${conversationPath}/messages/${messageId}`],
+    ["GET", `${conversationPath}/messages/${messageId}`],
+    ["GET", conversationPath],
+  ]);
+  assert.deepEqual(calls[0].body, { message_id: messageId, input: { type: "text", text: "Help" } });
+  for (const call of calls) {
+    assert.equal(call.headers.get("x-arky-support-token"), supportToken);
+    assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
+  }
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(successes, 1);
+});
+
+test("support reads the exact message once when the write answer left it out, and returns the write answer when nothing is pending", async (context) => {
+  const escalated = { conversation: conversation({ type: "escalated" }), messages_cursor: null, messages: [] };
+  const calls = recordFetch(context, (call) => call.method === "POST" ? escalated : chatMessage({ type: "not_asked" }));
+  const result = await storefront().support.sendMessage({
+    conversation_id: conversationId,
+    support_token: supportToken,
+    message_id: messageId,
+    input: { type: "button", label: "Talk to a person" },
+  });
+  assert.deepEqual(result, escalated);
+  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [
+    ["POST", `${conversationPath}/messages`],
+    ["GET", `${conversationPath}/messages/${messageId}`],
+  ]);
+});
+
+test("a message the AI isn't asked to answer returns the write answer without any observation", async (context) => {
+  const sent = { conversation: conversation({ type: "flow", step_key: "start" }), messages_cursor: null, messages: [chatMessage({ type: "not_asked" })] };
+  const calls = recordFetch(context, () => sent);
+  assert.deepEqual(await storefront().support.sendMessage({ conversation_id: conversationId, support_token: supportToken, message_id: messageId, input: { type: "text", text: "Help" } }), sent);
+  assert.equal(calls.length, 1);
+});
+
+test("the caller's abort stops a pending observation", async (context) => {
+  const controller = new AbortController();
+  const calls = recordFetch(context, (call) => {
+    if (call.method === "POST") return { conversation: conversation(), messages_cursor: null, messages: [chatMessage({ type: "waiting" })] };
+    controller.abort(new Error("left the chat"));
+    return chatMessage({ type: "waiting" });
+  });
+  await assert.rejects(
+    storefront().support.sendMessage({ conversation_id: conversationId, support_token: supportToken, message_id: messageId, input: { type: "text", text: "Help" } }, { signal: controller.signal }),
+    /left the chat/,
+  );
+  assert.deepEqual(calls.map(({ method }) => method), ["POST", "GET"]);
+});
+
+test("the support token travels only in its header, a caller copy is replaced, and a missing token or message id is refused before any request", async (context) => {
+  const calls = recordFetch(context, () => ({ conversation: conversation(), messages_cursor: null, messages: [] }));
+  const support = storefront().support;
+  await support.getConversation(
+    { conversation_id: conversationId, support_token: supportToken, message_limit: 20, message_cursor: "older" },
+    { headers: { "X-ARKY-SUPPORT-TOKEN": "forged" } },
+  );
+  assert.equal(calls[0].path, conversationPath);
+  assert.deepEqual(calls[0].query, { message_limit: "20", message_cursor: "older" });
+  assert.equal(calls[0].headers.get("x-arky-support-token"), supportToken);
+  await assert.rejects(support.getConversation({ conversation_id: conversationId, support_token: "" }), /needs the token its start returned/);
+  await assert.rejects(support.getMessage({ conversation_id: conversationId, message_id: messageId, support_token: "" }), /needs the token its start returned/);
+  await assert.rejects(support.sendMessage({ conversation_id: conversationId, support_token: supportToken, message_id: "message-1", input: { type: "text", text: "x" } }), {
+    name: "TypeError",
+    message: "The support message id must be a canonical UUID v4 picked by the app",
+  });
+  assert.equal(calls.length, 1);
+});
+
+test("an account reply is one write with the app-picked message id and no scheduled observation", async (context) => {
+  const answer = { conversation: { id: conversationId }, messages_cursor: null, messages: [] };
+  const calls = recordFetch(context, () => answer);
+  const admin = createAdmin({ baseUrl: apiUrl, apiToken: "arky_api_support" });
+  assert.equal("sendConversationMessage" in admin.support.conversation, false);
+  assert.deepEqual(await admin.support.conversation.reply({ store_id: ids.store, conversation_id: conversationId, message_id: messageId, expected_updated_at: 4, text: "I can help from here.", resolve: false }), answer);
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", `/v1/stores/${ids.store}/support/conversations/${conversationId}/reply`, { message_id: messageId, expected_updated_at: 4, text: "I can help from here.", resolve: false }],
+  ]);
+  await assert.rejects(async () => admin.support.conversation.reply({ store_id: ids.store, conversation_id: conversationId, message_id: "reply-1", expected_updated_at: 4, text: "x", resolve: true }), TypeError);
+  assert.equal(calls.length, 1);
 });

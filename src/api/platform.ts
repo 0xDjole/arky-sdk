@@ -1,47 +1,78 @@
 import type { ApiConfig } from "../services/clientTypes";
-import type { RequestOptions } from '../types/api';
+import type { RequestOptions } from "../types/api";
+import type { PaginatedResponse } from "../types/common";
+import type {
+  AddPlatformAdministratorParams,
+  FindPlatformAdministratorsParams,
+  PlatformAdministrator,
+  RemovePlatformAdministratorParams,
+} from "../types/account";
+import type { WebhookEventMetadata } from "../types/webhook";
+import type {
+  FindStripeBillingEventsParams,
+  ProviderEvent,
+  ResolveStripeBillingEventParams,
+} from "../types/payment";
+import type { StorePlan } from "../types/store";
+import { requireId } from "../utils/ids";
+import { segment } from "./paths";
 
-export interface EventScopeField {
-	field: string;
-	label: string;
-	placeholder: string;
-}
+export const createPlatformApi = (apiConfig: ApiConfig) => ({
+  getCurrencies(options?: RequestOptions): Promise<string[]> {
+    return apiConfig.httpClient.get<string[]>("/v1/platform/currencies", options);
+  },
 
-export interface EventMetadata {
-	event: string;
-	scopes: EventScopeField[];
-}
+  getWebhookEvents(options?: RequestOptions): Promise<WebhookEventMetadata[]> {
+    return apiConfig.httpClient.get<WebhookEventMetadata[]>("/v1/platform/events", options);
+  },
 
-export const createPlatformApi = (apiConfig: ApiConfig) => {
-	return {
-		async getCurrencies(options?: RequestOptions): Promise<string[]> {
-			return apiConfig.httpClient.get<string[]>('/v1/platform/currencies', options);
-		},
-		async getWebhookEvents(options?: RequestOptions): Promise<EventMetadata[]> {
-			return apiConfig.httpClient.get<EventMetadata[]>('/v1/platform/events', options);
-		},
-		data: {
-			async scan(params: { key: string; limit?: number }, options?: RequestOptions): Promise<{ value: Array<{ key: string; value: unknown }> }> {
-				return apiConfig.httpClient.get<{ value: Array<{ key: string; value: unknown }> }>('/v1/platform/data', {
-					...options,
-					params: { key: params.key, limit: params.limit ?? 200 },
-				});
-			},
-			async put(params: { key: string; value: unknown; previous_key?: string }, options?: RequestOptions): Promise<{ ok: boolean }> {
-				return apiConfig.httpClient.post<{ ok: boolean }>('/v1/platform/data', params, options);
-			},
-			async delete(params: { key: string }, options?: RequestOptions): Promise<{ ok: boolean }> {
-				return apiConfig.httpClient.delete<{ ok: boolean }>('/v1/platform/data', {
-					...options,
-					params: { key: params.key },
-				});
-			},
-		},
-		async runScript(
-			params: { name: string; value?: string; username?: string; password?: string },
-			options?: RequestOptions,
-		): Promise<{ success: boolean; message: string }> {
-			return apiConfig.httpClient.post<{ success: boolean; message: string }>('/v1/platform/scripts', params, options);
-		},
-	};
-};
+  getStorePlans(options?: RequestOptions): Promise<PaginatedResponse<StorePlan>> {
+    return apiConfig.httpClient.get<PaginatedResponse<StorePlan>>("/v1/stores/plans", options);
+  },
+
+  administrator: {
+    list(
+      params: FindPlatformAdministratorsParams = {},
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<PlatformAdministrator>> {
+      return apiConfig.httpClient.get<PaginatedResponse<PlatformAdministrator>>("/v1/platform/administrators", {
+        ...options,
+        params,
+      });
+    },
+
+    me(options?: RequestOptions): Promise<PlatformAdministrator> {
+      return apiConfig.httpClient.get<PlatformAdministrator>("/v1/platform/administrators/me", options);
+    },
+
+    add(params: AddPlatformAdministratorParams, options?: RequestOptions): Promise<PlatformAdministrator> {
+      requireId(params.id, "platform administrator");
+      return apiConfig.httpClient.post<PlatformAdministrator>(
+        "/v1/platform/administrators",
+        { id: params.id, account_id: params.account_id },
+        options,
+      );
+    },
+
+    remove(params: RemovePlatformAdministratorParams, options?: RequestOptions): Promise<boolean> {
+      return apiConfig.httpClient.delete<boolean>(`/v1/platform/administrators/${segment(params.id)}`, options);
+    },
+  },
+
+  stripeBillingEvent: {
+    find(params: FindStripeBillingEventsParams, options?: RequestOptions): Promise<PaginatedResponse<ProviderEvent>> {
+      return apiConfig.httpClient.get<PaginatedResponse<ProviderEvent>>(
+        "/v1/platform/provider-events/stripe-billing",
+        { ...options, params },
+      );
+    },
+
+    resolve(params: ResolveStripeBillingEventParams, options?: RequestOptions): Promise<ProviderEvent> {
+      return apiConfig.httpClient.post<ProviderEvent>(
+        `/v1/platform/provider-events/stripe-billing/${segment(params.id)}/resolve`,
+        { expected_updated_at: params.expected_updated_at, resolution: params.resolution },
+        options,
+      );
+    },
+  },
+});
