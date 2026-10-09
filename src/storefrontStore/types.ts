@@ -1,77 +1,38 @@
-import type { createStorefront, StorefrontOptions } from "../index";
+import type { EpochMilliseconds } from "../types/time";
+import type { StorefrontOptions } from "../index";
+import type { CartQuote, CheckoutPaymentChoice } from "../types/cart";
+import type { Currency } from "../types/common";
+import type { Entry } from "../types/content";
+import type { Form, FormValues } from "../types/forms";
+import type { CheckoutPaymentAction } from "../types/payment";
 import type {
-  StorefrontCart,
-  StorefrontCollectionEntry,
-  StorefrontForm,
-  StorefrontOrderCheckoutResult,
-  StorefrontOrderQuote,
+  AvailabilityResponse,
+  StorefrontBookingOffering,
+  StorefrontBookingResource,
+  StorefrontBookingService,
   StorefrontProduct,
-  StorefrontProvider,
-  StorefrontService,
-  StorefrontServiceProvider,
-} from "../types/storefront";
-import type {
-  Address,
-  Block,
-  Cart,
-  CartDigitalProduct,
-  EshopCartItem,
-  CollectionEntry,
-  Currency,
-  Form,
-  FormEntry,
-  FormValue,
-  FormValues,
-  OrderCheckoutResult,
-  OrderQuote,
-  PaymentMethod,
-  Price,
-  Product,
-  Provider,
-  Service,
-  ServiceProvider,
-} from "../types";
-import type { AvailabilityResponse, SlotRange } from "../types/api";
+} from "../types/product";
+import type { Block } from "../types/block";
 
-export type ArkyStoreClient = ReturnType<typeof createStorefront>;
 export type ArkyStoreConfig = StorefrontOptions;
 
 export interface ArkyStoreContext {
   locale?: string;
   market?: string;
+  salesChannel?: string;
 }
 
-export type ArkyCmsEntryParams = ArkyStoreContext & {
-  id?: string;
-  collection_id?: string;
-  key?: string;
-};
+export type ArkyContentEntryParams =
+  | { id: string }
+  | { collection_id: string; key: string }
+  | { collection_id: string; slug: string };
 
 export interface ArkySubmitFormByKeyParams {
-  key: string;
-  values: FormValues;
-}
-
-export interface ArkyBookingCartItem {
   id: string;
-  service_id: string;
-  provider_id: string;
-  slots: SlotRange[];
-  forms: FormEntry[];
-  price?: Price;
-  service_name?: string;
-  provider_name?: string;
-  date_text?: string;
-  time_text?: string;
-  is_multi_day?: boolean;
-}
-
-export interface ArkyCartSnapshot {
-  cart: StorefrontCart | null;
-  product_items: EshopCartItem[];
-  booking_items: ArkyBookingCartItem[];
-  digital_items: CartDigitalProduct[];
-  item_count: number;
+  key: string;
+  form: Form;
+  values: FormValues;
+  language: string;
 }
 
 export interface ArkyCartStatus {
@@ -81,58 +42,49 @@ export interface ArkyCartStatus {
   processing_checkout: boolean;
   error: string | null;
   quote_error: string | null;
-  selected_shipping_method_id: string | null;
-  user_token: string | null;
 }
 
 export interface ArkyLastOrder {
   order_id: string;
   number: string;
-  payment_action: StorefrontOrderCheckoutResult["payment_action"];
-  payment: StorefrontOrderCheckoutResult["payment"];
-  product_items?: EshopCartItem[];
-  booking_items?: ArkyBookingCartItem[];
-  digital_items?: CartDigitalProduct[];
-  shipping_address?: Address | null;
-  billing_address?: Address | null;
-  total?: number;
-  currency?: string | null;
-  payment_method_key?: string | null;
-  created_at: number;
+  cart_id: string;
+  payment_id: string | null;
+  payment_action: CheckoutPaymentAction;
+  total: number | null;
+  currency: Currency | null;
+  created_at: EpochMilliseconds;
 }
 
-export interface ArkyCartInput {
-  product_items?: EshopCartItem[];
-  booking_items?: ArkyBookingCartItem[];
-  digital_items?: CartDigitalProduct[];
-  shipping_address?: Address | null;
-  billing_address?: Address | null;
-  forms?: FormEntry[];
-  promo_code?: string | null;
-  payment_method_key?: string | null;
-  shipping_method_id?: string | null;
-  return_url?: string;
+export interface ArkyCartCheckoutInput {
+  order_id: string;
+  contact_email: string | null;
+  payment: CheckoutPaymentChoice;
   clear_after_checkout?: boolean;
 }
 
-export interface ArkyCmsState {
-  entries: Record<string, StorefrontCollectionEntry>;
-  forms: Record<string, StorefrontForm>;
+export interface ArkyContentState {
+  entries: Record<string, Entry>;
+  loading: boolean;
+  error: string | null;
+}
+
+export interface ArkyFormsState {
+  forms: Record<string, Form>;
   loading: boolean;
   error: string | null;
 }
 
 export interface ArkyEshopState {
   products: StorefrontProduct[];
-  services: StorefrontService[];
-  providers: StorefrontProvider[];
+  bookingServices: StorefrontBookingService[];
+  bookingResources: StorefrontBookingResource[];
   product_cursor: string | null;
-  service_cursor: string | null;
-  provider_cursor: string | null;
-  availability: unknown | null;
+  booking_service_cursor: string | null;
+  booking_resource_cursor: string | null;
+  availability: AvailabilityResponse | null;
   loading_products: boolean;
-  loading_services: boolean;
-  loading_providers: boolean;
+  loading_booking_services: boolean;
+  loading_booking_resources: boolean;
   loading_availability: boolean;
   error: string | null;
 }
@@ -147,61 +99,50 @@ export interface ArkyCalendarDay {
   blank: boolean;
 }
 
-export interface ArkyServiceSlot {
+export interface ArkyBookingSlot {
   id: string;
-  serviceId: string;
-  providerId: string;
-  from: number;
-  to: number;
+  bookingServiceId: string;
+  bookingResourceId: string;
+  bookingOfferingId: string;
+  from: EpochMilliseconds;
+  to: EpochMilliseconds;
   timeText: string;
   dateText: string;
   isMultiDay?: boolean;
-  serviceName?: string;
+  bookingServiceName?: string;
   date?: string;
-  serviceBlocks?: Block[];
+  bookingServiceBlocks?: Block[];
 }
 
-export interface ArkyServiceFormGroup {
-  form: StorefrontForm;
-  blocks: FormInputBlock[];
-}
-
-export interface FormInputBlock {
+export interface ArkyBookingCartItem {
   id: string;
-  key: string;
-  type: string;
-  properties: Record<string, unknown>;
-  value: FormValue | undefined;
+  slot: ArkyBookingSlot;
+  capacity_units?: number;
+  form_submission_id?: string | null;
 }
 
-export interface ArkyServiceFormState {
-  provider_id: string | null;
-  groups: ArkyServiceFormGroup[];
-  loading: boolean;
-  error: string | null;
-}
-
-export interface ArkyServiceState {
-  service: StorefrontService | null;
+export interface ArkyBookingServiceState {
+  bookingService: StorefrontBookingService | null;
   availability: AvailabilityResponse | null;
-  providers: StorefrontProvider[];
-  serviceProviders: StorefrontServiceProvider[];
-  selectedProviderId: string | null;
+  bookingResources: StorefrontBookingResource[];
+  bookingOfferings: StorefrontBookingOffering[];
+  bookingOfferingsCursor: string | null;
+  loadingOfferings: boolean;
+  selectedBookingResourceId: string | null;
   currentMonth: Date;
   calendar: ArkyCalendarDay[];
   selectedDate: string | null;
-  slots: ArkyServiceSlot[];
-  selectedSlot: ArkyServiceSlot | null;
+  slots: ArkyBookingSlot[];
+  selectedSlot: ArkyBookingSlot | null;
   timezone: string;
   tzGroups: Record<string, { zone: string; name: string }[]>;
   loading: boolean;
   weekdays: string[];
-  quote: StorefrontOrderQuote | null;
+  quote: CartQuote | null;
   fetchingQuote: boolean;
   quoteError: string | null;
   currency: Currency | null;
   dateTimeConfirmed: boolean;
-  availablePaymentMethods: PaymentMethod[];
+  availablePaymentOptionIds: string[];
   cartId: string | null;
-  promoCode: string | null;
 }

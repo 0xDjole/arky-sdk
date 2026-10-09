@@ -1,70 +1,65 @@
-import type {
-  Cart,
-  CollectionEntry,
-  Contact,
-  Form,
-  FormSubmission,
-  Location,
-  Market,
-  OrderCheckoutResult,
-  OrderQuote,
-  PaginatedResponse,
-  Product,
-  ProductVariant,
-  Provider,
-  Service,
-  ServiceProvider,
-  Zone,
-} from "./index";
+import type { Currency, PostalAddress, SortDirection, TaxMode } from "./common";
+import type { StorefrontPaymentOption } from "./payment";
 
-export type StorefrontParams<T> = T extends unknown
-  ? Omit<T, "store_id" | "market">
-  : never;
-
-type StorefrontOpaqueKey =
-  | "attributes"
-  | "blocks"
-  | "context"
-  | "data"
-  | "fields"
-  | "metadata"
-  | "payload"
-  | "properties"
-  | "schema"
-  | "value";
-
-/** Storefront wire shape after routing ownership fields are removed. */
-export type StorefrontDto<T> = T extends readonly (infer Item)[]
-  ? StorefrontDto<Item>[]
-  : T extends object
-    ? {
-        [
-          Key in keyof T as Key extends "store_id" ? never : Key
-        ]: Key extends StorefrontOpaqueKey ? T[Key] : StorefrontDto<T[Key]>;
-      }
-    : T;
-
-export type StorefrontCart = StorefrontDto<Cart>;
-export type StorefrontCollectionEntry = StorefrontDto<CollectionEntry>;
-export interface StorefrontContact extends StorefrontDto<Contact> {
-  email?: string | null;
-  verified: boolean;
+export interface StorefrontSetup {
+  name: string;
+  timezone: string;
+  languages: string[];
+  payment_options: StorefrontPaymentOption[];
 }
-export type StorefrontForm = StorefrontDto<Form>;
-export type StorefrontFormSubmission = StorefrontDto<FormSubmission>;
-export type StorefrontLocation = StorefrontDto<Location>;
-export type StorefrontOrderCheckoutResult = StorefrontDto<OrderCheckoutResult>;
-export type StorefrontOrderQuote = StorefrontDto<OrderQuote>;
-export type StorefrontProduct = StorefrontDto<Product>;
-export type StorefrontProductVariant = StorefrontDto<ProductVariant>;
-export type StorefrontProvider = StorefrontDto<Provider>;
-export type StorefrontService = StorefrontDto<Service>;
-export type StorefrontServiceProvider = StorefrontDto<ServiceProvider>;
-export type StorefrontPage<T> = StorefrontDto<PaginatedResponse<T>>;
-export type StorefrontZone = Zone;
-export type StorefrontMarket = Omit<
-  Market,
-  "store_id" | "created_at" | "updated_at" | "zones"
-> & {
-  zones: StorefrontZone[];
-};
+
+export interface StorefrontMarket {
+  id: string;
+  key: string;
+  currency: Currency;
+  tax_mode: TaxMode;
+  payment_option_ids: string[];
+}
+
+export interface StorefrontLocation {
+  id: string;
+  key: string;
+  address: PostalAddress;
+  pickup_point: boolean;
+}
+
+export interface FindStorefrontLocationsParams {
+  key?: string;
+  sort_field?: "created_at" | "updated_at";
+  sort_direction?: SortDirection;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindStorefrontMarketsParams {
+  key?: string;
+  currency?: Currency;
+  sort_field?: "created_at" | "updated_at";
+  sort_direction?: SortDirection;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface StorefrontCountryState {
+  code: string;
+  name: string;
+}
+
+export interface StorefrontCountry {
+  code: string;
+  name: string;
+  states: StorefrontCountryState[];
+}
+
+export interface StorefrontCountries {
+  items: StorefrontCountry[];
+  cursor: string | null;
+}
+
+export interface StorefrontPageParams {
+  limit?: number;
+  cursor?: string | null;
+  sort_direction?: SortDirection;
+}
+
+export type StorefrontParams<T> = Omit<T, "store_id">;

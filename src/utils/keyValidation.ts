@@ -1,9 +1,9 @@
 
-const KEY_PATTERN = /^[a-zA-Z0-9_-]+$/;
+const INVALID_KEY_CHARACTER = /[^a-z0-9_-]/;
 
 export function isValidKey(key: string): boolean {
-  if (!key || key.length === 0) return false;
-  return KEY_PATTERN.test(key);
+  if (!key || key.length > 255) return false;
+  return !INVALID_KEY_CHARACTER.test(key);
 }
 
 export function validateKey(key: string): { valid: boolean; error?: string } {
@@ -15,11 +15,11 @@ export function validateKey(key: string): { valid: boolean; error?: string } {
     return { valid: false, error: "Key must be 255 characters or less" };
   }
 
-  if (!KEY_PATTERN.test(key)) {
+  if (INVALID_KEY_CHARACTER.test(key)) {
     return {
       valid: false,
       error:
-        "Key can only contain letters, numbers, underscores (_) and hyphens (-)",
+        "Key can only contain lowercase ASCII letters, numbers, underscores (_) and hyphens (-)",
     };
   }
 

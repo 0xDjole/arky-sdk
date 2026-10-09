@@ -1,0 +1,30 @@
+import type { EpochMilliseconds } from "./time";
+import type { FulfillmentUnitSpan } from "./fulfillment";
+import type { InventoryUnit } from "./inventory";
+
+export interface FulfillmentUnitSelection {
+  fulfillment_job_line_id: string;
+  unit_spans: FulfillmentUnitSpan[];
+}
+
+export interface ResolveFulfillmentUnitSlotsParams {
+  store_id: string;
+  fulfillment_job_id: string;
+  expected_updated_at: EpochMilliseconds;
+  lines: FulfillmentUnitSelection[];
+}
+
+export interface FulfillmentUnitSlotDetail {
+  fulfillment_job_line_id: string;
+  fulfillment_unit_index: number;
+  inventory_item_id: string;
+  inventory_item_key: string;
+  inventory_unit: InventoryUnit | null;
+}
+
+export interface FulfillmentUnitSlots {
+  fulfillment_job_id: string;
+  store_location_id: string;
+  updated_at: EpochMilliseconds;
+  slots: FulfillmentUnitSlotDetail[];
+}

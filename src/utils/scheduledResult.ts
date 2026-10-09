@@ -37,11 +37,11 @@ export function scheduledObservationOptions<T>(
   return observation;
 }
 
-export function prepareScheduledMutation<T = unknown>(
-  body: unknown,
+export function prepareScheduledMutation<T = unknown, Payload = unknown>(
+  body: Payload,
   options?: ScheduledMutationOptions<T>,
 ): {
-  body: unknown;
+  body: Payload;
   options: RequestOptions<T> | undefined;
   afterResponse(response: T): Promise<void>;
 } {
@@ -55,7 +55,7 @@ export function prepareScheduledMutation<T = unknown>(
 
   const { transformRequest, onScheduledResponse, ...initialOptions } = options;
   return {
-    body: transformRequest ? transformRequest(body) : body,
+    body: transformRequest ? (transformRequest(body) as Payload) : body,
     options: initialOptions,
     async afterResponse(response) {
       await onScheduledResponse?.(response);

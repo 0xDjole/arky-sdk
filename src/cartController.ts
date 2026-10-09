@@ -1,148 +1,15 @@
+import type { EpochMilliseconds } from "./types/time";
+import type { Cart, StorefrontGetCartParams } from "./types/cart";
 import type {
-  AddCartBookingParams,
-  AddCartDigitalProductParams,
-  AddCartProductParams,
-  CheckoutCartParams,
-  ClearCartParams,
-  GetCartParams,
-  GetCurrentCartParams,
-  QuoteCartParams,
-  RemoveCartItemParams,
-  RequestOptions,
-  UpdateCartParams,
-} from "./types/api";
-import type { Cart, OrderCheckoutResult, OrderQuote } from "./types";
+  CartApi,
+  CartController,
+  CartControllerInitParams,
+  CartControllerListener,
+  CartControllerState,
+} from "./types/cartController";
 
-export interface CartApi {
-  current(
-    params?: GetCurrentCartParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  get(params: GetCartParams, options?: RequestOptions): Promise<Cart>;
-  update(params: UpdateCartParams, options?: RequestOptions): Promise<Cart>;
-  addProduct(
-    params: AddCartProductParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  addBooking(
-    params: AddCartBookingParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  addDigital(
-    params: AddCartDigitalProductParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  removeItem(
-    params: RemoveCartItemParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  clear(params: ClearCartParams, options?: RequestOptions): Promise<Cart>;
-  quote(params: QuoteCartParams, options?: RequestOptions): Promise<OrderQuote>;
-  checkout(
-    params: CheckoutCartParams,
-    options?: RequestOptions,
-  ): Promise<OrderCheckoutResult>;
-}
-
-export interface CartControllerState {
-  cart: Cart | null;
-  quote: OrderQuote | null;
-  checkoutResult: OrderCheckoutResult | null;
-  loading: boolean;
-  initialized: boolean;
-  error: unknown;
-}
-
-export type CartControllerListener = (state: CartControllerState) => void;
-
-export type CartControllerInitParams = GetCurrentCartParams | GetCartParams;
-export type CartControllerRefreshParams = GetCurrentCartParams | GetCartParams;
-export type CartControllerUpdateParams = Omit<UpdateCartParams, "id"> & {
-  id?: string;
-};
-export type CartControllerAddProductParams = Omit<
-  AddCartProductParams,
-  "id"
-> & {
-  id?: string;
-};
-export type CartControllerAddBookingParams = Omit<
-  AddCartBookingParams,
-  "id"
-> & {
-  id?: string;
-};
-export type CartControllerAddDigitalParams = Omit<
-  AddCartDigitalProductParams,
-  "id"
-> & {
-  id?: string;
-};
-export type CartControllerRemoveItemParams =
-  RemoveCartItemParams extends infer Params
-    ? Params extends { id: string }
-      ? Omit<Params, "id"> & { id?: string }
-      : never
-    : never;
-export type CartControllerClearParams = Omit<ClearCartParams, "id"> & {
-  id?: string;
-};
-export type CartControllerQuoteParams = Omit<QuoteCartParams, "id"> & {
-  id?: string;
-};
-export type CartControllerCheckoutParams = Omit<CheckoutCartParams, "id"> & {
-  id?: string;
-};
-
-export interface CartController {
-  subscribe(listener: CartControllerListener): () => void;
-  getState(): CartControllerState;
-  init(
-    params?: CartControllerInitParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  refresh(
-    params?: CartControllerRefreshParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  addProduct(
-    params: CartControllerAddProductParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  addBooking(
-    params: CartControllerAddBookingParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  addDigital(
-    params: CartControllerAddDigitalParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  update(
-    params: CartControllerUpdateParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  removeItem(
-    params: CartControllerRemoveItemParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  clear(
-    params?: CartControllerClearParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  quote(
-    params?: CartControllerQuoteParams,
-    options?: RequestOptions,
-  ): Promise<OrderQuote>;
-  checkout(
-    params?: CartControllerCheckoutParams,
-    options?: RequestOptions,
-  ): Promise<OrderCheckoutResult>;
-}
-
-function hasCartId(params: CartControllerInitParams): params is GetCartParams {
-  return (
-    "id" in params && typeof params.id === "string" && params.id.length > 0
-  );
+function hasCartId(params: CartControllerInitParams): params is StorefrontGetCartParams {
+  return "id" in params && typeof params.id === "string" && params.id.length > 0;
 }
 
 export function createCartController(cartApi: CartApi): CartController {
@@ -170,35 +37,42 @@ export function createCartController(cartApi: CartApi): CartController {
     return state;
   }
 
-  function currentCartId(id?: string): string {
-    const cartId = id || state.cart?.id;
-    if (!cartId) {
-      throw new Error(
-        "Cart has not been initialized and no cart id was provided",
-      );
-    }
-    return cartId;
+  function cartId(id: string | undefined): string {
+    const value = id || state.cart?.id;
+    if (!value) throw new Error("Cart has not been initialized and no cart id was provided");
+    return value;
   }
 
-  async function runCartMutation(
-    operation: () => Promise<Cart>,
-  ): Promise<Cart> {
+  function version(id: string, expected: EpochMilliseconds | undefined): EpochMilliseconds {
+    const value = expected ?? (state.cart && state.cart.id === id ? state.cart.updated_at : undefined);
+    if (value === undefined) {
+      throw new Error("Cart changes need the updated_at of the cart they were made on");
+    }
+    return value;
+  }
+
+  function target(params: { id?: string; expected_updated_at?: EpochMilliseconds }): {
+    id: string;
+    expected_updated_at: EpochMilliseconds;
+  } {
+    const id = cartId(params.id);
+    return { id, expected_updated_at: version(id, params.expected_updated_at) };
+  }
+
+  async function run<T>(operation: () => Promise<T>, apply: (value: T) => Partial<CartControllerState>): Promise<T> {
     setState({ loading: true, error: null });
     try {
-      const cart = await operation();
-      setState({
-        cart,
-        quote: null,
-        checkoutResult: null,
-        loading: false,
-        initialized: true,
-        error: null,
-      });
-      return cart;
+      const value = await operation();
+      setState({ ...apply(value), loading: false, error: null });
+      return value;
     } catch (error) {
       setState({ loading: false, error });
       throw error;
     }
+  }
+
+  function mutate(operation: () => Promise<Cart>): Promise<Cart> {
+    return run(operation, (cart) => ({ cart, quote: null, checkoutResult: null, initialized: true }));
   }
 
   return {
@@ -216,97 +90,64 @@ export function createCartController(cartApi: CartApi): CartController {
       return state;
     },
 
-    init(params = {}, options) {
-      if (state.initialized && state.cart) {
-        return Promise.resolve(state.cart);
-      }
+    init(params, options) {
+      if (state.initialized) return Promise.resolve(state.cart);
       return this.refresh(params, options);
     },
 
-    refresh(params = {}, options) {
-      return runCartMutation(() =>
-        hasCartId(params)
-          ? cartApi.get(params, options)
-          : cartApi.current(params, options),
-      );
-    },
-
-    addProduct(params, options) {
-      return runCartMutation(() =>
-        cartApi.addProduct(
-          { ...params, id: currentCartId(params.id) },
-          options,
-        ),
-      );
-    },
-
-    addBooking(params, options) {
-      return runCartMutation(() =>
-        cartApi.addBooking(
-          { ...params, id: currentCartId(params.id) },
-          options,
-        ),
-      );
-    },
-
-    addDigital(params, options) {
-      return runCartMutation(() =>
-        cartApi.addDigital(
-          { ...params, id: currentCartId(params.id) },
-          options,
-        ),
+    refresh(params, options) {
+      return run<Cart | null>(
+        () => (hasCartId(params) ? cartApi.get(params, options) : cartApi.current(params, options)),
+        (cart) => ({ cart, quote: null, checkoutResult: null, initialized: true }),
       );
     },
 
     update(params, options) {
-      return runCartMutation(() =>
-        cartApi.update({ ...params, id: currentCartId(params.id) }, options),
-      );
+      return mutate(() => cartApi.update({ ...params, ...target(params) }, options));
+    },
+
+    addProduct(params, options) {
+      return mutate(() => cartApi.addProduct({ ...params, ...target(params) }, options));
+    },
+
+    addBooking(params, options) {
+      return mutate(() => cartApi.addBooking({ ...params, ...target(params) }, options));
+    },
+
+    addSubscriptionPlan(params, options) {
+      return mutate(() => cartApi.addSubscriptionPlan({ ...params, ...target(params) }, options));
     },
 
     removeItem(params, options) {
-      return runCartMutation(() =>
-        cartApi.removeItem(
-          { ...params, id: currentCartId(params.id) },
-          options,
-        ),
+      return mutate(() => cartApi.removeItem({ ...params, ...target(params) }, options));
+    },
+
+    clear(params, options) {
+      return mutate(() => cartApi.clear({ ...params, ...target(params) }, options));
+    },
+
+    selectShippingMethod(params, options) {
+      return mutate(() => cartApi.selectShippingMethod({ ...params, ...target(params) }, options));
+    },
+
+    quote(params, options) {
+      return run(
+        () => cartApi.quote({ ...params, id: cartId(params.id) }, options),
+        (quote) => ({ quote }),
       );
     },
 
-    clear(params = {}, options) {
-      return runCartMutation(() =>
-        cartApi.clear({ ...params, id: currentCartId(params.id) }, options),
+    checkout(params, options) {
+      return run(
+        () => {
+          const id = cartId(params.cart_id);
+          return cartApi.checkout(
+            { ...params, cart_id: id, expected_updated_at: version(id, params.expected_updated_at) },
+            options,
+          );
+        },
+        (checkoutResult) => ({ checkoutResult }),
       );
-    },
-
-    async quote(params = {}, options) {
-      setState({ loading: true, error: null });
-      try {
-        const quote = await cartApi.quote(
-          { ...params, id: currentCartId(params.id) },
-          options,
-        );
-        setState({ quote, loading: false, error: null });
-        return quote;
-      } catch (error) {
-        setState({ loading: false, error });
-        throw error;
-      }
-    },
-
-    async checkout(params = {}, options) {
-      setState({ loading: true, error: null });
-      try {
-        const checkoutResult = await cartApi.checkout(
-          { ...params, id: currentCartId(params.id) },
-          options,
-        );
-        setState({ checkoutResult, loading: false, error: null });
-        return checkoutResult;
-      } catch (error) {
-        setState({ loading: false, error });
-        throw error;
-      }
     },
   };
 }

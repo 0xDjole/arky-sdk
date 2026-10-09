@@ -1,893 +1,214 @@
-export { ScheduledResultTimeoutError } from "./utils/scheduledResult";
-export { createStripeEmbeddedCheckout, mountCheckoutAction } from "./checkout";
-export { selectLocalizedText } from "./utils/blocks";
-export type {
-  EmbeddedCheckoutCallbacks,
-  EmbeddedCheckoutMount,
-  StripeEmbeddedCheckoutAction,
-} from "./checkout";
-export type { ScheduledMutationOptions } from "./services/createHttpClient";
-
-export type {
-  EshopCartItem,
-  CartProduct,
-  CartBooking,
-  Cart,
-  CartOrigin,
-  CartStatus,
-  EshopStoreState,
-  Store,
-  Webhook,
-  WebhookEventSubscription,
-  BuildHook,
-  BuildHookType,
-  SocialConnectResponse,
-  SocialDestinationMetadata,
-  SocialOAuthCallbackResponse,
-  SocialOAuthCallbackStatus,
-  SocialOAuthDestinationOption,
-  SocialConnection,
-  SocialConnectionCredential,
-  SocialConnectionData,
-  SocialConnectionProviderData,
-  SocialProviderCapability,
-  SocialConnectionType,
-  InstagramPlacement,
-  SocialAnalyticsCapabilities,
-  SocialEngagementCapabilities,
-  SocialPublication,
-  SocialPublicationComment,
-  SocialPublicationCommentClassificationResult,
-  SocialCommentClassificationRunStatus,
-  SocialPublicationCommentIntent,
-  SocialPublicationCommentPriority,
-  SocialPublicationEngagementSyncResult,
-  SocialCommentReply,
-  SocialCommentReplyError,
-  SocialCommentReplyEvidence,
-  SocialCommentReplyStatus,
-  SocialPublicationCommentReplyResponse,
-  SocialPublicationCommentStatus,
-  SocialPublicationContent,
-  SocialPublicationEffect,
-  SocialPublicationEffectError,
-  SocialPublicationEffectEvidence,
-  SocialPublicationEffectRequest,
-  SocialPublicationEffectStatus,
-  SocialPublicationMetricSnapshot,
-  SocialPublicationMutationResponse,
-  SocialPublicationStatus,
-  SocialPublicationValidation,
-  TiktokPrivacy,
-  ValidationError,
-  YoutubePrivacy,
-  Block,
-  BlockBase,
-  TextBlockProperties,
-  NumberBlockProperties,
-  ContainerBlockProperties,
-  ReferenceDeletePolicy,
-  MediaBlockProperties,
-  EntryBlockProperties,
-  ResourceBlockProperties,
-  TextBlock,
-  LocalizedTextBlock,
-  NumberBlock,
-  BooleanBlock,
-  DateBlock,
-  MediaBlock,
-  EntryBlock,
-  ProductBlock,
-  DigitalProductBlock,
-  ArrayBlock,
-  ObjectBlock,
-  Currency,
-  Price,
-  DigitalPrice,
-  OrderPayment,
-  OrderPaymentType,
-  OrderMoney,
-  PaymentProvider,
-  PaymentProviderType,
-  PaymentProviderConnectResponse,
-  OrderTaxSnapshot,
-  OrderTaxLine,
-  OrderTaxScope,
-  TaxMode,
-  OrderPromoCodeSnapshot,
-  OrderRefund,
-  OrderRefundType,
-  OrderRefundAllocation,
-  RefundReason,
-  RefundRequestReason,
-  OrderDigitalProduct,
-  OrderDigitalProductSnapshot,
-  DigitalProductQuoteLine,
-  DigitalProduct,
-  StorefrontDigitalProduct,
-  DigitalAsset,
-  DigitalCatalogStatus,
-  DigitalDownload,
-  DigitalLibraryAsset,
-  DigitalLibraryItem,
-  DigitalLibraryProduct,
-  ProviderOrderDispute,
-  OrderDispute,
-  StripeDisputeStatus,
-  OrderQuote,
-  CheckoutPaymentAction,
-  StoreSubscription,
-  StorePlanAccess,
-  StoreSubscriptionCheckout,
-  StoreSubscriptionCheckoutStatus,
-  StoreSubscriptionPayment,
-  StoreSubscriptionBillingStatus,
-  SubscriptionPlan,
-  SubscriptionPlanFeature,
-  SubscriptionPlanFeatureType,
-  SubscriptionPrice,
-  AudiencePayment,
-  AudienceDispute,
-  AudiencePaymentSafeError,
-  AudiencePaymentStatus,
-  AudiencePaymentType,
-  AudiencePromotionSnapshot,
-  AudienceRefund,
-  AudienceRefundSafeError,
-  AudienceRefundStatus,
-  AudienceRefundType,
-  StorefrontAudience,
-  StorefrontAudienceType,
-  StorefrontAudienceTier,
-  StorefrontAudiencePrice,
-  StorefrontAudienceMember,
-  StorefrontAudiencePaymentSummary,
-  AudienceMemberAccess,
-  AudienceMemberAccessSource,
-  StorefrontAudienceMemberState,
-  StorefrontAudienceSubscription,
-  PaymentMethod,
-  ShippingMethod,
-  ShippingWeightTier,
-  Zone,
-  Market,
-  Address,
-  GeoLocation,
-  ZoneLocation,
-  Location,
-  PaginatedResponse,
-  Access,
-  Media,
-  MediaSize,
-  MediaResolution,
-  Coordinates,
-  Collection,
-  BlockSchema,
-  BlockSchemaProperties,
-  BlockSchemaType,
-  CollectionEntry,
-  EntryBlockQuery,
-  MediaRef,
-  FieldOperation,
-  Workflow,
-  WorkflowTrigger,
-  WorkflowDefinition,
-  WorkflowNode,
-  WorkflowEdge,
-  WorkflowTriggerNode,
-  WorkflowHttpNode,
-  WorkflowDeployWebhookNode,
-  WorkflowGoogleDriveUploadNode,
-  WorkflowConnection,
-  WorkflowConnectionConnectUrl,
-  WorkflowConnectionData,
-  WorkflowConnectionType,
-  GoogleDriveWorkflowConnectionData,
-  GoogleDriveWorkflowProfile,
-  WorkflowSwitchNode,
-  WorkflowSwitchRule,
-  WorkflowTransformNode,
-  WorkflowLoopNode,
-  WorkflowHttpMethod,
-  WorkflowExecution,
-  WorkflowExecutionDefinition,
-  WorkflowExecutionInputCapture,
-  WorkflowExecutionResults,
-  WorkflowExternalOperation,
-  WorkflowExternalOperationResult,
-  WorkflowExternalOperationError,
-  WorkflowExternalOperationStatus,
-  WorkflowExternalOperationType,
-  WorkflowExecutionInput,
-  ExecutionStatus,
-  NodeResult,
-  AudienceType,
-  Audience,
-  AudienceDigitalProduct,
-  AudienceMember,
-  AudienceMemberStatus,
-  AudienceDeliveryStatus,
-  AudienceTier,
-  AudiencePrice,
-  AudiencePriceStatus,
-  AudienceTierStatus,
-  AudienceLead,
-  AudienceSubscription,
-  AudienceSubscriptionStatus,
-  AudienceAccessResponse,
-  AudienceManagementAudience,
-  AudienceManagementType,
-  AudienceManagementMember,
-  AudienceManagementResponse,
-  AudiencePaymentMethodSessionResponse,
-  AudienceSubscribeResponse,
-  RemoveAudienceMemberResult,
-  Event,
-  EventAction,
-  OrderShipmentStatus,
-  ShippingRateLine,
-  ShippingLine,
-  FulfillmentOrderStatus,
-  FulfillmentOrderLine,
-  FulfillmentOrder,
-  OrderFulfillmentSummary,
-  ShippingRate,
-  Parcel,
-  ShippoLabelStatus,
-  ShippoLabel,
-  ShippoLabelRefund,
-  ShippoLabelRefundStatus,
-  ProviderOrderShipmentCharge,
-  OrderShipmentCharge,
-  OrderShipmentChargeDirection,
-  OrderShipmentChargeStatus,
-  OrderShipmentChargeType,
-  OrderShipmentLine,
-  OrderShipment,
-  CreateOrderShipmentResponse,
-  CustomsItem,
-  CustomsDeclaration,
-  GeoLocationBlock,
-  Service,
-  Provider,
-  ServiceProvider,
-  ServiceDuration,
-  WorkingHour,
-  WorkingDay,
-  SpecificDate,
-  Order,
-  OrderProduct,
-  OrderBooking,
-  OrderProductSnapshot,
-  OrderBookingSnapshot,
-  DiscountAllocation,
-  TaxLine,
-  LineMoneySnapshot,
-  OrderProductFulfillmentStatus,
-  OrderProductStatus,
-  OrderBookingStatus,
-  ProductQuoteLine,
-  BookingQuoteLine,
-  BookingQuoteLineAvailability,
-  OrderStatus,
-  OrderFulfillmentStatus,
-  OrderPaymentStatus,
-  OrderCancellationReason,
-  Product,
-  ProductVariant,
-  ProductInventory,
-  InventoryLevel,
-  GalleryItem,
-  EmailTemplate,
-  EmailTemplateType,
-  EmailRecipients,
-  EmailSend,
-  EmailSendRequest,
-  EmailSendResult,
-  EmailSendDeliveryResult,
-  EmailDelivery,
-  EmailDeliveryError,
-  EmailDeliveryErrorKind,
-  EmailDeliveryStatus,
-  EmailDeliveryType,
-  GetEmailDeliveryParams,
-  RetryEmailDeliveryParams,
-  EmailSendTemplateData,
-  Form,
-  FormSubmission,
-  FormSchema,
-  FormSchemaType,
-  FormField,
-  FormFieldType,
-  FormValue,
-  FormValues,
-  FormEntry,
-  Taxonomy,
-  TaxonomyEntry,
-  TaxonomyQuery,
-  TaxonomySchema,
-  TaxonomySchemaType,
-  TaxonomyField,
-  TaxonomyFieldQuery,
-  PromoCode,
-  Contact,
-  ContactSessionRecord,
-  ContactSessionIssued,
-  ContactSessionStatus,
-  ContactChannel,
-  ChannelType,
-  OpportunityStage,
-  OpportunityType,
-  OpportunitySource,
-  Action,
-  ActionData,
-  ActionContext,
-  Mailbox,
-  MailboxConnectionSecurity,
-  MailboxPreset,
-  MailboxSyncStatus,
-  MailboxSyncIssue,
-  MailboxSyncIssueType,
-  GoogleMailboxProvider,
-  SmtpImapMailboxProviderInput,
-  SmtpImapMailboxProvider,
-  OutreachStep,
-  OutreachStepType,
-  ManualTaskContinueBehavior,
-  CampaignManualTaskOutcome,
-  OutreachPersonalizationCounters,
-  CampaignPersonalization,
-  CampaignLaunchState,
-  Campaign,
-  CampaignLaunchReadiness,
-  CampaignEnrollment,
-  CampaignEnrollmentImportResult,
-  CampaignEnrollmentConversationResponse,
-  CampaignMessage,
-  Suppression,
-  LeadResearchRun,
-  LeadResearchRunStatus,
-  LeadScores,
-  LeadInsight,
-  CampaignRoute,
-  ChannelMessage,
-  LeadEmailClassification,
-  LeadValidationCheck,
-  LeadValidationCheckStatus,
-  LeadEmailValidationResult,
-  LeadResearchMessage,
-  LeadResearchMessageRole,
-  ResearchAudienceMember,
-  SendLeadResearchMessageResult,
-  Account,
-  AccountApiToken,
-  AccountApiTokenCreated,
-  AccountSession,
-  AccountUpdateResponse,
-  StoreMembership,
-  StoreMember,
-  ServiceStatus,
-  ProviderStatus,
-  ProductStatus,
-  ContactStatus,
-  AudienceStatus,
-  AudienceSource,
-  AudienceMemberSource,
-  MailboxStatus,
-  CampaignStatus,
-  CampaignLaunchStatus,
-  CampaignEnrollmentStatus,
-  CampaignEnrollmentImportSource,
-  CampaignMessageCopySource,
-  CampaignMessageDirection,
-  CampaignMessageType,
-  CampaignMessageStatus,
-  CampaignEmailContent,
-  CampaignChannelTarget,
-  CampaignManualTaskContent,
-  CampaignMessageContent,
-  OutreachPersonalizationStatus,
-  OutreachThreadMode,
-  SuppressionStatus,
-  SuppressionTarget,
-  SuppressionScope,
-  SuppressionReason,
-  SuppressionSource,
-  WorkflowStatus,
-  MutableWorkflowStatus,
-  WorkflowSendEmailNode,
-  PromoCodeStatus,
-  CollectionStatus,
-  EntryStatus,
-  EmailTemplateStatus,
-  EmailTemplateVariable,
-  EmailTemplateVariableSource,
-  FormStatus,
-  TaxonomyStatus,
-} from "./types";
-export { PaymentMethodType } from "./types";
-
-export type {
-  FindContactSessionsParams,
-  RevokeAllContactSessionsParams,
-  RevokeContactSessionParams,
-  GetAvailabilityParams,
-  AvailabilitySlot,
-  DaySlots,
-  ProviderAvailability,
-  AvailabilityResponse,
-  Slot,
-  SlotRange,
-  CreatePromoCodeParams,
-  UpdatePromoCodeParams,
-  DeletePromoCodeParams,
-  GetPromoCodeParams,
-  GetPromoCodesParams,
-  ProductQuoteInput,
-  BookingQuoteInput,
-  CartProductInput,
-  CartBookingInput,
-  CartDigitalProductInput,
-  DigitalProductQuoteInput,
-  TrustedCartProductInput,
-  TrustedCartBookingInput,
-  TrustedCartDigitalProductInput,
-  CreateOrderRefundParams,
-  CancelOrderProductParams,
-  CreateOrderRefundResponse,
-  FindOrderRefundsParams,
-  GetOrderRefundParams,
-  GetOrderPaymentParams,
-  GetCurrentCartParams,
-  GetCartParams,
-  FindCartsParams,
-  CreateCartParams,
-  UpdateCartParams,
-  AddCartProductParams,
-  AddCartBookingParams,
-  AddCartDigitalProductParams,
-  CreateDigitalProductParams,
-  UpdateDigitalProductParams,
-  GetDigitalProductParams,
-  FindDigitalProductsParams,
-  UploadDigitalAssetParams,
-  FindDigitalAssetsParams,
-  ArchiveDigitalAssetParams,
-  DownloadDigitalAssetParams,
-  FindStorefrontDigitalProductsParams,
-  GetStorefrontDigitalProductParams,
-  RemoveCartItemParams,
-  ClearCartParams,
-  QuoteCartParams,
-  CheckoutCartParams,
-  SystemTemplateKey,
-  ImportFieldMapping,
-  ImportPreviewRow,
-  ImportContactsParams,
-  ImportContactsPreviewParams,
-  ImportContactsPreviewResult,
-  ImportContactsResult,
-  GetCollectionsParams,
-  CreateCollectionParams,
-  UpdateCollectionParams,
-  GetCollectionParams,
-  DeleteCollectionParams,
-  GetEntriesParams,
-  CreateEntryParams,
-  UpdateEntryParams,
-  GetEntryParams,
-  DeleteEntryParams,
-  GetShippingRatesParams,
-  FindOrderShipmentsParams,
-  FindFulfillmentOrdersParams,
-  GetFulfillmentOrderParams,
-  GetOrderShipmentParams,
-  CreateOrderShipmentParams,
-  RetryOrderShipmentParams,
-  RequestShippoLabelRefundParams,
-  RetryShippoLabelRefundParams,
-  FindOrderShipmentChargesParams,
-  GetOrderShipmentChargeParams,
-  RetryOrderShipmentChargeParams,
-  FindOrderDisputesParams,
-  GetOrderDisputeParams,
-  SelectStoreSubscriptionParams,
-  GetStoreSubscriptionCheckoutParams,
-  CancelStoreSubscriptionParams,
-  ReactivateStoreSubscriptionParams,
-  TestWebhookParams,
-  TestWebhookResponse,
-  WebhookDeliveryStatus,
-  CreateAudienceParams,
-  UpdateAudienceParams,
-  FindAudiencesParams,
-  GetAudienceParams,
-  GetStorefrontAudienceParams,
-  CreateAudienceTierParams,
-  UpdateAudienceTierParams,
-  AudienceTierPriceInput,
-  FindAudienceTiersParams,
-  FindStorefrontAudienceTiersParams,
-  GetAudienceTierParams,
-  AddAudienceMemberParams,
-  UpdateAudienceMemberParams,
-  RemoveAudienceMemberParams,
-  FindAudienceMembersParams,
-  FindAudienceLeadsParams,
-  RefundAudienceMemberParams,
-  RefundAudienceMemberResult,
-  FindAudiencePaymentsParams,
-  FindStorefrontAudienceMembersParams,
-  GetAudiencePaymentParams,
-  FindAudienceDisputesParams,
-  GetAudienceDisputeParams,
-  FindAudienceRefundsParams,
-  GetAudienceRefundParams,
-  RetryAudienceRefundParams,
-  GetAudienceSubscriptionParams,
-  ImportContactRowInput,
-  ImportContactRowError,
-  ImportContactRowResult,
-  ImportAudienceMemberRowResult,
-  PreviewAudienceMemberImportParams,
-  ImportAudienceMembersParams,
-  ImportAudienceMembersResult,
-  SubscribeAudienceParams,
-  GetStorefrontAudiencePaymentParams,
-  AudienceAccessParams,
-  CreateMailboxParams,
-  UpdateMailboxParams,
-  FindMailboxesParams,
-  GetMailboxParams,
-  PrepareMailboxParams,
-  TestMailboxParams,
-  TestMailboxResult,
-  CreateCampaignParams,
-  UpdateCampaignParams,
-  FindCampaignsParams,
-  GetCampaignParams,
-  LaunchCampaignParams,
-  DuplicateCampaignParams,
-  ImportCampaignEnrollmentsParams,
-  GetCampaignLaunchReadinessParams,
-  GenerateOutreachPersonalizedDraftsParams,
-  FindCampaignEnrollmentsParams,
-  UpdateCampaignEnrollmentParams,
-  UpdateCampaignEnrollmentDraftParams,
-  UpdateCampaignEnrollmentStepExecutionParams,
-  GetCampaignEnrollmentConversationParams,
-  ReplyCampaignEnrollmentParams,
-  StopCampaignEnrollmentParams,
-  FindCampaignMessagesParams,
-  UpdateCampaignMessageParams,
-  CreateSuppressionParams,
-  UpdateSuppressionParams,
-  FindSuppressionsParams,
-  GetSuppressionParams,
-  CreateLeadResearchRunParams,
-  FindLeadResearchRunsParams,
-  GetLeadResearchRunParams,
-  UpdateLeadResearchRunParams,
-  CancelLeadResearchRunParams,
-  SendLeadResearchMessageParams,
-  FindLeadResearchMessagesParams,
-  ValidateLeadEmailParams,
-  CancelSocialPublicationParams,
-  ClassifySocialPublicationCommentsParams,
-  ConnectStripePaymentProviderParams,
-  ConnectSocialConnectionParams,
-  CreateSocialCommentReplyParams,
-  CreateSocialPublicationParams,
-  DeletePaymentProviderParams,
-  DeleteSocialConnectionParams,
-  FindSocialPublicationCommentsParams,
-  FindSocialPublicationsParams,
-  GetSocialCommentClassificationRunParams,
-  GetSocialCapabilitiesParams,
-  OpenStripeDashboardParams,
-  GetSocialOAuthAttemptParams,
-  GetSocialCommentReplyParams,
-  GetSocialPublicationCommentThreadParams,
-  GetSocialPublicationCommentsParams,
-  GetSocialPublicationEffectParams,
-  GetSocialPublicationMetricsParams,
-  GetSocialPublicationParams,
-  ListPaymentProvidersParams,
-  ListSocialCommentRepliesParams,
-  ListSocialConnectionsParams,
-  ListSocialPublicationEffectsParams,
-  RefreshStripePaymentProviderParams,
-  RetrySocialCommentReplyParams,
-  ScheduleSocialPublicationParams,
-  SyncSocialEngagementParams,
-  SyncSocialPublicationCommentsParams,
-  SyncSocialPublicationCommentThreadParams,
-  SyncSocialPublicationMetricsParams,
-  UpdateSocialPublicationParams,
-  ValidateSocialPublicationParams,
-  ManageAudienceParams,
-  CreateAudiencePaymentMethodSessionParams,
-  UnsubscribeAudienceParams,
-  ConfirmAudienceParams,
-  Condition,
-  Discount,
-  RefundStatus,
-} from "./types/api";
-
-export type {
-  LocationState,
-  LocationCountry,
-  GetCountriesResponse,
-} from "./api/location";
-
-export type {
-  AnalyticsTimeRange,
-  AnalyticsReportKey,
-  AnalyticsMetricReportKey,
-  AnalyticsBreakdownReportKey,
-  AnalyticsActionReportKey,
-  AnalyticsCompositeReportKey,
-  AnalyticsReportRequest,
-  AnalyticsBlockRequest,
-  AnalyticsRequest,
-  AnalyticsMetricData,
-  AnalyticsRateData,
-  AnalyticsBreakdownItem,
-  AnalyticsBreakdownData,
-  BusinessOverviewData,
-  RevenueByCurrencyData,
-  ContactFunnelStage,
-  ContactFunnelData,
-  OutreachOverviewData,
-  OutreachFunnelStage,
-  OutreachFunnelData,
-  EntityStatusOverviewData,
-  DataHealthData,
-  AnalyticsReport,
-  AnalyticsReportScope,
-  AnalyticsBlockResponse,
-  AnalyticsResponse,
-  ActionFeedCategory,
-  ActionFeedItem,
-  ActionFeedSummary,
-  ActionFeedCursor,
-  ActionFeedData,
-} from "./api/analytics";
-
-export type {
-  CreateLocationParams,
-  UpdateLocationParams,
-  DeleteLocationParams,
-  CreateMarketParams,
-  UpdateMarketParams,
-  MarketZoneInput,
-  CreateProductVariantInput,
-  UpdateProductVariantInput,
-  ProductInventoryInput,
-} from "./types/api";
-
-export type {
-  GetWorkflowTriggerParams,
-  InvokeWorkflowTriggerParams,
-} from "./types/api";
-
-export type {
-  StorefrontAction,
-  TrackActionParams,
-  CommonActionKey,
-  ExperimentUseResponse,
-  StorefrontContact,
-  StorefrontDto,
-  StorefrontLocation,
-  StorefrontMarket,
-  StorefrontSetup,
-  StorefrontZone,
-  UseExperimentParams,
-} from "./api/storefront";
-export { COMMON_ACTION_KEYS } from "./api/storefront";
-export type {
-  CreateExperimentParams,
-  Experiment,
-  ExperimentResults,
-  ExperimentStatus,
-  ExperimentVariant,
-  ExperimentVariantResult,
-  FindExperimentsParams,
-  GetExperimentParams,
-  UpdateExperimentParams,
-} from "./api/experiments";
-export {
-  createCartController,
-  type CartApi,
-  type CartController,
-  type CartControllerAddProductParams,
-  type CartControllerAddBookingParams,
-  type CartControllerAddDigitalParams,
-  type CartControllerCheckoutParams,
-  type CartControllerClearParams,
-  type CartControllerInitParams,
-  type CartControllerListener,
-  type CartControllerQuoteParams,
-  type CartControllerRefreshParams,
-  type CartControllerRemoveItemParams,
-  type CartControllerState,
-  type CartControllerUpdateParams,
-} from "./cartController";
-
-export type { TimelineParams } from "./api/crm";
-export type {
-  SupportAgent,
-  SupportAgentDefinition,
-  SupportAgentStatus,
-  SupportChannel,
-  SupportChannelConfig,
-  SupportChannelStatus,
-  SupportChannelType,
-  SupportConversation,
-  SupportConversationChannelContext,
-  SupportAiResponse,
-  SupportAiResponseStatus,
-  SupportMessage,
-  SupportConversationResponse,
-  SupportConversationStartResponse,
-  StorefrontSupportConversationResponse,
-  StorefrontSupportConversationStartResponse,
-  SendSupportMessageParams,
-  StorefrontSendSupportMessageParams,
-  StorefrontGetSupportConversationParams,
-  StorefrontGetSupportMessageParams,
-  SupportAgentNode,
-  SupportAgentEdge,
-  SupportAgentAiConfig,
-  EdgeTrigger,
-  SupportAction,
-  AssignSupportConversationParams,
-  GetSupportConversationParams,
-  GetSupportMessageParams,
-  ReplySupportConversationParams,
-  ResolveSupportConversationParams,
-  CreateSupportChannelParams,
-  UpdateSupportChannelParams,
-  FindSupportChannelsParams,
-  FindSupportConversationsParams,
-  ReceiveSupportChannelMessageParams,
-} from "./api/support";
-export type { EventMetadata, EventScopeField } from "./api/platform";
-
-export const SDK_VERSION = "0.25.0";
-export const SUPPORTED_FRAMEWORKS = [
-  "astro",
-  "react",
-  "vue",
-  "svelte",
-  "vanilla",
-] as const;
-
-import type { Price } from "./types";
-
-export interface AdminSession {
-  email?: string;
-}
-
-export interface ContactSession {
-  contact: import("./api/storefront").StorefrontContact;
-}
-
-export interface StorefrontIdentifyResult {
-  contact: import("./api/storefront").StorefrontContact;
-  verification_challenge:
-    import("./types/api").VerificationChallengeResponse | null;
-}
-
-export interface StorefrontVerifyResult {
-  contact: import("./api/storefront").StorefrontContact;
-}
-
-export type AuthStateListener<T> = (session: T | null) => void;
-
-import {
-  createHttpClient,
-  type HttpClientConfig,
-  type HttpClient,
-  type AuthStorage,
-} from "./services/createHttpClient";
+import { createAdminSessionState } from "./services/adminSession";
+import { createHttpClient } from "./services/createHttpClient";
+import type { AuthStorage, HttpClientConfig } from "./types/httpClient";
+import type { RequestOptions } from "./types/api";
 import type {
   AdminSessionInternal,
   AdminSessionUpdater,
   ApiConfig,
   StorefrontApiConfig,
 } from "./services/clientTypes";
-export type {
-  AdminSessionInternal,
-  AdminSessionUpdater,
-  ApiConfig,
-  StorefrontApiConfig,
-} from "./services/clientTypes";
+import type {
+  Customer,
+  CustomerCodeResult,
+  CustomerMe,
+  CustomerSessionIssued,
+  CustomerSessionResult,
+  CustomerSessionStatus,
+  UpdateCustomerMeParams,
+} from "./types/customer";
+import type { StorefrontSetup } from "./types/storefront";
 import { createAccountApi } from "./api/account";
+import { createActionsApi } from "./api/actions";
+import { createAnalyticsApi } from "./api/analytics";
 import { createAuthApi } from "./api/auth";
-import { createStoreApi } from "./api/store";
-import { createMediaApi } from "./api/media";
-import { createNotificationApi } from "./api/notification";
-import { createPromoCodeApi } from "./api/promoCode";
-import { createCmsApi } from "./api/cms";
-import { createEshopApi } from "./api/eshop";
-import { createDigitalApi } from "./api/digital";
+import { createBookingOfferingApi, createBookingResourceApi, createBookingServiceApi } from "./api/booking";
+import { createBroadcastApi } from "./api/broadcast";
+import { createCartApi } from "./api/cart";
+import { createCatalogAccessApi, createCatalogApi, createCatalogItemApi, createPriceApi } from "./api/catalog";
+import { createCategoryApi } from "./api/category";
+import {
+  createCompanyApi,
+  createCompanyLocationApi,
+  createCompanyMembershipApi,
+  createCompanyRoleApi,
+} from "./api/company";
+import { createCollectionApi, createEntryApi } from "./api/content";
+import { createCustomerGroupApi, createCustomerGroupMemberApi } from "./api/customerGroup";
+import { createCustomersApi } from "./api/customers";
+import { createDigitalAssetApi } from "./api/digitalAsset";
+import { createEmailSuppressionApi } from "./api/emailSuppression";
+import { createExperimentsApi } from "./api/experiments";
+import { createFormsApi } from "./api/forms";
+import { createFulfillmentApi, createFulfillmentJobApi, createFulfillmentRoutingApi } from "./api/fulfillment";
+import { createInventoryItemApi } from "./api/inventoryItem";
+import { createInventoryLevelApi } from "./api/inventoryLevel";
+import { createInventoryMovementApi } from "./api/inventoryMovement";
+import { createInventoryUnitApi } from "./api/inventoryUnit";
 import { createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
-import { createContactApi } from "./api/crm";
+import { createMediaApi } from "./api/media";
 import {
-  createAdminSupportApi,
-  createStorefrontSupportApi,
-} from "./api/support";
-import { createLeadResearchApi } from "./api/leadResearch";
-import { createSocialApi } from "./api/social";
-import { createWorkflowApi } from "./api/workflow";
+  createCompanyNoteApi,
+  createCustomerNoteApi,
+  createFormSubmissionNoteApi,
+  createOrderNoteApi,
+} from "./api/note";
+import {
+  createEmailDomainApi,
+  createEmailSenderApi,
+  createEmailTemplateApi,
+  createNotificationApi,
+} from "./api/notification";
+import { createOrderApi } from "./api/order";
+import { createPaymentApi, createProviderEventApi } from "./api/payment";
+import { createPaymentMethodApi } from "./api/paymentMethod";
+import { createPaymentOptionApi } from "./api/paymentOption";
 import { createPlatformApi } from "./api/platform";
-import { createShippingApi } from "./api/shipping";
-import { createPaymentProviderApi } from "./api/paymentProvider";
-import { createEmailTemplateApi } from "./api/emailTemplate";
-import { createFormApi } from "./api/form";
-import { createTaxonomyApi } from "./api/taxonomy";
-import { createAnalyticsApi } from "./api/analytics";
-import { createExperimentsApi } from "./api/experiments";
+import { createProductApi, createProductVariantApi } from "./api/product";
+import { createPromotionApi, createPromotionCodeApi } from "./api/promotion";
+import { createRentalApi } from "./api/rental";
+import { createReturnApi } from "./api/return";
+import { createSalesChannelApi } from "./api/salesChannel";
+import { createShippingMethodApi } from "./api/shippingMethod";
+import { createShippingProfileApi } from "./api/shippingProfile";
+import { createStoreApi } from "./api/store";
+import { createStorefrontClientApi } from "./api/storefrontClient";
+import { createStoreRoleApi } from "./api/storeRole";
 import {
   createStorefrontApi,
-  type ContactSessionInternal,
-  type ContactSessionUpdater,
-} from "./api/storefront";
-export type {
-  ContactSessionInternal,
-  ContactSessionUpdater,
+  type CustomerSessionInternal,
+  type CustomerSessionUpdater,
+  type RequestCustomerCodeParams,
+  type VerifyCustomerCodeParams,
 } from "./api/storefront";
 import {
-  getImageUrl,
-  getBlockValue,
-  getBlockTextValue,
+  createSubscriptionApi,
+  createSubscriptionOfferingApi,
+  createSubscriptionPlanApi,
+} from "./api/subscription";
+import { createAdminSupportApi, createStorefrontSupportApi } from "./api/support";
+import { createTaxCategoryApi } from "./api/taxCategory";
+import { createWebhookApi } from "./api/webhook";
+import { createZoneApi } from "./api/zone";
+import {
+  blockContent,
+  collectBlockReferences,
+  extractBlockValues,
+  findBlock,
+  formatBlockValue,
   getBlockContentValue,
-  getBlockValues,
+  getBlockFromArray,
   getBlockLabel,
   getBlockObjectValues,
-  getBlockFromArray,
-  formatBlockValue,
-  prepareBlocksForSubmission,
-  extractBlockValues,
-  collectBlockReferences,
+  getBlockTextValue,
+  getBlockValue,
+  getBlockValues,
+  getImageUrl,
   selectLocalizedText,
 } from "./utils/blocks";
 import {
-  formatPrice,
-  getPriceAmount,
-  formatPayment,
+  convertToMajor,
+  convertToMinor,
   formatMinor,
-  getCurrencySymbol,
+  formatMoney,
+  formatPrice,
+  getCurrencyMinorUnits,
   getCurrencyName,
+  getCurrencySymbol,
+  getPriceAmount,
 } from "./utils/price";
 import { validatePhoneNumber } from "./utils/validation";
-import { tzGroups, findTimeZone } from "./utils/timezone";
-import { slugify, humanize, categorify, formatDate } from "./utils/text";
-import {
-  getSvgContentForAstro,
-  fetchSvgContent,
-  injectSvgIntoElement,
-} from "./utils/svg";
-import {
-  isValidKey,
-  validateKey,
-  toKey,
-  nameToKey,
-} from "./utils/keyValidation";
-import {
-  getAvailableStock,
-  getReservedStock,
-  hasStock,
-  getInventoryAt,
-  getFirstAvailableFCId,
-} from "./utils/inventory";
+import { findTimeZone, tzGroups } from "./utils/timezone";
+import { categorify, formatDate, humanize, slugify } from "./utils/text";
+import { fetchSvgContent, getSvgContentForAstro, injectSvgIntoElement } from "./utils/svg";
+import { isValidKey, nameToKey, toKey, validateKey } from "./utils/keyValidation";
 
-function createUtilitySurface(apiConfig: Pick<ApiConfig, "market">) {
+export type * from "./types";
+export {
+  CURRENCY_MINOR_UNITS,
+  WEBHOOK_UNIT_EVENT_TYPES,
+  TYPED_CUSTOMER_ACTION_KEYS,
+  BROADCAST_FIELDS,
+  BROADCAST_BLOCK_FIELD_PREFIXES,
+  cartProductItems,
+  cartBookingItems,
+  cartSubscriptionPlanItems,
+  orderLineItemsOfType,
+  orderProductItems,
+  orderBookingItems,
+  orderSubscriptionPlanItems,
+  orderRentalUseItems,
+  orderPurchaseAccessItems,
+  MonriCheckoutError,
+  CartPresentationChangedError,
+  CartSelectionError,
+  FulfillmentSelectionError,
+} from "./types";
+export type { AdminLogoutResult } from "./services/adminSession";
+export type { AdminSessionInternal, AdminSessionUpdater, ApiConfig, StorefrontApiConfig } from "./services/clientTypes";
+export type * from "./api/analytics";
+export type { GetCountriesResponse } from "./api/location";
+export type { RecordNoteApi } from "./api/note";
+export type { FindAdminRentalReturnOptionsParams } from "./api/return";
+export {
+  COMMON_CUSTOMER_ACTION_KEYS,
+} from "./api/storefront";
+export type {
+  CommonCustomerActionKey,
+  CustomerSessionInternal,
+  CustomerSessionUpdater,
+  IdentifyCustomerParams,
+  RequestCustomerCodeParams,
+  StorefrontLifecycle,
+  VerifyCustomerCodeParams,
+} from "./api/storefront";
+export { ScheduledResultTimeoutError } from "./utils/scheduledResult";
+export { isValidKey, validateKey, toKey, nameToKey } from "./utils/keyValidation";
+export {
+  epochMilliseconds,
+  epochMillisecondsFromDate,
+  epochMillisecondsNow,
+  epochMillisecondsToDate,
+} from "./utils/time";
+export { isCanonicalId, requireId } from "./utils/ids";
+export {
+  blockContent,
+  collectBlockReferences,
+  getBlockContentValue,
+  getBlockTextValue,
+  getImageUrl,
+  selectLocalizedText,
+} from "./utils/blocks";
+export type { BlockReferences } from "./utils/blocks";
+export { createStripeEmbeddedCheckout, mountCheckoutAction, mountPaymentMethodSetup } from "./checkout";
+export type { PaymentMethodSetupMount } from "./checkout";
+export { createCartController } from "./cartController";
+export { buildFormAnswers, initialize } from "./storefrontStore";
+export type * from "./storefrontStore";
+
+export const SDK_VERSION = "0.26.85";
+export const SUPPORTED_FRAMEWORKS = ["astro", "react", "vue", "svelte", "vanilla"] as const;
+
+export interface AdminSession {
+  id: string;
+  email?: string;
+}
+
+export interface StorefrontCustomerSession {
+  customer: Customer;
+  id: string;
+  type: CustomerSessionIssued["type"];
+  status: CustomerSessionStatus;
+}
+
+export type AuthStateListener<T> = (session: T | null) => void;
+
+function createUtilitySurface() {
   return {
-    getImageUrl: (imageBlock: unknown, isBlock = true) =>
-      getImageUrl(imageBlock, isBlock),
+    getImageUrl,
+    findBlock,
+    blockContent,
     getBlockValue,
     getBlockTextValue,
     getBlockContentValue,
@@ -896,560 +217,209 @@ function createUtilitySurface(apiConfig: Pick<ApiConfig, "market">) {
     getBlockObjectValues,
     getBlockFromArray,
     formatBlockValue,
-    prepareBlocksForSubmission,
     extractBlockValues,
     collectBlockReferences,
     selectLocalizedText,
-
-    formatPrice: (prices: Price[]) => formatPrice(prices, apiConfig.market),
-    getPriceAmount: (prices: Price[]) =>
-      getPriceAmount(prices, apiConfig.market),
-    formatPayment,
+    formatPrice,
+    formatMoney,
     formatMinor,
+    getPriceAmount,
     getCurrencySymbol,
     getCurrencyName,
+    getCurrencyMinorUnits,
+    convertToMajor,
+    convertToMinor,
     validatePhoneNumber,
-
     tzGroups,
     findTimeZone,
-
     slugify,
     humanize,
     categorify,
     formatDate,
-
     getSvgContentForAstro,
     fetchSvgContent,
     injectSvgIntoElement,
-
     isValidKey,
     validateKey,
     toKey,
     nameToKey,
-
-    getAvailableStock,
-    getReservedStock,
-    hasStock,
-    getInventoryAt,
-    getFirstAvailableFCId,
   };
 }
 
-const ADMIN_STORAGE_KEY = "arky_admin_session";
-
-function readAdminSession(): AdminSessionInternal | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(ADMIN_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as AdminSessionInternal) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeAdminSession(s: AdminSessionInternal | null): void {
-  if (typeof window === "undefined") return;
-  if (s) {
-    localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(s));
-  } else {
-    localStorage.removeItem(ADMIN_STORAGE_KEY);
-  }
-}
-
-export type CreateAdminConfig = Omit<
-  HttpClientConfig,
-  "authStorage" | "storeId"
-> & {
-  storeId: string;
-  market: string;
-  locale?: string;
+export type CreateAdminConfig = Omit<HttpClientConfig, "authStorage" | "refreshCredentials"> & {
   apiToken?: string;
 };
 
 export function createAdmin(config: CreateAdminConfig) {
-  const locale = config.locale || "en";
+  const sessionState = createAdminSessionState(config.baseUrl, config.refreshPath);
+  const readAdminSession = sessionState.read;
+  const writeAdminSession = sessionState.write;
+  let unsubscribeStorage: (() => void) | null = null;
   const listeners = new Set<AuthStateListener<AdminSession>>();
 
-  function toPublic(s: AdminSessionInternal | null): AdminSession | null {
-    return s ? { email: s.email } : null;
+  function toPublic(session: AdminSessionInternal | null): AdminSession | null {
+    return session ? { id: session.id, email: session.email } : null;
   }
 
   function emit(): void {
-    const pub = toPublic(readAdminSession());
-    for (const l of listeners) {
+    const current = toPublic(readAdminSession());
+    for (const listener of listeners) {
       Promise.resolve()
-        .then(() => l(pub))
+        .then(() => listener(current))
         .catch(() => {});
     }
   }
 
   const updateSession: AdminSessionUpdater = (updater) => {
     if (config.apiToken) return;
-    const prev = readAdminSession();
-    const next = updater(prev);
-    writeAdminSession(next);
+    writeAdminSession(updater(readAdminSession()));
     emit();
   };
 
-  const authStorage: AuthStorage = config.apiToken
+  const apiToken = config.apiToken;
+  const authStorage: AuthStorage = apiToken
     ? {
-        getTokens: () => ({ access_token: config.apiToken! }),
+        getTokens: () => ({ access_token: apiToken }),
         onTokensRefreshed: () => {},
         onForcedLogout: () => {},
       }
     : {
         getTokens() {
-          const s = readAdminSession();
-          if (!s) return null;
+          const session = readAdminSession();
+          if (!session) return null;
           return {
-            access_token: s.access_token,
-            refresh_token: s.refresh_token,
-            access_expires_at: s.access_expires_at,
+            id: session.id,
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+            access_expires_at: session.access_expires_at,
           };
         },
-        onTokensRefreshed(tokens) {
-          updateSession((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  access_token: tokens.access_token,
-                  refresh_token: tokens.refresh_token ?? prev.refresh_token,
-                  access_expires_at:
-                    tokens.access_expires_at ?? prev.access_expires_at,
-                }
-              : null,
-          );
-        },
-        onForcedLogout() {
-          updateSession(() => null);
-        },
+        onTokensRefreshed() {},
+        onForcedLogout() {},
       };
 
   const httpClient = createHttpClient({
     baseUrl: config.baseUrl,
-    storeId: config.storeId,
     refreshPath: config.refreshPath,
+    refreshCredentials: apiToken ? undefined : sessionState.refresh,
+    onUnauthorized: apiToken ? () => false : config.onUnauthorized,
     navigate: config.navigate,
     loginFallbackPath: config.loginFallbackPath,
     authStorage,
   });
 
-  const apiConfig: ApiConfig = {
-    httpClient,
-    storeId: config.storeId,
+  const apiConfig: ApiConfig = { httpClient, baseUrl: config.baseUrl, authStorage };
+  const authHttpClient = createHttpClient({
     baseUrl: config.baseUrl,
-    market: config.market,
-    locale,
-    authStorage,
-  };
+    authStorage: { getTokens: () => null, onTokensRefreshed() {}, onForcedLogout() {} },
+    onUnauthorized: () => false,
+  });
 
-  const accountApi = createAccountApi(apiConfig);
-  const authApi = createAuthApi(apiConfig, updateSession);
-  const storeApi = createStoreApi(apiConfig, updateSession);
-  const platformApi = createPlatformApi(apiConfig);
-
-  const cmsApi = createCmsApi(apiConfig);
-  const eshopApi = createEshopApi(apiConfig);
-  const digitalApi = createDigitalApi(apiConfig);
-  const promoCodeApi = createPromoCodeApi(apiConfig);
-  const crmApi = createContactApi(apiConfig);
   const supportApi = createAdminSupportApi(apiConfig);
-  const leadResearchApi = createLeadResearchApi(apiConfig);
-  const socialApi = createSocialApi(apiConfig);
-  const paymentProviderApi = createPaymentProviderApi(apiConfig);
-  const notificationApi = createNotificationApi(apiConfig);
-  const shippingApi = createShippingApi(apiConfig);
-  const locationApi = createLocationApi(apiConfig);
-  const marketApi = createMarketApi(apiConfig);
-  const workflowApi = createWorkflowApi(apiConfig);
-  const storePaymentProviderApi = {
-    list: paymentProviderApi.list,
-    delete: paymentProviderApi.delete,
-    stripe: {
-      connect: paymentProviderApi.connectStripe,
-      refresh: paymentProviderApi.refreshStripe,
-      openDashboard: paymentProviderApi.openDashboard,
-    },
-  };
-  const workflowPublicApi = {
-    create: workflowApi.createWorkflow,
-    update: workflowApi.updateWorkflow,
-    delete: workflowApi.deleteWorkflow,
-    get: workflowApi.getWorkflow,
-    getDefinition: workflowApi.getWorkflowDefinition,
-    getTrigger: workflowApi.getWorkflowTrigger,
-    rotateTrigger: workflowApi.rotateWorkflowTrigger,
-    replaceDefinition: workflowApi.replaceWorkflowDefinition,
-    find: workflowApi.getWorkflows,
-    trigger: workflowApi.triggerWorkflow,
-    invokeTrigger: workflowApi.invokeWorkflowTrigger,
-    getExecutions: workflowApi.getWorkflowExecutions,
-    getExecution: workflowApi.getWorkflowExecution,
-    getExecutionDefinition: workflowApi.getWorkflowExecutionDefinition,
-    getExecutionInput: workflowApi.getWorkflowExecutionInput,
-    getExecutionResults: workflowApi.getWorkflowExecutionResults,
-    listExternalOperations: workflowApi.getWorkflowExternalOperations,
-    getExternalOperation: workflowApi.getWorkflowExternalOperation,
-    listConnections: workflowApi.getWorkflowConnections,
-    getConnectionConnectUrl: workflowApi.getWorkflowConnectionConnectUrl,
-    deleteConnection: workflowApi.deleteWorkflowConnection,
-  };
-  const formApi = createFormApi(apiConfig);
-  const taxonomyApi = createTaxonomyApi(apiConfig);
-  const emailTemplateApi = createEmailTemplateApi(apiConfig);
-  const analyticsApi = createAnalyticsApi(apiConfig);
-  const experimentsApi = createExperimentsApi(apiConfig);
 
-  const sdk = {
+  return {
     account: {
-      update: accountApi.updateAccount,
-      delete: accountApi.deleteAccount,
-      getMe: accountApi.getMe,
-      search: accountApi.searchAccounts,
-      apiToken: {
-        list: accountApi.listApiTokens,
-        create: accountApi.createApiToken,
-        update: accountApi.updateApiToken,
-        revoke: accountApi.revokeApiToken,
-      },
-      session: {
-        list: accountApi.listSessions,
-        revoke: accountApi.revokeSession,
-      },
-      auth: authApi,
+      ...createAccountApi(apiConfig),
+      auth: createAuthApi({ ...apiConfig, httpClient: authHttpClient }, updateSession, sessionState.refreshExplicit),
     },
+    platform: createPlatformApi(apiConfig),
     store: {
-      create: storeApi.createStore,
-      update: storeApi.updateStore,
-      get: storeApi.getStore,
-      find: storeApi.getStores,
-      requestDeletion: storeApi.requestDeletion,
-      regeneratePublishableKey: storeApi.regeneratePublishableKey,
-      subscription: {
-        get: storeApi.getSubscription,
-        getCheckout: storeApi.getSubscriptionCheckout,
-        getPlans: storeApi.getSubscriptionPlans,
-        select: storeApi.selectSubscription,
-        cancel: storeApi.cancelSubscription,
-        reactivate: storeApi.reactivateSubscription,
-        createPortalSession: storeApi.createPortalSession,
-      },
-      member: {
-        add: storeApi.addMember,
-        invite: storeApi.inviteUser,
-        find: storeApi.findMembers,
-        findOwn: storeApi.findOwnMemberships,
-        remove: storeApi.removeMember,
-      },
-      buildHook: {
-        list: storeApi.listBuildHooks,
-        create: storeApi.createBuildHook,
-        update: storeApi.updateBuildHook,
-        delete: storeApi.deleteBuildHook,
-      },
-      webhook: {
-        test: storeApi.testWebhook,
-        list: storeApi.listWebhooks,
-        create: storeApi.createWebhook,
-        update: storeApi.updateWebhook,
-        delete: storeApi.deleteWebhook,
-      },
-      location: locationApi,
-      market: marketApi,
-      paymentProvider: storePaymentProviderApi,
+      ...createStoreApi(apiConfig),
+      role: createStoreRoleApi(apiConfig),
+      webhook: createWebhookApi(apiConfig),
+      location: createLocationApi(apiConfig),
+      market: createMarketApi(apiConfig),
+      salesChannel: createSalesChannelApi(apiConfig),
+      storefrontClient: createStorefrontClientApi(apiConfig),
+      paymentOption: createPaymentOptionApi(apiConfig),
+      zone: createZoneApi(apiConfig),
+      taxCategory: createTaxCategoryApi(apiConfig),
+      shippingProfile: createShippingProfileApi(apiConfig),
+      shippingMethod: createShippingMethodApi(apiConfig),
     },
-    media: createMediaApi(apiConfig),
     notification: {
-      email: {
-        send: notificationApi.sendEmail,
-        getDelivery: notificationApi.getEmailDelivery,
-        retryDelivery: notificationApi.retryEmailDelivery,
-      },
-      mailbox: crmApi.mailbox,
+      ...createNotificationApi(apiConfig),
+      template: createEmailTemplateApi(apiConfig),
+      emailDomain: createEmailDomainApi(apiConfig),
+      emailSender: createEmailSenderApi(apiConfig),
     },
-    platform: platformApi,
-    social: {
-      connection: {
-        getCapabilities: socialApi.getCapabilities,
-        list: socialApi.listConnections,
-        connect: socialApi.connect,
-        getOAuthAttempt: socialApi.getOAuthAttempt,
-        selectDestination: socialApi.selectDestination,
-        delete: socialApi.deleteConnection,
-      },
-      publication: {
-        create: socialApi.createPublication,
-        update: socialApi.updatePublication,
-        get: socialApi.getPublication,
-        find: socialApi.findPublications,
-        validate: socialApi.validatePublication,
-        schedule: socialApi.schedulePublication,
-        cancel: socialApi.cancelPublication,
-        getComments: socialApi.getPublicationComments,
-        syncComments: socialApi.syncPublicationComments,
-        getCommentThread: socialApi.getPublicationCommentThread,
-        syncCommentThread: socialApi.syncPublicationCommentThread,
-        findComments: socialApi.findPublicationComments,
-        classifyComments: socialApi.classifyPublicationComments,
-        getCommentClassificationRun: socialApi.getCommentClassificationRun,
-        commentReply: {
-          create: socialApi.createCommentReply,
-          list: socialApi.listCommentReplies,
-          get: socialApi.getCommentReply,
-          retry: socialApi.retryCommentReply,
-        },
-        effect: {
-          list: socialApi.listPublicationEffects,
-          get: socialApi.getPublicationEffect,
-        },
-        getMetrics: socialApi.getPublicationMetrics,
-        syncMetrics: socialApi.syncPublicationMetrics,
-        syncEngagement: socialApi.syncEngagement,
-      },
+    broadcast: createBroadcastApi(apiConfig),
+    support: supportApi,
+    media: createMediaApi(apiConfig),
+    category: createCategoryApi(apiConfig),
+    content: {
+      collection: createCollectionApi(apiConfig),
+      entry: createEntryApi(apiConfig),
     },
-    cms: {
-      collection: {
-        create: cmsApi.createCollection,
-        update: cmsApi.updateCollection,
-        delete: cmsApi.deleteCollection,
-        get: cmsApi.getCollection,
-        find: cmsApi.getCollections,
-      },
-      entry: {
-        create: cmsApi.createEntry,
-        update: cmsApi.updateEntry,
-        delete: cmsApi.deleteEntry,
-        get: cmsApi.getEntry,
-        find: cmsApi.getEntries,
-        findByIds: cmsApi.getEntriesByIds,
-      },
-      form: {
-        create: formApi.createForm,
-        update: formApi.updateForm,
-        delete: formApi.deleteForm,
-        get: formApi.getForm,
-        find: formApi.getForms,
-        submit: formApi.submit,
-        getSubmissions: formApi.getSubmissions,
-        getSubmission: formApi.getSubmission,
-        updateSubmission: formApi.updateSubmission,
-      },
-      taxonomy: {
-        create: taxonomyApi.createTaxonomy,
-        update: taxonomyApi.updateTaxonomy,
-        delete: taxonomyApi.deleteTaxonomy,
-        get: taxonomyApi.getTaxonomy,
-        find: taxonomyApi.getTaxonomies,
-        getChildren: taxonomyApi.getTaxonomyChildren,
-      },
-      emailTemplate: {
-        create: emailTemplateApi.createEmailTemplate,
-        update: emailTemplateApi.updateEmailTemplate,
-        delete: emailTemplateApi.deleteEmailTemplate,
-        get: emailTemplateApi.getEmailTemplate,
-        find: emailTemplateApi.getEmailTemplates,
-        preview: emailTemplateApi.previewEmailTemplate,
-      },
+    forms: {
+      ...createFormsApi(apiConfig),
+      notes: createFormSubmissionNoteApi(apiConfig),
     },
+    companies: {
+      ...createCompanyApi(apiConfig),
+      location: createCompanyLocationApi(apiConfig),
+      role: createCompanyRoleApi(apiConfig),
+      membership: createCompanyMembershipApi(apiConfig),
+      notes: createCompanyNoteApi(apiConfig),
+    },
+    customers: {
+      ...createCustomersApi(apiConfig),
+      emailSuppression: createEmailSuppressionApi(apiConfig),
+      notes: createCustomerNoteApi(apiConfig),
+    },
+    actions: createActionsApi(apiConfig),
+    experiments: createExperimentsApi(apiConfig),
+    analytics: createAnalyticsApi(apiConfig),
     eshop: {
-      digital: {
-        product: {
-          create: digitalApi.createProduct,
-          update: digitalApi.updateProduct,
-          delete: digitalApi.deleteProduct,
-          get: digitalApi.getProduct,
-          find: digitalApi.findProducts,
-        },
-        asset: {
-          upload: digitalApi.uploadAsset,
-          find: digitalApi.findAssets,
-          archive: digitalApi.archiveAsset,
-        },
-      },
-      product: {
-        create: eshopApi.createProduct,
-        update: eshopApi.updateProduct,
-        delete: eshopApi.deleteProduct,
-        get: eshopApi.getProduct,
-        getInventory: eshopApi.getProductInventory,
-        find: eshopApi.getProducts,
-      },
+      product: createProductApi(apiConfig),
+      productVariant: createProductVariantApi(apiConfig),
+      digitalAsset: createDigitalAssetApi(apiConfig),
+      bookingService: createBookingServiceApi(apiConfig),
+      bookingResource: createBookingResourceApi(apiConfig),
+      bookingOffering: createBookingOfferingApi(apiConfig),
+      price: createPriceApi(apiConfig),
+      catalog: createCatalogApi(apiConfig),
+      catalogItem: createCatalogItemApi(apiConfig),
+      catalogAccess: createCatalogAccessApi(apiConfig),
+      promotion: createPromotionApi(apiConfig),
+      promotionCode: createPromotionCodeApi(apiConfig),
+      customerGroup: createCustomerGroupApi(apiConfig),
+      customerGroupMember: createCustomerGroupMemberApi(apiConfig),
+      subscriptionOffering: createSubscriptionOfferingApi(apiConfig),
+      subscriptionPlan: createSubscriptionPlanApi(apiConfig),
+      subscription: createSubscriptionApi(apiConfig),
+      paymentMethod: createPaymentMethodApi(apiConfig),
+      payment: createPaymentApi(apiConfig),
+      providerEvent: createProviderEventApi(apiConfig),
+      cart: createCartApi(apiConfig),
       order: {
-        update: eshopApi.updateOrder,
-        cancelProduct: eshopApi.cancelOrderProduct,
-        get: eshopApi.getOrder,
-        getProducts: eshopApi.getOrderProducts,
-        getBookings: eshopApi.getOrderBookings,
-        getDigitalProducts: eshopApi.getOrderDigitalProducts,
-        find: eshopApi.getOrders,
-        getQuote: eshopApi.getQuote,
-        createRefund: eshopApi.createRefund,
-        getRefund: eshopApi.getRefund,
-        getRefunds: eshopApi.getRefunds,
-        getPayment: eshopApi.getPayment,
-        getDisputes: eshopApi.getDisputes,
-        getDispute: eshopApi.getDispute,
+        ...createOrderApi(apiConfig),
+        notes: createOrderNoteApi(apiConfig),
       },
-      shipment: {
-        getRates: shippingApi.getRates,
-        create: shippingApi.createOrderShipment,
-        get: shippingApi.getOrderShipment,
-        find: shippingApi.findOrderShipments,
-        retry: shippingApi.retryOrderShipment,
-        fulfillment: {
-          find: shippingApi.findFulfillmentOrders,
-          get: shippingApi.getFulfillmentOrder,
-        },
-        refund: {
-          request: shippingApi.requestShippoLabelRefund,
-          retry: shippingApi.retryShippoLabelRefund,
-        },
-        charge: {
-          find: shippingApi.findOrderShipmentCharges,
-          get: shippingApi.getOrderShipmentCharge,
-          retry: shippingApi.retryOrderShipmentCharge,
-        },
-      },
-      cart: {
-        create: eshopApi.createCart,
-        update: eshopApi.updateCart,
-        get: eshopApi.getCart,
-        find: eshopApi.getCarts,
-        addProduct: eshopApi.addCartProduct,
-        addBooking: eshopApi.addCartBooking,
-        addDigital: eshopApi.addCartDigitalProduct,
-        removeItem: eshopApi.removeCartItem,
-        clear: eshopApi.clearCart,
-        quote: eshopApi.quoteCart,
-        checkout: eshopApi.checkoutCart,
-      },
-      service: {
-        create: eshopApi.createService,
-        update: eshopApi.updateService,
-        delete: eshopApi.deleteService,
-        get: eshopApi.getService,
-        find: eshopApi.getServices,
-        getAvailability: eshopApi.getServiceAvailability,
-        findProviders: eshopApi.findServiceProviders,
-        createProvider: eshopApi.createServiceProvider,
-        updateProvider: eshopApi.updateServiceProvider,
-        deleteProvider: eshopApi.deleteServiceProvider,
-      },
-      provider: {
-        create: eshopApi.createProvider,
-        update: eshopApi.updateProvider,
-        delete: eshopApi.deleteProvider,
-        get: eshopApi.getProvider,
-        find: eshopApi.getProviders,
-      },
-      promoCode: promoCodeApi,
+      inventoryItem: createInventoryItemApi(apiConfig),
+      inventoryLevel: createInventoryLevelApi(apiConfig),
+      inventoryUnit: createInventoryUnitApi(apiConfig),
+      inventoryMovement: createInventoryMovementApi(apiConfig),
+      fulfillmentRouting: createFulfillmentRoutingApi(apiConfig),
+      fulfillmentJob: createFulfillmentJobApi(apiConfig),
+      fulfillment: createFulfillmentApi(apiConfig),
+      return: createReturnApi(apiConfig),
+      rental: createRentalApi(apiConfig),
     },
-    customer: {
-      audience: crmApi.audience.customer,
-    },
-    crm: {
-      contact: {
-        create: crmApi.create,
-        get: crmApi.get,
-        getChannels: crmApi.getChannels,
-        findChannels: crmApi.findChannels,
-        find: crmApi.find,
-        update: crmApi.update,
-        merge: crmApi.merge,
-        import: crmApi.import,
-        findSessions: crmApi.findSessions,
-        revokeSession: crmApi.revokeSession,
-        revokeAllSessions: crmApi.revokeAllSessions,
-      },
-      audience: {
-        create: crmApi.audience.create,
-        update: crmApi.audience.update,
-        get: crmApi.audience.get,
-        find: crmApi.audience.find,
-        importMembers: crmApi.audience.importMembers,
-        previewMemberImport: crmApi.audience.previewMemberImport,
-        tiers: crmApi.audience.tiers,
-        leads: crmApi.audience.leads,
-        members: {
-          add: crmApi.audience.members.add,
-          update: crmApi.audience.members.update,
-          remove: crmApi.audience.members.remove,
-          find: crmApi.audience.members.find,
-          refund: crmApi.audience.members.refund,
-          payments: crmApi.audience.members.payments,
-          disputes: crmApi.audience.members.disputes,
-          refunds: crmApi.audience.members.refunds,
-          subscription: crmApi.audience.members.subscription,
-        },
-      },
-      action: crmApi.action,
-    },
-    outreach: {
-      campaign: crmApi.campaign,
-      campaignEnrollment: crmApi.campaignEnrollment,
-      campaignMessage: crmApi.campaignMessage,
-      suppression: crmApi.suppression,
-      leadResearch: leadResearchApi,
-    },
-    automation: {
-      workflow: workflowPublicApi,
-      support: {
-        createChannel: supportApi.channel.create,
-        getChannel: supportApi.channel.get,
-        findChannels: supportApi.channel.find,
-        updateChannel: supportApi.channel.update,
-        deleteChannel: supportApi.channel.delete,
-        receiveChannelMessage: supportApi.channel.receiveMessage,
-        createAgent: supportApi.agent.create,
-        getAgent: supportApi.agent.get,
-        getAgentDefinition: supportApi.agent.getDefinition,
-        findAgents: supportApi.agent.find,
-        updateAgent: supportApi.agent.update,
-        replaceAgentDefinition: supportApi.agent.replaceDefinition,
-        deleteAgent: supportApi.agent.delete,
-        findConversations: supportApi.conversation.find,
-        getConversation: supportApi.conversation.get,
-        getConversationMessage: supportApi.conversation.getMessage,
-        sendConversationMessage: supportApi.conversation.sendMessage,
-        replyToConversation: supportApi.conversation.reply,
-        resolveConversation: supportApi.conversation.resolve,
-        assignConversation: supportApi.conversation.assign,
-      },
-    },
-
-    analytics: analyticsApi,
-    experiments: experimentsApi,
-
-    setStoreId: (storeId: string) => {
-      apiConfig.storeId = storeId;
-    },
-
-    getStoreId: () => apiConfig.storeId,
-
-    setMarket: (market: string) => {
-      apiConfig.market = market;
-    },
-
-    getMarket: () => apiConfig.market,
-
-    setLocale: (locale: string) => {
-      apiConfig.locale = locale;
-    },
-
-    getLocale: () => apiConfig.locale,
 
     get session(): AdminSession | null {
-      if (config.apiToken) return null;
+      if (apiToken) return null;
       return toPublic(readAdminSession());
     },
 
     get isAuthenticated(): boolean {
-      if (config.apiToken) return true;
+      if (apiToken) return true;
       return readAdminSession() !== null;
     },
 
     onAuthStateChanged(listener: AuthStateListener<AdminSession>): () => void {
       listeners.add(listener);
+      if (!unsubscribeStorage) unsubscribeStorage = sessionState.subscribe(emit);
       const current = toPublic(readAdminSession());
       if (current) {
         Promise.resolve()
@@ -1458,19 +428,25 @@ export function createAdmin(config: CreateAdminConfig) {
       }
       return () => {
         listeners.delete(listener);
+        if (listeners.size === 0) {
+          unsubscribeStorage?.();
+          unsubscribeStorage = null;
+        }
       };
     },
 
-    async logout(): Promise<void> {
-      if (config.apiToken) return;
-      updateSession(() => null);
+    async logout(): Promise<import("./services/adminSession").AdminLogoutResult> {
+      if (apiToken) return { type: "api_token" };
+      const result = await sessionState.logout();
+      emit();
+      return result;
     },
 
-    utils: createUtilitySurface(apiConfig),
+    utils: createUtilitySurface(),
   };
-
-  return sdk;
 }
+
+export type AdminClient = ReturnType<typeof createAdmin>;
 
 export interface StorefrontSessionStorage {
   getItem(key: string): string | null;
@@ -1481,6 +457,7 @@ export interface StorefrontSessionStorage {
 export interface StorefrontContext {
   locale?: string;
   market?: string;
+  salesChannel?: string;
 }
 
 export interface StorefrontOptions extends StorefrontContext {
@@ -1515,17 +492,10 @@ function normalizeStorefrontApiUrl(value: string | undefined): string {
 }
 
 function validatePublishableKey(publishableKey: string): string {
-  if (typeof publishableKey !== "string") {
-    throw new Error(
-      "A valid Arky publishable key is required (arky_pk_ followed by 43 URL-safe characters)",
-    );
-  }
+  const message = "A valid Arky publishable key is required (arky_pk_ followed by 43 URL-safe characters)";
+  if (typeof publishableKey !== "string") throw new Error(message);
   const key = publishableKey.trim();
-  if (!/^arky_pk_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(key)) {
-    throw new Error(
-      "A valid Arky publishable key is required (arky_pk_ followed by 43 URL-safe characters)",
-    );
-  }
+  if (!/^arky_pk_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(key)) throw new Error(message);
   return key;
 }
 
@@ -1540,90 +510,162 @@ function publishableKeyFingerprint(publishableKey: string): string {
   return `${(hashA >>> 0).toString(36)}${(hashB >>> 0).toString(36)}`;
 }
 
-function storefrontSessionStorageKey(
-  apiUrl: string,
-  publishableKey: string,
-): string {
-  return `arky_visitor_session:${encodeURIComponent(apiUrl.toLowerCase())}:${publishableKeyFingerprint(publishableKey)}`;
+function storefrontSessionStorageKey(apiUrl: string, publishableKey: string): string {
+  return `arky_customer_session:v3:${encodeURIComponent(apiUrl.toLowerCase())}:${publishableKeyFingerprint(publishableKey)}`;
 }
 
-function isVisitorSessionToken(value: string | null): value is string {
-  return Boolean(value && /^arky_vst_[0-9a-f]{64}$/.test(value));
+interface StoredCustomerSession {
+  version: 3;
+  customer: Customer;
+  session: CustomerSessionIssued;
 }
 
-function createStorefrontClientCore(
-  publishableKeyInput: string,
-  options: StorefrontOptions = {},
-  isolatedSession = false,
-) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isEpochMilliseconds(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value);
+}
+
+function isIssuedCustomerSession(value: unknown): value is CustomerSessionIssued {
+  if (!isRecord(value)) return false;
+  if (
+    typeof value.id !== "string" ||
+    typeof value.customer_id !== "string" ||
+    !isRecord(value.status) ||
+    value.status.type !== "active" ||
+    Object.keys(value.status).length !== 1
+  ) {
+    return false;
+  }
+  if (value.type === "visitor") {
+    return (
+      typeof value.token === "string" && value.token.startsWith("customer_visitor_") && isEpochMilliseconds(value.expires_at)
+    );
+  }
+  return (
+    value.type === "email_authenticated" &&
+    typeof value.access_token === "string" &&
+    value.access_token.startsWith("customer_access_") &&
+    typeof value.refresh_token === "string" &&
+    value.refresh_token.startsWith("customer_refresh_") &&
+    isEpochMilliseconds(value.access_expires_at) &&
+    isEpochMilliseconds(value.refresh_expires_at) &&
+    isEpochMilliseconds(value.authenticated_at)
+  );
+}
+
+function isStoredCustomer(value: unknown): value is Customer {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    isEpochMilliseconds(value.created_at) &&
+    isEpochMilliseconds(value.updated_at)
+  );
+}
+
+function parseStoredCustomerSession(value: string | null): CustomerSessionInternal | null {
+  if (!value) return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (
+      !isRecord(parsed) ||
+      parsed.version !== 3 ||
+      !isStoredCustomer(parsed.customer) ||
+      !isIssuedCustomerSession(parsed.session) ||
+      parsed.session.customer_id !== parsed.customer.id
+    ) {
+      return null;
+    }
+    return { customer: parsed.customer, session: parsed.session };
+  } catch {
+    return null;
+  }
+}
+
+function contextKey(value: string | undefined, label: string): string {
+  const key = value?.trim() ?? "";
+  if (key && !isValidKey(key)) throw new Error(`The ${label} must be a valid exact key`);
+  return key;
+}
+
+function createStorefrontClientCore(publishableKeyInput: string, options: StorefrontOptions = {}, isolatedSession = false) {
   const publishableKey = validatePublishableKey(publishableKeyInput);
   const apiUrl = normalizeStorefrontApiUrl(options.apiUrl);
-  let locale = options.locale?.trim() || "";
-  let market = options.market?.trim() || "";
-  const listeners = new Set<AuthStateListener<ContactSession>>();
-  let identifyPromise: Promise<StorefrontIdentifyResult> | null = null;
+  let locale = options.locale?.trim() ?? "";
+  let market = contextKey(options.market, "market");
+  let salesChannel = contextKey(options.salesChannel, "sales channel");
+  const listeners = new Set<AuthStateListener<StorefrontCustomerSession>>();
+  let identifyPromise: Promise<CustomerSessionResult> | null = null;
   let identityTail: Promise<void> = Promise.resolve();
-  let setupPromise: Promise<import("./api/storefront").StorefrontSetup> | null =
-    null;
-  let setupValue: import("./api/storefront").StorefrontSetup | null = null;
+  let setupPromise: Promise<StorefrontSetup> | null = null;
+  let setupValue: StorefrontSetup | null = null;
   const explicitSessionStorage = options.sessionStorage;
   const sessionStorage = isolatedSession
     ? explicitSessionStorage || null
     : explicitSessionStorage || defaultStorefrontSessionStorage();
-  const canCreateVisitorSession =
-    typeof window !== "undefined" || Boolean(explicitSessionStorage);
-  const storageKey = `${storefrontSessionStorageKey(apiUrl, publishableKey)}${
-    isolatedSession ? `:scope:${++storefrontScopeSequence}` : ""
-  }`;
-  let memorySession: ContactSessionInternal | null = null;
-  let memorySessionToken: string | null = null;
+  const canCreateVisitorSession = typeof window !== "undefined" || Boolean(explicitSessionStorage);
+  const storageSuffix = isolatedSession ? `:scope:${++storefrontScopeSequence}` : "";
+  const storageKey = `${storefrontSessionStorageKey(apiUrl, publishableKey)}${storageSuffix}`;
+  let memorySession: CustomerSessionInternal | null = null;
 
-  function readSessionToken(): string | null {
-    if (!sessionStorage) return memorySessionToken;
+  if (sessionStorage) {
     try {
       const stored = sessionStorage.getItem(storageKey);
-      return isVisitorSessionToken(stored) ? stored : memorySessionToken;
-    } catch {
-      return memorySessionToken;
-    }
+      memorySession = parseStoredCustomerSession(stored);
+      if (stored && !memorySession) sessionStorage.removeItem(storageKey);
+    } catch {}
   }
 
-  function writeContactSession(session: ContactSessionInternal | null): void {
+  function authorizationToken(session: CustomerSessionInternal | null = memorySession): string | null {
+    if (!session || session.session.status.type !== "active") return null;
+    return session.session.type === "visitor" ? session.session.token : session.session.access_token;
+  }
+
+  function writeCustomerSession(session: CustomerSessionInternal | null): void {
+    if (session && (!isIssuedCustomerSession(session.session) || !isStoredCustomer(session.customer))) {
+      throw new RangeError("The customer session must be active and carry epoch-millisecond times");
+    }
     memorySession = session;
-    memorySessionToken = session?.sessionToken || null;
     if (!sessionStorage) return;
     try {
       if (session) {
-        sessionStorage.setItem(storageKey, session.sessionToken);
+        const stored: StoredCustomerSession = { version: 3, customer: session.customer, session: session.session };
+        sessionStorage.setItem(storageKey, JSON.stringify(stored));
       } else {
         sessionStorage.removeItem(storageKey);
       }
     } catch {}
   }
 
-  function toPublic(s: ContactSessionInternal | null): ContactSession | null {
-    return s ? { contact: s.contact } : null;
+  function toPublic(value: CustomerSessionInternal | null): StorefrontCustomerSession | null {
+    return value
+      ? { customer: value.customer, id: value.session.id, type: value.session.type, status: value.session.status }
+      : null;
   }
 
   function emit(): void {
-    const pub = toPublic(memorySession);
-    for (const l of listeners) {
+    const current = toPublic(memorySession);
+    for (const listener of listeners) {
       Promise.resolve()
-        .then(() => l(pub))
+        .then(() => listener(current))
         .catch(() => {});
     }
   }
 
-  const updateSession: ContactSessionUpdater = (updater) => {
-    const next = updater(memorySession);
-    writeContactSession(next);
+  const updateSession: CustomerSessionUpdater = (updater) => {
+    writeCustomerSession(updater(memorySession));
     emit();
   };
 
   const authStorage: AuthStorage = {
     getTokens() {
-      const sessionToken = readSessionToken();
-      return sessionToken ? { access_token: sessionToken } : null;
+      if (!memorySession || memorySession.session.status.type !== "active") return null;
+      const issued = memorySession.session;
+      return issued.type === "visitor"
+        ? { access_token: issued.token }
+        : { access_token: issued.access_token, refresh_token: issued.refresh_token };
     },
     onTokensRefreshed() {},
     onForcedLogout() {
@@ -1632,52 +674,43 @@ function createStorefrontClientCore(
     },
   };
 
-  let recoverUnauthorized: (
-    authorizationToken: string | null,
-    path: string,
-  ) => Promise<boolean> = async () => false;
+  let recoverUnauthorized: (authorizationToken: string | null, path: string) => Promise<boolean> = async () => false;
   let visitorRecoveryPromise: Promise<void> | null = null;
 
+  const storefrontHeaders = (): Record<string, string> => ({
+    "X-Arky-Publishable-Key": publishableKey,
+    ...(locale ? { "X-Arky-Locale": locale } : {}),
+    ...(market ? { "X-Arky-Market": market } : {}),
+    ...(salesChannel ? { "X-Arky-Sales-Channel": salesChannel } : {}),
+  });
   const httpClient = createHttpClient({
     baseUrl: apiUrl,
     authStorage,
     storefrontMode: true,
-    forcedHeaders: () => ({
-      "X-Arky-Publishable-Key": publishableKey,
-      ...(locale ? { "X-Arky-Locale": locale } : {}),
-      ...(market ? { "X-Arky-Market": market } : {}),
-    }),
-    onUnauthorized: ({ authorizationToken, path }) =>
-      recoverUnauthorized(authorizationToken, path),
+    forcedHeaders: storefrontHeaders,
+    onUnauthorized: ({ authorizationToken, path }) => recoverUnauthorized(authorizationToken, path),
+  });
+  const publishableKeyHttpClient = createHttpClient({
+    baseUrl: apiUrl,
+    authStorage: { getTokens: () => null, onTokensRefreshed: () => {}, onForcedLogout: () => {} },
+    storefrontMode: true,
+    forcedHeaders: storefrontHeaders,
+    onUnauthorized: () => false,
   });
 
-  const apiConfig: StorefrontApiConfig = {
-    httpClient,
-    apiUrl,
-    publishableKey,
-    market,
-    locale,
-    authStorage,
-  };
+  const apiConfig: StorefrontApiConfig = { httpClient, publishableKeyHttpClient, apiUrl, publishableKey, authStorage };
 
   function requireVisitorSessionCapability(): void {
     if (!canCreateVisitorSession) {
-      throw new Error(
-        "Stateful storefront operations during SSR require an explicit request-local sessionStorage adapter",
-      );
+      throw new Error("Stateful storefront calls during SSR need an explicit request-local sessionStorage adapter");
     }
   }
 
-  async function getSetup(
-    requestOptions?: import("./types/api").RequestOptions,
-  ): Promise<import("./api/storefront").StorefrontSetup> {
+  async function getSetup(requestOptions?: RequestOptions): Promise<StorefrontSetup> {
     if (setupValue) return setupValue;
     if (setupPromise) return setupPromise;
     setupPromise = httpClient
-      .get<import("./api/storefront").StorefrontSetup>(
-        "/v1/storefront",
-        requestOptions,
-      )
+      .get<StorefrontSetup>("/v1/storefront", requestOptions)
       .then((setup) => {
         setupValue = setup;
         return setup;
@@ -1689,44 +722,34 @@ function createStorefrontClientCore(
   }
 
   async function ensureVisitorSession(): Promise<void> {
-    if (readSessionToken()) return;
+    if (authorizationToken()) return;
     requireVisitorSessionCapability();
     await identify();
   }
 
-  const storefrontApi = createStorefrontApi(apiConfig, updateSession, {
-    ensureVisitorSession,
-    getSetup,
-  });
-  const contactApi = storefrontApi.crm.contact;
+  const storefrontApi = createStorefrontApi(
+    apiConfig,
+    updateSession,
+    { ensureVisitorSession, getSetup },
+    {
+      namespace: storageKey,
+      storage: sessionStorage,
+      customerId: () => memorySession?.customer.id ?? null,
+      market: () => market || null,
+      salesChannel: () => salesChannel || null,
+    },
+  );
+  const customerApi = storefrontApi.customer;
 
-  function identify(params?: {
-    email?: string;
-    verify?: boolean;
-    market?: string;
-  }): Promise<StorefrontIdentifyResult> {
+  async function identify(params: { email?: string } = {}): Promise<CustomerSessionResult> {
     requireVisitorSessionCapability();
-    if (params?.market !== undefined) setMarket(params.market);
-
-    const isBareCall = !params?.email && !params?.verify;
+    const isBareCall = !params.email;
     if (isBareCall && identifyPromise) return identifyPromise;
-
-    const run = async (): Promise<StorefrontIdentifyResult> => {
-      const result = await (params?.verify
-        ? contactApi.requestCode({ email: params.email })
-        : contactApi.identify({ email: params?.email }));
-      return {
-        contact: result.contact,
-        verification_challenge: result.verification_challenge,
-      };
-    };
-
-    const promise = identityTail.then(run);
+    const promise = identityTail.then(() => customerApi.identify(params));
     identityTail = promise.then(
       () => undefined,
       () => undefined,
     );
-
     if (isBareCall) {
       identifyPromise = promise;
       void promise.then(
@@ -1738,73 +761,127 @@ function createStorefrontClientCore(
         },
       );
     }
-
     return promise;
   }
 
-  async function verify(params: {
-    challenge_id: string;
-    code: string;
-  }): Promise<StorefrontVerifyResult> {
+  async function requestCode(params: RequestCustomerCodeParams): Promise<CustomerCodeResult> {
     requireVisitorSessionCapability();
-    const result = await contactApi.verify(params);
+    await ensureVisitorSession();
+    const result = await customerApi.requestCode(params);
     identifyPromise = null;
-    return { contact: result.contact };
+    return result;
   }
 
-  async function me(): Promise<import("./api/storefront").StorefrontContact> {
+  async function verify(params: VerifyCustomerCodeParams): Promise<CustomerSessionResult> {
+    requireVisitorSessionCapability();
     await ensureVisitorSession();
-    return contactApi.getMe();
+    const result = await customerApi.verify(params);
+    identifyPromise = null;
+    return result;
+  }
+
+  async function refresh(): Promise<CustomerSessionResult> {
+    requireVisitorSessionCapability();
+    const result = await customerApi.refresh();
+    identifyPromise = null;
+    return result;
+  }
+
+  function applyAnsweredCustomer(requested: CustomerSessionInternal | null, customer: Customer): void {
+    const current = memorySession;
+    if (
+      !requested ||
+      !current ||
+      current.session.id !== requested.session.id ||
+      current.customer.id !== requested.customer.id ||
+      customer.id !== requested.customer.id
+    ) {
+      return;
+    }
+    updateSession((previous) => (previous ? { ...previous, customer } : previous));
+  }
+
+  async function me(options?: RequestOptions): Promise<CustomerMe> {
+    await ensureVisitorSession();
+    const requested = memorySession;
+    const result = await customerApi.getMe(options);
+    applyAnsweredCustomer(requested, result.customer);
+    return result;
+  }
+
+  async function updateMe(params: UpdateCustomerMeParams, options?: RequestOptions): Promise<CustomerMe> {
+    await ensureVisitorSession();
+    const requested = memorySession;
+    const result = await customerApi.updateMe(params, options);
+    applyAnsweredCustomer(requested, result.customer);
+    return result;
+  }
+
+  async function resubscribe(options?: RequestOptions): Promise<CustomerMe> {
+    await ensureVisitorSession();
+    return customerApi.resubscribe(options);
   }
 
   async function logout(): Promise<void> {
     identifyPromise = null;
-    if (!readSessionToken()) {
+    if (!authorizationToken()) {
       updateSession(() => null);
       return;
     }
     try {
-      await contactApi.logout();
+      await customerApi.logout();
     } catch {
       updateSession(() => null);
     }
   }
 
   function setMarket(value: string): void {
-    market = value.trim();
-    apiConfig.market = market;
+    market = contextKey(value, "market");
+    identifyPromise = null;
+  }
+
+  function setSalesChannel(value: string): void {
+    salesChannel = contextKey(value, "sales channel");
     identifyPromise = null;
   }
 
   function setLocale(value: string): void {
     locale = value.trim();
-    apiConfig.locale = locale;
   }
 
   function setContext(context: StorefrontContext): void {
     if (context.locale !== undefined) setLocale(context.locale);
     if (context.market !== undefined) setMarket(context.market);
+    if (context.salesChannel !== undefined) setSalesChannel(context.salesChannel);
   }
 
-  recoverUnauthorized = async (
-    authorizationToken: string | null,
-    path: string,
-  ) => {
-    if (!authorizationToken) return false;
-    const currentToken = readSessionToken();
-    if (currentToken !== authorizationToken) {
+  recoverUnauthorized = async (failedAuthorizationToken: string | null, path: string) => {
+    if (!failedAuthorizationToken) return false;
+    const currentToken = authorizationToken();
+    if (currentToken !== failedAuthorizationToken) {
       if (currentToken) return true;
       if (!visitorRecoveryPromise) return false;
       await visitorRecoveryPromise;
-      return Boolean(readSessionToken());
+      return Boolean(authorizationToken());
+    }
+    if (/\/customer\/refresh$/.test(path)) {
+      updateSession(() => null);
+      return false;
+    }
+    if (memorySession?.session.type === "email_authenticated") {
+      try {
+        await refresh();
+        return true;
+      } catch {
+        updateSession(() => null);
+        return false;
+      }
     }
     updateSession(() => null);
-    if (/\/account\/(identify|code)$/.test(path)) return true;
+    if (/\/customer\/identify$/.test(path)) return true;
     const recovery = ensureVisitorSession();
     const trackedRecovery = recovery.finally(() => {
-      if (visitorRecoveryPromise === trackedRecovery) {
-        visitorRecoveryPromise = null;
-      }
+      if (visitorRecoveryPromise === trackedRecovery) visitorRecoveryPromise = null;
     });
     visitorRecoveryPromise = trackedRecovery;
     await trackedRecovery;
@@ -1812,22 +889,19 @@ function createStorefrontClientCore(
   };
 
   return {
-    identify,
-    verify,
-    logout,
-    me,
-
-    get session(): ContactSession | null {
+    get session(): StorefrontCustomerSession | null {
       return toPublic(memorySession);
     },
 
-    get isAuthenticated(): boolean {
-      return Boolean(readSessionToken());
+    get hasSession(): boolean {
+      return Boolean(authorizationToken());
     },
 
-    onAuthStateChanged(
-      listener: AuthStateListener<ContactSession>,
-    ): () => void {
+    get isAuthenticated(): boolean {
+      return memorySession?.session.status.type === "active" && memorySession.session.type === "email_authenticated";
+    },
+
+    onAuthStateChanged(listener: AuthStateListener<StorefrontCustomerSession>): () => void {
       listeners.add(listener);
       const current = toPublic(memorySession);
       if (current) {
@@ -1841,29 +915,36 @@ function createStorefrontClientCore(
     },
 
     store: storefrontApi.store,
-    cms: storefrontApi.cms,
+    category: storefrontApi.category,
+    media: storefrontApi.media,
+    content: storefrontApi.content,
+    forms: storefrontApi.forms,
     eshop: storefrontApi.eshop,
-    crm: {
-      ...storefrontApi.crm,
-      contact: {
-        identify: (params?: { email?: string }) => identify(params),
-        requestCode: (params?: { email?: string }) =>
-          identify({ ...params, verify: true }),
-        verify,
-        logout,
-        getMe: me,
-      },
+    companies: storefrontApi.companies,
+    customer: {
+      identify,
+      requestCode,
+      verify,
+      refresh,
+      logout,
+      getMe: me,
+      updateMe,
+      resubscribe,
     },
-    action: storefrontApi.action,
+    subscription_offerings: storefrontApi.subscription_offerings,
+    subscription_plans: storefrontApi.subscription_plans,
+    actions: storefrontApi.actions,
     experiments: storefrontApi.experiments,
-    support: createStorefrontSupportApi(apiConfig, ensureVisitorSession),
+    support: createStorefrontSupportApi(httpClient, ensureVisitorSession),
     getSetup,
     setContext,
     setMarket,
     getMarket: () => market,
+    setSalesChannel,
+    getSalesChannel: () => salesChannel,
     setLocale,
     getLocale: () => locale,
-    utils: createUtilitySurface(apiConfig),
+    utils: createUtilitySurface(),
   };
 }
 
@@ -1873,16 +954,8 @@ export type StorefrontClient = StorefrontClientCore & {
   withContext(context: StorefrontContext): StorefrontClient;
 };
 
-function createStorefrontClient(
-  publishableKey: string,
-  options: StorefrontOptions = {},
-  isolatedSession = false,
-): StorefrontClient {
-  const client = createStorefrontClientCore(
-    publishableKey,
-    options,
-    isolatedSession,
-  );
+function createStorefrontClient(publishableKey: string, options: StorefrontOptions = {}, isolatedSession = false): StorefrontClient {
+  const client = createStorefrontClientCore(publishableKey, options, isolatedSession);
   return Object.assign(client, {
     withContext(context: StorefrontContext): StorefrontClient {
       return createStorefrontClient(
@@ -1891,6 +964,7 @@ function createStorefrontClient(
           ...options,
           locale: context.locale ?? client.getLocale(),
           market: context.market ?? client.getMarket(),
+          salesChannel: context.salesChannel ?? client.getSalesChannel(),
         },
         true,
       );
@@ -1898,24 +972,6 @@ function createStorefrontClient(
   });
 }
 
-export function createStorefront(
-  publishableKey: string,
-  options: StorefrontOptions = {},
-): StorefrontClient {
+export function createStorefront(publishableKey: string, options: StorefrontOptions = {}): StorefrontClient {
   return createStorefrontClient(publishableKey, options);
 }
-
-export type { HttpClientConfig } from "./services/createHttpClient";
-export {
-  buildFormFields,
-  createFormEntry,
-  createFormEntryFromValues,
-  initialize,
-} from "./storefrontStore";
-export type {
-  ArkyCartStore,
-  ArkyServiceStore,
-  ArkyStore,
-  ArkyStoreConfig,
-  ArkyStoreContext,
-} from "./storefrontStore";

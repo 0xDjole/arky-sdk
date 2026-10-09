@@ -2,151 +2,108 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createStorefront } from "../dist/storefront.js";
+import {
+  SessionStorage,
+  apiUrl,
+  cartRecord,
+  customerRecord,
+  emailSession,
+  errorResponse,
+  ids,
+  otherPublishableKey,
+  publishableKey,
+  recordFetch,
+  storedSession,
+  visitorSession,
+} from "./helpers/arky-fixtures.mjs";
 
-const apiUrl = "https://api.example.test";
-const publishableKeyA = `arky_pk_${"a".repeat(42)}A`;
-const publishableKeyB = `arky_pk_${"b".repeat(42)}A`;
-const visitorTokenA = `arky_vst_${"a".repeat(64)}`;
-const visitorTokenB = `arky_vst_${"b".repeat(64)}`;
+const visitorTokenA = `customer_visitor_${"a".repeat(64)}`;
+const visitorTokenB = `customer_visitor_${"b".repeat(64)}`;
+const personal = { type: "personal" };
 
-function jsonResponse(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
+function issued(token = visitorTokenA, customerId = ids.customer, sessionId = ids.session) {
+  return { customer: customerRecord(customerId), session: visitorSession(customerId, sessionId, token) };
 }
 
-function memoryStorage(initialToken = null) {
-  const values = new Map();
-  let fallback = initialToken;
-  return {
-    values,
-    adapter: {
-      getItem(key) {
-        return values.get(key) ?? fallback;
-      },
-      setItem(key, value) {
-        fallback = null;
-        values.set(key, value);
-      },
-      removeItem(key) {
-        fallback = null;
-        values.delete(key);
-      },
-    },
-  };
+function storedVisitor(token = visitorTokenA, customerId = ids.customer, sessionId = ids.session) {
+  return storedSession(customerId, visitorSession(customerId, sessionId, token));
 }
 
-function identifyResponse(token = visitorTokenA, id = "contact-a") {
-  return {
-    contact: {
-      id,
-      email: null,
-      verified: false,
-      status: "active",
-      channels: [],
-      taxonomies: [],
-      created_at: 1,
-      updated_at: 1,
-    },
-    token: {
-      id: `session-${id}`,
-      token,
-      status: "active",
-      created_at: 1,
-      expires_at: 10_000,
-    },
-    verification_challenge: null,
-  };
+function sessionValues(storage) {
+  return storage.keys("arky_customer_session:").map((key) => JSON.parse(storage.getItem(key)));
 }
 
-function cart(id = "cart-a") {
-  return {
-    id,
-    contact_id: "contact-a",
-    token: "cart-token",
-    status: "active",
-    origin: "storefront",
-    market: "bih",
-    items: [],
-    shipping_address: null,
-    billing_address: null,
-    forms: [],
-    promo_code: null,
-    payment_method_key: null,
-    shipping_method_id: null,
-    converted_order_id: null,
-    item_count: 0,
-    last_action_at: 1,
-    created_at: 1,
-    updated_at: 1,
-  };
-}
+test("a stored customer session needs version 3 and the exact active status tag", () => {
+  const good = createStorefront(publishableKey, { apiUrl, sessionStorage: new SessionStorage(storedVisitor()) });
+  assert.equal(good.hasSession, true);
+  assert.deepEqual(good.session.status, { type: "active" });
+  for (const status of ["active", null, {}, { type: "revoked" }, { type: "superseded" }, { type: "active", extra: true }]) {
+    const record = JSON.stringify({ version: 3, customer: customerRecord(), session: { ...visitorSession(), status } });
+    const rejected = createStorefront(publishableKey, { apiUrl, sessionStorage: new SessionStorage(record) });
+    assert.equal(rejected.hasSession, false);
+    assert.equal(rejected.session, null);
+  }
+  const older = JSON.stringify({ version: 2, customer: customerRecord(), session: visitorSession() });
+  assert.equal(createStorefront(publishableKey, { apiUrl, sessionStorage: new SessionStorage(older) }).hasSession, false);
+  const foreign = JSON.stringify({ version: 3, customer: customerRecord(ids.otherCustomer), session: visitorSession() });
+  assert.equal(createStorefront(publishableKey, { apiUrl, sessionStorage: new SessionStorage(foreign) }).hasSession, false);
+});
 
-test("publishable-key initialization is synchronous, network-free, and rejects every other credential class", () => {
-  let fetchCalls = 0;
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => {
-    fetchCalls += 1;
-    throw new Error("initialize must not fetch");
-  };
-
-  try {
-    const client = createStorefront(publishableKeyA);
-    assert.equal(fetchCalls, 0);
-    assert.equal(client.getLocale(), "");
-    assert.equal(client.getMarket(), "");
-    assert.equal("getStoreId" in client, false);
-    assert.equal("forStore" in client, false);
-    assert.throws(() => createStorefront("arky_api_private"), /publishable key/i);
-    assert.throws(() => createStorefront("arky_vst_visitor"), /publishable key/i);
-    assert.throws(() => createStorefront("contact_visitor"), /publishable key/i);
-    assert.throws(
-      () => createStorefront(`arky_pk_${"a".repeat(43)}`),
-      /publishable key/i,
-    );
-    assert.throws(() => createStorefront({}), /publishable key/i);
-  } finally {
-    globalThis.fetch = originalFetch;
+test("an issued session with a malformed lifecycle is refused and never stored", async (context) => {
+  for (const type of ["visitor", "email_authenticated"]) {
+    for (const status of [{ type: "active" }, "active", null, { type: "revoked" }, { type: "active", extra: true }]) {
+      const base = type === "visitor" ? visitorSession() : emailSession();
+      recordFetch(context, () => ({ customer: customerRecord(), session: { ...base, status } }));
+      const storage = new SessionStorage();
+      const client = createStorefront(publishableKey, { apiUrl, sessionStorage: storage });
+      if (status && typeof status === "object" && Object.keys(status).length === 1 && status.type === "active") {
+        const result = await client.customer.identify();
+        assert.deepEqual(result.session.status, { type: "active" });
+        assert.deepEqual(client.session.status, { type: "active" });
+        assert.equal(client.hasSession, true);
+        assert.equal(client.isAuthenticated, type === "email_authenticated");
+        assert.deepEqual(sessionValues(storage)[0].session.status, { type: "active" });
+      } else {
+        await assert.rejects(client.customer.identify(), { name: "RangeError", message: "The customer session must be active and carry epoch-millisecond times" });
+        assert.equal(client.session, null);
+        assert.equal(storage.keys("arky_customer_session:").length, 0);
+      }
+      context.mock.restoreAll();
+    }
   }
 });
 
-test("requests use the production URL by default and force publishable/context headers on keyless routes", async () => {
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({ url: String(url), headers: new Headers(init.headers) });
-    return jsonResponse({ items: [], cursor: null });
-  };
-
-  try {
-    const root = createStorefront(publishableKeyA, { locale: "en" });
-    root.setContext({ market: "bih" });
-    const italian = root.withContext({ locale: "it", market: "ita" });
-
-    await root.eshop.product.find(
-      { limit: 1, store_id: "caller-store", market: "caller-market" },
-      {
-        headers: {
-          Authorization: "Bearer arky_api_caller",
-          "x-arky-publishable-key": publishableKeyB,
-          "x-arky-locale": "caller-locale",
-          "x-arky-market": "caller-market",
-        },
-      },
-    );
-    await italian.eshop.product.find({ limit: 1 });
-
-    assert.equal(root.getLocale(), "en");
-    assert.equal(root.getMarket(), "bih");
-    assert.equal(italian.getLocale(), "it");
-    assert.equal(italian.getMarket(), "ita");
-  } finally {
-    globalThis.fetch = originalFetch;
+test("publishable-key initialization is synchronous, network-free and refuses every other credential", (context) => {
+  const calls = recordFetch(context, () => {
+    throw new Error("initialize must not fetch");
+  });
+  const client = createStorefront(publishableKey);
+  assert.equal(calls.length, 0);
+  assert.equal(client.getLocale(), "");
+  assert.equal(client.getMarket(), "");
+  assert.equal("getStoreId" in client, false);
+  assert.equal("forStore" in client, false);
+  for (const credential of ["arky_api_private", "customer_visitor_visitor", "arky_vst_visitor", "contact_visitor", `arky_pk_${"a".repeat(43)}`, {}]) {
+    assert.throws(() => createStorefront(credential), /publishable key/i);
   }
+});
 
-  assert.equal(calls[0].url, "https://api.arky.io/v1/storefront/products?limit=1");
-  assert.equal(calls[0].headers.get("x-arky-publishable-key"), publishableKeyA);
+test("requests use the production URL by default and force the publishable key and context headers", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  const root = createStorefront(publishableKey, { locale: "en" });
+  root.setContext({ market: "bih" });
+  const italian = root.withContext({ locale: "it", market: "ita" });
+  await root.eshop.product.find(
+    { limit: 1, store_id: "caller-store", market: "caller-market" },
+    { headers: { Authorization: "Bearer arky_api_caller", "x-arky-publishable-key": otherPublishableKey, "x-arky-locale": "caller-locale", "x-arky-market": "caller-market" } },
+  );
+  await italian.eshop.product.find({ limit: 1 });
+  assert.equal(root.getLocale(), "en");
+  assert.equal(root.getMarket(), "bih");
+  assert.equal(italian.getLocale(), "it");
+  assert.equal(italian.getMarket(), "ita");
+  assert.equal(calls[0].href, "https://api.arky.io/v1/storefront/products?limit=1");
+  assert.equal(calls[0].headers.get("x-arky-publishable-key"), publishableKey);
   assert.equal(calls[0].headers.get("x-arky-locale"), "en");
   assert.equal(calls[0].headers.get("x-arky-market"), "bih");
   assert.equal(calls[0].headers.get("authorization"), null);
@@ -154,52 +111,44 @@ test("requests use the production URL by default and force publishable/context h
   assert.equal(calls[1].headers.get("x-arky-market"), "ita");
 });
 
-test("setup is lazy and deduplicated without creating a visitor", async () => {
-  let setupCalls = 0;
-  let identifyCalls = 0;
+test("the setup is read lazily, once, and without creating a visitor", async (context) => {
   let release;
   const response = new Promise((resolve) => {
     release = resolve;
   });
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
-    if (String(url).endsWith("/account/identify")) identifyCalls += 1;
-    if (String(url) === `${apiUrl}/v1/storefront`) {
-      setupCalls += 1;
-      return response;
-    }
-    throw new Error(`Unexpected setup request: ${url}`);
-  };
-
-  const setup = {
-    timezone: "Europe/Sarajevo",
-    languages: { default: "en", available: ["en", "bs"] },
-    markets: { default: "bih", available: [] },
-    support: { email: null },
-    readiness: { market: true, payment: false, commerce: false },
-  };
-
-  try {
-    const client = createStorefront(publishableKeyA, { apiUrl });
-    assert.equal(setupCalls, 0);
-    const first = client.getSetup();
-    const second = client.store.getSetup();
-    await new Promise((resolve) => setImmediate(resolve));
-    assert.equal(setupCalls, 1);
-    release(jsonResponse(setup));
-    assert.deepEqual(await first, setup);
-    assert.deepEqual(await second, setup);
-    assert.deepEqual(await client.getSetup(), setup);
-    assert.equal(setupCalls, 1);
-    assert.equal(identifyCalls, 0);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  const setup = { name: "Store", timezone: "Europe/Sarajevo", languages: ["en", "bs"], payment_options: [] };
+  const calls = recordFetch(context, async (call) => {
+    if (call.path !== "/v1/storefront") throw new Error(`Unexpected setup request: ${call.path}`);
+    await response;
+    return setup;
+  });
+  const client = createStorefront(publishableKey, { apiUrl });
+  assert.equal(calls.length, 0);
+  const first = client.getSetup();
+  const second = client.store.getSetup();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls.length, 1);
+  release();
+  assert.deepEqual(await first, setup);
+  assert.deepEqual(await second, setup);
+  assert.deepEqual(await client.getSetup(), setup);
+  assert.equal(calls.length, 1);
+  assert.equal(client.hasSession, false);
 });
 
-test("anonymous reads do not identify and concurrent first stateful calls share one visitor session", async () => {
-  const storage = memoryStorage();
-  const calls = [];
+test("product text search keeps price ordering, the price range and the continuation together", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: "next-search-page" }));
+  const client = createStorefront(publishableKey, { apiUrl, market: "bih", locale: "bs" });
+  const params = { query: "KOŠULJA-0001", sort_field: "price", sort_direction: "asc", price_filter: { min_amount: 0, max_amount: 5000, quantity: 1 }, limit: 20, cursor: "current-search-page" };
+  assert.deepEqual(await client.eshop.product.find(params), { items: [], cursor: "next-search-page" });
+  assert.equal(calls[0].query.query, params.query);
+  assert.equal(calls[0].query.sort_field, "price");
+  assert.equal(calls[0].query.sort_direction, "asc");
+  assert.equal(calls[0].query.cursor, params.cursor);
+  assert.deepEqual(JSON.parse(calls[0].query.price_filter), params.price_filter);
+});
+
+test("anonymous reads don't identify, and concurrent first stateful calls share one visitor", async (context) => {
   let identifyStarted;
   let releaseIdentify;
   const started = new Promise((resolve) => {
@@ -208,149 +157,79 @@ test("anonymous reads do not identify and concurrent first stateful calls share 
   const identifyGate = new Promise((resolve) => {
     releaseIdentify = resolve;
   });
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    const request = {
-      url: String(url),
-      authorization: new Headers(init.headers).get("authorization"),
-      body: init.body ? JSON.parse(String(init.body)) : null,
-    };
-    calls.push(request);
-    if (request.url.endsWith("/products")) {
-      return jsonResponse({ items: [], cursor: null });
-    }
-    if (request.url.endsWith("/account/identify")) {
+  const calls = recordFetch(context, async (call) => {
+    if (call.path === "/v1/storefront/products") return { items: [], cursor: null };
+    if (call.path === "/v1/storefront/customer/identify") {
       identifyStarted();
       await identifyGate;
-      return jsonResponse(identifyResponse());
+      return issued();
     }
-    if (request.url.endsWith("/carts/current")) return jsonResponse(cart());
-    throw new Error(`Unexpected visitor request: ${request.url}`);
-  };
-
-  try {
-    const client = createStorefront(publishableKeyA, {
-      apiUrl,
-      locale: "en",
-      market: "bih",
-      sessionStorage: storage.adapter,
-    });
-    await client.eshop.product.find({});
-    assert.equal(calls.filter((call) => call.url.endsWith("/account/identify")).length, 0);
-
-    const first = client.eshop.cart.current();
-    const second = client.eshop.cart.current();
-    await started;
-    await new Promise((resolve) => setImmediate(resolve));
-    assert.equal(calls.filter((call) => call.url.endsWith("/account/identify")).length, 1);
-    releaseIdentify();
-    await Promise.all([first, second]);
-
-    const identify = calls.find((call) => call.url.endsWith("/account/identify"));
-    assert.deepEqual(identify.body, {});
-    assert.equal(identify.authorization, null);
-    const carts = calls.filter((call) => call.url.endsWith("/carts/current"));
-    assert.equal(carts.length, 2);
-    assert.equal(carts.every((call) => call.authorization === `Bearer ${visitorTokenA}`), true);
-    assert.equal(storage.values.size, 1);
-    const [[key, value]] = storage.values;
-    assert.equal(key.includes(publishableKeyA), false);
-    assert.equal(value, visitorTokenA);
-    assert.equal(value.startsWith("{"), false);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+    throw new Error(`Unexpected visitor request: ${call.path}`);
+  });
+  const storage = new SessionStorage();
+  const client = createStorefront(publishableKey, { apiUrl, locale: "en", market: "bih", sessionStorage: storage });
+  await client.eshop.product.find({});
+  assert.equal(calls.filter((call) => call.path.endsWith("/customer/identify")).length, 0);
+  const first = client.eshop.cart.current();
+  const second = client.eshop.cart.current();
+  await started;
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls.filter((call) => call.path.endsWith("/customer/identify")).length, 1);
+  releaseIdentify();
+  assert.deepEqual(await Promise.all([first, second]), [null, null]);
+  const identify = calls.find((call) => call.path.endsWith("/customer/identify"));
+  assert.deepEqual(identify.body, {});
+  assert.equal(identify.headers.get("authorization"), null);
+  assert.equal(calls.filter((call) => call.path.includes("/carts")).length, 0);
+  const [key] = storage.keys("arky_customer_session:");
+  assert.equal(storage.keys("").length, 1);
+  assert.equal(key.includes(publishableKey), false);
+  assert.equal(JSON.parse(storage.getItem(key)).version, 3);
+  assert.equal(JSON.parse(storage.getItem(key)).session.token, visitorTokenA);
 });
 
-test("an invalid visitor token re-identifies once while an invalid publishable key never does", async () => {
-  const storage = memoryStorage(`arky_vst_${"c".repeat(64)}`);
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    const request = {
-      url: String(url),
-      authorization: new Headers(init.headers).get("authorization"),
-    };
-    calls.push(request);
-    if (request.url.endsWith("/account/identify")) {
-      return jsonResponse(identifyResponse(visitorTokenB, "contact-b"));
+test("an expired visitor re-identifies once and retries, while a refused publishable key never identifies", async (context) => {
+  const expiredToken = `customer_visitor_${"c".repeat(64)}`;
+  let cartReads = 0;
+  const calls = recordFetch(context, (call) => {
+    if (call.path === "/v1/storefront/customer/identify") return issued(visitorTokenB, ids.otherCustomer, ids.otherSession);
+    if (call.path === `/v1/storefront/carts/${ids.cart}`) {
+      cartReads += 1;
+      return cartReads === 1 ? errorResponse(401, "CUSTOMER.SESSION_EXPIRED", "expired") : cartRecord({ customer_id: ids.otherCustomer });
     }
-    if (request.url.endsWith("/carts/current") && calls.filter((call) => call.url.endsWith("/carts/current")).length === 1) {
-      return jsonResponse({ message: "expired", statusCode: 401 }, 401);
-    }
-    if (request.url.endsWith("/carts/current")) return jsonResponse(cart("cart-retried"));
-    throw new Error(`Unexpected retry request: ${request.url}`);
-  };
-
-  try {
-    const client = createStorefront(publishableKeyA, {
-      apiUrl,
-      sessionStorage: storage.adapter,
-    });
-    assert.equal((await client.eshop.cart.current()).id, "cart-retried");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.deepEqual(
-    calls.map(({ url, authorization }) => [url.slice(apiUrl.length), authorization]),
-    [
-      ["/v1/storefront/carts/current", `Bearer arky_vst_${"c".repeat(64)}`],
-      ["/v1/storefront/account/identify", null],
-      ["/v1/storefront/carts/current", `Bearer ${visitorTokenB}`],
-    ],
-  );
-
-  let invalidKeyIdentifyCalls = 0;
-  const invalidOriginalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
-    if (String(url).endsWith("/account/identify")) invalidKeyIdentifyCalls += 1;
-    return jsonResponse({ message: "invalid connection", statusCode: 401 }, 401);
-  };
-  try {
-    const invalid = createStorefront(publishableKeyB, { apiUrl });
-    await assert.rejects(invalid.eshop.product.find({}), (error) => error.statusCode === 401);
-  } finally {
-    globalThis.fetch = invalidOriginalFetch;
-  }
-  assert.equal(invalidKeyIdentifyCalls, 0);
+    throw new Error(`Unexpected retry request: ${call.path}`);
+  });
+  const client = createStorefront(publishableKey, { apiUrl, sessionStorage: new SessionStorage(storedVisitor(expiredToken)) });
+  assert.equal((await client.eshop.cart.get({ id: ids.cart })).id, ids.cart);
+  assert.deepEqual(calls.map((call) => [call.path, call.headers.get("authorization")]), [
+    [`/v1/storefront/carts/${ids.cart}`, `Bearer ${expiredToken}`],
+    ["/v1/storefront/customer/identify", null],
+    [`/v1/storefront/carts/${ids.cart}`, `Bearer ${visitorTokenB}`],
+  ]);
+  context.mock.restoreAll();
+  const refused = recordFetch(context, () => errorResponse(401, "STOREFRONT.INVALID_KEY", "invalid connection"));
+  const invalid = createStorefront(otherPublishableKey, { apiUrl });
+  await assert.rejects(invalid.eshop.product.find({}), (error) => error.statusCode === 401);
+  assert.equal(refused.filter((call) => call.path.endsWith("/customer/identify")).length, 0);
+  assert.equal(refused.length, 1);
 });
 
-test("identify retries its own request once without an expired visitor token", async () => {
-  const expiredToken = `arky_vst_${"d".repeat(64)}`;
-  const storage = memoryStorage(expiredToken);
-  const authorizations = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    assert.equal(String(url), `${apiUrl}/v1/storefront/account/identify`);
-    const authorization = new Headers(init.headers).get("authorization");
-    authorizations.push(authorization);
-    return authorization
-      ? jsonResponse({ message: "expired", statusCode: 401 }, 401)
-      : jsonResponse(identifyResponse(visitorTokenB, "contact-b"));
-  };
-
-  try {
-    const client = createStorefront(publishableKeyA, {
-      apiUrl,
-      sessionStorage: storage.adapter,
-    });
-    const result = await client.identify();
-    assert.equal(result.contact.id, "contact-b");
-    assert.equal("token" in result, false);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.deepEqual(authorizations, [`Bearer ${expiredToken}`, null]);
-  assert.deepEqual([...storage.values.values()], [visitorTokenB]);
+test("identify retries its own request once without the expired visitor token", async (context) => {
+  const expiredToken = `customer_visitor_${"d".repeat(64)}`;
+  const calls = recordFetch(context, (call) => {
+    assert.equal(call.path, "/v1/storefront/customer/identify");
+    return call.headers.get("authorization") ? errorResponse(401, "CUSTOMER.SESSION_EXPIRED", "expired") : issued(visitorTokenB, ids.otherCustomer, ids.otherSession);
+  });
+  const storage = new SessionStorage(storedVisitor(expiredToken));
+  const client = createStorefront(publishableKey, { apiUrl, sessionStorage: storage });
+  const result = await client.customer.identify();
+  assert.equal(result.customer.id, ids.otherCustomer);
+  assert.equal("token" in result, false);
+  assert.deepEqual(calls.map((call) => call.headers.get("authorization")), [`Bearer ${expiredToken}`, null]);
+  assert.equal(sessionValues(storage)[0].session.token, visitorTokenB);
 });
 
-test("a delayed stale 401 retries with the newer visitor without replacing it", async () => {
-  const storage = memoryStorage(visitorTokenA);
-  const cartAuthorizations = [];
-  let oldTokenCartCalls = 0;
-  let identifyCalls = 0;
+test("a late stale 401 retries with the newer visitor without replacing it", async (context) => {
   let markSecondOldRequestStarted;
   let releaseSecondOldResponse;
   const secondOldRequestStarted = new Promise((resolve) => {
@@ -359,172 +238,255 @@ test("a delayed stale 401 retries with the newer visitor without replacing it", 
   const secondOldResponseGate = new Promise((resolve) => {
     releaseSecondOldResponse = resolve;
   });
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    const requestUrl = String(url);
-    const authorization = new Headers(init.headers).get("authorization");
-    if (requestUrl.endsWith("/account/identify")) {
-      identifyCalls += 1;
+  let oldTokenReads = 0;
+  const calls = recordFetch(context, async (call) => {
+    const authorization = call.headers.get("authorization");
+    if (call.path === "/v1/storefront/customer/identify") {
       assert.equal(authorization, null);
-      return jsonResponse(identifyResponse(visitorTokenB, "contact-b"));
+      return issued(visitorTokenB, ids.otherCustomer, ids.otherSession);
     }
-    if (requestUrl.endsWith("/carts/current")) {
-      cartAuthorizations.push(authorization);
-      if (authorization === `Bearer ${visitorTokenA}`) {
-        oldTokenCartCalls += 1;
-        if (oldTokenCartCalls === 1) {
-          await secondOldRequestStarted;
-          return jsonResponse({ message: "expired", statusCode: 401 }, 401);
-        }
-        markSecondOldRequestStarted();
-        await secondOldResponseGate;
-        return jsonResponse({ message: "expired", statusCode: 401 }, 401);
+    if (authorization === `Bearer ${visitorTokenA}`) {
+      oldTokenReads += 1;
+      if (oldTokenReads === 1) {
+        await secondOldRequestStarted;
+        return errorResponse(401, "CUSTOMER.SESSION_EXPIRED", "expired");
       }
-      if (authorization === `Bearer ${visitorTokenB}`) {
-        return jsonResponse(cart(`cart-new-${cartAuthorizations.length}`));
-      }
+      markSecondOldRequestStarted();
+      await secondOldResponseGate;
+      return errorResponse(401, "CUSTOMER.SESSION_EXPIRED", "expired");
     }
-    throw new Error(`Unexpected stale-401 request: ${requestUrl}`);
-  };
-
-  let first;
-  let second;
-  try {
-    const client = createStorefront(publishableKeyA, {
-      apiUrl,
-      sessionStorage: storage.adapter,
-    });
-    first = client.eshop.cart.current();
-    second = client.eshop.cart.current();
-    assert.match((await first).id, /^cart-new-/);
-    releaseSecondOldResponse();
-    assert.match((await second).id, /^cart-new-/);
-  } finally {
-    releaseSecondOldResponse?.();
-    await Promise.allSettled([first, second].filter(Boolean));
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.equal(identifyCalls, 1);
-  assert.deepEqual(cartAuthorizations, [
+    return cartRecord({ customer_id: ids.otherCustomer });
+  });
+  const storage = new SessionStorage(storedVisitor(visitorTokenA));
+  const client = createStorefront(publishableKey, { apiUrl, sessionStorage: storage });
+  const first = client.eshop.cart.get({ id: ids.cart });
+  const second = client.eshop.cart.get({ id: ids.cart });
+  assert.equal((await first).id, ids.cart);
+  releaseSecondOldResponse();
+  assert.equal((await second).id, ids.cart);
+  assert.equal(calls.filter((call) => call.path.endsWith("/customer/identify")).length, 1);
+  assert.deepEqual(calls.filter((call) => call.path.includes("/carts/")).map((call) => call.headers.get("authorization")), [
     `Bearer ${visitorTokenA}`,
     `Bearer ${visitorTokenA}`,
     `Bearer ${visitorTokenB}`,
     `Bearer ${visitorTokenB}`,
   ]);
-  assert.deepEqual([...storage.values.values()], [visitorTokenB]);
+  assert.equal(sessionValues(storage)[0].session.token, visitorTokenB);
 });
 
-test("SSR permits anonymous reads but requires request-local storage for stateful operations", async () => {
-  let calls = 0;
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => {
-    calls += 1;
-    return jsonResponse({ items: [], cursor: null });
-  };
+test("server-side rendering allows anonymous reads but needs request-local storage for stateful calls", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  const serverClient = createStorefront(publishableKey, { apiUrl });
+  await serverClient.content.entry.find({ collection_id: "pages" });
+  await assert.rejects(serverClient.eshop.cart.current(), /request-local sessionStorage adapter/);
+  await assert.rejects(serverClient.customer.identify(), /request-local sessionStorage adapter/);
+  assert.equal(calls.length, 1);
+});
 
-  try {
-    const serverClient = createStorefront(publishableKeyA, { apiUrl });
-    await serverClient.cms.entry.find({ collection_id: "pages" });
-    await assert.rejects(
-      serverClient.eshop.cart.current(),
-      /request-local sessionStorage adapter/,
-    );
-    assert.equal(calls, 1);
-  } finally {
-    globalThis.fetch = originalFetch;
+test("visitor storage is kept apart by endpoint and publishable-key fingerprint", async (context) => {
+  recordFetch(context, (call) => call.headers.get("x-arky-publishable-key") === publishableKey ? issued(visitorTokenA) : issued(visitorTokenB, ids.otherCustomer, ids.otherSession));
+  const storage = new SessionStorage();
+  await createStorefront(publishableKey, { apiUrl, sessionStorage: storage }).customer.identify();
+  await createStorefront(otherPublishableKey, { apiUrl, sessionStorage: storage }).customer.identify();
+  await createStorefront(publishableKey, { apiUrl: "https://other.example.test", sessionStorage: storage }).customer.identify();
+  const keys = storage.keys("arky_customer_session:v3:");
+  assert.equal(keys.length, 3);
+  for (const key of keys) {
+    assert.equal(key.includes(publishableKey), false);
+    assert.equal(key.includes(otherPublishableKey), false);
   }
 });
 
-test("visitor storage is isolated by endpoint and publishable-key fingerprint", async () => {
-  const storage = memoryStorage();
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    const key = new Headers(init.headers).get("x-arky-publishable-key");
-    const token = key === publishableKeyA ? visitorTokenA : visitorTokenB;
-    return jsonResponse(identifyResponse(token, key === publishableKeyA ? "contact-a" : "contact-b"));
-  };
-
-  try {
-    await createStorefront(publishableKeyA, {
-      apiUrl,
-      sessionStorage: storage.adapter,
-    }).identify();
-    await createStorefront(publishableKeyB, {
-      apiUrl,
-      sessionStorage: storage.adapter,
-    }).identify();
-    await createStorefront(publishableKeyA, {
-      apiUrl: "https://other.example.test",
-      sessionStorage: storage.adapter,
-    }).identify();
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.equal(storage.values.size, 3);
-  for (const key of storage.values.keys()) {
-    assert.equal(key.includes(publishableKeyA), false);
-    assert.equal(key.includes(publishableKeyB), false);
-  }
-});
-
-test("withContext creates an isolated visitor session while reusing explicit SSR storage safely", async () => {
-  const storage = memoryStorage();
-  const calls = [];
+test("withContext gets its own visitor while reusing the explicit request storage", async (context) => {
   let identifyCalls = 0;
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    const request = {
-      url: String(url),
-      authorization: new Headers(init.headers).get("authorization"),
-    };
-    calls.push(request);
-    if (request.url.endsWith("/account/identify")) {
+  const calls = recordFetch(context, (call) => {
+    if (call.path === "/v1/storefront/customer/identify") {
       identifyCalls += 1;
-      return jsonResponse(
-        identifyCalls === 1
-          ? identifyResponse(visitorTokenA, "contact-a")
-          : identifyResponse(visitorTokenB, "contact-b"),
-      );
+      return identifyCalls === 1 ? issued(visitorTokenA) : issued(visitorTokenB, ids.otherCustomer, ids.otherSession);
     }
-    if (request.url.endsWith("/carts/current")) return jsonResponse(cart());
-    throw new Error(`Unexpected scoped request: ${request.url}`);
+    if (call.path === "/v1/storefront/carts") {
+      const owner = call.headers.get("authorization") === `Bearer ${visitorTokenA}` ? ids.customer : ids.otherCustomer;
+      return { type: "created", cart: cartRecord({ id: call.body.id, customer_id: owner, catalog_id: null }), recovery_token: `token-${call.body.id}` };
+    }
+    throw new Error(`Unexpected scoped request: ${call.path}`);
+  });
+  const storage = new SessionStorage();
+  const root = createStorefront(publishableKey, { apiUrl, market: "bih", sessionStorage: storage });
+  const scoped = root.withContext({ locale: "it", market: "ita" });
+  assert.equal(root.getMarket(), "bih");
+  assert.equal(scoped.getMarket(), "ita");
+  const rootIdentity = await root.customer.identify();
+  assert.equal("token" in rootIdentity, false);
+  assert.equal(root.session.customer.id, ids.customer);
+  assert.equal(scoped.session, null);
+  await scoped.customer.identify();
+  assert.equal(scoped.session.customer.id, ids.otherCustomer);
+  assert.equal(root.session.customer.id, ids.customer);
+  await root.eshop.cart.create({ id: ids.cart, buyer: personal, catalog_id: null });
+  await scoped.eshop.cart.create({ id: ids.otherCart, buyer: personal, catalog_id: null });
+  const carts = calls.filter((call) => call.path === "/v1/storefront/carts");
+  assert.deepEqual(carts.map((call) => [call.headers.get("x-arky-market"), call.headers.get("authorization")]), [
+    ["bih", `Bearer ${visitorTokenA}`],
+    ["ita", `Bearer ${visitorTokenB}`],
+  ]);
+  assert.ok(calls.filter((call) => call.path.endsWith("/customer/identify")).every((call) => call.headers.get("authorization") === null));
+  assert.equal(storage.keys("arky_customer_session:").length, 2);
+  assert.equal(storage.keys("arky:selected-cart:v3:").length, 2);
+  assert.equal(storage.keys("arky:cart-token:v1:").length, 2);
+});
+
+test("a sign-in code and refresh rotate the customer session atomically, and logout forgets it", async (context) => {
+  const signInId = "3d8f1a62-7c45-4b09-9e2d-6a1c4f8b0e37";
+  const customer = customerRecord(ids.customer, { email: { type: "verified", email: "person@example.com", verified_at: 3 } });
+  const authenticated = emailSession(ids.customer, ids.otherSession);
+  const rotated = emailSession(ids.customer, "7e2c9b14-5a63-4d80-b1f7-3c8e0a6d2f95", {
+    access_token: `customer_access_${"u".repeat(64)}`,
+    refresh_token: `customer_refresh_${"v".repeat(64)}`,
+  });
+  const calls = recordFetch(context, (call) => {
+    switch (call.path) {
+      case "/v1/storefront/customer/identify":
+        return issued(visitorTokenA);
+      case "/v1/storefront/customer/request-code":
+        return {
+          customer: customerRecord(ids.customer, { email: { type: "contact", email: "person@example.com" } }),
+          session: { id: ids.session, store_id: ids.store, customer_id: ids.customer, type: { type: "visitor", expires_at: 1_900_000_000_000, email_verification: null }, status: { type: "active" }, last_seen_at: 2, created_at: 1, updated_at: 2 },
+          email_verification: { issued_at: 2, expires_at: 62 },
+        };
+      case "/v1/storefront/customer/verify":
+        return { customer, session: authenticated };
+      case "/v1/storefront/customer/refresh":
+        return { customer, session: rotated };
+      case "/v1/storefront/customer/me":
+        return { customer: call.method === "PATCH" ? { ...customer, first_name: "Ana" } : customer, session: {}, email_unsubscribed: false };
+      case "/v1/storefront/customer/logout":
+        return undefined;
+      default:
+        throw new Error(`Unexpected customer session request: ${call.path}`);
+    }
+  });
+  const storage = new SessionStorage();
+  const client = createStorefront(publishableKey, { apiUrl, sessionStorage: storage });
+  await assert.rejects(client.customer.requestCode({ id: "code-1", email: "person@example.com", language: "en" }), TypeError);
+  const requested = await client.customer.requestCode({ id: signInId, email: "person@example.com", language: "en" });
+  assert.equal(requested.email_verification.issued_at, 2);
+  assert.equal(sessionValues(storage)[0].session.token, visitorTokenA);
+  const verified = await client.customer.verify({ code: "123456" });
+  assert.equal(verified.session.id, authenticated.id);
+  assert.equal(client.isAuthenticated, true);
+  assert.deepEqual(client.session, { customer, id: authenticated.id, type: "email_authenticated", status: { type: "active" } });
+  const refreshed = await client.customer.refresh();
+  assert.equal(refreshed.session.id, rotated.id);
+  const stored = sessionValues(storage)[0].session;
+  assert.deepEqual({ id: stored.id, access_token: stored.access_token, refresh_token: stored.refresh_token }, { id: rotated.id, access_token: rotated.access_token, refresh_token: rotated.refresh_token });
+  await client.customer.getMe();
+  const edited = await client.customer.updateMe({ expected_updated_at: customer.updated_at, first_name: "Ana", phone: null });
+  assert.equal(edited.customer.first_name, "Ana");
+  assert.equal(client.session.customer.first_name, "Ana");
+  await client.customer.logout();
+  assert.equal(client.session, null);
+  assert.deepEqual(calls.map((call) => [call.path, call.headers.get("authorization"), call.body]), [
+    ["/v1/storefront/customer/identify", null, {}],
+    ["/v1/storefront/customer/request-code", `Bearer ${visitorTokenA}`, { id: signInId, email: "person@example.com", language: "en" }],
+    ["/v1/storefront/customer/verify", `Bearer ${visitorTokenA}`, { code: "123456" }],
+    ["/v1/storefront/customer/refresh", null, { refresh_token: authenticated.refresh_token }],
+    ["/v1/storefront/customer/me", `Bearer ${rotated.access_token}`, null],
+    ["/v1/storefront/customer/me", `Bearer ${rotated.access_token}`, { expected_updated_at: customer.updated_at, first_name: "Ana", phone: null }],
+    ["/v1/storefront/customer/logout", `Bearer ${rotated.access_token}`, null],
+  ]);
+  assert.equal(storage.keys("arky_customer_session:").length, 0);
+});
+
+test("a refused refresh keeps the signed-in session and is never retried with Authorization", async (context) => {
+  const session = emailSession();
+  const initialRecord = storedSession(ids.customer, session);
+  let storedRecord = initialRecord;
+  const storage = {
+    getItem: (key) => key.startsWith("arky_customer_session:v3:") ? storedRecord : null,
+    setItem: (_key, value) => {
+      storedRecord = value;
+    },
+    removeItem: (key) => {
+      if (key.startsWith("arky_customer_session:v3:")) storedRecord = null;
+    },
   };
+  const calls = recordFetch(context, () => errorResponse(401, "CUSTOMER_SESSION_REFRESH_REJECTED", "Refresh token rejected"));
+  const client = createStorefront(publishableKey, { apiUrl, sessionStorage: storage });
+  await assert.rejects(client.customer.refresh(), /Refresh token rejected/);
+  assert.deepEqual(client.session, { customer: customerRecord(), id: session.id, type: "email_authenticated", status: { type: "active" } });
+  assert.deepEqual(calls.map((call) => [call.href, call.headers.get("authorization"), call.headers.get("x-arky-publishable-key"), call.body]), [
+    [`${apiUrl}/v1/storefront/customer/refresh`, null, publishableKey, { refresh_token: session.refresh_token }],
+  ]);
+  assert.equal(storedRecord, initialRecord);
+});
 
-  try {
-    const root = createStorefront(publishableKeyA, {
-      apiUrl,
-      sessionStorage: storage.adapter,
+test("a stored record with an invalid visitor credential is dropped at startup", () => {
+  const removed = [];
+  const invalid = storedSession(ids.customer, visitorSession(ids.customer, ids.session, "invalid-visitor-token"));
+  const client = createStorefront(publishableKey, {
+    apiUrl,
+    sessionStorage: {
+      getItem: (key) => key.startsWith("arky_customer_session:v3:") ? invalid : null,
+      setItem() {},
+      removeItem: (key) => removed.push(key),
+    },
+  });
+  assert.equal(client.session, null);
+  assert.equal(removed.some((key) => key.startsWith("arky_customer_session:v3:")), true);
+});
+
+test("a profile answer that lands after a sign-in leaves the signed-in customer alone, while the caller still gets it", async (context) => {
+  const signedInCustomer = customerRecord(ids.otherCustomer, { first_name: "Signed", email: { type: "verified", email: "person@example.com", verified_at: 3 } });
+  const signedIn = emailSession(ids.otherCustomer, ids.otherSession);
+  const answers = new Map();
+  const calls = recordFetch(context, async (call) => {
+    if (call.path === "/v1/storefront/customer/verify") return { customer: signedInCustomer, session: signedIn };
+    if (call.path === "/v1/storefront/customer/me") {
+      const gate = answers.get(call.method);
+      await gate.waiting;
+      return { customer: customerRecord(ids.customer, { first_name: call.method === "PATCH" ? "Edited" : "Visitor" }), session: {}, email_unsubscribed: false };
+    }
+    throw new Error(`Unexpected request: ${call.method} ${call.path}`);
+  });
+  for (const method of ["GET", "PATCH"]) {
+    let release;
+    const waiting = new Promise((resolve) => {
+      release = resolve;
     });
-    const scoped = root.withContext({ locale: "it", market: "ita" });
-
-    const rootIdentity = await root.identify();
-    assert.equal("token" in rootIdentity, false);
-    assert.equal(root.session.contact.id, "contact-a");
-    assert.equal(scoped.session, null);
-    const scopedIdentity = await scoped.crm.contact.identify();
-    assert.equal("token" in scopedIdentity, false);
-    assert.equal(scoped.session.contact.id, "contact-b");
-    assert.equal(root.session.contact.id, "contact-a");
-
-    await root.eshop.cart.current();
-    await scoped.eshop.cart.current();
-  } finally {
-    globalThis.fetch = originalFetch;
+    answers.set(method, { waiting, release });
   }
+  const storage = new SessionStorage(storedVisitor());
+  const client = createStorefront(publishableKey, { apiUrl, sessionStorage: storage });
+  const reading = client.customer.getMe();
+  const editing = client.customer.updateMe({ expected_updated_at: 1_700_000_000_000, first_name: "Edited" });
+  await new Promise((resolve) => setImmediate(resolve));
+  await client.customer.verify({ code: "123456" });
+  answers.get("GET").release();
+  answers.get("PATCH").release();
+  assert.equal((await reading).customer.first_name, "Visitor");
+  assert.equal((await editing).customer.first_name, "Edited");
+  assert.equal(client.session.customer.id, ids.otherCustomer);
+  assert.equal(client.session.customer.first_name, "Signed");
+  assert.equal(client.session.id, ids.otherSession);
+  const stored = sessionValues(storage)[0];
+  assert.equal(stored.customer.id, ids.otherCustomer);
+  assert.equal(stored.customer.first_name, "Signed");
+  assert.equal(stored.session.access_token, signedIn.access_token);
+  assert.deepEqual(calls.map((call) => [call.method, call.path]), [
+    ["GET", "/v1/storefront/customer/me"],
+    ["PATCH", "/v1/storefront/customer/me"],
+    ["POST", "/v1/storefront/customer/verify"],
+  ]);
+});
 
-  assert.equal(storage.values.size, 2);
-  assert.deepEqual(
-    calls
-      .filter((call) => call.url.endsWith("/carts/current"))
-      .map((call) => call.authorization),
-    [`Bearer ${visitorTokenA}`, `Bearer ${visitorTokenB}`],
-  );
-  assert.equal(
-    calls
-      .filter((call) => call.url.endsWith("/account/identify"))
-      .every((call) => call.authorization === null),
-    true,
-  );
+test("a profile answer for the session that asked updates the stored customer", async (context) => {
+  recordFetch(context, (call) => ({ customer: customerRecord(ids.customer, { first_name: call.method === "PATCH" ? "Ana" : "Visitor" }), session: {}, email_unsubscribed: false }));
+  const storage = new SessionStorage(storedVisitor());
+  const client = createStorefront(publishableKey, { apiUrl, sessionStorage: storage });
+  await client.customer.getMe();
+  assert.equal(client.session.customer.first_name, "Visitor");
+  await client.customer.updateMe({ expected_updated_at: 1_700_000_000_000, first_name: "Ana" });
+  assert.equal(client.session.customer.first_name, "Ana");
+  assert.equal(sessionValues(storage)[0].customer.first_name, "Ana");
+  assert.equal(sessionValues(storage)[0].session.token, visitorTokenA);
 });

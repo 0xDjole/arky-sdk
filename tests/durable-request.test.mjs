@@ -296,40 +296,38 @@ test("unavailable or contended Web Locks execute zero protected tasks", async (t
   );
 });
 
-test("the exact saved shipping request survives a changed signed rate and can be resumed", async () => {
+test("the exact saved Fulfillment request survives a changed selection and can be resumed", async () => {
   const { storage } = installBrowserState();
   const operations = await importDurableRequests();
-  const storageKey = "arky:shipping-label:store-1:order-1";
+  const storageKey = "arky:fulfillment:store-1:order-1";
   const originalRequest = {
-    order_id: "order-1",
-    shipment_id: "shipment-1",
-    rate_id: "signed-rate-original",
-    location_id: "location-1",
-    fulfillment_order_id: "fulfillment-1",
+    fulfillment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
+    fulfillment_job_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
     lines: [
       {
-        order_product_id: "product-1",
-        fulfillment_order_line_id: "line-1",
-        quantity: 2,
+        fulfillment_job_line_id: "6ba7b814-9dad-41d1-80b4-00c04fd430c8",
+        unit_spans: [{ first_unit: 0, quantity: 2 }],
+        selected_units: [],
+        lot_reference: "batch-42",
       },
     ],
   };
   const saved = operations.getOrCreateDurableRequest(
     storageKey,
     originalRequest,
-    "shipping-label purchase",
+    "fulfillment creation",
   );
 
   let changedRequestCalls = 0;
   await assert.rejects(
     operations.withDurableRequestLock(
       storageKey,
-      "shipping-label purchase",
+      "fulfillment creation",
       async () => {
         operations.getOrCreateDurableRequest(
           storageKey,
-          { ...originalRequest, rate_id: "signed-rate-after-remount" },
-          "shipping-label purchase",
+          { ...originalRequest, lines: [{ ...originalRequest.lines[0], unit_spans: [{ first_unit: 2, quantity: 2 }] }] },
+          "fulfillment creation",
         );
         changedRequestCalls += 1;
       },
@@ -339,7 +337,7 @@ test("the exact saved shipping request survives a changed signed rate and can be
   assert.equal(changedRequestCalls, 0);
   const remounted = operations.readDurableRequest(
     storageKey,
-    "shipping-label purchase",
+    "fulfillment creation",
   );
   assert.equal(remounted.requestJson, saved.requestJson);
   assert.deepEqual(
@@ -375,4 +373,17 @@ test("durable requests never reuse an in-memory fallback after durable storage c
   assert.equal(second.requestJson, first.requestJson);
   assert.equal(firstStorage.getItem(storageKey) !== null, true);
   assert.equal(secondStorage.getItem(storageKey) !== null, true);
+});
+
+test("a definite refusal is any 4xx except a timeout or throttle; server and network failures stay ambiguous", async () => {
+  const { isDefiniteRefusal } = await importDurableRequests();
+  for (const statusCode of [400, 401, 403, 404, 409, 410, 422, 499]) {
+    assert.equal(isDefiniteRefusal({ statusCode }), true, String(statusCode));
+  }
+  for (const statusCode of [408, 429, 500, 502, 503, 200, 302]) {
+    assert.equal(isDefiniteRefusal({ statusCode }), false, String(statusCode));
+  }
+  for (const error of [null, undefined, "409", new TypeError("network lost"), { statusCode: "409" }, { status: 409 }]) {
+    assert.equal(isDefiniteRefusal(error), false, String(error));
+  }
 });

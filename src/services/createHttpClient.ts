@@ -1,93 +1,9 @@
+import type { EpochMilliseconds } from "../types/time";
+import { epochMilliseconds, epochMillisecondsNow } from "../utils/time";
 import { buildQueryString, type QueryParams } from "../utils/queryParams";
 
-export interface TokenSet {
-  access_token: string;
-  refresh_token?: string;
-  access_expires_at?: number;
-}
-
-export interface AuthStorage {
-  getTokens(): TokenSet | null;
-  onTokensRefreshed(tokens: TokenSet): void;
-  onForcedLogout(): void;
-}
-
-export interface RequestSuccessContext<T = unknown> {
-  data: T;
-  method: string;
-  url: string;
-  status: number;
-  request?: unknown;
-  duration_ms?: number;
-  request_id?: string | null;
-}
-
-export interface RequestErrorContext {
-  error: unknown;
-  method: string;
-  url: string;
-  status?: number;
-  request?: unknown;
-  response?: unknown;
-  duration_ms?: number;
-  request_id?: string | null;
-  aborted?: boolean;
-}
-
-export interface RequestOptions<T = unknown> {
-  headers?: Record<string, string>;
-  params?: QueryParams;
-  signal?: AbortSignal;
-  transformRequest?: (data: unknown) => unknown;
-  onSuccess?: (ctx: RequestSuccessContext<T>) => void | Promise<void>;
-  onError?: (ctx: RequestErrorContext) => void | Promise<void>;
-}
-
-export interface ScheduledMutationOptions<
-  T = unknown,
-> extends RequestOptions<T> {
-  onScheduledResponse?: (response: T) => void | Promise<void>;
-}
-
-export interface HttpClient {
-  get<T>(path: string, opts?: RequestOptions<T>): Promise<T>;
-  post<T>(path: string, body: unknown, opts?: RequestOptions<T>): Promise<T>;
-  put<T>(path: string, body: unknown, opts?: RequestOptions<T>): Promise<T>;
-  patch<T>(path: string, body: unknown, opts?: RequestOptions<T>): Promise<T>;
-  delete<T>(path: string, opts?: RequestOptions<T>): Promise<T>;
-}
-
-export interface HttpClientConfig {
-  baseUrl: string;
-  storeId?: string;
-  authStorage: AuthStorage;
-  storefrontMode?: boolean;
-  forcedHeaders?: Record<string, string> | (() => Record<string, string>);
-  onUnauthorized?: (context: {
-    hadAuthorization: boolean;
-    authorizationToken: string | null;
-    path: string;
-  }) => boolean | Promise<boolean>;
-  refreshPath?: string | (() => string);
-  navigate?: (path: string) => void;
-  loginFallbackPath?: string;
-}
-
-interface ServerError {
-  message: string;
-  error: string;
-  statusCode: number;
-  validationErrors: Array<{ field: string; error: string }>;
-}
-
-interface HttpRequestErrorDetails {
-  statusCode?: number;
-  validationErrors?: ServerError["validationErrors"];
-  method?: string;
-  url?: string;
-  requestId?: string;
-  aborted?: boolean;
-}
+import type { TokenSet, AuthStorage, RequestSuccessContext, RequestErrorContext, RequestOptions, ScheduledMutationOptions, HttpClient, HttpClientConfig, ServerError, HttpRequestErrorDetails } from "../types/httpClient";
+export type { TokenSet, AuthStorage, RequestSuccessContext, RequestErrorContext, RequestOptions, ScheduledMutationOptions, HttpClient, HttpClientConfig } from "../types/httpClient";
 
 function requestError(
   name: "ApiError" | "NetworkError" | "ParseError" | "AbortError",
@@ -118,7 +34,8 @@ function isTokenSet(value: unknown): value is TokenSet {
     (value.refresh_token === undefined ||
       typeof value.refresh_token === "string") &&
     (value.access_expires_at === undefined ||
-      typeof value.access_expires_at === "number")
+      (typeof value.access_expires_at === "number" &&
+        Number.isSafeInteger(value.access_expires_at)))
   );
 }
 
@@ -134,8 +51,8 @@ function isValidationError(
 
 function toServerError(value: unknown, statusCode: number): ServerError {
   const payload = isRecord(value) ? value : {};
-  const validationErrors = Array.isArray(payload.validationErrors)
-    ? payload.validationErrors.filter(isValidationError)
+  const validationErrors = Array.isArray(payload.validation_errors)
+    ? payload.validation_errors.filter(isValidationError)
     : [];
 
   return {
@@ -143,7 +60,7 @@ function toServerError(value: unknown, statusCode: number): ServerError {
       typeof payload.message === "string" ? payload.message : "Request failed",
     error: typeof payload.error === "string" ? payload.error : "REQUEST_FAILED",
     statusCode:
-      typeof payload.statusCode === "number" ? payload.statusCode : statusCode,
+      typeof payload.status_code === "number" ? payload.status_code : statusCode,
     validationErrors,
   };
 }
@@ -169,7 +86,8 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
     return `${cfg.baseUrl}${refreshPath}`;
   }
 
-  async function ensureFreshToken() {
+  async function ensureFreshToken(expected: TokenSet | null) {
+    if (cfg.refreshCredentials) return cfg.refreshCredentials(expected);
     if (refreshPromise) {
       return refreshPromise;
     }
@@ -247,18 +165,25 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       }
     }
 
+    const multipart = typeof FormData !== "undefined" && body instanceof FormData;
     const headers: Record<string, string> = {
       Accept: "application/json",
-      "Content-Type": "application/json",
+      ...(multipart ? {} : { "Content-Type": "application/json" }),
       ...callerHeaders,
       ...forcedHeaders,
     };
 
     let tokens = authStorage.getTokens();
-    const nowSec = Date.now() / 1000;
-    if (tokens?.access_expires_at && nowSec > tokens.access_expires_at) {
-      await ensureFreshToken();
-      tokens = authStorage.getTokens();
+    if (
+      tokens?.access_expires_at !== undefined &&
+      epochMillisecondsNow() >= epochMilliseconds(tokens.access_expires_at)
+    ) {
+      await ensureFreshToken(tokens);
+      const refreshed = authStorage.getTokens();
+      if (tokens?.id && refreshed?.id !== tokens.id) {
+        throw requestError("ApiError", "The Account session changed", { statusCode: 401 });
+      }
+      tokens = refreshed;
     }
 
     if (tokens?.access_token) {
@@ -278,8 +203,9 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       signal: options?.signal,
     };
     if (!["GET", "DELETE"].includes(method) && body !== undefined) {
-      fetchOptions.body =
-        body instanceof URLSearchParams
+      fetchOptions.body = multipart
+        ? (body as FormData)
+        : body instanceof URLSearchParams
           ? body.toString()
           : JSON.stringify(body);
     }
@@ -287,7 +213,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
     const fullUrl = `${cfg.baseUrl}${finalPath}`;
     let res: Response;
     let data: unknown;
-    const startedAt = Date.now();
+    const startedAt = performance.now();
 
     try {
       res = await fetch(fullUrl, fetchOptions);
@@ -319,7 +245,10 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
           return request<T>(method, path, body, options, true);
         }
       } else {
-        await ensureFreshToken();
+        await ensureFreshToken(tokens);
+        if (tokens?.id && authStorage.getTokens()?.id !== tokens.id) {
+          throw requestError("ApiError", "The Account session changed", { statusCode: 401 });
+        }
         return request<T>(method, path, body, options, true);
       }
     }
@@ -327,8 +256,9 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
     try {
       const contentLength = res.headers.get("content-length");
       const contentType = res.headers.get("content-type");
-      if (
-        res.status === 204 ||
+      if (res.status === 204) {
+        data = undefined;
+      } else if (
         contentLength === "0" ||
         !contentType?.includes("application/json")
       ) {
@@ -360,6 +290,8 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       const requestId =
         res.headers.get("x-request-id") || res.headers.get("request-id");
       const err = requestError("ApiError", serverErr.message, {
+        code: serverErr.error,
+        response: data,
         statusCode: serverErr.statusCode,
         validationErrors: normalizeValidationErrors(serverErr.validationErrors),
         method,
@@ -375,7 +307,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
             status: res.status,
             response: serverErr,
             request_id: requestId || null,
-            duration_ms: Date.now() - startedAt,
+            duration_ms: performance.now() - startedAt,
           }),
         ).catch(() => {});
       }
@@ -392,7 +324,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
           url: fullUrl,
           status: res.status,
           request_id: requestId || null,
-          duration_ms: Date.now() - startedAt,
+          duration_ms: performance.now() - startedAt,
         }),
       ).catch(() => {});
     }

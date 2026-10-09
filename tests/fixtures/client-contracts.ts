@@ -1,788 +1,161 @@
+import { createAdmin, createStorefront, epochMilliseconds, initialize } from "arky-sdk";
 import type {
   Account,
-  AudiencePaymentStatus,
-  AudienceSubscribeResponse,
-  AudienceTierPriceInput,
-  Contact,
-  Cart,
-  Condition,
-  CreateSuppressionParams,
-  CreateOrderShipmentParams,
-  DigitalAsset,
-  GetCollectionParams,
-  GetShippingRatesParams,
-  OrderMoney,
-  OrderPromoCodeSnapshot,
-  OrderTaxLine,
-  OrderTaxScope,
-  TaxLine,
-  ShippingLine,
-  FulfillmentOrderStatus,
-  OrderFulfillmentStatus,
+  AccountApiTokenCreated,
+  ArkyCartCheckoutInput,
+  StorefrontContext,
+  AccountSession,
+  AuthToken,
+  Broadcast,
+  CheckoutAcceptance,
+  CreateBroadcastParams,
+  CreateEmailDomainParams,
+  CreateEmailSenderParams,
+  CreateEmailTemplateParams,
+  CreatePaymentRefundParams,
+  CreateSupportFlowParams,
+  Customer,
+  CustomerEmail,
+  CustomerSearchSnapshot,
+  EmailDomain,
+  EmailSender,
+  EmailTemplate,
+  EmailTemplatePreview,
+  FormAnswerInput,
+  FormValues,
+  MonriConfirmation,
+  Notification,
   PaginatedResponse,
-  ProductInventoryInput,
-  ProductVariant,
-  RefundRequestReason,
-  ServiceProvider,
-  OrderShipment,
-  OrderShipmentStatus,
-  SocialConnectionCredential,
-  SocialConnectionData,
-  SocialConnectionType,
-  SocialOAuthCallbackStatus,
-  SocialPublicationContent,
-  SocialPublicationEffectRequest,
-  SocialProviderCapability,
-  SmtpImapMailboxProviderInput,
-  StoreSubscription,
-  SubscriptionPlanFeatureType,
-  TiktokPrivacy,
-  StorefrontIdentifyResult,
-  StorefrontDto,
-  StorefrontGetSupportConversationParams,
-  StorefrontSendSupportMessageParams,
-  SupportAgentDefinition,
-  SupportAgentNode,
-  SupportConversation,
-  SupportConversationStartResponse,
-  SupportMessage,
-  UpdateCartParams,
-  MarketZoneInput,
-  Mailbox,
-  Suppression,
-  WorkflowHttpNode,
-  WorkflowTriggerNode,
-} from "../../dist/index.js";
-import type { FindActionsParams, RequestOptions } from "../../dist/types.js";
-import { SDK_VERSION } from "../../dist/index.js";
-import {
-  createStorefront,
-  initialize,
-  type FormField,
-  type FormSchema,
-  type FormValues,
-  type StorefrontIdentifyResult as StorefrontEntryIdentifyResult,
-} from "../../dist/storefront.js";
+  Payment,
+  PaymentType,
+  PlatformAdministrator,
+  PreviewEmailTemplateParams,
+  ProviderEvent,
+  RecordRefundReceiptParams,
+  RequestCustomerCodeParams,
+  ResolvePaymentChargeParams,
+  ResolvePaymentRefundParams,
+  SendBroadcastTestParams,
+  SendEmailTemplateTestParams,
+  ServerError,
+  StorefrontFormSubmission,
+  StorefrontSetup,
+  StoreUsageSummary,
+  SubmitFormParams,
+  SupportFlow,
+} from "arky-sdk";
+import type * as Public from "arky-sdk/types";
+export type { BlockContracts } from "./block-contracts.js";
+import type { MembershipContracts } from "./membership-contracts.js";
+import type { CatalogContracts } from "./catalog-contracts.js";
+import type { PriceContracts } from "./price-contracts.js";
+import type { CompanyContracts } from "./company-contracts.js";
+import type { OrderContracts } from "./order-contracts.js";
+import type { CartContracts } from "./cart-contracts.js";
+import type { InventoryContracts } from "./inventory-contracts.js";
+export type { ShippingProfileContracts } from "./shipping-profile-contracts.js";
+export type { MembershipContracts, CatalogContracts, PriceContracts, CompanyContracts, OrderContracts, CartContracts, InventoryContracts };
 
-const sdkVersionLiteral: "0.25.0" = SDK_VERSION;
-const crmContactFeature: SubscriptionPlanFeatureType = "crm_contacts";
-// @ts-expect-error the server's serialized feature key is crm_contacts.
-const nonWireCrmProfileFeature: SubscriptionPlanFeatureType = "crm_profiles";
-const audienceTierPriceInput: AudienceTierPriceInput = {
-  currency: "usd",
-  amount: 1200,
-  interval: { period: "month", count: 1 },
-  status: "active",
-};
-const merchantRefundReason: RefundRequestReason = "fraudulent";
-const digitalProductCondition: Condition = {
-  type: "digital_products",
-  digital_product_ids: ["digital-product-contract"],
-};
-// @ts-expect-error Store closure is a system-only refund reason.
-const systemRefundReasonFromClient: RefundRequestReason = "store_closure";
-const audienceTierPriceWithProvider: AudienceTierPriceInput = {
-  currency: "usd",
-  amount: 1200,
-  status: "active",
-  // @ts-expect-error payment-provider bindings are server-owned output fields.
-  provider: { type: "stripe", price_id: "price_untrusted" },
-};
-const smtpImapMailboxProviderInput: SmtpImapMailboxProviderInput = {
-  type: "smtp_imap",
-  preset: "custom",
-  smtp_host: "smtp.example.com",
-  smtp_port: 587,
-  smtp_security: "start_tls",
-  imap_host: "imap.example.com",
-  imap_port: 993,
-  imap_security: "tls",
-  username: "mailbox@example.com",
-  sync_enabled: true,
-  sync_interval_seconds: 300,
-};
-// @ts-expect-error SMTP/IMAP mailbox providers require an explicit discriminator.
-const smtpImapMailboxProviderWithoutType: SmtpImapMailboxProviderInput = {
-  preset: "custom",
-  smtp_host: "smtp.example.com",
-  smtp_port: 587,
-  smtp_security: "start_tls",
-  imap_host: "imap.example.com",
-  imap_port: 993,
-  imap_security: "tls",
-  username: "mailbox@example.com",
-  sync_enabled: true,
-  sync_interval_seconds: 300,
-};
-void smtpImapMailboxProviderInput;
-void smtpImapMailboxProviderWithoutType;
+type Assert<T extends true> = T;
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
+type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
+type Admin = ReturnType<typeof createAdmin>;
+type Storefront = ReturnType<typeof createStorefront>;
+type Store = ReturnType<typeof initialize>;
+type Answer<F extends (...args: never[]) => unknown> = Awaited<ReturnType<F>>;
 
-const suppressionInput: CreateSuppressionParams = {
-  target: { type: "email", email: "person@example.com" },
-  scope: { type: "campaign", campaign_id: "campaign-contract" },
-  reason: "manual",
-};
-declare const suppression: Suppression;
-if (suppression.target.type === "contact") {
-  const suppressionContactId: string = suppression.target.contact_id;
-  void suppressionContactId;
-}
-// @ts-expect-error suppression identity is expressed only by its tagged target.
-suppression.target_key;
-// @ts-expect-error suppression ownership scope is expressed only by its tagged scope.
-suppression.campaign_id;
-declare const digitalAsset: DigitalAsset;
-// @ts-expect-error object storage keys are internal and never exposed by Admin responses.
-digitalAsset.object_key;
-declare const mailbox: Mailbox;
-if (mailbox.provider.type === "smtp_imap") {
-  const hasCredential: boolean = mailbox.provider.password_configured;
-  const safeIssueType: string | undefined = mailbox.provider.sync_issue?.type;
-  void hasCredential;
-  void safeIssueType;
-}
-void suppressionInput;
+const admin = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_contract" });
+const storefront = createStorefront(`arky_pk_${"a".repeat(42)}A`, { apiUrl: "https://api.example.test", locale: "bs", market: "bih", salesChannel: "web" });
+const store_id = "c3d8f1a2-6b47-4e95-8a0c-2f7d5e9b1a63";
 
-const clearCartAddresses: UpdateCartParams = {
-  id: "cart-contract",
-  shipping_address: null,
-  billing_address: null,
-};
+export const notificationPage: Promise<PaginatedResponse<Notification>> = admin.notification.find({ store_id, to: "buyer@example.test", type: "event_email", limit: 20 });
+export const templatePreview: Promise<EmailTemplatePreview> = admin.notification.template.preview({ store_id, id: "template", language: "bs" });
+export const templateTest: Promise<Notification> = admin.notification.template.test({ store_id, id: "template", notification_id: "8a6d4f2b-9c1e-4e57-b3a8-1f6c9e2d4b70", language: "bs" });
+export const broadcastTest: Promise<Notification> = admin.broadcast.test({ store_id, id: "broadcast", notification_id: "8a6d4f2b-9c1e-4e57-b3a8-1f6c9e2d4b70", language: "en" });
+export const usage: Promise<StoreUsageSummary> = admin.store.usage.find({ store_id });
+export const setup: Promise<StorefrontSetup> = storefront.getSetup();
+export const formAnswers: FormAnswerInput[] = [{ type: "text", question_id: "q", key: "name", value: "Ana" }];
+export const formValues: FormValues = { name: "Ana", phone: null, notes: undefined, colors: ["red"] };
+export const createdAt = epochMilliseconds(1);
 
-const inventoryInput: ProductInventoryInput = {
-  location_id: "location-contract",
-  available: 10,
-};
-const zoneInput: MarketZoneInput = {
-  countries: ["US"],
-  states: [],
-  postal_codes: [],
-  tax_bps: 0,
-  shipping_methods: [],
-};
-const collectionById: GetCollectionParams = { id: "collection-contract" };
-const collectionByKey: GetCollectionParams = {
-  key: "articles",
-  store_id: "store-contract",
-};
-// @ts-expect-error collection lookup requires exactly one identifier.
-const collectionWithoutIdentifier: GetCollectionParams = {};
-// @ts-expect-error collection lookup cannot mix an ID and key.
-const ambiguousCollection: GetCollectionParams = {
-  id: "collection-contract",
-  key: "articles",
-};
-
-const typedRequestOptions: RequestOptions<{ ok: true }> = {
-  params: { filters: [{ type: "text", key: "title", values: ["Arky"] }] },
-  transformRequest: (data: unknown) => data,
-  onSuccess: ({ data }) => {
-    const requestSucceeded: true = data.ok;
-    void requestSucceeded;
-  },
-  onError: ({ error }) => {
-    if (error instanceof Error) error.message;
-  },
-};
-const unsafeRequestTransform: RequestOptions = {
-  // @ts-expect-error request transforms must accept unknown input safely.
-  transformRequest: (data: string) => data,
-};
-// @ts-expect-error inventory persistence IDs are assigned by the server.
-inventoryInput.product_id = "product-contract";
-// @ts-expect-error market ownership is assigned by the server.
-zoneInput.market_id = "market-contract";
-
-declare const storefrontClient: ReturnType<typeof createStorefront>;
-const storefrontServiceProviders: Promise<StorefrontDto<ServiceProvider>[]> =
-  storefrontClient.eshop.service.findProviders({
-    service_id: "service-contract",
-  });
-declare const storefrontProduct: Awaited<
-  ReturnType<typeof storefrontClient.eshop.product.get>
->;
-declare const storefrontCart: Awaited<
-  ReturnType<typeof storefrontClient.eshop.cart.current>
->;
-declare const storefrontSupport: Awaited<
-  ReturnType<typeof storefrontClient.support.startConversation>
->;
-declare const storefrontVerification: Awaited<
-  ReturnType<typeof storefrontClient.verify>
->;
-declare const nestedStorefrontIdentification: Awaited<
-  ReturnType<typeof storefrontClient.crm.contact.identify>
->;
-// @ts-expect-error Store ownership is not exposed by public catalog DTOs.
-storefrontProduct.store_id;
-// @ts-expect-error Nested Store ownership is not exposed by public inventory DTOs.
-storefrontProduct.variants[0].inventory[0].store_id;
-// @ts-expect-error Store ownership is not exposed by public cart DTOs.
-storefrontCart.store_id;
-// @ts-expect-error Store ownership is not exposed by public support DTOs.
-storefrontSupport.conversation.store_id;
-// @ts-expect-error Visitor credentials stay private after verification.
-storefrontVerification.token;
-// @ts-expect-error Visitor credentials stay private on the nested CRM facade.
-nestedStorefrontIdentification.token;
-const userAuthoredStoreId: unknown =
-  storefrontSupport.conversation.channel_metadata.store_id;
-// @ts-expect-error Market context is sent in X-Arky-Market, not cart bodies.
-storefrontClient.eshop.cart.current({ market: "ita" });
-
-type StorefrontOpaqueContract = StorefrontDto<{
-  store_id: string;
-  outside: {
-    store_id: string;
-    child: { store_id: string };
-    payload: { store_id: string };
-  };
-  attributes: { store_id: string };
-  blocks: Array<{ store_id: string }>;
-  context: { store_id: string };
-  data: { store_id: string };
-  fields: { store_id: string };
-  metadata: { store_id: string };
-  payload: { store_id: string };
-  properties: { store_id: string };
-  schema: { store_id: string };
-  value: { store_id: string };
-}>;
-declare const storefrontOpaqueContract: StorefrontOpaqueContract;
-// @ts-expect-error Top-level routing Store IDs are stripped.
-storefrontOpaqueContract.store_id;
-// @ts-expect-error Routing Store IDs outside opaque user JSON are stripped.
-storefrontOpaqueContract.outside.store_id;
-// @ts-expect-error Routing Store IDs remain stripped recursively outside opaque user JSON.
-storefrontOpaqueContract.outside.child.store_id;
-const preservedOpaqueStoreIds: string[] = [
-  storefrontOpaqueContract.attributes.store_id,
-  storefrontOpaqueContract.blocks[0].store_id,
-  storefrontOpaqueContract.context.store_id,
-  storefrontOpaqueContract.data.store_id,
-  storefrontOpaqueContract.fields.store_id,
-  storefrontOpaqueContract.metadata.store_id,
-  storefrontOpaqueContract.payload.store_id,
-  storefrontOpaqueContract.properties.store_id,
-  storefrontOpaqueContract.schema.store_id,
-  storefrontOpaqueContract.value.store_id,
-  storefrontOpaqueContract.outside.payload.store_id,
+export type AdminSurfaceContracts = [
+  Assert<Equal<keyof Admin, "account" | "platform" | "store" | "notification" | "broadcast" | "support" | "media" | "category" | "content" | "forms" | "companies" | "customers" | "actions" | "experiments" | "analytics" | "eshop" | "session" | "isAuthenticated" | "onAuthStateChanged" | "logout" | "utils">>,
+  Assert<Missing<Admin, "automation">>,
+  Assert<Missing<Admin, "campaign">>,
+  Assert<Missing<Admin, "leadResearch">>,
+  Assert<Missing<Admin, "social">>,
+  Assert<Missing<Admin["notification"], "mailbox">>,
+  Assert<Missing<Admin["notification"], "delivery">>,
+  Assert<Missing<Admin["eshop"], "refund">>,
+  Assert<Missing<Admin["eshop"], "dispute">>,
+  Assert<Missing<Admin["eshop"], "digital">>,
+  Assert<Missing<Admin["eshop"], "orderCredit">>,
+  Assert<Missing<Admin["eshop"], "subscriptionPlanEntitlement">>,
+  Assert<Missing<Admin["eshop"], "customerGroupEmailConsent">>,
+  Assert<Missing<Admin["store"], "commerce">>,
+  Assert<Equal<keyof Admin["notification"], "find" | "get" | "stop" | "template" | "emailDomain" | "emailSender">>,
+  Assert<Equal<keyof Admin["notification"]["emailDomain"], "find" | "get" | "create" | "verify" | "delete">>,
+  Assert<Equal<keyof Admin["notification"]["emailSender"], "find" | "get" | "create" | "update" | "delete">>,
+  Assert<Equal<keyof Admin["broadcast"], "find" | "get" | "create" | "update" | "delete" | "schedule" | "unschedule" | "send" | "preview" | "test">>,
+  Assert<Equal<keyof Admin["support"], "flow" | "channel" | "conversation">>,
+  Assert<Equal<keyof Admin["platform"]["administrator"], "list" | "me" | "add" | "remove">>,
+  Assert<Equal<keyof Admin["eshop"]["payment"], "find" | "get" | "createManual" | "recordCollection" | "createRefund" | "recordRefundReceipt" | "cancelRefund" | "resolveRefund" | "resolveCharge" | "resolveHold" | "cancel">>,
+  Assert<Equal<keyof Admin["eshop"]["providerEvent"], "find" | "get" | "resolve">>,
+  Assert<Equal<Answer<Admin["account"]["getMe"]>, Account>>,
+  Assert<Equal<Answer<Admin["account"]["apiToken"]["create"]>, AccountApiTokenCreated>>,
+  Assert<Equal<Answer<Admin["account"]["session"]["list"]>, PaginatedResponse<AccountSession>>>,
+  Assert<Equal<Answer<Admin["account"]["auth"]["verify"]>, AuthToken>>,
+  Assert<Missing<AuthToken, "scope">>,
+  Assert<Equal<Answer<Admin["platform"]["administrator"]["add"]>, PlatformAdministrator>>,
+  Assert<Equal<Answer<Admin["platform"]["stripeBillingEvent"]["resolve"]>, ProviderEvent>>,
+  Assert<Equal<Answer<Admin["notification"]["template"]["create"]>, EmailTemplate>>,
+  Assert<Equal<Answer<Admin["notification"]["emailDomain"]["create"]>, EmailDomain>>,
+  Assert<Equal<Answer<Admin["notification"]["emailSender"]["create"]>, EmailSender>>,
+  Assert<Equal<Answer<Admin["broadcast"]["create"]>, Broadcast>>,
+  Assert<Equal<Answer<Admin["support"]["flow"]["create"]>, SupportFlow>>,
+  Assert<Equal<Answer<Admin["customers"]["find"]>, PaginatedResponse<CustomerSearchSnapshot>>>,
+  Assert<Equal<Answer<Admin["customers"]["erase"]>, Customer>>,
+  Assert<Equal<Answer<Admin["eshop"]["payment"]["createRefund"]>, Payment>>,
+  Assert<Equal<Answer<Admin["eshop"]["cart"]["checkout"]>, CheckoutAcceptance>>,
+  Assert<RequiredField<CreateEmailTemplateParams, "id">>,
+  Assert<RequiredField<CreateEmailTemplateParams, "sender_id">>,
+  Assert<RequiredField<CreateEmailDomainParams, "id">>,
+  Assert<RequiredField<CreateEmailSenderParams, "id">>,
+  Assert<RequiredField<CreateEmailSenderParams, "email_domain_id">>,
+  Assert<RequiredField<CreateBroadcastParams, "id">>,
+  Assert<RequiredField<CreateSupportFlowParams, "id">>,
+  Assert<RequiredField<CreatePaymentRefundParams, "id">>,
+  Assert<RequiredField<RecordRefundReceiptParams, "id">>,
+  Assert<RequiredField<PreviewEmailTemplateParams, "language">>,
+  Assert<RequiredField<SendEmailTemplateTestParams, "language">>,
+  Assert<RequiredField<SendEmailTemplateTestParams, "notification_id">>,
+  Assert<RequiredField<SendBroadcastTestParams, "language">>,
+  Assert<Equal<ResolvePaymentRefundParams["outcome"], MonriConfirmation>>,
+  Assert<Equal<ResolvePaymentChargeParams["outcome"], MonriConfirmation>>,
+  Assert<Equal<MonriConfirmation["type"], "made" | "not_made">>,
+  Assert<Equal<PaymentType["type"], "stripe_checkout" | "stripe_card" | "monri_checkout" | "monri_card" | "cash_on_delivery" | "manual">>,
+  Assert<Equal<CustomerEmail["type"], "no_email" | "contact" | "reserved" | "verified">>,
+  Assert<Equal<keyof ServerError, "message" | "error" | "statusCode" | "validationErrors">>,
 ];
-void preservedOpaqueStoreIds;
 
-initialize(`arky_pk_${"a".repeat(42)}A`, {
-  apiUrl: "http://localhost:8000",
-  locale: "it",
-  market: "ita",
-});
-// @ts-expect-error storefront initialization accepts a publishable key, not connection fields.
-initialize({ baseUrl: "http://localhost:8000", storeId: "store-contract" });
-
-declare const initializedStorefront: ReturnType<typeof initialize>;
-const typedFormValues: FormValues = {
-  name: "Jane",
-  guests: 2,
-  accepted: false,
-  date: 1_725_000_000,
-  location: { coordinates: { lat: 43.8563, lon: 18.4131 } },
-  channels: ["email"],
-};
-initializedStorefront.cms.form.submitByKey({
-  key: "contact-form",
-  values: typedFormValues,
-});
-initializedStorefront.cms.form.submitByKey({
-  key: "contact-form",
-  // @ts-expect-error Store IDs are not part of storefront request inputs.
-  store_id: "store-contract",
-  values: typedFormValues,
-});
-initializedStorefront.cms.form.submitByKey({
-  key: "contact-form",
-  values: {
-    // @ts-expect-error form values cannot contain arbitrary objects.
-    invalid: new Date(),
-  },
-});
-const textFormSchema: FormSchema = {
-  id: "field-name",
-  key: "name",
-  type: "text",
-  required: true,
-};
-const textFormField: FormField = {
-  id: "field-name",
-  key: "name",
-  type: "text",
-  value: "Jane",
-};
-// @ts-expect-error text fields require string values.
-const invalidTextFormField: FormField = {
-  id: "field-name",
-  key: "name",
-  type: "text",
-  value: 42,
-};
-void textFormSchema;
-void textFormField;
-void invalidTextFormField;
-
-const subscribeResult: AudienceSubscribeResponse = {
-  payment_action: { type: "none" },
-  payment: {
-    id: "payment-contract",
-    tier_id: "tier-contract",
-    amount: 1200,
-    currency: "usd",
-    interval: { period: "month", count: 1 },
-    status: "unknown",
-  },
-  member: {
-    id: "member-contract",
-    enrollment_status: "pending",
-    delivery_status: "subscribed",
-    created_at: 1,
-    updated_at: 1,
-  },
-};
-const subscribePaymentStatus: AudiencePaymentStatus | undefined =
-  subscribeResult.payment?.status;
-
-declare const storefrontIdentify: StorefrontIdentifyResult;
-const storefrontEntryIdentify: StorefrontEntryIdentifyResult =
-  storefrontIdentify;
-const verificationChallengeId: string | undefined =
-  storefrontIdentify.verification_challenge?.challenge_id;
-// @ts-expect-error session tokens stay private to the storefront client.
-storefrontIdentify.token;
-// @ts-expect-error storefront Contact DTOs do not expose tenant routing IDs.
-storefrontIdentify.contact.store_id;
-
-declare const paymentStorefront: ReturnType<typeof initialize>;
-// @ts-expect-error hosted Checkout removed the browser Stripe controller.
-paymentStorefront.eshop.cart.payment;
-
-const orderTaxScope: OrderTaxScope = "shipping";
-// @ts-expect-error tax scope is a closed accounting enum.
-const invalidOrderTaxScope: OrderTaxScope = "provider";
-const orderTaxLine: OrderTaxLine = {
-  rate_bps: 2_000,
-  amount: 250,
-  label: "Shipping Tax",
-  scope: orderTaxScope,
-};
-const accountingTaxLine: TaxLine = {
-  title: "Tax",
-  rate_bps: 2_000,
-  amount: 250,
-  taxable_base: 1_250,
-  included_in_price: false,
-  jurisdiction_country: "US",
-  jurisdiction_region: null,
-  jurisdiction_postal_code: null,
-};
-// @ts-expect-error no provider tax identity is fabricated by Arky.
-accountingTaxLine.tax_rate_id;
-// @ts-expect-error tax provenance is already expressed by typed line context.
-accountingTaxLine.source;
-const promoSnapshot: OrderPromoCodeSnapshot = {
-  id: "promo-contract",
-  code: "SAVE10",
-};
-const orderMoney: OrderMoney = {
-  currency: "usd",
-  market: "us",
-  subtotal: 1250,
-  shipping: 0,
-  discount: 0,
-  total: 1250,
-  tax: {
-    amount: 250,
-    mode: "exclusive",
-    rate_bps: 2_000,
-    lines: [orderTaxLine],
-  },
-  promo_code: promoSnapshot,
-  zone_id: null,
-  shipping_method_id: null,
-};
-// @ts-expect-error capture_method is transaction/provider state, not order money.
-orderMoney.capture_method;
-
-const shippingLine: ShippingLine = {
-  id: "shipping-line-contract",
-  shipping_method_id: "shipping-method-contract",
-  title: "Standard",
-  money: {
-    unit_price: 500,
-    subtotal: 500,
-    discount_allocations: [],
-    discount_total: 0,
-    taxable_base: 500,
-    tax_lines: [],
-    tax_total: 0,
-    total: 500,
-  },
-};
-// @ts-expect-error shipping method identity has one canonical field.
-shippingLine.code;
-const fulfillmentOrderStatus: FulfillmentOrderStatus = "open";
-const orderFulfillmentStatus: OrderFulfillmentStatus = "partially_fulfilled";
-declare const cart: Cart;
-// @ts-expect-error cart recovery is not a product lifecycle in the current model.
-cart.recovery_sent_at;
-
-// @ts-expect-error refunds have their own lifecycle resource.
-const embeddedRefundPaymentStatus: AudiencePaymentStatus = "refunded";
-// @ts-expect-error the server never emits this callback status.
-const codeReceivedCallback: SocialOAuthCallbackStatus = "code_received";
-
-const safeSocialCredential: SocialConnectionCredential = {
-  expires_at: null,
-  scopes: ["posts.write"],
-};
-const unsafeSocialCredential: SocialConnectionCredential = {
-  expires_at: null,
-  scopes: [],
-  // @ts-expect-error public social connection DTOs never contain provider secrets.
-  access_token: "provider-secret",
-};
-const safeSocialConnectionData: SocialConnectionData = {
-  credential: safeSocialCredential,
-  destination: {
-    external_account_id: "social-account",
-    external_account_name: "Arky",
-    handle: null,
-    avatar_url: null,
-  },
-};
-const tiktokConnectionType: SocialConnectionType = "tiktok_account";
-const tiktokPrivacy: TiktokPrivacy = "private";
-const tiktokContent: SocialPublicationContent = {
-  type: "tiktok_account",
-  caption: "Launch",
-  video_media_id: "media-contract",
-  privacy: tiktokPrivacy,
-};
-const tiktokInitializeEffect: SocialPublicationEffectRequest = {
-  type: "tiktok_initialize_upload",
-  media_id: "media-contract",
-};
-const tiktokUploadEffect: SocialPublicationEffectRequest = {
-  type: "tiktok_upload",
-  media_id: "media-contract",
-  publish_id: "publish-contract",
-  total_bytes: 1024,
-  has_upload_session: true,
-};
-// @ts-expect-error the provider discriminator belongs to SocialConnection.type, not data.
-safeSocialConnectionData.type;
-
-declare const supportStart: SupportConversationStartResponse;
-const supportCapability: string = supportStart.support_token;
-
-const supportMessageNode: SupportAgentNode = {
-  type: "message",
-  text: "How can we help?",
-  buttons: ["Billing"],
-};
-const supportInputNode: SupportAgentNode = {
-  type: "input",
-  prompt: "What is your email?",
-  field: "email",
-  input_type: "email",
-  validation: null,
-};
-const supportEndNode: SupportAgentNode = {
-  type: "action",
-  action: { type: "end_conversation", message: "Thanks" },
-};
-// @ts-expect-error message nodes require their serialized text.
-const invalidSupportMessageNode: SupportAgentNode = {
-  type: "message",
-  buttons: [],
-};
-const invalidSupportActionNode: SupportAgentNode = {
-  type: "action",
-  // @ts-expect-error end_conversation actions require a message.
-  action: { type: "end_conversation" },
-};
-const supportDefinitionWithNoAi: SupportAgentDefinition = {
-  id: "definition-contract",
-  store_id: "store-contract",
-  support_agent_id: "agent-contract",
-  entry_node_id: "message",
-  nodes: { message: supportMessageNode },
-  edges: [],
-  ai_config: null,
-  created_at: 1,
-  updated_at: 1,
-};
-const supportConversationWithNullReferences: SupportConversation = {
-  id: "conversation-contract",
-  store_id: "store-contract",
-  agent_id: null,
-  channel_id: null,
-  channel_context: {
-    type: "web",
-    visitor_id: null,
-    session_id: null,
-  },
-  current_node_id: null,
-  contact_id: null,
-  assigned_account_id: null,
-  status: "active",
-  variables: {},
-  channel_metadata: {},
-  created_at: 1,
-  updated_at: 1,
-};
-const supportMessageWithNullState: SupportMessage = {
-  id: "message-contract",
-  store_id: "store-contract",
-  conversation_id: "conversation-contract",
-  role: "system",
-  content: "Hello",
-  buttons: null,
-  metadata: {},
-  ai_response: null,
-  created_at: 1,
-  updated_at: 1,
-};
-
-const storefrontSupportMessage: StorefrontSendSupportMessageParams = {
-  conversation_id: "conversation-contract",
-  support_token: "a".repeat(64),
-  message_id: "018f477d-1cae-7c12-bf12-123456789abc",
-  input: { type: "text", content: "Help" },
-};
-
-const storefrontSupportRead: StorefrontGetSupportConversationParams = {
-  conversation_id: "conversation-contract",
-  support_token: "a".repeat(64),
-  message_limit: 25,
-};
-
-const storeSubscriptionWithoutCheckout: StoreSubscription = {
-  id: "subscription-contract",
-  store_id: "store-contract",
-  plan_access: null,
-  payment: { currency: "usd", market: "us" },
-  billing_status: "pending",
-  checkout_id: null,
-  payment_action: { type: "none" },
-  trial_started_at: null,
-  created_at: 1,
-  updated_at: 1,
-};
-const storeSubscriptionWithCheckoutReference: StoreSubscription = {
-  ...storeSubscriptionWithoutCheckout,
-  checkout_id: "checkout-contract",
-  payment_action: {
-    type: "stripe_embedded_checkout",
-    publishable_key: "pk_test_contract",
-    client_secret: "cs_contract_secret_exact",
-    stripe_account_id: null,
-    expires_at: 2,
-  },
-};
-
-// @ts-expect-error storefront support messages require the capability token.
-const supportMessageWithoutCapability: StorefrontSendSupportMessageParams = {
-  conversation_id: "conversation-contract",
-  message_id: "018f477d-1cae-7c12-bf12-123456789abc",
-  input: { type: "text", content: "Help" },
-};
-
-declare const account: Account;
-declare const contact: Contact;
-declare const productVariant: ProductVariant;
-declare const shipment: OrderShipment;
-const shipmentStatus: OrderShipmentStatus = shipment.status;
-const shipmentTrackingStatusAt: number | null | undefined =
-  shipment.tracking_status_at;
-const cancelledShippingStatus: OrderShipmentStatus = "cancelled";
-const shippingRateRequest: GetShippingRatesParams = {
-  order_id: "order-contract",
-  location_id: "location-contract",
-  lines: [{ order_product_id: "product-contract", quantity: 1 }],
-  parcel: {
-    length: 100,
-    width: 75,
-    height: 25,
-    weight: 500,
-    distance_unit: "mm",
-    mass_unit: "g",
-  },
-};
-const createShipmentRequest: CreateOrderShipmentParams = {
-  order_id: "order-contract",
-  shipment_id: "018f477d-1cae-7c12-bf12-123456789abc",
-  rate_id: "signed-rate-contract",
-  location_id: "location-contract",
-  fulfillment_order_id: "fulfillment-contract",
-  lines: [
-    {
-      order_product_id: "product-contract",
-      fulfillment_order_line_id: "fulfillment-line-contract",
-      quantity: 1,
-    },
-  ],
-};
-// @ts-expect-error verification challenges are never part of the public account contract.
-account.verification_codes;
-// @ts-expect-error verification challenges are never part of the public contact contract.
-contact.verification_codes;
-// @ts-expect-error variant order, not an is_default field, defines the configured default.
-productVariant.is_default;
-
-const trigger: WorkflowTriggerNode = {
-  type: "trigger",
-  delay_ms: 0,
-};
-
-const getNode: WorkflowHttpNode = {
-  type: "http",
-  method: "get",
-  url: "https://api.example.test/orders",
-  headers: { Accept: "application/json" },
-  timeout_ms: 30_000,
-  delay_ms: 0,
-  retries: 3,
-  retry_delay_ms: 1_000,
-};
-
-const mutationNode: WorkflowHttpNode = {
-  type: "http",
-  method: "post",
-  url: "https://api.example.test/orders",
-  headers: { "Content-Type": "application/json" },
-  body: { id: "order-1" },
-  timeout_ms: 30_000,
-  delay_ms: 0,
-  retries: 0,
-  retry_delay_ms: 0,
-};
-
-// @ts-expect-error required HTTP timing and header fields cannot be omitted.
-const missingHttpFields: WorkflowHttpNode = {
-  type: "http",
-  method: "get",
-  url: "https://api.example.test/orders",
-  retries: 0,
-  retry_delay_ms: 0,
-};
-
-// @ts-expect-error mutating HTTP nodes require a literal zero retry count.
-const retryingMutation: WorkflowHttpNode = {
-  type: "http",
-  method: "delete",
-  url: "https://api.example.test/orders/order-1",
-  headers: {},
-  timeout_ms: 30_000,
-  delay_ms: 0,
-  retries: 1,
-  retry_delay_ms: 0,
-};
-
-// @ts-expect-error mutating HTTP nodes require a literal zero retry delay.
-const delayedMutationRetry: WorkflowHttpNode = {
-  type: "http",
-  method: "patch",
-  url: "https://api.example.test/orders/order-1",
-  headers: { "Content-Type": "application/json" },
-  timeout_ms: 30_000,
-  delay_ms: 0,
-  retries: 0,
-  retry_delay_ms: 1_000,
-};
-
-const canonicalPage: PaginatedResponse<{ id: string }> = {
-  items: [{ id: "item-1" }],
-  cursor: "cursor-2",
-};
-
-const actionPageParams: FindActionsParams = {
-  store_id: "store-contract",
-  contact_id: "contact-contract",
-  limit: 20,
-  cursor: "cursor-contract",
-};
-type AssertNever<T extends never> = T;
-type UnsupportedActionFilterKeys = AssertNever<
-  Extract<keyof FindActionsParams, "query" | "types" | "from" | "to">
->;
-
-// @ts-expect-error provider capabilities must state whether publishing is supported.
-const missingPublishingCapability: SocialProviderCapability = {
-  type: "x_account",
-  display_name: "X Account",
-  required_scopes: [],
-  media_requirements: [],
-  engagement: {
-    read_comments: true,
-    reply_to_comments: true,
-  },
-  analytics: {
-    read_post_metrics: true,
-  },
-};
-
-void [
-  supportStart,
-  storefrontIdentify,
-  storefrontEntryIdentify,
-  verificationChallengeId,
-  orderMoney,
-  orderTaxLine,
-  accountingTaxLine,
-  promoSnapshot,
-  shippingLine,
-  fulfillmentOrderStatus,
-  orderFulfillmentStatus,
-  cart,
-  embeddedRefundPaymentStatus,
-  codeReceivedCallback,
-  safeSocialCredential,
-  unsafeSocialCredential,
-  safeSocialConnectionData,
-  tiktokConnectionType,
-  tiktokContent,
-  tiktokInitializeEffect,
-  tiktokUploadEffect,
-  clearCartAddresses,
-  shipmentStatus,
-  shipmentTrackingStatusAt,
-  supportCapability,
-  supportInputNode,
-  supportEndNode,
-  invalidSupportMessageNode,
-  invalidSupportActionNode,
-  supportDefinitionWithNoAi,
-  supportConversationWithNullReferences,
-  supportMessageWithNullState,
-  storefrontSupportMessage,
-  storefrontSupportRead,
-  storeSubscriptionWithoutCheckout,
-  storeSubscriptionWithCheckoutReference,
-  supportMessageWithoutCapability,
-  account,
-  contact,
-  productVariant,
-  trigger,
-  getNode,
-  mutationNode,
-  missingHttpFields,
-  retryingMutation,
-  delayedMutationRetry,
-  canonicalPage,
-  actionPageParams,
-  missingPublishingCapability,
-  crmContactFeature,
-  nonWireCrmProfileFeature,
-  invalidOrderTaxScope,
-  audienceTierPriceInput,
-  audienceTierPriceWithProvider,
-  subscribePaymentStatus,
+export type StorefrontSurfaceContracts = [
+  Assert<Missing<Storefront, "customer_groups">>,
+  Assert<Missing<Storefront, "customer_group_members">>,
+  Assert<Missing<Storefront, "customer_group_email_consents">>,
+  Assert<Missing<Storefront["customer"], "captureEmail">>,
+  Assert<Missing<Storefront["eshop"], "digital">>,
+  Assert<Missing<Storefront["eshop"]["order"], "resumePayment">>,
+  Assert<Equal<keyof Storefront["customer"], "identify" | "requestCode" | "verify" | "refresh" | "logout" | "getMe" | "updateMe" | "resubscribe">>,
+  Assert<Equal<keyof RequestCustomerCodeParams, "id" | "email" | "language">>,
+  Assert<RequiredField<RequestCustomerCodeParams, "language">>,
+  Assert<RequiredField<RequestCustomerCodeParams, "id">>,
+  Assert<Equal<keyof SubmitFormParams, "form_id" | "id" | "language" | "answers">>,
+  Assert<Equal<Answer<Storefront["forms"]["submit"]>, StorefrontFormSubmission>>,
+  Assert<Equal<keyof StorefrontFormSubmission, "id" | "form_id" | "language" | "answers" | "stage_id" | "created_at" | "updated_at">>,
+  Assert<Equal<keyof NonNullable<Parameters<Storefront["store"]["location"]["list"]>[0]>, "key" | "sort_field" | "sort_direction" | "limit" | "cursor">>,
+  Assert<Equal<Parameters<Store["eshop"]["cart"]["checkout"]>[0], ArkyCartCheckoutInput>>,
+  Assert<Equal<Answer<Store["eshop"]["cart"]["checkout"]>, CheckoutAcceptance>>,
+  Assert<Equal<keyof StorefrontContext, "locale" | "market" | "salesChannel">>,
+  Assert<Equal<keyof Public.StorefrontSetup, "name" | "timezone" | "languages" | "payment_options">>,
 ];
-void sdkVersionLiteral;
