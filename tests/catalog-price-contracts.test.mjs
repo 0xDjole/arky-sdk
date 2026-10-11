@@ -5,7 +5,7 @@ import { formatPrice, getPriceAmount, formatMinor } from "../dist/utils.js";
 
 const publishableKey = `arky_pk_${"a".repeat(42)}A`;
 const companyId = "8f9a5793-561f-4655-8f6b-42f5d6ded326";
-const branchId = "5d7f1c39-8a24-4e60-b9d3-2e6c0a8f4b17";
+const locationId = "5d7f1c39-8a24-4e60-b9d3-2e6c0a8f4b17";
 const catalogId = "e4c8a2f6-1b73-4d95-a0e7-5f2c9b6d3a18";
 const selectedPrice = {
   tax_mode: "inclusive",
@@ -32,18 +32,18 @@ for (const owner of ["product", "bookingService", "bookingOffering"]) {
       apiUrl: "https://api.example.test",
       locale: "bs",
       market: "bih",
-      salesChannel: "web",
     });
     const api = client.eshop[owner];
     const selector = owner === "bookingOffering" ? { booking_service_id: "service" } : {};
-    const page = await api.find({ ...selector, catalog_id: catalogId, company_id: companyId, company_location_id: branchId, include_price: true });
+    const page = await api.find({ ...selector, catalog_id: catalogId, company_location_id: locationId, include_price: true });
     assert.deepEqual(page, { items: [record], cursor: "next" });
     assert.equal(calls[0].url.searchParams.get("catalog_id"), catalogId);
-    assert.equal(calls[0].url.searchParams.get("company_id"), companyId);
-    assert.equal(calls[0].url.searchParams.get("company_location_id"), branchId);
+    assert.equal(calls[0].url.searchParams.has("company_id"), false);
+    assert.equal(calls[0].url.searchParams.get("company_location_id"), locationId);
     assert.equal(calls[0].url.searchParams.get("include_price"), "true");
     await api.find({ ...selector, include_price: false });
     assert.equal(calls[1].url.searchParams.has("company_id"), false);
+    assert.equal(calls[1].url.searchParams.has("company_location_id"), false);
     assert.equal(calls[1].url.searchParams.has("catalog_id"), false);
     assert.equal(calls[1].url.searchParams.get("include_price"), "false");
     if (owner !== "bookingOffering") {
@@ -52,6 +52,7 @@ for (const owner of ["product", "bookingService", "bookingOffering"]) {
       assert.ok(calls[2].url.pathname.endsWith("/catalog%2Fitem%3Fliteral"));
       assert.equal(calls[2].url.searchParams.get("catalog_id"), catalogId);
       assert.equal(calls[2].url.searchParams.get("company_id"), companyId);
+      assert.equal(calls[2].url.searchParams.has("company_location_id"), false);
       assert.equal(calls[2].url.searchParams.get("include_price"), "true");
       await api.get({ slug: "the-slug" });
       assert.ok(calls[3].url.pathname.endsWith("/the-slug"));
@@ -60,7 +61,7 @@ for (const owner of ["product", "bookingService", "bookingOffering"]) {
     for (const call of calls) {
       assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
       assert.equal(call.headers.get("x-arky-market"), "bih");
-      assert.equal(call.headers.get("x-arky-sales-channel"), "web");
+      assert.equal(call.headers.has("x-arky-sales-channel"), false);
       assert.equal(call.headers.get("x-arky-locale"), "bs");
       assert.equal(call.headers.get("authorization"), null);
       assert.equal(call.url.searchParams.has("store_id"), false);
@@ -76,12 +77,12 @@ for (const [owner, route] of [["product", "products"], ["bookingService", "booki
       calls.push({ url: new URL(url), headers: new Headers(init.headers) });
       return new Response(JSON.stringify(record), { status: 200, headers: { "content-type": "application/json" } });
     });
-    const client = createStorefront(publishableKey, { apiUrl: "https://api.example.test", locale: "bs", market: "bih", salesChannel: "web" });
-    assert.deepEqual(await client.eshop[owner].getByKey({ key: "espresso-x1", catalog_id: catalogId, company_id: companyId, company_location_id: branchId, include_price: true }), record);
+    const client = createStorefront(publishableKey, { apiUrl: "https://api.example.test", locale: "bs", market: "bih" });
+    assert.deepEqual(await client.eshop[owner].getByKey({ key: "espresso-x1", catalog_id: catalogId, company_location_id: locationId, include_price: true }), record);
     await client.eshop[owner].getByKey({ key: "with/slash" });
     await client.eshop[owner].get({ slug: "espresso-x1" });
     assert.deepEqual(calls.map((call) => [call.url.pathname, Object.fromEntries(call.url.searchParams)]), [
-      [`/v1/storefront/${route}/by-key/espresso-x1`, { catalog_id: catalogId, company_id: companyId, company_location_id: branchId, include_price: "true" }],
+      [`/v1/storefront/${route}/by-key/espresso-x1`, { catalog_id: catalogId, company_location_id: locationId, include_price: "true" }],
       [`/v1/storefront/${route}/by-key/with%2Fslash`, {}],
       [`/v1/storefront/${route}/espresso-x1`, {}],
     ]);

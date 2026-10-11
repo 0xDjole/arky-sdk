@@ -2,6 +2,7 @@ import type { EpochMilliseconds } from "./time";
 import type {
   AccountActor,
   Actor,
+  CompanyPartyQuery,
   Currency,
   PostalAddress,
   SortDirection,
@@ -13,7 +14,7 @@ import type { PaymentTerms } from "./company";
 import type { InventoryTracking } from "./inventory";
 import type { BackorderPolicy } from "./product";
 import type { ShippingDeliveryEstimate } from "./shipping";
-import type { SubscriptionPurchaseOccurrence } from "./subscription";
+import type { CustomerGroupOccurrence } from "./customerGroup";
 
 export type RenewalRecoveryStatus = "recovering" | "exhausted" | "resolved";
 
@@ -27,7 +28,7 @@ export type OrderSource =
   | { type: "cart"; cart_id: string; placed_by: Actor }
   | {
       type: "renewal";
-      order_subscription_line_item_id: string;
+      order_customer_group_line_item_id: string;
       recovery: RenewalRecovery | null;
     };
 
@@ -45,23 +46,26 @@ export interface OrderTaxRegistration {
 }
 
 export type OrderBuyer =
-  | { type: "personal" }
+  | { type: "customer" }
   | {
       type: "company";
       company_id: string;
+      purchase_order_number: string | null;
+      tax_registrations: OrderTaxRegistration[];
+    }
+  | {
+      type: "company_location";
       company_location_id: string;
       purchase_order_number: string | null;
       tax_registrations: OrderTaxRegistration[];
     };
 
-export type OnAccountApproval =
-  | { type: "branch_terms" }
-  | { type: "account"; actor: AccountActor; reason: string };
+export type OnAccountApproval = { type: "buyer_terms" } | { type: "account"; reason: string };
 
 export type OrderCollection =
   | { type: "free" }
   | { type: "payment_option"; payment_option_id: string }
-  | { type: "subscription" }
+  | { type: "customer_group_member" }
   | {
       type: "on_account";
       payment_option_id: string;
@@ -85,7 +89,7 @@ export type OrderLineItemStatus =
 
 export type OrderLineItemOrigin =
   | { type: "direct" }
-  | { type: "subscription"; order_subscription_line_item_id: string; entitlement_id: string };
+  | { type: "customer_group"; order_customer_group_line_item_id: string; entitlement_id: string };
 
 export interface OrderAccessRevocation {
   actor: AccountActor;
@@ -130,11 +134,11 @@ export type OrderLinePrice =
       type: "purchase_access";
       price_id: string;
       catalog_id: string;
-      subscription_id: string | null;
+      customer_group_member_id: string | null;
     }
   | { type: "manual"; catalog_id: string; actor: AccountActor; reason: string }
   | { type: "offer" }
-  | { type: "subscription_allocation" };
+  | { type: "customer_group_allocation" };
 
 export interface OrderProductSnapshot {
   product_key: string;
@@ -242,11 +246,11 @@ export interface OrderTaxGroup {
   quantity: number;
 }
 
-export interface OrderSubscriptionLineItem {
+export interface OrderCustomerGroupLineItem {
   id: string;
-  subscription_id: string;
+  customer_group_member_id: string;
   revision_id: string;
-  occurrence: SubscriptionPurchaseOccurrence;
+  occurrence: CustomerGroupOccurrence;
   revocation: OrderAccessRevocation | null;
   status: OrderLineItemStatus;
   tax_groups: OrderTaxGroup[];
@@ -268,7 +272,7 @@ export interface OrderRentalUseLineItem {
 
 export interface OrderPurchaseAccessLineItem {
   id: string;
-  order_subscription_line_item_id: string;
+  order_customer_group_line_item_id: string;
   entitlement_id: string;
   revocation: OrderAccessRevocation | null;
   status: OrderLineItemStatus;
@@ -280,7 +284,7 @@ export interface OrderPurchaseAccessLineItem {
 export type OrderLineItem =
   | ({ type: "product" } & OrderProductLineItem)
   | ({ type: "booking" } & OrderBookingLineItem)
-  | ({ type: "subscription_plan" } & OrderSubscriptionLineItem)
+  | ({ type: "customer_group" } & OrderCustomerGroupLineItem)
   | ({ type: "rental_use" } & OrderRentalUseLineItem)
   | ({ type: "purchase_access" } & OrderPurchaseAccessLineItem);
 
@@ -292,7 +296,7 @@ export type OrderDeliveryDestination =
 
 export type DeliveryPricing =
   | { type: "rate"; rate_id: string }
-  | { type: "plan_terms"; delivery_terms_id: string };
+  | { type: "customer_group_delivery_terms"; delivery_terms_id: string };
 
 export type FulfillmentTiming =
   | { type: "asap" }
@@ -392,7 +396,7 @@ export interface FindOrdersParams {
   customer_id?: string;
   company_id?: string;
   company_location_id?: string;
-  subscription_id?: string;
+  customer_group_member_id?: string;
   statuses?: OrderStatus[];
   sources?: OrderSourceFilter[];
   product_statuses?: OrderItemStatusFilter[];
@@ -514,7 +518,8 @@ export interface FindOrderPaymentsParams {
   order_id: string;
 }
 
-export type StorefrontFindOrdersParams = Omit<FindOrdersParams, "store_id" | "customer_id">;
+export type StorefrontFindOrdersParams = CompanyPartyQuery &
+  Omit<FindOrdersParams, "store_id" | "customer_id" | "company_id" | "company_location_id">;
 
 export interface StorefrontGetOrderParams {
   id: string;
@@ -555,8 +560,8 @@ export function orderBookingItems(order: Pick<Order, "line_items"> | null) {
   return orderLineItemsOfType(order, "booking");
 }
 
-export function orderSubscriptionPlanItems(order: Pick<Order, "line_items"> | null) {
-  return orderLineItemsOfType(order, "subscription_plan");
+export function orderCustomerGroupItems(order: Pick<Order, "line_items"> | null) {
+  return orderLineItemsOfType(order, "customer_group");
 }
 
 export function orderRentalUseItems(order: Pick<Order, "line_items"> | null) {

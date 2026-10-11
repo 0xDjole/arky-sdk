@@ -3,11 +3,15 @@ import type { Block } from "./block";
 import type {
   AccountActor,
   Actor,
+  CommerceParty,
+  CommercePartyQuery,
   Money,
   ProviderEffectError,
   ProviderOperationClaim,
   SortDirection,
 } from "./common";
+import type { CustomerGroupMemberPaymentMethod } from "./customerGroup";
+import type { EmailFailure } from "./notification";
 
 export type MonriEnvironment = "test" | "live";
 
@@ -69,18 +73,16 @@ export interface StorefrontPaymentOption {
   type: PaymentOptionTypeName;
 }
 
-export type PayerBranches =
-  | { type: "all" }
-  | { type: "only"; company_location_id: string };
-
-export type Payer =
-  | { type: "customer"; customer_id: string }
-  | { type: "company"; company_id: string; branches: PayerBranches };
-
 export interface PaymentMethodConsent {
   given_by: Actor;
   accepted_at: EpochMilliseconds;
   terms_version: string;
+}
+
+export interface PaymentMethodConsentText {
+  terms_version: string;
+  language: string;
+  text: string;
 }
 
 export type CardDetails =
@@ -151,7 +153,7 @@ export type PaymentMethodType =
 export interface PaymentMethod {
   id: string;
   store_id: string;
-  owner: Payer;
+  owner: CommerceParty;
   payment_option_id: string;
   consent: PaymentMethodConsent;
   type: PaymentMethodType;
@@ -177,6 +179,7 @@ export type RefundReason =
   | "duplicate"
   | "fraudulent"
   | "store_closure"
+  | "recording_mistake"
   | "other";
 
 export interface RefundAllocation {
@@ -356,7 +359,7 @@ export type StripeCardPaymentStatus =
   | { type: "failed"; error: ProviderEffectError };
 
 export interface StripeCardPayment {
-  payment_method_id: string;
+  payment_method: CustomerGroupMemberPaymentMethod;
   purpose: CardPaymentPurpose;
   status: StripeCardPaymentStatus;
   refunds: StripeRefund[];
@@ -388,7 +391,7 @@ export type MonriCardPaymentStatus =
   | { type: "confirmed_not_made"; by: AccountActor };
 
 export interface MonriCardPayment {
-  payment_method_id: string;
+  payment_method: CustomerGroupMemberPaymentMethod;
   purpose: CardPaymentPurpose;
   status: MonriCardPaymentStatus;
   refunds: MonriRefund[];
@@ -486,6 +489,12 @@ export interface StripeEvent {
 export interface ResendEvent {
   event_type: string;
   email_id: string;
+  occurred_at: EpochMilliseconds;
+  notification_id: string | null;
+  store_id: string | null;
+  message_id: string | null;
+  recipients: string[];
+  failure: EmailFailure | null;
 }
 
 export type MonriTransactionType = "authorize" | "purchase" | "capture" | "refund" | "void";
@@ -515,20 +524,26 @@ export type ProviderEventType =
   | { type: "resend"; event: ResendEvent };
 
 export type ProviderEventTarget =
+  | { type: "conversation_message"; conversation_message_id: string }
+  | { type: "notification"; notification_id: string }
+  | { type: "email_suppression"; email_suppression_id: string }
   | { type: "payment"; payment_id: string }
   | { type: "payment_method"; payment_method_id: string }
-  | { type: "store_subscription"; store_subscription_id: string }
-  | { type: "email_suppression"; email_suppression_id: string }
-  | { type: "support_message"; support_message_id: string };
+  | { type: "store_subscription"; store_subscription_id: string };
+
+export type ProviderEventWaitReason =
+  | { type: "new" }
+  | { type: "unmatched"; reason: string }
+  | { type: "retry"; reason: string };
 
 export type ProviderEventStatus =
-  | { type: "received" }
-  | { type: "unmatched" }
-  | { type: "applied"; to: ProviderEventTarget }
-  | { type: "ignored" }
+  | { type: "waiting"; attempt: number; next_at: EpochMilliseconds; reason: ProviderEventWaitReason }
+  | { type: "processing"; attempt: number; until: EpochMilliseconds }
+  | { type: "applied"; to: ProviderEventTarget; at: EpochMilliseconds }
+  | { type: "ignored"; reason: string; at: EpochMilliseconds }
   | { type: "review"; reason: string; to: ProviderEventTarget | null };
 
-export type ProviderEventStatusName = ProviderEventStatus["type"];
+export type ProviderEventStatusName = "waiting" | "unmatched" | "processing" | "applied" | "ignored" | "review";
 
 export interface ProviderEvent {
   id: string;
@@ -628,15 +643,14 @@ export interface RefreshStripePaymentOptionParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindPaymentMethodsParams {
+export type FindPaymentMethodsParams = (
+  | (CommercePartyQuery & { payment_option_id?: never })
+  | { customer_id?: never; company_id?: never; company_location_id?: never; payment_option_id?: string }
+) & {
   store_id: string;
-  customer_id?: string;
-  company_id?: string;
-  company_location_id?: string;
-  payment_option_id?: string;
   limit?: number;
   cursor?: string | null;
-}
+};
 
 export interface GetPaymentMethodParams {
   store_id: string;
@@ -646,7 +660,7 @@ export interface GetPaymentMethodParams {
 export interface RequestPaymentMethodSetupParams {
   store_id: string;
   id: string;
-  owner: Payer;
+  owner: CommerceParty;
   payment_option_id: string;
   terms_version: string;
   accept_storage_and_off_session_use: true;
@@ -664,21 +678,31 @@ export interface RevokePaymentMethodParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface StorefrontFindPaymentMethodsParams {
-  company_id?: string;
-  company_location_id?: string;
-  payment_option_id?: string;
+export type StorefrontFindPaymentMethodsParams = CommercePartyQuery & {
   limit?: number;
   cursor?: string | null;
-}
+};
 
 export interface StorefrontGetPaymentMethodParams {
   id: string;
 }
 
+export interface GetPaymentMethodConsentTextParams {
+  store_id: string;
+  terms_version: string;
+}
+
+export interface StorefrontGetPaymentMethodConsentTextParams {
+  terms_version: string;
+}
+
+export interface StorefrontCurrentPaymentMethodConsentTextParams {
+  language: string;
+}
+
 export interface StorefrontRequestPaymentMethodSetupParams {
   id: string;
-  owner: Payer;
+  owner: CommerceParty;
   payment_option_id: string;
   terms_version: string;
   accept_storage_and_off_session_use: true;

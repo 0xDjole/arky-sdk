@@ -8,8 +8,8 @@ const STORE_ID = "9e4c7a21-3b58-4f06-8d1a-6c2e0b9f5a37";
 const methodId = "3c7e1a95-4d28-4b60-9f13-8e2a5d0c7b46";
 const owners = [
   { type: "customer", customer_id: ids.customer },
-  { type: "company", company_id: ids.company, branches: { type: "all" } },
-  { type: "company", company_id: ids.company, branches: { type: "only", company_location_id: ids.companyLocation } },
+  { type: "company", company_id: ids.company },
+  { type: "company_location", company_location_id: ids.companyLocation },
 ];
 
 function surfaceApi(surface) {
@@ -58,8 +58,8 @@ for (const surface of ["admin", "storefront", "initialized"]) {
   test(`${surface} method discovery and setup steps name the method and carry its version`, async (context) => {
     const calls = recordFetch(context, (call) => call.method === "GET" && call.path === base(surface) ? { items: [], cursor: null } : { id: methodId });
     const api = surfaceApi(surface);
-    const filters = { company_id: ids.company, company_location_id: ids.companyLocation, payment_option_id: ids.paymentOption, limit: 5, cursor: "next" };
-    await api.find({ ...target(surface), ...filters, ...(surface === "admin" ? { customer_id: ids.customer } : {}) });
+    const filters = { company_location_id: ids.companyLocation, limit: 5, cursor: "next" };
+    await api.find({ ...target(surface), ...filters });
     await api.get({ ...target(surface), id: methodId });
     await api.startSetup({ ...target(surface), id: methodId });
     await api.completeSetup({ ...target(surface), id: methodId });
@@ -74,12 +74,53 @@ for (const surface of ["admin", "storefront", "initialized"]) {
       ["POST", `${path}/setup/cancel`, { expected_updated_at: 5 }],
       ["POST", `${path}/revoke`, { expected_updated_at: 6 }],
     ]);
-    const expectedQuery = Object.fromEntries(Object.entries(filters).map(([key, value]) => [key, String(value)]));
-    if (surface === "admin") expectedQuery.customer_id = ids.customer;
-    assert.deepEqual(calls[0].query, expectedQuery);
+    assert.deepEqual(calls[0].query, { company_location_id: ids.companyLocation, limit: "5", cursor: "next" });
     assert.ok(calls.every((call) => !call.href.includes("store_id")));
   });
+
+  test(`${surface} reads a consent text by its terms version`, async (context) => {
+    const text = { terms_version: "2026-01/eu", language: "bs", text: "Pristajem da se kartica čuva." };
+    const calls = recordFetch(context, () => text);
+    const api = surfaceApi(surface);
+    assert.deepEqual(await api.consentText({ ...target(surface), terms_version: "2026-01/eu" }), text);
+    assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+      ["GET", `${base(surface)}/consent-texts/2026-01%2Feu`, {}, null],
+    ]);
+  });
 }
+
+test("the storefront reads the current consent text in the named language before a card is saved", async (context) => {
+  const text = { terms_version: "2026-01", language: "bs", text: "Pristajem da se kartica čuva." };
+  const calls = recordFetch(context, () => text);
+  for (const surface of ["storefront", "initialized"]) {
+    assert.deepEqual(await surfaceApi(surface).currentConsentText({ language: "bs" }), text);
+  }
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["GET", "/v1/storefront/payment-methods/consent-texts", { language: "bs" }, null],
+    ["GET", "/v1/storefront/payment-methods/consent-texts", { language: "bs" }, null],
+  ]);
+  assert.equal("currentConsentText" in surfaceApi("admin"), false);
+});
+
+test("a storefront card list names exactly the customer, company or location it lists and never a payment option", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  const api = surfaceApi("storefront");
+  await api.find({ customer_id: ids.customer });
+  await api.find({ company_id: ids.company, limit: 10 });
+  await api.find();
+  assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
+    ["GET", "/v1/storefront/payment-methods", { customer_id: ids.customer }],
+    ["GET", "/v1/storefront/payment-methods", { company_id: ids.company, limit: "10" }],
+    ["GET", "/v1/storefront/payment-methods", {}],
+  ]);
+  for (const call of calls) assert.equal("payment_option_id" in call.query, false);
+});
+
+test("Admin payment methods may list the cards saved for one payment option", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  await surfaceApi("admin").find({ store_id: STORE_ID, payment_option_id: ids.paymentOption, limit: 20 });
+  assert.deepEqual(calls.map(({ path, query }) => [path, query]), [[`/v1/stores/${STORE_ID}/payment-methods`, { payment_option_id: ids.paymentOption, limit: "20" }]]);
+});
 
 test("Admin payment methods refuse a missing store before any request", async (context) => {
   const calls = recordFetch(context, () => ({ id: methodId }));

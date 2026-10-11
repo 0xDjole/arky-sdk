@@ -21,7 +21,7 @@ export type RentalStatus =
 export interface Rental {
   id: string;
   store_id: string;
-  subscription_id: string;
+  customer_group_member_id: string;
   revision_id: string;
   entitlement_id: string;
   status: RentalStatus;
@@ -67,7 +67,7 @@ export interface GetRentalParams {
 
 export interface FindRentalsParams {
   store_id: string;
-  subscription_id?: string;
+  customer_group_member_id?: string;
   status?: RentalStatus["type"];
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
@@ -136,7 +136,7 @@ export interface CustomerRentalUnit {
 
 export interface CustomerRental {
   id: string;
-  subscription_id: string;
+  customer_group_member_id: string;
   product_key: string;
   variant_sku: string | null;
   quantity: number;
@@ -147,7 +147,7 @@ export interface CustomerRental {
 }
 
 export interface FindCustomerRentalsParams {
-  subscription_id: string;
+  customer_group_member_id: string;
   limit?: number;
   cursor?: string | null;
 }

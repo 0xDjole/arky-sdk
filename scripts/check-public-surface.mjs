@@ -66,6 +66,24 @@ const removedIdentifiers = [
   "CheckoutQuote",
   "captureEmail",
   "requireRequestId",
+  "createSubscriptionApi",
+  "createSubscriptionPlanApi",
+  "createSubscriptionOfferingApi",
+  "SubscriptionPlan",
+  "SubscriptionOffering",
+  "SubscriptionRevision",
+  "addSubscriptionPlan",
+  "EmailSender",
+  "createEmailSenderApi",
+  "StopNotificationParams",
+  "SupportChannel",
+  "SupportAutoReply",
+  "StorefrontClientRegistration",
+  "createStorefrontClientApi",
+  "Payer",
+  "PayerBranches",
+  "CompanyLocationReach",
+  "AllowedPaymentOptions",
 ];
 
 const removedIdentifierPattern = new RegExp(`\\b(?:${removedIdentifiers.join("|")})\\b`, "g");
@@ -124,22 +142,22 @@ function forbidPattern(path, pattern, message) {
 
 requirePattern("api/notification.ts", /export const createNotificationApi\b/, "notifications replace message deliveries");
 requirePattern("api/notification.ts", /export const createEmailDomainApi\b/, "email domains need their calls");
-requirePattern("api/notification.ts", /export const createEmailSenderApi\b/, "email senders need their calls");
+requirePattern("api/notification.ts", /export const createEmailAddressApi\b/, "email addresses replace email senders and support channels");
 requirePattern("api/broadcast.ts", /export const createBroadcastApi\b/, "broadcasts replace campaigns");
 requirePattern("api/support.ts", /support-flows/, "support flows replace support agents");
 requirePattern("api/payment.ts", /provider-events/, "provider events replace provider notifications");
 requirePattern("api/platform.ts", /\/v1\/platform\/administrators\/me/, "platform administrators read their own record");
-requirePattern("index.ts", /"X-Arky-Sales-Channel"/, "storefront requests name their sales channel");
+forbidPattern("index.ts", /X-Arky-Sales-Channel/i, "a storefront request sells through its key's channel and names none");
 requirePattern("index.ts", /"X-Arky-Locale"/, "storefront requests name their language");
 requirePattern("api/storefront.ts", /request-code`,\s*\{\s*id:\s*params\.id,\s*email:\s*params\.email,\s*language:\s*params\.language\s*\}/,
   "a sign-in code request names the email id and the language");
-forbidPattern("types/market.ts", /export interface CreateStorefrontClientParams\s*\{[^}]*publishable_key/,
+forbidPattern("types/market.ts", /export interface CreateStorefrontKeyParams\s*\{[^}]*publishable_key/,
   "Arky generates the publishable key; the create carries none");
 requirePattern("api/order.ts", /resend-receipt`,\s*\{\s*id:\s*params\.id\s*\}/, "a receipt resend posts only the app's id");
 forbidPattern("types/storeRole.ts", /"contact"/, "store permissions use \"email\"");
 requirePattern("api/store.ts", /storePath\(params\.store_id, "usage"\)/, "the owner's billing screen reads the store's usage");
 requirePattern("api/store.ts", /"subscription\/end-grant"/, "platform administrators end a granted plan");
-requirePattern("api/subscription.ts", /\/purchase-access`/, "staff read a subscription's purchase access");
+requirePattern("api/customerGroup.ts", /\/purchase-access`/, "staff read a customer group member's purchase access");
 requirePattern("api/return.ts", /\/execute`/, "return actions post to the return's execute route");
 requirePattern("api/return.ts", /\/credit`/, "a received return is credited through its own route");
 requirePattern("api/payment.ts", /\/resolve-charge`/, "a team member settles an unknown Monri card charge");
@@ -150,9 +168,10 @@ forbidPattern("api/storefront.ts", /\/quote`,\s*\{\s*language/, "storefront quot
 requirePattern("services/cartSelection.ts", /target_cart_id/, "a signed-in customer's cart selection follows the merged guest cart");
 requirePattern("api/storefront.ts", /cartSelection\.signedIn\(/, "verify records the sign-in so the cart selection can follow the merged guest cart");
 requirePattern("api/storefront.ts", /cartSelection\.reorder\(/, "a reordered cart becomes the cart selection, as a created one does");
-requirePattern("types/subscription.ts", /export interface StorefrontSubscriptionPlan \{[^}]*\bentitlements: StorefrontSubscriptionPlanEntitlement\[\];/, "the storefront plan card lists the card copy of its entitlements");
-forbidPattern("types/subscription.ts", /export interface StorefrontSubscriptionPlanEntitlement \{[^}]*\ballocation_weight\b/, "the storefront plan card hides allocation_weight");
-requirePattern("types/subscription.ts", /export interface SubscriptionPlanChange extends SubscriptionChangeVersion \{[^}]*\bcatalog_id\?: string;/, "a plan switch may name the catalog it is priced from");
+requirePattern("types/customerGroup.ts", /export interface StorefrontCustomerGroup \{[^}]*\bentitlements: StorefrontCustomerGroupEntitlement\[\];/, "the storefront group card lists the card copy of its entitlements");
+forbidPattern("types/customerGroup.ts", /export interface StorefrontCustomerGroupEntitlement \{[^}]*\ballocation_weight\b/, "the storefront group card hides allocation_weight");
+requirePattern("types/customerGroup.ts", /export interface SwitchCustomerGroupMemberParams extends CustomerGroupMemberActionParams \{[^}]*\bcatalog_id\?: string;/, "a group switch may name the catalog it is priced from");
+forbidPattern("types/customerGroup.ts", /export interface SwitchCustomerGroupMemberParams extends CustomerGroupMemberActionParams \{[^}]*\brentals\b/, "rentals move by one rule when the new terms start; a switch names none");
 
 for (const route of ["categories", "products", "booking-services"]) {
   requirePattern("api/storefront.ts", new RegExp(`\\$\\{base\\}/${route}/by-key/`), `storefront ${route} are read by key through their by-key route`);

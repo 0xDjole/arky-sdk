@@ -42,27 +42,37 @@ test("Admin reads need no Market or Store context and invent none", async (conte
   }
 });
 
-test("notification history routes keep recipient and owner filters and stop with the version", async (context) => {
+test("notification history routes keep recipient and owner filters, and a queued notification has no stop", async (context) => {
   const notification = {
     id: ids.payment,
-    type: { type: "receipt_resend", sender_id: ids.paymentOption, order_id: ids.order, to: "buyer@example.test" },
-    status: { type: "waiting" },
+    type: {
+      type: "email",
+      email_type: { type: "receipt_resend", sending_address_id: ids.paymentOption, order_id: ids.order, to: "buyer@example.test" },
+      send_before: null,
+      status: { type: "waiting" },
+    },
     created_at: 1,
     updated_at: 1,
   };
-  const responses = [{ items: [notification], cursor: null }, notification, notification];
+  const webhook = {
+    id: ids.credit,
+    type: { type: "webhook", store_id: storeId, webhook_id: ids.form, event_id: ids.submission, event_type: "order.created", status: { type: "acknowledged", at: 2 } },
+    created_at: 1,
+    updated_at: 2,
+  };
+  const responses = [{ items: [notification], cursor: null }, notification, { items: [webhook], cursor: null }];
   const calls = recordFetch(context, () => responses.shift());
   const client = admin();
   const page = await client.notification.find({ store_id: storeId, to: "buyer@example.test", type: "receipt_resend", order_id: ids.order, limit: 25 });
   assert.deepEqual(page.items, [notification]);
   assert.deepEqual(await client.notification.get({ store_id: storeId, id: notification.id }), notification);
-  assert.deepEqual(await client.notification.stop({ store_id: storeId, id: notification.id, expected_updated_at: 1 }), notification);
+  assert.deepEqual((await client.notification.find({ store_id: storeId, type: "webhook", webhook_id: ids.form })).items, [webhook]);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
     ["GET", `${baseUrl}/v1/stores/${storeId}/notifications?to=buyer%40example.test&type=receipt_resend&order_id=${ids.order}&limit=25`, null],
     ["GET", `${baseUrl}/v1/stores/${storeId}/notifications/${notification.id}`, null],
-    ["POST", `${baseUrl}/v1/stores/${storeId}/notifications/${notification.id}/stop`, { expected_updated_at: 1 }],
+    ["GET", `${baseUrl}/v1/stores/${storeId}/notifications?type=webhook&webhook_id=${ids.form}`, null],
   ]);
-  for (const removed of ["delivery", "mailbox", "email"]) assert.equal(removed in client.notification, false, removed);
+  for (const removed of ["stop", "cancel", "delivery", "mailbox", "email", "emailSender"]) assert.equal(removed in client.notification, false, removed);
 });
 
 test("admin code login activates the same pending Account Session and remembers the email it was asked for", async (context) => {
@@ -164,7 +174,7 @@ test("a camelCase error body is not the Server's shape: its field errors are not
 });
 
 test("Store create carries the app-picked id, its languages, first market and channel; update carries the version", async (context) => {
-  const store = { id: storeId, name: "Client Contract", owner_account_id: ids.account, timezone: "Europe/Sarajevo", languages: ["en", "bs"], status: { type: "active" }, created_at: 1, updated_at: 1 };
+  const store = { id: storeId, name: "Client Contract", owner_account_id: ids.account, timezone: "Europe/Sarajevo", languages: ["en", "bs"], status: { type: "active" }, email_sending: { type: "allowed" }, created_at: 1, updated_at: 1 };
   const calls = recordFetch(context, () => store);
   const create = {
     id: storeId,
@@ -201,7 +211,7 @@ test("Store locations and webhooks carry app-picked ids and versions; a webhook 
   await client.store.location.create({ store_id: storeId, id: ids.companyLocation, key: "main", address, timezone: "Europe/Sarajevo" });
   await client.store.location.update({ store_id: storeId, id: ids.companyLocation, expected_updated_at: 4, status: { type: "archived" } });
   await client.store.location.delete({ store_id: storeId, id: ids.companyLocation, expected_updated_at: 5 });
-  const webhook = { id: ids.form, url: "https://events.example.test/hook", events: [{ type: "customer.archived" }, { type: "form_submission.created", forms: { type: "all" } }], headers: {}, secret: "s".repeat(32), status: { type: "disabled" } };
+  const webhook = { id: ids.form, url: "https://events.example.test/hook", events: [{ type: "customer.archived" }, { type: "form_submission.created", forms: { form_ids: [ids.form, ids.submission] } }, { type: "customer_group_member.activated" }], headers: {}, secret: "s".repeat(32), status: { type: "disabled" } };
   await client.store.webhook.create({ store_id: storeId, ...webhook });
   await client.store.webhook.update({ store_id: storeId, id: ids.form, expected_updated_at: 6, status: { type: "active" } });
   await client.store.webhook.test({ store_id: storeId, id: ids.submission, webhook_id: ids.form });
@@ -334,8 +344,10 @@ test("admin Product writes carry the app-picked id and version and InventoryLeve
 test("storefront variant read carries the exact product and buyer context", async (context) => {
   const calls = recordFetch(context, () => ({}));
   const storefront = createStorefront(publishableKey, { apiUrl: baseUrl, locale: "en" });
-  await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", company_id: "company-one", company_location_id: "branch-one", include_price: true });
-  assert.equal(calls[0].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?company_id=company-one&company_location_id=branch-one&include_price=true`);
+  await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", company_location_id: "location-one", include_price: true });
+  await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", company_id: "company-one" });
+  assert.equal(calls[0].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?company_location_id=location-one&include_price=true`);
+  assert.equal(calls[1].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?company_id=company-one`);
   assert.equal(calls[0].headers.get("x-arky-publishable-key"), publishableKey);
 });
 
@@ -374,7 +386,7 @@ test("storefront money helpers preserve exact zero, need an explicit locale and 
 test("SDK_VERSION equals the package version", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(SDK_VERSION, packageJson.version);
-  assert.equal(SDK_VERSION, "0.26.85");
+  assert.equal(SDK_VERSION, "0.26.86");
 });
 
 test("recursive storefront declarations never degrade to any", async () => {

@@ -3,8 +3,8 @@ import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
   AddCartBookingParams,
+  AddCartCustomerGroupParams,
   AddCartProductParams,
-  AddCartSubscriptionPlanParams,
   Cart,
   CartAccessProductPreview,
   CartQuote,
@@ -15,10 +15,10 @@ import type {
   CreateCartOfferParams,
   CreateCartParams,
   CreatedCart,
+  CustomerGroupDeliveryOffers,
   FindCartsParams,
   GetCartParams,
   GetOrderPaymentActionParams,
-  PlanDeliveryOffers,
   PreviewCartAccessProductParams,
   QuoteCartFutureDeliveriesParams,
   QuoteCartParams,
@@ -77,10 +77,10 @@ export const createCartApi = (apiConfig: ApiConfig) => {
       return action<Cart>(store_id, id, "booking-items", body, options);
     },
 
-    addSubscriptionPlan(params: AddCartSubscriptionPlanParams, options?: RequestOptions): Promise<Cart> {
-      requireId(params.subscription_plan.id, "cart line");
+    addCustomerGroup(params: AddCartCustomerGroupParams, options?: RequestOptions): Promise<Cart> {
+      requireId(params.customer_group.id, "cart line");
       const { store_id, id, ...body } = params;
-      return action<Cart>(store_id, id, "subscription-plan-items", body, options);
+      return action<Cart>(store_id, id, "customer-group-items", body, options);
     },
 
     removeItem(params: RemoveCartItemParams, options?: RequestOptions): Promise<Cart> {
@@ -102,9 +102,12 @@ export const createCartApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.put<Cart>(`${cartPath(store_id, id)}/future-deliveries`, body, options);
     },
 
-    quoteFutureDeliveries(params: QuoteCartFutureDeliveriesParams, options?: RequestOptions): Promise<PlanDeliveryOffers[]> {
+    quoteFutureDeliveries(
+      params: QuoteCartFutureDeliveriesParams,
+      options?: RequestOptions,
+    ): Promise<CustomerGroupDeliveryOffers[]> {
       const { store_id, id, ...body } = params;
-      return action<PlanDeliveryOffers[]>(store_id, id, "future-delivery-quote", body, options);
+      return action<CustomerGroupDeliveryOffers[]>(store_id, id, "future-delivery-quote", body, options);
     },
 
     previewAccessProduct(params: PreviewCartAccessProductParams, options?: RequestOptions): Promise<CartAccessProductPreview> {

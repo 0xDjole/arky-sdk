@@ -114,8 +114,8 @@ export function createCartController(cartApi: CartApi): CartController {
       return mutate(() => cartApi.addBooking({ ...params, ...target(params) }, options));
     },
 
-    addSubscriptionPlan(params, options) {
-      return mutate(() => cartApi.addSubscriptionPlan({ ...params, ...target(params) }, options));
+    addCustomerGroup(params, options) {
+      return mutate(() => cartApi.addCustomerGroup({ ...params, ...target(params) }, options));
     },
 
     removeItem(params, options) {

@@ -68,9 +68,16 @@ export interface FormQuestionSnapshot {
   label: string;
 }
 
+export interface FormOptionSnapshot {
+  question_id: string;
+  option_key: string;
+  label: string;
+}
+
 export interface FormSubmissionSnapshot {
   form_key: string;
   questions: FormQuestionSnapshot[];
+  options: FormOptionSnapshot[];
 }
 
 export type FileFormat =
@@ -279,6 +286,7 @@ export type GetStorefrontFormParams = { id: string } | { key: string };
 
 export interface SubmitFormParams {
   form_id: string;
+  form_updated_at: EpochMilliseconds;
   id: string;
   language: string;
   answers: FormAnswerInput[];

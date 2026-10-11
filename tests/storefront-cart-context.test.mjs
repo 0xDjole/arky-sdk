@@ -16,7 +16,7 @@ import {
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
 
-const personal = { type: "personal" };
+const customerBuyer = { type: "customer" };
 const productLine = {
   type: "product",
   id: ids.line,
@@ -114,16 +114,16 @@ test("a market change clears the selected cart view, and a late read for the old
     return cartRecord({ id });
   });
   const store = initialize(publishableKey, { apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
-  await store.eshop.cart.create({ id: ids.cart, buyer: personal, catalog_id: ids.catalog });
+  await store.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog });
   store.setMarket("market-b");
-  await store.eshop.cart.create({ id: ids.otherCart, buyer: personal, catalog_id: ids.catalog });
+  await store.eshop.cart.create({ id: ids.otherCart, buyer: customerBuyer, catalog_id: ids.catalog });
   store.setMarket("market-a");
-  const first = store.eshop.cart.load({ buyer: personal, catalog_id: ids.catalog });
+  const first = store.eshop.cart.load({ buyer: customerBuyer, catalog_id: ids.catalog });
   const rejected = assert.rejects(first, /changed during the cart operation/);
   await reads.get(ids.cart).started;
   store.setMarket("market-b");
   assert.equal(store.eshop.cart.cart.get(), null);
-  const second = store.eshop.cart.load({ buyer: personal, catalog_id: ids.catalog });
+  const second = store.eshop.cart.load({ buyer: customerBuyer, catalog_id: ids.catalog });
   await reads.get(ids.otherCart).started;
   reads.get(ids.cart).release();
   await rejected;
@@ -142,10 +142,10 @@ test("a market change clears the selected cart view, and a late read for the old
   ]);
 });
 
-test("a cart with items keeps its market and sales channel until it is emptied", () => {
-  const store = storeWithCart({ salesChannel: "web" });
+test("a cart with items keeps its market until it is emptied, and the store has no sales channel to switch", () => {
+  const store = storeWithCart();
   assert.throws(() => store.setMarket("market-b"), (error) => error.code === "CART_MARKET_LOCKED");
-  assert.throws(() => store.setSalesChannel("pos"), (error) => error.code === "CART_SALES_CHANNEL_LOCKED");
+  for (const removed of ["setSalesChannel", "getSalesChannel", "sales_channel_key"]) assert.equal(removed in store, false, removed);
   store.setMarket("market-a");
   store.eshop.cart.cart.set(cartRecord());
   store.setMarket("market-b");

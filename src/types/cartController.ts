@@ -6,7 +6,7 @@ import type {
   CheckoutAcceptance,
   StorefrontAddCartBookingParams,
   StorefrontAddCartProductParams,
-  StorefrontAddCartSubscriptionPlanParams,
+  StorefrontAddCartCustomerGroupParams,
   StorefrontCheckoutCartParams,
   StorefrontClearCartParams,
   StorefrontCurrentCartParams,
@@ -23,7 +23,7 @@ export interface CartApi {
   update(params: StorefrontUpdateCartParams, options?: RequestOptions): Promise<Cart>;
   addProduct(params: StorefrontAddCartProductParams, options?: RequestOptions): Promise<Cart>;
   addBooking(params: StorefrontAddCartBookingParams, options?: RequestOptions): Promise<Cart>;
-  addSubscriptionPlan(params: StorefrontAddCartSubscriptionPlanParams, options?: RequestOptions): Promise<Cart>;
+  addCustomerGroup(params: StorefrontAddCartCustomerGroupParams, options?: RequestOptions): Promise<Cart>;
   removeItem(params: StorefrontRemoveCartItemParams, options?: RequestOptions): Promise<Cart>;
   clear(params: StorefrontClearCartParams, options?: RequestOptions): Promise<Cart>;
   selectShippingMethod(params: StorefrontSelectCartShippingMethodParams, options?: RequestOptions): Promise<Cart>;
@@ -52,7 +52,7 @@ export type CartControllerRefreshParams = StorefrontCurrentCartParams | Storefro
 export type CartControllerUpdateParams = CartVersioned<StorefrontUpdateCartParams>;
 export type CartControllerAddProductParams = CartVersioned<StorefrontAddCartProductParams>;
 export type CartControllerAddBookingParams = CartVersioned<StorefrontAddCartBookingParams>;
-export type CartControllerAddSubscriptionPlanParams = CartVersioned<StorefrontAddCartSubscriptionPlanParams>;
+export type CartControllerAddCustomerGroupParams = CartVersioned<StorefrontAddCartCustomerGroupParams>;
 export type CartControllerRemoveItemParams = CartVersioned<StorefrontRemoveCartItemParams>;
 export type CartControllerClearParams = CartVersioned<StorefrontClearCartParams>;
 export type CartControllerSelectShippingMethodParams = CartVersioned<StorefrontSelectCartShippingMethodParams>;
@@ -70,7 +70,7 @@ export interface CartController {
   update(params: CartControllerUpdateParams, options?: RequestOptions): Promise<Cart>;
   addProduct(params: CartControllerAddProductParams, options?: RequestOptions): Promise<Cart>;
   addBooking(params: CartControllerAddBookingParams, options?: RequestOptions): Promise<Cart>;
-  addSubscriptionPlan(params: CartControllerAddSubscriptionPlanParams, options?: RequestOptions): Promise<Cart>;
+  addCustomerGroup(params: CartControllerAddCustomerGroupParams, options?: RequestOptions): Promise<Cart>;
   removeItem(params: CartControllerRemoveItemParams, options?: RequestOptions): Promise<Cart>;
   clear(params: CartControllerClearParams, options?: RequestOptions): Promise<Cart>;
   selectShippingMethod(params: CartControllerSelectShippingMethodParams, options?: RequestOptions): Promise<Cart>;

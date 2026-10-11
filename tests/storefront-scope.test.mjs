@@ -19,7 +19,7 @@ import {
 
 const visitorTokenA = `customer_visitor_${"a".repeat(64)}`;
 const visitorTokenB = `customer_visitor_${"b".repeat(64)}`;
-const personal = { type: "personal" };
+const customerBuyer = { type: "customer" };
 
 function issued(token = visitorTokenA, customerId = ids.customer, sessionId = ids.session) {
   return { customer: customerRecord(customerId), session: visitorSession(customerId, sessionId, token) };
@@ -322,8 +322,8 @@ test("withContext gets its own visitor while reusing the explicit request storag
   await scoped.customer.identify();
   assert.equal(scoped.session.customer.id, ids.otherCustomer);
   assert.equal(root.session.customer.id, ids.customer);
-  await root.eshop.cart.create({ id: ids.cart, buyer: personal, catalog_id: null });
-  await scoped.eshop.cart.create({ id: ids.otherCart, buyer: personal, catalog_id: null });
+  await root.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, catalog_id: null });
+  await scoped.eshop.cart.create({ id: ids.otherCart, buyer: customerBuyer, catalog_id: null });
   const carts = calls.filter((call) => call.path === "/v1/storefront/carts");
   assert.deepEqual(carts.map((call) => [call.headers.get("x-arky-market"), call.headers.get("authorization")]), [
     ["bih", `Bearer ${visitorTokenA}`],

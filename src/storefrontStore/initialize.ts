@@ -5,21 +5,21 @@ import type {
   Cart,
   CartBuyer,
   CartDeliveryGroup,
+  CartCustomerGroupDeliveries,
   CartLineItem,
-  CartPlanDeliveries,
   CartQuote,
   CheckoutAcceptance,
-  PlanDeliveryChoices,
-  PlanDeliveryOffers,
+  CustomerGroupDeliveryChoices,
+  CustomerGroupDeliveryOffers,
   StorefrontCartBookingLineItemInput,
+  StorefrontCartCustomerGroupLineItemInput,
   StorefrontCartLineItemInput,
   StorefrontCartProductLineItemInput,
-  StorefrontCartSubscriptionLineItemInput,
   StorefrontCheckoutCartInput,
   StorefrontCreateCartParams,
   StorefrontCurrentCartParams,
 } from "../types/cart";
-import { cartBookingItems, cartProductItems, cartSubscriptionPlanItems } from "../types/cart";
+import { cartBookingItems, cartCustomerGroupItems, cartProductItems } from "../types/cart";
 import { CartSelectionError } from "../types/cartSelection";
 import type { CatalogReadOptions } from "../types/catalog";
 import type { PostalAddress } from "../types/common";
@@ -96,11 +96,11 @@ function cartLineInput(line: CartLineItem): StorefrontCartLineItemInput {
         capacity_units: line.capacity_units,
         form_submission_id: line.form_submission_id,
       };
-    case "subscription_plan":
+    case "customer_group":
       return {
-        type: "subscription_plan",
+        type: "customer_group",
         id: line.id,
-        subscription_plan_id: line.subscription_plan_id,
+        customer_group_id: line.customer_group_id,
         start: line.start,
         deliveries: line.deliveries,
       };
@@ -113,7 +113,6 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
   const setup = atom<StorefrontSetup | null>(null);
   const locale = atom(client.getLocale());
   const market_key = atom(client.getMarket());
-  const sales_channel_key = atom(client.getSalesChannel());
   const resolvedMarket = atom<StorefrontMarket | null>(null);
   const market = computed([market_key, resolvedMarket], (key, value) => (key && value?.key === key ? value : null));
   const currency = computed(market, (value) => value?.currency ?? null);
@@ -132,11 +131,11 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
   });
   const product_items = computed(cart, (value) => cartProductItems(value));
   const booking_items = computed(cart, (value) => cartBookingItems(value));
-  const subscription_plan_items = computed(cart, (value) => cartSubscriptionPlanItems(value));
+  const customer_group_items = computed(cart, (value) => cartCustomerGroupItems(value));
   const product_item_count = computed(product_items, (items) => items.reduce((total, item) => total + item.quantity, 0));
   const item_count = computed(
-    [product_item_count, booking_items, subscription_plan_items],
-    (products, bookings, plans) => products + bookings.length + plans.length,
+    [product_item_count, booking_items, customer_group_items],
+    (products, bookings, groups) => products + bookings.length + groups.length,
   );
   const promotion_codes = computed(quote, (value) =>
     (value?.promotions ?? []).flatMap((promotion) => (promotion.code ? [promotion.code.code] : [])),
@@ -243,19 +242,6 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
     }
   }
 
-  function setSalesChannel(key: string): void {
-    if (key !== sales_channel_key.get() && item_count.get() > 0) {
-      throw Object.assign(new Error("The sales channel can't change while the cart has items"), {
-        code: "CART_SALES_CHANNEL_LOCKED",
-      });
-    }
-    client.setSalesChannel(key);
-    if (key !== sales_channel_key.get()) {
-      sales_channel_key.set(key);
-      invalidateContext();
-    }
-  }
-
   function setLocale(value: string): void {
     if (value !== locale.get()) quote.set(null);
     client.setLocale(value);
@@ -264,7 +250,6 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
 
   function setContext(context: ArkyStoreContext): void {
     if (context.market !== undefined) setMarket(context.market);
-    if (context.salesChannel !== undefined) setSalesChannel(context.salesChannel);
     if (context.locale !== undefined) setLocale(context.locale);
   }
 
@@ -372,9 +357,9 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
     );
   }
 
-  function addSubscriptionPlan(subscriptionPlan: StorefrontCartSubscriptionLineItemInput): Promise<Cart> {
-    return runCartWrite("The plan couldn't be added to the cart", (current) =>
-      client.eshop.cart.addSubscriptionPlan({ ...updateBody(current), subscription_plan: subscriptionPlan }),
+  function addCustomerGroup(customerGroup: StorefrontCartCustomerGroupLineItemInput): Promise<Cart> {
+    return runCartWrite("The group couldn't be added to the cart", (current) =>
+      client.eshop.cart.addCustomerGroup({ ...updateBody(current), customer_group: customerGroup }),
     );
   }
 
@@ -444,17 +429,20 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
     );
   }
 
-  function setFutureDeliveries(plans: CartPlanDeliveries[]): Promise<Cart> {
-    return runCartWrite("The plan deliveries couldn't be saved", (current) =>
-      client.eshop.cart.setFutureDeliveries({ ...updateBody(current), plans }),
+  function setFutureDeliveries(customerGroups: CartCustomerGroupDeliveries[]): Promise<Cart> {
+    return runCartWrite("The group deliveries couldn't be saved", (current) =>
+      client.eshop.cart.setFutureDeliveries({ ...updateBody(current), customer_groups: customerGroups }),
     );
   }
 
-  async function quoteFutureDeliveries(plans: PlanDeliveryChoices[], options?: RequestOptions): Promise<PlanDeliveryOffers[]> {
+  async function quoteFutureDeliveries(
+    customerGroups: CustomerGroupDeliveryChoices[],
+    options?: RequestOptions,
+  ): Promise<CustomerGroupDeliveryOffers[]> {
     const scope = await beginCartOperation();
     const current = requireCart();
     requireLocale();
-    const result = await client.eshop.cart.quoteFutureDeliveries({ id: current.id, plans }, options);
+    const result = await client.eshop.cart.quoteFutureDeliveries({ id: current.id, customer_groups: customerGroups }, options);
     scope.assertCurrent();
     return result;
   }
@@ -728,12 +716,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
       bookingAvailabilityReadRevision += 1;
       eshop_state.setKey("loading_availability", false);
       eshop_state.setKey("availability", null);
-      bookingCatalogOptions = {
-        catalog_id: catalogOptions.catalog_id,
-        company_id: catalogOptions.company_id,
-        company_location_id: catalogOptions.company_location_id,
-        include_price: true,
-      };
+      bookingCatalogOptions = { ...catalogOptions, include_price: true };
       booking_service_state.set({
         ...booking_service_state.get(),
         bookingService: null,
@@ -753,7 +736,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
       });
       try {
         const [fullService, offeringPage] = await Promise.all([
-          client.eshop.bookingService.get({ id: bookingService.id, ...bookingCatalogOptions }),
+          client.eshop.bookingService.get({ ...bookingCatalogOptions, id: bookingService.id }),
           client.eshop.bookingOffering.find({ ...bookingCatalogOptions, booking_service_id: bookingService.id, limit: 200 }),
         ]);
         const ids = [...new Set(offeringPage.items.map((offering) => offering.booking_resource_id))];
@@ -839,10 +822,9 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
           from = epochMilliseconds(Date.UTC(month.getFullYear(), month.getMonth(), 1));
           to = epochMilliseconds(Date.UTC(month.getFullYear(), month.getMonth() + 1, 1));
         }
+        const { include_price: _includePrice, ...catalog } = bookingCatalogOptions;
         const availability = await loadBookingAvailability({
-          catalog_id: bookingCatalogOptions.catalog_id,
-          company_id: bookingCatalogOptions.company_id,
-          company_location_id: bookingCatalogOptions.company_location_id,
+          ...catalog,
           booking_service_id: state.bookingService.id,
           from,
           to,
@@ -1132,7 +1114,13 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
   function submitFormByKey(params: ArkySubmitFormByKeyParams, options?: RequestOptions): Promise<StorefrontFormSubmission> {
     if (params.form.key !== params.key) throw new Error("The form shown isn't the form named by the key");
     return submitForm(
-      { form_id: params.form.id, id: params.id, language: params.language, answers: buildFormAnswers(params.form, params.values) },
+      {
+        form_id: params.form.id,
+        form_updated_at: params.form.updated_at,
+        id: params.id,
+        language: params.language,
+        answers: buildFormAnswers(params.form, params.values),
+      },
       options,
     );
   }
@@ -1208,7 +1196,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
     cart,
     product_items,
     booking_items,
-    subscription_plan_items,
+    customer_group_items,
     quote_result: quote,
     promotion_codes,
     last_order,
@@ -1220,7 +1208,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
     addProduct,
     setProductQuantity,
     addBooking,
-    addSubscriptionPlan,
+    addCustomerGroup,
     removeItem,
     setDeliveryGroups,
     setBillingAddress,
@@ -1262,7 +1250,6 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
     setup,
     market,
     market_key,
-    sales_channel_key,
     locale,
     currency,
     allowed_payment_option_ids,
@@ -1270,6 +1257,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
       identify: client.customer.identify,
       requestCode: client.customer.requestCode,
       verify: client.customer.verify,
+      changeEmail: client.customer.changeEmail,
       refresh: client.customer.refresh,
       logout: client.customer.logout,
       getMe: client.customer.getMe,
@@ -1285,11 +1273,9 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
     },
     ensureSession,
     setMarket,
-    setSalesChannel,
     setLocale,
     setContext,
     getMarket: () => market_key.get(),
-    getSalesChannel: () => sales_channel_key.get(),
     getLocale: () => locale.get(),
     media: client.media,
     content: {
@@ -1329,12 +1315,13 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
       return: client.eshop.return,
       rental: client.eshop.rental,
       paymentMethod: client.eshop.paymentMethod,
-      subscription: client.eshop.subscription,
+      customerGroup: client.eshop.customerGroup,
+      customerGroupOffering: client.eshop.customerGroupOffering,
+      customerGroupMember: client.eshop.customerGroupMember,
+      minimumProgress: client.eshop.minimumProgress,
       cart: cart_store,
     },
     companies: client.companies,
-    subscription_offerings: client.subscription_offerings,
-    subscription_plans: client.subscription_plans,
     actions: {
       track: trackCustomerAction,
       pageView(data: Record<string, unknown> = {}) {
@@ -1370,7 +1357,6 @@ function initializeStore(publishableKey: string, config: ArkyStoreConfig, scoped
           ...config,
           locale: context.locale ?? store.getLocale(),
           market: context.market ?? store.getMarket(),
-          salesChannel: context.salesChannel ?? store.getSalesChannel(),
         },
         store.client.withContext(context),
       );

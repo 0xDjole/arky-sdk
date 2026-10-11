@@ -17,6 +17,7 @@ export type ShippingMethodType =
 export type ShippingRateCondition =
   | { type: "sales_channel"; ids: string[] }
   | { type: "customer_group"; ids: string[] }
+  | { type: "customer_group_offering"; ids: string[] }
   | { type: "company"; ids: string[] }
   | { type: "company_location"; ids: string[] }
   | { type: "minimum_subtotal"; amount: number }

@@ -2,6 +2,7 @@ import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
+  AllowStoreEmailSendingParams,
   CreateStorePortalSessionParams,
   CreateStoreParams,
   EndStoreGrantParams,
@@ -9,6 +10,7 @@ import type {
   FindStoresParams,
   GetStoreParams,
   GetStoreSubscriptionParams,
+  PauseStoreEmailSendingParams,
   RequestStoreDeletionParams,
   SelectStorePlanParams,
   Store,
@@ -19,6 +21,7 @@ import type {
   UpdateStoreParams,
 } from "../types/store";
 import type {
+  AcceptStoreInviteParams,
   AddStoreMemberParams,
   ChangeStoreMemberStatusParams,
   FindOwnStoreMembershipsParams,
@@ -53,6 +56,22 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
 
   find(params: FindStoresParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Store>> {
     return apiConfig.httpClient.get<PaginatedResponse<Store>>("/v1/stores", { ...options, params });
+  },
+
+  pauseEmailSending(params: PauseStoreEmailSendingParams, options?: RequestOptions): Promise<Store> {
+    return apiConfig.httpClient.post<Store>(
+      storePath(params.store_id, "pause-email-sending"),
+      { expected_updated_at: params.expected_updated_at, reason: params.reason },
+      options,
+    );
+  },
+
+  allowEmailSending(params: AllowStoreEmailSendingParams, options?: RequestOptions): Promise<Store> {
+    return apiConfig.httpClient.post<Store>(
+      storePath(params.store_id, "allow-email-sending"),
+      { expected_updated_at: params.expected_updated_at },
+      options,
+    );
   },
 
   requestDeletion(params: RequestStoreDeletionParams, options?: RequestOptions): Promise<Store> {
@@ -136,6 +155,14 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
 
     getOwn(params: GetOwnStoreMembershipParams, options?: RequestOptions): Promise<StoreMembershipWithStoreName | null> {
       return apiConfig.httpClient.get<StoreMembershipWithStoreName | null>(storePath(params.store_id, "membership"), options);
+    },
+
+    acceptInvite(params: AcceptStoreInviteParams, options?: RequestOptions): Promise<StoreMembership> {
+      return apiConfig.httpClient.post<StoreMembership>(
+        storePath(params.store_id, "membership/accept"),
+        { expected_updated_at: params.expected_updated_at },
+        options,
+      );
     },
 
     remove(params: RemoveStoreMemberParams, options?: RequestOptions): Promise<boolean> {

@@ -2,8 +2,8 @@ import type { EpochMilliseconds } from "../types/time";
 import { epochMilliseconds, epochMillisecondsNow } from "../utils/time";
 import { buildQueryString, type QueryParams } from "../utils/queryParams";
 
-import type { TokenSet, AuthStorage, RequestSuccessContext, RequestErrorContext, RequestOptions, ScheduledMutationOptions, HttpClient, HttpClientConfig, ServerError, HttpRequestErrorDetails } from "../types/httpClient";
-export type { TokenSet, AuthStorage, RequestSuccessContext, RequestErrorContext, RequestOptions, ScheduledMutationOptions, HttpClient, HttpClientConfig } from "../types/httpClient";
+import type { TokenSet, AuthStorage, RequestSuccessContext, RequestErrorContext, RequestOptions, HttpClient, HttpClientConfig, ServerError, HttpRequestErrorDetails } from "../types/httpClient";
+export type { TokenSet, AuthStorage, RequestSuccessContext, RequestErrorContext, RequestOptions, HttpClient, HttpClientConfig } from "../types/httpClient";
 
 function requestError(
   name: "ApiError" | "NetworkError" | "ParseError" | "AbortError",

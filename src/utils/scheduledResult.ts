@@ -1,8 +1,3 @@
-import type {
-  RequestOptions,
-  ScheduledMutationOptions,
-} from "../services/createHttpClient";
-
 const SCHEDULED_RESULT_TIMEOUT_MS = 20_000;
 const SCHEDULED_RESULT_INITIAL_DELAY_MS = 50;
 const SCHEDULED_RESULT_MAX_DELAY_MS = 1_000;
@@ -18,49 +13,6 @@ export class ScheduledResultTimeoutError<T = unknown> extends Error {
     this.name = "ScheduledResultTimeoutError";
     this.lastResult = lastResult;
   }
-}
-
-export function scheduledObservationOptions<T>(
-  options?: Pick<RequestOptions, "headers" | "signal">,
-  signal?: AbortSignal,
-): RequestOptions<T> | undefined {
-  if (!options && !signal) return undefined;
-
-  const observation: RequestOptions<T> = {};
-  if (options?.headers !== undefined) observation.headers = options.headers;
-  if (signal !== undefined) {
-    observation.signal = signal;
-  } else if (options?.signal !== undefined) {
-    observation.signal = options.signal;
-  }
-
-  return observation;
-}
-
-export function prepareScheduledMutation<T = unknown, Payload = unknown>(
-  body: Payload,
-  options?: ScheduledMutationOptions<T>,
-): {
-  body: Payload;
-  options: RequestOptions<T> | undefined;
-  afterResponse(response: T): Promise<void>;
-} {
-  if (!options) {
-    return {
-      body,
-      options: undefined,
-      async afterResponse() {},
-    };
-  }
-
-  const { transformRequest, onScheduledResponse, ...initialOptions } = options;
-  return {
-    body: transformRequest ? (transformRequest(body) as Payload) : body,
-    options: initialOptions,
-    async afterResponse(response) {
-      await onScheduledResponse?.(response);
-    },
-  };
 }
 
 function scheduledDelay(attempt: number): number {

@@ -188,3 +188,54 @@ test("own workspace discovery retains each Store name and access without public 
   assert.deepEqual(page.items.map(({ store_name }) => store_name), ["First Store", "Second Store"]);
   assert.deepEqual(calls, [{ path: "/v1/stores/memberships", method: "GET" }]);
 });
+
+test("an invite is resent by inviting again, names its expiry, and is accepted with the membership version", async (context) => {
+  const expiresAt = 1_800_000_000_000;
+  const invited = { id: "member", store_id: storeId, store_name: "Contract Store", account_id: accountId, role_ids: [roleId], access: { permissions: [] }, status: { type: "invited", expires_at: expiresAt }, created_at: 1, updated_at: 2 };
+  const accepted = { id: "member", store_id: storeId, account_id: accountId, role_ids: [roleId], status: { type: "active" }, created_at: 1, updated_at: 3 };
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    const parsed = new URL(url);
+    const call = { url: parsed, method: init.method ?? "GET", body: init.body ? JSON.parse(String(init.body)) : null };
+    calls.push(call);
+    const body = parsed.pathname.endsWith("/invitation") ? true : parsed.pathname.endsWith("/membership/accept") ? accepted : invited;
+    return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  const admin = createAdmin({ baseUrl, apiToken: "arky_account_access_contract" });
+  const invite = { store_id: storeId, email: "packer@example.test", role_ids: [roleId] };
+  assert.equal(await admin.store.member.invite(invite), true);
+  assert.equal(await admin.store.member.invite(invite), true);
+  const own = await admin.store.member.getOwn({ store_id: storeId });
+  assert.deepEqual(own.status, { type: "invited", expires_at: expiresAt });
+  assert.deepEqual(await admin.store.member.acceptInvite({ store_id: storeId, expected_updated_at: own.updated_at }), accepted);
+  assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname, body]), [
+    ["POST", `/v1/stores/${storeId}/invitation`, { email: "packer@example.test", role_ids: [roleId] }],
+    ["POST", `/v1/stores/${storeId}/invitation`, { email: "packer@example.test", role_ids: [roleId] }],
+    ["GET", `/v1/stores/${storeId}/membership`, null],
+    ["POST", `/v1/stores/${storeId}/membership/accept`, { expected_updated_at: 2 }],
+  ]);
+  for (const store_id of [undefined, "slug", storeId.toUpperCase()]) {
+    await assert.rejects(async () => admin.store.member.acceptInvite({ store_id, expected_updated_at: 2 }), { name: "TypeError", message: "A Store target must be an explicit canonical UUID-v4" });
+  }
+  assert.equal(calls.length, 4);
+});
+
+test("a store's email sending is paused with a reason and allowed again, each with the store version", async (context) => {
+  const paused = { id: storeId, name: "Contract Store", owner_account_id: accountId, email_sending: { type: "paused", reason: "Bounce rate review" }, updated_at: 5 };
+  const allowed = { ...paused, email_sending: { type: "allowed" }, updated_at: 6 };
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    const parsed = new URL(url);
+    calls.push({ url: parsed, method: init.method ?? "GET", body: init.body ? JSON.parse(String(init.body)) : null });
+    return new Response(JSON.stringify(parsed.pathname.endsWith("/pause-email-sending") ? paused : allowed), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  const admin = createAdmin({ baseUrl, apiToken: "arky_account_access_contract" });
+  assert.deepEqual((await admin.store.pauseEmailSending({ store_id: storeId, expected_updated_at: 4, reason: "Bounce rate review" })).email_sending, paused.email_sending);
+  assert.deepEqual((await admin.store.allowEmailSending({ store_id: storeId, expected_updated_at: 5 })).email_sending, { type: "allowed" });
+  assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname + url.search, body]), [
+    ["POST", `/v1/stores/${storeId}/pause-email-sending`, { expected_updated_at: 4, reason: "Bounce rate review" }],
+    ["POST", `/v1/stores/${storeId}/allow-email-sending`, { expected_updated_at: 5 }],
+  ]);
+  await assert.rejects(async () => admin.store.pauseEmailSending({ store_id: "store", expected_updated_at: 4, reason: "x" }), TypeError);
+  assert.equal(calls.length, 2);
+});

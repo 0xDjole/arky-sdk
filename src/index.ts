@@ -9,6 +9,7 @@ import type {
   StorefrontApiConfig,
 } from "./services/clientTypes";
 import type {
+  ChangeCustomerEmailParams,
   Customer,
   CustomerCodeResult,
   CustomerMe,
@@ -34,13 +35,22 @@ import {
   createCompanyRoleApi,
 } from "./api/company";
 import { createCollectionApi, createEntryApi } from "./api/content";
-import { createCustomerGroupApi, createCustomerGroupMemberApi } from "./api/customerGroup";
+import {
+  createCustomerGroupApi,
+  createCustomerGroupMemberApi,
+  createCustomerGroupOfferingApi,
+} from "./api/customerGroup";
 import { createCustomersApi } from "./api/customers";
 import { createDigitalAssetApi } from "./api/digitalAsset";
 import { createEmailSuppressionApi } from "./api/emailSuppression";
 import { createExperimentsApi } from "./api/experiments";
 import { createFormsApi } from "./api/forms";
-import { createFulfillmentApi, createFulfillmentJobApi, createFulfillmentRoutingApi } from "./api/fulfillment";
+import {
+  createFulfillmentApi,
+  createFulfillmentJobApi,
+  createFulfillmentRoutingApi,
+  createMinimumProgressApi,
+} from "./api/fulfillment";
 import { createInventoryItemApi } from "./api/inventoryItem";
 import { createInventoryLevelApi } from "./api/inventoryLevel";
 import { createInventoryMovementApi } from "./api/inventoryMovement";
@@ -55,8 +65,8 @@ import {
   createOrderNoteApi,
 } from "./api/note";
 import {
+  createEmailAddressApi,
   createEmailDomainApi,
-  createEmailSenderApi,
   createEmailTemplateApi,
   createNotificationApi,
 } from "./api/notification";
@@ -73,7 +83,7 @@ import { createSalesChannelApi } from "./api/salesChannel";
 import { createShippingMethodApi } from "./api/shippingMethod";
 import { createShippingProfileApi } from "./api/shippingProfile";
 import { createStoreApi } from "./api/store";
-import { createStorefrontClientApi } from "./api/storefrontClient";
+import { createStorefrontKeyApi } from "./api/storefrontKey";
 import { createStoreRoleApi } from "./api/storeRole";
 import {
   createStorefrontApi,
@@ -82,11 +92,6 @@ import {
   type RequestCustomerCodeParams,
   type VerifyCustomerCodeParams,
 } from "./api/storefront";
-import {
-  createSubscriptionApi,
-  createSubscriptionOfferingApi,
-  createSubscriptionPlanApi,
-} from "./api/subscription";
 import { createAdminSupportApi, createStorefrontSupportApi } from "./api/support";
 import { createTaxCategoryApi } from "./api/taxCategory";
 import { createWebhookApi } from "./api/webhook";
@@ -133,11 +138,11 @@ export {
   BROADCAST_BLOCK_FIELD_PREFIXES,
   cartProductItems,
   cartBookingItems,
-  cartSubscriptionPlanItems,
+  cartCustomerGroupItems,
   orderLineItemsOfType,
   orderProductItems,
   orderBookingItems,
-  orderSubscriptionPlanItems,
+  orderCustomerGroupItems,
   orderRentalUseItems,
   orderPurchaseAccessItems,
   MonriCheckoutError,
@@ -187,7 +192,7 @@ export { createCartController } from "./cartController";
 export { buildFormAnswers, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.85";
+export const SDK_VERSION = "0.26.86";
 export const SUPPORTED_FRAMEWORKS = ["astro", "react", "vue", "svelte", "vanilla"] as const;
 
 export interface AdminSession {
@@ -330,7 +335,7 @@ export function createAdmin(config: CreateAdminConfig) {
       location: createLocationApi(apiConfig),
       market: createMarketApi(apiConfig),
       salesChannel: createSalesChannelApi(apiConfig),
-      storefrontClient: createStorefrontClientApi(apiConfig),
+      storefrontKey: createStorefrontKeyApi(apiConfig),
       paymentOption: createPaymentOptionApi(apiConfig),
       zone: createZoneApi(apiConfig),
       taxCategory: createTaxCategoryApi(apiConfig),
@@ -341,7 +346,7 @@ export function createAdmin(config: CreateAdminConfig) {
       ...createNotificationApi(apiConfig),
       template: createEmailTemplateApi(apiConfig),
       emailDomain: createEmailDomainApi(apiConfig),
-      emailSender: createEmailSenderApi(apiConfig),
+      emailAddress: createEmailAddressApi(apiConfig),
     },
     broadcast: createBroadcastApi(apiConfig),
     support: supportApi,
@@ -384,10 +389,8 @@ export function createAdmin(config: CreateAdminConfig) {
       promotion: createPromotionApi(apiConfig),
       promotionCode: createPromotionCodeApi(apiConfig),
       customerGroup: createCustomerGroupApi(apiConfig),
+      customerGroupOffering: createCustomerGroupOfferingApi(apiConfig),
       customerGroupMember: createCustomerGroupMemberApi(apiConfig),
-      subscriptionOffering: createSubscriptionOfferingApi(apiConfig),
-      subscriptionPlan: createSubscriptionPlanApi(apiConfig),
-      subscription: createSubscriptionApi(apiConfig),
       paymentMethod: createPaymentMethodApi(apiConfig),
       payment: createPaymentApi(apiConfig),
       providerEvent: createProviderEventApi(apiConfig),
@@ -403,6 +406,7 @@ export function createAdmin(config: CreateAdminConfig) {
       fulfillmentRouting: createFulfillmentRoutingApi(apiConfig),
       fulfillmentJob: createFulfillmentJobApi(apiConfig),
       fulfillment: createFulfillmentApi(apiConfig),
+      minimumProgress: createMinimumProgressApi(apiConfig),
       return: createReturnApi(apiConfig),
       rental: createRentalApi(apiConfig),
     },
@@ -457,7 +461,6 @@ export interface StorefrontSessionStorage {
 export interface StorefrontContext {
   locale?: string;
   market?: string;
-  salesChannel?: string;
 }
 
 export interface StorefrontOptions extends StorefrontContext {
@@ -595,7 +598,6 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
   const apiUrl = normalizeStorefrontApiUrl(options.apiUrl);
   let locale = options.locale?.trim() ?? "";
   let market = contextKey(options.market, "market");
-  let salesChannel = contextKey(options.salesChannel, "sales channel");
   const listeners = new Set<AuthStateListener<StorefrontCustomerSession>>();
   let identifyPromise: Promise<CustomerSessionResult> | null = null;
   let identityTail: Promise<void> = Promise.resolve();
@@ -681,7 +683,6 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     "X-Arky-Publishable-Key": publishableKey,
     ...(locale ? { "X-Arky-Locale": locale } : {}),
     ...(market ? { "X-Arky-Market": market } : {}),
-    ...(salesChannel ? { "X-Arky-Sales-Channel": salesChannel } : {}),
   });
   const httpClient = createHttpClient({
     baseUrl: apiUrl,
@@ -736,7 +737,6 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
       storage: sessionStorage,
       customerId: () => memorySession?.customer.id ?? null,
       market: () => market || null,
-      salesChannel: () => salesChannel || null,
     },
   );
   const customerApi = storefrontApi.customer;
@@ -776,6 +776,15 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     requireVisitorSessionCapability();
     await ensureVisitorSession();
     const result = await customerApi.verify(params);
+    identifyPromise = null;
+    return result;
+  }
+
+  async function changeEmail(params: ChangeCustomerEmailParams, options?: RequestOptions): Promise<CustomerMe> {
+    await ensureVisitorSession();
+    const requested = memorySession;
+    const result = await customerApi.changeEmail(params, options);
+    applyAnsweredCustomer(requested, result.customer);
     identifyPromise = null;
     return result;
   }
@@ -840,11 +849,6 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     identifyPromise = null;
   }
 
-  function setSalesChannel(value: string): void {
-    salesChannel = contextKey(value, "sales channel");
-    identifyPromise = null;
-  }
-
   function setLocale(value: string): void {
     locale = value.trim();
   }
@@ -852,7 +856,6 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
   function setContext(context: StorefrontContext): void {
     if (context.locale !== undefined) setLocale(context.locale);
     if (context.market !== undefined) setMarket(context.market);
-    if (context.salesChannel !== undefined) setSalesChannel(context.salesChannel);
   }
 
   recoverUnauthorized = async (failedAuthorizationToken: string | null, path: string) => {
@@ -925,14 +928,13 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
       identify,
       requestCode,
       verify,
+      changeEmail,
       refresh,
       logout,
       getMe: me,
       updateMe,
       resubscribe,
     },
-    subscription_offerings: storefrontApi.subscription_offerings,
-    subscription_plans: storefrontApi.subscription_plans,
     actions: storefrontApi.actions,
     experiments: storefrontApi.experiments,
     support: createStorefrontSupportApi(httpClient, ensureVisitorSession),
@@ -940,8 +942,6 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     setContext,
     setMarket,
     getMarket: () => market,
-    setSalesChannel,
-    getSalesChannel: () => salesChannel,
     setLocale,
     getLocale: () => locale,
     utils: createUtilitySurface(),
@@ -964,7 +964,6 @@ function createStorefrontClient(publishableKey: string, options: StorefrontOptio
           ...options,
           locale: context.locale ?? client.getLocale(),
           market: context.market ?? client.getMarket(),
-          salesChannel: context.salesChannel ?? client.getSalesChannel(),
         },
         true,
       );

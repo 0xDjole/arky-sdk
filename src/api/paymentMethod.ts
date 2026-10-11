@@ -5,13 +5,17 @@ import type { PaginatedResponse } from "../types/common";
 import type {
   CancelPaymentMethodSetupParams,
   FindPaymentMethodsParams,
+  GetPaymentMethodConsentTextParams,
   GetPaymentMethodParams,
   PaymentMethod,
+  PaymentMethodConsentText,
   PaymentMethodSetupStart,
   RequestPaymentMethodSetupParams,
   RevokePaymentMethodParams,
   StorefrontCancelPaymentMethodSetupParams,
+  StorefrontCurrentPaymentMethodConsentTextParams,
   StorefrontFindPaymentMethodsParams,
+  StorefrontGetPaymentMethodConsentTextParams,
   StorefrontGetPaymentMethodParams,
   StorefrontRequestPaymentMethodSetupParams,
   StorefrontRevokePaymentMethodParams,
@@ -48,6 +52,9 @@ function paymentMethodRoutes(httpClient: HttpClient, base: string) {
     revoke(id: string, expectedUpdatedAt: number, options?: RequestOptions): Promise<PaymentMethod> {
       return httpClient.post<PaymentMethod>(`${methodPath(id)}/revoke`, { expected_updated_at: expectedUpdatedAt }, options);
     },
+    consentText(termsVersion: string, options?: RequestOptions): Promise<PaymentMethodConsentText> {
+      return httpClient.get<PaymentMethodConsentText>(`${base}/consent-texts/${segment(termsVersion)}`, options);
+    },
   };
 }
 
@@ -77,6 +84,9 @@ export const createPaymentMethodApi = (apiConfig: ApiConfig) => {
     revoke(params: RevokePaymentMethodParams, options?: RequestOptions): Promise<PaymentMethod> {
       return routes(params.store_id).revoke(params.id, params.expected_updated_at, options);
     },
+    consentText(params: GetPaymentMethodConsentTextParams, options?: RequestOptions): Promise<PaymentMethodConsentText> {
+      return routes(params.store_id).consentText(params.terms_version, options);
+    },
   };
 };
 
@@ -103,6 +113,21 @@ export const createStorefrontPaymentMethodApi = (httpClient: HttpClient) => {
     },
     revoke(params: StorefrontRevokePaymentMethodParams, options?: RequestOptions): Promise<PaymentMethod> {
       return routes.revoke(params.id, params.expected_updated_at, options);
+    },
+    consentText(
+      params: StorefrontGetPaymentMethodConsentTextParams,
+      options?: RequestOptions,
+    ): Promise<PaymentMethodConsentText> {
+      return routes.consentText(params.terms_version, options);
+    },
+    currentConsentText(
+      params: StorefrontCurrentPaymentMethodConsentTextParams,
+      options?: RequestOptions,
+    ): Promise<PaymentMethodConsentText> {
+      return httpClient.get<PaymentMethodConsentText>("/v1/storefront/payment-methods/consent-texts", {
+        ...options,
+        params: { language: params.language },
+      });
     },
   };
 };

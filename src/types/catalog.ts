@@ -1,10 +1,10 @@
 import type { EpochMilliseconds } from "./time";
-import type { SortDirection } from "./common";
+import type { CompanyPartyQuery, SortDirection } from "./common";
 
 export type SellableRef =
   | { type: "product_variant"; product_id: string; variant_id: string }
   | { type: "booking_offering"; booking_offering_id: string }
-  | { type: "subscription_plan"; subscription_plan_id: string };
+  | { type: "customer_group"; customer_group_id: string };
 
 export type PriceSchedule =
   | { type: "always" }
@@ -53,7 +53,8 @@ export interface Catalog {
 export type CatalogItemRef =
   | { type: "product"; product_id: string }
   | { type: "booking_service"; booking_service_id: string }
-  | { type: "subscription_offering"; subscription_offering_id: string };
+  | { type: "customer_group_offering"; customer_group_offering_id: string }
+  | { type: "customer_group"; customer_group_id: string };
 
 export interface CatalogItem {
   id: string;
@@ -68,6 +69,7 @@ export interface CatalogItem {
 export type CatalogAudience =
   | { type: "everyone" }
   | { type: "customer_group"; customer_group_id: string }
+  | { type: "customer_group_offering"; customer_group_offering_id: string }
   | { type: "customer"; customer_id: string }
   | { type: "all_companies" }
   | { type: "company"; company_id: string }
@@ -106,12 +108,10 @@ export interface CatalogCopyResult {
   prices_kept: number;
 }
 
-export interface CatalogReadOptions {
+export type CatalogReadOptions = CompanyPartyQuery & {
   catalog_id?: string;
-  company_id?: string;
-  company_location_id?: string;
   include_price?: boolean;
-}
+};
 
 export interface FindPricesParams {
   store_id: string;
@@ -220,19 +220,14 @@ export interface CopyCatalogParams {
   source_catalog_id: string;
 }
 
-export interface FindPurchasableCatalogsParams {
+export type FindPurchasableCatalogsParams = CompanyPartyQuery & {
   store_id: string;
   market_id: string;
   sales_channel_id: string;
   customer_id: string;
-  company_id?: string;
-  company_location_id?: string;
-}
+};
 
-export interface FindStorefrontCatalogsParams {
-  company_id?: string;
-  company_location_id?: string;
-}
+export type FindStorefrontCatalogsParams = CompanyPartyQuery;
 
 export interface FindCatalogItemsParams {
   store_id: string;

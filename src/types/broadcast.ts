@@ -3,8 +3,8 @@ import type { SortDirection } from "./common";
 import type { EmailContent, EmailTemplatePreview } from "./notification";
 
 export type BroadcastAudience =
-  | { type: "offering"; subscription_offering_id: string }
-  | { type: "plans"; subscription_plan_ids: string[] };
+  | { type: "customer_group_offering"; customer_group_offering_id: string }
+  | { type: "customer_groups"; customer_group_ids: string[] };
 
 export type BroadcastStatus =
   | { type: "draft" }
@@ -17,7 +17,7 @@ export interface Broadcast {
   store_id: string;
   key: string;
   audience: BroadcastAudience;
-  sender_id: string;
+  sending_address_id: string;
   content: Record<string, EmailContent>;
   status: BroadcastStatus;
   created_at: EpochMilliseconds;
@@ -31,14 +31,17 @@ export const BROADCAST_FIELDS = [
   "customer.last_name",
   "customer.email",
   "store.name",
-  "subscription.offering.key",
-  "subscription.plan.key",
+  "customer_group_member.customer_group.key",
+  "customer_group_member.customer_group_offering.key",
   "unsubscribe_url",
 ] as const;
 
 export type BroadcastField = (typeof BROADCAST_FIELDS)[number];
 
-export const BROADCAST_BLOCK_FIELD_PREFIXES = ["subscription.offering.blocks.", "subscription.plan.blocks."] as const;
+export const BROADCAST_BLOCK_FIELD_PREFIXES = [
+  "customer_group_member.customer_group.blocks.",
+  "customer_group_member.customer_group_offering.blocks.",
+] as const;
 
 export type BroadcastBlockField = `${(typeof BROADCAST_BLOCK_FIELD_PREFIXES)[number]}${string}`;
 
@@ -62,7 +65,7 @@ export interface CreateBroadcastParams {
   id: string;
   key: string;
   audience: BroadcastAudience;
-  sender_id: string;
+  sending_address_id: string;
   content: Record<string, EmailContent>;
 }
 
@@ -72,7 +75,7 @@ export interface UpdateBroadcastParams {
   expected_updated_at: EpochMilliseconds;
   key?: string;
   audience?: BroadcastAudience;
-  sender_id?: string;
+  sending_address_id?: string;
   content?: Record<string, EmailContent>;
 }
 

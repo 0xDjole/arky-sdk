@@ -1,6 +1,6 @@
 import type { CalendarDate, EpochMilliseconds } from "./time";
 import type { Block, BlockQuery } from "./block";
-import type { Money, PaginatedResponse, SortDirection, TaxMode } from "./common";
+import type { CompanyPartyQuery, Money, PaginatedResponse, SortDirection, TaxMode } from "./common";
 import type { CategoryEntry, CategoryQuery } from "./content";
 import type { CatalogReadOptions } from "./catalog";
 
@@ -581,16 +581,16 @@ export interface ArchiveDigitalAssetParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface GetStorefrontProductParams extends CatalogReadOptions {
+export type GetStorefrontProductParams = CatalogReadOptions & {
   id?: string;
   slug?: string;
-}
+};
 
-export interface GetStorefrontProductByKeyParams extends CatalogReadOptions {
+export type GetStorefrontProductByKeyParams = CatalogReadOptions & {
   key: string;
-}
+};
 
-export interface FindStorefrontProductsParams extends CatalogReadOptions {
+export type FindStorefrontProductsParams = CatalogReadOptions & {
   ids?: string[];
   query?: string;
   category_query?: CategoryQuery[];
@@ -601,30 +601,30 @@ export interface FindStorefrontProductsParams extends CatalogReadOptions {
   sort_direction?: SortDirection;
   limit?: number;
   cursor?: string | null;
-}
+};
 
-export interface GetStorefrontProductVariantParams extends CatalogReadOptions {
+export type GetStorefrontProductVariantParams = CatalogReadOptions & {
   product_id: string;
   id: string;
-}
+};
 
-export interface FindStorefrontProductVariantsParams extends CatalogReadOptions {
+export type FindStorefrontProductVariantsParams = CatalogReadOptions & {
   product_id: string;
   filters?: BlockQuery[];
   limit?: number;
   cursor?: string | null;
-}
+};
 
-export interface GetStorefrontBookingServiceParams extends CatalogReadOptions {
+export type GetStorefrontBookingServiceParams = CatalogReadOptions & {
   id?: string;
   slug?: string;
-}
+};
 
-export interface GetStorefrontBookingServiceByKeyParams extends CatalogReadOptions {
+export type GetStorefrontBookingServiceByKeyParams = CatalogReadOptions & {
   key: string;
-}
+};
 
-export interface FindStorefrontBookingServicesParams extends CatalogReadOptions {
+export type FindStorefrontBookingServicesParams = CatalogReadOptions & {
   ids?: string[];
   booking_resource_id?: string;
   query?: string;
@@ -636,26 +636,24 @@ export interface FindStorefrontBookingServicesParams extends CatalogReadOptions 
   created_at_to?: EpochMilliseconds;
   limit?: number;
   cursor?: string | null;
-}
+};
 
-export interface FindStorefrontBookingOfferingsParams extends CatalogReadOptions {
+export type FindStorefrontBookingOfferingsParams = CatalogReadOptions & {
   booking_service_id?: string;
   booking_resource_id?: string;
   limit?: number;
   cursor?: string | null;
-}
+};
 
-export interface GetStorefrontAvailabilityParams {
+export type GetStorefrontAvailabilityParams = CompanyPartyQuery & {
   booking_service_id: string;
   from: EpochMilliseconds;
   to: EpochMilliseconds;
   booking_resource_id?: string;
   catalog_id?: string;
-  company_id?: string;
-  company_location_id?: string;
   limit?: number;
   cursor?: string | null;
-}
+};
 
 export interface FindStorefrontBookingResourcesParams {
   ids?: string[];
@@ -666,33 +664,25 @@ export interface FindStorefrontBookingResourcesParams {
   cursor?: string | null;
 }
 
-export interface FindLibraryParams {
-  company_id?: string;
-  company_location_id?: string;
+export type FindLibraryParams = CompanyPartyQuery & {
   limit?: number;
   cursor?: string | null;
-}
+};
 
-export interface GetLibraryProductParams {
+export type GetLibraryProductParams = CompanyPartyQuery & {
   product_id: string;
-  company_id?: string;
-  company_location_id?: string;
   limit?: number;
   cursor?: string | null;
-}
+};
 
-export interface FindLibraryAssetsParams {
+export type FindLibraryAssetsParams = CompanyPartyQuery & {
   product_id: string;
-  company_id?: string;
-  company_location_id?: string;
   limit?: number;
   cursor?: string | null;
-}
+};
 
-export interface DownloadLibraryAssetParams {
+export type DownloadLibraryAssetParams = CompanyPartyQuery & {
   product_id: string;
   asset_id: string;
   reference: string;
-  company_id?: string;
-  company_location_id?: string;
-}
+};

@@ -178,7 +178,10 @@ export const createStorefrontFormsApi = (httpClient: HttpClient) => ({
 
   submit(params: SubmitFormParams, options?: RequestOptions): Promise<StorefrontFormSubmission> {
     requireId(params.id, "form submission");
-    const body = formSubmissionBody({ id: params.id, language: params.language }, params.answers);
+    const body = formSubmissionBody(
+      { id: params.id, form_updated_at: params.form_updated_at, language: params.language },
+      params.answers,
+    );
     return httpClient.post<StorefrontFormSubmission>(`/v1/storefront/forms/${segment(params.form_id)}/submissions`, body, options);
   },
 });

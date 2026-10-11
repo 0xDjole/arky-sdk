@@ -105,3 +105,35 @@ test("a missing category on the plain route is a 404 and the SDK does not retry 
   await assert.rejects(storefront.category.get({ slug: "topics" }), (error) => error.statusCode === 404 && error.code === "CATEGORY.NOT_FOUND");
   assert.deepEqual(calls, ["/v1/storefront/categories/topics"]);
 });
+
+test("category answers on a record name each schema field by its id, never by its key", async (context) => {
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    calls.push({ url: new URL(url), method: init.method, body: init.body ? JSON.parse(init.body) : undefined });
+    return new Response(JSON.stringify({ id: CATEGORY_ID }), { headers: { "content-type": "application/json" } });
+  });
+  const admin = createAdmin({ baseUrl: "https://category.test", apiToken: "arky_api_category" });
+  const productId = "6a8c0e2f-4b5d-4f7a-9c1e-3d5f7b9a1c2e";
+  const categories = [{
+    category_id: CATEGORY_ID,
+    fields: [
+      { type: "select_one", field_id: "f-size", option_key: "large" },
+      { type: "select_many", field_id: "f-tags", option_keys: ["organic", "local"] },
+      { type: "number", field_id: "f-weight", value: 1.5 },
+      { type: "boolean", field_id: "f-fragile", value: false },
+      { type: "geo_location", field_id: "f-origin", value: { lat: 43.8563, lon: 18.4131 } },
+    ],
+  }];
+  await admin.eshop.product.update({ store_id: STORE_ID, id: productId, expected_updated_at: 1, categories });
+  await admin.customers.update({ store_id: STORE_ID, id: productId, expected_updated_at: 2, categories });
+  assert.deepEqual(calls.map(({ method, url, body }) => [method, url.pathname, body]), [
+    ["PUT", `/v1/stores/${STORE_ID}/products/${productId}`, { expected_updated_at: 1, categories }],
+    ["PATCH", `/v1/stores/${STORE_ID}/customers/${productId}`, { expected_updated_at: 2, categories }],
+  ]);
+  for (const call of calls) {
+    for (const field of call.body.categories[0].fields) {
+      assert.equal(typeof field.field_id, "string");
+      assert.equal("key" in field, false);
+    }
+  }
+});

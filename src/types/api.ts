@@ -1,9 +1,6 @@
 import type { EpochMilliseconds } from "./time";
 
-export type {
-  RequestOptions,
-  ScheduledMutationOptions,
-} from "./httpClient";
+export type { RequestOptions } from "./httpClient";
 
 export interface RequestPendingAccountSessionParams {
   email: string;

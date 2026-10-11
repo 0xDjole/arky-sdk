@@ -14,7 +14,9 @@ import type {
   GetFulfillmentJobParams,
   GetFulfillmentParams,
   GetFulfillmentRoutingParams,
+  GetMinimumProgressParams,
   MarkFulfillmentDeliveredParams,
+  MinimumProgress,
   UpdateFulfillmentRoutingParams,
   UpdateFulfillmentTrackingParams,
 } from "../types/fulfillment";
@@ -108,3 +110,10 @@ export const createFulfillmentApi = (apiConfig: ApiConfig) => {
     },
   };
 };
+
+export const createMinimumProgressApi = (apiConfig: ApiConfig) => ({
+  get(params: GetMinimumProgressParams, options?: RequestOptions): Promise<MinimumProgress> {
+    const { store_id, ...query } = params;
+    return apiConfig.httpClient.get<MinimumProgress>(storePath(store_id, "minimum-progress"), { ...options, params: query });
+  },
+});

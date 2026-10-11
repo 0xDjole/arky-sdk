@@ -17,7 +17,6 @@ export interface CartSelectionContext {
   } | null;
   customerId(): string | null;
   market(): string | null;
-  salesChannel(): string | null;
 }
 
 export interface SelectedCart {

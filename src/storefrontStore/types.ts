@@ -19,7 +19,6 @@ export type ArkyStoreConfig = StorefrontOptions;
 export interface ArkyStoreContext {
   locale?: string;
   market?: string;
-  salesChannel?: string;
 }
 
 export type ArkyContentEntryParams =

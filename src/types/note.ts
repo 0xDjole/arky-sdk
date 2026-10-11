@@ -6,7 +6,7 @@ export type NoteTarget =
   | { type: "customer"; customer_id: string }
   | { type: "company"; company_id: string }
   | { type: "order"; order_id: string }
-  | { type: "support_conversation"; conversation_id: string };
+  | { type: "conversation"; conversation_id: string };
 
 export type NoteTargetType = NoteTarget["type"];
 
@@ -62,7 +62,7 @@ export interface FormSubmissionNoteTarget {
   form_submission_id: string;
 }
 
-export interface SupportConversationNoteTarget {
+export interface ConversationNoteTarget {
   store_id: string;
   conversation_id: string;
 }
@@ -87,7 +87,7 @@ export type CreateFormSubmissionNoteParams = FormSubmissionNoteTarget & NoteCrea
 export type UpdateFormSubmissionNoteParams = FormSubmissionNoteTarget & NoteUpdateParams;
 export type DeleteFormSubmissionNoteParams = FormSubmissionNoteTarget & NoteDeleteParams;
 
-export type FindSupportConversationNotesParams = SupportConversationNoteTarget & NotePageParams;
-export type CreateSupportConversationNoteParams = SupportConversationNoteTarget & NoteCreateParams;
-export type UpdateSupportConversationNoteParams = SupportConversationNoteTarget & NoteUpdateParams;
-export type DeleteSupportConversationNoteParams = SupportConversationNoteTarget & NoteDeleteParams;
+export type FindConversationNotesParams = ConversationNoteTarget & NotePageParams;
+export type CreateConversationNoteParams = ConversationNoteTarget & NoteCreateParams;
+export type UpdateConversationNoteParams = ConversationNoteTarget & NoteUpdateParams;
+export type DeleteConversationNoteParams = ConversationNoteTarget & NoteDeleteParams;

@@ -133,9 +133,9 @@ async function submit(
     if (isDefiniteRefusal(error)) onDefiniteRefusal?.();
     throw cartCheckoutPresentationChanged(error);
   }
-  if (record(result) && result.type === "already_subscribed") {
-    if (!isCanonicalId(result.subscription_id)) {
-      throw new DurableRequestStorageError("Cart checkout did not name the subscription the buyer already holds");
+  if (record(result) && result.type === "already_member") {
+    if (!isCanonicalId(result.customer_group_member_id)) {
+      throw new DurableRequestStorageError("Cart checkout did not name the customer group member the buyer already holds");
     }
     return { result, success };
   }

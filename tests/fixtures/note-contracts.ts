@@ -13,7 +13,7 @@ import type {
   NoteUpdateParams,
   OrderNoteTarget,
   PaginatedResponse,
-  SupportConversationNoteTarget,
+  ConversationNoteTarget,
 } from "arky-sdk";
 
 type Assert<T extends true> = T;
@@ -29,7 +29,9 @@ type ConversationNotes = Admin["support"]["conversation"]["notes"];
 export type NoteContracts = [
   Assert<Equal<keyof Note, "id" | "store_id" | "target" | "body" | "actor" | "created_at" | "updated_at">>,
   Assert<Equal<Note["actor"], AccountActor>>,
-  Assert<Equal<NoteTargetType, "form_submission" | "customer" | "company" | "order" | "support_conversation">>,
+  Assert<Equal<NoteTargetType, "form_submission" | "customer" | "company" | "order" | "conversation">>,
+  Assert<Equal<Extract<NoteTarget, { type: "conversation" }>, { type: "conversation"; conversation_id: string }>>,
+  Assert<Equal<ConversationNoteTarget, { store_id: string; conversation_id: string }>>,
   Assert<Equal<Extract<NoteTarget, { type: "order" }>, { type: "order"; order_id: string }>>,
   Assert<Equal<keyof OrderNotes, "find" | "create" | "update" | "delete">>,
   Assert<Equal<Parameters<OrderNotes["find"]>[0], OrderNoteTarget & NotePageParams>>,
@@ -39,7 +41,7 @@ export type NoteContracts = [
   Assert<Equal<Parameters<CustomerNotes["create"]>[0], CustomerNoteTarget & NoteCreateParams>>,
   Assert<Equal<Parameters<CompanyNotes["create"]>[0], CompanyNoteTarget & NoteCreateParams>>,
   Assert<Equal<Parameters<SubmissionNotes["create"]>[0], FormSubmissionNoteTarget & NoteCreateParams>>,
-  Assert<Equal<Parameters<ConversationNotes["create"]>[0], SupportConversationNoteTarget & NoteCreateParams>>,
+  Assert<Equal<Parameters<ConversationNotes["create"]>[0], ConversationNoteTarget & NoteCreateParams>>,
   Assert<Equal<Awaited<ReturnType<OrderNotes["find"]>>, PaginatedResponse<Note>>>,
   Assert<Equal<Awaited<ReturnType<CompanyNotes["delete"]>>, Note>>,
   Assert<Equal<Awaited<ReturnType<SubmissionNotes["create"]>>, Note>>,

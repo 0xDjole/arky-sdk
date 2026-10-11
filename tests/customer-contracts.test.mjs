@@ -3,7 +3,20 @@ import test from "node:test";
 
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront, initialize } from "../dist/storefront.js";
-import { apiUrl as baseUrl, customerRecord, ids, publishableKey, recordFetch, SessionStorage, sessionResult, visitorSession, visitorToken } from "./helpers/arky-fixtures.mjs";
+import {
+  accessToken,
+  apiUrl as baseUrl,
+  customerRecord,
+  emailSession,
+  ids,
+  publishableKey,
+  recordFetch,
+  SessionStorage,
+  sessionResult,
+  signedInStorage,
+  visitorSession,
+  visitorToken,
+} from "./helpers/arky-fixtures.mjs";
 
 const storeId = ids.store;
 const customerId = ids.customer;
@@ -38,7 +51,7 @@ test("Admin Customer namespace sends app-picked ids, typed emails and versions o
       return {
         items: [
           { id: ids.session, store_id: storeId, customer_id: customerId, type: { type: "visitor", expires_at: 100, email_verification: null }, status: { type: "active" }, last_seen_at: 2, created_at: 1, updated_at: 2 },
-          { id: ids.otherSession, store_id: storeId, customer_id: customerId, type: { type: "email_authenticated", access_expires_at: 100, refresh_expires_at: 200, authenticated_at: 3 }, status: { type: "superseded" }, last_seen_at: 3, created_at: 2, updated_at: 4 },
+          { id: ids.otherSession, store_id: storeId, customer_id: customerId, type: { type: "email_authenticated", access_expires_at: 100, refresh_expires_at: 200, authenticated_at: 3, email_change: null }, status: { type: "superseded" }, last_seen_at: 3, created_at: 2, updated_at: 4 },
         ],
         cursor: null,
       };
@@ -135,7 +148,7 @@ test("a sign-in code request names the app's id, the email and the language, and
   assert.equal(calls.length, 2);
 });
 
-test("a code answer for another visitor session is refused and the stored session is unchanged", async (context) => {
+test("a code answer for another customer session is refused and the stored session is unchanged", async (context) => {
   const visitor = visitorSession(customerId);
   recordFetch(context, (call) => {
     if (call.path.endsWith("/identify")) return { customer: customerRecord(), session: visitor };
@@ -145,7 +158,39 @@ test("a code answer for another visitor session is refused and the stored sessio
   const client = createStorefront(publishableKey, { apiUrl: baseUrl, sessionStorage: storage });
   await client.customer.identify();
   const stored = [...storage.values];
-  await assert.rejects(client.customer.requestCode({ id: ids.form, email: "reader@example.test", language: "bs" }), /does not match the active visitor session/);
+  await assert.rejects(client.customer.requestCode({ id: ids.form, email: "reader@example.test", language: "bs" }), /does not match the active customer session/);
   assert.deepEqual([...storage.values], stored);
   assert.equal(client.session.id, visitor.id);
+});
+
+test("a signed-in customer asks for a code at the new address and changes the email with it, staying signed in", async (context) => {
+  const issuedAt = Date.now();
+  const signedIn = emailSession(customerId);
+  const change = { email: "new@example.test", failed_attempts: 0, notification_id: ids.payment, issued_at: issuedAt, expires_at: issuedAt + 600_000 };
+  const sessionType = { type: "email_authenticated", access_expires_at: signedIn.access_expires_at, refresh_expires_at: signedIn.refresh_expires_at, authenticated_at: signedIn.authenticated_at, email_change: change };
+  const sessionRecord = { id: signedIn.id, store_id: storeId, customer_id: customerId, type: sessionType, status: { type: "active" }, last_seen_at: issuedAt, created_at: 1, updated_at: issuedAt };
+  const previous = customerRecord(customerId, { email: { type: "verified", email: "old@example.test", verified_at: 1 } });
+  const changed = customerRecord(customerId, { email: { type: "verified", email: "new@example.test", verified_at: issuedAt + 1 } });
+  const calls = recordFetch(context, (call) => {
+    if (call.path === "/v1/storefront/customer/request-code") return { customer: previous, session: sessionRecord, email_verification: { issued_at: issuedAt, expires_at: issuedAt + 600_000 } };
+    if (call.path === "/v1/storefront/customer/me/change-email") return { customer: changed, session: { ...sessionRecord, type: { ...sessionType, email_change: null } }, email_unsubscribed: false };
+    throw new Error(`Unexpected request ${call.method} ${call.path}`);
+  });
+  const client = createStorefront(publishableKey, { apiUrl: baseUrl, locale: "en", sessionStorage: signedInStorage() });
+  const code = await client.customer.requestCode({ id: ids.form, email: "new@example.test", language: "en" });
+  assert.deepEqual(code.session.type.email_change, change);
+  assert.equal(client.isAuthenticated, true);
+  assert.equal(client.session.id, signedIn.id);
+  const answer = await client.customer.changeEmail({ code: "123456", language: "en" });
+  assert.deepEqual(answer.customer.email, changed.email);
+  assert.deepEqual(client.session.customer.email, changed.email);
+  assert.equal(client.session.type, "email_authenticated");
+  assert.equal(client.session.id, signedIn.id);
+  assert.equal(client.isAuthenticated, true);
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.body, call.headers.get("authorization")]), [
+    ["POST", "/v1/storefront/customer/request-code", { id: ids.form, email: "new@example.test", language: "en" }, `Bearer ${accessToken}`],
+    ["POST", "/v1/storefront/customer/me/change-email", { code: "123456", language: "en" }, `Bearer ${accessToken}`],
+  ]);
+  const store = initialize(publishableKey, { apiUrl: baseUrl, sessionStorage: signedInStorage() });
+  assert.equal(typeof store.customer.changeEmail, "function");
 });

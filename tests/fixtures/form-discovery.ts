@@ -1,6 +1,7 @@
 import { createAdmin, epochMilliseconds, initialize } from "arky-sdk";
 import type {
   ArkySubmitFormByKeyParams,
+  EpochMilliseconds,
   AssignFormSubmissionParams,
   ChangeFormSubmissionStageParams,
   CreateFormParams,
@@ -12,10 +13,12 @@ import type {
   Form,
   FormAnswer,
   FormAnswerInput,
+  FormOptionSnapshot,
   FormQuestion,
   FormStage,
   FormStatus,
   FormSubmission,
+  FormSubmissionSnapshot,
   FormSubmissionSource,
   GetFormParams,
   GetStorefrontFormParams,
@@ -104,7 +107,7 @@ declare const shown: Form;
 const storefront = initialize(`arky_pk_${"f".repeat(42)}A`);
 const byKeySubmission: ArkySubmitFormByKeyParams = { id, key: "intake", form: shown, language: "en", values: { answer: "Kept", topic: [], files: [brief] } };
 const answered: Promise<StorefrontFormSubmission> = storefront.forms.submitByKey(byKeySubmission);
-const raw: SubmitFormParams = { form_id, id, language: "en", answers: [{ type: "select_many", question_id: "q-topic", key: "topic", option_keys: ["sales"] }] };
+const raw: SubmitFormParams = { form_id, form_updated_at: epochMilliseconds(4), id, language: "en", answers: [{ type: "select_many", question_id: "q-topic", key: "topic", option_keys: ["sales"] }] };
 const rawAnswered: Promise<StorefrontFormSubmission> = storefront.forms.submit(raw);
 const loaded: Promise<Form> = storefront.forms.get({ key: "intake" });
 
@@ -135,6 +138,12 @@ export type FormContracts = [
   Assert<RequiredField<ArkySubmitFormByKeyParams, "language">>,
   Assert<RequiredField<SubmitFormParams, "id">>,
   Assert<RequiredField<SubmitFormParams, "language">>,
+  Assert<RequiredField<SubmitFormParams, "form_updated_at">>,
+  Assert<Equal<SubmitFormParams["form_updated_at"], EpochMilliseconds>>,
+  Assert<Missing<ArkySubmitFormByKeyParams, "form_updated_at">>,
+  Assert<Equal<keyof FormSubmissionSnapshot, "form_key" | "questions" | "options">>,
+  Assert<Equal<FormSubmissionSnapshot["options"], FormOptionSnapshot[]>>,
+  Assert<Equal<keyof FormOptionSnapshot, "question_id" | "option_key" | "label">>,
   Assert<Missing<SubmitFormParams, "store_id" | "locale" | "presentation_digest" | "fields">>,
   Assert<Missing<ArkySubmitFormByKeyParams, "presentation">>,
   Assert<RequiredField<CreateFormParams, "id">>,

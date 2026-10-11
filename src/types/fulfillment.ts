@@ -1,8 +1,9 @@
 import type { EpochMilliseconds } from "./time";
 import type { Block } from "./block";
-import type { AccountActor, PostalAddress, SortDirection, UnitSpan } from "./common";
+import type { AccountActor, CommerceParty, PostalAddress, SortDirection, UnitSpan } from "./common";
 import type { InventoryRequirement } from "./product";
 import type { FulfillmentTiming } from "./order";
+import type { PurchaseRequirementScope, PurchaseRequirementUnit } from "./customerGroup";
 
 export type RoutingCondition =
   | { type: "markets"; market_ids: string[] }
@@ -112,7 +113,6 @@ export type FulfillmentRecipient =
       type: "company_location";
       source_customer_id: string;
       email: string | null;
-      source_company_id: string;
       company_name: string;
       source_company_location_id: string;
       company_location_name: string;
@@ -343,3 +343,57 @@ export interface CustomerOrderFulfillment {
 export interface FindCustomerOrderFulfillmentsParams {
   order_id: string;
 }
+
+export type MinimumProgressUnavailableReason =
+  | "no_requirement"
+  | "incomplete_source_evidence"
+  | "incomplete_return_evidence"
+  | "mixed_timezone_period"
+  | "mixed_measurement_unit"
+  | "mixed_agreements"
+  | "arithmetic_overflow"
+  | "history_limit"
+  | "per_location";
+
+export type MinimumProgressMonthState =
+  | {
+      type: "available";
+      unit: PurchaseRequirementUnit;
+      scope: PurchaseRequirementScope;
+      delivered_quantity: number;
+      returned_quantity: number;
+      current_quantity: number;
+      minimum_quantity: number;
+      remaining_quantity: number;
+      attention: boolean;
+      grace: boolean;
+      paused: boolean;
+      inactive: boolean;
+    }
+  | { type: "unavailable"; reason: MinimumProgressUnavailableReason };
+
+export interface MinimumProgressMonth {
+  year: number;
+  month: number;
+  timezone: string;
+  starts_at: EpochMilliseconds;
+  ends_at: EpochMilliseconds;
+  customer_group_member_id: string | null;
+  progress: MinimumProgressMonthState;
+}
+
+export type MinimumProgressState =
+  | { type: "available"; current: MinimumProgressMonth; history: MinimumProgressMonth[] }
+  | { type: "unavailable"; reason: MinimumProgressUnavailableReason };
+
+export interface MinimumProgress {
+  party: CommerceParty;
+  state: MinimumProgressState;
+}
+
+export type StorefrontGetMinimumProgressParams =
+  | { customer_id: string; company_id?: never; company_location_id?: never }
+  | { customer_id?: never; company_id: string; company_location_id?: never }
+  | { customer_id?: never; company_id?: never; company_location_id: string };
+
+export type GetMinimumProgressParams = StorefrontGetMinimumProgressParams & { store_id: string };

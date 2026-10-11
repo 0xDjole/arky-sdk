@@ -95,7 +95,7 @@ function order() {
     id: ids.order,
     number: "1001",
     store_id: storeId,
-    source: { type: "cart", cart_id: ids.cart, placed_by: { type: "storefront", customer_session_id: ids.session } },
+    source: { type: "cart", cart_id: ids.cart, placed_by: { type: "customer", customer_id: ids.customer, customer_session_id: ids.session } },
     customer_id: ids.customer,
     line_items: [bookingLine()],
     updated_at: 2,
@@ -206,7 +206,7 @@ test("storefront booking runtime sends one offering interval under the app's lin
     if (path.endsWith(`/carts/${ids.cart}/booking-items`)) return jsonResponse(cartRecord({ line_items: [{ type: "booking", ...call.body.booking, price_override: null }] }));
     return jsonResponse(order());
   });
-  const storefront = createStorefront(publishableKey, { apiUrl, market: "bih", salesChannel: "web", sessionStorage: storage });
+  const storefront = createStorefront(publishableKey, { apiUrl, market: "bih", sessionStorage: storage });
   await storefront.eshop.bookingService.find({ sort_field: "price", include_price: true });
   await storefront.eshop.bookingResource.find({ booking_service_id: serviceId });
   await storefront.eshop.bookingOffering.find({ booking_service_id: serviceId });
@@ -240,7 +240,7 @@ test("storefront booking runtime sends one offering interval under the app's lin
   assert.deepEqual(cancellation.body, { credit_id: creditId, expected_updated_at: 2 });
   for (const call of calls) {
     assert.equal(call.headers.get("x-arky-market"), "bih");
-    assert.equal(call.headers.get("x-arky-sales-channel"), "web");
+    assert.equal(call.headers.has("x-arky-sales-channel"), false);
     assert.equal(call.url.searchParams.has("store_id"), false);
   }
 });
@@ -282,14 +282,13 @@ test("Booking Service slug lookup stays singular while records expose slugs", as
   const storefront = createStorefront(publishableKey, { apiUrl, market: "bih", sessionStorage: visitorStorage() });
   const service = await storefront.eshop.bookingService.get({
     slug: "consultation",
-    company_id: ids.company,
     company_location_id: ids.companyLocation,
     include_price: true,
   });
   assert.equal(service.slugs.en, "consultation");
   assert.equal("slug" in service, false);
   assert.equal(call.url.pathname, "/v1/storefront/booking-services/consultation");
-  assert.equal(call.url.searchParams.get("company_id"), ids.company);
+  assert.equal(call.url.searchParams.has("company_id"), false);
   assert.equal(call.url.searchParams.get("company_location_id"), ids.companyLocation);
   assert.equal(call.url.searchParams.get("include_price"), "true");
   assert.equal(call.url.searchParams.has("slug"), false);
@@ -364,7 +363,7 @@ test("high-level booking flow adds one cart line per appointment under the ids t
   });
 
   const store = initialize(publishableKey, { apiUrl, locale: "en", sessionStorage: visitorStorage() });
-  await store.eshop.cart.create({ id: ids.cart, buyer: { type: "personal" }, catalog_id: null });
+  await store.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: null });
   await store.eshop.bookingService.select(bookingService());
   const availableDay = store.eshop.bookingService.state.get().calendar.find((day) => day.iso === availableLocalDate);
   assert.equal(availableDay?.available, true);
@@ -410,7 +409,7 @@ test("high-level booking flow adds one cart line per appointment under the ids t
   assert.equal("bookingItemsFromSlots" in store.eshop.bookingService, false);
 });
 
-test("booking selection retains Company context and explicitly follows Offering and availability pages", async (context) => {
+test("booking selection retains the company location context and explicitly follows Offering and availability pages", async (context) => {
   const offeringCalls = [];
   const resourceCalls = [];
   const availabilityCalls = [];
@@ -421,7 +420,7 @@ test("booking selection retains Company context and explicitly follows Offering 
   context.mock.method(globalThis, "fetch", async (url) => {
     const request = new URL(String(url));
     if (!request.pathname.endsWith("/booking-resources")) {
-      assert.equal(request.searchParams.get("company_id"), ids.company);
+      assert.equal(request.searchParams.has("company_id"), false);
       assert.equal(request.searchParams.get("company_location_id"), ids.companyLocation);
     }
     if (request.pathname.endsWith(`/booking-services/${serviceId}`)) return jsonResponse(bookingService());
@@ -456,7 +455,7 @@ test("booking selection retains Company context and explicitly follows Offering 
     throw new Error(`Unexpected request ${url}`);
   });
   const store = initialize(publishableKey, { apiUrl, locale: "en", sessionStorage: visitorStorage() });
-  await store.eshop.bookingService.select(bookingService(), { company_id: ids.company, company_location_id: ids.companyLocation });
+  await store.eshop.bookingService.select(bookingService(), { company_location_id: ids.companyLocation });
   assert.equal(offeringCalls.length, 1);
   assert.equal(availabilityCalls.length, 1, "availability must not eagerly follow continuations");
   assert.equal(store.eshop.bookingService.state.get().availability.cursor, "availability-next");

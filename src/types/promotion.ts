@@ -10,8 +10,8 @@ export type PromotionTarget =
   | { type: "products"; product_ids: string[] }
   | { type: "product_variants"; variants: PromotionProductVariantRef[] }
   | { type: "booking_services"; booking_service_ids: string[] }
-  | { type: "subscription_offerings"; subscription_offering_ids: string[] }
-  | { type: "subscription_plans"; subscription_plan_ids: string[] }
+  | { type: "customer_group_offerings"; customer_group_offering_ids: string[] }
+  | { type: "customer_groups"; customer_group_ids: string[] }
   | { type: "catalogs"; catalog_ids: string[] }
   | { type: "categories"; category_ids: string[] }
   | { type: "all_eligible_items" };
@@ -39,6 +39,7 @@ export type PromotionEffect =
 export type PromotionCondition =
   | { type: "customer"; ids: string[] }
   | { type: "customer_group"; ids: string[] }
+  | { type: "customer_group_offering"; ids: string[] }
   | { type: "company"; ids: string[] }
   | { type: "company_location"; ids: string[] }
   | { type: "market"; ids: string[] }
