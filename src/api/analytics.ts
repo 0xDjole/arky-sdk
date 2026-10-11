@@ -29,7 +29,7 @@ export type AnalyticsReportKey =
   | "customers_by_status"
   | "customer_groups_by_status"
   | "broadcasts_by_status"
-  | "support_conversations_by_status"
+  | "conversations_by_status"
   | "forms_by_status"
   | "categories_by_status"
   | "carts_by_status"
@@ -234,7 +234,7 @@ export type AnalyticsBreakdownReportKey =
   | "customers_by_status"
   | "customer_groups_by_status"
   | "broadcasts_by_status"
-  | "support_conversations_by_status"
+  | "conversations_by_status"
   | "forms_by_status"
   | "categories_by_status"
   | "carts_by_status"
@@ -271,7 +271,7 @@ export type AnalyticsReport =
   | { key: "customers_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
   | { key: "customer_groups_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
   | { key: "broadcasts_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
-  | { key: "support_conversations_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
+  | { key: "conversations_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
   | { key: "forms_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
   | { key: "categories_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
   | { key: "carts_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
@@ -313,8 +313,8 @@ export const createAnalyticsApi = (apiConfig: ApiConfig) => {
   };
 };
 
-export type AnalyticsStatus = "active" | "draft" | "archived" | "deleting" | "closed" | "pending" | "confirmed" | "partially_cancelled" | "cancelled" | "abandoned" | "converted" | "superseded" | "merged" | "expired" | "scheduled" | "sending" | "sent" | "flow" | "ai" | "escalated" | "resolved";
-export type AnalyticsStatusEntity = "product" | "booking_service" | "booking_resource" | "collection" | "entry" | "customer" | "customer_group" | "broadcast" | "support_conversation" | "form" | "category" | "cart" | "order" | "order_product_item";
+export type AnalyticsStatus = "active" | "draft" | "archived" | "deleting" | "closed" | "pending" | "confirmed" | "partially_cancelled" | "cancelled" | "abandoned" | "converted" | "superseded" | "merged" | "expired" | "scheduled" | "sending" | "sent" | "flow" | "team" | "resolved";
+export type AnalyticsStatusEntity = "product" | "booking_service" | "booking_resource" | "collection" | "entry" | "customer" | "customer_group" | "broadcast" | "conversation" | "form" | "category" | "cart" | "order" | "order_product_item";
 export interface AnalyticsStatusCount extends AnalyticsBreakdownItem { key: AnalyticsStatus }
 export interface AnalyticsStatusBreakdownData { items: AnalyticsStatusCount[] }
 export interface AnalyticsDimensionCount extends AnalyticsBreakdownItem { unique_profiles: number; unique_visitors: number }

@@ -4,7 +4,9 @@ import type { SortDirection } from "./common";
 
 export type KeyFilter = { type: "all" } | { type: "only"; keys: string[] };
 
-export type FormFilter = { type: "all" } | { type: "only"; form_ids: string[] };
+export interface FormFilter {
+  form_ids: string[];
+}
 
 export const WEBHOOK_UNIT_EVENT_TYPES = [
   "order.created",
@@ -61,22 +63,20 @@ export const WEBHOOK_UNIT_EVENT_TYPES = [
   "store.updated",
   "customer_group.created",
   "customer_group.updated",
-  "customer_group.member_added",
-  "customer_group.member_removed",
   "customer.created",
   "customer.updated",
   "customer.archived",
   "account.updated",
-  "subscription.activated",
-  "subscription.paused",
-  "subscription.resumed",
-  "subscription.cancelled",
-  "subscription.renewed",
-  "subscription.payment_failed",
-  "subscription.plan_changed",
-  "subscription.next_purchase_skipped",
-  "subscription.funding_changed",
-  "subscription.tax_classification_corrected",
+  "customer_group_member.activated",
+  "customer_group_member.paused",
+  "customer_group_member.resumed",
+  "customer_group_member.cancelled",
+  "customer_group_member.renewed",
+  "customer_group_member.payment_failed",
+  "customer_group_member.switched",
+  "customer_group_member.next_purchase_skipped",
+  "customer_group_member.payment_method_changed",
+  "customer_group_member.tax_classification_corrected",
   "company.created",
   "company.updated",
   "company.deleted",

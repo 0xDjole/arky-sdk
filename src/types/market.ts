@@ -28,17 +28,17 @@ export interface SalesChannel {
   updated_at: EpochMilliseconds;
 }
 
-export type StorefrontClientStatus =
+export type StorefrontKeyStatus =
   | { type: "active" }
   | { type: "revoked"; revoked_at: EpochMilliseconds };
 
-export interface StorefrontClientRegistration {
+export interface StorefrontKey {
   id: string;
   store_id: string;
   key: string;
   publishable_key: string;
-  sales_channel_ids: string[];
-  status: StorefrontClientStatus;
+  sales_channel_id: string;
+  status: StorefrontKeyStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -153,28 +153,26 @@ export interface DeleteSalesChannelParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindStorefrontClientsParams {
+export interface FindStorefrontKeysParams {
   store_id: string;
   sales_channel_id?: string;
   limit?: number;
   cursor?: string | null;
 }
 
-export interface CreateStorefrontClientParams {
+export interface GetStorefrontKeyParams {
+  store_id: string;
+  id: string;
+}
+
+export interface CreateStorefrontKeyParams {
   store_id: string;
   id: string;
   key: string;
-  sales_channel_ids: string[];
+  sales_channel_id: string;
 }
 
-export interface UpdateStorefrontClientParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
-  sales_channel_ids: string[];
-}
-
-export interface RevokeStorefrontClientParams {
+export interface RevokeStorefrontKeyParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;

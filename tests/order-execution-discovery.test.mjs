@@ -5,7 +5,7 @@ import { FulfillmentSelectionError, selectFulfillmentMoveUnits, selectFulfillmen
 import { recordFetch } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "4e6a0c8d-2f19-4b37-a5e8-1d7c9b3f0a62";
-const actor = { account_id: null, snapshot: { email: "picker@example.test", credential_type: "session" } };
+const actor = { account_id: "0e7d3b59-8a14-4c62-b9f0-3d6a2c8e1f47", snapshot: { email: "picker@example.test", credential_type: "session" } };
 const address = { name: null, company: null, street1: "1 Main Street", street2: null, city: "Sarajevo", state: null, postal_code: "71000", country: "BA", phone: null, email: null };
 const replacement = { predecessor_inventory_unit_id: "old-unit", predecessor_fulfillment_job_line_id: "delivered-line", predecessor_fulfillment_unit_index: 0, overlap_authorized: false };
 

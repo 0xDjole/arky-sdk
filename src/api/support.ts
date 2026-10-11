@@ -1,53 +1,40 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { HttpClient } from "../types/httpClient";
-import type { RequestOptions, ScheduledMutationOptions } from "../types/api";
+import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
-  AssignSupportConversationParams,
-  CreateSupportChannelParams,
+  AssignConversationParams,
+  Conversation,
+  ConversationAttachmentLink,
+  ConversationMessage,
+  ConversationReply,
   CreateSupportFlowParams,
-  DeleteSupportChannelParams,
   DeleteSupportFlowParams,
-  FindSupportChannelsParams,
-  FindSupportConversationsParams,
+  FindConversationMessagesParams,
+  FindConversationsParams,
   FindSupportFlowsParams,
-  GetSupportAttachmentLinkParams,
-  GetSupportChannelParams,
-  GetSupportConversationParams,
+  GetConversationAttachmentLinkParams,
+  GetConversationMessageParams,
+  GetConversationParams,
   GetSupportFlowParams,
-  GetSupportMessageParams,
-  ReplySupportConversationParams,
-  ResolveSupportConversationParams,
-  StartSupportConversationParams,
-  StorefrontGetSupportConversationParams,
-  StorefrontGetSupportMessageParams,
-  StorefrontSendSupportMessageParams,
-  StorefrontSupportConversationResponse,
-  StorefrontSupportConversationStartResponse,
-  StorefrontSupportMessage,
-  SupportAttachmentLink,
-  SupportChannel,
-  SupportConversation,
-  SupportConversationResponse,
+  ReplyConversationParams,
+  ResolveConversationParams,
+  SelectConversationSendingAddressParams,
+  SendConversationMessageParams,
+  StartConversationParams,
+  StorefrontConversation,
+  StorefrontConversationMessage,
+  StorefrontConversationReply,
+  StorefrontConversationStart,
+  StorefrontFindConversationMessagesParams,
+  StorefrontGetConversationMessageParams,
+  StorefrontGetConversationParams,
   SupportFlow,
-  SupportMessage,
-  UpdateSupportChannelParams,
   UpdateSupportFlowParams,
 } from "../types/support";
 import { requireId } from "../utils/ids";
-import {
-  pollScheduledResult,
-  prepareScheduledMutation,
-  scheduledObservationOptions,
-} from "../utils/scheduledResult";
 import { segment, storePath, storeRecordPath } from "./paths";
-import { createSupportConversationNoteApi } from "./note";
-
-function aiReplyPending(message: StorefrontSupportMessage): boolean {
-  if (message.type.type !== "customer_chat") return false;
-  const reply = message.type.ai_reply.type;
-  return reply === "waiting" || reply === "answering";
-}
+import { createConversationNoteApi } from "./note";
 
 function supportTokenOptions<T>(supportToken: string, options?: RequestOptions<T>): RequestOptions<T> {
   if (typeof supportToken !== "string" || supportToken.length === 0) {
@@ -61,77 +48,75 @@ function supportTokenOptions<T>(supportToken: string, options?: RequestOptions<T
 }
 
 export function createStorefrontSupportApi(httpClient: HttpClient, ensureSession: () => Promise<void>) {
-  const conversationPath = (id: string) => `/v1/storefront/support/conversations/${segment(id)}`;
+  const base = "/v1/storefront/conversations";
+  const conversationPath = (id: string) => `${base}/${segment(id)}`;
 
   return {
-    async startConversation(
-      params: StartSupportConversationParams,
-      options?: RequestOptions,
-    ): Promise<StorefrontSupportConversationStartResponse> {
-      requireId(params.id, "support conversation");
-      await ensureSession();
-      return httpClient.post<StorefrontSupportConversationStartResponse>(
-        "/v1/storefront/support/conversations",
-        { id: params.id, channel_key: params.channel_key, language: params.language },
-        options,
-      );
-    },
-
-    async getConversation(
-      params: StorefrontGetSupportConversationParams,
-      options?: RequestOptions,
-    ): Promise<StorefrontSupportConversationResponse> {
-      await ensureSession();
-      const { support_token, conversation_id, ...query } = params;
-      return httpClient.get<StorefrontSupportConversationResponse>(conversationPath(conversation_id), {
-        ...supportTokenOptions(support_token, options),
-        params: query,
-      });
-    },
-
-    async getMessage(params: StorefrontGetSupportMessageParams, options?: RequestOptions): Promise<StorefrontSupportMessage> {
-      await ensureSession();
-      return httpClient.get<StorefrontSupportMessage>(
-        `${conversationPath(params.conversation_id)}/messages/${segment(params.message_id)}`,
-        supportTokenOptions(params.support_token, options),
-      );
-    },
-
-    async sendMessage(
-      params: StorefrontSendSupportMessageParams,
-      options?: ScheduledMutationOptions<StorefrontSupportConversationResponse>,
-    ): Promise<StorefrontSupportConversationResponse> {
-      requireId(params.message_id, "support message");
-      await ensureSession();
-      const path = conversationPath(params.conversation_id);
-      const mutation = prepareScheduledMutation(
-        { message_id: params.message_id, input: params.input },
-        supportTokenOptions(params.support_token, options),
-      );
-      const sent = await httpClient.post<StorefrontSupportConversationResponse>(
-        `${path}/messages`,
-        mutation.body,
-        mutation.options,
-      );
-      await mutation.afterResponse(sent);
-      const observe = (signal?: AbortSignal) =>
-        httpClient.get<StorefrontSupportMessage>(
-          `${path}/messages/${segment(params.message_id)}`,
-          scheduledObservationOptions(mutation.options, signal),
+    conversation: {
+      async start(params: StartConversationParams, options?: RequestOptions): Promise<StorefrontConversationStart> {
+        requireId(params.id, "conversation");
+        await ensureSession();
+        return httpClient.post<StorefrontConversationStart>(
+          base,
+          {
+            id: params.id,
+            language: params.language,
+            ...(params.flow_key !== undefined ? { flow_key: params.flow_key } : {}),
+          },
+          options,
         );
-      const message = sent.messages.find((item) => item.id === params.message_id) ?? (await observe(options?.signal));
-      if (!aiReplyPending(message)) return sent;
-      await pollScheduledResult(message, (signal) => observe(signal), aiReplyPending, options?.signal);
-      return httpClient.get<StorefrontSupportConversationResponse>(
-        path,
-        scheduledObservationOptions(mutation.options, options?.signal),
-      );
+      },
+
+      async get(params: StorefrontGetConversationParams, options?: RequestOptions): Promise<StorefrontConversation> {
+        await ensureSession();
+        return httpClient.get<StorefrontConversation>(
+          conversationPath(params.conversation_id),
+          supportTokenOptions(params.support_token, options),
+        );
+      },
+
+      async findMessages(
+        params: StorefrontFindConversationMessagesParams,
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<StorefrontConversationMessage>> {
+        await ensureSession();
+        const { support_token, conversation_id, ...query } = params;
+        return httpClient.get<PaginatedResponse<StorefrontConversationMessage>>(`${conversationPath(conversation_id)}/messages`, {
+          ...supportTokenOptions(support_token, options),
+          params: query,
+        });
+      },
+
+      async getMessage(
+        params: StorefrontGetConversationMessageParams,
+        options?: RequestOptions,
+      ): Promise<StorefrontConversationMessage> {
+        await ensureSession();
+        return httpClient.get<StorefrontConversationMessage>(
+          `${conversationPath(params.conversation_id)}/messages/${segment(params.message_id)}`,
+          supportTokenOptions(params.support_token, options),
+        );
+      },
+
+      async sendMessage(params: SendConversationMessageParams, options?: RequestOptions): Promise<StorefrontConversationReply> {
+        requireId(params.id, "conversation message");
+        await ensureSession();
+        return httpClient.post<StorefrontConversationReply>(
+          `${conversationPath(params.conversation_id)}/messages`,
+          {
+            id: params.id,
+            input: params.input,
+            ...(params.prompt_message_id !== undefined ? { prompt_message_id: params.prompt_message_id } : {}),
+          },
+          supportTokenOptions(params.support_token, options),
+        );
+      },
     },
   };
 }
 
 export function createAdminSupportApi(apiConfig: ApiConfig) {
-  const conversationPath = (storeId: string, id: string) => storeRecordPath(storeId, "support/conversations", id);
+  const conversationPath = (storeId: string, id: string) => storeRecordPath(storeId, "conversations", id);
 
   return {
     flow: {
@@ -166,103 +151,80 @@ export function createAdminSupportApi(apiConfig: ApiConfig) {
       },
     },
 
-    channel: {
-      find(params: FindSupportChannelsParams, options?: RequestOptions): Promise<PaginatedResponse<SupportChannel>> {
+    conversation: {
+      find(params: FindConversationsParams, options?: RequestOptions): Promise<PaginatedResponse<Conversation>> {
         const { store_id, ...query } = params;
-        return apiConfig.httpClient.get<PaginatedResponse<SupportChannel>>(storePath(store_id, "support/channels"), {
+        return apiConfig.httpClient.get<PaginatedResponse<Conversation>>(storePath(store_id, "conversations"), {
           ...options,
           params: query,
         });
       },
 
-      get(params: GetSupportChannelParams, options?: RequestOptions): Promise<SupportChannel> {
-        return apiConfig.httpClient.get<SupportChannel>(
-          storeRecordPath(params.store_id, "support/channels", params.id),
-          options,
-        );
+      get(params: GetConversationParams, options?: RequestOptions): Promise<Conversation> {
+        return apiConfig.httpClient.get<Conversation>(conversationPath(params.store_id, params.conversation_id), options);
       },
 
-      create(params: CreateSupportChannelParams, options?: RequestOptions): Promise<SupportChannel> {
-        requireId(params.id, "support channel");
-        const { store_id, ...body } = params;
-        return apiConfig.httpClient.post<SupportChannel>(storePath(store_id, "support/channels"), body, options);
-      },
-
-      update(params: UpdateSupportChannelParams, options?: RequestOptions): Promise<SupportChannel> {
-        const { store_id, id, ...body } = params;
-        return apiConfig.httpClient.put<SupportChannel>(storeRecordPath(store_id, "support/channels", id), body, options);
-      },
-
-      delete(params: DeleteSupportChannelParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
-        return apiConfig.httpClient.delete<{ deleted: boolean }>(
-          storeRecordPath(params.store_id, "support/channels", params.id),
-          { ...options, params: { expected_updated_at: params.expected_updated_at } },
-        );
-      },
-    },
-
-    conversation: {
-      find(
-        params: FindSupportConversationsParams,
+      findMessages(
+        params: FindConversationMessagesParams,
         options?: RequestOptions,
-      ): Promise<PaginatedResponse<SupportConversation>> {
-        const { store_id, ...query } = params;
-        return apiConfig.httpClient.get<PaginatedResponse<SupportConversation>>(
-          storePath(store_id, "support/conversations"),
+      ): Promise<PaginatedResponse<ConversationMessage>> {
+        const { store_id, conversation_id, ...query } = params;
+        return apiConfig.httpClient.get<PaginatedResponse<ConversationMessage>>(
+          `${conversationPath(store_id, conversation_id)}/messages`,
           { ...options, params: query },
         );
       },
 
-      get(params: GetSupportConversationParams, options?: RequestOptions): Promise<SupportConversationResponse> {
-        const { store_id, conversation_id, ...query } = params;
-        return apiConfig.httpClient.get<SupportConversationResponse>(conversationPath(store_id, conversation_id), {
-          ...options,
-          params: query,
-        });
-      },
-
-      getMessage(params: GetSupportMessageParams, options?: RequestOptions): Promise<SupportMessage> {
-        return apiConfig.httpClient.get<SupportMessage>(
+      getMessage(params: GetConversationMessageParams, options?: RequestOptions): Promise<ConversationMessage> {
+        return apiConfig.httpClient.get<ConversationMessage>(
           `${conversationPath(params.store_id, params.conversation_id)}/messages/${segment(params.message_id)}`,
           options,
         );
       },
 
-      attachmentLink(params: GetSupportAttachmentLinkParams, options?: RequestOptions): Promise<SupportAttachmentLink> {
-        return apiConfig.httpClient.get<SupportAttachmentLink>(
+      attachmentLink(
+        params: GetConversationAttachmentLinkParams,
+        options?: RequestOptions,
+      ): Promise<ConversationAttachmentLink> {
+        return apiConfig.httpClient.get<ConversationAttachmentLink>(
           `${conversationPath(params.store_id, params.conversation_id)}/messages/${segment(params.message_id)}/attachments/${segment(params.sha256)}`,
           options,
         );
       },
 
-      reply(params: ReplySupportConversationParams, options?: RequestOptions): Promise<SupportConversationResponse> {
-        requireId(params.message_id, "support message");
+      reply(params: ReplyConversationParams, options?: RequestOptions): Promise<ConversationReply> {
+        requireId(params.id, "conversation message");
         const { store_id, conversation_id, ...body } = params;
-        return apiConfig.httpClient.post<SupportConversationResponse>(
-          `${conversationPath(store_id, conversation_id)}/reply`,
+        return apiConfig.httpClient.post<ConversationReply>(
+          `${conversationPath(store_id, conversation_id)}/messages`,
           body,
           options,
         );
       },
 
-      resolve(params: ResolveSupportConversationParams, options?: RequestOptions): Promise<SupportConversation> {
-        return apiConfig.httpClient.post<SupportConversation>(
+      selectSendingAddress(params: SelectConversationSendingAddressParams, options?: RequestOptions): Promise<Conversation> {
+        const { store_id, conversation_id, ...body } = params;
+        return apiConfig.httpClient.post<Conversation>(
+          `${conversationPath(store_id, conversation_id)}/select-sending-address`,
+          body,
+          options,
+        );
+      },
+
+      resolve(params: ResolveConversationParams, options?: RequestOptions): Promise<Conversation> {
+        return apiConfig.httpClient.post<Conversation>(
           `${conversationPath(params.store_id, params.conversation_id)}/resolve`,
           { expected_updated_at: params.expected_updated_at },
           options,
         );
       },
 
-      assign(params: AssignSupportConversationParams, options?: RequestOptions): Promise<SupportConversation> {
+      assign(params: AssignConversationParams, options?: RequestOptions): Promise<Conversation> {
         const { store_id, conversation_id, ...body } = params;
-        return apiConfig.httpClient.post<SupportConversation>(
-          `${conversationPath(store_id, conversation_id)}/assign`,
-          body,
-          options,
-        );
+        return apiConfig.httpClient.post<Conversation>(`${conversationPath(store_id, conversation_id)}/assign`, body, options);
       },
 
-      notes: createSupportConversationNoteApi(apiConfig),
+      notes: createConversationNoteApi(apiConfig),
     },
   };
 }

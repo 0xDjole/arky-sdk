@@ -12,8 +12,10 @@ import type {
   PromotionEditableStatus,
   PromotionEffect,
   PromotionSchedule,
+  PromotionCondition,
   PromotionStatus,
   PromotionTarget,
+  ShippingRateCondition,
 } from "arky-sdk/types";
 
 type Assert<T extends true> = T;
@@ -38,6 +40,10 @@ export type PromotionContracts = [
   Assert<Equal<CreatePromotionParams["schedule"], PromotionSchedule>>,
   Assert<Missing<CreatePromotionParams, "starts_at" | "ends_at">>,
   Assert<Equal<PromotionSchedule["type"], "always" | "scheduled">>,
-  Assert<Equal<PromotionTarget["type"], "products" | "product_variants" | "booking_services" | "subscription_offerings" | "subscription_plans" | "catalogs" | "categories" | "all_eligible_items">>,
+  Assert<Equal<PromotionTarget["type"], "products" | "product_variants" | "booking_services" | "customer_group_offerings" | "customer_groups" | "catalogs" | "categories" | "all_eligible_items">>,
+  Assert<Equal<Extract<PromotionTarget, { type: "customer_group_offerings" }>, { type: "customer_group_offerings"; customer_group_offering_ids: string[] }>>,
+  Assert<Equal<Extract<PromotionTarget, { type: "customer_groups" }>, { type: "customer_groups"; customer_group_ids: string[] }>>,
+  Assert<Equal<Extract<PromotionCondition, { type: "customer_group_offering" }>, { type: "customer_group_offering"; ids: string[] }>>,
+  Assert<Equal<Extract<ShippingRateCondition, { type: "customer_group_offering" }>, { type: "customer_group_offering"; ids: string[] }>>,
   Assert<Equal<PromotionEffect["type"], "item_percentage" | "item_fixed" | "order_percentage" | "order_fixed" | "delivery_percentage" | "delivery_fixed" | "buy_x_get_y">>,
 ];

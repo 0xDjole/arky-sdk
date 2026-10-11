@@ -1,10 +1,8 @@
 import type { EpochMilliseconds } from "./time";
 import type { AccountActor, LocalizedText, SortDirection } from "./common";
-import type { EmailContent } from "./notification";
+import type { EmailDeliveryReport } from "./notification";
 
-export type SupportInputType = "text" | "email" | "phone";
-
-export type SupportAiTool = "escalate" | "web_search" | "read_webpage";
+export type ChatInputType = "text" | "email" | "phone";
 
 export interface SupportButton {
   label: LocalizedText;
@@ -12,12 +10,19 @@ export interface SupportButton {
 }
 
 export type SupportStep =
-  | { type: "message"; text: LocalizedText; next_step_key: string }
-  | { type: "choice"; text: LocalizedText; buttons: SupportButton[] }
-  | { type: "question"; text: LocalizedText; input_type: SupportInputType; next_step_key: string }
-  | { type: "ai_handoff"; text: LocalizedText; prompt: string; tools: SupportAiTool[] }
-  | { type: "human_handoff"; text: LocalizedText }
-  | { type: "end_conversation"; text: LocalizedText };
+  | { type: "chat_message"; text: LocalizedText; next_step_key: string }
+  | { type: "chat_choice"; text: LocalizedText; buttons: SupportButton[] }
+  | { type: "chat_question"; text: LocalizedText; input_type: ChatInputType; next_step_key: string }
+  | {
+      type: "collect_email_contact";
+      text: LocalizedText;
+      subject: LocalizedText;
+      initial_sending_address_id: string | null;
+      next_step_key: string;
+    }
+  | { type: "send_email"; email_template_id: string; language: string; next_step_key: string }
+  | { type: "hand_to_team" }
+  | { type: "resolve" };
 
 export type SupportStepType = SupportStep["type"];
 
@@ -31,213 +36,213 @@ export interface SupportFlow {
   updated_at: EpochMilliseconds;
 }
 
-export type SupportChatStart =
-  | { type: "inbox" }
-  | { type: "flow"; flow_id: string };
+export type ConversationStatus = { type: "flow"; step_key: string } | { type: "team" } | { type: "resolved" };
 
-export type SupportAutoReply =
-  | { type: "off" }
-  | { type: "on"; content: EmailContent };
+export type ConversationStatusName = ConversationStatus["type"];
 
-export type SupportChannelType =
-  | { type: "chat"; start: SupportChatStart }
-  | {
-      type: "email";
-      sender_id: string;
-      forwarding_local_part: string;
-      forwarding_address: string;
-      auto_reply: SupportAutoReply;
-    };
+export type ConversationContactName = "chat" | "email";
 
-export type SupportChannelStatus = { type: "active" } | { type: "disabled" };
-
-export interface SupportChannel {
-  id: string;
-  store_id: string;
-  key: string;
-  type: SupportChannelType;
-  status: SupportChannelStatus;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
+export interface ConversationChat {
+  language: string;
 }
 
-export type SupportConversationStart =
-  | { type: "inbox" }
-  | {
-      type: "flow";
-      flow_id: string;
-      steps: Record<string, SupportStep>;
-      answers: Record<string, string>;
-    };
+export interface ConversationEmail {
+  customer_email: string;
+  subject: string;
+  sending_address_id: string | null;
+}
 
-export type SupportConversationType =
-  | { type: "chat"; language: string; start: SupportConversationStart }
-  | { type: "email"; customer_email: string; subject: string };
+export interface ConversationFlowFailure {
+  step_key: string;
+  reason: string;
+  at: EpochMilliseconds;
+}
 
-export type SupportConversationStatus =
-  | { type: "flow"; step_key: string }
-  | { type: "ai"; step_key: string }
-  | { type: "escalated" }
-  | { type: "resolved" };
+export interface ConversationFlow {
+  flow_id: string;
+  steps: Record<string, SupportStep>;
+  answers: Record<string, string>;
+  failure: ConversationFlowFailure | null;
+}
 
-export interface SupportConversation {
+export interface Conversation {
   id: string;
   store_id: string;
-  channel_id: string;
   customer_id: string;
-  type: SupportConversationType;
-  status: SupportConversationStatus;
   assigned_account_id: string | null;
+  status: ConversationStatus;
+  chat: ConversationChat | null;
+  email: ConversationEmail | null;
+  flow: ConversationFlow | null;
+  next_message_sequence: number;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export type SupportAiReply =
-  | { type: "not_asked" }
-  | { type: "waiting" }
-  | { type: "answering"; until: EpochMilliseconds }
-  | { type: "answered" }
-  | { type: "not_answered"; reason: string }
-  | { type: "maybe_answered" };
+export interface EmailMailbox {
+  email: string;
+  name: string | null;
+}
 
-export type SupportAiAction =
-  | { type: "web_search"; query: string }
-  | { type: "read_webpage"; url: string }
-  | { type: "escalate" };
+export interface EmailHeaders {
+  message_id: string | null;
+  in_reply_to: string[];
+  references: string[];
+  from: EmailMailbox;
+  reply_to: EmailMailbox[];
+  to: EmailMailbox[];
+  cc: EmailMailbox[];
+  subject: string;
+  auto_submitted: string | null;
+  precedence: string | null;
+}
 
-export type SupportReplyStatus =
-  | { type: "waiting" }
-  | { type: "sent" }
-  | { type: "not_sent" }
-  | { type: "maybe_sent" };
-
-export interface SupportAttachment {
+export interface EmailAttachment {
   file_name: string;
   mime_type: string;
   size_bytes: number;
   sha256: string;
 }
 
-export interface SupportAttachmentLink {
+export interface ReceivedEmail {
+  receiving_address_id: string;
+  provider_email_id: string;
+  received_at: EpochMilliseconds;
+  headers: EmailHeaders;
+}
+
+export type ConversationEmailSendStatus =
+  | { type: "waiting" }
+  | { type: "sent"; at: EpochMilliseconds }
+  | { type: "not_sent"; reason: string; at: EpochMilliseconds }
+  | { type: "maybe_sent"; at: EpochMilliseconds };
+
+export interface OutgoingEmail {
+  sending_address_id: string;
+  notification_id: string;
+  provider_email_id: string | null;
+  headers: EmailHeaders;
+  send_status: ConversationEmailSendStatus;
+  delivery_report: EmailDeliveryReport | null;
+  complained_at: EpochMilliseconds | null;
+}
+
+export type ConversationReplyAuthor =
+  | { type: "account"; actor: AccountActor }
+  | { type: "flow"; step_key: string };
+
+export type ConversationReplyDelivery =
+  | { type: "chat" }
+  | { type: "email"; email: OutgoingEmail }
+  | { type: "chat_and_email"; email: OutgoingEmail };
+
+export type ReplyDeliveryName = ConversationReplyDelivery["type"];
+
+export type ConversationMessageType =
+  | { type: "customer_chat"; text: string }
+  | {
+      type: "received_email";
+      text: string;
+      email: ReceivedEmail;
+      attachments: EmailAttachment[];
+      visible_in_chat: boolean;
+    }
+  | { type: "flow_message"; step_key: string; text: string }
+  | { type: "flow_choice"; step_key: string; text: string; buttons: string[] }
+  | { type: "flow_question"; step_key: string; text: string; input_type: ChatInputType }
+  | {
+      type: "reply";
+      text: string;
+      author: ConversationReplyAuthor;
+      delivery: ConversationReplyDelivery;
+    };
+
+export interface ConversationMessage {
+  id: string;
+  store_id: string;
+  conversation_id: string;
+  sequence: number;
+  type: ConversationMessageType;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export interface ConversationReply {
+  conversation: Conversation;
+  message: ConversationMessage;
+}
+
+export interface ConversationAttachmentLink {
   url: string;
   expires_at: EpochMilliseconds;
 }
 
-export type SupportMessageType =
-  | { type: "customer_chat"; text: string; ai_reply: SupportAiReply }
-  | {
-      type: "customer_email";
-      text: string;
-      from: string;
-      email_message_id: string;
-      references: string[];
-      attachments: SupportAttachment[];
-    }
-  | { type: "flow"; text: string; buttons: string[] }
-  | { type: "flow_question"; text: string; input_type: SupportInputType }
-  | { type: "ai"; text: string }
-  | { type: "ai_action"; action: SupportAiAction }
-  | { type: "account_chat"; text: string; actor: AccountActor }
-  | {
-      type: "account_email";
-      text: string;
-      actor: AccountActor;
-      notification_id: string;
-      status: SupportReplyStatus;
-    }
-  | {
-      type: "store_email";
-      text: string;
-      from: string;
-      email_message_id: string;
-      references: string[];
-    };
-
-export interface SupportMessage {
+export interface StorefrontConversation {
   id: string;
-  store_id: string;
-  conversation_id: string;
-  type: SupportMessageType;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export interface SupportConversationResponse {
-  conversation: SupportConversation;
-  messages: SupportMessage[];
-  messages_cursor: string | null;
-}
-
-export interface StorefrontSupportConversation {
-  id: string;
-  store_id: string;
-  channel_id: string;
   language: string;
-  status: SupportConversationStatus;
+  status: ConversationStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export type StorefrontSupportMessageType =
-  | { type: "customer_chat"; text: string; ai_reply: SupportAiReply }
-  | { type: "flow"; text: string; buttons: string[] }
-  | { type: "flow_question"; text: string; input_type: SupportInputType }
-  | { type: "ai"; text: string }
-  | { type: "account_chat"; text: string };
+export type StorefrontConversationMessageType =
+  | { type: "customer_chat"; text: string }
+  | { type: "received_email"; text: string }
+  | { type: "flow_message"; text: string }
+  | { type: "flow_choice"; text: string; buttons: string[] }
+  | { type: "flow_question"; text: string; input_type: ChatInputType }
+  | { type: "reply"; text: string };
 
-export interface StorefrontSupportMessage {
+export interface StorefrontConversationMessage {
   id: string;
-  store_id: string;
   conversation_id: string;
-  type: StorefrontSupportMessageType;
+  sequence: number;
+  type: StorefrontConversationMessageType;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export interface StorefrontSupportConversationResponse {
-  conversation: StorefrontSupportConversation;
-  messages: StorefrontSupportMessage[];
-  messages_cursor: string | null;
+export interface StorefrontConversationReply {
+  conversation: StorefrontConversation;
+  messages: StorefrontConversationMessage[];
 }
 
-export interface StorefrontSupportConversationStartResponse
-  extends StorefrontSupportConversationResponse {
+export interface StorefrontConversationStart extends StorefrontConversationReply {
   support_token: string;
 }
 
-export type SupportMessageInput =
-  | { type: "button"; label: string }
-  | { type: "text"; text: string };
+export type ChatInput = { type: "button"; label: string } | { type: "text"; text: string };
 
-export interface StartSupportConversationParams {
+export interface StartConversationParams {
   id: string;
-  channel_key: string;
   language: string;
+  flow_key?: string;
 }
 
-export interface StorefrontSupportMessageResult {
-  conversation: StorefrontSupportConversation;
-  message: StorefrontSupportMessage;
+export interface StorefrontGetConversationParams {
+  support_token: string;
+  conversation_id: string;
 }
 
-export interface StorefrontSendSupportMessageParams {
+export interface StorefrontFindConversationMessagesParams {
+  support_token: string;
+  conversation_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface StorefrontGetConversationMessageParams {
   support_token: string;
   conversation_id: string;
   message_id: string;
-  input: SupportMessageInput;
 }
 
-export interface StorefrontGetSupportConversationParams {
+export interface SendConversationMessageParams {
   support_token: string;
   conversation_id: string;
-  message_limit?: number;
-  message_cursor?: string | null;
-}
-
-export interface StorefrontGetSupportMessageParams {
-  support_token: string;
-  conversation_id: string;
-  message_id: string;
+  id: string;
+  input: ChatInput;
+  prompt_message_id?: string;
 }
 
 export interface FindSupportFlowsParams {
@@ -267,6 +272,7 @@ export interface UpdateSupportFlowParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
+  key?: string;
   start_step_key: string;
   steps: Record<string, SupportStep>;
 }
@@ -277,58 +283,10 @@ export interface DeleteSupportFlowParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindSupportChannelsParams {
+export interface FindConversationsParams {
   store_id: string;
-  status?: SupportChannelStatus["type"];
-  type?: SupportChannelType["type"];
-  query?: string;
-  sort_field?: "created_at" | "updated_at";
-  sort_direction?: SortDirection;
-  limit?: number;
-  cursor?: string | null;
-}
-
-export interface GetSupportChannelParams {
-  store_id: string;
-  id: string;
-}
-
-export type SupportChannelTypeInput =
-  | { type: "chat"; start: SupportChatStart }
-  | { type: "email"; sender_id: string; auto_reply: SupportAutoReply };
-
-export interface CreateSupportChannelParams {
-  store_id: string;
-  id: string;
-  key: string;
-  type: SupportChannelTypeInput;
-  status: SupportChannelStatus;
-}
-
-export type SupportChannelChange =
-  | { type: "chat"; start: SupportChatStart }
-  | { type: "email"; sender_id: string; auto_reply: SupportAutoReply };
-
-export interface UpdateSupportChannelParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
-  key?: string;
-  type?: SupportChannelChange;
-  status?: SupportChannelStatus;
-}
-
-export interface DeleteSupportChannelParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
-}
-
-export interface FindSupportConversationsParams {
-  store_id: string;
-  statuses?: SupportConversationStatus["type"][];
-  channel_id?: string;
-  channel_type?: SupportChannelType["type"];
+  statuses?: ConversationStatusName[];
+  contact?: ConversationContactName;
   customer_id?: string;
   assigned_account_id?: string;
   query?: string;
@@ -338,42 +296,55 @@ export interface FindSupportConversationsParams {
   cursor?: string | null;
 }
 
-export interface GetSupportConversationParams {
+export interface GetConversationParams {
   store_id: string;
   conversation_id: string;
-  message_limit?: number;
-  message_cursor?: string | null;
 }
 
-export interface GetSupportMessageParams {
+export interface FindConversationMessagesParams {
+  store_id: string;
+  conversation_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface GetConversationMessageParams {
   store_id: string;
   conversation_id: string;
   message_id: string;
 }
 
-export interface GetSupportAttachmentLinkParams {
+export interface GetConversationAttachmentLinkParams {
   store_id: string;
   conversation_id: string;
   message_id: string;
   sha256: string;
 }
 
-export interface ReplySupportConversationParams {
+export interface ReplyConversationParams {
   store_id: string;
   conversation_id: string;
-  message_id: string;
+  id: string;
   expected_updated_at: EpochMilliseconds;
   text: string;
-  resolve: boolean;
+  delivery: ReplyDeliveryName;
+  resolve?: boolean;
 }
 
-export interface ResolveSupportConversationParams {
+export interface SelectConversationSendingAddressParams {
+  store_id: string;
+  conversation_id: string;
+  expected_updated_at: EpochMilliseconds;
+  sending_address_id: string;
+}
+
+export interface ResolveConversationParams {
   store_id: string;
   conversation_id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface AssignSupportConversationParams {
+export interface AssignConversationParams {
   store_id: string;
   conversation_id: string;
   expected_updated_at: EpochMilliseconds;

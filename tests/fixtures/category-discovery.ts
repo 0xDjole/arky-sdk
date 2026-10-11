@@ -1,8 +1,10 @@
-import { createAdmin, createStorefront, epochMilliseconds, type Category, type CategoryStatus, type FindCategoriesParams, type UpdateCategoryParams, type CreateCategoryParams, type StorefrontGetCategoryParams, type StorefrontGetCategoryByKeyParams } from "../../dist/index.js";
+import { createAdmin, createStorefront, epochMilliseconds, type Category, type CategoryEntry, type CategoryField, type CategoryFieldQuery, type CategoryStatus, type FindCategoriesParams, type UpdateCategoryParams, type CreateCategoryParams, type StorefrontGetCategoryParams, type StorefrontGetCategoryByKeyParams } from "../../dist/index.js";
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
+type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
+type Field<T extends CategoryField["type"]> = Extract<CategoryField, { type: T }>;
 
 const store_id = "4b6e2a91-0c5d-4f37-8a2e-1d9c7b3f5e08";
 const admin = createAdmin({ baseUrl: "https://category.test" });
@@ -29,4 +31,12 @@ export type CategoryDiscoveryContracts = [
   Assert<Equal<StorefrontGetCategoryParams, { id: string } | { slug: string }>>,
   Assert<Equal<keyof StorefrontGetCategoryByKeyParams, "key">>,
   Assert<Equal<Parameters<typeof storefront.category.getByKey>[0], StorefrontGetCategoryByKeyParams>>,
+  Assert<Equal<CategoryEntry["fields"], CategoryField[]>>,
+  Assert<Equal<CategoryField["type"], "select_one" | "select_many" | "number" | "boolean" | "geo_location">>,
+  Assert<Equal<keyof Field<"select_one">, "type" | "field_id" | "option_key">>,
+  Assert<Equal<keyof Field<"select_many">, "type" | "field_id" | "option_keys">>,
+  Assert<Equal<keyof Field<"number">, "type" | "field_id" | "value">>,
+  Assert<Missing<Field<"boolean">, "key">>,
+  Assert<Missing<Field<"geo_location">, "key">>,
+  Assert<Equal<Extract<CategoryFieldQuery, { type: "select" }>["key"], string>>,
 ];

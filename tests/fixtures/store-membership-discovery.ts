@@ -1,14 +1,19 @@
 import type {
+  AcceptStoreInviteParams,
   Account,
   AddStoreMemberParams,
+  AllowStoreEmailSendingParams,
   ChangeStoreMemberStatusParams,
   FindOwnStoreMembershipsParams,
   GetOwnStoreMembershipParams,
   LocationReach,
   PaginatedResponse,
+  PauseStoreEmailSendingParams,
   Store,
+  StoreEmailSending,
   StoreAccess,
   StoreMembership,
+  StoreMembershipEditableStatus,
   StoreMembershipStatus,
   StoreMembershipWithStoreName,
   StorePermission,
@@ -17,6 +22,7 @@ import type {
   UpdateStoreMemberRolesParams,
 } from "arky-sdk";
 import type { createAdmin } from "arky-sdk/admin";
+import type { EpochMilliseconds } from "arky-sdk";
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -50,8 +56,17 @@ export type MembershipDiscoveryContracts = [
   Assert<Equal<ReturnType<Admin["store"]["member"]["transferOwnership"]>, Promise<Store>>>,
   Assert<Equal<Parameters<Admin["store"]["member"]["changeStatus"]>[0], ChangeStoreMemberStatusParams>>,
   Assert<Equal<ReturnType<Admin["store"]["member"]["changeStatus"]>, Promise<StoreMembership>>>,
-  Assert<Equal<ChangeStoreMemberStatusParams["status"], StoreMembershipStatus>>,
-  Assert<Equal<StoreMembershipStatus, { type: "invited" } | { type: "active" } | { type: "disabled" }>>,
+  Assert<Equal<ChangeStoreMemberStatusParams["status"], StoreMembershipEditableStatus>>,
+  Assert<Equal<StoreMembershipEditableStatus, { type: "active" } | { type: "disabled" }>>,
+  Assert<Equal<StoreMembershipStatus, { type: "invited"; expires_at: EpochMilliseconds } | { type: "active" } | { type: "disabled" }>>,
+  Assert<Equal<Parameters<Admin["store"]["member"]["acceptInvite"]>[0], AcceptStoreInviteParams>>,
+  Assert<Equal<ReturnType<Admin["store"]["member"]["acceptInvite"]>, Promise<StoreMembership>>>,
+  Assert<Equal<keyof AcceptStoreInviteParams, "store_id" | "expected_updated_at">>,
+  Assert<Equal<Parameters<Admin["store"]["pauseEmailSending"]>[0], PauseStoreEmailSendingParams>>,
+  Assert<Equal<keyof PauseStoreEmailSendingParams, "store_id" | "expected_updated_at" | "reason">>,
+  Assert<Equal<Parameters<Admin["store"]["allowEmailSending"]>[0], AllowStoreEmailSendingParams>>,
+  Assert<Equal<ReturnType<Admin["store"]["allowEmailSending"]>, Promise<Store>>>,
+  Assert<Equal<Store["email_sending"], StoreEmailSending>>,
   Assert<Equal<Store["owner_account_id"], string>>,
   Assert<Missing<Admin["store"], "buildHook">>,
   Assert<Equal<Account["status"], { type: "active" } | { type: "deleting" }>>,

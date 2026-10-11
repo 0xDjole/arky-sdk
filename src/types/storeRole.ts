@@ -35,9 +35,11 @@ export interface StoreAccess {
 }
 
 export type StoreMembershipStatus =
-  | { type: "invited" }
+  | { type: "invited"; expires_at: EpochMilliseconds }
   | { type: "active" }
   | { type: "disabled" };
+
+export type StoreMembershipEditableStatus = Exclude<StoreMembershipStatus, { type: "invited" }>;
 
 export interface StoreMembership {
   id: string;
@@ -119,7 +121,12 @@ export interface ChangeStoreMemberStatusParams {
   store_id: string;
   account_id: string;
   expected_updated_at: EpochMilliseconds;
-  status: StoreMembershipStatus;
+  status: StoreMembershipEditableStatus;
+}
+
+export interface AcceptStoreInviteParams {
+  store_id: string;
+  expected_updated_at: EpochMilliseconds;
 }
 
 export interface TransferStoreOwnershipParams {

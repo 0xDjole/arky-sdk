@@ -2,31 +2,31 @@ import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
+  ChangeEmailAddressStatusParams,
+  CreateEmailAddressParams,
   CreateEmailDomainParams,
-  CreateEmailSenderParams,
   CreateEmailTemplateParams,
+  DeleteEmailAddressParams,
   DeleteEmailDomainParams,
-  DeleteEmailSenderParams,
   DeleteEmailTemplateParams,
+  EmailAddress,
   EmailDomain,
-  EmailSender,
   EmailTemplate,
   EmailTemplateDefault,
   EmailTemplatePreview,
+  FindEmailAddressesParams,
   FindEmailDomainsParams,
-  FindEmailSendersParams,
   FindEmailTemplateDefaultsParams,
   FindEmailTemplatesParams,
   FindNotificationsParams,
+  GetEmailAddressParams,
   GetEmailDomainParams,
-  GetEmailSenderParams,
   GetEmailTemplateParams,
   GetNotificationParams,
   Notification,
   PreviewEmailTemplateParams,
   SendEmailTemplateTestParams,
-  StopNotificationParams,
-  UpdateEmailSenderParams,
+  UpdateEmailAddressParams,
   UpdateEmailTemplateParams,
   VerifyEmailDomainParams,
 } from "../types/notification";
@@ -44,14 +44,6 @@ export const createNotificationApi = (apiConfig: ApiConfig) => ({
 
   get(params: GetNotificationParams, options?: RequestOptions): Promise<Notification> {
     return apiConfig.httpClient.get<Notification>(storeRecordPath(params.store_id, "notifications", params.id), options);
-  },
-
-  stop(params: StopNotificationParams, options?: RequestOptions): Promise<Notification> {
-    return apiConfig.httpClient.post<Notification>(
-      `${storeRecordPath(params.store_id, "notifications", params.id)}/stop`,
-      { expected_updated_at: params.expected_updated_at },
-      options,
-    );
   },
 });
 
@@ -103,7 +95,11 @@ export const createEmailTemplateApi = (apiConfig: ApiConfig) => ({
     requireId(params.notification_id, "test email");
     return apiConfig.httpClient.post<Notification>(
       `${storeRecordPath(params.store_id, "email-templates", params.id)}/test`,
-      { id: params.notification_id, language: params.language },
+      {
+        id: params.notification_id,
+        language: params.language,
+        ...(params.sending_address_id !== undefined ? { sending_address_id: params.sending_address_id } : {}),
+      },
       options,
     );
   },
@@ -144,34 +140,53 @@ export const createEmailDomainApi = (apiConfig: ApiConfig) => ({
   },
 });
 
-export const createEmailSenderApi = (apiConfig: ApiConfig) => ({
-  find(params: FindEmailSendersParams, options?: RequestOptions): Promise<PaginatedResponse<EmailSender>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<EmailSender>>(storePath(store_id, "email-senders"), {
-      ...options,
-      params: query,
-    });
-  },
+export const createEmailAddressApi = (apiConfig: ApiConfig) => {
+  const addressPath = (storeId: string, id: string) => storeRecordPath(storeId, "email-addresses", id);
+  return {
+    find(params: FindEmailAddressesParams, options?: RequestOptions): Promise<PaginatedResponse<EmailAddress>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<EmailAddress>>(storePath(store_id, "email-addresses"), {
+        ...options,
+        params: query,
+      });
+    },
 
-  get(params: GetEmailSenderParams, options?: RequestOptions): Promise<EmailSender> {
-    return apiConfig.httpClient.get<EmailSender>(storeRecordPath(params.store_id, "email-senders", params.id), options);
-  },
+    get(params: GetEmailAddressParams, options?: RequestOptions): Promise<EmailAddress> {
+      return apiConfig.httpClient.get<EmailAddress>(addressPath(params.store_id, params.id), options);
+    },
 
-  create(params: CreateEmailSenderParams, options?: RequestOptions): Promise<EmailSender> {
-    requireId(params.id, "email sender");
-    const { store_id, ...body } = params;
-    return apiConfig.httpClient.post<EmailSender>(storePath(store_id, "email-senders"), body, options);
-  },
+    create(params: CreateEmailAddressParams, options?: RequestOptions): Promise<EmailAddress> {
+      requireId(params.id, "email address");
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.post<EmailAddress>(storePath(store_id, "email-addresses"), body, options);
+    },
 
-  update(params: UpdateEmailSenderParams, options?: RequestOptions): Promise<EmailSender> {
-    const { store_id, id, ...body } = params;
-    return apiConfig.httpClient.put<EmailSender>(storeRecordPath(store_id, "email-senders", id), body, options);
-  },
+    update(params: UpdateEmailAddressParams, options?: RequestOptions): Promise<EmailAddress> {
+      const { store_id, id, ...body } = params;
+      return apiConfig.httpClient.put<EmailAddress>(addressPath(store_id, id), body, options);
+    },
 
-  delete(params: DeleteEmailSenderParams, options?: RequestOptions): Promise<boolean> {
-    return apiConfig.httpClient.delete<boolean>(storeRecordPath(params.store_id, "email-senders", params.id), {
-      ...options,
-      params: { expected_updated_at: params.expected_updated_at },
-    });
-  },
-});
+    archive(params: ChangeEmailAddressStatusParams, options?: RequestOptions): Promise<EmailAddress> {
+      return apiConfig.httpClient.post<EmailAddress>(
+        `${addressPath(params.store_id, params.id)}/archive`,
+        { expected_updated_at: params.expected_updated_at },
+        options,
+      );
+    },
+
+    activate(params: ChangeEmailAddressStatusParams, options?: RequestOptions): Promise<EmailAddress> {
+      return apiConfig.httpClient.post<EmailAddress>(
+        `${addressPath(params.store_id, params.id)}/activate`,
+        { expected_updated_at: params.expected_updated_at },
+        options,
+      );
+    },
+
+    delete(params: DeleteEmailAddressParams, options?: RequestOptions): Promise<boolean> {
+      return apiConfig.httpClient.delete<boolean>(addressPath(params.store_id, params.id), {
+        ...options,
+        params: { expected_updated_at: params.expected_updated_at },
+      });
+    },
+  };
+};

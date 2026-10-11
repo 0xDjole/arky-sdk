@@ -23,7 +23,6 @@ export type AccountSessionStatus =
       type: "pending_verification";
       failed_attempts: number;
       verification_expires_at: EpochMilliseconds;
-      notification_id: string;
     }
   | {
       type: "active";

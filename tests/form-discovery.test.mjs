@@ -109,6 +109,7 @@ test("storefront submitByKey keeps the caller's id and answers across response l
   assert.deepEqual(submissionOf(calls[0]), submissionOf(calls[1]));
   assert.deepEqual(submissionOf(calls[1]), {
     id: SUBMISSION_ID,
+    form_updated_at: intake.updated_at,
     language: "en",
     answers: [{ question_id: "q-answer", key: "answer", type: "text", value: "kept" }],
   });
@@ -117,7 +118,22 @@ test("storefront submitByKey keeps the caller's id and answers across response l
   assert.equal(calls[1].headers.get("content-type"), null);
 });
 
-test("a refused submission after the questions changed propagates without a hidden reload or resubmission", async (context) => {
+test("a submission against a form that changed since it loaded is refused as FORM_CHANGED without a hidden reload or resubmission", async (context) => {
+  const calls = recordFetch(context, () => Response.json({ message: "The form changed; reload it", error: "FORM_SUBMISSION.FORM_CHANGED", status_code: 409, validation_errors: [] }, { status: 409 }));
+  const store = initialize(publishableKey, { apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  const loaded = { ...intake, updated_at: 7 };
+  await assert.rejects(store.forms.submitByKey({ id: SUBMISSION_ID, key: "intake", form: loaded, language: "en", values: { answer: "Kept" } }), (error) => {
+    assert.equal(error.code, "FORM_SUBMISSION.FORM_CHANGED");
+    assert.equal(error.statusCode, 409);
+    return true;
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].method, "POST");
+  assert.equal(calls[0].path, `/v1/storefront/forms/${FORM_ID}/submissions`);
+  assert.equal(submissionOf(calls[0]).form_updated_at, 7);
+});
+
+test("a refused submission whose answers don't fit the form propagates its field errors without a resubmission", async (context) => {
   const calls = recordFetch(context, () => Response.json({ message: "The answers don't fit the form", error: "FORM_SUBMISSION.INVALID_INPUT", status_code: 400, validation_errors: [{ field: "answers[0].question_id", error: "FORM_SUBMISSION.UNKNOWN_QUESTION" }] }, { status: 400 }));
   const store = initialize(publishableKey, { apiUrl, locale: "en", sessionStorage: visitorStorage() });
   await assert.rejects(store.forms.submitByKey({ id: SUBMISSION_ID, key: "intake", form: intake, language: "en", values: { answer: "Kept" } }), (error) => {

@@ -69,6 +69,7 @@ export type CustomerSessionType =
       access_expires_at: EpochMilliseconds;
       refresh_expires_at: EpochMilliseconds;
       authenticated_at: EpochMilliseconds;
+      email_change: CustomerEmailVerification | null;
     };
 
 export type CustomerSessionStatus =
@@ -333,8 +334,13 @@ export interface UpdateCustomerMeParams {
   last_name?: string | null;
   phone?: string | null;
   language?: string | null;
-  email?: string | null;
+  email?: string;
   addresses?: CustomerAddressInput[];
   default_shipping_address_id?: string | null;
   default_billing_address_id?: string | null;
+}
+
+export interface ChangeCustomerEmailParams {
+  code: string;
+  language: string;
 }

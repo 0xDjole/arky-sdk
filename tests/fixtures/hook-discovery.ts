@@ -8,8 +8,9 @@ type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 declare const admin: ReturnType<typeof createAdmin>;
 const webhooks: Promise<{ items: Webhook[]; cursor: string | null }> = admin.store.webhook.list({ store_id: 'store', query: 'entry.updated', status: 'disabled' });
 const scoped: WebhookType = { type: 'entry.updated', collections: { type: 'all' }, entries: { type: 'only', keys: ['guide'] } };
-const forms: WebhookType = { type: 'form_submission.created', forms: { type: 'only', form_ids: ['form'] } };
-void [webhooks, scoped, forms];
+const forms: WebhookType = { type: 'form_submission.created', forms: { form_ids: ['form'] } };
+const member: WebhookType = { type: 'customer_group_member.payment_method_changed' };
+void [webhooks, scoped, forms, member];
 
 export type HookDiscoveryContracts = [
   True<'buildHook' extends keyof typeof admin.store ? false : true>,
@@ -17,4 +18,11 @@ export type HookDiscoveryContracts = [
   True<Equal<FindWebhooksParams['status'], 'active' | 'disabled' | undefined>>,
   True<Equal<keyof typeof admin.store.webhook, 'list' | 'create' | 'update' | 'delete' | 'test'>>,
   True<'event' extends keyof WebhookType ? false : true>,
+  True<Equal<Extract<WebhookType, { type: 'form_submission.created' }>['forms'], { form_ids: string[] }>>,
+  True<Equal<Extract<WebhookType['type'], `customer_group_member.${string}`>,
+    | 'customer_group_member.activated' | 'customer_group_member.paused' | 'customer_group_member.resumed'
+    | 'customer_group_member.cancelled' | 'customer_group_member.renewed' | 'customer_group_member.payment_failed'
+    | 'customer_group_member.switched' | 'customer_group_member.next_purchase_skipped'
+    | 'customer_group_member.payment_method_changed' | 'customer_group_member.tax_classification_corrected'>>,
+  True<Equal<Extract<WebhookType['type'], `subscription.${string}` | 'customer_group.member_added' | 'customer_group.member_removed'>, never>>,
 ];

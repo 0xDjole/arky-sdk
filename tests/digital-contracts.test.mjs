@@ -16,11 +16,10 @@ test("digital goods are products: storefront discovery forwards catalog price fi
     query: "Košulja linen",
     price_filter: { min_amount: 0, max_amount: 500, quantity: 1 },
     sort_field: "price", sort_direction: "desc", limit: 20, cursor: "opaque-current",
-    company_id: "7b9a5793-561f-4655-8f6b-42f5d6ded326",
     company_location_id: "8f9a5793-561f-4655-8f6b-42f5d6ded327", include_price: true,
   };
   assert.deepEqual(await storefront.eshop.product.find(params), { items: [], cursor: "opaque-next" });
-  await storefront.eshop.product.get({ slug: "guide", company_id: params.company_id, company_location_id: params.company_location_id, include_price: true });
+  await storefront.eshop.product.get({ slug: "guide", company_location_id: params.company_location_id, include_price: true });
   const query = calls[0].url.searchParams;
   assert.equal(calls[0].path, "/v1/storefront/products");
   assert.equal(query.get("query"), params.query);
@@ -29,8 +28,10 @@ test("digital goods are products: storefront discovery forwards catalog price fi
   assert.equal(query.get("cursor"), "opaque-current");
   assert.deepEqual(JSON.parse(query.get("price_filter")), params.price_filter);
   assert.equal(query.get("company_location_id"), params.company_location_id);
+  assert.equal(query.has("company_id"), false);
   assert.equal(calls[1].path, "/v1/storefront/products/guide");
   assert.equal(calls[1].url.searchParams.get("company_location_id"), params.company_location_id);
+  assert.equal(calls[1].url.searchParams.has("company_id"), false);
   assert.equal("digital" in storefront.eshop, false);
 });
 
@@ -77,7 +78,7 @@ test("Admin digital variants carry their asset ids and assets are uploaded under
   assert.equal("digital" in admin.eshop, false);
 });
 
-test("the digital library keeps empty-page continuation and explicit Company context on every access read", async (context) => {
+test("the digital library keeps empty-page continuation and names a location alone on every access read", async (context) => {
   const responses = [
     { items: [], cursor: "opaque-grant-position" },
     { items: [], cursor: null },
@@ -87,21 +88,21 @@ test("the digital library keeps empty-page continuation and explicit Company con
   ];
   const calls = recordFetch(context, () => responses.shift());
   const storefront = createStorefront(publishableKey, { apiUrl: baseUrl, market: "us", locale: "en", sessionStorage: visitorStorage() });
-  const selection = { company_id: ids.company, company_location_id: ids.companyLocation };
-  const first = await storefront.eshop.library.find({ ...selection, limit: 1 });
+  const location = { company_location_id: ids.companyLocation };
+  const first = await storefront.eshop.library.find({ ...location, limit: 1 });
   assert.deepEqual(first, { items: [], cursor: "opaque-grant-position" });
-  await storefront.eshop.library.find({ ...selection, limit: 1, cursor: first.cursor });
-  const product = await storefront.eshop.library.getProduct({ ...selection, product_id: "product/encoded", limit: 10 });
+  await storefront.eshop.library.find({ ...location, limit: 1, cursor: first.cursor });
+  const product = await storefront.eshop.library.getProduct({ ...location, product_id: "product/encoded", limit: 10 });
   assert.equal(product.presentation, null);
   assert.equal(product.assets.cursor, "protected-file-position");
-  const files = await storefront.eshop.library.findAssets({ ...selection, product_id: "product/encoded", limit: 10, cursor: product.assets.cursor });
+  const files = await storefront.eshop.library.findAssets({ ...location, product_id: "product/encoded", limit: 10, cursor: product.assets.cursor });
   assert.deepEqual(files, { items: [], cursor: "protected-file-position" });
-  await storefront.eshop.library.download({ ...selection, product_id: "product/encoded", asset_id: "asset/encoded", reference: "protected-reference" });
+  await storefront.eshop.library.download({ ...location, product_id: "product/encoded", asset_id: "asset/encoded", reference: "protected-reference" });
   assert.equal(calls.length, 5);
   for (const call of calls) {
     assert.equal(call.method, "GET");
-    assert.equal(call.query.company_id, selection.company_id);
-    assert.equal(call.query.company_location_id, selection.company_location_id);
+    assert.equal(call.query.company_location_id, ids.companyLocation);
+    assert.equal("company_id" in call.query, false);
     assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
   }
   assert.equal(calls[0].path, "/v1/storefront/digital-products/library");
@@ -116,10 +117,27 @@ test("the digital library keeps empty-page continuation and explicit Company con
   for (const absent of ["order_id", "line_item_id", "product_id", "asset_id"]) assert.equal(absent in calls[4].query, false, absent);
 });
 
+test("a company's library reads and downloads name the company alone", async (context) => {
+  const calls = recordFetch(context, (call) => call.path.endsWith("/download")
+    ? { url: "https://files.example.test/protected", expires_at: 10000, file_name: "guide.pdf", mime_type: "application/pdf" }
+    : { items: [], cursor: null });
+  const storefront = createStorefront(publishableKey, { apiUrl: baseUrl, sessionStorage: visitorStorage() });
+  const company = { company_id: ids.company };
+  await storefront.eshop.library.find({ ...company, limit: 5 });
+  await storefront.eshop.library.findAssets({ ...company, product_id: ids.product, limit: 5 });
+  await storefront.eshop.library.download({ ...company, product_id: ids.product, asset_id: assetId, reference: "r" });
+  assert.deepEqual(calls.map((call) => [call.path, call.query]), [
+    ["/v1/storefront/digital-products/library", { company_id: ids.company, limit: "5" }],
+    [`/v1/storefront/digital-products/library/${ids.product}/assets`, { company_id: ids.company, limit: "5" }],
+    [`/v1/storefront/digital-products/${ids.product}/assets/${assetId}/download`, { company_id: ids.company, reference: "r" }],
+  ]);
+});
+
 test("library downloads never go to the retired library path", async (context) => {
   const calls = recordFetch(context, () => ({ url: "https://files.example.test/protected", expires_at: 10000, file_name: "guide.pdf", mime_type: "application/pdf" }));
   const storefront = createStorefront(publishableKey, { apiUrl: baseUrl, sessionStorage: visitorStorage() });
   await storefront.eshop.library.download({ product_id: ids.product, asset_id: assetId, reference: "r" });
   assert.equal(calls[0].path, `/v1/storefront/digital-products/${ids.product}/assets/${assetId}/download`);
   assert.equal(calls[0].path.startsWith("/v1/storefront/library"), false);
+  assert.deepEqual(calls[0].query, { reference: "r" });
 });

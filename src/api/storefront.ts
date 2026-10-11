@@ -7,12 +7,12 @@ import type {
   CartQuote,
   CheckoutAcceptance,
   CreatedCart,
+  CustomerGroupDeliveryOffers,
   FindStorefrontCartOffersParams,
-  PlanDeliveryOffers,
   ReorderedCart,
   StorefrontAddCartBookingParams,
+  StorefrontAddCartCustomerGroupParams,
   StorefrontAddCartProductParams,
-  StorefrontAddCartSubscriptionPlanParams,
   StorefrontCheckoutCartParams,
   StorefrontClearCartParams,
   StorefrontCreateCartParams,
@@ -31,11 +31,9 @@ import type { CartCheckoutRequest, CartCheckoutTransport } from "../types/cartCh
 import type { CartSelectionContext } from "../types/cartSelection";
 import type { CatalogReadOptions, FindStorefrontCatalogsParams, StorefrontCatalog } from "../types/catalog";
 import type {
-  BranchMinimumProgress,
   CompanyCustomerAccess,
   CompanyLocation,
   CompanyMembership,
-  GetStorefrontBranchMinimumProgressParams,
   StorefrontFindCompanyLocationsParams,
   StorefrontFindCompanyMembershipsParams,
 } from "../types/company";
@@ -54,6 +52,7 @@ import type {
   StorefrontGetCollectionParams,
 } from "../types/content";
 import type {
+  ChangeCustomerEmailParams,
   Customer,
   CustomerCodeResult,
   CustomerMe,
@@ -63,7 +62,12 @@ import type {
 } from "../types/customer";
 import type { TrackCustomerActionParams } from "../types/customerAction";
 import type { ExperimentUseResponse, UseExperimentParams } from "../types/experiment";
-import type { CustomerOrderFulfillment, FindCustomerOrderFulfillmentsParams } from "../types/fulfillment";
+import type {
+  CustomerOrderFulfillment,
+  FindCustomerOrderFulfillmentsParams,
+  MinimumProgress,
+  StorefrontGetMinimumProgressParams,
+} from "../types/fulfillment";
 import type {
   Order,
   StorefrontCancelOrderBookingItemParams,
@@ -121,28 +125,6 @@ import type {
   StorefrontParams,
   StorefrontSetup,
 } from "../types/storefront";
-import type {
-  FindStorefrontSubscriptionPlansParams,
-  GetStorefrontSubscriptionOfferingParams,
-  GetStorefrontSubscriptionPlanParams,
-  StorefrontChangeSubscriptionCalendarParams,
-  StorefrontChangeSubscriptionPaymentMethodParams,
-  StorefrontChangeSubscriptionPlanParams,
-  StorefrontControlSubscriptionParams,
-  StorefrontFindSubscriptionOrdersParams,
-  StorefrontFindSubscriptionPurchaseAccessParams,
-  StorefrontFindSubscriptionsParams,
-  StorefrontGetSubscriptionCalendarOptionsParams,
-  StorefrontGetSubscriptionParams,
-  StorefrontGetSubscriptionRevisionParams,
-  StorefrontSubscriptionOffering,
-  StorefrontSubscriptionPlan,
-  SubscriptionCalendarOptionsSelf,
-  SubscriptionChangeResultSelf,
-  SubscriptionPurchaseAccessPage,
-  SubscriptionRevisionDetailSelf,
-  SubscriptionSelf,
-} from "../types/subscription";
 import { createCartSelection } from "../services/cartSelection";
 import {
   checkoutCart,
@@ -155,11 +137,12 @@ import {
   cartOffersQuery,
   cartTokenOptions,
   storefrontCartBooking,
+  storefrontCartCustomerGroup,
   storefrontCartProduct,
-  storefrontCartSubscriptionPlan,
   storefrontCartUpdateBody,
 } from "../utils/cartInputs";
 import { requireId } from "../utils/ids";
+import { createStorefrontCustomerGroupApi } from "./customerGroup";
 import { createStorefrontFormsApi } from "./forms";
 import { createStorefrontPaymentMethodApi } from "./paymentMethod";
 import { segment } from "./paths";
@@ -264,6 +247,7 @@ export const createStorefrontApi = (
   };
   const paymentMethods = createStorefrontPaymentMethodApi(httpClient);
   const forms = createStorefrontFormsApi(httpClient);
+  const customerGroups = createStorefrontCustomerGroupApi(httpClient, lifecycle.ensureVisitorSession);
 
   function persistIssuedSession<T extends CustomerSessionResult>(result: T): T {
     updateCustomerSession(() => ({ customer: result.customer, session: result.session }));
@@ -291,15 +275,22 @@ export const createStorefrontApi = (
         updateCustomerSession((previous) => {
           if (
             !previous ||
-            previous.session.type !== "visitor" ||
             previous.session.id !== result.session.id ||
             previous.session.customer_id !== result.session.customer_id
           ) {
-            throw new Error("The sign-in code answer does not match the active visitor session");
+            throw new Error("The code answer does not match the active customer session");
           }
           return { ...previous, customer: result.customer };
         });
         return result;
+      },
+
+      changeEmail(params: ChangeCustomerEmailParams, options?: RequestOptions): Promise<CustomerMe> {
+        return httpClient.post<CustomerMe>(
+          `${base}/customer/me/change-email`,
+          { code: params.code, language: params.language },
+          options,
+        );
       },
 
       async verify(params: VerifyCustomerCodeParams, options?: RequestOptions): Promise<CustomerSessionResult> {
@@ -596,14 +587,14 @@ export const createStorefrontApi = (
           );
         },
 
-        async addSubscriptionPlan(params: StorefrontAddCartSubscriptionPlanParams, options?: RequestOptions): Promise<Cart> {
+        async addCustomerGroup(params: StorefrontAddCartCustomerGroupParams, options?: RequestOptions): Promise<Cart> {
           await lifecycle.ensureVisitorSession();
           return cartMutation<Cart>(
             params,
-            "subscription-plan-items",
+            "customer-group-items",
             {
               expected_updated_at: params.expected_updated_at,
-              subscription_plan: storefrontCartSubscriptionPlan(params.subscription_plan),
+              customer_group: storefrontCartCustomerGroup(params.customer_group),
             },
             options,
           );
@@ -639,7 +630,7 @@ export const createStorefrontApi = (
           return withCartMutation(checkoutScope, () =>
             httpClient.put<Cart>(
               `${cartPath(params.id)}/future-deliveries`,
-              { expected_updated_at: params.expected_updated_at, plans: params.plans },
+              { expected_updated_at: params.expected_updated_at, customer_groups: params.customer_groups },
               cartTokenOptions(options, cartToken(params)),
             ),
           );
@@ -648,11 +639,11 @@ export const createStorefrontApi = (
         async quoteFutureDeliveries(
           params: StorefrontQuoteCartFutureDeliveriesParams,
           options?: RequestOptions,
-        ): Promise<PlanDeliveryOffers[]> {
+        ): Promise<CustomerGroupDeliveryOffers[]> {
           await lifecycle.ensureVisitorSession();
-          return httpClient.post<PlanDeliveryOffers[]>(
+          return httpClient.post<CustomerGroupDeliveryOffers[]>(
             `${cartPath(params.id)}/future-delivery-quote`,
-            { plans: params.plans },
+            { customer_groups: params.customer_groups },
             cartTokenOptions(options, cartToken(params)),
           );
         },
@@ -823,120 +814,18 @@ export const createStorefrontApi = (
           await lifecycle.ensureVisitorSession();
           return paymentMethods.revoke(...args);
         },
+        consentText: paymentMethods.consentText,
+        currentConsentText: paymentMethods.currentConsentText,
       },
 
-      subscription: {
-        async find(
-          params: StorefrontFindSubscriptionsParams = {},
-          options?: RequestOptions,
-        ): Promise<PaginatedResponse<SubscriptionSelf>> {
-          await lifecycle.ensureVisitorSession();
-          return httpClient.get<PaginatedResponse<SubscriptionSelf>>(`${base}/subscriptions`, { ...options, params });
-        },
+      customerGroup: customerGroups.customerGroup,
+      customerGroupOffering: customerGroups.customerGroupOffering,
+      customerGroupMember: customerGroups.customerGroupMember,
 
-        async get(params: StorefrontGetSubscriptionParams, options?: RequestOptions): Promise<SubscriptionSelf> {
+      minimumProgress: {
+        async get(params: StorefrontGetMinimumProgressParams, options?: RequestOptions): Promise<MinimumProgress> {
           await lifecycle.ensureVisitorSession();
-          return httpClient.get<SubscriptionSelf>(`${base}/subscriptions/${segment(params.id)}`, options);
-        },
-
-        async findOrders(
-          params: StorefrontFindSubscriptionOrdersParams,
-          options?: RequestOptions,
-        ): Promise<PaginatedResponse<Order>> {
-          await lifecycle.ensureVisitorSession();
-          const { id, ...query } = params;
-          return httpClient.get<PaginatedResponse<Order>>(`${base}/subscriptions/${segment(id)}/orders`, {
-            ...options,
-            params: query,
-          });
-        },
-
-        async getRevision(
-          params: StorefrontGetSubscriptionRevisionParams,
-          options?: RequestOptions,
-        ): Promise<SubscriptionRevisionDetailSelf> {
-          await lifecycle.ensureVisitorSession();
-          return httpClient.get<SubscriptionRevisionDetailSelf>(
-            `${base}/subscriptions/${segment(params.subscription_id)}/revisions/${segment(params.revision_id)}`,
-            options,
-          );
-        },
-
-        async purchaseAccess(
-          params: StorefrontFindSubscriptionPurchaseAccessParams,
-          options?: RequestOptions,
-        ): Promise<SubscriptionPurchaseAccessPage> {
-          await lifecycle.ensureVisitorSession();
-          const { id, ...query } = params;
-          return httpClient.get<SubscriptionPurchaseAccessPage>(`${base}/subscriptions/${segment(id)}/purchase-access`, {
-            ...options,
-            params: query,
-          });
-        },
-
-        async control(params: StorefrontControlSubscriptionParams, options?: RequestOptions): Promise<SubscriptionSelf> {
-          await lifecycle.ensureVisitorSession();
-          return httpClient.post<SubscriptionSelf>(`${base}/subscriptions/commands`, params, options);
-        },
-
-        async calendarOptions(
-          params: StorefrontGetSubscriptionCalendarOptionsParams,
-          options?: RequestOptions,
-        ): Promise<SubscriptionCalendarOptionsSelf> {
-          await lifecycle.ensureVisitorSession();
-          return httpClient.post<SubscriptionCalendarOptionsSelf>(
-            `${base}/subscriptions/calendar/options`,
-            { subscription_id: params.id },
-            options,
-          );
-        },
-
-        async reviewPaymentMethodChange(
-          params: StorefrontChangeSubscriptionPaymentMethodParams,
-          options?: RequestOptions,
-        ): Promise<SubscriptionChangeResultSelf> {
-          await lifecycle.ensureVisitorSession();
-          return httpClient.post<SubscriptionChangeResultSelf>(`${base}/subscriptions/funding/review`, params, options);
-        },
-
-        async changePaymentMethod(
-          params: StorefrontChangeSubscriptionPaymentMethodParams,
-          options?: RequestOptions,
-        ): Promise<SubscriptionChangeResultSelf> {
-          await lifecycle.ensureVisitorSession();
-          return httpClient.post<SubscriptionChangeResultSelf>(`${base}/subscriptions/funding/accept`, params, options);
-        },
-
-        async reviewCalendarChange(
-          params: StorefrontChangeSubscriptionCalendarParams,
-          options?: RequestOptions,
-        ): Promise<SubscriptionChangeResultSelf> {
-          await lifecycle.ensureVisitorSession();
-          return httpClient.post<SubscriptionChangeResultSelf>(`${base}/subscriptions/calendar/review`, params, options);
-        },
-
-        async changeCalendar(
-          params: StorefrontChangeSubscriptionCalendarParams,
-          options?: RequestOptions,
-        ): Promise<SubscriptionChangeResultSelf> {
-          await lifecycle.ensureVisitorSession();
-          return httpClient.post<SubscriptionChangeResultSelf>(`${base}/subscriptions/calendar/accept`, params, options);
-        },
-
-        async reviewPlanChange(
-          params: StorefrontChangeSubscriptionPlanParams,
-          options?: RequestOptions,
-        ): Promise<SubscriptionChangeResultSelf> {
-          await lifecycle.ensureVisitorSession();
-          return httpClient.post<SubscriptionChangeResultSelf>(`${base}/subscriptions/plan/review`, params, options);
-        },
-
-        async changePlan(
-          params: StorefrontChangeSubscriptionPlanParams,
-          options?: RequestOptions,
-        ): Promise<SubscriptionChangeResultSelf> {
-          await lifecycle.ensureVisitorSession();
-          return httpClient.post<SubscriptionChangeResultSelf>(`${base}/subscriptions/plan/accept`, params, options);
+          return httpClient.get<MinimumProgress>(`${base}/minimum-progress`, { ...options, params });
         },
       },
 
@@ -1013,45 +902,6 @@ export const createStorefrontApi = (
       async location(params: { id: string }, options?: RequestOptions): Promise<CompanyLocation> {
         await lifecycle.ensureVisitorSession();
         return httpClient.get<CompanyLocation>(`${base}/company-locations/${segment(params.id)}`, options);
-      },
-
-      async minimumProgress(
-        params: GetStorefrontBranchMinimumProgressParams,
-        options?: RequestOptions,
-      ): Promise<BranchMinimumProgress> {
-        await lifecycle.ensureVisitorSession();
-        return httpClient.get<BranchMinimumProgress>(
-          `${base}/companies/${segment(params.company_id)}/locations/${segment(params.company_location_id)}/minimum-progress`,
-          options,
-        );
-      },
-    },
-
-    subscription_offerings: {
-      get(params: GetStorefrontSubscriptionOfferingParams, options?: RequestOptions): Promise<StorefrontSubscriptionOffering> {
-        return httpClient.get<StorefrontSubscriptionOffering>(
-          `${base}/subscription-offerings/${segment(params.identifier)}`,
-          options,
-        );
-      },
-    },
-
-    subscription_plans: {
-      find(
-        params: FindStorefrontSubscriptionPlansParams = {},
-        options?: RequestOptions,
-      ): Promise<PaginatedResponse<StorefrontSubscriptionPlan>> {
-        return httpClient.get<PaginatedResponse<StorefrontSubscriptionPlan>>(`${base}/subscription-plans`, {
-          ...options,
-          params,
-        });
-      },
-      get(params: GetStorefrontSubscriptionPlanParams, options?: RequestOptions): Promise<StorefrontSubscriptionPlan> {
-        const { identifier, ...query } = params;
-        return httpClient.get<StorefrontSubscriptionPlan>(`${base}/subscription-plans/${segment(identifier)}`, {
-          ...options,
-          params: query,
-        });
       },
     },
 

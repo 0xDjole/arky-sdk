@@ -21,7 +21,7 @@ const SCOPES = {
   "customers_by_status": "current_snapshot",
   "customer_groups_by_status": "current_snapshot",
   "broadcasts_by_status": "current_snapshot",
-  "support_conversations_by_status": "current_snapshot",
+  "conversations_by_status": "current_snapshot",
   "forms_by_status": "current_snapshot",
   "categories_by_status": "current_snapshot",
   "carts_by_status": "current_snapshot",
@@ -38,7 +38,7 @@ const STATUS_ENTITIES = {
   "customers_by_status": "customer",
   "customer_groups_by_status": "customer_group",
   "broadcasts_by_status": "broadcast",
-  "support_conversations_by_status": "support_conversation",
+  "conversations_by_status": "conversation",
   "forms_by_status": "form",
   "categories_by_status": "category",
   "carts_by_status": "cart",
@@ -52,9 +52,9 @@ const STATUSES: Record<string, readonly string[]> = {
   "collection": ["active", "draft", "archived", "deleting"],
   "entry": ["active", "draft", "archived", "deleting"],
   "customer": ["active", "archived"],
-  "customer_group": ["active", "deleting"],
+  "customer_group": ["draft", "active", "closed", "archived"],
   "broadcast": ["draft", "scheduled", "sending", "sent"],
-  "support_conversation": ["flow", "ai", "escalated", "resolved"],
+  "conversation": ["flow", "team", "resolved"],
   "form": ["active", "draft", "closed"],
   "category": ["active", "draft", "archived", "deleting"],
   "cart": ["active", "abandoned", "converted", "superseded", "merged", "expired"],
@@ -268,7 +268,7 @@ function assertReport(value: unknown, storeId: string): asserts value is Analyti
     case "customers_by_status": { fields(data, ["items"]); statusItems(data.items, "customer"); break; }
     case "customer_groups_by_status": { fields(data, ["items"]); statusItems(data.items, "customer_group"); break; }
     case "broadcasts_by_status": { fields(data, ["items"]); statusItems(data.items, "broadcast"); break; }
-    case "support_conversations_by_status": { fields(data, ["items"]); statusItems(data.items, "support_conversation"); break; }
+    case "conversations_by_status": { fields(data, ["items"]); statusItems(data.items, "conversation"); break; }
     case "forms_by_status": { fields(data, ["items"]); statusItems(data.items, "form"); break; }
     case "categories_by_status": { fields(data, ["items"]); statusItems(data.items, "category"); break; }
     case "carts_by_status": { fields(data, ["items"]); statusItems(data.items, "cart"); break; }

@@ -2,7 +2,6 @@ import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
-  BranchMinimumProgress,
   Company,
   CompanyLocation,
   CompanyMembership,
@@ -19,22 +18,44 @@ import type {
   FindCompanyLocationsParams,
   FindCompanyMembershipsParams,
   FindCompanyRolesParams,
-  GetBranchMinimumProgressParams,
   GetCompanyLocationParams,
   GetCompanyMembershipParams,
   GetCompanyParams,
   GetCompanyRoleParams,
-  ReviewCompanyLocationTaxRegistrationParams,
-  SetCompanyLocationCommercePolicyParams,
+  ReviewCompanyTaxRegistrationParams,
   SetCompanyLocationFulfillmentParams,
-  SubmitCompanyLocationTaxRegistrationParams,
+  SetCompanyPurchasingParams,
+  SubmitCompanyTaxRegistrationParams,
   UpdateCompanyLocationParams,
   UpdateCompanyMembershipParams,
   UpdateCompanyParams,
   UpdateCompanyRoleParams,
 } from "../types/company";
 import { requireId } from "../utils/ids";
-import { segment, storePath, storeRecordPath } from "./paths";
+import { storePath, storeRecordPath } from "./paths";
+
+function taxRegistrationRoutes<T>(apiConfig: ApiConfig, collection: string) {
+  return {
+    submitTaxRegistration(params: SubmitCompanyTaxRegistrationParams, options?: RequestOptions): Promise<T> {
+      const { store_id, id, ...body } = params;
+      return apiConfig.httpClient.post<T>(`${storeRecordPath(store_id, collection, id)}/tax/registrations`, body, options);
+    },
+
+    reviewTaxRegistration(params: ReviewCompanyTaxRegistrationParams, options?: RequestOptions): Promise<T> {
+      const { store_id, id, ...body } = params;
+      return apiConfig.httpClient.post<T>(
+        `${storeRecordPath(store_id, collection, id)}/tax/registrations/review`,
+        body,
+        options,
+      );
+    },
+
+    setPurchasing(params: SetCompanyPurchasingParams, options?: RequestOptions): Promise<T> {
+      const { store_id, id, ...body } = params;
+      return apiConfig.httpClient.put<T>(`${storeRecordPath(store_id, collection, id)}/purchasing`, body, options);
+    },
+  };
+}
 
 export const createCompanyApi = (apiConfig: ApiConfig) => ({
   find(params: FindCompaniesParams, options?: RequestOptions): Promise<PaginatedResponse<Company>> {
@@ -64,15 +85,7 @@ export const createCompanyApi = (apiConfig: ApiConfig) => ({
     });
   },
 
-  minimumProgress(params: GetBranchMinimumProgressParams, options?: RequestOptions): Promise<BranchMinimumProgress> {
-    return apiConfig.httpClient.get<BranchMinimumProgress>(
-      storePath(
-        params.store_id,
-        `companies/${segment(params.company_id)}/locations/${segment(params.company_location_id)}/minimum-progress`,
-      ),
-      options,
-    );
-  },
+  ...taxRegistrationRoutes<Company>(apiConfig, "companies"),
 });
 
 export const createCompanyLocationApi = (apiConfig: ApiConfig) => {
@@ -101,35 +114,12 @@ export const createCompanyLocationApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.put<CompanyLocation>(locationPath(store_id, id), body, options);
     },
 
-    setCommercePolicy(params: SetCompanyLocationCommercePolicyParams, options?: RequestOptions): Promise<CompanyLocation> {
-      const { store_id, id, ...body } = params;
-      return apiConfig.httpClient.put<CompanyLocation>(`${locationPath(store_id, id)}/commerce`, body, options);
-    },
-
     setFulfillment(params: SetCompanyLocationFulfillmentParams, options?: RequestOptions): Promise<CompanyLocation> {
       const { store_id, id, ...body } = params;
       return apiConfig.httpClient.put<CompanyLocation>(`${locationPath(store_id, id)}/served-from`, body, options);
     },
 
-    submitTaxRegistration(
-      params: SubmitCompanyLocationTaxRegistrationParams,
-      options?: RequestOptions,
-    ): Promise<CompanyLocation> {
-      const { store_id, id, ...body } = params;
-      return apiConfig.httpClient.post<CompanyLocation>(`${locationPath(store_id, id)}/tax/registrations`, body, options);
-    },
-
-    reviewTaxRegistration(
-      params: ReviewCompanyLocationTaxRegistrationParams,
-      options?: RequestOptions,
-    ): Promise<CompanyLocation> {
-      const { store_id, id, ...body } = params;
-      return apiConfig.httpClient.post<CompanyLocation>(
-        `${locationPath(store_id, id)}/tax/registrations/review`,
-        body,
-        options,
-      );
-    },
+    ...taxRegistrationRoutes<CompanyLocation>(apiConfig, "company-locations"),
 
     delete(params: DeleteCompanyLocationParams, options?: RequestOptions): Promise<CompanyLocation> {
       return apiConfig.httpClient.delete<CompanyLocation>(locationPath(params.store_id, params.id), {

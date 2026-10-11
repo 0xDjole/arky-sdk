@@ -5,10 +5,10 @@ import type {
   StorefrontCartBookingLineItemInput,
   StorefrontCartLineItemInput,
   StorefrontCartProductLineItemInput,
-  StorefrontCartSubscriptionLineItemInput,
+  StorefrontCartCustomerGroupLineItemInput,
   StorefrontUpdateCartParams,
 } from "../types/cart";
-import { isCanonicalId, requireId } from "./ids";
+import { requireId } from "./ids";
 
 export function copyCartProductPurchase(purchase: CartProductPurchase): CartProductPurchase {
   switch (purchase.type) {
@@ -25,7 +25,7 @@ export function copyCartProductPurchase(purchase: CartProductPurchase): CartProd
     case "same_cart_purchase_access":
       return {
         type: "same_cart_purchase_access",
-        cart_subscription_line_item_id: purchase.cart_subscription_line_item_id,
+        cart_customer_group_line_item_id: purchase.cart_customer_group_line_item_id,
         entitlement_id: purchase.entitlement_id,
       };
     default:
@@ -50,15 +50,18 @@ export function cartTokenOptions(options?: RequestOptions, token?: string | null
 }
 
 export function cartOffersQuery(input: FindStorefrontCartOffersParams): FindStorefrontCartOffersParams {
-  if (!isCanonicalId(input?.company_id) || !isCanonicalId(input.company_location_id)) {
-    throw new TypeError("Cart offers need the exact company and branch ids");
-  }
+  const party =
+    "company_id" in input && !("company_location_id" in input)
+      ? { company_id: requireId(input.company_id, "company") }
+      : "company_location_id" in input && !("company_id" in input)
+        ? { company_location_id: requireId(input.company_location_id, "company location") }
+        : null;
+  if (!party) throw new TypeError("Cart offers are listed for one company or one company location");
   if (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 100)) {
     throw new TypeError("The cart offer page size must be an integer from 1 to 100");
   }
   return {
-    company_id: input.company_id,
-    company_location_id: input.company_location_id,
+    ...party,
     ...(input.limit !== undefined ? { limit: input.limit } : {}),
     ...(input.cursor !== undefined && input.cursor !== null ? { cursor: input.cursor } : {}),
   };
@@ -87,13 +90,13 @@ export function storefrontCartBooking(item: StorefrontCartBookingLineItemInput):
   };
 }
 
-export function storefrontCartSubscriptionPlan(
-  item: StorefrontCartSubscriptionLineItemInput,
-): StorefrontCartSubscriptionLineItemInput {
+export function storefrontCartCustomerGroup(
+  item: StorefrontCartCustomerGroupLineItemInput,
+): StorefrontCartCustomerGroupLineItemInput {
   requireId(item.id, "cart line");
   return {
     id: item.id,
-    subscription_plan_id: item.subscription_plan_id,
+    customer_group_id: item.customer_group_id,
     start: item.start,
     ...(item.deliveries !== undefined ? { deliveries: item.deliveries } : {}),
   };
@@ -106,10 +109,10 @@ export function storefrontCartLineItems(items: readonly StorefrontCartLineItemIn
         return { type: "product", ...storefrontCartProduct(item) };
       case "booking":
         return { type: "booking", ...storefrontCartBooking(item) };
-      case "subscription_plan":
-        return { type: "subscription_plan", ...storefrontCartSubscriptionPlan(item) };
+      case "customer_group":
+        return { type: "customer_group", ...storefrontCartCustomerGroup(item) };
       default:
-        throw new Error("A cart line must be a product, a booking or a subscription plan");
+        throw new Error("A cart line must be a product, a booking or a customer group");
     }
   });
 }

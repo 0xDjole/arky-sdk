@@ -104,13 +104,27 @@ export interface AccountActorSnapshot {
 }
 
 export interface AccountActor {
-  account_id: string | null;
+  account_id: string;
   snapshot: AccountActorSnapshot;
 }
 
 export type Actor =
-  | { type: "storefront"; customer_session_id: string }
-  | { type: "account"; actor: AccountActor };
+  | { type: "customer"; customer_id: string; customer_session_id: string }
+  | ({ type: "account" } & AccountActor);
+
+export type CommerceParty =
+  | { type: "customer"; customer_id: string }
+  | { type: "company"; company_id: string }
+  | { type: "company_location"; company_location_id: string };
+
+export type CommercePartyQuery =
+  | { customer_id?: string; company_id?: never; company_location_id?: never }
+  | { customer_id?: never; company_id?: string; company_location_id?: never }
+  | { customer_id?: never; company_id?: never; company_location_id?: string };
+
+export type CompanyPartyQuery =
+  | { company_id?: string; company_location_id?: never }
+  | { company_id?: never; company_location_id?: string };
 
 export type CustomerAuthenticationSnapshot =
   | { type: "visitor" }

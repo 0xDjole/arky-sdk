@@ -155,7 +155,7 @@ test("catalog management is not attached to the storefront acquisition API", () 
 test("buyer catalog reads use their exact routes and return the server answer", async (context) => {
   const customerId = "0c7f5b2e-8d41-4f6a-9b3c-5e2d1a7f8c90";
   const companyId = "1e8d4f2a-6c37-4b95-a0d1-7f3e5c9b2a68";
-  const branchId = "6b2f9d4c-1a85-4e73-9c06-2d8f4a7e1b35";
+  const locationId = "6b2f9d4c-1a85-4e73-9c06-2d8f4a7e1b35";
   const catalog = { id, store_id: storeId, key: "partner-ba", market_id: marketId, schedule: { type: "always" }, status: { type: "active" }, created_at: now, updated_at: now };
   const storefrontCatalogs = [
     { id, key: "partner-ba", level: { type: "buy" } },
@@ -169,29 +169,33 @@ test("buyer catalog reads use their exact routes and return the server answer", 
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
   const admin = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" });
-  const personal = { store_id: storeId, market_id: marketId, sales_channel_id: channelId, customer_id: customerId };
-  assert.deepEqual(await admin.eshop.catalog.findPurchasable(personal), [catalog]);
-  assert.deepEqual(await admin.eshop.catalog.findPurchasable({ ...personal, company_id: companyId, company_location_id: branchId }), [catalog]);
+  const customer = { store_id: storeId, market_id: marketId, sales_channel_id: channelId, customer_id: customerId };
+  assert.deepEqual(await admin.eshop.catalog.findPurchasable(customer), [catalog]);
+  assert.deepEqual(await admin.eshop.catalog.findPurchasable({ ...customer, company_location_id: locationId }), [catalog]);
+  assert.deepEqual(await admin.eshop.catalog.findPurchasable({ ...customer, company_id: companyId }), [catalog]);
   const publishableKey = `arky_pk_${"b".repeat(42)}A`;
-  const storefront = createStorefront(publishableKey, { apiUrl: "https://api.example.test", market: "us", salesChannel: "web" });
+  const storefront = createStorefront(publishableKey, { apiUrl: "https://api.example.test", market: "us" });
   assert.deepEqual(await storefront.eshop.catalog.find(), storefrontCatalogs);
-  assert.deepEqual(await storefront.eshop.catalog.find({ company_id: companyId, company_location_id: branchId }), storefrontCatalogs);
-  const facade = initialize(publishableKey, { apiUrl: "https://api.example.test", market: "us", salesChannel: "web" });
+  assert.deepEqual(await storefront.eshop.catalog.find({ company_location_id: locationId }), storefrontCatalogs);
+  assert.deepEqual(await storefront.eshop.catalog.find({ company_id: companyId }), storefrontCatalogs);
+  const facade = initialize(publishableKey, { apiUrl: "https://api.example.test", market: "us" });
   assert.deepEqual(await facade.eshop.catalog.find(), storefrontCatalogs);
   assert.deepEqual(
     calls.map(({ url, method, body }) => [method, url.pathname, Object.fromEntries(url.searchParams), body]),
     [
       ["GET", `/v1/stores/${storeId}/catalogs/purchasable`, { market_id: marketId, sales_channel_id: channelId, customer_id: customerId }, null],
-      ["GET", `/v1/stores/${storeId}/catalogs/purchasable`, { market_id: marketId, sales_channel_id: channelId, customer_id: customerId, company_id: companyId, company_location_id: branchId }, null],
+      ["GET", `/v1/stores/${storeId}/catalogs/purchasable`, { market_id: marketId, sales_channel_id: channelId, customer_id: customerId, company_location_id: locationId }, null],
+      ["GET", `/v1/stores/${storeId}/catalogs/purchasable`, { market_id: marketId, sales_channel_id: channelId, customer_id: customerId, company_id: companyId }, null],
       ["GET", "/v1/storefront/catalogs", {}, null],
-      ["GET", "/v1/storefront/catalogs", { company_id: companyId, company_location_id: branchId }, null],
+      ["GET", "/v1/storefront/catalogs", { company_location_id: locationId }, null],
+      ["GET", "/v1/storefront/catalogs", { company_id: companyId }, null],
       ["GET", "/v1/storefront/catalogs", {}, null],
     ],
   );
-  for (const call of calls.slice(2)) {
+  for (const call of calls.slice(3)) {
     assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
     assert.equal(call.headers.get("x-arky-market"), "us");
-    assert.equal(call.headers.get("x-arky-sales-channel"), "web");
+    assert.equal(call.headers.has("x-arky-sales-channel"), false);
   }
 });
 

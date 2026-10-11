@@ -3,12 +3,13 @@ import type {
   CheckoutCartOnAccountInput,
   CheckoutCartOnAccountParams,
   CheckoutPaymentChoice,
+  Company,
   CompanyLocation,
-  CompanyLocationCommercePolicy,
-  CompanyLocationPayment,
+  CompanyPaymentPolicy,
+  CompanyPurchasingPolicy,
   EpochMilliseconds,
   PaymentTerms,
-  SetCompanyLocationCommercePolicyParams,
+  SetCompanyPurchasingParams,
   StorefrontCheckoutCartInput,
   StorefrontClient,
 } from "arky-sdk";
@@ -21,11 +22,12 @@ type Required<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type Admin = ReturnType<typeof createAdmin>;
 type Cart = Admin["eshop"]["cart"];
+type Companies = Admin["companies"];
 type Location = Admin["companies"]["location"];
 
 export type OnAccountContracts = [
   Assert<Equal<CheckoutCartOnAccountParams, Public.CheckoutCartOnAccountParams>>,
-  Assert<Equal<SetCompanyLocationCommercePolicyParams, Public.SetCompanyLocationCommercePolicyParams>>,
+  Assert<Equal<SetCompanyPurchasingParams, Public.SetCompanyPurchasingParams>>,
   Assert<Equal<keyof CheckoutCartOnAccountParams, "store_id" | "order_id" | "cart_id" | "expected_updated_at" | "presentation_digest" | "language" | "contact_email" | "payment_option_id" | "terms" | "reason">>,
   Assert<Equal<CheckoutCartOnAccountInput, Omit<CheckoutCartOnAccountParams, "store_id">>>,
   Assert<Required<CheckoutCartOnAccountParams, "reason">>,
@@ -41,11 +43,21 @@ export type OnAccountContracts = [
   Assert<Missing<StorefrontClient["eshop"]["cart"], "checkoutOnAccount">>,
   Assert<Missing<StorefrontCheckoutCartInput, "language">>,
   Assert<Extract<CheckoutPaymentChoice, { type: "on_account" }> extends { payment_option_id: string } ? true : false>,
-  Assert<Equal<keyof SetCompanyLocationCommercePolicyParams, "store_id" | "id" | "expected_updated_at" | "commerce">>,
-  Assert<Required<SetCompanyLocationCommercePolicyParams, "expected_updated_at">>,
-  Assert<Equal<SetCompanyLocationCommercePolicyParams["expected_updated_at"], EpochMilliseconds>>,
-  Assert<Equal<SetCompanyLocationCommercePolicyParams["commerce"], CompanyLocationCommercePolicy>>,
-  Assert<Equal<CompanyLocationPayment["type"], "at_checkout" | "on_account">>,
-  Assert<Equal<Parameters<Location["setCommercePolicy"]>[0], SetCompanyLocationCommercePolicyParams>>,
-  Assert<Equal<Awaited<ReturnType<Location["setCommercePolicy"]>>, CompanyLocation>>,
+  Assert<Equal<keyof SetCompanyPurchasingParams, "store_id" | "id" | "expected_updated_at" | "purchasing">>,
+  Assert<Required<SetCompanyPurchasingParams, "expected_updated_at">>,
+  Assert<Equal<SetCompanyPurchasingParams["expected_updated_at"], EpochMilliseconds>>,
+  Assert<Equal<SetCompanyPurchasingParams["purchasing"], CompanyPurchasingPolicy>>,
+  Assert<Equal<keyof CompanyPurchasingPolicy, "payment" | "allowed_payment_option_ids" | "purchase_order_number_required">>,
+  Assert<Equal<CompanyPurchasingPolicy["allowed_payment_option_ids"], string[]>>,
+  Assert<Equal<CompanyPaymentPolicy["type"], "standard_checkout" | "on_account">>,
+  Assert<Equal<Extract<CompanyPaymentPolicy, { type: "on_account" }>["terms"], PaymentTerms>>,
+  Assert<Equal<Parameters<Location["setPurchasing"]>[0], SetCompanyPurchasingParams>>,
+  Assert<Equal<Awaited<ReturnType<Location["setPurchasing"]>>, CompanyLocation>>,
+  Assert<Equal<Parameters<Companies["setPurchasing"]>[0], SetCompanyPurchasingParams>>,
+  Assert<Equal<Awaited<ReturnType<Companies["setPurchasing"]>>, Company>>,
+  Assert<Equal<Company["purchasing"], CompanyPurchasingPolicy>>,
+  Assert<Equal<CompanyLocation["purchasing"], CompanyPurchasingPolicy>>,
+  Assert<Missing<CompanyLocation, "commerce">>,
+  Assert<Missing<Location, "setCommercePolicy">>,
+  Assert<Missing<Companies, "minimumProgress">>,
 ];

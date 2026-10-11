@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createAdmin } from "../dist/admin.js";
+import { createAdmin, WEBHOOK_UNIT_EVENT_TYPES } from "../dist/admin.js";
 import { recordFetch } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "e7b39c05-4a18-4d62-9f3e-8c1a5b2d7f90";
@@ -33,8 +33,9 @@ test("webhook writes keep tagged statuses and scoped event types, carry the app-
   const api = store().webhook;
   const events = [
     { type: "entry.updated", collections: { type: "all" }, entries: { type: "only", keys: ["guide"] } },
-    { type: "form_submission.created", forms: { type: "all" } },
+    { type: "form_submission.created", forms: { form_ids: ["form-one", "form-two"] } },
     { type: "order.created" },
+    { type: "customer_group_member.renewed" },
   ];
   const created = await api.create({ store_id: STORE_ID, id: hookId, url: "https://receiver.test", events, headers: {}, secret: "secret", status: { type: "active" } });
   assert.deepEqual(created.events, events);
@@ -53,4 +54,25 @@ test("webhook writes keep tagged statuses and scoped event types, carry the app-
     message: "The test post id must be a canonical UUID v4 picked by the app",
   });
   assert.equal(calls.length, 4);
+});
+
+test("the webhook event list carries the ten customer group member events and none of the retired subscription or hand-kept member events", () => {
+  const memberEvents = [
+    "customer_group_member.activated",
+    "customer_group_member.paused",
+    "customer_group_member.resumed",
+    "customer_group_member.cancelled",
+    "customer_group_member.renewed",
+    "customer_group_member.payment_failed",
+    "customer_group_member.switched",
+    "customer_group_member.next_purchase_skipped",
+    "customer_group_member.payment_method_changed",
+    "customer_group_member.tax_classification_corrected",
+  ];
+  assert.equal(WEBHOOK_UNIT_EVENT_TYPES.length, 87);
+  assert.equal(new Set(WEBHOOK_UNIT_EVENT_TYPES).size, WEBHOOK_UNIT_EVENT_TYPES.length);
+  assert.deepEqual(WEBHOOK_UNIT_EVENT_TYPES.filter((event) => event.startsWith("customer_group_member.")), memberEvents);
+  for (const kept of ["customer_group.created", "customer_group.updated"]) assert.ok(WEBHOOK_UNIT_EVENT_TYPES.includes(kept), kept);
+  for (const retired of ["customer_group.member_added", "customer_group.member_removed"]) assert.equal(WEBHOOK_UNIT_EVENT_TYPES.includes(retired), false, retired);
+  assert.deepEqual(WEBHOOK_UNIT_EVENT_TYPES.filter((event) => event.startsWith("subscription.")), []);
 });

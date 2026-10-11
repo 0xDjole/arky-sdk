@@ -59,11 +59,11 @@ export type CategorySchema =
 export type CategorySchemaType = CategorySchema["type"];
 
 export type CategoryField =
-  | { type: "select_one"; field_id: string; key: string; option_key: string }
-  | { type: "select_many"; field_id: string; key: string; option_keys: string[] }
-  | { type: "number"; field_id: string; key: string; value: number }
-  | { type: "boolean"; field_id: string; key: string; value: boolean }
-  | { type: "geo_location"; field_id: string; key: string; value: Coordinates };
+  | { type: "select_one"; field_id: string; option_key: string }
+  | { type: "select_many"; field_id: string; option_keys: string[] }
+  | { type: "number"; field_id: string; value: number }
+  | { type: "boolean"; field_id: string; value: boolean }
+  | { type: "geo_location"; field_id: string; value: Coordinates };
 
 export interface CategoryEntry {
   category_id: string;

@@ -53,12 +53,23 @@ test("initialize is the root API and exposes the module facade without store swi
     assert.equal(typeof facade.category.getByKey, "function");
     assert.equal(typeof facade.eshop.cart.load, "function");
     assert.equal(typeof facade.eshop.cart.paymentAction, "function");
-    assert.equal(typeof facade.subscription_plans.find, "function");
+    assert.equal(typeof facade.eshop.customerGroup.find, "function");
+    assert.equal(typeof facade.eshop.customerGroup.get, "function");
+    assert.equal(typeof facade.eshop.customerGroupOffering.get, "function");
+    assert.equal(typeof facade.eshop.customerGroupMember.find, "function");
+    assert.equal(typeof facade.eshop.minimumProgress.get, "function");
+    assert.equal(typeof facade.eshop.cart.addCustomerGroup, "function");
+    assert.equal(typeof facade.customer.changeEmail, "function");
     assert.equal(typeof facade.setContext, "function");
     assert.equal(typeof facade.withContext, "function");
-    for (const removed of ["getStoreId", "forStore", "marketForLocale", "audiences", "customer_groups", "customer_group_members", "customer_group_email_consents", "cms", "crm"]) {
+    for (const removed of [
+      "getStoreId", "forStore", "marketForLocale", "audiences", "customer_groups", "customer_group_members", "customer_group_email_consents", "cms", "crm",
+      "subscription_plans", "subscription_offerings", "setSalesChannel", "getSalesChannel", "sales_channel_key",
+    ]) {
       assert.equal(removed in facade, false, removed);
     }
+    for (const removed of ["subscription", "subscriptionPlan", "subscriptionOffering"]) assert.equal(removed in facade.eshop, false, removed);
+    for (const removed of ["addSubscriptionPlan", "subscription_plan_items"]) assert.equal(removed in facade.eshop.cart, false, removed);
     assert.equal("category" in facade.content, false);
     assert.equal("payment" in facade.eshop.cart, false);
     assert.equal("digital" in facade.eshop, false);
@@ -86,16 +97,15 @@ test("storefront reference batches use their typed endpoints with the ids JSON-e
   assert.equal(calls[2].query.catalog_id, ids.catalog);
 });
 
-test("market and locale stay independent, and a cart with items locks its market and sales channel", () => {
-  const store = initialize(publishableKey, { locale: "it", market: "ita", salesChannel: "web" });
+test("market and locale stay independent, a cart with items locks its market, and the storefront key alone gives the channel", () => {
+  const store = initialize(publishableKey, { locale: "it", market: "ita" });
   store.setContext({ locale: "en" });
   assert.equal(store.getLocale(), "en");
   assert.equal(store.getMarket(), "ita");
   store.eshop.cart.cart.set(cartRecord({ line_items: [productLine] }));
   assert.throws(() => store.setContext({ market: "bih" }), (error) => error.code === "CART_MARKET_LOCKED");
-  assert.throws(() => store.setContext({ salesChannel: "pos" }), (error) => error.code === "CART_SALES_CHANNEL_LOCKED");
   assert.equal(store.getMarket(), "ita");
-  assert.equal(store.getSalesChannel(), "web");
+  for (const removed of ["setSalesChannel", "getSalesChannel"]) assert.equal(removed in store, false, removed);
   assert.equal(store.eshop.cart.cart.get().id, ids.cart);
   store.setContext({ market: "ita", locale: "bs" });
   assert.equal(store.getLocale(), "bs");

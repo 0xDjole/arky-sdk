@@ -1,7 +1,6 @@
 import type { EpochMilliseconds } from "./time";
 import type { Block } from "./block";
 import type { PostalAddress, PostalAddressInput, SortDirection } from "./common";
-import type { PurchaseRequirementUnit } from "./subscription";
 
 export type CompanyStatus =
   | { type: "active" }
@@ -9,17 +8,6 @@ export type CompanyStatus =
   | { type: "deleting" };
 
 export type CompanyEditableStatus = Exclude<CompanyStatus, { type: "deleting" }>;
-
-export interface Company {
-  id: string;
-  store_id: string;
-  name: string;
-  contact_email: string;
-  blocks: Block[];
-  status: CompanyStatus;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
 
 export type TaxRegistrationStatus =
   | { type: "unverified" }
@@ -37,18 +25,27 @@ export type PaymentTerms =
   | { type: "due_on_receipt" }
   | { type: "net_days"; days: number };
 
-export type CompanyLocationPayment =
-  | { type: "at_checkout"; billing_address: PostalAddress | null }
+export type CompanyPaymentPolicy =
+  | { type: "standard_checkout"; billing_address: PostalAddress | null }
   | { type: "on_account"; terms: PaymentTerms; billing_address: PostalAddress };
 
-export type AllowedPaymentOptions =
-  | { type: "all" }
-  | { type: "only"; payment_option_ids: string[] };
-
-export interface CompanyLocationCommercePolicy {
-  payment: CompanyLocationPayment;
-  allowed_payment_options: AllowedPaymentOptions;
+export interface CompanyPurchasingPolicy {
+  payment: CompanyPaymentPolicy;
+  allowed_payment_option_ids: string[];
   purchase_order_number_required: boolean;
+}
+
+export interface Company {
+  id: string;
+  store_id: string;
+  name: string;
+  contact_email: string;
+  tax_registrations: TaxRegistration[];
+  purchasing: CompanyPurchasingPolicy;
+  blocks: Block[];
+  status: CompanyStatus;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type CompanyLocationFulfillment =
@@ -69,7 +66,7 @@ export interface CompanyLocation {
   name: string;
   shipping_address: PostalAddress | null;
   tax_registrations: TaxRegistration[];
-  commerce: CompanyLocationCommercePolicy;
+  purchasing: CompanyPurchasingPolicy;
   fulfillment: CompanyLocationFulfillment;
   status: CompanyLocationStatus;
   created_at: EpochMilliseconds;
@@ -79,16 +76,16 @@ export interface CompanyLocation {
 export type CompanyPermission =
   | "admin"
   | "place_orders"
-  | "create_subscriptions"
+  | "join_customer_groups"
   | "access_digital_products"
   | "view_own_orders"
   | "view_company_orders"
-  | "view_own_subscriptions"
-  | "view_company_subscriptions"
+  | "view_own_customer_groups"
+  | "view_company_customer_groups"
   | "manage_company"
   | "manage_addresses"
   | "manage_members"
-  | "manage_company_subscriptions"
+  | "manage_company_customer_groups"
   | "manage_payment_methods";
 
 export interface CompanyRole {
@@ -100,9 +97,15 @@ export interface CompanyRole {
   updated_at: EpochMilliseconds;
 }
 
-export type CompanyLocationReach =
-  | { type: "everywhere" }
-  | { type: "only"; company_location_ids: string[] };
+export type CompanyMembershipScope =
+  | { type: "company" }
+  | { type: "all_locations" }
+  | { type: "company_location"; company_location_id: string };
+
+export interface CompanyMembershipGrant {
+  scope: CompanyMembershipScope;
+  role_ids: string[];
+}
 
 export type CompanyMembershipStatus = { type: "active" } | { type: "disabled" };
 
@@ -111,73 +114,20 @@ export interface CompanyMembership {
   store_id: string;
   company_id: string;
   customer_id: string;
-  role_ids: string[];
-  locations: CompanyLocationReach;
+  grants: CompanyMembershipGrant[];
   status: CompanyMembershipStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export interface CompanyCustomerAccess {
-  company: Company;
-  locations: CompanyLocationReach;
+export interface CompanyAccessGrant {
+  scope: CompanyMembershipScope;
   permissions: CompanyPermission[];
 }
 
-export type MinimumProgressUnavailableReason =
-  | "no_requirement"
-  | "incomplete_source_evidence"
-  | "conversion_mismatch"
-  | "incomplete_return_evidence"
-  | "mixed_timezone_period"
-  | "mixed_measurement_unit"
-  | "mixed_agreements"
-  | "arithmetic_overflow"
-  | "history_limit";
-
-export type MinimumProgressMonthState =
-  | {
-      type: "available";
-      unit: PurchaseRequirementUnit;
-      delivered_quantity: number;
-      returned_quantity: number;
-      current_quantity: number;
-      minimum_quantity: number;
-      remaining_quantity: number;
-      attention: boolean;
-      grace: boolean;
-      paused: boolean;
-      inactive: boolean;
-    }
-  | { type: "unavailable"; reason: MinimumProgressUnavailableReason };
-
-export interface MinimumProgressMonth {
-  year: number;
-  month: number;
-  timezone: string;
-  starts_at: EpochMilliseconds;
-  ends_at: EpochMilliseconds;
-  subscription_id: string | null;
-  progress: MinimumProgressMonthState;
-}
-
-export interface BranchMinimumProgress {
-  company_id: string;
-  company_location_id: string;
-  state:
-    | { type: "available"; current: MinimumProgressMonth; history: MinimumProgressMonth[] }
-    | { type: "unavailable"; reason: MinimumProgressUnavailableReason };
-}
-
-export interface GetBranchMinimumProgressParams {
-  store_id: string;
-  company_id: string;
-  company_location_id: string;
-}
-
-export interface GetStorefrontBranchMinimumProgressParams {
-  company_id: string;
-  company_location_id: string;
+export interface CompanyCustomerAccess {
+  company: Company;
+  grants: CompanyAccessGrant[];
 }
 
 export interface CreateCompanyParams {
@@ -185,6 +135,7 @@ export interface CreateCompanyParams {
   id: string;
   name: string;
   contact_email: string;
+  billing_address?: PostalAddressInput | null;
   blocks: Block[];
   status: CompanyEditableStatus;
 }
@@ -200,6 +151,7 @@ export interface UpdateCompanyParams {
   expected_updated_at: EpochMilliseconds;
   name: string;
   contact_email: string;
+  billing_address: PostalAddressInput | null;
   blocks: Block[];
   status: CompanyEditableStatus;
 }
@@ -256,14 +208,14 @@ export type CompanyTaxRegistrationReview =
   | { type: "rejected"; reason: string | null }
   | { type: "remove" };
 
-export interface SubmitCompanyLocationTaxRegistrationParams {
+export interface SubmitCompanyTaxRegistrationParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   registration: CompanyTaxRegistrationInput;
 }
 
-export interface ReviewCompanyLocationTaxRegistrationParams {
+export interface ReviewCompanyTaxRegistrationParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
@@ -271,11 +223,11 @@ export interface ReviewCompanyLocationTaxRegistrationParams {
   review: CompanyTaxRegistrationReview;
 }
 
-export interface SetCompanyLocationCommercePolicyParams {
+export interface SetCompanyPurchasingParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  commerce: CompanyLocationCommercePolicy;
+  purchasing: CompanyPurchasingPolicy;
 }
 
 export interface SetCompanyLocationFulfillmentParams {
@@ -341,8 +293,7 @@ export interface CreateCompanyMembershipParams {
   id: string;
   company_id: string;
   customer_id: string;
-  role_ids: string[];
-  locations: CompanyLocationReach;
+  grants: CompanyMembershipGrant[];
 }
 
 export interface GetCompanyMembershipParams {
@@ -354,8 +305,7 @@ export interface UpdateCompanyMembershipParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  role_ids: string[];
-  locations: CompanyLocationReach;
+  grants: CompanyMembershipGrant[];
   status: CompanyMembershipStatus;
 }
 

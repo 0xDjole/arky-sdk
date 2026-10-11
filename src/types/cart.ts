@@ -15,10 +15,11 @@ import type { PaymentTerms } from "./company";
 import type { CheckoutPaymentAction } from "./payment";
 import type {
   BillingPeriod,
-  SubscriptionDeliveryTerms,
-  SubscriptionPlanSnapshot,
-  SubscriptionPurchaseOccurrence,
-} from "./subscription";
+  CustomerGroupDeliveryTerms,
+  CustomerGroupOccurrence,
+  CustomerGroupSnapshot,
+  CustomerGroupStart,
+} from "./customerGroup";
 import type {
   FulfillmentTiming,
   LineDiscount,
@@ -33,13 +34,10 @@ import type {
 } from "./order";
 
 export type CartBuyer =
-  | { type: "personal" }
-  | {
-      type: "company";
-      company_id: string;
-      company_location_id: string | null;
-      purchase_order_number: string | null;
-    };
+  | { type: "customer" }
+  | { type: "company"; company_id: string; purchase_order_number: string | null }
+  | { type: "company_location"; company_location_id: string; purchase_order_number: string | null }
+  | { type: "company_location_selection"; company_id: string; purchase_order_number: string | null };
 
 export type CartStatus =
   | { type: "active" }
@@ -64,7 +62,7 @@ export type CartProductPurchase =
   | { type: "existing_purchase_access"; grant: PurchaseAccessGrantRef }
   | {
       type: "same_cart_purchase_access";
-      cart_subscription_line_item_id: string;
+      cart_customer_group_line_item_id: string;
       entitlement_id: string;
     };
 
@@ -103,10 +101,6 @@ export interface CartBookingLineItem {
   price_override: ManualPrice | null;
 }
 
-export type SubscriptionPlanStart =
-  | { type: "on_acceptance" }
-  | { type: "scheduled"; starts_at: EpochMilliseconds };
-
 export type CartDeliveryDestination =
   | { type: "delivery"; address: PostalAddress }
   | { type: "pickup"; store_location_id: string };
@@ -116,31 +110,31 @@ export interface CartShipping {
   rate_id: string;
 }
 
-export interface CartSubscriptionDelivery {
+export interface CartCustomerGroupDelivery {
   id: string;
   entitlement_ids: string[];
   destination: CartDeliveryDestination;
   shipping: CartShipping | null;
 }
 
-export interface CartSubscriptionLineItem {
+export interface CartCustomerGroupLineItem {
   id: string;
-  subscription_plan_id: string;
-  start: SubscriptionPlanStart;
-  deliveries: CartSubscriptionDelivery[];
+  customer_group_id: string;
+  start: CustomerGroupStart;
+  deliveries: CartCustomerGroupDelivery[];
   price_override: ManualPrice | null;
 }
 
 export type CartLineItem =
   | ({ type: "product" } & CartProductLineItem)
   | ({ type: "booking" } & CartBookingLineItem)
-  | ({ type: "subscription_plan" } & CartSubscriptionLineItem);
+  | ({ type: "customer_group" } & CartCustomerGroupLineItem);
 
 export type CartLineItemType = CartLineItem["type"];
 
 export type CartPhysicalLineRef =
   | { type: "product"; line_item_id: string }
-  | { type: "subscription_entitlement"; line_item_id: string; entitlement_id: string };
+  | { type: "customer_group_entitlement"; line_item_id: string; entitlement_id: string };
 
 export interface CartDeliveryGroupItem {
   line_item: CartPhysicalLineRef;
@@ -150,7 +144,7 @@ export interface CartDeliveryGroupItem {
 export type CartDeliveryTiming =
   | { type: "asap" }
   | { type: "window"; from: EpochMilliseconds; to: EpochMilliseconds }
-  | { type: "subscription"; delivery_index: number };
+  | { type: "customer_group"; delivery_index: number };
 
 export interface CartDeliveryGroup {
   id: string;
@@ -166,7 +160,7 @@ export type CartOfferStatus =
 
 export type CartOfferLine =
   | { type: "item"; line_item_id: string; base_unit_price: number; rebate_per_unit: number }
-  | { type: "plan"; line_item_id: string; plan: SubscriptionPlanSnapshot; rebate_per_unit: number };
+  | { type: "customer_group"; line_item_id: string; group: CustomerGroupSnapshot; rebate_per_unit: number };
 
 export interface CartOffer {
   reviewed_by: AccountActor;
@@ -233,47 +227,47 @@ export interface CartBookingLineItemInput {
   price_override?: ManualPriceInput | null;
 }
 
-export interface CartSubscriptionLineItemInput {
+export interface CartCustomerGroupLineItemInput {
   id: string;
-  subscription_plan_id: string;
-  start: SubscriptionPlanStart;
-  deliveries?: CartSubscriptionDelivery[];
+  customer_group_id: string;
+  start: CustomerGroupStart;
+  deliveries?: CartCustomerGroupDelivery[];
   price_override?: ManualPriceInput | null;
 }
 
 export type CartLineItemInput =
   | ({ type: "product" } & CartProductLineItemInput)
   | ({ type: "booking" } & CartBookingLineItemInput)
-  | ({ type: "subscription_plan" } & CartSubscriptionLineItemInput);
+  | ({ type: "customer_group" } & CartCustomerGroupLineItemInput);
 
 export type StorefrontCartProductLineItemInput = Omit<CartProductLineItemInput, "price_override">;
 
 export type StorefrontCartBookingLineItemInput = Omit<CartBookingLineItemInput, "price_override">;
 
-export type StorefrontCartSubscriptionLineItemInput = Omit<CartSubscriptionLineItemInput, "price_override">;
+export type StorefrontCartCustomerGroupLineItemInput = Omit<CartCustomerGroupLineItemInput, "price_override">;
 
 export type StorefrontCartLineItemInput =
   | ({ type: "product" } & StorefrontCartProductLineItemInput)
   | ({ type: "booking" } & StorefrontCartBookingLineItemInput)
-  | ({ type: "subscription_plan" } & StorefrontCartSubscriptionLineItemInput);
+  | ({ type: "customer_group" } & StorefrontCartCustomerGroupLineItemInput);
 
-export interface CartPlanDeliveries {
+export interface CartCustomerGroupDeliveries {
   cart_line_item_id: string;
-  deliveries: CartSubscriptionDelivery[];
+  deliveries: CartCustomerGroupDelivery[];
 }
 
-export interface PlanDeliveryChoice {
+export interface CustomerGroupDeliveryChoice {
   id: string;
   entitlement_ids: string[];
   destination: CartDeliveryDestination;
 }
 
-export interface PlanDeliveryChoices {
+export interface CustomerGroupDeliveryChoices {
   cart_line_item_id: string;
-  deliveries: PlanDeliveryChoice[];
+  deliveries: CustomerGroupDeliveryChoice[];
 }
 
-export interface PlanDeliveryRateOffer {
+export interface CustomerGroupDeliveryRateOffer {
   shipping_method_id: string;
   shipping_method_key: string;
   shipping_method_blocks: Block[];
@@ -282,18 +276,18 @@ export interface PlanDeliveryRateOffer {
   window_amounts: (number | null)[];
 }
 
-export interface PlanDeliveryOffer {
+export interface CustomerGroupDeliveryOffer {
   id: string;
   destination: OrderDeliveryDestination;
   shipping_profile_id: string;
   windows: OrderTimeRange[];
-  offers: PlanDeliveryRateOffer[];
+  offers: CustomerGroupDeliveryRateOffer[];
 }
 
-export interface PlanDeliveryOffers {
+export interface CustomerGroupDeliveryOffers {
   cart_line_item_id: string;
-  occurrence: SubscriptionPurchaseOccurrence;
-  deliveries: PlanDeliveryOffer[];
+  occurrence: CustomerGroupOccurrence;
+  deliveries: CustomerGroupDeliveryOffer[];
 }
 
 export interface QuotePurchaseLimit {
@@ -307,8 +301,8 @@ export interface QuotePurchaseLimit {
 
 export interface QuotePurchaseAccess {
   grant: PurchaseAccessGrantRef | null;
-  subscription_id: string | null;
-  cart_subscription_line_item_id: string | null;
+  customer_group_member_id: string | null;
+  cart_customer_group_line_item_id: string | null;
   entitlement_id: string;
   catalog_id: string;
   starts_at: EpochMilliseconds;
@@ -393,20 +387,20 @@ export type QuoteEntitlementLine =
     }
   | { type: "purchase_access"; entitlement_id: string; money: QuoteMoney };
 
-export interface QuotePlanLine {
+export interface QuoteCustomerGroupLine {
   line_item_id: string;
-  plan: SubscriptionPlanSnapshot;
-  start: SubscriptionPlanStart;
-  occurrence: SubscriptionPurchaseOccurrence;
+  group: CustomerGroupSnapshot;
+  start: CustomerGroupStart;
+  occurrence: CustomerGroupOccurrence;
   entitlements: QuoteEntitlementLine[];
   tax_groups: OrderTaxGroup[];
-  deliveries: SubscriptionDeliveryTerms[];
+  deliveries: CustomerGroupDeliveryTerms[];
 }
 
 export type QuoteLine =
   | ({ type: "product" } & QuoteProductLine)
   | ({ type: "booking" } & QuoteBookingLine)
-  | ({ type: "subscription_plan" } & QuotePlanLine);
+  | ({ type: "customer_group" } & QuoteCustomerGroupLine);
 
 export interface QuoteDeliveryItem {
   line_item: CartPhysicalLineRef;
@@ -446,9 +440,9 @@ export type QuoteBlocker =
   | { type: "billing_address_required" }
   | { type: "shipping_required"; delivery_group_id: string }
   | { type: "booking_unavailable"; line_item_id: string; reason: string }
-  | { type: "plan_delivery_required"; line_item_id: string; entitlement_id: string }
-  | { type: "plan_shipping_required"; line_item_id: string; delivery_id: string }
-  | { type: "plan_delivery_fee_varies"; line_item_id: string; delivery_id: string }
+  | { type: "customer_group_delivery_required"; line_item_id: string; entitlement_id: string }
+  | { type: "customer_group_shipping_required"; line_item_id: string; delivery_id: string }
+  | { type: "customer_group_delivery_fee_varies"; line_item_id: string; delivery_id: string }
   | { type: "purchase_order_number_required" }
   | { type: "purchase_limit_exceeded"; line_item_id: string; limit_id: string };
 
@@ -534,7 +528,7 @@ export type CheckoutAcceptance =
       payment_id: string | null;
       payment_action: CheckoutPaymentAction;
     }
-  | { type: "already_subscribed"; subscription_id: string };
+  | { type: "already_member"; customer_group_member_id: string };
 
 export type CartStatusFilter = CartStatus["type"];
 
@@ -598,11 +592,11 @@ export interface AddCartBookingParams {
   booking: CartBookingLineItemInput;
 }
 
-export interface AddCartSubscriptionPlanParams {
+export interface AddCartCustomerGroupParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  subscription_plan: CartSubscriptionLineItemInput;
+  customer_group: CartCustomerGroupLineItemInput;
 }
 
 export interface RemoveCartItemParams {
@@ -629,14 +623,14 @@ export interface SetCartFutureDeliveriesParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  plans: CartPlanDeliveries[];
+  customer_groups: CartCustomerGroupDeliveries[];
 }
 
 export interface QuoteCartFutureDeliveriesParams {
   store_id: string;
   id: string;
   language: string;
-  plans: PlanDeliveryChoices[];
+  customer_groups: CustomerGroupDeliveryChoices[];
 }
 
 export interface PreviewCartAccessProductParams {
@@ -741,9 +735,9 @@ export interface StorefrontAddCartBookingParams extends StorefrontCartTarget {
   booking: StorefrontCartBookingLineItemInput;
 }
 
-export interface StorefrontAddCartSubscriptionPlanParams extends StorefrontCartTarget {
+export interface StorefrontAddCartCustomerGroupParams extends StorefrontCartTarget {
   expected_updated_at: EpochMilliseconds;
-  subscription_plan: StorefrontCartSubscriptionLineItemInput;
+  customer_group: StorefrontCartCustomerGroupLineItemInput;
 }
 
 export interface StorefrontRemoveCartItemParams extends StorefrontCartTarget {
@@ -762,11 +756,11 @@ export interface StorefrontSelectCartShippingMethodParams extends StorefrontCart
 
 export interface StorefrontSetCartFutureDeliveriesParams extends StorefrontCartTarget {
   expected_updated_at: EpochMilliseconds;
-  plans: CartPlanDeliveries[];
+  customer_groups: CartCustomerGroupDeliveries[];
 }
 
 export interface StorefrontQuoteCartFutureDeliveriesParams extends StorefrontCartTarget {
-  plans: PlanDeliveryChoices[];
+  customer_groups: CustomerGroupDeliveryChoices[];
 }
 
 export interface StorefrontPreviewCartAccessProductParams extends StorefrontCartTarget {
@@ -788,12 +782,13 @@ export interface StorefrontReorderParams {
   buyer: CartBuyer;
 }
 
-export interface FindStorefrontCartOffersParams {
-  company_id: string;
-  company_location_id: string;
+export type FindStorefrontCartOffersParams = (
+  | { company_id: string; company_location_id?: never }
+  | { company_id?: never; company_location_id: string }
+) & {
   limit?: number;
   cursor?: string | null;
-}
+};
 
 export function cartProductItems(cart: Pick<Cart, "line_items"> | null): CartProductLineItem[] {
   return (cart?.line_items ?? [])
@@ -807,13 +802,8 @@ export function cartBookingItems(cart: Pick<Cart, "line_items"> | null): CartBoo
     .map(({ type: _type, ...item }) => item);
 }
 
-export function cartSubscriptionPlanItems(
-  cart: Pick<Cart, "line_items"> | null,
-): CartSubscriptionLineItem[] {
+export function cartCustomerGroupItems(cart: Pick<Cart, "line_items"> | null): CartCustomerGroupLineItem[] {
   return (cart?.line_items ?? [])
-    .filter(
-      (item): item is CartLineItem & { type: "subscription_plan" } =>
-        item.type === "subscription_plan",
-    )
+    .filter((item): item is CartLineItem & { type: "customer_group" } => item.type === "customer_group")
     .map(({ type: _type, ...item }) => item);
 }

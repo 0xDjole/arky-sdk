@@ -1,5 +1,5 @@
 import { epochMilliseconds } from 'arky-sdk';
-import type { CustomerSession, CustomerSessionIssued, CustomerSessionStatus, CustomerSessionType, IdentifyCustomerParams } from 'arky-sdk';
+import type { ChangeCustomerEmailParams, CustomerEmailVerification, CustomerMe, CustomerSession, CustomerSessionIssued, CustomerSessionStatus, CustomerSessionType, IdentifyCustomerParams, UpdateCustomerMeParams } from 'arky-sdk';
 import type { StorefrontClient } from 'arky-sdk/storefront';
 
 type Assert<T extends true> = T;
@@ -31,6 +31,11 @@ export type CustomerSessionContracts = [
   Assert<Missing<CustomerSession, 'superseded_at'>>,
   Assert<Missing<CustomerSession, 'revoked_at'>>,
   Assert<Equal<typeof record, CustomerSession>>,
+  Assert<Equal<Extract<CustomerSessionType, { type: 'email_authenticated' }>['email_change'], CustomerEmailVerification | null>>,
+  Assert<Equal<Extract<CustomerSessionType, { type: 'visitor' }>['email_verification'], CustomerEmailVerification | null>>,
+  Assert<Equal<keyof ChangeCustomerEmailParams, 'code' | 'language'>>,
+  Assert<Equal<Awaited<ReturnType<StorefrontClient['customer']['changeEmail']>>, CustomerMe>>,
+  Assert<Equal<UpdateCustomerMeParams['email'], string | undefined>>,
 ];
 
 void [status, visitor, record];

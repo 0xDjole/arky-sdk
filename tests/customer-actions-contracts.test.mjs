@@ -23,6 +23,14 @@ test("Admin reads the typed Customer Action timeline with only the customer filt
       type: { type: "order_placed", order_id: ids.order },
       occurred_at: 2,
     },
+    {
+      id: "e4b7d1a9-3c52-4f86-b0d3-8a6c2e9f5b17",
+      store_id: ids.store,
+      customer_id: ids.customer,
+      origin: { type: "system" },
+      type: { type: "customer_group_member_switched", from_customer_group_id: ids.product, to_customer_group_id: ids.variant },
+      occurred_at: 3,
+    },
   ];
   const calls = recordFetch(context, (call) => call.path.endsWith("/actions")
     ? { items: actions, cursor: null }
@@ -31,14 +39,14 @@ test("Admin reads the typed Customer Action timeline with only the customer filt
   const found = await admin.actions.find({ store_id: ids.store, customer_id: ids.customer, limit: 20 });
   await admin.customers.find({ store_id: ids.store, has_customer_action: true });
   assert.deepEqual(found, { items: actions, cursor: null });
-  assert.deepEqual(found.items.map((action) => action.type.type), ["custom", "order_placed"]);
+  assert.deepEqual(found.items.map((action) => action.type.type), ["custom", "order_placed", "customer_group_member_switched"]);
   assert.deepEqual(calls.map((call) => [call.method, call.href]), [
     ["GET", `${apiUrl}/v1/stores/${ids.store}/actions?customer_id=${ids.customer}&limit=20`],
     ["GET", `${apiUrl}/v1/stores/${ids.store}/customers?has_customer_action=true`],
   ]);
 });
 
-test("the server records commerce and support actions itself, so the storefront suggests only custom keys", () => {
+test("the server records commerce, support and customer group actions itself, so the storefront suggests only custom keys", () => {
   assert.deepEqual([...COMMON_CUSTOMER_ACTION_KEYS], [
     "page.view",
     "product.view",
@@ -63,9 +71,13 @@ test("the server records commerce and support actions itself, so the storefront 
     "support_conversation_started",
     "support_conversation_escalated",
     "support_conversation_resolved",
-    "customer_group_member_added",
-    "customer_group_member_removed",
+    "customer_group_member_activated",
+    "customer_group_member_cancelled",
+    "customer_group_member_switched",
   ]);
+  for (const removed of ["customer_group_member_added", "customer_group_member_removed"]) {
+    assert.equal(TYPED_CUSTOMER_ACTION_KEYS.includes(removed), false, removed);
+  }
   for (const key of TYPED_CUSTOMER_ACTION_KEYS) assert.equal(COMMON_CUSTOMER_ACTION_KEYS.includes(key), false, key);
 });
 

@@ -16,7 +16,7 @@ import {
   visitorToken,
 } from "./helpers/arky-fixtures.mjs";
 
-const personal = { type: "personal" };
+const customerBuyer = { type: "customer" };
 
 const contactForm = {
   id: ids.form,
@@ -88,23 +88,23 @@ test("a fresh visitor's first cart load identifies once and reads no cart, and a
     if (call.method === "GET" && call.path === `/v1/storefront/carts/${ids.cart}`) return cart;
     throw new Error(`Unexpected cart request: ${call.method} ${call.path}`);
   });
-  const firstPage = initialize(publishableKey, { apiUrl, market: "ita", salesChannel: "web", sessionStorage: storage });
-  assert.equal(await firstPage.eshop.cart.load({ buyer: personal, catalog_id: ids.catalog }), null);
+  const firstPage = initialize(publishableKey, { apiUrl, market: "ita", sessionStorage: storage });
+  assert.equal(await firstPage.eshop.cart.load({ buyer: customerBuyer, catalog_id: ids.catalog }), null);
   assert.equal(firstPage.eshop.cart.status.get().error, null);
   assert.equal(firstPage.hasSession, true);
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["POST", "/v1/storefront/customer/identify"]]);
-  assert.equal((await firstPage.eshop.cart.create({ id: ids.cart, buyer: personal, catalog_id: ids.catalog })).id, ids.cart);
+  assert.equal((await firstPage.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog })).id, ids.cart);
   const { type: _type, ...productItem } = line;
   assert.deepEqual(firstPage.eshop.cart.product_items.get(), [productItem]);
   assert.equal(firstPage.eshop.cart.item_count.get(), 2);
 
-  const reloaded = initialize(publishableKey, { apiUrl, market: "ita", salesChannel: "web", sessionStorage: storage });
+  const reloaded = initialize(publishableKey, { apiUrl, market: "ita", sessionStorage: storage });
   assert.equal(reloaded.hasSession, true);
-  assert.equal((await reloaded.eshop.cart.load({ buyer: personal, catalog_id: ids.catalog })).id, ids.cart);
+  assert.equal((await reloaded.eshop.cart.load({ buyer: customerBuyer, catalog_id: ids.catalog })).id, ids.cart);
   assert.deepEqual(reloaded.eshop.cart.cart.get(), cart);
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", "/v1/storefront/customer/identify", {}],
-    ["POST", "/v1/storefront/carts", { id: ids.cart, buyer: personal, catalog_id: ids.catalog }],
+    ["POST", "/v1/storefront/carts", { id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog }],
     ["GET", `/v1/storefront/carts/${ids.cart}`, null],
   ]);
   assert.equal(calls[0].headers.get("authorization"), null);
@@ -113,7 +113,7 @@ test("a fresh visitor's first cart load identifies once and reads no cart, and a
   assert.equal(calls[2].headers.get("x-arky-cart-token"), "cart-recovery-token");
   for (const call of calls) {
     assert.equal(call.headers.get("x-arky-market"), "ita");
-    assert.equal(call.headers.get("x-arky-sales-channel"), "web");
+    assert.equal(call.headers.has("x-arky-sales-channel"), false);
   }
   const stored = storedSessionOf(storage);
   assert.equal(stored.version, 3);
@@ -134,8 +134,8 @@ test("a cart operation that starts with a session still refuses when the store c
     throw new Error(`Unexpected cart request: ${call.method} ${call.path}`);
   });
   const store = initialize(publishableKey, { apiUrl, sessionStorage: visitorStorage() });
-  await store.eshop.cart.create({ id: ids.cart, buyer: personal, catalog_id: ids.catalog });
-  const loading = store.eshop.cart.load({ buyer: personal, catalog_id: ids.catalog });
+  await store.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog });
+  const loading = store.eshop.cart.load({ buyer: customerBuyer, catalog_id: ids.catalog });
   await new Promise((resolve) => setImmediate(resolve));
   store.setContext({ market: "deu" });
   releaseRead();
@@ -178,6 +178,7 @@ test("submitByKey reads the form anonymously, identifies lazily and submits only
   assert.deepEqual(calls[1].body, {});
   assert.deepEqual(submissionOf(calls[2]), {
     id: ids.submission,
+    form_updated_at: contactForm.updated_at,
     language: "it",
     answers: [
       { question_id: "q-name", key: "name", type: "text", value: "Jane" },
@@ -210,7 +211,7 @@ test("submitByKey checks the shown form before identifying or submitting, and a 
   assert.equal(store.hasSession, false);
 });
 
-test("a raw storefront submission stays stateful and sends only the id, the language and the given answers", async (context) => {
+test("a raw storefront submission stays stateful and sends only the id, the loaded form's version, the language and the given answers", async (context) => {
   const storage = new SessionStorage();
   const store = initialize(publishableKey, { apiUrl, locale: "it", sessionStorage: storage });
   const calls = recordFetch(context, (call) => call.path === "/v1/storefront/customer/identify"
@@ -218,6 +219,7 @@ test("a raw storefront submission stays stateful and sends only the id, the lang
     : { id: ids.submission, form_id: ids.form, language: "it", answers: [], stage_id: "new", created_at: 2, updated_at: 2 });
   await store.forms.submit({
     form_id: ids.form,
+    form_updated_at: 1_700_000_000_123,
     id: ids.submission,
     language: "it",
     answers: [
@@ -233,10 +235,11 @@ test("a raw storefront submission stays stateful and sends only the id, the lang
   ]);
   assert.deepEqual(submissionOf(calls[1]), {
     id: ids.submission,
+    form_updated_at: 1_700_000_000_123,
     language: "it",
     answers: [{ type: "text", question_id: "q-name", key: "name", value: "Hello" }],
   });
-  await assert.rejects(async () => store.forms.submit({ form_id: ids.form, id: "submission-raw", language: "it", answers: [] }), TypeError);
+  await assert.rejects(async () => store.forms.submit({ form_id: ids.form, form_updated_at: 1, id: "submission-raw", language: "it", answers: [] }), TypeError);
   assert.equal(calls.length, 2);
 });
 

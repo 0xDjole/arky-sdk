@@ -3,6 +3,8 @@ import type { Currency, SortDirection, TaxMode } from "./common";
 
 export type StoreStatus = { type: "active" } | { type: "deleting" };
 
+export type StoreEmailSending = { type: "allowed" } | { type: "paused"; reason: string };
+
 export interface Store {
   id: string;
   name: string;
@@ -10,6 +12,7 @@ export interface Store {
   timezone: string;
   languages: string[];
   status: StoreStatus;
+  email_sending: StoreEmailSending;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -158,6 +161,17 @@ export interface FindStoresParams {
   sort_direction?: SortDirection;
   limit?: number;
   cursor?: string | null;
+}
+
+export interface PauseStoreEmailSendingParams {
+  store_id: string;
+  expected_updated_at: EpochMilliseconds;
+  reason: string;
+}
+
+export interface AllowStoreEmailSendingParams {
+  store_id: string;
+  expected_updated_at: EpochMilliseconds;
 }
 
 export interface RequestStoreDeletionParams {

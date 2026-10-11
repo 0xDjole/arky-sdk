@@ -39,6 +39,7 @@ export interface ExperimentVariantResult {
   converted_assignments: number;
   observed_conversion_rate: number | null;
   excluded_conflicting_customers: number;
+  open_windows: number;
   highest_observed: boolean;
 }
 
@@ -46,7 +47,6 @@ export interface ExperimentResults {
   experiment: Experiment;
   variants: ExperimentVariantResult[];
   freshness_at: EpochMilliseconds;
-  maturing: boolean;
 }
 
 export type ExperimentUseResponse =

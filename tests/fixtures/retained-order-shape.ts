@@ -37,11 +37,11 @@ export const typedRetainedOrder: Order = {
   source: {
     type: "cart",
     cart_id: "9f1b6e23-e2ea-4ab9-a1b7-eaaf550ddf41",
-    placed_by: { type: "storefront", customer_session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" },
+    placed_by: { type: "customer", customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", customer_session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" },
   },
   customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58",
   contact: { email: "ana@example.test", first_name: "Ana", last_name: "Buyer", phone: null },
-  buyer: { type: "personal" },
+  buyer: { type: "customer" },
   market_id: "9c1d5e83-4a27-4f60-b8e2-6d3a0f7c1b94",
   sales_channel_id: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28",
   tax_mode: "exclusive",
@@ -91,9 +91,9 @@ export const typedRetainedOrder: Order = {
       updated_at: placedAt,
     },
     {
-      type: "subscription_plan",
+      type: "customer_group",
       id: "6ef796c1-e503-4679-b0d7-79966c193ca2",
-      subscription_id: "d397ff50-690b-4da7-9fb9-17740e535d69",
+      customer_group_member_id: "d397ff50-690b-4da7-9fb9-17740e535d69",
       revision_id: "revision",
       occurrence: { type: "permanent", starts_at: placedAt },
       revocation: null,
@@ -105,7 +105,7 @@ export const typedRetainedOrder: Order = {
     {
       type: "purchase_access",
       id: "2b815d21-78be-431a-b49c-0d5d62c87823",
-      order_subscription_line_item_id: "6ef796c1-e503-4679-b0d7-79966c193ca2",
+      order_customer_group_line_item_id: "6ef796c1-e503-4679-b0d7-79966c193ca2",
       entitlement_id: "entitlement",
       revocation: null,
       status: { type: "confirmed" },
@@ -133,5 +133,29 @@ export const typedRetainedOrder: Order = {
       { line_item_id: "19f4bc18-4259-46b8-b5ef-3579d1dac971", subtotal: 2000, discount: 0, tax: 0, total: 2000 },
     ],
     delivery_groups: [],
+  },
+};
+
+export const typedCompanyLocationOrder: Order = {
+  ...typedRetainedOrder,
+  id: "c7d4b584-c4c3-4bfd-9c16-9d2c359e10d9",
+  number: "1002",
+  source: {
+    type: "cart",
+    cart_id: "9f1b6e23-e2ea-4ab9-a1b7-eaaf550ddf41",
+    placed_by: { type: "account", account_id: "ca60db1c-68d1-42d5-8b55-8a1e04f2cb2f", snapshot: { email: "staff@example.test", credential_type: "session" } },
+  },
+  buyer: {
+    type: "company_location",
+    company_location_id: "8c68fc2e-57b6-44fc-8f9c-6cbd1c76dbcf",
+    purchase_order_number: "PO-2026-7",
+    tax_registrations: [{ country: "BA", region: null, identifier: "4200000000000" }],
+  },
+  collection: {
+    type: "on_account",
+    payment_option_id: "5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31",
+    terms: { type: "net_days", days: 30 },
+    due_at: epochMilliseconds(1791462000000),
+    approval: { type: "account", reason: "One-time Net30 for the location" },
   },
 };

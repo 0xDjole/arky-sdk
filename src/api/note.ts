@@ -11,7 +11,7 @@ import type {
   NotePageParams,
   NoteUpdateParams,
   OrderNoteTarget,
-  SupportConversationNoteTarget,
+  ConversationNoteTarget,
 } from "../types/note";
 import { requireId } from "../utils/ids";
 import { segment, storePath } from "./paths";
@@ -75,7 +75,7 @@ export const createFormSubmissionNoteApi = (apiConfig: ApiConfig) =>
     ),
   );
 
-export const createSupportConversationNoteApi = (apiConfig: ApiConfig) =>
-  recordNotes<SupportConversationNoteTarget>(apiConfig, (target) =>
-    storePath(target.store_id, `support/conversations/${segment(target.conversation_id)}/notes`),
+export const createConversationNoteApi = (apiConfig: ApiConfig) =>
+  recordNotes<ConversationNoteTarget>(apiConfig, (target) =>
+    storePath(target.store_id, `conversations/${segment(target.conversation_id)}/notes`),
   );

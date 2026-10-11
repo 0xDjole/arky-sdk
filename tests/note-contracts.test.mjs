@@ -49,7 +49,7 @@ for (const [label, owner, key, segment, target] of [
   });
 }
 
-test("submission and support conversation notes are Note records, and a submission links to a company", async (context) => {
+test("submission and conversation notes are Note records, and a submission links to a company", async (context) => {
   const formId = "a4c7e1b9-2d58-4f36-8b0e-5c9a3d7f1e62";
   const conversationId = "7c2e9a41-5b3d-4f86-a1e0-3d4c2b9f6e18";
   const calls = capture(context, note({ type: "form_submission", form_submission_id: recordId }));
@@ -65,7 +65,8 @@ test("submission and support conversation notes are Note records, and a submissi
   await forms.setSubmissionCompany({ store_id: storeId, form_id: formId, id: recordId, company_id: null });
   await forms.changeSubmissionStage({ store_id: storeId, form_id: formId, id: recordId, to_stage_id: "rejected", expected_stage_id: "new", expected_changed_at: 4, note: { id: noteId, body: "Outside the delivery area" } });
   await forms.findSubmissions({ store_id: storeId, form_id: formId, company_id: companyId, limit: 5 });
-  await admin.support.conversation.notes.create({ store_id: storeId, conversation_id: conversationId, id: noteId, body: "Escalated" });
+  await admin.support.conversation.notes.create({ store_id: storeId, conversation_id: conversationId, id: noteId, body: "Handed to the team" });
+  await admin.support.conversation.notes.find({ store_id: storeId, conversation_id: conversationId, limit: 5 });
   const submission = `/v1/stores/${storeId}/forms/${formId}/submissions/${recordId}`;
   assert.deepEqual(calls, [
     { method: "POST", path: `${submission}/notes`, query: {}, body: { id: noteId, body: "Called back" } },
@@ -76,10 +77,11 @@ test("submission and support conversation notes are Note records, and a submissi
     { method: "PUT", path: `${submission}/company`, query: {}, body: { company_id: null } },
     { method: "POST", path: `${submission}/stage`, query: {}, body: { to_stage_id: "rejected", expected_stage_id: "new", expected_changed_at: 4, note: { id: noteId, body: "Outside the delivery area" } } },
     { method: "GET", path: `/v1/stores/${storeId}/forms/${formId}/submissions`, query: { company_id: companyId, limit: "5" }, body: null },
-    { method: "POST", path: `/v1/stores/${storeId}/support/conversations/${conversationId}/notes`, query: {}, body: { id: noteId, body: "Escalated" } },
+    { method: "POST", path: `/v1/stores/${storeId}/conversations/${conversationId}/notes`, query: {}, body: { id: noteId, body: "Handed to the team" } },
+    { method: "GET", path: `/v1/stores/${storeId}/conversations/${conversationId}/notes`, query: { limit: "5" }, body: null },
   ]);
   await assert.rejects(async () => forms.notes.create({ ...scope, id: "note-1", body: "x" }), TypeError);
-  assert.equal(calls.length, 9);
+  assert.equal(calls.length, 10);
 });
 
 test("notes are staff-only and absent from the storefront client", () => {

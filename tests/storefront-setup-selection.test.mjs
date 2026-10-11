@@ -46,7 +46,6 @@ test("without an explicit market the setup loads without inventing one, and a ma
   for (const selected of ["Retail", "retail market", "retail\tmarket"]) {
     assert.throws(() => initialize(publishableKey, { apiUrl, market: selected }), /market must be a valid exact key/);
     assert.throws(() => createStorefront(publishableKey, { apiUrl, market: selected }), /market must be a valid exact key/);
-    assert.throws(() => createStorefront(publishableKey, { apiUrl, salesChannel: selected }), /sales channel must be a valid exact key/);
   }
 });
 

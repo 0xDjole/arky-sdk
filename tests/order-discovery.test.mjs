@@ -7,9 +7,8 @@ import { apiUrl, ids, publishableKey, recordFetch, visitorStorage, visitorToken 
 const STORE_ID = "9d3e7b50-1a26-4f8c-b74e-0c5a2d9f6e13";
 
 const shared = {
-  company_id: ids.company,
   company_location_id: ids.companyLocation,
-  subscription_id: ids.subscription,
+  customer_group_member_id: ids.customerGroupMember,
   query: "ORD-2026",
   statuses: ["confirmed", "partially_cancelled"],
   sources: ["renewal"],
@@ -34,7 +33,7 @@ for (const scope of ["admin", "storefront"]) {
     const api = scope === "admin"
       ? createAdmin({ baseUrl: apiUrl, apiToken: "arky_api_orders" }).eshop.order
       : createStorefront(publishableKey, { apiUrl, sessionStorage: visitorStorage() }).eshop.order;
-    const filters = scope === "admin" ? { store_id: STORE_ID, customer_id: ids.customer, ...shared } : shared;
+    const filters = scope === "admin" ? { store_id: STORE_ID, customer_id: ids.customer, company_id: ids.company, ...shared } : shared;
     const first = await api.find(filters);
     assert.deepEqual(first, { items: [], cursor: "order:+/=" });
     assert.deepEqual(await api.find({ ...filters, cursor: first.cursor }), { items: [], cursor: null });
@@ -52,6 +51,7 @@ for (const scope of ["admin", "storefront"]) {
       }
       if (scope === "storefront") {
         assert.equal("customer_id" in call.query, false);
+        assert.equal("company_id" in call.query, false);
         assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
         assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
       } else {

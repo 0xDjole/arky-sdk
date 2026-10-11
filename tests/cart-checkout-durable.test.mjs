@@ -110,16 +110,16 @@ test("an unresolved checkout blocks every cart change and a new cart until it is
   const cart = storefront().eshop.cart;
   const product = { id: ids.otherLine, product_id: ids.product, variant_id: ids.variant, quantity: 1, purchase: { type: "catalog" } };
   for (const mutate of [
-    () => cart.create({ id: ids.otherCart, buyer: { type: "personal" }, catalog_id: null }),
-    () => cart.reorder({ id: ids.otherCart, order_id: ids.otherOrder, buyer: { type: "personal" } }),
+    () => cart.create({ id: ids.otherCart, buyer: { type: "customer" }, catalog_id: null }),
+    () => cart.reorder({ id: ids.otherCart, order_id: ids.otherOrder, buyer: { type: "customer" } }),
     () => cart.update({ id: ids.cart, expected_updated_at: 1, promotion_codes: ["NEW"] }),
     () => cart.addProduct({ id: ids.cart, expected_updated_at: 1, product }),
     () => cart.addBooking({ id: ids.cart, expected_updated_at: 1, booking: { id: ids.otherLine, booking_offering_id: ids.product, requested_interval: { from: 1, to: 2 }, capacity_units: 1 } }),
-    () => cart.addSubscriptionPlan({ id: ids.cart, expected_updated_at: 1, subscription_plan: { id: ids.otherLine, subscription_plan_id: ids.product, start: { type: "on_acceptance" } } }),
+    () => cart.addCustomerGroup({ id: ids.cart, expected_updated_at: 1, customer_group: { id: ids.otherLine, customer_group_id: ids.product, start: { type: "on_acceptance" } } }),
     () => cart.removeItem({ id: ids.cart, expected_updated_at: 1, line_item_id: ids.line }),
     () => cart.clear({ id: ids.cart, expected_updated_at: 1 }),
     () => cart.selectShippingMethod({ id: ids.cart, expected_updated_at: 1, shipping_method_id: ids.product }),
-    () => cart.setFutureDeliveries({ id: ids.cart, expected_updated_at: 1, plans: [] }),
+    () => cart.setFutureDeliveries({ id: ids.cart, expected_updated_at: 1, customer_groups: [] }),
   ]) await assert.rejects(mutate(), /Recover the unfinished cart checkout/);
   assert.equal(calls.length, 0);
   assert.deepEqual(await cart.pendingCheckout(), request);
@@ -293,8 +293,8 @@ test("a placed answer whose order read fails or does not confirm this cart stays
     () => Response.json({ message: "Bad read", status_code: 400 }, { status: 400 }),
     () => { throw new TypeError("read lost"); },
     () => Response.json(placedOrder({ id: ids.otherOrder })),
-    () => Response.json(placedOrder({ source: { type: "cart", cart_id: ids.otherCart, placed_by: { type: "storefront", customer_session_id: ids.session } } })),
-    () => Response.json(placedOrder({ source: { type: "renewal", order_subscription_line_item_id: ids.line, recovery: null } })),
+    () => Response.json(placedOrder({ source: { type: "cart", cart_id: ids.otherCart, placed_by: { type: "customer", customer_id: ids.customer, customer_session_id: ids.session } } })),
+    () => Response.json(placedOrder({ source: { type: "renewal", order_customer_group_line_item_id: ids.line, recovery: null } })),
     () => Response.json(placedOrder({ source: null })),
   ]) {
     const { storage } = browser();
@@ -318,21 +318,22 @@ test("malformed checkout answers never clear the kept request", async () => {
     { ...placedAcceptance(), payment_action: null },
     { ...placedAcceptance(), payment_action: "none" },
     { ...placedAcceptance(), payment_id: "payment-1" },
-    { type: "already_subscribed" },
-    { type: "already_subscribed", subscription_id: "subscription-1" },
+    { type: "already_member" },
+    { type: "already_member", customer_group_member_id: "member-1" },
+    { type: "already_member", customer_group_member_id: ids.customerGroupMember.toUpperCase() },
   ];
   for (const body of invalid) {
     const { storage } = browser();
     const calls = capture(() => Response.json(body));
-    await assert.rejects(retainAndRecover(), /did not return the order|did not name the subscription/);
+    await assert.rejects(retainAndRecover(), /did not return the order|did not name the customer group member/);
     assert.deepEqual(retained(storage), request);
     assert.equal(calls.length, 1);
   }
 });
 
-test("an already_subscribed answer finishes the kept checkout without reading an order", async () => {
+test("an already_member answer finishes the kept checkout without reading an order", async () => {
   const { storage } = browser();
-  const answer = { type: "already_subscribed", subscription_id: ids.subscription };
+  const answer = { type: "already_member", customer_group_member_id: ids.customerGroupMember };
   let notified = 0;
   const calls = capture(() => Response.json(answer));
   assert.deepEqual(await retainAndRecover(request, { onSuccess: () => { notified += 1; } }), answer);

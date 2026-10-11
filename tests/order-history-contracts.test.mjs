@@ -5,10 +5,10 @@ import {
   orderBookingItems,
   orderProductItems,
   orderPurchaseAccessItems,
+  orderCustomerGroupItems,
   orderRentalUseItems,
-  orderSubscriptionPlanItems,
 } from "../dist/index.js";
-import { retainedOrder as retained } from "./fixtures/retained-order.mjs";
+import { companyLocationOrder, retainedOrder as retained } from "./fixtures/retained-order.mjs";
 import { errorResponse, ids, recordFetch } from "./helpers/arky-fixtures.mjs";
 
 const baseUrl = "https://api.example.test";
@@ -24,18 +24,21 @@ test("an order read keeps its cart source, the placed snapshot and every line fa
   const order = await client().eshop.order.get({ store_id: storeId, id: retained.id });
   assert.deepEqual(order, retained);
   assert.deepEqual(order.source, { type: "cart", cart_id: retained.source.cart_id, placed_by: retained.source.placed_by });
-  assert.deepEqual(order.line_items.map((line) => line.type), ["product", "booking", "subscription_plan", "purchase_access"]);
+  assert.deepEqual(order.line_items.map((line) => line.type), ["product", "booking", "customer_group", "purchase_access"]);
+  assert.deepEqual(order.source.placed_by, { type: "customer", customer_id: retained.customer_id, customer_session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" });
+  assert.deepEqual(order.buyer, { type: "customer" });
   const [product] = orderProductItems(order);
   const [booking] = orderBookingItems(order);
-  const [plan] = orderSubscriptionPlanItems(order);
+  const [group] = orderCustomerGroupItems(order);
   const [access] = orderPurchaseAccessItems(order);
   assert.equal(product.snapshot.product_key, "consultation-credit");
   assert.equal(product.money_runs[0].money.unit_price, 1000);
   assert.equal("type" in product, true);
   assert.equal(booking.snapshot.service_key, "consultation");
   assert.equal(booking.attendance, "upcoming");
-  assert.equal(plan.subscription_id, "d397ff50-690b-4da7-9fb9-17740e535d69");
-  assert.equal(access.order_subscription_line_item_id, plan.id);
+  assert.equal(group.customer_group_member_id, ids.customerGroupMember);
+  assert.equal(access.order_customer_group_line_item_id, group.id);
+  assert.equal("type" in group, true);
   assert.deepEqual(orderRentalUseItems(order), []);
   assert.deepEqual(orderProductItems(null), []);
   assert.equal(order.totals.total, 2900);
@@ -43,6 +46,23 @@ test("an order read keeps its cart source, the placed snapshot and every line fa
     assert.equal(retired in order, false, retired);
   }
   assert.deepEqual(calls.map(({ method, href }) => [method, href]), [["GET", `${baseUrl}/v1/stores/${storeId}/orders/${retained.id}`]]);
+});
+
+test("a company location order keeps its buyer, purchase order number, tax registrations, account placement and on-account approval", async (context) => {
+  const calls = recordFetch(context, () => companyLocationOrder);
+  const order = await client().eshop.order.get({ store_id: storeId, id: companyLocationOrder.id });
+  assert.deepEqual(order, companyLocationOrder);
+  assert.deepEqual(order.buyer, {
+    type: "company_location",
+    company_location_id: ids.companyLocation,
+    purchase_order_number: "PO-2026-7",
+    tax_registrations: [{ country: "BA", region: null, identifier: "4200000000000" }],
+  });
+  assert.deepEqual(order.source.placed_by, { type: "account", account_id: ids.account, snapshot: { email: "staff@example.test", credential_type: "session" } });
+  assert.deepEqual(order.collection.approval, { type: "account", reason: "One-time Net30 for the location" });
+  assert.equal("actor" in order.collection.approval, false);
+  assert.equal("company_id" in order.buyer, false);
+  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["GET", `/v1/stores/${storeId}/orders/${companyLocationOrder.id}`]]);
 });
 
 test("cancelling a whole order sends only the order version to the named store and answers the order", async (context) => {

@@ -19,7 +19,7 @@ test("rental discovery forwards its filters, keeps the empty continuation and re
   const detail = { rental: { id: rentalId, status: { type: "active" } }, terms: { product_id: ids.product, variant_id: ids.variant, quantity: 1, inventory_item_id: "machine", product_key: "espresso", variant_sku: null } };
   const calls = recordFetch(context, (_call, count) => count <= 2 ? { items: [], cursor: count === 1 ? "next:/+=" : null } : detail);
   const api = eshop().rental;
-  const query = { store_id: STORE_ID, subscription_id: ids.subscription, status: "ending", limit: 20, sort_field: "updated_at", sort_direction: "desc" };
+  const query = { store_id: STORE_ID, customer_group_member_id: ids.customerGroupMember, status: "ending", limit: 20, sort_field: "updated_at", sort_direction: "desc" };
   assert.deepEqual(await api.find(query), { items: [], cursor: "next:/+=" });
   assert.deepEqual(await api.find({ ...query, cursor: "next:/+=" }), { items: [], cursor: null });
   assert.deepEqual(await api.get({ store_id: OTHER_STORE_ID, id: "rental/id" }), detail);
@@ -28,7 +28,7 @@ test("rental discovery forwards its filters, keeps the empty continuation and re
     ["GET", `/v1/stores/${STORE_ID}/rentals`],
     ["GET", `/v1/stores/${OTHER_STORE_ID}/rentals/rental%2Fid`],
   ]);
-  assert.deepEqual(calls[0].query, { subscription_id: ids.subscription, status: "ending", limit: "20", sort_field: "updated_at", sort_direction: "desc" });
+  assert.deepEqual(calls[0].query, { customer_group_member_id: ids.customerGroupMember, status: "ending", limit: "20", sort_field: "updated_at", sort_direction: "desc" });
   assert.equal(calls[1].query.cursor, "next:/+=");
   assert.equal(calls[2].url.search, "");
   assert.deepEqual(Object.keys(api).sort(), ["execute", "find", "get"]);
@@ -97,13 +97,13 @@ test("rental physical work uses fulfillment and job routes with exact unit selec
   assert.equal(calls.length, 5);
 });
 
-test("a buyer reads their own rentals of one subscription through storefront routes", async (context) => {
+test("a buyer reads their own rentals of one customer group member through storefront routes", async (context) => {
   const calls = recordFetch(context, (call) => call.path === "/v1/storefront/rentals" ? { items: [], cursor: null } : { id: rentalId });
   const rentals = createStorefront(publishableKey, { apiUrl, sessionStorage: visitorStorage() }).eshop.rental;
-  await rentals.find({ subscription_id: ids.subscription, limit: 10 });
+  await rentals.find({ customer_group_member_id: ids.customerGroupMember, limit: 10 });
   await rentals.get({ rental_id: rentalId });
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
-    ["GET", "/v1/storefront/rentals", { subscription_id: ids.subscription, limit: "10" }],
+    ["GET", "/v1/storefront/rentals", { customer_group_member_id: ids.customerGroupMember, limit: "10" }],
     ["GET", `/v1/storefront/rentals/${rentalId}`, {}],
   ]);
   for (const call of calls) assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
