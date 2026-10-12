@@ -40,6 +40,18 @@ const refund: MonriRefund = {
   created_at: at,
 };
 
+export const monriPayment: Payment = {
+  id: "f17c0b95-2e4d-4a83-9b6c-31d5e8a70f24",
+  store_id: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19",
+  order_id: "4a2c7c0d-4389-4aae-b3d7-02ff834a024d",
+  payment_option_id: "5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31",
+  money: { amount: 4000, currency: "bam" },
+  type: { type: "monri_checkout", status: { type: "paid", transaction }, refunds: [refund] },
+  holds: [],
+  created_at: at,
+  updated_at: at,
+};
+
 export const recordedPayment: Payment = {
   ...monriPayment,
   id: "a7c3e1f5-6b28-4d90-9e4a-2f8d0b6c1e73",
@@ -53,18 +65,6 @@ export const recordedPayment: Payment = {
     { id: "531b79f6-86d4-48cd-a241-73b7f16256b6", message: "Late cash", opened_at: at, status: { type: "resolved", by: actor, note: "Returned to the customer", at } },
     { id: "90ce1835-5c4b-47de-9f81-38980b7e7bcd", message: "Late cash", opened_at: at, status: { type: "open" } },
   ],
-};
-
-export const monriPayment: Payment = {
-  id: "f17c0b95-2e4d-4a83-9b6c-31d5e8a70f24",
-  store_id: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19",
-  order_id: "4a2c7c0d-4389-4aae-b3d7-02ff834a024d",
-  payment_option_id: "5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31",
-  money: { amount: 4000, currency: "bam" },
-  type: { type: "monri_checkout", status: { type: "paid", transaction }, refunds: [refund] },
-  holds: [],
-  created_at: at,
-  updated_at: at,
 };
 
 export type PaymentRecordContracts = [

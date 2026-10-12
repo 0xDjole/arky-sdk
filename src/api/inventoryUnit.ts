@@ -6,7 +6,7 @@ import type {
   FindInventoryUnitsParams,
   GetInventoryUnitParams,
   InventoryUnit,
-  InventoryUnitExecution,
+  ChangeInventoryUnitSetAsideParams,
   MoveInventoryUnitParams,
   ReceiveInventoryUnitParams,
   UnassignInventoryUnitParams,
@@ -49,11 +49,23 @@ export const createInventoryUnitApi = (apiConfig: ApiConfig) => ({
     );
   },
 
-  execution(params: GetInventoryUnitParams, options?: RequestOptions): Promise<InventoryUnitExecution | null> {
-    return apiConfig.httpClient.get<InventoryUnitExecution | null>(
-      `${storeRecordPath(params.store_id, collection, params.id)}/execution`,
+  fulfillmentId(params: GetInventoryUnitParams, options?: RequestOptions): Promise<string | null> {
+    return apiConfig.httpClient.get<string | null>(
+      `${storeRecordPath(params.store_id, collection, params.id)}/fulfillment-id`,
       options,
     );
+  },
+
+  setAside(params: ChangeInventoryUnitSetAsideParams, options?: RequestOptions): Promise<InventoryUnit> {
+    requireId(params.action_id, "action");
+    const { store_id, id, ...body } = params;
+    return apiConfig.httpClient.post<InventoryUnit>(`${storeRecordPath(store_id, collection, id)}/set-aside`, body, options);
+  },
+
+  makeAvailable(params: ChangeInventoryUnitSetAsideParams, options?: RequestOptions): Promise<InventoryUnit> {
+    requireId(params.action_id, "action");
+    const { store_id, id, ...body } = params;
+    return apiConfig.httpClient.post<InventoryUnit>(`${storeRecordPath(store_id, collection, id)}/make-available`, body, options);
   },
 
   move(params: MoveInventoryUnitParams, options?: RequestOptions): Promise<InventoryUnit> {

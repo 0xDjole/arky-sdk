@@ -260,21 +260,22 @@ test("admin Order reads by customer and cancels product units under the app's cr
   await assert.rejects(async () => client.eshop.order.cancelProductItem({ ...request, credit_id: "cancellation-command" }), TypeError);
   await assert.rejects(async () => client.eshop.order.cancelProductItem({ ...request, store_id: "store/one" }), TypeError);
   assert.equal(calls.length, 3);
-  for (const removed of ["getProducts", "getDigitalProducts", "cancelProduct", "resumePayment", "update"]) {
+  for (const removed of ["getProducts", "getDigitalProducts", "cancelProduct", "resumePayment"]) {
     assert.equal(removed in client.eshop.order, false, removed);
   }
+  for (const action of ["update", "correctDeliveryAddress", "rescheduleBookingItem"]) assert.equal(typeof client.eshop.order[action], "function", action);
 });
 
 test("a pending order is cancelled with the version and a receipt is resent under the app's notification id", async (context) => {
   const calls = recordFetch(context, () => ({ id: ids.order }));
   const client = admin();
   await client.eshop.order.cancel({ store_id: storeId, order_id: ids.order, expected_updated_at: 9 });
-  await client.eshop.order.resendReceipt({ store_id: storeId, order_id: ids.order, id: ids.payment });
+  await client.eshop.order.resendReceipt({ store_id: storeId, order_id: ids.order, id: ids.payment, expected_updated_at: 9 });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
     ["POST", `/v1/stores/${storeId}/orders/${ids.order}/cancel`, { expected_updated_at: 9 }],
-    ["POST", `/v1/stores/${storeId}/orders/${ids.order}/resend-receipt`, { id: ids.payment }],
+    ["POST", `/v1/stores/${storeId}/orders/${ids.order}/resend-receipt`, { id: ids.payment, expected_updated_at: 9 }],
   ]);
-  await assert.rejects(async () => client.eshop.order.resendReceipt({ store_id: storeId, order_id: ids.order, id: "receipt-1" }), TypeError);
+  await assert.rejects(async () => client.eshop.order.resendReceipt({ store_id: storeId, order_id: ids.order, id: "receipt-1", expected_updated_at: 9 }), TypeError);
   assert.equal(calls.length, 2);
 });
 

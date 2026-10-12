@@ -12,7 +12,7 @@ test("a buyer reads their order's fulfillment timeline from one exact route", as
     method: { type: "delivery" },
     status: { type: "in_progress" },
     timing: { type: "asap" },
-    shipments: [{ fulfillment_id: "shipment", status: { type: "sent", sent_at: 5 }, preparation_started_at: 4, updated_at: 5 }],
+    shipments: [{ fulfillment_id: "shipment", status: { type: "dispatched", dispatched_at: 5 }, preparation_started_at: 4, updated_at: 5 }],
   }];
   const calls = recordFetch(context, () => timeline);
   const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: visitorStorage() });
@@ -22,7 +22,7 @@ test("a buyer reads their order's fulfillment timeline from one exact route", as
 });
 
 test("a buyer's return names the drop-off location only when one is chosen, and null otherwise", async (context) => {
-  const calls = recordFetch(context, () => ({ id: returnId, status: { type: "requested", requested_at: 1, destination: { type: "undecided" } } }));
+  const calls = recordFetch(context, () => ({ id: returnId, status: { type: "requested", destination: { type: "undecided" } } }));
   const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: visitorStorage() });
   const request = {
     id: returnId,

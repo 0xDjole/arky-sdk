@@ -5,7 +5,7 @@ import { createStorefront, initialize } from "../dist/storefront.js";
 import { apiUrl, publishableKey, SessionStorage } from "./helpers/arky-fixtures.mjs";
 
 const storefrontMemberCalls = [
-  "calendar", "cancel", "changeTerms", "find", "findOrders", "get", "getRevision", "pause", "purchaseAccess", "resume",
+  "calendar", "cancel", "changeTerms", "current", "find", "findOrders", "get", "getRevision", "pause", "productChoices", "purchaseAccess", "resume",
   "reviewSwitch", "reviewTerms", "selectPaymentMethod", "skipNext", "switch", "withdrawRevision",
 ];
 
@@ -17,7 +17,7 @@ test("the storefront reads groups, offerings and the shopper's own members under
     assert.equal(removed in store, false, removed);
   }
   for (const facade of [client, store]) {
-    assert.deepEqual(Object.keys(facade.eshop.customerGroup).sort(), ["find", "get"]);
+    assert.deepEqual(Object.keys(facade.eshop.customerGroup).sort(), ["find", "get", "productChoices"]);
     assert.deepEqual(Object.keys(facade.eshop.customerGroupOffering).sort(), ["get"]);
     assert.deepEqual(Object.keys(facade.eshop.customerGroupMember).sort(), storefrontMemberCalls);
     for (const removed of ["assign", "join", "revoke", "scheduleEnd", "transferPurchaseRequirement", "changePurchaseRequirement", "correctTaxClassification"]) {

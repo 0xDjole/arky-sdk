@@ -58,6 +58,7 @@ export type RentalAction =
     }
   | { type: "end"; reason: string; return_due_at: EpochMilliseconds | null }
   | { type: "close" }
+  | { type: "resume" }
   | { type: "cancel_issue"; fulfillment_job_id: string; fulfillment_job_line_id: string };
 
 export interface GetRentalParams {

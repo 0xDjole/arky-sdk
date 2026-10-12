@@ -77,6 +77,7 @@ import type {
   StorefrontFindOrdersParams,
   StorefrontGetOrderParams,
   StorefrontOrderPaymentParams,
+  StorefrontRescheduleOrderBookingItemParams,
 } from "../types/order";
 import type { CheckoutPaymentAction, Payment } from "../types/payment";
 import type {
@@ -233,9 +234,9 @@ export const createStorefrontApi = (
       ),
   });
   const cartToken = (target: { id: string; token?: string | null }) => target.token ?? cartSelection.token(target.id);
-  const cartMutation = <T>(target: { id: string; token?: string | null }, path: string, body: object, options?: RequestOptions) =>
+  const cartMutation = <T>(target: { id: string; token?: string | null }, path: string, body: () => object, options?: RequestOptions) =>
     withCartMutation(checkoutScope, () =>
-      httpClient.post<T>(`${cartPath(target.id)}/${path}`, body, cartTokenOptions(options, cartToken(target))),
+      httpClient.post<T>(`${cartPath(target.id)}/${path}`, body(), cartTokenOptions(options, cartToken(target))),
     );
   const checkoutTransport: CartCheckoutTransport<CartCheckoutRequest> = {
     async post(request, options) {
@@ -257,6 +258,23 @@ export const createStorefrontApi = (
 
   function persistIssuedSession<T extends CustomerSessionResult>(result: T): T {
     updateCustomerSession(() => ({ customer: result.customer, session: result.session }));
+    return result;
+  }
+
+  function persistCustomerRead(result: CustomerMe): CustomerMe {
+    if (result.session.customer_id !== result.customer.id ||
+        result.session.store_id !== result.customer.store_id) {
+      throw new Error("The customer answer does not match its customer session");
+    }
+    updateCustomerSession((previous) => {
+      if (!previous || previous.session.id !== result.session.id ||
+          previous.session.customer_id !== result.session.customer_id ||
+          previous.customer.id !== result.customer.id ||
+          previous.customer.store_id !== result.customer.store_id) {
+        return previous;
+      }
+      return { ...previous, customer: result.customer };
+    });
     return result;
   }
 
@@ -343,12 +361,12 @@ export const createStorefrontApi = (
         }
       },
 
-      getMe(options?: RequestOptions): Promise<CustomerMe> {
-        return httpClient.get<CustomerMe>(`${base}/customer/me`, options);
+      async getMe(options?: RequestOptions): Promise<CustomerMe> {
+        return persistCustomerRead(await httpClient.get<CustomerMe>(`${base}/customer/me`, options));
       },
 
-      updateMe(params: UpdateCustomerMeParams, options?: RequestOptions): Promise<CustomerMe> {
-        return httpClient.patch<CustomerMe>(`${base}/customer/me`, params, options);
+      async updateMe(params: UpdateCustomerMeParams, options?: RequestOptions): Promise<CustomerMe> {
+        return persistCustomerRead(await httpClient.patch<CustomerMe>(`${base}/customer/me`, params, options));
       },
 
       resubscribe(options?: RequestOptions): Promise<CustomerMe> {
@@ -466,7 +484,7 @@ export const createStorefrontApi = (
             params: catalogQuery(params),
           });
         },
-        find(params: FindStorefrontProductsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<StorefrontProduct>> {
+        find(params: FindStorefrontProductsParams, options?: RequestOptions): Promise<PaginatedResponse<StorefrontProduct>> {
           return httpClient.get<PaginatedResponse<StorefrontProduct>>(`${base}/products`, { ...options, params });
         },
       },
@@ -507,7 +525,7 @@ export const createStorefrontApi = (
           });
         },
         find(
-          params: FindStorefrontBookingServicesParams = {},
+          params: FindStorefrontBookingServicesParams,
           options?: RequestOptions,
         ): Promise<PaginatedResponse<StorefrontBookingService>> {
           return httpClient.get<PaginatedResponse<StorefrontBookingService>>(`${base}/booking-services`, {
@@ -522,7 +540,7 @@ export const createStorefrontApi = (
 
       bookingOffering: {
         find(
-          params: FindStorefrontBookingOfferingsParams = {},
+          params: FindStorefrontBookingOfferingsParams,
           options?: RequestOptions,
         ): Promise<PaginatedResponse<StorefrontBookingOffering>> {
           return httpClient.get<PaginatedResponse<StorefrontBookingOffering>>(`${base}/booking-offerings`, {
@@ -553,12 +571,12 @@ export const createStorefrontApi = (
           return cartSelection.create(params, options);
         },
 
-        async current(params: StorefrontCurrentCartParams = {}, options?: RequestOptions): Promise<Cart | null> {
+        async current(params: StorefrontCurrentCartParams, options?: RequestOptions): Promise<Cart | null> {
           await lifecycle.ensureVisitorSession();
           return cartSelection.current(params, options);
         },
 
-        forget(params: StorefrontCurrentCartParams = {}): void {
+        forget(params: StorefrontCurrentCartParams): void {
           cartSelection.forget(params);
         },
 
@@ -591,7 +609,7 @@ export const createStorefrontApi = (
           return cartMutation<Cart>(
             params,
             "product-items",
-            { expected_updated_at: params.expected_updated_at, product: storefrontCartProduct(params.product) },
+            () => ({ expected_updated_at: params.expected_updated_at, product: storefrontCartProduct(params.product) }),
             options,
           );
         },
@@ -601,7 +619,7 @@ export const createStorefrontApi = (
           return cartMutation<Cart>(
             params,
             "booking-items",
-            { expected_updated_at: params.expected_updated_at, booking: storefrontCartBooking(params.booking) },
+            () => ({ expected_updated_at: params.expected_updated_at, booking: storefrontCartBooking(params.booking) }),
             options,
           );
         },
@@ -611,10 +629,10 @@ export const createStorefrontApi = (
           return cartMutation<Cart>(
             params,
             "customer-group-items",
-            {
+            () => ({
               expected_updated_at: params.expected_updated_at,
               customer_group: storefrontCartCustomerGroup(params.customer_group),
-            },
+            }),
             options,
           );
         },
@@ -624,14 +642,14 @@ export const createStorefrontApi = (
           return cartMutation<Cart>(
             params,
             "items/remove",
-            { expected_updated_at: params.expected_updated_at, line_item_id: params.line_item_id },
+            () => ({ expected_updated_at: params.expected_updated_at, line_item_id: params.line_item_id }),
             options,
           );
         },
 
         async clear(params: StorefrontClearCartParams, options?: RequestOptions): Promise<Cart> {
           await lifecycle.ensureVisitorSession();
-          return cartMutation<Cart>(params, "clear", { expected_updated_at: params.expected_updated_at }, options);
+          return cartMutation<Cart>(params, "clear", () => ({ expected_updated_at: params.expected_updated_at }), options);
         },
 
         async selectShippingMethod(params: StorefrontSelectCartShippingMethodParams, options?: RequestOptions): Promise<Cart> {
@@ -639,7 +657,7 @@ export const createStorefrontApi = (
           return cartMutation<Cart>(
             params,
             "shipping-method",
-            { expected_updated_at: params.expected_updated_at, shipping_method_id: params.shipping_method_id },
+            () => ({ expected_updated_at: params.expected_updated_at, shipping_method_id: params.shipping_method_id }),
             options,
           );
         },
@@ -764,6 +782,15 @@ export const createStorefrontApi = (
           );
         },
 
+        async rescheduleBookingItem(params: StorefrontRescheduleOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
+          await lifecycle.ensureVisitorSession();
+          return httpClient.post<Order>(
+            `${base}/orders/${segment(params.order_id)}/booking-items/${segment(params.line_item_id)}/reschedule`,
+            { expected_updated_at: params.expected_updated_at, starts_at: params.starts_at },
+            orderTokenOptions(options),
+          );
+        },
+
         async cancelProductItem(params: StorefrontCancelOrderProductItemParams, options?: RequestOptions): Promise<Order> {
           requireId(params.credit_id, "credit");
           await lifecycle.ensureVisitorSession();
@@ -838,7 +865,6 @@ export const createStorefrontApi = (
           await lifecycle.ensureVisitorSession();
           return paymentMethods.revoke(...args);
         },
-        consentText: paymentMethods.consentText,
       },
 
       customerGroup: customerGroups.customerGroup,

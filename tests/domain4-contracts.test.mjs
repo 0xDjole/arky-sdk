@@ -34,7 +34,7 @@ test("store API keys carry typed scope and retain caller identity on retries", a
 });
 
 test("visitor identity and code sends use caller-picked UUIDs without exposing staff blocks", async (context) => {
-  const calls = recordFetch(context, (call) => call.path.endsWith("request-code") ? { customer: customer(), session: { id: sessionId, customer_id: customerId }, email_verification: { issued_at: 1, expires_at: 600001 } } : issued());
+  const calls = recordFetch(context, (call) => call.path.endsWith("request-code") ? { customer: customer(), session: { id: sessionId, store_id: storeId, customer_id: customerId }, email_verification: { issued_at: 1, expires_at: 600001 } } : issued());
   const memory = new Map();
   const client = createStorefront(publishableKey, { apiUrl: "https://api.example.test", locale: "en", sessionStorage: { getItem: (key) => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value), removeItem: (key) => memory.delete(key) }, visitorIdentity: { customer_id: customerId, session_id: sessionId } });
   await client.customer.identify({ customer_id: customerId, session_id: sessionId });
@@ -56,7 +56,7 @@ test("expired Visitor replacement keeps the application-picked pair after a lost
       return issued();
     }
     if (call.headers.get("authorization") === `Bearer ${prior.token}`) return errorResponse(401, "GENERAL.UNAUTHENTICATED", "Visitor expired");
-    return { customer: customer(), session: { id: sessionId, customer_id: customerId } };
+    return { customer: customer(), session: { id: sessionId, store_id: storeId, customer_id: customerId } };
   });
   const client = createStorefront(publishableKey, {
     apiUrl: "https://api.example.test",

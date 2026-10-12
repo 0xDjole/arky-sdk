@@ -99,13 +99,14 @@ export function createCartSelection(
   }
 
   function selectionKey(customerId: string, params: StorefrontCurrentCartParams): string {
+    requireId(params?.catalog_id, "catalog");
     return [
       "arky:selected-cart:v3",
       context.namespace,
       encodeURIComponent(customerId),
       encodeURIComponent(context.market() ?? ""),
       encodeURIComponent(buyerKey(params.buyer)),
-      encodeURIComponent(params.catalog_id ?? ""),
+      encodeURIComponent(params.catalog_id),
     ].join(":");
   }
 
@@ -131,7 +132,7 @@ export function createCartSelection(
     if (!cart || typeof cart.id !== "string" || cart.customer_id !== customerId || !sameBuyer(cart, params.buyer)) {
       throw new CartSelectionError("The cart does not belong to this customer and buyer");
     }
-    if (params.catalog_id && cart.catalog_id !== params.catalog_id) {
+    if (cart.catalog_id !== params.catalog_id) {
       throw new CartSelectionError("The selected cart uses a different catalog");
     }
   }
@@ -140,7 +141,7 @@ export function createCartSelection(
     return (
       cart.customer_id === customerId &&
       sameBuyer(cart, params.buyer) &&
-      (!params.catalog_id || cart.catalog_id === params.catalog_id) &&
+      cart.catalog_id === params.catalog_id &&
       !closedStatuses.includes(cart.status.type)
     );
   }
@@ -230,7 +231,7 @@ export function createCartSelection(
     return null;
   }
 
-  async function current(params: StorefrontCurrentCartParams = {}, options?: RequestOptions): Promise<Cart | null> {
+  async function current(params: StorefrontCurrentCartParams, options?: RequestOptions): Promise<Cart | null> {
     const storage = requireStorage();
     const customerId = requireCustomerId();
     const key = selectionKey(customerId, params);
@@ -313,7 +314,7 @@ export function createCartSelection(
     });
   }
 
-  function forget(params: StorefrontCurrentCartParams = {}): void {
+  function forget(params: StorefrontCurrentCartParams): void {
     const storage = context.storage;
     if (!storage) return;
     const customerId = requireCustomerId();

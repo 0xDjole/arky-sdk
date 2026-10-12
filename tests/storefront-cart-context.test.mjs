@@ -20,7 +20,6 @@ const customerBuyer = { type: "customer" };
 const productLine = {
   type: "product",
   id: ids.line,
-  product_id: ids.product,
   variant_id: ids.variant,
   quantity: 1,
   form_submission_id: null,
@@ -79,7 +78,6 @@ test("the store saves delivery groups exactly as given, with the loaded cart's i
 test("promotion codes come from the reviewed quote, drop with a language change, and are only sent when the buyer sets them", async (context) => {
   const promotions = [
     { promotion_id: "promotion", promotion_key: "spring", code: { promotion_code_id: "code", code: "SAVE10" } },
-    { promotion_id: "automatic", promotion_key: "auto", code: null },
   ];
   const calls = recordFetch(context, (call) => call.path.endsWith("/quote") ? quoteRecord({ promotions }) : cartRecord({ line_items: [productLine], updated_at: 1_700_000_000_002 }));
   const store = storeWithCart();

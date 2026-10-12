@@ -166,6 +166,7 @@ export function cartRecord(overrides = {}) {
     catalog_id: ids.catalog,
     status: { type: "active" },
     origin: { type: "storefront", customer_session_id: ids.session },
+    blocks: [],
     line_items: [],
     delivery_groups: [],
     billing_address: null,
@@ -240,7 +241,7 @@ export function checkoutRequest(overrides = {}) {
       payment_option_id: ids.paymentOption,
       return_url: "https://shop.example.test/return",
       save_payment_method: false,
-      payment_method_terms_version: null,
+      payment_method_terms: null,
     },
     ...overrides,
   };

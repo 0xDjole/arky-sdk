@@ -14,7 +14,7 @@ test("order execution reads keep empty continuations, the order filter and exact
   const replies = [
     { items: [], cursor },
     { items: [], cursor: null },
-    { id: "fulfillment/id", type: { type: "delivery", tracking: null, status: { type: "preparing" } } },
+    { id: "fulfillment/id", type: { type: "delivery", trackings: [], status: { type: "preparing" } } },
     { items: [], cursor },
     { id: "work/id", type: { type: "order_delivery", order_id: "accepted", order_delivery_group_id: "group" } },
     [{ fulfillment_job_line_id: "line", order_number: "1042", product_key: "milk", product_blocks: [], variant_sku: null, image: null, quantity: 2, source: { type: "order_product", order_product_line_item_id: "product", order_unit_spans: [] } }],
@@ -25,7 +25,7 @@ test("order execution reads keep empty continuations, the order filter and exact
   assert.deepEqual(await api.fulfillment.find(scope), { items: [], cursor });
   assert.equal(calls.length, 1);
   assert.deepEqual(await api.fulfillment.find({ ...scope, cursor }), { items: [], cursor: null });
-  assert.equal((await api.fulfillment.get({ store_id: STORE_ID, fulfillment_id: "fulfillment/id" })).type.tracking, null);
+  assert.deepEqual((await api.fulfillment.get({ store_id: STORE_ID, fulfillment_id: "fulfillment/id" })).type.trackings, []);
   assert.deepEqual(await api.fulfillmentJob.find(scope), { items: [], cursor });
   assert.equal((await api.fulfillmentJob.get({ store_id: STORE_ID, fulfillment_job_id: "work/id" })).type.order_id, "accepted");
   const items = await api.fulfillmentJob.items({ store_id: STORE_ID, fulfillment_job_id: "work/id" });
@@ -106,14 +106,14 @@ function handedOver(method = "delivery", lines = [selection(0, 2)]) {
     fulfillment_job_id: "work",
     created_by: actor,
     lines,
-    type: method === "pickup" ? { type: "pickup", status: { type: "collected", execution } } : { type: "delivery", tracking: null, status: { type: "sent", execution } },
+    type: method === "pickup" ? { type: "pickup", status: { type: "collected", execution } } : { type: "delivery", trackings: [], status: { type: "dispatched", execution } },
     created_at: 1,
     updated_at: 1,
   };
 }
 
 function preparing(method, lines) {
-  return { ...handedOver(method, lines), id: "prepared", type: method === "pickup" ? { type: "pickup", status: { type: "preparing" } } : { type: "delivery", tracking: null, status: { type: "preparing" } } };
+  return { ...handedOver(method, lines), id: "prepared", type: method === "pickup" ? { type: "pickup", status: { type: "preparing" } } : { type: "delivery", trackings: [], status: { type: "preparing" } } };
 }
 
 for (const method of ["delivery", "pickup"]) {
@@ -209,10 +209,14 @@ test("selection refuses incomplete or foreign history, invalid quantities and jo
   for (const quantity of [0, -1, 1.5, Infinity, NaN, 4_294_967_296]) {
     assert.throws(() => selectFulfillmentUnits(work, "line", quantity, [handedOver()]), FulfillmentSelectionError);
   }
-  for (const status of ["scheduled", "on_hold", "completed", "cancelled"]) {
-    assert.throws(() => selectFulfillmentUnits({ ...work, status }, "line", 1, [handedOver()]), /open or in progress/);
+  for (const status of ["completed", "cancelled"]) {
+    assert.throws(() => selectFulfillmentUnits({ ...work, status }, "line", 1, [handedOver()]), /finished job/);
   }
   assert.deepEqual(selectFulfillmentUnits({ ...work, status: "in_progress" }, "line", 1, [handedOver()]), selection(4, 1));
+  for (const status of ["scheduled", "on_hold"]) {
+    const waiting = { ...work, status, holds: [{ id: "hold", reason: { type: "awaiting_payment" }, created_at: 1 }] };
+    assert.deepEqual(selectFulfillmentUnits(waiting, "line", 1, [handedOver()]), selection(4, 1));
+  }
 });
 
 test("job mapping refuses invalid, non-canonical and over-fragmented ranges", () => {

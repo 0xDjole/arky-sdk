@@ -32,7 +32,7 @@ test("a fulfillment is prepared under the app-picked id with exact unit selectio
   const lines = [{ fulfillment_job_line_id: "line", unit_spans: [{ first_unit: 3, quantity: 1 }], selected_units: [{ fulfillment_unit_index: 3, inventory_unit_id: "physical-unit" }], lot_reference: "milk-batch-42" }];
   const request = { id: fulfillmentId, fulfillment_job_id: "work", lines };
   const before = structuredClone(request);
-  const reply = { id: fulfillmentId, lines, type: { type: "delivery", tracking: null, status: { type: "preparing" } } };
+  const reply = { id: fulfillmentId, lines, type: { type: "delivery", trackings: [], status: { type: "preparing" } } };
   const calls = recordFetch(context, () => reply);
   assert.deepEqual(await eshop().fulfillment.create({ ...request, store_id: storeId }), reply);
   assert.deepEqual(request, before);
@@ -47,7 +47,7 @@ test("a fulfillment is prepared under the app-picked id with exact unit selectio
   assert.equal(calls.length, 1);
 });
 
-test("a fulfillment action carries the loaded version, the tracking and the lot references", async (context) => {
+test("a fulfillment action carries the loaded version, tracking lists, the notification choice and the lot references", async (context) => {
   const calls = recordFetch(context, () => ({ id: fulfillmentId }));
   const api = eshop().fulfillment;
   assert.deepEqual(Object.keys(api).sort(), ["create", "execute", "find", "get", "markDelivered", "updateTracking"]);
@@ -56,17 +56,17 @@ test("a fulfillment action carries the loaded version, the tracking and the lot 
   }
   const tracking = { carrier: "Courier", number: "TRACK-42", url: "https://tracking.example.test/42" };
   const actions = [
-    [{ type: "ready" }, null, []],
-    [{ type: "cancel" }, null, []],
-    [{ type: "fulfill", timing: { type: "on_time" } }, tracking, [{ fulfillment_job_line_id: "line", lot_reference: "batch-42" }]],
-    [{ type: "fulfill", timing: { type: "late", reason: "Customer agreed to a later collection" } }, null, []],
+    [{ type: "ready" }, [], false, []],
+    [{ type: "cancel" }, [], false, []],
+    [{ type: "fulfill", timing: { type: "on_time" } }, [tracking], true, [{ fulfillment_job_line_id: "line", lot_reference: "batch-42" }]],
+    [{ type: "fulfill", timing: { type: "late", reason: "Customer agreed to a later collection" } }, [], true, []],
   ];
-  for (const [action, trackingValue, lotReferences] of actions) {
-    const request = { store_id: storeId, fulfillment_id: "fulfillment/id", expected_updated_at: revision, action, tracking: trackingValue, lot_references: lotReferences };
+  for (const [action, trackingValue, notify_customer, lotReferences] of actions) {
+    const request = { store_id: storeId, fulfillment_id: "fulfillment/id", expected_updated_at: revision, action, trackings: trackingValue, notify_customer, lot_references: lotReferences };
     const before = structuredClone(request);
     await api.execute(request);
     assert.deepEqual(request, before);
-    assert.deepEqual(calls.at(-1).body, { expected_updated_at: revision, action, tracking: trackingValue, lot_references: lotReferences });
+    assert.deepEqual(calls.at(-1).body, { expected_updated_at: revision, action, trackings: trackingValue, notify_customer, lot_references: lotReferences });
     assert.equal(calls.at(-1).href, `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment%2Fid/commands`);
   }
   assert.equal(calls.length, actions.length);
@@ -76,11 +76,13 @@ test("tracking changes and delivery confirmation carry the loaded version", asyn
   const tracking = { carrier: "Courier", number: "TRACK-42", url: null };
   const delivered_at = revision + 1000;
   const calls = recordFetch(context, () => ({ id: fulfillmentId }));
-  await eshop().fulfillment.updateTracking({ store_id: storeId, fulfillment_id: "fulfillment/id", expected_updated_at: revision, tracking });
-  await eshop().fulfillment.markDelivered({ store_id: storeId, fulfillment_id: "fulfillment/id", expected_updated_at: revision + 1, delivered_at });
+  await eshop().fulfillment.updateTracking({ store_id: storeId, fulfillment_id: "fulfillment/id", expected_updated_at: revision, trackings: [tracking] });
+  await eshop().fulfillment.updateTracking({ store_id: storeId, fulfillment_id: "fulfillment/id", expected_updated_at: revision + 1, trackings: [] });
+  await eshop().fulfillment.markDelivered({ store_id: storeId, fulfillment_id: "fulfillment/id", expected_updated_at: revision + 1, delivered_at, notify_customer: true });
   assert.deepEqual(calls.map(({ href, method, body }) => ({ href, method, body })), [
-    { href: `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment%2Fid/tracking`, method: "POST", body: { expected_updated_at: revision, tracking } },
-    { href: `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment%2Fid/delivered`, method: "POST", body: { expected_updated_at: revision + 1, delivered_at } },
+    { href: `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment%2Fid/tracking`, method: "POST", body: { expected_updated_at: revision, trackings: [tracking] } },
+    { href: `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment%2Fid/tracking`, method: "POST", body: { expected_updated_at: revision + 1, trackings: [] } },
+    { href: `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment%2Fid/delivered`, method: "POST", body: { expected_updated_at: revision + 1, delivered_at, notify_customer: true } },
   ]);
 });
 

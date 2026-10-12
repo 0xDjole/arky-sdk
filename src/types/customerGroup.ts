@@ -331,6 +331,36 @@ export interface CustomerGroupProductChoice {
   variant_id: string;
 }
 
+export interface CustomerGroupProductOptionLabel {
+  label: string | null;
+  value: string | null;
+}
+
+export interface CustomerGroupProductAlternative {
+  variant_id: string;
+  product_name: string | null;
+  variant_name: string | null;
+  sku: string | null;
+  options: CustomerGroupProductOptionLabel[];
+  available: boolean;
+}
+
+export interface CustomerGroupProductChoices {
+  customer_group_id: string;
+  group_updated_at: EpochMilliseconds;
+  entitlement_id: string;
+  language: string;
+  alternatives: CustomerGroupProductAlternative[];
+}
+
+export interface CustomerGroupMemberProductChoices {
+  customer_group_member: CustomerGroupMemberSelf;
+  revision_id: string;
+  entitlement_id: string;
+  language: string;
+  alternatives: CustomerGroupProductAlternative[];
+}
+
 export type CustomerGroupMemberRevisionChange =
   | { type: "amend_terms" }
   | { type: "purchase_requirement" };
@@ -401,6 +431,13 @@ export interface CustomerGroupMemberSelfAcceptedTerms {
   choices: CustomerGroupProductChoice[];
   deliveries: CustomerGroupDeliveryTerms[];
   billing_address: PostalAddress | null;
+}
+
+export interface CustomerGroupMemberCurrentSelf {
+  customer_group_member: CustomerGroupMemberSelf;
+  revision: CustomerGroupMemberRevisionSelf | null;
+  terms: CustomerGroupMemberSelfAcceptedTerms | null;
+  head_revision_id: string | null;
 }
 
 export type CustomerGroupMemberSelfRevisionChange =
@@ -718,6 +755,19 @@ export interface StorefrontChangeCustomerGroupMemberTermsParams extends Storefro
   billing_address: PostalAddress | null;
   reason: string;
 }
+
+export interface StorefrontGetCustomerGroupMemberProductChoicesParams extends StorefrontCustomerGroupMemberActionParams {
+  entitlement_id: string;
+  revision_id: string;
+  language: string;
+}
+
+export type GetStorefrontCustomerGroupProductChoicesParams = Omit<CatalogReadOptions, "include_price"> & {
+  identifier: string;
+  entitlement_id: string;
+  quantity: number;
+  language: string;
+};
 
 export interface ChangeCustomerGroupMemberPurchaseRequirementParams extends CustomerGroupMemberActionParams {
   requirement: PurchaseRequirement | null;

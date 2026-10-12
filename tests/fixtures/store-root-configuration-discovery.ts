@@ -41,7 +41,7 @@ export type ConfigurationPages = [
 
 export type PublicSetup = [
   Assert<Equal<Awaited<ReturnType<Front["getSetup"]>>, StorefrontSetup>>,
-  Assert<Equal<keyof StorefrontSetup, "name" | "timezone" | "languages" | "payment_options">>,
+  Assert<Equal<keyof StorefrontSetup, "name" | "timezone" | "languages" | "payment_options" | "bot_check">>,
   Assert<Equal<StorefrontSetup["languages"], string[]>>,
   Assert<Equal<StorefrontSetup["payment_options"], StorefrontPaymentOption[]>>,
   Assert<Missing<StorefrontPaymentOption, "configuration" | "status" | "store_id">>,

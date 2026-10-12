@@ -23,6 +23,14 @@ function bookingService(overrides = {}) {
     slugs: { en: "consultation" },
     blocks: [],
     categories: [],
+    segments: [{ type: "service", minutes: 60 }],
+    buffer_before_minutes: 0,
+    buffer_after_minutes: 0,
+    slot_interval_minutes: 30,
+    booking_window: { opens_before_start_minutes: 43_200, closes_before_start_minutes: 120 },
+    customer_changes: { type: "not_allowed" },
+    reminder_offsets_minutes: [1440, 60],
+    tax_category_id: taxCategoryId,
     status: { type: "active" },
     created_at: 1,
     updated_at: 1,
@@ -41,6 +49,7 @@ function bookingResource(overrides = {}) {
     categories: [],
     timezone: "Europe/Sarajevo",
     capacity: 3,
+    hours: { weekly_availability: { monday: [{ from_minute: 540, to_minute: 1020 }] }, date_overrides: { "2026-08-24": [] } },
     status: { type: "active" },
     created_at: 1,
     updated_at: 1,
@@ -54,14 +63,8 @@ function bookingOffering(overrides = {}) {
     store_id: storeId,
     booking_service_id: serviceId,
     booking_resource_id: resourceId,
-    weekly_availability: { monday: [{ from_minute: 540, to_minute: 1020 }] },
-    date_overrides: { "2026-08-24": [] },
-    segments: [{ type: "service", minutes: 60 }],
-    slot_interval_minutes: 30,
-    booking_window: { opens_before_start_minutes: 43_200, closes_before_start_minutes: 120 },
-    reminder_offsets_minutes: [1440, 60],
+    hours: { type: "resource" },
     venue: { type: "store_location", store_location_id: "e7a9c1d3-5f6b-4dac-8e4a-6c8d0e2a4f5b" },
-    tax_category_id: taxCategoryId,
     status: { type: "active" },
     created_at: 1,
     updated_at: 1,
@@ -82,8 +85,8 @@ function bookingLine() {
     capacity_units: 1,
     form_submission_id: ids.submission,
     snapshot: { service_key: "consultation", resource_key: "room-one", timezone: "Europe/Sarajevo", price: { type: "catalog", price_id: ids.product, catalog_id: ids.catalog } },
-    status: { type: "confirmed" },
-    attendance: "upcoming",
+    status: { type: "confirmed", attendance: { type: "upcoming" } },
+    reschedules: [],
     money: { unit_price: 5000, discounts: [], tax: { type: "own", tax_category_id: taxCategoryId, rule_id: ids.variant, treatment: { type: "rates", lines: [] } } },
     created_at: 1,
     updated_at: 2,
@@ -150,8 +153,10 @@ test("Admin booking runtime creates service, resource and offering under app-pic
     return jsonResponse(order());
   });
   const admin = createAdmin({ baseUrl: apiUrl, secretKey: "token" });
-  const service = { id: serviceId, key: "consultation", slugs: { en: "consultation" }, blocks: [], categories: [], status: { type: "active" } };
-  const resource = { id: resourceId, key: "room-one", slugs: { en: "room-one" }, blocks: [], categories: [], timezone: "Europe/Sarajevo", capacity: 3, status: { type: "active" } };
+  const { id: _serviceId, store_id: _serviceStore, created_at: _serviceCreated, updated_at: _serviceUpdated, price: _servicePrice, ...serviceFields } = bookingService();
+  const service = { id: serviceId, ...serviceFields };
+  const { id: _resourceId, store_id: _resourceStore, created_at: _resourceCreated, updated_at: _resourceUpdated, ...resourceFields } = bookingResource();
+  const resource = { id: resourceId, ...resourceFields };
   const { id: _offeringId, store_id: _store, status: _status, created_at: _created, updated_at: _updated, price: _price, ...offeringFields } = bookingOffering();
   const offering = { id: offeringId, ...offeringFields, status: { type: "active" } };
   await admin.eshop.bookingService.create({ store_id: storeId, ...service });
@@ -165,7 +170,7 @@ test("Admin booking runtime creates service, resource and offering under app-pic
   await admin.eshop.order.markBookingItemNoShow({ store_id: storeId, order_id: loadedOrder.id, line_item_id: line.id, expected_updated_at: 4 });
 
   for (const removed of ["service", "provider", "booking"]) assert.equal(removed in admin.eshop, false, removed);
-  for (const removed of ["getBookings", "update", "getBookingAppointment"]) assert.equal(removed in admin.eshop.order, false, removed);
+  for (const removed of ["getBookings", "getBookingAppointment"]) assert.equal(removed in admin.eshop.order, false, removed);
   assert.deepEqual(calls.map((call) => [call.url.pathname, call.method, call.body]), [
     [`/v1/stores/${storeId}/booking-services`, "POST", service],
     [`/v1/stores/${storeId}/booking-resources`, "POST", resource],
@@ -363,8 +368,8 @@ test("high-level booking flow adds one cart line per appointment under the ids t
   });
 
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "en", sessionStorage: visitorStorage() });
-  await store.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: null });
-  await store.eshop.bookingService.select(bookingService());
+  await store.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: ids.catalog });
+  await store.eshop.bookingService.select(bookingService(), { catalog_id: ids.catalog });
   const availableDay = store.eshop.bookingService.state.get().calendar.find((day) => day.iso === availableLocalDate);
   assert.equal(availableDay?.available, true);
   store.eshop.bookingService.selectDate(availableDay);
@@ -514,7 +519,7 @@ test("late availability cannot replace a newer Service selection or its shared r
   });
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "en", sessionStorage: visitorStorage() });
   try {
-    const first = store.eshop.bookingService.select(bookingService());
+    const first = store.eshop.bookingService.select(bookingService(), { catalog_id: ids.catalog });
     await pending;
     await store.eshop.bookingService.select(bookingService({ id: newServiceId }));
     releaseOld();

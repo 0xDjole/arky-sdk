@@ -51,6 +51,7 @@ test("rental actions send the loaded version and the typed action, and a replace
     { type: "end", reason: "Customer ended the agreement", return_due_at: null },
     { type: "end", reason: "Agreed collection date", return_due_at: 1_700_000_100_000 },
     { type: "close" },
+    { type: "resume" },
     { type: "cancel_issue", fulfillment_job_id: jobId, fulfillment_job_line_id: jobLineId },
   ];
   for (const action of actions) {

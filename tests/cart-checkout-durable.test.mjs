@@ -108,14 +108,14 @@ test("an unresolved checkout blocks every cart change and a new cart until it is
   await loseResponse();
   const calls = capture(success);
   const cart = storefront().eshop.cart;
-  const product = { id: ids.otherLine, product_id: ids.product, variant_id: ids.variant, quantity: 1, purchase: { type: "catalog" } };
+  const product = { id: ids.otherLine, variant_id: ids.variant, quantity: 1, purchase: { type: "catalog" } };
   for (const mutate of [
-    () => cart.create({ id: ids.otherCart, buyer: { type: "customer" }, catalog_id: null }),
+    () => cart.create({ id: ids.otherCart, buyer: { type: "customer" }, catalog_id: ids.catalog }),
     () => cart.reorder({ id: ids.otherCart, order_id: ids.otherOrder, buyer: { type: "customer" } }),
     () => cart.update({ id: ids.cart, expected_updated_at: 1, promotion_codes: ["NEW"] }),
     () => cart.addProduct({ id: ids.cart, expected_updated_at: 1, product }),
     () => cart.addBooking({ id: ids.cart, expected_updated_at: 1, booking: { id: ids.otherLine, booking_offering_id: ids.product, requested_interval: { from: 1, to: 2 }, capacity_units: 1 } }),
-    () => cart.addCustomerGroup({ id: ids.cart, expected_updated_at: 1, customer_group: { id: ids.otherLine, customer_group_id: ids.product, start: { type: "on_acceptance" } } }),
+    () => cart.addCustomerGroup({ id: ids.cart, expected_updated_at: 1, customer_group: { id: ids.otherLine, customer_group_id: ids.product, quantity: 1, choices: [], start: { type: "on_acceptance" } } }),
     () => cart.removeItem({ id: ids.cart, expected_updated_at: 1, line_item_id: ids.line }),
     () => cart.clear({ id: ids.cart, expected_updated_at: 1 }),
     () => cart.selectShippingMethod({ id: ids.cart, expected_updated_at: 1, shipping_method_id: ids.product }),
@@ -397,15 +397,15 @@ test("failed terminal storage clear does not notify success and retains recovery
 
 test("saved-method consent survives lost responses and exact recovery", async () => {
   const { storage } = browser();
-  const consentRequest = { ...request, payment: { ...request.payment, save_payment_method: true, payment_method_terms_version: "checkout-2026-09" } };
+  const consentRequest = { ...request, payment: { ...request.payment, save_payment_method: true, payment_method_terms: "Save this card for later group charges." } };
   await loseResponse(consentRequest);
   assert.deepEqual(await storefront().eshop.cart.pendingCheckout(), consentRequest);
   const calls = capture(success);
-  await assert.rejects(storefront().eshop.cart.retainCheckout({ ...consentRequest, payment: { ...consentRequest.payment, payment_method_terms_version: "new-terms" } }), /different unresolved payload/);
+  await assert.rejects(storefront().eshop.cart.retainCheckout({ ...consentRequest, payment: { ...consentRequest.payment, payment_method_terms: "Updated exact card wording." } }), /different unresolved payload/);
   assert.equal(calls.length, 0);
   assert.deepEqual(await storefront().eshop.cart.recoverCheckout(), placedAcceptance());
   assert.equal(calls[0].body.payment.save_payment_method, true);
-  assert.equal(calls[0].body.payment.payment_method_terms_version, "checkout-2026-09");
+  assert.equal(calls[0].body.payment.payment_method_terms, "Save this card for later group charges.");
   assert.equal(storage.getItem(storageKey), null);
 });
 
@@ -413,8 +413,8 @@ test("saving a payment method requires explicit well-formed consent before trans
   for (const payment of [
     { ...request.payment, save_payment_method: "true" },
     { ...request.payment, save_payment_method: true },
-    { ...request.payment, save_payment_method: true, payment_method_terms_version: null },
-    ...["", " terms", "terms\n", "a".repeat(257)].map((terms) => ({ ...request.payment, save_payment_method: true, payment_method_terms_version: terms })),
+    { ...request.payment, save_payment_method: true, payment_method_terms: null },
+    ...["", "   ", "a".repeat(40_001), "ž".repeat(20_001)].map((terms) => ({ ...request.payment, save_payment_method: true, payment_method_terms: terms })),
   ]) {
     const { storage } = browser();
     const calls = capture(success);

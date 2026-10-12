@@ -16,7 +16,7 @@ export function fulfillmentJobLines(job: FulfillmentJob): FulfillmentJobLine[] {
 
 export function fulfillmentExecution(fulfillment: Fulfillment): FulfillmentExecution | null {
   const status = fulfillment.type.status;
-  if (status.type === "sent" || status.type === "delivered" || status.type === "collected") return status.execution;
+  if (status.type === "dispatched" || status.type === "delivered" || status.type === "collected") return status.execution;
   return null;
 }
 
@@ -132,9 +132,6 @@ function assignedUnits(line: FulfillmentJobLine): UnitSpan[] {
 }
 
 export function selectFulfillmentUnits(work: FulfillmentJob, lineId: string, quantity: number, history: Fulfillment[]): FulfillmentLine {
-  if (work.status !== "open" && work.status !== "in_progress") {
-    throw new FulfillmentSelectionError("Select units of a job that is open or in progress.");
-  }
   return { ...selectUnits(work, lineId, quantity, history), selected_units: [], lot_reference: null };
 }
 

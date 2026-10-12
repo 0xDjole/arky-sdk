@@ -48,9 +48,9 @@ const adminSurface = {
   "eshop.catalogItem": ["batch", "create", "delete", "find", "get", "update"],
   "eshop.customerGroup": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.customerGroupMember": [
-    "assign", "calendar", "cancel", "changePurchaseRequirement", "current", "find", "findOrders", "get",
+    "assign", "calendar", "cancel", "changePurchaseRequirement", "changeTerms", "current", "find", "findOrders", "get",
     "getRevision", "pause", "purchaseAccess", "purchaseLimits", "purchaseRequirement", "resume", "reviewPurchaseRequirement",
-    "reviewSwitch", "revisions", "revoke", "scheduleEnd", "selectPaymentMethod", "skipNext", "switch",
+    "reviewSwitch", "reviewTerms", "revisions", "revoke", "scheduleEnd", "selectPaymentMethod", "skipNext", "switch",
     "transferPurchaseRequirement", "withdrawRevision",
   ],
   "eshop.customerGroupOffering": ["create", "delete", "find", "get", "getByKey", "update"],
@@ -61,9 +61,9 @@ const adminSurface = {
   "eshop.inventoryItem": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.inventoryLevel": ["create", "find", "get", "makeAvailable", "move", "receiveMove", "remove", "setAside", "stock"],
   "eshop.inventoryMovement": ["find", "get", "record"],
-  "eshop.inventoryUnit": ["allocate", "execution", "find", "get", "move", "receive", "unassign", "writeOff"],
+  "eshop.inventoryUnit": ["allocate", "find", "fulfillmentId", "get", "makeAvailable", "move", "receive", "setAside", "unassign", "writeOff"],
   "eshop.minimumProgress": ["get"],
-  "eshop.order": ["addInvoice", "cancel", "cancelBookingItem", "cancelProductItem", "completeBookingItem", "deleteInvoice", "find", "findBookingItems", "findPayments", "get", "getFinancialSummary", "getPayment", "markBookingItemNoShow", "resendReceipt", "revokeAccess"],
+  "eshop.order": ["addInvoice", "cancel", "cancelBookingItem", "cancelProductItem", "completeBookingItem", "correctDeliveryAddress", "deleteInvoice", "find", "findBookingItems", "findPayments", "get", "getFinancialSummary", "getPayment", "markBookingItemNoShow", "rescheduleBookingItem", "resendReceipt", "revokeAccess", "update"],
   "eshop.order.credit": ["create", "find", "get", "void"],
   "eshop.order.notes": ["create", "delete", "find", "update"],
   "eshop.payment": ["cancel", "cancelRefund", "createManual", "createRefund", "find", "get", "recordCollection", "recordRefundReceipt", "resolveCharge", "resolveHold", "resolveRefund", "voidCollection"],
@@ -92,7 +92,7 @@ const adminSurface = {
   store: ["allowEmailSending", "create", "find", "get", "pauseEmailSending", "requestDeletion", "update"],
   "store.location": ["create", "delete", "get", "getByKey", "getCountries", "getCountry", "list", "update"],
   "store.market": ["create", "delete", "get", "getByKey", "list", "update"],
-  "store.member": ["acceptInvite", "add", "changeStatus", "find", "findOwn", "getOwn", "invite", "remove", "transferOwnership", "updateRoles"],
+  "store.member": ["acceptInvite", "changeStatus", "find", "findOwn", "getOwn", "invite", "remove", "resendInvite", "transferOwnership", "updateRoles"],
   "store.paymentOption": ["create", "get", "getByKey", "list", "update"],
   "store.paymentOption.monri": ["create"],
   "store.paymentOption.stripe": ["connect", "createWebhook", "refresh", "replaceKeys", "rotateWebhookSecret"],
@@ -107,7 +107,7 @@ const adminSurface = {
   "store.usage": ["find"],
   "store.webhook": ["create", "delete", "list", "test", "update"],
   "store.zone": ["create", "delete", "find", "get", "getByKey", "update"],
-  "support.conversation": ["assign", "attachmentLink", "find", "findMessages", "get", "getMessage", "reply", "resolve", "selectSendingAddress"],
+  "support.conversation": ["assign", "attachmentLink", "find", "findMessages", "get", "getMessage", "reply", "resolve", "selectSendingAddress", "startEmail"],
   "support.conversation.notes": ["create", "delete", "find", "update"],
   "support.flow": ["create", "delete", "find", "get", "update"],
 };
@@ -151,7 +151,7 @@ test("store currencies and minor units match the Server's currency table, in its
   assert.throws(() => convertToMinor(1, "zzz"), /Unsupported currency/);
 });
 
-test("the Admin client exposes exactly the reviewed future-3 surface", () => {
+test("the Admin client exposes exactly the reviewed Domain5 surface", () => {
   assert.deepEqual(surfaceOf(admin()), adminSurface);
 });
 

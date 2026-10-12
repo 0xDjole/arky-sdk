@@ -64,4 +64,4 @@ export { FulfillmentSelectionError } from "../types/fulfillmentSelection";
 export { copyCartProductPurchase } from "./cartInputs";
 export { isCanonicalId, requireId } from "./ids";
 
-export { createOrderToken, isOrderToken, retainOrderToken, readOrderToken } from "./orderToken";
+export { createOrderToken, isOrderToken, retainOrderToken, replaceOrderToken, readOrderToken } from "./orderToken";

@@ -18,6 +18,11 @@ import type {
   CustomerGroupMemberChange,
   CustomerGroupMemberChangeSelf,
   CustomerGroupMemberCurrent,
+  CustomerGroupMemberCurrentSelf,
+  CustomerGroupMemberProductChoices,
+  CustomerGroupProductChoices,
+  GetStorefrontCustomerGroupProductChoicesParams,
+  StorefrontGetCustomerGroupMemberProductChoicesParams,
   CustomerGroupMemberPurchaseAccessPage,
   CustomerGroupMemberPurchaseLimitUsage,
   CustomerGroupMemberPurchaseRequirement,
@@ -366,6 +371,11 @@ export function createStorefrontCustomerGroupApi(httpClient: HttpClient, ensureV
           params: query,
         });
       },
+
+      productChoices(params: GetStorefrontCustomerGroupProductChoicesParams, options?: RequestOptions): Promise<CustomerGroupProductChoices> {
+        const { identifier, entitlement_id, ...query } = params;
+        return httpClient.get<CustomerGroupProductChoices>(`${base}/customer-groups/${segment(identifier)}/product-choices/${segment(entitlement_id)}`, { ...options, params: query });
+      },
     },
 
     customerGroupOffering: {
@@ -392,6 +402,17 @@ export function createStorefrontCustomerGroupApi(httpClient: HttpClient, ensureV
       async get(params: StorefrontGetCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMemberSelf> {
         await ensureVisitorSession();
         return httpClient.get<CustomerGroupMemberSelf>(memberPath(params.id), options);
+      },
+
+      async current(params: StorefrontGetCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMemberCurrentSelf> {
+        await ensureVisitorSession();
+        return httpClient.get<CustomerGroupMemberCurrentSelf>(`${memberPath(params.id)}/current`, options);
+      },
+
+      async productChoices(params: StorefrontGetCustomerGroupMemberProductChoicesParams, options?: RequestOptions): Promise<CustomerGroupMemberProductChoices> {
+        await ensureVisitorSession();
+        const { id, entitlement_id, ...query } = params;
+        return httpClient.get<CustomerGroupMemberProductChoices>(`${memberPath(id)}/product-choices/${segment(entitlement_id)}`, { ...options, params: query });
       },
 
       async getRevision(

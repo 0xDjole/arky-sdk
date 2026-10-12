@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createOrderToken, isOrderToken, readOrderToken, retainOrderToken } from "../dist/index.js";
+import { createOrderToken, isOrderToken, readOrderToken, replaceOrderToken, retainOrderToken } from "../dist/index.js";
 import { ids } from "./helpers/arky-fixtures.mjs";
 
 test("Order tokens contain 256 random bits with canonical encoding", () => {
@@ -26,6 +26,13 @@ test("Retained Order capability is bound to exact API, Store, and Order", () => 
     assert.equal(readOrderToken("https://api.test|store-b", ids.order), null);
     assert.equal(readOrderToken("https://other.test|store-a", ids.order), null);
     assert.throws(() => retainOrderToken("https://api.test|store-a", ids.order, createOrderToken()), /different retained token/);
+    const followed = createOrderToken();
+    replaceOrderToken("https://api.test|store-a", ids.order, followed);
+    assert.equal(readOrderToken("https://api.test|store-a", ids.order) === followed, true);
+    assert.throws(() => replaceOrderToken("https://api.test|store-a", ids.order, "malformed"), /Invalid order token/);
+    assert.equal(readOrderToken("https://api.test|store-a", ids.order) === followed, true);
+    assert.equal(readOrderToken("https://api.test|store-b", ids.order), null);
+    assert.throws(() => retainOrderToken("https://api.test|store-a", ids.order, token), /different retained token/);
   } finally {
     if (previous) Object.defineProperty(globalThis, "localStorage", previous);
     else delete globalThis.localStorage;

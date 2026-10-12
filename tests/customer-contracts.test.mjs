@@ -126,7 +126,7 @@ test("successful email change keeps current credentials and persists the returne
   const storefront = client(storage);
   const before = structuredClone(storefront.session);
   const retainedCredentials = JSON.parse(storage.initial).session;
-  const calls = recordFetch(context, () => ({ customer, session: { id: before.id, customer_id: before.customer.id } }));
+  const calls = recordFetch(context, () => ({ customer, session: { id: before.id, customer_id: before.customer.id, store_id: storeId } }));
   const result = await storefront.customer.changeEmail({ code: "123456" });
   assert.deepEqual(result.customer, customer);
   assert.deepEqual(calls[0].body, { code: "123456" });
@@ -147,10 +147,47 @@ test("email-change response cannot replace a different current customer session"
   const retained = storage.initial;
   recordFetch(context, () => ({
     customer: customerRecord(customerId, { type: { type: "verified", email: "changed@example.test", addresses: [], default_shipping_address_id: null, default_billing_address_id: null } }),
-    session: { id: ids.otherSession, customer_id: customerId },
+    session: { id: ids.otherSession, customer_id: customerId, store_id: storeId },
   }));
   await assert.rejects(storefront.customer.changeEmail({ code: "123456" }), /does not match the active customer session/);
   assert.deepEqual(storefront.session, before);
   assert.equal(storage.initial, retained);
   assert.equal(storage.values.size, 0);
 });
+
+for (const method of ["getMe", "updateMe"]) {
+  test(`${method} retains credentials and reloads the current returned profile`, async (context) => {
+    const storage = signedInStorage();
+    const storefront = client(storage);
+    const before = structuredClone(storefront.session);
+    const credentials = JSON.parse(storage.initial).session;
+    const customer = customerRecord(customerId, { profile, type: before.customer.type });
+    const response = { customer, session: { id: before.id, customer_id: customerId, store_id: storeId } };
+    const calls = recordFetch(context, () => response);
+    const result = method === "getMe"
+      ? await storefront.customer.getMe()
+      : await storefront.customer.updateMe({ profile, expected_updated_at: 2 });
+    assert.deepEqual(result, response);
+    assert.equal(calls[0].method, method === "getMe" ? "GET" : "PATCH");
+    assert.deepEqual(storefront.session.customer.profile, profile);
+    assert.deepEqual(JSON.parse([...storage.values.values()][0]).session, credentials);
+    const reloaded = client(storage);
+    assert.equal(reloaded.session.id, before.id);
+    assert.deepEqual(reloaded.session.customer.profile, profile);
+  });
+
+  test(`${method} returns a late response without replacing current cached identity`, async (context) => {
+    const storage = signedInStorage();
+    const storefront = client(storage);
+    const before = structuredClone(storefront.session);
+    recordFetch(context, () => ({
+      customer: customerRecord(customerId, { profile, type: before.customer.type }),
+      session: { id: ids.otherSession, customer_id: customerId, store_id: storeId },
+    }));
+    const result = await (method === "getMe" ? storefront.customer.getMe() : storefront.customer.updateMe({ profile, expected_updated_at: 2 }));
+    assert.deepEqual(result.customer.profile, profile);
+    assert.equal(result.session.id, ids.otherSession);
+    assert.deepEqual(storefront.session, before);
+    assert.equal(storage.values.size, 0);
+  });
+}

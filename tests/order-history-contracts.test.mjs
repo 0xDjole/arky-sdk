@@ -35,7 +35,9 @@ test("an order read keeps its cart source, the placed snapshot and every line fa
   assert.equal(product.money_runs[0].money.unit_price, 1000);
   assert.equal("type" in product, true);
   assert.equal(booking.snapshot.service_key, "consultation");
-  assert.equal(booking.attendance, "upcoming");
+  assert.deepEqual(booking.status, { type: "confirmed", attendance: { type: "upcoming" } });
+  assert.deepEqual(booking.reschedules, []);
+  assert.equal("attendance" in booking, false);
   assert.equal(group.customer_group_member_id, ids.customerGroupMember);
   assert.equal(access.order_customer_group_line_item_id, group.id);
   assert.equal("type" in group, true);
@@ -70,7 +72,7 @@ test("cancelling a whole order sends only the order version to the named store a
   const calls = recordFetch(context, () => retained);
   const api = client();
   assert.equal("setStoreId" in api, false);
-  for (const removed of ["update", "cancelPending"]) assert.equal(removed in api.eshop.order, false, removed);
+  for (const removed of ["cancelPending"]) assert.equal(removed in api.eshop.order, false, removed);
   assert.deepEqual(await api.eshop.order.cancel({ store_id: otherStoreId, order_id: "order/a?b", expected_updated_at: 7 }, { signal }), retained);
   assert.deepEqual(calls.map(({ method, href, body }) => [method, href, body]), [
     ["POST", `${baseUrl}/v1/stores/${otherStoreId}/orders/order%2Fa%3Fb/cancel`, { expected_updated_at: 7 }],
@@ -87,15 +89,15 @@ test("booking attendance, access revocation and a receipt resend each name the l
   await api.completeBookingItem({ store_id: storeId, order_id: retained.id, line_item_id: lineId, expected_updated_at: 3 });
   await api.markBookingItemNoShow({ store_id: storeId, order_id: retained.id, line_item_id: lineId, expected_updated_at: 4 });
   await api.revokeAccess({ store_id: storeId, id: retained.id, expected_updated_at: 5, line_item_id: "3e956b8d-efc3-42e6-a5c1-9fb38ea840fa", effective_at: 1_789_000_000_000, reason: "Chargeback" });
-  await api.resendReceipt({ store_id: storeId, order_id: retained.id, id: ids.credit });
+  await api.resendReceipt({ store_id: storeId, order_id: retained.id, id: ids.credit, expected_updated_at: 5 });
   const base = `/v1/stores/${storeId}/orders/${retained.id}`;
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", `${base}/booking-items/${lineId}/complete`, { expected_updated_at: 3 }],
     ["POST", `${base}/booking-items/${lineId}/no-show`, { expected_updated_at: 4 }],
     ["POST", `${base}/access/revoke`, { expected_updated_at: 5, line_item_id: "3e956b8d-efc3-42e6-a5c1-9fb38ea840fa", effective_at: 1_789_000_000_000, reason: "Chargeback" }],
-    ["POST", `${base}/resend-receipt`, { id: ids.credit }],
+    ["POST", `${base}/resend-receipt`, { id: ids.credit, expected_updated_at: 5 }],
   ]);
-  await assert.rejects(async () => api.resendReceipt({ store_id: storeId, order_id: retained.id, id: "receipt" }), {
+  await assert.rejects(async () => api.resendReceipt({ store_id: storeId, order_id: retained.id, id: "receipt", expected_updated_at: 5 }), {
     name: "TypeError",
     message: "The receipt id must be a canonical UUID v4 picked by the app",
   });
@@ -109,6 +111,27 @@ test("a refused order change is propagated once, without a retry or a replacemen
     assert.equal(calls.length, 1);
     context.mock.restoreAll();
   }
+});
+
+test("contact, blocks, delivery address and sold booking changes carry the exact current Order version", async (context) => {
+  const calls = recordFetch(context, () => retained);
+  const api = client().eshop.order;
+  const contact = { first_name: "New", last_name: "Contact", email: "updated@example.test", phone: null };
+  const blocks = [{ key: "note", type: "text", value: "Accepted gift note" }];
+  const delivery = ids.otherLine;
+  const booking = ids.line;
+  const address = { country: "BA", street1: "Changed street", city: "Sarajevo", postal_code: "71000" };
+  await api.update({ store_id: storeId, id: retained.id, expected_updated_at: 10, contact, blocks });
+  await api.correctDeliveryAddress({ store_id: storeId, order_id: retained.id, delivery_group_id: delivery, expected_updated_at: 11, address });
+  await api.rescheduleBookingItem({ store_id: storeId, order_id: retained.id, line_item_id: booking, expected_updated_at: 12, starts_at: 1_800_000_000_000, notify_customer: false });
+  await api.cancelBookingItem({ store_id: storeId, order_id: retained.id, line_item_id: booking, credit_id: ids.credit, expected_updated_at: 13, notify_customer: true });
+  const base = `/v1/stores/${storeId}/orders/${retained.id}`;
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["PATCH", base, { expected_updated_at: 10, contact, blocks }],
+    ["PATCH", `${base}/deliveries/${delivery}/address`, { expected_updated_at: 11, address }],
+    ["POST", `${base}/booking-items/${booking}/reschedule`, { expected_updated_at: 12, starts_at: 1_800_000_000_000, notify_customer: false }],
+    ["POST", `${base}/booking-items/${booking}/cancel`, { credit_id: ids.credit, expected_updated_at: 13, notify_customer: true }],
+  ]);
 });
 
 test("order history retains the actual newly shipped rental quantity", async (context) => {

@@ -58,3 +58,38 @@ test("buyer own-terms sends only editable accepted fields and preserves the exac
   assert.deepEqual(input, before);
   assert.equal(calls.length, 2);
 });
+
+test("buyer current terms reads the canonical member response with authentication and no catalog fallback", async (context) => {
+  const result = { customer_group_member: { id: memberId }, revision: null, terms: null, head_revision_id: null };
+  const calls = recordFetch(context, () => result);
+  const api = createStorefront(publishableKey, {
+    apiUrl, sessionStorage: visitorStorage(),
+    visitorIdentity: { customer_id: ids.customer, session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" },
+    createVisitorIdentity: () => ({ customer_id: ids.customer, session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }),
+    createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
+  }).eshop.customerGroupMember;
+  assert.deepEqual(await api.current({ id: memberId }), result);
+  assert.equal(calls[0].path, `/v1/storefront/customer-group-members/${memberId}/current`);
+  assert.equal(calls[0].method, "GET");
+  assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
+  assert.equal(calls[0].url.search, "");
+});
+
+test("sale and accepted Product choices keep exact catalog, language and current member revision fences", async (context) => {
+  const entitlement = choices[0].entitlement_id;
+  const revision = "c5de228a-691f-45b1-aaeb-8e30bf0249a0";
+  const result = { entitlement_id: entitlement, language: "sr-Latn-BA", alternatives: [{ variant_id: ids.variant, product_name: "Kafa", variant_name: null, sku: "COFFEE", options: [{ label: "Ukus", value: "Blagi" }], available: true }] };
+  const calls = recordFetch(context, () => result);
+  const api = createStorefront(publishableKey, { apiUrl, sessionStorage: visitorStorage(), visitorIdentity: { customer_id: ids.customer, session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: ids.customer, session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" });
+  const sale = { identifier: groupId, entitlement_id: entitlement, catalog_id: ids.catalog, quantity: 3, language: result.language };
+  const member = { id: memberId, entitlement_id: entitlement, expected_updated_at: version, revision_id: revision, language: result.language };
+  const before = structuredClone({ sale, member });
+  assert.deepEqual(await api.eshop.customerGroup.productChoices(sale), result);
+  assert.equal(calls[0].path, `/v1/storefront/customer-groups/${groupId}/product-choices/${entitlement}`);
+  assert.deepEqual(calls[0].query, { catalog_id: ids.catalog, quantity: "3", language: result.language });
+  assert.deepEqual(await api.eshop.customerGroupMember.productChoices(member), result);
+  assert.equal(calls[1].path, `/v1/storefront/customer-group-members/${memberId}/product-choices/${entitlement}`);
+  assert.deepEqual(calls[1].query, { expected_updated_at: String(version), revision_id: revision, language: result.language });
+  assert.equal(calls[1].headers.get("authorization"), `Bearer ${visitorToken}`);
+  assert.deepEqual({ sale, member }, before);
+});

@@ -20,7 +20,6 @@ import {
 const productLine = {
   type: "product",
   id: ids.line,
-  product_id: ids.product,
   variant_id: ids.variant,
   quantity: 1,
   form_submission_id: null,
@@ -36,7 +35,7 @@ function checkoutStore() {
 }
 
 function cardPayment() {
-  return { type: "payment_option", payment_option_id: ids.paymentOption, return_url: "https://shop.example.test/checkout/complete", save_payment_method: false, payment_method_terms_version: null };
+  return { type: "payment_option", payment_option_id: ids.paymentOption, return_url: "https://shop.example.test/checkout/complete", save_payment_method: false, payment_method_terms: null };
 }
 
 test("initialize is the root API and exposes the module facade without store switching", () => {

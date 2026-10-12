@@ -33,6 +33,7 @@ const contactForm = {
   stages: [{ id: "new", key: "new" }],
   status: { type: "active" },
   created_at: 1,
+  questions_updated_at: 1,
   updated_at: 1,
 };
 
@@ -80,7 +81,7 @@ test("the store loads its setup and confirms the selected market before it expos
 
 test("a fresh visitor's first cart load identifies once and reads no cart, and a create then selects the new cart", async (context) => {
   const storage = new SessionStorage();
-  const line = { type: "product", id: ids.line, product_id: ids.product, variant_id: ids.variant, quantity: 2, form_submission_id: ids.submission, price_override: null, purchase: { type: "catalog" } };
+  const line = { type: "product", id: ids.line, variant_id: ids.variant, quantity: 2, form_submission_id: ids.submission, price_override: null, purchase: { type: "catalog" } };
   const cart = cartRecord({ line_items: [line] });
   const calls = recordFetch(context, (call) => {
     if (call.path === "/v1/storefront/customer/identify") return sessionResult();
@@ -178,7 +179,7 @@ test("submitByKey reads the form anonymously, identifies lazily and submits only
   assert.deepEqual(calls[1].body, { customer_id: ids.customer, session_id: ids.session });
   assert.deepEqual(submissionOf(calls[2]), {
     id: ids.submission,
-    form_updated_at: contactForm.updated_at,
+    questions_updated_at: contactForm.questions_updated_at,
     language: "it",
     answers: [
       { question_id: "q-name", key: "name", type: "text", value: "Jane" },
@@ -219,7 +220,7 @@ test("a raw storefront submission stays stateful and sends only the id, the load
     : { id: ids.submission, form_id: ids.form, language: "it", answers: [], stage_id: "new", created_at: 2, updated_at: 2 });
   await store.forms.submit({
     form_id: ids.form,
-    form_updated_at: 1_700_000_000_123,
+    questions_updated_at: 1_700_000_000_123,
     id: ids.submission,
     language: "it",
     answers: [
@@ -235,11 +236,11 @@ test("a raw storefront submission stays stateful and sends only the id, the load
   ]);
   assert.deepEqual(submissionOf(calls[1]), {
     id: ids.submission,
-    form_updated_at: 1_700_000_000_123,
+    questions_updated_at: 1_700_000_000_123,
     language: "it",
     answers: [{ type: "text", question_id: "q-name", key: "name", value: "Hello" }],
   });
-  await assert.rejects(async () => store.forms.submit({ form_id: ids.form, form_updated_at: 1, id: "submission-raw", language: "it", answers: [] }), TypeError);
+  await assert.rejects(async () => store.forms.submit({ form_id: ids.form, questions_updated_at: 1, id: "submission-raw", language: "it", answers: [] }), TypeError);
   assert.equal(calls.length, 2);
 });
 

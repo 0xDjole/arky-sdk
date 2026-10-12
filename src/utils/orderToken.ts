@@ -36,3 +36,10 @@ export function readOrderToken(scope: string, orderId: string): string | null {
   if (token !== null && !isOrderToken(token)) throw new Error('The retained Order token is invalid');
   return token;
 }
+
+export function replaceOrderToken(scope: string, orderId: string, token: string): void {
+  if (!isOrderToken(token)) throw new TypeError('Invalid order token');
+  const key = tokenKey(scope, orderId);
+  globalThis.localStorage.setItem(key, token);
+  if (globalThis.localStorage.getItem(key) !== token) throw new Error('The Order token could not be retained');
+}

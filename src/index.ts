@@ -825,7 +825,7 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     await ensureVisitorSession();
     const requested = memorySession;
     const result = await customerApi.changeEmail(params, options);
-    applyAnsweredCustomer(requested, result.customer);
+    applyAnsweredCustomer(requested, result);
     identifyPromise = null;
     return result;
   }
@@ -837,14 +837,18 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     return result;
   }
 
-  function applyAnsweredCustomer(requested: CustomerSessionInternal | null, customer: StorefrontCustomer): void {
+  function applyAnsweredCustomer(requested: CustomerSessionInternal | null, result: CustomerMe): void {
+    const customer = result.customer;
     const current = memorySession;
     if (
       !requested ||
       !current ||
       current.session.id !== requested.session.id ||
       current.customer.id !== requested.customer.id ||
-      customer.id !== requested.customer.id
+      customer.id !== requested.customer.id ||
+      result.session.id !== requested.session.id ||
+      result.session.customer_id !== requested.customer.id ||
+      result.session.store_id !== requested.customer.store_id
     ) {
       return;
     }
@@ -855,7 +859,7 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     await ensureVisitorSession();
     const requested = memorySession;
     const result = await customerApi.getMe(options);
-    applyAnsweredCustomer(requested, result.customer);
+    applyAnsweredCustomer(requested, result);
     return result;
   }
 
@@ -863,7 +867,7 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     await ensureVisitorSession();
     const requested = memorySession;
     const result = await customerApi.updateMe(params, options);
-    applyAnsweredCustomer(requested, result.customer);
+    applyAnsweredCustomer(requested, result);
     return result;
   }
 
@@ -1025,4 +1029,4 @@ export function createStorefront(publishableKey: string, options: StorefrontOpti
   return createStorefrontClient(publishableKey, options);
 }
 
-export { createOrderToken, isOrderToken, retainOrderToken, readOrderToken } from "./utils/orderToken";
+export { createOrderToken, isOrderToken, retainOrderToken, replaceOrderToken, readOrderToken } from "./utils/orderToken";

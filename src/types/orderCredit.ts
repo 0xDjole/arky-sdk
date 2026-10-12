@@ -1,5 +1,5 @@
 import type { EpochMilliseconds } from "./time";
-import type { AccountActor, Actor, Currency, SortDirection } from "./common";
+import type { AccountActor, Actor, Currency, SortDirection, UnitSpan } from "./common";
 
 export type OrderCreditSource =
   | { type: "cancellation"; by: Actor }
@@ -8,7 +8,7 @@ export type OrderCreditSource =
   | { type: "system"; reason: string };
 
 export type CreditTarget =
-  | { type: "product"; line_item_id: string; unit_index: number }
+  | { type: "product"; line_item_id: string; span: UnitSpan }
   | { type: "booking"; line_item_id: string }
   | { type: "rental_use"; line_item_id: string }
   | { type: "purchase_access"; line_item_id: string }

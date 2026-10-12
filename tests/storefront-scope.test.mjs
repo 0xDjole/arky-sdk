@@ -170,8 +170,8 @@ test("anonymous reads don't identify, and concurrent first stateful calls share 
   const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "en", market: "bih", sessionStorage: storage });
   await client.eshop.product.find({});
   assert.equal(calls.filter((call) => call.path.endsWith("/customer/identify")).length, 0);
-  const first = client.eshop.cart.current();
-  const second = client.eshop.cart.current();
+  const first = client.eshop.cart.current({ buyer: customerBuyer, catalog_id: ids.catalog });
+  const second = client.eshop.cart.current({ buyer: customerBuyer, catalog_id: ids.catalog });
   await started;
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(calls.filter((call) => call.path.endsWith("/customer/identify")).length, 1);
@@ -278,7 +278,7 @@ test("server-side rendering allows anonymous reads but needs request-local stora
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
   const serverClient = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl });
   await serverClient.content.entry.find({ collection_id: "pages" });
-  await assert.rejects(serverClient.eshop.cart.current(), /request-local sessionStorage adapter/);
+  await assert.rejects(serverClient.eshop.cart.current({ buyer: customerBuyer, catalog_id: ids.catalog }), /request-local sessionStorage adapter/);
   await assert.rejects(serverClient.customer.identify({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), /request-local sessionStorage adapter/);
   assert.equal(calls.length, 1);
 });
@@ -306,7 +306,7 @@ test("withContext gets its own visitor while reusing the explicit request storag
     }
     if (call.path === "/v1/storefront/carts") {
       const owner = call.headers.get("authorization") === `Bearer ${visitorTokenA}` ? ids.customer : ids.otherCustomer;
-      return { type: "created", cart: cartRecord({ id: call.body.id, customer_id: owner, catalog_id: null }), recovery_token: `token-${call.body.id}` };
+      return { type: "created", cart: cartRecord({ id: call.body.id, customer_id: owner, catalog_id: ids.catalog }), recovery_token: `token-${call.body.id}` };
     }
     throw new Error(`Unexpected scoped request: ${call.path}`);
   });
@@ -322,8 +322,8 @@ test("withContext gets its own visitor while reusing the explicit request storag
   await scoped.customer.identify({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" });
   assert.equal(scoped.session.customer.id, ids.otherCustomer);
   assert.equal(root.session.customer.id, ids.customer);
-  await root.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, catalog_id: null });
-  await scoped.eshop.cart.create({ id: ids.otherCart, buyer: customerBuyer, catalog_id: null });
+  await root.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog });
+  await scoped.eshop.cart.create({ id: ids.otherCart, buyer: customerBuyer, catalog_id: ids.catalog });
   const carts = calls.filter((call) => call.path === "/v1/storefront/carts");
   assert.deepEqual(carts.map((call) => [call.headers.get("x-arky-market"), call.headers.get("authorization")]), [
     ["bih", `Bearer ${visitorTokenA}`],
@@ -358,7 +358,7 @@ test("a sign-in code and refresh rotate the customer session atomically, and log
       case "/v1/storefront/customer/refresh":
         return { customer, session: rotated };
       case "/v1/storefront/customer/me":
-        return { customer: call.method === "PATCH" ? { ...customer, profile: [{ id: ids.line, key: "name", type: "text", value: "Ana" }] } : customer, session: {}, email_unsubscribed: false };
+        return { customer: call.method === "PATCH" ? { ...customer, profile: [{ id: ids.line, key: "name", type: "text", value: "Ana" }] } : customer, session: { ...rotated, store_id: ids.store }, email_unsubscribed: false };
       case "/v1/storefront/customer/logout":
         return undefined;
       default:
@@ -444,7 +444,7 @@ test("a profile answer that lands after a sign-in leaves the signed-in customer 
     if (call.path === "/v1/storefront/customer/me") {
       const gate = answers.get(call.method);
       await gate.waiting;
-      return { customer: customerRecord(ids.customer, { profile: [{ id: ids.line, key: "name", type: "text", value: call.method === "PATCH" ? "Edited" : "Visitor" }] }), session: {}, email_unsubscribed: false };
+      return { customer: customerRecord(ids.customer, { profile: [{ id: ids.line, key: "name", type: "text", value: call.method === "PATCH" ? "Edited" : "Visitor" }] }), session: { ...visitorSession(), store_id: ids.store }, email_unsubscribed: false };
     }
     throw new Error(`Unexpected request: ${call.method} ${call.path}`);
   });
@@ -480,7 +480,7 @@ test("a profile answer that lands after a sign-in leaves the signed-in customer 
 });
 
 test("a profile answer for the session that asked updates the stored customer", async (context) => {
-  recordFetch(context, (call) => ({ customer: customerRecord(ids.customer, { profile: [{ id: "name", key: "name", type: "text", value: call.method === "PATCH" ? "Ana" : "Visitor" }] }), session: {}, email_unsubscribed: false }));
+  recordFetch(context, (call) => ({ customer: customerRecord(ids.customer, { profile: [{ id: "name", key: "name", type: "text", value: call.method === "PATCH" ? "Ana" : "Visitor" }] }), session: { ...visitorSession(), store_id: ids.store }, email_unsubscribed: false }));
   const storage = new SessionStorage(storedVisitor());
   const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: storage });
   await client.customer.getMe();
