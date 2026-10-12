@@ -50,9 +50,9 @@ test("store provider domains are live reads and sending addresses use provider-i
   await client.notification.emailProvider.connect({ store_id: store, id: provider, api_key: "resend-secret" });
   await client.notification.emailProvider.get({ store_id: store });
   await client.notification.emailProvider.domains({ store_id: store });
-  const sending = { from_name: "Shop", reply_to: null };
-  await client.notification.emailAddress.create({ store_id: store, id: address, email: "orders@example.test", sending });
-  await client.notification.emailAddress.update({ store_id: store, id: address, expected_updated_at: 2, sending: { ...sending, from_name: "Team" } });
+  const sending = { from_name: "Shop", reply_to: "support@example.test" };
+  await client.notification.emailAddress.create({ store_id: store, id: address, email: "orders@example.test", type: { type: "sending", sending } });
+  await client.notification.emailAddress.update({ store_id: store, id: address, expected_updated_at: 2, type: { type: "sending", sending: { ...sending, from_name: "Team" } } });
   await client.notification.emailAddress.archive({ store_id: store, id: address, expected_updated_at: 3 });
   await client.notification.emailAddress.activate({ store_id: store, id: address, expected_updated_at: 4 });
   await client.notification.emailAddress.delete({ store_id: store, id: address, expected_updated_at: 5 });
@@ -61,7 +61,7 @@ test("store provider domains are live reads and sending addresses use provider-i
     ["GET", `/v1/stores/${store}/email-provider`, undefined],
     ["GET", `/v1/stores/${store}/email-provider/domains`, undefined],
   ]);
-  assert.deepEqual(calls[3].body, { id: address, email: "orders@example.test", sending });
+  assert.deepEqual(calls[3].body, { id: address, email: "orders@example.test", type: { type: "sending", sending } });
   assert.equal(calls[7].url.searchParams.get("expected_updated_at"), "5");
   assert.equal("emailDomain" in client.notification, false);
 });

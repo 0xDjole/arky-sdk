@@ -9,6 +9,7 @@ import type {
   CompanyPartyQuery,
   PostalAddress,
   SortDirection,
+  TimeRange,
 } from "./common";
 import type { OrderDeliveryDestination } from "./order";
 import type { CatalogPriceFilter, StorefrontPrice } from "./product";
@@ -21,21 +22,9 @@ export interface RecurringCadence {
   interval_count: number;
 }
 
-export interface BillingPeriod {
-  from: EpochMilliseconds;
-  to: EpochMilliseconds;
-}
-
 export type RenewalExhaustionAction = { type: "pause" } | { type: "cancel" };
 
 export type UnpaidRenewalDisposition = { type: "retain_debt" } | { type: "cancel_unfulfilled" };
-
-export interface RenewalRecoveryPolicy {
-  retry_offsets_seconds: number[];
-  recovery_window_seconds: number;
-  on_exhaustion: RenewalExhaustionAction;
-  unpaid_order: UnpaidRenewalDisposition;
-}
 
 export type CustomerGroupCommitmentEndAction =
   | { type: "renew" }
@@ -54,8 +43,11 @@ export type CustomerGroupTerm =
       type: "recurring";
       cadence: RecurringCadence;
       renewal_reminder_days: number | null;
-      recovery_policy: RenewalRecoveryPolicy;
       commitment: CustomerGroupCommitment | null;
+      on_exhaustion: RenewalExhaustionAction;
+      unpaid_order: UnpaidRenewalDisposition;
+      retry_offsets_seconds: number[];
+      recovery_window_seconds: number;
     };
 
 export type CustomerGroupProductQuantity =
@@ -63,9 +55,9 @@ export type CustomerGroupProductQuantity =
   | { type: "per_delivery"; quantity: number };
 
 export type CustomerGroupDeliverySchedule =
-  | { type: "none" }
-  | { type: "once"; offset_days: number; window_days: number }
-  | { type: "repeating"; cadence: RecurringCadence; offset_days: number; window_days: number };
+  | { type: "none"; quantity: number }
+  | { type: "once"; quantity: number; offset_days: number; window_days: number }
+  | { type: "repeating"; cadence: RecurringCadence; quantity: CustomerGroupProductQuantity; offset_days: number; window_days: number };
 
 export type PurchaseLimitPeriodPolicy =
   | { type: "billing_period" }
@@ -86,8 +78,7 @@ export interface PurchaseLimitDefinition {
 export type CustomerGroupEntitlementType =
   | {
       type: "product";
-      variant_id: string;
-      quantity: CustomerGroupProductQuantity;
+      variant_ids: string[];
       delivery: CustomerGroupDeliverySchedule;
     }
   | { type: "rental"; variant_id: string; quantity: number; tax_category_id: string }
@@ -105,10 +96,6 @@ export interface CustomerGroupEntitlement {
   allocation_weight: number;
 }
 
-export type PurchaseRequirementUnit = { type: "count" } | { type: "millilitres" };
-
-export type PurchaseRequirementPeriod = { type: "calendar_month"; timezone: string };
-
 export interface PurchaseRequirementVariant {
   variant_id: string;
   contribution_per_unit: number;
@@ -117,9 +104,7 @@ export interface PurchaseRequirementVariant {
 export type PurchaseRequirementScope = { type: "per_location" } | { type: "company_wide" };
 
 export interface PurchaseRequirement {
-  unit: PurchaseRequirementUnit;
   minimum_quantity: number;
-  period: PurchaseRequirementPeriod;
   qualifying_variants: PurchaseRequirementVariant[];
   scope: PurchaseRequirementScope;
 }
@@ -191,7 +176,7 @@ export type CustomerGroupStart =
 
 export type CustomerGroupOccurrence =
   | { type: "permanent"; starts_at: EpochMilliseconds }
-  | { type: "period"; occurrence_index: number; period: BillingPeriod };
+  | { type: "period"; occurrence_index: number; period: TimeRange };
 
 export type CustomerGroupOfferingStatus =
   | { type: "draft" }
@@ -248,21 +233,22 @@ export type CustomerGroupMemberType =
       type: "recurring";
       next_occurrence_index: number;
       payment_method: CustomerGroupMemberPaymentMethod | null;
-      purchase_end_at: EpochMilliseconds | null;
+      renewal_end_at: EpochMilliseconds | null;
     };
 
 export type CustomerGroupMemberBlockCause =
   | { type: "period_missed" }
   | { type: "order_unpaid"; order_id: string }
   | { type: "payment_method_not_ready" }
-  | { type: "customer_not_active" }
   | { type: "company_not_active" }
   | { type: "company_location_not_active" }
   | { type: "purchase_order_number_required" }
-  | { type: "entitlement_unavailable"; entitlement_id: string };
+  | { type: "entitlement_unavailable"; entitlement_id: string }
+  | { type: "no_tax_rule"; tax_category_id: string }
+  | { type: "tax_policy_mismatch"; tax_policy_id: string };
 
 export type CustomerGroupMemberPauseCause =
-  | { type: "requested"; by: Actor; reason: string }
+  | { type: "requested"; resumes_at: EpochMilliseconds | null; by: Actor; reason: string }
   | { type: "renewal_unpaid"; order_id: string };
 
 export type CustomerGroupMemberStatus =
@@ -297,14 +283,18 @@ export type CustomerGroupMemberSelfType =
       type: "recurring";
       next_occurrence_index: number;
       payment_method: CustomerGroupMemberSelfPaymentMethod | null;
-      purchase_end_at: EpochMilliseconds | null;
+      renewal_end_at: EpochMilliseconds | null;
     };
+
+export type CustomerGroupMemberSelfPauseCause =
+  | { type: "requested"; resumes_at: EpochMilliseconds | null }
+  | { type: "renewal_unpaid"; order_id: string };
 
 export type CustomerGroupMemberSelfStatus =
   | { type: "awaiting_activation" }
   | { type: "active" }
   | { type: "blocked"; cause: CustomerGroupMemberBlockCause; blocked_at: EpochMilliseconds }
-  | { type: "paused"; paused_at: EpochMilliseconds }
+  | { type: "paused"; cause: CustomerGroupMemberSelfPauseCause; paused_at: EpochMilliseconds }
   | { type: "cancelled"; ended_at: EpochMilliseconds };
 
 export interface CustomerGroupMemberSelf {
@@ -330,8 +320,15 @@ export interface CustomerGroupDeliveryTerms {
 
 export interface CustomerGroupMemberAcceptedTerms {
   group: CustomerGroupSnapshot;
+  quantity: number;
+  choices: CustomerGroupProductChoice[];
   deliveries: CustomerGroupDeliveryTerms[];
   billing_address: PostalAddress | null;
+}
+
+export interface CustomerGroupProductChoice {
+  entitlement_id: string;
+  variant_id: string;
 }
 
 export type CustomerGroupMemberRevisionChange =
@@ -400,6 +397,8 @@ export interface CustomerGroupSelfSnapshot {
 
 export interface CustomerGroupMemberSelfAcceptedTerms {
   group: CustomerGroupSelfSnapshot;
+  quantity: number;
+  choices: CustomerGroupProductChoice[];
   deliveries: CustomerGroupDeliveryTerms[];
   billing_address: PostalAddress | null;
 }
@@ -468,19 +467,20 @@ export interface CustomerGroupMemberCalendarSelf {
 export interface CustomerGroupMemberPurchaseRequirement {
   customer_group_member: CustomerGroupMember;
   starts_at: EpochMilliseconds;
+  timezone: string;
   ends_at: EpochMilliseconds | null;
   evaluated_at: EpochMilliseconds;
   initial: PurchaseRequirement | null;
   current: PurchaseRequirement | null;
 }
 
-export interface CustomerGroupMemberPurchaseLimitPeriod {
+export interface CustomerGroupMemberPurchaseLimitUsage {
   id: string;
   store_id: string;
   customer_group_member_id: string;
   entitlement_id: string;
   limit_id: string;
-  period: BillingPeriod;
+  period: TimeRange;
   counted_quantity: number;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -488,8 +488,8 @@ export interface CustomerGroupMemberPurchaseLimitPeriod {
 
 export interface PurchaseAccessLimitAvailability {
   rule: PurchaseLimitDefinition;
-  period: BillingPeriod;
-  customer_group_member_purchase_limit_period_id: string | null;
+  period: TimeRange;
+  customer_group_member_purchase_limit_usage_id: string | null;
   counted_quantity: number;
   remaining_quantity: number;
 }
@@ -677,12 +677,18 @@ export interface CustomerGroupMemberActionParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface ScheduleCustomerGroupMemberEndParams extends CustomerGroupMemberActionParams {
+export interface CancelCustomerGroupMemberParams extends CustomerGroupMemberActionParams {
+  notify_customer: boolean;
+  language: string | null;
+}
+
+export interface ScheduleCustomerGroupMemberEndParams extends CancelCustomerGroupMemberParams {
   end_at: EpochMilliseconds;
 }
 
 export interface PauseCustomerGroupMemberParams extends CustomerGroupMemberActionParams {
   reason: string;
+  resumes_at: EpochMilliseconds | null;
 }
 
 export interface SkipNextCustomerGroupMemberPurchaseParams extends CustomerGroupMemberActionParams {
@@ -695,7 +701,21 @@ export interface SelectCustomerGroupMemberPaymentMethodParams extends CustomerGr
 
 export interface SwitchCustomerGroupMemberParams extends CustomerGroupMemberActionParams {
   to_customer_group_id: string;
+  choices: CustomerGroupProductChoice[];
   catalog_id?: string;
+  reason: string;
+}
+
+export interface ChangeCustomerGroupMemberTermsParams extends CustomerGroupMemberActionParams {
+  terms: CustomerGroupMemberAcceptedTerms;
+  reason: string;
+}
+
+export interface StorefrontChangeCustomerGroupMemberTermsParams extends StorefrontCustomerGroupMemberActionParams {
+  quantity: number;
+  choices: CustomerGroupProductChoice[];
+  deliveries: CustomerGroupDeliveryTerms[];
+  billing_address: PostalAddress | null;
   reason: string;
 }
 

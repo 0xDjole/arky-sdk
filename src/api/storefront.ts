@@ -171,6 +171,7 @@ export interface RequestCustomerCodeParams {
   id: string;
   email: string;
   language: string;
+  bot_check_token?: string | null;
 }
 
 export interface VerifyCustomerCodeParams {
@@ -276,7 +277,7 @@ export const createStorefrontApi = (
         requireId(params.id, "sign-in email");
         const result = await httpClient.post<CustomerCodeResult>(
           `${base}/customer/request-code`,
-          { id: params.id, email: params.email, language: params.language },
+          { id: params.id, email: params.email, language: params.language, bot_check_token: params.bot_check_token },
           options,
         );
         updateCustomerSession((previous) => {
@@ -292,12 +293,23 @@ export const createStorefrontApi = (
         return result;
       },
 
-      changeEmail(params: ChangeCustomerEmailParams, options?: RequestOptions): Promise<CustomerMe> {
-        return httpClient.post<CustomerMe>(
+      async changeEmail(params: ChangeCustomerEmailParams, options?: RequestOptions): Promise<CustomerMe> {
+        const result = await httpClient.post<CustomerMe>(
           `${base}/customer/me/change-email`,
           { code: params.code },
           options,
         );
+        updateCustomerSession((previous) => {
+          if (!previous || previous.session.id !== result.session.id ||
+              previous.session.customer_id !== result.session.customer_id ||
+              previous.customer.id !== result.customer.id ||
+              previous.customer.store_id !== result.customer.store_id ||
+              result.session.store_id !== result.customer.store_id) {
+            throw new Error("The email-change answer does not match the active customer session");
+          }
+          return { ...previous, customer: result.customer };
+        });
+        return result;
       },
 
       async verify(params: VerifyCustomerCodeParams, options?: RequestOptions): Promise<CustomerSessionResult> {
@@ -827,7 +839,6 @@ export const createStorefrontApi = (
           return paymentMethods.revoke(...args);
         },
         consentText: paymentMethods.consentText,
-        currentConsentText: paymentMethods.currentConsentText,
       },
 
       customerGroup: customerGroups.customerGroup,

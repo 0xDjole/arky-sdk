@@ -1117,7 +1117,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
     return submitForm(
       {
         form_id: params.form.id,
-        form_updated_at: params.form.updated_at,
+        questions_updated_at: params.form.questions_updated_at,
         id: params.id,
         language: params.language,
         answers: buildFormAnswers(params.form, params.values),

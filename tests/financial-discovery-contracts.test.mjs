@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/index.js";
 import { createStorefront } from "../dist/storefront.js";
-import { visitorStorage } from "./helpers/arky-fixtures.mjs";
+import { ids, recordFetch, visitorStorage } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "d2a64f1b-8c37-4e59-b0a1-6f3e9c7d2b84";
 
@@ -59,4 +59,61 @@ test("financial list failures are errors, not empty pages or replacement money c
     await assert.rejects(async () => api.find({}), { name: "TypeError", message: "A Store target must be an explicit canonical UUID-v4" });
   }
   assert.deepEqual(methods, ["GET", "GET"]);
+});
+
+test("collection voids and whole-refund receipts carry only their existing identities and versioned facts", async (context) => {
+  const calls = recordFetch(context, () => ({ id: ids.payment }));
+  const api = createAdmin({ baseUrl: "https://financial.example.test", secretKey: "arky_api_finance" }).eshop.payment;
+  const refundId = "6e2a9d47-1b85-4c30-9f7e-2d4c8a1b5e93";
+  const collectionId = "fca5ba8e-86af-4dd8-a1cd-6d19bca62e12";
+  const application = { type: "excess_collection", reason: "Duplicate transfer" };
+  const request = { store_id: STORE_ID, payment_id: ids.payment, id: refundId, money: { amount: 1200, currency: "eur" }, reason: "duplicate", application, notify_customer: false };
+  const original = structuredClone(request);
+  await api.createRefund(request);
+  await api.createRefund(request);
+  await api.recordRefundReceipt({ store_id: STORE_ID, payment_id: ids.payment, refund_id: refundId, expected_updated_at: 8, receipt: { type: "sent", reference: "Bank payout 1", money: request.money, allocations: [], sent_id: "retired" }, id: "retired-receipt" });
+  await api.recordRefundReceipt({ store_id: STORE_ID, payment_id: ids.payment, refund_id: refundId, expected_updated_at: 9, receipt: { type: "returned", reference: "Bank return 1" } });
+  await api.voidCollection({ store_id: STORE_ID, payment_id: ids.payment, collection_id: collectionId, expected_updated_at: 10, reason: "Mistyped transfer", id: "unrelated" });
+  assert.deepEqual(request, original);
+  const base = `/v1/stores/${STORE_ID}/payments/${ids.payment}`;
+  const body = { id: refundId, money: request.money, reason: "duplicate", application, notify_customer: false };
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", `${base}/refunds`, body],
+    ["POST", `${base}/refunds`, body],
+    ["POST", `${base}/refunds/${refundId}/receipts`, { expected_updated_at: 8, receipt: { type: "sent", reference: "Bank payout 1" } }],
+    ["POST", `${base}/refunds/${refundId}/receipts`, { expected_updated_at: 9, receipt: { type: "returned", reference: "Bank return 1" } }],
+    ["POST", `${base}/collections/${collectionId}/void`, { expected_updated_at: 10, reason: "Mistyped transfer" }],
+  ]);
+});
+
+test("hold resolution names the retained hold and leaves recorded history intact in SDK reads", async (context) => {
+  const actor = { account_id: ids.account, snapshot: { email: "owner@example.test", credential_type: { type: "session" } } };
+  const holdId = "531b79f6-86d4-48cd-a241-73b7f16256b6";
+  const payment = {
+    id: ids.payment,
+    store_id: STORE_ID,
+    order_id: ids.order,
+    payment_option_id: ids.paymentOption,
+    money: { amount: 1200, currency: "eur" },
+    type: {
+      type: "manual",
+      requested: { type: "later", by: actor },
+      reference: "Bank transfer",
+      status: "cancelled",
+      collections: [{ id: "fca5ba8e-86af-4dd8-a1cd-6d19bca62e12", money: { amount: 1200, currency: "eur" }, recorded_by: actor, reference: "Original typo", recorded_at: 1, status: { type: "voided", by: actor, reason: "Wrong transfer", at: 2 } }],
+      refunds: [{ id: "6e2a9d47-1b85-4c30-9f7e-2d4c8a1b5e93", money: { amount: 1200, currency: "eur" }, request: { actor, reason: "duplicate", application: { type: "excess_collection", reason: "Duplicate transfer" }, notify_customer: true }, status: { type: "returned", sent: { recorded_by: actor, reference: "Payout 1", recorded_at: 3 }, returned: { recorded_by: actor, reference: "Return 1", recorded_at: 4 } }, created_at: 2 }],
+    },
+    holds: [{ id: holdId, message: "Late transfer", opened_at: 3, status: { type: "resolved", by: actor, note: "Matched and returned", at: 5 } }],
+    created_at: 1,
+    updated_at: 5,
+  };
+  const calls = recordFetch(context, () => payment);
+  const api = createAdmin({ baseUrl: "https://financial.example.test", secretKey: "arky_api_finance" }).eshop.payment;
+  const request = { store_id: STORE_ID, payment_id: ids.payment, expected_updated_at: 4, hold_id: holdId, note: "Matched and returned", index: 0 };
+  assert.deepEqual(await api.resolveHold(request), payment);
+  assert.deepEqual(await api.get({ store_id: STORE_ID, id: ids.payment }), payment);
+  assert.deepEqual(calls[0].body, { expected_updated_at: 4, hold_id: holdId, note: "Matched and returned" });
+  assert.equal(calls[0].path, `/v1/stores/${STORE_ID}/payments/${ids.payment}/resolve-hold`);
+  assert.equal(calls[1].method, "GET");
+  assert.deepEqual(payment.type.refunds[0].status.sent, { recorded_by: actor, reference: "Payout 1", recorded_at: 3 });
 });

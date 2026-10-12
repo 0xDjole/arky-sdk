@@ -22,10 +22,10 @@ import type {
   SelectConversationSendingAddressParams,
   SendConversationMessageParams,
   StartConversationParams,
+  StartEmailConversationParams,
   StorefrontConversation,
   StorefrontConversationMessage,
   StorefrontConversationReply,
-  StorefrontConversationStart,
   StorefrontFindConversationMessagesParams,
   StorefrontGetConversationMessageParams,
   StorefrontGetConversationParams,
@@ -36,27 +36,16 @@ import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
 import { createConversationNoteApi } from "./note";
 
-function supportTokenOptions<T>(supportToken: string, options?: RequestOptions<T>): RequestOptions<T> {
-  if (typeof supportToken !== "string" || supportToken.length === 0) {
-    throw new Error("A support chat needs the token its start returned");
-  }
-  const headers = { ...options?.headers };
-  for (const name of Object.keys(headers)) {
-    if (name.toLowerCase() === "x-arky-support-token") delete headers[name];
-  }
-  return { ...options, headers: { ...headers, "X-Arky-Support-Token": supportToken } };
-}
-
 export function createStorefrontSupportApi(httpClient: HttpClient, ensureSession: () => Promise<void>) {
   const base = "/v1/storefront/conversations";
   const conversationPath = (id: string) => `${base}/${segment(id)}`;
 
   return {
     conversation: {
-      async start(params: StartConversationParams, options?: RequestOptions): Promise<StorefrontConversationStart> {
+      async start(params: StartConversationParams, options?: RequestOptions): Promise<StorefrontConversationReply> {
         requireId(params.id, "conversation");
         await ensureSession();
-        return httpClient.post<StorefrontConversationStart>(
+        return httpClient.post<StorefrontConversationReply>(
           base,
           {
             id: params.id,
@@ -71,7 +60,7 @@ export function createStorefrontSupportApi(httpClient: HttpClient, ensureSession
         await ensureSession();
         return httpClient.get<StorefrontConversation>(
           conversationPath(params.conversation_id),
-          supportTokenOptions(params.support_token, options),
+          options,
         );
       },
 
@@ -80,9 +69,9 @@ export function createStorefrontSupportApi(httpClient: HttpClient, ensureSession
         options?: RequestOptions,
       ): Promise<PaginatedResponse<StorefrontConversationMessage>> {
         await ensureSession();
-        const { support_token, conversation_id, ...query } = params;
+        const { conversation_id, ...query } = params;
         return httpClient.get<PaginatedResponse<StorefrontConversationMessage>>(`${conversationPath(conversation_id)}/messages`, {
-          ...supportTokenOptions(support_token, options),
+          ...options,
           params: query,
         });
       },
@@ -94,7 +83,7 @@ export function createStorefrontSupportApi(httpClient: HttpClient, ensureSession
         await ensureSession();
         return httpClient.get<StorefrontConversationMessage>(
           `${conversationPath(params.conversation_id)}/messages/${segment(params.message_id)}`,
-          supportTokenOptions(params.support_token, options),
+          options,
         );
       },
 
@@ -108,7 +97,7 @@ export function createStorefrontSupportApi(httpClient: HttpClient, ensureSession
             input: params.input,
             ...(params.prompt_message_id !== undefined ? { prompt_message_id: params.prompt_message_id } : {}),
           },
-          supportTokenOptions(params.support_token, options),
+          options,
         );
       },
     },
@@ -152,6 +141,12 @@ export function createAdminSupportApi(apiConfig: ApiConfig) {
     },
 
     conversation: {
+      startEmail(params: StartEmailConversationParams, options?: RequestOptions): Promise<ConversationReply> {
+        requireId(params.id, "conversation");
+        requireId(params.message_id, "conversation message");
+        const { store_id, ...body } = params;
+        return apiConfig.httpClient.post<ConversationReply>(storePath(store_id, "conversations"), body, options);
+      },
       find(params: FindConversationsParams, options?: RequestOptions): Promise<PaginatedResponse<Conversation>> {
         const { store_id, ...query } = params;
         return apiConfig.httpClient.get<PaginatedResponse<Conversation>>(storePath(store_id, "conversations"), {

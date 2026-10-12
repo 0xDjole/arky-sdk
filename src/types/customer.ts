@@ -30,6 +30,7 @@ export interface CustomerSearchSnapshot {
 
 export interface CustomerEmailVerification {
   email: string;
+  language: string;
   failed_attempts: number;
   outgoing_email_id: string;
   issued_at: EpochMilliseconds;
@@ -110,6 +111,7 @@ export interface CustomerMe {
 export type EmailSuppressionType = "unsubscribe" | "block" | "hard_bounce" | "complaint";
 
 export type EmailSuppressionCause =
+  | { type: "storefront"; customer_session_id: string }
   | { type: "unsubscribe_link"; broadcast_id: string }
   | { type: "account"; actor: AccountActor; note: string }
   | { type: "report" };

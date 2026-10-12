@@ -83,6 +83,7 @@ export interface CompanyLocation {
   status: CompanyLocationStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+  blocks: Block[];
 }
 
 export type CompanyPermission =
@@ -193,6 +194,7 @@ export interface CreateCompanyLocationParams {
   shipping_address: PostalAddressInput | null;
   billing_address: PostalAddressInput | null;
   status: CompanyLocationEditableStatus;
+  blocks: Block[];
 }
 
 export interface GetCompanyLocationParams {
@@ -208,6 +210,7 @@ export interface UpdateCompanyLocationParams {
   shipping_address: PostalAddressInput | null;
   billing_address: PostalAddressInput | null;
   status: CompanyLocationEditableStatus;
+  blocks: Block[];
 }
 
 export interface CompanyTaxRegistrationInput {

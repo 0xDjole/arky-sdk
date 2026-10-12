@@ -62,6 +62,7 @@ export interface Form {
   status: FormStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+  questions_updated_at: EpochMilliseconds;
 }
 
 export type FormSubmissionSource =
@@ -299,7 +300,7 @@ export type GetStorefrontFormParams = { id: string } | { key: string };
 export interface SubmitFormParams {
   bot_check_token?: string;
   form_id: string;
-  form_updated_at: EpochMilliseconds;
+  questions_updated_at: EpochMilliseconds;
   id: string;
   language: string;
   answers: FormAnswerInput[];

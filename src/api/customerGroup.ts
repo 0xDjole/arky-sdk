@@ -5,6 +5,8 @@ import type { PaginatedResponse } from "../types/common";
 import type { Order } from "../types/order";
 import type {
   AssignCustomerGroupMemberParams,
+  CancelCustomerGroupMemberParams,
+  ChangeCustomerGroupMemberTermsParams,
   ChangeCustomerGroupMemberPurchaseRequirementParams,
   CreateCustomerGroupOfferingParams,
   CreateCustomerGroupParams,
@@ -17,7 +19,7 @@ import type {
   CustomerGroupMemberChangeSelf,
   CustomerGroupMemberCurrent,
   CustomerGroupMemberPurchaseAccessPage,
-  CustomerGroupMemberPurchaseLimitPeriod,
+  CustomerGroupMemberPurchaseLimitUsage,
   CustomerGroupMemberPurchaseRequirement,
   CustomerGroupMemberPurchaseRequirementTransfer,
   CustomerGroupMemberRevision,
@@ -49,6 +51,7 @@ import type {
   SkipNextCustomerGroupMemberPurchaseParams,
   StorefrontCustomerGroup,
   StorefrontCustomerGroupMemberActionParams,
+  StorefrontChangeCustomerGroupMemberTermsParams,
   StorefrontCustomerGroupOffering,
   StorefrontFindCustomerGroupMemberOrdersParams,
   StorefrontFindCustomerGroupMemberPurchaseAccessParams,
@@ -233,9 +236,9 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
     purchaseLimits(
       params: FindCustomerGroupMemberPageParams,
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<CustomerGroupMemberPurchaseLimitPeriod>> {
+    ): Promise<PaginatedResponse<CustomerGroupMemberPurchaseLimitUsage>> {
       const { store_id, id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<CustomerGroupMemberPurchaseLimitPeriod>>(
+      return apiConfig.httpClient.get<PaginatedResponse<CustomerGroupMemberPurchaseLimitUsage>>(
         `${memberPath(store_id, id)}/purchase-limits`,
         { ...options, params: query },
       );
@@ -256,7 +259,7 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<CustomerGroupMemberCalendar>(`${memberPath(params.store_id, params.id)}/calendar`, options);
     },
 
-    cancel(params: CustomerGroupMemberActionParams, options?: RequestOptions): Promise<CustomerGroupMember> {
+    cancel(params: CancelCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMember> {
       return action<CustomerGroupMember>(params, "cancel", options);
     },
 
@@ -305,6 +308,14 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       return action<CustomerGroupMemberChange>(params, "change-purchase-requirement", options);
     },
 
+    reviewTerms(params: ChangeCustomerGroupMemberTermsParams, options?: RequestOptions): Promise<CustomerGroupMemberChange> {
+      return action<CustomerGroupMemberChange>(params, "review-terms", options);
+    },
+
+    changeTerms(params: ChangeCustomerGroupMemberTermsParams, options?: RequestOptions): Promise<CustomerGroupMemberChange> {
+      return action<CustomerGroupMemberChange>(params, "change-terms", options);
+    },
+
     withdrawRevision(
       params: WithdrawCustomerGroupMemberRevisionParams,
       options?: RequestOptions,
@@ -342,7 +353,7 @@ export function createStorefrontCustomerGroupApi(httpClient: HttpClient, ensureV
   return {
     customerGroup: {
       find(
-        params: FindStorefrontCustomerGroupsParams = {},
+        params: FindStorefrontCustomerGroupsParams,
         options?: RequestOptions,
       ): Promise<PaginatedResponse<StorefrontCustomerGroup>> {
         return httpClient.get<PaginatedResponse<StorefrontCustomerGroup>>(`${base}/customer-groups`, { ...options, params });
@@ -458,6 +469,14 @@ export function createStorefrontCustomerGroupApi(httpClient: HttpClient, ensureV
 
       switch(params: StorefrontSwitchCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMemberChangeSelf> {
         return action<CustomerGroupMemberChangeSelf>(params, "switch", options);
+      },
+
+      reviewTerms(params: StorefrontChangeCustomerGroupMemberTermsParams, options?: RequestOptions): Promise<CustomerGroupMemberChangeSelf> {
+        return action<CustomerGroupMemberChangeSelf>(params, "review-terms", options);
+      },
+
+      changeTerms(params: StorefrontChangeCustomerGroupMemberTermsParams, options?: RequestOptions): Promise<CustomerGroupMemberChangeSelf> {
+        return action<CustomerGroupMemberChangeSelf>(params, "change-terms", options);
       },
 
       withdrawRevision(

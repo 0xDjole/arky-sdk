@@ -67,10 +67,10 @@ test("every storefront browse read sends the one named catalog, and lists can so
   for (const index of [1, 5, 9]) assert.equal(calls[index].searchParams.get("sort_field"), "catalog_order");
   const unscoped = [];
   sink = unscoped;
-  await client.eshop.product.get({ id: "product", include_price: true });
-  await client.eshop.bookingService.get({ slug: "service" });
+  await client.eshop.product.get({ id: "product", catalog_id: ids.catalog, include_price: true });
+  await client.eshop.bookingService.get({ slug: "service", catalog_id: ids.catalog });
   assert.equal(unscoped.length, 2);
-  assert.ok(unscoped.every((call) => !call.searchParams.has("catalog_id")));
+  assert.ok(unscoped.every((call) => call.searchParams.get("catalog_id") === ids.catalog));
   assert.throws(() => client.eshop.product.get({}), /needs its id or its slug/);
   assert.throws(() => client.eshop.bookingService.get({ key: "service" }), /needs its id or its slug/);
 });

@@ -66,7 +66,7 @@ export type AlertRecipient =
   | { type: "store_role"; store_role_id: string; language: string }
   | { type: "email"; email: string; language: string };
 
-export type EmailTemplateTypeName = "sign_in_code" | "order" | "booking" | "offer" | "form" | "company_invite" | "return" | "renewal" | "support_reply";
+export type EmailTemplateTypeName = "sign_in_code" | "email_change" | "order" | "fulfillment" | "booking" | "offer" | "form" | "company_invite" | "return" | "renewal" | "membership_cancellation" | "support_reply";
 export type EmailTemplateType = { type: EmailTemplateTypeName };
 
 export interface Email { email_template_id: string }
@@ -76,6 +76,7 @@ export interface AlertEmail { email_template_id: string; to: AlertRecipient[] }
 export interface StoreEmailSettings {
   sending_address_id: string | null;
   sign_in_code: Email | null;
+  email_changed: Email | null;
   order_received: Email | null;
   order_dispatched: Email | null;
   order_delivered: Email | null;
@@ -85,6 +86,7 @@ export interface StoreEmailSettings {
   first_order_placed: Email | null;
   booking_confirmed: Email | null;
   booking_reminder: Email | null;
+  booking_cancelled: Email | null;
   offer_sent: Email | null;
   offer_reminder: TimedEmail | null;
   company_invite: Email | null;
@@ -93,6 +95,7 @@ export interface StoreEmailSettings {
   return_declined: Email | null;
   renewal_upcoming: Email | null;
   renewal_payment_failed: Email | null;
+  membership_cancelled: Email | null;
   new_order_alert: AlertEmail | null;
   new_return_alert: AlertEmail | null;
 }
@@ -156,32 +159,43 @@ export interface EmailAddressSending {
 
 export interface EmailAddressReceiving {
   forwarding_email: string;
+  language: string;
   initial_sending_address_id: string | null;
   initial_flow_id: string | null;
 }
 
 export type EmailAddressStatus = "active" | "archived";
 
+export type EmailAddressType =
+  | { type: "sending"; sending: EmailAddressSending }
+  | { type: "receiving"; receiving: EmailAddressReceiving }
+  | { type: "sending_and_receiving"; sending: EmailAddressSending; receiving: EmailAddressReceiving };
+
+export type EmailAddressInputType =
+  | { type: "sending"; sending: EmailAddressSending }
+  | { type: "receiving"; receiving: EmailAddressReceivingInput }
+  | { type: "sending_and_receiving"; sending: EmailAddressSending; receiving: EmailAddressReceivingInput };
+
 export interface EmailAddress {
   id: string;
   store_id: string;
   email: string;
-  sending: EmailAddressSending | null;
-  receiving: EmailAddressReceiving | null;
+  type: EmailAddressType;
   status: EmailAddressStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
 export interface EmailAddressReceivingInput {
+  language: string;
   initial_sending_address_id: string | null;
   initial_flow_id: string | null;
 }
 
-export type EmailFailureKind = "hard_bounce" | "soft_bounce" | "rejected" | "other";
+export type EmailFailureType = "hard_bounce" | "soft_bounce" | "rejected" | "other";
 
 export interface EmailFailure {
-  kind: EmailFailureKind;
+  type: EmailFailureType;
   reason: string;
 }
 
@@ -279,16 +293,14 @@ export interface CreateEmailAddressParams {
   store_id: string;
   id: string;
   email: string;
-  sending?: EmailAddressSending;
-  receiving?: EmailAddressReceivingInput;
+  type: EmailAddressInputType;
 }
 
 export interface UpdateEmailAddressParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  sending?: EmailAddressSending;
-  receiving?: EmailAddressReceivingInput;
+  type: EmailAddressInputType;
 }
 
 export interface ChangeEmailAddressStatusParams {

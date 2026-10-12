@@ -13,7 +13,7 @@ void [create, tested, alert];
 export type EmailTemplateContracts = [
   Assert<Equal<keyof EmailTemplate, 'id' | 'store_id' | 'key' | 'type' | 'content' | 'created_at' | 'updated_at'>>,
   Assert<Equal<EmailTemplate['type'], EmailTemplateType>>,
-  Assert<Equal<EmailTemplateTypeName, 'sign_in_code' | 'order' | 'booking' | 'offer' | 'form' | 'company_invite' | 'return' | 'renewal' | 'support_reply'>>,
+  Assert<Equal<EmailTemplateTypeName, 'sign_in_code' | 'email_change' | 'fulfillment' | 'order' | 'booking' | 'offer' | 'form' | 'company_invite' | 'return' | 'renewal' | 'membership_cancellation' | 'support_reply'>>,
   Assert<Equal<EmailTemplate['content'], Record<string, EmailContent>>>,
   Assert<Equal<keyof EmailTemplateDefault, 'key' | 'type' | 'content'>>,
   Assert<Missing<UpdateEmailTemplateParams, 'type'>>,

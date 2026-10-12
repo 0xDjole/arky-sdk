@@ -59,8 +59,8 @@ test("a promotion is created under the app-picked id and may target whole catego
   const create = {
     id,
     key: "warm-drinks",
-    activation: { type: "automatic" },
-    conditions: [{ type: "minimum_order_amount", money: { amount: 2000, currency: "eur" } }],
+    blocks: [],
+    conditions: [{ type: "minimum_subtotal", amounts: [{ amount: 2000, currency: "eur" }] }],
     effects: [effect],
     stacking: { type: "combinable" },
     priority: 0,
@@ -93,4 +93,24 @@ test("a promotion code is created under the app-picked id and edited by version"
   ]);
   await assert.rejects(async () => eshop().promotionCode.create({ store_id: store, id: "WINTER_10", promotion_id: id, code: "WINTER_10", max_uses: null, status: { type: "active" } }), TypeError);
   assert.equal(calls.length, 2);
+});
+
+
+test("fixed promotion transports currency alternatives and explicit item scope without activation", async (context) => {
+  const calls = recordFetch(context, () => ({ id }));
+  const params = {
+    store_id: store, id, key: "two-currencies", blocks: [],
+    conditions: [{ type: "minimum_subtotal", amounts: [{ amount: 100, currency: "eur" }, { amount: 200, currency: "bam" }] }],
+    effects: [{ type: "item_fixed", id: codeId, target: { type: "product_variants", variant_ids: [codeId] },
+      amounts: [{ amount: 10, currency: "eur" }, { amount: 20, currency: "bam" }], scope: { type: "once_per_order" } }],
+    stacking: { type: "combinable" }, priority: 1, max_uses: null, max_uses_per_customer: null,
+    schedule: { type: "always" }, status: { type: "active" },
+  };
+  await eshop().promotion.create(params);
+  const { store_id, ...body } = params;
+  assert.deepEqual(calls[0].body, body);
+  assert.equal("activation" in calls[0].body, false);
+  assert.equal("money" in calls[0].body.effects[0], false);
+  assert.equal("product_id" in calls[0].body.effects[0].target, false);
+  assert.deepEqual(params.effects[0].amounts, [{ amount: 10, currency: "eur" }, { amount: 20, currency: "bam" }]);
 });

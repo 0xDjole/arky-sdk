@@ -5,36 +5,50 @@ import type { PaginatedResponse } from "../types/common";
 import type {
   CancelPaymentMethodSetupParams,
   FindPaymentMethodsParams,
-  GetPaymentMethodConsentTextParams,
   GetPaymentMethodParams,
   PaymentMethod,
-  PaymentMethodConsentText,
   PaymentMethodSetupStart,
   RequestPaymentMethodSetupParams,
   RevokePaymentMethodParams,
   StorefrontCancelPaymentMethodSetupParams,
-  StorefrontCurrentPaymentMethodConsentTextParams,
   StorefrontFindPaymentMethodsParams,
-  StorefrontGetPaymentMethodConsentTextParams,
   StorefrontGetPaymentMethodParams,
   StorefrontRequestPaymentMethodSetupParams,
   StorefrontRevokePaymentMethodParams,
 } from "../types/payment";
+import type { EpochMilliseconds } from "../types/time";
 import { requireId } from "../utils/ids";
 import { segment, storePath } from "./paths";
 
 function paymentMethodRoutes(httpClient: HttpClient, base: string) {
   const methodPath = (id: string) => `${base}/${segment(id)}`;
   return {
-    find(query: object, options?: RequestOptions): Promise<PaginatedResponse<PaymentMethod>> {
-      return httpClient.get<PaginatedResponse<PaymentMethod>>(base, { ...options, params: query });
+    find(query: Omit<FindPaymentMethodsParams, "store_id">, options?: RequestOptions): Promise<PaginatedResponse<PaymentMethod>> {
+      return httpClient.get<PaginatedResponse<PaymentMethod>>(base, {
+        ...options,
+        params: {
+          customer_id: query.customer_id,
+          company_id: query.company_id,
+          company_location_id: query.company_location_id,
+          payment_option_id: query.payment_option_id,
+          limit: query.limit,
+          cursor: query.cursor,
+        },
+      });
     },
     get(id: string, options?: RequestOptions): Promise<PaymentMethod> {
       return httpClient.get<PaymentMethod>(methodPath(id), options);
     },
-    requestSetup(body: { id: string }, options?: RequestOptions): Promise<PaymentMethod> {
+    requestSetup(body: Omit<RequestPaymentMethodSetupParams, "store_id">, options?: RequestOptions): Promise<PaymentMethod> {
       requireId(body.id, "payment method");
-      return httpClient.post<PaymentMethod>(`${base}/setup`, body, options);
+      return httpClient.post<PaymentMethod>(`${base}/setup`, {
+        id: body.id,
+        owner: body.owner,
+        payment_option_id: body.payment_option_id,
+        language: body.language,
+        terms: body.terms,
+        accept_storage_and_off_session_use: body.accept_storage_and_off_session_use,
+      }, options);
     },
     startSetup(id: string, options?: RequestOptions): Promise<PaymentMethodSetupStart> {
       return httpClient.post<PaymentMethodSetupStart>(`${methodPath(id)}/setup/start`, undefined, options);
@@ -42,18 +56,15 @@ function paymentMethodRoutes(httpClient: HttpClient, base: string) {
     completeSetup(id: string, options?: RequestOptions): Promise<PaymentMethod> {
       return httpClient.post<PaymentMethod>(`${methodPath(id)}/setup/complete`, undefined, options);
     },
-    cancelSetup(id: string, expectedUpdatedAt: number, options?: RequestOptions): Promise<PaymentMethod> {
+    cancelSetup(id: string, expectedUpdatedAt: EpochMilliseconds, options?: RequestOptions): Promise<PaymentMethod> {
       return httpClient.post<PaymentMethod>(
         `${methodPath(id)}/setup/cancel`,
         { expected_updated_at: expectedUpdatedAt },
         options,
       );
     },
-    revoke(id: string, expectedUpdatedAt: number, options?: RequestOptions): Promise<PaymentMethod> {
+    revoke(id: string, expectedUpdatedAt: EpochMilliseconds, options?: RequestOptions): Promise<PaymentMethod> {
       return httpClient.post<PaymentMethod>(`${methodPath(id)}/revoke`, { expected_updated_at: expectedUpdatedAt }, options);
-    },
-    consentText(termsVersion: string, options?: RequestOptions): Promise<PaymentMethodConsentText> {
-      return httpClient.get<PaymentMethodConsentText>(`${base}/consent-texts/${segment(termsVersion)}`, options);
     },
   };
 }
@@ -84,9 +95,6 @@ export const createPaymentMethodApi = (apiConfig: ApiConfig) => {
     revoke(params: RevokePaymentMethodParams, options?: RequestOptions): Promise<PaymentMethod> {
       return routes(params.store_id).revoke(params.id, params.expected_updated_at, options);
     },
-    consentText(params: GetPaymentMethodConsentTextParams, options?: RequestOptions): Promise<PaymentMethodConsentText> {
-      return routes(params.store_id).consentText(params.terms_version, options);
-    },
   };
 };
 
@@ -94,7 +102,13 @@ export const createStorefrontPaymentMethodApi = (httpClient: HttpClient) => {
   const routes = paymentMethodRoutes(httpClient, "/v1/storefront/payment-methods");
   return {
     find(params: StorefrontFindPaymentMethodsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<PaymentMethod>> {
-      return routes.find(params, options);
+      return routes.find({
+        customer_id: params.customer_id,
+        company_id: params.company_id,
+        company_location_id: params.company_location_id,
+        limit: params.limit,
+        cursor: params.cursor,
+      }, options);
     },
     get(params: StorefrontGetPaymentMethodParams, options?: RequestOptions): Promise<PaymentMethod> {
       return routes.get(params.id, options);
@@ -113,21 +127,6 @@ export const createStorefrontPaymentMethodApi = (httpClient: HttpClient) => {
     },
     revoke(params: StorefrontRevokePaymentMethodParams, options?: RequestOptions): Promise<PaymentMethod> {
       return routes.revoke(params.id, params.expected_updated_at, options);
-    },
-    consentText(
-      params: StorefrontGetPaymentMethodConsentTextParams,
-      options?: RequestOptions,
-    ): Promise<PaymentMethodConsentText> {
-      return routes.consentText(params.terms_version, options);
-    },
-    currentConsentText(
-      params: StorefrontCurrentPaymentMethodConsentTextParams,
-      options?: RequestOptions,
-    ): Promise<PaymentMethodConsentText> {
-      return httpClient.get<PaymentMethodConsentText>("/v1/storefront/payment-methods/consent-texts", {
-        ...options,
-        params: { language: params.language },
-      });
     },
   };
 };

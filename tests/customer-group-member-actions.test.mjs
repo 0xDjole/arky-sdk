@@ -12,6 +12,7 @@ const groupId = "7e3a9c51-2b84-4d6f-a0c7-5e1d3b9f2a68";
 const revisionId = "5b1e9d37-2c84-4a06-b3f9-7d2e0c4a8f61";
 const catalogId = "e4c8a2f6-1b73-4d95-a0e7-5f2c9b6d3a18";
 const version = 1_700_000_000_000;
+const choices = [{ entitlement_id: "dc78a8a7-27c3-47c2-8063-2f62c7f7a661", variant_id: ids.variant }];
 
 function members() {
   return createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop.customerGroupMember;
@@ -26,8 +27,8 @@ test("cancelling, pausing, resuming and revoking each send one action with the m
   const calls = recordFetch(context, () => result);
   const api = members();
   const actions = [
-    ["cancel", "cancel", {}],
-    ["pause", "pause", { reason: "Customer is travelling" }],
+    ["cancel", "cancel", { notify_customer: false, language: null }],
+    ["pause", "pause", { reason: "Customer is travelling", resumes_at: 1_800_000_000_000 }],
     ["resume", "resume", {}],
     ["revoke", "revoke", { reason: "Contract ended early" }],
   ];
@@ -52,11 +53,11 @@ test("cancelling, pausing, resuming and revoking each send one action with the m
 test("a skipped purchase, a payment method, a scheduled end, a switch and a withdrawal go to the named store with the same body", async (context) => {
   const calls = recordFetch(context, (call) => /\/(review-switch|switch|withdraw-revision)$/.test(call.path) ? change() : { id: memberId });
   const api = members();
-  const switchTo = { expected_updated_at: version, to_customer_group_id: groupId, reason: "Upgrade" };
+  const switchTo = { expected_updated_at: version, to_customer_group_id: groupId, choices, reason: "Upgrade" };
   const before = structuredClone(switchTo);
   await api.skipNext({ store_id: store, id: memberId, expected_updated_at: version, occurrence_index: 4 });
   await api.selectPaymentMethod({ store_id: otherStore, id: memberId, expected_updated_at: version, payment_method_id: methodId });
-  await api.scheduleEnd({ store_id: store, id: memberId, expected_updated_at: version, end_at: 1_800_000_000_000 });
+  await api.scheduleEnd({ store_id: store, id: memberId, expected_updated_at: version, end_at: 1_800_000_000_000, notify_customer: true, language: "en" });
   assert.deepEqual(await api.reviewSwitch({ store_id: store, id: memberId, ...switchTo }), change());
   await api.switch({ store_id: store, id: memberId, ...switchTo, catalog_id: catalogId });
   await api.withdrawRevision({ store_id: store, id: memberId, expected_updated_at: version, revision_id: revisionId, reason: "Entered by mistake" });
@@ -65,7 +66,7 @@ test("a skipped purchase, a payment method, a scheduled end, a switch and a with
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
     ["POST", `${base}/skip-next`, { expected_updated_at: version, occurrence_index: 4 }],
     ["POST", `/v1/stores/${otherStore}/customer-group-members/${memberId}/select-payment-method`, { expected_updated_at: version, payment_method_id: methodId }],
-    ["POST", `${base}/schedule-end`, { expected_updated_at: version, end_at: 1_800_000_000_000 }],
+    ["POST", `${base}/schedule-end`, { expected_updated_at: version, end_at: 1_800_000_000_000, notify_customer: true, language: "en" }],
     ["POST", `${base}/review-switch`, switchTo],
     ["POST", `${base}/switch`, { ...switchTo, catalog_id: catalogId }],
     ["POST", `${base}/withdraw-revision`, { expected_updated_at: version, revision_id: revisionId, reason: "Entered by mistake" }],
@@ -80,7 +81,7 @@ test("a skipped purchase, a payment method, a scheduled end, a switch and a with
 test("a switch whose catalog can't sell the new group is refused as TARGET_NOT_PRICED and never retried from another catalog", async (context) => {
   const calls = recordFetch(context, () => errorResponse(409, "CUSTOMER_GROUP_MEMBER.TARGET_NOT_PRICED", "This catalog doesn't sell the new group to this buyer"));
   const api = members();
-  const switchTo = { store_id: store, id: memberId, expected_updated_at: version, to_customer_group_id: groupId, catalog_id: catalogId, reason: "Upgrade" };
+  const switchTo = { store_id: store, id: memberId, expected_updated_at: version, to_customer_group_id: groupId, choices, catalog_id: catalogId, reason: "Upgrade" };
   for (const call of ["reviewSwitch", "switch"]) {
     await assert.rejects(api[call](switchTo), (error) => {
       assert.equal(error.code, "CUSTOMER_GROUP_MEMBER.TARGET_NOT_PRICED");
@@ -90,8 +91,8 @@ test("a switch whose catalog can't sell the new group is refused as TARGET_NOT_P
   }
   const base = `/v1/stores/${store}/customer-group-members/${memberId}`;
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
-    ["POST", `${base}/review-switch`, { expected_updated_at: version, to_customer_group_id: groupId, catalog_id: catalogId, reason: "Upgrade" }],
-    ["POST", `${base}/switch`, { expected_updated_at: version, to_customer_group_id: groupId, catalog_id: catalogId, reason: "Upgrade" }],
+    ["POST", `${base}/review-switch`, { expected_updated_at: version, to_customer_group_id: groupId, choices, catalog_id: catalogId, reason: "Upgrade" }],
+    ["POST", `${base}/switch`, { expected_updated_at: version, to_customer_group_id: groupId, choices, catalog_id: catalogId, reason: "Upgrade" }],
   ]);
 });
 
@@ -114,7 +115,7 @@ test("the calendar and purchase access read the member's next occurrence and gra
 });
 
 test("a buyer acts on and reads their own member through storefront routes and gets their own view back", async (context) => {
-  const self = { id: memberId, status: { type: "paused", paused_at: 5 } };
+  const self = { id: memberId, status: { type: "paused", cause: { type: "requested", resumes_at: null }, paused_at: 5 } };
   const calls = recordFetch(context, (call) => {
     if (/\/(review-switch|switch|withdraw-revision)$/.test(call.path)) return change(self);
     if (call.path.endsWith("/calendar")) return { customer_group_member: self, next: null, after_skip: null };
@@ -124,8 +125,8 @@ test("a buyer acts on and reads their own member through storefront routes and g
     return self;
   });
   const api = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: visitorStorage() }).eshop.customerGroupMember;
-  const switchTo = { id: memberId, expected_updated_at: version, to_customer_group_id: groupId, reason: "Upgrade" };
-  assert.deepEqual(await api.pause({ id: memberId, expected_updated_at: 5, reason: "Travel" }), self);
+  const switchTo = { id: memberId, expected_updated_at: version, to_customer_group_id: groupId, choices, reason: "Upgrade" };
+  assert.deepEqual(await api.pause({ id: memberId, expected_updated_at: 5, reason: "Travel", resumes_at: null }), self);
   await api.resume({ id: memberId, expected_updated_at: 6 });
   await api.cancel({ id: memberId, expected_updated_at: 7 });
   await api.skipNext({ id: memberId, expected_updated_at: 8, occurrence_index: 3 });
@@ -141,13 +142,13 @@ test("a buyer acts on and reads their own member through storefront routes and g
   await api.find({ company_location_id: ids.companyLocation, status: "active", limit: 5 });
   const base = `/v1/storefront/customer-group-members/${memberId}`;
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.query, call.body]), [
-    ["POST", `${base}/pause`, {}, { expected_updated_at: 5, reason: "Travel" }],
+    ["POST", `${base}/pause`, {}, { expected_updated_at: 5, reason: "Travel", resumes_at: null }],
     ["POST", `${base}/resume`, {}, { expected_updated_at: 6 }],
     ["POST", `${base}/cancel`, {}, { expected_updated_at: 7 }],
     ["POST", `${base}/skip-next`, {}, { expected_updated_at: 8, occurrence_index: 3 }],
     ["POST", `${base}/select-payment-method`, {}, { expected_updated_at: 9, payment_method_id: methodId }],
-    ["POST", `${base}/review-switch`, {}, { expected_updated_at: version, to_customer_group_id: groupId, reason: "Upgrade" }],
-    ["POST", `${base}/switch`, {}, { expected_updated_at: version, to_customer_group_id: groupId, reason: "Upgrade", catalog_id: catalogId }],
+    ["POST", `${base}/review-switch`, {}, { expected_updated_at: version, to_customer_group_id: groupId, choices, reason: "Upgrade" }],
+    ["POST", `${base}/switch`, {}, { expected_updated_at: version, to_customer_group_id: groupId, choices, reason: "Upgrade", catalog_id: catalogId }],
     ["POST", `${base}/withdraw-revision`, {}, { expected_updated_at: 10, revision_id: revisionId, reason: "Changed my mind" }],
     ["GET", `${base}/calendar`, {}, null],
     ["GET", `${base}/purchase-access`, { catalog_id: catalogId, variant_ids: JSON.stringify([ids.variant]), limit: "5" }, null],

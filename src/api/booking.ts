@@ -62,12 +62,14 @@ export const createBookingServiceApi = (apiConfig: ApiConfig) => ({
 
   create(params: CreateBookingServiceParams, options?: RequestOptions): Promise<BookingService> {
     requireId(params.id, "booking service");
-    const { store_id, ...body } = params;
+    const { store_id } = params;
+    const body = { id: params.id, key: params.key, slugs: params.slugs, blocks: params.blocks, categories: params.categories, status: params.status, segments: params.segments, buffer_before_minutes: params.buffer_before_minutes, buffer_after_minutes: params.buffer_after_minutes, slot_interval_minutes: params.slot_interval_minutes, booking_window: params.booking_window, customer_changes: params.customer_changes, reminder_offsets_minutes: params.reminder_offsets_minutes, tax_category_id: params.tax_category_id };
     return apiConfig.httpClient.post<BookingService>(storePath(store_id, "booking-services"), body, options);
   },
 
   update(params: UpdateBookingServiceParams, options?: RequestOptions): Promise<BookingService> {
-    const { store_id, id, ...body } = params;
+    const { store_id, id } = params;
+    const body = { key: params.key, slugs: params.slugs, blocks: params.blocks, categories: params.categories, status: params.status, segments: params.segments, buffer_before_minutes: params.buffer_before_minutes, buffer_after_minutes: params.buffer_after_minutes, slot_interval_minutes: params.slot_interval_minutes, booking_window: params.booking_window, customer_changes: params.customer_changes, reminder_offsets_minutes: params.reminder_offsets_minutes, tax_category_id: params.tax_category_id, expected_updated_at: params.expected_updated_at };
     return apiConfig.httpClient.put<BookingService>(storeRecordPath(store_id, "booking-services", id), body, options);
   },
 
@@ -104,12 +106,14 @@ export const createBookingResourceApi = (apiConfig: ApiConfig) => ({
 
   create(params: CreateBookingResourceParams, options?: RequestOptions): Promise<BookingResource> {
     requireId(params.id, "booking resource");
-    const { store_id, ...body } = params;
+    const { store_id } = params;
+    const body = { id: params.id, key: params.key, slugs: params.slugs, status: params.status, blocks: params.blocks, categories: params.categories, timezone: params.timezone, capacity: params.capacity, hours: params.hours };
     return apiConfig.httpClient.post<BookingResource>(storePath(store_id, "booking-resources"), body, options);
   },
 
   update(params: UpdateBookingResourceParams, options?: RequestOptions): Promise<BookingResource> {
-    const { store_id, id, ...body } = params;
+    const { store_id, id } = params;
+    const body = { key: params.key, slugs: params.slugs, status: params.status, blocks: params.blocks, categories: params.categories, timezone: params.timezone, capacity: params.capacity, hours: params.hours, expected_updated_at: params.expected_updated_at };
     return apiConfig.httpClient.put<BookingResource>(storeRecordPath(store_id, "booking-resources", id), body, options);
   },
 
@@ -147,12 +151,14 @@ export const createBookingOfferingApi = (apiConfig: ApiConfig) => ({
 
   create(params: CreateBookingOfferingParams, options?: RequestOptions): Promise<BookingOffering> {
     requireId(params.id, "booking offering");
-    const { store_id, ...body } = params;
+    const { store_id } = params;
+    const body = { id: params.id, booking_service_id: params.booking_service_id, booking_resource_id: params.booking_resource_id, hours: params.hours, venue: params.venue, status: params.status };
     return apiConfig.httpClient.post<BookingOffering>(storePath(store_id, "booking-offerings"), body, options);
   },
 
   update(params: UpdateBookingOfferingParams, options?: RequestOptions): Promise<BookingOffering> {
-    const { store_id, id, ...body } = params;
+    const { store_id, id } = params;
+    const body = { hours: params.hours, venue: params.venue, status: params.status, expected_updated_at: params.expected_updated_at };
     return apiConfig.httpClient.put<BookingOffering>(storeRecordPath(store_id, "booking-offerings", id), body, options);
   },
 

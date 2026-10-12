@@ -10,7 +10,7 @@ const catalogId = "8a6d4f2b-9c1e-4e57-b3a8-1f6c9e2d4b70";
 const marketId = "5e8b0c7d-1f24-4a9e-b6d3-2c7a9f4e0b18";
 const channelId = "9a4e2c71-5b38-4d06-8f1e-3c7b9d2a6e54";
 const now = 1788862721000;
-const sellable = { type: "product_variant", product_id: id, variant_id: otherStoreId };
+const sellable = { type: "product_variant", variant_id: otherStoreId };
 const definitions = [
   {
     owner: "price",

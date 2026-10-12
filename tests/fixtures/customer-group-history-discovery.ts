@@ -3,7 +3,7 @@ import type {
   CustomerGroupMember,
   CustomerGroupMemberAcceptedTerms,
   CustomerGroupMemberCurrent,
-  CustomerGroupMemberPurchaseLimitPeriod,
+  CustomerGroupMemberPurchaseLimitUsage,
   CustomerGroupMemberRevision,
   CustomerGroupMemberRevisionDetail,
   CustomerGroupMemberRevisionDetailSelf,
@@ -29,15 +29,16 @@ const current: Promise<CustomerGroupMemberCurrent> = admin.eshop.customerGroupMe
 const orders: Promise<PaginatedResponse<Order>> = admin.eshop.customerGroupMember.findOrders({ store_id, id: "member", limit: 20 });
 const revisions: Promise<PaginatedResponse<CustomerGroupMemberRevision>> = admin.eshop.customerGroupMember.revisions({ store_id, id: "member" });
 const revision: Promise<CustomerGroupMemberRevisionDetail> = admin.eshop.customerGroupMember.getRevision({ store_id, customer_group_member_id: "member", revision_id: "revision" });
-const limits: Promise<PaginatedResponse<CustomerGroupMemberPurchaseLimitPeriod>> = admin.eshop.customerGroupMember.purchaseLimits({ store_id, id: "member" });
+const limits: Promise<PaginatedResponse<CustomerGroupMemberPurchaseLimitUsage>> = admin.eshop.customerGroupMember.purchaseLimits({ store_id, id: "member" });
 void [current, orders, revisions, revision, limits];
 
 export type CustomerGroupHistoryContracts = [
   Assert<Equal<CustomerGroupMemberCurrent["customer_group_member"], CustomerGroupMember>>,
   Assert<Equal<keyof CustomerGroupMemberCurrent, "customer_group_member" | "revision" | "terms" | "head_revision_id">>,
   Assert<Equal<CustomerGroupMemberCurrent["terms"], CustomerGroupMemberAcceptedTerms | null>>,
-  Assert<Equal<keyof CustomerGroupMemberAcceptedTerms, "group" | "deliveries" | "billing_address">>,
-  Assert<Missing<Extract<CustomerGroupMemberSelf["status"], { type: "paused" }>, "cause">>,
+  Assert<Equal<keyof CustomerGroupMemberAcceptedTerms, "group" | "quantity" | "choices" | "deliveries" | "billing_address">>,
+  Assert<Equal<Extract<CustomerGroupMemberSelf["status"], { type: "paused" }>["cause"]["type"], "requested" | "renewal_unpaid">>,
+  Assert<Missing<Extract<Extract<CustomerGroupMemberSelf["status"], { type: "paused" }>["cause"], { type: "requested" }>, "by" | "reason">>,
   Assert<Equal<Extract<CustomerGroupMember["status"], { type: "paused" }>["cause"]["type"], "requested" | "renewal_unpaid">>,
   Assert<Missing<Extract<CustomerGroupMember["status"], { type: "blocked" }>, "block">>,
   Assert<Missing<CustomerGroupMemberRevisionSelf, "accepted_by">>,

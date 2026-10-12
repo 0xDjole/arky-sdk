@@ -21,22 +21,22 @@ export interface PlatformAdministrator {
 export type AccountSessionStatus =
   | {
       type: "pending_verification";
+      email: string;
       failed_attempts: number;
       verification_expires_at: EpochMilliseconds;
     }
   | {
       type: "active";
+      account_id: string;
       access_expires_at: EpochMilliseconds;
       refresh_expires_at: EpochMilliseconds;
       authenticated_at: EpochMilliseconds;
     }
-  | { type: "locked" }
   | { type: "superseded" }
   | { type: "revoked" };
 
 export interface AccountSession {
   id: string;
-  account_id: string;
   status: AccountSessionStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;

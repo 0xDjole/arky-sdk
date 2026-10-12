@@ -20,7 +20,7 @@ export type SupportStep =
       initial_sending_address_id: string | null;
       next_step_key: string;
     }
-  | { type: "send_email"; email_template_id: string; language: string; next_step_key: string }
+  | { type: "send_email"; email_template_id: string; next_step_key: string }
   | { type: "hand_to_team" }
   | { type: "resolve" };
 
@@ -42,15 +42,16 @@ export type ConversationStatusName = ConversationStatus["type"];
 
 export type ConversationContactName = "chat" | "email";
 
-export interface ConversationChat {
-  language: string;
-}
-
 export interface ConversationEmail {
   customer_email: string;
   subject: string;
   sending_address_id: string | null;
 }
+
+export type ConversationType =
+  | { type: "chat" }
+  | { type: "email"; email: ConversationEmail }
+  | { type: "chat_and_email"; email: ConversationEmail };
 
 export interface ConversationFlowFailure {
   step_key: string;
@@ -71,8 +72,8 @@ export interface Conversation {
   customer_id: string;
   assigned_account_id: string | null;
   status: ConversationStatus;
-  chat: ConversationChat | null;
-  email: ConversationEmail | null;
+  type: ConversationType;
+  language: string;
   flow: ConversationFlow | null;
   next_message_sequence: number;
   created_at: EpochMilliseconds;
@@ -117,7 +118,7 @@ export type ConversationEmailSendStatus =
   | { type: "not_sent"; reason: string; at: EpochMilliseconds }
   | { type: "maybe_sent"; at: EpochMilliseconds };
 
-export interface ConversationOutgoingEmail {
+export interface ReplyEmail {
   sending_address_id: string;
   outgoing_email_id: string;
   provider_email_id: string | null;
@@ -133,8 +134,8 @@ export type ConversationReplyAuthor =
 
 export type ConversationReplyDelivery =
   | { type: "chat" }
-  | { type: "email"; email: ConversationOutgoingEmail }
-  | { type: "chat_and_email"; email: ConversationOutgoingEmail };
+  | { type: "email"; email: ReplyEmail }
+  | { type: "chat_and_email"; email: ReplyEmail };
 
 export type ReplyDeliveryName = ConversationReplyDelivery["type"];
 
@@ -145,6 +146,7 @@ export type ConversationMessageType =
       text: string;
       email: ReceivedEmail;
       attachments: EmailAttachment[];
+      left_out_attachments: { file_name: string; reason: "over_limit" | "unavailable" }[];
       visible_in_chat: boolean;
     }
   | { type: "flow_message"; step_key: string; text: string }
@@ -207,10 +209,6 @@ export interface StorefrontConversationReply {
   messages: StorefrontConversationMessage[];
 }
 
-export interface StorefrontConversationStart extends StorefrontConversationReply {
-  support_token: string;
-}
-
 export type ChatInput = { type: "button"; label: string } | { type: "text"; text: string };
 
 export interface StartConversationParams {
@@ -220,29 +218,37 @@ export interface StartConversationParams {
 }
 
 export interface StorefrontGetConversationParams {
-  support_token: string;
   conversation_id: string;
 }
 
 export interface StorefrontFindConversationMessagesParams {
-  support_token: string;
   conversation_id: string;
   limit?: number;
   cursor?: string | null;
 }
 
 export interface StorefrontGetConversationMessageParams {
-  support_token: string;
   conversation_id: string;
   message_id: string;
 }
 
 export interface SendConversationMessageParams {
-  support_token: string;
   conversation_id: string;
   id: string;
   input: ChatInput;
   prompt_message_id?: string;
+}
+
+export interface StartEmailConversationParams {
+  store_id: string;
+  id: string;
+  message_id: string;
+  customer_id: string;
+  email: string;
+  subject: string;
+  language: string;
+  sending_address_id: string;
+  text: string;
 }
 
 export interface FindSupportFlowsParams {

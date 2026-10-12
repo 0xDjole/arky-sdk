@@ -1,8 +1,20 @@
 import type { CalendarDate, EpochMilliseconds } from "./time";
 import type { Block, BlockQuery } from "./block";
-import type { CompanyPartyQuery, Money, PaginatedResponse, SortDirection, TaxMode } from "./common";
+import type { CompanyPartyQuery, LocalizedText, Money, PaginatedResponse, SelectOption, SortDirection, TaxMode } from "./common";
 import type { CategoryEntry, CategoryQuery } from "./content";
 import type { CatalogReadOptions } from "./catalog";
+
+export interface ProductOption {
+  id: string;
+  key: string;
+  label: LocalizedText;
+  values: SelectOption[];
+}
+
+export interface ProductVariantOption {
+  option_id: string;
+  value_key: string;
+}
 
 export type ProductStatus =
   | { type: "active" }
@@ -18,6 +30,7 @@ export interface Product {
   key: string;
   slugs: Record<string, string>;
   blocks: Block[];
+  options: ProductOption[];
   categories: CategoryEntry[];
   status: ProductStatus;
   created_at: EpochMilliseconds;
@@ -54,7 +67,9 @@ export interface ProductVariant {
   store_id: string;
   product_id: string;
   sku: string | null;
-  attributes: Block[];
+  blocks: Block[];
+  options: ProductVariantOption[];
+  options_valid: boolean;
   fulfillment: ProductFulfillment;
   tax_category_id: string;
   status: ProductVariantStatus;
@@ -80,6 +95,14 @@ export interface BookingService {
   status: BookingServiceStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+  segments: ServiceSegment[];
+  buffer_before_minutes: number;
+  buffer_after_minutes: number;
+  slot_interval_minutes: number;
+  booking_window: BookingWindow;
+  customer_changes: BookingCustomerChanges;
+  reminder_offsets_minutes: number[];
+  tax_category_id: string;
 }
 
 export type Weekday =
@@ -100,8 +123,17 @@ export type ServiceSegment =
   | { type: "service"; minutes: number }
   | { type: "pause"; minutes: number };
 
+export interface BookingHours {
+  weekly_availability: Partial<Record<Weekday, WorkingWindow[]>>;
+  date_overrides: Record<CalendarDate, WorkingWindow[]>;
+}
+
+export type BookingOfferingHours = { type: "resource" } | { type: "within"; hours: BookingHours };
+
+export type BookingCustomerChanges = { type: "not_allowed" } | { type: "until_before_start"; minutes: number };
+
 export type BookingVenue =
-  | { type: "not_fixed" }
+  | { type: "not_fixed"; store_location_id: string }
   | { type: "store_location"; store_location_id: string };
 
 export interface BookingWindow {
@@ -122,17 +154,11 @@ export interface BookingOffering {
   store_id: string;
   booking_service_id: string;
   booking_resource_id: string;
-  weekly_availability: Partial<Record<Weekday, WorkingWindow[]>>;
-  date_overrides: Record<CalendarDate, WorkingWindow[]>;
-  segments: ServiceSegment[];
-  slot_interval_minutes: number;
-  booking_window: BookingWindow;
-  reminder_offsets_minutes: number[];
   venue: BookingVenue;
-  tax_category_id: string;
   status: BookingOfferingStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+  hours: BookingOfferingHours;
 }
 
 export type BookingResourceStatus =
@@ -155,6 +181,7 @@ export interface BookingResource {
   status: BookingResourceStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+  hours: BookingHours;
 }
 
 export interface BookingCapacityClaim {
@@ -202,6 +229,7 @@ export interface StorefrontProduct {
   key: string;
   slugs: Record<string, string>;
   blocks: Block[];
+  options: ProductOption[];
   categories: CategoryEntry[];
   price: StorefrontPrice | null;
 }
@@ -210,7 +238,8 @@ export interface StorefrontProductVariant {
   id: string;
   product_id: string;
   sku: string | null;
-  attributes: Block[];
+  blocks: Block[];
+  options: ProductVariantOption[];
   fulfillment: ProductFulfillment;
   tax_category_id: string;
   status: ProductVariantStatus;
@@ -314,6 +343,7 @@ export interface CreateProductParams {
   key: string;
   slugs: Record<string, string>;
   blocks: Block[];
+  options: ProductOption[];
   categories: CategoryEntry[];
 }
 
@@ -324,6 +354,7 @@ export interface UpdateProductParams {
   key?: string;
   slugs?: Record<string, string>;
   blocks?: Block[];
+  options?: ProductOption[];
   categories?: CategoryEntry[];
   status?: ProductEditableStatus;
 }
@@ -339,7 +370,8 @@ export interface CreateProductVariantParams {
   id: string;
   product_id: string;
   sku: string | null;
-  attributes: Block[];
+  blocks: Block[];
+  options: ProductVariantOption[];
   fulfillment: ProductFulfillment;
   tax_category_id: string;
 }
@@ -349,7 +381,8 @@ export interface UpdateProductVariantParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   sku: string | null;
-  attributes: Block[];
+  blocks: Block[];
+  options: ProductVariantOption[];
   fulfillment: ProductFulfillment;
   tax_category_id: string;
   status: ProductVariantEditableStatus;
@@ -413,6 +446,14 @@ export interface CreateBookingServiceParams {
   blocks: Block[];
   categories: CategoryEntry[];
   status?: BookingServiceEditableStatus;
+  segments: ServiceSegment[];
+  buffer_before_minutes: number;
+  buffer_after_minutes: number;
+  slot_interval_minutes: number;
+  booking_window: BookingWindow;
+  customer_changes: BookingCustomerChanges;
+  reminder_offsets_minutes: number[];
+  tax_category_id: string;
 }
 
 export interface UpdateBookingServiceParams {
@@ -424,6 +465,14 @@ export interface UpdateBookingServiceParams {
   blocks?: Block[];
   categories?: CategoryEntry[];
   status?: BookingServiceEditableStatus;
+  segments?: ServiceSegment[];
+  buffer_before_minutes?: number;
+  buffer_after_minutes?: number;
+  slot_interval_minutes?: number;
+  booking_window?: BookingWindow;
+  customer_changes?: BookingCustomerChanges;
+  reminder_offsets_minutes?: number[];
+  tax_category_id?: string;
 }
 
 export interface DeleteBookingServiceParams {
@@ -467,6 +516,7 @@ export interface CreateBookingResourceParams {
   timezone: string;
   capacity: number;
   status?: BookingResourceEditableStatus;
+  hours: BookingHours;
 }
 
 export interface UpdateBookingResourceParams {
@@ -480,6 +530,7 @@ export interface UpdateBookingResourceParams {
   timezone?: string;
   capacity?: number;
   status?: BookingResourceEditableStatus;
+  hours?: BookingHours;
 }
 
 export interface DeleteBookingResourceParams {
@@ -493,30 +544,18 @@ export interface CreateBookingOfferingParams {
   id: string;
   booking_service_id: string;
   booking_resource_id: string;
-  weekly_availability: Partial<Record<Weekday, WorkingWindow[]>>;
-  date_overrides: Record<CalendarDate, WorkingWindow[]>;
-  segments: ServiceSegment[];
-  slot_interval_minutes: number;
-  booking_window: BookingWindow;
-  reminder_offsets_minutes: number[];
   venue: BookingVenue;
-  tax_category_id: string;
   status?: BookingOfferingEditableStatus;
+  hours: BookingOfferingHours;
 }
 
 export interface UpdateBookingOfferingParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  weekly_availability?: Partial<Record<Weekday, WorkingWindow[]>>;
-  date_overrides?: Record<CalendarDate, WorkingWindow[]>;
-  segments?: ServiceSegment[];
-  slot_interval_minutes?: number;
-  booking_window?: BookingWindow;
-  reminder_offsets_minutes?: number[];
   venue?: BookingVenue;
-  tax_category_id?: string;
   status?: BookingOfferingEditableStatus;
+  hours?: BookingOfferingHours;
 }
 
 export interface GetBookingOfferingParams {
@@ -650,7 +689,7 @@ export type GetStorefrontAvailabilityParams = CompanyPartyQuery & {
   from: EpochMilliseconds;
   to: EpochMilliseconds;
   booking_resource_id?: string;
-  catalog_id?: string;
+  catalog_id: string;
   limit?: number;
   cursor?: string | null;
 };

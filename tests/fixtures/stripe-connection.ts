@@ -11,6 +11,8 @@ import type {
   StoreSubscriptionPaymentAction,
   StripeConnection,
   StripeWebhook,
+  LocalizedMarkdown,
+  UpdatePaymentOptionParams,
 } from "arky-sdk";
 
 type Admin = ReturnType<typeof createAdmin>;
@@ -33,6 +35,11 @@ export type StripeConnectionContracts = [
   Assert<Equal<Awaited<ReturnType<Stripe["refresh"]>>, PaymentOption>>,
   Assert<RequiredField<ConnectStripePaymentOptionParams, "id">>,
   Assert<RequiredField<ConnectStripePaymentOptionParams, "restricted_key">>,
+  Assert<RequiredField<ConnectStripePaymentOptionParams, "saved_card_terms">>,
+  Assert<Equal<ConnectStripePaymentOptionParams["saved_card_terms"], LocalizedMarkdown>>,
+  Assert<Equal<StripeConnection["saved_card_terms"], LocalizedMarkdown>>,
+  Assert<RequiredField<UpdatePaymentOptionParams, "saved_card_terms">>,
+  Assert<Equal<UpdatePaymentOptionParams["saved_card_terms"], LocalizedMarkdown | null>>,
   Assert<RequiredField<RefreshStripePaymentOptionParams, "expected_updated_at">>,
   Assert<RequiredField<ReplaceStripeKeysParams, "expected_updated_at">>,
   Assert<Missing<ConnectStripePaymentOptionParams, "request_id" | "connected_account_id" | "configuration">>,
@@ -52,4 +59,5 @@ export const connect: ConnectStripePaymentOptionParams = {
   status: "active",
   restricted_key: "rk_test",
   publishable_key: "pk_test",
+  saved_card_terms: { en: "The Store's exact saved-card wording." },
 };

@@ -5,8 +5,8 @@ import { createStorefront, initialize } from "../dist/storefront.js";
 import { apiUrl, publishableKey, SessionStorage } from "./helpers/arky-fixtures.mjs";
 
 const storefrontMemberCalls = [
-  "calendar", "cancel", "find", "findOrders", "get", "getRevision", "pause", "purchaseAccess", "resume",
-  "reviewSwitch", "selectPaymentMethod", "skipNext", "switch", "withdrawRevision",
+  "calendar", "cancel", "changeTerms", "find", "findOrders", "get", "getRevision", "pause", "purchaseAccess", "resume",
+  "reviewSwitch", "reviewTerms", "selectPaymentMethod", "skipNext", "switch", "withdrawRevision",
 ];
 
 test("the storefront reads groups, offerings and the shopper's own members under eshop, with no join, assign or email consent calls", () => {

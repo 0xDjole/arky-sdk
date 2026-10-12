@@ -40,6 +40,10 @@ export interface Coordinates {
   lon: number;
 }
 
+export type Schedule =
+  | { type: "always" }
+  | { type: "scheduled"; starts_at: EpochMilliseconds; ends_at: EpochMilliseconds | null };
+
 export interface TimeRange {
   from: EpochMilliseconds;
   to: EpochMilliseconds;

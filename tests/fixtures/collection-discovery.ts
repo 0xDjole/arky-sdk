@@ -1,9 +1,16 @@
 import { createAdmin, epochMilliseconds, type Collection, type CollectionStatus, type CreateCollectionParams,
-  type FindCollectionsParams, type UpdateCollectionParams } from "../../dist/index.js";
+  type FindCollectionsParams, type UpdateCollectionParams, type Entry, type EntryStatus, type UpdateEntryParams } from "../../dist/index.js";
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
+
+export type ScheduledEntryContracts = [
+  Assert<Equal<Extract<EntryStatus, { type: "scheduled" }>, { type: "scheduled"; publish_at: ReturnType<typeof epochMilliseconds> }>>,
+  Assert<RequiredField<Entry, "validation_errors">>,
+  Assert<Equal<Entry["validation_errors"], { field: string; error: string }[]>>,
+  Assert<Equal<Extract<NonNullable<UpdateEntryParams["status"]>, { type: "scheduled" }>, Extract<EntryStatus, { type: "scheduled" }>>>,
+];
 
 const store_id = "7a3f9e21-5c84-4d06-b2e9-0f1d6c8a4b73";
 const api = createAdmin({ baseUrl: "https://content.test" }).content.collection;

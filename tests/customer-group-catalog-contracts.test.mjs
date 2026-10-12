@@ -67,7 +67,8 @@ test("a customer group owns its term and its entitlements, and is created under 
   const term = {
     type: "recurring",
     cadence: { interval: "month", interval_count: 1 },
-    recovery_policy: { retry_offsets_seconds: [86_400], recovery_window_seconds: 604_800, on_exhaustion: { type: "pause" }, unpaid_order: { type: "retain_debt" } },
+    retry_offsets_seconds: [86_400], recovery_window_seconds: 604_800, on_exhaustion: { type: "pause" }, unpaid_order: { type: "retain_debt" },
+    renewal_reminder_days: null,
     commitment: { occurrences: 12, end_action: { type: "renew_once" } },
   };
   const create = {

@@ -8,9 +8,7 @@ const memberId = "d65211c1-743f-45fb-ab24-07221b1e3a7c";
 const otherMemberId = "5f2a8c63-1d47-4b90-a3e6-9c0b7d4e2f18";
 const entitlementId = "0b9a4b7e-51a1-4d5f-9d9f-7a0e3f9ce0a1";
 const requirement = {
-  unit: { type: "millilitres" },
   minimum_quantity: 5000,
-  period: { type: "calendar_month", timezone: "Europe/Sarajevo" },
   qualifying_variants: [{ variant_id: "variant", contribution_per_unit: 250 }],
   scope: { type: "per_location" },
 };
@@ -20,7 +18,7 @@ function members() {
 }
 
 test("the effective minimum is read at the caller's instant or at the Server's now, with the caller's request options", async (context) => {
-  const result = { customer_group_member: { id: memberId, store_id: storeId }, starts_at: 1, ends_at: null, evaluated_at: 1_700_000_000_123, initial: null, current: requirement };
+  const result = { customer_group_member: { id: memberId, store_id: storeId }, starts_at: 1, timezone: "Europe/Sarajevo", ends_at: null, evaluated_at: 1_700_000_000_123, initial: null, current: requirement };
   const calls = recordFetch(context, () => result);
   const api = members();
   const signal = new AbortController().signal;
